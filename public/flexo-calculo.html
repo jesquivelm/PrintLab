@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C&aacute;lculo de Flexograf&iacute;a</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="app-shell">
+        <header class="topbar topbar-quote calc-page-topbar">
+            <div class="brand brand-quote calc-page-brand calc-page-brand-clean">
+                <div class="calc-page-heading">
+                    <h1 id="calcTitle">C&aacute;lculo de Flexograf&iacute;a</h1>
+                    <div class="calc-page-meta">
+                        <span id="calcCustomerMeta">Cliente: Sin seleccionar</span>
+                        <span id="calcSellerMeta">Vendedor: Sin asignar</span>
+                    </div>
+                </div>
+
+                <div class="topbar-user-tools topbar-user-tools-compact">
+                    <button type="button" id="calcSearchButton" class="tool-icon plain-icon" aria-label="Buscar"></button>
+                    <button type="button" id="calcMenuToggle" class="tool-icon plain-icon" aria-label="Abrir opciones"></button>
+                    <div id="calcMenuPanel" class="menu-panel" hidden>
+                        <a href="/" class="menu-link" id="backToQuoteLink">Volver</a>
+                        <a href="/inventario-procesos" class="menu-link">Procesos</a>
+                        <a href="/calculo-flexografia" class="menu-link">C&aacute;lculo de Flexograf&iacute;a</a>
+                        <button type="button" class="menu-link menu-link-button" id="saveCalculationButton">Guardar</button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="workspace flexo-layout flexo-layout-refined">
+            <section class="flexo-main-panel">
+                <div class="flexo-header-grid flexo-header-grid-single">
+                    <article class="flexo-card flexo-global-settings">
+                        <h2 class="flexo-section-pill">Par&aacute;metros del C&aacute;lculo</h2>
+                        <div class="settings-grid" id="globalCostSettings"></div>
+                    </article>
+                </div>
+
+                <section class="flexo-card flexo-card-form">
+                    <div class="section-head section-head-compact">
+                        <h2 class="flexo-section-pill">Informaci&oacute;n General</h2>
+                        <button type="button" id="calculatePreview" class="action-btn">Calcular vista previa</button>
+                    </div>
+
+                    <form id="flexoCalcForm" class="flexo-form-shell">
+                        <section class="flexo-section-block">
+                            <div class="flexo-general-row">
+                                <label class="flexo-col-job">
+                                    <span>Nombre del Trabajo</span>
+                                    <select id="productId" name="productId"></select>
+                                </label>
+                                <label class="flexo-col-order">
+                                    <span>Tipo de Trabajo</span>
+                                    <select id="orderType" name="orderType">
+                                        <option>Nuevo</option>
+                                        <option>Repetici&oacute;n</option>
+                                        <option>Repetici&oacute;n con Cambio</option>
+                                        <option>Pruebas</option>
+                                        <option>Muestras</option>
+                                        <option>Regal&iacute;as</option>
+                                    </select>
+                                </label>
+                                <label class="flexo-col-process">
+                                    <span>Tipo de Producto</span>
+                                    <select id="processType" name="processType">
+                                        <option value="digital">Digital</option>
+                                        <option value="convencional">Convencional</option>
+                                    </select>
+                                </label>
+                            </div>
+                        </section>
+
+                        <section class="flexo-section-block">
+                            <div class="section-head section-head-compact section-head-inline">
+                                <h2 class="flexo-section-pill">Datos T&eacute;cnicos</h2>
+                            </div>
+                            <div class="flexo-tech-layout">
+                                <div class="flexo-tech-column flexo-tech-column-left">
+                                    <article class="flexo-subcard">
+                                        <h3 class="flexo-subcard-pill">Informaci&oacute;n de Producto</h3>
+                                        <div class="flexo-form-grid flexo-form-grid-compact flexo-form-grid-two">
+                                            <label>
+                                                <span>Alto</span>
+                                                <input id="widthInches" name="widthInches" type="number" min="0" step="0.01">
+                                            </label>
+                                            <label>
+                                                <span>Largo</span>
+                                                <input id="lengthInches" name="lengthInches" type="number" min="0" step="0.01">
+                                            </label>
+                                        </div>
+                                    </article>
+
+                                    <article class="flexo-subcard">
+                                        <h3 class="flexo-subcard-pill">Datos de Etiquetado</h3>
+                                        <div class="flexo-form-grid flexo-form-grid-compact flexo-form-grid-three">
+                                            <label>
+                                                <span>Ancho de Rollo</span>
+                                                <input id="coreWidthInput" name="coreWidthInput" type="number" min="0" step="0.01">
+                                            </label>
+                                            <label>
+                                                <span>Di&aacute;metro de Core</span>
+                                                <input id="coreDiameterInput" name="coreDiameterInput" type="text">
+                                            </label>
+                                            <label>
+                                                <span>Etiquetas por Rollo</span>
+                                                <input id="labelsPerRoll" name="labelsPerRoll" type="number" min="0" step="1">
+                                            </label>
+                                        </div>
+                                        <div class="flexo-tagging-layout">
+                                            <label class="flexo-output-card">
+                                                <span>Tipo de Salida</span>
+                                                <input id="outputType" name="outputType" type="text">
+                                                <div id="outputTypePreview" class="flexo-output-preview" aria-hidden="true">
+                                                    <div class="flexo-output-badge">Salida</div>
+                                                </div>
+                                            </label>
+                                            <label class="flexo-output-side">
+                                                <span>Tipo de Etiquetado</span>
+                                                <input id="applicationType" name="applicationType" type="text">
+                                            </label>
+                                        </div>
+                                    </article>
+                                </div>
+
+                                <div class="flexo-tech-column flexo-tech-column-right">
+                                    <article class="flexo-subcard">
+                                        <h3 class="flexo-subcard-pill">Aplicaci&oacute;n y Superficie</h3>
+                                        <div class="flexo-form-grid flexo-form-grid-compact">
+                                            <label>
+                                                <span>Aplicaci&oacute;n</span>
+                                                <input id="applicationModeInput" name="applicationModeInput" type="text">
+                                            </label>
+                                            <label>
+                                                <span>Ambiente</span>
+                                                <input id="environmentInput" name="environmentInput" type="text">
+                                            </label>
+                                            <label>
+                                                <span>Tipo de Superficie</span>
+                                                <input id="surfaceTypeInput" name="surfaceTypeInput" type="text">
+                                            </label>
+                                        </div>
+                                    </article>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="flexo-section-block">
+                            <div class="section-head section-head-compact section-head-inline">
+                                <h2 class="flexo-section-pill">Cantidad de Productos</h2>
+                            </div>
+                            <div class="flexo-quantity-editor">
+                                <div class="flexo-quantity-toolbar">
+                                    <span class="flexo-quantity-caption">Cantidad</span>
+                                </div>
+                                <div id="quantityProductsList" class="flexo-quantity-list"></div>
+                            </div>
+                            <input id="quantityProducts" name="quantityProducts" type="hidden">
+                        </section>
+
+                        <section class="flexo-section-block">
+                            <div class="section-head section-head-compact section-head-inline">
+                                <h2 class="flexo-section-pill">Producci&oacute;n Base</h2>
+                            </div>
+                            <div class="flexo-form-grid flexo-form-grid-compact flexo-form-grid-two">
+                                <label>
+                                    <span>Material</span>
+                                    <select id="materialId" name="materialId"></select>
+                                </label>
+                                <label>
+                                    <span>Troquel</span>
+                                    <select id="dieId" name="dieId"></select>
+                                </label>
+                                <label>
+                                    <span>M&aacute;quina</span>
+                                    <select id="machineId" name="machineId"></select>
+                                </label>
+                                <label>
+                                    <span>Cantidad de Tintas</span>
+                                    <input id="stationCount" name="stationCount" type="number" min="0" step="1">
+                                </label>
+                            </div>
+                        </section>
+                    </form>
+                </section>
+
+                <section class="flexo-card">
+                    <div class="section-head section-head-compact">
+                        <h2 class="flexo-section-pill">Referencias del C&aacute;lculo</h2>
+                        <p class="section-caption">Datos importados de la l&iacute;nea seleccionada y de sus l&iacute;neas relacionadas.</p>
+                    </div>
+                    <div class="machine-category-grid" id="machineCategoryGrid"></div>
+                </section>
+            </section>
+
+            <aside class="flexo-sidebar">
+                <article class="flexo-card result-panel">
+                    <h2 class="flexo-section-pill">Subtotales y Validaciones</h2>
+                    <div id="calcStatus" class="status">Selecciona producto, material, troquel y m&aacute;quina para revisar la proyecci&oacute;n.</div>
+                    <div id="previewMetrics" class="preview-list"></div>
+                    <div id="previewBreakdown" class="preview-list"></div>
+                    <div id="validationPanels" class="preview-list"></div>
+                </article>
+            </aside>
+        </main>
+    </div>
+
+    <script src="/flexo-calculo.js"></script>
+</body>
+</html>

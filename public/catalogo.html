@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventario</title>
+    <link rel="stylesheet" href="/styles.css">
+    <style>
+        .topbar.topbar-quote { display: none; }
+    </style>
+</head>
+<body>
+    <div class="app-shell">
+        <header class="topbar topbar-quote">
+            <div class="brand brand-quote">
+                <div class="brand-logo-wrap">
+                    <img id="companyLogo" class="company-logo" alt="Logo empresa">
+                    <div id="brandFallback" class="brand-mark">PrintLab</div>
+                </div>
+                <h1 id="catalogTitle">Inventario</h1>
+
+                <div class="topbar-user-tools topbar-user-tools-compact">
+                    <button type="button" id="catalogHeaderSearchButton" class="tool-icon plain-icon" aria-label="Buscar"></button>
+                    <button type="button" id="catalogMenuToggle" class="tool-icon plain-icon" aria-label="Abrir opciones"></button>
+                    <div id="catalogMenuPanel" class="menu-panel" hidden>
+                        <a href="/" class="menu-link">Cotizaciones</a>
+                        <a href="/socios" class="menu-link">Socios de Negocio</a>
+                        <a href="/flexo-calculo" class="menu-link">Cálculos</a>
+                        <a href="/inventario-materiales" class="menu-link">Inventario Materia Prima</a>
+                        <a href="/inventario-troqueles" class="menu-link">Inventario Troqueles</a>
+                        <a href="/inventario-maquinas" class="menu-link">Inventario Máquinas</a>
+                        <a href="/inventario-procesos" class="menu-link">Inventario Procesos</a>
+                        <a href="/calculo-flexografia" class="menu-link">Cálculo de Flexografía</a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="workspace inventory-workspace">
+            <section class="inventory-toolbar-shell quote-browser-search-row">
+                <div class="inventory-actions quote-browser-actions-left">
+                    <button id="catalogBackButton" type="button" class="action-btn quote-browser-action-btn" hidden>Listado</button>
+                    <button id="catalogNewButton" type="button" class="action-btn quote-browser-action-btn">Nuevo</button>
+                    <button id="catalogSaveButton" type="button" class="action-btn quote-browser-action-btn">Guardar</button>
+                    <button id="catalogImportButton" type="button" class="action-btn quote-browser-action-btn" hidden>Importar</button>
+                    <button id="catalogExportButton" type="button" class="action-btn quote-browser-action-btn" hidden>Exportar</button>
+                </div>
+                <div class="quote-browser-search-wrap inventory-search-toolbar">
+                    <input id="catalogSearch" class="quote-browser-search" type="text" placeholder="Código, nombre o descripción">
+                    <button id="catalogSearchButton" type="button" class="action-btn quote-browser-action-btn" hidden>Buscar</button>
+                </div>
+            </section>
+
+            <section class="inventory-layout">
+                <section class="inventory-panel-main">
+                    <div class="inventory-panel-head" hidden></div>
+                    <div class="section-caption" id="catalogSubtitle">Inventario</div>
+                    <div class="socios-table-wrap inventory-table-wrap">
+                        <table class="quote-table socios-table inventory-table">
+                            <thead>
+                                <tr id="catalogHead"></tr>
+                            </thead>
+                            <tbody id="catalogBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <aside class="inventory-editor-panel">
+                    <div class="section-caption" id="editorTitle">Editor</div>
+                    <div id="catalogDetailPreview" class="inventory-detail-preview" hidden></div>
+                    <form id="catalogForm" class="config-form-grid config-form-grid-wide inventory-form"></form>
+                    <section id="machineCapabilitiesSection" class="inventory-capabilities" hidden>
+                        <div class="inventory-capabilities-head">
+                            <div class="section-caption">Capacidades / Procesos</div>
+                            <button id="addCapabilityButton" type="button" class="action-btn">Agregar proceso</button>
+                        </div>
+                        <div id="machineCapabilitiesList" class="machine-capabilities-list"></div>
+                    </section>
+                </aside>
+            </section>
+
+            <section class="save-status-bar">
+                <span id="catalogStatus">Cargando inventario...</span>
+            </section>
+        </main>
+    </div>
+
+    <input id="catalogImportInput" type="file" accept=".xlsx,.xls,.csv" hidden>
+    <script src="/catalogo.js"></script>
+</body>
+</html>

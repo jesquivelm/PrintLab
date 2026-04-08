@@ -1,0 +1,1279 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flexo APS — Consola de Planificación</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f5f5f3}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #e0e0da;background:#fff;gap:8px;flex-wrap:wrap}
+.hdr-title{font-size:15px;font-weight:500;display:flex;align-items:center;gap:8px}
+.dot{width:8px;height:8px;border-radius:50%;background:#1D9E75;display:inline-block}
+.dot.offline{background:#E24B4A}
+.toolbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.btn{font-size:11px;padding:5px 11px;border-radius:6px;border:1px solid #d0d0ca;background:#fff;color:#1a1a1a;cursor:pointer}
+.btn:hover{background:#f0f0ea}
+.btn.primary{background:#e8f0fb;border-color:#b5d0f0;color:#185FA5}
+.btn.danger{background:#fceaea;border-color:#f0b5b5;color:#A32D2D}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:5px}
+.badge.crit{background:#fceaea;color:#A32D2D}
+.badge.ok{background:#e8f7f1;color:#0F6E56}
+.badge.warn{background:#fef3e2;color:#854F0B}
+.badge.info{background:#e8f0fb;color:#185FA5}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px 16px;border-bottom:1px solid #e0e0da;background:#fff}
+.stat{background:#f5f5f3;border-radius:6px;padding:8px 12px}
+.stat-lbl{font-size:11px;color:#888;margin-bottom:2px}
+.stat-val{font-size:22px;font-weight:500}
+.alerts{padding:8px 16px;border-bottom:1px solid #e0e0da;background:#fff;display:flex;gap:6px;flex-wrap:wrap;align-items:center;min-height:38px}
+
+/* Gantt */
+.gantt-wrap{overflow-x:auto;background:#fff}
+.gantt-inner{min-width:900px;position:relative}
+.g-header{display:flex;border-bottom:1px solid #e0e0da;background:#fafaf8}
+.res-col{width:176px;min-width:176px;padding:8px 12px;font-size:11px;font-weight:500;color:#888;border-right:1px solid #e0e0da;flex-shrink:0}
+.time-hdr{display:flex;flex:1}
+.t-slot{flex:1;min-width:52px;padding:8px 4px;text-align:center;font-size:11px;color:#888;border-right:1px solid #e0e0da}
+.g-row{display:flex;border-bottom:1px solid #e0e0da;min-height:64px;align-items:stretch;position:relative;background:#fff}
+.g-row:hover{background:#fafaf8}
+.g-row.drag-over .timeline{outline:2px dashed #378ADD;outline-offset:-2px}
+.res-lbl{width:176px;min-width:176px;padding:8px 12px;border-right:1px solid #e0e0da;flex-shrink:0;display:flex;flex-direction:column;justify-content:center;gap:2px}
+.res-name{font-weight:500;font-size:12px}
+.res-sub{font-size:10px;color:#888}
+
+/* Encabezado de proceso (agrupa máquinas) */
+.proceso-hdr{display:flex;align-items:center;border-bottom:1px solid #e0e0da;border-top:3px solid transparent;background:#f7f7f5}
+.proceso-hdr-lbl{width:176px;min-width:176px;padding:7px 12px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-right:1px solid #e0e0da;display:flex;align-items:center;gap:6px;flex-shrink:0}
+.proceso-hdr-timeline{flex:1;padding:4px 10px;font-size:10px;color:#aaa;display:flex;align-items:center}
+.timeline{flex:1;position:relative;display:flex;align-items:center}
+.grid-ln{position:absolute;top:0;bottom:0;width:1px;background:#e8e8e4}
+
+/* Task bars */
+.task-bar{position:absolute;height:48px;border-radius:7px;display:flex;flex-direction:column;justify-content:center;padding:0 9px;cursor:grab;border:2px solid transparent;overflow:hidden;white-space:nowrap;user-select:none;transition:box-shadow .15s,opacity .15s}
+.task-bar:hover{filter:brightness(1.06);z-index:20}
+.task-bar.dragging{opacity:0.4;cursor:grabbing}
+.task-bar.chain-active{box-shadow:0 0 0 3px #FFD600,0 2px 12px rgba(0,0,0,0.18);z-index:30;filter:brightness(1.08)}
+.task-bar.chain-dim{opacity:0.30}
+.task-cliente{font-size:9px;opacity:0.88;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
+.task-lbl{font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
+.task-sub{font-size:9.5px;opacity:0.82;overflow:hidden;text-overflow:ellipsis}
+.task-mode{display:inline-flex;align-items:center;justify-content:center;min-width:42px;height:16px;padding:0 6px;border-radius:999px;font-size:9px;font-weight:700;background:rgba(255,255,255,0.22);margin-left:6px}
+
+.maint-bar{position:absolute;height:40px;background:#f0f0ea;border:1px dashed #c0c0ba;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#888}
+.legend{display:flex;gap:14px;padding:8px 16px;border-top:1px solid #e0e0da;background:#fff;flex-wrap:wrap}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:#888}
+.leg-dot{width:11px;height:11px;border-radius:3px}
+
+/* SVG arrows */
+#arrows-svg{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:50;overflow:visible}
+
+/* Conflictos */
+.task-bar.conflict-machine{outline:2.5px solid #E24B4A;outline-offset:1px;animation:pulse-red 1.2s ease-in-out infinite}
+.task-bar.conflict-sequence{outline:2.5px solid #FF8C00;outline-offset:1px;animation:pulse-orange 1.2s ease-in-out infinite}
+@keyframes pulse-red{0%,100%{box-shadow:0 0 0 0 rgba(226,75,74,0.5)}50%{box-shadow:0 0 0 5px rgba(226,75,74,0)}}
+@keyframes pulse-orange{0%,100%{box-shadow:0 0 0 0 rgba(255,140,0,0.5)}50%{box-shadow:0 0 0 5px rgba(255,140,0,0)}}
+.conflict-badge{background:#fceaea;color:#A32D2D;border:1px solid #f0b5b5;font-size:10px;padding:2px 7px;border-radius:4px;display:inline-flex;align-items:center;gap:4px}
+.conflict-panel{background:#fef8f0;border:1px solid #f5c77e;border-radius:6px;padding:10px;margin-bottom:10px;font-size:11px}
+.conflict-panel-title{font-weight:600;color:#854F0B;margin-bottom:6px}
+.conflict-row{display:flex;align-items:flex-start;gap:6px;padding:3px 0;color:#5a3a00;border-bottom:1px solid #f5e4c0;font-size:11px}
+.conflict-row:last-child{border-bottom:none}
+
+/* Tooltip */
+.tt{position:fixed;background:#fff;border:1px solid #d0d0ca;border-radius:8px;padding:10px 13px;font-size:12px;pointer-events:none;z-index:600;min-width:210px;display:none;box-shadow:0 4px 16px rgba(0,0,0,0.10)}
+.tt-title{font-weight:600;font-size:13px;margin-bottom:4px}
+.tt-cliente{font-size:11px;color:#378ADD;margin-bottom:7px;border-bottom:1px solid #e8e8e4;padding-bottom:6px}
+.tt-row{display:flex;justify-content:space-between;gap:14px;margin-bottom:3px;color:#888}
+.tt-val{color:#1a1a1a;font-weight:500}
+
+/* Panel lateral */
+.dp{position:fixed;top:0;right:0;width:310px;height:100%;background:#fff;border-left:1px solid #d0d0ca;padding:16px;z-index:500;display:none;overflow-y:auto;box-shadow:-4px 0 24px rgba(0,0,0,0.08)}
+.dp-title{font-size:14px;font-weight:600;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center}
+.dp-subtitle{font-size:11px;color:#378ADD;margin-bottom:14px}
+.dp-close{cursor:pointer;font-size:18px;color:#888;line-height:1}
+.dp-field{margin-bottom:10px}
+.dp-lbl{font-size:11px;color:#888;margin-bottom:3px}
+.dp-val{font-size:13px;font-weight:500}
+.dp-input{width:100%;font-size:12px;padding:6px 8px;border:1px solid #d0d0ca;border-radius:6px;background:#fafaf8;color:#1a1a1a}
+.dp-section{font-size:10px;font-weight:600;color:#888;margin:14px 0 6px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #e8e8e4;padding-bottom:4px}
+
+/* Cadena de procesos en panel */
+.chain-list{margin-bottom:12px}
+.chain-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;margin-bottom:3px;font-size:11px;background:#f5f5f3;border:1px solid #e8e8e4}
+.chain-item.active{background:#e8f0fb;border-color:#b5d0f0;font-weight:600}
+.chain-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.chain-arrow{color:#aaa;font-size:10px;margin-left:auto}
+
+.save-btn{width:100%;padding:8px;background:#e8f0fb;border:1px solid #b5d0f0;color:#185FA5;border-radius:6px;cursor:pointer;font-size:12px;margin-top:10px;font-weight:500}
+.save-btn:hover{background:#d0e4f8}
+.save-btn.saving{opacity:0.6;cursor:not-allowed}
+.impact-box{background:#fef3e2;border:1px solid #f5c77e;border-radius:6px;padding:10px;margin-top:10px;font-size:11px;color:#854F0B}
+.impact-title{font-weight:600;margin-bottom:4px}
+
+/* Loading / Error */
+.loading{display:flex;align-items:center;justify-content:center;padding:40px;gap:10px;color:#888;font-size:13px}
+.spinner{width:16px;height:16px;border:2px solid #e0e0da;border-top-color:#378ADD;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error-bar{padding:10px 16px;background:#fceaea;border-bottom:1px solid #f0b5b5;color:#A32D2D;font-size:12px;display:none;align-items:center;gap:8px}
+.conn-status{font-size:11px;padding:3px 8px;border-radius:5px;display:flex;align-items:center;gap:5px}
+.conn-status.online{background:#e8f7f1;color:#0F6E56}
+.conn-status.offline{background:#fceaea;color:#A32D2D}
+</style>
+</head>
+<body>
+
+<div id="error-bar" class="error-bar">
+  ⚠ <span id="error-msg">No se pudo conectar a la API</span>
+  <button class="btn" style="margin-left:auto" onclick="loadFromAPI()">Reintentar</button>
+</div>
+
+<div id="app"><div class="loading"><div class="spinner"></div> Cargando órdenes...</div></div>
+
+<div class="tt" id="tt">
+  <div class="tt-title" id="tt-t"></div>
+  <div class="tt-cliente" id="tt-c"></div>
+  <div id="tt-b"></div>
+</div>
+
+<div class="dp" id="dp">
+  <div class="dp-title">
+    <span id="dp-title-txt">Detalle OP</span>
+    <span class="dp-close" onclick="closeDP()">✕</span>
+  </div>
+  <div class="dp-subtitle" id="dp-subtitle"></div>
+  <div id="dp-body"></div>
+  <button class="save-btn" id="save-btn" onclick="saveDP()">Guardar cambios</button>
+</div>
+
+<script>
+const API = '/api/planificacion';
+const HOURS = ['6am','7am','8am','9am','10am','11am','12pm','1pm','2pm','3pm','4pm','5pm','6pm','7pm','8pm'];
+const SLOTS = HOURS.length;
+const searchParams = new URLSearchParams(window.location.search);
+const autoPlanRequested = searchParams.get('autoplan') === '1';
+
+let orders    = [];
+let machines  = [];
+let procesos  = [];   // lista de procesos con sus máquinas agrupadas
+let dragOp    = null;
+let currentDP = null;
+let activeChainIds = null;
+let isOnline  = false;
+let hasAutoPlanned = false;
+
+// ── API ────────────────────────────────────────────────────
+async function loadFromAPI() {
+  try {
+    const res = await fetch(`${API}/gantt-agrupado`);
+    if (!res.ok) throw new Error('Error HTTP ' + res.status);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Error en respuesta');
+
+    // data.maquinas = máquinas con proceso_nombre, color_hex, orden_secuencia
+    // data.rutas    = órdenes con sus datos completos
+    machines = data.maquinas;
+    orders   = data.rutas.map(r => ({
+      id:          r.codigo_op,
+      id_ruta:     r.id_ruta,
+      cliente:     r.cliente,
+      articulo:    r.articulo,
+      saidel:      r.saidel || '—',
+      colores:     r.colores,
+      pies:        r.pies,
+      proceso:     r.proceso,
+      maquina:     r.maquina,
+      inicio:      parseFloat(r.inicio),
+      dur:         parseFloat(r.dur),
+      trans_costo: r.trans_costo || 0,
+      dep:         r.dep || null,
+      dep_ruta_id: r.dep_ruta_id || null,
+      estado:      r.estado,
+      alerta:      !!r.alerta,
+      alerta_tipo: r.alerta || null,
+      fecha_entrega_prometida: r.fecha_entrega_prometida || null,
+      route_payload: r.route_payload || {},
+      planning_snapshot: r.planning_snapshot || null,
+      manual_lock: Boolean(r.route_payload?.manualLock),
+    }));
+
+    // Agrupar máquinas por proceso para el render
+    const grupos = {};
+    machines.forEach(m => {
+      const key = m.id_proceso || 0;
+      if (!grupos[key]) grupos[key] = {
+        id_proceso:      m.id_proceso,
+        nombre:          m.proceso_nombre || 'Sin proceso',
+        color:           m.color_hex      || '#888',
+        icono:           m.proceso_icono  || '⚙',
+        orden:           m.orden_secuencia || 99,
+        maquinas:        []
+      };
+      grupos[key].maquinas.push(m);
+    });
+    procesos = Object.values(grupos).sort((a,b) => a.orden - b.orden);
+
+    setOnline(true);
+    render();
+    if (autoPlanRequested && !hasAutoPlanned && orders.length) {
+      hasAutoPlanned = true;
+      setTimeout(() => autoSeq(), 0);
+    }
+  } catch (e) {
+    setOnline(false);
+    showError('No se pudo conectar a la planificación del ERP — ' + e.message);
+    if (!orders.length) {
+      document.getElementById('app').innerHTML =
+        `<div class="loading" style="flex-direction:column;gap:8px">
+          <span style="font-size:22px">⚡</span>
+          <span>API offline. Asegúrate que el servidor Express esté corriendo.</span>
+          <code style="font-size:11px;background:#f0f0ea;padding:4px 8px;border-radius:4px">node server.js</code>
+         </div>`;
+    }
+  }
+}
+
+const COLORS = {
+  RUN:       {bg:'#1D9E75', bd:'#0F6E56', tx:'#fff'},
+  SETUP:     {bg:'#BA7517', bd:'#854F0B', tx:'#fff'},
+  PENDIENTE: {bg:'#378ADD', bd:'#185FA5', tx:'#fff'},
+  PARO:      {bg:'#E24B4A', bd:'#A32D2D', tx:'#fff'},
+  COMPLETADO:{bg:'#639922', bd:'#3B6D11', tx:'#fff'},
+};
+
+function pct(v){ return (v / SLOTS * 100).toFixed(4) + '%'; }
+
+async function apiPatch(url, body) {
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  return res.json();
+}
+
+function setOnline(v) {
+  isOnline = v;
+  const el = document.getElementById('conn-dot');
+  if (el) {
+    el.className = 'dot' + (v ? '' : ' offline');
+    el.title = v ? 'API conectada' : 'API desconectada';
+  }
+  document.getElementById('error-bar').style.display = v ? 'none' : 'flex';
+}
+
+function showError(msg) {
+  document.getElementById('error-msg').textContent = msg;
+  document.getElementById('error-bar').style.display = 'flex';
+}
+
+// ── DETECCIÓN DE CONFLICTOS ────────────────────────────────
+
+// Detecta todos los conflictos actuales en el tablero
+function detectAllConflicts() {
+  const conflicts = []; // { type, ruta_a, ruta_b, message }
+
+  for (let i = 0; i < orders.length; i++) {
+    const a = orders[i];
+    const aEnd = a.inicio + a.dur;
+
+    for (let j = i + 1; j < orders.length; j++) {
+      const b = orders[j];
+      const bEnd = b.inicio + b.dur;
+
+      // ── Regla 1: Misma máquina, órdenes distintas → no solapar ──
+      if (a.maquina === b.maquina && a.id_ruta !== b.id_ruta) {
+        if (a.inicio < bEnd && aEnd > b.inicio) {
+          conflicts.push({
+            type: 'machine',
+            ruta_a: a.id_ruta, ruta_b: b.id_ruta,
+            message: `Máquina ${a.maquina}: "${a.id}" (${a.proceso}) y "${b.id}" (${b.proceso}) se superponen`
+          });
+        }
+      }
+
+      // ── Regla 2: Misma OP → sus procesos deben ser secuenciales ──
+      if (a.id === b.id) {
+        // Si b depende de a, b debe empezar después de que a termine
+        if (b.dep_ruta_id === a.id_ruta || (b.dep === a.id && b.id_ruta !== a.id_ruta)) {
+          if (b.inicio < aEnd) {
+            conflicts.push({
+              type: 'sequence',
+              ruta_a: a.id_ruta, ruta_b: b.id_ruta,
+              message: `Orden ${a.id}: "${b.proceso}" empieza antes de que "${a.proceso}" termine`
+            });
+          }
+        }
+        // Inverso
+        if (a.dep_ruta_id === b.id_ruta || (a.dep === b.id && a.id_ruta !== b.id_ruta)) {
+          if (a.inicio < bEnd) {
+            conflicts.push({
+              type: 'sequence',
+              ruta_a: b.id_ruta, ruta_b: a.id_ruta,
+              message: `Orden ${b.id}: "${a.proceso}" empieza antes de que "${b.proceso}" termine`
+            });
+          }
+        }
+      }
+    }
+  }
+  return conflicts;
+}
+
+function getOrderChainBounds(orderCode) {
+  const ops = orders.filter(o => o.id === orderCode);
+  if (!ops.length) return null;
+  return ops.reduce((acc, op) => {
+    const end = op.inicio + op.dur;
+    return {
+      minStart: Math.min(acc.minStart, op.inicio),
+      maxEnd: Math.max(acc.maxEnd, end)
+    };
+  }, { minStart: Number.POSITIVE_INFINITY, maxEnd: 0 });
+}
+
+function promisedHourSlot(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const hour = date.getHours() + (date.getMinutes() / 60);
+  const slot = hour - 6;
+  return Number.isFinite(slot) ? Math.max(0, Math.min(SLOTS, slot)) : null;
+}
+
+function detectScheduleAlerts() {
+  const alerts = [];
+  const seen = new Set();
+
+  orders.forEach(op => {
+    if (seen.has(op.id)) return;
+    seen.add(op.id);
+
+    const dueSlot = promisedHourSlot(op.fecha_entrega_prometida);
+    if (dueSlot === null) return;
+
+    const bounds = getOrderChainBounds(op.id);
+    if (!bounds) return;
+
+    const slack = Number((dueSlot - bounds.maxEnd).toFixed(2));
+    if (slack < 0) {
+      alerts.push({
+        type: 'late',
+        orderCode: op.id,
+        slack,
+        message: `${op.id} termina ${Math.abs(slack).toFixed(2)}h después de la entrega prometida`
+      });
+      return;
+    }
+
+    if (slack <= 1) {
+      alerts.push({
+        type: 'tight',
+        orderCode: op.id,
+        slack,
+        message: `${op.id} queda con solo ${slack.toFixed(2)}h de margen antes de entrega`
+      });
+    }
+  });
+
+  return alerts;
+}
+
+// Verifica si colocar id_ruta en newStart/newDur/newMaq genera conflictos
+function checkMove(id_ruta, newStart, newDur, newMaq) {
+  const op   = orders.find(o => o.id_ruta === id_ruta);
+  if (!op) return [];
+  const newEnd = newStart + newDur;
+  const issues = [];
+
+  // Regla 1: Máquina — ningún otro proceso en la misma máquina puede solapar
+  orders.filter(o => o.id_ruta !== id_ruta && o.maquina === newMaq).forEach(o => {
+    const oEnd = o.inicio + o.dur;
+    if (newStart < oEnd && newEnd > o.inicio) {
+      issues.push({
+        type: 'machine',
+        id_ruta: o.id_ruta,
+        message: `Máquina ${newMaq}: conflicto con "${o.id}" · ${o.proceso} (${formatHora(o.inicio)}–${formatHora(oEnd)})`
+      });
+    }
+  });
+
+  // Regla 2: Secuencia de la misma OP — predecesor debe terminar antes
+  const pred = orders.find(o =>
+    op.dep_ruta_id === o.id_ruta || (op.dep && op.dep === o.id && o.id_ruta !== id_ruta)
+  );
+  if (pred) {
+    const predEnd = pred.inicio + pred.dur;
+    if (newStart < predEnd) {
+      issues.push({
+        type: 'sequence',
+        id_ruta: pred.id_ruta,
+        message: `"${pred.proceso}" de ${pred.id} termina a las ${formatHora(predEnd)} — no puede empezar antes`
+      });
+    }
+  }
+
+  // Regla 2b: Sucesores de la misma OP deben empezar después de que este termine
+  orders.filter(o => o.dep_ruta_id === id_ruta || (o.dep === op.id && o.id !== op.id)).forEach(succ => {
+    if (succ.inicio < newEnd) {
+      issues.push({
+        type: 'sequence',
+        id_ruta: succ.id_ruta,
+        message: `"${succ.proceso}" de ${succ.id} empieza a las ${formatHora(succ.inicio)}, antes de que este proceso termine`
+      });
+    }
+  });
+
+  return issues;
+}
+
+// Intenta corregir automáticamente: empuja sucesores
+function autoFix(id_ruta, newEnd) {
+  function push(rid, mustStartAfter) {
+    orders.filter(o => o.dep_ruta_id === rid || (o.dep && orders.find(x=>x.id_ruta===rid)?.id === o.dep)).forEach(succ => {
+      if (succ.inicio < mustStartAfter) {
+        succ.inicio = parseFloat(mustStartAfter.toFixed(2));
+        push(succ.id_ruta, succ.inicio + succ.dur);
+      }
+    });
+  }
+  push(id_ruta, newEnd);
+}
+
+function getMachineKey(machine) {
+  return String(machine?.id_maquina || machine?.id || '');
+}
+
+function getDirectSuccessors(id_ruta) {
+  const current = orders.find(o => o.id_ruta === id_ruta);
+  return orders
+    .filter(o => o.dep_ruta_id === id_ruta || (o.dep && current && o.dep === current.id && o.id !== current.id))
+    .sort((a, b) => {
+      const dueDiff = parsePromisedTime(a.fecha_entrega_prometida) - parsePromisedTime(b.fecha_entrega_prometida);
+      if (dueDiff !== 0) return dueDiff;
+      return a.inicio - b.inicio;
+    });
+}
+
+function getChainOpsOrdered(rootId) {
+  const ordered = [];
+  const visited = new Set();
+
+  function walk(routeId) {
+    if (visited.has(routeId)) return;
+    const op = orders.find(o => o.id_ruta === routeId);
+    if (!op) return;
+    visited.add(routeId);
+    ordered.push(op);
+    getDirectSuccessors(routeId).forEach(succ => walk(succ.id_ruta));
+  }
+
+  walk(rootId);
+  return ordered;
+}
+
+function getOrderOps(orderCode) {
+  return orders.filter(o => o.id === orderCode);
+}
+
+function getChainDuration(chain) {
+  return chain.reduce((sum, op) => sum + op.dur, 0);
+}
+
+// ── CADENA DE DEPENDENCIAS ─────────────────────────────────
+// Dado un id_ruta, devuelve todos los id_ruta de la misma OP
+// más los de sus dependencias aguas arriba y abajo
+function getChain(id_ruta) {
+  const op = orders.find(o => o.id_ruta === id_ruta);
+  if (!op) return new Set();
+
+  const codigoOp = op.id; // codigo_op
+  const chain = new Set();
+
+  // 1. Todos los procesos de la misma OP
+  orders.filter(o => o.id === codigoOp).forEach(o => chain.add(o.id_ruta));
+
+  // 2. Dependencias directas que esta OP declara (dep_ruta_id hacia atrás)
+  function addUpstream(rutaId) {
+    const o = orders.find(x => x.id_ruta === rutaId);
+    if (!o || !o.dep_ruta_id) return;
+    if (chain.has(o.dep_ruta_id)) return;
+    chain.add(o.dep_ruta_id);
+    addUpstream(o.dep_ruta_id);
+  }
+
+  // 3. Órdenes que dependen de esta OP (hacia adelante)
+  function addDownstream(rutaId) {
+    orders.filter(o => o.dep_ruta_id === rutaId).forEach(o => {
+      if (chain.has(o.id_ruta)) return;
+      chain.add(o.id_ruta);
+      addDownstream(o.id_ruta);
+    });
+  }
+
+  chain.forEach(rid => { addUpstream(rid); addDownstream(rid); });
+  return chain;
+}
+
+// ── HELPER: genera HTML de una barra de tarea ─────────────
+function taskBar(op, machineConflictRutas, sequenceConflictRutas) {
+  const c = op.alerta ? COLORS.PARO : (COLORS[op.estado] || COLORS.PENDIENTE);
+  let chainClass = '';
+  if (activeChainIds) {
+    chainClass = activeChainIds.has(op.id_ruta) ? ' chain-active' : ' chain-dim';
+  }
+  let conflictClass = '';
+  if (!activeChainIds) {
+    if (machineConflictRutas.has(op.id_ruta))       conflictClass = ' conflict-machine';
+    else if (sequenceConflictRutas.has(op.id_ruta)) conflictClass = ' conflict-sequence';
+  }
+  const scheduleAlert = detectScheduleAlerts().find(entry => entry.orderCode === op.id);
+  const scheduleClass = scheduleAlert
+    ? (scheduleAlert.type === 'late' ? ' conflict-machine' : ' conflict-sequence')
+    : '';
+  const modeLabel = op.manual_lock ? 'Fijo' : op.schedule_mode === 'backward' ? 'Atrás' : op.schedule_mode === 'forward' ? 'Adelante' : '';
+  return `<div class="task-bar${chainClass}${conflictClass}${scheduleClass}"
+    id="bar-${op.id_ruta}"
+    data-id="${op.id}"
+    data-ruta="${op.id_ruta}"
+    style="left:${pct(op.inicio)};width:${pct(op.dur)};background:${c.bg};border-color:${c.bd}"
+    draggable="true"
+    onmouseenter="showTT(event,${op.id_ruta})"
+    onmouseleave="hideTT()"
+    ondragstart="dragStart(event,${op.id_ruta})"
+    ondragend="dragEnd(event)"
+    onclick="openDP(${op.id_ruta})"
+  >
+    <div class="task-cliente" style="color:${c.tx}">${op.cliente}</div>
+    <div class="task-lbl"    style="color:${c.tx}">${op.id} · ${op.articulo}${op.manual_lock ? ' [Fijo]' : ''}</div>
+    <div class="task-sub"    style="color:${c.tx}">${op.proceso}${op.colores > 0 ? ' · ' + op.colores + 'C' : ''}${modeLabel ? `<span class="task-mode">${modeLabel}</span>` : ''}</div>
+  </div>`;
+}
+
+// ── RENDER ─────────────────────────────────────────────────
+function render() {
+  const criticas    = orders.filter(o => o.alerta).length;
+  const enRun       = orders.filter(o => o.estado === 'RUN').length;
+  const transTot    = orders.reduce((a, o) => a + (o.trans_costo || 0), 0);
+  const allConflicts = detectAllConflicts();
+  const scheduleAlerts = detectScheduleAlerts();
+  const lateAlerts = scheduleAlerts.filter(entry => entry.type === 'late');
+  const tightAlerts = scheduleAlerts.filter(entry => entry.type === 'tight');
+  const conflictRutas = new Set(allConflicts.flatMap(c => [c.ruta_a, c.ruta_b]));
+  const machineConflictRutas   = new Set(allConflicts.filter(c=>c.type==='machine').flatMap(c=>[c.ruta_a,c.ruta_b]));
+  const sequenceConflictRutas  = new Set(allConflicts.filter(c=>c.type==='sequence').flatMap(c=>[c.ruta_a,c.ruta_b]));
+
+  let html = `
+  <div class="hdr">
+    <span class="hdr-title">
+      <span class="dot${isOnline?'':' offline'}" id="conn-dot" title="${isOnline?'API conectada':'API desconectada'}"></span>
+      Consola APS — Flexografía
+    </span>
+    <div class="toolbar">
+      <span class="badge ok">● ${enRun} en ejecución</span>
+      ${criticas > 0 ? `<span class="badge crit">▲ ${criticas} crítica(s)</span>` : ''}
+      ${allConflicts.length > 0 ? `<span class="badge crit">⊗ ${allConflicts.length} conflicto(s)</span>` : '<span class="badge ok">✓ Sin conflictos</span>'}
+      ${lateAlerts.length > 0 ? `<span class="badge crit">⏰ ${lateAlerts.length} fuera de fecha</span>` : ''}
+      ${tightAlerts.length > 0 ? `<span class="badge warn">⌛ ${tightAlerts.length} justas</span>` : ''}
+      <span class="badge info">Prioridad por fecha prometida</span>
+      <span class="conn-status ${isOnline?'online':'offline'}">${isOnline?'● API online':'● API offline'}</span>
+      <button class="btn" onclick="window.location.href='/planificacion/lanzamiento'">Cola de planificación</button>
+      <button class="btn" onclick="clearChain()">Limpiar selección</button>
+      <button class="btn" onclick="resolveAllConflicts()">Resolver conflictos ⚡</button>
+      <button class="btn" onclick="autoSeq()">Optimizar ↺</button>
+      <button class="btn" onclick="loadFromAPI()">Actualizar ↻</button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-lbl">Órdenes activas</div><div class="stat-val">${orders.length}</div></div>
+    <div class="stat"><div class="stat-lbl">Alertas críticas</div><div class="stat-val" style="color:#A32D2D">${criticas}</div></div>
+    <div class="stat"><div class="stat-lbl">Conflictos activos</div><div class="stat-val" style="color:${allConflicts.length?'#E24B4A':'#1D9E75'}">${allConflicts.length}</div></div>
+    <div class="stat"><div class="stat-lbl">Riesgo por fecha</div><div class="stat-val" style="color:${lateAlerts.length?'#E24B4A':tightAlerts.length?'#BA7517':'#1D9E75'}">${lateAlerts.length + tightAlerts.length}</div></div>
+  </div>
+
+  <div class="alerts">
+    ${allConflicts.slice(0,4).map(c =>
+      `<span class="conflict-badge">${c.type==='machine'?'⊗ Máquina':'⧗ Secuencia'}: ${c.message}</span>`).join('')}
+    ${allConflicts.length > 4 ? `<span class="badge warn">+${allConflicts.length-4} más…</span>` : ''}
+    ${orders.filter(o => o.alerta).map(o =>
+      `<span class="badge crit">⚠ ${o.id} — ${o.alerta_tipo || 'ALERTA'}</span>`).join('')}
+    ${lateAlerts.map(entry =>
+      `<span class="badge crit">⏰ ${entry.message}</span>`).join('')}
+    ${tightAlerts.map(entry =>
+      `<span class="badge warn">⌛ ${entry.message}</span>`).join('')}
+    ${orders.filter(o => o.trans_costo >= 120).map(o =>
+      `<span class="badge warn">⟳ ${o.id} — Lavado: ${o.trans_costo} min</span>`).join('')}
+    ${!allConflicts.length && !orders.filter(o=>o.alerta||o.trans_costo>=120).length && !scheduleAlerts.length
+      ? '<span style="font-size:11px;color:#aaa">Sin alertas activas</span>' : ''}
+  </div>
+
+  <div class="gantt-wrap"><div class="gantt-inner" id="gantt-inner">
+    <div class="g-header">
+      <div class="res-col">Proceso / Recurso</div>
+      <div class="time-hdr">${HOURS.map(h => `<div class="t-slot">${h}</div>`).join('')}</div>
+    </div>`;
+
+  procesos.forEach(proc => {
+    // ── Encabezado del proceso ──
+    html += `
+    <div class="proceso-hdr" style="border-top-color:${proc.color}">
+      <div class="proceso-hdr-lbl" style="color:${proc.color}">
+        <span style="font-size:15px">${proc.icono}</span>
+        ${proc.nombre.toUpperCase()}
+        <span style="font-weight:400;font-size:10px;color:#aaa;margin-left:4px">(${proc.maquinas.length} máq.)</span>
+      </div>
+      <div class="proceso-hdr-timeline">
+        ${proc.maquinas.map(m => {
+          const cnt = orders.filter(o => o.maquina === m.id_maquina).length;
+          return `<span style="margin-right:14px;color:#999">${m.nombre_recurso}: <strong style="color:#444">${cnt}</strong> orden${cnt!==1?'es':''}</span>`;
+        }).join('')}
+      </div>
+    </div>`;
+
+    // ── Fila por máquina ──
+    proc.maquinas.forEach(m => {
+      const mOps = orders.filter(o => o.maquina === m.id_maquina);
+      html += `
+      <div class="g-row" data-machine="${m.id_maquina}" style="border-left:3px solid ${proc.color}">
+        <div class="res-lbl">
+          <span class="res-name">${m.nombre_recurso}</span>
+          <span class="res-sub">${m.sub_descripcion || ''}</span>
+        </div>
+        <div class="timeline" data-machine="${m.id_maquina}">
+          ${HOURS.map((_, i) => `<div class="grid-ln" style="left:${pct(i)}"></div>`).join('')}
+          ${mOps.map(op => taskBar(op, machineConflictRutas, sequenceConflictRutas)).join('')}
+        </div>
+      </div>`;
+    });
+  });
+
+  // Si no hay procesos configurados, mostrar aviso
+  if (procesos.length === 0) {
+    html += `<div style="padding:32px;text-align:center;color:#aaa">
+      ⚙ No hay procesos configurados. <a href="configuracion.html" style="color:#378ADD">Ir a Configuración →</a>
+    </div>`;
+  }
+
+  html += `</div></div>
+  <div class="legend">
+    <span class="leg-item"><span class="leg-dot" style="background:#1D9E75"></span>En ejecución</span>
+    <span class="leg-item"><span class="leg-dot" style="background:#BA7517"></span>Setup</span>
+    <span class="leg-item"><span class="leg-dot" style="background:#378ADD"></span>Pendiente</span>
+    <span class="leg-item"><span class="leg-dot" style="background:#E24B4A"></span>Alerta / Paro</span>
+    <span class="leg-item"><span class="leg-dot" style="background:#639922"></span>Completado</span>
+    <span class="leg-item" style="font-size:11px;color:#aaa;margin-left:auto">
+      Click para ver cadena · Drag para mover · <span style="background:#FFD600;padding:1px 5px;border-radius:3px;color:#1a1a1a">■</span> Cadena activa
+    </span>
+  </div>`;
+
+  document.getElementById('app').innerHTML = html;
+  setupDropZones();
+
+  // Dibujar flechas después de que el DOM esté listo
+  requestAnimationFrame(() => drawArrows());
+}
+
+// ── FLECHAS SVG ────────────────────────────────────────────
+function drawArrows() {
+  const ganttEl = document.getElementById('gantt-inner');
+  if (!ganttEl) return;
+
+  // Eliminar SVG anterior
+  const old = document.getElementById('arrows-svg');
+  if (old) old.remove();
+
+  // Solo dibujar si hay dependencias
+  const depsOrders = orders.filter(o => o.dep_ruta_id || o.dep);
+  if (!depsOrders.length) return;
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.id = 'arrows-svg';
+  ganttEl.appendChild(svg);
+
+  // Definir marcadores de flecha
+  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+
+  [
+    { id: 'arr-normal', color: '#aaa' },
+    { id: 'arr-active', color: '#FFD600' },
+    { id: 'arr-dim',    color: '#ddd' },
+  ].forEach(({id, color}) => {
+    const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+    marker.setAttribute('id', id);
+    marker.setAttribute('markerWidth', '9');
+    marker.setAttribute('markerHeight', '9');
+    marker.setAttribute('refX', '7');
+    marker.setAttribute('refY', '4');
+    marker.setAttribute('orient', 'auto');
+    const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    poly.setAttribute('points', '0 1, 8 4, 0 7');
+    poly.setAttribute('fill', color);
+    marker.appendChild(poly);
+    defs.appendChild(marker);
+  });
+  svg.appendChild(defs);
+
+  const ganttRect = ganttEl.getBoundingClientRect();
+
+  orders.forEach(op => {
+    // Buscar dependencia: primero por dep_ruta_id, luego por dep (codigo_op)
+    let srcRutaId = op.dep_ruta_id;
+    if (!srcRutaId && op.dep) {
+      const srcOp = orders.find(o => o.id === op.dep);
+      if (srcOp) srcRutaId = srcOp.id_ruta;
+    }
+    if (!srcRutaId) return;
+
+    const srcEl = document.getElementById('bar-' + srcRutaId);
+    const tgtEl = document.getElementById('bar-' + op.id_ruta);
+    if (!srcEl || !tgtEl) return;
+
+    const srcRect = srcEl.getBoundingClientRect();
+    const tgtRect = tgtEl.getBoundingClientRect();
+
+    const x1 = srcRect.right  - ganttRect.left;
+    const y1 = srcRect.top    + srcRect.height / 2 - ganttRect.top;
+    const x2 = tgtRect.left   - ganttRect.left;
+    const y2 = tgtRect.top    + tgtRect.height / 2 - ganttRect.top;
+
+    // Determinar estilo según cadena activa
+    let markerId = 'arr-normal';
+    let strokeColor = '#bbb';
+    let strokeWidth = 1.5;
+    let strokeDash = '5,3';
+
+    if (activeChainIds) {
+      const inChain = activeChainIds.has(op.id_ruta) && activeChainIds.has(srcRutaId);
+      if (inChain) {
+        markerId   = 'arr-active';
+        strokeColor = '#FFD600';
+        strokeWidth = 2.5;
+        strokeDash  = 'none';
+      } else {
+        markerId    = 'arr-dim';
+        strokeColor = '#ddd';
+        strokeWidth = 1;
+      }
+    }
+
+    // Control points para curva bezier
+    const dx = Math.abs(x2 - x1);
+    const cp = Math.max(40, Math.min(dx * 0.5, 100));
+    const d  = `M${x1},${y1} C${x1+cp},${y1} ${x2-cp},${y2} ${x2},${y2}`;
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', d);
+    path.setAttribute('stroke', strokeColor);
+    path.setAttribute('stroke-width', strokeWidth);
+    path.setAttribute('stroke-dasharray', strokeDash === 'none' ? '' : strokeDash);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('marker-end', `url(#${markerId})`);
+    svg.appendChild(path);
+  });
+}
+
+function clearChain() {
+  activeChainIds = null;
+  render();
+}
+
+// ── DRAG & DROP ────────────────────────────────────────────
+function dragStart(e, id_ruta) {
+  dragOp = orders.find(o => o.id_ruta === id_ruta);
+  e.dataTransfer.effectAllowed = 'move';
+  setTimeout(() => document.getElementById('bar-' + id_ruta)?.classList.add('dragging'), 0);
+}
+
+function dragEnd(e) {
+  if (dragOp) document.getElementById('bar-' + dragOp.id_ruta)?.classList.remove('dragging');
+  dragOp = null;
+  document.querySelectorAll('.g-row').forEach(r => r.classList.remove('drag-over'));
+}
+
+function setupDropZones() {
+  document.querySelectorAll('.timeline').forEach(tl => {
+    tl.addEventListener('dragover', e => {
+      e.preventDefault();
+      tl.closest('.g-row').classList.add('drag-over');
+    });
+    tl.addEventListener('dragleave', () => {
+      tl.closest('.g-row').classList.remove('drag-over');
+    });
+    tl.addEventListener('drop', async e => {
+      e.preventDefault();
+      tl.closest('.g-row').classList.remove('drag-over');
+      if (!dragOp) return;
+
+      const rect     = tl.getBoundingClientRect();
+      const pctX     = (e.clientX - rect.left) / rect.width;
+      const raw      = pctX * SLOTS;
+      const snap     = Math.round(raw * 4) / 4;
+      const newStart = Math.max(0, Math.min(SLOTS - dragOp.dur, snap));
+      const newMaq   = tl.dataset.machine;
+
+      if (newStart === dragOp.inicio && newMaq === dragOp.maquina) return;
+
+      // Verificar conflictos del movimiento
+      const issues = checkMove(dragOp.id_ruta, newStart, dragOp.dur, newMaq);
+      if (issues.length > 0) {
+        const machineIssues  = issues.filter(i => i.type === 'machine');
+        const sequenceIssues = issues.filter(i => i.type === 'sequence');
+        let msg = `⚠ Este movimiento genera ${issues.length} conflicto(s):\n\n`;
+        issues.forEach(i => { msg += `• ${i.message}\n`; });
+
+        if (machineIssues.length > 0) {
+          msg += '\nNo se puede colocar: otra orden ocupa esa máquina en ese horario.';
+          alert(msg);
+          return; // Bloquear movimiento de máquina
+        }
+
+        // Conflicto de secuencia: preguntar si ajustar automáticamente
+        msg += '\n¿Deseas ajustar automáticamente los procesos afectados?';
+        const autoAdjust = confirm(msg);
+        if (!autoAdjust) return;
+      }
+
+      // Calcular impacto en dependencias aguas abajo
+      const downstream = getDownstreamOps(dragOp.id_ruta);
+      if (downstream.length > 0 && issues.length === 0) {
+        const delta = newStart - dragOp.inicio;
+        if (Math.abs(delta) > 0.01) {
+          const nombres = downstream.slice(0,3).map(o => o.id).join(', ');
+          const msg = `Mover "${dragOp.id}" ${delta>0?'+':''}${delta.toFixed(2)}h desplazará:\n${nombres}${downstream.length>3?'…':''}\n\n¿Confirmar?`;
+          if (!confirm(msg)) return;
+        }
+      }
+
+      // Aplicar movimiento
+      dragOp.inicio  = newStart;
+      dragOp.maquina = newMaq;
+
+      // Ajustar sucesores automáticamente si hubo conflicto de secuencia
+      const newEnd = newStart + dragOp.dur;
+      autoFix(dragOp.id_ruta, newEnd);
+
+      render();
+
+      try {
+        await apiPatch(`${API}/gantt/mover`, {
+          id_ruta:    dragOp.id_ruta,
+          inicio:     newStart,
+          id_maquina: newMaq
+        });
+        await loadFromAPI();
+      } catch (err) {
+        showError('Error guardando movimiento: ' + err.message);
+      }
+    });
+  });
+}
+
+// Devuelve órdenes que dependen (aguas abajo) de un id_ruta
+function getDownstreamOps(id_ruta) {
+  const result = [];
+  function walk(rid) {
+    orders.filter(o => {
+      if (o.dep_ruta_id === rid) return true;
+      if (!o.dep_ruta_id && o.dep) {
+        const src = orders.find(x => x.id === o.dep);
+        return src && src.id_ruta === rid;
+      }
+      return false;
+    }).forEach(o => {
+      if (!result.find(r => r.id_ruta === o.id_ruta)) {
+        result.push(o);
+        walk(o.id_ruta);
+      }
+    });
+  }
+  walk(id_ruta);
+  return result;
+}
+
+// ── TOOLTIP ────────────────────────────────────────────────
+function showTT(e, id_ruta) {
+  const op = orders.find(o => o.id_ruta === id_ruta);
+  if (!op) return;
+  document.getElementById('tt-t').textContent = op.id + ' — ' + op.articulo;
+  document.getElementById('tt-c').textContent = '👤 ' + op.cliente;
+  document.getElementById('tt-b').innerHTML = `
+    <div class="tt-row"><span>Proceso</span><span class="tt-val">${op.proceso}</span></div>
+    <div class="tt-row"><span>Inicio</span><span class="tt-val">${formatHora(op.inicio)}</span></div>
+    <div class="tt-row"><span>Duración</span><span class="tt-val">${op.dur}h</span></div>
+    <div class="tt-row"><span>Entrega</span><span class="tt-val">${formatPromisedDate(op.fecha_entrega_prometida)}</span></div>
+    <div class="tt-row"><span>Setup</span><span class="tt-val">${Number(op.route_payload?.setupMinutes || 0).toLocaleString('es-CR')} min</span></div>
+    <div class="tt-row"><span>Corrida</span><span class="tt-val">${Number(op.route_payload?.runMinutes || 0).toLocaleString('es-CR')} min</span></div>
+    <div class="tt-row"><span>Velocidad</span><span class="tt-val">${Number(op.route_payload?.speedFpm || 0).toLocaleString('es-CR')} fpm</span></div>
+    <div class="tt-row"><span>Modo</span><span class="tt-val">${op.manual_lock ? 'Fijo' : op.schedule_mode === 'backward' ? 'Programada hacia atrás' : op.schedule_mode === 'forward' ? 'Programada hacia adelante' : 'Sin definir'}</span></div>
+    <div class="tt-row"><span>Pies</span><span class="tt-val">${Number(op.pies).toLocaleString()}</span></div>
+    <div class="tt-row"><span>Saidel</span><span class="tt-val">${op.saidel}</span></div>
+    <div class="tt-row"><span>Estado</span><span class="tt-val">${op.estado}</span></div>
+    ${op.dep ? `<div class="tt-row"><span>Depende de</span><span class="tt-val">${op.dep}</span></div>` : ''}
+    ${op.trans_costo ? `<div class="tt-row"><span>Lavado</span><span class="tt-val" style="color:#854F0B">${op.trans_costo} min</span></div>` : ''}
+    ${op.alerta ? `<div class="tt-row"><span>Alerta</span><span class="tt-val" style="color:#A32D2D">⚠ ${op.alerta_tipo}</span></div>` : ''}
+    <div style="font-size:10px;color:#aaa;margin-top:6px">Click para ver cadena completa</div>
+  `;
+  const tt = document.getElementById('tt');
+  tt.style.display = 'block';
+  tt.style.left = (e.clientX + 14) + 'px';
+  tt.style.top  = (e.clientY - 16) + 'px';
+}
+function hideTT() { document.getElementById('tt').style.display = 'none'; }
+document.addEventListener('mousemove', e => {
+  const tt = document.getElementById('tt');
+  if (tt.style.display === 'block') {
+    tt.style.left = (e.clientX + 14) + 'px';
+    tt.style.top  = (e.clientY - 16) + 'px';
+  }
+});
+
+function formatHora(h) {
+  const base = 6; // 6am
+  const total = base + h;
+  const hh = Math.floor(total);
+  const mm = Math.round((total - hh) * 60);
+  const ampm = hh >= 12 ? 'pm' : 'am';
+  return `${hh > 12 ? hh-12 : hh}:${mm.toString().padStart(2,'0')}${ampm}`;
+}
+
+function parsePromisedTime(value) {
+  if (!value) return Number.POSITIVE_INFINITY;
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : Number.POSITIVE_INFINITY;
+}
+
+function formatPromisedDate(value) {
+  if (!value) return 'Sin fecha prometida';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString('es-CR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+}
+
+// ── PANEL DE DETALLE ───────────────────────────────────────
+function openDP(id_ruta) {
+  const op = orders.find(o => o.id_ruta === id_ruta);
+  if (!op) return;
+  currentDP = op;
+
+  // Activar cadena en el Gantt
+  activeChainIds = getChain(id_ruta);
+  render();
+
+  const allConflicts = detectAllConflicts();
+  const chainOps = orders.filter(o => activeChainIds.has(o.id_ruta))
+    .sort((a, b) => a.inicio - b.inicio);
+  const downstream = getDownstreamOps(id_ruta);
+
+  document.getElementById('dp-title-txt').textContent = op.id;
+  document.getElementById('dp-subtitle').textContent  = '👤 ' + op.cliente + ' · ' + op.articulo;
+
+  document.getElementById('dp-body').innerHTML = `
+    <div class="dp-section">Cadena de procesos</div>
+    <div class="chain-list">
+      ${chainOps.map(o => {
+        const c = COLORS[o.estado] || COLORS.PENDIENTE;
+        return `<div class="chain-item${o.id_ruta === id_ruta ? ' active' : ''}">
+          <span class="chain-dot" style="background:${c.bg}"></span>
+          <span><strong>${o.id}</strong> · ${o.proceso}</span>
+          <span style="margin-left:auto;font-size:10px;color:#888">${formatHora(o.inicio)} · ${o.dur}h</span>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="dp-field"><div class="dp-lbl">Artículo</div><div class="dp-val">${op.articulo}</div></div>
+    <div class="dp-field"><div class="dp-lbl">Saidel</div><div class="dp-val">${op.saidel}</div></div>
+    <div class="dp-field"><div class="dp-lbl">Pies planificados</div><div class="dp-val">${Number(op.pies).toLocaleString()}</div></div>
+    <div class="dp-field"><div class="dp-lbl">Entrega prometida</div><div class="dp-val">${formatPromisedDate(op.fecha_entrega_prometida)}</div></div>
+    <div class="dp-field"><div class="dp-lbl">Setup estimado</div><div class="dp-val">${Number(op.route_payload?.setupMinutes || 0).toLocaleString('es-CR')} min</div></div>
+    <div class="dp-field"><div class="dp-lbl">Corrida estimada</div><div class="dp-val">${Number(op.route_payload?.runMinutes || 0).toLocaleString('es-CR')} min</div></div>
+    <div class="dp-field"><div class="dp-lbl">Velocidad base</div><div class="dp-val">${Number(op.route_payload?.speedFpm || 0).toLocaleString('es-CR')} fpm</div></div>
+    <div class="dp-field"><div class="dp-lbl">Origen del tiempo</div><div class="dp-val">${op.route_payload?.source || 'Sin definir'}</div></div>
+    <div class="dp-field"><div class="dp-lbl">Modo de acomodo</div><div class="dp-val">${op.manual_lock ? 'Fijo manual' : op.schedule_mode === 'backward' ? 'Programada hacia atrás' : op.schedule_mode === 'forward' ? 'Programada hacia adelante' : 'Sin definir'}</div></div>
+    <div class="dp-field">
+      <div class="dp-lbl">Bloqueo manual</div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#46515d">
+        <input type="checkbox" id="dp-lock" ${op.manual_lock ? 'checked' : ''}>
+        Mantener fijo este proceso cuando se optimice
+      </label>
+    </div>
+    <div class="dp-field">
+      <div class="dp-lbl">Bloqueo de orden</div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#46515d">
+        <input type="checkbox" id="dp-lock-order" ${chainOps.every(item => item.manual_lock) ? 'checked' : ''}>
+        Mantener fija toda la orden ${op.id} cuando se optimice
+      </label>
+    </div>
+
+    <div class="dp-section">Planificación</div>
+    <div class="dp-field">
+      <div class="dp-lbl">Inicio (horas desde 6am)</div>
+      <input class="dp-input" type="number" id="dp-inicio" value="${op.inicio}" min="0" max="${SLOTS}" step="0.25">
+    </div>
+    <div class="dp-field">
+      <div class="dp-lbl">Duración (horas)</div>
+      <input class="dp-input" type="number" id="dp-dur" value="${op.dur}" min="0.25" max="${SLOTS}" step="0.25">
+    </div>
+    <div class="dp-field">
+      <div class="dp-lbl">Máquina</div>
+      <select class="dp-input" id="dp-maq">
+        ${machines.map(m => `<option value="${m.id}"${m.id === op.maquina ? ' selected' : ''}>${m.name}</option>`).join('')}
+      </select>
+    </div>
+    <div class="dp-section">Estado</div>
+    <div class="dp-field">
+      <select class="dp-input" id="dp-estado">
+        ${['PENDIENTE','SETUP','RUN','PARO','COMPLETADO'].map(s =>
+          `<option value="${s}"${s === op.estado ? ' selected' : ''}>${s}</option>`).join('')}
+      </select>
+    </div>
+    ${op.dep ? `<div class="dp-field"><div class="dp-lbl">Depende de</div><div class="dp-val">${op.dep}</div></div>` : ''}
+    ${op.trans_costo ? `<div class="dp-field"><div class="dp-lbl">Costo lavado</div><div class="dp-val" style="color:#854F0B">${op.trans_costo} min</div></div>` : ''}
+
+    ${downstream.length ? `
+    <div class="impact-box">
+      <div class="impact-title">⚠ Impacto si mueves esta orden</div>
+      Se desplazarán ${downstream.length} proceso(s) aguas abajo:<br>
+      ${downstream.map(o => `<strong>${o.id}</strong> (${o.proceso})`).join(', ')}
+    </div>` : ''}
+
+    ${(() => {
+      const myConflicts = allConflicts.filter(c => c.ruta_a === op.id_ruta || c.ruta_b === op.id_ruta);
+      if (!myConflicts.length) return '';
+      return `<div class="conflict-panel">
+        <div class="conflict-panel-title">⊗ Conflictos de esta barra</div>
+        ${myConflicts.map(c => `<div class="conflict-row">
+          <span>${c.type==='machine'?'🔴 Máquina':'🟠 Secuencia'}</span>
+          <span>${c.message}</span>
+        </div>`).join('')}
+      </div>`;
+    })()}
+  `;
+
+  document.getElementById('dp').style.display = 'block';
+}
+
+function closeDP() {
+  document.getElementById('dp').style.display = 'none';
+  currentDP = null;
+  activeChainIds = null;
+  render();
+}
+
+async function saveDP() {
+  if (!currentDP) return;
+  const btn = document.getElementById('save-btn');
+  btn.textContent = 'Guardando...';
+  btn.classList.add('saving');
+
+  const newInicio = parseFloat(document.getElementById('dp-inicio').value);
+  const newDur    = parseFloat(document.getElementById('dp-dur').value);
+  const newMaq    = document.getElementById('dp-maq').value;
+  const newEstado = document.getElementById('dp-estado').value;
+  const newLock   = Boolean(document.getElementById('dp-lock')?.checked);
+  const newOrderLock = Boolean(document.getElementById('dp-lock-order')?.checked);
+
+  // Advertir sobre impacto si cambió inicio
+  if (newInicio !== currentDP.inicio) {
+    const downstream = getDownstreamOps(currentDP.id_ruta);
+    if (downstream.length > 0) {
+      const delta = newInicio - currentDP.inicio;
+      const msg = `Mover "${currentDP.id}" ${delta > 0 ? '+' : ''}${delta.toFixed(2)}h desplazará ${downstream.length} proceso(s) aguas abajo.\n\n¿Confirmar?`;
+      if (!confirm(msg)) {
+        btn.textContent = 'Guardar cambios';
+        btn.classList.remove('saving');
+        return;
+      }
+    }
+  }
+
+  try {
+    if (newInicio !== currentDP.inicio || newDur !== currentDP.dur || newMaq !== currentDP.maquina) {
+      await apiPatch(`${API}/gantt/mover`, {
+        id_ruta:    currentDP.id_ruta,
+        inicio:     newInicio,
+        duracion:   newDur,
+        id_maquina: newMaq
+      });
+    }
+    if (newLock !== Boolean(currentDP.manual_lock)) {
+      await apiPatch(`${API}/gantt/mover`, {
+        id_ruta: currentDP.id_ruta,
+        route_payload_updates: { manualLock: newLock }
+      });
+    }
+    const orderOps = getOrderOps(currentDP.id);
+    const orderIsLocked = orderOps.length > 0 && orderOps.every(op => Boolean(op.manual_lock));
+    if (newOrderLock !== orderIsLocked) {
+      await Promise.all(orderOps.map(op =>
+        apiPatch(`${API}/gantt/mover`, {
+          id_ruta: op.id_ruta,
+          route_payload_updates: { manualLock: newOrderLock }
+        })
+      ));
+    }
+    if (newEstado !== currentDP.estado) {
+      await apiPatch(`${API}/gantt/estado`, {
+        codigo_op: currentDP.id,
+        estado:    newEstado
+      });
+    }
+    closeDP();
+    await loadFromAPI();
+  } catch (err) {
+    showError('Error guardando cambios: ' + err.message);
+    btn.textContent = 'Guardar cambios';
+    btn.classList.remove('saving');
+  }
+}
+
+// ── RESOLVER TODOS LOS CONFLICTOS ─────────────────────────
+function resolveAllConflicts() {
+  const conflicts = detectAllConflicts();
+  if (!conflicts.length) { alert('✓ No hay conflictos en el tablero.'); return; }
+
+  const machineConflicts  = conflicts.filter(c => c.type === 'machine');
+  const sequenceConflicts = conflicts.filter(c => c.type === 'sequence');
+
+  let msg = `Se encontraron ${conflicts.length} conflicto(s):\n`;
+  if (machineConflicts.length)  msg += `• ${machineConflicts.length} de máquina (requieren reubicación manual)\n`;
+  if (sequenceConflicts.length) msg += `• ${sequenceConflicts.length} de secuencia (se pueden ajustar automáticamente)\n`;
+  msg += '\n¿Ajustar automáticamente los conflictos de secuencia?';
+
+  if (!confirm(msg)) return;
+
+  // Resolver secuencias: ordenar por inicio y empujar sucesores
+  sequenceConflicts.forEach(c => {
+    const pred = orders.find(o => o.id_ruta === c.ruta_a);
+    if (pred) autoFix(pred.id_ruta, pred.inicio + pred.dur);
+  });
+
+  render();
+
+  // Persistir todos los cambios en la API
+  Promise.all(orders.map(o =>
+    apiPatch(`${API}/gantt/mover`, { id_ruta: o.id_ruta, inicio: o.inicio })
+  )).then(() => loadFromAPI()).catch(e => showError('Error al resolver: ' + e.message));
+}
+
+// ── OPTIMIZAR SECUENCIA ────────────────────────────────────
+function autoSeq() {
+  const machineReservations = new Map();
+  function ensureReservations(machineKey) {
+    if (!machineReservations.has(machineKey)) machineReservations.set(machineKey, []);
+    return machineReservations.get(machineKey);
+  }
+  function reserve(machineKey, start, end) {
+    if (!machineKey) return;
+    const list = ensureReservations(machineKey);
+    list.push({ start, end });
+    list.sort((a, b) => a.start - b.start);
+  }
+  function findNextMachineSlot(machineKey, desiredStart, duration) {
+    if (!machineKey) return desiredStart;
+    const reservations = ensureReservations(machineKey);
+    let cursor = desiredStart;
+    reservations.forEach(slot => {
+      if ((cursor + duration) <= slot.start || cursor >= slot.end) return;
+      cursor = slot.end;
+    });
+    return cursor;
+  }
+  function findPrevMachineSlot(machineKey, latestEnd, duration) {
+    if (!machineKey) return Math.max(0, latestEnd - duration);
+    const reservations = ensureReservations(machineKey);
+    let candidateEnd = latestEnd;
+
+    for (let i = reservations.length - 1; i >= 0; i -= 1) {
+      const slot = reservations[i];
+      const candidateStart = candidateEnd - duration;
+      if (candidateEnd <= slot.start) continue;
+      if (candidateStart >= slot.end) continue;
+      candidateEnd = slot.start;
+    }
+
+    return Math.max(0, candidateEnd - duration);
+  }
+  function reserveChain(chain) {
+    chain.forEach(op => reserve(String(op.maquina || ''), op.inicio, op.inicio + op.dur));
+  }
+  function scheduleChainBackward(chain, dueSlot) {
+    let latestEnd = dueSlot;
+    for (let i = chain.length - 1; i >= 0; i -= 1) {
+      const op = chain[i];
+      const machineKey = String(op.maquina || '');
+      const start = findPrevMachineSlot(machineKey, latestEnd, op.dur);
+      op.inicio = parseFloat(start.toFixed(2));
+      op.schedule_mode = 'backward';
+      latestEnd = op.inicio;
+    }
+    reserveChain(chain);
+  }
+  function scheduleChainForward(chain, initialStart = 0) {
+    let predecessorEnd = initialStart;
+    chain.forEach(op => {
+      if (op.manual_lock) {
+        op.schedule_mode = 'manual';
+        predecessorEnd = op.inicio + op.dur;
+        return;
+      }
+      const machineKey = String(op.maquina || '');
+      const start = findNextMachineSlot(machineKey, predecessorEnd, op.dur);
+      op.inicio = parseFloat(start.toFixed(2));
+      op.schedule_mode = 'forward';
+      const end = op.inicio + op.dur;
+      reserve(machineKey, op.inicio, end);
+      predecessorEnd = end;
+    });
+  }
+
+  orders.filter(o => o.manual_lock).forEach(o => reserve(String(o.maquina || ''), o.inicio, o.inicio + o.dur));
+
+  const roots = orders
+    .filter(o => !o.dep_ruta_id && !o.dep)
+    .sort((a, b) => {
+      const dueDiff = parsePromisedTime(a.fecha_entrega_prometida) - parsePromisedTime(b.fecha_entrega_prometida);
+      if (dueDiff !== 0) return dueDiff;
+      const washDiff = (a.trans_costo || 0) - (b.trans_costo || 0);
+      if (washDiff !== 0) return washDiff;
+      return a.inicio - b.inicio;
+    });
+
+  roots.forEach(root => {
+    const chain = getChainOpsOrdered(root.id_ruta);
+    const hasManualLocks = chain.some(op => op.manual_lock);
+    const dueSlot = promisedHourSlot(root.fecha_entrega_prometida);
+    const canBackSchedule = !hasManualLocks && dueSlot !== null && Number.isFinite(dueSlot);
+
+    if (canBackSchedule) {
+      const chainDuration = getChainDuration(chain);
+      const desiredStart = dueSlot - chainDuration;
+      if (desiredStart >= 0) {
+        scheduleChainBackward(chain, dueSlot);
+        return;
+      }
+    }
+
+    scheduleChainForward(chain, 0);
+  });
+
+  render();
+  Promise.all(
+    orders.map(o =>
+      apiPatch(`${API}/gantt/mover`, { id_ruta: o.id_ruta, inicio: o.inicio })
+    )
+  ).then(() => loadFromAPI()).catch(e => showError('Error al optimizar: ' + e.message));
+}
+
+// ── POLLING (refresh cada 30s) ─────────────────────────────
+setInterval(() => { if (!currentDP) loadFromAPI(); }, 30000);
+
+// ── INICIO ─────────────────────────────────────────────────
+loadFromAPI();
+</script>
+</body>
+</html>
+
+

@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Control de Pendientes | Planificacion</title>
+<style>
+:root{
+  --bg:#f4f7fb;
+  --surface:#ffffff;
+  --border:#d9e4f0;
+  --text:#1f2b3d;
+  --muted:#6c7a92;
+  --primary:#0b81b8;
+  --primary-soft:#e8f4fb;
+  --success:#1d9e75;
+  --warning:#ba7517;
+  --danger:#d84d4d;
+  --shadow:0 18px 42px rgba(31,55,88,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:"Segoe UI",Tahoma,sans-serif;
+  background:linear-gradient(180deg,#eef5fb 0%,#f7f9fc 220px,#f4f7fb 220px);
+  color:var(--text);
+}
+.page{max-width:1440px;margin:0 auto;padding:24px}
+.hero{
+  display:flex;justify-content:space-between;align-items:flex-end;gap:16px;
+  margin-bottom:22px;padding:24px 26px;border-radius:24px;
+  background:linear-gradient(135deg,#0b81b8,#17abdf);
+  box-shadow:0 18px 38px rgba(11,129,184,.18);
+}
+.title{font-size:30px;font-weight:700;color:#fff}
+.subtitle{font-size:13px;color:rgba(255,255,255,.86);margin-top:6px}
+.actions{display:flex;gap:10px;align-items:center}
+.btn{
+  border:1px solid rgba(255,255,255,.38);background:rgba(255,255,255,.12);color:#fff;
+  border-radius:12px;padding:10px 14px;font-size:13px;cursor:pointer;backdrop-filter:blur(8px)
+}
+.btn:hover{border-color:rgba(255,255,255,.58);background:rgba(255,255,255,.18)}
+.btn.primary{background:#fff;border-color:#fff;color:#0b81b8}
+.summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:20px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow)}
+.metric{padding:16px 18px}
+.metric-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.metric-value{font-size:30px;font-weight:700;line-height:1}
+.metric-sub{margin-top:6px;font-size:12px;color:var(--muted)}
+.toolbar{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:18px}
+.filters{display:flex;gap:10px;flex-wrap:wrap}
+.chip{
+  padding:9px 14px;border-radius:999px;border:1px solid var(--border);
+  background:var(--surface);font-size:12px;cursor:pointer;color:var(--muted)
+}
+.chip.active{background:var(--primary-soft);border-color:#9bcff4;color:var(--primary);font-weight:600}
+.search{
+  min-width:280px;max-width:360px;width:100%;padding:10px 14px;border-radius:12px;
+  border:1px solid var(--border);background:var(--surface);font-size:13px
+}
+.list{display:grid;gap:14px}
+.order-card{padding:18px;background:linear-gradient(180deg,#ffffff 0%,#fbfdff 100%)}
+.order-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:14px}
+.order-title{font-size:18px;font-weight:700}
+.order-customer{font-size:13px;color:var(--muted);margin-top:4px}
+.order-meta{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+.meta-pill{
+  padding:7px 10px;border-radius:999px;background:#f3f7fc;border:1px solid var(--border);
+  font-size:12px;color:var(--muted)
+}
+.status-pill{padding:8px 12px;border-radius:999px;font-size:12px;font-weight:700}
+.status-pill.ok{background:#e8f6f2;color:var(--success)}
+.status-pill.warn{background:#fbf1df;color:var(--warning)}
+.status-pill.danger{background:#fdecec;color:var(--danger)}
+.process-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.process-card{border:1px solid #d8e3f0;border-radius:16px;padding:14px;background:#fbfdff}
+.process-title{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
+.process-name{font-size:15px;font-weight:700}
+.process-status{font-size:11px;font-weight:700;padding:5px 8px;border-radius:999px}
+.process-status.pending{background:#e8f2fd;color:var(--primary)}
+.process-status.running{background:#e8f6f2;color:var(--success)}
+.process-status.stop{background:#fdecec;color:var(--danger)}
+.process-status.done{background:#edf7e7;color:#497b14}
+.process-info{display:grid;gap:8px}
+.line{display:flex;justify-content:space-between;gap:12px;font-size:12px}
+.line span:first-child{color:var(--muted)}
+.line strong{font-weight:600}
+.resource-flags{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.flag{padding:5px 9px;border-radius:999px;font-size:11px;font-weight:600}
+.flag.ok{background:#e8f6f2;color:var(--success)}
+.flag.miss{background:#fdecec;color:var(--danger)}
+.process-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.mini-btn{
+  padding:8px 10px;border-radius:10px;border:1px solid var(--border);
+  background:var(--surface);font-size:12px;color:var(--text);cursor:pointer
+}
+.mini-btn:hover{border-color:#b8c7dc}
+.empty{padding:40px 24px;text-align:center;color:var(--muted);font-size:14px}
+@media (max-width: 1100px){
+  .summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .process-grid{grid-template-columns:1fr}
+}
+@media (max-width: 720px){
+  .page{padding:16px}
+  .hero,.toolbar{flex-direction:column;align-items:stretch}
+  .summary{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="hero">
+    <div>
+      <div class="title">Control de Pendientes</div>
+      <div class="subtitle" id="subtitle">Cargando procesos pendientes para produccion...</div>
+    </div>
+    <div class="actions">
+      <button class="btn" onclick="window.location.href='/planificacion/gantt'">Ir al Gantt</button>
+      <button class="btn primary" onclick="window.print()">Imprimir</button>
+    </div>
+  </div>
+
+  <div class="summary" id="summary"></div>
+
+  <div class="toolbar">
+    <div class="filters">
+      <button class="chip active" data-filter="all" onclick="setFilter('all', event)">Todas</button>
+      <button class="chip" data-filter="ready" onclick="setFilter('ready', event)">Listas</button>
+      <button class="chip" data-filter="risk" onclick="setFilter('risk', event)">Con faltantes</button>
+    </div>
+    <input class="search" id="search" type="search" placeholder="Buscar por orden, cliente o producto" oninput="render()">
+  </div>
+
+  <div class="list" id="list">
+    <div class="card empty">Cargando pendientes...</div>
+  </div>
+</div>
+
+<script>
+const API = '/api/planificacion/preturno';
+let items = [];
+let activeFilter = 'all';
+
+function cleanValue(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return 'Sin definir';
+  const lowered = raw.toLowerCase();
+  if (lowered === 'seleccionar...' || lowered === 'seleccionar' || lowered === 'pendiente') return 'Sin definir';
+  return raw;
+}
+
+function processStateClass(status) {
+  const key = String(status || '').toUpperCase();
+  if (key === 'RUN' || key === 'SETUP') return 'running';
+  if (key === 'PARO') return 'stop';
+  if (key === 'COMPLETADO') return 'done';
+  return 'pending';
+}
+
+function orderHealth(order) {
+  const hasMissing = order.processes.some((process) => Array.isArray(process.missingItems) && process.missingItems.length);
+  const hasStop = order.processes.some((process) => String(process.routeStatus || '').toUpperCase() === 'PARO');
+  if (hasStop) return { key:'danger', label:'Atencion' };
+  if (hasMissing) return { key:'warn', label:'Con faltantes' };
+  return { key:'ok', label:'Lista' };
+}
+
+function setFilter(filter) {
+  activeFilter = filter;
+  document.querySelectorAll('.chip').forEach((chip) => chip.classList.toggle('active', chip.dataset.filter === filter));
+  render();
+}
+
+function summaryMarkup(visible) {
+  const total = visible.length;
+  const ready = visible.filter((item) => orderHealth(item).key === 'ok').length;
+  const missing = visible.filter((item) => orderHealth(item).key === 'warn').length;
+  const stopped = visible.filter((item) => orderHealth(item).key === 'danger').length;
+  return `
+    <div class="card metric"><div class="metric-label">Ordenes activas</div><div class="metric-value">${total}</div><div class="metric-sub">Base actual del control</div></div>
+    <div class="card metric"><div class="metric-label">Listas</div><div class="metric-value">${ready}</div><div class="metric-sub">Sin faltantes criticos</div></div>
+    <div class="card metric"><div class="metric-label">Con faltantes</div><div class="metric-value">${missing}</div><div class="metric-sub">Material o troquel pendiente</div></div>
+    <div class="card metric"><div class="metric-label">Con riesgo</div><div class="metric-value">${stopped}</div><div class="metric-sub">Paros o incidencias activas</div></div>
+  `;
+}
+
+function render() {
+  const query = document.getElementById('search').value.trim().toLowerCase();
+  const visible = items.filter((item) => {
+    const matchText = [item.orderCode, item.customerName, item.jobName].join(' ').toLowerCase();
+    if (query && !matchText.includes(query)) return false;
+    const health = orderHealth(item).key;
+    if (activeFilter === 'ready') return health === 'ok';
+    if (activeFilter === 'risk') return health !== 'ok';
+    return true;
+  });
+
+  document.getElementById('summary').innerHTML = summaryMarkup(visible);
+  document.getElementById('subtitle').textContent = `Ordenes incluidas: ${visible.length} | Actualizado ${new Date().toLocaleString('es-CR')}`;
+
+  if (!visible.length) {
+    document.getElementById('list').innerHTML = '<div class="card empty">No hay ordenes que coincidan con el filtro actual.</div>';
+    return;
+  }
+
+  document.getElementById('list').innerHTML = visible.map((item) => {
+    const health = orderHealth(item);
+    return `
+      <div class="card order-card">
+        <div class="order-head">
+          <div>
+            <div class="order-title">${item.orderCode}</div>
+            <div class="order-customer">${item.customerName || 'Sin cliente'}</div>
+            <div class="order-meta">
+              <span class="meta-pill">Cliente: ${item.customerName || 'Sin cliente'}</span>
+              <span class="meta-pill">Producto: ${item.jobName || 'Sin nombre'}</span>
+              <span class="meta-pill">Cantidad: ${Number(item.quantityProducts || 0).toLocaleString('es-CR')}</span>
+            </div>
+          </div>
+          <span class="status-pill ${health.key}">${health.label}</span>
+        </div>
+        <div class="process-grid">
+          ${item.processes.map((process) => `
+            <div class="process-card">
+              <div class="process-title">
+                <span class="process-name">${process.processName}</span>
+                <span class="process-status ${processStateClass(process.routeStatus)}">${process.routeStatus}</span>
+              </div>
+              <div class="process-info">
+                <div class="line"><span>Maquina</span><span><strong>${cleanValue(process.machineLabel)}</strong>${process.machineLabel && cleanValue(process.machineLabel) !== 'Sin definir' ? process.machineRegistered ? '' : ' | fuera de inventario' : ''}</span></div>
+                <div class="line"><span>Ruta</span><span>${process.routeId}</span></div>
+              </div>
+              <div class="resource-flags">
+                ${Array.isArray(process.readyItems) && process.readyItems.length
+                  ? process.readyItems.map((label) => `<span class="flag ok">${label} listo</span>`).join('')
+                  : '<span class="flag ok">Sin bloqueos criticos</span>'}
+                ${Array.isArray(process.missingItems) && process.missingItems.length
+                  ? process.missingItems.map((label) => `<span class="flag miss">Falta ${label}</span>`).join('')
+                  : ''}
+              </div>
+              <div class="process-actions">
+                <button class="mini-btn" onclick="openMes('${process.routeId}', '${process.processName}')">Abrir control</button>
+                <button class="mini-btn" onclick="openGantt('${item.orderCode}')">Ver en Gantt</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function load() {
+  try {
+    const res = await fetch(API);
+    const payload = await res.json();
+    if (!res.ok || !payload.ok) throw new Error(payload.error || 'No fue posible cargar el control de pendientes.');
+    items = payload.items || [];
+    render();
+  } catch (error) {
+    document.getElementById('summary').innerHTML = '';
+    document.getElementById('subtitle').textContent = 'Error al cargar el reporte';
+    document.getElementById('list').innerHTML = `<div class="card empty">${error.message}</div>`;
+  }
+}
+
+function openMes(routeId, processName) {
+  const key = String(processName || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  const isPlate = ['preprensa', 'planchas', 'diseno'].includes(key);
+  const url = isPlate
+    ? `/planificacion/mes-planchas?routeId=${encodeURIComponent(routeId)}`
+    : `/planificacion/mes-operario?routeId=${encodeURIComponent(routeId)}`;
+  window.location.href = url;
+}
+
+function openGantt(orderCode) {
+  window.location.href = `/planificacion/gantt?orderCode=${encodeURIComponent(orderCode)}`;
+}
+
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cola de Planificación</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+body{background:#f6f8fb}
+.planning-queue-page{max-width:1480px;margin:0 auto;padding:24px}
+.planning-queue-hero{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:20px}
+.planning-queue-title{font-size:30px;font-weight:700;color:#203746}
+.planning-queue-subtitle{font-size:13px;color:#70808d;margin-top:6px}
+.planning-queue-actions{display:flex;gap:10px;flex-wrap:wrap}
+.planning-queue-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.planning-queue-metric{padding:16px 18px;border:1px solid #dbe5ec;border-radius:16px;background:#fff;box-shadow:0 8px 22px rgba(18,38,54,.05)}
+.planning-queue-metric-label{font-size:11px;color:#70808d;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}
+.planning-queue-metric-value{font-size:28px;font-weight:700;color:#203746}
+.planning-queue-toolbar{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:18px}
+.planning-queue-search{min-width:280px;max-width:360px;width:100%;padding:10px 14px;border-radius:12px;border:1px solid #dbe5ec;background:#fff;font-size:13px}
+.planning-queue-list{display:grid;gap:16px}
+.planning-queue-card{padding:18px;border:1px solid #dbe5ec;border-radius:18px;background:#fff;box-shadow:0 10px 24px rgba(18,38,54,.05)}
+.planning-queue-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:14px}
+.planning-queue-code{font-size:18px;font-weight:700;color:#203746}
+.planning-queue-customer{font-size:13px;color:#70808d;margin-top:4px}
+.planning-queue-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.planning-queue-pill{display:inline-flex;align-items:center;min-height:30px;padding:0 10px;border-radius:999px;background:#eef4f8;color:#577086;font-size:12px}
+.planning-queue-body{display:grid;grid-template-columns:minmax(320px,1.2fr) minmax(260px,.8fr) minmax(260px,.9fr);gap:16px}
+.planning-queue-panel{padding:14px;border:1px solid #e3ebf1;border-radius:14px;background:#fbfdff}
+.planning-queue-panel h3{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#70808d;margin-bottom:10px}
+.planning-queue-grid{display:grid;gap:8px}
+.planning-queue-row{display:flex;justify-content:space-between;gap:12px;font-size:12px}
+.planning-queue-row span:first-child{color:#70808d}
+.planning-queue-row strong{font-weight:600;color:#203746;text-align:right}
+.planning-queue-processes,.planning-queue-badges{display:flex;gap:8px;flex-wrap:wrap}
+.planning-queue-process{padding:6px 10px;border-radius:999px;background:#edf5fb;color:#215a82;font-size:11px;font-weight:600}
+.planning-queue-badge-ok,.planning-queue-badge-miss{padding:6px 10px;border-radius:999px;font-size:11px;font-weight:700}
+.planning-queue-badge-ok{background:#e9f7f1;color:#11734c}
+.planning-queue-badge-miss{background:#fdecec;color:#b53b3b}
+.planning-queue-health-badge{padding:7px 11px;border-radius:999px;font-size:11px;font-weight:700}
+.planning-queue-health-badge.ok{background:#e9f7f1;color:#11734c}
+.planning-queue-health-badge.warn{background:#fbf0dd;color:#9a640f}
+.planning-queue-health-badge.danger{background:#fdecec;color:#b53b3b}
+.planning-queue-text{font-size:12px;line-height:1.45;color:#304453;white-space:pre-wrap}
+.planning-queue-process-grid{display:grid;gap:10px}
+.planning-queue-process-card{padding:12px;border:1px solid #e3ebf1;border-radius:12px;background:#fff}
+.planning-queue-process-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px}
+.planning-queue-process-name{font-size:13px;font-weight:700;color:#203746}
+.planning-queue-process-status{padding:5px 8px;border-radius:999px;font-size:10px;font-weight:700}
+.planning-queue-process-status.pending{background:#e8f2fd;color:#1f78b7}
+.planning-queue-process-status.running{background:#e8f6f2;color:#11734c}
+.planning-queue-process-status.stop{background:#fdecec;color:#b53b3b}
+.planning-queue-process-status.done{background:#edf7e7;color:#497b14}
+.planning-queue-process-lines{display:grid;gap:6px}
+.planning-queue-process-line{display:flex;justify-content:space-between;gap:12px;font-size:11px}
+.planning-queue-process-line span:first-child{color:#70808d}
+.planning-queue-process-line strong{color:#203746;text-align:right}
+.planning-queue-process-flags{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.planning-queue-flag{padding:5px 8px;border-radius:999px;font-size:10px;font-weight:700}
+.planning-queue-flag.ok{background:#e9f7f1;color:#11734c}
+.planning-queue-flag.miss{background:#fdecec;color:#b53b3b}
+.planning-queue-card-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin-top:16px}
+.planning-queue-empty{padding:44px 24px;border:1px dashed #dbe5ec;border-radius:18px;background:#fff;color:#70808d;text-align:center}
+.planning-queue-return-dialog{position:fixed;inset:0;background:rgba(18,38,54,.38);display:flex;align-items:center;justify-content:center;padding:20px;z-index:80}
+.planning-queue-return-panel{width:min(560px,100%);padding:20px;border-radius:20px;background:#fff;box-shadow:0 18px 40px rgba(18,38,54,.18);display:grid;gap:16px}
+.planning-queue-return-title{font-size:20px;font-weight:700;color:#203746}
+.planning-queue-return-copy{font-size:13px;color:#70808d;line-height:1.5}
+.planning-queue-return-options{display:flex;flex-wrap:wrap;gap:10px}
+.planning-queue-return-option{padding:10px 12px;border:1px solid #dbe5ec;border-radius:12px;background:#fbfdff;font-size:12px;color:#304453;cursor:pointer}
+.planning-queue-return-option.is-selected{border-color:#1f8bd8;background:#eaf4fb;color:#1f5e88;font-weight:700}
+.planning-queue-return-textarea{width:100%;min-height:92px;padding:12px 14px;border-radius:14px;border:1px solid #dbe5ec;background:#fff;font-size:12px;color:#304453;resize:vertical}
+.planning-queue-return-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+@media (max-width:1100px){
+  .planning-queue-summary,.planning-queue-body{grid-template-columns:1fr 1fr}
+}
+@media (max-width:820px){
+  .planning-queue-page{padding:16px}
+  .planning-queue-hero,.planning-queue-toolbar,.planning-queue-head{flex-direction:column;align-items:stretch}
+  .planning-queue-summary,.planning-queue-body{grid-template-columns:1fr}
+  .planning-queue-card-actions{justify-content:stretch}
+}
+</style>
+</head>
+<body>
+<main class="planning-queue-page">
+  <section class="planning-queue-hero">
+    <div>
+      <div class="planning-queue-title">Cola de Planificación</div>
+      <div id="planningQueueSubtitle" class="planning-queue-subtitle">Cargando órdenes liberadas por ventas...</div>
+    </div>
+    <div class="planning-queue-actions">
+      <button type="button" class="action-btn" id="planningQueueOpenGanttButton">Ir al Gantt</button>
+      <button type="button" class="action-btn" id="planningQueueOpenPreturnoButton">Ver Preturno</button>
+    </div>
+  </section>
+
+  <section id="planningQueueSummary" class="planning-queue-summary"></section>
+
+  <section class="planning-queue-toolbar">
+    <div class="planning-queue-subtitle">Revisa información crítica antes de lanzar la orden al Gantt o devolverla a ventas.</div>
+    <input id="planningQueueSearchInput" class="planning-queue-search" type="search" placeholder="Buscar por orden, cliente o trabajo">
+  </section>
+
+  <section id="planningQueueList" class="planning-queue-list">
+    <div class="planning-queue-empty">Cargando cola de planificación...</div>
+  </section>
+</main>
+<script src="/planificacion/lanzamiento.js"></script>
+</body>
+</html>

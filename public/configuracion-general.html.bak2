@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuración General</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="app-shell">
+        <main class="workspace">
+            <section class="config-page">
+                <form id="generalConfigForm" class="config-grid">
+                    <section class="config-card config-card-split">
+                        <div>
+                            <h2>Identidad</h2>
+                            <div class="config-form-grid config-form-grid-wide">
+                                <label>
+                                    <span>Nombre empresa</span>
+                                    <input name="branding.companyName" type="text">
+                                </label>
+                                <label>
+                                    <span>Teléfono</span>
+                                    <input name="contact.companyPhone" type="text">
+                                </label>
+                                <label>
+                                    <span>Correo</span>
+                                    <input name="contact.companyEmail" type="email">
+                                </label>
+                                <label>
+                                    <span>Fuente global</span>
+                                    <select name="appearance.fontFamily">
+                                        <option value="Segoe UI, Tahoma, Geneva, Verdana, sans-serif">Segoe UI</option>
+                                        <option value="Arial, Helvetica, sans-serif">Arial</option>
+                                        <option value="Tahoma, Geneva, sans-serif">Tahoma</option>
+                                        <option value="Verdana, Geneva, sans-serif">Verdana</option>
+                                        <option value="Trebuchet MS, sans-serif">Trebuchet MS</option>
+                                        <option value="Calibri, Arial, sans-serif">Calibri</option>
+                                    </select>
+                                </label>
+                                <label class="config-span-2">
+                                    <span>Logo</span>
+                                    <input id="logoUploadField" type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp" hidden>
+                                    <input id="logoUrlField" name="branding.logoUrl" type="text" hidden>
+                                    <div id="logoDropzone" class="config-dropzone">Suelta aquí el logo o toca para elegir archivo</div>
+                                </label>
+                            </div>
+                        </div>
+                        <aside class="inline-preview-card">
+                            <h3>Preview Logo</h3>
+                            <div class="preview-sandbox compact-preview">
+                                <div id="previewLogoBox" class="brand-mark preview-brand">PrintLab</div>
+                            </div>
+                        </aside>
+                    </section>
+
+                    <section class="config-card config-card-split">
+                        <div>
+                            <h2>Encabezado</h2>
+                            <div class="config-form-grid config-form-grid-wide">
+                                <label class="config-span-2">
+                                    <span>Presentación</span>
+                                    <select id="presentationKey">
+                                        <option value="cotizaciones">Cotizaciones</option>
+                                        <option value="socios">Socios</option>
+                                        <option value="inventario">Inventario</option>
+                                        <option value="flexo">Flexo Cálculo</option>
+                                    </select>
+                                </label>
+                                <label class="config-span-2">
+                                    <span>Título del módulo</span>
+                                    <input id="presentationModuleTitle" type="text">
+                                </label>
+                                <label>
+                                    <span>Ancho bloque empresa</span>
+                                    <input id="presentationBrandWidth" type="number" min="40">
+                                </label>
+                                <label>
+                                    <span>Fuente empresa</span>
+                                    <select id="presentationBrandFontFamily">
+                                        <option value="Georgia, Times New Roman, serif">Georgia</option>
+                                        <option value="Times New Roman, Times, serif">Times New Roman</option>
+                                        <option value="Segoe UI, Tahoma, Geneva, Verdana, sans-serif">Segoe UI</option>
+                                        <option value="Arial, Helvetica, sans-serif">Arial</option>
+                                        <option value="Trebuchet MS, sans-serif">Trebuchet MS</option>
+                                        <option value="Calibri, Arial, sans-serif">Calibri</option>
+                                    </select>
+                                </label>
+                                <label>
+                                    <span>Tamaño empresa</span>
+                                    <input id="presentationBrandFontSize" type="number" min="10">
+                                </label>
+                                <label>
+                                    <span>Fuente título</span>
+                                    <select id="presentationTitleFontFamily">
+                                        <option value="Segoe UI, Tahoma, Geneva, Verdana, sans-serif">Segoe UI</option>
+                                        <option value="Arial, Helvetica, sans-serif">Arial</option>
+                                        <option value="Tahoma, Geneva, sans-serif">Tahoma</option>
+                                        <option value="Verdana, Geneva, sans-serif">Verdana</option>
+                                        <option value="Trebuchet MS, sans-serif">Trebuchet MS</option>
+                                        <option value="Calibri, Arial, sans-serif">Calibri</option>
+                                    </select>
+                                </label>
+                                <label>
+                                    <span>Tamaño título</span>
+                                    <input id="presentationTitleFontSize" type="number" min="10">
+                                </label>
+                                <label>
+                                    <span>Alineación vertical título</span>
+                                    <select id="presentationTitleVerticalAlign">
+                                        <option value="flex-start">Arriba</option>
+                                        <option value="center">Medio</option>
+                                        <option value="flex-end">Abajo</option>
+                                    </select>
+                                </label>
+                                <label>
+                                    <span>Relleno superior empresa</span>
+                                    <input id="presentationBrandMarginTop" type="number">
+                                </label>
+                                <label>
+                                    <span>Relleno derecho empresa</span>
+                                    <input id="presentationBrandMarginRight" type="number">
+                                </label>
+                                <label>
+                                    <span>Relleno inferior empresa</span>
+                                    <input id="presentationBrandMarginBottom" type="number">
+                                </label>
+                                <label>
+                                    <span>Relleno izquierdo empresa</span>
+                                    <input id="presentationBrandMarginLeft" type="number">
+                                </label>
+                                <label>
+                                    <span>Margen título respecto empresa</span>
+                                    <input id="presentationTitleMarginLeft" type="number">
+                                </label>
+                                <label>
+                                    <span>Posición Logo</span>
+                                    <select id="presentationLogoPosition">
+                                        <option value="left">Izquierda del Texto</option>
+                                        <option value="right">Derecha del Texto</option>
+                                        <option value="hide_text">Ocultar Texto</option>
+                                    </select>
+                                </label>
+                                <label>
+                                    <span>Fondo Color Inicial (Encabezado)</span>
+                                    <input id="presentationHeaderBgStart" type="color" value="#0b81b8">
+                                </label>
+                                <label>
+                                    <span>Fondo Color Final (Encabezado)</span>
+                                    <input id="presentationHeaderBgEnd" type="color" value="#17abdf">
+                                </label>
+                                <label>
+                                    <span>Color línea encabezado</span>
+                                    <input id="presentationHeaderBorderColor" type="color" value="#11a3dd">
+                                </label>
+                                <label>
+                                    <span>Margen superior pie</span>
+                                    <input id="presentationFooterMarginTop" type="number">
+                                </label>
+                                <label>
+                                    <span>Margen inferior pie</span>
+                                    <input id="presentationFooterMarginBottom" type="number">
+                                </label>
+                                <label>
+                                    <span>Alto de campos (Formulario)</span>
+                                    <input id="presentationFieldHeight" type="number" min="16" placeholder="Ej. 18">
+                                </label>
+                                <label>
+                                    <span>Fuente de campos (Formulario)</span>
+                                    <input id="presentationFieldFontSize" type="number" min="10" placeholder="Ej. 12">
+                                </label>
+                                <label>
+                                    <span>Alineación etiquetas (Formulario)</span>
+                                    <select id="presentationLabelAlign">
+                                        <option value="">(Heredada global)</option>
+                                        <option value="left">Izquierda</option>
+                                        <option value="center">Centro</option>
+                                        <option value="right">Derecha</option>
+                                    </select>
+                                </label>
+                                <label>
+                                    <span>Límite Ancho Medio (Ej. Fecha)</span>
+                                    <input id="presentationMediumInputWidth" type="number" min="0" placeholder="0 = Automático">
+                                </label>
+                                <label>
+                                    <span>Límite Ancho Grande (Ej. Vendedor)</span>
+                                    <input id="presentationLargeInputWidth" type="number" min="0" placeholder="0 = Automático">
+                                </label>
+                                <label class="config-span-2">
+                                    <span>Logo para Encabezado (Opcional)</span>
+                                    <input id="presentationLogoUploadField" type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp" hidden>
+                                    <input id="presentationBrandLogoUrl" type="text" hidden>
+                                    <div id="presentationLogoDropzone" class="config-dropzone">Suelta aquí el logo del encabezado o toca para elegir archivo</div>
+                                </label>
+                            </div>
+                        </div>
+                        <aside class="inline-preview-card">
+                            <h3>Preview Encabezado</h3>
+                            <div id="previewHeaderBg" class="preview-sandbox side-preview" style="padding: 10px; border-radius: 6px; margin-bottom: 16px;">
+                                <div class="preview-header-block">
+                                    <div id="previewHeaderBrandContainer" style="display: flex; align-items: center; gap: 8px;">
+                                        <img id="previewHeaderLogoImage" style="display: none; max-height: 38px; max-width: 120px; object-fit: contain;">
+                                        <div id="previewHeaderBrand" class="brand-mark preview-brand" style="margin: 0;">PrintLab</div>
+                                    </div>
+                                    <h3 id="previewHeaderTitle" class="preview-header-title">Cotizaciones</h3>
+                                </div>
+                            </div>
+                            <h3>Preview Formulario</h3>
+                            <div class="preview-sandbox" style="background:#fff; padding:16px; border:1px solid #d9dee4; border-radius:6px;">
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    <label id="previewFormLabel" style="width: 58px; font-weight:600; text-align: left; font-size: 10px; text-transform:uppercase; color:#8a93a0;">Cliente</label>
+                                    <input type="text" id="previewFormInput" style="height: 18px; font-size: 12px; flex: 1; border:1px solid #cdd4dc; border-radius:3px; padding:0 6px; color:#252c33;" value="Empresa Especial" readonly>
+                                </div>
+                            </div>
+                        </aside>
+                    </section>
+
+                    <section class="config-card">
+                        <h2>Iconos</h2>
+                        <div class="config-form-grid config-form-grid-wide">
+                            <label>
+                                <span>Usuario visible</span>
+                                <input name="session.currentUser" type="text">
+                            </label>
+                            <label>
+                                <span>Tamaño iconos</span>
+                                <input name="layout.iconSize" type="number" min="12">
+                            </label>
+                        </div>
+
+                        <div class="icon-editor-grid">
+                            <div class="icon-editor-row">
+                                <label><span>Icono menú</span><input name="icons.topMenu" type="text"></label>
+                                <div id="preview-icons.topMenu" class="mini-icon-preview" data-icon-dropzone="icons.topMenu"></div>
+                                <input data-icon-upload="icons.topMenu" type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp" hidden>
+                            </div>
+                            <div class="icon-editor-row">
+                                <label><span>Icono búsqueda</span><input name="icons.topSearch" type="text"></label>
+                                <div id="preview-icons.topSearch" class="mini-icon-preview" data-icon-dropzone="icons.topSearch"></div>
+                                <input data-icon-upload="icons.topSearch" type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp" hidden>
+                            </div>
+                            <div class="icon-editor-row">
+                                <label><span>Icono usuario</span><input name="icons.topUser" type="text"></label>
+                                <div id="preview-icons.topUser" class="mini-icon-preview" data-icon-dropzone="icons.topUser"></div>
+                                <input data-icon-upload="icons.topUser" type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp" hidden>
+                            </div>
+                            <div class="icon-editor-row">
+                                <label><span>Icono mover fila</span><input name="icons.tableMove" type="text"></label>
+                                <div id="preview-icons.tableMove" class="mini-icon-preview" data-icon-dropzone="icons.tableMove"></div>
+                                <input data-icon-upload="icons.tableMove" type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp" hidden>
+                            </div>
+                            <div class="icon-editor-row">
+                                <label><span>Icono abrir cálculo</span><input name="icons.tableOpen" type="text"></label>
+                                <div id="preview-icons.tableOpen" class="mini-icon-preview" data-icon-dropzone="icons.tableOpen"></div>
+                                <input data-icon-upload="icons.tableOpen" type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp" hidden>
+                            </div>
+                            <div class="icon-editor-row">
+                                <label><span>Icono agregar línea</span><input name="icons.tableAdd" type="text"></label>
+                                <div id="preview-icons.tableAdd" class="mini-icon-preview" data-icon-dropzone="icons.tableAdd"></div>
+                                <input data-icon-upload="icons.tableAdd" type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp" hidden>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="config-card">
+                        <h2>Layout</h2>
+                        <div class="config-form-grid config-form-grid-wide">
+                            <label>
+                                <span>Alto campo</span>
+                                <input name="layout.fieldHeight" type="number" min="16">
+                            </label>
+                            <label>
+                                <span>Fuente campo</span>
+                                <input name="layout.fieldFontSize" type="number" min="10">
+                            </label>
+                            <label>
+                                <span>Fuente cotización</span>
+                                <input name="layout.quoteNumberFontSize" type="number" min="14">
+                            </label>
+                            <label>
+                                <span>Alto fila tabla</span>
+                                <input name="layout.tableRowHeight" type="number" min="18">
+                            </label>
+                            <label>
+                                <span>Fondo Genérico Inicial</span>
+                                <input name="layout.headerBgStart" type="color" value="#0b81b8">
+                            </label>
+                            <label>
+                                <span>Fondo Genérico Final</span>
+                                <input name="layout.headerBgEnd" type="color" value="#17abdf">
+                            </label>
+                            <label>
+                                <span>Fuente encabezado tabla</span>
+                                <input name="layout.tableHeaderFontSize" type="number" min="10">
+                            </label>
+                            <label>
+                                <span>Fuente tabla</span>
+                                <input name="layout.tableFontSize" type="number" min="10">
+                            </label>
+                            <label>
+                                <span>Ancho pestaña</span>
+                                <input name="layout.tabWidth" type="number" min="60">
+                            </label>
+                            <label>
+                                <span>Alto pestaña</span>
+                                <input name="layout.tabHeight" type="number" min="16">
+                            </label>
+                            <label>
+                                <span>Margen superior</span>
+                                <input name="layout.pageMarginTop" type="number" min="0">
+                            </label>
+                            <label>
+                                <span>Margen derecho</span>
+                                <input name="layout.pageMarginRight" type="number" min="0">
+                            </label>
+                            <label>
+                                <span>Margen inferior</span>
+                                <input name="layout.pageMarginBottom" type="number" min="0">
+                            </label>
+                            <label>
+                                <span>Margen izquierdo</span>
+                                <input name="layout.pageMarginLeft" type="number" min="0">
+                            </label>
+                        </div>
+                    </section>
+
+                    <section class="config-card">
+                        <div class="section-head">
+                            <div>
+                                <h2>Guardar</h2>
+                                <p class="section-caption">Los cambios quedan persistidos en la base de datos.</p>
+                            </div>
+                            <div class="config-actions">
+                                <button type="submit" class="action-btn action-btn-primary">Guardar</button>
+                                <a href="/" class="nav-btn link-btn" id="configFooterBackLink">Volver</a>
+                            </div>
+                        </div>
+                        <p id="saveStatus" class="config-status">Listo para editar.</p>
+                    </section>
+                </form>
+            </section>
+        </main>
+    </div>
+
+    <script src="/configuracion-general.js"></script>
+</body>
+</html>

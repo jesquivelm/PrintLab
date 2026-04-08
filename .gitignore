@@ -1,0 +1,15 @@
+# Visual Studio archivos temporales
+.vs/
+[Bb]in/
+[Obj]/
+*.suo
+*.user
+
+# Node.js
+node_modules/
+npm-debug.log*
+
+# Archivos de entorno (Seguridad)
+.env
+.env.test
+.env.local

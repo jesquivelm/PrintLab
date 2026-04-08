@@ -1,0 +1,680 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flexo APS — Configuración de Procesos y Máquinas</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f5f5f3;min-height:100vh}
+
+/* Header */
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:#fff;border-bottom:1px solid #e0e0da;position:sticky;top:0;z-index:100}
+.hdr-left{display:flex;align-items:center;gap:12px}
+.hdr-title{font-size:15px;font-weight:600;color:#1a1a1a}
+.hdr-sub{font-size:11px;color:#888}
+.nav-tabs{display:flex;gap:2px;background:#f5f5f3;padding:3px;border-radius:8px}
+.nav-tab{padding:6px 16px;border-radius:6px;font-size:12px;cursor:pointer;color:#666;border:none;background:transparent;font-weight:500}
+.nav-tab.active{background:#fff;color:#1a1a1a;box-shadow:0 1px 4px rgba(0,0,0,0.08)}
+.btn{font-size:12px;padding:6px 14px;border-radius:7px;border:1px solid #d0d0ca;background:#fff;color:#1a1a1a;cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-weight:500}
+.btn:hover{background:#f0f0ea}
+.btn.primary{background:#1D9E75;border-color:#0F6E56;color:#fff}
+.btn.primary:hover{background:#0F6E56}
+.btn.danger{background:#fceaea;border-color:#f0b5b5;color:#A32D2D}
+.btn.danger:hover{background:#fbd5d5}
+.btn.sm{font-size:11px;padding:4px 10px}
+
+/* Layout */
+.page{display:none;padding:20px;max-width:1100px;margin:0 auto}
+.page.active{display:block}
+
+/* Cards */
+.card{background:#fff;border:1px solid #e0e0da;border-radius:10px;overflow:hidden;margin-bottom:16px}
+.card-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e8e8e4}
+.card-title{font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
+.card-body{padding:0}
+
+/* Proceso row */
+.proceso-row{display:grid;grid-template-columns:36px 36px 1fr 80px 80px 100px;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid #f0f0ea;cursor:grab}
+.proceso-row:last-child{border-bottom:none}
+.proceso-row:hover{background:#fafaf8}
+.drag-handle{color:#ccc;cursor:grab;font-size:16px;text-align:center}
+.proceso-orden{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0}
+.proceso-nombre{font-weight:500;font-size:13px}
+.proceso-icono{font-size:18px}
+.proceso-maquinas{font-size:11px;color:#888}
+.proceso-paralelo{font-size:10px;padding:2px 7px;border-radius:10px;background:#e8f7f1;color:#0F6E56;border:1px solid #b5e8d5}
+.proceso-actions{display:flex;gap:6px;justify-content:flex-end}
+.badge-paralelo{font-size:10px;padding:2px 7px;border-radius:10px}
+.badge-paralelo.si{background:#e8f7f1;color:#0F6E56;border:1px solid #b5e8d5}
+.badge-paralelo.no{background:#f5f5f3;color:#888;border:1px solid #e0e0da}
+
+/* Maquina row */
+.maq-section{padding:0 18px 14px}
+.maq-section-title{font-size:10px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;padding:10px 0 6px;display:flex;align-items:center;gap:6px}
+.maq-list{display:flex;flex-direction:column;gap:6px}
+.maq-row{display:grid;grid-template-columns:1fr 90px 70px 70px 1fr auto;align-items:center;gap:10px;padding:10px 14px;background:#f9f9f7;border:1px solid #e8e8e4;border-radius:8px}
+.maq-row.inactive{opacity:0.5}
+.maq-id{font-weight:700;font-size:12px;color:#378ADD}
+.maq-nombre{font-size:12px;font-weight:500}
+.maq-sub{font-size:11px;color:#888}
+.maq-flags{display:flex;gap:4px;flex-wrap:wrap}
+.flag{font-size:10px;padding:1px 6px;border-radius:4px;background:#e8f0fb;color:#185FA5;border:1px solid #b5d0f0}
+.maq-actions{display:flex;gap:5px}
+
+/* Formularios */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:200;display:none;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:12px;padding:22px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.18)}
+.modal-title{font-size:15px;font-weight:600;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center}
+.modal-close{cursor:pointer;color:#888;font-size:20px;line-height:1}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-grid.full{grid-template-columns:1fr}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:11px;color:#888;font-weight:500}
+.field input,.field select,.field textarea{font-size:12px;padding:7px 10px;border:1px solid #d0d0ca;border-radius:7px;background:#fafaf8;color:#1a1a1a;outline:none}
+.field input:focus,.field select:focus{border-color:#1D9E75;box-shadow:0 0 0 2px rgba(29,158,117,0.12)}
+.field .hint{font-size:10px;color:#aaa}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f0ea}
+.toggle-row:last-child{border-bottom:none}
+.toggle-lbl{font-size:12px;color:#333}
+.toggle-hint{font-size:10px;color:#aaa}
+input[type="checkbox"]{width:16px;height:16px;accent-color:#1D9E75;cursor:pointer}
+.color-preview{width:32px;height:32px;border-radius:6px;border:1px solid #d0d0ca;flex-shrink:0}
+.color-row{display:flex;align-items:center;gap:8px}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid #e8e8e4}
+
+/* Empty state */
+.empty{padding:32px;text-align:center;color:#aaa;font-size:13px}
+.empty-icon{font-size:36px;margin-bottom:8px}
+
+/* Loading */
+.loading{padding:40px;text-align:center;color:#888}
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid #e0e0da;border-top-color:#1D9E75;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Alerts */
+.alert{padding:10px 14px;border-radius:7px;margin-bottom:12px;font-size:12px;display:flex;align-items:center;gap:8px}
+.alert.success{background:#e8f7f1;color:#0F6E56;border:1px solid #b5e8d5}
+.alert.error{background:#fceaea;color:#A32D2D;border:1px solid #f0b5b5}
+
+/* Resumen rápido */
+.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.summary-card{background:#fff;border:1px solid #e0e0da;border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+.summary-num{font-size:28px;font-weight:600}
+.summary-lbl{font-size:11px;color:#888}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-left">
+    <div>
+      <div class="hdr-title">⚙ Configuración APS</div>
+      <div class="hdr-sub">Procesos de producción y recursos de máquina</div>
+    </div>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showTab('procesos')">Procesos</button>
+    <button class="nav-tab" onclick="showTab('maquinas')">Máquinas</button>
+    <button class="nav-tab" onclick="showTab('resumen')">Resumen</button>
+  </div>
+  <a href="gantt.html">
+    <button class="btn">← Volver al Gantt</button>
+  </a>
+</div>
+
+<div id="alert-container" style="max-width:1100px;margin:12px auto 0;padding:0 20px"></div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- TAB: PROCESOS                                          -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="page-procesos" class="page active">
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <div>
+      <div style="font-size:16px;font-weight:600">Cadena de Procesos</div>
+      <div style="font-size:12px;color:#888;margin-top:2px">Define el orden y los atributos de cada etapa productiva</div>
+    </div>
+    <button class="btn primary" onclick="openModalProceso()">+ Agregar proceso</button>
+  </div>
+
+  <div class="card">
+    <div class="card-hdr">
+      <span class="card-title">📋 Secuencia de producción</span>
+      <span style="font-size:11px;color:#aaa">Arrastra para reordenar</span>
+    </div>
+    <div id="procesos-list" class="card-body">
+      <div class="loading"><span class="spinner"></span>Cargando...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- TAB: MÁQUINAS                                         -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="page-maquinas" class="page">
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <div>
+      <div style="font-size:16px;font-weight:600">Máquinas y Recursos</div>
+      <div style="font-size:12px;color:#888;margin-top:2px">Agrupadas por proceso productivo</div>
+    </div>
+    <button class="btn primary" onclick="openModalMaquina()">+ Agregar máquina</button>
+  </div>
+
+  <div id="maquinas-list">
+    <div class="loading"><span class="spinner"></span>Cargando...</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- TAB: RESUMEN                                           -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="page-resumen" class="page">
+  <div style="font-size:16px;font-weight:600;margin-bottom:16px">Resumen de configuración</div>
+  <div id="resumen-content">
+    <div class="loading"><span class="spinner"></span>Cargando...</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- MODAL: PROCESO                                         -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-proceso">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="modal-proceso-titulo">Nuevo Proceso</span>
+      <span class="modal-close" onclick="closeModal('modal-proceso')">✕</span>
+    </div>
+    <input type="hidden" id="proc-id">
+    <div class="form-grid">
+      <div class="field" style="grid-column:1/-1">
+        <label>Nombre del proceso *</label>
+        <input type="text" id="proc-nombre" placeholder="Ej: Impresión, Troquelado…">
+      </div>
+      <div class="field">
+        <label>Orden en la secuencia *</label>
+        <input type="number" id="proc-orden" min="1" max="99" placeholder="1">
+        <span class="hint">1 = primero en la línea</span>
+      </div>
+      <div class="field">
+        <label>Icono (emoji)</label>
+        <input type="text" id="proc-icono" placeholder="⚙" maxlength="4">
+      </div>
+      <div class="field" style="grid-column:1/-1">
+        <label>Color en el Gantt</label>
+        <div class="color-row">
+          <input type="color" id="proc-color" value="#378ADD" style="width:60px;height:36px;border-radius:6px;border:1px solid #d0d0ca;cursor:pointer">
+          <div id="proc-color-preview" class="color-preview" style="background:#378ADD"></div>
+          <span id="proc-color-hex" style="font-size:12px;color:#666">#378ADD</span>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:14px">
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-lbl">Proceso paralelo</div>
+          <div class="toggle-hint">Puede ejecutarse al mismo tiempo que el proceso anterior</div>
+        </div>
+        <input type="checkbox" id="proc-paralelo">
+      </div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-lbl">Activo</div>
+          <div class="toggle-hint">Visible en el Gantt y asignable a órdenes</div>
+        </div>
+        <input type="checkbox" id="proc-activo" checked>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-proceso')">Cancelar</button>
+      <button class="btn primary" onclick="guardarProceso()">Guardar proceso</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- MODAL: MÁQUINA                                         -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-maquina">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="modal-maquina-titulo">Nueva Máquina</span>
+      <span class="modal-close" onclick="closeModal('modal-maquina')">✕</span>
+    </div>
+    <input type="hidden" id="maq-id-original">
+    <div class="form-grid">
+      <div class="field">
+        <label>Código de máquina</label>
+        <input type="text" id="maq-id" placeholder="Ej: M5" maxlength="10">
+        <span class="hint">Opcional. Visible en planificación sin afectar el identificador interno.</span>
+      </div>
+      <div class="field">
+        <label>Proceso al que pertenece *</label>
+        <select id="maq-proceso">
+          <option value="">— Seleccionar —</option>
+        </select>
+      </div>
+      <div class="field" style="grid-column:1/-1">
+        <label>Nombre del recurso *</label>
+        <input type="text" id="maq-nombre" placeholder="Ej: Flexo 8C — Línea 3">
+      </div>
+      <div class="field" style="grid-column:1/-1">
+        <label>Descripción / sub-línea</label>
+        <input type="text" id="maq-sub" placeholder="Ej: 8 colores · Troquel · UV">
+      </div>
+      <div class="field">
+        <label>Capacidad de colores</label>
+        <input type="number" id="maq-colores" min="0" max="12" value="0">
+      </div>
+      <div class="field">
+        <label>Velocidad nominal (pies/min)</label>
+        <input type="number" id="maq-vel" min="0" value="0">
+      </div>
+      <div class="field">
+        <label>OEE estimado (0.00 – 1.00)</label>
+        <input type="number" id="maq-oee" min="0" max="1" step="0.01" value="0.85">
+      </div>
+      <div class="field">
+        <label>Ancho máx. de banda (mm)</label>
+        <input type="number" id="maq-ancho-max" min="0" placeholder="Ej: 1270">
+      </div>
+      <div class="field">
+        <label>Ancho mín. de banda (mm)</label>
+        <input type="number" id="maq-ancho-min" min="0" placeholder="Ej: 250">
+      </div>
+    </div>
+    <div style="margin-top:14px">
+      <div style="font-size:11px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">Capacidades especiales</div>
+      <div class="toggle-row">
+        <div class="toggle-lbl">Troquel integrado</div>
+        <input type="checkbox" id="maq-troquel">
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-lbl">Barniz UV inline</div>
+        <input type="checkbox" id="maq-uv">
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-lbl">Laminado</div>
+        <input type="checkbox" id="maq-laminado">
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-lbl">Activa</div>
+        <input type="checkbox" id="maq-activa" checked>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-maquina')">Cancelar</button>
+      <button class="btn primary" onclick="guardarMaquina()">Guardar máquina</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+const API = '/api/planificacion';
+let procesos = [];
+let maquinas = [];
+
+// ── TABS ─────────────────────────────────────────────────────
+function showTab(tab) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + tab).classList.add('active');
+  document.querySelectorAll('.nav-tab').forEach(t => {
+    if (t.textContent.toLowerCase().includes(tab) || t.onclick.toString().includes(tab))
+      t.classList.add('active');
+  });
+  if (tab === 'resumen') renderResumen();
+}
+
+// ── ALERTAS ───────────────────────────────────────────────────
+function showAlert(msg, type = 'success') {
+  const c = document.getElementById('alert-container');
+  c.innerHTML = `<div class="alert ${type}">${type==='success'?'✓':'⚠'} ${msg}</div>`;
+  setTimeout(() => c.innerHTML = '', 4000);
+}
+
+// ── MODALES ───────────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ── CARGA DE DATOS ────────────────────────────────────────────
+async function loadAll() {
+  try {
+    const [pRes, mRes] = await Promise.all([
+      fetch(`${API}/procesos`),
+      fetch(`${API}/maquinas/config`)
+    ]);
+    const pData = await pRes.json();
+    const mData = await mRes.json();
+    if (pData.ok) procesos = pData.data;
+    if (mData.ok) maquinas = mData.data;
+    renderProcesos();
+    renderMaquinas();
+    poblarSelectProceso();
+  } catch (e) {
+    document.getElementById('procesos-list').innerHTML =
+      `<div class="empty"><div class="empty-icon">⚡</div>No se pudo conectar a la API.<br>Asegúrate que el servidor está corriendo.</div>`;
+  }
+}
+
+// ── RENDER PROCESOS ───────────────────────────────────────────
+function renderProcesos() {
+  const list = document.getElementById('procesos-list');
+  if (!procesos.length) {
+    list.innerHTML = `<div class="empty"><div class="empty-icon">📋</div>No hay procesos configurados aún.<br>Agrega el primero con el botón superior.</div>`;
+    return;
+  }
+  list.innerHTML = procesos.map(p => `
+    <div class="proceso-row" draggable="true" data-id="${p.id_proceso}">
+      <span class="drag-handle">⋮⋮</span>
+      <span class="proceso-orden" style="background:${p.color_hex}">${p.orden_secuencia}</span>
+      <div>
+        <div style="display:flex;align-items:center;gap:7px">
+          <span style="font-size:16px">${p.icono || '⚙'}</span>
+          <span class="proceso-nombre">${p.nombre}</span>
+          <span class="badge-paralelo ${p.es_paralelo?'si':'no'}">${p.es_paralelo?'Paralelo':'Secuencial'}</span>
+          ${!p.activo ? '<span style="font-size:10px;color:#aaa;background:#f5f5f3;padding:1px 6px;border-radius:4px">Inactivo</span>' : ''}
+        </div>
+        <div class="proceso-maquinas" style="margin-top:2px">
+          ${parseInt(p.total_maquinas) > 0
+            ? `${p.total_maquinas} máquina(s) asignada(s)`
+            : '<span style="color:#E24B4A">Sin máquinas asignadas</span>'}
+        </div>
+      </div>
+      <div></div>
+      <div></div>
+      <div class="proceso-actions">
+        <button class="btn sm" onclick="editarProceso(${p.id_proceso})">Editar</button>
+        <button class="btn sm danger" onclick="eliminarProceso(${p.id_proceso},'${p.nombre}')">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── RENDER MÁQUINAS (agrupadas por proceso) ───────────────────
+function renderMaquinas() {
+  const list = document.getElementById('maquinas-list');
+  if (!maquinas.length) {
+    list.innerHTML = `<div class="empty"><div class="empty-icon">🖨</div>No hay máquinas configuradas.</div>`;
+    return;
+  }
+
+  // Agrupar por proceso
+  const grupos = {};
+  const sinProceso = [];
+  maquinas.forEach(m => {
+    if (!m.id_proceso) { sinProceso.push(m); return; }
+    const key = m.id_proceso;
+    if (!grupos[key]) grupos[key] = { proceso: { nombre: m.proceso_nombre, color: m.color_hex, icono: m.proceso_icono, orden: m.orden_secuencia }, maquinas: [] };
+    grupos[key].maquinas.push(m);
+  });
+
+  const sorted = Object.values(grupos).sort((a,b) => a.proceso.orden - b.proceso.orden);
+  if (sinProceso.length) sorted.push({ proceso: { nombre: 'Sin proceso asignado', color: '#aaa', icono: '?', orden: 99 }, maquinas: sinProceso });
+
+  list.innerHTML = sorted.map(g => `
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-hdr">
+        <span class="card-title">
+          <span style="width:12px;height:12px;border-radius:50%;background:${g.proceso.color};display:inline-block"></span>
+          ${g.proceso.icono} ${g.proceso.nombre}
+          <span style="font-size:11px;color:#aaa;font-weight:400">(${g.maquinas.length} máquina${g.maquinas.length!==1?'s':''})</span>
+        </span>
+        <button class="btn sm primary" onclick="openModalMaquina(${g.maquinas[0]?.id_proceso||''})">+ Máquina</button>
+      </div>
+      <div class="maq-section">
+        <div class="maq-list">
+          ${g.maquinas.map(m => maqRow(m)).join('')}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function maqRow(m) {
+  const flags = [];
+  if (m.flag_troquel)    flags.push('<span class="flag">Troquel</span>');
+  if (m.flag_barniz_uv)  flags.push('<span class="flag">UV</span>');
+  if (m.flag_laminado)   flags.push('<span class="flag">Laminado</span>');
+  if (m.capacidad_colores > 0) flags.push(`<span class="flag">${m.capacidad_colores}C</span>`);
+
+  return `<div class="maq-row ${m.activa?'':'inactive'}">
+    <div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="maq-id">${m.codigo_maquina || '—'}</span>
+        ${!m.activa ? '<span style="font-size:10px;color:#aaa;background:#f5f5f3;padding:1px 5px;border-radius:3px">Inactiva</span>' : ''}
+      </div>
+      <div class="maq-nombre">${m.nombre_recurso}</div>
+      ${m.sub_descripcion ? `<div class="maq-sub">${m.sub_descripcion}</div>` : ''}
+    </div>
+    <div style="font-size:11px;color:#666">${m.velocidad_nom ? m.velocidad_nom + ' pies/min' : '—'}</div>
+    <div style="font-size:11px;color:#666">${m.oee ? (parseFloat(m.oee)*100).toFixed(0) + '% OEE' : '—'}</div>
+    <div style="font-size:11px;color:#666">${m.ancho_max_banda ? m.ancho_max_banda + 'mm' : '—'}</div>
+    <div class="maq-flags">${flags.join('') || '<span style="font-size:11px;color:#ccc">Sin caps. especiales</span>'}</div>
+    <div class="maq-actions">
+        <button class="btn sm" onclick="editarMaquina('${m.id}')">Editar</button>
+        <button class="btn sm danger" onclick="desactivarMaquina('${m.id}','${m.nombre_recurso}',${m.activa})">${m.activa?'✕ Desactivar':'✓ Activar'}</button>
+    </div>
+  </div>`;
+}
+
+// ── RENDER RESUMEN ────────────────────────────────────────────
+function renderResumen() {
+  const totalMaq = maquinas.length;
+  const activeMaq = maquinas.filter(m => m.activa).length;
+  const sinProceso = maquinas.filter(m => !m.id_proceso).length;
+
+  document.getElementById('resumen-content').innerHTML = `
+    <div class="summary-grid">
+      <div class="summary-card"><div class="summary-num">${procesos.length}</div><div class="summary-lbl">Procesos configurados</div></div>
+      <div class="summary-card"><div class="summary-num">${activeMaq}</div><div class="summary-lbl">Máquinas activas</div></div>
+      <div class="summary-card"><div class="summary-num" style="color:${sinProceso?'#E24B4A':'#1D9E75'}">${sinProceso}</div><div class="summary-lbl">Máquinas sin proceso</div></div>
+      <div class="summary-card"><div class="summary-num">${totalMaq - activeMaq}</div><div class="summary-lbl">Máquinas inactivas</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">📊 Distribución por proceso</span></div>
+      <div style="padding:14px 18px">
+        ${procesos.map(p => {
+          const maqsDeProc = maquinas.filter(m => m.id_proceso == p.id_proceso && m.activa);
+          const pct = totalMaq > 0 ? Math.round(maqsDeProc.length / Math.max(activeMaq,1) * 100) : 0;
+          return `<div style="margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <span style="font-size:12px;font-weight:500">${p.icono} ${p.nombre}</span>
+              <span style="font-size:11px;color:#888">${maqsDeProc.length} máquina${maqsDeProc.length!==1?'s':''}</span>
+            </div>
+            <div style="height:8px;background:#f0f0ea;border-radius:4px;overflow:hidden">
+              <div style="height:100%;width:${pct}%;background:${p.color_hex};border-radius:4px;transition:width .4s"></div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+// ── MODAL PROCESO ─────────────────────────────────────────────
+function openModalProceso(id = null) {
+  document.getElementById('proc-id').value = id || '';
+  document.getElementById('modal-proceso-titulo').textContent = id ? 'Editar Proceso' : 'Nuevo Proceso';
+  if (!id) {
+    document.getElementById('proc-nombre').value = '';
+    document.getElementById('proc-orden').value = procesos.length + 1;
+    document.getElementById('proc-icono').value = '⚙';
+    document.getElementById('proc-color').value = '#378ADD';
+    document.getElementById('proc-color-preview').style.background = '#378ADD';
+    document.getElementById('proc-color-hex').textContent = '#378ADD';
+    document.getElementById('proc-paralelo').checked = false;
+    document.getElementById('proc-activo').checked = true;
+  }
+  openModal('modal-proceso');
+}
+
+function editarProceso(id) {
+  const p = procesos.find(x => x.id_proceso == id);
+  if (!p) return;
+  document.getElementById('proc-id').value      = p.id_proceso;
+  document.getElementById('proc-nombre').value  = p.nombre;
+  document.getElementById('proc-orden').value   = p.orden_secuencia;
+  document.getElementById('proc-icono').value   = p.icono || '⚙';
+  document.getElementById('proc-color').value   = p.color_hex || '#378ADD';
+  document.getElementById('proc-color-preview').style.background = p.color_hex;
+  document.getElementById('proc-color-hex').textContent = p.color_hex;
+  document.getElementById('proc-paralelo').checked = p.es_paralelo;
+  document.getElementById('proc-activo').checked   = p.activo;
+  document.getElementById('modal-proceso-titulo').textContent = 'Editar Proceso';
+  openModal('modal-proceso');
+}
+
+document.getElementById('proc-color').addEventListener('input', e => {
+  document.getElementById('proc-color-preview').style.background = e.target.value;
+  document.getElementById('proc-color-hex').textContent = e.target.value;
+});
+
+async function guardarProceso() {
+  const id    = document.getElementById('proc-id').value;
+  const body  = {
+    nombre:          document.getElementById('proc-nombre').value.trim(),
+    orden_secuencia: parseInt(document.getElementById('proc-orden').value),
+    icono:           document.getElementById('proc-icono').value.trim() || '⚙',
+    color_hex:       document.getElementById('proc-color').value,
+    es_paralelo:     document.getElementById('proc-paralelo').checked,
+    activo:          document.getElementById('proc-activo').checked,
+  };
+  if (!body.nombre || !body.orden_secuencia) { alert('Nombre y orden son obligatorios.'); return; }
+
+  try {
+    const url = id ? `${API}/procesos/${id}` : `${API}/procesos`;
+    const met = id ? 'PUT' : 'POST';
+    const res = await fetch(url, { method: met, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    closeModal('modal-proceso');
+    showAlert(id ? 'Proceso actualizado correctamente.' : 'Proceso creado correctamente.');
+    await loadAll();
+  } catch(e) { showAlert('Error: ' + e.message, 'error'); }
+}
+
+async function eliminarProceso(id, nombre) {
+  if (!confirm(`¿Eliminar el proceso "${nombre}"?\nSolo es posible si no tiene máquinas asignadas.`)) return;
+  try {
+    const res = await fetch(`${API}/procesos/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    showAlert('Proceso eliminado.');
+    await loadAll();
+  } catch(e) { showAlert('Error: ' + e.message, 'error'); }
+}
+
+// ── MODAL MÁQUINA ─────────────────────────────────────────────
+function poblarSelectProceso() {
+  const sel = document.getElementById('maq-proceso');
+  sel.innerHTML = '<option value="">— Seleccionar —</option>' +
+    procesos.map(p => `<option value="${p.id_proceso}">${p.icono} ${p.nombre}</option>`).join('');
+}
+
+function openModalMaquina(idProceso = null) {
+  document.getElementById('maq-id-original').value = '';
+  document.getElementById('modal-maquina-titulo').textContent = 'Nueva Máquina';
+  document.getElementById('maq-id').value        = '';
+  document.getElementById('maq-id').disabled     = false;
+  document.getElementById('maq-nombre').value    = '';
+  document.getElementById('maq-sub').value       = '';
+  document.getElementById('maq-proceso').value   = idProceso || '';
+  document.getElementById('maq-colores').value   = '0';
+  document.getElementById('maq-vel').value       = '0';
+  document.getElementById('maq-oee').value       = '0.85';
+  document.getElementById('maq-ancho-max').value = '';
+  document.getElementById('maq-ancho-min').value = '';
+  document.getElementById('maq-troquel').checked  = false;
+  document.getElementById('maq-uv').checked       = false;
+  document.getElementById('maq-laminado').checked = false;
+  document.getElementById('maq-activa').checked   = true;
+  openModal('modal-maquina');
+}
+
+function editarMaquina(id) {
+  const m = maquinas.find(x => x.id === id);
+  if (!m) return;
+  document.getElementById('maq-id-original').value = m.id;
+  document.getElementById('modal-maquina-titulo').textContent = 'Editar Máquina';
+  document.getElementById('maq-id').value        = m.codigo_maquina || '';
+  document.getElementById('maq-id').disabled     = false;
+  document.getElementById('maq-nombre').value    = m.nombre_recurso;
+  document.getElementById('maq-sub').value       = m.sub_descripcion || '';
+  document.getElementById('maq-proceso').value   = m.id_proceso || '';
+  document.getElementById('maq-colores').value   = m.capacidad_colores || 0;
+  document.getElementById('maq-vel').value       = m.velocidad_nom || 0;
+  document.getElementById('maq-oee').value       = m.oee || 0.85;
+  document.getElementById('maq-ancho-max').value = m.ancho_max_banda || '';
+  document.getElementById('maq-ancho-min').value = m.ancho_min_banda || '';
+  document.getElementById('maq-troquel').checked  = m.flag_troquel;
+  document.getElementById('maq-uv').checked       = m.flag_barniz_uv;
+  document.getElementById('maq-laminado').checked = m.flag_laminado;
+  document.getElementById('maq-activa').checked   = m.activa;
+  openModal('modal-maquina');
+}
+
+async function guardarMaquina() {
+  const idOrig = document.getElementById('maq-id-original').value;
+  const body = {
+    id_maquina:       document.getElementById('maq-id').value.trim().toUpperCase(),
+    nombre_recurso:   document.getElementById('maq-nombre').value.trim(),
+    sub_descripcion:  document.getElementById('maq-sub').value.trim() || null,
+    id_proceso:       document.getElementById('maq-proceso').value || null,
+    capacidad_colores:parseInt(document.getElementById('maq-colores').value) || 0,
+    velocidad_nom:    parseFloat(document.getElementById('maq-vel').value) || 0,
+    oee:              parseFloat(document.getElementById('maq-oee').value) || 0.85,
+    ancho_max_banda:  document.getElementById('maq-ancho-max').value || null,
+    ancho_min_banda:  document.getElementById('maq-ancho-min').value || null,
+    flag_troquel:     document.getElementById('maq-troquel').checked,
+    flag_barniz_uv:   document.getElementById('maq-uv').checked,
+    flag_laminado:    document.getElementById('maq-laminado').checked,
+    activa:           document.getElementById('maq-activa').checked,
+  };
+  if (!body.nombre_recurso) { alert('El nombre es obligatorio.'); return; }
+
+  try {
+    let url, met;
+    if (idOrig) { url = `${API}/maquinas/${idOrig}`; met = 'PUT'; }
+    else         { url = `${API}/maquinas`;           met = 'POST'; }
+    const res  = await fetch(url, { method: met, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    closeModal('modal-maquina');
+    showAlert(idOrig ? 'Máquina actualizada.' : 'Máquina creada correctamente.');
+    await loadAll();
+  } catch(e) { showAlert('Error: ' + e.message, 'error'); }
+}
+
+async function desactivarMaquina(id, nombre, activa) {
+  const accion = activa ? 'desactivar' : 'reactivar';
+  if (!confirm(`¿${accion.charAt(0).toUpperCase()+accion.slice(1)} la máquina "${nombre}"?`)) return;
+  try {
+    const res  = activa
+      ? await fetch(`${API}/maquinas/${id}`, { method: 'DELETE' })
+      : await fetch(`${API}/maquinas/${id}`, { method: 'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ activa: true }) });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    showAlert(`Máquina ${activa?'desactivada':'reactivada'}.`);
+    await loadAll();
+  } catch(e) { showAlert('Error: ' + e.message, 'error'); }
+}
+
+// Cerrar modales al click fuera
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.remove('open');
+  });
+});
+
+// ── INICIO ────────────────────────────────────────────────────
+loadAll();
+</script>
+</body>
+</html>
+
+

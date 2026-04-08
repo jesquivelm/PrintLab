@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orden de Produccion</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="app-shell">
+        <header class="topbar topbar-quote">
+            <div class="brand brand-quote">
+                <div class="brand-logo-wrap">
+                    <img id="orderCompanyLogo" class="company-logo" alt="Logo empresa">
+                    <div id="orderBrandFallback" class="brand-mark">PrintLab</div>
+                </div>
+                <h1 id="orderPageTitle">Orden de Produccion</h1>
+                <div class="topbar-user-tools topbar-user-tools-compact">
+                    <a href="/ordenes-produccion" id="orderBackButton" class="tool-icon plain-icon" aria-label="Volver"></a>
+                </div>
+            </div>
+        </header>
+        <main class="workspace workspace-quote">
+            <section class="quote-card quote-card-clean production-order-card">
+                <div id="orderStatus" class="calc-popover-notice production-order-status">Cargando orden...</div>
+                <section id="orderContent" hidden>
+                    <section class="production-order-control-bar">
+                        <div class="production-order-control-copy">
+                            <div class="production-order-control-title">Control de Planificación</div>
+                            <div id="orderPlanningStatusText" class="production-order-control-status">Pendiente de revisión de ventas.</div>
+                            <div id="orderPlanningMetaText" class="production-order-control-meta">La orden aún no se ha liberado a planificación.</div>
+                            <div id="orderPlanningReturnReasonText" class="production-order-control-meta" hidden></div>
+                        </div>
+                        <div class="production-order-control-actions">
+                            <button type="button" id="orderReleasePlanningButton" class="action-btn action-btn-primary">Liberar a planificación</button>
+                            <button type="button" id="orderOpenPlanningQueueButton" class="action-btn">Ver cola de planificación</button>
+                        </div>
+                    </section>
+                    <section class="socios-section production-order-planning-snapshot">
+                        <div class="section-caption">Ruta de PlanificaciÃ³n</div>
+                        <div class="production-order-planning-copy">
+                            <div id="orderPlanningSnapshotSummary" class="production-order-planning-summary">Cargando ruta planeada...</div>
+                            <div id="orderPlanningSnapshotMeta" class="production-order-planning-meta">Los tiempos por proceso se usarÃ¡n para planificar la orden.</div>
+                        </div>
+                        <div id="orderPlanningSnapshotList" class="production-order-planning-list"></div>
+                    </section>
+                    <div class="production-order-layout">
+                        <div class="production-order-column production-order-column-primary">
+                            <section class="socios-section">
+                                <div class="section-caption">Cliente</div>
+                                <div class="socios-grid production-order-grid-single">
+                                    <div class="field field-full"><label>Cliente</label><input id="orderCustomerSummaryField" type="text" readonly></div>
+                                    <div class="field field-full"><label>Direccion</label><input id="orderCustomerAddressField" type="text" readonly></div>
+                                    <div class="field"><label>Vendedor</label><input id="orderSellerField" type="text" readonly></div>
+                                    <div class="field field-full production-quote-link-field">
+                                        <label>Linea y Cotizacion</label>
+                                        <div class="production-quote-link-wrap">
+                                            <input id="orderQuoteLineField" type="text" readonly>
+                                            <button type="button" id="openSourceQuoteButton" class="browser-open-link production-lookup-btn" aria-label="Abrir cotizacion origen">&#8981;</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="socios-section">
+                                <div class="section-caption">Producto</div>
+                                <div class="socios-grid production-order-grid-two">
+                                    <div class="field field-full"><label>Nombre del Trabajo</label><input id="orderJobField" type="text" readonly></div>
+                                    <div class="field"><label>Id del Producto</label><input id="orderProductIdField" type="text" readonly></div>
+                                    <div class="field"><label>Codigo del Cliente</label><input id="orderClientProductCodeField" type="text" readonly></div>
+                                    <div class="field"><label>Ancho</label><input id="orderWidthField" type="text" readonly></div>
+                                    <div class="field"><label>Largo</label><input id="orderLengthField" type="text" readonly></div>
+                                    <div class="field field-full"><label>Area</label><input id="orderAreaField" type="text" readonly></div>
+                                </div>
+                            </section>
+
+                            <section class="socios-section">
+                                <div class="section-caption">Acabados</div>
+                                <div class="socios-grid production-order-grid-two">
+                                    <div class="field"><label>Laminado</label><input id="orderFinishLaminateField" type="text" readonly></div>
+                                    <div class="field"><label>Barniz</label><input id="orderFinishVarnishField" type="text" readonly></div>
+                                    <div class="field"><label>Foil</label><input id="orderFinishFoilField" type="text" readonly></div>
+                                    <div class="field"><label>Numerado</label><input id="orderFinishNumberingField" type="text" readonly></div>
+                                    <div class="field field-full"><label>Acabado General</label><input id="orderFinishSummaryField" type="text" readonly></div>
+                                    <div class="field field-full"><label>Observacion</label><input id="orderFinishNotesField" type="text" readonly></div>
+                                </div>
+                            </section>
+                        </div>
+
+                        <div class="production-order-column production-order-column-secondary">
+                            <section class="socios-section">
+                                <div class="section-caption">Seguimiento de la Orden</div>
+                                <div class="socios-grid production-order-grid-two">
+                                    <div class="field"><label>Estado</label><input id="orderStateField" type="text" readonly></div>
+                                    <div class="field"><label>Orden</label><input id="orderCodeField" type="text" readonly></div>
+                                    <div class="field"><label>Entrada a Proceso</label><input id="orderCreatedField" type="text" readonly></div>
+                                    <div class="field"><label>Fecha Programada</label><input id="orderScheduledDateField" type="text" readonly></div>
+                                    <div class="field"><label>Entrega Esperada</label><input id="orderExpectedDateField" type="text" readonly></div>
+                                    <div class="field"><label>Tipo de Trabajo</label><input id="orderWorkTypeField" type="text" readonly></div>
+                                </div>
+                            </section>
+
+                            <section class="socios-section">
+                                <div class="section-caption">Cantidades de Entrega</div>
+                                <div class="socios-grid production-order-grid-three">
+                                    <div class="field"><label>Cantidad Base</label><input id="orderQuantityField" type="text" readonly></div>
+                                    <div class="field"><label>Tipo de Salida</label><input id="orderOutputTypeField" type="text" readonly></div>
+                                    <div class="field"><label>Etiquetas por Rollo</label><input id="orderLabelsPerRollField" type="text" readonly></div>
+                                </div>
+                                <div class="socios-table-wrap production-mini-table">
+                                    <table class="quote-table socios-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Entrega</th>
+                                                <th>Cantidad</th>
+                                                <th>Fecha</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="orderDeliveriesBody"></tbody>
+                                    </table>
+                                </div>
+                            </section>
+
+                            <section class="socios-section">
+                                <div class="section-caption">Impresion</div>
+                                <div class="socios-grid production-order-grid-two">
+                                    <div class="field"><label>Maquina</label><input id="orderMachineField" type="text" readonly></div>
+                                    <div class="field"><label>Sustrato</label><input id="orderMaterialField" type="text" readonly></div>
+                                    <div class="field"><label>Pies Lineales</label><input id="orderLinearFeetField" type="text" readonly></div>
+                                    <div class="field"><label>Pies de Macula</label><input id="orderWasteFeetField" type="text" readonly></div>
+                                    <div class="field"><label>Cantidad de Rollos</label><input id="orderRollCountField" type="text" readonly></div>
+                                    <div class="field"><label>Troquel</label><input id="orderDieField" type="text" readonly></div>
+                                </div>
+                            </section>
+
+                            <section class="socios-section">
+                                <div class="section-caption">Tintas y Rollo</div>
+                                <div class="socios-grid production-order-grid-two">
+                                    <div class="field"><label>Configuracion</label><input id="orderInkConfigField" type="text" readonly></div>
+                                    <div class="field"><label>Pantones</label><input id="orderPantoneCountField" type="text" readonly></div>
+                                    <div class="field field-full"><label>Pantones Detalle</label><input id="orderPantonesField" type="text" readonly></div>
+                                    <div class="field"><label>Ancho de Core</label><input id="orderCoreWidthField" type="text" readonly></div>
+                                    <div class="field"><label>Diametro de Core</label><input id="orderCoreDiameterField" type="text" readonly></div>
+                                    <div class="field field-full"><label>Etiquetas por Rollo</label><input id="orderRollLabelsField" type="text" readonly></div>
+                                </div>
+                            </section>
+
+                            <section class="socios-section">
+                                <div class="section-caption">Muestras y Entrega</div>
+                                <div class="socios-grid production-order-grid-two">
+                                    <div class="field"><label>Muestras</label><input id="orderSamplesModeField" type="text" readonly></div>
+                                    <div class="field"><label>Contacto de Muestras</label><input id="orderSamplesContactField" type="text" readonly></div>
+                                    <div class="field field-full"><label>Detalle de Muestras</label><input id="orderSamplesDetailField" type="text" readonly></div>
+                                    <div class="field"><label>Tipo de Entrega</label><input id="orderDeliveryModeField" type="text" readonly></div>
+                                    <div class="field"><label>Contacto de Entrega</label><input id="orderDeliveryContactField" type="text" readonly></div>
+                                    <div class="field field-full"><label>Detalle de Entrega</label><input id="orderDeliveryDetailField" type="text" readonly></div>
+                                </div>
+                            </section>
+                        </div>
+
+                        <div class="production-order-column production-order-column-tertiary">
+                            <section class="socios-section production-art-section">
+                                <div class="section-caption">Vista de Arte</div>
+                                <div id="orderArtworkPreview" class="production-art-preview">Sin arte de referencia.</div>
+                            </section>
+
+                            <section class="socios-section">
+                                <div class="section-caption">Comentarios y Arte</div>
+                                <div class="socios-grid production-order-grid-two">
+                                    <div class="field field-full">
+                                        <label>Comentarios</label>
+                                        <textarea id="orderSellerCommentsField" readonly></textarea>
+                                    </div>
+                                    <div class="field"><label>Orden de Arte</label><input id="orderArtworkNumberField" type="text" readonly></div>
+                                    <div class="field"><label>Arte en Poder de</label><input id="orderArtworkHolderField" type="text" readonly></div>
+                                    <div class="field field-full">
+                                        <label>Adjuntos</label>
+                                        <textarea id="orderAttachmentsSummaryField" readonly></textarea>
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+                    </div>
+                </section>
+            </section>
+        </main>
+    </div>
+    <script src="/orden-produccion.js"></script>
+</body>
+</html>
