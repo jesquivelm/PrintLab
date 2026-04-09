@@ -1,556 +1,316 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cotizaciones</title>
-    <link rel="stylesheet" href="/styles.css">
-    <style>
-        .quote-request-popover-panel {
-            width: min(1120px, calc(100vw - 48px));
-            max-height: calc(100vh - 40px);
-            overflow: hidden;
-        }
-        .quote-request-layout {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) 280px;
-            gap: 18px;
-            align-items: start;
-        }
-        .quote-request-form {
-            display: grid;
-            gap: 18px;
-            min-width: 0;
-        }
-        .quote-request-scroll {
-            max-height: calc(100vh - 210px);
-            overflow: auto;
-            padding-right: 6px;
-        }
-        .quote-request-sidebar {
-            position: sticky;
-            top: 0;
-            padding: 18px;
-            border: 1px solid #d8e2ea;
-            border-radius: 16px;
-            background: linear-gradient(180deg, #17354a 0%, #0f2432 100%);
-            color: #fff;
-        }
-        .quote-request-sidebar h3 {
-            margin: 0 0 14px;
-            font-size: 14px;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-            color: #89dcff;
-        }
-        .quote-request-summary-row {
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
-            padding: 7px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            font-size: 12px;
-        }
-        .quote-request-summary-row:last-child {
-            border-bottom: 0;
-        }
-        .quote-request-summary-label {
-            color: rgba(255,255,255,0.62);
-        }
-        .quote-request-summary-value {
-            text-align: right;
-            font-weight: 600;
-        }
-        .quote-request-section {
-            border: 1px solid #d8e2ea;
-            border-radius: 16px;
-            padding: 18px;
-            background: linear-gradient(180deg, #ffffff 0%, #f8fbfd 100%);
-            box-shadow: 0 10px 24px rgba(13, 35, 52, 0.05);
-        }
-        .quote-request-section-head {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 14px;
-        }
-        .quote-request-step {
-            width: 28px;
-            height: 28px;
-            border-radius: 999px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(180deg, #22b8cf 0%, #1976d2 100%);
-            color: #fff;
-            font-size: 12px;
-            font-weight: 700;
-        }
-        .quote-request-section-head h3 {
-            margin: 0;
-            font-size: 16px;
-            color: #1c3446;
-        }
-        .quote-request-section-head p {
-            margin: 2px 0 0;
-            font-size: 12px;
-            color: #688095;
-        }
-        .quote-request-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 14px;
-        }
-        .quote-request-grid .socios-create-field-full {
-            grid-column: 1 / -1;
-        }
-        .quote-request-select,
-        .quote-request-input,
-        .quote-request-textarea {
-            width: 100%;
-            min-height: 42px;
-            border: 1px solid #ccd8e3;
-            border-radius: 12px;
-            padding: 10px 12px;
-            background: #fff;
-            color: #203040;
-            font: inherit;
-        }
-        .quote-request-textarea {
-            min-height: 108px;
-            resize: vertical;
-        }
-        .quote-request-pill-grid,
-        .quote-request-check-grid,
-        .quote-request-shape-grid {
-            display: grid;
-            gap: 10px;
-        }
-        .quote-request-pill-grid {
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-        }
-        .quote-request-check-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-        .quote-request-shape-grid {
-            grid-template-columns: repeat(5, minmax(0, 1fr));
-        }
-        .quote-request-pill,
-        .quote-request-check,
-        .quote-request-shape {
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            min-height: 52px;
-            padding: 12px;
-            border: 1px solid #ccd8e3;
-            border-radius: 14px;
-            background: #fff;
-            cursor: pointer;
-            transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
-            user-select: none;
-        }
-        .quote-request-shape {
-            flex-direction: column;
-            min-height: 148px;
-            align-items: stretch;
-            justify-content: flex-start;
-            padding: 10px;
-            text-align: center;
-        }
-        .quote-request-pill:hover,
-        .quote-request-check:hover,
-        .quote-request-shape:hover {
-            transform: translateY(-1px);
-            border-color: #1ca6d1;
-            box-shadow: 0 10px 22px rgba(27, 118, 210, 0.12);
-        }
-        .quote-request-pill input,
-        .quote-request-check input,
-        .quote-request-shape input {
-            position: absolute;
-            inset: 0;
-            opacity: 0;
-            pointer-events: none;
-        }
-        .quote-request-pill.is-selected,
-        .quote-request-check.is-selected,
-        .quote-request-shape.is-selected {
-            border-color: #1ca6d1;
-            background: linear-gradient(180deg, #eff8ff 0%, #eef7ff 100%);
-            box-shadow: 0 0 0 3px rgba(28, 166, 209, 0.12);
-        }
-        .quote-request-shape-media {
-            width: 100%;
-            aspect-ratio: 1.3 / 1;
-            border-radius: 12px;
-            border: 1px dashed #b8cad7;
-            background: linear-gradient(180deg, #ffffff 0%, #eff7fd 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-        }
-        .quote-request-shape-media img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
-        .quote-request-shape-fallback {
-            width: 70%;
-            height: 70%;
-            border: 2px dashed #2f88bd;
-            border-radius: 18px;
-            background: rgba(47, 136, 189, 0.09);
-        }
-        .quote-request-shape-fallback[data-shape="Circular"] { border-radius: 999px; }
-        .quote-request-shape-fallback[data-shape="Rectangular"] { border-radius: 12px; width: 80%; height: 52%; }
-        .quote-request-shape-fallback[data-shape="Ovalado"] { border-radius: 999px / 60%; width: 82%; height: 56%; }
-        .quote-request-shape-fallback[data-shape="Especial"] {
-            clip-path: polygon(50% 0%, 63% 34%, 100% 35%, 70% 57%, 82% 100%, 50% 74%, 18% 100%, 30% 57%, 0% 35%, 37% 34%);
-            border-radius: 0;
-            width: 76%;
-            height: 76%;
-        }
-        .quote-request-shape-name {
-            font-size: 12px;
-            font-weight: 700;
-            color: #224056;
-        }
-        .quote-request-hint {
-            margin-top: 8px;
-            font-size: 11px;
-            color: #73889a;
-        }
-        .quote-request-lookup {
-            margin-top: 12px;
-            border: 1px solid #d8e2ea;
-            border-radius: 14px;
-            background: #fff;
-            overflow: hidden;
-        }
-        .quote-request-lookup-head {
-            display: flex;
-            justify-content: space-between;
-            gap: 10px;
-            align-items: center;
-            padding: 12px 14px;
-            background: #f6fafc;
-            border-bottom: 1px solid #d8e2ea;
-            font-size: 12px;
-        }
-        .quote-request-lookup-head span:last-child {
-            color: #6e8191;
-        }
-        .quote-request-attachments {
-            display: grid;
-            gap: 10px;
-        }
-        .quote-request-attachment-list {
-            display: grid;
-            gap: 8px;
-        }
-        .quote-request-attachment-item {
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
-            padding: 10px 12px;
-            border: 1px solid #d8e2ea;
-            border-radius: 12px;
-            background: #fff;
-            font-size: 12px;
-            color: #334757;
-        }
-        .quote-request-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            margin-top: 18px;
-        }
-        .quote-request-advanced-btn {
-            background: #fff;
-            color: #18405f;
-            border: 1px solid #c7d7e5;
-        }
-        .quote-request-submit-btn[disabled] {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        @media (max-width: 980px) {
-            .quote-request-layout {
-                grid-template-columns: 1fr;
-            }
-            .quote-request-sidebar {
-                position: static;
-                order: -1;
-            }
-            .quote-request-shape-grid {
-                grid-template-columns: repeat(3, minmax(0, 1fr));
-            }
-            .quote-request-pill-grid {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cotizaciones</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+.quote-request-popover-panel{width:min(1320px,calc(100vw - 24px));max-height:calc(100vh - 24px);overflow:hidden}
+.copy-popover-header.socios-create-header{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.copy-popover-header.socios-create-header>div{display:flex;align-items:center;min-height:46px}
+.copy-popover-header.socios-create-header h2{margin:0;line-height:1.1}
+.calc-popover-close{display:inline-flex;align-items:center;justify-content:center;font-size:34px;width:46px;height:46px;border:0;background:transparent;cursor:pointer;line-height:1;color:#17354a}
+.quote-request-form{display:grid;gap:14px;min-width:0}
+.quote-request-scroll{display:grid;gap:14px;max-height:calc(100vh - 182px);overflow:auto;padding-right:8px}
+.quote-request-columns,.quote-request-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.quote-request-grid{gap:12px}
+.quote-request-grid-full{grid-column:1/-1}
+.quote-request-section{border:1px solid #d8e2ea;border-radius:18px;padding:16px;background:linear-gradient(180deg,#fff 0%,#f7fbfc 100%);box-shadow:0 8px 22px rgba(13,35,52,.06)}
+.quote-request-section-head{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+.quote-request-step{width:30px;height:30px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#18a6c1 0%,#0f6fb0 100%);color:#fff;font-size:12px;font-weight:700}
+.quote-request-section-head h3{margin:0;font-size:16px;color:#17354a}
+.quote-request-field{display:grid;gap:6px;min-width:0}
+.quote-request-field span{font-size:12px;font-weight:700;color:#28465c}
+.quote-request-input,.quote-request-select,.quote-request-textarea{width:100%;min-height:42px;border:1px solid #c9d6e2;border-radius:12px;padding:10px 12px;background:#fff;color:#17354a;font:inherit}
+.quote-request-input:focus,.quote-request-select:focus,.quote-request-textarea:focus{outline:none;border-color:#23a2cb;box-shadow:0 0 0 3px rgba(35,162,203,.12)}
+.quote-request-textarea{min-height:88px;resize:vertical}
+.quote-request-search-wrap,.quote-request-inline-wrap{position:relative}
+.quote-request-inline-panel{position:absolute;inset:calc(100% + 6px) 0 auto;z-index:16;border:1px solid #d8e2ea;border-radius:14px;background:#fff;box-shadow:0 16px 40px rgba(15,38,56,.14);overflow:hidden}
+.quote-request-lookup-item{width:100%;border:0;border-bottom:1px solid #e7eef3;background:#fff;padding:11px 12px;display:flex;justify-content:space-between;gap:12px;text-align:left;cursor:pointer}
+.quote-request-lookup-item:last-child{border-bottom:0}
+.quote-request-lookup-item:hover{background:#eff7fb}
+.quote-request-lookup-name{font-weight:600;color:#19384d}
+.quote-request-lookup-code,.quote-request-lookup-empty{font-size:12px;color:#688095}
+.quote-request-lookup-empty{padding:12px}
+.quote-request-shape-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.quote-request-shape-card,.quote-request-toggle-chip{position:relative;border:1px solid #cdd9e4;border-radius:14px;background:#fff;cursor:pointer;transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease}
+.quote-request-shape-card:hover,.quote-request-toggle-chip:hover{border-color:#0f8db5;box-shadow:0 10px 24px rgba(16,111,176,.12);transform:translateY(-1px)}
+.quote-request-shape-card input,.quote-request-toggle-chip input{position:absolute;inset:0;opacity:0;pointer-events:none}
+.quote-request-shape-card.is-selected,.quote-request-toggle-chip.is-selected{border-color:#29a6db;background:linear-gradient(180deg,#eef8fe 0%,#f5fbff 100%);box-shadow:0 0 0 3px rgba(41,166,219,.14)}
+.quote-request-shape-card{padding:10px;display:grid;gap:10px;min-height:148px}
+.quote-request-shape-media{width:100%;aspect-ratio:1.3/1;border-radius:12px;background:linear-gradient(180deg,#fff 0%,#eef5fa 100%);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.quote-request-shape-media img{width:100%;height:100%;object-fit:contain}
+.quote-request-shape-fallback{width:70%;height:70%;border:2px solid #3179a0;border-radius:18px;background:rgba(49,121,160,.08)}
+.quote-request-shape-fallback[data-shape="Circular"]{border-radius:999px}
+.quote-request-shape-fallback[data-shape="Rectangular"]{border-radius:10px;width:82%;height:52%}
+.quote-request-shape-fallback[data-shape="Ovalado"]{border-radius:999px/60%;width:82%;height:56%}
+.quote-request-shape-fallback[data-shape="Especial"]{clip-path:polygon(50% 0%,63% 34%,100% 35%,70% 57%,82% 100%,50% 74%,18% 100%,30% 57%,0% 35%,37% 34%);border-radius:0;width:76%;height:76%}
+.quote-request-shape-name{text-align:center;font-size:12px;font-weight:700;color:#21435a}
+.quote-request-finishes-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.quote-request-finishes-column,.quote-request-subblock{display:grid;gap:8px}
+.quote-request-subblock{padding:12px;border:1px solid #dde7ee;border-radius:14px;background:#fbfdfe}
+.quote-request-subblock h4{margin:0;font-size:13px;color:#17354a}
+.quote-request-tabset{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.quote-request-toggle-chip{display:inline-flex;align-items:center;border-radius:999px;background:transparent}
+.quote-request-tab{display:inline-flex;align-items:center;justify-content:center;height:38px;padding:0 14px;border-radius:999px;border:1px solid #d9e5ee;background:linear-gradient(180deg,#ffffff 0%,#f3f8fb 100%);color:#5a7083;font-size:13px;font-weight:600;white-space:nowrap;transition:background-color .18s ease,color .18s ease,border-color .18s ease,box-shadow .18s ease}
+.quote-request-toggle-chip.is-selected .quote-request-tab{border-color:#5bc3ef;background:linear-gradient(180deg,#39afe4 0%,#1890d4 100%);color:#fff;box-shadow:0 6px 16px rgba(24,144,212,.22)}
+.quote-request-attachments-card{display:grid;gap:10px;padding:14px;border:1px solid #d9e3eb;border-radius:16px;background:linear-gradient(180deg,#fff 0%,#f6fbfd 100%)}
+.quote-request-attachment-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px}
+.quote-request-icon-action{position:relative;display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border:1px solid #cfe0ea;border-radius:999px;background:#fff;box-shadow:0 8px 20px rgba(14,37,54,.08);cursor:pointer;color:#1e516d}
+.quote-request-icon-action:hover{border-color:#22a2cc;transform:translateY(-1px)}
+.quote-request-icon-action[data-recording="true"]{border-color:#ef4444;box-shadow:0 0 0 4px rgba(239,68,68,.12)}
+.quote-request-icon-media{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px}
+.quote-request-audio-status{display:flex;align-items:center;gap:8px;font-size:12px;color:#0f766e}
+.quote-request-audio-dot{width:10px;height:10px;border-radius:999px;background:#ef4444;box-shadow:0 0 0 0 rgba(239,68,68,.5);animation:pulse 1.2s infinite}
+.quote-request-attachment-list{display:grid;gap:8px}
+.quote-request-attachment-empty{padding:10px 12px;border:1px dashed #cad8e3;border-radius:12px;color:#688095;font-size:13px;background:#fff}
+.quote-request-attachment-card{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid #d8e2ea;border-radius:14px;background:#fff}
+.quote-request-attachment-card.audio{display:grid;gap:8px;justify-content:stretch}
+.quote-request-attachment-card audio{width:100%}
+.quote-request-attachment-meta{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;color:#28465c}
+.quote-request-create-floating{position:fixed;top:164px;left:calc(50% + 360px);z-index:400}
+.process-launcher-stack{display:flex;flex-direction:column;align-items:center;gap:10px}
+.process-launcher-primary{position:relative;display:flex;align-items:center;justify-content:center}
+.launcher-menu-left .process-launcher-bridge{position:absolute;right:100%;top:0;margin-right:12px}
+.floating-action-button{width:42px;height:42px;min-width:42px;padding:0;border-radius:14px;border:1px solid #bfe3f7;background:linear-gradient(180deg,#ffffff 0%,#f4fbff 100%);box-shadow:0 8px 18px rgba(93,134,168,.16);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:var(--floating-icon-color,#6b7580);transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease,color .16s ease}
+.floating-action-button:hover,.floating-action-button:focus-visible{transform:translateY(-1px);border-color:#8fd0f1;box-shadow:0 12px 22px rgba(57,130,182,.18);color:var(--floating-icon-hover,#0b81b8)}
+.process-launcher-button{color:var(--floating-icon-color,#6b7580)}
+.process-launcher-icon,.floating-action-icon{display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%}
+.floating-action-icon-markup{width:var(--floating-icon-size,24px);height:var(--floating-icon-size,24px);background:currentColor;background-repeat:no-repeat;background-position:center;background-size:contain}
+.process-launcher-bridge{display:grid;gap:8px;min-width:182px;padding:10px;border:1px solid #d9edf8;border-radius:18px;background:linear-gradient(180deg,rgba(255,255,255,.9) 0%,rgba(241,249,254,.98) 100%);box-shadow:0 16px 30px rgba(83,123,156,.18);backdrop-filter:blur(10px)}
+.process-launcher-label{font-size:12px;font-weight:700;color:#5f7392;padding:0 4px}
+.process-launcher-menu{display:grid;gap:8px}
+.process-launcher-item{width:100%;min-height:40px;padding:0 12px;border-radius:14px;border:1px solid #bfe3f7;background:linear-gradient(180deg,#ffffff 0%,#f4fbff 100%);box-shadow:0 8px 18px rgba(93,134,168,.12);display:flex;align-items:center;gap:10px;cursor:pointer;color:#5f7392;text-align:left}
+.process-launcher-item:hover,.process-launcher-item:focus-visible{border-color:#8fd0f1;color:#0b81b8}
+.process-launcher-item-icon{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex:0 0 18px}
+.process-launcher-item-text{font-size:13px;font-weight:700}
+.icon-glyph{display:inline-flex;align-items:center;justify-content:center;line-height:1}
+.icon-image{display:block;object-fit:contain}
+.icon-svg-mask{display:inline-block;background:currentColor;background-repeat:no-repeat;background-position:center;background-size:contain}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(239,68,68,.5)}70%{box-shadow:0 0 0 9px rgba(239,68,68,0)}100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}}
+@media (max-width:980px){.quote-request-columns,.quote-request-grid,.quote-request-finishes-grid,.quote-request-shape-grid{grid-template-columns:1fr}.quote-request-create-floating{top:auto;bottom:22px;right:22px;left:auto}}
+</style>
 </head>
 <body>
-    <main class="workspace workspace-quote quote-browser-main">
-        <section class="quote-card quote-card-clean quote-browser-card">
-            <div class="quote-browser-search-row">
-                <div class="quote-browser-actions-left">
-                    <button id="nuevaCotizacionButton" type="button" class="action-btn quote-browser-action-btn">Nueva cotizacion</button>
-                    <button id="refreshQuotesButton" type="button" class="action-btn quote-browser-action-btn" aria-label="Refrescar cotizaciones">Refrescar</button>
-                </div>
-                <div class="quote-browser-search-wrap">
-                    <input id="quotesSearchInput" class="copy-popover-search quote-browser-search" type="search" placeholder="Buscar por cotizacion, cliente o vendedor">
-                </div>
-            </div>
+<main class="workspace workspace-quote quote-browser-main">
+<section class="quote-card quote-card-clean quote-browser-card">
+<div class="quote-browser-search-row">
+<div class="quote-browser-actions-left">
+<button id="nuevaCotizacionButton" type="button" class="action-btn quote-browser-action-btn">Nueva Cotización</button>
+<button id="refreshQuotesButton" type="button" class="action-btn quote-browser-action-btn" aria-label="Refrescar cotizaciones">Refrescar</button>
+</div>
+<div class="quote-browser-search-wrap">
+<input id="quotesSearchInput" class="copy-popover-search quote-browser-search" type="search" placeholder="Buscar por cotización, cliente o vendedor">
+</div>
+</div>
+<div class="copy-popover-table-wrap quote-browser-table-wrap">
+<table class="copy-popover-table quote-browser-table">
+<thead><tr><th>Cotización</th><th>ID Socio</th><th>Nombre del Socio</th><th>Vendedor</th><th>Creación</th><th>Vencimiento</th><th>Estado</th><th></th></tr></thead>
+<tbody id="quotesTableBody"></tbody>
+</table>
+</div>
+</section>
+</main>
 
-            <div class="copy-popover-table-wrap quote-browser-table-wrap">
-                <table class="copy-popover-table quote-browser-table">
-                    <thead>
-                        <tr>
-                            <th>Cotizacion</th>
-                            <th>ID socio</th>
-                            <th>Nombre del socio</th>
-                            <th>Vendedor</th>
-                            <th>Creacion</th>
-                            <th>Vencimiento</th>
-                            <th>Estado</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody id="quotesTableBody"></tbody>
-                </table>
-            </div>
-        </section>
-    </main>
+<div id="nuevaCotizacionPopover" class="socios-create-popover" hidden>
+<div class="socios-create-popover-backdrop" data-close-quote-create="true"></div>
+<section class="socios-create-popover-panel quote-request-popover-panel" role="dialog" aria-modal="true" aria-labelledby="nuevaCotizacionTitle">
+<div class="copy-popover-body socios-create-body">
+<div class="copy-popover-header socios-create-header">
+<div><h2 id="nuevaCotizacionTitle">Nueva Cotización</h2></div>
+<button id="cerrarNuevaCotizacionButton" type="button" class="calc-popover-close" aria-label="Cerrar">×</button>
+</div>
 
-    <div id="nuevaCotizacionPopover" class="socios-create-popover" hidden>
-        <div class="socios-create-popover-backdrop" data-close-quote-create="true"></div>
-        <section class="socios-create-popover-panel quote-request-popover-panel" role="dialog" aria-modal="true" aria-labelledby="nuevaCotizacionTitle">
-            <div class="copy-popover-body socios-create-body">
-                <div class="copy-popover-header socios-create-header">
-                    <div>
-                        <h2 id="nuevaCotizacionTitle">Solicitud de cotizacion</h2>
-                        <p class="socios-create-subtitle">Esta sera la primera fase para el vendedor. Si necesita un flujo completo, puede saltar al modo avanzado.</p>
-                    </div>
-                    <button id="cerrarNuevaCotizacionButton" type="button" class="calc-popover-close" aria-label="Cerrar">×</button>
-                </div>
+<form id="nuevaCotizacionForm" class="quote-request-form">
+<div class="quote-request-scroll">
+<section class="quote-request-section">
+<div class="quote-request-section-head"><span class="quote-request-step">1</span><div><h3>Información Principal</h3></div></div>
+<div class="quote-request-columns">
+<div class="quote-request-field quote-request-search-wrap">
+<span>Nombre del Cliente</span>
+<input id="nuevoClienteNombre" class="quote-request-input" name="customer_name" type="text" autocomplete="off" required>
+<input id="nuevoClienteCodigo" name="customer_code" type="hidden">
+<div id="quoteCustomerLookupPanel" class="quote-request-inline-panel" hidden><div id="quoteCustomerLookupResults"></div></div>
+</div>
+<label class="quote-request-field">
+<span>Nombre del Producto</span>
+<input id="requestJobName" class="quote-request-input" name="job_name" type="text" required>
+</label>
+<label class="quote-request-field">
+<span>Cantidad</span>
+<input id="requestQuantity" class="quote-request-input" name="quantity" type="text" inputmode="numeric" required>
+</label>
+<div class="quote-request-grid">
+<label class="quote-request-field">
+<span>Proceso Productivo</span>
+<select id="requestProcessType" class="quote-request-select" name="process_type" required>
+<option value="">Selecciona una opción</option>
+<option value="Convencional">Convencional</option>
+<option value="Digital">Digital</option>
+</select>
+</label>
+<label class="quote-request-field">
+<span>Tipo de Producto</span>
+<select id="requestProductType" class="quote-request-select">
+<option value="Etiquetas">Etiquetas</option>
+<option value="Manga">Manga</option>
+<option value="Funda">Funda</option>
+<option value="Caja">Caja</option>
+<option value="Empaque Flexible">Empaque Flexible</option>
+<option value="Inserto">Inserto</option>
+</select>
+</label>
+</div>
+</div>
+</section>
 
-                <div class="quote-request-layout">
-                    <form id="nuevaCotizacionForm" class="quote-request-form">
-                        <div class="quote-request-scroll">
-                            <section class="quote-request-section">
-                                <div class="quote-request-section-head">
-                                    <span class="quote-request-step">1</span>
-                                    <div>
-                                        <h3>Cliente y trabajo</h3>
-                                        <p>El vendedor arranca la solicitud identificando al cliente y el producto.</p>
-                                    </div>
-                                </div>
-                                <div class="quote-request-grid">
-                                    <label class="socios-create-field socios-create-field-full">
-                                        <span>Cliente</span>
-                                        <input id="nuevoClienteNombre" class="quote-request-input" name="customer_name" type="text" required>
-                                    </label>
-                                    <input id="nuevoClienteCodigo" name="customer_code" type="hidden">
-                                    <label class="socios-create-field socios-create-field-full">
-                                        <span>Nombre del producto o trabajo</span>
-                                        <input id="requestJobName" class="quote-request-input" name="job_name" type="text" required>
-                                    </label>
-                                    <label class="socios-create-field">
-                                        <span>Cantidad</span>
-                                        <input id="requestQuantity" class="quote-request-input" name="quantity" type="number" min="1" step="1" required>
-                                    </label>
-                                    <label class="socios-create-field">
-                                        <span>Proceso productivo</span>
-                                        <select id="requestProcessType" class="quote-request-select" name="process_type" required>
-                                            <option value="">Selecciona una opcion</option>
-                                            <option value="Flexografia">Flexografia</option>
-                                            <option value="Digital">Digital</option>
-                                            <option value="Offset">Offset</option>
-                                            <option value="Serigrafia">Serigrafia</option>
-                                            <option value="Mixto">Mixto</option>
-                                        </select>
-                                    </label>
-                                </div>
+<section class="quote-request-section">
+<div class="quote-request-section-head"><span class="quote-request-step">2</span><div><h3>Forma y Medida</h3></div></div>
+<div id="dieShapePicker" class="quote-request-shape-grid"></div>
+<div class="quote-request-grid" style="margin-top:12px;">
+<label class="quote-request-field quote-request-grid-full">
+<span>Medidas Fijas (Pulgadas)</span>
+<select id="requestFixedSize" class="quote-request-select" required>
+<option value="">Selecciona una medida</option>
+<option value="2x2" data-width="2" data-length="2">2″ x 2″</option>
+<option value="2.5x2.5" data-width="2.5" data-length="2.5">2.5″ x 2.5″</option>
+<option value="3x3" data-width="3" data-length="3">3″ x 3″</option>
+<option value="3.5x3.5" data-width="3.5" data-length="3.5">3.5″ x 3.5″</option>
+<option value="4x4" data-width="4" data-length="4">4″ x 4″</option>
+<option value="4.5x4.5" data-width="4.5" data-length="4.5">4.5″ x 4.5″</option>
+<option value="5x5" data-width="5" data-length="5">5″ x 5″</option>
+<option value="5.5x5.5" data-width="5.5" data-length="5.5">5.5″ x 5.5″</option>
+</select>
+</label>
+</div>
+</section>
 
-                                <div class="quote-request-lookup">
-                                    <div class="quote-request-lookup-head">
-                                        <span>Socios encontrados</span>
-                                        <span>Escribe el nombre del cliente para usar uno existente si coincide.</span>
-                                    </div>
-                                    <div class="copy-popover-table-wrap quote-create-lookup-wrap">
-                                        <table class="copy-popover-table quote-create-lookup-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Codigo</th>
-                                                    <th>Nombre</th>
-                                                    <th></th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="quotePartnerLookupResults">
-                                                <tr><td colspan="3">Escribe el nombre del cliente para buscar socios.</td></tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </section>
+<section class="quote-request-section">
+<div class="quote-request-section-head"><span class="quote-request-step">3</span><div><h3>Materiales y Acabados</h3></div></div>
+<div class="quote-request-inline-wrap" data-inline-suggestions="material">
+<label class="quote-request-field quote-request-grid-full">
+<span>Material</span>
+<input id="requestMaterial" class="quote-request-input" type="text" autocomplete="off" required>
+</label>
+<div id="materialSuggestions" class="quote-request-inline-panel" data-term-source="requestMaterial" hidden></div>
+</div>
+<div class="quote-request-finishes-grid" style="margin-top:12px;">
+<div class="quote-request-finishes-column">
+<div class="quote-request-subblock">
+<h4>Barniz</h4>
+<div class="quote-request-tabset">
+<label class="quote-request-toggle-chip"><input type="radio" name="varnish" value="Sin Barniz" checked><span class="quote-request-tab">Sin Barniz</span></label>
+<label class="quote-request-toggle-chip"><input type="radio" name="varnish" value="Brillante"><span class="quote-request-tab">Brillante</span></label>
+<label class="quote-request-toggle-chip"><input type="radio" name="varnish" value="Mate"><span class="quote-request-tab">Mate</span></label>
+<label class="quote-request-toggle-chip"><input type="radio" name="varnish" value="Soft Touch"><span class="quote-request-tab">Soft Touch</span></label>
+</div>
+</div>
+<div class="quote-request-subblock">
+<h4>Estampado</h4>
+<div class="quote-request-tabset">
+<label class="quote-request-toggle-chip"><input type="radio" name="stamping" value="Ninguno" checked><span class="quote-request-tab">Ninguno</span></label>
+<label class="quote-request-toggle-chip"><input type="radio" name="stamping" value="Oro"><span class="quote-request-tab">Oro</span></label>
+<label class="quote-request-toggle-chip"><input type="radio" name="stamping" value="Plata"><span class="quote-request-tab">Plata</span></label>
+<label class="quote-request-toggle-chip"><input type="radio" name="stamping" value="Holográfico"><span class="quote-request-tab">Holográfico</span></label>
+</div>
+</div>
+<div class="quote-request-subblock">
+<h4>Embosado</h4>
+<div class="quote-request-tabset">
+<label class="quote-request-toggle-chip"><input id="finishEmbossed" type="checkbox" value="Embosado"><span class="quote-request-tab">Embosado</span></label>
+</div>
+</div>
+</div>
+<div class="quote-request-finishes-column">
+<div class="quote-request-subblock">
+<h4>Numeración</h4>
+<div class="quote-request-tabset">
+<label class="quote-request-toggle-chip"><input type="radio" name="numbering" value="" checked><span class="quote-request-tab">Ninguna</span></label>
+<label class="quote-request-toggle-chip"><input type="radio" name="numbering" value="Numeración"><span class="quote-request-tab">Numeración</span></label>
+<label class="quote-request-toggle-chip"><input type="radio" name="numbering" value="Código de Barras"><span class="quote-request-tab">Código de Barras</span></label>
+<label class="quote-request-toggle-chip"><input type="radio" name="numbering" value="Código QR"><span class="quote-request-tab">Código QR</span></label>
+</div>
+</div>
+<div class="quote-request-subblock">
+<h4>Troquelado</h4>
+<div class="quote-request-tabset">
+<label class="quote-request-toggle-chip"><input id="finishDieCut" type="checkbox" value="Troquelado"><span class="quote-request-tab">Troquelado</span></label>
+</div>
+</div>
+</div>
+</div>
+</section>
 
-                            <section class="quote-request-section">
-                                <div class="quote-request-section-head">
-                                    <span class="quote-request-step">2</span>
-                                    <div>
-                                        <h3>Forma y medida</h3>
-                                        <p>Selecciona el troquel y la medida fija en pulgadas.</p>
-                                    </div>
-                                </div>
-                                <div>
-                                    <div class="socios-create-field socios-create-field-full">
-                                        <span>Forma de troquel</span>
-                                    </div>
-                                    <div id="dieShapePicker" class="quote-request-shape-grid"></div>
-                                    <div class="quote-request-hint">Las imagenes de estas formas se cargan desde Configuracion General.</div>
-                                </div>
-                                <div class="quote-request-grid" style="margin-top:14px;">
-                                    <label class="socios-create-field socios-create-field-full">
-                                        <span>Medidas fijas (pulgadas)</span>
-                                        <select id="requestFixedSize" class="quote-request-select" required>
-                                            <option value="">Selecciona una medida</option>
-                                            <option value="2x2" data-width="2" data-length="2">2 x 2</option>
-                                            <option value="2.5x2.5" data-width="2.5" data-length="2.5">2.5 x 2.5</option>
-                                            <option value="3x3" data-width="3" data-length="3">3 x 3</option>
-                                            <option value="3.5x3.5" data-width="3.5" data-length="3.5">3.5 x 3.5</option>
-                                            <option value="4x4" data-width="4" data-length="4">4 x 4</option>
-                                            <option value="4.5x4.5" data-width="4.5" data-length="4.5">4.5 x 4.5</option>
-                                            <option value="5x5" data-width="5" data-length="5">5 x 5</option>
-                                            <option value="5.5x5.5" data-width="5.5" data-length="5.5">5.5 x 5.5</option>
-                                        </select>
-                                    </label>
-                                </div>
-                            </section>
+<section class="quote-request-section">
+<div class="quote-request-section-head"><span class="quote-request-step">4</span><div><h3>Aplicación y Comentarios</h3></div></div>
+<div class="quote-request-grid">
+<div class="quote-request-inline-wrap" data-inline-suggestions="surface">
+<label class="quote-request-field">
+<span>Superficie de Aplicación</span>
+<input id="requestSurface" class="quote-request-input" type="text" autocomplete="off" required>
+</label>
+<div id="surfaceSuggestions" class="quote-request-inline-panel" data-term-source="requestSurface" hidden></div>
+</div>
+<div class="quote-request-field">
+<span>Colocación</span>
+<div class="quote-request-tabset">
+<label class="quote-request-toggle-chip"><input type="radio" name="placement" value="Máquina" checked><span class="quote-request-tab">Máquina</span></label>
+<label class="quote-request-toggle-chip"><input type="radio" name="placement" value="Manual"><span class="quote-request-tab">Manual</span></label>
+</div>
+</div>
+<label class="quote-request-field quote-request-grid-full">
+<span>Comentarios</span>
+<textarea id="requestComments" class="quote-request-textarea"></textarea>
+</label>
+<div class="quote-request-field quote-request-grid-full">
+<span>Adjuntos</span>
+<div class="quote-request-attachments-card">
+<div class="quote-request-attachment-actions">
+<div id="audioRecordIndicator" class="quote-request-audio-status" hidden><span class="quote-request-audio-dot"></span><span>Grabando</span></div>
+<label id="requestAttachmentsButton" class="quote-request-icon-action" title="Adjuntar Archivos" aria-label="Adjuntar Archivos">
+<span class="quote-request-icon-media" data-inline-icon="attachment"></span>
+<input id="requestAttachments" type="file" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ai,.eps" hidden>
+</label>
+<button type="button" id="audioRecordButton" class="quote-request-icon-action" title="Grabar Audio" aria-label="Grabar Audio" data-recording="false">
+<span class="quote-request-icon-media" data-inline-icon="record"></span>
+</button>
+</div>
+<div id="requestAttachmentsPreview" class="quote-request-attachment-list"></div>
+</div>
+</div>
+</div>
+</section>
+</div>
+<p id="nuevaCotizacionStatus" class="socios-create-status" hidden></p>
+</form>
 
-                            <section class="quote-request-section">
-                                <div class="quote-request-section-head">
-                                    <span class="quote-request-step">3</span>
-                                    <div>
-                                        <h3>Materiales y acabados</h3>
-                                        <p>Lo esencial para que el cotizador entienda el requerimiento sin entrar al modo avanzado.</p>
-                                    </div>
-                                </div>
-                                <div class="quote-request-grid">
-                                    <label class="socios-create-field socios-create-field-full">
-                                        <span>Material</span>
-                                        <select id="requestMaterial" class="quote-request-select" required>
-                                            <option value="">Selecciona un material</option>
-                                            <option value="BOPP transparente">BOPP transparente</option>
-                                            <option value="Papel">Papel</option>
-                                            <option value="Vinil blanco">Vinil blanco</option>
-                                            <option value="Vinil transparente">Vinil transparente</option>
-                                            <option value="BOPP blanco">BOPP blanco</option>
-                                            <option value="Otro">Otro</option>
-                                        </select>
-                                    </label>
-                                    <div class="socios-create-field socios-create-field-full">
-                                        <span>Acabado principal</span>
-                                        <div id="requestCoatingGrid" class="quote-request-pill-grid">
-                                            <label class="quote-request-pill"><input type="radio" name="coating" value="Sin barniz"><span>Sin barniz</span></label>
-                                            <label class="quote-request-pill"><input type="radio" name="coating" value="Barniz brillante"><span>Barniz brillante</span></label>
-                                            <label class="quote-request-pill"><input type="radio" name="coating" value="Barniz mate"><span>Barniz mate</span></label>
-                                            <label class="quote-request-pill"><input type="radio" name="coating" value="Soft touch"><span>Soft touch</span></label>
-                                            <label class="quote-request-pill"><input type="radio" name="coating" value="Laminado brillante"><span>Laminado brillante</span></label>
-                                            <label class="quote-request-pill"><input type="radio" name="coating" value="Laminado mate"><span>Laminado mate</span></label>
-                                        </div>
-                                    </div>
-                                    <div class="socios-create-field socios-create-field-full">
-                                        <span>Acabados especiales</span>
-                                        <div id="requestSpecialFinishesGrid" class="quote-request-check-grid">
-                                            <label class="quote-request-check"><input type="checkbox" value="Estampado"><span>Estampado</span></label>
-                                            <label class="quote-request-check"><input type="checkbox" value="Embosado"><span>Embosado</span></label>
-                                            <label class="quote-request-check"><input type="checkbox" value="Numeracion"><span>Numeracion</span></label>
-                                            <label class="quote-request-check"><input type="checkbox" value="Oquer"><span>Oquer</span></label>
-                                            <label class="quote-request-check"><input type="checkbox" value="Troquelado especial"><span>Troquelado especial</span></label>
-                                        </div>
-                                    </div>
-                                </div>
-                            </section>
+</div>
+</section>
+<div id="quoteRequestCreateButtonWrap" class="quote-request-create-floating">
+<div class="process-launcher-stack">
+<div id="processLauncherPrimary" class="process-launcher-primary launcher-menu-left">
+<button id="processLauncherButton" type="button" class="process-launcher-button floating-action-button" aria-label="Abrir acciones" aria-expanded="false">
+<span id="processLauncherIcon" class="process-launcher-icon floating-action-icon" aria-hidden="true"><span class="icon-svg-mask floating-action-icon-markup" data-launcher-icon="primary"></span></span>
+</button>
+<div id="processLauncherBridge" class="process-launcher-bridge" hidden>
+<span id="processLauncherLabel" class="process-launcher-label">Acciones</span>
+<div id="processLauncherMenu" class="process-launcher-menu">
+<button type="button" id="enviarSolicitudFabButton" class="process-launcher-item" title="Crear Cotización" aria-label="Crear Cotización">
+<span class="process-launcher-item-icon" data-fab-icon="submit"></span>
+<span class="process-launcher-item-text">Crear Cotización</span>
+</button>
+<button type="button" id="modoAvanzadoFabButton" class="process-launcher-item" title="Proceso Avanzado" aria-label="Proceso Avanzado">
+<span class="process-launcher-item-icon" data-fab-icon="advanced"></span>
+<span class="process-launcher-item-text">Proceso Avanzado</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
 
-                            <section class="quote-request-section">
-                                <div class="quote-request-section-head">
-                                    <span class="quote-request-step">4</span>
-                                    <div>
-                                        <h3>Aplicacion y comentarios</h3>
-                                        <p>Superficie, forma de colocacion y cualquier detalle especial.</p>
-                                    </div>
-                                </div>
-                                <div class="quote-request-grid">
-                                    <label class="socios-create-field">
-                                        <span>Superficie de aplicacion</span>
-                                        <select id="requestSurface" class="quote-request-select" required>
-                                            <option value="">Selecciona una superficie</option>
-                                            <option value="Botella plastico (PET/HDPE)">Botella plastico (PET/HDPE)</option>
-                                            <option value="Botella vidrio">Botella vidrio</option>
-                                            <option value="Frasco plastico">Frasco plastico</option>
-                                            <option value="Frasco de vidrio">Frasco de vidrio</option>
-                                            <option value="Lata metalica">Lata metalica</option>
-                                            <option value="Caja de carton">Caja de carton</option>
-                                            <option value="Bolsa flexible / DOYPACK">Bolsa flexible / DOYPACK</option>
-                                            <option value="Cubo o balde plastico">Cubo o balde plastico</option>
-                                            <option value="Sobre o empaque de papel">Sobre o empaque de papel</option>
-                                            <option value="Superficie plana general">Superficie plana general</option>
-                                            <option value="Otro">Otro</option>
-                                        </select>
-                                    </label>
-                                    <div class="socios-create-field">
-                                        <span>Como se va a colocar</span>
-                                        <div id="requestPlacementGrid" class="quote-request-pill-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));">
-                                            <label class="quote-request-pill"><input type="radio" name="placement" value="Manual"><span>Manual</span></label>
-                                            <label class="quote-request-pill"><input type="radio" name="placement" value="Con maquina"><span>Con maquina</span></label>
-                                        </div>
-                                    </div>
-                                    <label class="socios-create-field socios-create-field-full">
-                                        <span>Comentarios</span>
-                                        <textarea id="requestComments" class="quote-request-textarea" placeholder="Si el material o la superficie es Otro, especificalo aqui. Tambien puedes dejar indicaciones para el cotizador."></textarea>
-                                    </label>
-                                    <div class="socios-create-field socios-create-field-full quote-request-attachments">
-                                        <span>Adjuntos</span>
-                                        <input id="requestAttachments" class="quote-request-input" type="file" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ai,.eps">
-                                        <div id="requestAttachmentsPreview" class="quote-request-attachment-list"></div>
-                                    </div>
-                                </div>
-                            </section>
-                        </div>
-
-                        <p id="nuevaCotizacionStatus" class="socios-create-status" hidden></p>
-
-                        <div class="quote-request-actions">
-                            <button type="button" id="cancelarNuevaCotizacionButton" class="action-btn">Cancelar</button>
-                            <button type="button" id="modoAvanzadoButton" class="action-btn quote-request-advanced-btn">Modo avanzado</button>
-                            <button type="submit" id="enviarSolicitudButton" class="action-btn action-btn-primary quote-request-submit-btn" disabled>Enviar solicitud</button>
-                        </div>
-                    </form>
-
-                    <aside class="quote-request-sidebar">
-                        <h3>Resumen rapido</h3>
-                        <div class="quote-request-summary-row"><span class="quote-request-summary-label">Cliente</span><span id="summaryCustomer" class="quote-request-summary-value">-</span></div>
-                        <div class="quote-request-summary-row"><span class="quote-request-summary-label">Trabajo</span><span id="summaryJob" class="quote-request-summary-value">-</span></div>
-                        <div class="quote-request-summary-row"><span class="quote-request-summary-label">Cantidad</span><span id="summaryQuantity" class="quote-request-summary-value">-</span></div>
-                        <div class="quote-request-summary-row"><span class="quote-request-summary-label">Forma</span><span id="summaryShape" class="quote-request-summary-value">-</span></div>
-                        <div class="quote-request-summary-row"><span class="quote-request-summary-label">Medida</span><span id="summarySize" class="quote-request-summary-value">-</span></div>
-                        <div class="quote-request-summary-row"><span class="quote-request-summary-label">Material</span><span id="summaryMaterial" class="quote-request-summary-value">-</span></div>
-                        <div class="quote-request-summary-row"><span class="quote-request-summary-label">Acabado</span><span id="summaryCoating" class="quote-request-summary-value">-</span></div>
-                        <div class="quote-request-summary-row"><span class="quote-request-summary-label">Especiales</span><span id="summarySpecialFinishes" class="quote-request-summary-value">-</span></div>
-                        <div class="quote-request-summary-row"><span class="quote-request-summary-label">Superficie</span><span id="summarySurface" class="quote-request-summary-value">-</span></div>
-                        <div class="quote-request-summary-row"><span class="quote-request-summary-label">Colocacion</span><span id="summaryPlacement" class="quote-request-summary-value">-</span></div>
-                        <div class="quote-request-summary-row"><span class="quote-request-summary-label">Adjuntos</span><span id="summaryAttachments" class="quote-request-summary-value">0</span></div>
-                    </aside>
-                </div>
-            </div>
-        </section>
-    </div>
-    <script src="/cotizaciones.js"></script>
+<script src="/cotizaciones.js"></script>
 </body>
 </html>

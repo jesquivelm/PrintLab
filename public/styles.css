@@ -4187,3 +4187,42 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
     }
 }
 
+.flexo-field-alert > span {
+    color: #b42318;
+}
+
+.flexo-field-alert > span::after {
+    content: ' •';
+    color: #d92d20;
+    font-weight: 700;
+}
+
+.flexo-field-alert input,
+.flexo-field-alert select {
+    border-color: rgba(217, 45, 32, 0.65) !important;
+    box-shadow: 0 0 0 1px rgba(217, 45, 32, 0.12);
+}
+
+.flexo-inline-checkbox-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.flexo-inline-checkbox-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 40px;
+    padding: 0 14px;
+    border: 1px solid #cfe0ec;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.96);
+    color: #365066;
+}
+
+.flexo-inline-checkbox-control input {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+}

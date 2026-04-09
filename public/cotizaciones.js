@@ -1,49 +1,72 @@
 const CONFIG_ENDPOINT = '/api/config/general';
 const QUOTES_ENDPOINT = '/api/cotizaciones';
 const PARTNERS_ENDPOINT = '/api/socios';
-const PRESENTATION_KEY = 'cotizaciones';
-
-const DEFAULT_DIE_SHAPES = [
-    { key: 'dieShape1', label: 'Circular', fallbackShape: 'Circular' },
-    { key: 'dieShape2', label: 'Cuadrado', fallbackShape: 'Cuadrado' },
-    { key: 'dieShape3', label: 'Rectangular', fallbackShape: 'Rectangular' },
-    { key: 'dieShape4', label: 'Ovalado', fallbackShape: 'Ovalado' },
-    { key: 'dieShape5', label: 'Especial', fallbackShape: 'Especial' }
+const LAUNCHER_POSITION_KEY = 'quote-request-launcher-position-v2';
+const DEFAULT_ICON_MAP = {
+    processLauncher: { value: '\u25CE', color: '#6b7580', size: 30 },
+    quoteRequestSubmit: { value: '\u27A4', color: '#ffffff', size: 18 },
+    quoteRequestAdvanced: { value: '\u2699', color: '#5f7288', size: 18 },
+    quoteRequestAttachment: { value: '\u25CE', color: '#1e516d', size: 18 },
+    quoteRequestRecord: { value: '\u25CF', color: '#1e516d', size: 18 },
+    quoteRequestRecordStop: { value: '\u25A0', color: '#ef4444', size: 18 }
+};
+const STATIC_MATERIALS = [
+    'BOPP Blanco',
+    'BOPP Transparente',
+    'Papel Couche',
+    'Papel Termico',
+    'Papel Transfer',
+    'PET Blanco',
+    'PET Transparente',
+    'Polipropileno Blanco',
+    'Polipropileno Transparente',
+    'Vinil Blanco',
+    'Vinil Transparente'
 ];
+const DEFAULT_SURFACES = ['Botella', 'Caja', 'Carton', 'Envase', 'Frasco', 'Pouch', 'Tapa', 'Vidrio'];
 
+const rowsBody = document.getElementById('quotesTableBody');
 const quotesSearchInput = document.getElementById('quotesSearchInput');
-const quotesTableBody = document.getElementById('quotesTableBody');
 const nuevaCotizacionButton = document.getElementById('nuevaCotizacionButton');
 const refreshQuotesButton = document.getElementById('refreshQuotesButton');
-const nuevaCotizacionPopover = document.getElementById('nuevaCotizacionPopover');
-const cerrarNuevaCotizacionButton = document.getElementById('cerrarNuevaCotizacionButton');
-const cancelarNuevaCotizacionButton = document.getElementById('cancelarNuevaCotizacionButton');
-const modoAvanzadoButton = document.getElementById('modoAvanzadoButton');
-const enviarSolicitudButton = document.getElementById('enviarSolicitudButton');
-const nuevaCotizacionForm = document.getElementById('nuevaCotizacionForm');
-const nuevaCotizacionStatus = document.getElementById('nuevaCotizacionStatus');
-const nuevoClienteNombre = document.getElementById('nuevoClienteNombre');
-const nuevoClienteCodigo = document.getElementById('nuevoClienteCodigo');
-const requestJobName = document.getElementById('requestJobName');
-const requestQuantity = document.getElementById('requestQuantity');
-const requestProcessType = document.getElementById('requestProcessType');
-const requestFixedSize = document.getElementById('requestFixedSize');
-const requestMaterial = document.getElementById('requestMaterial');
-const requestSurface = document.getElementById('requestSurface');
-const requestComments = document.getElementById('requestComments');
-const requestAttachments = document.getElementById('requestAttachments');
-const requestAttachmentsPreview = document.getElementById('requestAttachmentsPreview');
-const quotePartnerLookupResults = document.getElementById('quotePartnerLookupResults');
-const dieShapePicker = document.getElementById('dieShapePicker');
+const popover = document.getElementById('nuevaCotizacionPopover');
+const popoverPanel = popover?.querySelector('.quote-request-popover-panel');
+const closeButton = document.getElementById('cerrarNuevaCotizacionButton');
+const form = document.getElementById('nuevaCotizacionForm');
+const statusNode = document.getElementById('nuevaCotizacionStatus');
+const customerNameInput = document.getElementById('nuevoClienteNombre');
+const customerCodeInput = document.getElementById('nuevoClienteCodigo');
+const customerLookupPanel = document.getElementById('quoteCustomerLookupPanel');
+const customerLookupResults = document.getElementById('quoteCustomerLookupResults');
+const fixedSizeSelect = document.getElementById('requestFixedSize');
+const materialInput = document.getElementById('requestMaterial');
+const materialSuggestions = document.getElementById('materialSuggestions');
+const surfaceInput = document.getElementById('requestSurface');
+const surfaceSuggestions = document.getElementById('surfaceSuggestions');
+const attachmentsInput = document.getElementById('requestAttachments');
+const attachmentsPreview = document.getElementById('requestAttachmentsPreview');
+const audioRecordButton = document.getElementById('audioRecordButton');
+const audioRecordIndicator = document.getElementById('audioRecordIndicator');
+const launcherWrap = document.getElementById('quoteRequestCreateButtonWrap');
+const processLauncherButton = document.getElementById('processLauncherButton');
+const processLauncherBridge = document.getElementById('processLauncherBridge');
+const createButton = document.getElementById('enviarSolicitudFabButton');
+const advancedButton = document.getElementById('modoAvanzadoFabButton');
+const shapePicker = document.getElementById('dieShapePicker');
 
-let browserConfig = null;
-let partnerLookupTimer = null;
-let latestPartnerLookupTerm = '';
-let currentQuoteSearch = '';
-let requestAttachmentsFiles = [];
+let loadedConfig = {};
+let quoteCatalog = [];
+let partnerLookupAbort = null;
+let materialItems = STATIC_MATERIALS.map((name) => ({ code: '', name }));
+let surfaceItems = [...DEFAULT_SURFACES];
+let pendingAttachments = [];
+let mediaRecorder = null;
+let recordingChunks = [];
+let isRecording = false;
+let dragState = null;
 
 function escapeHtml(value) {
-    return String(value || '')
+    return String(value ?? '')
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
@@ -51,76 +74,29 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
-function formatDate(value) {
-    if (!value) return '';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return String(value);
-    return date.toLocaleDateString('es-CR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+function normalizeText(value) {
+    return String(value ?? '').trim();
+}
+
+function setStatus(message, tone = 'info') {
+    if (!statusNode) return;
+    statusNode.hidden = !message;
+    statusNode.textContent = message || '';
+    statusNode.dataset.tone = tone;
+}
+
+async function fetchJson(url, options) {
+    const response = await fetch(url, options);
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        throw new Error(payload.error || 'No fue posible completar la solicitud.');
+    }
+    return payload;
 }
 
 function isShellEmbedded() {
-    return window !== window.parent && new URLSearchParams(window.location.search).get('shell') === '1';
-}
-
-function isSvgValue(value) {
-    return String(value || '').trim().startsWith('data:image/svg+xml');
-}
-
-function isImageValue(value) {
-    return String(value || '').trim().startsWith('data:image/');
-}
-
-function firstFilled(...values) {
-    for (const value of values) {
-        if (value !== undefined && value !== null && String(value).trim() !== '') return value;
-    }
-    return '';
-}
-
-function getPresentationConfig(config, key) {
-    const presentation = config.presentations?.[key] || {};
-    const general = config.general || {};
-    const layout = config.layout || {};
-    return {
-        tabColor: presentation.tabColor || general.tabColor || '#7f7f7f',
-        iconSize: Number(presentation.iconSize) || Number(general.iconSize) || Number(layout.iconSize) || 20
-    };
-}
-
-function iconMarkup(value, altText, extraClass = '') {
-    if (isSvgValue(value)) {
-        const safeUrl = escapeHtml(value);
-        return `<span class="icon-svg-mask ${extraClass}" role="img" aria-label="${escapeHtml(altText)}" style="-webkit-mask-image:url('${safeUrl}');mask-image:url('${safeUrl}');"></span>`;
-    }
-    if (isImageValue(value)) {
-        return `<img src="${escapeHtml(value)}" alt="${escapeHtml(altText)}" class="icon-image ${extraClass}">`;
-    }
-    return `<span class="icon-glyph ${extraClass}">${escapeHtml(value || '')}</span>`;
-}
-
-function getOpenIconConfig() {
-    const general = browserConfig?.general || {};
-    const presentation = getPresentationConfig(browserConfig || {}, PRESENTATION_KEY);
-    return {
-        value: browserConfig?.icons?.browserOpen || browserConfig?.icons?.tableOpen || '↗',
-        color: firstFilled(general.iconColorBrowserOpen, general.iconColorTableOpen, general.iconColor, '#0b81b8'),
-        hover: firstFilled(general.iconColorHoverBrowserOpen, general.iconColorHoverTableOpen, '#07638c'),
-        size: Number(firstFilled(general.iconSizeBrowserOpen, general.iconSizeTableOpen, presentation.iconSize, 18)) || 18
-    };
-}
-
-function applyBrowserConfig(config) {
-    browserConfig = config || {};
-    const root = document.documentElement;
-    const presentation = getPresentationConfig(browserConfig, PRESENTATION_KEY);
-    root.style.setProperty('--tab-color', presentation.tabColor);
-    renderDieShapeOptions();
-}
-
-async function loadConfig() {
-    const response = await fetch(CONFIG_ENDPOINT);
-    if (!response.ok) throw new Error('No se pudo cargar la configuracion.');
-    applyBrowserConfig(await response.json());
+    const params = new URLSearchParams(window.location.search);
+    return params.get('shell') === '1' || window !== window.parent;
 }
 
 function openRouteInShell(route, label) {
@@ -129,508 +105,560 @@ function openRouteInShell(route, label) {
     return true;
 }
 
-if (isShellEmbedded()) {
-    document.body.classList.add('shell-embedded');
+function isSvgValue(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    return normalized.startsWith('data:image/svg+xml') || normalized.endsWith('.svg');
 }
 
-function setCreateStatus(message, isError = false) {
-    nuevaCotizacionStatus.hidden = !message;
-    nuevaCotizacionStatus.textContent = message || '';
-    nuevaCotizacionStatus.classList.toggle('is-error', Boolean(message && isError));
-    nuevaCotizacionStatus.classList.toggle('is-success', Boolean(message && !isError));
-}
-
-function getConfiguredDieShapes() {
-    const general = browserConfig?.general || {};
-    return DEFAULT_DIE_SHAPES.map((shape, index) => ({
-        ...shape,
-        label: firstFilled(general[`dieShapeLabel${index + 1}`], shape.label),
-        image: firstFilled(general[`dieShapeImage${index + 1}`], '')
-    }));
-}
-
-function getSelectedRadioValue(name) {
-    return document.querySelector(`input[name="${name}"]:checked`)?.value || '';
-}
-
-function getSelectedCheckboxValues(containerId) {
-    return [...document.querySelectorAll(`#${containerId} input[type="checkbox"]:checked`)].map((input) => input.value);
-}
-
-function refreshSelectableStates() {
-    document.querySelectorAll('.quote-request-pill').forEach((item) => {
-        const input = item.querySelector('input');
-        item.classList.toggle('is-selected', Boolean(input?.checked));
-    });
-    document.querySelectorAll('.quote-request-check').forEach((item) => {
-        const input = item.querySelector('input');
-        item.classList.toggle('is-selected', Boolean(input?.checked));
-    });
-    document.querySelectorAll('.quote-request-shape').forEach((item) => {
-        const input = item.querySelector('input');
-        item.classList.toggle('is-selected', Boolean(input?.checked));
-    });
-}
-
-function renderDieShapeOptions() {
-    if (!dieShapePicker) return;
-    const shapes = getConfiguredDieShapes();
-    dieShapePicker.innerHTML = shapes.map((shape, index) => `
-        <label class="quote-request-shape">
-            <input type="radio" name="die_shape" value="${escapeHtml(shape.label)}" ${index === 0 ? '' : ''}>
-            <span class="quote-request-shape-media">
-                ${shape.image
-                    ? `<img src="${escapeHtml(shape.image)}" alt="${escapeHtml(shape.label)}">`
-                    : `<span class="quote-request-shape-fallback" data-shape="${escapeHtml(shape.fallbackShape)}"></span>`}
-            </span>
-            <span class="quote-request-shape-name">${escapeHtml(shape.label)}</span>
-        </label>
-    `).join('');
-    refreshSelectableStates();
-}
-
-function renderPartnerLookup(items, emptyMessage) {
-    if (!quotePartnerLookupResults) return;
-    if (!items.length) {
-        quotePartnerLookupResults.innerHTML = `<tr><td colspan="3">${escapeHtml(emptyMessage)}</td></tr>`;
+function renderIcon(target, iconValue, color, size) {
+    if (!target) return;
+    const value = String(iconValue || '').trim();
+    target.style.color = color || '';
+    if (isSvgValue(value)) {
+        target.innerHTML = `<span class="icon-svg-mask" style="-webkit-mask-image:url('${value}');mask-image:url('${value}');width:${size}px;height:${size}px;"></span>`;
         return;
     }
+    if (value.startsWith('data:image')) {
+        target.innerHTML = `<img src="${value}" alt="" class="icon-image" style="width:${size}px;height:${size}px;">`;
+        return;
+    }
+    target.innerHTML = `<span class="icon-glyph" style="font-size:${size}px;">${escapeHtml(value)}</span>`;
+}
 
-    quotePartnerLookupResults.innerHTML = items.map((item) => `
+function iconConfigFor(key) {
+    const fallback = DEFAULT_ICON_MAP[key];
+    const icons = loadedConfig?.icons || {};
+    const general = loadedConfig?.general || {};
+    const value = normalizeText(icons[key]) || fallback.value;
+    const suffix = key.charAt(0).toUpperCase() + key.slice(1);
+    const color = general[`iconColor${suffix}`] || fallback.color;
+    const size = Number(general[`iconSize${suffix}`]) || fallback.size;
+    return { value, color, size };
+}
+
+function applyConfiguredIcons() {
+    const primary = iconConfigFor('processLauncher');
+    const submit = iconConfigFor('quoteRequestSubmit');
+    const advanced = iconConfigFor('quoteRequestAdvanced');
+    const attachment = iconConfigFor('quoteRequestAttachment');
+    const record = iconConfigFor(isRecording ? 'quoteRequestRecordStop' : 'quoteRequestRecord');
+    renderIcon(document.querySelector('[data-launcher-icon="primary"]'), primary.value, primary.color, primary.size || 24);
+    renderIcon(document.querySelector('[data-fab-icon="submit"]'), submit.value, submit.color, submit.size);
+    renderIcon(document.querySelector('[data-fab-icon="advanced"]'), advanced.value, advanced.color, advanced.size);
+    renderIcon(document.querySelector('[data-inline-icon="attachment"]'), attachment.value, attachment.color, attachment.size);
+    renderIcon(document.querySelector('[data-inline-icon="record"]'), record.value, record.color, record.size);
+    if (processLauncherButton) {
+        processLauncherButton.style.setProperty('--floating-icon-color', primary.color);
+        processLauncherButton.style.setProperty('--floating-icon-hover', loadedConfig?.general?.iconColorHoverProcessLauncher || '#0b81b8');
+        processLauncherButton.style.setProperty('--floating-icon-size', `${primary.size || 24}px`);
+    }
+    if (audioRecordButton) {
+        audioRecordButton.title = isRecording ? 'Detener Grabacion' : 'Grabar Audio';
+        audioRecordButton.setAttribute('aria-label', isRecording ? 'Detener Grabacion' : 'Grabar Audio');
+    }
+}
+
+function formatDate(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleDateString('es-CR');
+}
+
+function renderQuotesTable(items) {
+    if (!rowsBody) return;
+    if (!items.length) {
+        rowsBody.innerHTML = '<tr><td colspan="8">No hay cotizaciones.</td></tr>';
+        return;
+    }
+    rowsBody.innerHTML = items.map((item) => `
         <tr>
-            <td>${escapeHtml(item.partner_code)}</td>
-            <td>${escapeHtml(item.partner_name)}</td>
-            <td>
-                <button
-                    type="button"
-                    class="action-btn quote-create-use-btn"
-                    data-partner-code="${escapeHtml(item.partner_code)}"
-                    data-partner-name="${escapeHtml(item.partner_name)}"
-                >Usar</button>
-            </td>
+            <td>${escapeHtml(item.quote_code || '')}</td>
+            <td>${escapeHtml(item.customer_code || '')}</td>
+            <td>${escapeHtml(item.customer_name || '')}</td>
+            <td>${escapeHtml(item.salesperson_name || '')}</td>
+            <td>${escapeHtml(formatDate(item.created_on))}</td>
+            <td>${escapeHtml(formatDate(item.due_on))}</td>
+            <td>${escapeHtml(item.status || '')}</td>
+            <td><button type="button" class="copy-popover-send" data-open-quote="${escapeHtml(item.quote_code || '')}">Abrir</button></td>
         </tr>
     `).join('');
 }
 
-async function searchPartners(term) {
-    const normalizedTerm = String(term || '').trim();
-    latestPartnerLookupTerm = normalizedTerm;
+function getFilteredQuotes() {
+    const term = normalizeText(quotesSearchInput?.value).toLowerCase();
+    if (!term) return quoteCatalog;
+    return quoteCatalog.filter((item) => [item.quote_code, item.customer_code, item.customer_name, item.salesperson_name]
+        .some((value) => String(value || '').toLowerCase().includes(term)));
+}
 
-    if (!normalizedTerm) {
-        nuevoClienteCodigo.value = '';
-        renderPartnerLookup([], 'Escribe el nombre del cliente para buscar socios.');
+async function loadQuotes() {
+    const payload = await fetchJson(QUOTES_ENDPOINT);
+    quoteCatalog = Array.isArray(payload.cotizaciones) ? payload.cotizaciones : [];
+    renderQuotesTable(getFilteredQuotes());
+}
+
+async function loadConfig() {
+    loadedConfig = await fetchJson(CONFIG_ENDPOINT);
+    applyConfiguredIcons();
+    renderShapePicker();
+}
+
+function renderInlineSuggestionList(panel, items, emptyMessage) {
+    if (!panel) return;
+    if (!items.length) {
+        panel.innerHTML = `<div class="quote-request-lookup-empty">${escapeHtml(emptyMessage)}</div>`;
+        panel.hidden = false;
         return;
     }
-
-    const params = new URLSearchParams({ q: normalizedTerm, limit: '8' });
-    const response = await fetch(`${PARTNERS_ENDPOINT}?${params.toString()}`);
-    const payload = await response.json();
-    if (!response.ok) {
-        throw new Error(payload.error || 'No fue posible buscar socios.');
-    }
-
-    if (latestPartnerLookupTerm !== normalizedTerm) return;
-    renderPartnerLookup(payload.socios || [], 'No se encontraron socios con ese nombre.');
-}
-
-function schedulePartnerLookup() {
-    clearTimeout(partnerLookupTimer);
-    partnerLookupTimer = window.setTimeout(() => {
-        searchPartners(nuevoClienteNombre?.value).catch((error) => {
-            renderPartnerLookup([], error.message || 'No fue posible buscar socios.');
-        });
-    }, 220);
-}
-
-function updateSummary() {
-    const selectedSize = requestFixedSize?.selectedOptions?.[0]?.textContent || '';
-    const specials = getSelectedCheckboxValues('requestSpecialFinishesGrid');
-    const summaryMap = {
-        summaryCustomer: nuevoClienteNombre?.value.trim() || '-',
-        summaryJob: requestJobName?.value.trim() || '-',
-        summaryQuantity: requestQuantity?.value.trim() || '-',
-        summaryShape: getSelectedRadioValue('die_shape') || '-',
-        summarySize: selectedSize || '-',
-        summaryMaterial: requestMaterial?.value || '-',
-        summaryCoating: getSelectedRadioValue('coating') || '-',
-        summarySpecialFinishes: specials.length ? specials.join(', ') : '-',
-        summarySurface: requestSurface?.value || '-',
-        summaryPlacement: getSelectedRadioValue('placement') || '-',
-        summaryAttachments: String(requestAttachmentsFiles.length || 0)
-    };
-    Object.entries(summaryMap).forEach(([id, value]) => {
-        const node = document.getElementById(id);
-        if (node) node.textContent = value;
-    });
-    refreshSelectableStates();
-    if (enviarSolicitudButton) {
-        enviarSolicitudButton.disabled = !isRequestFormValid();
-    }
-}
-
-function renderAttachmentsPreview() {
-    if (!requestAttachmentsPreview) return;
-    if (!requestAttachmentsFiles.length) {
-        requestAttachmentsPreview.innerHTML = '';
-        updateSummary();
-        return;
-    }
-    requestAttachmentsPreview.innerHTML = requestAttachmentsFiles.map((file, index) => `
-        <div class="quote-request-attachment-item">
-            <span>${escapeHtml(file.name)}</span>
-            <button type="button" class="action-btn" data-remove-attachment="${index}">Quitar</button>
-        </div>
+    panel.innerHTML = items.map((item) => `
+        <button type="button" class="quote-request-lookup-item" data-value="${escapeHtml(item.name)}" data-code="${escapeHtml(item.code || '')}">
+            <span class="quote-request-lookup-name">${escapeHtml(item.name)}</span>
+            <span class="quote-request-lookup-code">${escapeHtml(item.code || '')}</span>
+        </button>
     `).join('');
-    updateSummary();
+    panel.hidden = false;
 }
 
-function openCreatePopover() {
-    nuevaCotizacionPopover.hidden = false;
-    document.body.classList.add('popover-open');
-    setCreateStatus('');
-    renderPartnerLookup([], 'Escribe el nombre del cliente para buscar socios.');
-    updateSummary();
-    window.setTimeout(() => {
-        nuevoClienteNombre?.focus();
-    }, 30);
+function showMaterialSuggestions() {
+    const term = normalizeText(materialInput?.value).toLowerCase();
+    const items = materialItems
+        .filter((item) => !term || item.name.toLowerCase().includes(term))
+        .slice(0, 12);
+    renderInlineSuggestionList(materialSuggestions, items, 'No hay materiales disponibles.');
 }
 
-function closeCreatePopover() {
-    nuevaCotizacionPopover.hidden = true;
-    document.body.classList.remove('popover-open');
-    setCreateStatus('');
-    nuevaCotizacionForm?.reset();
-    nuevoClienteCodigo.value = '';
-    requestAttachmentsFiles = [];
-    renderAttachmentsPreview();
-    renderPartnerLookup([], 'Escribe el nombre del cliente para buscar socios.');
-    renderDieShapeOptions();
-    updateSummary();
+function showSurfaceSuggestions() {
+    const term = normalizeText(surfaceInput?.value).toLowerCase();
+    const items = surfaceItems
+        .filter((item) => !term || item.toLowerCase().includes(term))
+        .slice(0, 12)
+        .map((item) => ({ name: item, code: '' }));
+    renderInlineSuggestionList(surfaceSuggestions, items, 'No hay superficies disponibles.');
 }
 
-function openQuoteEditor(quoteCode) {
-    const route = `/cotizaciones/documento?codigo=${encodeURIComponent(quoteCode)}`;
-    const label = `Cotizacion ${quoteCode}`;
-    if (openRouteInShell(route, label)) return;
-    window.location.href = route;
+function hideInlinePanels() {
+    if (materialSuggestions) materialSuggestions.hidden = true;
+    if (surfaceSuggestions) surfaceSuggestions.hidden = true;
 }
 
-async function fetchPartnerDetail(partnerCode) {
-    const response = await fetch(`${PARTNERS_ENDPOINT}/${encodeURIComponent(partnerCode)}`);
-    const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error || 'No fue posible cargar el socio.');
-    return payload;
+async function searchPartners(term) {
+    partnerLookupAbort?.abort();
+    partnerLookupAbort = new AbortController();
+    const query = new URLSearchParams({ limit: '12' });
+    if (term) query.set('q', term);
+    const response = await fetch(`${PARTNERS_ENDPOINT}?${query.toString()}`, { signal: partnerLookupAbort.signal });
+    const payload = await response.json().catch(() => ({ socios: [] }));
+    if (!response.ok) throw new Error(payload.error || 'No fue posible cargar socios.');
+    const items = Array.isArray(payload.socios) ? payload.socios : [];
+    customerLookupResults.innerHTML = items.length
+        ? items.map((item) => `
+            <button type="button" class="quote-request-lookup-item" data-partner-code="${escapeHtml(item.partner_code || '')}" data-partner-name="${escapeHtml(item.partner_name || '')}">
+                <span class="quote-request-lookup-name">${escapeHtml(item.partner_name || '')}</span>
+                <span class="quote-request-lookup-code">${escapeHtml(item.partner_code || '')}</span>
+            </button>
+        `).join('')
+        : '<div class="quote-request-lookup-empty">No se encontraron socios.</div>';
+    customerLookupPanel.hidden = false;
 }
 
-function getRequestFields() {
-    const sizeOption = requestFixedSize?.selectedOptions?.[0];
-    return {
-        customerName: nuevoClienteNombre?.value.trim() || '',
-        customerCode: nuevoClienteCodigo?.value.trim() || '',
-        jobName: requestJobName?.value.trim() || '',
-        quantity: requestQuantity?.value.trim() || '',
-        processType: requestProcessType?.value || '',
-        dieShape: getSelectedRadioValue('die_shape'),
-        fixedSize: requestFixedSize?.value || '',
-        widthInches: sizeOption?.dataset.width || '',
-        lengthInches: sizeOption?.dataset.length || '',
-        material: requestMaterial?.value || '',
-        coating: getSelectedRadioValue('coating'),
-        specialFinishes: getSelectedCheckboxValues('requestSpecialFinishesGrid'),
-        surface: requestSurface?.value || '',
-        placement: getSelectedRadioValue('placement'),
-        comments: requestComments?.value.trim() || ''
-    };
+function applyPartnerSelection(code, name) {
+    customerCodeInput.value = code || '';
+    customerNameInput.value = name || '';
+    if (customerLookupPanel) customerLookupPanel.hidden = true;
 }
 
-function isRequestFormValid() {
-    const fields = getRequestFields();
-    return Boolean(
-        fields.customerName &&
-        fields.jobName &&
-        fields.quantity &&
-        fields.processType &&
-        fields.dieShape &&
-        fields.fixedSize &&
-        fields.material &&
-        fields.coating &&
-        fields.surface &&
-        fields.placement
-    );
-}
-
-function buildRequestMeta(fields) {
-    return {
-        'CLIENTE NOMBRE SOLICITUD': fields.customerName,
-        'FORMA TROQUEL': fields.dieShape,
-        'MEDIDA FIJA': fields.fixedSize,
-        'MATERIAL SOLICITADO': fields.material,
-        'ACABADO SUPERFICIAL': fields.coating,
-        'ACABADOS ESPECIALES': fields.specialFinishes.join(', '),
-        'SUPERFICIE APLICACION': fields.surface,
-        'COLOCACION': fields.placement,
-        'OBSERVACIONES SOLICITUD': fields.comments,
-        'SOLICITUD TIPO': 'Primera fase vendedor'
-    };
-}
-
-async function createQuoteHeader(customerCode, customerName) {
-    if (customerCode) {
-        const partnerPayload = await fetchPartnerDetail(customerCode);
-        const partner = partnerPayload?.socio || {};
-        const contacts = Array.isArray(partnerPayload?.contactos) ? partnerPayload.contactos : [];
-        const mainContact = contacts[0] || {};
-        const contactName = mainContact.contact_name || [mainContact.first_name, mainContact.last_name].filter(Boolean).join(' ');
-        const contactEmail = mainContact.email || partner.email || '';
-        const primaryPhone = mainContact.mobile || mainContact.phone || '';
-        const secondaryPhone = mainContact.mobile && mainContact.phone && mainContact.mobile !== mainContact.phone ? mainContact.phone : '';
-        const salespersonName = partner.salesperson_name || '';
-        const response = await fetch(QUOTES_ENDPOINT, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                customer_name: customerName,
-                customer_code: customerCode,
-                contact_name: contactName,
-                email: contactEmail,
-                phone: primaryPhone,
-                phone_secondary: secondaryPhone,
-                salesperson_name: salespersonName
-            })
-        });
-        const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error || 'No fue posible crear la cotizacion.');
-        return payload?.cotizacion;
-    }
-
-    const response = await fetch(QUOTES_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            customer_name: customerName,
-            customer_code: '',
-            status: 'Pendiente'
-        })
+function syncToggleChipState(scope = document) {
+    scope.querySelectorAll('.quote-request-toggle-chip').forEach((chip) => {
+        const input = chip.querySelector('input');
+        chip.classList.toggle('is-selected', Boolean(input?.checked));
     });
-    const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error || 'No fue posible crear la cotizacion.');
-    return payload?.cotizacion;
-}
-
-async function createInitialQuoteLine(quoteCode, fields) {
-    const response = await fetch(`${QUOTES_ENDPOINT}/${encodeURIComponent(quoteCode)}/lineas`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            job_name: fields.jobName,
-            quantity: fields.quantity,
-            quantityProducts: fields.quantity,
-            process_type: fields.processType,
-            material_name: fields.material,
-            material_code: fields.material,
-            widthInches: fields.widthInches,
-            lengthInches: fields.lengthInches,
-            applicationType: fields.placement,
-            outputType: fields.surface,
-            status: 'Pendiente',
-            department: 'Flexografia',
-            request_meta: buildRequestMeta(fields)
-        })
+    scope.querySelectorAll('.quote-request-shape-card').forEach((card) => {
+        const input = card.querySelector('input');
+        card.classList.toggle('is-selected', Boolean(input?.checked));
     });
-    const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error || 'No fue posible crear la linea de la solicitud.');
-    return payload?.linea;
 }
 
-function fileToBase64(file) {
+function readAsBase64(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = () => {
-            const result = String(reader.result || '');
-            const [, contentBase64 = ''] = result.split(',');
-            resolve(contentBase64);
-        };
+        reader.onload = () => resolve(String(reader.result).split(',').pop() || '');
         reader.onerror = () => reject(new Error(`No fue posible leer ${file.name}.`));
         reader.readAsDataURL(file);
     });
 }
 
-async function uploadRequestAttachments(quoteCode, lineCode) {
-    for (const file of requestAttachmentsFiles) {
-        const contentBase64 = await fileToBase64(file);
-        const response = await fetch(`${QUOTES_ENDPOINT}/${encodeURIComponent(quoteCode)}/lineas/${encodeURIComponent(lineCode)}/adjuntos`, {
+function renderAttachments() {
+    if (!attachmentsPreview) return;
+    if (!pendingAttachments.length) {
+        attachmentsPreview.innerHTML = '<div class="quote-request-attachment-empty">No hay adjuntos cargados.</div>';
+        return;
+    }
+    attachmentsPreview.innerHTML = pendingAttachments.map((item, index) => {
+        if (item.kind === 'audio') {
+            return `
+                <div class="quote-request-attachment-card audio">
+                    <div class="quote-request-attachment-meta"><strong>${escapeHtml(item.fileName)}</strong><span>${escapeHtml(item.label || 'Audio')}</span></div>
+                    <audio controls src="${escapeHtml(item.previewUrl)}"></audio>
+                    <button type="button" class="copy-popover-send" data-remove-attachment="${index}">Quitar</button>
+                </div>
+            `;
+        }
+        return `
+            <div class="quote-request-attachment-card">
+                <div class="quote-request-attachment-meta"><strong>${escapeHtml(item.fileName)}</strong><span>${escapeHtml(item.label || '')}</span></div>
+                <button type="button" class="copy-popover-send" data-remove-attachment="${index}">Quitar</button>
+            </div>
+        `;
+    }).join('');
+}
+
+function formHasContent() {
+    if (!form) return false;
+    const data = new FormData(form);
+    for (const [key, value] of data.entries()) {
+        if (key === 'customer_code') continue;
+        if (normalizeText(value)) return true;
+    }
+    return pendingAttachments.length > 0;
+}
+
+function resetFormState() {
+    form?.reset();
+    customerCodeInput.value = '';
+    pendingAttachments = [];
+    renderAttachments();
+    hideInlinePanels();
+    setStatus('');
+    syncToggleChipState();
+    applyConfiguredIcons();
+}
+
+function setDefaultLauncherPosition() {
+    if (!launcherWrap || !popoverPanel) return;
+    const rect = popoverPanel.getBoundingClientRect();
+    const left = Math.max(16, Math.min(window.innerWidth - 96, rect.right - 120));
+    const top = Math.max(88, rect.top + 120);
+    launcherWrap.style.left = `${left}px`;
+    launcherWrap.style.top = `${top}px`;
+}
+
+function renderShapePicker() {
+    if (!shapePicker) return;
+    const general = loadedConfig?.general || {};
+    const shapes = [
+        { value: 'Circular', label: general.dieShapeLabel1 || 'Circular', image: general.dieShapeImage1 || '' },
+        { value: 'Cuadrado', label: general.dieShapeLabel2 || 'Cuadrado', image: general.dieShapeImage2 || '' },
+        { value: 'Rectangular', label: general.dieShapeLabel3 || 'Rectangular', image: general.dieShapeImage3 || '' },
+        { value: 'Ovalado', label: general.dieShapeLabel4 || 'Ovalado', image: general.dieShapeImage4 || '' },
+        { value: 'Especial', label: general.dieShapeLabel5 || 'Especial', image: general.dieShapeImage5 || '' }
+    ];
+    shapePicker.innerHTML = shapes.map((shape, index) => `
+        <label class="quote-request-shape-card ${index === 0 ? 'is-selected' : ''}">
+            <input type="radio" name="die_shape" value="${escapeHtml(shape.value)}" ${index === 0 ? 'checked' : ''}>
+            <span class="quote-request-shape-media">${shape.image ? `<img src="${escapeHtml(shape.image)}" alt="${escapeHtml(shape.label)}">` : `<span class="quote-request-shape-fallback" data-shape="${escapeHtml(shape.value)}"></span>`}</span>
+            <span class="quote-request-shape-name">${escapeHtml(shape.label)}</span>
+        </label>
+    `).join('');
+    syncToggleChipState(shapePicker);
+}
+
+function collectRequestPayload() {
+    const selectedShape = form.querySelector('input[name="die_shape"]:checked')?.value || '';
+    const selectedSize = fixedSizeSelect?.selectedOptions?.[0];
+    const numbering = form.querySelector('input[name="numbering"]:checked')?.value || '';
+    const stamping = form.querySelector('input[name="stamping"]:checked')?.value || '';
+    const varnish = form.querySelector('input[name="varnish"]:checked')?.value || '';
+    const placement = form.querySelector('input[name="placement"]:checked')?.value || '';
+    return {
+        customer_code: normalizeText(customerCodeInput.value),
+        customer_name: normalizeText(customerNameInput.value),
+        job_name: normalizeText(document.getElementById('requestJobName')?.value),
+        quantity: normalizeText(document.getElementById('requestQuantity')?.value),
+        process_type: normalizeText(document.getElementById('requestProcessType')?.value),
+        product_type: normalizeText(document.getElementById('requestProductType')?.value),
+        material_name: normalizeText(materialInput?.value),
+        applicationType: normalizeText(surfaceInput?.value),
+        outputType: placement,
+        widthInches: Number(selectedSize?.dataset.width || 0) || null,
+        lengthInches: Number(selectedSize?.dataset.length || 0) || null,
+        request_meta: {
+            'REQ | Tipo de Producto': normalizeText(document.getElementById('requestProductType')?.value),
+            'REQ | Forma': selectedShape,
+            'REQ | Barniz': varnish,
+            'REQ | Estampado': stamping,
+            'REQ | Numeracion': numbering,
+            'REQ | Embosado': document.getElementById('finishEmbossed')?.checked ? 'Si' : 'No',
+            'REQ | Troquelado': document.getElementById('finishDieCut')?.checked ? 'Si' : 'No',
+            'REQ | Superficie': normalizeText(surfaceInput?.value),
+            'REQ | Colocacion': placement,
+            'REQ | Comentarios': normalizeText(document.getElementById('requestComments')?.value),
+            'REQ | Medida Fija': normalizeText(fixedSizeSelect?.value),
+            'REQ | Numeracion Aviso': numbering ? 'Revisar proceso adicional de impresion para numerado.' : '',
+            'CODEX_UI_STATE': {
+                productType: normalizeText(document.getElementById('requestProductType')?.value),
+                dieShape: selectedShape,
+                widthInches: Number(selectedSize?.dataset.width || 0) || null,
+                lengthInches: Number(selectedSize?.dataset.length || 0) || null
+            }
+        }
+    };
+}
+
+function validateQuickRequest(forAdvanced) {
+    const payload = collectRequestPayload();
+    if (!payload.customer_name) throw new Error('Debes indicar el nombre del socio.');
+    if (!payload.job_name) throw new Error('Debes indicar el nombre del producto.');
+    if (!payload.quantity) throw new Error('Debes indicar la cantidad.');
+    if (!forAdvanced) {
+        if (!payload.process_type) throw new Error('Debes seleccionar el proceso productivo.');
+        if (!payload.material_name) throw new Error('Debes indicar el material.');
+        if (!payload.applicationType) throw new Error('Debes indicar la superficie de aplicacion.');
+        if (!fixedSizeSelect?.value) throw new Error('Debes seleccionar una medida.');
+    }
+    return payload;
+}
+
+async function uploadPendingAttachments(quoteCode, lineCode) {
+    for (const attachment of pendingAttachments) {
+        await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(quoteCode)}/lineas/${encodeURIComponent(lineCode)}/adjuntos`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                fileName: file.name,
-                mimeType: file.type || 'application/octet-stream',
-                fileExt: file.name.includes('.') ? file.name.split('.').pop() : '',
-                contentBase64
+                fileName: attachment.fileName,
+                mimeType: attachment.mimeType,
+                fileExt: attachment.fileExt,
+                contentBase64: attachment.contentBase64,
+                notes: attachment.kind === 'audio' ? 'Audio grabado' : 'Adjunto'
             })
         });
-        const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error || `No fue posible subir ${file.name}.`);
     }
 }
 
-async function submitQuoteRequest(openAdvanced = false) {
-    const fields = getRequestFields();
-    if (!fields.customerName) {
-        setCreateStatus('Debes indicar el cliente.', true);
-        nuevoClienteNombre?.focus();
-        return;
-    }
-    if (!openAdvanced && !isRequestFormValid()) {
-        setCreateStatus('Completa todos los campos obligatorios de la solicitud.', true);
-        return;
-    }
-
-    setCreateStatus(openAdvanced ? 'Abriendo modo avanzado...' : 'Enviando solicitud...');
-
-    try {
-        const quote = await createQuoteHeader(fields.customerCode, fields.customerName);
-        const quoteCode = quote?.quote_code;
-        if (!quoteCode) throw new Error('No se recibio el codigo de la cotizacion creada.');
-
-        if (!openAdvanced) {
-            const line = await createInitialQuoteLine(quoteCode, fields);
-            const lineCode = line?.line_code;
-            if (!lineCode) throw new Error('No se recibio el codigo de la linea creada.');
-            if (requestAttachmentsFiles.length) {
-                await uploadRequestAttachments(quoteCode, lineCode);
-            }
+async function submitQuoteRequest(forAdvanced = false) {
+    const payload = validateQuickRequest(forAdvanced);
+    setStatus(forAdvanced ? 'Preparando proceso avanzado...' : 'Creando cotizacion...', 'saving');
+    const quoteResponse = await fetchJson(QUOTES_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            customer_code: payload.customer_code,
+            customer_name: payload.customer_name,
+            status: 'Borrador'
+        })
+    });
+    const quoteCode = quoteResponse?.cotizacion?.quote_code;
+    if (!quoteCode) throw new Error('La cotizacion se creo sin codigo.');
+    const lineResponse = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(quoteCode)}/lineas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            customer_code: payload.customer_code,
+            customer_name: payload.customer_name,
+            job_name: payload.job_name,
+            quantity: payload.quantity,
+            process_type: payload.process_type || 'Convencional',
+            material_name: payload.material_name,
+            material_code: payload.material_name,
+            applicationType: payload.applicationType,
+            outputType: payload.outputType,
+            widthInches: payload.widthInches,
+            lengthInches: payload.lengthInches,
+            status: forAdvanced ? 'Borrador' : 'Solicitud',
+            request_meta: payload.request_meta
+        })
+    });
+    const lineCode = lineResponse?.linea?.line_code;
+    if (!lineCode) throw new Error('La linea se creo sin codigo.');
+    await uploadPendingAttachments(quoteCode, lineCode);
+    await loadQuotes();
+    if (forAdvanced) {
+        const route = `/cotizaciones/documento?codigo=${encodeURIComponent(quoteCode)}`;
+        if (!openRouteInShell(route, `Cotizacion ${quoteCode}`)) {
+            window.location.href = route;
         }
-
-        closeCreatePopover();
-        openQuoteEditor(quoteCode);
-    } catch (error) {
-        setCreateStatus(error.message || 'No fue posible completar la solicitud.', true);
-    }
-}
-
-async function loadQuotes(search = '') {
-    currentQuoteSearch = search;
-    const params = new URLSearchParams({ limit: '200' });
-    if (search) params.set('q', search);
-
-    const response = await fetch(`/api/cotizaciones?${params.toString()}`);
-    const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error || 'No se pudieron cargar las cotizaciones.');
-
-    const items = payload.cotizaciones || [];
-    const openIcon = getOpenIconConfig();
-
-    quotesTableBody.innerHTML = items.length ? items.map((item) => {
-        const route = `/cotizaciones/documento?codigo=${encodeURIComponent(item.quote_code)}`;
-        return `
-        <tr>
-            <td>${escapeHtml(item.quote_code)}</td>
-            <td>${escapeHtml(item.customer_code)}</td>
-            <td>${escapeHtml(item.customer_name)}</td>
-            <td>${escapeHtml(item.salesperson_name)}</td>
-            <td>${escapeHtml(formatDate(item.created_on))}</td>
-            <td>${escapeHtml(formatDate(item.due_on))}</td>
-            <td>${escapeHtml(item.status)}</td>
-            <td><a class="browser-open-link" href="${route}" data-route="${route}" data-quote-code="${escapeHtml(item.quote_code)}" data-label="Cotizacion ${escapeHtml(item.quote_code)}" aria-label="Abrir cotizacion ${escapeHtml(item.quote_code)}" style="--icon-color:${escapeHtml(openIcon.color)};--icon-hover-color:${escapeHtml(openIcon.hover)};--config-icon-size:${escapeHtml(String(openIcon.size))}px;">${iconMarkup(openIcon.value, 'Abrir cotizacion', 'table-icon-media')}</a></td>
-        </tr>`;
-    }).join('') : '<tr><td colspan="8">No hay cotizaciones registradas.</td></tr>';
-}
-
-quotesSearchInput?.addEventListener('input', () => {
-    loadQuotes(quotesSearchInput.value).catch((error) => {
-        quotesTableBody.innerHTML = `<tr><td colspan="8">${escapeHtml(error.message)}</td></tr>`;
-    });
-});
-
-refreshQuotesButton?.addEventListener('click', () => {
-    loadQuotes(currentQuoteSearch).catch((error) => {
-        quotesTableBody.innerHTML = `<tr><td colspan="8">${escapeHtml(error.message)}</td></tr>`;
-    });
-});
-
-quotesTableBody?.addEventListener('click', (event) => {
-    const link = event.target.closest('a[data-route]');
-    if (!link) return;
-    event.preventDefault();
-    event.stopPropagation();
-    openQuoteEditor(link.dataset.quoteCode || '');
-});
-
-nuevaCotizacionButton?.addEventListener('click', openCreatePopover);
-cerrarNuevaCotizacionButton?.addEventListener('click', closeCreatePopover);
-cancelarNuevaCotizacionButton?.addEventListener('click', closeCreatePopover);
-modoAvanzadoButton?.addEventListener('click', () => {
-    submitQuoteRequest(true);
-});
-nuevaCotizacionForm?.addEventListener('submit', (event) => {
-    event.preventDefault();
-    submitQuoteRequest(false);
-});
-
-nuevaCotizacionPopover?.addEventListener('click', (event) => {
-    if (event.target.closest('[data-close-quote-create="true"]')) {
-        closeCreatePopover();
         return;
     }
+    setStatus(`Cotizacion ${quoteCode} creada.`, 'saved');
+    resetFormState();
+    closePopover(true);
+}
 
-    const useButton = event.target.closest('[data-partner-code]');
-    if (useButton) {
-        nuevoClienteCodigo.value = useButton.dataset.partnerCode || '';
-        nuevoClienteNombre.value = useButton.dataset.partnerName || '';
-        updateSummary();
+function openPopover() {
+    popover.hidden = false;
+    setDefaultLauncherPosition();
+    if (processLauncherBridge) processLauncherBridge.hidden = true;
+    if (processLauncherButton) processLauncherButton.setAttribute('aria-expanded', 'false');
+    renderAttachments();
+    syncToggleChipState();
+    setTimeout(() => customerNameInput?.focus(), 30);
+}
+
+function closePopover(force = false) {
+    if (!force && formHasContent()) {
+        const confirmed = window.confirm('Hay datos sin guardar. Quieres cerrar?');
+        if (!confirmed) return;
+    }
+    popover.hidden = true;
+    if (processLauncherBridge) processLauncherBridge.hidden = true;
+    hideInlinePanels();
+    resetFormState();
+}
+
+function toggleProcessLauncher(forceOpen) {
+    if (!processLauncherBridge || !processLauncherButton) return;
+    const willOpen = typeof forceOpen === 'boolean' ? forceOpen : processLauncherBridge.hidden;
+    processLauncherBridge.hidden = !willOpen;
+    processLauncherButton.setAttribute('aria-expanded', String(willOpen));
+}
+
+async function toggleAudioRecording() {
+    if (isRecording && mediaRecorder) {
+        mediaRecorder.stop();
         return;
     }
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    recordingChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size) recordingChunks.push(event.data);
+    };
+    mediaRecorder.onstop = async () => {
+        const blob = new Blob(recordingChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+        const fileName = `audio-${new Date().toISOString().replace(/[:.]/g, '-')}.webm`;
+        const dataUrl = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result || ''));
+            reader.readAsDataURL(blob);
+        });
+        pendingAttachments.push({
+            kind: 'audio',
+            fileName,
+            mimeType: blob.type || 'audio/webm',
+            fileExt: 'webm',
+            contentBase64: String(dataUrl).split(',').pop() || '',
+            previewUrl: URL.createObjectURL(blob),
+            label: 'Audio grabado'
+        });
+        stream.getTracks().forEach((track) => track.stop());
+        isRecording = false;
+        audioRecordButton.dataset.recording = 'false';
+        audioRecordIndicator.hidden = true;
+        applyConfiguredIcons();
+        renderAttachments();
+    };
+    mediaRecorder.start();
+    isRecording = true;
+    audioRecordButton.dataset.recording = 'true';
+    audioRecordIndicator.hidden = false;
+    applyConfiguredIcons();
+}
 
-    const removeButton = event.target.closest('[data-remove-attachment]');
-    if (removeButton) {
-        const index = Number(removeButton.dataset.removeAttachment);
-        requestAttachmentsFiles = requestAttachmentsFiles.filter((_, fileIndex) => fileIndex !== index);
-        renderAttachmentsPreview();
-    }
-});
-
-window.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && nuevaCotizacionPopover && !nuevaCotizacionPopover.hidden) {
-        closeCreatePopover();
-    }
-});
-
-nuevoClienteNombre?.addEventListener('input', () => {
-    nuevoClienteCodigo.value = '';
-    schedulePartnerLookup();
-    updateSummary();
-});
-
-[requestJobName, requestQuantity, requestProcessType, requestFixedSize, requestMaterial, requestSurface, requestComments].forEach((field) => {
-    field?.addEventListener('input', updateSummary);
-    field?.addEventListener('change', updateSummary);
-});
-
-document.addEventListener('change', (event) => {
-    if (event.target.matches('input[name="die_shape"], input[name="coating"], input[name="placement"], #requestSpecialFinishesGrid input[type="checkbox"]')) {
-        updateSummary();
-    }
-});
-
-requestAttachments?.addEventListener('change', () => {
-    requestAttachmentsFiles = Array.from(requestAttachments.files || []);
-    renderAttachmentsPreview();
-});
-
-document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) {
-        loadQuotes(currentQuoteSearch).catch(() => {});
-    }
-});
+function bindEvents() {
+    nuevaCotizacionButton?.addEventListener('click', openPopover);
+    refreshQuotesButton?.addEventListener('click', () => loadQuotes().catch((error) => setStatus(error.message, 'error')));
+    closeButton?.addEventListener('click', () => closePopover());
+    popover?.addEventListener('click', (event) => {
+        if (event.target?.dataset?.closeQuoteCreate === 'true') closePopover();
+    });
+    processLauncherButton?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        toggleProcessLauncher();
+    });
+    quotesSearchInput?.addEventListener('input', () => renderQuotesTable(getFilteredQuotes()));
+    rowsBody?.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-open-quote]');
+        if (!button) return;
+        const code = button.dataset.openQuote;
+        const route = `/cotizaciones/documento?codigo=${encodeURIComponent(code)}`;
+        if (!openRouteInShell(route, `Cotizacion ${code}`)) {
+            window.location.href = route;
+        }
+    });
+    form?.addEventListener('change', (event) => {
+        const target = event.target;
+        if (target.matches('.quote-request-toggle-chip input, .quote-request-shape-card input')) syncToggleChipState();
+    });
+    customerNameInput?.addEventListener('input', async () => {
+        customerCodeInput.value = '';
+        try {
+            await searchPartners(normalizeText(customerNameInput.value));
+        } catch (error) {
+            if (customerLookupPanel) customerLookupPanel.hidden = true;
+        }
+    });
+    customerNameInput?.addEventListener('focus', () => searchPartners(normalizeText(customerNameInput.value)).catch(() => {}));
+    customerLookupResults?.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-partner-code]');
+        if (!button) return;
+        applyPartnerSelection(button.dataset.partnerCode, button.dataset.partnerName);
+    });
+    materialInput?.addEventListener('focus', showMaterialSuggestions);
+    materialInput?.addEventListener('input', showMaterialSuggestions);
+    surfaceInput?.addEventListener('focus', showSurfaceSuggestions);
+    surfaceInput?.addEventListener('input', showSurfaceSuggestions);
+    materialSuggestions?.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-value]');
+        if (!button) return;
+        materialInput.value = button.dataset.value || '';
+        materialSuggestions.hidden = true;
+    });
+    surfaceSuggestions?.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-value]');
+        if (!button) return;
+        surfaceInput.value = button.dataset.value || '';
+        surfaceSuggestions.hidden = true;
+    });
+    document.addEventListener('click', (event) => {
+        if (!event.target.closest('.quote-request-search-wrap') && customerLookupPanel) customerLookupPanel.hidden = true;
+        if (!event.target.closest('[data-inline-suggestions]')) hideInlinePanels();
+        if (!event.target.closest('#processLauncherPrimary')) toggleProcessLauncher(false);
+    });
+    attachmentsInput?.addEventListener('change', async () => {
+        const files = [...(attachmentsInput.files || [])];
+        for (const file of files) {
+            pendingAttachments.push({
+                kind: 'file',
+                fileName: file.name,
+                mimeType: file.type || 'application/octet-stream',
+                fileExt: file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : '',
+                contentBase64: await readAsBase64(file),
+                label: `${Math.round(file.size / 1024) || 1} KB`
+            });
+        }
+        attachmentsInput.value = '';
+        renderAttachments();
+    });
+    attachmentsPreview?.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-remove-attachment]');
+        if (!button) return;
+        pendingAttachments.splice(Number(button.dataset.removeAttachment), 1);
+        renderAttachments();
+    });
+    audioRecordButton?.addEventListener('click', () => toggleAudioRecording().catch((error) => setStatus(error.message, 'error')));
+    createButton?.addEventListener('click', () => submitQuoteRequest(false).catch((error) => setStatus(error.message, 'error')));
+    advancedButton?.addEventListener('click', () => submitQuoteRequest(true).catch((error) => setStatus(error.message, 'error')));
+    window.addEventListener('resize', () => {
+        if (!popover.hidden && launcherWrap) setDefaultLauncherPosition();
+    });
+    window.addEventListener('beforeunload', (event) => {
+        if (!formHasContent()) return;
+        event.preventDefault();
+        event.returnValue = '';
+    });
+}
 
 async function init() {
-    try {
-        await loadConfig();
-        await loadQuotes();
-        updateSummary();
-    } catch (error) {
-        quotesTableBody.innerHTML = `<tr><td colspan="8">${escapeHtml(error.message)}</td></tr>`;
+    renderAttachments();
+    bindEvents();
+    syncToggleChipState();
+    await Promise.all([loadConfig(), loadQuotes()]);
+    if (new URLSearchParams(window.location.search).get('openModal') === '1') {
+        openPopover();
     }
 }
 
-init();
+init().catch((error) => {
+    console.error(error);
+    setStatus(error.message || 'No fue posible inicializar cotizaciones.', 'error');
+});

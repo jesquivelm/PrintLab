@@ -17,6 +17,18 @@
 
             <section class="costs-panel is-active" data-panel="general">
                 <article class="costs-section-card">
+                    <div class="costs-section-head">
+                        <h2>Predeterminados de Cotización</h2>
+                    </div>
+                    <div class="costs-ink-grid">
+                        <label><span>Ancho de Core</span><input id="costosDefaultRollWidth" type="number" step="0.01" min="0"></label>
+                        <label><span>Diámetro de Core</span><input id="costosDefaultCoreDiameter" type="number" step="0.01" min="0"></label>
+                        <label><span>Opciones DiÃ¡metro de Core</span><input id="costosCoreDiameterOptions" type="text" placeholder="1, 1.5, 3, 6"></label>
+                        <label><span>Cantidad de Tipos</span><input id="costosDefaultQuantityTypes" type="number" step="1" min="1"></label>
+                        <label><span>CMYK por Defecto</span><select id="costosDefaultCmykEnabled"><option value="true">Sí</option><option value="false">No</option></select></label>
+                    </div>
+                </article>
+                <article class="costs-section-card">
                     <label class="costs-notes-field">
                         <span>Notas Generales</span>
                         <textarea id="costosGeneralNotes" rows="5" placeholder="Aquí puedes dejar observaciones sobre criterios de cálculo o acuerdos de costos."></textarea>

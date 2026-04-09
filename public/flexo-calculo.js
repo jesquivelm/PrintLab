@@ -11,6 +11,8 @@ const lengthInput = document.getElementById('lengthInches');
 const stationCountInput = document.getElementById('stationCount');
 const labelsPerRollInput = document.getElementById('labelsPerRoll');
 const applicationTypeInput = document.getElementById('applicationType');
+const quantityTypesInput = document.getElementById('quantityTypesInput');
+const cmykInput = document.getElementById('cmykInput');
 const outputTypeInput = document.getElementById('outputType');
 const summaryGrid = document.getElementById('summaryGrid');
 const globalCostSettings = document.getElementById('globalCostSettings');
@@ -42,6 +44,7 @@ let currentCalculation = null;
 let currentQuote = null;
 let relatedLines = [];
 let quantityValues = [''];
+let loadedConfig = null;
 
 function toggleCalcMenu(forceState) {
     if (!calcMenuPanel || !calcMenuToggle) return;
@@ -164,11 +167,54 @@ function syncOutputPreview() {
     `;
 }
 
+function parseConfigNumber(value, fallback = null) {
+    if (value === '' || value === null || value === undefined) return fallback;
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function getQuoteDefaultSettings() {
+    const general = loadedConfig?.general || {};
+    return {
+        rollWidth: parseConfigNumber(general.defaultRollWidth, 13),
+        coreDiameter: parseConfigNumber(general.defaultCoreDiameter, 3),
+        quantityTypes: Math.max(1, parseConfigNumber(general.defaultQuantityTypes, 1) || 1),
+        cmyk: String(general.defaultCmykEnabled ?? 'true').trim().toLowerCase() !== 'false'
+    };
+}
+
+function setFieldAlert(input, invalid, message) {
+    const label = input?.closest('label');
+    if (!label) return;
+    label.classList.toggle('flexo-field-alert', Boolean(invalid));
+    if (invalid && message) {
+        label.setAttribute('title', message);
+    } else {
+        label.removeAttribute('title');
+    }
+}
+
+function updateTechnicalIndicators() {
+    const labelsPerRoll = parseConfigNumber(labelsPerRollInput?.value, 0) || 0;
+    const coreWidth = parseConfigNumber(coreWidthInput?.value, 0) || 0;
+    const coreDiameter = parseConfigNumber(coreDiameterInput?.value, 0);
+    const quantityTypes = parseConfigNumber(quantityTypesInput?.value, 0) || 0;
+    const applicationType = normalizeText(applicationTypeInput?.value);
+
+    setFieldAlert(labelsPerRollInput, labelsPerRoll <= 0, 'Debes indicar etiquetas por rollo.');
+    setFieldAlert(applicationTypeInput, !applicationType, 'Debes indicar el tipo de etiquetado.');
+    setFieldAlert(coreWidthInput, coreWidth <= 0, 'Debes indicar un ancho de core válido.');
+    setFieldAlert(coreDiameterInput, !coreDiameter || coreDiameter <= 0 || coreDiameter > 10, !coreDiameter || coreDiameter <= 0 ? 'Debes indicar un diámetro de core válido.' : 'El diámetro de core no puede ser mayor a 10.');
+    setFieldAlert(quantityTypesInput, quantityTypes <= 0, 'La cantidad de tipos debe ser al menos 1.');
+}
+
 function captureUiState() {
     return {
         quantities: quantityValues.map((value) => normalizeQuantityValue(value)).filter(Boolean),
         coreWidth: coreWidthInput?.value || '',
         coreDiameter: coreDiameterInput?.value || '',
+        quantityTypes: quantityTypesInput?.value || '',
+        cmyk: Boolean(cmykInput?.checked),
         applicationMode: applicationModeInput?.value || '',
         environment: environmentInput?.value || '',
         surfaceType: surfaceTypeInput?.value || ''
@@ -179,11 +225,14 @@ function applyUiState(uiState = {}) {
     ensureQuantityValues(uiState.quantities || [quantityInput?.value || '']);
     if (coreWidthInput) coreWidthInput.value = uiState.coreWidth || '';
     if (coreDiameterInput) coreDiameterInput.value = uiState.coreDiameter || '';
+    if (quantityTypesInput) quantityTypesInput.value = uiState.quantityTypes || '';
+    if (cmykInput) cmykInput.checked = Boolean(uiState.cmyk);
     if (applicationModeInput) applicationModeInput.value = uiState.applicationMode || '';
     if (environmentInput) environmentInput.value = uiState.environment || '';
     if (surfaceTypeInput) surfaceTypeInput.value = uiState.surfaceType || '';
     renderQuantityEditor();
     syncOutputPreview();
+    updateTechnicalIndicators();
 }
 
 function preferCompanySetting(presentationValue, generalValue, defaultValue) {
@@ -341,7 +390,8 @@ function applyHeaderConfig(config) {
 async function loadConfig() {
     const response = await fetch('/api/config/general');
     if (!response.ok) throw new Error('No fue posible cargar la configuración.');
-    applyHeaderConfig(await response.json());
+    loadedConfig = await response.json();
+    applyHeaderConfig(loadedConfig);
 }
 
 function money(value) {
@@ -474,8 +524,14 @@ function syncProductData() {
     labelsPerRollInput.value = product.labelsPerRoll || '';
     applicationTypeInput.value = product.applicationType || '';
     outputTypeInput.value = product.outputType || '';
+    const defaults = getQuoteDefaultSettings();
+    if (coreWidthInput && !normalizeText(coreWidthInput.value)) coreWidthInput.value = defaults.rollWidth || '';
+    if (coreDiameterInput && !normalizeText(coreDiameterInput.value)) coreDiameterInput.value = defaults.coreDiameter || '';
+    if (quantityTypesInput && !normalizeText(quantityTypesInput.value)) quantityTypesInput.value = defaults.quantityTypes || 1;
+    if (cmykInput) cmykInput.checked = defaults.cmyk;
     updateHeaderMeta(product.clientName || '', product.salespersonName || '');
     syncOutputPreview();
+    updateTechnicalIndicators();
 
     renderKeyValue(summaryGrid, [
         ['Cotización', params.get('quoteId') || product.quoteId || ''],
@@ -516,7 +572,9 @@ function renderCalculation(data) {
     applyUiState({
         ...(currentCalculation.uiState || {}),
         coreWidth: currentCalculation.uiState?.coreWidth || currentCalculation.coreWidth || '',
-        coreDiameter: currentCalculation.uiState?.coreDiameter || currentCalculation.coreDiameter || ''
+        coreDiameter: currentCalculation.uiState?.coreDiameter || currentCalculation.coreDiameter || '',
+        quantityTypes: currentCalculation.uiState?.quantityTypes || currentCalculation.quantityTypes || '',
+        cmyk: currentCalculation.uiState?.cmyk ?? currentCalculation.cmyk ?? getQuoteDefaultSettings().cmyk
     });
     updateHeaderMeta(currentCalculation.customerName || '', currentCalculation.salespersonName || '');
 
@@ -668,7 +726,9 @@ async function calculatePreview() {
         widthInches: widthInput.value,
         lengthInches: lengthInput.value,
         stationCount: stationCountInput.value,
+        quantityTypes: quantityTypesInput?.value,
         processType: getEffectiveProcessType(),
+        cmyk: Boolean(cmykInput?.checked),
         machineSelections: {
             impresion: machineSelect.value
         }
@@ -741,7 +801,9 @@ async function saveCalculation() {
             widthInches: widthInput.value,
             lengthInches: lengthInput.value,
             stationCount: stationCountInput.value,
+            quantityTypes: quantityTypesInput?.value,
             labelsPerRoll: labelsPerRollInput.value,
+            cmyk: Boolean(cmykInput?.checked),
             applicationType: applicationTypeInput.value,
             outputType: outputTypeInput.value,
             uiState: captureUiState(),
@@ -764,6 +826,10 @@ productSelect.addEventListener('change', syncProductData);
 machineSelect?.addEventListener('change', syncMachineRules);
 processSelect?.addEventListener('change', syncMachineRules);
 outputTypeInput?.addEventListener('input', syncOutputPreview);
+[labelsPerRollInput, applicationTypeInput, coreWidthInput, coreDiameterInput, quantityTypesInput]
+    .filter(Boolean)
+    .forEach((input) => input.addEventListener('input', updateTechnicalIndicators));
+cmykInput?.addEventListener('change', updateTechnicalIndicators);
     quantityProductsList?.addEventListener('input', (event) => {
         const input = event.target.closest('[data-quantity-index]');
         if (!input) return;
@@ -811,7 +877,14 @@ async function init() {
     if (params.get('lineId') || params.get('quoteId')) {
         await loadCurrentCalculation();
     } else {
-        applyUiState({ quantities: [quantityInput?.value || ''] });
+        const defaults = getQuoteDefaultSettings();
+        applyUiState({
+            quantities: [quantityInput?.value || ''],
+            coreWidth: defaults.rollWidth,
+            coreDiameter: defaults.coreDiameter,
+            quantityTypes: defaults.quantityTypes,
+            cmyk: defaults.cmyk
+        });
         syncProductData();
         calcStatus.textContent = 'No se recibió una línea específica. Puedes usar esta pantalla para revisar catálogos y generar una vista previa.';
     }

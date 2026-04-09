@@ -6,7 +6,7 @@
     <title>Configuracion General - PrintLab</title>
     <link rel="stylesheet" href="/styles.css">
     <style>
-        .config-tabs { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; width: 100%; margin-bottom: 20px; padding: 4px; border: 1px solid #d8e2ea; border-radius: 14px; background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.75); }
+        .config-tabs { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 6px; width: 100%; margin-bottom: 20px; padding: 4px; border: 1px solid #d8e2ea; border-radius: 14px; background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.75); }
         .topbar.topbar-quote { display: none; }
         .config-tab { display: inline-flex; align-items: center; justify-content: center; width: 100%; min-width: 0; padding: 10px 18px; cursor: pointer; border: none; background: transparent; color: #60707f; font-size: 13px; font-weight: 600; border-radius: 10px; transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease; }
         .config-tab:hover { background: rgba(11,129,184,0.08); color: #23516a; }
@@ -205,6 +205,78 @@
             grid-template-columns: repeat(3, minmax(220px, 1fr));
             gap: 12px;
             align-items: start;
+        }
+        .icon-library-shell {
+            display: grid;
+            gap: 14px;
+        }
+        .icon-library-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 4px;
+            border: 1px solid #d8e2ea;
+            border-radius: 14px;
+            background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%);
+        }
+        .icon-library-tab {
+            border: none;
+            border-radius: 10px;
+            padding: 9px 14px;
+            background: transparent;
+            color: #60707f;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+        }
+        .icon-library-tab:hover {
+            background: rgba(11,129,184,0.08);
+            color: #23516a;
+        }
+        .icon-library-tab.active {
+            background: linear-gradient(180deg, #24a8df 0%, #118fc6 100%);
+            color: #fff;
+            box-shadow: 0 8px 18px rgba(17,143,198,0.24);
+        }
+        .icon-library-panels {
+            display: grid;
+        }
+        .icon-group[hidden] {
+            display: none;
+        }
+        .security-subtabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 4px;
+            margin-bottom: 16px;
+            border: 1px solid #d8e2ea;
+            border-radius: 14px;
+            background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%);
+        }
+        .security-subtab {
+            border: none;
+            border-radius: 10px;
+            padding: 9px 14px;
+            background: transparent;
+            color: #60707f;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+        }
+        .security-subtab:hover {
+            background: rgba(11,129,184,0.08);
+            color: #23516a;
+        }
+        .security-subtab.active {
+            background: linear-gradient(180deg, #24a8df 0%, #118fc6 100%);
+            color: #fff;
+            box-shadow: 0 8px 18px rgba(17,143,198,0.24);
+        }
+        .security-subpanel[hidden] {
+            display: none;
         }
         .icon-row .icon-item {
             display: grid;
@@ -475,6 +547,939 @@
             font-size: 11px;
             width: fit-content;
         }
+        .user-admin-grid {
+            display: grid;
+            grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
+            gap: 20px;
+            align-items: start;
+        }
+        .user-admin-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        .user-admin-toolbar h2,
+        .user-admin-detail-header h2 {
+            margin: 0;
+            font-size: 18px;
+            color: #223140;
+        }
+        .user-admin-create-button {
+            width: 44px;
+            height: 44px;
+            border: 1px solid #cae2f1;
+            border-radius: 16px;
+            background: linear-gradient(180deg, #ffffff 0%, #eef7fd 100%);
+            box-shadow: 0 12px 28px rgba(11, 129, 184, 0.12);
+            color: #118fc6;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .user-admin-create-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 14px 30px rgba(11, 129, 184, 0.18);
+        }
+        .user-admin-table-wrap {
+            border: 1px solid #d8dde3;
+            border-radius: 18px;
+            background: linear-gradient(180deg, #ffffff 0%, #f7fafc 100%);
+            overflow: hidden;
+        }
+        .user-admin-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .user-admin-table tbody tr {
+            cursor: pointer;
+            transition: background-color 0.18s ease;
+        }
+        .user-admin-table tbody tr:hover {
+            background: #f3f9fd;
+        }
+        .user-admin-table tbody tr.is-selected {
+            background: linear-gradient(180deg, #eef8fe 0%, #e2f3fc 100%);
+        }
+        .user-admin-table td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #ebf0f4;
+            vertical-align: middle;
+        }
+        .user-admin-table tbody tr:last-child td {
+            border-bottom: 0;
+        }
+        .user-admin-row-main {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .user-admin-avatar,
+        .user-admin-detail-avatar {
+            border-radius: 999px;
+            background: linear-gradient(180deg, #24a8df 0%, #118fc6 100%);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            flex-shrink: 0;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .user-admin-avatar {
+            width: 46px;
+            height: 46px;
+            font-size: 15px;
+            box-shadow: 0 8px 18px rgba(17,143,198,0.18);
+        }
+        .user-admin-avatar img,
+        .user-admin-detail-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .user-admin-row-text {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 0;
+        }
+        .user-admin-row-name {
+            font-size: 13px;
+            font-weight: 700;
+            color: #223140;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .user-admin-row-department {
+            font-size: 11px;
+            color: #71808d;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .user-admin-delete-button {
+            width: 34px;
+            height: 34px;
+            border: 1px solid #f0d4d4;
+            border-radius: 12px;
+            background: linear-gradient(180deg, #ffffff 0%, #fff6f6 100%);
+            color: #b94848;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .user-admin-delete-button:hover {
+            background: #fff0f0;
+        }
+        .user-admin-empty {
+            padding: 24px 18px;
+            text-align: center;
+            color: #71808d;
+            font-size: 12px;
+        }
+        .user-admin-detail-card {
+            min-height: 540px;
+            border: 1px solid #d8dde3;
+            border-radius: 22px;
+            background: linear-gradient(180deg, #ffffff 0%, #f6fafd 100%);
+            padding: 22px;
+            box-shadow: 0 16px 32px rgba(28, 55, 73, 0.06);
+        }
+        .user-admin-detail-empty {
+            min-height: 360px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: #71808d;
+            font-size: 13px;
+        }
+        .user-admin-detail-shell[hidden] {
+            display: none;
+        }
+        .user-admin-detail-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .user-admin-detail-headline {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .user-admin-detail-avatar {
+            width: 88px;
+            height: 88px;
+            font-size: 28px;
+            cursor: pointer;
+            box-shadow: 0 14px 30px rgba(17,143,198,0.18);
+        }
+        .user-admin-detail-meta {
+            display: grid;
+            gap: 6px;
+        }
+        .user-admin-detail-meta strong {
+            font-size: 20px;
+            color: #223140;
+        }
+        .user-admin-detail-meta span {
+            font-size: 12px;
+            color: #6a7b88;
+        }
+        .user-admin-form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px 16px;
+        }
+        .user-admin-form-grid label {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .user-admin-form-grid label span {
+            font-size: 11px;
+            font-weight: 600;
+            color: #60707f;
+        }
+        .user-admin-form-grid input,
+        .user-admin-form-grid select {
+            height: 38px;
+            padding: 0 12px;
+            border: 1px solid #cfd8df;
+            border-radius: 12px;
+            font-size: 13px;
+            background: #fff;
+        }
+        .password-field-wrap {
+            position: relative;
+        }
+        .password-field-wrap input {
+            padding-right: 48px;
+        }
+        .password-toggle-btn {
+            position: absolute;
+            top: 50%;
+            right: 6px;
+            transform: translateY(-50%);
+            width: 36px;
+            height: 30px;
+            border: none;
+            border-radius: 10px;
+            background: transparent;
+            color: #60707f;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .login-image-panel {
+            display: grid;
+            grid-template-columns: 320px minmax(0, 1fr);
+            gap: 18px;
+            align-items: start;
+        }
+        .repository-grid {
+            display: grid;
+            grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
+            gap: 20px;
+        }
+        .repository-panel,
+        .repository-gallery-card {
+            border: 1px solid #dbe6ee;
+            border-radius: 24px;
+            background: linear-gradient(180deg, #ffffff 0%, #f7fbfe 100%);
+            box-shadow: 0 22px 50px rgba(17, 41, 59, 0.08);
+            padding: 22px;
+        }
+        .repository-panel {
+            display: grid;
+            gap: 18px;
+            align-content: start;
+        }
+        .repository-panel h2,
+        .repository-gallery-card h2 {
+            margin: 0;
+            font-size: 18px;
+            color: #24313f;
+        }
+        .repository-panel p,
+        .repository-gallery-card p {
+            margin: 0;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #627384;
+        }
+        .repository-upload-shell {
+            display: grid;
+            gap: 14px;
+            padding: 18px;
+            border: 1px dashed #b9d6e7;
+            border-radius: 22px;
+            background: linear-gradient(180deg, rgba(245, 250, 253, 0.95) 0%, rgba(233, 244, 250, 0.95) 100%);
+        }
+        .repository-upload-cta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+        }
+        .repository-upload-icon {
+            width: 58px;
+            height: 58px;
+            border-radius: 18px;
+            border: 1px solid #c8ddea;
+            background: linear-gradient(180deg, #ffffff 0%, #edf7fc 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #118fc6;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.92);
+        }
+        .repository-upload-copy {
+            display: grid;
+            gap: 4px;
+            flex: 1;
+        }
+        .repository-upload-copy strong {
+            font-size: 14px;
+            color: #20303d;
+        }
+        .repository-upload-copy span {
+            font-size: 12px;
+            color: #6a7b8c;
+        }
+        .repository-upload-button {
+            width: 48px;
+            height: 48px;
+            border: 1px solid #c5d8e5;
+            border-radius: 16px;
+            background: linear-gradient(180deg, #ffffff 0%, #eff8fd 100%);
+            color: #118fc6;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 14px 26px rgba(17, 143, 198, 0.12);
+        }
+        .repository-upload-button:hover {
+            transform: translateY(-1px);
+        }
+        .repository-stats {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+        .repository-stat {
+            border: 1px solid #d9e6ef;
+            border-radius: 18px;
+            background: #fff;
+            padding: 14px;
+            display: grid;
+            gap: 6px;
+        }
+        .repository-stat span {
+            font-size: 11px;
+            color: #718293;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+        .repository-stat strong {
+            font-size: 20px;
+            color: #1f2e3b;
+        }
+        .repository-stage {
+            position: relative;
+            min-height: 220px;
+            border-radius: 22px;
+            overflow: hidden;
+            border: 1px solid #dbe7ef;
+            background: linear-gradient(135deg, #1f4258 0%, #5d8198 50%, #b0cad9 100%);
+        }
+        .repository-saver-stage {
+            position: relative;
+            width: 100%;
+            height: 220px;
+            overflow: hidden;
+            background: #111;
+            z-index: 0;
+        }
+        .repository-saver-slide {
+            position: absolute;
+            inset: -8%;
+            width: 116%;
+            height: 116%;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            opacity: 0;
+            transition: opacity 2s ease-in-out;
+            will-change: transform, opacity;
+            z-index: 1;
+        }
+        .repository-saver-slide.active {
+            opacity: 1;
+            animation: kenburns 16s ease-in-out forwards;
+        }
+        .repository-saver-slide.leaving {
+            opacity: 0;
+            transition: opacity 2.5s ease-in-out;
+        }
+        @keyframes kenburns {
+            0% { transform: scale(1.0) translate(0%, 0%); }
+            100% { transform: scale(1.12) translate(-3%, -2%); }
+        }
+        @keyframes kenburns2 {
+            0% { transform: scale(1.08) translate(2%, 1%); }
+            100% { transform: scale(1.0) translate(-2%, 2%); }
+        }
+        @keyframes kenburns3 {
+            0% { transform: scale(1.05) translate(-1%, 2%); }
+            100% { transform: scale(1.13) translate(3%, -1%); }
+        }
+        .repository-saver-slide.anim-0 { animation-name: kenburns; }
+        .repository-saver-slide.anim-1 { animation-name: kenburns2; }
+        .repository-saver-slide.anim-2 { animation-name: kenburns3; }
+        .repository-saver-placeholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            z-index: 1;
+            color: rgba(255,255,255,0.4);
+            text-align: center;
+            padding: 18px;
+            z-index: 2;
+        }
+        .repository-saver-placeholder svg {
+            opacity: 0.25;
+        }
+        .repository-saver-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0) 40%, rgba(0,0,0,0.5) 100%);
+            pointer-events: none;
+            z-index: 3;
+        }
+        .repository-stage::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(7,17,29,0.02) 0%, rgba(7,17,29,0.12) 100%);
+        }
+        .repository-stage-copy {
+            position: absolute;
+            left: 18px;
+            right: 18px;
+            bottom: 18px;
+            z-index: 4;
+            display: grid;
+            gap: 4px;
+            color: #fff;
+        }
+        .repository-stage-copy strong {
+            font-size: 18px;
+        }
+        .repository-stage-copy span {
+            font-size: 12px;
+            color: rgba(255,255,255,0.84);
+        }
+        .repository-gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+            gap: 14px;
+            margin-top: 18px;
+        }
+        .repository-settings-row {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+            margin-top: 18px;
+            margin-bottom: 6px;
+        }
+        .repository-setting {
+            display: grid;
+            gap: 8px;
+            padding: 14px;
+            border: 1px solid #d9e6ef;
+            border-radius: 18px;
+            background: linear-gradient(180deg, #ffffff 0%, #f7fbfe 100%);
+        }
+        .repository-setting label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 12px;
+            color: #627384;
+            font-weight: 600;
+        }
+        .repository-setting output {
+            font-size: 12px;
+            color: #20303d;
+            font-weight: 700;
+        }
+        .repository-setting input[type="range"] {
+            width: 100%;
+            accent-color: #118fc6;
+        }
+        .repository-card {
+            position: relative;
+            border: 1px solid #dce7ef;
+            border-radius: 20px;
+            background: linear-gradient(180deg, #ffffff 0%, #f7fbfe 100%);
+            overflow: hidden;
+            box-shadow: 0 16px 28px rgba(24, 44, 61, 0.08);
+        }
+        .repository-card img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            display: block;
+            background: #eef4f8;
+        }
+        .repository-card-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 12px 14px 14px;
+        }
+        .repository-card-meta {
+            display: grid;
+            gap: 3px;
+            min-width: 0;
+        }
+        .repository-card-meta strong {
+            font-size: 12px;
+            color: #263543;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .repository-card-meta span {
+            font-size: 11px;
+            color: #718293;
+        }
+        .repository-card-delete {
+            width: 38px;
+            height: 38px;
+            border-radius: 14px;
+            border: 1px solid #e6c1c1;
+            background: linear-gradient(180deg, #fff 0%, #fff7f7 100%);
+            color: #b94848;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .repository-empty {
+            padding: 28px 18px;
+            text-align: center;
+            border: 1px dashed #c6d8e4;
+            border-radius: 20px;
+            color: #6e7f90;
+            background: linear-gradient(180deg, #fbfdff 0%, #f2f8fc 100%);
+        }
+        .login-image-dropzone {
+            width: 100%;
+            min-height: 220px;
+            border: 1px dashed #bfd5e4;
+            border-radius: 18px;
+            background: linear-gradient(180deg, #ffffff 0%, #edf6fb 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            cursor: pointer;
+            color: #6b7c8b;
+            text-align: center;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+        .login-image-dropzone.has-image {
+            color: transparent;
+        }
+        .login-image-hint {
+            display: grid;
+            gap: 10px;
+        }
+        .login-image-hint h3 {
+            margin: 0;
+            font-size: 15px;
+            color: #223140;
+        }
+        .login-image-hint p {
+            margin: 0;
+            font-size: 12px;
+            color: #6b7986;
+            line-height: 1.45;
+        }
+        .user-admin-form-grid label.user-admin-form-full {
+            grid-column: 1 / -1;
+        }
+        .user-admin-summary-strip {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+        .user-admin-summary-chip {
+            padding: 12px 14px;
+            border: 1px solid #dce7ef;
+            border-radius: 14px;
+            background: linear-gradient(180deg, #ffffff 0%, #eef6fb 100%);
+        }
+        .user-admin-summary-chip span {
+            display: block;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #7a8a97;
+            margin-bottom: 4px;
+        }
+        .user-admin-summary-chip strong {
+            font-size: 14px;
+            color: #223140;
+        }
+        .user-admin-popover {
+            position: fixed;
+            z-index: 2200;
+            width: 320px;
+            padding: 16px;
+            border: 1px solid #d8dde3;
+            border-radius: 18px;
+            background: rgba(255,255,255,0.98);
+            box-shadow: 0 18px 38px rgba(0,0,0,0.18);
+        }
+        .user-admin-popover[hidden] {
+            display: none;
+        }
+        .user-admin-popover h3 {
+            margin: 0 0 6px;
+            font-size: 16px;
+            color: #223140;
+        }
+        .user-admin-popover p {
+            margin: 0 0 12px;
+            font-size: 12px;
+            color: #6b7986;
+        }
+        .user-admin-popover input {
+            width: 100%;
+            height: 40px;
+            padding: 0 12px;
+            border: 1px solid #cfd8df;
+            border-radius: 12px;
+            font-size: 13px;
+            margin-bottom: 12px;
+        }
+        .user-admin-popover-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        @media (max-width: 1120px) {
+            .user-admin-grid {
+                grid-template-columns: 1fr;
+            }
+            .user-admin-detail-card {
+                min-height: 0;
+            }
+        }
+        .permission-admin-grid {
+            display: grid;
+            grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
+            gap: 20px;
+            align-items: start;
+        }
+        .permission-admin-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        .permission-admin-toolbar h2,
+        .permission-admin-detail-header h2 {
+            margin: 0;
+            font-size: 18px;
+            color: #223140;
+        }
+        .permission-admin-create-button,
+        .permission-admin-delete-button {
+            border: 1px solid #cae2f1;
+            border-radius: 16px;
+            background: linear-gradient(180deg, #ffffff 0%, #eef7fd 100%);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .permission-admin-create-button {
+            width: 44px;
+            height: 44px;
+            box-shadow: 0 12px 28px rgba(11, 129, 184, 0.12);
+            color: #118fc6;
+        }
+        .permission-admin-delete-button {
+            width: 36px;
+            height: 36px;
+            color: #b94848;
+            border-color: #f0d4d4;
+            background: linear-gradient(180deg, #ffffff 0%, #fff6f6 100%);
+        }
+        .permission-admin-table-wrap {
+            border: 1px solid #d8dde3;
+            border-radius: 18px;
+            background: linear-gradient(180deg, #ffffff 0%, #f7fafc 100%);
+            overflow: hidden;
+        }
+        .permission-admin-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .permission-admin-table td {
+            padding: 14px;
+            border-bottom: 1px solid #ebf0f4;
+        }
+        .permission-admin-table tbody tr:last-child td {
+            border-bottom: 0;
+        }
+        .permission-admin-table tbody tr {
+            cursor: pointer;
+        }
+        .permission-admin-table tbody tr:hover {
+            background: #f3f9fd;
+        }
+        .permission-admin-table tbody tr.is-selected {
+            background: linear-gradient(180deg, #eef8fe 0%, #e2f3fc 100%);
+        }
+        .permission-admin-row-main {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .permission-admin-row-text {
+            display: grid;
+            gap: 4px;
+            min-width: 0;
+        }
+        .permission-admin-row-name {
+            font-size: 13px;
+            font-weight: 700;
+            color: #223140;
+        }
+        .permission-admin-row-subtitle {
+            font-size: 11px;
+            color: #71808d;
+        }
+        .permission-admin-detail-card {
+            min-height: 560px;
+            border: 1px solid #d8dde3;
+            border-radius: 22px;
+            background: linear-gradient(180deg, #ffffff 0%, #f6fafd 100%);
+            padding: 22px;
+            box-shadow: 0 16px 32px rgba(28, 55, 73, 0.06);
+        }
+        .permission-admin-detail-empty {
+            min-height: 360px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: #71808d;
+            font-size: 13px;
+        }
+        .permission-admin-detail-shell[hidden] {
+            display: none;
+        }
+        .permission-admin-summary-strip {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+        .permission-admin-summary-chip {
+            padding: 12px 14px;
+            border: 1px solid #dce7ef;
+            border-radius: 14px;
+            background: linear-gradient(180deg, #ffffff 0%, #eef6fb 100%);
+        }
+        .permission-admin-summary-chip span {
+            display: block;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: #7a8a97;
+            margin-bottom: 4px;
+        }
+        .permission-admin-summary-chip strong {
+            font-size: 14px;
+            color: #223140;
+        }
+        .permission-admin-header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+        .permission-admin-title-block {
+            display: grid;
+            gap: 6px;
+        }
+        .permission-admin-title-block span {
+            font-size: 12px;
+            color: #6a7b88;
+        }
+        .permission-admin-grid-fields {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 220px;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+        .permission-admin-grid-fields label {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .permission-admin-grid-fields label span {
+            font-size: 11px;
+            font-weight: 600;
+            color: #60707f;
+        }
+        .permission-admin-grid-fields input,
+        .permission-admin-grid-fields select {
+            height: 38px;
+            padding: 0 12px;
+            border: 1px solid #cfd8df;
+            border-radius: 12px;
+            font-size: 13px;
+            background: #fff;
+        }
+        .permission-admin-matrix {
+            border: 1px solid #d8dde3;
+            border-radius: 18px;
+            overflow: hidden;
+            background: #fff;
+        }
+        .permission-admin-matrix table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .permission-admin-matrix thead th {
+            padding: 12px 14px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 700;
+            color: #51606f;
+            background: linear-gradient(180deg, #f8fbfd 0%, #eef4f8 100%);
+            border-bottom: 1px solid #d8dde3;
+        }
+        .permission-admin-matrix tbody td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #edf1f5;
+            vertical-align: middle;
+        }
+        .permission-admin-matrix tbody tr:last-child td {
+            border-bottom: 0;
+        }
+        .permission-admin-module-label {
+            display: grid;
+            gap: 3px;
+        }
+        .permission-admin-module-label strong {
+            font-size: 13px;
+            color: #223140;
+        }
+        .permission-admin-module-label span {
+            font-size: 11px;
+            color: #738392;
+        }
+        .permission-admin-access {
+            display: inline-grid;
+            grid-auto-flow: column;
+            gap: 8px;
+        }
+        .permission-admin-access label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border: 1px solid #d8dde3;
+            border-radius: 999px;
+            font-size: 11px;
+            color: #51606f;
+            background: #fff;
+            cursor: pointer;
+        }
+        .permission-admin-access input {
+            margin: 0;
+            accent-color: #118fc6;
+        }
+        .permission-admin-popover {
+            position: fixed;
+            z-index: 2200;
+            width: 320px;
+            padding: 16px;
+            border: 1px solid #d8dde3;
+            border-radius: 18px;
+            background: rgba(255,255,255,0.98);
+            box-shadow: 0 18px 38px rgba(0,0,0,0.18);
+        }
+        .permission-admin-popover[hidden] {
+            display: none;
+        }
+        .permission-admin-popover h3 {
+            margin: 0 0 6px;
+            font-size: 16px;
+            color: #223140;
+        }
+        .permission-admin-popover p {
+            margin: 0 0 12px;
+            font-size: 12px;
+            color: #6b7986;
+        }
+        .permission-admin-popover input {
+            width: 100%;
+            height: 40px;
+            padding: 0 12px;
+            border: 1px solid #cfd8df;
+            border-radius: 12px;
+            font-size: 13px;
+            margin-bottom: 12px;
+        }
+        .permission-admin-popover-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        @media (max-width: 1120px) {
+            .repository-grid,
+            .permission-admin-grid,
+            .permission-admin-grid-fields {
+                grid-template-columns: 1fr;
+            }
+            .permission-admin-detail-card {
+                min-height: 0;
+            }
+            .permission-admin-access {
+                grid-auto-flow: row;
+            }
+        }
     </style>
 </head>
 <body>
@@ -504,10 +1509,12 @@
                     <div class="config-tabs">
                         <button type="button" class="config-tab active" data-tab="datos-generales">Datos Generales</button>
                         <button type="button" class="config-tab" data-tab="nomenclaturas">Nomenclaturas</button>
+                        <button type="button" class="config-tab" data-tab="repositorio">Repositorio</button>
                         <button type="button" class="config-tab" data-tab="iconos">Iconos</button>
                         <button type="button" class="config-tab" data-tab="colores-tabs">Colores de Tabs</button>
                         <button type="button" class="config-tab" data-tab="presentaciones">Presentaciones</button>
                         <button type="button" class="config-tab" data-tab="favoritos">Favoritos</button>
+                        <button type="button" class="config-tab" data-tab="seguridad">Seguridad</button>
                         <button type="button" class="config-tab" data-tab="auditoria">Auditoría</button>
                     </div>
 
@@ -596,6 +1603,20 @@
                                             <span id="previewBrandName" style="color:#fff;">PrintLab</span>
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="config-card">
+                            <h2>Pantalla de Login</h2>
+                            <div class="login-image-panel">
+                                <div class="login-image-dropzone has-image" style="cursor:default; background-image:linear-gradient(135deg, rgba(17,143,198,0.18), rgba(7,17,29,0.12)), linear-gradient(120deg, #1f4258 0%, #3d6f86 48%, #8db2c5 100%);">
+                                    El fondo del login ahora se administra desde Repositorio.
+                                </div>
+                                <div class="login-image-hint">
+                                    <h3>Screensaver de Acceso</h3>
+                                    <p>El login de escritorio ya no usa una sola imagen fija. Ahora rota automáticamente las imágenes que subas en la pestaña Repositorio.</p>
+                                    <p>Ahí podrás cargar, revisar y eliminar fondos sin saturar la configuración general ni guardar imágenes pesadas en la base.</p>
                                 </div>
                             </div>
                         </section>
@@ -810,6 +1831,66 @@
                                     </div>
                                     <input data-icon-upload="icons.tableAdd" type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp" hidden>
                                 </div>
+                                <div class="icon-item">
+                                    <input name="icons.quoteRequestSubmit" type="text" placeholder="➤" style="width:50px; text-align:center;">
+                                    <div class="icon-preview" id="preview-icons.quoteRequestSubmit">➤</div>
+                                    <div class="icon-item-meta">
+                                        <span class="icon-item-name">Crear cotizacion</span>
+                                        <div class="icon-item-controls">
+                                            <label><span>Color</span><input name="general.iconColorQuoteRequestSubmit" type="color" value="#ffffff" class="color-field"></label>
+                                            <label><span>Tamano</span><input name="general.iconSizeQuoteRequestSubmit" type="number" value="18" style="width:65px;"></label>
+                                        </div>
+                                    </div>
+                                    <input data-icon-upload="icons.quoteRequestSubmit" type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp" hidden>
+                                </div>
+                                <div class="icon-item">
+                                    <input name="icons.quoteRequestAdvanced" type="text" placeholder="⚙" style="width:50px; text-align:center;">
+                                    <div class="icon-preview" id="preview-icons.quoteRequestAdvanced">⚙</div>
+                                    <div class="icon-item-meta">
+                                        <span class="icon-item-name">Proceso avanzado</span>
+                                        <div class="icon-item-controls">
+                                            <label><span>Color</span><input name="general.iconColorQuoteRequestAdvanced" type="color" value="#5f7288" class="color-field"></label>
+                                            <label><span>Tamano</span><input name="general.iconSizeQuoteRequestAdvanced" type="number" value="18" style="width:65px;"></label>
+                                        </div>
+                                    </div>
+                                    <input data-icon-upload="icons.quoteRequestAdvanced" type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp" hidden>
+                                </div>
+                                <div class="icon-item">
+                                    <input name="icons.quoteRequestAttachment" type="text" placeholder="📎" style="width:50px; text-align:center;">
+                                    <div class="icon-preview" id="preview-icons.quoteRequestAttachment">📎</div>
+                                    <div class="icon-item-meta">
+                                        <span class="icon-item-name">Adjuntar archivos</span>
+                                        <div class="icon-item-controls">
+                                            <label><span>Color</span><input name="general.iconColorQuoteRequestAttachment" type="color" value="#1e516d" class="color-field"></label>
+                                            <label><span>Tamano</span><input name="general.iconSizeQuoteRequestAttachment" type="number" value="18" style="width:65px;"></label>
+                                        </div>
+                                    </div>
+                                    <input data-icon-upload="icons.quoteRequestAttachment" type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp" hidden>
+                                </div>
+                                <div class="icon-item">
+                                    <input name="icons.quoteRequestRecord" type="text" placeholder="🎙" style="width:50px; text-align:center;">
+                                    <div class="icon-preview" id="preview-icons.quoteRequestRecord">🎙</div>
+                                    <div class="icon-item-meta">
+                                        <span class="icon-item-name">Grabar audio</span>
+                                        <div class="icon-item-controls">
+                                            <label><span>Color</span><input name="general.iconColorQuoteRequestRecord" type="color" value="#1e516d" class="color-field"></label>
+                                            <label><span>Tamano</span><input name="general.iconSizeQuoteRequestRecord" type="number" value="18" style="width:65px;"></label>
+                                        </div>
+                                    </div>
+                                    <input data-icon-upload="icons.quoteRequestRecord" type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp" hidden>
+                                </div>
+                                <div class="icon-item">
+                                    <input name="icons.quoteRequestRecordStop" type="text" placeholder="■" style="width:50px; text-align:center;">
+                                    <div class="icon-preview" id="preview-icons.quoteRequestRecordStop">■</div>
+                                    <div class="icon-item-meta">
+                                        <span class="icon-item-name">Detener grabacion</span>
+                                        <div class="icon-item-controls">
+                                            <label><span>Color</span><input name="general.iconColorQuoteRequestRecordStop" type="color" value="#1e516d" class="color-field"></label>
+                                            <label><span>Tamano</span><input name="general.iconSizeQuoteRequestRecordStop" type="number" value="18" style="width:65px;"></label>
+                                        </div>
+                                    </div>
+                                    <input data-icon-upload="icons.quoteRequestRecordStop" type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp" hidden>
+                                </div>
                             </div>
                         </section>
 
@@ -861,6 +1942,71 @@
                                 </label>
                             </div>
                             <p class="config-status" style="margin-top:4px;">Este prefijo se usará para generar el código del socio con su consecutivo.</p>
+                        </section>
+                    </div>
+
+                    <div id="tab-repositorio" class="config-tab-content">
+                        <section class="repository-grid">
+                            <div class="repository-panel">
+                                <div>
+                                    <h2>Repositorio de Imágenes</h2>
+                                    <p>Sube aquí todas las imágenes que quieras usar como fondo rotativo del login. Se guardan en carpeta dentro del proyecto, no en la base de datos.</p>
+                                </div>
+                                <div class="repository-upload-shell">
+                                    <div class="repository-upload-cta">
+                                        <div class="repository-upload-icon" id="loginRepositoryUploadPreview" aria-hidden="true"></div>
+                                        <div class="repository-upload-copy">
+                                            <strong>Agregar Imágenes al Login</strong>
+                                            <span>Formatos sugeridos: JPG, PNG o WEBP horizontales.</span>
+                                        </div>
+                                        <button type="button" id="loginRepositoryUploadButton" class="repository-upload-button" aria-label="Cargar imágenes" title="Cargar imágenes"></button>
+                                    </div>
+                                    <input id="loginRepositoryUpload" type="file" accept="image/*" multiple hidden>
+                                    <p>La pantalla de acceso de escritorio mostrará estas imágenes como un screensaver suave. En móvil se usará la primera disponible.</p>
+                                </div>
+                                <div class="repository-stats">
+                                    <div class="repository-stat">
+                                        <span>Imágenes</span>
+                                        <strong id="loginRepositoryCount">0</strong>
+                                    </div>
+                                    <div class="repository-stat">
+                                        <span>Estado</span>
+                                        <strong id="loginRepositoryState">Vacío</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="repository-gallery-card">
+                                <div class="repository-stage">
+                                    <div id="loginRepositoryStage" class="repository-saver-stage">
+                                        <div id="loginRepositoryStagePlaceholder" class="repository-saver-placeholder">
+                                            <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+                                                <rect x="6" y="14" width="52" height="36" rx="4" stroke="white" stroke-width="2"></rect>
+                                                <circle cx="22" cy="27" r="5" stroke="white" stroke-width="2"></circle>
+                                                <path d="M6 38 L18 28 L28 36 L38 26 L58 42" stroke="white" stroke-width="2" stroke-linejoin="round" fill="none"></path>
+                                            </svg>
+                                            <p>Sube imágenes al repositorio para ver aquí el screensaver.</p>
+                                        </div>
+                                        <div class="repository-saver-overlay"></div>
+                                    </div>
+                                    <div class="repository-stage-copy">
+                                        <strong>Vista Previa del Login</strong>
+                                        <span id="loginRepositoryStageCaption">El screensaver usará automáticamente las imágenes disponibles.</span>
+                                    </div>
+                                </div>
+                                <div class="repository-settings-row">
+                                    <div class="repository-setting">
+                                        <label for="loginScreensaverMotionSeconds">Velocidad de Desplazamiento <output id="loginScreensaverMotionSecondsValue">16s</output></label>
+                                        <input id="loginScreensaverMotionSeconds" name="general.loginScreensaverMotionSeconds" type="range" min="8" max="30" step="1" value="16">
+                                    </div>
+                                    <div class="repository-setting">
+                                        <label for="loginScreensaverSlideSeconds">Tiempo por Imagen <output id="loginScreensaverSlideSecondsValue">10s</output></label>
+                                        <input id="loginScreensaverSlideSeconds" name="general.loginScreensaverSlideSeconds" type="range" min="4" max="24" step="1" value="10">
+                                    </div>
+                                </div>
+                                <div id="loginRepositoryGallery" class="repository-gallery-grid">
+                                    <div class="repository-empty">Todavía no hay imágenes en el repositorio.</div>
+                                </div>
+                            </div>
                         </section>
                     </div>
 
@@ -1302,6 +2448,164 @@
                         </section>
                     </div>
 
+                    <div id="tab-seguridad" class="config-tab-content">
+                        <section class="config-card">
+                            <div class="security-subtabs">
+                                <button type="button" class="security-subtab active" data-security-tab="usuarios">Usuarios</button>
+                                <button type="button" class="security-subtab" data-security-tab="permisos">Permisos</button>
+                            </div>
+
+                            <div id="security-panel-usuarios" class="security-subpanel">
+                                <div class="user-admin-grid">
+                                    <div>
+                                        <div class="user-admin-toolbar">
+                                            <h2>Administración de Usuarios</h2>
+                                            <button type="button" id="userAdminCreateButton" class="user-admin-create-button" aria-label="Crear usuario" title="Crear usuario"></button>
+                                        </div>
+                                        <div class="user-admin-table-wrap">
+                                            <table class="user-admin-table">
+                                                <tbody id="userAdminTableBody">
+                                                    <tr>
+                                                        <td class="user-admin-empty">Todavía no hay usuarios creados.</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    <div class="user-admin-detail-card">
+                                        <div id="userAdminDetailEmpty" class="user-admin-detail-empty">Selecciona un usuario para ver y editar su información.</div>
+                                        <div id="userAdminDetailShell" class="user-admin-detail-shell" hidden>
+                                            <div class="user-admin-detail-header">
+                                                <div class="user-admin-detail-headline">
+                                                    <div id="userAdminPhotoDropzone" class="user-admin-detail-avatar" title="Cambiar fotografía"></div>
+                                                    <input id="userAdminPhotoUpload" type="file" accept="image/*" hidden>
+                                                    <div class="user-admin-detail-meta">
+                                                        <strong id="userAdminDetailName">Usuario</strong>
+                                                        <span id="userAdminDetailSubline">Sin departamento</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="user-admin-summary-strip">
+                                                <div class="user-admin-summary-chip">
+                                                    <span>Usuario</span>
+                                                    <strong id="userAdminSummaryUsername">Pendiente</strong>
+                                                </div>
+                                                <div class="user-admin-summary-chip">
+                                                    <span>Departamento</span>
+                                                    <strong id="userAdminSummaryDepartment">Pendiente</strong>
+                                                </div>
+                                            <div class="user-admin-summary-chip">
+                                                <span>Proceso</span>
+                                                <strong id="userAdminSummaryProcess">Pendiente</strong>
+                                            </div>
+                                            <div class="user-admin-summary-chip">
+                                                <span>Permiso</span>
+                                                <strong id="userAdminSummaryPermission">Pendiente</strong>
+                                            </div>
+                                        </div>
+                                        <div class="user-admin-form-grid">
+                                                <label class="user-admin-form-full">
+                                                    <span>Nombre</span>
+                                                    <input id="userAdminFieldName" type="text" placeholder="Nombre completo">
+                                                </label>
+                                                <label>
+                                                    <span>Usuario</span>
+                                                    <input id="userAdminFieldUsername" type="text" placeholder="Usuario">
+                                                </label>
+                                                <label>
+                                                    <span>Contraseña</span>
+                                                    <div class="password-field-wrap">
+                                                        <input id="userAdminFieldPassword" type="password" placeholder="Contraseña">
+                                                        <button type="button" id="userAdminPasswordToggle" class="password-toggle-btn" aria-label="Mostrar contraseña" title="Mostrar contraseña"></button>
+                                                    </div>
+                                                </label>
+                                                <label>
+                                                    <span>Departamento</span>
+                                                    <input id="userAdminFieldDepartment" type="text" placeholder="Departamento">
+                                                </label>
+                                                <label>
+                                                    <span>Proceso</span>
+                                                    <input id="userAdminFieldProcess" type="text" placeholder="Proceso">
+                                                </label>
+                                                <label>
+                                                    <span>Permiso</span>
+                                                    <select id="userAdminFieldPermission"></select>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="security-panel-permisos" class="security-subpanel" hidden>
+                                <div class="permission-admin-grid">
+                                    <div>
+                                        <div class="permission-admin-toolbar">
+                                            <h2>Administración de Permisos</h2>
+                                            <button type="button" id="permissionAdminCreateButton" class="permission-admin-create-button" aria-label="Crear permiso" title="Crear permiso"></button>
+                                        </div>
+                                        <div class="permission-admin-table-wrap">
+                                            <table class="permission-admin-table">
+                                                <tbody id="permissionAdminTableBody">
+                                                    <tr>
+                                                        <td class="user-admin-empty">Todavía no hay permisos creados.</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    <div class="permission-admin-detail-card">
+                                        <div id="permissionAdminDetailEmpty" class="permission-admin-detail-empty">Selecciona un permiso para configurar accesos y destino inicial.</div>
+                                        <div id="permissionAdminDetailShell" class="permission-admin-detail-shell" hidden>
+                                            <div class="permission-admin-header-row">
+                                                <div class="permission-admin-title-block">
+                                                    <h2 id="permissionAdminDetailName">Permiso</h2>
+                                                    <span id="permissionAdminDetailSubline">Sin configuración</span>
+                                                </div>
+                                                <button type="button" id="permissionAdminDeleteButton" class="permission-admin-delete-button" aria-label="Eliminar permiso" title="Eliminar permiso"></button>
+                                            </div>
+                                            <div class="permission-admin-summary-strip">
+                                                <div class="permission-admin-summary-chip">
+                                                    <span>Acceso Total</span>
+                                                    <strong id="permissionAdminSummaryEdit">0 módulos</strong>
+                                                </div>
+                                                <div class="permission-admin-summary-chip">
+                                                    <span>Solo Consulta</span>
+                                                    <strong id="permissionAdminSummaryView">0 módulos</strong>
+                                                </div>
+                                                <div class="permission-admin-summary-chip">
+                                                    <span>Entrada Inicial</span>
+                                                    <strong id="permissionAdminSummaryLanding">Dashboard</strong>
+                                                </div>
+                                            </div>
+                                            <div class="permission-admin-grid-fields">
+                                                <label>
+                                                    <span>Nombre del Permiso</span>
+                                                    <input id="permissionAdminFieldName" type="text" placeholder="Ej. Ventas, Operaciones, Superusuario">
+                                                </label>
+                                                <label>
+                                                    <span>Pantalla de Entrada</span>
+                                                    <select id="permissionAdminFieldLanding"></select>
+                                                </label>
+                                            </div>
+                                            <div class="permission-admin-matrix">
+                                                <table>
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Presentación</th>
+                                                            <th>Nivel de Acceso</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="permissionAdminMatrixBody"></tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+
                     <div id="tab-auditoria" class="config-tab-content">
                         <section class="config-card">
                             <h2>Auditoría</h2>
@@ -1366,11 +2670,31 @@
             </section>
         </main>
     </div>
+    <div id="userAdminCreatePopover" class="user-admin-popover" hidden>
+        <h3>Crear Usuario</h3>
+        <p>Ingresa el nombre para crear el usuario y completar el resto de datos después.</p>
+        <input id="userAdminCreateNameField" type="text" placeholder="Nombre completo" maxlength="120">
+        <div class="user-admin-popover-actions">
+            <button type="button" id="userAdminCreateCancel" class="action-btn">Cancelar</button>
+            <button type="button" id="userAdminCreateConfirm" class="action-btn action-btn-primary">Crear</button>
+        </div>
+    </div>
+    <div id="permissionAdminCreatePopover" class="permission-admin-popover" hidden>
+        <h3>Crear Permiso</h3>
+        <p>Ingresa el nombre del permiso para crearlo y ajustar después sus accesos.</p>
+        <input id="permissionAdminCreateNameField" type="text" placeholder="Nombre del permiso" maxlength="120">
+        <div class="permission-admin-popover-actions">
+            <button type="button" id="permissionAdminCreateCancel" class="action-btn">Cancelar</button>
+            <button type="button" id="permissionAdminCreateConfirm" class="action-btn action-btn-primary">Crear</button>
+        </div>
+    </div>
 
     <script>
         const PRESENTATION_KEYS = ['cotizaciones','solicitudes','calculos','socios','inventario-mp','inventario-troqueles','inventario-maquinaria','costos','vendedores','ordenes','seguimiento'];
         const PRESENTATION_LABELS = {
             general: 'General',
+            'configuracion-general': 'Configuración General',
+            dashboard: 'Dashboard',
             cotizaciones: 'Cotizaciones',
             solicitudes: 'Solicitudes',
             calculos: 'Cálculos',
@@ -1381,8 +2705,10 @@
             costos: 'Costos',
             vendedores: 'Vendedores',
             ordenes: 'Órdenes',
+            planificacion: 'Planificación',
             seguimiento: 'Seguimiento'
         };
+        const PERMISSION_PRESENTATION_KEYS = ['dashboard', 'socios', 'cotizaciones', 'ordenes', 'planificacion', 'calculos', 'costos', 'inventario-mp', 'inventario-troqueles', 'inventario-maquinaria', 'configuracion-general', 'vendedores', 'seguimiento', 'solicitudes'];
         
         let loadedConfig = {};
         let presentationsData = {};
@@ -1390,6 +2716,15 @@
         let configSaveTimer = null;
         let configSaveInFlight = false;
         let configSaveQueued = false;
+        let adminUsers = [];
+        let selectedAdminUserId = null;
+        let adminUserSaveTimer = null;
+        let adminUsersLoadedOnce = false;
+        let userAdminPasswordVisible = false;
+        let adminPermissions = [];
+        let selectedAdminPermissionId = null;
+        let adminPermissionSaveTimer = null;
+        let adminPermissionsLoadedOnce = false;
         const configCompanyLogo = document.getElementById('configCompanyLogo');
         const configBrandFallback = document.getElementById('configBrandFallback');
         const configPageTitle = document.getElementById('configPageTitle');
@@ -1405,6 +2740,69 @@
         const auditApplyButton = document.getElementById('auditApplyButton');
         const auditResetButton = document.getElementById('auditResetButton');
         const auditTableBody = document.getElementById('auditTableBody');
+        const userAdminTableBody = document.getElementById('userAdminTableBody');
+        const userAdminCreateButton = document.getElementById('userAdminCreateButton');
+        const userAdminDetailEmpty = document.getElementById('userAdminDetailEmpty');
+        const userAdminDetailShell = document.getElementById('userAdminDetailShell');
+        const userAdminPhotoDropzone = document.getElementById('userAdminPhotoDropzone');
+        const userAdminPhotoUpload = document.getElementById('userAdminPhotoUpload');
+        const userAdminDetailName = document.getElementById('userAdminDetailName');
+        const userAdminDetailSubline = document.getElementById('userAdminDetailSubline');
+        const userAdminSummaryUsername = document.getElementById('userAdminSummaryUsername');
+        const userAdminSummaryDepartment = document.getElementById('userAdminSummaryDepartment');
+        const userAdminSummaryProcess = document.getElementById('userAdminSummaryProcess');
+        const userAdminSummaryPermission = document.getElementById('userAdminSummaryPermission');
+        const userAdminFieldName = document.getElementById('userAdminFieldName');
+        const userAdminFieldUsername = document.getElementById('userAdminFieldUsername');
+        const userAdminFieldPassword = document.getElementById('userAdminFieldPassword');
+        const userAdminPasswordToggle = document.getElementById('userAdminPasswordToggle');
+        const userAdminFieldDepartment = document.getElementById('userAdminFieldDepartment');
+        const userAdminFieldProcess = document.getElementById('userAdminFieldProcess');
+        const userAdminFieldPermission = document.getElementById('userAdminFieldPermission');
+        const userAdminCreatePopover = document.getElementById('userAdminCreatePopover');
+        const userAdminCreateNameField = document.getElementById('userAdminCreateNameField');
+        const userAdminCreateCancel = document.getElementById('userAdminCreateCancel');
+        const userAdminCreateConfirm = document.getElementById('userAdminCreateConfirm');
+        const permissionAdminTableBody = document.getElementById('permissionAdminTableBody');
+        const permissionAdminCreateButton = document.getElementById('permissionAdminCreateButton');
+        const permissionAdminDetailEmpty = document.getElementById('permissionAdminDetailEmpty');
+        const permissionAdminDetailShell = document.getElementById('permissionAdminDetailShell');
+        const permissionAdminDeleteButton = document.getElementById('permissionAdminDeleteButton');
+        const permissionAdminDetailName = document.getElementById('permissionAdminDetailName');
+        const permissionAdminDetailSubline = document.getElementById('permissionAdminDetailSubline');
+        const permissionAdminSummaryEdit = document.getElementById('permissionAdminSummaryEdit');
+        const permissionAdminSummaryView = document.getElementById('permissionAdminSummaryView');
+        const permissionAdminSummaryLanding = document.getElementById('permissionAdminSummaryLanding');
+        const permissionAdminFieldName = document.getElementById('permissionAdminFieldName');
+        const permissionAdminFieldLanding = document.getElementById('permissionAdminFieldLanding');
+        const permissionAdminMatrixBody = document.getElementById('permissionAdminMatrixBody');
+        const permissionAdminCreatePopover = document.getElementById('permissionAdminCreatePopover');
+        const permissionAdminCreateNameField = document.getElementById('permissionAdminCreateNameField');
+        const permissionAdminCreateCancel = document.getElementById('permissionAdminCreateCancel');
+        const permissionAdminCreateConfirm = document.getElementById('permissionAdminCreateConfirm');
+        const loginRepositoryUpload = document.getElementById('loginRepositoryUpload');
+        const loginRepositoryUploadButton = document.getElementById('loginRepositoryUploadButton');
+        const loginRepositoryUploadPreview = document.getElementById('loginRepositoryUploadPreview');
+        const loginRepositoryCount = document.getElementById('loginRepositoryCount');
+        const loginRepositoryState = document.getElementById('loginRepositoryState');
+        const loginRepositoryStage = document.getElementById('loginRepositoryStage');
+        const loginRepositoryStagePlaceholder = document.getElementById('loginRepositoryStagePlaceholder');
+        const loginRepositoryStageCaption = document.getElementById('loginRepositoryStageCaption');
+        const loginRepositoryGallery = document.getElementById('loginRepositoryGallery');
+        const loginScreensaverMotionSeconds = document.getElementById('loginScreensaverMotionSeconds');
+        const loginScreensaverMotionSecondsValue = document.getElementById('loginScreensaverMotionSecondsValue');
+        const loginScreensaverSlideSeconds = document.getElementById('loginScreensaverSlideSeconds');
+        const loginScreensaverSlideSecondsValue = document.getElementById('loginScreensaverSlideSecondsValue');
+        const securitySubtabs = [...document.querySelectorAll('.security-subtab')];
+        const securitySubpanels = [...document.querySelectorAll('.security-subpanel')];
+        const LOGIN_REPOSITORY_ENDPOINT = '/api/login-repository';
+        let loginRepositoryImages = [];
+        let loginRepositoryLoadedOnce = false;
+        let loginRepositoryPreviewTimer = null;
+        let loginRepositoryPreviewCurrentIndex = 0;
+        let loginRepositoryPreviewCurrentSlide = null;
+        let loginRepositoryPreviewPrevSlide = null;
+        const LOGIN_SCREENSAVER_ANIM_VARIANTS = ['anim-0', 'anim-1', 'anim-2'];
         const ICON_LIBRARY = [
             { key: 'topBack', label: 'Volver Superior', group: 'Barra Superior', placeholder: '\u2190', color: '#9ba2ab', size: 20 },
             { key: 'topMenu', label: 'Menu Superior', group: 'Barra Superior', placeholder: '\u2261', color: '#9ba2ab', size: 20 },
@@ -1455,7 +2853,20 @@
             { key: 'favoriteDocumentOn', label: 'Favorito Activo', group: 'Calculo y Procesos', placeholder: '\u2605', color: '#c79b18', size: 20 },
             { key: 'refreshCosts', label: 'Actualizar Costos', group: 'Calculo y Procesos', placeholder: '\u21BB', color: '#5b7896', size: 20 },
             { key: 'timelineLauncher', label: 'Timeline Flotante', group: 'Calculo y Procesos', placeholder: '\u25F4', color: '#5f7392', size: 20 },
-            { key: 'floatingSave', label: 'Guardar Flotante', group: 'Acciones Flotantes', placeholder: '💾', color: '#ffffff', size: 20 }
+            { key: 'floatingSave', label: 'Guardar Flotante', group: 'Acciones Flotantes', placeholder: '💾', color: '#ffffff', size: 20 },
+            { key: 'quoteRequestSubmit', label: 'Crear Cotizacion Flotante', group: 'Acciones Flotantes', placeholder: '\u27A4', color: '#ffffff', size: 18 },
+            { key: 'quoteRequestAdvanced', label: 'Proceso Avanzado Flotante', group: 'Acciones Flotantes', placeholder: '\u2699', color: '#5f7288', size: 18 },
+            { key: 'adminUserCreate', label: 'Crear Usuario', group: 'Acciones Administrativas', placeholder: '+', color: '#118fc6', size: 22 },
+            { key: 'adminUserDelete', label: 'Eliminar Usuario', group: 'Acciones Administrativas', placeholder: '\uD83D\uDDD1', color: '#b94848', size: 18 },
+            { key: 'adminPermissionCreate', label: 'Crear Permiso', group: 'Acciones Administrativas', placeholder: '+', color: '#118fc6', size: 22 },
+            { key: 'adminPermissionDelete', label: 'Eliminar Permiso', group: 'Acciones Administrativas', placeholder: '\uD83D\uDDD1', color: '#b94848', size: 18 },
+            { key: 'loginRepositoryUpload', label: 'Cargar Imagen de Repositorio', group: 'Acciones Administrativas', placeholder: '\u21E7', color: '#118fc6', size: 18 },
+            { key: 'loginRepositoryDelete', label: 'Eliminar Imagen de Repositorio', group: 'Acciones Administrativas', placeholder: '\uD83D\uDDD1', color: '#b94848', size: 18 },
+            { key: 'passwordReveal', label: 'Mostrar Contraseña', group: 'Acciones Administrativas', placeholder: '\uD83D\uDC41', color: '#60707f', size: 18 },
+            { key: 'passwordHide', label: 'Ocultar Contraseña', group: 'Acciones Administrativas', placeholder: '\uD83D\uDE48', color: '#60707f', size: 18 },
+            { key: 'quoteRequestAttachment', label: 'Adjuntar Archivos Solicitud', group: 'Acciones Documento', placeholder: '\uD83D\uDCCE', color: '#1e516d', size: 18 },
+            { key: 'quoteRequestRecord', label: 'Grabar Audio Solicitud', group: 'Acciones Documento', placeholder: '\uD83C\uDFA4', color: '#1e516d', size: 18 },
+            { key: 'quoteRequestRecordStop', label: 'Detener Grabacion Solicitud', group: 'Acciones Documento', placeholder: '\u25A0', color: '#1e516d', size: 18 }
         ];
 
         function firstFilled(...values) {
@@ -1674,6 +3085,62 @@
             return group.querySelector('.icon-group-grid');
         }
 
+        function ensureIconLibraryShell(row) {
+            const host = document.getElementById('generalIconsSection') || document.getElementById('iconsTabMount');
+            if (!host) return row;
+            let shell = host.querySelector('.icon-library-shell');
+            let tabs = host.querySelector('.icon-library-tabs');
+            let panels = host.querySelector('.icon-library-panels');
+            if (!shell) {
+                shell = document.createElement('div');
+                shell.className = 'icon-library-shell';
+                tabs = document.createElement('div');
+                tabs.className = 'icon-library-tabs';
+                panels = document.createElement('div');
+                panels.className = 'icon-library-panels';
+                shell.appendChild(tabs);
+                shell.appendChild(panels);
+                host.appendChild(shell);
+            }
+            if (row.parentElement !== panels) {
+                panels.appendChild(row);
+            }
+            row.dataset.iconRow = 'true';
+            return row;
+        }
+
+        function syncIconLibraryTabs(row) {
+            const host = document.getElementById('generalIconsSection') || document.getElementById('iconsTabMount');
+            const tabsHost = host?.querySelector('.icon-library-tabs');
+            if (!row || !tabsHost) return;
+            const groups = [...row.querySelectorAll('.icon-group')];
+            if (!groups.length) return;
+
+            const availableGroups = groups.map((group) => group.dataset.iconGroup).filter(Boolean);
+            let activeGroup = row.dataset.activeIconGroup;
+            if (!availableGroups.includes(activeGroup)) {
+                activeGroup = availableGroups[0];
+                row.dataset.activeIconGroup = activeGroup;
+            }
+
+            tabsHost.innerHTML = '';
+            availableGroups.forEach((groupName) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = `icon-library-tab${groupName === activeGroup ? ' active' : ''}`;
+                button.textContent = groupName;
+                button.addEventListener('click', () => {
+                    row.dataset.activeIconGroup = groupName;
+                    syncIconLibraryTabs(row);
+                });
+                tabsHost.appendChild(button);
+            });
+
+            groups.forEach((group) => {
+                group.hidden = group.dataset.iconGroup !== activeGroup;
+            });
+        }
+
         function ensureIconLibraryFields() {
             const row = document.querySelector('#generalIconsSection .icon-row');
             if (!row) return;
@@ -1681,6 +3148,7 @@
             if (iconsTabMount && !iconsTabMount.contains(document.getElementById('generalIconsSection'))) {
                 iconsTabMount.appendChild(document.getElementById('generalIconsSection'));
             }
+            ensureIconLibraryShell(row);
 
             ICON_LIBRARY.forEach((icon) => {
                 const groupGrid = getOrCreateIconGroup(row, icon.group || 'Otros');
@@ -1736,6 +3204,8 @@
                     controls.appendChild(label);
                 });
             });
+
+            syncIconLibraryTabs(row);
         }
 
         function applyFloatingSaveButtonPreview() {
@@ -2176,6 +3646,989 @@
                 return;
             }
             button.innerHTML = `<span class="icon-glyph">${iconValue}</span>`;
+        }
+
+        function setConfigStatus(message, isError = false) {
+            const statusNode = document.getElementById('saveStatus');
+            if (!statusNode) return;
+            statusNode.hidden = false;
+            statusNode.textContent = message || '';
+            statusNode.style.color = isError ? '#b94848' : '';
+        }
+
+        function activateSecurityTab(tabKey = 'usuarios') {
+            securitySubtabs.forEach((tab) => {
+                tab.classList.toggle('active', tab.dataset.securityTab === tabKey);
+            });
+            securitySubpanels.forEach((panel) => {
+                panel.hidden = panel.id !== `security-panel-${tabKey}`;
+            });
+            if (tabKey === 'usuarios' && !adminUsersLoadedOnce) {
+                loadAdminUsers();
+            }
+            if (tabKey === 'permisos' && !adminPermissionsLoadedOnce) {
+                loadAdminPermissions();
+            }
+        }
+
+        function getAdminUserIconConfig(key, fallbackColor, fallbackSize, fallbackText) {
+            const suffix = key.charAt(0).toUpperCase() + key.slice(1);
+            return {
+                value: document.querySelector(`input[name="icons.${key}"]`)?.value || loadedConfig.icons?.[key] || fallbackText,
+                color: document.querySelector(`input[name="general.iconColor${suffix}"]`)?.value || loadedConfig.general?.[`iconColor${suffix}`] || fallbackColor,
+                size: Number(document.querySelector(`input[name="general.iconSize${suffix}"]`)?.value) || Number(loadedConfig.general?.[`iconSize${suffix}`]) || fallbackSize
+            };
+        }
+
+        function getAdminUserInitials(name) {
+            const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+            if (!parts.length) return 'U';
+            return parts.slice(0, 2).map(part => part.charAt(0)).join('').toUpperCase();
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function renderAdminUserAvatar(container, user, className = '') {
+            if (!container) return;
+            const image = String(user?.photoUrl || '').trim();
+            if (image) {
+                container.innerHTML = `<img src="${image}" alt="${user?.name || 'Usuario'}">`;
+                return;
+            }
+            container.className = className || container.className;
+            container.textContent = getAdminUserInitials(user?.name);
+        }
+
+        function getSelectedAdminUser() {
+            return adminUsers.find((user) => Number(user.id) === Number(selectedAdminUserId)) || null;
+        }
+
+        function populateUserPermissionOptions() {
+            if (!userAdminFieldPermission) return;
+            const current = String(userAdminFieldPermission.value || '');
+            const options = ['<option value="">Sin permiso asignado</option>']
+                .concat(adminPermissions.map((permission) => `<option value="${permission.id}">${escapeHtml(permission.name || 'Permiso')}</option>`));
+            userAdminFieldPermission.innerHTML = options.join('');
+            if ([...userAdminFieldPermission.options].some((option) => option.value === current)) {
+                userAdminFieldPermission.value = current;
+            }
+        }
+
+        function renderAdminUserList() {
+            if (!userAdminTableBody) return;
+            const deleteIcon = getAdminUserIconConfig('adminUserDelete', '#b94848', 18, '🗑');
+            if (!adminUsers.length) {
+                userAdminTableBody.innerHTML = '<tr><td class="user-admin-empty">Todavía no hay usuarios creados.</td></tr>';
+                return;
+            }
+            userAdminTableBody.innerHTML = adminUsers.map((user) => `
+                <tr class="${Number(user.id) === Number(selectedAdminUserId) ? 'is-selected' : ''}" data-user-id="${user.id}">
+                    <td>
+                        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                            <div class="user-admin-row-main">
+                                <div class="user-admin-avatar" data-user-avatar="${user.id}">${getAdminUserInitials(user.name)}</div>
+                                <div class="user-admin-row-text">
+                                    <span class="user-admin-row-name">${escapeHtml(user.name || 'Sin nombre')}</span>
+                                    <span class="user-admin-row-department">${escapeHtml(user.department || 'Sin departamento')}</span>
+                                </div>
+                            </div>
+                            <button type="button" class="user-admin-delete-button" data-user-delete="${user.id}" aria-label="Eliminar usuario" title="Eliminar usuario"></button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+            adminUsers.forEach((user) => {
+                const avatar = userAdminTableBody.querySelector(`[data-user-avatar="${user.id}"]`);
+                if (avatar) {
+                    renderAdminUserAvatar(avatar, user, 'user-admin-avatar');
+                }
+                const deleteButton = userAdminTableBody.querySelector(`[data-user-delete="${user.id}"]`);
+                if (deleteButton) {
+                    renderButtonIcon(deleteButton, deleteIcon.value, deleteIcon.color, deleteIcon.size, '🗑');
+                }
+            });
+        }
+
+        function renderAdminUserCreateButton() {
+            if (!userAdminCreateButton) return;
+            const createIcon = getAdminUserIconConfig('adminUserCreate', '#118fc6', 22, '+');
+            renderButtonIcon(userAdminCreateButton, createIcon.value, createIcon.color, createIcon.size, '+');
+        }
+
+        function updateAdminUserDetail() {
+            const user = getSelectedAdminUser();
+            if (!user) {
+                if (userAdminDetailEmpty) userAdminDetailEmpty.hidden = false;
+                if (userAdminDetailShell) userAdminDetailShell.hidden = true;
+                return;
+            }
+            if (userAdminDetailEmpty) userAdminDetailEmpty.hidden = true;
+            if (userAdminDetailShell) userAdminDetailShell.hidden = false;
+
+            if (userAdminFieldName) userAdminFieldName.value = user.name || '';
+            if (userAdminFieldUsername) userAdminFieldUsername.value = user.username || '';
+            if (userAdminFieldPassword) userAdminFieldPassword.value = user.password || '';
+            if (userAdminFieldPassword) userAdminFieldPassword.type = userAdminPasswordVisible ? 'text' : 'password';
+            if (userAdminFieldDepartment) userAdminFieldDepartment.value = user.department || '';
+            if (userAdminFieldProcess) userAdminFieldProcess.value = user.process || '';
+            populateUserPermissionOptions();
+            if (userAdminFieldPermission) userAdminFieldPermission.value = user.permissionId == null ? '' : String(user.permissionId);
+
+            if (userAdminDetailName) userAdminDetailName.textContent = user.name || 'Usuario';
+            if (userAdminDetailSubline) userAdminDetailSubline.textContent = `${user.department || 'Sin departamento'} · ${user.process || 'Sin proceso'}`;
+            if (userAdminSummaryUsername) userAdminSummaryUsername.textContent = user.username || 'Pendiente';
+            if (userAdminSummaryDepartment) userAdminSummaryDepartment.textContent = user.department || 'Pendiente';
+            if (userAdminSummaryProcess) userAdminSummaryProcess.textContent = user.process || 'Pendiente';
+            if (userAdminSummaryPermission) userAdminSummaryPermission.textContent = user.permissionName || 'Pendiente';
+            if (userAdminPhotoDropzone) {
+                renderAdminUserAvatar(userAdminPhotoDropzone, user, 'user-admin-detail-avatar');
+            }
+            renderPasswordToggleButton(userAdminPasswordToggle, userAdminPasswordVisible);
+        }
+
+        function selectAdminUser(id) {
+            selectedAdminUserId = Number(id) || null;
+            renderAdminUserList();
+            updateAdminUserDetail();
+        }
+
+        function upsertAdminUser(user) {
+            const index = adminUsers.findIndex((item) => Number(item.id) === Number(user.id));
+            if (index >= 0) {
+                adminUsers[index] = user;
+            } else {
+                adminUsers.push(user);
+                adminUsers.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'es', { sensitivity: 'base' }));
+            }
+        }
+
+        async function loadAdminUsers(options = {}) {
+            try {
+                const response = await fetch('/api/admin-users');
+                if (!response.ok) throw new Error('No fue posible cargar usuarios.');
+                adminUsers = await response.json();
+                adminUsersLoadedOnce = true;
+                const targetId = options.selectedId || selectedAdminUserId || adminUsers[0]?.id || null;
+                selectedAdminUserId = adminUsers.some((user) => Number(user.id) === Number(targetId)) ? Number(targetId) : (adminUsers[0]?.id || null);
+                renderAdminUserCreateButton();
+                populateUserPermissionOptions();
+                renderAdminUserList();
+                updateAdminUserDetail();
+            } catch (error) {
+                setConfigStatus(error.message || 'No fue posible cargar los usuarios.', true);
+                if (userAdminTableBody) {
+                    userAdminTableBody.innerHTML = `<tr><td class="user-admin-empty">${escapeHtml(error.message || 'No fue posible cargar los usuarios.')}</td></tr>`;
+                }
+            }
+        }
+
+        function collectAdminUserPayload() {
+            const user = getSelectedAdminUser();
+            if (!user) return null;
+            return {
+                name: userAdminFieldName?.value?.trim() || '',
+                username: userAdminFieldUsername?.value?.trim() || '',
+                password: userAdminFieldPassword?.value || '',
+                department: userAdminFieldDepartment?.value?.trim() || '',
+                process: userAdminFieldProcess?.value?.trim() || '',
+                photoUrl: user.photoUrl || '',
+                permissionId: userAdminFieldPermission?.value ? Number(userAdminFieldPermission.value) : null
+            };
+        }
+
+        function syncSelectedAdminUserFromInputs() {
+            const user = getSelectedAdminUser();
+            const payload = collectAdminUserPayload();
+            if (!user || !payload) return;
+            user.name = payload.name;
+            user.username = payload.username;
+            user.password = payload.password;
+            user.department = payload.department;
+            user.process = payload.process;
+            user.permissionId = payload.permissionId;
+            user.permissionName = adminPermissions.find((item) => Number(item.id) === Number(payload.permissionId))?.name || '';
+            renderAdminUserList();
+            if (userAdminDetailName) userAdminDetailName.textContent = user.name || 'Usuario';
+            if (userAdminDetailSubline) userAdminDetailSubline.textContent = `${user.department || 'Sin departamento'} · ${user.process || 'Sin proceso'}`;
+            if (userAdminSummaryUsername) userAdminSummaryUsername.textContent = user.username || 'Pendiente';
+            if (userAdminSummaryDepartment) userAdminSummaryDepartment.textContent = user.department || 'Pendiente';
+            if (userAdminSummaryProcess) userAdminSummaryProcess.textContent = user.process || 'Pendiente';
+            if (userAdminSummaryPermission) userAdminSummaryPermission.textContent = user.permissionName || 'Pendiente';
+        }
+
+        async function persistSelectedAdminUser() {
+            const user = getSelectedAdminUser();
+            const payload = collectAdminUserPayload();
+            if (!user || !payload || !payload.name) return;
+            const response = await fetch(`/api/admin-users/${user.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (!response.ok) {
+                throw new Error('No fue posible guardar el usuario.');
+            }
+            const saved = await response.json();
+            upsertAdminUser(saved);
+            renderAdminUserList();
+            updateAdminUserDetail();
+        }
+
+        function queueAdminUserSave() {
+            clearTimeout(adminUserSaveTimer);
+            const user = getSelectedAdminUser();
+            if (!user) return;
+            syncSelectedAdminUserFromInputs();
+            adminUserSaveTimer = setTimeout(async () => {
+                try {
+                    await persistSelectedAdminUser();
+                } catch (error) {
+                    console.error(error);
+                    setConfigStatus(error.message || 'No fue posible guardar el usuario.', true);
+                }
+            }, 350);
+        }
+
+        function openAdminUserCreatePopover() {
+            if (!userAdminCreatePopover || !userAdminCreateButton) return;
+            const rect = userAdminCreateButton.getBoundingClientRect();
+            const popoverWidth = 320;
+            const left = Math.min(window.innerWidth - popoverWidth - 12, Math.max(12, rect.right - popoverWidth));
+            const top = rect.bottom + 10;
+            userAdminCreatePopover.style.left = `${left}px`;
+            userAdminCreatePopover.style.top = `${top}px`;
+            userAdminCreatePopover.hidden = false;
+            if (userAdminCreateNameField) {
+                userAdminCreateNameField.value = '';
+                requestAnimationFrame(() => userAdminCreateNameField.focus());
+            }
+        }
+
+        function closeAdminUserCreatePopover() {
+            if (userAdminCreatePopover) userAdminCreatePopover.hidden = true;
+        }
+
+        async function createAdminUser() {
+            const name = userAdminCreateNameField?.value?.trim() || '';
+            if (!name) {
+                userAdminCreateNameField?.focus();
+                return;
+            }
+            const response = await fetch('/api/admin-users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+            if (!response.ok) {
+                if (response.status === 404) {
+                    throw new Error('La API de usuarios no está disponible en este servidor. Reinicia la instancia activa para cargar el backend nuevo.');
+                }
+                throw new Error('No fue posible crear el usuario.');
+            }
+            const created = await response.json();
+            upsertAdminUser(created);
+            closeAdminUserCreatePopover();
+            selectAdminUser(created.id);
+            setConfigStatus('Usuario creado correctamente.');
+        }
+
+        async function deleteAdminUser(id) {
+            const user = adminUsers.find((item) => Number(item.id) === Number(id));
+            if (!user) return;
+            const accepted = window.confirm(`¿Deseas eliminar a ${user.name || 'este usuario'}?`);
+            if (!accepted) return;
+            const response = await fetch(`/api/admin-users/${id}`, { method: 'DELETE' });
+            if (!response.ok) {
+                throw new Error('No fue posible eliminar el usuario.');
+            }
+            adminUsers = adminUsers.filter((item) => Number(item.id) !== Number(id));
+            if (Number(selectedAdminUserId) === Number(id)) {
+                selectedAdminUserId = adminUsers[0]?.id || null;
+            }
+            renderAdminUserList();
+            updateAdminUserDetail();
+            setConfigStatus('Usuario eliminado correctamente.');
+        }
+
+        async function updateAdminUserPhoto(file) {
+            const user = getSelectedAdminUser();
+            if (!user || !file) return;
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                user.photoUrl = event.target?.result || '';
+                updateAdminUserDetail();
+                renderAdminUserList();
+                try {
+                    await persistSelectedAdminUser();
+                } catch (error) {
+                    console.error(error);
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function bindAdminUserEvents() {
+            userAdminCreateButton?.addEventListener('click', openAdminUserCreatePopover);
+            userAdminCreateCancel?.addEventListener('click', closeAdminUserCreatePopover);
+            userAdminCreateConfirm?.addEventListener('click', async () => {
+                try {
+                    await createAdminUser();
+                } catch (error) {
+                    console.error(error);
+                    setConfigStatus(error.message || 'No fue posible crear el usuario.', true);
+                }
+            });
+            userAdminCreateNameField?.addEventListener('keydown', async (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    try {
+                        await createAdminUser();
+                    } catch (error) {
+                        console.error(error);
+                        setConfigStatus(error.message || 'No fue posible crear el usuario.', true);
+                    }
+                }
+            });
+            document.addEventListener('pointerdown', (event) => {
+                if (userAdminCreatePopover?.hidden) return;
+                if (userAdminCreatePopover.contains(event.target)) return;
+                if (event.target.closest('#userAdminCreateButton')) return;
+                closeAdminUserCreatePopover();
+            });
+            userAdminTableBody?.addEventListener('click', async (event) => {
+                const deleteButton = event.target.closest('[data-user-delete]');
+                if (deleteButton) {
+                    event.stopPropagation();
+                    try {
+                        await deleteAdminUser(deleteButton.dataset.userDelete);
+                    } catch (error) {
+                        console.error(error);
+                        setConfigStatus(error.message || 'No fue posible eliminar el usuario.', true);
+                    }
+                    return;
+                }
+                const row = event.target.closest('[data-user-id]');
+                if (row) {
+                    selectAdminUser(row.dataset.userId);
+                }
+            });
+            [userAdminFieldName, userAdminFieldUsername, userAdminFieldPassword, userAdminFieldDepartment, userAdminFieldProcess, userAdminFieldPermission].forEach((field) => {
+                field?.addEventListener('input', queueAdminUserSave);
+                field?.addEventListener('change', queueAdminUserSave);
+            });
+            userAdminPhotoDropzone?.addEventListener('click', () => userAdminPhotoUpload?.click());
+            userAdminPhotoUpload?.addEventListener('change', async (event) => {
+                const file = event.target.files?.[0];
+                if (!file) return;
+                await updateAdminUserPhoto(file);
+                event.target.value = '';
+            });
+            userAdminPasswordToggle?.addEventListener('click', () => {
+                if (!userAdminFieldPassword) return;
+                userAdminPasswordVisible = !userAdminPasswordVisible;
+                userAdminFieldPassword.type = userAdminPasswordVisible ? 'text' : 'password';
+                renderPasswordToggleButton(userAdminPasswordToggle, userAdminPasswordVisible);
+            });
+        }
+
+        function getPermissionPresentationLabel(key) {
+            return PRESENTATION_LABELS[key] || key;
+        }
+
+        function createEmptyPermissionModules(source = {}) {
+            const output = {};
+            PERMISSION_PRESENTATION_KEYS.forEach((key) => {
+                const current = String(source?.[key] || '').trim().toLowerCase();
+                output[key] = current === 'view' || current === 'edit' ? current : 'none';
+            });
+            return output;
+        }
+
+        function getSelectedAdminPermission() {
+            return adminPermissions.find((item) => Number(item.id) === Number(selectedAdminPermissionId)) || null;
+        }
+
+        function getPermissionIconConfig(key, fallbackColor, fallbackSize, fallbackText) {
+            const suffix = key.charAt(0).toUpperCase() + key.slice(1);
+            return {
+                value: document.querySelector(`input[name="icons.${key}"]`)?.value || loadedConfig.icons?.[key] || fallbackText,
+                color: document.querySelector(`input[name="general.iconColor${suffix}"]`)?.value || loadedConfig.general?.[`iconColor${suffix}`] || fallbackColor,
+                size: Number(document.querySelector(`input[name="general.iconSize${suffix}"]`)?.value) || Number(loadedConfig.general?.[`iconSize${suffix}`]) || fallbackSize
+            };
+        }
+
+        function renderPermissionAdminCreateButton() {
+            if (!permissionAdminCreateButton) return;
+            const createIcon = getPermissionIconConfig('adminPermissionCreate', '#118fc6', 22, '+');
+            renderButtonIcon(permissionAdminCreateButton, createIcon.value, createIcon.color, createIcon.size, '+');
+        }
+
+        function renderPermissionAdminDeleteButton() {
+            if (!permissionAdminDeleteButton) return;
+            const deleteIcon = getPermissionIconConfig('adminPermissionDelete', '#b94848', 18, '🗑');
+            renderButtonIcon(permissionAdminDeleteButton, deleteIcon.value, deleteIcon.color, deleteIcon.size, '🗑');
+        }
+
+        function renderPasswordToggleButton(button, visible) {
+            if (!button) return;
+            const iconKey = visible ? 'passwordHide' : 'passwordReveal';
+            const fallback = visible ? '🙈' : '👁';
+            const config = getPermissionIconConfig(iconKey, '#60707f', 18, fallback);
+            renderButtonIcon(button, config.value, config.color, config.size, fallback);
+            button.setAttribute('aria-label', visible ? 'Ocultar contraseña' : 'Mostrar contraseña');
+            button.title = visible ? 'Ocultar contraseña' : 'Mostrar contraseña';
+        }
+
+        function formatRepositoryDate(value) {
+            if (!value) return 'Sin fecha';
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return 'Sin fecha';
+            return date.toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+
+        function getLoginScreensaverMotionSeconds() {
+            return Math.max(8, Number(loginScreensaverMotionSeconds?.value) || Number(loadedConfig.general?.loginScreensaverMotionSeconds) || 16);
+        }
+
+        function getLoginScreensaverSlideSeconds() {
+            return Math.max(4, Number(loginScreensaverSlideSeconds?.value) || Number(loadedConfig.general?.loginScreensaverSlideSeconds) || 10);
+        }
+
+        function updateLoginRepositorySettingsLabels() {
+            if (loginScreensaverMotionSecondsValue) {
+                loginScreensaverMotionSecondsValue.textContent = `${getLoginScreensaverMotionSeconds()}s`;
+            }
+            if (loginScreensaverSlideSecondsValue) {
+                loginScreensaverSlideSecondsValue.textContent = `${getLoginScreensaverSlideSeconds()}s`;
+            }
+        }
+
+        function stopLoginRepositoryPreview() {
+            if (loginRepositoryPreviewTimer) {
+                window.clearInterval(loginRepositoryPreviewTimer);
+                loginRepositoryPreviewTimer = null;
+            }
+        }
+
+        function clearLoginRepositoryPreviewSlides() {
+            if (!loginRepositoryStage) return;
+            loginRepositoryStage.querySelectorAll('.repository-saver-slide').forEach((slide) => slide.remove());
+            loginRepositoryPreviewCurrentSlide = null;
+            loginRepositoryPreviewPrevSlide = null;
+        }
+
+        function showLoginRepositoryPreviewSlide(index) {
+            if (!loginRepositoryStage || !loginRepositoryImages.length) return;
+            loginRepositoryPreviewCurrentIndex = ((index % loginRepositoryImages.length) + loginRepositoryImages.length) % loginRepositoryImages.length;
+            const image = loginRepositoryImages[loginRepositoryPreviewCurrentIndex];
+            const motionSeconds = getLoginScreensaverMotionSeconds();
+            const transitionMs = Math.max(800, Math.round(Math.min(motionSeconds * 1000 * 0.28, 3000)));
+            if (loginRepositoryStagePlaceholder) {
+                loginRepositoryStagePlaceholder.hidden = true;
+            }
+            const slide = document.createElement('div');
+            slide.className = `repository-saver-slide ${LOGIN_SCREENSAVER_ANIM_VARIANTS[loginRepositoryPreviewCurrentIndex % LOGIN_SCREENSAVER_ANIM_VARIANTS.length]}`;
+            slide.style.backgroundImage = `url(${image.url})`;
+            slide.style.transition = `opacity ${transitionMs / 1000}s ease-in-out`;
+            slide.style.animationDuration = `${motionSeconds}s`;
+            loginRepositoryStage.appendChild(slide);
+
+            if (loginRepositoryPreviewPrevSlide) {
+                loginRepositoryPreviewPrevSlide.remove();
+                loginRepositoryPreviewPrevSlide = null;
+            }
+
+            if (loginRepositoryPreviewCurrentSlide) {
+                const old = loginRepositoryPreviewCurrentSlide;
+                old.style.opacity = '0';
+                old.classList.add('leaving');
+                loginRepositoryPreviewPrevSlide = old;
+                window.setTimeout(() => {
+                    if (loginRepositoryPreviewPrevSlide === old) {
+                        old.remove();
+                        loginRepositoryPreviewPrevSlide = null;
+                    }
+                }, transitionMs + 120);
+            }
+
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    slide.classList.add('active');
+                });
+            });
+
+            loginRepositoryPreviewCurrentSlide = slide;
+        }
+
+        function restartLoginRepositoryPreview() {
+            stopLoginRepositoryPreview();
+            clearLoginRepositoryPreviewSlides();
+            updateLoginRepositorySettingsLabels();
+            if (!loginRepositoryImages.length) {
+                if (loginRepositoryStagePlaceholder) loginRepositoryStagePlaceholder.hidden = false;
+                return;
+            }
+            showLoginRepositoryPreviewSlide(0);
+            if (loginRepositoryImages.length > 1) {
+                loginRepositoryPreviewTimer = window.setInterval(() => {
+                    showLoginRepositoryPreviewSlide(loginRepositoryPreviewCurrentIndex + 1);
+                }, getLoginScreensaverSlideSeconds() * 1000);
+            }
+        }
+
+        function renderLoginRepositoryControls() {
+            const uploadIcon = getPermissionIconConfig('loginRepositoryUpload', '#118fc6', 18, '⇧');
+            const deleteIcon = getPermissionIconConfig('loginRepositoryDelete', '#b94848', 18, '🗑');
+            if (loginRepositoryUploadButton) {
+                renderButtonIcon(loginRepositoryUploadButton, uploadIcon.value, uploadIcon.color, uploadIcon.size, '⇧');
+            }
+            if (loginRepositoryUploadPreview) {
+                renderButtonIcon(loginRepositoryUploadPreview, uploadIcon.value, uploadIcon.color, uploadIcon.size + 4, '⇧');
+            }
+            if (!loginRepositoryGallery) return;
+            if (!loginRepositoryImages.length) {
+                stopLoginRepositoryPreview();
+                loginRepositoryGallery.innerHTML = '<div class="repository-empty">Todavía no hay imágenes en el repositorio.</div>';
+                if (loginRepositoryCount) loginRepositoryCount.textContent = '0';
+                if (loginRepositoryState) loginRepositoryState.textContent = 'Vacío';
+                if (loginRepositoryStagePlaceholder) loginRepositoryStagePlaceholder.hidden = false;
+                clearLoginRepositoryPreviewSlides();
+                if (loginRepositoryStageCaption) {
+                    loginRepositoryStageCaption.textContent = 'El screensaver usará automáticamente las imágenes disponibles.';
+                }
+                updateLoginRepositorySettingsLabels();
+                return;
+            }
+            if (loginRepositoryCount) loginRepositoryCount.textContent = String(loginRepositoryImages.length);
+            if (loginRepositoryState) loginRepositoryState.textContent = 'Activo';
+            if (loginRepositoryStageCaption) {
+                loginRepositoryStageCaption.textContent = `${loginRepositoryImages.length} imagen${loginRepositoryImages.length === 1 ? '' : 'es'} listas para rotación en el login.`;
+            }
+            restartLoginRepositoryPreview();
+            loginRepositoryGallery.innerHTML = loginRepositoryImages.map((image) => `
+                <article class="repository-card">
+                    <img src="${escapeHtml(image.url)}" alt="${escapeHtml(image.fileName)}">
+                    <div class="repository-card-footer">
+                        <div class="repository-card-meta">
+                            <strong title="${escapeHtml(image.fileName)}">${escapeHtml(image.fileName)}</strong>
+                            <span>${escapeHtml(formatRepositoryDate(image.updatedAt))}</span>
+                        </div>
+                        <button type="button" class="repository-card-delete" data-login-repository-delete="${escapeHtml(image.fileName)}" aria-label="Eliminar imagen" title="Eliminar imagen"></button>
+                    </div>
+                </article>
+            `).join('');
+            loginRepositoryGallery.querySelectorAll('[data-login-repository-delete]').forEach((button) => {
+                renderButtonIcon(button, deleteIcon.value, deleteIcon.color, deleteIcon.size, '🗑');
+            });
+        }
+
+        async function loadLoginRepositoryImages() {
+            const response = await fetch(LOGIN_REPOSITORY_ENDPOINT);
+            if (!response.ok) {
+                throw new Error('No fue posible cargar el repositorio de imágenes.');
+            }
+            const data = await response.json();
+            loginRepositoryImages = Array.isArray(data?.images) ? data.images : [];
+            loginRepositoryLoadedOnce = true;
+            renderLoginRepositoryControls();
+        }
+
+        async function uploadLoginRepositoryFiles(fileList) {
+            const files = Array.from(fileList || []).filter(Boolean);
+            if (!files.length) return;
+            setConfigStatus(`Cargando ${files.length} imagen${files.length === 1 ? '' : 'es'} al repositorio...`);
+            for (const file of files) {
+                const dataUrl = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (event) => resolve(event.target?.result || '');
+                    reader.onerror = () => reject(new Error('No fue posible leer una de las imágenes.'));
+                    reader.readAsDataURL(file);
+                });
+                const response = await fetch(LOGIN_REPOSITORY_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fileName: file.name, dataUrl })
+                });
+                if (!response.ok) {
+                    const data = await response.json().catch(() => ({}));
+                    throw new Error(data?.error || 'No fue posible guardar una de las imágenes del repositorio.');
+                }
+            }
+            await loadLoginRepositoryImages();
+            setConfigStatus('Repositorio actualizado correctamente.');
+        }
+
+        async function deleteLoginRepositoryFile(fileName) {
+            if (!fileName) return;
+            const accepted = window.confirm('¿Deseas eliminar esta imagen del repositorio?');
+            if (!accepted) return;
+            const response = await fetch(`${LOGIN_REPOSITORY_ENDPOINT}/${encodeURIComponent(fileName)}`, { method: 'DELETE' });
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                throw new Error(data?.error || 'No fue posible eliminar la imagen del repositorio.');
+            }
+            await loadLoginRepositoryImages();
+            setConfigStatus('Imagen eliminada del repositorio.');
+        }
+
+        function bindLoginRepositoryEvents() {
+            loginRepositoryUploadButton?.addEventListener('click', () => loginRepositoryUpload?.click());
+            loginRepositoryUpload?.addEventListener('change', async (event) => {
+                const files = event.target.files;
+                if (!files?.length) return;
+                try {
+                    await uploadLoginRepositoryFiles(files);
+                } catch (error) {
+                    console.error(error);
+                    setConfigStatus(error.message || 'No fue posible cargar las imágenes del repositorio.', true);
+                } finally {
+                    event.target.value = '';
+                }
+            });
+            loginRepositoryGallery?.addEventListener('click', async (event) => {
+                const deleteButton = event.target.closest('[data-login-repository-delete]');
+                if (!deleteButton) return;
+                try {
+                    await deleteLoginRepositoryFile(deleteButton.dataset.loginRepositoryDelete);
+                } catch (error) {
+                    console.error(error);
+                    setConfigStatus(error.message || 'No fue posible eliminar la imagen del repositorio.', true);
+                }
+            });
+            [loginScreensaverMotionSeconds, loginScreensaverSlideSeconds].forEach((field) => {
+                field?.addEventListener('input', () => {
+                    updateLoginRepositorySettingsLabels();
+                    restartLoginRepositoryPreview();
+                });
+                field?.addEventListener('change', () => {
+                    updateLoginRepositorySettingsLabels();
+                    restartLoginRepositoryPreview();
+                    queueConfigSave();
+                });
+            });
+        }
+
+        function renderPermissionAdminList() {
+            if (!permissionAdminTableBody) return;
+            if (!adminPermissions.length) {
+                permissionAdminTableBody.innerHTML = '<tr><td class="user-admin-empty">Todavía no hay permisos creados.</td></tr>';
+                return;
+            }
+            permissionAdminTableBody.innerHTML = adminPermissions.map((permission) => {
+                const modules = createEmptyPermissionModules(permission.modules);
+                const editCount = Object.values(modules).filter((value) => value === 'edit').length;
+                const viewCount = Object.values(modules).filter((value) => value === 'view').length;
+                return `
+                    <tr class="${Number(permission.id) === Number(selectedAdminPermissionId) ? 'is-selected' : ''}" data-permission-id="${permission.id}">
+                        <td>
+                            <div class="permission-admin-row-main">
+                                <div class="permission-admin-row-text">
+                                    <span class="permission-admin-row-name">${escapeHtml(permission.name || 'Sin nombre')}</span>
+                                    <span class="permission-admin-row-subtitle">${editCount} editar · ${viewCount} ver · ${escapeHtml(getPermissionPresentationLabel(permission.defaultLanding || 'dashboard'))}</span>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function populatePermissionLandingOptions() {
+            if (!permissionAdminFieldLanding) return;
+            const current = permissionAdminFieldLanding.value || 'dashboard';
+            permissionAdminFieldLanding.innerHTML = PERMISSION_PRESENTATION_KEYS.map((key) => `<option value="${key}">${escapeHtml(getPermissionPresentationLabel(key))}</option>`).join('');
+            if ([...permissionAdminFieldLanding.options].some((option) => option.value === current)) {
+                permissionAdminFieldLanding.value = current;
+            }
+        }
+
+        function renderPermissionAdminMatrix() {
+            if (!permissionAdminMatrixBody) return;
+            const permission = getSelectedAdminPermission();
+            if (!permission) {
+                permissionAdminMatrixBody.innerHTML = '';
+                return;
+            }
+            const modules = createEmptyPermissionModules(permission.modules);
+            permissionAdminMatrixBody.innerHTML = PERMISSION_PRESENTATION_KEYS.map((key) => `
+                <tr>
+                    <td>
+                        <div class="permission-admin-module-label">
+                            <strong>${escapeHtml(getPermissionPresentationLabel(key))}</strong>
+                            <span>${escapeHtml(key)}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="permission-admin-access">
+                            <label><input type="radio" name="permission-access-${key}" value="none" ${modules[key] === 'none' ? 'checked' : ''}>Sin Acceso</label>
+                            <label><input type="radio" name="permission-access-${key}" value="view" ${modules[key] === 'view' ? 'checked' : ''}>Ver</label>
+                            <label><input type="radio" name="permission-access-${key}" value="edit" ${modules[key] === 'edit' ? 'checked' : ''}>Editar</label>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function updatePermissionAdminSummary() {
+            const permission = getSelectedAdminPermission();
+            if (!permission) {
+                if (permissionAdminDetailEmpty) permissionAdminDetailEmpty.hidden = false;
+                if (permissionAdminDetailShell) permissionAdminDetailShell.hidden = true;
+                return;
+            }
+            if (permissionAdminDetailEmpty) permissionAdminDetailEmpty.hidden = true;
+            if (permissionAdminDetailShell) permissionAdminDetailShell.hidden = false;
+            const modules = createEmptyPermissionModules(permission.modules);
+            const editCount = Object.values(modules).filter((value) => value === 'edit').length;
+            const viewCount = Object.values(modules).filter((value) => value === 'view').length;
+            if (permissionAdminDetailName) permissionAdminDetailName.textContent = permission.name || 'Permiso';
+            if (permissionAdminDetailSubline) permissionAdminDetailSubline.textContent = `${editCount} módulos con edición · ${viewCount} módulos en consulta`;
+            if (permissionAdminSummaryEdit) permissionAdminSummaryEdit.textContent = `${editCount} módulos`;
+            if (permissionAdminSummaryView) permissionAdminSummaryView.textContent = `${viewCount} módulos`;
+            if (permissionAdminSummaryLanding) permissionAdminSummaryLanding.textContent = getPermissionPresentationLabel(permission.defaultLanding || 'dashboard');
+            if (permissionAdminFieldName) permissionAdminFieldName.value = permission.name || '';
+            if (permissionAdminFieldLanding) permissionAdminFieldLanding.value = permission.defaultLanding || 'dashboard';
+            renderPermissionAdminDeleteButton();
+            renderPermissionAdminMatrix();
+        }
+
+        function selectAdminPermission(id) {
+            selectedAdminPermissionId = Number(id) || null;
+            renderPermissionAdminList();
+            updatePermissionAdminSummary();
+        }
+
+        function upsertAdminPermission(permission) {
+            const normalized = {
+                ...permission,
+                modules: createEmptyPermissionModules(permission.modules)
+            };
+            const index = adminPermissions.findIndex((item) => Number(item.id) === Number(normalized.id));
+            if (index >= 0) {
+                adminPermissions[index] = normalized;
+            } else {
+                adminPermissions.push(normalized);
+                adminPermissions.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'es', { sensitivity: 'base' }));
+            }
+            adminUsers.forEach((user) => {
+                if (Number(user.permissionId) === Number(normalized.id)) {
+                    user.permissionName = normalized.name || '';
+                }
+            });
+        }
+
+        async function loadAdminPermissions(options = {}) {
+            try {
+                const response = await fetch('/api/admin-permissions');
+                if (!response.ok) throw new Error('No fue posible cargar los permisos.');
+                adminPermissions = (await response.json()).map((item) => ({ ...item, modules: createEmptyPermissionModules(item.modules) }));
+                adminPermissionsLoadedOnce = true;
+                populatePermissionLandingOptions();
+                populateUserPermissionOptions();
+                adminUsers.forEach((user) => {
+                    user.permissionName = adminPermissions.find((item) => Number(item.id) === Number(user.permissionId))?.name || '';
+                });
+                renderPermissionAdminCreateButton();
+                const targetId = options.selectedId || selectedAdminPermissionId || adminPermissions[0]?.id || null;
+                selectedAdminPermissionId = adminPermissions.some((item) => Number(item.id) === Number(targetId)) ? Number(targetId) : (adminPermissions[0]?.id || null);
+                renderPermissionAdminList();
+                updatePermissionAdminSummary();
+                updateAdminUserDetail();
+            } catch (error) {
+                setConfigStatus(error.message || 'No fue posible cargar los permisos.', true);
+                if (permissionAdminTableBody) {
+                    permissionAdminTableBody.innerHTML = `<tr><td class="user-admin-empty">${escapeHtml(error.message || 'No fue posible cargar los permisos.')}</td></tr>`;
+                }
+            }
+        }
+
+        function collectAdminPermissionPayload() {
+            const permission = getSelectedAdminPermission();
+            if (!permission) return null;
+            const modules = createEmptyPermissionModules(permission.modules);
+            PERMISSION_PRESENTATION_KEYS.forEach((key) => {
+                const checked = permissionAdminMatrixBody?.querySelector(`input[name="permission-access-${key}"]:checked`);
+                modules[key] = checked?.value || modules[key] || 'none';
+            });
+            return {
+                name: permissionAdminFieldName?.value?.trim() || '',
+                defaultLanding: permissionAdminFieldLanding?.value || 'dashboard',
+                modules
+            };
+        }
+
+        function syncSelectedPermissionFromInputs() {
+            const permission = getSelectedAdminPermission();
+            const payload = collectAdminPermissionPayload();
+            if (!permission || !payload) return;
+            permission.name = payload.name;
+            permission.defaultLanding = payload.defaultLanding;
+            permission.modules = createEmptyPermissionModules(payload.modules);
+            renderPermissionAdminList();
+            updatePermissionAdminSummary();
+        }
+
+        async function persistSelectedPermission() {
+            const permission = getSelectedAdminPermission();
+            const payload = collectAdminPermissionPayload();
+            if (!permission || !payload || !payload.name) return;
+            const response = await fetch(`/api/admin-permissions/${permission.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (!response.ok) {
+                throw new Error('No fue posible guardar el permiso.');
+            }
+            const saved = await response.json();
+            upsertAdminPermission(saved);
+            renderPermissionAdminList();
+            updatePermissionAdminSummary();
+        }
+
+        function queueAdminPermissionSave() {
+            clearTimeout(adminPermissionSaveTimer);
+            const permission = getSelectedAdminPermission();
+            if (!permission) return;
+            syncSelectedPermissionFromInputs();
+            adminPermissionSaveTimer = setTimeout(async () => {
+                try {
+                    await persistSelectedPermission();
+                } catch (error) {
+                    console.error(error);
+                    setConfigStatus(error.message || 'No fue posible guardar el permiso.', true);
+                }
+            }, 350);
+        }
+
+        function openPermissionAdminCreatePopover() {
+            if (!permissionAdminCreatePopover || !permissionAdminCreateButton) return;
+            const rect = permissionAdminCreateButton.getBoundingClientRect();
+            const popoverWidth = 320;
+            const left = Math.min(window.innerWidth - popoverWidth - 12, Math.max(12, rect.right - popoverWidth));
+            const top = rect.bottom + 10;
+            permissionAdminCreatePopover.style.left = `${left}px`;
+            permissionAdminCreatePopover.style.top = `${top}px`;
+            permissionAdminCreatePopover.hidden = false;
+            if (permissionAdminCreateNameField) {
+                permissionAdminCreateNameField.value = '';
+                requestAnimationFrame(() => permissionAdminCreateNameField.focus());
+            }
+        }
+
+        function closePermissionAdminCreatePopover() {
+            if (permissionAdminCreatePopover) permissionAdminCreatePopover.hidden = true;
+        }
+
+        async function createAdminPermission() {
+            const name = permissionAdminCreateNameField?.value?.trim() || '';
+            if (!name) {
+                permissionAdminCreateNameField?.focus();
+                return;
+            }
+            const modules = createEmptyPermissionModules();
+            const response = await fetch('/api/admin-permissions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, defaultLanding: 'dashboard', modules })
+            });
+            if (!response.ok) {
+                if (response.status === 404) {
+                    throw new Error('La API de permisos no está disponible en este servidor. Reinicia la instancia activa para cargar el backend nuevo.');
+                }
+                throw new Error('No fue posible crear el permiso.');
+            }
+            const created = await response.json();
+            upsertAdminPermission(created);
+            closePermissionAdminCreatePopover();
+            selectAdminPermission(created.id);
+            setConfigStatus('Permiso creado correctamente.');
+        }
+
+        async function deleteAdminPermission(id) {
+            const permission = adminPermissions.find((item) => Number(item.id) === Number(id));
+            if (!permission) return;
+            const accepted = window.confirm(`¿Deseas eliminar el permiso ${permission.name || 'seleccionado'}?`);
+            if (!accepted) return;
+            const response = await fetch(`/api/admin-permissions/${id}`, { method: 'DELETE' });
+            if (!response.ok) {
+                throw new Error('No fue posible eliminar el permiso.');
+            }
+            adminPermissions = adminPermissions.filter((item) => Number(item.id) !== Number(id));
+            adminUsers.forEach((user) => {
+                if (Number(user.permissionId) === Number(id)) {
+                    user.permissionId = null;
+                    user.permissionName = '';
+                }
+            });
+            populateUserPermissionOptions();
+            if (Number(selectedAdminPermissionId) === Number(id)) {
+                selectedAdminPermissionId = adminPermissions[0]?.id || null;
+            }
+            renderPermissionAdminList();
+            updatePermissionAdminSummary();
+            updateAdminUserDetail();
+            setConfigStatus('Permiso eliminado correctamente.');
+        }
+
+        function bindAdminPermissionEvents() {
+            permissionAdminCreateButton?.addEventListener('click', openPermissionAdminCreatePopover);
+            permissionAdminCreateCancel?.addEventListener('click', closePermissionAdminCreatePopover);
+            permissionAdminCreateConfirm?.addEventListener('click', async () => {
+                try {
+                    await createAdminPermission();
+                } catch (error) {
+                    console.error(error);
+                    setConfigStatus(error.message || 'No fue posible crear el permiso.', true);
+                }
+            });
+            permissionAdminCreateNameField?.addEventListener('keydown', async (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    try {
+                        await createAdminPermission();
+                    } catch (error) {
+                        console.error(error);
+                        setConfigStatus(error.message || 'No fue posible crear el permiso.', true);
+                    }
+                }
+            });
+            document.addEventListener('pointerdown', (event) => {
+                if (permissionAdminCreatePopover?.hidden) return;
+                if (permissionAdminCreatePopover.contains(event.target)) return;
+                if (event.target.closest('#permissionAdminCreateButton')) return;
+                closePermissionAdminCreatePopover();
+            });
+            permissionAdminTableBody?.addEventListener('click', (event) => {
+                const row = event.target.closest('[data-permission-id]');
+                if (row) {
+                    selectAdminPermission(row.dataset.permissionId);
+                }
+            });
+            permissionAdminDeleteButton?.addEventListener('click', async () => {
+                const permission = getSelectedAdminPermission();
+                if (!permission) return;
+                try {
+                    await deleteAdminPermission(permission.id);
+                } catch (error) {
+                    console.error(error);
+                    setConfigStatus(error.message || 'No fue posible eliminar el permiso.', true);
+                }
+            });
+            permissionAdminFieldName?.addEventListener('input', queueAdminPermissionSave);
+            permissionAdminFieldLanding?.addEventListener('change', queueAdminPermissionSave);
+            permissionAdminMatrixBody?.addEventListener('change', (event) => {
+                if (event.target.matches('input[type="radio"]')) {
+                    queueAdminPermissionSave();
+                }
+            });
         }
 
         function syncToggleButtons() {
@@ -2823,6 +5276,16 @@
                 if (tab.dataset.tab === 'auditoria') {
                     loadAuditEntries();
                 }
+                if (tab.dataset.tab === 'seguridad') {
+                    const activeSecurityTab = document.querySelector('.security-subtab.active')?.dataset.securityTab || 'usuarios';
+                    activateSecurityTab(activeSecurityTab);
+                }
+                if (tab.dataset.tab === 'repositorio' && !loginRepositoryLoadedOnce) {
+                    loadLoginRepositoryImages().catch((error) => {
+                        console.error(error);
+                        setConfigStatus(error.message || 'No fue posible cargar el repositorio.', true);
+                    });
+                }
                 syncConfigTabHeights();
             });
         });
@@ -2909,6 +5372,10 @@
                             const colorInput = document.querySelector(`input[name="general.iconColor${suffix}"]`);
                             const sizeInput = document.querySelector(`input[name="general.iconSize${suffix}"]`);
                             renderIconPreview(previewEl, ev.target.result, colorInput?.value || '#9ba2ab', Number(sizeInput?.value) || 20);
+                            renderAdminUserCreateButton();
+                            renderAdminUserList();
+                            renderPermissionAdminCreateButton();
+                            renderPermissionAdminDeleteButton();
                             updatePreviews();
                             queueConfigSave();
                         };
@@ -2951,6 +5418,12 @@
                 const sizeValue = Number(loadedConfig.general?.[`iconSize${suffix}`]) || icon.size;
                 renderIconPreview(previewEl, iconValue, colorValue, sizeValue);
             });
+            renderAdminUserCreateButton();
+            renderAdminUserList();
+            renderPermissionAdminCreateButton();
+            renderPermissionAdminDeleteButton();
+            renderPasswordToggleButton(userAdminPasswordToggle, userAdminFieldPassword?.type === 'text');
+            renderLoginRepositoryControls();
         }
 
         ensureIconLibraryFields();
@@ -2959,10 +5432,19 @@
         enhanceColorInputs();
         bindIconUploadHandlers();
         bindDieShapeUploadHandlers();
+        bindLoginRepositoryEvents();
 
         document.querySelectorAll('#generalConfigForm input, #generalConfigForm select').forEach(field => {
             field.addEventListener('change', updatePreviews);
             field.addEventListener('input', updatePreviews);
+            field.addEventListener('change', renderAdminUserCreateButton);
+            field.addEventListener('input', renderAdminUserCreateButton);
+            field.addEventListener('change', renderAdminUserList);
+            field.addEventListener('input', renderAdminUserList);
+            field.addEventListener('change', renderPermissionAdminCreateButton);
+            field.addEventListener('input', renderPermissionAdminCreateButton);
+            field.addEventListener('change', renderPermissionAdminDeleteButton);
+            field.addEventListener('input', renderPermissionAdminDeleteButton);
             field.addEventListener('change', queueConfigSave);
             if (field.type !== 'file') {
                 field.addEventListener('input', queueConfigSave);
@@ -3003,11 +5485,27 @@
                 populatePresentationFields();
                 applyHeaderConfig(loadedConfig);
                 applyIconPreviews();
+                await loadLoginRepositoryImages();
                 applyDieShapePreviews();
                 syncTabColorSwatches();
                 populateAuditPresentationFilter();
                 updatePreviews();
                 applyFloatingSaveButtonPreview();
+                renderAdminUserCreateButton();
+                if (!adminUsersLoadedOnce) {
+                    await loadAdminUsers();
+                } else {
+                    renderAdminUserList();
+                    updateAdminUserDetail();
+                }
+                populatePermissionLandingOptions();
+                renderPermissionAdminCreateButton();
+                if (!adminPermissionsLoadedOnce) {
+                    await loadAdminPermissions();
+                } else {
+                    renderPermissionAdminList();
+                    updatePermissionAdminSummary();
+                }
                 syncConfigTabHeights();
             } catch (error) {
                 console.error('Error loading config:', error);
@@ -3033,6 +5531,11 @@
                 loadedConfig = await response.json();
                 applyHeaderConfig(loadedConfig);
                 applyDieShapePreviews();
+                renderAdminUserCreateButton();
+                renderAdminUserList();
+                renderPermissionAdminCreateButton();
+                renderPermissionAdminDeleteButton();
+                renderPermissionAdminList();
                 document.getElementById('saveStatus').textContent = 'Guardado correctamente.';
                 if (floatingStatus) floatingStatus.textContent = 'Guardado correctamente.';
                 if (auditLoadedOnce) {
@@ -3063,6 +5566,12 @@
             loadAuditEntries(true);
         });
 
+        securitySubtabs.forEach((tab) => {
+            tab.addEventListener('click', () => {
+                activateSecurityTab(tab.dataset.securityTab || 'usuarios');
+            });
+        });
+
         document.getElementById('presentationKey')?.addEventListener('change', () => {
             captureCurrentPresentationData();
             populatePresentationFields();
@@ -3085,6 +5594,9 @@
             toggleConfigMenu(false);
         });
 
+        bindAdminUserEvents();
+        bindAdminPermissionEvents();
+        activateSecurityTab('usuarios');
         loadConfig();
         document.getElementById('mobileSellerTheme')?.addEventListener('change', updateMobilePreviewLink);
     </script>

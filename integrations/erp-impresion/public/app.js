@@ -959,6 +959,16 @@ function fillSelect(select, options, selected = "") {
   select.innerHTML = options.map((item) => `<option value="${esc(item.value)}"${String(item.value) === String(selected) ? " selected" : ""}>${esc(item.label)}</option>`).join("");
 }
 
+function coreDiameterSelectOptions() {
+  const defaults = quoteDefaultsFromConfig();
+  const options = [...defaults.coreDiameterOptions];
+  const selected = String(first(state.form?.header?.coreDiameter, defaults.coreDiameter)).trim();
+  if (selected && !options.includes(selected)) {
+    options.push(selected);
+  }
+  return options.map((item) => ({ value: item, label: item }));
+}
+
 function processOptions(items, selected = "") {
   return [`<option value="">Seleccionar...</option>`]
     .concat(items.map((item) => `<option value="${item.id}"${String(item.id) === String(selected) ? " selected" : ""}>${esc(item.nombre || item.descripcion || item.id)}</option>`))
@@ -1283,6 +1293,19 @@ function currentQuantity(form = state.form) {
   return Math.max(0, n(selected?.value, 0));
 }
 
+function quoteDefaultsFromConfig() {
+  const general = state.costsConfig?.general || state.config?.general || {};
+  return {
+    rollWidth: n(first(general.defaultRollWidth, 13), 13),
+    coreDiameter: n(first(general.defaultCoreDiameter, 3), 3),
+    coreDiameterOptions: Array.isArray(general.coreDiameterOptions) && general.coreDiameterOptions.length
+      ? general.coreDiameterOptions.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 5)
+      : ["1", "1.5", "3", "6"],
+    quantityTypes: Math.max(1, n(first(general.defaultQuantityTypes, 1), 1)),
+    useCmyk: String(first(general.defaultCmykEnabled, "true")).trim().toLowerCase() !== "false"
+  };
+}
+
 function laserPlateMetrics(form = state.form) {
   const laser = form?.plates?.laser || {};
   const troquel = form?.troquel || {};
@@ -1488,10 +1511,15 @@ function applyRequiredHighlights(result = null) {
   const form = state.form || {};
   const totalsResult = result || totals();
   const quantityMissing = currentQuantity(form) <= 0;
+  const coreDiameterValue = n(form.header?.coreDiameter, 0);
 
   markRequiredNode(els.labelWidthIn, n(form.header?.labelWidthIn, 0) <= 0);
   markRequiredNode(els.labelHeightIn, n(form.header?.labelHeightIn, 0) <= 0);
   markRequiredNode(els.rollWidthIn, n(form.header?.rollWidthIn, 0) <= 0);
+  markRequiredNode(els.coreDiameter, coreDiameterValue <= 0 || coreDiameterValue > 10);
+  markRequiredNode(els.labelsPerRoll, n(form.header?.labelsPerRoll, 0) <= 0);
+  markRequiredNode(els.applicationType, !String(form.header?.applicationType || "").trim());
+  markRequiredNode(els.quantityTypes, n(form.header?.quantityTypes, 0) <= 0);
   markRequiredNode(els.quantityRepeater?.querySelectorAll("input[data-quantity-index]"), quantityMissing);
 
   markRequiredScoped("troquel", "dieCode", !String(form.troquel?.dieCode || "").trim());
@@ -1729,6 +1757,7 @@ function buildForm() {
   const dieMetrics = resolveDieMetrics(die || {}, context || {});
   const maculaConfig = defaultMaculaConfig();
   const inkDefaults = conventionalInkDefaults();
+  const quoteDefaults = quoteDefaultsFromConfig();
 
   const form = {
     header: {
@@ -1740,17 +1769,17 @@ function buildForm() {
       workType: first(context?.orderType, "Nuevo"),
       labelWidthIn: n(context?.widthInches, 0),
       labelHeightIn: n(context?.lengthInches, 0),
-      rollWidthIn: n(first(context?.materialWidth, dieMetrics.materialWidthIn, context?.widthInches), 0),
-      coreDiameter: n(context?.coreDiameter, 0),
+      rollWidthIn: n(first(savedUi?.header?.rollWidthIn, context?.coreWidth, context?.materialWidth, dieMetrics.materialWidthIn, context?.widthInches, quoteDefaults.rollWidth), 0),
+      coreDiameter: String(first(savedUi?.header?.coreDiameter, context?.coreDiameter, quoteDefaults.coreDiameter)).trim(),
       labelsPerRoll: n(context?.labelsPerRoll, 0),
       applicationType: first(context?.applicationType, ""),
       outputType,
       applicationEnvironment: first(raw["AMBIENTE APLICACION"], ""),
       surfaceType: first(raw["TIPO SUPERFICIE"], ""),
-      quantityTypes: n(context?.quantityTypes, 0),
+      quantityTypes: Math.max(1, n(first(savedUi?.header?.quantityTypes, context?.quantityTypes, raw["CANTIDAD TIPOS"], quoteDefaults.quantityTypes), quoteDefaults.quantityTypes)),
       quantityChanges: n(context?.quantityChanges, 0),
       pantoneCount: n(context?.pantoneCount, 0),
-      useCmyk: norm(raw["CMYK"]) === "si",
+      useCmyk: savedUi?.header?.useCmyk ?? (context?.cmyk === true || norm(raw["CMYK"]) === "si" || quoteDefaults.useCmyk),
       useWhiteInk: norm(raw["TINTA BLANCA | CHECK"]) === "si",
       doubleWhitePass: norm(raw["TINTA BLANCA | DOBLE PASADA | CHECK"]) === "si",
       noPrint: norm(raw["SIN IMPRESION"]) === "si",
@@ -2314,9 +2343,13 @@ function buildSavePayload() {
     quantityChanges: n(state.form.header.quantityChanges, 0),
     widthInches: state.form.header.labelWidthIn,
     lengthInches: state.form.header.labelHeightIn,
+    coreWidth: state.form.header.rollWidthIn,
+    coreDiameter: state.form.header.coreDiameter,
+    labelsPerRoll: n(state.form.header.labelsPerRoll, 0),
     stationCount: effectiveColors(state.form),
     applicationType: state.form.header.applicationType,
     outputType: state.form.header.outputType,
+    cmyk: Boolean(state.form.header.useCmyk),
     finalTotal: result.total,
     unitPrice: result.unit,
     lineStatus: state.form.header.lineStatus,
@@ -2351,6 +2384,7 @@ function renderHeader() {
   fillSelect(els.productType, PRODUCT_TYPES.map((item) => ({ value: item, label: item })), state.form.header.productType);
   fillSelect(els.workType, WORK_TYPES.map((item) => ({ value: item, label: item })), state.form.header.workType);
   fillSelect(els.outputType, outputTypesCatalog().map((item) => ({ value: item.id || item.codigo, label: item.name || item.nombre || item.id || item.codigo })), state.form.header.outputType);
+  fillSelect(els.coreDiameter, coreDiameterSelectOptions(), state.form.header.coreDiameter);
   [["customerCode", els.customerCode], ["customerName", els.customerName], ["jobName", els.jobName], ["salespersonName", els.salespersonName], ["labelWidthIn", els.labelWidthIn], ["labelHeightIn", els.labelHeightIn], ["rollWidthIn", els.rollWidthIn], ["coreDiameter", els.coreDiameter], ["labelsPerRoll", els.labelsPerRoll], ["applicationType", els.applicationType], ["applicationEnvironment", els.applicationEnvironment], ["surfaceType", els.surfaceType], ["quantityTypes", els.quantityTypes], ["quantityChanges", els.quantityChanges], ["pantoneCount", els.pantoneCount]].forEach(([key, element]) => { element.value = state.form.header[key] ?? ""; });
   els.useCmyk.checked = Boolean(state.form.header.useCmyk);
   els.useWhiteInk.checked = Boolean(state.form.header.useWhiteInk);
@@ -2847,7 +2881,7 @@ function applyPrintStageMachineDefaults(scope, machineId) {
 }
 
 function bindHeader() {
-  [["customerCode", els.customerCode, "text"], ["customerName", els.customerName, "text"], ["productType", els.productType, "text"], ["jobName", els.jobName, "text"], ["salespersonName", els.salespersonName, "text"], ["workType", els.workType, "text"], ["labelWidthIn", els.labelWidthIn, "number"], ["labelHeightIn", els.labelHeightIn, "number"], ["rollWidthIn", els.rollWidthIn, "number"], ["coreDiameter", els.coreDiameter, "number"], ["labelsPerRoll", els.labelsPerRoll, "number"], ["applicationType", els.applicationType, "text"], ["applicationEnvironment", els.applicationEnvironment, "text"], ["surfaceType", els.surfaceType, "text"], ["outputType", els.outputType, "text"], ["quantityTypes", els.quantityTypes, "number"], ["quantityChanges", els.quantityChanges, "number"], ["pantoneCount", els.pantoneCount, "number"]].forEach(([key, element, type]) => {
+  [["customerCode", els.customerCode, "text"], ["customerName", els.customerName, "text"], ["productType", els.productType, "text"], ["jobName", els.jobName, "text"], ["salespersonName", els.salespersonName, "text"], ["workType", els.workType, "text"], ["labelWidthIn", els.labelWidthIn, "number"], ["labelHeightIn", els.labelHeightIn, "number"], ["rollWidthIn", els.rollWidthIn, "number"], ["coreDiameter", els.coreDiameter, "text"], ["labelsPerRoll", els.labelsPerRoll, "number"], ["applicationType", els.applicationType, "text"], ["applicationEnvironment", els.applicationEnvironment, "text"], ["surfaceType", els.surfaceType, "text"], ["outputType", els.outputType, "text"], ["quantityTypes", els.quantityTypes, "number"], ["quantityChanges", els.quantityChanges, "number"], ["pantoneCount", els.pantoneCount, "number"]].forEach(([key, element, type]) => {
     const updateState = () => {
       state.form.header[key] = type === "number" ? n(element.value, 0) : element.value;
       if (key === "customerCode") syncCustomerCodeWidth();

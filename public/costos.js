@@ -7,7 +7,12 @@ const DEFAULT_FLOATING_SAVE_ICON = "\u{1F4BE}";
 const DEFAULT_COSTS_CONFIG = {
     general: {
         notes: "",
-        updatedAt: null
+        updatedAt: null,
+        defaultRollWidth: 13,
+        defaultCoreDiameter: 3,
+        coreDiameterOptions: ["1", "1.5", "3", "6"],
+        defaultQuantityTypes: 1,
+        defaultCmykEnabled: "true"
     },
     convencional: {
         tintaGeneral: {
@@ -66,6 +71,13 @@ const tabs = [...document.querySelectorAll(".costs-tab")];
 const panels = [...document.querySelectorAll(".costs-panel")];
 const saveStatus = document.getElementById("costosSaveStatus");
 const generalNotes = document.getElementById("costosGeneralNotes");
+const generalDefaultFields = {
+    defaultRollWidth: document.getElementById("costosDefaultRollWidth"),
+    defaultCoreDiameter: document.getElementById("costosDefaultCoreDiameter"),
+    coreDiameterOptions: document.getElementById("costosCoreDiameterOptions"),
+    defaultQuantityTypes: document.getElementById("costosDefaultQuantityTypes"),
+    defaultCmykEnabled: document.getElementById("costosDefaultCmykEnabled")
+};
 const maculaMontajeTableBody = document.getElementById("maculaMontajeTableBody");
 const maculaTirajeTableBody = document.getElementById("maculaTirajeTableBody");
 const depositosTableBody = document.getElementById("costosDepositosTableBody");
@@ -104,6 +116,17 @@ function normalizeText(value) {
 function numberValue(value, fallback = 0) {
     const numeric = Number(value);
     return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function normalizeCoreDiameterOptions(value, fallback = DEFAULT_COSTS_CONFIG.general.coreDiameterOptions) {
+    if (Array.isArray(value)) {
+        const items = value.map((item) => normalizeText(item)).filter(Boolean);
+        return items.length ? items.slice(0, 5) : [...fallback];
+    }
+    const text = normalizeText(value);
+    if (!text) return [...fallback];
+    const items = text.split(",").map((item) => normalizeText(item)).filter(Boolean);
+    return items.length ? items.slice(0, 5) : [...fallback];
 }
 
 function getPresentationConfig(config, key) {
@@ -200,7 +223,12 @@ function normalizeCostsConfig(config) {
     return {
         general: {
             notes: normalizeText(source?.general?.notes),
-            updatedAt: source?.general?.updatedAt || null
+            updatedAt: source?.general?.updatedAt || null,
+            defaultRollWidth: numberValue(source?.general?.defaultRollWidth, DEFAULT_COSTS_CONFIG.general.defaultRollWidth),
+            defaultCoreDiameter: numberValue(source?.general?.defaultCoreDiameter, DEFAULT_COSTS_CONFIG.general.defaultCoreDiameter),
+            coreDiameterOptions: normalizeCoreDiameterOptions(source?.general?.coreDiameterOptions, DEFAULT_COSTS_CONFIG.general.coreDiameterOptions),
+            defaultQuantityTypes: Math.max(1, numberValue(source?.general?.defaultQuantityTypes, DEFAULT_COSTS_CONFIG.general.defaultQuantityTypes)),
+            defaultCmykEnabled: String(source?.general?.defaultCmykEnabled || DEFAULT_COSTS_CONFIG.general.defaultCmykEnabled).trim().toLowerCase() === "false" ? "false" : "true"
         },
         convencional: {
             tintaGeneral: {
@@ -334,6 +362,14 @@ function renderFinishWasteRows() {
 
 function renderCosts() {
     generalNotes.value = costsState?.general?.notes || "";
+    Object.entries(generalDefaultFields).forEach(([key, node]) => {
+        if (!node) return;
+        if (key === "coreDiameterOptions") {
+            node.value = (costsState?.general?.coreDiameterOptions || DEFAULT_COSTS_CONFIG.general.coreDiameterOptions || []).join(", ");
+            return;
+        }
+        node.value = costsState?.general?.[key] ?? DEFAULT_COSTS_CONFIG.general[key] ?? "";
+    });
     renderInkFields();
     renderDepositosRows();
     renderInlineFinishSetupRows();
@@ -404,6 +440,22 @@ generalNotes?.addEventListener("input", () => {
     if (!costsState) return;
     costsState.general.notes = generalNotes.value;
     queueCostsSave();
+});
+
+Object.entries(generalDefaultFields).forEach(([key, node]) => {
+    node?.addEventListener("input", () => {
+        if (!costsState) return;
+        if (key === "defaultCmykEnabled") {
+            costsState.general[key] = node.value === "false" ? "false" : "true";
+        } else if (key === "coreDiameterOptions") {
+            costsState.general[key] = normalizeCoreDiameterOptions(node.value, DEFAULT_COSTS_CONFIG.general.coreDiameterOptions);
+        } else if (key === "defaultQuantityTypes") {
+            costsState.general[key] = Math.max(1, numberValue(node.value, DEFAULT_COSTS_CONFIG.general[key]));
+        } else {
+            costsState.general[key] = numberValue(node.value, DEFAULT_COSTS_CONFIG.general[key]);
+        }
+        queueCostsSave();
+    });
 });
 
 Object.entries(inkFields).forEach(([key, node]) => {

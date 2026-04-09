@@ -1,4 +1,5 @@
 const CONFIG_ENDPOINT = '/api/config/general';
+const SESSION_STORAGE_KEY = 'erp-user-session';
 const tabsContainer = document.getElementById('dashboardTabs');
 const tabsBar = document.querySelector('.dashboard-tabs-bar');
 const homePanel = document.getElementById('dashboardHome');
@@ -58,6 +59,19 @@ const TAB_FAMILY_META = {
     default: { family: 'default', level: 'root' }
 };
 const TAB_FAMILY_ORDER = ['home', 'quotes', 'orders', 'costs', 'partners', 'inventory', 'settings', 'default'];
+
+function getStoredSession() {
+    try {
+        return JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || sessionStorage.getItem(SESSION_STORAGE_KEY) || 'null');
+    } catch (error) {
+        return null;
+    }
+}
+
+const activeUserSession = getStoredSession();
+if (!activeUserSession?.username) {
+    window.location.replace('/login');
+}
 
 function escapeHtml(value) {
     return String(value || '')

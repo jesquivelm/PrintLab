@@ -98,7 +98,7 @@
                                         <h3 class="flexo-subcard-pill">Datos de Etiquetado</h3>
                                         <div class="flexo-form-grid flexo-form-grid-compact flexo-form-grid-three">
                                             <label>
-                                                <span>Ancho de Rollo</span>
+                                                <span>Ancho de Core</span>
                                                 <input id="coreWidthInput" name="coreWidthInput" type="number" min="0" step="0.01">
                                             </label>
                                             <label>
@@ -108,6 +108,10 @@
                                             <label>
                                                 <span>Etiquetas por Rollo</span>
                                                 <input id="labelsPerRoll" name="labelsPerRoll" type="number" min="0" step="1">
+                                            </label>
+                                            <label>
+                                                <span>Cantidad de Tipos</span>
+                                                <input id="quantityTypesInput" name="quantityTypesInput" type="number" min="1" step="1">
                                             </label>
                                         </div>
                                         <div class="flexo-tagging-layout">
@@ -121,6 +125,15 @@
                                             <label class="flexo-output-side">
                                                 <span>Tipo de Etiquetado</span>
                                                 <input id="applicationType" name="applicationType" type="text">
+                                            </label>
+                                        </div>
+                                        <div class="flexo-form-grid flexo-form-grid-compact">
+                                            <label class="flexo-inline-checkbox-field">
+                                                <span>CMYK</span>
+                                                <span class="flexo-inline-checkbox-control">
+                                                    <input id="cmykInput" name="cmykInput" type="checkbox">
+                                                    <strong>Incluir CMYK por Defecto</strong>
+                                                </span>
                                             </label>
                                         </div>
                                     </article>
