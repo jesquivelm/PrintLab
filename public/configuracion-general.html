@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -764,6 +764,44 @@
         .password-field-wrap input {
             padding-right: 48px;
         }
+        .user-admin-asset-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+        .user-admin-signature-block {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            align-items: stretch;
+        }
+        .user-admin-signature-block span {
+            font-size: 11px;
+            color: #60707f;
+            text-align: center;
+            font-weight: 600;
+        }
+        .user-admin-signature-dropzone {
+            min-width: 128px;
+            min-height: 72px;
+            border: 1px dashed rgba(17, 143, 198, 0.35);
+            border-radius: 16px;
+            background: linear-gradient(180deg, #fbfdff 0%, #f2f8fc 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #7d8b98;
+            cursor: pointer;
+            overflow: hidden;
+            padding: 10px;
+        }
+        .user-admin-signature-dropzone img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
         .password-toggle-btn {
             position: absolute;
             top: 50%;
@@ -1449,10 +1487,199 @@
             justify-content: flex-end;
             gap: 8px;
         }
+        .proforma-config-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.85fr);
+            gap: 18px;
+            align-items: start;
+        }
+        .proforma-config-main {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .proforma-config-section {
+            border: 1px solid #dbe8f0;
+            border-radius: 22px;
+            background: linear-gradient(180deg, #ffffff 0%, #f9fcff 100%);
+            padding: 18px;
+            box-shadow: 0 10px 24px rgba(13, 39, 80, 0.05);
+        }
+        .proforma-config-section h3 {
+            margin: 0 0 14px;
+            font-size: 16px;
+            color: #21425b;
+        }
+        .proforma-config-row-top {
+            display: grid;
+            grid-template-columns: 164px minmax(0, 1fr);
+            gap: 16px;
+            align-items: start;
+        }
+        .proforma-config-grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+        .proforma-config-grid-2 label,
+        .proforma-currency-row label {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .proforma-config-grid-2 label span,
+        .proforma-currency-row label span {
+            font-size: 11px;
+            color: #6d7c89;
+            font-weight: 600;
+        }
+        .proforma-config-grid-span {
+            grid-column: 1 / -1;
+        }
+        .proforma-config-label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 12px;
+            color: #5d7083;
+            font-weight: 600;
+        }
+        .proforma-logo-dropzone {
+            width: 100%;
+            min-height: 124px;
+            border-radius: 22px;
+            border: 1px dashed rgba(17, 143, 198, 0.42);
+            background: linear-gradient(180deg, #fafdff 0%, #f0f8fd 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            cursor: pointer;
+            overflow: hidden;
+            color: #6d7f90;
+        }
+        .proforma-logo-dropzone img {
+            max-width: 100%;
+            max-height: 88px;
+            object-fit: contain;
+        }
+        .proforma-config-headline {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .proforma-currency-add-button,
+        .proforma-currency-delete-button {
+            width: 36px;
+            height: 36px;
+            border-radius: 12px;
+            border: 1px solid rgba(17, 143, 198, 0.25);
+            background: linear-gradient(180deg, #ffffff 0%, #eef7fd 100%);
+            color: #118fc6;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 8px 20px rgba(11, 129, 184, 0.08);
+        }
+        .proforma-currency-table {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .proforma-currency-row {
+            display: grid;
+            grid-template-columns: 88px minmax(0, 1fr) 86px 110px 36px;
+            gap: 10px;
+            align-items: end;
+            border: 1px solid #d7e7f1;
+            border-radius: 18px;
+            padding: 12px;
+            background: #fff;
+        }
+        .proforma-preview-card {
+            border-radius: 24px;
+            border: 1px solid #d9e7ef;
+            overflow: hidden;
+            background: #fff;
+            box-shadow: 0 18px 34px rgba(14, 36, 71, 0.08);
+        }
+        .proforma-preview-header {
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: linear-gradient(135deg, #203852 0%, #2f4b68 100%);
+            color: #fff;
+        }
+        .proforma-preview-header.is-light {
+            background: linear-gradient(135deg, #f7fbff 0%, #edf5fb 100%);
+            color: #203852;
+        }
+        .proforma-preview-logo {
+            width: 82px;
+            height: 64px;
+            border-radius: 16px;
+            background: rgba(255,255,255,0.14);
+            border: 1px solid rgba(255,255,255,0.14);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            font-size: 12px;
+        }
+        .proforma-preview-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .proforma-preview-branding {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 0;
+        }
+        .proforma-preview-branding strong {
+            font-size: 20px;
+        }
+        .proforma-preview-branding span {
+            font-size: 12px;
+            opacity: 0.78;
+        }
+        .proforma-preview-copy {
+            padding: 18px 20px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            color: #4a5b69;
+        }
+        .proforma-preview-copy p {
+            margin: 0;
+            line-height: 1.7;
+        }
+        .proforma-preview-meta,
+        .proforma-preview-footer {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .proforma-preview-meta span,
+        .proforma-preview-footer span {
+            display: inline-flex;
+            align-items: center;
+            min-height: 30px;
+            padding: 0 12px;
+            border-radius: 999px;
+            background: #eff7fb;
+            color: #245272;
+            font-size: 12px;
+        }
         @media (max-width: 1120px) {
             .repository-grid,
             .permission-admin-grid,
-            .permission-admin-grid-fields {
+            .permission-admin-grid-fields,
+            .proforma-config-grid {
                 grid-template-columns: 1fr;
             }
             .permission-admin-detail-card {
@@ -1460,6 +1687,13 @@
             }
             .permission-admin-access {
                 grid-auto-flow: row;
+            }
+            .proforma-config-row-top,
+            .proforma-config-grid-2 {
+                grid-template-columns: 1fr;
+            }
+            .proforma-currency-row {
+                grid-template-columns: 1fr 1fr;
             }
         }
     </style>
@@ -1478,7 +1712,7 @@
                     <button type="button" id="configMenuToggle" class="tool-icon plain-icon" aria-label="Abrir opciones"></button>
                     <div id="configMenuPanel" class="menu-panel" hidden>
                         <a href="/" class="menu-link">Volver</a>
-                        <a href="/flexo-calculo" class="menu-link">CÃ¡lculos</a>
+                        <a href="/flexo-calculo" class="menu-link">Cálculos</a>
                     </div>
                 </div>
             </div>
@@ -1496,6 +1730,7 @@
                         <button type="button" class="config-tab" data-tab="colores-tabs">Colores de Tabs</button>
                         <button type="button" class="config-tab" data-tab="presentaciones">Presentaciones</button>
                         <button type="button" class="config-tab" data-tab="favoritos">Favoritos</button>
+                        <button type="button" class="config-tab" data-tab="proforma">Proforma</button>
                         <button type="button" class="config-tab" data-tab="seguridad">Seguridad</button>
                         <button type="button" class="config-tab" data-tab="auditoria">Auditoría</button>
                     </div>
@@ -1503,9 +1738,9 @@
                     <!-- DATOS GENERALES -->
                     <div id="tab-datos-generales" class="config-tab-content active">
                         
-                        <!-- InformaciÃ³n Empresa -->
+                        <!-- Información Empresa -->
                         <section id="infoEmpresaSection" class="config-card">
-                            <h2>InformaciÃ³n Empresa</h2>
+                            <h2>Información Empresa</h2>
                             <div class="config-two-col">
                                 <!-- Columna Izquierda -->
                                 <div>
@@ -1514,7 +1749,7 @@
                                         <div class="info-empresa-inner">
                                             <div>
                                                 <div class="config-form-row" style="flex-direction:column; align-items:flex-start;">
-                                                    <label><span>Logo PresentaciÃ³n</span></label>
+                                                    <label><span>Logo Presentación</span></label>
                                                     <div style="display:flex; gap:8px; align-items:center;">
                                                         <div id="logoDropzone" class="logo-dropzone" onclick="document.getElementById('logoUploadField').click()">Logo</div>
                                                         <input id="logoUploadField" type="file" accept="image/*" hidden>
@@ -1523,7 +1758,7 @@
                                                 </div>
                                                 <div class="config-form-row" style="flex-wrap:nowrap;">
                                                     <label><span>Lado</span><input name="layout.logoWidth" type="number" value="60" style="width:65px;"></label>
-                                                    <label><span>PosiciÃ³n Logo</span>
+                                                    <label><span>Posición Logo</span>
                                                         <select name="general.brandLogoPosition" style="width:110px;">
                                                             <option value="left">Izquierda</option>
                                                             <option value="right">Derecha</option>
@@ -1548,7 +1783,7 @@
                                         <div class="info-empresa-inner">
                                             <div class="config-form-row" style="flex-direction:column; align-items:flex-start;">
                                                 <label><span>Nombre Empresa</span><input name="branding.companyName" type="text" value="PrintLab" style="width:230px;"></label>
-                                                <label><span>TelÃ©fono</span><input name="contact.companyPhone" type="text" style="width:230px;"></label>
+                                                <label><span>Teléfono</span><input name="contact.companyPhone" type="text" style="width:230px;"></label>
                                                 <label><span>Correo</span><input name="contact.companyEmail" type="email" style="width:230px;"></label>
                                             </div>
                                             <div class="config-form-row" style="flex-direction:column; align-items:flex-start; padding-top:0;">
@@ -1561,14 +1796,14 @@
                                                     </select>
                                                 </label>
                                                 <div class="config-form-row" style="flex-wrap:nowrap;">
-                                                    <label><span>TamaÃ±o</span><input name="general.brandFontSize" type="number" value="22" style="width:65px;"></label>
+                                                    <label><span>Tamaño</span><input name="general.brandFontSize" type="number" value="22" style="width:65px;"></label>
                                                     <label><span>Ancho</span><input name="general.brandWidth" type="number" value="116" style="width:65px;"></label>
                                                 </div>
                                                 <div class="config-form-row" style="flex-wrap:nowrap;">
                                                     <input name="general.brandColor" type="color" value="#0b81b8" class="color-field" title="Color">
-                                                    <button type="button" class="toggle-btn" data-field="general.brandVerticalAlign" data-values="flex-start,center,flex-end" data-icons="â†‘,â†”,â†“" title="AlineaciÃ³n Vertical">â†”</button>
+                                                    <button type="button" class="toggle-btn" data-field="general.brandVerticalAlign" data-values="flex-start,center,flex-end" data-icons="↑,↔,↓" title="Alineación Vertical">↔</button>
                                                     <input type="hidden" name="general.brandVerticalAlign" value="center">
-                                                    <button type="button" class="toggle-btn" data-field="general.brandHorizontalAlign" data-values="left,center,right" data-icons="â†,â†”,â†’" title="AlineaciÃ³n Horizontal">â†</button>
+                                                    <button type="button" class="toggle-btn" data-field="general.brandHorizontalAlign" data-values="left,center,right" data-icons="←,↔,→" title="Alineación Horizontal">←</button>
                                                     <input type="hidden" name="general.brandHorizontalAlign" value="left">
                                                 </div>
                                             </div>
@@ -1616,15 +1851,15 @@
                                             <option value="Trebuchet MS, sans-serif">Trebuchet MS</option>
                                         </select>
                                     </label>
-                                    <label><span>TamaÃ±o</span><input name="general.titleFontSize" type="number" value="16" style="width:65px;"></label>
+                                    <label><span>Tamaño</span><input name="general.titleFontSize" type="number" value="16" style="width:65px;"></label>
                                     <label><span>Ancho</span><input name="general.titleWidth" type="number" value="0" style="width:65px;"></label>
                                     <input name="general.titleColor" type="color" value="#ffffff" class="color-field" title="Color">
                                     <label>
-                                        <button type="button" class="toggle-btn" data-field="general.titleVerticalAlign" data-values="flex-start,center,flex-end" data-icons="â†‘,â†”,â†“">â†”</button>
+                                        <button type="button" class="toggle-btn" data-field="general.titleVerticalAlign" data-values="flex-start,center,flex-end" data-icons="↑,↔,↓">↔</button>
                                         <input type="hidden" name="general.titleVerticalAlign" value="center">
                                     </label>
                                     <label>
-                                        <button type="button" class="toggle-btn" data-field="general.titleHorizontalAlign" data-values="left,center,right" data-icons="â†,â†”,â†’">â†</button>
+                                        <button type="button" class="toggle-btn" data-field="general.titleHorizontalAlign" data-values="left,center,right" data-icons="←,↔,→">←</button>
                                         <input type="hidden" name="general.titleHorizontalAlign" value="left">
                                     </label>
                                 </div>
@@ -1641,26 +1876,26 @@
                                             <option value="Trebuchet MS, sans-serif">Trebuchet MS</option>
                                         </select>
                                     </label>
-                                    <label><span>TamaÃ±o</span><input name="general.quoteNumberFontSize" type="number" value="16" style="width:65px;"></label>
+                                    <label><span>Tamaño</span><input name="general.quoteNumberFontSize" type="number" value="16" style="width:65px;"></label>
                                     <label><span>Ancho</span><input name="general.quoteNumberWidth" type="number" value="0" style="width:65px;"></label>
                                     <label>
                                         <span>Auto</span>
-                                        <button type="button" class="toggle-btn toggle-btn-icon" data-field="general.quoteNumberAutoWidth" data-values="false,true" data-icons="F,A" title="Ancho automÃ¡tico">F</button>
+                                        <button type="button" class="toggle-btn toggle-btn-icon" data-field="general.quoteNumberAutoWidth" data-values="false,true" data-icons="F,A" title="Ancho automático">F</button>
                                         <input type="hidden" name="general.quoteNumberAutoWidth" value="true">
                                     </label>
                                     <label>
                                         <span>Vertical</span>
-                                        <button type="button" class="toggle-btn" data-field="general.quoteNumberVerticalAlign" data-values="flex-start,center,flex-end" data-icons="T,C,B" title="AlineaciÃ³n vertical">C</button>
+                                        <button type="button" class="toggle-btn" data-field="general.quoteNumberVerticalAlign" data-values="flex-start,center,flex-end" data-icons="T,C,B" title="Alineación vertical">C</button>
                                         <input type="hidden" name="general.quoteNumberVerticalAlign" value="center">
                                     </label>
                                     <label>
-                                        <span>PosiciÃ³n</span>
-                                        <button type="button" class="toggle-btn" data-field="general.quoteNumberHorizontalAlign" data-values="left,center,right" data-icons="L,C,R" title="PosiciÃ³n horizontal">R</button>
+                                        <span>Posición</span>
+                                        <button type="button" class="toggle-btn" data-field="general.quoteNumberHorizontalAlign" data-values="left,center,right" data-icons="L,C,R" title="Posición horizontal">R</button>
                                         <input type="hidden" name="general.quoteNumberHorizontalAlign" value="right">
                                     </label>
                                     <label>
                                         <span>Negrita</span>
-                                        <button type="button" class="toggle-btn toggle-btn-icon" data-field="general.quoteNumberBold" data-values="false,true" data-icons="b,B" data-icon-set="quoteNumberBold" title="Negrita numeraciÃ³n">b</button>
+                                        <button type="button" class="toggle-btn toggle-btn-icon" data-field="general.quoteNumberBold" data-values="false,true" data-icons="b,B" data-icon-set="quoteNumberBold" title="Negrita numeración">b</button>
                                         <input type="hidden" name="general.quoteNumberBold" value="false">
                                     </label>
                                 </div>
@@ -1754,49 +1989,49 @@
                                     <input data-icon-upload="icons.topMenu" type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp" hidden>
                                 </div>
                                 <div class="icon-item">
-                                    <input name="icons.topSearch" type="text" placeholder="ðŸ”" style="width:50px; text-align:center;">
-                                    <div class="icon-preview" id="preview-icons.topSearch">ðŸ”</div>
+                                    <input name="icons.topSearch" type="text" placeholder="⌕" style="width:50px; text-align:center;">
+                                    <div class="icon-preview" id="preview-icons.topSearch">⌕</div>
                                     <div class="icon-item-meta">
                                     <span class="icon-item-name">Busqueda</span>
                                         <div class="icon-item-controls">
                                             <label><span>Color</span><input name="general.iconColorTopSearch" type="color" value="#9ba2ab" class="color-field"></label>
-                                            <label><span>TamaÃ±o</span><input name="general.iconSizeTopSearch" type="number" value="20" style="width:65px;"></label>
+                                            <label><span>Tamaño</span><input name="general.iconSizeTopSearch" type="number" value="20" style="width:65px;"></label>
                                         </div>
                                     </div>
                                     <input data-icon-upload="icons.topSearch" type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp" hidden>
                                 </div>
                                 <div class="icon-item">
-                                    <input name="icons.topUser" type="text" placeholder="ðŸ‘¤" style="width:50px; text-align:center;">
-                                    <div class="icon-preview" id="preview-icons.topUser">ðŸ‘¤</div>
+                                    <input name="icons.topUser" type="text" placeholder="👤" style="width:50px; text-align:center;">
+                                    <div class="icon-preview" id="preview-icons.topUser">👤</div>
                                     <div class="icon-item-meta">
                                         <span class="icon-item-name">Usuario</span>
                                         <div class="icon-item-controls">
                                             <label><span>Color</span><input name="general.iconColorTopUser" type="color" value="#9ba2ab" class="color-field"></label>
-                                            <label><span>TamaÃ±o</span><input name="general.iconSizeTopUser" type="number" value="20" style="width:65px;"></label>
+                                            <label><span>Tamaño</span><input name="general.iconSizeTopUser" type="number" value="20" style="width:65px;"></label>
                                         </div>
                                     </div>
                                     <input data-icon-upload="icons.topUser" type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp" hidden>
                                 </div>
                                 <div class="icon-item">
-                                    <input name="icons.tableMove" type="text" placeholder="â‹®â‹®" style="width:50px; text-align:center;">
-                                    <div class="icon-preview" id="preview-icons.tableMove">â‹®â‹®</div>
+                                    <input name="icons.tableMove" type="text" placeholder="⋮⋮" style="width:50px; text-align:center;">
+                                    <div class="icon-preview" id="preview-icons.tableMove">⋮⋮</div>
                                     <div class="icon-item-meta">
                                         <span class="icon-item-name">Mover fila</span>
                                         <div class="icon-item-controls">
                                             <label><span>Color</span><input name="general.iconColorTableMove" type="color" value="#9ba2ab" class="color-field"></label>
-                                            <label><span>TamaÃ±o</span><input name="general.iconSizeTableMove" type="number" value="20" style="width:65px;"></label>
+                                            <label><span>Tamaño</span><input name="general.iconSizeTableMove" type="number" value="20" style="width:65px;"></label>
                                         </div>
                                     </div>
                                     <input data-icon-upload="icons.tableMove" type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp" hidden>
                                 </div>
                                 <div class="icon-item">
-                                    <input name="icons.tableOpen" type="text" placeholder="âš™" style="width:50px; text-align:center;">
-                                    <div class="icon-preview" id="preview-icons.tableOpen">âš™</div>
+                                    <input name="icons.tableOpen" type="text" placeholder="⚙" style="width:50px; text-align:center;">
+                                    <div class="icon-preview" id="preview-icons.tableOpen">⚙</div>
                                     <div class="icon-item-meta">
                                         <span class="icon-item-name">Editar</span>
                                         <div class="icon-item-controls">
                                             <label><span>Color</span><input name="general.iconColorTableOpen" type="color" value="#9ba2ab" class="color-field"></label>
-                                            <label><span>TamaÃ±o</span><input name="general.iconSizeTableOpen" type="number" value="20" style="width:65px;"></label>
+                                            <label><span>Tamaño</span><input name="general.iconSizeTableOpen" type="number" value="20" style="width:65px;"></label>
                                         </div>
                                     </div>
                                     <input data-icon-upload="icons.tableOpen" type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp" hidden>
@@ -1808,7 +2043,7 @@
                                         <span class="icon-item-name">Agregar fila</span>
                                         <div class="icon-item-controls">
                                             <label><span>Color</span><input name="general.iconColorTableAdd" type="color" value="#9ba2ab" class="color-field"></label>
-                                            <label><span>TamaÃ±o</span><input name="general.iconSizeTableAdd" type="number" value="20" style="width:65px;"></label>
+                                            <label><span>Tamaño</span><input name="general.iconSizeTableAdd" type="number" value="20" style="width:65px;"></label>
                                         </div>
                                     </div>
                                     <input data-icon-upload="icons.tableAdd" type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp" hidden>
@@ -1893,11 +2128,11 @@
                                         <option value="Arial, Helvetica, sans-serif">Arial</option>
                                     </select>
                                 </label>
-                                <label><span>TamaÃ±o</span><input name="layout.tableHeaderFontSize" type="number" value="11" style="width:65px;"></label>
-                                <label><span>Color PestaÃ±a</span><input name="general.tabColor" type="color" value="#7f7f7f" class="color-field"></label>
+                                <label><span>Tamaño</span><input name="layout.tableHeaderFontSize" type="number" value="11" style="width:65px;"></label>
+                                <label><span>Color Pestaña</span><input name="general.tabColor" type="color" value="#7f7f7f" class="color-field"></label>
                                 <div style="width:1px; height:30px; background:linear-gradient(180deg, rgba(179,187,196,0.1) 0%, rgba(179,187,196,0.9) 35%, rgba(179,187,196,0.9) 65%, rgba(179,187,196,0.1) 100%);"></div>
-                                <label><span>Alto PestaÃ±a</span><input name="layout.tabHeight" type="number" value="18" style="width:65px;"></label>
-                                <label><span>Ancho PestaÃ±a</span><input name="layout.tabWidth" type="number" value="0" style="width:65px;"></label>
+                                <label><span>Alto Pestaña</span><input name="layout.tabHeight" type="number" value="18" style="width:65px;"></label>
+                                <label><span>Ancho Pestaña</span><input name="layout.tabWidth" type="number" value="0" style="width:65px;"></label>
                                 <label><span>Alto Fila</span><input name="layout.tableRowHeight" type="number" value="22" style="width:65px;"></label>
                             </div>
                         </section>
@@ -2122,14 +2357,14 @@
                     <div id="tab-presentaciones" class="config-tab-content">
                         
                         <section class="config-card">
-                            <h2>Seleccionar PresentaciÃ³n</h2>
+                            <h2>Seleccionar Presentación</h2>
                             <div class="config-form-row">
                                 <label>
-                                    <span>PresentaciÃ³n</span>
+                                    <span>Presentación</span>
                                     <select id="presentationKey" style="width:200px;">
                                         <option value="cotizaciones">Cotizaciones</option>
                                         <option value="solicitudes">Solicitudes</option>
-                                        <option value="calculos">CÃ¡lculos</option>
+                                        <option value="calculos">Cálculos</option>
                                         <option value="socios">Socios</option>
                                         <option value="inventario-mp">Inventario Materia Prima</option>
                                         <option value="inventario-troqueles">Inventario Troqueles</option>
@@ -2147,7 +2382,7 @@
                         <section class="config-card">
                             <h2 class="config-section-title">Nombre</h2>
                             <div class="config-form-row">
-                                <label><span>Nombre PresentaciÃ³n</span><input id="presentationModuleTitle" type="text" style="width:150px;"></label>
+                                <label><span>Nombre Presentación</span><input id="presentationModuleTitle" type="text" style="width:150px;"></label>
                             </div>
                         </section>
 
@@ -2164,35 +2399,35 @@
                                             <option value="Georgia, Times New Roman, serif">Georgia</option>
                                         </select>
                                     </label>
-                                    <label><span>TamaÃ±o</span><input id="presentationTitleFontSize" type="number" value="16" style="width:65px;"></label>
+                                    <label><span>Tamaño</span><input id="presentationTitleFontSize" type="number" value="16" style="width:65px;"></label>
                                     <label><span>Ancho</span><input id="presentationTitleWidth" type="number" value="0" style="width:65px;"></label>
                                     <label><span>Color</span><input id="presentationTitleColor" type="color" value="#ffffff" class="color-field"></label>
                                 </div>
                                 <div class="config-form-row">
-                                    <label><span>AlineaciÃ³n Vertical</span>
-                                        <button type="button" class="toggle-btn" data-field="presentation.titleVerticalAlign" data-values="flex-start,center,flex-end" data-icons="â†‘,â†”,â†“">â†”</button>
+                                    <label><span>Alineación Vertical</span>
+                                        <button type="button" class="toggle-btn" data-field="presentation.titleVerticalAlign" data-values="flex-start,center,flex-end" data-icons="↑,↔,↓">↔</button>
                                         <input type="hidden" id="presentationTitleVerticalAlign" value="">
                                     </label>
-                                    <label><span>AlineaciÃ³n Horizontal</span>
-                                        <button type="button" class="toggle-btn" data-field="presentation.titleHorizontalAlign" data-values="left,center,right" data-icons="â†,â†”,â†’">â†</button>
+                                    <label><span>Alineación Horizontal</span>
+                                        <button type="button" class="toggle-btn" data-field="presentation.titleHorizontalAlign" data-values="left,center,right" data-icons="←,↔,→">←</button>
                                         <input type="hidden" id="presentationTitleHorizontalAlign" value="">
                                     </label>
                                     <label><span>Fondo Color Inicial</span><input id="presentationHeaderBgStart" type="color" value="#0b81b8" class="color-field"></label>
                                     <label><span>Fondo Color Final</span><input id="presentationHeaderBgEnd" type="color" value="#17abdf" class="color-field"></label>
-                                    <label><span>Color LÃ­nea Pie</span><input id="presentationFooterBorderColor" type="color" value="#11a3dd" class="color-field"></label>
+                                    <label><span>Color Línea Pie</span><input id="presentationFooterBorderColor" type="color" value="#11a3dd" class="color-field"></label>
                                 </div>
                             </div>
                             <div class="preview-panel">
                                 <div class="preview-title">Prevista</div>
                                 <div class="preview-header">
-                                    <span style="color:#fff; font-size:14px;" id="previewPresTitle">TÃ­tulo</span>
+                                    <span style="color:#fff; font-size:14px;" id="previewPresTitle">Título</span>
                                 </div>
                             </div>
                         </section>
 
-                        <!-- TÃ­tulo -->
+                        <!-- Título -->
                         <section class="config-card">
-                            <h2 class="config-section-title">TÃ­tulo</h2>
+                            <h2 class="config-section-title">Título</h2>
                             <div class="config-form-row">
                                 <label><span>Fuente</span>
                                     <select id="presentationBrandFontFamily" style="width:200px;">
@@ -2202,13 +2437,13 @@
                                         <option value="Arial, Helvetica, sans-serif">Arial</option>
                                     </select>
                                 </label>
-                                <label><span>TamaÃ±o</span><input id="presentationBrandFontSize" type="number" value="22" style="width:65px;"></label>
+                                <label><span>Tamaño</span><input id="presentationBrandFontSize" type="number" value="22" style="width:65px;"></label>
                                 <label><span>Margen</span><input id="presentationTitleMarginLeft" type="number" value="30" style="width:65px;"></label>
-                                <label><span>AlineaciÃ³n Vertical</span>
-                                    <button type="button" class="toggle-btn" data-field="presentation.brandVerticalAlign" data-values="flex-start,center,flex-end" data-icons="â†‘,â†”,â†“">â†”</button>
+                                <label><span>Alineación Vertical</span>
+                                    <button type="button" class="toggle-btn" data-field="presentation.brandVerticalAlign" data-values="flex-start,center,flex-end" data-icons="↑,↔,↓">↔</button>
                                     <input type="hidden" id="presentationBrandVerticalAlign" value="">
                                 </label>
-                                <label><span>PosiciÃ³n Logo</span>
+                                <label><span>Posición Logo</span>
                                     <select id="presentationLogoPosition" style="width:150px;">
                                         <option value="">Heredada</option>
                                         <option value="left">Izquierda del Texto</option>
@@ -2232,7 +2467,7 @@
                                             <option value="Arial, Helvetica, sans-serif">Arial</option>
                                         </select>
                                     </label>
-                                    <label><span>TamaÃ±o</span><input id="presentationFooterFontSize" type="number" value="12" style="width:65px;"></label>
+                                    <label><span>Tamaño</span><input id="presentationFooterFontSize" type="number" value="12" style="width:65px;"></label>
                                     <label><span>Color</span><input id="presentationFooterColor" type="color" value="#2f3740" class="color-field"></label>
                                     <label><span>Margen Superior</span><input id="presentationFooterMarginTop" type="number" value="0" style="width:65px;"></label>
                                     <label><span>Margen Inferior</span><input id="presentationFooterMarginBottom" type="number" value="0" style="width:65px;"></label>
@@ -2240,7 +2475,7 @@
                             </div>
                             <div class="preview-panel">
                                 <div class="preview-title">Prevista</div>
-                                <div style="padding:12px; border-top:2px solid #11a3df; font-size:12px;">Pie de pÃ¡gina</div>
+                                <div style="padding:12px; border-top:2px solid #11a3df; font-size:12px;">Pie de página</div>
                             </div>
                         </section>
 
@@ -2249,8 +2484,8 @@
                             <h2 class="config-section-title">Campos</h2>
                             <div class="config-form-row">
                                 <label><span>Alto</span><input id="presentationFieldHeight" type="number" value="18" style="width:65px;"></label>
-                                <label><span>TamaÃ±o Fuente</span><input id="presentationFieldFontSize" type="number" value="12" style="width:65px;"></label>
-                                <label><span>AlineaciÃ³n Etiquetas</span>
+                                <label><span>Tamaño Fuente</span><input id="presentationFieldFontSize" type="number" value="12" style="width:65px;"></label>
+                                <label><span>Alineación Etiquetas</span>
                                     <select id="presentationLabelAlign" style="width:100px;">
                                         <option value="">Heredada</option>
                                         <option value="left">Izquierda</option>
@@ -2258,8 +2493,8 @@
                                         <option value="right">Derecha</option>
                                     </select>
                                 </label>
-                                <label><span>LÃ­mite Ancho Medio</span><input id="presentationMediumInputWidth" type="number" value="0" style="width:65px;"></label>
-                                <label><span>LÃ­mite Ancho Grande</span><input id="presentationLargeInputWidth" type="number" value="0" style="width:65px;"></label>
+                                <label><span>Límite Ancho Medio</span><input id="presentationMediumInputWidth" type="number" value="0" style="width:65px;"></label>
+                                <label><span>Límite Ancho Grande</span><input id="presentationLargeInputWidth" type="number" value="0" style="width:65px;"></label>
                             </div>
                         </section>
 
@@ -2274,9 +2509,9 @@
                                         <option value="Arial, Helvetica, sans-serif">Arial</option>
                                     </select>
                                 </label>
-                                <label><span>TamaÃ±o</span><input id="presentationTableHeaderFontSize" type="number" value="11" style="width:65px;"></label>
-                                <label><span>Alto PestaÃ±a</span><input id="presentationTabHeight" type="number" value="18" style="width:65px;"></label>
-                                <label><span>Ancho PestaÃ±a</span><input id="presentationTabWidth" type="number" value="88" style="width:65px;"></label>
+                                <label><span>Tamaño</span><input id="presentationTableHeaderFontSize" type="number" value="11" style="width:65px;"></label>
+                                <label><span>Alto Pestaña</span><input id="presentationTabHeight" type="number" value="18" style="width:65px;"></label>
+                                <label><span>Ancho Pestaña</span><input id="presentationTabWidth" type="number" value="88" style="width:65px;"></label>
                                 <label><span>Alto Fila</span><input id="presentationTableRowHeight" type="number" value="22" style="width:65px;"></label>
                             </div>
                         </section>
@@ -2285,7 +2520,7 @@
                         <section class="config-card">
                             <h2 class="config-section-title">Iconos</h2>
                             <div class="config-form-row">
-                                <label><span>TamaÃ±o</span><input id="presentationIconSize" type="number" value="20" style="width:65px;"></label>
+                                <label><span>Tamaño</span><input id="presentationIconSize" type="number" value="20" style="width:65px;"></label>
                             </div>
                         </section>
 
@@ -2425,6 +2660,143 @@
                         </section>
                     </div>
 
+                    <div id="tab-proforma" class="config-tab-content">
+                        <section class="config-card">
+                            <h2>Proforma</h2>
+                            <div class="proforma-config-grid">
+                                <div class="proforma-config-main">
+                                    <div class="proforma-config-section">
+                                        <h3>Empresa</h3>
+                                        <div class="proforma-config-row proforma-config-row-top">
+                                            <div>
+                                                <span class="proforma-config-label">Logo de la Empresa</span>
+                                                <div id="proformaLogoDropzone" class="proforma-logo-dropzone" title="Cambiar logo"></div>
+                                                <input id="proformaLogoUpload" type="file" accept="image/*" hidden>
+                                                <input id="proformaLogoUrlField" name="general.proformaLogoUrl" type="hidden">
+                                            </div>
+                                            <div class="proforma-config-grid-2">
+                                                <label>
+                                                    <span>Nombre de la Empresa</span>
+                                                    <input id="proformaCompanyNameField" name="general.proformaCompanyName" type="text" placeholder="Nombre de la empresa">
+                                                </label>
+                                                <label>
+                                                    <span>Slogan de la Empresa</span>
+                                                    <input id="proformaSloganField" name="general.proformaSlogan" type="text" placeholder="Slogan">
+                                                </label>
+                                                <label>
+                                                    <span>Teléfono</span>
+                                                    <input id="proformaPhoneField" name="general.proformaPhone" type="text" placeholder="Teléfono">
+                                                </label>
+                                                <label>
+                                                    <span>Sitio Web</span>
+                                                    <input id="proformaWebsiteField" name="general.proformaWebsite" type="text" placeholder="www.empresa.com">
+                                                </label>
+                                                <label class="proforma-config-grid-span">
+                                                    <span>Correo Electrónico</span>
+                                                    <input id="proformaEmailField" name="general.proformaEmail" type="email" placeholder="correo@empresa.com">
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="proforma-config-section">
+                                        <div class="proforma-config-headline">
+                                            <h3>Monedas</h3>
+                                            <button type="button" id="proformaCurrencyAddButton" class="proforma-currency-add-button" aria-label="Agregar moneda" title="Agregar moneda"></button>
+                                        </div>
+                                        <input id="proformaCurrenciesJsonField" name="general.proformaCurrenciesJson" type="hidden">
+                                        <div id="proformaCurrenciesTable" class="proforma-currency-table"></div>
+                                        <div class="proforma-config-grid-2" style="margin-top:12px;">
+                                            <label>
+                                                <span>Moneda Estándar</span>
+                                                <select id="proformaDefaultCurrencyField" name="general.proformaDefaultCurrency"></select>
+                                            </label>
+                                            <label>
+                                                <span>Validez Estándar de la Oferta</span>
+                                                <input id="proformaValidityField" name="general.proformaDefaultValidity" type="text" placeholder="15 días">
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="proforma-config-section">
+                                        <h3>Contenido del Documento</h3>
+                                        <div class="proforma-config-grid-2">
+                                            <label class="proforma-config-grid-span">
+                                                <span>Introducción del Documento</span>
+                                                <textarea id="proformaIntroField" name="general.proformaIntro" rows="4" placeholder="Texto introductorio de la proforma"></textarea>
+                                            </label>
+                                            <label class="proforma-config-grid-span">
+                                                <span>Términos y Condiciones</span>
+                                                <textarea id="proformaTermsField" name="general.proformaTermsConditions" rows="4" placeholder="Términos y condiciones"></textarea>
+                                            </label>
+                                            <label>
+                                                <span>Términos de Pago</span>
+                                                <textarea id="proformaPaymentTermsField" name="general.proformaPaymentTerms" rows="4" placeholder="Términos de pago"></textarea>
+                                            </label>
+                                            <label>
+                                                <span>Tiempos Estimados de Entrega</span>
+                                                <textarea id="proformaDeliveryTimeField" name="general.proformaDeliveryTime" rows="4" placeholder="Tiempos de entrega"></textarea>
+                                            </label>
+                                            <label>
+                                                <span>Especificaciones Técnicas</span>
+                                                <textarea id="proformaTechnicalSpecsField" name="general.proformaTechnicalSpecs" rows="4" placeholder="Especificaciones técnicas"></textarea>
+                                            </label>
+                                            <label>
+                                                <span>Políticas de Calidad</span>
+                                                <textarea id="proformaQualityPoliciesField" name="general.proformaQualityPolicies" rows="4" placeholder="Políticas de calidad"></textarea>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="proforma-config-section">
+                                        <h3>Visualización</h3>
+                                        <div class="proforma-config-grid-2">
+                                            <label>
+                                                <span>Visualización de Precios</span>
+                                                <select id="proformaPriceDisplayField" name="general.proformaPriceDisplayMode">
+                                                    <option value="unit">Mostrar precio unitario</option>
+                                                    <option value="thousand">Mostrar precio por millar</option>
+                                                    <option value="both">Mostrar ambos</option>
+                                                    <option value="product_totals">Mostrar únicamente totales por producto</option>
+                                                    <option value="global_totals">Mostrar totales globales</option>
+                                                </select>
+                                            </label>
+                                            <label>
+                                                <span>Firma del Vendedor</span>
+                                                <button type="button" id="proformaSellerSignatureToggle" class="toggle-btn toggle-btn-text" data-field="general.proformaSellerSignatureEnabled" data-values="false,true" data-icons="No,Sí">Sí</button>
+                                                <input type="hidden" name="general.proformaSellerSignatureEnabled" value="true">
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="preview-panel proforma-config-preview">
+                                    <div class="preview-title">Vista previa</div>
+                                    <div id="proformaConfigPreview" class="proforma-preview-card">
+                                        <div id="proformaPreviewHeader" class="proforma-preview-header">
+                                            <div id="proformaPreviewLogo" class="proforma-preview-logo">Logo</div>
+                                            <div class="proforma-preview-branding">
+                                                <strong id="proformaPreviewCompany">PrintLab</strong>
+                                                <span id="proformaPreviewSlogan">Proforma comercial</span>
+                                            </div>
+                                        </div>
+                                        <div class="proforma-preview-copy">
+                                            <p id="proformaPreviewIntro">La introducción aparecerá aquí.</p>
+                                            <div class="proforma-preview-meta">
+                                                <span id="proformaPreviewCurrency">CRC</span>
+                                                <span id="proformaPreviewValidity">15 días</span>
+                                            </div>
+                                        </div>
+                                        <div class="proforma-preview-footer">
+                                            <span id="proformaPreviewPriceMode">Mostrar ambos</span>
+                                            <span id="proformaPreviewSignature">Firma activa</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+
                     <div id="tab-seguridad" class="config-tab-content">
                         <section class="config-card">
                             <div class="security-subtabs">
@@ -2454,8 +2826,15 @@
                                         <div id="userAdminDetailShell" class="user-admin-detail-shell" hidden>
                                             <div class="user-admin-detail-header">
                                                 <div class="user-admin-detail-headline">
-                                                    <div id="userAdminPhotoDropzone" class="user-admin-detail-avatar" title="Cambiar fotografía"></div>
-                                                    <input id="userAdminPhotoUpload" type="file" accept="image/*" hidden>
+                                                    <div class="user-admin-asset-stack">
+                                                        <div id="userAdminPhotoDropzone" class="user-admin-detail-avatar" title="Cambiar fotografía"></div>
+                                                        <input id="userAdminPhotoUpload" type="file" accept="image/*" hidden>
+                                                        <div class="user-admin-signature-block">
+                                                            <span>Firma</span>
+                                                            <div id="userAdminSignatureDropzone" class="user-admin-signature-dropzone" title="Cambiar firma"></div>
+                                                            <input id="userAdminSignatureUpload" type="file" accept="image/*" hidden>
+                                                        </div>
+                                                    </div>
                                                     <div class="user-admin-detail-meta">
                                                         <strong id="userAdminDetailName">Usuario</strong>
                                                         <span id="userAdminDetailSubline">Sin departamento</span>
@@ -2702,6 +3081,7 @@
         let selectedAdminPermissionId = null;
         let adminPermissionSaveTimer = null;
         let adminPermissionsLoadedOnce = false;
+        let proformaCurrencyRows = [];
         const configCompanyLogo = document.getElementById('configCompanyLogo');
         const configBrandFallback = document.getElementById('configBrandFallback');
         const configPageTitle = document.getElementById('configPageTitle');
@@ -2723,6 +3103,8 @@
         const userAdminDetailShell = document.getElementById('userAdminDetailShell');
         const userAdminPhotoDropzone = document.getElementById('userAdminPhotoDropzone');
         const userAdminPhotoUpload = document.getElementById('userAdminPhotoUpload');
+        const userAdminSignatureDropzone = document.getElementById('userAdminSignatureDropzone');
+        const userAdminSignatureUpload = document.getElementById('userAdminSignatureUpload');
         const userAdminDetailName = document.getElementById('userAdminDetailName');
         const userAdminDetailSubline = document.getElementById('userAdminDetailSubline');
         const userAdminSummaryUsername = document.getElementById('userAdminSummaryUsername');
@@ -2757,6 +3139,35 @@
         const permissionAdminCreateNameField = document.getElementById('permissionAdminCreateNameField');
         const permissionAdminCreateCancel = document.getElementById('permissionAdminCreateCancel');
         const permissionAdminCreateConfirm = document.getElementById('permissionAdminCreateConfirm');
+        const proformaLogoDropzone = document.getElementById('proformaLogoDropzone');
+        const proformaLogoUpload = document.getElementById('proformaLogoUpload');
+        const proformaLogoUrlField = document.getElementById('proformaLogoUrlField');
+        const proformaCompanyNameField = document.getElementById('proformaCompanyNameField');
+        const proformaSloganField = document.getElementById('proformaSloganField');
+        const proformaPhoneField = document.getElementById('proformaPhoneField');
+        const proformaWebsiteField = document.getElementById('proformaWebsiteField');
+        const proformaEmailField = document.getElementById('proformaEmailField');
+        const proformaCurrenciesJsonField = document.getElementById('proformaCurrenciesJsonField');
+        const proformaCurrenciesTable = document.getElementById('proformaCurrenciesTable');
+        const proformaCurrencyAddButton = document.getElementById('proformaCurrencyAddButton');
+        const proformaDefaultCurrencyField = document.getElementById('proformaDefaultCurrencyField');
+        const proformaValidityField = document.getElementById('proformaValidityField');
+        const proformaIntroField = document.getElementById('proformaIntroField');
+        const proformaTermsField = document.getElementById('proformaTermsField');
+        const proformaPaymentTermsField = document.getElementById('proformaPaymentTermsField');
+        const proformaDeliveryTimeField = document.getElementById('proformaDeliveryTimeField');
+        const proformaTechnicalSpecsField = document.getElementById('proformaTechnicalSpecsField');
+        const proformaQualityPoliciesField = document.getElementById('proformaQualityPoliciesField');
+        const proformaPriceDisplayField = document.getElementById('proformaPriceDisplayField');
+        const proformaPreviewHeader = document.getElementById('proformaPreviewHeader');
+        const proformaPreviewLogo = document.getElementById('proformaPreviewLogo');
+        const proformaPreviewCompany = document.getElementById('proformaPreviewCompany');
+        const proformaPreviewSlogan = document.getElementById('proformaPreviewSlogan');
+        const proformaPreviewIntro = document.getElementById('proformaPreviewIntro');
+        const proformaPreviewCurrency = document.getElementById('proformaPreviewCurrency');
+        const proformaPreviewValidity = document.getElementById('proformaPreviewValidity');
+        const proformaPreviewPriceMode = document.getElementById('proformaPreviewPriceMode');
+        const proformaPreviewSignature = document.getElementById('proformaPreviewSignature');
         const loginRepositoryUpload = document.getElementById('loginRepositoryUpload');
         const loginRepositoryDropzone = document.getElementById('loginRepositoryDropzone');
         const loginRepositoryUploadPreview = document.getElementById('loginRepositoryUploadPreview');
@@ -2831,14 +3242,18 @@
             { key: 'refreshCosts', label: 'Actualizar Costos', group: 'Calculo y Procesos', placeholder: '\u21BB', color: '#5b7896', size: 20 },
             { key: 'timelineLauncher', label: 'Timeline Flotante', group: 'Calculo y Procesos', placeholder: '\u25F4', color: '#5f7392', size: 20 },
             { key: 'floatingSave', label: 'Guardar Flotante', group: 'Acciones Flotantes', placeholder: '💾', color: '#ffffff', size: 20 },
-            { key: 'quoteRequestSubmit', label: 'Crear Cotizacion Flotante', group: 'Acciones Flotantes', placeholder: '\u27A4', color: '#ffffff', size: 18 },
-            { key: 'quoteRequestAdvanced', label: 'Proceso Avanzado Flotante', group: 'Acciones Flotantes', placeholder: '\u2699', color: '#5f7288', size: 18 },
+            { key: 'quoteRequestSubmit', label: 'Solicitud de Cotización', group: 'Acciones Flotantes', placeholder: '\u27A4', color: '#ffffff', size: 18 },
+            { key: 'quoteRequestAdvanced', label: 'Proceso Avanzado', group: 'Acciones Flotantes', placeholder: '\u2699', color: '#5f7288', size: 18 },
             { key: 'adminUserCreate', label: 'Crear Usuario', group: 'Acciones Administrativas', placeholder: '+', color: '#118fc6', size: 22 },
             { key: 'adminUserDelete', label: 'Eliminar Usuario', group: 'Acciones Administrativas', placeholder: '\uD83D\uDDD1', color: '#b94848', size: 18 },
             { key: 'adminPermissionCreate', label: 'Crear Permiso', group: 'Acciones Administrativas', placeholder: '+', color: '#118fc6', size: 22 },
             { key: 'adminPermissionDelete', label: 'Eliminar Permiso', group: 'Acciones Administrativas', placeholder: '\uD83D\uDDD1', color: '#b94848', size: 18 },
             { key: 'loginRepositoryUpload', label: 'Cargar Imagen de Repositorio', group: 'Acciones Administrativas', placeholder: '\u21E7', color: '#118fc6', size: 18 },
             { key: 'loginRepositoryDelete', label: 'Eliminar Imagen de Repositorio', group: 'Acciones Administrativas', placeholder: '\uD83D\uDDD1', color: '#b94848', size: 18 },
+            { key: 'proformaCurrencyAdd', label: 'Agregar Moneda de Proforma', group: 'Acciones Administrativas', placeholder: '+', color: '#118fc6', size: 18 },
+            { key: 'proformaCurrencyDelete', label: 'Eliminar Moneda de Proforma', group: 'Acciones Administrativas', placeholder: '\uD83D\uDDD1', color: '#b94848', size: 18 },
+            { key: 'proformaView', label: 'Ver Proforma', group: 'Acciones Documento', placeholder: '\uD83D\uDC41', color: '#1e516d', size: 18 },
+            { key: 'proformaClose', label: 'Cerrar Proforma', group: 'Acciones Documento', placeholder: '\u2713', color: '#1e516d', size: 18 },
             { key: 'quoteRequestAttachment', label: 'Adjuntar Archivos Solicitud', group: 'Acciones Documento', placeholder: '\uD83D\uDCCE', color: '#1e516d', size: 18 },
             { key: 'quoteRequestRecord', label: 'Grabar Audio Solicitud', group: 'Acciones Documento', placeholder: '\uD83C\uDFA4', color: '#1e516d', size: 18 },
             { key: 'quoteRequestRecordStop', label: 'Detener Grabacion Solicitud', group: 'Acciones Documento', placeholder: '\u25A0', color: '#1e516d', size: 18 }
@@ -2853,79 +3268,31 @@
             return '';
         }
 
+        function repairUtf8Text(value) {
+            if (typeof value !== 'string' || !value) return value;
+            let repaired = value;
+            for (let index = 0; index < 2; index += 1) {
+                try {
+                    const nextValue = decodeURIComponent(escape(repaired));
+                    if (!nextValue || nextValue === repaired) break;
+                    repaired = nextValue;
+                } catch (error) {
+                    break;
+                }
+            }
+            return repaired;
+        }
+
         function fixCommonTextArtifacts(value) {
             if (typeof value !== 'string') return value;
-            return value
-                .replace(/ConfiguraciÃ³n/g, 'Configuración')
+            return repairUtf8Text(value)
                 .replace(/Configuracion/g, 'Configuración')
-                .replace(/CÃ¡lculos/g, 'Cálculos')
-                .replace(/InformaciÃ³n/g, 'Información')
-                .replace(/PresentaciÃ³n/g, 'Presentación')
-                .replace(/PresentaciÃ³n/g, 'Presentación')
-                .replace(/PosiciÃ³n/g, 'Posición')
-                .replace(/TelÃ©fono/g, 'Teléfono')
-                .replace(/DirecciÃ³n/g, 'Dirección')
-                .replace(/TamaÃ±o/g, 'Tamaño')
-                .replace(/AlineaciÃ³n/g, 'Alineación')
-                .replace(/automÃ¡tico/g, 'automático')
-                .replace(/numeraciÃ³n/g, 'numeración')
-                .replace(/TÃ­tulo/g, 'Título')
-                .replace(/TÃtulo/g, 'Título')
-                .replace(/LÃ­nea/g, 'Línea')
-                .replace(/Pie de pÃ¡gina/g, 'Pie de página')
-                .replace(/BÃºsqueda/g, 'Búsqueda')
-                .replace(/MenÃº/g, 'Menú')
-                .replace(/cotizaciÃ³n/g, 'cotización')
-                .replace(/lÃ­nea/g, 'línea')
-                .replace(/PestaÃ±a/g, 'Pestaña')
-                .replace(/LÃmite/g, 'Límite')
-                .replace(/aquÃ\./g, 'aquí.')
-                .replace(/producciÃ³n/g, 'producción')
-                .replace(/pÃ¡gina/g, 'página')
-                .replace(/ImpresiÃ³n/g, 'Impresión')
-                .replace(/ObservaciÃ³n/g, 'Observación')
-                .replace(/CÃ³digo/g, 'Código')
-                .replace(/DiÃ¡metro/g, 'Diámetro')
-                .replace(/MÃ¡quina/g, 'Máquina')
-                .replace(/DirecciÃ³n/g, 'Dirección')
-                .replace(/CotizaciÃ³n/g, 'Cotización')
-                .replace(/LÃ­nea y CotizaciÃ³n/g, 'Línea y Cotización')
                 .replace(/Titulo General/g, 'Título General')
                 .replace(/Pie de pagina/g, 'Pie de página')
                 .replace(/Tamano/g, 'Tamaño')
                 .replace(/Linea/g, 'Línea')
                 .replace(/Busqueda/g, 'Búsqueda')
-                .replace(/Menu/g, 'Menú')
-                .replace(/Etiquetas por Rollo/g, 'Etiquetas por Rollo')
-                .replace(/â†/g, '←')
-                .replace(/â†‘/g, '↑')
-                .replace(/â†’/g, '→')
-                .replace(/â†“/g, '↓')
-                .replace(/â†”/g, '↔')
-                .replace(/â˜°/g, '≡')
-                .replace(/âŒ•/g, '⌕')
-                .replace(/âœ•/g, '✕')
-                .replace(/â€¹/g, '‹')
-                .replace(/â€º/g, '›')
-                .replace(/â‹®â‹®/g, '⋮⋮')
-                .replace(/â‹¯/g, '⋯')
-                .replace(/âš™/g, '⚙')
-                .replace(/âš’/g, '⚒')
-                .replace(/â‡§/g, '⇧')
-                .replace(/â‡©/g, '⇩')
-                .replace(/â†»/g, '↻')
-                .replace(/âŽ˜/g, '⎘')
-                .replace(/â§‰/g, '⧉')
-                .replace(/â–£/g, '▣')
-                .replace(/â­³/g, '⭳')
-                .replace(/ðŸ“Ž/g, '📎')
-                .replace(/Ã¡/g, 'á')
-                .replace(/Ã©/g, 'é')
-                .replace(/Ã­/g, 'í')
-                .replace(/Ã³/g, 'ó')
-                .replace(/Ãº/g, 'ú')
-                .replace(/Ã±/g, 'ñ')
-                .replace(/ðŸ”/g, '⌕');
+                .replace(/Menu/g, 'Menú');
         }
 
         function normalizeUiTextArtifacts(root = document) {
@@ -3292,7 +3659,7 @@
                 <div class="color-popover-swatch"></div>
                 <input type="color" class="color-popover-native" value="#FFFFFF">
                 <input type="text" class="color-popover-hex" placeholder="#RRGGBB" autocomplete="off" spellcheck="false">
-                <div class="color-popover-hint">Puedes pegar o escribir el hexadecimal aquÃ­.</div>
+                <div class="color-popover-hint">Puedes pegar o escribir el hexadecimal aquí.</div>
             `;
             document.body.appendChild(colorPopover);
 
@@ -3765,6 +4132,11 @@
             if (userAdminPhotoDropzone) {
                 renderAdminUserAvatar(userAdminPhotoDropzone, user, 'user-admin-detail-avatar');
             }
+            if (userAdminSignatureDropzone) {
+                userAdminSignatureDropzone.innerHTML = user.signatureUrl
+                    ? `<img src="${escapeHtml(user.signatureUrl)}" alt="Firma de ${escapeHtml(user.name || 'usuario')}">`
+                    : 'Firma';
+            }
             renderPasswordToggleButton(userAdminPasswordToggle, userAdminPasswordVisible);
         }
 
@@ -3814,6 +4186,7 @@
                 department: userAdminFieldDepartment?.value?.trim() || '',
                 process: userAdminFieldProcess?.value?.trim() || '',
                 photoUrl: user.photoUrl || '',
+                signatureUrl: user.signatureUrl || '',
                 permissionId: userAdminFieldPermission?.value ? Number(userAdminFieldPermission.value) : null
             };
         }
@@ -3949,6 +4322,23 @@
             reader.readAsDataURL(file);
         }
 
+        async function updateAdminUserSignature(file) {
+            const user = getSelectedAdminUser();
+            if (!user || !file) return;
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                user.signatureUrl = event.target?.result || '';
+                updateAdminUserDetail();
+                renderAdminUserList();
+                try {
+                    await persistSelectedAdminUser();
+                } catch (error) {
+                    console.error(error);
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
         function bindAdminUserEvents() {
             userAdminCreateButton?.addEventListener('click', openAdminUserCreatePopover);
             userAdminCreateCancel?.addEventListener('click', closeAdminUserCreatePopover);
@@ -4005,6 +4395,13 @@
                 await updateAdminUserPhoto(file);
                 event.target.value = '';
             });
+            userAdminSignatureDropzone?.addEventListener('click', () => userAdminSignatureUpload?.click());
+            userAdminSignatureUpload?.addEventListener('change', async (event) => {
+                const file = event.target.files?.[0];
+                if (!file) return;
+                await updateAdminUserSignature(file);
+                event.target.value = '';
+            });
             userAdminPasswordToggle?.addEventListener('click', () => {
                 if (!userAdminFieldPassword) return;
                 userAdminPasswordVisible = !userAdminPasswordVisible;
@@ -4058,6 +4455,171 @@
             renderButtonIcon(button, visible ? eyeClosed : eyeOpen, '#60707f', 18, '');
             button.setAttribute('aria-label', visible ? 'Ocultar contraseña' : 'Mostrar contraseña');
             button.title = visible ? 'Ocultar contraseña' : 'Mostrar contraseña';
+        }
+
+        function normalizeProformaCurrencies(value) {
+            const fallback = [
+                { code: 'CRC', label: 'Colones', symbol: '₡', exchangeRate: 1 },
+                { code: 'USD', label: 'Dólares', symbol: '$', exchangeRate: 0.0019 }
+            ];
+            try {
+                const source = typeof value === 'string' ? JSON.parse(value || '[]') : value;
+                const rows = Array.isArray(source) ? source : [];
+                const cleaned = rows.map((row) => ({
+                    code: String(row?.code || '').trim().toUpperCase().slice(0, 10),
+                    label: String(row?.label || '').trim().slice(0, 80),
+                    symbol: String(row?.symbol || '').trim().slice(0, 10),
+                    exchangeRate: Number(row?.exchangeRate || 0)
+                })).filter((row) => row.code && row.label && Number.isFinite(row.exchangeRate) && row.exchangeRate > 0);
+                return cleaned.length ? cleaned : fallback;
+            } catch (error) {
+                return fallback;
+            }
+        }
+
+        function getProformaPriceDisplayLabel(value) {
+            return {
+                unit: 'Mostrar precio unitario',
+                thousand: 'Mostrar precio por millar',
+                both: 'Mostrar ambos',
+                product_totals: 'Mostrar totales por producto',
+                global_totals: 'Mostrar totales globales'
+            }[String(value || '').trim()] || 'Mostrar ambos';
+        }
+
+        function updateProformaCurrenciesField() {
+            if (proformaCurrenciesJsonField) {
+                proformaCurrenciesJsonField.value = JSON.stringify(proformaCurrencyRows);
+            }
+        }
+
+        function populateProformaDefaultCurrencyOptions() {
+            if (!proformaDefaultCurrencyField) return;
+            const current = proformaDefaultCurrencyField.value || loadedConfig?.general?.proformaDefaultCurrency || proformaCurrencyRows[0]?.code || 'CRC';
+            proformaDefaultCurrencyField.innerHTML = proformaCurrencyRows
+                .map((row) => `<option value="${escapeHtml(row.code)}">${escapeHtml(`${row.code} · ${row.label}`)}</option>`)
+                .join('');
+            if ([...proformaDefaultCurrencyField.options].some((option) => option.value === current)) {
+                proformaDefaultCurrencyField.value = current;
+            }
+        }
+
+        function renderProformaCurrencyButton() {
+            if (!proformaCurrencyAddButton) return;
+            const addIcon = getPermissionIconConfig('proformaCurrencyAdd', '#118fc6', 18, '+');
+            renderButtonIcon(proformaCurrencyAddButton, addIcon.value, addIcon.color, addIcon.size, '+');
+        }
+
+        function renderProformaCurrencies() {
+            if (!proformaCurrenciesTable) return;
+            const deleteIcon = getPermissionIconConfig('proformaCurrencyDelete', '#b94848', 18, '🗑');
+            proformaCurrenciesTable.innerHTML = proformaCurrencyRows.map((row, index) => `
+                <div class="proforma-currency-row" data-proforma-currency-index="${index}">
+                    <label>
+                        <span>Código</span>
+                        <input type="text" value="${escapeHtml(row.code || '')}" data-proforma-currency-field="code" maxlength="10">
+                    </label>
+                    <label>
+                        <span>Nombre</span>
+                        <input type="text" value="${escapeHtml(row.label || '')}" data-proforma-currency-field="label" maxlength="80">
+                    </label>
+                    <label>
+                        <span>Símbolo</span>
+                        <input type="text" value="${escapeHtml(row.symbol || '')}" data-proforma-currency-field="symbol" maxlength="10">
+                    </label>
+                    <label>
+                        <span>Tipo de Cambio</span>
+                        <input type="number" value="${escapeHtml(String(row.exchangeRate || 1))}" min="0.000001" step="0.000001" data-proforma-currency-field="exchangeRate">
+                    </label>
+                    <button type="button" class="proforma-currency-delete-button" data-proforma-currency-delete="${index}" aria-label="Eliminar moneda" title="Eliminar moneda"></button>
+                </div>
+            `).join('');
+            proformaCurrenciesTable.querySelectorAll('[data-proforma-currency-delete]').forEach((button) => {
+                renderButtonIcon(button, deleteIcon.value, deleteIcon.color, deleteIcon.size, '🗑');
+            });
+            updateProformaCurrenciesField();
+            populateProformaDefaultCurrencyOptions();
+            updateProformaPreview();
+        }
+
+        function updateProformaPreviewLogoContrast() {
+            const image = proformaPreviewLogo?.querySelector('img');
+            if (!proformaPreviewHeader) return;
+            if (!image) {
+                proformaPreviewHeader.classList.remove('is-light');
+                return;
+            }
+            const probe = new Image();
+            probe.crossOrigin = 'anonymous';
+            probe.onload = () => {
+                try {
+                    const canvas = document.createElement('canvas');
+                    const width = Math.max(1, Math.min(48, probe.naturalWidth || 48));
+                    const height = Math.max(1, Math.min(48, probe.naturalHeight || 48));
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) return;
+                    ctx.drawImage(probe, 0, 0, width, height);
+                    const { data } = ctx.getImageData(0, 0, width, height);
+                    let total = 0;
+                    let count = 0;
+                    for (let index = 0; index < data.length; index += 4) {
+                        const alpha = data[index + 3];
+                        if (alpha < 32) continue;
+                        total += (data[index] * 0.299) + (data[index + 1] * 0.587) + (data[index + 2] * 0.114);
+                        count += 1;
+                    }
+                    const luminance = count ? total / count : 0;
+                    proformaPreviewHeader.classList.toggle('is-light', luminance < 145 ? false : true);
+                } catch (error) {
+                    proformaPreviewHeader.classList.remove('is-light');
+                }
+            };
+            probe.onerror = () => {
+                proformaPreviewHeader.classList.remove('is-light');
+            };
+            probe.src = image.src;
+        }
+
+        function updateProformaPreview() {
+            const logoUrl = proformaLogoUrlField?.value || loadedConfig?.general?.proformaLogoUrl || '';
+            if (proformaPreviewLogo) {
+                proformaPreviewLogo.innerHTML = logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="Logo de proforma">` : 'Logo';
+            }
+            if (proformaPreviewCompany) proformaPreviewCompany.textContent = proformaCompanyNameField?.value?.trim() || 'PrintLab';
+            if (proformaPreviewSlogan) proformaPreviewSlogan.textContent = proformaSloganField?.value?.trim() || 'Proforma comercial';
+            if (proformaPreviewIntro) proformaPreviewIntro.textContent = proformaIntroField?.value?.trim() || 'La introducción aparecerá aquí.';
+            const selectedCurrencyCode = proformaDefaultCurrencyField?.value || proformaCurrencyRows[0]?.code || 'CRC';
+            const selectedCurrency = proformaCurrencyRows.find((row) => row.code === selectedCurrencyCode) || proformaCurrencyRows[0];
+            if (proformaPreviewCurrency) {
+                proformaPreviewCurrency.textContent = selectedCurrency ? `${selectedCurrency.code} · ${selectedCurrency.exchangeRate}` : selectedCurrencyCode;
+            }
+            if (proformaPreviewValidity) proformaPreviewValidity.textContent = proformaValidityField?.value?.trim() || '15 días';
+            if (proformaPreviewPriceMode) proformaPreviewPriceMode.textContent = getProformaPriceDisplayLabel(proformaPriceDisplayField?.value || 'both');
+            const signatureEnabled = (document.querySelector('input[name="general.proformaSellerSignatureEnabled"]')?.value || 'true') === 'true';
+            if (proformaPreviewSignature) proformaPreviewSignature.textContent = signatureEnabled ? 'Firma activa' : 'Sin firma';
+            updateProformaPreviewLogoContrast();
+        }
+
+        function applyProformaLogoPreview() {
+            if (!proformaLogoDropzone) return;
+            const value = proformaLogoUrlField?.value || loadedConfig?.general?.proformaLogoUrl || '';
+            if (value) {
+                proformaLogoDropzone.innerHTML = `<img src="${escapeHtml(value)}" alt="Logo de proforma">`;
+            } else {
+                proformaLogoDropzone.textContent = 'Logo';
+            }
+            updateProformaPreview();
+        }
+
+        function populateProformaConfigFields() {
+            const general = loadedConfig.general || {};
+            proformaCurrencyRows = normalizeProformaCurrencies(general.proformaCurrenciesJson);
+            if (proformaLogoUrlField) proformaLogoUrlField.value = general.proformaLogoUrl || '';
+            renderProformaCurrencies();
+            applyProformaLogoPreview();
+            updateProformaPreview();
         }
 
         function formatRepositoryDate(value) {
@@ -4320,6 +4882,76 @@
                     restartLoginRepositoryPreview();
                     queueConfigSave();
                 });
+            });
+        }
+
+        function bindProformaConfigEvents() {
+            renderProformaCurrencyButton();
+            proformaLogoDropzone?.addEventListener('click', () => proformaLogoUpload?.click());
+            proformaLogoUpload?.addEventListener('change', (event) => {
+                const file = event.target.files?.[0];
+                if (!file || !proformaLogoUrlField) return;
+                const reader = new FileReader();
+                reader.onload = (loadEvent) => {
+                    proformaLogoUrlField.value = loadEvent.target?.result || '';
+                    applyProformaLogoPreview();
+                    queueConfigSave();
+                };
+                reader.readAsDataURL(file);
+                event.target.value = '';
+            });
+            proformaCurrencyAddButton?.addEventListener('click', () => {
+                proformaCurrencyRows.push({ code: '', label: '', symbol: '', exchangeRate: 1 });
+                renderProformaCurrencies();
+                queueConfigSave();
+            });
+            proformaCurrenciesTable?.addEventListener('input', (event) => {
+                const row = event.target.closest('[data-proforma-currency-index]');
+                const field = event.target.dataset.proformaCurrencyField;
+                if (!row || !field) return;
+                const index = Number(row.dataset.proformaCurrencyIndex);
+                if (!proformaCurrencyRows[index]) return;
+                proformaCurrencyRows[index][field] = field === 'exchangeRate'
+                    ? Number(event.target.value || 0)
+                    : String(event.target.value || '');
+                updateProformaCurrenciesField();
+                populateProformaDefaultCurrencyOptions();
+                updateProformaPreview();
+            });
+            proformaCurrenciesTable?.addEventListener('change', () => {
+                proformaCurrencyRows = normalizeProformaCurrencies(proformaCurrencyRows);
+                renderProformaCurrencies();
+                queueConfigSave();
+            });
+            proformaCurrenciesTable?.addEventListener('click', (event) => {
+                const deleteButton = event.target.closest('[data-proforma-currency-delete]');
+                if (!deleteButton) return;
+                const index = Number(deleteButton.dataset.proformaCurrencyDelete);
+                proformaCurrencyRows = proformaCurrencyRows.filter((_, currentIndex) => currentIndex !== index);
+                if (!proformaCurrencyRows.length) {
+                    proformaCurrencyRows = normalizeProformaCurrencies([]);
+                }
+                renderProformaCurrencies();
+                queueConfigSave();
+            });
+            [
+                proformaCompanyNameField,
+                proformaSloganField,
+                proformaPhoneField,
+                proformaWebsiteField,
+                proformaEmailField,
+                proformaDefaultCurrencyField,
+                proformaValidityField,
+                proformaIntroField,
+                proformaTermsField,
+                proformaPaymentTermsField,
+                proformaDeliveryTimeField,
+                proformaTechnicalSpecsField,
+                proformaQualityPoliciesField,
+                proformaPriceDisplayField
+            ].forEach((field) => {
+                field?.addEventListener('input', updateProformaPreview);
+                field?.addEventListener('change', updateProformaPreview);
             });
         }
 
@@ -5067,6 +5699,7 @@
             syncTabColorSwatches();
             updateMobilePreviewLink();
             applyDieShapePreviews();
+            updateProformaPreview();
             // Datos Empresa
             const companyName = document.querySelector('input[name="branding.companyName"]')?.value || 'PrintLab';
             const headerBgStart = document.querySelector('input[name="general.headerBgStart"]')?.value || '#0b81b8';
@@ -5441,8 +6074,9 @@
         bindIconUploadHandlers();
         bindDieShapeUploadHandlers();
         bindLoginRepositoryEvents();
+        bindProformaConfigEvents();
 
-        document.querySelectorAll('#generalConfigForm input, #generalConfigForm select').forEach(field => {
+        document.querySelectorAll('#generalConfigForm input, #generalConfigForm select, #generalConfigForm textarea').forEach(field => {
             field.addEventListener('change', updatePreviews);
             field.addEventListener('input', updatePreviews);
             field.addEventListener('change', renderAdminUserCreateButton);
@@ -5487,6 +6121,7 @@
                 }
                 
                 populateGeneralFields();
+                populateProformaConfigFields();
                 normalizeUiTextArtifacts();
                 enhanceColorInputs();
                 applyLogoPreviews();
@@ -5537,6 +6172,7 @@
                 });
                 if (!response.ok) throw new Error('Error al guardar');
                 loadedConfig = await response.json();
+                populateProformaConfigFields();
                 applyHeaderConfig(loadedConfig);
                 applyDieShapePreviews();
                 renderAdminUserCreateButton();

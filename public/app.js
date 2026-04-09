@@ -20,6 +20,7 @@ const openConfigButton = document.getElementById('openConfigButton');
 const prevQuoteButton = document.getElementById('prevQuoteButton');
 const nextQuoteButton = document.getElementById('nextQuoteButton');
 const openQuoteBrowserButton = document.getElementById('openQuoteBrowserButton');
+const viewProformaButton = document.getElementById('viewProformaButton');
 const configPopover = document.getElementById('configPopover');
 const configPopoverFrame = document.getElementById('configPopoverFrame');
 const configPopoverNotice = document.getElementById('configPopoverNotice');
@@ -332,6 +333,36 @@ function openRouteInShell(route, label) {
     if (!isShellEmbedded()) return false;
     window.parent.postMessage({ type: 'erp-open-tab', route, label }, window.location.origin);
     return true;
+}
+
+function openProformaForCurrentQuote() {
+    const code = currentQuote?.quote_code || document.getElementById('numeroCotizacion')?.value?.trim();
+    if (!code) {
+        setStatus('Debes abrir una cotización antes de ver la proforma.', 'error');
+        return;
+    }
+    const route = `/proforma?codigo=${encodeURIComponent(code)}`;
+    if (!openRouteInShell(route, `Proforma ${code}`)) {
+        window.open(route, '_blank', 'noopener');
+    }
+}
+
+async function syncProformaButtonState(code) {
+    if (!viewProformaButton) return;
+    if (!code) {
+        viewProformaButton.textContent = 'Ver Proforma';
+        viewProformaButton.disabled = true;
+        return;
+    }
+    viewProformaButton.disabled = false;
+    try {
+        const response = await fetch(`/api/proformas/${encodeURIComponent(code)}`);
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload?.error || 'No fue posible cargar la proforma.');
+        viewProformaButton.textContent = payload?.status === 'closed' ? 'Ver Proforma Cerrada' : 'Ver Proforma';
+    } catch (error) {
+        viewProformaButton.textContent = 'Ver Proforma';
+    }
 }
 
 function getRowPalette(key, fallbackSize = 18) {
@@ -1100,6 +1131,7 @@ function applyQuotePayload(payload) {
     updateQuoteRecordStatus();
     updateSummary(quote, resumen);
     renderRows();
+    syncProformaButtonState(quote?.quote_code || '');
 }
 
 function moveDraggedRow(dragRowId, targetRowId, placeAfter = false) {
@@ -1845,6 +1877,7 @@ openConfigButton?.addEventListener('click', () => {
     toggleMenu(false);
     openConfigPopover();
 });
+viewProformaButton?.addEventListener('click', openProformaForCurrentQuote);
 Object.keys(headerFieldMap).forEach((id) => {
     const element = document.getElementById(id);
     if (!element || id === 'numeroCotizacion') return;

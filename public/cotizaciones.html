@@ -70,26 +70,30 @@
 .quote-request-attachment-card audio{width:100%}
 .quote-request-attachment-meta{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;color:#28465c}
 .quote-request-create-floating{position:fixed;top:164px;left:calc(50% + 360px);z-index:400}
-.process-launcher-stack{display:flex;flex-direction:column;align-items:center;gap:10px}
-.process-launcher-primary{position:relative;display:flex;align-items:center;justify-content:center}
-.launcher-menu-left .process-launcher-bridge{position:absolute;right:100%;top:0;margin-right:12px}
-.floating-action-button{width:42px;height:42px;min-width:42px;padding:0;border-radius:14px;border:1px solid #bfe3f7;background:linear-gradient(180deg,#ffffff 0%,#f4fbff 100%);box-shadow:0 8px 18px rgba(93,134,168,.16);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:var(--floating-icon-color,#6b7580);transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease,color .16s ease}
-.floating-action-button:hover,.floating-action-button:focus-visible{transform:translateY(-1px);border-color:#8fd0f1;box-shadow:0 12px 22px rgba(57,130,182,.18);color:var(--floating-icon-hover,#0b81b8)}
+.process-launcher-stack{display:grid;gap:10px;justify-items:center}
+.process-launcher-primary{position:relative;display:block;width:58px;min-width:58px;overflow:visible}
+.launcher-menu-left .process-launcher-bridge{position:absolute;right:100%;top:0;margin-right:12px;border-radius:20px 20px 0 20px;transform-origin:right center}
+.launcher-menu-right .process-launcher-bridge{position:absolute;left:100%;top:0;margin-left:12px;border-radius:20px 20px 20px 0;transform-origin:left center}
+.floating-action-button{touch-action:none;user-select:none;width:58px;height:58px;min-width:58px;padding:10px 12px;border-radius:18px;border:1px solid rgba(11,129,184,.18);background:linear-gradient(180deg,rgba(255,255,255,.96) 0%,rgba(237,247,253,.98) 100%);box-shadow:0 12px 28px rgba(15,23,42,.12);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:var(--floating-icon-color,#6b7580);transition:color .18s ease,border-color .18s ease,background-color .18s ease,transform .18s ease,box-shadow .18s ease;backdrop-filter:blur(10px)}
+.floating-action-button:hover,.floating-action-button:focus-visible{transform:translateY(-1px);border-color:rgba(11,129,184,.28);background:linear-gradient(180deg,rgba(255,255,255,.98) 0%,rgba(244,250,255,1) 100%);box-shadow:0 18px 34px rgba(15,23,42,.16);color:var(--floating-icon-hover,#0b81b8)}
+.quote-request-create-floating.dragging{pointer-events:none}
+.quote-request-create-floating.dragging .floating-action-button{transform:scale(1.05);box-shadow:0 30px 60px rgba(15,23,42,.24);border-color:rgba(11,129,184,.4);cursor:grabbing}
 .process-launcher-button{color:var(--floating-icon-color,#6b7580)}
 .process-launcher-icon,.floating-action-icon{display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%}
 .floating-action-icon-markup{width:var(--floating-icon-size,24px);height:var(--floating-icon-size,24px);background:currentColor;background-repeat:no-repeat;background-position:center;background-size:contain}
-.process-launcher-bridge{display:grid;gap:8px;min-width:182px;padding:10px;border:1px solid #d9edf8;border-radius:18px;background:linear-gradient(180deg,rgba(255,255,255,.9) 0%,rgba(241,249,254,.98) 100%);box-shadow:0 16px 30px rgba(83,123,156,.18);backdrop-filter:blur(10px)}
-.process-launcher-label{font-size:12px;font-weight:700;color:#5f7392;padding:0 4px}
-.process-launcher-menu{display:grid;gap:8px}
-.process-launcher-item{width:100%;min-height:40px;padding:0 12px;border-radius:14px;border:1px solid #bfe3f7;background:linear-gradient(180deg,#ffffff 0%,#f4fbff 100%);box-shadow:0 8px 18px rgba(93,134,168,.12);display:flex;align-items:center;gap:10px;cursor:pointer;color:#5f7392;text-align:left}
-.process-launcher-item:hover,.process-launcher-item:focus-visible{border-color:#8fd0f1;color:#0b81b8}
-.process-launcher-item-icon{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex:0 0 18px}
-.process-launcher-item-text{font-size:13px;font-weight:700}
+.process-launcher-bridge{position:absolute;width:min(340px,calc(100vw - 34px));display:grid;grid-template-columns:1fr;min-height:60px;border:1px solid rgba(11,129,184,.18);background:linear-gradient(180deg,rgba(255,255,255,.96) 0%,rgba(237,247,253,.98) 100%);box-shadow:0 22px 38px rgba(15,23,42,.14);backdrop-filter:blur(12px);overflow:hidden;transition:opacity .2s ease,transform .22s ease;z-index:1}
+.process-launcher-label{display:block;padding:14px 20px 4px 16px;font-size:.9rem;font-weight:600;line-height:1.1;white-space:nowrap;color:#0b81b8;text-align:right}
+.launcher-menu-right .process-launcher-label{text-align:left}
+.process-launcher-menu{max-height:min(76vh,560px);padding:12px 10px 10px;display:grid;gap:8px;grid-template-columns:1fr;overflow-y:auto;overscroll-behavior:contain}
+.process-launcher-item{width:100%;text-align:left;min-height:44px;padding:8px 12px;border-radius:14px;border:1px solid #e7edf2;background:linear-gradient(180deg,#fbfdff 0%,#f4f9fc 100%);cursor:pointer;display:flex;align-items:center;gap:10px;transition:transform .18s ease,border-color .18s ease,background-color .18s ease}
+.process-launcher-item:hover{transform:translateX(4px);border-color:#cfe0ec;background:linear-gradient(180deg,#ffffff 0%,#f0f7fc 100%)}
+.process-launcher-item-icon{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;flex:0 0 24px}
+.process-launcher-item-text{font-size:13px;font-weight:700;color:#1e3a5f}
 .icon-glyph{display:inline-flex;align-items:center;justify-content:center;line-height:1}
 .icon-image{display:block;object-fit:contain}
 .icon-svg-mask{display:inline-block;background:currentColor;background-repeat:no-repeat;background-position:center;background-size:contain}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(239,68,68,.5)}70%{box-shadow:0 0 0 9px rgba(239,68,68,0)}100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}}
-@media (max-width:980px){.quote-request-columns,.quote-request-grid,.quote-request-finishes-grid,.quote-request-shape-grid{grid-template-columns:1fr}.quote-request-create-floating{top:auto;bottom:22px;right:22px;left:auto}}
+@media (max-width:980px){.quote-request-columns,.quote-request-grid,.quote-request-finishes-grid,.quote-request-shape-grid{grid-template-columns:1fr}.quote-request-create-floating{top:auto !important;left:auto !important;bottom:22px !important;right:22px !important}}
 </style>
 </head>
 <body>
@@ -269,11 +273,11 @@
 <div class="quote-request-attachment-actions">
 <div id="audioRecordIndicator" class="quote-request-audio-status" hidden><span class="quote-request-audio-dot"></span><span>Grabando</span></div>
 <label id="requestAttachmentsButton" class="quote-request-icon-action" title="Adjuntar Archivos" aria-label="Adjuntar Archivos">
-<span class="quote-request-icon-media" data-inline-icon="attachment"></span>
+<span data-inline-icon="attachment"></span>
 <input id="requestAttachments" type="file" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ai,.eps" hidden>
 </label>
 <button type="button" id="audioRecordButton" class="quote-request-icon-action" title="Grabar Audio" aria-label="Grabar Audio" data-recording="false">
-<span class="quote-request-icon-media" data-inline-icon="record"></span>
+<span data-inline-icon="record"></span>
 </button>
 </div>
 <div id="requestAttachmentsPreview" class="quote-request-attachment-list"></div>
@@ -291,19 +295,23 @@
 <div class="process-launcher-stack">
 <div id="processLauncherPrimary" class="process-launcher-primary launcher-menu-left">
 <button id="processLauncherButton" type="button" class="process-launcher-button floating-action-button" aria-label="Abrir acciones" aria-expanded="false">
-<span id="processLauncherIcon" class="process-launcher-icon floating-action-icon" aria-hidden="true"><span class="icon-svg-mask floating-action-icon-markup" data-launcher-icon="primary"></span></span>
+<span id="processLauncherIcon" class="process-launcher-icon floating-action-icon" aria-hidden="true"><span data-launcher-icon="primary"></span></span>
 </button>
 <div id="processLauncherBridge" class="process-launcher-bridge" hidden>
 <span id="processLauncherLabel" class="process-launcher-label">Acciones</span>
 <div id="processLauncherMenu" class="process-launcher-menu">
-<button type="button" id="enviarSolicitudFabButton" class="process-launcher-item" title="Crear Cotización" aria-label="Crear Cotización">
-<span class="process-launcher-item-icon" data-fab-icon="submit"></span>
-<span class="process-launcher-item-text">Crear Cotización</span>
-</button>
-<button type="button" id="modoAvanzadoFabButton" class="process-launcher-item" title="Proceso Avanzado" aria-label="Proceso Avanzado">
-<span class="process-launcher-item-icon" data-fab-icon="advanced"></span>
-<span class="process-launcher-item-text">Proceso Avanzado</span>
-</button>
+                        <button type="button" id="enviarSolicitudFabButton" class="process-launcher-item" title="Solicitud de Cotización" aria-label="Solicitud de Cotización">
+                            <span data-fab-icon="submit"></span>
+                            <span class="process-launcher-item-text">Solicitud de Cotización</span>
+                        </button>
+                        <button type="button" id="modoAvanzadoFabButton" class="process-launcher-item" title="Proceso Avanzado" aria-label="Proceso Avanzado">
+                            <span data-fab-icon="advanced"></span>
+                            <span class="process-launcher-item-text">Proceso Avanzado</span>
+                        </button>
+                        <button type="button" id="verProformaFabButton" class="process-launcher-item" title="Ver Proforma" aria-label="Ver Proforma">
+                            <span data-fab-icon="proforma"></span>
+                            <span class="process-launcher-item-text">Ver Proforma</span>
+                        </button>
 </div>
 </div>
 </div>

@@ -1,4 +1,4 @@
-﻿require('dotenv').config();
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -30,6 +30,9 @@ const PRESENTATION_NAMES = {
     'cotizaciones': 'Cotizaciones',
     'solicitudes': 'Solicitudes',
     'calculos': 'Cálculos',
+    'socios': 'Socios',
+    'inventario-mp': 'Inventario Materia Prima',
+    'inventario-troqueles': 'Inventario Troqueles',
     'socios': 'Socios',
     'inventario-mp': 'Inventario Materia Prima',
     'inventario-troqueles': 'Inventario Troqueles',
@@ -173,8 +176,18 @@ const DEFAULT_GENERAL_CONFIG = {
         adminPermissionDelete: '\u{1F5D1}',
         loginRepositoryUpload: '\u21E7',
         loginRepositoryDelete: '\u{1F5D1}',
-        passwordReveal: '\u{1F441}',
-        passwordHide: '\u{1F648}'
+        dashboardPlanning: '\u25F3',
+        browserOpen: '\u2197',
+        lineCreateProductionOrder: '\u21E2',
+        quoteRequestSubmit: '\u27A4',
+        quoteRequestAdvanced: '\u2699',
+        quoteRequestAttachment: '\uD83D\uDCCE',
+        quoteRequestRecord: '\uD83C\uDFA4',
+        quoteRequestRecordStop: '\u25A0',
+        proformaCurrencyAdd: '+',
+        proformaCurrencyDelete: '\u{1F5D1}',
+        proformaView: '\u{1F441}',
+        proformaClose: '\u2713'
     },
     layout: {
         logoWidth: 60,
@@ -209,6 +222,26 @@ const DEFAULT_GENERAL_CONFIG = {
         defaultCoreDiameter: 3,
         defaultQuantityTypes: 1,
         defaultCmykEnabled: 'true',
+        proformaLogoUrl: '',
+        proformaCompanyName: 'PrintLab',
+        proformaSlogan: '',
+        proformaPhone: '+506 0000 0000',
+        proformaWebsite: 'www.printlab.local',
+        proformaEmail: 'info@printlab.local',
+        proformaDefaultCurrency: 'CRC',
+        proformaCurrenciesJson: JSON.stringify([
+            { code: 'CRC', label: 'Colones', symbol: '₡', exchangeRate: 1 },
+            { code: 'USD', label: 'Dólares', symbol: '$', exchangeRate: 0.0019 }
+        ]),
+        proformaDefaultValidity: '15 días',
+        proformaIntro: '',
+        proformaTermsConditions: '',
+        proformaPaymentTerms: '',
+        proformaDeliveryTime: '',
+        proformaTechnicalSpecs: '',
+        proformaQualityPolicies: '',
+        proformaPriceDisplayMode: 'both',
+        proformaSellerSignatureEnabled: 'true',
         dieShapeLabel1: 'Circular',
         dieShapeLabel2: 'Cuadrado',
         dieShapeLabel3: 'Rectangular',
@@ -385,6 +418,30 @@ const DEFAULT_GENERAL_CONFIG = {
         iconColorAttachmentReplace: '#0b81b8',
         iconColor2AttachmentReplace: '#ffffff',
         iconColorHoverAttachmentReplace: '#07638c',
+        iconColorDashboardPlanning: '#0b81b8',
+        iconColor2DashboardPlanning: '#ffffff',
+        iconColorHoverDashboardPlanning: '#17abdf',
+        iconColorBrowserOpen: '#0b81b8',
+        iconColor2BrowserOpen: '#ffffff',
+        iconColorHoverBrowserOpen: '#07638c',
+        iconColorLineCreateProductionOrder: '#0b81b8',
+        iconColor2LineCreateProductionOrder: '#ffffff',
+        iconColorHoverLineCreateProductionOrder: '#07638c',
+        iconColorQuoteRequestSubmit: '#ffffff',
+        iconColor2QuoteRequestSubmit: '#ffffff',
+        iconColorHoverQuoteRequestSubmit: '#ffffff',
+        iconColorQuoteRequestAdvanced: '#5f7288',
+        iconColor2QuoteRequestAdvanced: '#ffffff',
+        iconColorHoverQuoteRequestAdvanced: '#4a5a6d',
+        iconColorQuoteRequestAttachment: '#1e516d',
+        iconColor2QuoteRequestAttachment: '#ffffff',
+        iconColorHoverQuoteRequestAttachment: '#153a4d',
+        iconColorQuoteRequestRecord: '#1e516d',
+        iconColor2QuoteRequestRecord: '#ffffff',
+        iconColorHoverQuoteRequestRecord: '#153a4d',
+        iconColorQuoteRequestRecordStop: '#1e516d',
+        iconColor2QuoteRequestRecordStop: '#ffffff',
+        iconColorHoverQuoteRequestRecordStop: '#153a4d',
         iconBgTopMenu: '',
         iconBgTopSearch: '',
         iconBgTopUser: '',
@@ -436,6 +493,14 @@ const DEFAULT_GENERAL_CONFIG = {
         iconSizeAttachmentUpload: 18,
         iconSizeAttachmentDownload: 18,
         iconSizeAttachmentReplace: 18,
+        iconSizeDashboardPlanning: 38,
+        iconSizeBrowserOpen: 18,
+        iconSizeLineCreateProductionOrder: 18,
+        iconSizeQuoteRequestSubmit: 18,
+        iconSizeQuoteRequestAdvanced: 18,
+        iconSizeQuoteRequestAttachment: 18,
+        iconSizeQuoteRequestRecord: 18,
+        iconSizeQuoteRequestRecordStop: 18,
         pageMarginTop: 14,
         pageMarginBottom: 8,
         pageMarginRight: 16,
@@ -526,6 +591,7 @@ ensurePlanningSchema().catch((error) => {
 });
 ensureAdminPermissionsSchema()
     .then(() => ensureAdminUsersSchema())
+    .then(() => ensureQuoteProformasSchema())
     .then(() => ensureSecuritySeed())
     .catch((error) => {
         console.error('No fue posible preparar el esquema de seguridad administrativa:', error.message);
@@ -693,23 +759,35 @@ function deepMerge(base, override) {
     return output;
 }
 
+function repairUtf8Text(value) {
+    if (typeof value !== 'string' || !value) {
+        return value;
+    }
+
+    let repaired = value;
+    for (let index = 0; index < 2; index += 1) {
+        try {
+            const nextValue = decodeURIComponent(escape(repaired));
+            if (!nextValue || nextValue === repaired) {
+                break;
+            }
+            repaired = nextValue;
+        } catch (error) {
+            break;
+        }
+    }
+    return repaired;
+}
+
 function fixCommonTextArtifacts(value) {
     if (typeof value !== 'string') {
         return value;
     }
 
-    return value
+    return repairUtf8Text(value)
         .replace(/^C\?lculos$/i, 'Cálculos')
-        .replace(/^CÃ¡lculos$/i, 'Cálculos')
-        .replace(/^Cotizador FlexografÃ­a Pro$/i, 'Cálculo de Flexografía')
-        .replace(/^ConfiguraciÃ³n General/i, 'Configuración General')
-        .replace(/Ã¡/g, 'á')
-        .replace(/Ã©/g, 'é')
-        .replace(/Ã­/g, 'í')
-        .replace(/Ã³/g, 'ó')
-        .replace(/Ãº/g, 'ú')
-        .replace(/Ã±/g, 'ñ')
-        .replace(/Â·/g, '·')
+        .replace(/^Cotizador Flexografia Pro$/i, 'Cálculo de Flexografía')
+        .replace(/^Configuracion General/i, 'Configuración General')
         .replace(/\s+\|\s+Cotizaciones$/, ' | Cotizaciones')
         .replace(/^\|\s*/, '');
 }
@@ -888,6 +966,10 @@ function normalizeGeneralConfigRecord(config) {
 
     normalized.general.moduleTitle = fixCommonTextArtifacts(normalized.general.moduleTitle);
     normalized.branding.companyName = fixCommonTextArtifacts(normalized.branding.companyName);
+    normalized.general.proformaCurrenciesJson = JSON.stringify(normalizeProformaCurrencyList(normalized.general.proformaCurrenciesJson));
+    normalized.general.proformaDefaultCurrency = String(normalized.general.proformaDefaultCurrency || 'CRC').trim().toUpperCase() || 'CRC';
+    normalized.general.proformaPriceDisplayMode = String(normalized.general.proformaPriceDisplayMode || 'both').trim() || 'both';
+    normalized.general.proformaSellerSignatureEnabled = String(normalized.general.proformaSellerSignatureEnabled || 'true').trim().toLowerCase() === 'false' ? 'false' : 'true';
     return normalized;
 }
 
@@ -1307,6 +1389,33 @@ function sanitizeAdminUserText(value, fallback = '') {
     return String(value ?? fallback).trim();
 }
 
+function normalizeProformaCurrencyList(value, fallbackJson = DEFAULT_GENERAL_CONFIG.general.proformaCurrenciesJson) {
+    const fallback = (() => {
+        try {
+            return JSON.parse(fallbackJson);
+        } catch (error) {
+            return [{ code: 'CRC', label: 'Colones', symbol: '₡', exchangeRate: 1 }];
+        }
+    })();
+    const input = typeof value === 'string'
+        ? (() => {
+            try {
+                return JSON.parse(value);
+            } catch (error) {
+                return [];
+            }
+        })()
+        : value;
+    const rows = Array.isArray(input) ? input : [];
+    const normalized = rows.map((row) => ({
+        code: String(row?.code || '').trim().toUpperCase().slice(0, 10),
+        label: String(row?.label || '').trim().slice(0, 80),
+        symbol: String(row?.symbol || '').trim().slice(0, 10),
+        exchangeRate: Number(row?.exchangeRate || 0)
+    })).filter((row) => row.code && row.label && Number.isFinite(row.exchangeRate) && row.exchangeRate > 0);
+    return normalized.length ? normalized : fallback;
+}
+
 function normalizeAdminUserRecord(row = {}) {
     return {
         id: Number(row.id || 0),
@@ -1316,6 +1425,7 @@ function normalizeAdminUserRecord(row = {}) {
         department: sanitizeAdminUserText(row.department),
         process: sanitizeAdminUserText(row.process),
         photoUrl: sanitizeAdminUserText(row.photo_url),
+        signatureUrl: sanitizeAdminUserText(row.signature_url),
         permissionId: row.permission_id == null ? null : Number(row.permission_id),
         permissionName: sanitizeAdminUserText(row.permission_name)
     };
@@ -1331,13 +1441,32 @@ async function ensureAdminUsersSchema() {
             department TEXT NOT NULL DEFAULT '',
             process TEXT NOT NULL DEFAULT '',
             photo_url TEXT NOT NULL DEFAULT '',
+            signature_url TEXT NOT NULL DEFAULT '',
             permission_id BIGINT REFERENCES admin_permissions(id) ON DELETE SET NULL,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
     `);
     await pgQuery(`ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS permission_id BIGINT REFERENCES admin_permissions(id) ON DELETE SET NULL`);
+    await pgQuery(`ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS signature_url TEXT NOT NULL DEFAULT ''`);
     await pgQuery(`CREATE INDEX IF NOT EXISTS admin_users_name_idx ON admin_users (full_name)`);
+}
+
+async function ensureQuoteProformasSchema() {
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS quote_proformas (
+            id BIGSERIAL PRIMARY KEY,
+            quote_code TEXT NOT NULL UNIQUE,
+            status TEXT NOT NULL DEFAULT 'open',
+            issue_date_fixed TIMESTAMPTZ NULL,
+            closed_at TIMESTAMPTZ NULL,
+            closed_reason TEXT NOT NULL DEFAULT '',
+            raw_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    `);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS quote_proformas_quote_code_idx ON quote_proformas (quote_code)`);
 }
 
 function sanitizePermissionAccess(value) {
@@ -1411,9 +1540,9 @@ async function ensureSecuritySeed() {
     const usersCount = await pgQuery(`SELECT COUNT(*)::int AS total FROM admin_users`);
     if (Number(usersCount.rows[0]?.total || 0) === 0) {
         await pgQuery(
-            `INSERT INTO admin_users (full_name, username, password, department, process, photo_url, permission_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            ['Administrador', 'admin', 'admin', 'Administración', 'General', '', adminPermissionId]
+            `INSERT INTO admin_users (full_name, username, password, department, process, photo_url, signature_url, permission_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+            ['Administrador', 'admin', 'admin', 'Administración', 'General', '', '', adminPermissionId]
         );
     }
 }
@@ -1508,30 +1637,33 @@ function classifyMachineCategory(process, subprocess) {
 
 function loadMachineCatalog() {
     return readWorkbookRows('Inventario de Maquinas Flexo.xlsx').map((row) => {
-        const machineName = row['Nombre de la mÃƒÂ¡quina'] || row.Modelo || row.Marca || 'Sin nombre';
-        const process = row.Proceso || '';
-        const subprocess = row.Subproceso || '';
+        const normalizedRow = Object.fromEntries(
+            Object.entries(row || {}).map(([key, value]) => [repairUtf8Text(String(key || '')), value])
+        );
+        const machineName = normalizedRow['Nombre de la máquina'] || normalizedRow.Modelo || normalizedRow.Marca || 'Sin nombre';
+        const process = normalizedRow.Proceso || '';
+        const subprocess = normalizedRow.Subproceso || '';
 
         return {
             id: slugify(`${machineName}-${process}-${subprocess}`),
-            brand: row.Marca || '',
-            model: row.Modelo || '',
+            brand: normalizedRow.Marca || '',
+            model: normalizedRow.Modelo || '',
             machineName,
             process,
             subprocess,
             category: classifyMachineCategory(process, subprocess),
-            workUnit: row['Unidad de trabajo'] || '',
-            setupBaseMinutes: toNumber(row['Tiempo de preparaciÃƒÂ³n general (sin estaciones)'], 0),
-            setupPerStationMinutes: toNumber(row['Tiempo por estaciÃƒÂ³n'], 0),
-            setupExtraMinutes: toNumber(row['Tiempo adicional de preparaciÃƒÂ³n'], 0),
-            areaFactor: toNumber(row['Factor de proceso por ÃƒÂ¡rea'], 0),
-            processVariables: row['Variables que afectan el tiempo'] || '',
-            consumptionType: row['Tipo de consumo'] || '',
-            productionSpeed: toNumber(row['Velocidad de producciÃƒÂ³n'], 0),
-            hourlyMachineCost: toNumber(row['Costo Hora Maquina'], 0),
-            hourlyOperatorCost: toNumber(row['Costo por hora del operador'], 0),
-            timeFormula: row['Formula Calculo Tiempo'] || '',
-            costFormula: row['FÃƒÂ³rmula Calculo Costo'] || ''
+            workUnit: normalizedRow['Unidad de trabajo'] || '',
+            setupBaseMinutes: toNumber(normalizedRow['Tiempo de preparación general (sin estaciones)'], 0),
+            setupPerStationMinutes: toNumber(normalizedRow['Tiempo por estación'], 0),
+            setupExtraMinutes: toNumber(normalizedRow['Tiempo adicional de preparación'], 0),
+            areaFactor: toNumber(normalizedRow['Factor de proceso por área'], 0),
+            processVariables: normalizedRow['Variables que afectan el tiempo'] || '',
+            consumptionType: normalizedRow['Tipo de consumo'] || '',
+            productionSpeed: toNumber(normalizedRow['Velocidad de producción'], 0),
+            hourlyMachineCost: toNumber(normalizedRow['Costo Hora Maquina'], 0),
+            hourlyOperatorCost: toNumber(normalizedRow['Costo por hora del operador'], 0),
+            timeFormula: normalizedRow['Formula Calculo Tiempo'] || '',
+            costFormula: normalizedRow['Fórmula Calculo Costo'] || ''
         };
     }).filter((machine) => machine.machineName);
 }
@@ -2027,6 +2159,214 @@ function mapFlexoCalculationDetail(row) {
         uiState: raw['CODEX_UI_STATE'] || null,
         digitalPlatesDisabled,
         raw_data: raw
+    };
+}
+
+function normalizeProformaStatus(value) {
+    return String(value || '').trim().toLowerCase() === 'closed' ? 'closed' : 'open';
+}
+
+function normalizeProformaPriceDisplayMode(value) {
+    const normalized = String(value || '').trim();
+    return ['unit', 'thousand', 'both', 'product_totals', 'global_totals'].includes(normalized) ? normalized : 'both';
+}
+
+function getProformaConfigSnapshot(config = {}) {
+    const general = config.general || {};
+    const currencies = normalizeProformaCurrencyList(general.proformaCurrenciesJson);
+    const defaultCurrency = String(general.proformaDefaultCurrency || currencies[0]?.code || 'CRC').trim().toUpperCase();
+    const selectedCurrency = currencies.find((item) => item.code === defaultCurrency) || currencies[0] || { code: 'CRC', label: 'Colones', symbol: '₡', exchangeRate: 1 };
+    return {
+        logoUrl: String(general.proformaLogoUrl || '').trim(),
+        companyName: String(general.proformaCompanyName || '').trim(),
+        slogan: String(general.proformaSlogan || '').trim(),
+        phone: String(general.proformaPhone || '').trim(),
+        website: String(general.proformaWebsite || '').trim(),
+        email: String(general.proformaEmail || '').trim(),
+        currencies,
+        defaultCurrency: defaultCurrency || selectedCurrency.code,
+        defaultCurrencyMeta: selectedCurrency,
+        defaultValidity: String(general.proformaDefaultValidity || '').trim(),
+        intro: String(general.proformaIntro || '').trim(),
+        termsConditions: String(general.proformaTermsConditions || '').trim(),
+        paymentTerms: String(general.proformaPaymentTerms || '').trim(),
+        deliveryTime: String(general.proformaDeliveryTime || '').trim(),
+        technicalSpecs: String(general.proformaTechnicalSpecs || '').trim(),
+        qualityPolicies: String(general.proformaQualityPolicies || '').trim(),
+        priceDisplayMode: normalizeProformaPriceDisplayMode(general.proformaPriceDisplayMode),
+        sellerSignatureEnabled: String(general.proformaSellerSignatureEnabled || 'true').trim().toLowerCase() !== 'false'
+    };
+}
+
+function buildProformaProductSummary(line = {}, currency = {}, displayMode = 'both') {
+    const raw = line.raw_data || {};
+    const quantity = parseLegacyNumber(raw['CANTIDAD SOLICITADA']) ?? parseLegacyNumber(raw.CANTIDAD) ?? parseLegacyNumber(raw['Cantidad']) ?? null;
+    const width = parseLegacyNumber(raw['DIMENSIONES ETIQUETA | ANCHO']) ?? null;
+    const length = parseLegacyNumber(raw['DIMENSIONES ETIQUETA | LARGO']) ?? null;
+    const unitPriceUsd = pickFirstValue(
+        parseLegacyNumber(raw['PRECIO UNITARIO']),
+        parseLegacyNumber(raw['GENERAL | 9 | PRECIO UNITARIO']),
+        parseLegacyNumber(raw['PRECIO UNITARIO FINAL']),
+        quantity && Number(line.subtotal_1) ? Number(line.subtotal_1) / quantity : null
+    );
+    const thousandPriceUsd = unitPriceUsd != null ? unitPriceUsd * 1000 : null;
+    const totalUsd = Number(line.subtotal_1 || 0) || 0;
+    const exchangeRate = Number(currency?.exchangeRate || 1) || 1;
+    return {
+        lineCode: line.line_code,
+        name: line.job_name || 'Producto',
+        material: line.material_name || '',
+        processType: line.process_type || '',
+        dimensionsText: width && length ? `${width}" x ${length}"` : '',
+        quantity,
+        unitPrice: unitPriceUsd != null ? roundCurrency(unitPriceUsd * exchangeRate) : null,
+        thousandPrice: thousandPriceUsd != null ? roundCurrency(thousandPriceUsd * exchangeRate) : null,
+        totalPrice: roundCurrency(totalUsd * exchangeRate),
+        currencyCode: currency?.code || 'CRC',
+        currencySymbol: currency?.symbol || '',
+        displayMode
+    };
+}
+
+async function closeQuoteProforma(quoteCode, reason = 'manual', client = null) {
+    if (!quoteCode) return null;
+    const executor = client || { query: pgQuery };
+    const existing = await executor.query(
+        `SELECT id, quote_code, status, issue_date_fixed, closed_at, closed_reason, raw_data
+           FROM quote_proformas
+          WHERE quote_code = $1
+          LIMIT 1`,
+        [quoteCode]
+    );
+    if (existing.rows.length && normalizeProformaStatus(existing.rows[0].status) === 'closed') {
+        return existing.rows[0];
+    }
+    const result = await executor.query(
+        `INSERT INTO quote_proformas (quote_code, status, issue_date_fixed, closed_at, closed_reason, raw_data)
+         VALUES ($1, 'closed', NOW(), NOW(), $2, '{}'::jsonb)
+         ON CONFLICT (quote_code)
+         DO UPDATE SET
+            status = 'closed',
+            issue_date_fixed = COALESCE(quote_proformas.issue_date_fixed, NOW()),
+            closed_at = NOW(),
+            closed_reason = EXCLUDED.closed_reason,
+            updated_at = NOW()
+         RETURNING id, quote_code, status, issue_date_fixed, closed_at, closed_reason, raw_data`,
+        [quoteCode, String(reason || 'manual').trim() || 'manual']
+    );
+    return result.rows[0] || null;
+}
+
+async function buildQuoteProformaPayload(quoteCode, client = null) {
+    const executor = client || { query: pgQuery };
+    const config = await loadGeneralConfig();
+    const configSnapshot = getProformaConfigSnapshot(config);
+    const quoteContext = client
+        ? await getQuoteLineContext(quoteCode, '__header_only__', client)
+        : await getQuoteLineContext(quoteCode, '__header_only__');
+    if (!quoteContext?.quote) {
+        throw new Error('Cotización no encontrada.');
+    }
+    const linesResult = await executor.query(
+        `SELECT calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name, die_code, material_code,
+                quantity, subtotal_cost, total_cost, unit_price, raw_data, created_at
+           FROM (
+                SELECT DISTINCT ON (line_code)
+                       calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name, die_code, material_code,
+                       quantity, subtotal_cost, total_cost, unit_price, raw_data, created_at
+                  FROM flexo_calculations
+                 WHERE quote_code = $1
+                 ORDER BY line_code NULLS LAST, created_at DESC NULLS LAST, calculation_code DESC NULLS LAST
+           ) latest_lines
+          ORDER BY line_code NULLS LAST`,
+        [quoteCode]
+    );
+    const lines = linesResult.rows.map(mapCalculationLine);
+    const proformaResult = await executor.query(
+        `SELECT id, quote_code, status, issue_date_fixed, closed_at, closed_reason, raw_data
+           FROM quote_proformas
+          WHERE quote_code = $1
+          LIMIT 1`,
+        [quoteCode]
+    );
+    const existing = proformaResult.rows[0] || null;
+    const rawData = existing?.raw_data || {};
+    const selectedCurrencyCode = String(rawData.currencyCode || configSnapshot.defaultCurrency).trim().toUpperCase();
+    const currency = configSnapshot.currencies.find((item) => item.code === selectedCurrencyCode) || configSnapshot.defaultCurrencyMeta;
+    const salespersonName = pickFirstValue(rawData.salespersonName, quoteContext.quote.salesperson_name);
+    let sellerSignatureUrl = '';
+    if (configSnapshot.sellerSignatureEnabled && salespersonName) {
+        const signatureResult = await executor.query(
+            `SELECT signature_url
+               FROM admin_users
+              WHERE LOWER(TRIM(full_name)) = LOWER(TRIM($1))
+                 OR LOWER(TRIM(username)) = LOWER(TRIM($1))
+              ORDER BY id
+              LIMIT 1`,
+            [salespersonName]
+        );
+        sellerSignatureUrl = sanitizeAdminUserText(signatureResult.rows[0]?.signature_url);
+    }
+    const issueDate = existing?.issue_date_fixed ? new Date(existing.issue_date_fixed) : new Date();
+    const products = lines.map((line) => buildProformaProductSummary(line, currency, rawData.priceDisplayMode || configSnapshot.priceDisplayMode));
+    const grandTotal = roundCurrency(products.reduce((acc, item) => acc + Number(item.totalPrice || 0), 0));
+    return {
+        quoteCode,
+        status: normalizeProformaStatus(existing?.status),
+        issueDate: issueDate.toISOString(),
+        closedAt: existing?.closed_at || null,
+        closedReason: sanitizeAdminUserText(existing?.closed_reason),
+        company: {
+            logoUrl: configSnapshot.logoUrl,
+            name: rawData.companyName || configSnapshot.companyName,
+            slogan: rawData.companySlogan || configSnapshot.slogan,
+            phone: rawData.companyPhone || configSnapshot.phone,
+            website: rawData.companyWebsite || configSnapshot.website,
+            email: rawData.companyEmail || configSnapshot.email
+        },
+        client: {
+            company: pickFirstValue(rawData.clientCompany, quoteContext.quote.customer_name),
+            contactName: pickFirstValue(rawData.clientContactName, quoteContext.quote.contact_name),
+            phone: pickFirstValue(rawData.clientPhone, quoteContext.quote.phone),
+            email: pickFirstValue(rawData.clientEmail, quoteContext.quote.email)
+        },
+        seller: {
+            name: salespersonName,
+            role: 'Ejecutivo de Ventas',
+            signatureUrl: sellerSignatureUrl
+        },
+        currency: {
+            code: currency.code,
+            label: currency.label,
+            symbol: currency.symbol,
+            exchangeRate: Number(rawData.exchangeRate || currency.exchangeRate || 1) || 1
+        },
+        currencies: configSnapshot.currencies,
+        validity: pickFirstValue(rawData.validity, configSnapshot.defaultValidity),
+        priceDisplayMode: normalizeProformaPriceDisplayMode(rawData.priceDisplayMode || configSnapshot.priceDisplayMode),
+        intro: pickFirstValue(rawData.intro, configSnapshot.intro),
+        termsConditions: pickFirstValue(rawData.termsConditions, configSnapshot.termsConditions),
+        paymentTerms: pickFirstValue(rawData.paymentTerms, configSnapshot.paymentTerms),
+        deliveryTime: pickFirstValue(rawData.deliveryTime, configSnapshot.deliveryTime),
+        technicalSpecs: pickFirstValue(rawData.technicalSpecs, configSnapshot.technicalSpecs),
+        qualityPolicies: pickFirstValue(rawData.qualityPolicies, configSnapshot.qualityPolicies),
+        priceDisplayModeOptions: [
+            { value: 'unit', label: 'Mostrar precio unitario' },
+            { value: 'thousand', label: 'Mostrar precio por millar' },
+            { value: 'both', label: 'Mostrar ambos' },
+            { value: 'product_totals', label: 'Mostrar únicamente totales por producto' },
+            { value: 'global_totals', label: 'Mostrar totales globales' }
+        ],
+        products,
+        totals: {
+            grandTotal,
+            currencyCode: currency.code,
+            currencySymbol: currency.symbol
+        },
+        footer: {
+            disclaimer: 'Cotización proforma no constituye una factura fiscal',
+            generatedOn: issueDate.toISOString()
+        }
     };
 }
 
@@ -3804,7 +4144,7 @@ app.get('/api/config/general', async (req, res) => {
     try {
         res.json(await loadGeneralConfig());
     } catch (error) {
-        res.status(500).json({ error: 'No fue posible cargar la configuraciÃƒÂ³n general.' });
+        res.status(500).json({ error: 'No fue posible cargar la configuración general.' });
     }
 });
 
@@ -3813,7 +4153,79 @@ app.post('/api/config/general', async (req, res) => {
         const saved = await saveGeneralConfig(req.body || {});
         res.json(saved);
     } catch (error) {
-        res.status(400).json({ error: 'No fue posible guardar la configuraciÃƒÂ³n general.' });
+        res.status(400).json({ error: 'No fue posible guardar la configuración general.' });
+    }
+});
+
+app.get('/api/proformas/:codigo', async (req, res) => {
+    try {
+        const payload = await buildQuoteProformaPayload(req.params.codigo);
+        res.json(payload);
+    } catch (error) {
+        const status = /no encontrada/i.test(error.message || '') ? 404 : 400;
+        res.status(status).json({ error: error.message || 'No fue posible cargar la proforma.' });
+    }
+});
+
+app.patch('/api/proformas/:codigo', async (req, res) => {
+    try {
+        const quoteCode = String(req.params.codigo || '').trim();
+        if (!quoteCode) {
+            return res.status(400).json({ error: 'Código de cotización inválido.' });
+        }
+        const before = await buildQuoteProformaPayload(quoteCode);
+        if (before.status === 'closed') {
+            return res.status(409).json({ error: 'La proforma ya fue cerrada y no puede editarse.' });
+        }
+        const config = await loadGeneralConfig();
+        const configSnapshot = getProformaConfigSnapshot(config);
+        const currencies = configSnapshot.currencies;
+        const currencyCode = String(req.body?.currencyCode || before.currency?.code || configSnapshot.defaultCurrency).trim().toUpperCase();
+        const selectedCurrency = currencies.find((item) => item.code === currencyCode) || configSnapshot.defaultCurrencyMeta;
+        const exchangeRate = Number(req.body?.exchangeRate || selectedCurrency.exchangeRate || 1) || 1;
+        const rawData = {
+            clientCompany: sanitizeAdminUserText(req.body?.clientCompany, before.client?.company),
+            clientContactName: sanitizeAdminUserText(req.body?.clientContactName, before.client?.contactName),
+            clientPhone: sanitizeAdminUserText(req.body?.clientPhone, before.client?.phone),
+            clientEmail: sanitizeAdminUserText(req.body?.clientEmail, before.client?.email),
+            salespersonName: sanitizeAdminUserText(req.body?.salespersonName, before.seller?.name),
+            currencyCode,
+            exchangeRate,
+            validity: sanitizeAdminUserText(req.body?.validity, before.validity),
+            intro: sanitizeAdminUserText(req.body?.intro, before.intro),
+            termsConditions: sanitizeAdminUserText(req.body?.termsConditions, before.termsConditions),
+            paymentTerms: sanitizeAdminUserText(req.body?.paymentTerms, before.paymentTerms),
+            deliveryTime: sanitizeAdminUserText(req.body?.deliveryTime, before.deliveryTime),
+            technicalSpecs: sanitizeAdminUserText(req.body?.technicalSpecs, before.technicalSpecs),
+            qualityPolicies: sanitizeAdminUserText(req.body?.qualityPolicies, before.qualityPolicies),
+            priceDisplayMode: normalizeProformaPriceDisplayMode(req.body?.priceDisplayMode || before.priceDisplayMode)
+        };
+        await pgQuery(
+            `INSERT INTO quote_proformas (quote_code, status, raw_data)
+             VALUES ($1, 'open', $2::jsonb)
+             ON CONFLICT (quote_code)
+             DO UPDATE SET
+                raw_data = EXCLUDED.raw_data,
+                updated_at = NOW()`,
+            [quoteCode, JSON.stringify(rawData)]
+        );
+        res.json(await buildQuoteProformaPayload(quoteCode));
+    } catch (error) {
+        const status = /cerrada/i.test(error.message || '') ? 409 : 400;
+        res.status(status).json({ error: error.message || 'No fue posible guardar la proforma.' });
+    }
+});
+
+app.post('/api/proformas/:codigo/close', async (req, res) => {
+    try {
+        const quoteCode = String(req.params.codigo || '').trim();
+        if (!quoteCode) {
+            return res.status(400).json({ error: 'Código de cotización inválido.' });
+        }
+        await closeQuoteProforma(quoteCode, sanitizeAdminUserText(req.body?.reason, 'manual'));
+        res.json(await buildQuoteProformaPayload(quoteCode));
+    } catch (error) {
+        res.status(400).json({ error: error.message || 'No fue posible cerrar la proforma.' });
     }
 });
 
@@ -3847,7 +4259,7 @@ app.delete('/api/login-repository/:fileName', async (req, res) => {
 app.get('/api/admin-users', async (req, res) => {
     try {
         const result = await pgQuery(
-            `SELECT u.id, u.full_name, u.username, u.password, u.department, u.process, u.photo_url, u.permission_id,
+            `SELECT u.id, u.full_name, u.username, u.password, u.department, u.process, u.photo_url, u.signature_url, u.permission_id,
                     p.permission_name
                FROM admin_users u
           LEFT JOIN admin_permissions p
@@ -3867,9 +4279,9 @@ app.post('/api/admin-users', async (req, res) => {
             return res.status(400).json({ error: 'El nombre es obligatorio.' });
         }
         const result = await pgQuery(
-            `INSERT INTO admin_users (full_name, username, password, department, process, photo_url, permission_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
-             RETURNING id, full_name, username, password, department, process, photo_url, permission_id`,
+            `INSERT INTO admin_users (full_name, username, password, department, process, photo_url, signature_url, permission_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+             RETURNING id, full_name, username, password, department, process, photo_url, signature_url, permission_id`,
             [
                 name,
                 sanitizeAdminUserText(req.body?.username),
@@ -3877,6 +4289,7 @@ app.post('/api/admin-users', async (req, res) => {
                 sanitizeAdminUserText(req.body?.department),
                 sanitizeAdminUserText(req.body?.process),
                 sanitizeAdminUserText(req.body?.photoUrl),
+                sanitizeAdminUserText(req.body?.signatureUrl),
                 req.body?.permissionId ? Number(req.body.permissionId) : null
             ]
         );
@@ -3909,10 +4322,11 @@ app.patch('/api/admin-users/:id', async (req, res) => {
                     department = $5,
                     process = $6,
                     photo_url = $7,
-                    permission_id = $8,
+                    signature_url = $8,
+                    permission_id = $9,
                     updated_at = NOW()
               WHERE id = $1
-          RETURNING id, full_name, username, password, department, process, photo_url, permission_id`,
+          RETURNING id, full_name, username, password, department, process, photo_url, signature_url, permission_id`,
             [
                 id,
                 name,
@@ -3921,6 +4335,7 @@ app.patch('/api/admin-users/:id', async (req, res) => {
                 sanitizeAdminUserText(req.body?.department),
                 sanitizeAdminUserText(req.body?.process),
                 sanitizeAdminUserText(req.body?.photoUrl),
+                sanitizeAdminUserText(req.body?.signatureUrl),
                 req.body?.permissionId ? Number(req.body.permissionId) : null
             ]
         );
@@ -5037,6 +5452,7 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/orden-produccion', async (req,
                     JSON.stringify(rawData)
                 ]
             );
+            await closeQuoteProforma(codigo, 'order_generated', client);
 
             const orderResult = await client.query(`SELECT * FROM flexo_orders WHERE order_code = $1 LIMIT 1`, [orderCode]);
             return orderResult.rows[0];
@@ -6826,7 +7242,7 @@ app.post('/api/flexo/calcular-preview', async (req, res) => {
         const catalogs = await loadFlexoCatalogsFromDb();
         res.json(calculateFlexoPreview(req.body || {}, catalogs));
     } catch (error) {
-        res.status(400).json({ error: error.message || 'No fue posible generar la vista previa del cÃƒÂ¡lculo flexogrÃƒÂ¡fico.' });
+        res.status(400).json({ error: error.message || 'No fue posible generar la vista previa del cálculo flexográfico.' });
     }
 });
 
@@ -6834,7 +7250,7 @@ app.post('/api/cotizador/flexografia/calcular', (req, res) => {
     try {
         res.json(calcularCotizacionFlexografia(req.body || {}));
     } catch (error) {
-        res.status(400).json({ error: error.message || 'No fue posible calcular la cotizaciÃƒÂ³n.' });
+        res.status(400).json({ error: error.message || 'No fue posible calcular la cotización.' });
     }
 });
 
@@ -6845,6 +7261,10 @@ app.get('/flexo-calculo', (req, res) => {
 
 app.get('/configuracion-general', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'configuracion-general.html'));
+});
+
+app.get('/proforma', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'proforma.html'));
 });
 
 app.get('/socios', (req, res) => {

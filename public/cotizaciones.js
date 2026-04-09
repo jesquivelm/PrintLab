@@ -3,12 +3,17 @@ const QUOTES_ENDPOINT = '/api/cotizaciones';
 const PARTNERS_ENDPOINT = '/api/socios';
 const LAUNCHER_POSITION_KEY = 'quote-request-launcher-position-v2';
 const DEFAULT_ICON_MAP = {
-    processLauncher: { value: '\u25CE', color: '#6b7580', size: 30 },
-    quoteRequestSubmit: { value: '\u27A4', color: '#ffffff', size: 18 },
-    quoteRequestAdvanced: { value: '\u2699', color: '#5f7288', size: 18 },
-    quoteRequestAttachment: { value: '\u25CE', color: '#1e516d', size: 18 },
-    quoteRequestRecord: { value: '\u25CF', color: '#1e516d', size: 18 },
-    quoteRequestRecordStop: { value: '\u25A0', color: '#ef4444', size: 18 }
+    processLauncher: { value: '◎', color: '#6b7580', size: 30 },
+    quoteRequestSubmit: { value: '➤', color: '#ffffff', size: 18 },
+    quoteRequestAdvanced: { value: '⚙', color: '#5f7288', size: 18 },
+    quoteRequestAttachment: { value: '◎', color: '#1e516d', size: 18 },
+    quoteRequestRecord: { value: '●', color: '#1e516d', size: 18 },
+    quoteRequestRecordStop: { value: '■', color: '#ef4444', size: 18 },
+    // New keys for premium sync
+    crearCotizacion: { value: '➤', color: '#1e516d', size: 24 },
+    procesoAvanzadoFlotante: { value: '⚙', color: '#5f7288', size: 20 },
+    proformaView: { value: '👁', color: '#1e516d', size: 18 },
+    proformaClose: { value: '✓', color: '#1e516d', size: 18 }
 };
 const STATIC_MATERIALS = [
     'BOPP Blanco',
@@ -125,32 +130,51 @@ function renderIcon(target, iconValue, color, size) {
     target.innerHTML = `<span class="icon-glyph" style="font-size:${size}px;">${escapeHtml(value)}</span>`;
 }
 
-function iconConfigFor(key) {
-    const fallback = DEFAULT_ICON_MAP[key];
+function iconConfigFor(key, canonicalKey = null) {
     const icons = loadedConfig?.icons || {};
     const general = loadedConfig?.general || {};
+    const propKey = canonicalKey || key;
+    
+    const internalKey = key.replace(/\s+/g, '').replace(/[áéíóú]/g, (m) => ({ 'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u' }[m]));
+    const fallback = DEFAULT_ICON_MAP[key] || DEFAULT_ICON_MAP[internalKey] || DEFAULT_ICON_MAP[propKey] || { value: '', color: '#6b7580', size: 24 };
+    
     const value = normalizeText(icons[key]) || fallback.value;
-    const suffix = key.charAt(0).toUpperCase() + key.slice(1);
+    const suffix = propKey.charAt(0).toUpperCase() + propKey.slice(1).replace(/\s+/g, '');
     const color = general[`iconColor${suffix}`] || fallback.color;
     const size = Number(general[`iconSize${suffix}`]) || fallback.size;
     return { value, color, size };
 }
 
+function getResolvedIcon(keys, canonicalKey) {
+    for (const key of keys) {
+        const icons = loadedConfig?.icons || {};
+        if (icons[key]) return iconConfigFor(key, canonicalKey);
+    }
+    return iconConfigFor(canonicalKey || keys[keys.length - 1]);
+}
+
 function applyConfiguredIcons() {
-    const primary = iconConfigFor('processLauncher');
-    const submit = iconConfigFor('quoteRequestSubmit');
-    const advanced = iconConfigFor('quoteRequestAdvanced');
-    const attachment = iconConfigFor('quoteRequestAttachment');
-    const record = iconConfigFor(isRecording ? 'quoteRequestRecordStop' : 'quoteRequestRecord');
-    renderIcon(document.querySelector('[data-launcher-icon="primary"]'), primary.value, primary.color, primary.size || 24);
-    renderIcon(document.querySelector('[data-fab-icon="submit"]'), submit.value, submit.color, submit.size);
-    renderIcon(document.querySelector('[data-fab-icon="advanced"]'), advanced.value, advanced.color, advanced.size);
-    renderIcon(document.querySelector('[data-inline-icon="attachment"]'), attachment.value, attachment.color, attachment.size);
-    renderIcon(document.querySelector('[data-inline-icon="record"]'), record.value, record.color, record.size);
+    const primaryConf = iconConfigFor('processLauncher');
+    
+    // Check multiple potential keys for each action, using a canonical key for properties
+    const submitConf = getResolvedIcon(['crear cotización', 'crear cotizacion', 'solicitud de cotización', 'solicitud de cotizacion', 'quoteRequestSubmit'], 'quoteRequestSubmit');
+    const advancedConf = getResolvedIcon(['proceso avanzado flotante', 'proceso avanzado', 'quoteRequestAdvanced'], 'quoteRequestAdvanced');
+    const proformaConf = getResolvedIcon(['ver proforma', 'proformaView'], 'proformaView');
+
+    const attachmentConf = iconConfigFor('quoteRequestAttachment');
+    const recordConf = iconConfigFor(isRecording ? 'quoteRequestRecordStop' : 'quoteRequestRecord');
+
+    renderIcon(document.querySelector('[data-launcher-icon="primary"]'), primaryConf.value, primaryConf.color, primaryConf.size || 24);
+    renderIcon(document.querySelector('[data-fab-icon="submit"]'), submitConf.value, submitConf.color, submitConf.size);
+    renderIcon(document.querySelector('[data-fab-icon="advanced"]'), advancedConf.value, advancedConf.color, advancedConf.size);
+    renderIcon(document.querySelector('[data-fab-icon="proforma"]'), proformaConf.value, proformaConf.color, proformaConf.size);
+    renderIcon(document.querySelector('[data-inline-icon="attachment"]'), attachmentConf.value, attachmentConf.color, attachmentConf.size);
+    renderIcon(document.querySelector('[data-inline-icon="record"]'), recordConf.value, recordConf.color, recordConf.size);
+
     if (processLauncherButton) {
-        processLauncherButton.style.setProperty('--floating-icon-color', primary.color);
+        processLauncherButton.style.setProperty('--floating-icon-color', primaryConf.color);
         processLauncherButton.style.setProperty('--floating-icon-hover', loadedConfig?.general?.iconColorHoverProcessLauncher || '#0b81b8');
-        processLauncherButton.style.setProperty('--floating-icon-size', `${primary.size || 24}px`);
+        processLauncherButton.style.setProperty('--floating-icon-size', `${primaryConf.size || 24}px`);
     }
     if (audioRecordButton) {
         audioRecordButton.title = isRecording ? 'Detener Grabacion' : 'Grabar Audio';
@@ -561,10 +585,67 @@ function bindEvents() {
     popover?.addEventListener('click', (event) => {
         if (event.target?.dataset?.closeQuoteCreate === 'true') closePopover();
     });
+
     processLauncherButton?.addEventListener('click', (event) => {
+        if (dragState?.moved) return;
         event.stopPropagation();
         toggleProcessLauncher();
     });
+
+    // Premium Draggable functionality
+    processLauncherButton?.addEventListener('pointerdown', (event) => {
+        if (event.button !== 0 || !launcherWrap) return;
+        const rect = launcherWrap.getBoundingClientRect();
+        dragState = {
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            originX: rect.left,
+            originY: rect.top,
+            moved: false
+        };
+        processLauncherButton.setPointerCapture(event.pointerId);
+        launcherWrap.classList.add('dragging');
+    });
+
+    processLauncherButton?.addEventListener('pointermove', (event) => {
+        if (!dragState || dragState.pointerId !== event.pointerId) return;
+        const deltaX = event.clientX - dragState.startX;
+        const deltaY = event.clientY - dragState.startY;
+
+        if (!dragState.moved && Math.abs(deltaX) + Math.abs(deltaY) > 5) {
+            dragState.moved = true;
+        }
+
+        if (!dragState.moved) return;
+
+        const width = window.innerWidth || document.documentElement.clientWidth;
+        const height = window.innerHeight || document.documentElement.clientHeight;
+        const wrapWidth = launcherWrap.offsetWidth || 64;
+        const wrapHeight = launcherWrap.offsetHeight || 64;
+
+        const left = Math.min(Math.max(8, dragState.originX + deltaX), width - wrapWidth - 8);
+        const top = Math.min(Math.max(8, dragState.originY + deltaY), height - wrapHeight - 8);
+
+        launcherWrap.style.left = `${left}px`;
+        launcherWrap.style.top = `${top}px`;
+        launcherWrap.style.right = 'auto';
+        launcherWrap.style.bottom = 'auto';
+        
+        // Save position
+        localStorage.setItem(LAUNCHER_POSITION_KEY, JSON.stringify({ x: left, y: top }));
+    });
+
+    const finishDrag = (event) => {
+        if (!dragState || dragState.pointerId !== event.pointerId) return;
+        launcherWrap?.classList.remove('dragging');
+        processLauncherButton.releasePointerCapture?.(event.pointerId);
+        dragState = null;
+    };
+
+    processLauncherButton?.addEventListener('pointerup', finishDrag);
+    processLauncherButton?.addEventListener('pointercancel', finishDrag);
+
     quotesSearchInput?.addEventListener('input', () => renderQuotesTable(getFilteredQuotes()));
     rowsBody?.addEventListener('click', (event) => {
         const button = event.target.closest('[data-open-quote]');
@@ -638,6 +719,12 @@ function bindEvents() {
     audioRecordButton?.addEventListener('click', () => toggleAudioRecording().catch((error) => setStatus(error.message, 'error')));
     createButton?.addEventListener('click', () => submitQuoteRequest(false).catch((error) => setStatus(error.message, 'error')));
     advancedButton?.addEventListener('click', () => submitQuoteRequest(true).catch((error) => setStatus(error.message, 'error')));
+    document.getElementById('verProformaFabButton')?.addEventListener('click', () => {
+        const route = '/proforma';
+        if (!openRouteInShell(route, 'Gestión de Proformas')) {
+            window.location.href = route;
+        }
+    });
     window.addEventListener('resize', () => {
         if (!popover.hidden && launcherWrap) setDefaultLauncherPosition();
     });
@@ -653,6 +740,23 @@ async function init() {
     bindEvents();
     syncToggleChipState();
     await Promise.all([loadConfig(), loadQuotes()]);
+
+    // Restore FAB position
+    const savedPos = localStorage.getItem(LAUNCHER_POSITION_KEY);
+    if (savedPos && launcherWrap) {
+        try {
+            const pos = JSON.parse(savedPos);
+            if (typeof pos.x === 'number' && typeof pos.y === 'number') {
+                launcherWrap.style.left = `${pos.x}px`;
+                launcherWrap.style.top = `${pos.y}px`;
+                launcherWrap.style.right = 'auto';
+                launcherWrap.style.bottom = 'auto';
+            }
+        } catch (e) {
+            console.error('No fue posible restaurar posicion del launcher.', e);
+        }
+    }
+
     if (new URLSearchParams(window.location.search).get('openModal') === '1') {
         openPopover();
     }

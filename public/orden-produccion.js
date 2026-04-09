@@ -176,7 +176,7 @@ function applyHeaderConfig(config) {
     const presentation = config.presentations?.ordenes || {};
     const general = config.general || {};
     const branding = config.branding || {};
-    const title = presentation.moduleTitle || 'Orden de Produccion';
+    const title = presentation.moduleTitle || 'Orden de Producción';
     document.getElementById('orderPageTitle').textContent = title;
     document.documentElement.style.setProperty('--header-bg-start', presentation.headerBgStart || general.headerBgStart || '#0b81b8');
     document.documentElement.style.setProperty('--header-bg-end', presentation.headerBgEnd || general.headerBgEnd || '#17abdf');
@@ -202,7 +202,7 @@ function buildInkConfig(detail, raw) {
     if (String(raw['CMYK'] || '').toLowerCase() === 'si' || raw['GENERAL | CMYK'] === true) parts.push('CMYK');
     if (String(raw['TINTA BLANCA'] || '').toLowerCase() === 'si' || raw['GENERAL | TINTA BLANCA'] === true) parts.push('Blanco');
     if (String(raw['DOBLE PASADA BLANCA'] || '').toLowerCase() === 'si') parts.push('Doble Pasada');
-    if (String(raw['SIN IMPRESION'] || '').toLowerCase() === 'si') parts.push('Sin ImpresiÃ³n');
+    if (String(raw['SIN IMPRESION'] || '').toLowerCase() === 'si') parts.push('Sin Impresión');
     if (!parts.length && detail.tintCount) parts.push(`${detail.tintCount} tintas`);
     return parts.join(' / ');
 }
@@ -280,7 +280,7 @@ async function loadOrder() {
 
     statusBox.hidden = true;
     contentBox.hidden = false;
-    document.title = `${order.order_code} | Orden de Produccion`;
+    document.title = `${order.order_code} | Orden de Producción`;
     renderPlanningControl(raw);
     renderPlanningSnapshot(raw);
 
@@ -301,7 +301,7 @@ async function loadOrder() {
     setFieldValue('orderClientProductCodeField', pickFirst(lineRaw['ID PRODUCTO CLIENTE'], lineRaw['CODIGO PRODUCTO CLIENTE']));
     setFieldValue('orderWidthField', parseNumber(detail.widthInches, ' in'));
     setFieldValue('orderLengthField', parseNumber(detail.lengthInches, ' in'));
-    setFieldValue('orderAreaField', parseNumber(detail.areaM2, ' mÂ²'));
+    setFieldValue('orderAreaField', parseNumber(detail.areaM2, ' m²'));
 
     setFieldValue('orderQuantityField', parseNumber(raw.totals?.quantity || order.ordered_quantity));
     setFieldValue('orderOutputTypeField', pickFirst(detail.outputType, lineRaw['TIPO SALIDA']));

@@ -113,15 +113,17 @@ function escapeHtml(value) {
 function normalizeText(value) {
     const raw = String(value || "").trim();
     if (!raw) return "";
-    try {
-        if (/[ÃÂâ�]/.test(raw) || raw.includes("�")) {
-            const repaired = decodeURIComponent(escape(raw));
-            return String(repaired || raw).trim();
+    let repaired = raw;
+    for (let index = 0; index < 2; index += 1) {
+        try {
+            const nextValue = decodeURIComponent(escape(repaired));
+            if (!nextValue || nextValue === repaired) break;
+            repaired = nextValue;
+        } catch (error) {
+            break;
         }
-    } catch (error) {
-        return raw;
     }
-    return raw;
+    return repaired.trim();
 }
 
 function numberValue(value, fallback = 0) {
@@ -152,9 +154,9 @@ function getPresentationConfig(config, key) {
 }
 
 function normalizeFloatingSaveValue(value) {
-    const raw = String(value || "").trim();
+    const raw = normalizeText(value);
     if (!raw) return DEFAULT_FLOATING_SAVE_ICON;
-    if (/[ÃƒÃ°Ã¯ï¿½]/.test(raw)) return DEFAULT_FLOATING_SAVE_ICON;
+    if (raw.includes('\uFFFD')) return DEFAULT_FLOATING_SAVE_ICON;
     return raw;
 }
 
