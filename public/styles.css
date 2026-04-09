@@ -1185,6 +1185,23 @@ body.popover-open { overflow: hidden; }
     width: var(--config-icon-size, 18px);
     height: var(--config-icon-size, 18px);
 }
+.quote-browser-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.browser-open-link.browser-open-link-danger {
+    background: rgba(167, 67, 67, 0.08);
+    color: var(--icon-color, #a74343);
+}
+.browser-open-link.browser-open-link-danger:hover,
+.browser-open-link.browser-open-link-danger:focus-visible {
+    background: rgba(167, 67, 67, 0.14);
+    color: var(--icon-hover-color, #d03535);
+}
+.browser-open-link.browser-open-link-danger:focus-visible {
+    box-shadow: 0 0 0 3px rgba(167, 67, 67, 0.14);
+}
 .socios-workspace {
     max-width: 1280px;
     margin: 0 auto;

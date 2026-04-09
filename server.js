@@ -225,6 +225,17 @@ const DEFAULT_GENERAL_CONFIG = {
         proformaLogoUrl: '',
         proformaCompanyName: 'PrintLab',
         proformaSlogan: '',
+        proformaHeaderColor: '#203852',
+        proformaCompanyNameColor: '#ffffff',
+        proformaCompanyFontFamily: 'Cormorant Garamond',
+        proformaCompanyFontLabel: 'Fuente Proforma',
+        proformaCompanyFontUrl: '',
+        proformaShowCompanyName: 'true',
+        proformaLogoWidth: 120,
+        proformaLogoHeight: 74,
+        proformaLogoAspectLocked: 'true',
+        proformaLogoMarginTop: 0,
+        proformaLogoMarginLeft: 0,
         proformaPhone: '+506 0000 0000',
         proformaWebsite: 'www.printlab.local',
         proformaEmail: 'info@printlab.local',
@@ -235,6 +246,9 @@ const DEFAULT_GENERAL_CONFIG = {
         ]),
         proformaDefaultValidity: '15 días',
         proformaIntro: '',
+        proformaIntroFontFamily: 'inherit',
+        proformaIntroFontSize: 15,
+        proformaIntroColor: '#2f3c46',
         proformaTermsConditions: '',
         proformaPaymentTerms: '',
         proformaDeliveryTime: '',
@@ -968,6 +982,17 @@ function normalizeGeneralConfigRecord(config) {
     normalized.branding.companyName = fixCommonTextArtifacts(normalized.branding.companyName);
     normalized.general.proformaCurrenciesJson = JSON.stringify(normalizeProformaCurrencyList(normalized.general.proformaCurrenciesJson));
     normalized.general.proformaDefaultCurrency = String(normalized.general.proformaDefaultCurrency || 'CRC').trim().toUpperCase() || 'CRC';
+    normalized.general.proformaHeaderColor = normalizeProformaHeaderColor(normalized.general.proformaHeaderColor, DEFAULT_GENERAL_CONFIG.general.proformaHeaderColor);
+    normalized.general.proformaCompanyNameColor = normalizeProformaHeaderColor(normalized.general.proformaCompanyNameColor, DEFAULT_GENERAL_CONFIG.general.proformaCompanyNameColor);
+    normalized.general.proformaShowCompanyName = String(normalized.general.proformaShowCompanyName || 'true').trim().toLowerCase() === 'false' ? 'false' : 'true';
+    normalized.general.proformaLogoWidth = Number(normalized.general.proformaLogoWidth || DEFAULT_GENERAL_CONFIG.general.proformaLogoWidth) || DEFAULT_GENERAL_CONFIG.general.proformaLogoWidth;
+    normalized.general.proformaLogoHeight = Number(normalized.general.proformaLogoHeight || DEFAULT_GENERAL_CONFIG.general.proformaLogoHeight) || DEFAULT_GENERAL_CONFIG.general.proformaLogoHeight;
+    normalized.general.proformaLogoAspectLocked = String(normalized.general.proformaLogoAspectLocked || 'true').trim().toLowerCase() === 'false' ? 'false' : 'true';
+    normalized.general.proformaLogoMarginTop = Number(normalized.general.proformaLogoMarginTop || 0) || 0;
+    normalized.general.proformaLogoMarginLeft = Number(normalized.general.proformaLogoMarginLeft || 0) || 0;
+    normalized.general.proformaIntroFontFamily = String(normalized.general.proformaIntroFontFamily || 'inherit').trim() || 'inherit';
+    normalized.general.proformaIntroFontSize = Number(normalized.general.proformaIntroFontSize || 15) || 15;
+    normalized.general.proformaIntroColor = normalizeProformaHeaderColor(normalized.general.proformaIntroColor, '#2f3c46');
     normalized.general.proformaPriceDisplayMode = String(normalized.general.proformaPriceDisplayMode || 'both').trim() || 'both';
     normalized.general.proformaSellerSignatureEnabled = String(normalized.general.proformaSellerSignatureEnabled || 'true').trim().toLowerCase() === 'false' ? 'false' : 'true';
     return normalized;
@@ -2171,6 +2196,11 @@ function normalizeProformaPriceDisplayMode(value) {
     return ['unit', 'thousand', 'both', 'product_totals', 'global_totals'].includes(normalized) ? normalized : 'both';
 }
 
+function normalizeProformaHeaderColor(value, fallback = '#203852') {
+    const normalized = String(value || '').trim();
+    return /^#([0-9a-fA-F]{6})$/.test(normalized) ? normalized : fallback;
+}
+
 function getProformaConfigSnapshot(config = {}) {
     const general = config.general || {};
     const currencies = normalizeProformaCurrencyList(general.proformaCurrenciesJson);
@@ -2180,6 +2210,20 @@ function getProformaConfigSnapshot(config = {}) {
         logoUrl: String(general.proformaLogoUrl || '').trim(),
         companyName: String(general.proformaCompanyName || '').trim(),
         slogan: String(general.proformaSlogan || '').trim(),
+        headerColor: normalizeProformaHeaderColor(general.proformaHeaderColor, DEFAULT_GENERAL_CONFIG.general.proformaHeaderColor),
+        companyNameColor: normalizeProformaHeaderColor(general.proformaCompanyNameColor, DEFAULT_GENERAL_CONFIG.general.proformaCompanyNameColor),
+        fontFamilySource: String(general.proformaCompanyFontFamily || 'Cormorant Garamond').trim() || 'Cormorant Garamond',
+        fontFamily: String(
+            String(general.proformaCompanyFontFamily || 'Cormorant Garamond').trim() === '__custom__'
+                ? (general.proformaCompanyFontLabel || 'Fuente Proforma')
+                : (general.proformaCompanyFontFamily || 'Cormorant Garamond')
+        ).trim(),
+        fontUrl: String(general.proformaCompanyFontUrl || '').trim(),
+        showCompanyName: String(general.proformaShowCompanyName || 'true').trim().toLowerCase() !== 'false',
+        logoWidth: Number(general.proformaLogoWidth || DEFAULT_GENERAL_CONFIG.general.proformaLogoWidth) || DEFAULT_GENERAL_CONFIG.general.proformaLogoWidth,
+        logoHeight: Number(general.proformaLogoHeight || DEFAULT_GENERAL_CONFIG.general.proformaLogoHeight) || DEFAULT_GENERAL_CONFIG.general.proformaLogoHeight,
+        logoMarginTop: Number(general.proformaLogoMarginTop || 0) || 0,
+        logoMarginLeft: Number(general.proformaLogoMarginLeft || 0) || 0,
         phone: String(general.proformaPhone || '').trim(),
         website: String(general.proformaWebsite || '').trim(),
         email: String(general.proformaEmail || '').trim(),
@@ -2188,6 +2232,11 @@ function getProformaConfigSnapshot(config = {}) {
         defaultCurrencyMeta: selectedCurrency,
         defaultValidity: String(general.proformaDefaultValidity || '').trim(),
         intro: String(general.proformaIntro || '').trim(),
+        introStyle: {
+            fontFamily: String(general.proformaIntroFontFamily || 'inherit').trim() || 'inherit',
+            fontSize: Number(general.proformaIntroFontSize || 15) || 15,
+            color: normalizeProformaHeaderColor(general.proformaIntroColor, '#2f3c46')
+        },
         termsConditions: String(general.proformaTermsConditions || '').trim(),
         paymentTerms: String(general.proformaPaymentTerms || '').trim(),
         deliveryTime: String(general.proformaDeliveryTime || '').trim(),
@@ -2320,6 +2369,16 @@ async function buildQuoteProformaPayload(quoteCode, client = null) {
             logoUrl: configSnapshot.logoUrl,
             name: rawData.companyName || configSnapshot.companyName,
             slogan: rawData.companySlogan || configSnapshot.slogan,
+            headerColor: configSnapshot.headerColor,
+            nameColor: configSnapshot.companyNameColor,
+            fontFamilySource: configSnapshot.fontFamilySource,
+            fontFamily: configSnapshot.fontFamily,
+            fontUrl: configSnapshot.fontUrl,
+            showCompanyName: configSnapshot.showCompanyName,
+            logoWidth: configSnapshot.logoWidth,
+            logoHeight: configSnapshot.logoHeight,
+            logoMarginTop: configSnapshot.logoMarginTop,
+            logoMarginLeft: configSnapshot.logoMarginLeft,
             phone: rawData.companyPhone || configSnapshot.phone,
             website: rawData.companyWebsite || configSnapshot.website,
             email: rawData.companyEmail || configSnapshot.email
@@ -2345,6 +2404,7 @@ async function buildQuoteProformaPayload(quoteCode, client = null) {
         validity: pickFirstValue(rawData.validity, configSnapshot.defaultValidity),
         priceDisplayMode: normalizeProformaPriceDisplayMode(rawData.priceDisplayMode || configSnapshot.priceDisplayMode),
         intro: pickFirstValue(rawData.intro, configSnapshot.intro),
+        introStyle: rawData.introStyle || configSnapshot.introStyle,
         termsConditions: pickFirstValue(rawData.termsConditions, configSnapshot.termsConditions),
         paymentTerms: pickFirstValue(rawData.paymentTerms, configSnapshot.paymentTerms),
         deliveryTime: pickFirstValue(rawData.deliveryTime, configSnapshot.deliveryTime),
@@ -4140,6 +4200,42 @@ app.get('/api/cotizaciones/:codigo', async (req, res) => {
         res.status(500).json({ error: error.message || 'No fue posible cargar la cotización.' });
     }
 });
+
+app.delete('/api/cotizaciones/:codigo', async (req, res) => {
+    try {
+        const codigo = String(req.params.codigo || '').trim();
+        if (!codigo) {
+            return res.status(400).json({ error: 'Codigo de cotizacion invalido.' });
+        }
+        const deleted = await withTransaction(async (client) => {
+            const orderResult = await client.query(`DELETE FROM flexo_orders WHERE quote_code = $1`, [codigo]);
+            await client.query(`DELETE FROM quote_line_attachments WHERE quote_code = $1`, [codigo]);
+            await client.query(`DELETE FROM quote_line_notifications WHERE quote_code = $1`, [codigo]);
+            const calcResult = await client.query(`DELETE FROM flexo_calculations WHERE quote_code = $1`, [codigo]);
+            const proformaResult = await client.query(`DELETE FROM quote_proformas WHERE quote_code = $1`, [codigo]);
+            const quoteResult = await client.query(`DELETE FROM quotes WHERE quote_code = $1`, [codigo]);
+
+            if (!quoteResult.rowCount && !calcResult.rowCount && !proformaResult.rowCount) {
+                const error = new Error('Cotizacion no encontrada.');
+                error.statusCode = 404;
+                throw error;
+            }
+
+            return {
+                quoteCode: codigo,
+                deletedOrders: orderResult.rowCount,
+                deletedQuote: quoteResult.rowCount,
+                deletedLines: calcResult.rowCount,
+                deletedProformas: proformaResult.rowCount
+            };
+        });
+        res.json({ ok: true, ...deleted });
+    } catch (error) {
+        const status = Number(error.statusCode) || (/no se puede eliminar/i.test(error.message || '') ? 409 : /no encontrada/i.test(error.message || '') ? 404 : 400);
+        res.status(status).json({ error: error.message || 'No fue posible eliminar la cotizacion.' });
+    }
+});
+
 app.get('/api/config/general', async (req, res) => {
     try {
         res.json(await loadGeneralConfig());

@@ -29,6 +29,9 @@ const fields = {
 const docNodes = {
     header: document.getElementById('docHeader'),
     logo: document.getElementById('docLogo'),
+    brand: document.querySelector('#docHeader .proforma-brand'),
+    brandCopy: document.querySelector('#docHeader .proforma-brand-copy'),
+    dynamicCompanyFont: document.getElementById('proformaDynamicCompanyFont'),
     companyName: document.getElementById('docCompanyName'),
     slogan: document.getElementById('docSlogan'),
     quoteCode: document.getElementById('docQuoteCode'),
@@ -190,40 +193,68 @@ function getPriceColumns(mode) {
     }
 }
 
-function updateHeaderContrast() {
-    const image = docNodes.logo?.querySelector('img');
-    if (!image || !docNodes.header) {
-        docNodes.header?.classList.remove('is-light');
-        return;
+function normalizeHeaderColor(value) {
+    const normalized = String(value || '').trim();
+    return /^#([0-9a-fA-F]{6})$/.test(normalized) ? normalized : '#203852';
+}
+
+function applyHeaderColor(headerColor) {
+    if (!docNodes.header) return;
+    const normalized = normalizeHeaderColor(headerColor);
+    const red = Number.parseInt(normalized.slice(1, 3), 16);
+    const green = Number.parseInt(normalized.slice(3, 5), 16);
+    const blue = Number.parseInt(normalized.slice(5, 7), 16);
+    const luminance = (red * 0.299) + (green * 0.587) + (blue * 0.114);
+    docNodes.header.style.background = normalized;
+    docNodes.header.classList.toggle('is-light', luminance > 160);
+}
+
+function normalizeLogoMetric(value, fallback) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function applyLogoLayout(company = {}) {
+    if (!docNodes.logo) return;
+    const showCompanyName = String(company.showCompanyName ?? 'true').trim().toLowerCase() !== 'false';
+    const logoWidth = Math.max(40, normalizeLogoMetric(company.logoWidth, 120));
+    const logoHeight = Math.max(24, normalizeLogoMetric(company.logoHeight, 74));
+    const marginTop = normalizeLogoMetric(company.logoMarginTop, 0);
+    const marginLeft = normalizeLogoMetric(company.logoMarginLeft, 0);
+    docNodes.logo.style.width = showCompanyName ? `${logoWidth}px` : '100%';
+    docNodes.logo.style.minHeight = `${logoHeight}px`;
+    docNodes.logo.style.height = `${logoHeight}px`;
+    docNodes.logo.style.marginTop = `${marginTop}px`;
+    docNodes.logo.style.marginLeft = `${marginLeft}px`;
+    docNodes.logo.style.flex = showCompanyName ? '0 0 auto' : '1 1 auto';
+    if (docNodes.brandCopy) {
+        docNodes.brandCopy.hidden = !showCompanyName;
     }
-    const probe = new Image();
-    probe.crossOrigin = 'anonymous';
-    probe.onload = () => {
-        try {
-            const canvas = document.createElement('canvas');
-            const width = Math.max(1, Math.min(48, probe.naturalWidth || 48));
-            const height = Math.max(1, Math.min(48, probe.naturalHeight || 48));
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            if (!ctx) return;
-            ctx.drawImage(probe, 0, 0, width, height);
-            const pixels = ctx.getImageData(0, 0, width, height).data;
-            let sum = 0;
-            let count = 0;
-            for (let index = 0; index < pixels.length; index += 4) {
-                if (pixels[index + 3] < 32) continue;
-                sum += (pixels[index] * 0.299) + (pixels[index + 1] * 0.587) + (pixels[index + 2] * 0.114);
-                count += 1;
-            }
-            const luminance = count ? sum / count : 0;
-            docNodes.header.classList.toggle('is-light', luminance > 150);
-        } catch (error) {
-            docNodes.header.classList.remove('is-light');
-        }
-    };
-    probe.onerror = () => docNodes.header.classList.remove('is-light');
-    probe.src = image.src;
+}
+
+function applyCompanyFont(company = {}) {
+    const selected = String(company.fontFamily || 'Cormorant Garamond').trim() || 'Cormorant Garamond';
+    const customUrl = String(company.fontUrl || '').trim();
+    const custom = customUrl && String(company.fontFamilySource || '').trim() === '__custom__';
+    if (docNodes.dynamicCompanyFont) {
+        docNodes.dynamicCompanyFont.textContent = custom
+            ? `@font-face { font-family: "${selected}"; src: url("${customUrl}") format("woff2"); font-display: swap; }`
+            : '';
+    }
+    if (docNodes.companyName) {
+        docNodes.companyName.style.fontFamily = `"${selected}", serif`;
+        docNodes.companyName.style.color = normalizeHeaderColor(company.nameColor || '#ffffff');
+    }
+}
+
+function applyIntroStyle(style = {}) {
+    if (!docNodes.intro) return;
+    const family = String(style.fontFamily || 'inherit').trim();
+    const size = Number(style.fontSize || 15) || 15;
+    const color = normalizeHeaderColor(style.color || '#2f3c46');
+    docNodes.intro.style.fontFamily = family === 'inherit' ? '' : family;
+    docNodes.intro.style.fontSize = `${Math.max(10, Math.min(30, size))}px`;
+    docNodes.intro.style.color = color;
 }
 
 function applyFormState(readOnly) {
@@ -268,6 +299,8 @@ function renderDocument(data) {
         : 'Logo';
     docNodes.companyName.textContent = data.company?.name || 'Empresa';
     docNodes.slogan.textContent = data.company?.slogan || '';
+    applyCompanyFont(data.company || {});
+    applyLogoLayout(data.company || {});
     docNodes.quoteCode.textContent = `Cotización ${data.quoteCode || ''}`;
     docNodes.issueDate.textContent = `Fecha de emisión: ${formatDateTime(data.issueDate)}`;
     docNodes.clientBlock.textContent = buildClientBlock(data.client);
@@ -279,10 +312,15 @@ function renderDocument(data) {
     docNodes.technicalSpecs.textContent = data.technicalSpecs || 'Pendiente de definir.';
     docNodes.qualityPolicies.textContent = data.qualityPolicies || 'Pendiente de definir.';
     docNodes.sellerName.textContent = data.seller?.name || '';
+    const signatureBlock = docNodes.signatureAsset?.closest('.proforma-signature');
+    if (signatureBlock) {
+        signatureBlock.hidden = data.sellerSignatureEnabled === false;
+    }
     docNodes.signatureAsset.innerHTML = data.seller?.signatureUrl
         ? `<img src="${escapeHtml(data.seller.signatureUrl)}" alt="Firma del vendedor">`
         : '';
     docNodes.footerDate.textContent = formatDateTime(data.footer?.generatedOn || data.issueDate);
+    applyIntroStyle(data.introStyle);
 
     const columns = getPriceColumns(data.priceDisplayMode);
     docNodes.tableHead.innerHTML = `
@@ -301,7 +339,7 @@ function renderDocument(data) {
         </tr>
     `).join('');
     docNodes.grandTotal.textContent = formatCurrency(data.totals?.grandTotal || 0, data.currency);
-    updateHeaderContrast();
+    applyHeaderColor(data.company?.headerColor);
 }
 
 function collectPayload() {
@@ -337,8 +375,8 @@ async function loadProforma() {
     fillForm(payload);
     renderDocument(payload);
     applyFormState(payload.status === 'closed');
-    loadingEl.hidden = true;
-    shellEl.hidden = false;
+    if (loadingEl) loadingEl.hidden = true;
+    if (shellEl) shellEl.hidden = false;
     setSaveStatus(payload.status === 'closed' ? 'Proforma cerrada' : 'Cambios listos');
 }
 

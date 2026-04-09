@@ -1,19 +1,20 @@
-const CONFIG_ENDPOINT = '/api/config/general';
+﻿const CONFIG_ENDPOINT = '/api/config/general';
 const QUOTES_ENDPOINT = '/api/cotizaciones';
 const PARTNERS_ENDPOINT = '/api/socios';
 const LAUNCHER_POSITION_KEY = 'quote-request-launcher-position-v2';
 const DEFAULT_ICON_MAP = {
-    processLauncher: { value: '◎', color: '#6b7580', size: 30 },
-    quoteRequestSubmit: { value: '➤', color: '#ffffff', size: 18 },
-    quoteRequestAdvanced: { value: '⚙', color: '#5f7288', size: 18 },
-    quoteRequestAttachment: { value: '◎', color: '#1e516d', size: 18 },
-    quoteRequestRecord: { value: '●', color: '#1e516d', size: 18 },
-    quoteRequestRecordStop: { value: '■', color: '#ef4444', size: 18 },
+    processLauncher: { value: '/assets/icons/exclusive-launcher.png', color: '#1e516d', size: 48 },
+    quoteRequestSubmit: { value: 'âž¤', color: '#ffffff', size: 18 },
+    quoteRequestAdvanced: { value: 'âš™', color: '#5f7288', size: 18 },
+    quoteRequestAttachment: { value: 'â—‰', color: '#1e516d', size: 18 },
+    quoteRequestRecord: { value: 'â—', color: '#1e516d', size: 18 },
+    quoteRequestRecordStop: { value: 'â– ', color: '#ef4444', size: 18 },
+    quoteRequestAttachmentDelete: { value: 'X', color: '#b94848', size: 18 },
     // New keys for premium sync
-    crearCotizacion: { value: '➤', color: '#1e516d', size: 24 },
-    procesoAvanzadoFlotante: { value: '⚙', color: '#5f7288', size: 20 },
-    proformaView: { value: '👁', color: '#1e516d', size: 18 },
-    proformaClose: { value: '✓', color: '#1e516d', size: 18 }
+    crearCotizacion: { value: 'âž¤', color: '#1e516d', size: 24 },
+    procesoAvanzadoFlotante: { value: 'âš™', color: '#5f7288', size: 20 },
+    proformaView: { value: 'ðŸ‘', color: '#1e516d', size: 18 },
+    proformaClose: { value: 'âœ“', color: '#1e516d', size: 18 }
 };
 const STATIC_MATERIALS = [
     'BOPP Blanco',
@@ -50,14 +51,21 @@ const surfaceInput = document.getElementById('requestSurface');
 const surfaceSuggestions = document.getElementById('surfaceSuggestions');
 const attachmentsInput = document.getElementById('requestAttachments');
 const attachmentsPreview = document.getElementById('requestAttachmentsPreview');
+const attachmentPreviewModal = document.getElementById('attachmentPreviewModal');
+const attachmentPreviewTitle = document.getElementById('attachmentPreviewTitle');
+const attachmentPreviewContent = document.getElementById('attachmentPreviewContent');
+const attachmentPreviewClose = document.getElementById('attachmentPreviewClose');
 const audioRecordButton = document.getElementById('audioRecordButton');
 const audioRecordIndicator = document.getElementById('audioRecordIndicator');
 const launcherWrap = document.getElementById('quoteRequestCreateButtonWrap');
+const processLauncherStack = document.getElementById('processLauncherStack');
 const processLauncherButton = document.getElementById('processLauncherButton');
 const processLauncherBridge = document.getElementById('processLauncherBridge');
 const createButton = document.getElementById('enviarSolicitudFabButton');
 const advancedButton = document.getElementById('modoAvanzadoFabButton');
 const shapePicker = document.getElementById('dieShapePicker');
+const launcherErrors = document.getElementById('processLauncherErrors');
+const launcherErrorsList = document.getElementById('processLauncherErrorsList');
 
 let loadedConfig = {};
 let quoteCatalog = [];
@@ -69,6 +77,17 @@ let mediaRecorder = null;
 let recordingChunks = [];
 let isRecording = false;
 let dragState = null;
+let activeAttachmentPreviewUrl = '';
+let attachmentPreviewState = {
+    kind: '',
+    scale: 1,
+    x: 0,
+    y: 0,
+    dragging: false,
+    pointerId: null,
+    startX: 0,
+    startY: 0
+};
 
 function escapeHtml(value) {
     return String(value ?? '')
@@ -115,19 +134,45 @@ function isSvgValue(value) {
     return normalized.startsWith('data:image/svg+xml') || normalized.endsWith('.svg');
 }
 
+function isImageValue(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    return normalized.startsWith('data:image') || 
+           normalized.endsWith('.png') || 
+           normalized.endsWith('.jpg') || 
+           normalized.endsWith('.jpeg') || 
+           normalized.endsWith('.webp') || 
+           normalized.endsWith('.gif');
+}
+
 function renderIcon(target, iconValue, color, size) {
     if (!target) return;
+    const host = target.closest('.quote-request-icon-action, .quote-request-attachment-remove, .process-launcher-icon');
     const value = String(iconValue || '').trim();
-    target.style.color = color || '';
+    if (host) {
+        host.style.setProperty('--icon-color', color || '');
+        host.style.setProperty('--icon-hover-color', color || '');
+    }
+    target.style.color = host ? 'currentColor' : (color || '');
     if (isSvgValue(value)) {
         target.innerHTML = `<span class="icon-svg-mask" style="-webkit-mask-image:url('${value}');mask-image:url('${value}');width:${size}px;height:${size}px;"></span>`;
         return;
     }
-    if (value.startsWith('data:image')) {
-        target.innerHTML = `<img src="${value}" alt="" class="icon-image" style="width:${size}px;height:${size}px;">`;
+    if (isImageValue(value)) {
+        target.innerHTML = `<img src="${value}" alt="" class="icon-image" style="width:${size}px;height:${size}px;object-fit:contain;">`;
         return;
     }
     target.innerHTML = `<span class="icon-glyph" style="font-size:${size}px;">${escapeHtml(value)}</span>`;
+}
+
+function iconMarkup(value, altText, extraClass = '') {
+    if (isSvgValue(value)) {
+        const safeUrl = escapeHtml(value);
+        return `<span class="icon-svg-mask ${extraClass}" role="img" aria-label="${escapeHtml(altText)}" style="-webkit-mask-image:url('${safeUrl}');mask-image:url('${safeUrl}');"></span>`;
+    }
+    if (isImageValue(value)) {
+        return `<img src="${escapeHtml(value)}" alt="${escapeHtml(altText)}" class="icon-image ${extraClass}">`;
+    }
+    return `<span class="icon-glyph ${extraClass}">${escapeHtml(value || '')}</span>`;
 }
 
 function iconConfigFor(key, canonicalKey = null) {
@@ -135,7 +180,7 @@ function iconConfigFor(key, canonicalKey = null) {
     const general = loadedConfig?.general || {};
     const propKey = canonicalKey || key;
     
-    const internalKey = key.replace(/\s+/g, '').replace(/[áéíóú]/g, (m) => ({ 'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u' }[m]));
+    const internalKey = key.replace(/\s+/g, '').replace(/[Ã¡Ã©Ã­Ã³Ãº]/g, (m) => ({ 'Ã¡': 'a', 'Ã©': 'e', 'Ã­': 'i', 'Ã³': 'o', 'Ãº': 'u' }[m]));
     const fallback = DEFAULT_ICON_MAP[key] || DEFAULT_ICON_MAP[internalKey] || DEFAULT_ICON_MAP[propKey] || { value: '', color: '#6b7580', size: 24 };
     
     const value = normalizeText(icons[key]) || fallback.value;
@@ -157,12 +202,13 @@ function applyConfiguredIcons() {
     const primaryConf = iconConfigFor('processLauncher');
     
     // Check multiple potential keys for each action, using a canonical key for properties
-    const submitConf = getResolvedIcon(['crear cotización', 'crear cotizacion', 'solicitud de cotización', 'solicitud de cotizacion', 'quoteRequestSubmit'], 'quoteRequestSubmit');
-    const advancedConf = getResolvedIcon(['proceso avanzado flotante', 'proceso avanzado', 'quoteRequestAdvanced'], 'quoteRequestAdvanced');
+    const submitConf = getResolvedIcon(['crear cotizaciÃ³n', 'crear cotizacion', 'solicitud de cotizaciÃ³n', 'solicitud de cotizacion', 'quoteRequestSubmit'], 'quoteRequestSubmit');
+    const advancedConf = getResolvedIcon(['cotizaciones', 'proceso avanzado flotante', 'proceso avanzado', 'quoteRequestAdvanced'], 'quoteRequestAdvanced');
     const proformaConf = getResolvedIcon(['ver proforma', 'proformaView'], 'proformaView');
 
     const attachmentConf = iconConfigFor('quoteRequestAttachment');
     const recordConf = iconConfigFor(isRecording ? 'quoteRequestRecordStop' : 'quoteRequestRecord');
+    const deleteConf = getResolvedIcon(['eliminar adjunto solicitud', 'quoteRequestAttachmentDelete', 'loginRepositoryDelete'], 'quoteRequestAttachmentDelete');
 
     renderIcon(document.querySelector('[data-launcher-icon="primary"]'), primaryConf.value, primaryConf.color, primaryConf.size || 24);
     renderIcon(document.querySelector('[data-fab-icon="submit"]'), submitConf.value, submitConf.color, submitConf.size);
@@ -170,6 +216,7 @@ function applyConfiguredIcons() {
     renderIcon(document.querySelector('[data-fab-icon="proforma"]'), proformaConf.value, proformaConf.color, proformaConf.size);
     renderIcon(document.querySelector('[data-inline-icon="attachment"]'), attachmentConf.value, attachmentConf.color, attachmentConf.size);
     renderIcon(document.querySelector('[data-inline-icon="record"]'), recordConf.value, recordConf.color, recordConf.size);
+    document.querySelectorAll('.quote-request-attachment-remove').forEach((button) => renderIcon(button, deleteConf.value, deleteConf.color, deleteConf.size));
 
     if (processLauncherButton) {
         processLauncherButton.style.setProperty('--floating-icon-color', primaryConf.color);
@@ -180,6 +227,12 @@ function applyConfiguredIcons() {
         audioRecordButton.title = isRecording ? 'Detener Grabacion' : 'Grabar Audio';
         audioRecordButton.setAttribute('aria-label', isRecording ? 'Detener Grabacion' : 'Grabar Audio');
     }
+    document.querySelectorAll('.quote-request-icon-action').forEach((button) => {
+        const conf = button.id === 'audioRecordButton' ? recordConf : attachmentConf;
+        button.style.setProperty('--icon-color', conf.color || '#1e516d');
+        button.style.setProperty('--icon-hover-color', loadedConfig?.general?.[`iconColorHover${button.id === 'audioRecordButton' ? 'QuoteRequestRecord' : 'QuoteRequestAttachment'}`] || conf.color || '#1e516d');
+        if (button.id === 'audioRecordButton') button.style.setProperty('--icon-recording-color', recordConf.color || '#ef4444');
+    });
 }
 
 function formatDate(value) {
@@ -195,6 +248,14 @@ function renderQuotesTable(items) {
         rowsBody.innerHTML = '<tr><td colspan="8">No hay cotizaciones.</td></tr>';
         return;
     }
+    const openConf = getResolvedIcon(['browserOpen', 'tableOpen'], 'tableOpen');
+    const openColor = loadedConfig?.general?.iconColorBrowserOpen || loadedConfig?.general?.iconColorTableOpen || '#0b81b8';
+    const openHover = loadedConfig?.general?.iconColorHoverBrowserOpen || loadedConfig?.general?.iconColorHoverTableOpen || '#07638c';
+    const openSize = Number(loadedConfig?.general?.iconSizeBrowserOpen || loadedConfig?.general?.iconSizeTableOpen) || openConf.size || 18;
+    const deleteConf = getResolvedIcon(['lineDelete', 'loginRepositoryDelete', 'adminUserDelete'], 'lineDelete');
+    const deleteColor = loadedConfig?.general?.iconColorLineDelete || '#a74343';
+    const deleteHover = loadedConfig?.general?.iconColorHoverLineDelete || '#d03535';
+    const deleteSize = Number(loadedConfig?.general?.iconSizeLineDelete) || deleteConf.size || 18;
     rowsBody.innerHTML = items.map((item) => `
         <tr>
             <td>${escapeHtml(item.quote_code || '')}</td>
@@ -204,7 +265,12 @@ function renderQuotesTable(items) {
             <td>${escapeHtml(formatDate(item.created_on))}</td>
             <td>${escapeHtml(formatDate(item.due_on))}</td>
             <td>${escapeHtml(item.status || '')}</td>
-            <td><button type="button" class="copy-popover-send" data-open-quote="${escapeHtml(item.quote_code || '')}">Abrir</button></td>
+            <td>
+                <div class="quote-browser-actions">
+                    <button type="button" class="browser-open-link" data-open-quote="${escapeHtml(item.quote_code || '')}" aria-label="Abrir cotizacion" title="Abrir cotizacion" style="--icon-color:${escapeHtml(openColor)};--icon-hover-color:${escapeHtml(openHover)};--config-icon-size:${escapeHtml(String(openSize))}px;">${iconMarkup(openConf.value, 'Abrir cotizacion', 'table-icon-media')}</button>
+                    <button type="button" class="browser-open-link browser-open-link-danger" data-delete-quote="${escapeHtml(item.quote_code || '')}" aria-label="Eliminar cotizacion" title="Eliminar cotizacion" style="--icon-color:${escapeHtml(deleteColor)};--icon-hover-color:${escapeHtml(deleteHover)};--config-icon-size:${escapeHtml(String(deleteSize))}px;">${iconMarkup(deleteConf.value, 'Eliminar cotizacion', 'table-icon-media')}</button>
+                </div>
+            </td>
         </tr>
     `).join('');
 }
@@ -226,6 +292,9 @@ async function loadConfig() {
     loadedConfig = await fetchJson(CONFIG_ENDPOINT);
     applyConfiguredIcons();
     renderShapePicker();
+    if (quoteCatalog.length) {
+        renderQuotesTable(getFilteredQuotes());
+    }
 }
 
 function renderInlineSuggestionList(panel, items, emptyMessage) {
@@ -312,29 +381,228 @@ function readAsBase64(file) {
     });
 }
 
+function formatFileSize(sizeBytes) {
+    const size = Number(sizeBytes || 0);
+    if (!Number.isFinite(size) || size <= 0) return '1 KB';
+    if (size >= 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(size >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
+    return `${Math.max(1, Math.round(size / 1024))} KB`;
+}
+
+function getAttachmentPreviewKind(item) {
+    const mime = String(item?.mimeType || '').toLowerCase();
+    const ext = String(item?.fileExt || '').toLowerCase();
+    if (mime.startsWith('image/')) return 'image';
+    if (mime.startsWith('video/')) return 'video';
+    if (mime.startsWith('audio/')) return 'audio';
+    if (mime === 'application/pdf' || ext === 'pdf') return 'pdf';
+    return 'none';
+}
+
+function getAttachmentTypeLabel(item) {
+    const kind = getAttachmentPreviewKind(item);
+    if (kind === 'image') return 'Imagen';
+    if (kind === 'video') return 'Video';
+    if (kind === 'audio') return 'Audio';
+    if (kind === 'pdf') return 'PDF';
+    return (String(item?.fileExt || '').toUpperCase() || 'Archivo');
+}
+
+function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+}
+
+function getAttachmentPreviewTransformNodes() {
+    const stage = attachmentPreviewContent?.querySelector('[data-preview-stage]');
+    const media = attachmentPreviewContent?.querySelector('[data-preview-media]');
+    return { stage, media };
+}
+
+function applyAttachmentPreviewTransform() {
+    const { stage, media } = getAttachmentPreviewTransformNodes();
+    if (!stage || !media) return;
+    const zoomValue = attachmentPreviewContent?.querySelector('[data-preview-zoom-value]');
+    const baseWidth = media.offsetWidth || 0;
+    const baseHeight = media.offsetHeight || 0;
+    const maxX = Math.max(0, ((baseWidth * attachmentPreviewState.scale) - stage.clientWidth) / 2);
+    const maxY = Math.max(0, ((baseHeight * attachmentPreviewState.scale) - stage.clientHeight) / 2);
+    if (attachmentPreviewState.scale <= 1.01) {
+        attachmentPreviewState.x = 0;
+        attachmentPreviewState.y = 0;
+    } else {
+        attachmentPreviewState.x = clamp(attachmentPreviewState.x, -maxX, maxX);
+        attachmentPreviewState.y = clamp(attachmentPreviewState.y, -maxY, maxY);
+    }
+    media.style.setProperty('--preview-scale', String(attachmentPreviewState.scale));
+    media.style.setProperty('--preview-x', `${attachmentPreviewState.x}px`);
+    media.style.setProperty('--preview-y', `${attachmentPreviewState.y}px`);
+    media.classList.toggle('is-zoomable', attachmentPreviewState.kind === 'image');
+    media.classList.toggle('is-dragging', attachmentPreviewState.dragging);
+    if (zoomValue) zoomValue.textContent = `${Math.round(attachmentPreviewState.scale * 100)}%`;
+}
+
+function resetAttachmentPreviewTransform(kind = '') {
+    attachmentPreviewState = {
+        kind,
+        scale: 1,
+        x: 0,
+        y: 0,
+        dragging: false,
+        pointerId: null,
+        startX: 0,
+        startY: 0
+    };
+    requestAnimationFrame(applyAttachmentPreviewTransform);
+}
+
+function setAttachmentPreviewScale(nextScale) {
+    attachmentPreviewState.scale = clamp(nextScale, 1, 4);
+    if (attachmentPreviewState.scale <= 1.01) {
+        attachmentPreviewState.x = 0;
+        attachmentPreviewState.y = 0;
+    }
+    applyAttachmentPreviewTransform();
+}
+
+function renderExpandedAttachmentPreview(item, kind) {
+    if (kind === 'image') {
+        return `
+            <div class="quote-request-preview-stage" data-preview-stage>
+                <div class="quote-request-preview-media" data-preview-media>
+                    <img src="${escapeHtml(item.previewUrl || '')}" alt="${escapeHtml(item.fileName || 'Adjunto')}">
+                </div>
+                <div class="quote-request-preview-controls">
+                    <button type="button" class="quote-request-preview-zoom" data-preview-zoom="out" aria-label="Alejar">-</button>
+                    <span class="quote-request-preview-zoom-value" data-preview-zoom-value>100%</span>
+                    <button type="button" class="quote-request-preview-zoom" data-preview-zoom="reset" aria-label="Restablecer zoom">Reset</button>
+                    <button type="button" class="quote-request-preview-zoom" data-preview-zoom="in" aria-label="Acercar">+</button>
+                </div>
+            </div>
+        `;
+    }
+    if (kind === 'video') {
+        return `
+            <div class="quote-request-preview-stage" data-preview-stage>
+                <div class="quote-request-preview-media" data-preview-media>
+                    <video controls src="${escapeHtml(item.previewUrl || '')}"></video>
+                </div>
+            </div>
+        `;
+    }
+    if (kind === 'audio') {
+        return `
+            <div class="quote-request-preview-stage" data-preview-stage>
+                <div class="quote-request-preview-media" data-preview-media>
+                    <audio controls src="${escapeHtml(item.previewUrl || '')}"></audio>
+                </div>
+            </div>
+        `;
+    }
+    if (kind === 'pdf') {
+        return `
+            <div class="quote-request-preview-stage" data-preview-stage>
+                <div class="quote-request-preview-media" data-preview-media>
+                    <iframe src="${escapeHtml(item.previewUrl || '')}#toolbar=0&navpanes=0&scrollbar=0" title="${escapeHtml(item.fileName || 'PDF')}"></iframe>
+                </div>
+            </div>
+        `;
+    }
+    return `<div class="quote-request-preview-empty"><strong>Sin vista</strong><span>Este archivo no tiene vista disponible.</span></div>`;
+}
+
+function getAttachmentOrientationClass(item) {
+    return item.previewOrientation || 'landscape';
+}
+
+async function resolveAttachmentOrientation(file, previewUrl, mimeType) {
+    const mime = String(mimeType || '').toLowerCase();
+    if (mime.startsWith('image/')) {
+        return new Promise((resolve) => {
+            const image = new Image();
+            image.onload = () => {
+                const ratio = image.naturalWidth / Math.max(1, image.naturalHeight);
+                if (ratio < 0.82) resolve('portrait');
+                else if (ratio > 1.18) resolve('landscape');
+                else resolve('square');
+            };
+            image.onerror = () => resolve('landscape');
+            image.src = previewUrl;
+        });
+    }
+    return 'landscape';
+}
+
+function buildAttachmentPreviewMarkup(item, expanded = false) {
+    const kind = getAttachmentPreviewKind(item);
+    const previewUrl = escapeHtml(item.previewUrl || '');
+    if (expanded) {
+        return renderExpandedAttachmentPreview(item, kind);
+    }
+    if (kind === 'image') {
+        return `<img src="${previewUrl}" alt="${escapeHtml(item.fileName || 'Adjunto')}">`;
+    }
+    if (kind === 'video') {
+        return `<video muted playsinline preload="metadata" src="${previewUrl}"></video>`;
+    }
+    if (kind === 'audio') {
+        return `<div class="quote-request-attachment-filetile"><strong>AUDIO</strong><span>${escapeHtml(item.fileExt ? item.fileExt.toUpperCase() : 'WEBM')}</span></div>`;
+    }
+    if (kind === 'pdf') {
+        return `<div class="quote-request-attachment-filetile"><strong>PDF</strong><span>Vista rapida</span></div>`;
+    }
+    return `<div class="quote-request-attachment-filetile"><strong>${escapeHtml(getAttachmentTypeLabel(item))}</strong><span>Sin vista</span></div>`;
+}
+
+function closeAttachmentPreview() {
+    if (!attachmentPreviewModal || !attachmentPreviewContent) return;
+    attachmentPreviewModal.hidden = true;
+    attachmentPreviewContent.innerHTML = '';
+    activeAttachmentPreviewUrl = '';
+    resetAttachmentPreviewTransform('');
+}
+
+function openAttachmentPreview(index) {
+    const item = pendingAttachments[Number(index)];
+    if (!item || !attachmentPreviewModal || !attachmentPreviewContent) return;
+    const kind = getAttachmentPreviewKind(item);
+    attachmentPreviewTitle.textContent = item.fileName || 'Vista previa';
+    if (kind === 'none') {
+        attachmentPreviewContent.innerHTML = `<div class="quote-request-preview-empty"><strong>Sin vista</strong><span>Este archivo no tiene vista disponible.</span></div>`;
+    } else {
+        attachmentPreviewContent.innerHTML = buildAttachmentPreviewMarkup(item, true);
+    }
+    activeAttachmentPreviewUrl = item.previewUrl || '';
+    attachmentPreviewModal.hidden = false;
+    resetAttachmentPreviewTransform(kind);
+}
+
 function renderAttachments() {
     if (!attachmentsPreview) return;
     if (!pendingAttachments.length) {
         attachmentsPreview.innerHTML = '<div class="quote-request-attachment-empty">No hay adjuntos cargados.</div>';
         return;
     }
+    const deleteConf = getResolvedIcon(['eliminar adjunto solicitud', 'quoteRequestAttachmentDelete', 'loginRepositoryDelete'], 'quoteRequestAttachmentDelete');
     attachmentsPreview.innerHTML = pendingAttachments.map((item, index) => {
-        if (item.kind === 'audio') {
-            return `
-                <div class="quote-request-attachment-card audio">
-                    <div class="quote-request-attachment-meta"><strong>${escapeHtml(item.fileName)}</strong><span>${escapeHtml(item.label || 'Audio')}</span></div>
-                    <audio controls src="${escapeHtml(item.previewUrl)}"></audio>
-                    <button type="button" class="copy-popover-send" data-remove-attachment="${index}">Quitar</button>
-                </div>
-            `;
-        }
+        const previewKind = getAttachmentPreviewKind(item);
+        const previewClass = previewKind === 'pdf' ? ' is-pdf' : '';
         return `
-            <div class="quote-request-attachment-card">
-                <div class="quote-request-attachment-meta"><strong>${escapeHtml(item.fileName)}</strong><span>${escapeHtml(item.label || '')}</span></div>
-                <button type="button" class="copy-popover-send" data-remove-attachment="${index}">Quitar</button>
+            <div class="quote-request-attachment-card ${item.kind === 'audio' ? 'audio' : ''}">
+                <button type="button" class="quote-request-attachment-preview${previewClass}" data-orientation="${escapeHtml(getAttachmentOrientationClass(item))}" data-preview-attachment="${index}" aria-label="Ver previa de ${escapeHtml(item.fileName)}" title="Ver previa">
+                    ${buildAttachmentPreviewMarkup(item)}
+                </button>
+                <div class="quote-request-attachment-body">
+                    <div class="quote-request-attachment-meta">
+                        <span class="quote-request-attachment-name">${escapeHtml(item.fileName)}</span>
+                        <span class="quote-request-attachment-size">${escapeHtml(item.sizeLabel || item.label || '')}</span>
+                        <span class="quote-request-attachment-note">${escapeHtml(item.previewNote || '')}</span>
+                    </div>
+                    ${item.kind === 'audio' ? `<audio controls src="${escapeHtml(item.previewUrl)}"></audio>` : ''}
+                </div>
+                <button type="button" class="quote-request-attachment-remove" data-remove-attachment="${index}" aria-label="Eliminar adjunto" title="Eliminar adjunto"></button>
             </div>
         `;
     }).join('');
+    attachmentsPreview.querySelectorAll('[data-remove-attachment]').forEach((button) => renderIcon(button, deleteConf.value, deleteConf.color, deleteConf.size));
 }
 
 function formHasContent() {
@@ -350,12 +618,16 @@ function formHasContent() {
 function resetFormState() {
     form?.reset();
     customerCodeInput.value = '';
+    pendingAttachments.forEach((item) => {
+        if (item.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(item.previewUrl);
+    });
     pendingAttachments = [];
     renderAttachments();
     hideInlinePanels();
     setStatus('');
     syncToggleChipState();
     applyConfiguredIcons();
+    closeAttachmentPreview();
 }
 
 function setDefaultLauncherPosition() {
@@ -394,13 +666,16 @@ function collectRequestPayload() {
     const stamping = form.querySelector('input[name="stamping"]:checked')?.value || '';
     const varnish = form.querySelector('input[name="varnish"]:checked')?.value || '';
     const placement = form.querySelector('input[name="placement"]:checked')?.value || '';
+    const productType = document.getElementById('requestProductType')?.value || '';
+    const processType = document.getElementById('requestProcessType')?.value || '';
+
     return {
         customer_code: normalizeText(customerCodeInput.value),
         customer_name: normalizeText(customerNameInput.value),
         job_name: normalizeText(document.getElementById('requestJobName')?.value),
         quantity: normalizeText(document.getElementById('requestQuantity')?.value),
-        process_type: normalizeText(document.getElementById('requestProcessType')?.value),
-        product_type: normalizeText(document.getElementById('requestProductType')?.value),
+        process_type: normalizeText(processType),
+        product_type: normalizeText(productType),
         material_name: normalizeText(materialInput?.value),
         applicationType: normalizeText(surfaceInput?.value),
         outputType: placement,
@@ -431,15 +706,43 @@ function collectRequestPayload() {
 
 function validateQuickRequest(forAdvanced) {
     const payload = collectRequestPayload();
-    if (!payload.customer_name) throw new Error('Debes indicar el nombre del socio.');
-    if (!payload.job_name) throw new Error('Debes indicar el nombre del producto.');
-    if (!payload.quantity) throw new Error('Debes indicar la cantidad.');
+    const errors = [];
+    
+    // Clear previous errors
+    form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+    if (launcherErrors) launcherErrors.hidden = true;
+
+    const check = (value, el, name) => {
+        if (!value) {
+            el?.classList.add('is-invalid');
+            errors.push(name);
+        }
+    };
+
+    check(payload.customer_name, customerNameInput, 'Nombre del socio');
+    check(payload.job_name, document.getElementById('requestJobName'), 'Nombre del producto');
+    check(payload.quantity, document.getElementById('requestQuantity'), 'Cantidad');
+
     if (!forAdvanced) {
-        if (!payload.process_type) throw new Error('Debes seleccionar el proceso productivo.');
-        if (!payload.material_name) throw new Error('Debes indicar el material.');
-        if (!payload.applicationType) throw new Error('Debes indicar la superficie de aplicacion.');
-        if (!fixedSizeSelect?.value) throw new Error('Debes seleccionar una medida.');
+        check(payload.process_type, document.getElementById('requestProcessType'), 'Proceso productivo');
+        check(payload.material_name, materialInput, 'Material');
+        check(payload.applicationType, surfaceInput, 'Superficie de aplicaciÃ³n');
+        check(fixedSizeSelect?.value, fixedSizeSelect, 'Medida');
     }
+
+    check(payload.outputType, form.querySelector('input[name="placement"]'), 'Colocacion');
+    if (errors.length > 0) {
+        if (launcherErrors && launcherErrorsList) {
+            // Adaptive positioning: Flip below if launcher is in top half
+            const rect = launcherWrap.getBoundingClientRect();
+            launcherErrors.classList.toggle('is-below', rect.top < (window.innerHeight / 2));
+            
+            launcherErrorsList.innerHTML = errors.map(err => `<li class="process-launcher-errors-item">${err}</li>`).join('');
+            launcherErrors.hidden = false;
+        }
+        throw new Error('Por favor, completa los campos requeridos.');
+    }
+
     return payload;
 }
 
@@ -460,58 +763,63 @@ async function uploadPendingAttachments(quoteCode, lineCode) {
 }
 
 async function submitQuoteRequest(forAdvanced = false) {
-    const payload = validateQuickRequest(forAdvanced);
-    setStatus(forAdvanced ? 'Preparando proceso avanzado...' : 'Creando cotizacion...', 'saving');
-    const quoteResponse = await fetchJson(QUOTES_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            customer_code: payload.customer_code,
-            customer_name: payload.customer_name,
-            status: 'Borrador'
-        })
-    });
-    const quoteCode = quoteResponse?.cotizacion?.quote_code;
-    if (!quoteCode) throw new Error('La cotizacion se creo sin codigo.');
-    const lineResponse = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(quoteCode)}/lineas`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            customer_code: payload.customer_code,
-            customer_name: payload.customer_name,
-            job_name: payload.job_name,
-            quantity: payload.quantity,
-            process_type: payload.process_type || 'Convencional',
-            material_name: payload.material_name,
-            material_code: payload.material_name,
-            applicationType: payload.applicationType,
-            outputType: payload.outputType,
-            widthInches: payload.widthInches,
-            lengthInches: payload.lengthInches,
-            status: forAdvanced ? 'Borrador' : 'Solicitud',
-            request_meta: payload.request_meta
-        })
-    });
-    const lineCode = lineResponse?.linea?.line_code;
-    if (!lineCode) throw new Error('La linea se creo sin codigo.');
-    await uploadPendingAttachments(quoteCode, lineCode);
-    await loadQuotes();
-    if (forAdvanced) {
-        const route = `/cotizaciones/documento?codigo=${encodeURIComponent(quoteCode)}`;
-        if (!openRouteInShell(route, `Cotizacion ${quoteCode}`)) {
-            window.location.href = route;
+    try {
+        const payload = validateQuickRequest(forAdvanced);
+        setStatus(forAdvanced ? 'Preparando proceso avanzado...' : 'Creando cotizacion...', 'saving');
+        const quoteResponse = await fetchJson(QUOTES_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                customer_code: payload.customer_code,
+                customer_name: payload.customer_name,
+                status: 'Borrador'
+            })
+        });
+        const quoteCode = quoteResponse?.cotizacion?.quote_code;
+        if (!quoteCode) throw new Error('La cotizacion se creo sin codigo.');
+        const lineResponse = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(quoteCode)}/lineas`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                customer_code: payload.customer_code,
+                customer_name: payload.customer_name,
+                job_name: payload.job_name,
+                quantity: payload.quantity,
+                process_type: payload.process_type || 'Convencional',
+                material_name: payload.material_name,
+                material_code: payload.material_name,
+                applicationType: payload.applicationType,
+                outputType: payload.outputType,
+                widthInches: payload.widthInches,
+                lengthInches: payload.lengthInches,
+                status: forAdvanced ? 'Borrador' : 'Solicitud',
+                request_meta: payload.request_meta
+            })
+        });
+        const lineCode = lineResponse?.linea?.line_code;
+        if (!lineCode) throw new Error('La linea se creo sin codigo.');
+        await uploadPendingAttachments(quoteCode, lineCode);
+        await loadQuotes();
+        if (forAdvanced) {
+            const route = `/cotizaciones/documento?codigo=${encodeURIComponent(quoteCode)}`;
+            if (!openRouteInShell(route, `Cotizacion ${quoteCode}`)) {
+                window.location.href = route;
+            }
+            return;
         }
-        return;
+        setStatus(`Cotizacion ${quoteCode} creada.`, 'saved');
+        resetFormState();
+        closePopover(true);
+    } catch (error) {
+        setStatus(error.message, 'error');
     }
-    setStatus(`Cotizacion ${quoteCode} creada.`, 'saved');
-    resetFormState();
-    closePopover(true);
 }
 
 function openPopover() {
     popover.hidden = false;
     setDefaultLauncherPosition();
-    if (processLauncherBridge) processLauncherBridge.hidden = true;
+    if (processLauncherStack) processLauncherStack.classList.remove('is-active');
+    if (launcherErrors) launcherErrors.hidden = true;
     if (processLauncherButton) processLauncherButton.setAttribute('aria-expanded', 'false');
     renderAttachments();
     syncToggleChipState();
@@ -524,16 +832,21 @@ function closePopover(force = false) {
         if (!confirmed) return;
     }
     popover.hidden = true;
-    if (processLauncherBridge) processLauncherBridge.hidden = true;
+    if (processLauncherStack) processLauncherStack.classList.remove('is-active');
+    if (launcherErrors) launcherErrors.hidden = true;
     hideInlinePanels();
     resetFormState();
+    form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
 }
 
 function toggleProcessLauncher(forceOpen) {
-    if (!processLauncherBridge || !processLauncherButton) return;
-    const willOpen = typeof forceOpen === 'boolean' ? forceOpen : processLauncherBridge.hidden;
-    processLauncherBridge.hidden = !willOpen;
+    if (!processLauncherStack || !processLauncherButton) return;
+    const isActive = processLauncherStack.classList.contains('is-active');
+    const willOpen = typeof forceOpen === 'boolean' ? forceOpen : !isActive;
+    
+    processLauncherStack.classList.toggle('is-active', willOpen);
     processLauncherButton.setAttribute('aria-expanded', String(willOpen));
+    if (!willOpen && launcherErrors) launcherErrors.hidden = true;
 }
 
 async function toggleAudioRecording() {
@@ -541,41 +854,48 @@ async function toggleAudioRecording() {
         mediaRecorder.stop();
         return;
     }
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    recordingChunks = [];
-    mediaRecorder = new MediaRecorder(stream);
-    mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size) recordingChunks.push(event.data);
-    };
-    mediaRecorder.onstop = async () => {
-        const blob = new Blob(recordingChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
-        const fileName = `audio-${new Date().toISOString().replace(/[:.]/g, '-')}.webm`;
-        const dataUrl = await new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(String(reader.result || ''));
-            reader.readAsDataURL(blob);
-        });
-        pendingAttachments.push({
-            kind: 'audio',
-            fileName,
-            mimeType: blob.type || 'audio/webm',
-            fileExt: 'webm',
-            contentBase64: String(dataUrl).split(',').pop() || '',
-            previewUrl: URL.createObjectURL(blob),
-            label: 'Audio grabado'
-        });
-        stream.getTracks().forEach((track) => track.stop());
-        isRecording = false;
-        audioRecordButton.dataset.recording = 'false';
-        audioRecordIndicator.hidden = true;
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        recordingChunks = [];
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size) recordingChunks.push(event.data);
+        };
+        mediaRecorder.onstop = async () => {
+            const blob = new Blob(recordingChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+            const fileName = `audio-${new Date().toISOString().replace(/[:.]/g, '-')}.webm`;
+            const dataUrl = await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(String(reader.result || ''));
+                reader.readAsDataURL(blob);
+            });
+            pendingAttachments.push({
+                kind: 'audio',
+                fileName,
+                mimeType: blob.type || 'audio/webm',
+                fileExt: 'webm',
+                contentBase64: String(dataUrl).split(',').pop() || '',
+                previewUrl: URL.createObjectURL(blob),
+                label: 'Audio grabado',
+                sizeLabel: formatFileSize(blob.size),
+                previewNote: 'Vista disponible'
+            });
+            stream.getTracks().forEach((track) => track.stop());
+            isRecording = false;
+            audioRecordButton.dataset.recording = 'false';
+            audioRecordIndicator.hidden = true;
+            applyConfiguredIcons();
+            renderAttachments();
+        };
+        mediaRecorder.start();
+        isRecording = true;
+        audioRecordButton.dataset.recording = 'true';
+        audioRecordIndicator.hidden = false;
         applyConfiguredIcons();
-        renderAttachments();
-    };
-    mediaRecorder.start();
-    isRecording = true;
-    audioRecordButton.dataset.recording = 'true';
-    audioRecordIndicator.hidden = false;
-    applyConfiguredIcons();
+    } catch (error) {
+        console.error('Error accediendo al microfono:', error);
+        setStatus('No se pudo acceder al microfono.', 'error');
+    }
 }
 
 function bindEvents() {
@@ -610,129 +930,187 @@ function bindEvents() {
 
     processLauncherButton?.addEventListener('pointermove', (event) => {
         if (!dragState || dragState.pointerId !== event.pointerId) return;
-        const deltaX = event.clientX - dragState.startX;
-        const deltaY = event.clientY - dragState.startY;
-
-        if (!dragState.moved && Math.abs(deltaX) + Math.abs(deltaY) > 5) {
+        const dx = event.clientX - dragState.startX;
+        const dy = event.clientY - dragState.startY;
+        if (!dragState.moved && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
             dragState.moved = true;
         }
-
-        if (!dragState.moved) return;
-
-        const width = window.innerWidth || document.documentElement.clientWidth;
-        const height = window.innerHeight || document.documentElement.clientHeight;
-        const wrapWidth = launcherWrap.offsetWidth || 64;
-        const wrapHeight = launcherWrap.offsetHeight || 64;
-
-        const left = Math.min(Math.max(8, dragState.originX + deltaX), width - wrapWidth - 8);
-        const top = Math.min(Math.max(8, dragState.originY + deltaY), height - wrapHeight - 8);
-
-        launcherWrap.style.left = `${left}px`;
-        launcherWrap.style.top = `${top}px`;
-        launcherWrap.style.right = 'auto';
-        launcherWrap.style.bottom = 'auto';
-        
-        // Save position
-        localStorage.setItem(LAUNCHER_POSITION_KEY, JSON.stringify({ x: left, y: top }));
+        if (dragState.moved) {
+            launcherWrap.style.left = `${dragState.originX + dx}px`;
+            launcherWrap.style.top = `${dragState.originY + dy}px`;
+            launcherWrap.style.right = 'auto';
+            launcherWrap.style.bottom = 'auto';
+        }
     });
 
-    const finishDrag = (event) => {
+    processLauncherButton?.addEventListener('pointerup', (event) => {
         if (!dragState || dragState.pointerId !== event.pointerId) return;
-        launcherWrap?.classList.remove('dragging');
-        processLauncherButton.releasePointerCapture?.(event.pointerId);
+        if (dragState.moved) {
+            const rect = launcherWrap.getBoundingClientRect();
+            localStorage.setItem(LAUNCHER_POSITION_KEY, JSON.stringify({ x: rect.left, y: rect.top }));
+        }
+        launcherWrap.classList.remove('dragging');
         dragState = null;
-    };
+    });
 
-    processLauncherButton?.addEventListener('pointerup', finishDrag);
-    processLauncherButton?.addEventListener('pointercancel', finishDrag);
+    createButton?.addEventListener('click', () => submitQuoteRequest(false));
+    advancedButton?.addEventListener('click', () => submitQuoteRequest(true));
+    
+    // Dismiss error panel on click
+    launcherErrors?.addEventListener('click', () => {
+        launcherErrors.hidden = true;
+    });
 
-    quotesSearchInput?.addEventListener('input', () => renderQuotesTable(getFilteredQuotes()));
-    rowsBody?.addEventListener('click', (event) => {
-        const button = event.target.closest('[data-open-quote]');
+    document.addEventListener('click', (event) => {
+        if (!event.target.closest('#processLauncherStack')) toggleProcessLauncher(false);
+    });
+    
+    // Real-time error clearing
+    form?.addEventListener('input', (event) => {
+        if (event.target.classList.contains('is-invalid')) {
+            event.target.classList.remove('is-invalid');
+        }
+    });
+    form?.addEventListener('change', (event) => {
+        if (event.target.matches('.quote-request-toggle-chip input, .quote-request-shape-card input')) {
+            syncToggleChipState();
+        }
+        if (event.target.classList.contains('is-invalid')) {
+            event.target.classList.remove('is-invalid');
+        }
+    });
+
+    customerNameInput?.addEventListener('input', (e) => searchPartners(e.target.value).catch(console.error));
+    customerNameInput?.addEventListener('focus', (e) => searchPartners(e.target.value).catch(console.error));
+    customerLookupResults?.addEventListener('click', (e) => {
+        const item = e.target.closest('.quote-request-lookup-item');
+        if (item) applyPartnerSelection(item.dataset.partnerCode, item.dataset.partnerName);
+    });
+
+    materialInput?.addEventListener('input', showMaterialSuggestions);
+    materialInput?.addEventListener('focus', showMaterialSuggestions);
+    materialSuggestions?.addEventListener('click', (e) => {
+        const item = e.target.closest('.quote-request-lookup-item');
+        if (item) {
+            materialInput.value = item.dataset.value;
+            hideInlinePanels();
+        }
+    });
+
+    surfaceInput?.addEventListener('input', showSurfaceSuggestions);
+    surfaceInput?.addEventListener('focus', showSurfaceSuggestions);
+    surfaceSuggestions?.addEventListener('click', (e) => {
+        const item = e.target.closest('.quote-request-lookup-item');
+        if (item) {
+            surfaceInput.value = item.dataset.value;
+            hideInlinePanels();
+        }
+    });
+
+    rowsBody?.addEventListener('click', (e) => {
+        const deleteButton = e.target.closest('[data-delete-quote]');
+        if (deleteButton) {
+            const code = deleteButton.dataset.deleteQuote;
+            if (!code) return;
+            const confirmed = window.confirm(`Se eliminara la cotizacion ${code}. Esta accion no se puede deshacer. Deseas continuar?`);
+            if (!confirmed) return;
+            fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(code)}`, { method: 'DELETE' })
+                .then(() => loadQuotes())
+                .catch((error) => setStatus(error.message, 'error'));
+            return;
+        }
+        const button = e.target.closest('[data-open-quote]');
         if (!button) return;
         const code = button.dataset.openQuote;
+        if (!code) return;
         const route = `/cotizaciones/documento?codigo=${encodeURIComponent(code)}`;
         if (!openRouteInShell(route, `Cotizacion ${code}`)) {
             window.location.href = route;
         }
     });
-    form?.addEventListener('change', (event) => {
-        const target = event.target;
-        if (target.matches('.quote-request-toggle-chip input, .quote-request-shape-card input')) syncToggleChipState();
-    });
-    customerNameInput?.addEventListener('input', async () => {
-        customerCodeInput.value = '';
-        try {
-            await searchPartners(normalizeText(customerNameInput.value));
-        } catch (error) {
-            if (customerLookupPanel) customerLookupPanel.hidden = true;
-        }
-    });
-    customerNameInput?.addEventListener('focus', () => searchPartners(normalizeText(customerNameInput.value)).catch(() => {}));
-    customerLookupResults?.addEventListener('click', (event) => {
-        const button = event.target.closest('[data-partner-code]');
-        if (!button) return;
-        applyPartnerSelection(button.dataset.partnerCode, button.dataset.partnerName);
-    });
-    materialInput?.addEventListener('focus', showMaterialSuggestions);
-    materialInput?.addEventListener('input', showMaterialSuggestions);
-    surfaceInput?.addEventListener('focus', showSurfaceSuggestions);
-    surfaceInput?.addEventListener('input', showSurfaceSuggestions);
-    materialSuggestions?.addEventListener('click', (event) => {
-        const button = event.target.closest('[data-value]');
-        if (!button) return;
-        materialInput.value = button.dataset.value || '';
-        materialSuggestions.hidden = true;
-    });
-    surfaceSuggestions?.addEventListener('click', (event) => {
-        const button = event.target.closest('[data-value]');
-        if (!button) return;
-        surfaceInput.value = button.dataset.value || '';
-        surfaceSuggestions.hidden = true;
-    });
-    document.addEventListener('click', (event) => {
-        if (!event.target.closest('.quote-request-search-wrap') && customerLookupPanel) customerLookupPanel.hidden = true;
-        if (!event.target.closest('[data-inline-suggestions]')) hideInlinePanels();
-        if (!event.target.closest('#processLauncherPrimary')) toggleProcessLauncher(false);
-    });
+
+    audioRecordButton?.addEventListener('click', toggleAudioRecording);
+
     attachmentsInput?.addEventListener('change', async () => {
         const files = [...(attachmentsInput.files || [])];
         for (const file of files) {
+            const previewUrl = URL.createObjectURL(file);
+            const mimeType = file.type || 'application/octet-stream';
+            const fileExt = file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : '';
             pendingAttachments.push({
                 kind: 'file',
                 fileName: file.name,
-                mimeType: file.type || 'application/octet-stream',
-                fileExt: file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : '',
+                mimeType,
+                fileExt,
                 contentBase64: await readAsBase64(file),
-                label: `${Math.round(file.size / 1024) || 1} KB`
+                previewUrl,
+                sizeLabel: formatFileSize(file.size),
+                previewOrientation: await resolveAttachmentOrientation(file, previewUrl, mimeType),
+                previewNote: getAttachmentPreviewKind({ mimeType, fileExt }) === 'none' ? 'Sin vista' : 'Vista disponible'
             });
         }
         attachmentsInput.value = '';
         renderAttachments();
     });
-    attachmentsPreview?.addEventListener('click', (event) => {
-        const button = event.target.closest('[data-remove-attachment]');
-        if (!button) return;
-        pendingAttachments.splice(Number(button.dataset.removeAttachment), 1);
-        renderAttachments();
-    });
-    audioRecordButton?.addEventListener('click', () => toggleAudioRecording().catch((error) => setStatus(error.message, 'error')));
-    createButton?.addEventListener('click', () => submitQuoteRequest(false).catch((error) => setStatus(error.message, 'error')));
-    advancedButton?.addEventListener('click', () => submitQuoteRequest(true).catch((error) => setStatus(error.message, 'error')));
-    document.getElementById('verProformaFabButton')?.addEventListener('click', () => {
-        const route = '/proforma';
-        if (!openRouteInShell(route, 'Gestión de Proformas')) {
-            window.location.href = route;
+
+    attachmentsPreview?.addEventListener('click', (e) => {
+        const removeIdx = e.target.closest('[data-remove-attachment]')?.dataset.removeAttachment;
+        if (removeIdx !== undefined) {
+            const removed = pendingAttachments.splice(Number(removeIdx), 1)[0];
+            if (removed?.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(removed.previewUrl);
+            if (removed?.previewUrl && removed.previewUrl === activeAttachmentPreviewUrl) closeAttachmentPreview();
+            renderAttachments();
+            return;
         }
+        const previewIdx = e.target.closest('[data-preview-attachment]')?.dataset.previewAttachment;
+        if (previewIdx !== undefined) openAttachmentPreview(previewIdx);
     });
-    window.addEventListener('resize', () => {
-        if (!popover.hidden && launcherWrap) setDefaultLauncherPosition();
+
+    attachmentPreviewClose?.addEventListener('click', closeAttachmentPreview);
+    attachmentPreviewModal?.addEventListener('click', (e) => {
+        if (e.target === attachmentPreviewModal) closeAttachmentPreview();
     });
-    window.addEventListener('beforeunload', (event) => {
-        if (!formHasContent()) return;
-        event.preventDefault();
-        event.returnValue = '';
+    attachmentPreviewContent?.addEventListener('click', (e) => {
+        const zoomButton = e.target.closest('[data-preview-zoom]');
+        if (!zoomButton || !isZoomablePreviewKind(attachmentPreviewState.kind)) return;
+        const action = zoomButton.dataset.previewZoom;
+        if (action === 'in') setAttachmentPreviewScale(attachmentPreviewState.scale + 0.25);
+        if (action === 'out') setAttachmentPreviewScale(attachmentPreviewState.scale - 0.25);
+        if (action === 'reset') resetAttachmentPreviewTransform(attachmentPreviewState.kind);
     });
+    attachmentPreviewContent?.addEventListener('wheel', (e) => {
+        if (!isZoomablePreviewKind(attachmentPreviewState.kind)) return;
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -0.18 : 0.18;
+        setAttachmentPreviewScale(attachmentPreviewState.scale + delta);
+    }, { passive: false });
+    attachmentPreviewContent?.addEventListener('pointerdown', (e) => {
+        const stage = e.target.closest('[data-preview-stage]');
+        if (!stage || !isZoomablePreviewKind(attachmentPreviewState.kind) || attachmentPreviewState.scale <= 1.01) return;
+        e.preventDefault();
+        attachmentPreviewState.dragging = true;
+        attachmentPreviewState.pointerId = e.pointerId;
+        attachmentPreviewState.startX = e.clientX - attachmentPreviewState.x;
+        attachmentPreviewState.startY = e.clientY - attachmentPreviewState.y;
+        stage.setPointerCapture?.(e.pointerId);
+        applyAttachmentPreviewTransform();
+    });
+    attachmentPreviewContent?.addEventListener('pointermove', (e) => {
+        if (!attachmentPreviewState.dragging || attachmentPreviewState.pointerId !== e.pointerId) return;
+        e.preventDefault();
+        attachmentPreviewState.x = e.clientX - attachmentPreviewState.startX;
+        attachmentPreviewState.y = e.clientY - attachmentPreviewState.startY;
+        applyAttachmentPreviewTransform();
+    });
+    const stopPreviewDrag = (e) => {
+        if (!attachmentPreviewState.dragging) return;
+        if (e && attachmentPreviewState.pointerId !== null && e.pointerId !== attachmentPreviewState.pointerId) return;
+        attachmentPreviewState.dragging = false;
+        attachmentPreviewState.pointerId = null;
+        applyAttachmentPreviewTransform();
+    };
+    attachmentPreviewContent?.addEventListener('pointerup', stopPreviewDrag);
+    attachmentPreviewContent?.addEventListener('pointercancel', stopPreviewDrag);
 }
 
 async function init() {
@@ -741,7 +1119,6 @@ async function init() {
     syncToggleChipState();
     await Promise.all([loadConfig(), loadQuotes()]);
 
-    // Restore FAB position
     const savedPos = localStorage.getItem(LAUNCHER_POSITION_KEY);
     if (savedPos && launcherWrap) {
         try {
@@ -755,10 +1132,6 @@ async function init() {
         } catch (e) {
             console.error('No fue posible restaurar posicion del launcher.', e);
         }
-    }
-
-    if (new URLSearchParams(window.location.search).get('openModal') === '1') {
-        openPopover();
     }
 }
 

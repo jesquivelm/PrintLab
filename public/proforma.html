@@ -7,6 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style id="proformaDynamicCompanyFont"></style>
     <style>
         :root {
             --ink: #1b2430;
@@ -201,14 +202,11 @@
         .proforma-brand-logo {
             width: 120px;
             min-height: 74px;
-            border-radius: 18px;
-            background: rgba(255,255,255,0.14);
-            border: 1px solid rgba(255,255,255,0.14);
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            padding: 12px;
+            flex: 0 0 auto;
         }
         .proforma-brand-logo img {
             width: 100%;
@@ -220,11 +218,13 @@
             flex-direction: column;
             gap: 4px;
         }
+        .proforma-brand-copy[hidden] {
+            display: none;
+        }
         .proforma-brand-copy strong {
             font-family: 'Cormorant Garamond', serif;
             font-size: 34px;
             letter-spacing: 0.08em;
-            text-transform: uppercase;
             line-height: 1;
         }
         .proforma-brand-copy span {
@@ -283,10 +283,9 @@
             background: #fbf7f0;
             padding: 16px 20px;
             border-radius: 0 16px 16px 0;
-            font-family: 'Cormorant Garamond', serif;
-            font-size: 20px;
+            font-size: 15px;
             font-style: italic;
-            color: #435566;
+            color: #2f3c46;
             line-height: 1.6;
         }
         .proforma-table {
@@ -453,8 +452,7 @@
     </style>
 </head>
 <body>
-    <div id="proformaLoading" class="proforma-loading">Cargando proforma...</div>
-    <div id="proformaShell" class="proforma-shell" hidden>
+    <div id="proformaShell" class="proforma-shell">
         <aside class="proforma-sidebar">
             <div class="proforma-topbar">
                 <div>

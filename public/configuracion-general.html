@@ -6,7 +6,7 @@
     <title>Configuracion General - PrintLab</title>
     <link rel="stylesheet" href="/styles.css">
     <style>
-        .config-tabs { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 6px; width: 100%; margin-bottom: 20px; padding: 4px; border: 1px solid #d8e2ea; border-radius: 14px; background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.75); }
+        .config-tabs { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; width: 100%; margin-bottom: 20px; padding: 4px; border: 1px solid #d8e2ea; border-radius: 14px; background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.75); }
         .topbar.topbar-quote { display: none; }
         .config-tab { display: inline-flex; align-items: center; justify-content: center; width: 100%; min-width: 0; padding: 10px 18px; cursor: pointer; border: none; background: transparent; color: #60707f; font-size: 13px; font-weight: 600; border-radius: 10px; transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease; }
         .config-tab:hover { background: rgba(11,129,184,0.08); color: #23516a; }
@@ -1510,6 +1510,92 @@
             font-size: 16px;
             color: #21425b;
         }
+        .proforma-config-subsection {
+            border: 1px solid #dbe8f0;
+            border-radius: 18px;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fbfe 100%);
+            padding: 16px;
+            margin-top: 14px;
+        }
+        .proforma-config-subsection h4 {
+            margin: 0 0 12px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #4f6577;
+        }
+        .proforma-mini-tabset {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 6px;
+            align-items: center;
+        }
+        .proforma-toggle-chip {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            border-radius: 12px;
+            cursor: pointer;
+        }
+        .proforma-toggle-chip input {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .proforma-toggle-tab {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 36px;
+            min-width: 58px;
+            padding: 0 13px;
+            border-radius: 12px;
+            border: 1px solid #d9e5ee;
+            background: linear-gradient(180deg, #ffffff 0%, #f3f8fb 100%);
+            color: #5a7083;
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+            transition: background-color .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease;
+        }
+        .proforma-toggle-chip:hover .proforma-toggle-tab {
+            border-color: #0f8db5;
+            box-shadow: 0 10px 24px rgba(16,111,176,.12);
+        }
+        .proforma-toggle-chip.is-selected .proforma-toggle-tab {
+            border-color: #5bc3ef;
+            background: linear-gradient(180deg, #39afe4 0%, #1890d4 100%);
+            color: #fff;
+            box-shadow: 0 6px 16px rgba(24,144,212,.22);
+        }
+        .proforma-logo-size-row {
+            display: grid;
+            grid-template-columns: minmax(82px, .82fr) 30px minmax(92px, 1fr);
+            gap: 8px;
+            align-items: end;
+        }
+        .proforma-logo-lock-button {
+            width: 30px;
+            height: 34px;
+            border: 1px solid #d9e5ee;
+            border-radius: 9px;
+            background: linear-gradient(180deg, #fff 0%, #f3f8fb 100%);
+            color: #6a7b8b;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: border-color .18s ease, color .18s ease, box-shadow .18s ease;
+        }
+        .proforma-logo-lock-button.is-active {
+            border-color: #5bc3ef;
+            color: #118fc6;
+            box-shadow: 0 0 0 2px rgba(41,166,219,.11);
+        }
+        .proforma-logo-lock-button svg {
+            width: 14px;
+            height: 14px;
+        }
         .proforma-config-row-top {
             display: grid;
             grid-template-columns: 164px minmax(0, 1fr);
@@ -1532,6 +1618,36 @@
             font-size: 11px;
             color: #6d7c89;
             font-weight: 600;
+        }
+        .proforma-config-grid-2 input,
+        .proforma-config-grid-2 select,
+        .proforma-config-grid-2 textarea,
+        .proforma-currency-row input {
+            width: 100%;
+            min-height: 42px;
+            padding: 10px 12px;
+            border: 1px solid #cfdae4;
+            border-radius: 14px;
+            background: linear-gradient(180deg, #ffffff 0%, #f9fcff 100%);
+            font: inherit;
+            font-size: 13px;
+            color: #33404c;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.82);
+            transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+        }
+        .proforma-config-grid-2 textarea {
+            min-height: 108px;
+            resize: vertical;
+            line-height: 1.55;
+        }
+        .proforma-config-grid-2 input:focus,
+        .proforma-config-grid-2 select:focus,
+        .proforma-config-grid-2 textarea:focus,
+        .proforma-currency-row input:focus {
+            outline: none;
+            border-color: #8ec8e1;
+            box-shadow: 0 0 0 3px rgba(17,143,198,0.12);
+            background: #fff;
         }
         .proforma-config-grid-span {
             grid-column: 1 / -1;
@@ -1561,6 +1677,72 @@
             max-width: 100%;
             max-height: 88px;
             object-fit: contain;
+        }
+        .proforma-company-name-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 44px;
+            gap: 8px;
+            align-items: end;
+        }
+        .proforma-company-name-row label,
+        .proforma-font-picker-row label {
+            min-width: 0;
+        }
+        .proforma-company-color-field {
+            width: 44px !important;
+            min-width: 44px;
+            padding: 4px !important;
+        }
+        .proforma-font-picker-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 42px;
+            gap: 8px;
+            align-items: end;
+        }
+        .proforma-font-upload-button {
+            width: 42px;
+            height: 38px;
+            border-radius: 12px;
+            border: 1px solid rgba(17, 143, 198, 0.24);
+            background: linear-gradient(180deg, #ffffff 0%, #eef7fd 100%);
+            color: #0b81b8;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: border-color .18s ease, color .18s ease, box-shadow .18s ease, background .18s ease;
+        }
+        .proforma-font-upload-button:hover {
+            border-color: rgba(17, 143, 198, 0.5);
+            box-shadow: 0 10px 22px rgba(17, 143, 198, 0.14);
+        }
+        .proforma-font-upload-button.has-font {
+            border-color: rgba(25, 151, 103, 0.35);
+            background: linear-gradient(180deg, #f6fffb 0%, #e8f8f1 100%);
+            color: #199767;
+        }
+        .proforma-font-upload-button .icon-svg-mask,
+        .proforma-font-upload-button .icon-image,
+        .proforma-font-upload-button .icon-glyph {
+            width: 18px;
+            height: 18px;
+        }
+        .proforma-intro-config-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 154px 82px 48px;
+            gap: 8px;
+            align-items: end;
+        }
+        .proforma-intro-config-row label {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 0;
+        }
+        .proforma-intro-color-field {
+            width: 48px !important;
+            min-width: 48px;
+            padding: 4px !important;
         }
         .proforma-config-headline {
             display: flex;
@@ -1620,14 +1802,12 @@
         .proforma-preview-logo {
             width: 82px;
             height: 64px;
-            border-radius: 16px;
-            background: rgba(255,255,255,0.14);
-            border: 1px solid rgba(255,255,255,0.14);
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
             font-size: 12px;
+            flex: 0 0 auto;
         }
         .proforma-preview-logo img {
             width: 100%;
@@ -1639,6 +1819,9 @@
             flex-direction: column;
             gap: 4px;
             min-width: 0;
+        }
+        .proforma-preview-branding[hidden] {
+            display: none;
         }
         .proforma-preview-branding strong {
             font-size: 20px;
@@ -1657,6 +1840,32 @@
         .proforma-preview-copy p {
             margin: 0;
             line-height: 1.7;
+        }
+        .proforma-preview-sections {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .proforma-preview-section {
+            display: grid;
+            gap: 6px;
+            padding: 12px 14px;
+            border: 1px solid #e1ebf2;
+            border-radius: 16px;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fbfe 100%);
+        }
+        .proforma-preview-section strong {
+            font-size: 11px;
+            font-weight: 700;
+            color: #597083;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        .proforma-preview-section p {
+            margin: 0;
+            font-size: 12px;
+            color: #445766;
+            line-height: 1.6;
         }
         .proforma-preview-meta,
         .proforma-preview-footer {
@@ -1692,6 +1901,9 @@
             .proforma-config-grid-2 {
                 grid-template-columns: 1fr;
             }
+            .proforma-preview-sections {
+                grid-template-columns: 1fr;
+            }
             .proforma-currency-row {
                 grid-template-columns: 1fr 1fr;
             }
@@ -1712,7 +1924,7 @@
                     <button type="button" id="configMenuToggle" class="tool-icon plain-icon" aria-label="Abrir opciones"></button>
                     <div id="configMenuPanel" class="menu-panel" hidden>
                         <a href="/" class="menu-link">Volver</a>
-                        <a href="/flexo-calculo" class="menu-link">Cálculos</a>
+                        <a href="/flexo-calculo" class="menu-link" onclick="event.stopPropagation()">Cálculos</a>
                     </div>
                 </div>
             </div>
@@ -2667,22 +2879,98 @@
                                 <div class="proforma-config-main">
                                     <div class="proforma-config-section">
                                         <h3>Empresa</h3>
-                                        <div class="proforma-config-row proforma-config-row-top">
-                                            <div>
-                                                <span class="proforma-config-label">Logo de la Empresa</span>
-                                                <div id="proformaLogoDropzone" class="proforma-logo-dropzone" title="Cambiar logo"></div>
-                                                <input id="proformaLogoUpload" type="file" accept="image/*" hidden>
-                                                <input id="proformaLogoUrlField" name="general.proformaLogoUrl" type="hidden">
-                                            </div>
+                                        <div class="proforma-config-subsection">
+                                            <h4>Identidad</h4>
                                             <div class="proforma-config-grid-2">
-                                                <label>
-                                                    <span>Nombre de la Empresa</span>
-                                                    <input id="proformaCompanyNameField" name="general.proformaCompanyName" type="text" placeholder="Nombre de la empresa">
-                                                </label>
+                                                <div class="proforma-company-name-row">
+                                                    <label>
+                                                        <span>Nombre de la Empresa</span>
+                                                        <input id="proformaCompanyNameField" name="general.proformaCompanyName" type="text" placeholder="Nombre de la empresa">
+                                                    </label>
+                                                    <label>
+                                                        <span>Color</span>
+                                                        <input id="proformaCompanyNameColorField" class="proforma-company-color-field color-field" name="general.proformaCompanyNameColor" type="color" value="#ffffff">
+                                                    </label>
+                                                </div>
                                                 <label>
                                                     <span>Slogan de la Empresa</span>
                                                     <input id="proformaSloganField" name="general.proformaSlogan" type="text" placeholder="Slogan">
                                                 </label>
+                                                <div class="proforma-font-picker-row">
+                                                    <label>
+                                                        <span>Fuente del Nombre</span>
+                                                        <select id="proformaCompanyFontFamilyField" name="general.proformaCompanyFontFamily">
+                                                            <option value="Cormorant Garamond">Cormorant Garamond</option>
+                                                            <option value="Outfit">Outfit</option>
+                                                            <option value="__custom__">Fuente WOFF2</option>
+                                                        </select>
+                                                    </label>
+                                                    <button type="button" id="proformaCompanyFontUploadButton" class="proforma-font-upload-button" aria-label="Cargar fuente WOFF2" title="Cargar fuente WOFF2"></button>
+                                                    <input id="proformaCompanyFontUpload" type="file" accept=".woff2,font/woff2" hidden>
+                                                    <input id="proformaCompanyFontUrlField" name="general.proformaCompanyFontUrl" type="hidden">
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="proforma-config-subsection">
+                                            <h4>Encabezado</h4>
+                                            <div class="proforma-config-row proforma-config-row-top">
+                                                <div>
+                                                    <span class="proforma-config-label">Logo de la Empresa</span>
+                                                    <div id="proformaLogoDropzone" class="proforma-logo-dropzone" title="Cambiar logo"></div>
+                                                    <input id="proformaLogoUpload" type="file" accept="image/*" hidden>
+                                                    <input id="proformaLogoUrlField" name="general.proformaLogoUrl" type="hidden">
+                                                </div>
+                                                <div class="proforma-config-grid-2">
+                                                    <label>
+                                                        <span>Color del Encabezado</span>
+                                                        <input id="proformaHeaderColorField" name="general.proformaHeaderColor" type="color" value="#203852" class="color-field">
+                                                    </label>
+                                                    <label>
+                                                        <span>Mostrar Nombre de la Empresa</span>
+                                                        <div id="proformaShowCompanyNameSelector" class="proforma-mini-tabset">
+                                                            <label class="proforma-toggle-chip">
+                                                                <input type="radio" name="proformaShowCompanyNameChoice" value="true">
+                                                                <span class="proforma-toggle-tab">Sí</span>
+                                                            </label>
+                                                            <label class="proforma-toggle-chip">
+                                                                <input type="radio" name="proformaShowCompanyNameChoice" value="false">
+                                                                <span class="proforma-toggle-tab">No</span>
+                                                            </label>
+                                                        </div>
+                                                        <input type="hidden" name="general.proformaShowCompanyName" value="true">
+                                                    </label>
+                                                    <div class="proforma-logo-size-row proforma-config-grid-span">
+                                                        <label>
+                                                            <span>Ancho del Logo</span>
+                                                            <input id="proformaLogoWidthField" name="general.proformaLogoWidth" type="number" min="40" max="520" step="1" placeholder="120">
+                                                        </label>
+                                                        <button type="button" id="proformaLogoAspectLockButton" class="proforma-logo-lock-button" aria-label="Mantener proporción" title="Mantener proporción">
+                                                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                                                <path fill="currentColor" d="M7 10V8a5 5 0 0 1 10 0v2h1a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h1Zm2 0h6V8a3 3 0 0 0-6 0v2Zm3 4a2 2 0 0 0-1 3.73V19h2v-1.27A2 2 0 0 0 12 14Z"/>
+                                                            </svg>
+                                                        </button>
+                                                        <label>
+                                                            <span>Alto del Logo</span>
+                                                            <input id="proformaLogoHeightField" name="general.proformaLogoHeight" type="number" min="24" max="280" step="1" placeholder="74">
+                                                        </label>
+                                                        <input id="proformaLogoAspectLockedField" name="general.proformaLogoAspectLocked" type="hidden" value="true">
+                                                    </div>
+                                                    <label>
+                                                        <span>Margen Superior del Logo</span>
+                                                        <input id="proformaLogoMarginTopField" name="general.proformaLogoMarginTop" type="number" min="-40" max="120" step="1" placeholder="0">
+                                                    </label>
+                                                    <label>
+                                                        <span>Margen Izquierdo del Logo</span>
+                                                        <input id="proformaLogoMarginLeftField" name="general.proformaLogoMarginLeft" type="number" min="-40" max="120" step="1" placeholder="0">
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="proforma-config-subsection">
+                                            <h4>Contacto</h4>
+                                            <div class="proforma-config-grid-2">
                                                 <label>
                                                     <span>Teléfono</span>
                                                     <input id="proformaPhoneField" name="general.proformaPhone" type="text" placeholder="Teléfono">
@@ -2696,6 +2984,36 @@
                                                     <input id="proformaEmailField" name="general.proformaEmail" type="email" placeholder="correo@empresa.com">
                                                 </label>
                                             </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="proforma-config-section">
+                                        <h3>VisualizaciÃ³n</h3>
+                                        <div class="proforma-config-grid-2">
+                                            <label>
+                                                <span>VisualizaciÃ³n de Precios</span>
+                                                <select id="proformaPriceDisplayField" name="general.proformaPriceDisplayMode">
+                                                    <option value="unit">Mostrar precio unitario</option>
+                                                    <option value="thousand">Mostrar precio por millar</option>
+                                                    <option value="both">Mostrar ambos</option>
+                                                    <option value="product_totals">Mostrar Ãºnicamente totales por producto</option>
+                                                    <option value="global_totals">Mostrar totales globales</option>
+                                                </select>
+                                            </label>
+                                            <label>
+                                                <span>Firma del Vendedor</span>
+                                                <div id="proformaSellerSignatureSelector" class="proforma-mini-tabset">
+                                                    <label class="proforma-toggle-chip">
+                                                        <input type="radio" name="proformaSellerSignatureChoice" value="true">
+                                                        <span class="proforma-toggle-tab">SÃ­</span>
+                                                    </label>
+                                                    <label class="proforma-toggle-chip">
+                                                        <input type="radio" name="proformaSellerSignatureChoice" value="false">
+                                                        <span class="proforma-toggle-tab">No</span>
+                                                    </label>
+                                                </div>
+                                                <input type="hidden" name="general.proformaSellerSignatureEnabled" value="true">
+                                            </label>
                                         </div>
                                     </div>
 
@@ -2719,12 +3037,31 @@
                                     </div>
 
                                     <div class="proforma-config-section">
-                                        <h3>Contenido del Documento</h3>
+                                        <h3>Configuración del Documento</h3>
                                         <div class="proforma-config-grid-2">
-                                            <label class="proforma-config-grid-span">
-                                                <span>Introducción del Documento</span>
-                                                <textarea id="proformaIntroField" name="general.proformaIntro" rows="4" placeholder="Texto introductorio de la proforma"></textarea>
-                                            </label>
+                                            <div class="proforma-intro-config-row proforma-config-grid-span">
+                                                <label>
+                                                    <span>Introducción del Documento</span>
+                                                    <textarea id="proformaIntroField" name="general.proformaIntro" rows="4" placeholder="Texto introductorio de la proforma"></textarea>
+                                                </label>
+                                                <label>
+                                                    <span>Fuente</span>
+                                                    <select id="proformaIntroFontFamilyField" name="general.proformaIntroFontFamily">
+                                                        <option value="inherit">Fuente del documento</option>
+                                                        <option value="Outfit">Outfit</option>
+                                                        <option value="Cormorant Garamond">Cormorant Garamond</option>
+                                                        <option value="Georgia, Times New Roman, serif">Georgia</option>
+                                                    </select>
+                                                </label>
+                                                <label>
+                                                    <span>Tamaño</span>
+                                                    <input id="proformaIntroFontSizeField" name="general.proformaIntroFontSize" type="number" min="10" max="30" step="1" value="15">
+                                                </label>
+                                                <label>
+                                                    <span>Color</span>
+                                                    <input id="proformaIntroColorField" class="proforma-intro-color-field color-field" name="general.proformaIntroColor" type="color" value="#2f3c46">
+                                                </label>
+                                            </div>
                                             <label class="proforma-config-grid-span">
                                                 <span>Términos y Condiciones</span>
                                                 <textarea id="proformaTermsField" name="general.proformaTermsConditions" rows="4" placeholder="Términos y condiciones"></textarea>
@@ -2734,7 +3071,7 @@
                                                 <textarea id="proformaPaymentTermsField" name="general.proformaPaymentTerms" rows="4" placeholder="Términos de pago"></textarea>
                                             </label>
                                             <label>
-                                                <span>Tiempos Estimados de Entrega</span>
+                                                <span>Tiempos de Entrega</span>
                                                 <textarea id="proformaDeliveryTimeField" name="general.proformaDeliveryTime" rows="4" placeholder="Tiempos de entrega"></textarea>
                                             </label>
                                             <label>
@@ -2748,26 +3085,6 @@
                                         </div>
                                     </div>
 
-                                    <div class="proforma-config-section">
-                                        <h3>Visualización</h3>
-                                        <div class="proforma-config-grid-2">
-                                            <label>
-                                                <span>Visualización de Precios</span>
-                                                <select id="proformaPriceDisplayField" name="general.proformaPriceDisplayMode">
-                                                    <option value="unit">Mostrar precio unitario</option>
-                                                    <option value="thousand">Mostrar precio por millar</option>
-                                                    <option value="both">Mostrar ambos</option>
-                                                    <option value="product_totals">Mostrar únicamente totales por producto</option>
-                                                    <option value="global_totals">Mostrar totales globales</option>
-                                                </select>
-                                            </label>
-                                            <label>
-                                                <span>Firma del Vendedor</span>
-                                                <button type="button" id="proformaSellerSignatureToggle" class="toggle-btn toggle-btn-text" data-field="general.proformaSellerSignatureEnabled" data-values="false,true" data-icons="No,Sí">Sí</button>
-                                                <input type="hidden" name="general.proformaSellerSignatureEnabled" value="true">
-                                            </label>
-                                        </div>
-                                    </div>
                                 </div>
 
                                 <div class="preview-panel proforma-config-preview">
@@ -2785,6 +3102,28 @@
                                             <div class="proforma-preview-meta">
                                                 <span id="proformaPreviewCurrency">CRC</span>
                                                 <span id="proformaPreviewValidity">15 días</span>
+                                            </div>
+                                            <div class="proforma-preview-sections">
+                                                <article class="proforma-preview-section">
+                                                    <strong>Términos y Condiciones</strong>
+                                                    <p id="proformaPreviewTerms">Pendiente de definir.</p>
+                                                </article>
+                                                <article class="proforma-preview-section">
+                                                    <strong>Términos de Pago</strong>
+                                                    <p id="proformaPreviewPaymentTerms">Pendiente de definir.</p>
+                                                </article>
+                                                <article class="proforma-preview-section">
+                                                    <strong>Tiempos de Entrega</strong>
+                                                    <p id="proformaPreviewDeliveryTime">Pendiente de definir.</p>
+                                                </article>
+                                                <article class="proforma-preview-section">
+                                                    <strong>Especificaciones Técnicas</strong>
+                                                    <p id="proformaPreviewTechnicalSpecs">Pendiente de definir.</p>
+                                                </article>
+                                                <article class="proforma-preview-section" style="grid-column:1 / -1;">
+                                                    <strong>Políticas de Calidad</strong>
+                                                    <p id="proformaPreviewQualityPolicies">Pendiente de definir.</p>
+                                                </article>
                                             </div>
                                         </div>
                                         <div class="proforma-preview-footer">
@@ -3144,30 +3483,58 @@
         const proformaLogoUrlField = document.getElementById('proformaLogoUrlField');
         const proformaCompanyNameField = document.getElementById('proformaCompanyNameField');
         const proformaSloganField = document.getElementById('proformaSloganField');
+        const proformaHeaderColorField = document.getElementById('proformaHeaderColorField');
+        const proformaCompanyNameColorField = document.getElementById('proformaCompanyNameColorField');
+        const proformaCompanyFontFamilyField = document.getElementById('proformaCompanyFontFamilyField');
+        const proformaCompanyFontUploadButton = document.getElementById('proformaCompanyFontUploadButton');
+        const proformaCompanyFontUpload = document.getElementById('proformaCompanyFontUpload');
+        const proformaCompanyFontUrlField = document.getElementById('proformaCompanyFontUrlField');
+        const proformaShowCompanyNameField = document.querySelector('input[name="general.proformaShowCompanyName"]');
+        const proformaShowCompanyNameSelector = document.getElementById('proformaShowCompanyNameSelector');
         const proformaPhoneField = document.getElementById('proformaPhoneField');
         const proformaWebsiteField = document.getElementById('proformaWebsiteField');
         const proformaEmailField = document.getElementById('proformaEmailField');
+        const proformaLogoWidthField = document.getElementById('proformaLogoWidthField');
+        const proformaLogoHeightField = document.getElementById('proformaLogoHeightField');
+        const proformaLogoAspectLockButton = document.getElementById('proformaLogoAspectLockButton');
+        const proformaLogoAspectLockedField = document.getElementById('proformaLogoAspectLockedField');
+        const proformaLogoMarginTopField = document.getElementById('proformaLogoMarginTopField');
+        const proformaLogoMarginLeftField = document.getElementById('proformaLogoMarginLeftField');
         const proformaCurrenciesJsonField = document.getElementById('proformaCurrenciesJsonField');
         const proformaCurrenciesTable = document.getElementById('proformaCurrenciesTable');
         const proformaCurrencyAddButton = document.getElementById('proformaCurrencyAddButton');
         const proformaDefaultCurrencyField = document.getElementById('proformaDefaultCurrencyField');
         const proformaValidityField = document.getElementById('proformaValidityField');
         const proformaIntroField = document.getElementById('proformaIntroField');
+        const proformaIntroFontFamilyField = document.getElementById('proformaIntroFontFamilyField');
+        const proformaIntroFontSizeField = document.getElementById('proformaIntroFontSizeField');
+        const proformaIntroColorField = document.getElementById('proformaIntroColorField');
         const proformaTermsField = document.getElementById('proformaTermsField');
         const proformaPaymentTermsField = document.getElementById('proformaPaymentTermsField');
         const proformaDeliveryTimeField = document.getElementById('proformaDeliveryTimeField');
         const proformaTechnicalSpecsField = document.getElementById('proformaTechnicalSpecsField');
         const proformaQualityPoliciesField = document.getElementById('proformaQualityPoliciesField');
         const proformaPriceDisplayField = document.getElementById('proformaPriceDisplayField');
+        const proformaSellerSignatureField = document.querySelector('input[name="general.proformaSellerSignatureEnabled"]');
+        const proformaSellerSignatureSelector = document.getElementById('proformaSellerSignatureSelector');
         const proformaPreviewHeader = document.getElementById('proformaPreviewHeader');
         const proformaPreviewLogo = document.getElementById('proformaPreviewLogo');
         const proformaPreviewCompany = document.getElementById('proformaPreviewCompany');
         const proformaPreviewSlogan = document.getElementById('proformaPreviewSlogan');
+        const proformaPreviewBranding = document.querySelector('#proformaPreviewHeader .proforma-preview-branding');
+        const proformaPreviewFontStyle = document.createElement('style');
+        proformaPreviewFontStyle.id = 'proformaPreviewFontStyle';
+        document.head.appendChild(proformaPreviewFontStyle);
         const proformaPreviewIntro = document.getElementById('proformaPreviewIntro');
         const proformaPreviewCurrency = document.getElementById('proformaPreviewCurrency');
         const proformaPreviewValidity = document.getElementById('proformaPreviewValidity');
         const proformaPreviewPriceMode = document.getElementById('proformaPreviewPriceMode');
         const proformaPreviewSignature = document.getElementById('proformaPreviewSignature');
+        const proformaPreviewTerms = document.getElementById('proformaPreviewTerms');
+        const proformaPreviewPaymentTerms = document.getElementById('proformaPreviewPaymentTerms');
+        const proformaPreviewDeliveryTime = document.getElementById('proformaPreviewDeliveryTime');
+        const proformaPreviewTechnicalSpecs = document.getElementById('proformaPreviewTechnicalSpecs');
+        const proformaPreviewQualityPolicies = document.getElementById('proformaPreviewQualityPolicies');
         const loginRepositoryUpload = document.getElementById('loginRepositoryUpload');
         const loginRepositoryDropzone = document.getElementById('loginRepositoryDropzone');
         const loginRepositoryUploadPreview = document.getElementById('loginRepositoryUploadPreview');
@@ -3256,7 +3623,8 @@
             { key: 'proformaClose', label: 'Cerrar Proforma', group: 'Acciones Documento', placeholder: '\u2713', color: '#1e516d', size: 18 },
             { key: 'quoteRequestAttachment', label: 'Adjuntar Archivos Solicitud', group: 'Acciones Documento', placeholder: '\uD83D\uDCCE', color: '#1e516d', size: 18 },
             { key: 'quoteRequestRecord', label: 'Grabar Audio Solicitud', group: 'Acciones Documento', placeholder: '\uD83C\uDFA4', color: '#1e516d', size: 18 },
-            { key: 'quoteRequestRecordStop', label: 'Detener Grabacion Solicitud', group: 'Acciones Documento', placeholder: '\u25A0', color: '#1e516d', size: 18 }
+            { key: 'quoteRequestRecordStop', label: 'Detener Grabacion Solicitud', group: 'Acciones Documento', placeholder: '\u25A0', color: '#1e516d', size: 18 },
+            { key: 'quoteRequestAttachmentDelete', label: 'Eliminar Adjunto Solicitud', group: 'Acciones Documento', placeholder: '\u2573', color: '#b94848', size: 18 }
         ];
 
         function firstFilled(...values) {
@@ -3632,7 +4000,7 @@
             colorPopover.style.top = `${top}px`;
         }
 
-        function applyColorValue(colorInput, value) {
+        function applyColorValue(colorInput, value, commit = false) {
             if (!colorInput) return;
             const normalized = normalizeHexColor(value);
             if (!normalized) return false;
@@ -3644,8 +4012,9 @@
                 colorPopoverSwatch.style.background = normalized;
                 setHexFieldState(colorPopoverHex, true);
             }
-            colorInput.dispatchEvent(new Event('input', { bubbles: true }));
-            colorInput.dispatchEvent(new Event('change', { bubbles: true }));
+            if (commit) {
+                colorInput.dispatchEvent(new Event('change', { bubbles: true }));
+            }
             return true;
         }
 
@@ -3669,14 +4038,19 @@
 
             colorPopoverNative.addEventListener('input', () => {
                 if (!activeColorField) return;
-                applyColorValue(activeColorField, colorPopoverNative.value);
+                applyColorValue(activeColorField, colorPopoverNative.value, false);
+            });
+
+            colorPopoverNative.addEventListener('change', () => {
+                if (!activeColorField) return;
+                applyColorValue(activeColorField, colorPopoverNative.value, true);
             });
 
             colorPopoverHex.addEventListener('input', () => {
                 const normalized = normalizeHexColor(colorPopoverHex.value);
                 setHexFieldState(colorPopoverHex, Boolean(normalized));
                 if (!activeColorField || !normalized) return;
-                applyColorValue(activeColorField, normalized);
+                applyColorValue(activeColorField, normalized, false);
             });
 
             colorPopoverHex.addEventListener('blur', () => {
@@ -3687,6 +4061,7 @@
                 }
                 colorPopoverHex.value = normalized;
                 setHexFieldState(colorPopoverHex, true);
+                if (activeColorField) applyColorValue(activeColorField, normalized, true);
             });
 
             document.addEventListener('pointerdown', (event) => {
@@ -4542,44 +4917,169 @@
             updateProformaPreview();
         }
 
-        function updateProformaPreviewLogoContrast() {
-            const image = proformaPreviewLogo?.querySelector('img');
+        function normalizeProformaHeaderColor(value, fallback = '#203852') {
+            const normalized = String(value || '').trim();
+            return /^#([0-9a-fA-F]{6})$/.test(normalized) ? normalized : fallback;
+        }
+
+        function isProformaHeaderColorLight(value) {
+            const normalized = normalizeProformaHeaderColor(value);
+            const red = Number.parseInt(normalized.slice(1, 3), 16);
+            const green = Number.parseInt(normalized.slice(3, 5), 16);
+            const blue = Number.parseInt(normalized.slice(5, 7), 16);
+            const luminance = (red * 0.299) + (green * 0.587) + (blue * 0.114);
+            return luminance > 160;
+        }
+
+        function normalizeProformaLogoMetric(value, fallback) {
+            const parsed = Number(value);
+            return Number.isFinite(parsed) ? parsed : fallback;
+        }
+
+        function getProformaCompanyFontConfig() {
+            const selected = (proformaCompanyFontFamilyField?.value || loadedConfig?.general?.proformaCompanyFontFamily || 'Cormorant Garamond').trim();
+            const customLabel = (loadedConfig?.general?.proformaCompanyFontLabel || 'ProformaCompanyCustom').trim() || 'ProformaCompanyCustom';
+            const customUrl = proformaCompanyFontUrlField?.value || loadedConfig?.general?.proformaCompanyFontUrl || '';
+            if (selected === '__custom__' && customUrl) {
+                return {
+                    family: customLabel,
+                    custom: true,
+                    url: customUrl
+                };
+            }
+            return {
+                family: selected === '__custom__' ? 'Cormorant Garamond' : selected,
+                custom: false,
+                url: ''
+            };
+        }
+
+        function applyProformaPreviewCompanyFont() {
+            const fontConfig = getProformaCompanyFontConfig();
+            const nameColor = normalizeProformaHeaderColor(proformaCompanyNameColorField?.value || loadedConfig?.general?.proformaCompanyNameColor || '#ffffff');
+            if (proformaPreviewFontStyle) {
+                proformaPreviewFontStyle.textContent = fontConfig.custom
+                    ? `@font-face { font-family: "${fontConfig.family}"; src: url("${fontConfig.url}") format("woff2"); font-display: swap; }`
+                    : '';
+            }
+            if (proformaPreviewCompany) {
+                proformaPreviewCompany.style.fontFamily = `"${fontConfig.family}", serif`;
+                proformaPreviewCompany.style.color = nameColor;
+            }
+            renderProformaCompanyFontUploadButton(fontConfig);
+        }
+
+        function renderProformaCompanyFontUploadButton(fontConfig = getProformaCompanyFontConfig()) {
+            if (!proformaCompanyFontUploadButton) return;
+            const iconConf = getAdminUserIconConfig('attachmentUpload', fontConfig.custom ? '#199767' : '#0b81b8', 18, '+');
+            renderButtonIcon(proformaCompanyFontUploadButton, iconConf.value, fontConfig.custom ? '#199767' : iconConf.color, iconConf.size || 18, '+');
+            proformaCompanyFontUploadButton.classList.toggle('has-font', Boolean(fontConfig.custom));
+            proformaCompanyFontUploadButton.title = fontConfig.custom ? 'Fuente WOFF2 cargada' : 'Cargar fuente WOFF2';
+            proformaCompanyFontUploadButton.setAttribute('aria-label', proformaCompanyFontUploadButton.title);
+        }
+
+        function applyProformaPreviewHeaderColor() {
             if (!proformaPreviewHeader) return;
-            if (!image) {
-                proformaPreviewHeader.classList.remove('is-light');
+            const headerColor = normalizeProformaHeaderColor(proformaHeaderColorField?.value || loadedConfig?.general?.proformaHeaderColor || '#203852');
+            proformaPreviewHeader.style.background = headerColor;
+            if (proformaLogoDropzone) {
+                const hasLogo = Boolean(proformaLogoUrlField?.value || loadedConfig?.general?.proformaLogoUrl);
+                proformaLogoDropzone.style.background = hasLogo
+                    ? headerColor
+                    : 'linear-gradient(180deg, #fafdff 0%, #f0f8fd 100%)';
+            }
+            proformaPreviewHeader.classList.toggle('is-light', isProformaHeaderColorLight(headerColor));
+        }
+
+        function applyProformaPreviewLogoLayout() {
+            if (!proformaPreviewLogo) return;
+            const showCompanyName = (proformaShowCompanyNameField?.value || loadedConfig?.general?.proformaShowCompanyName || 'true') === 'true';
+            const logoWidth = normalizeProformaLogoMetric(proformaLogoWidthField?.value || loadedConfig?.general?.proformaLogoWidth, 82);
+            const logoHeight = normalizeProformaLogoMetric(proformaLogoHeightField?.value || loadedConfig?.general?.proformaLogoHeight, 64);
+            const marginTop = normalizeProformaLogoMetric(proformaLogoMarginTopField?.value || loadedConfig?.general?.proformaLogoMarginTop, 0);
+            const marginLeft = normalizeProformaLogoMetric(proformaLogoMarginLeftField?.value || loadedConfig?.general?.proformaLogoMarginLeft, 0);
+            proformaPreviewLogo.style.width = showCompanyName ? `${Math.max(40, logoWidth)}px` : '100%';
+            proformaPreviewLogo.style.height = `${Math.max(24, logoHeight)}px`;
+            proformaPreviewLogo.style.marginTop = `${marginTop}px`;
+            proformaPreviewLogo.style.marginLeft = `${marginLeft}px`;
+            proformaPreviewLogo.style.flex = showCompanyName ? '0 0 auto' : '1 1 auto';
+            if (proformaPreviewBranding) {
+                proformaPreviewBranding.hidden = !showCompanyName;
+            }
+        }
+
+        function syncProformaShowCompanyNameSelector() {
+            const value = (proformaShowCompanyNameField?.value || loadedConfig?.general?.proformaShowCompanyName || 'true') === 'false' ? 'false' : 'true';
+            proformaShowCompanyNameSelector?.querySelectorAll('.proforma-toggle-chip').forEach((chip) => {
+                const input = chip.querySelector('input');
+                const selected = input?.value === value;
+                chip.classList.toggle('is-selected', selected);
+                if (input) input.checked = selected;
+            });
+        }
+
+        function syncProformaSellerSignatureSelector() {
+            const value = (proformaSellerSignatureField?.value || loadedConfig?.general?.proformaSellerSignatureEnabled || 'true') === 'false' ? 'false' : 'true';
+            proformaSellerSignatureSelector?.querySelectorAll('.proforma-toggle-chip').forEach((chip) => {
+                const input = chip.querySelector('input');
+                const selected = input?.value === value;
+                chip.classList.toggle('is-selected', selected);
+                if (input) input.checked = selected;
+            });
+        }
+
+        function applyProformaPreviewIntroStyle() {
+            if (!proformaPreviewIntro) return;
+            const family = proformaIntroFontFamilyField?.value || loadedConfig?.general?.proformaIntroFontFamily || 'inherit';
+            const size = Number(proformaIntroFontSizeField?.value || loadedConfig?.general?.proformaIntroFontSize || 15) || 15;
+            const color = normalizeProformaHeaderColor(proformaIntroColorField?.value || loadedConfig?.general?.proformaIntroColor || '#2f3c46', '#2f3c46');
+            proformaPreviewIntro.style.fontFamily = family === 'inherit' ? '' : family;
+            proformaPreviewIntro.style.fontSize = `${Math.max(10, Math.min(30, size))}px`;
+            proformaPreviewIntro.style.color = color;
+        }
+
+        function getProformaLogoAspectRatio() {
+            const width = Number(proformaLogoWidthField?.value || loadedConfig?.general?.proformaLogoWidth || 120) || 120;
+            const height = Number(proformaLogoHeightField?.value || loadedConfig?.general?.proformaLogoHeight || 74) || 74;
+            return height ? width / height : 120 / 74;
+        }
+
+        let proformaLogoAspectRatio = 120 / 74;
+        let proformaLogoAspectSyncing = false;
+
+        function syncProformaLogoAspectLock() {
+            const locked = (proformaLogoAspectLockedField?.value || loadedConfig?.general?.proformaLogoAspectLocked || 'true') !== 'false';
+            if (proformaLogoAspectLockedField) {
+                proformaLogoAspectLockedField.value = locked ? 'true' : 'false';
+            }
+            proformaLogoAspectLockButton?.classList.toggle('is-active', locked);
+            proformaLogoAspectLockButton?.setAttribute('aria-pressed', String(locked));
+        }
+
+        function updateProformaLogoLinkedSize(source) {
+            if (proformaLogoAspectSyncing || !proformaLogoAspectLockedField || proformaLogoAspectLockedField.value === 'false') return;
+            proformaLogoAspectSyncing = true;
+            if (source === 'width' && proformaLogoWidthField && proformaLogoHeightField) {
+                const width = Number(proformaLogoWidthField.value);
+                if (Number.isFinite(width) && width > 0) {
+                    proformaLogoHeightField.value = String(Math.max(24, Math.round(width / proformaLogoAspectRatio)));
+                }
+            }
+            if (source === 'height' && proformaLogoWidthField && proformaLogoHeightField) {
+                const height = Number(proformaLogoHeightField.value);
+                if (Number.isFinite(height) && height > 0) {
+                    proformaLogoWidthField.value = String(Math.max(40, Math.round(height * proformaLogoAspectRatio)));
+                }
+            }
+            proformaLogoAspectSyncing = false;
+        }
+
+        function commitProformaLogoLinkedSize(source) {
+            if (!proformaLogoAspectLockedField || proformaLogoAspectLockedField.value === 'false') {
                 return;
             }
-            const probe = new Image();
-            probe.crossOrigin = 'anonymous';
-            probe.onload = () => {
-                try {
-                    const canvas = document.createElement('canvas');
-                    const width = Math.max(1, Math.min(48, probe.naturalWidth || 48));
-                    const height = Math.max(1, Math.min(48, probe.naturalHeight || 48));
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    if (!ctx) return;
-                    ctx.drawImage(probe, 0, 0, width, height);
-                    const { data } = ctx.getImageData(0, 0, width, height);
-                    let total = 0;
-                    let count = 0;
-                    for (let index = 0; index < data.length; index += 4) {
-                        const alpha = data[index + 3];
-                        if (alpha < 32) continue;
-                        total += (data[index] * 0.299) + (data[index + 1] * 0.587) + (data[index + 2] * 0.114);
-                        count += 1;
-                    }
-                    const luminance = count ? total / count : 0;
-                    proformaPreviewHeader.classList.toggle('is-light', luminance < 145 ? false : true);
-                } catch (error) {
-                    proformaPreviewHeader.classList.remove('is-light');
-                }
-            };
-            probe.onerror = () => {
-                proformaPreviewHeader.classList.remove('is-light');
-            };
-            probe.src = image.src;
+            updateProformaLogoLinkedSize(source);
+            updateProformaPreview();
         }
 
         function updateProformaPreview() {
@@ -4590,6 +5090,7 @@
             if (proformaPreviewCompany) proformaPreviewCompany.textContent = proformaCompanyNameField?.value?.trim() || 'PrintLab';
             if (proformaPreviewSlogan) proformaPreviewSlogan.textContent = proformaSloganField?.value?.trim() || 'Proforma comercial';
             if (proformaPreviewIntro) proformaPreviewIntro.textContent = proformaIntroField?.value?.trim() || 'La introducción aparecerá aquí.';
+            applyProformaPreviewIntroStyle();
             const selectedCurrencyCode = proformaDefaultCurrencyField?.value || proformaCurrencyRows[0]?.code || 'CRC';
             const selectedCurrency = proformaCurrencyRows.find((row) => row.code === selectedCurrencyCode) || proformaCurrencyRows[0];
             if (proformaPreviewCurrency) {
@@ -4597,9 +5098,19 @@
             }
             if (proformaPreviewValidity) proformaPreviewValidity.textContent = proformaValidityField?.value?.trim() || '15 días';
             if (proformaPreviewPriceMode) proformaPreviewPriceMode.textContent = getProformaPriceDisplayLabel(proformaPriceDisplayField?.value || 'both');
-            const signatureEnabled = (document.querySelector('input[name="general.proformaSellerSignatureEnabled"]')?.value || 'true') === 'true';
+            const signatureEnabled = (proformaSellerSignatureField?.value || 'true') === 'true';
             if (proformaPreviewSignature) proformaPreviewSignature.textContent = signatureEnabled ? 'Firma activa' : 'Sin firma';
-            updateProformaPreviewLogoContrast();
+            if (proformaPreviewTerms) proformaPreviewTerms.textContent = proformaTermsField?.value?.trim() || 'Pendiente de definir.';
+            if (proformaPreviewPaymentTerms) proformaPreviewPaymentTerms.textContent = proformaPaymentTermsField?.value?.trim() || 'Pendiente de definir.';
+            if (proformaPreviewDeliveryTime) proformaPreviewDeliveryTime.textContent = proformaDeliveryTimeField?.value?.trim() || 'Pendiente de definir.';
+            if (proformaPreviewTechnicalSpecs) proformaPreviewTechnicalSpecs.textContent = proformaTechnicalSpecsField?.value?.trim() || 'Pendiente de definir.';
+            if (proformaPreviewQualityPolicies) proformaPreviewQualityPolicies.textContent = proformaQualityPoliciesField?.value?.trim() || 'Pendiente de definir.';
+            applyProformaPreviewHeaderColor();
+            applyProformaPreviewLogoLayout();
+            applyProformaPreviewCompanyFont();
+            syncProformaShowCompanyNameSelector();
+            syncProformaSellerSignatureSelector();
+            syncProformaLogoAspectLock();
         }
 
         function applyProformaLogoPreview() {
@@ -4613,12 +5124,20 @@
             updateProformaPreview();
         }
 
+        function applyProformaCompanyFontPreview() {
+            const fontConfig = getProformaCompanyFontConfig();
+            renderProformaCompanyFontUploadButton(fontConfig);
+            updateProformaPreview();
+        }
+
         function populateProformaConfigFields() {
             const general = loadedConfig.general || {};
             proformaCurrencyRows = normalizeProformaCurrencies(general.proformaCurrenciesJson);
             if (proformaLogoUrlField) proformaLogoUrlField.value = general.proformaLogoUrl || '';
+            if (proformaCompanyFontUrlField) proformaCompanyFontUrlField.value = general.proformaCompanyFontUrl || '';
             renderProformaCurrencies();
             applyProformaLogoPreview();
+            applyProformaCompanyFontPreview();
             updateProformaPreview();
         }
 
@@ -4900,6 +5419,60 @@
                 reader.readAsDataURL(file);
                 event.target.value = '';
             });
+            proformaShowCompanyNameSelector?.addEventListener('change', (event) => {
+                const input = event.target.closest('input[name="proformaShowCompanyNameChoice"]');
+                if (!input || !proformaShowCompanyNameField) return;
+                proformaShowCompanyNameField.value = input.value === 'false' ? 'false' : 'true';
+                syncProformaShowCompanyNameSelector();
+                updateProformaPreview();
+                queueConfigSave();
+            });
+            proformaSellerSignatureSelector?.addEventListener('change', (event) => {
+                const input = event.target.closest('input[name="proformaSellerSignatureChoice"]');
+                if (!input || !proformaSellerSignatureField) return;
+                proformaSellerSignatureField.value = input.value === 'false' ? 'false' : 'true';
+                syncProformaSellerSignatureSelector();
+                updateProformaPreview();
+                queueConfigSave();
+            });
+            proformaLogoAspectLockButton?.addEventListener('click', () => {
+                if (!proformaLogoAspectLockedField) return;
+                const nextLocked = proformaLogoAspectLockedField.value === 'false';
+                proformaLogoAspectLockedField.value = nextLocked ? 'true' : 'false';
+                if (nextLocked) {
+                    proformaLogoAspectRatio = getProformaLogoAspectRatio();
+                    updateProformaLogoLinkedSize('width');
+                }
+                syncProformaLogoAspectLock();
+                updateProformaPreview();
+                queueConfigSave();
+            });
+            proformaLogoWidthField?.addEventListener('input', () => commitProformaLogoLinkedSize('width'));
+            proformaLogoWidthField?.addEventListener('change', () => {
+                commitProformaLogoLinkedSize('width');
+                queueConfigSave();
+            });
+            proformaLogoHeightField?.addEventListener('input', () => commitProformaLogoLinkedSize('height'));
+            proformaLogoHeightField?.addEventListener('change', () => {
+                commitProformaLogoLinkedSize('height');
+                queueConfigSave();
+            });
+            proformaCompanyFontUploadButton?.addEventListener('click', () => proformaCompanyFontUpload?.click());
+            proformaCompanyFontUpload?.addEventListener('change', (event) => {
+                const file = event.target.files?.[0];
+                if (!file || !proformaCompanyFontUrlField) return;
+                const reader = new FileReader();
+                reader.onload = (loadEvent) => {
+                    proformaCompanyFontUrlField.value = loadEvent.target?.result || '';
+                    if (proformaCompanyFontFamilyField) {
+                        proformaCompanyFontFamilyField.value = '__custom__';
+                    }
+                    applyProformaCompanyFontPreview();
+                    queueConfigSave();
+                };
+                reader.readAsDataURL(file);
+                event.target.value = '';
+            });
             proformaCurrencyAddButton?.addEventListener('click', () => {
                 proformaCurrencyRows.push({ code: '', label: '', symbol: '', exchangeRate: 1 });
                 renderProformaCurrencies();
@@ -4937,12 +5510,23 @@
             [
                 proformaCompanyNameField,
                 proformaSloganField,
+                proformaHeaderColorField,
+                proformaCompanyNameColorField,
+                proformaCompanyFontFamilyField,
+                proformaShowCompanyNameField,
                 proformaPhoneField,
                 proformaWebsiteField,
                 proformaEmailField,
+                proformaLogoWidthField,
+                proformaLogoHeightField,
+                proformaLogoMarginTopField,
+                proformaLogoMarginLeftField,
                 proformaDefaultCurrencyField,
                 proformaValidityField,
                 proformaIntroField,
+                proformaIntroFontFamilyField,
+                proformaIntroFontSizeField,
+                proformaIntroColorField,
                 proformaTermsField,
                 proformaPaymentTermsField,
                 proformaDeliveryTimeField,
@@ -6065,6 +6649,7 @@
             renderPermissionAdminDeleteButton();
             renderPasswordToggleButton(userAdminPasswordToggle, userAdminFieldPassword?.type === 'text');
             renderLoginRepositoryControls();
+            renderProformaCompanyFontUploadButton();
         }
 
         ensureIconLibraryFields();
@@ -6077,18 +6662,19 @@
         bindProformaConfigEvents();
 
         document.querySelectorAll('#generalConfigForm input, #generalConfigForm select, #generalConfigForm textarea').forEach(field => {
+            const isColorField = field.type === 'color';
             field.addEventListener('change', updatePreviews);
-            field.addEventListener('input', updatePreviews);
+            if (!isColorField) field.addEventListener('input', updatePreviews);
             field.addEventListener('change', renderAdminUserCreateButton);
-            field.addEventListener('input', renderAdminUserCreateButton);
+            if (!isColorField) field.addEventListener('input', renderAdminUserCreateButton);
             field.addEventListener('change', renderAdminUserList);
-            field.addEventListener('input', renderAdminUserList);
+            if (!isColorField) field.addEventListener('input', renderAdminUserList);
             field.addEventListener('change', renderPermissionAdminCreateButton);
-            field.addEventListener('input', renderPermissionAdminCreateButton);
+            if (!isColorField) field.addEventListener('input', renderPermissionAdminCreateButton);
             field.addEventListener('change', renderPermissionAdminDeleteButton);
-            field.addEventListener('input', renderPermissionAdminDeleteButton);
+            if (!isColorField) field.addEventListener('input', renderPermissionAdminDeleteButton);
             field.addEventListener('change', queueConfigSave);
-            if (field.type !== 'file') {
+            if (field.type !== 'file' && !isColorField) {
                 field.addEventListener('input', queueConfigSave);
             }
             if (field.name === 'layout.tabWidth' || field.name === 'layout.tabHeight') {
@@ -6246,4 +6832,3 @@
     </script>
 </body>
 </html>
-

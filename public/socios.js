@@ -203,8 +203,10 @@ sociosSearchInput?.addEventListener('input', () => {
 sociosTableBody?.addEventListener('click', (event) => {
     const link = event.target.closest('a[data-route]');
     if (!link) return;
-    if (openRouteInShell(link.dataset.route, link.dataset.label)) {
-        event.preventDefault();
+    event.preventDefault();
+    event.stopPropagation();
+    if (!openRouteInShell(link.dataset.route, link.dataset.label)) {
+        window.location.href = link.href;
     }
 });
 
