@@ -6821,6 +6821,7 @@
         document.addEventListener('click', (event) => {
             if (!configMenuPanel || configMenuPanel.hidden) return;
             if (configMenuPanel.contains(event.target) || configMenuToggle?.contains(event.target)) return;
+            if (event.target.closest('a[href]')) return;
             toggleConfigMenu(false);
         });
 

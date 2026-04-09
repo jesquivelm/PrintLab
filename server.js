@@ -2410,6 +2410,7 @@ async function buildQuoteProformaPayload(quoteCode, client = null) {
         deliveryTime: pickFirstValue(rawData.deliveryTime, configSnapshot.deliveryTime),
         technicalSpecs: pickFirstValue(rawData.technicalSpecs, configSnapshot.technicalSpecs),
         qualityPolicies: pickFirstValue(rawData.qualityPolicies, configSnapshot.qualityPolicies),
+        sellerSignatureEnabled: configSnapshot.sellerSignatureEnabled,
         priceDisplayModeOptions: [
             { value: 'unit', label: 'Mostrar precio unitario' },
             { value: 'thousand', label: 'Mostrar precio por millar' },

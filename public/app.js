@@ -1887,11 +1887,13 @@ Object.keys(headerFieldMap).forEach((id) => {
 document.addEventListener('click', (event) => {
     if (!menuPanel || menuPanel.hidden) return;
     if (menuPanel.contains(event.target) || menuToggle.contains(event.target)) return;
+    if (event.target.closest('a[href]')) return;
     toggleMenu(false);
 });
 
 document.addEventListener('click', (event) => {
     if (rowActionMenu && !rowActionMenu.hidden && !rowActionMenu.contains(event.target) && !event.target.closest('[data-action="toggle-row-menu"]')) {
+        if (event.target.closest('a[href]')) return;
         closeRowMenu();
     }
 });
