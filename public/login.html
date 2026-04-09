@@ -156,7 +156,39 @@
         }
 
         .login-password-wrap {
+            position: relative;
             display: block;
+        }
+
+        .login-password-wrap input {
+            padding-right: 46px;
+        }
+
+        .login-password-toggle {
+            position: absolute;
+            top: 50%;
+            right: 8px;
+            transform: translateY(-50%);
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 10px;
+            background: transparent;
+            color: #6d7d8b;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .login-password-toggle:hover {
+            background: rgba(17, 143, 198, 0.08);
+            color: #52748b;
+        }
+
+        .login-password-toggle .icon-svg-mask {
+            width: 18px;
+            height: 18px;
         }
 
         .login-options {
@@ -369,6 +401,7 @@
                         <span>Contraseña</span>
                         <div class="login-password-wrap">
                             <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Contraseña">
+                            <button type="button" id="loginPasswordToggle" class="login-password-toggle" aria-label="Mostrar contraseña" title="Mostrar contraseña"></button>
                         </div>
                     </label>
 

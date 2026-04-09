@@ -819,58 +819,42 @@
         }
         .repository-upload-shell {
             display: grid;
-            gap: 14px;
-            padding: 18px;
-            border: 1px dashed #b9d6e7;
-            border-radius: 22px;
-            background: linear-gradient(180deg, rgba(245, 250, 253, 0.95) 0%, rgba(233, 244, 250, 0.95) 100%);
+            gap: 10px;
+            padding: 24px 22px;
+            border: 1px dashed #b8d4e6;
+            border-radius: 24px;
+            background: linear-gradient(180deg, rgba(248, 252, 255, 0.98) 0%, rgba(239, 247, 252, 0.98) 100%);
+            cursor: pointer;
+            transition: border-color 180ms ease, background 180ms ease, transform 180ms ease, box-shadow 180ms ease;
         }
-        .repository-upload-cta {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 14px;
+        .repository-upload-shell:hover {
+            border-color: #8ebeda;
+            background: linear-gradient(180deg, rgba(246, 251, 255, 0.99) 0%, rgba(232, 244, 251, 0.99) 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 16px 34px rgba(17, 143, 198, 0.08);
         }
-        .repository-upload-icon {
-            width: 58px;
-            height: 58px;
-            border-radius: 18px;
-            border: 1px solid #c8ddea;
-            background: linear-gradient(180deg, #ffffff 0%, #edf7fc 100%);
+        .repository-upload-shell.is-dragover {
+            border-color: #118fc6;
+            background: linear-gradient(180deg, rgba(240, 249, 255, 0.99) 0%, rgba(225, 240, 249, 0.99) 100%);
+            box-shadow: 0 0 0 4px rgba(17, 143, 198, 0.12);
+        }
+        .repository-dropzone {
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #118fc6;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.92);
+            text-align: center;
         }
         .repository-upload-copy {
             display: grid;
-            gap: 4px;
-            flex: 1;
+            gap: 2px;
+            min-width: 0;
+            justify-items: center;
         }
         .repository-upload-copy strong {
-            font-size: 14px;
-            color: #20303d;
-        }
-        .repository-upload-copy span {
-            font-size: 12px;
-            color: #6a7b8c;
-        }
-        .repository-upload-button {
-            width: 48px;
-            height: 48px;
-            border: 1px solid #c5d8e5;
-            border-radius: 16px;
-            background: linear-gradient(180deg, #ffffff 0%, #eff8fd 100%);
-            color: #118fc6;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 14px 26px rgba(17, 143, 198, 0.12);
-        }
-        .repository-upload-button:hover {
-            transform: translateY(-1px);
+            font-size: 18px;
+            font-weight: 500;
+            color: #6f9db8;
+            letter-spacing: -0.01em;
         }
         .repository-stats {
             display: grid;
@@ -1048,40 +1032,38 @@
             display: block;
             background: #eef4f8;
         }
-        .repository-card-footer {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            padding: 12px 14px 14px;
-        }
-        .repository-card-meta {
-            display: grid;
-            gap: 3px;
-            min-width: 0;
-        }
-        .repository-card-meta strong {
-            font-size: 12px;
-            color: #263543;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .repository-card-meta span {
-            font-size: 11px;
-            color: #718293;
-        }
         .repository-card-delete {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 2;
             width: 38px;
             height: 38px;
             border-radius: 14px;
             border: 1px solid #e6c1c1;
-            background: linear-gradient(180deg, #fff 0%, #fff7f7 100%);
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(10px);
             color: #b94848;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
+        }
+        .repository-card-delete:hover {
+            background: rgba(255, 245, 245, 0.96);
+            border-color: #e1a8a8;
+        }
+        .repository-card-delete .icon-svg-mask,
+        .repository-card-delete .icon-image,
+        .repository-card-delete .icon-glyph,
+        .repository-upload-icon .icon-svg-mask,
+        .repository-upload-icon .icon-image,
+        .repository-upload-icon .icon-glyph {
+            width: 18px !important;
+            height: 18px !important;
+            font-size: 18px !important;
+            line-height: 18px !important;
+            flex: 0 0 18px;
         }
         .repository-empty {
             padding: 28px 18px;
@@ -1950,19 +1932,14 @@
                             <div class="repository-panel">
                                 <div>
                                     <h2>Repositorio de Imágenes</h2>
-                                    <p>Sube aquí todas las imágenes que quieras usar como fondo rotativo del login. Se guardan en carpeta dentro del proyecto, no en la base de datos.</p>
                                 </div>
-                                <div class="repository-upload-shell">
-                                    <div class="repository-upload-cta">
-                                        <div class="repository-upload-icon" id="loginRepositoryUploadPreview" aria-hidden="true"></div>
+                                <div class="repository-upload-shell" id="loginRepositoryDropzone" tabindex="0" role="button" aria-label="Cargar imágenes al repositorio">
+                                    <div class="repository-dropzone">
                                         <div class="repository-upload-copy">
-                                            <strong>Agregar Imágenes al Login</strong>
-                                            <span>Formatos sugeridos: JPG, PNG o WEBP horizontales.</span>
+                                            <strong>Arrastre la imagen aquí</strong>
                                         </div>
-                                        <button type="button" id="loginRepositoryUploadButton" class="repository-upload-button" aria-label="Cargar imágenes" title="Cargar imágenes"></button>
                                     </div>
-                                    <input id="loginRepositoryUpload" type="file" accept="image/*" multiple hidden>
-                                    <p>La pantalla de acceso de escritorio mostrará estas imágenes como un screensaver suave. En móvil se usará la primera disponible.</p>
+                                    <input id="loginRepositoryUpload" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple hidden>
                                 </div>
                                 <div class="repository-stats">
                                     <div class="repository-stat">
@@ -2781,7 +2758,7 @@
         const permissionAdminCreateCancel = document.getElementById('permissionAdminCreateCancel');
         const permissionAdminCreateConfirm = document.getElementById('permissionAdminCreateConfirm');
         const loginRepositoryUpload = document.getElementById('loginRepositoryUpload');
-        const loginRepositoryUploadButton = document.getElementById('loginRepositoryUploadButton');
+        const loginRepositoryDropzone = document.getElementById('loginRepositoryDropzone');
         const loginRepositoryUploadPreview = document.getElementById('loginRepositoryUploadPreview');
         const loginRepositoryCount = document.getElementById('loginRepositoryCount');
         const loginRepositoryState = document.getElementById('loginRepositoryState');
@@ -2862,8 +2839,6 @@
             { key: 'adminPermissionDelete', label: 'Eliminar Permiso', group: 'Acciones Administrativas', placeholder: '\uD83D\uDDD1', color: '#b94848', size: 18 },
             { key: 'loginRepositoryUpload', label: 'Cargar Imagen de Repositorio', group: 'Acciones Administrativas', placeholder: '\u21E7', color: '#118fc6', size: 18 },
             { key: 'loginRepositoryDelete', label: 'Eliminar Imagen de Repositorio', group: 'Acciones Administrativas', placeholder: '\uD83D\uDDD1', color: '#b94848', size: 18 },
-            { key: 'passwordReveal', label: 'Mostrar Contraseña', group: 'Acciones Administrativas', placeholder: '\uD83D\uDC41', color: '#60707f', size: 18 },
-            { key: 'passwordHide', label: 'Ocultar Contraseña', group: 'Acciones Administrativas', placeholder: '\uD83D\uDE48', color: '#60707f', size: 18 },
             { key: 'quoteRequestAttachment', label: 'Adjuntar Archivos Solicitud', group: 'Acciones Documento', placeholder: '\uD83D\uDCCE', color: '#1e516d', size: 18 },
             { key: 'quoteRequestRecord', label: 'Grabar Audio Solicitud', group: 'Acciones Documento', placeholder: '\uD83C\uDFA4', color: '#1e516d', size: 18 },
             { key: 'quoteRequestRecordStop', label: 'Detener Grabacion Solicitud', group: 'Acciones Documento', placeholder: '\u25A0', color: '#1e516d', size: 18 }
@@ -4078,10 +4053,9 @@
 
         function renderPasswordToggleButton(button, visible) {
             if (!button) return;
-            const iconKey = visible ? 'passwordHide' : 'passwordReveal';
-            const fallback = visible ? '🙈' : '👁';
-            const config = getPermissionIconConfig(iconKey, '#60707f', 18, fallback);
-            renderButtonIcon(button, config.value, config.color, config.size, fallback);
+            const eyeOpen = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIxLjkiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgZD0iTTEyIDVjNS41IDAgOS4xIDQuNiAxMCA3Yy0uOSAyLjQtNC41IDctMTAgN3MtOS4xLTQuNi0xMC03Yy45LTIuNCA0LjUtNyAxMC03Wm0wIDlhMiAyIDAgMSAwIDAtNCAyIDIgMCAwIDAgMCA0WiIvPjwvc3ZnPg==';
+            const eyeClosed = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIxLjkiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgZD0iTTMgM2wxOCAxOE0xMC41OCAxMC41OGEyIDIgMCAwIDAgMi44NCAyLjg0TTkuODggNS4wOGExMC45NCAxMC45NCAwIDAgMSAyLjEyLS4wOGM1LjUgMCA5LjEgNC42IDEwIDdjLS40MyAxLjE2LTEuNDQgMi43OC0zLjI1IDQuMDZNNi42MSA2LjYxQzQuOTIgOC4wMiAzLjk5IDkuNzUgMiAxMmMuOSAyLjQgNC41IDcgMTAgN2ExMC4zNSAxMC4zNSAwIDAgMCA0LjI0LS44OSIvPjwvc3ZnPg==';
+            renderButtonIcon(button, visible ? eyeClosed : eyeOpen, '#60707f', 18, '');
             button.setAttribute('aria-label', visible ? 'Ocultar contraseña' : 'Mostrar contraseña');
             button.title = visible ? 'Ocultar contraseña' : 'Mostrar contraseña';
         }
@@ -4091,6 +4065,12 @@
             const date = new Date(value);
             if (Number.isNaN(date.getTime())) return 'Sin fecha';
             return date.toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+
+        function formatRepositoryFileLabel(fileName) {
+            const raw = String(fileName || '').trim();
+            if (!raw) return 'Imagen';
+            return raw.replace(/^\d+\-/, '');
         }
 
         function getLoginScreensaverMotionSeconds() {
@@ -4186,11 +4166,8 @@
         function renderLoginRepositoryControls() {
             const uploadIcon = getPermissionIconConfig('loginRepositoryUpload', '#118fc6', 18, '⇧');
             const deleteIcon = getPermissionIconConfig('loginRepositoryDelete', '#b94848', 18, '🗑');
-            if (loginRepositoryUploadButton) {
-                renderButtonIcon(loginRepositoryUploadButton, uploadIcon.value, uploadIcon.color, uploadIcon.size, '⇧');
-            }
             if (loginRepositoryUploadPreview) {
-                renderButtonIcon(loginRepositoryUploadPreview, uploadIcon.value, uploadIcon.color, uploadIcon.size + 4, '⇧');
+                renderButtonIcon(loginRepositoryUploadPreview, uploadIcon.value, uploadIcon.color, uploadIcon.size, '⇧');
             }
             if (!loginRepositoryGallery) return;
             if (!loginRepositoryImages.length) {
@@ -4215,13 +4192,7 @@
             loginRepositoryGallery.innerHTML = loginRepositoryImages.map((image) => `
                 <article class="repository-card">
                     <img src="${escapeHtml(image.url)}" alt="${escapeHtml(image.fileName)}">
-                    <div class="repository-card-footer">
-                        <div class="repository-card-meta">
-                            <strong title="${escapeHtml(image.fileName)}">${escapeHtml(image.fileName)}</strong>
-                            <span>${escapeHtml(formatRepositoryDate(image.updatedAt))}</span>
-                        </div>
-                        <button type="button" class="repository-card-delete" data-login-repository-delete="${escapeHtml(image.fileName)}" aria-label="Eliminar imagen" title="Eliminar imagen"></button>
-                    </div>
+                    <button type="button" class="repository-card-delete" data-login-repository-delete="${escapeHtml(image.fileName)}" aria-label="Eliminar imagen" title="Eliminar imagen"></button>
                 </article>
             `).join('');
             loginRepositoryGallery.querySelectorAll('[data-login-repository-delete]').forEach((button) => {
@@ -4241,7 +4212,11 @@
         }
 
         async function uploadLoginRepositoryFiles(fileList) {
-            const files = Array.from(fileList || []).filter(Boolean);
+            const files = Array.from(fileList || []).filter((file) => {
+                if (!file) return false;
+                const type = String(file.type || '').toLowerCase();
+                return ['image/jpeg', 'image/png', 'image/webp'].includes(type);
+            });
             if (!files.length) return;
             setConfigStatus(`Cargando ${files.length} imagen${files.length === 1 ? '' : 'es'} al repositorio...`);
             for (const file of files) {
@@ -4279,7 +4254,40 @@
         }
 
         function bindLoginRepositoryEvents() {
-            loginRepositoryUploadButton?.addEventListener('click', () => loginRepositoryUpload?.click());
+            const openRepositoryPicker = () => loginRepositoryUpload?.click();
+            loginRepositoryDropzone?.addEventListener('click', (event) => {
+                if (event.target.closest('[data-login-repository-delete]')) return;
+                openRepositoryPicker();
+            });
+            loginRepositoryDropzone?.addEventListener('keydown', (event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                openRepositoryPicker();
+            });
+            ['dragenter', 'dragover'].forEach((eventName) => {
+                loginRepositoryDropzone?.addEventListener(eventName, (event) => {
+                    event.preventDefault();
+                    loginRepositoryDropzone.classList.add('is-dragover');
+                });
+            });
+            ['dragleave', 'dragend', 'drop'].forEach((eventName) => {
+                loginRepositoryDropzone?.addEventListener(eventName, (event) => {
+                    event.preventDefault();
+                    if (eventName !== 'dragleave' || event.target === loginRepositoryDropzone) {
+                        loginRepositoryDropzone.classList.remove('is-dragover');
+                    }
+                });
+            });
+            loginRepositoryDropzone?.addEventListener('drop', async (event) => {
+                const files = event.dataTransfer?.files;
+                if (!files?.length) return;
+                try {
+                    await uploadLoginRepositoryFiles(files);
+                } catch (error) {
+                    console.error(error);
+                    setConfigStatus(error.message || 'No fue posible cargar las imágenes del repositorio.', true);
+                }
+            });
             loginRepositoryUpload?.addEventListener('change', async (event) => {
                 const files = event.target.files;
                 if (!files?.length) return;

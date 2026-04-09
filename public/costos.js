@@ -74,10 +74,11 @@ const generalNotes = document.getElementById("costosGeneralNotes");
 const generalDefaultFields = {
     defaultRollWidth: document.getElementById("costosDefaultRollWidth"),
     defaultCoreDiameter: document.getElementById("costosDefaultCoreDiameter"),
-    coreDiameterOptions: document.getElementById("costosCoreDiameterOptions"),
     defaultQuantityTypes: document.getElementById("costosDefaultQuantityTypes"),
     defaultCmykEnabled: document.getElementById("costosDefaultCmykEnabled")
 };
+const coreDiameterOptionsTableBody = document.getElementById("costosCoreDiameterOptionsTableBody");
+const addCoreDiameterOptionButton = document.getElementById("costosAddCoreDiameterOption");
 const maculaMontajeTableBody = document.getElementById("maculaMontajeTableBody");
 const maculaTirajeTableBody = document.getElementById("maculaTirajeTableBody");
 const depositosTableBody = document.getElementById("costosDepositosTableBody");
@@ -110,7 +111,17 @@ function escapeHtml(value) {
 }
 
 function normalizeText(value) {
-    return String(value || "").trim();
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+    try {
+        if (/[ÃÂâ�]/.test(raw) || raw.includes("�")) {
+            const repaired = decodeURIComponent(escape(raw));
+            return String(repaired || raw).trim();
+        }
+    } catch (error) {
+        return raw;
+    }
+    return raw;
 }
 
 function numberValue(value, fallback = 0) {
@@ -118,15 +129,16 @@ function numberValue(value, fallback = 0) {
     return Number.isFinite(numeric) ? numeric : fallback;
 }
 
-function normalizeCoreDiameterOptions(value, fallback = DEFAULT_COSTS_CONFIG.general.coreDiameterOptions) {
+function normalizeCoreDiameterOptions(value, fallback = DEFAULT_COSTS_CONFIG.general.coreDiameterOptions, allowEmpty = false) {
     if (Array.isArray(value)) {
         const items = value.map((item) => normalizeText(item)).filter(Boolean);
-        return items.length ? items.slice(0, 5) : [...fallback];
+        return items.length || allowEmpty ? items.slice(0, 5) : [...fallback];
     }
+    if (value == null) return [...fallback];
     const text = normalizeText(value);
-    if (!text) return [...fallback];
+    if (!text) return allowEmpty ? [] : [...fallback];
     const items = text.split(",").map((item) => normalizeText(item)).filter(Boolean);
-    return items.length ? items.slice(0, 5) : [...fallback];
+    return items.length || allowEmpty ? items.slice(0, 5) : [...fallback];
 }
 
 function getPresentationConfig(config, key) {
@@ -226,7 +238,7 @@ function normalizeCostsConfig(config) {
             updatedAt: source?.general?.updatedAt || null,
             defaultRollWidth: numberValue(source?.general?.defaultRollWidth, DEFAULT_COSTS_CONFIG.general.defaultRollWidth),
             defaultCoreDiameter: numberValue(source?.general?.defaultCoreDiameter, DEFAULT_COSTS_CONFIG.general.defaultCoreDiameter),
-            coreDiameterOptions: normalizeCoreDiameterOptions(source?.general?.coreDiameterOptions, DEFAULT_COSTS_CONFIG.general.coreDiameterOptions),
+            coreDiameterOptions: normalizeCoreDiameterOptions(source?.general?.coreDiameterOptions, DEFAULT_COSTS_CONFIG.general.coreDiameterOptions, true),
             defaultQuantityTypes: Math.max(1, numberValue(source?.general?.defaultQuantityTypes, DEFAULT_COSTS_CONFIG.general.defaultQuantityTypes)),
             defaultCmykEnabled: String(source?.general?.defaultCmykEnabled || DEFAULT_COSTS_CONFIG.general.defaultCmykEnabled).trim().toLowerCase() === "false" ? "false" : "true"
         },
@@ -364,18 +376,35 @@ function renderCosts() {
     generalNotes.value = costsState?.general?.notes || "";
     Object.entries(generalDefaultFields).forEach(([key, node]) => {
         if (!node) return;
-        if (key === "coreDiameterOptions") {
-            node.value = (costsState?.general?.coreDiameterOptions || DEFAULT_COSTS_CONFIG.general.coreDiameterOptions || []).join(", ");
-            return;
-        }
         node.value = costsState?.general?.[key] ?? DEFAULT_COSTS_CONFIG.general[key] ?? "";
     });
+    renderCoreDiameterOptionsRows();
     renderInkFields();
     renderDepositosRows();
     renderInlineFinishSetupRows();
     renderMontajeRows();
     renderTirajeRows();
     renderFinishWasteRows();
+}
+
+function renderCoreDiameterOptionsRows() {
+    if (!coreDiameterOptionsTableBody) return;
+    const rows = Array.isArray(costsState?.general?.coreDiameterOptions)
+        ? costsState.general.coreDiameterOptions
+        : [];
+    coreDiameterOptionsTableBody.innerHTML = rows.length ? rows.map((value, index) => `
+        <div class="costs-core-option-row">
+            <input type="text" class="costs-core-option-input" data-core-diameter-option-input="${index}" value="${escapeHtml(value)}" placeholder="Ej. 1.5">
+            <button type="button" class="costs-option-remove" data-core-diameter-option-remove="${index}" aria-label="Quitar opción">×</button>
+        </div>
+    `).join("") : `
+        <div class="costs-core-option-row">
+            <input type="text" class="costs-core-option-input" data-core-diameter-option-input="0" value="" placeholder="Ej. 1.5">
+        </div>
+    `;
+    if (addCoreDiameterOptionButton) {
+        addCoreDiameterOptionButton.disabled = rows.length >= 5;
+    }
 }
 
 function setSaveStatus(message, isError = false) {
@@ -447,8 +476,6 @@ Object.entries(generalDefaultFields).forEach(([key, node]) => {
         if (!costsState) return;
         if (key === "defaultCmykEnabled") {
             costsState.general[key] = node.value === "false" ? "false" : "true";
-        } else if (key === "coreDiameterOptions") {
-            costsState.general[key] = normalizeCoreDiameterOptions(node.value, DEFAULT_COSTS_CONFIG.general.coreDiameterOptions);
         } else if (key === "defaultQuantityTypes") {
             costsState.general[key] = Math.max(1, numberValue(node.value, DEFAULT_COSTS_CONFIG.general[key]));
         } else {
@@ -456,6 +483,35 @@ Object.entries(generalDefaultFields).forEach(([key, node]) => {
         }
         queueCostsSave();
     });
+});
+
+coreDiameterOptionsTableBody?.addEventListener("input", (event) => {
+    const target = event.target.closest("[data-core-diameter-option-input]");
+    if (!target || !costsState) return;
+    const index = Number(target.dataset.coreDiameterOptionInput);
+    const nextRows = [...(costsState.general.coreDiameterOptions || [])];
+    while (nextRows.length <= index) nextRows.push("");
+    nextRows[index] = normalizeText(target.value);
+    costsState.general.coreDiameterOptions = normalizeCoreDiameterOptions(nextRows, DEFAULT_COSTS_CONFIG.general.coreDiameterOptions, true);
+    queueCostsSave();
+});
+
+coreDiameterOptionsTableBody?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-core-diameter-option-remove]");
+    if (!button || !costsState) return;
+    const index = Number(button.dataset.coreDiameterOptionRemove);
+    costsState.general.coreDiameterOptions = (costsState.general.coreDiameterOptions || []).filter((_, rowIndex) => rowIndex !== index);
+    renderCoreDiameterOptionsRows();
+    queueCostsSave();
+});
+
+addCoreDiameterOptionButton?.addEventListener("click", () => {
+    if (!costsState) return;
+    const nextRows = [...(costsState.general.coreDiameterOptions || [])];
+    if (nextRows.length >= 5) return;
+    nextRows.push("");
+    costsState.general.coreDiameterOptions = nextRows;
+    renderCoreDiameterOptionsRows();
 });
 
 Object.entries(inkFields).forEach(([key, node]) => {
@@ -531,11 +587,11 @@ async function init() {
     try {
         await loadConfig();
         await loadCosts();
-        activateTab("convencional");
+        activateTab("general");
     } catch (error) {
         costsState = readLocalCostsConfig();
         renderCosts();
-        activateTab("convencional");
+        activateTab("general");
         setSaveStatus(error.message || "No se pudo cargar el módulo.", true);
     }
 }

@@ -666,6 +666,92 @@ body.popover-open { overflow: hidden; }
     border-color: #9bcff4;
     box-shadow: 0 0 0 3px rgba(17, 143, 198, 0.12);
 }
+.costs-defaults-grid {
+    grid-template-columns: 1fr 1fr 1fr 1fr 2fr;
+    align-items: start;
+}
+
+.costs-defaults-grid span,
+.costs-core-options-head span {
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 11px;
+    font-weight: 700;
+    color: #6c7d8a;
+}
+
+.costs-defaults-grid select,
+.costs-core-option-input {
+    width: 100%;
+    min-height: 38px;
+    padding: 0 12px;
+    border: 1px solid #d7e1e8;
+    border-radius: 10px;
+    background: #fbfcfd;
+    font: inherit;
+    color: #203746;
+    box-shadow: none;
+}
+
+.costs-defaults-grid select:focus,
+.costs-core-option-input:focus {
+    outline: none;
+    border-color: #9bcff4;
+    box-shadow: 0 0 0 3px rgba(17, 143, 198, 0.12);
+}
+
+.costs-core-options-field {
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid #d8e2ea;
+    border-radius: 14px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbfd 100%);
+    box-shadow: 0 6px 16px rgba(19, 39, 54, 0.04);
+}
+
+.costs-core-options-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.costs-core-options-list {
+    display: grid;
+    gap: 8px;
+}
+
+.costs-core-option-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.costs-mini-action {
+    padding: 8px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    line-height: 1;
+}
+
+.costs-option-remove {
+    min-width: 38px;
+    height: 38px;
+    padding: 0;
+    border: 1px solid #d7e1e8;
+    border-radius: 10px;
+    background: #fff;
+    color: #6c7d8a;
+    font-size: 18px;
+    cursor: pointer;
+}
+
+.costs-option-remove:hover {
+    border-color: #9bcff4;
+    color: #0b81b8;
+}
 
 .costs-section-head {
     display: flex;
@@ -817,10 +903,16 @@ body.popover-open { overflow: hidden; }
     .costs-ink-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+    .costs-defaults-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 @media (max-width: 720px) {
     .costs-ink-grid {
+        grid-template-columns: 1fr;
+    }
+    .costs-defaults-grid {
         grid-template-columns: 1fr;
     }
 }

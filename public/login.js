@@ -8,6 +8,7 @@ const LOGIN_ANIM_VARIANTS = ['anim-0', 'anim-1', 'anim-2'];
 const loginForm = document.getElementById('loginForm');
 const loginUsername = document.getElementById('loginUsername');
 const loginPassword = document.getElementById('loginPassword');
+const loginPasswordToggle = document.getElementById('loginPasswordToggle');
 const loginRemember = document.getElementById('loginRemember');
 const loginStatus = document.getElementById('loginStatus');
 const loginHeroStage = document.getElementById('loginHeroStage');
@@ -23,6 +24,7 @@ let loginSlideTimer = null;
 let loginCurrentSlide = null;
 let loginPrevSlide = null;
 let loginConfig = null;
+let loginPasswordVisible = false;
 
 function escapeHtml(value) {
     return String(value || '')
@@ -31,6 +33,15 @@ function escapeHtml(value) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+}
+
+function renderLoginPasswordToggle() {
+    if (!loginPasswordToggle) return;
+    const eyeOpen = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIxLjkiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgZD0iTTEyIDVjNS41IDAgOS4xIDQuNiAxMCA3Yy0uOSAyLjQtNC41IDctMTAgN3MtOS4xLTQuNi0xMC03Yy45LTIuNCA0LjUtNyAxMC03Wm0wIDlhMiAyIDAgMSAwIDAtNCAyIDIgMCAwIDAgMCA0WiIvPjwvc3ZnPg==';
+    const eyeClosed = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIxLjkiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgZD0iTTMgM2wxOCAxOE0xMC41OCAxMC41OGEyIDIgMCAwIDAgMi44NCAyLjg0TTkuODggNS4wOGExMC45NCAxMC45NCAwIDAgMSAyLjEyLS4wOGM1LjUgMCA5LjEgNC42IDEwIDdjLS40MyAxLjE2LTEuNDQgMi43OC0zLjI1IDQuMDZNNi42MSA2LjYxQzQuOTIgOC4wMiAzLjk5IDkuNzUgMiAxMmMuOSAyLjQgNC41IDcgMTAgN2ExMC4zNSAxMC4zNSAwIDAgMCA0LjI0LS44OSIvPjwvc3ZnPg==';
+    loginPasswordToggle.innerHTML = `<span class="icon-svg-mask" style="-webkit-mask-image:url('${loginPasswordVisible ? eyeClosed : eyeOpen}');mask-image:url('${loginPasswordVisible ? eyeClosed : eyeOpen}');"></span>`;
+    loginPasswordToggle.setAttribute('aria-label', loginPasswordVisible ? 'Ocultar contraseña' : 'Mostrar contraseña');
+    loginPasswordToggle.title = loginPasswordVisible ? 'Ocultar contraseña' : 'Mostrar contraseña';
 }
 
 function getStoredSession() {
@@ -272,6 +283,14 @@ async function handleLogin(event) {
 }
 
 async function bootLogin() {
+    renderLoginPasswordToggle();
+    loginPasswordToggle?.addEventListener('click', () => {
+        loginPasswordVisible = !loginPasswordVisible;
+        if (loginPassword) {
+            loginPassword.type = loginPasswordVisible ? 'text' : 'password';
+        }
+        renderLoginPasswordToggle();
+    });
     loadRememberedCredentials();
     const existingSession = getStoredSession();
     if (existingSession?.username && window.location.search.includes('continue=1')) {
