@@ -543,21 +543,12 @@ const DEFAULT_COSTS_CONFIG = {
             costoLbBlanco: 30,
             costoLbPantone: 35,
             depositos: [
-                { id: 'conv-deposito-blancos', tipo: 'Fondos Sólidos / Blancos', bcm: 7, coveragePct: 100, gsm: 2.5 },
-                { id: 'conv-deposito-textos', tipo: 'Textos y Líneas Gruesas', bcm: 4, coveragePct: 10, gsm: 1.2 },
-                { id: 'conv-deposito-cmyk', tipo: 'Policromía (CMYK)', bcm: 2, coveragePct: 25, gsm: 1 },
-                { id: 'conv-deposito-barniz', tipo: 'Barniz UV', bcm: 7, coveragePct: 100, gsm: 3 }
+                { id: 'conv-deposito-blancos', tipo: 'Fondos Sólidos / Blancos', bcm: 7, gsm: 2.5 },
+                { id: 'conv-deposito-textos', tipo: 'Textos y Líneas Gruesas', bcm: 4, gsm: 1.2 },
+                { id: 'conv-deposito-cmyk', tipo: 'Policromía (CMYK)', bcm: 2, gsm: 1 },
+                { id: 'conv-deposito-barniz', tipo: 'Barniz UV', bcm: 7, gsm: 3 }
             ]
         },
-        inlineFinishSetup: [
-            { id: 'conv-inline-impresion', proceso: 'Impresion', minutosPorEstacion: 5 },
-            { id: 'conv-inline-troquelado', proceso: 'Troquelado', minutosPorEstacion: 5 },
-            { id: 'conv-inline-laminado', proceso: 'Laminado', minutosPorEstacion: 5 },
-            { id: 'conv-inline-barniz', proceso: 'Barniz', minutosPorEstacion: 5 },
-            { id: 'conv-inline-embosado', proceso: 'Embosado', minutosPorEstacion: 5 },
-            { id: 'conv-inline-estampado', proceso: 'Estampado', minutosPorEstacion: 5 },
-            { id: 'conv-inline-numerado', proceso: 'Numerado', minutosPorEstacion: 5 }
-        ],
         maculaMontaje: [
             { id: 'conv-montaje-impresion', detalle: 'Impresion', porEstacion: 65, cantidadTintas: 4, totalPies: 260 },
             { id: 'conv-montaje-troquelado', detalle: 'Troquelado', porEstacion: 90, cantidadTintas: 4, totalPies: 90 },
@@ -1080,7 +1071,6 @@ function normalizeCostsRowId(value, fallback) {
 
 function normalizeCostsConfigRecord(config) {
     const source = config || {};
-    const rowsOrDefault = (value, fallback = []) => (Array.isArray(value) && value.length ? value : fallback);
     const normalizeCoreDiameterOptions = (value, fallback = DEFAULT_COSTS_CONFIG.general.coreDiameterOptions) => {
         if (Array.isArray(value)) {
             const items = value.map((item) => String(item || '').trim()).filter(Boolean);
@@ -1091,22 +1081,10 @@ function normalizeCostsConfigRecord(config) {
         const items = text.split(',').map((item) => String(item || '').trim()).filter(Boolean);
         return items.length ? items.slice(0, 5) : [...fallback];
     };
-    const inferCoveragePct = (row = {}) => {
-        if (row?.coveragePct !== undefined && row?.coveragePct !== null && row?.coveragePct !== '') {
-            return Number(row.coveragePct || 0);
-        }
-        const tipo = String(row?.tipo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
-        if (tipo.includes('barniz')) return 100;
-        if (tipo.includes('solidos') || tipo.includes('blancos')) return 100;
-        if (tipo.includes('textos') || tipo.includes('lineas')) return 10;
-        if (tipo.includes('cmyk') || tipo.includes('policromia')) return 25;
-        return Number(source?.convencional?.tintaGeneral?.coberturaTintaPct || DEFAULT_COSTS_CONFIG.convencional.tintaGeneral.coberturaTintaPct || 0);
-    };
     const normalizeDepositos = (rows = [], prefix) => (Array.isArray(rows) ? rows : []).map((row, index) => ({
         id: normalizeCostsRowId(row?.id, `${prefix}-deposito-${index + 1}`),
         tipo: String(row?.tipo || '').trim(),
         bcm: Number(row?.bcm || 0),
-        coveragePct: inferCoveragePct(row),
         gsm: Number(row?.gsm || 0)
     }));
     const normalizeMontaje = (rows = [], prefix) => (Array.isArray(rows) ? rows : []).map((row, index) => ({
@@ -1126,11 +1104,6 @@ function normalizeCostsConfigRecord(config) {
         proceso: String(row?.proceso || '').trim(),
         setupWasteFeet: Number(row?.setupWasteFeet || 0),
         operationWastePct: Number(row?.operationWastePct || 0)
-    }));
-    const normalizeInlineFinishSetup = (rows = [], prefix) => (Array.isArray(rows) ? rows : []).map((row, index) => ({
-        id: normalizeCostsRowId(row?.id, `${prefix}-inline-finish-${index + 1}`),
-        proceso: String(row?.proceso || '').trim(),
-        minutosPorEstacion: Number(row?.minutosPorEstacion || 0)
     }));
 
     return {
@@ -1152,16 +1125,15 @@ function normalizeCostsConfigRecord(config) {
                 costoLbCmyk: Number(source?.convencional?.tintaGeneral?.costoLbCmyk || DEFAULT_COSTS_CONFIG.convencional.tintaGeneral.costoLbCmyk || 0),
                 costoLbBlanco: Number(source?.convencional?.tintaGeneral?.costoLbBlanco || DEFAULT_COSTS_CONFIG.convencional.tintaGeneral.costoLbBlanco || 0),
                 costoLbPantone: Number(source?.convencional?.tintaGeneral?.costoLbPantone || DEFAULT_COSTS_CONFIG.convencional.tintaGeneral.costoLbPantone || 0),
-                depositos: normalizeDepositos(rowsOrDefault(source?.convencional?.tintaGeneral?.depositos, DEFAULT_COSTS_CONFIG.convencional.tintaGeneral.depositos), 'convencional')
+                depositos: normalizeDepositos(source?.convencional?.tintaGeneral?.depositos || DEFAULT_COSTS_CONFIG.convencional.tintaGeneral.depositos, 'convencional')
             },
-            inlineFinishSetup: normalizeInlineFinishSetup(rowsOrDefault(source?.convencional?.inlineFinishSetup, DEFAULT_COSTS_CONFIG.convencional.inlineFinishSetup), 'convencional'),
-            maculaMontaje: normalizeMontaje(rowsOrDefault(source?.convencional?.maculaMontaje, DEFAULT_COSTS_CONFIG.convencional.maculaMontaje), 'convencional'),
-            maculaTiraje: normalizeTiraje(rowsOrDefault(source?.convencional?.maculaTiraje, DEFAULT_COSTS_CONFIG.convencional.maculaTiraje), 'convencional'),
-            finishWaste: normalizeFinishWaste(rowsOrDefault(source?.convencional?.finishWaste, DEFAULT_COSTS_CONFIG.convencional.finishWaste), 'convencional')
+            maculaMontaje: normalizeMontaje(source?.convencional?.maculaMontaje || DEFAULT_COSTS_CONFIG.convencional.maculaMontaje, 'convencional'),
+            maculaTiraje: normalizeTiraje(source?.convencional?.maculaTiraje || DEFAULT_COSTS_CONFIG.convencional.maculaTiraje, 'convencional'),
+            finishWaste: normalizeFinishWaste(source?.convencional?.finishWaste || DEFAULT_COSTS_CONFIG.convencional.finishWaste, 'convencional')
         },
         digital: {
-            maculaMontaje: normalizeMontaje(rowsOrDefault(source?.digital?.maculaMontaje, DEFAULT_COSTS_CONFIG.digital.maculaMontaje), 'digital'),
-            maculaTiraje: normalizeTiraje(rowsOrDefault(source?.digital?.maculaTiraje, DEFAULT_COSTS_CONFIG.digital.maculaTiraje), 'digital')
+            maculaMontaje: normalizeMontaje(source?.digital?.maculaMontaje || DEFAULT_COSTS_CONFIG.digital.maculaMontaje, 'digital'),
+            maculaTiraje: normalizeTiraje(source?.digital?.maculaTiraje || DEFAULT_COSTS_CONFIG.digital.maculaTiraje, 'digital')
         }
     };
 }
@@ -1249,7 +1221,6 @@ const AUDIT_FIELD_LABELS = {
     maculaTiraje: 'Mácula Tiraje',
     tipo: 'Tipo',
     bcm: 'BCM',
-    coveragePct: 'Cobertura %',
     gsm: 'GSM',
     detalle: 'Detalle',
     porEstacion: 'Por Estación',
@@ -3516,17 +3487,6 @@ function buildCalculationRawData(payload = {}, existingRawData = {}) {
         'GENERAL | 9 | UNITARIO | DOL': unitPrice,
         'CODEX_UI_STATE': hasOwn('uiState') ? payload.uiState : (existingRawData['CODEX_UI_STATE'] || null)
     };
-
-    const uiPrintState = rawData['CODEX_UI_STATE']?.print || rawData['CODEX_UI_STATE']?.printStages?.[0] || null;
-    if (uiPrintState && typeof uiPrintState === 'object') {
-        rawData['CONV | PERFIL TINTA | TIPO'] = pickFirstValue(uiPrintState.profileLabel, existingRawData['CONV | PERFIL TINTA | TIPO']);
-        rawData['CONV | PERFIL TINTA | COBERTURA %'] = parseLegacyNumber(uiPrintState.coveragePct);
-        rawData['CONV | PERFIL TINTA | BCM ANILOX'] = parseLegacyNumber(uiPrintState.aniloxBcm);
-        rawData['CONV | PERFIL TINTA | GSM'] = parseLegacyNumber(uiPrintState.inkGsm);
-        rawData['CONV | BARNIZ | ACTIVO'] = Boolean(uiPrintState.inlineFinishes?.barniz?.active);
-        rawData['CONV | BARNIZ | COBERTURA %'] = parseLegacyNumber(uiPrintState.inlineFinishes?.barniz?.coveragePct);
-        rawData['CONV | BARNIZ | GSM'] = parseLegacyNumber(uiPrintState.inlineFinishes?.barniz?.layerGsm);
-    }
 
     if (payload.request_meta && typeof payload.request_meta === 'object' && !Array.isArray(payload.request_meta)) {
         Object.entries(payload.request_meta).forEach(([key, value]) => {

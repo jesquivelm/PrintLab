@@ -24,10 +24,10 @@ const DEFAULT_COSTS_CONFIG = {
             costoLbBlanco: 30,
             costoLbPantone: 35,
             depositos: [
-                { id: "conv-deposito-blancos", tipo: "Fondos Sólidos / Blancos", bcm: 7, gsm: 2.5 },
-                { id: "conv-deposito-textos", tipo: "Textos y Líneas Gruesas", bcm: 4, gsm: 1.2 },
-                { id: "conv-deposito-cmyk", tipo: "Policromía (CMYK)", bcm: 2, gsm: 1 },
-                { id: "conv-deposito-barniz", tipo: "Barniz UV", bcm: 7, gsm: 3 }
+                { id: "conv-deposito-blancos", tipo: "Fondos Sólidos / Blancos", bcm: 7, coveragePct: 100, gsm: 2.5 },
+                { id: "conv-deposito-textos", tipo: "Textos y Líneas Gruesas", bcm: 4, coveragePct: 10, gsm: 1.2 },
+                { id: "conv-deposito-cmyk", tipo: "Policromía (CMYK)", bcm: 2, coveragePct: 25, gsm: 1 },
+                { id: "conv-deposito-barniz", tipo: "Barniz UV", bcm: 7, coveragePct: 100, gsm: 3 }
             ]
         },
         inlineFinishSetup: [
@@ -96,7 +96,6 @@ const inkFields = {
 
 let loadedConfig = null;
 let costsState = null;
-let savingMode = "api";
 let costsSaveTimer = null;
 let costsSaveInFlight = false;
 let costsSaveQueued = false;
@@ -204,10 +203,23 @@ async function loadConfig() {
 
 function normalizeCostsConfig(config) {
     const source = config || {};
+    const rowsOrDefault = (value, fallback = []) => (Array.isArray(value) && value.length ? value : fallback);
+    const inferCoveragePct = (row) => {
+        const tipo = normalizeText(row?.tipo);
+        if (row?.coveragePct !== undefined && row?.coveragePct !== null && row?.coveragePct !== "") {
+            return numberValue(row.coveragePct, 0);
+        }
+        if (tipo.includes("barniz")) return 100;
+        if (tipo.includes("solidos") || tipo.includes("blancos")) return 100;
+        if (tipo.includes("textos") || tipo.includes("lineas")) return 10;
+        if (tipo.includes("cmyk") || tipo.includes("policromia")) return 25;
+        return numberValue(source?.convencional?.tintaGeneral?.coberturaTintaPct, 0);
+    };
     const normalizeDepositos = (rows) => (Array.isArray(rows) ? rows : []).map((row, index) => ({
         id: normalizeText(row?.id) || `conv-deposito-${index + 1}`,
         tipo: normalizeText(row?.tipo),
         bcm: numberValue(row?.bcm, 0),
+        coveragePct: inferCoveragePct(row),
         gsm: numberValue(row?.gsm, 0)
     }));
     const normalizeMontaje = (rows) => (Array.isArray(rows) ? rows : []).map((row, index) => ({
@@ -253,31 +265,26 @@ function normalizeCostsConfig(config) {
                 costoLbCmyk: numberValue(source?.convencional?.tintaGeneral?.costoLbCmyk, DEFAULT_COSTS_CONFIG.convencional.tintaGeneral.costoLbCmyk),
                 costoLbBlanco: numberValue(source?.convencional?.tintaGeneral?.costoLbBlanco, DEFAULT_COSTS_CONFIG.convencional.tintaGeneral.costoLbBlanco),
                 costoLbPantone: numberValue(source?.convencional?.tintaGeneral?.costoLbPantone, DEFAULT_COSTS_CONFIG.convencional.tintaGeneral.costoLbPantone),
-                depositos: normalizeDepositos(source?.convencional?.tintaGeneral?.depositos || DEFAULT_COSTS_CONFIG.convencional.tintaGeneral.depositos)
+                depositos: normalizeDepositos(rowsOrDefault(source?.convencional?.tintaGeneral?.depositos, DEFAULT_COSTS_CONFIG.convencional.tintaGeneral.depositos))
             },
-            inlineFinishSetup: normalizeInlineFinishSetup(source?.convencional?.inlineFinishSetup || DEFAULT_COSTS_CONFIG.convencional.inlineFinishSetup),
-            maculaMontaje: normalizeMontaje(source?.convencional?.maculaMontaje || DEFAULT_COSTS_CONFIG.convencional.maculaMontaje),
-            maculaTiraje: normalizeTiraje(source?.convencional?.maculaTiraje || DEFAULT_COSTS_CONFIG.convencional.maculaTiraje),
-            finishWaste: normalizeFinishWaste(source?.convencional?.finishWaste || DEFAULT_COSTS_CONFIG.convencional.finishWaste)
+            inlineFinishSetup: normalizeInlineFinishSetup(rowsOrDefault(source?.convencional?.inlineFinishSetup, DEFAULT_COSTS_CONFIG.convencional.inlineFinishSetup)),
+            maculaMontaje: normalizeMontaje(rowsOrDefault(source?.convencional?.maculaMontaje, DEFAULT_COSTS_CONFIG.convencional.maculaMontaje)),
+            maculaTiraje: normalizeTiraje(rowsOrDefault(source?.convencional?.maculaTiraje, DEFAULT_COSTS_CONFIG.convencional.maculaTiraje)),
+            finishWaste: normalizeFinishWaste(rowsOrDefault(source?.convencional?.finishWaste, DEFAULT_COSTS_CONFIG.convencional.finishWaste))
         },
         digital: {
-            maculaMontaje: normalizeMontaje(source?.digital?.maculaMontaje || DEFAULT_COSTS_CONFIG.digital.maculaMontaje),
-            maculaTiraje: normalizeTiraje(source?.digital?.maculaTiraje || DEFAULT_COSTS_CONFIG.digital.maculaTiraje)
+            maculaMontaje: normalizeMontaje(rowsOrDefault(source?.digital?.maculaMontaje, DEFAULT_COSTS_CONFIG.digital.maculaMontaje)),
+            maculaTiraje: normalizeTiraje(rowsOrDefault(source?.digital?.maculaTiraje, DEFAULT_COSTS_CONFIG.digital.maculaTiraje))
         }
     };
 }
 
 function readLocalCostsConfig() {
-    try {
-        const stored = JSON.parse(localStorage.getItem(COSTS_FALLBACK_STORAGE_KEY) || "null");
-        return normalizeCostsConfig(stored || DEFAULT_COSTS_CONFIG);
-    } catch (error) {
-        return normalizeCostsConfig(DEFAULT_COSTS_CONFIG);
-    }
+    return normalizeCostsConfig(DEFAULT_COSTS_CONFIG);
 }
 
 function writeLocalCostsConfig(config) {
-    localStorage.setItem(COSTS_FALLBACK_STORAGE_KEY, JSON.stringify(config));
+    return config;
 }
 
 async function loadCosts() {
@@ -289,13 +296,10 @@ async function loadCosts() {
         }
         const payload = await response.json();
         costsState = normalizeCostsConfig(payload);
-        savingMode = "api";
-        writeLocalCostsConfig(costsState);
         setSaveStatus("");
     } catch (error) {
-        costsState = readLocalCostsConfig();
-        savingMode = "local";
-        setSaveStatus("");
+        costsState = normalizeCostsConfig(DEFAULT_COSTS_CONFIG);
+        setSaveStatus(error.message || "No se pudo cargar la configuración de costos.", true);
     }
     renderCosts();
 }
@@ -324,6 +328,7 @@ function renderDepositosRows() {
         <tr>
             <td><input type="text" data-section="convencional.tintaGeneral.depositos" data-index="${index}" data-field="tipo" value="${escapeHtml(row.tipo)}"></td>
             <td><input type="number" min="0" step="0.01" data-section="convencional.tintaGeneral.depositos" data-index="${index}" data-field="bcm" value="${escapeHtml(row.bcm)}"></td>
+            <td><input type="number" min="0" step="0.01" data-section="convencional.tintaGeneral.depositos" data-index="${index}" data-field="coveragePct" value="${escapeHtml(row.coveragePct)}"></td>
             <td><input type="number" min="0" step="0.01" data-section="convencional.tintaGeneral.depositos" data-index="${index}" data-field="gsm" value="${escapeHtml(row.gsm)}"></td>
         </tr>
     `).join("");
@@ -417,12 +422,6 @@ function setSaveStatus(message, isError = false) {
 
 async function saveCosts() {
     costsState.general.updatedAt = new Date().toISOString();
-    writeLocalCostsConfig(costsState);
-    if (savingMode === "local") {
-        setSaveStatus("Guardado localmente.");
-        return;
-    }
-
     setSaveStatus("Guardando...");
     const response = await fetch(COSTS_ENDPOINT, {
         method: "POST",
@@ -434,7 +433,6 @@ async function saveCosts() {
         throw new Error(payload.error || "No se pudo guardar la configuración de costos.");
     }
     costsState = normalizeCostsConfig(payload);
-    writeLocalCostsConfig(costsState);
     renderCosts();
     setSaveStatus("Configuración guardada.");
 }

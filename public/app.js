@@ -121,6 +121,10 @@ let quoteRefreshPending = false;
 let attachmentsRowId = null;
 let attachmentsRefreshTimer = null;
 let replaceAttachmentId = null;
+let dragPointerHandle = null;
+let dragGhostElement = null;
+let dragGhostOffsetX = 0;
+let dragGhostOffsetY = 0;
 
 function getFlexAlign(value, fallback = 'flex-start') {
     const normalized = String(value || '').trim().toLowerCase();
@@ -557,6 +561,82 @@ function moneyPlaceholder(value) {
     return value || value === 0 ? `$${formatMoney(value)}` : '';
 }
 
+function quoteCellMarkup(value, className = '') {
+    const text = value || value === 0 ? String(value) : '';
+    const classes = ['quote-cell-value'];
+    if (className) classes.push(className);
+    if (!text) classes.push('is-empty');
+    return `<span class="${classes.join(' ')}" title="${escapeHtml(text)}">${text ? escapeHtml(text) : '&nbsp;'}</span>`;
+}
+
+function normalizeSummaryValue(value) {
+    return String(value || '').trim();
+}
+
+function isMeaningfulSummaryValue(value) {
+    const normalized = normalizeSummaryValue(value).toLowerCase();
+    if (!normalized) return false;
+    return !['no', 'ninguno', 'sin barniz', 'sin', 'false', 'null'].includes(normalized);
+}
+
+function uniqueSummaryParts(parts) {
+    const seen = new Set();
+    return parts.filter((part) => {
+        const normalized = normalizeSummaryValue(part);
+        if (!normalized) return false;
+        const key = normalized.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
+function renderLineSummary(row) {
+    const titleExtras = uniqueSummaryParts([
+        row.medidaFija,
+        row.medida
+    ]);
+    const title = [row.nombreTrabajo || 'Nuevo cálculo', titleExtras[0] ? `(${titleExtras[0]})` : '']
+        .filter(Boolean)
+        .join(' ');
+
+    const machineDefined = normalizeSummaryValue(row.machineName);
+    const secondaryParts = uniqueSummaryParts([
+        row.material
+    ]);
+    const secondaryMarkup = [
+        ...secondaryParts.map((part) => `<span>${escapeHtml(part)}</span>`),
+        machineDefined
+            ? `<span>${escapeHtml(machineDefined)}</span>`
+            : '<span class="is-warning">Sin máquina</span>'
+    ].join(' - ');
+
+    const finishes = uniqueSummaryParts([
+        isMeaningfulSummaryValue(row.barniz) ? row.barniz : '',
+        isMeaningfulSummaryValue(row.estampado) ? row.estampado : '',
+        isMeaningfulSummaryValue(row.embosado) ? row.embosado : '',
+        isMeaningfulSummaryValue(row.troquelado) ? row.troquelado : '',
+        isMeaningfulSummaryValue(row.numeracion) ? row.numeracion : ''
+    ]);
+    const finishesMarkup = finishes.length
+        ? finishes.map((part) => `<span>${escapeHtml(part)}</span>`).join(' - ')
+        : '<span class="is-warning">Sin acabados</span>';
+
+    const summaryTitle = [
+        title,
+        [...secondaryParts, machineDefined || 'Sin máquina'].join(' - '),
+        finishes.length ? finishes.join(' - ') : 'Sin acabados'
+    ].filter(Boolean).join(' | ');
+
+    return `
+        <div class="quote-line-summary" title="${escapeHtml(summaryTitle)}">
+            <div class="quote-line-summary-title">${escapeHtml(title)}</div>
+            <div class="quote-line-summary-meta">${secondaryMarkup}</div>
+            <div class="quote-line-summary-meta">${finishesMarkup}</div>
+        </div>
+    `;
+}
+
 function subtotalFieldKeys() {
     return ['subtotal1', 'subtotal2', 'subtotal3', 'subtotal4'];
 }
@@ -578,7 +658,7 @@ function subtotalHeaderLabel(index, total) {
 }
 
 function renderSubtotalCells(row, subtotalKeys) {
-    return subtotalKeys.map((key) => `<td class="money-cell"><input type="text" data-field="${key}" data-id="${row.id}" value="${escapeHtml(moneyPlaceholder(row[key]))}"></td>`).join('');
+    return subtotalKeys.map((key) => `<td class="money-cell">${quoteCellMarkup(moneyPlaceholder(row[key]), 'is-money')}</td>`).join('');
 }
 
 function renderSubtotalHeaderCells(subtotalKeys) {
@@ -599,9 +679,9 @@ function renderDataRow(row, index, subtotalKeys) {
                     <span class="row-action-divider" aria-hidden="true"></span>
                 </div>
             </td>
-            <td><input type="text" data-field="linea" data-id="${row.id}" value="${escapeHtml(row.linea)}"></td>
-            <td><input type="text" data-field="nombreTrabajo" data-id="${row.id}" value="${escapeHtml(row.nombreTrabajo)}"></td>
-            <td><input type="text" data-field="material" data-id="${row.id}" value="${escapeHtml(row.material)}"></td>
+            <td>${quoteCellMarkup(row.linea)}</td>
+            <td>${renderLineSummary(row)}</td>
+            <td>${quoteCellMarkup(row.material)}</td>
             ${renderSubtotalCells(row, subtotalKeys)}
             <td>
                 <div class="row-tools row-tools-row-end">
@@ -745,8 +825,8 @@ function buildMenuItemMarkup(item, rowId) {
     }
     const palette = getRowPalette(item.key, 18);
     return `
-        <button type="button" class="row-action-menu-item ${item.danger ? 'is-danger' : ''}" data-row-action="${item.action}" data-id="${rowId}" style="--icon-hover-color:${escapeHtml(palette.hover)};">
-            <span class="row-action-menu-icon" style="${iconButtonStyle(item.key, 18)}">${iconMarkup(item.icon, item.label, 'table-icon-media')}</span>
+        <button type="button" class="row-action-menu-item ${item.danger ? 'is-danger' : ''}" data-row-action="${item.action}" data-id="${rowId}" style="--menu-icon-color:${escapeHtml(palette.primary)};--menu-icon-hover-color:${escapeHtml(palette.hover)};--menu-icon-size:${palette.size}px;">
+            <span class="row-action-menu-icon" style="--config-icon-size:${palette.size}px;width:${palette.size}px;height:${palette.size}px;flex:0 0 ${palette.size}px;">${iconMarkup(item.icon, item.label, 'table-icon-media')}</span>
             <span>${escapeHtml(item.label)}</span>
         </button>
     `;
@@ -1010,9 +1090,23 @@ async function handleRowMenuAction(action, rowId) {
 
 function bindRowActions() {
     rowsBody?.querySelectorAll('[data-action="open-calc"]').forEach((button) => {
+        button.onpointerup = (event) => {
+            if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return;
+            event.preventDefault();
+            event.stopPropagation();
+            button.dataset.pointerHandled = 'true';
+            const rowId = Number(button.dataset.id);
+            if (rowId) {
+                openCalc(rowId);
+            }
+        };
         button.onclick = (event) => {
             event.preventDefault();
             event.stopPropagation();
+            if (button.dataset.pointerHandled === 'true') {
+                delete button.dataset.pointerHandled;
+                return;
+            }
             const rowId = Number(button.dataset.id);
             if (rowId) {
                 openCalc(rowId);
@@ -1021,9 +1115,23 @@ function bindRowActions() {
     });
 
     rowsBody?.querySelectorAll('.row-tool-detail').forEach((button) => {
+        button.onpointerup = (event) => {
+            if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return;
+            event.preventDefault();
+            event.stopPropagation();
+            button.dataset.pointerHandled = 'true';
+            const rowId = Number(button.dataset.id);
+            if (rowId) {
+                openCalc(rowId);
+            }
+        };
         button.onclick = (event) => {
             event.preventDefault();
             event.stopPropagation();
+            if (button.dataset.pointerHandled === 'true') {
+                delete button.dataset.pointerHandled;
+                return;
+            }
             const rowId = Number(button.dataset.id);
             if (rowId) {
                 openCalc(rowId);
@@ -1106,16 +1214,25 @@ function applyQuotePayload(payload) {
         id: index + 1,
         linea: line.line_code || '',
         originalLinea: line.line_code || '',
+        lineOrder: Number(line.line_order) || index + 1,
         departamento: line.department || 'Flexografia',
         nombreTrabajo: line.job_name || 'Nuevo cálculo',
         material: line.material_name || '',
+      medidaFija: line.raw_data?.['REQ | Medida Fija'] || '',
+      medida: [line.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'], line.raw_data?.['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join('x'),
+      machineName: line.machine_name || line.raw_data?.['CONV | MAQUINA'] || line.raw_data?.['DIGITAL | MAQUINA'] || '',
+      barniz: line.raw_data?.['REQ | Barniz'] || '',
+      estampado: line.raw_data?.['REQ | Estampado'] || '',
+      embosado: line.raw_data?.['REQ | Embosado'] || '',
+      troquelado: line.raw_data?.['REQ | Troquelado'] || '',
+      numeracion: line.raw_data?.['REQ | Numeracion'] || line.raw_data?.['REQ | Numeracion Aviso'] || '',
       materialCode: line.raw_data?.['Material Convencional | Id Material'] || line.raw_data?.['Material Digital | Id Material'] || '',
       finalizadaOrden: Boolean(line.finalized_for_order || line.raw_data?.['CODEX_FINALIZED_FOR_ORDER']),
       estado: line.status || 'Cotizada',
-        subtotal1: line.subtotal_1 || '',
-        subtotal2: line.subtotal_2 || '',
-        subtotal3: line.subtotal_3 || '',
-        subtotal4: line.subtotal_4 || '',
+        subtotal1: line.subtotal_1 ?? '',
+        subtotal2: line.subtotal_2 ?? '',
+        subtotal3: line.subtotal_3 ?? '',
+        subtotal4: line.subtotal_4 ?? '',
         ocultar: Boolean(line.hidden_flag),
         opcional: Boolean(line.optional_flag),
         prueba: Boolean(line.proof_flag),
@@ -1134,6 +1251,10 @@ function applyQuotePayload(payload) {
     syncProformaButtonState(quote?.quote_code || '');
 }
 
+function syncRowOrderState() {
+    quoteRows = quoteRows.map((row, index) => ({ ...row, lineOrder: index + 1 }));
+}
+
 function moveDraggedRow(dragRowId, targetRowId, placeAfter = false) {
     const currentIndex = quoteRows.findIndex((row) => row.id === dragRowId);
     const targetIndex = quoteRows.findIndex((row) => row.id === targetRowId);
@@ -1143,6 +1264,7 @@ function moveDraggedRow(dragRowId, targetRowId, placeAfter = false) {
     const adjustedTargetIndex = quoteRows.findIndex((item) => item.id === targetRowId);
     const insertIndex = placeAfter ? adjustedTargetIndex + 1 : adjustedTargetIndex;
     quoteRows.splice(insertIndex, 0, row);
+    syncRowOrderState();
     activeRowId = dragRowId;
     renderRows();
     return true;
@@ -1154,7 +1276,62 @@ function clearDropIndicators() {
     });
 }
 
-function updateDropIndicator(clientX, clientY) {
+function destroyDragGhost() {
+    if (dragGhostElement) {
+        dragGhostElement.remove();
+        dragGhostElement = null;
+    }
+}
+
+function updateDragGhostPosition(clientX, clientY) {
+    if (!dragGhostElement) return;
+    dragGhostElement.style.setProperty('--drag-x', `${clientX - dragGhostOffsetX}px`);
+    dragGhostElement.style.setProperty('--drag-y', `${clientY - dragGhostOffsetY}px`);
+}
+
+function createDragGhost(rowElement, clientX, clientY) {
+    destroyDragGhost();
+    if (!rowElement) return;
+
+    const rect = rowElement.getBoundingClientRect();
+    const ghost = document.createElement('div');
+    ghost.className = 'row-drag-ghost';
+    ghost.style.width = `${rect.width}px`;
+    ghost.style.height = `${rect.height}px`;
+
+    const table = document.createElement('table');
+    table.className = 'copy-popover-table quote-browser-table quote-table-compact row-drag-ghost-table';
+    const tbody = document.createElement('tbody');
+    const rowClone = rowElement.cloneNode(true);
+    rowClone.classList.remove('is-active', 'is-dragging', 'drop-before', 'drop-after');
+
+    const sourceInputs = rowElement.querySelectorAll('input, select, textarea');
+    const cloneInputs = rowClone.querySelectorAll('input, select, textarea');
+    cloneInputs.forEach((input, index) => {
+        const source = sourceInputs[index];
+        if (!source) return;
+        if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
+            input.value = source.value;
+        } else if (input instanceof HTMLSelectElement) {
+            input.value = source.value;
+        }
+    });
+
+    tbody.appendChild(rowClone);
+    table.appendChild(tbody);
+    ghost.appendChild(table);
+    document.body.appendChild(ghost);
+
+    dragGhostElement = ghost;
+    dragGhostOffsetX = Math.min(40, Math.max(18, clientX - rect.left));
+    dragGhostOffsetY = Math.min(rect.height / 2, Math.max(12, clientY - rect.top));
+    updateDragGhostPosition(clientX, clientY);
+    requestAnimationFrame(() => {
+        ghost.classList.add('is-visible');
+    });
+}
+
+function updateDropIndicator(clientX, clientY, explicitRowElement = null) {
     clearDropIndicators();
 
     const dragRowElement = rowsBody?.querySelector(`tr[data-id="${draggedRowId}"]`);
@@ -1162,8 +1339,14 @@ function updateDropIndicator(clientX, clientY) {
         dragRowElement.classList.add('is-dragging');
     }
 
-    const hovered = document.elementFromPoint(clientX, clientY) || document.elementFromPoint(48, clientY);
-    const rowElement = hovered?.closest?.('tr[data-id]');
+    let rowElement = explicitRowElement;
+    if (rowElement && Number(rowElement.dataset.id) === draggedRowId) {
+        rowElement = null;
+    }
+    if (!rowElement) {
+        const hovered = document.elementFromPoint(clientX, clientY) || document.elementFromPoint(48, clientY);
+        rowElement = hovered?.closest?.('tr[data-id]');
+    }
     if (!rowElement) {
         dropTargetRowId = null;
         return;
@@ -1184,10 +1367,11 @@ function updateDropIndicator(clientX, clientY) {
 function handlePointerDragMove(event) {
     if (!draggedRowId) return;
     event.preventDefault();
-    updateDropIndicator(event.clientX, event.clientY);
+    updateDragGhostPosition(event.clientX, event.clientY);
+    updateDropIndicator(event.clientX, event.clientY, event.target?.closest?.('tr[data-id]') || null);
 }
 
-function finishPointerDrag() {
+function finishPointerDrag(event) {
     const dragRowId = draggedRowId;
     const targetRowId = dropTargetRowId;
     const placeAfter = dropAfterTarget;
@@ -1198,6 +1382,14 @@ function finishPointerDrag() {
 
     document.removeEventListener('mousemove', handlePointerDragMove);
     document.removeEventListener('mouseup', finishPointerDrag);
+    document.removeEventListener('pointermove', handlePointerDragMove);
+    document.removeEventListener('pointerup', finishPointerDrag);
+    document.removeEventListener('pointercancel', finishPointerDrag);
+    if (event?.pointerId !== undefined && dragPointerHandle?.releasePointerCapture && dragPointerHandle.hasPointerCapture?.(event.pointerId)) {
+        dragPointerHandle.releasePointerCapture(event.pointerId);
+    }
+    dragPointerHandle = null;
+    destroyDragGhost();
     clearDropIndicators();
 
     if (!dragRowId || !targetRowId) return;
@@ -1205,7 +1397,10 @@ function finishPointerDrag() {
     const moved = moveDraggedRow(dragRowId, targetRowId, placeAfter);
     if (moved) {
         const row = quoteRows.find((item) => item.id === dragRowId);
-        setStatus(`Línea ${row?.linea || ''} reordenada.`, 'saved');
+        setStatus('Guardando orden de líneas...', 'saving');
+        persistRowOrder()
+            .then(() => setStatus(`Línea ${row?.linea || ''} reordenada.`, 'saved'))
+            .catch((error) => setStatus(error.message, 'error'));
     }
 }
 
@@ -1216,6 +1411,7 @@ function updateRowLocal(rowId, field, value) {
 function mapLineUpdatePayload(row) {
     return {
         line_code: row.linea,
+        line_order: Number(row.lineOrder) || null,
         department: row.departamento,
         job_name: row.nombreTrabajo,
         material_name: row.material,
@@ -1226,6 +1422,34 @@ function mapLineUpdatePayload(row) {
         process_type: row.processType || 'Convencional',
         product_code: row.productId || row.linea
     };
+}
+
+async function persistRowOrder() {
+    if (!currentQuote?.quote_code) return;
+    const response = await fetch(`${QUOTES_ENDPOINT}/${encodeURIComponent(currentQuote.quote_code)}/lineas/orden`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            lineas: quoteRows
+                .filter((row) => row.originalLinea || row.linea)
+                .map((row, index) => ({
+                    line_code: row.originalLinea || row.linea,
+                    line_order: index + 1
+                }))
+        })
+    });
+    if (!response.ok) throw new Error('No fue posible guardar el orden de las líneas.');
+    const payload = await response.json();
+    const savedLines = Array.isArray(payload?.lineas) ? payload.lineas : [];
+    if (!savedLines.length) return;
+    const orderMap = new Map(savedLines.map((line) => [line.line_code, Number(line.line_order) || 0]));
+    quoteRows = quoteRows
+        .map((row) => ({
+            ...row,
+            lineOrder: orderMap.get(row.originalLinea || row.linea) || row.lineOrder
+        }))
+        .sort((a, b) => (Number(a.lineOrder) || 0) - (Number(b.lineOrder) || 0));
+    renderRows();
 }
 
 async function saveQuoteHeader() {
@@ -1279,6 +1503,7 @@ async function persistNewRow() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+            line_order: quoteRows.length + 1,
             department: newRow.departamento,
             job_name: newRow.nombreTrabajo,
             status: newRow.estado
@@ -1292,10 +1517,19 @@ async function persistNewRow() {
         ...newRow,
         linea: linea.line_code,
         originalLinea: linea.line_code,
+        lineOrder: Number(linea.line_order) || (quoteRows.length + 1),
         nombreTrabajo: linea.job_name || newRow.nombreTrabajo,
         material: linea.material_name || '',
+        medidaFija: linea.raw_data?.['REQ | Medida Fija'] || '',
+        medida: [linea.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'], linea.raw_data?.['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join('x'),
+        machineName: linea.machine_name || linea.raw_data?.['CONV | MAQUINA'] || linea.raw_data?.['DIGITAL | MAQUINA'] || '',
+        barniz: linea.raw_data?.['REQ | Barniz'] || '',
+        estampado: linea.raw_data?.['REQ | Estampado'] || '',
+        embosado: linea.raw_data?.['REQ | Embosado'] || '',
+        troquelado: linea.raw_data?.['REQ | Troquelado'] || '',
+        numeracion: linea.raw_data?.['REQ | Numeracion'] || linea.raw_data?.['REQ | Numeracion Aviso'] || '',
         estado: linea.status || newRow.estado,
-        subtotal1: linea.subtotal_1 || '',
+        subtotal1: linea.subtotal_1 ?? '',
         quoteId: currentQuote.quote_code,
         productId: linea.product_code || linea.line_code
     };
@@ -1324,10 +1558,19 @@ async function saveRow(row) {
             originalLinea: saved.line_code,
             nombreTrabajo: saved.job_name || item.nombreTrabajo,
             material: saved.material_name || item.material,
+            medidaFija: saved.raw_data?.['REQ | Medida Fija'] || item.medidaFija,
+            medida: [saved.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'], saved.raw_data?.['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join('x') || item.medida,
+            machineName: saved.machine_name || saved.raw_data?.['CONV | MAQUINA'] || saved.raw_data?.['DIGITAL | MAQUINA'] || item.machineName,
+            barniz: saved.raw_data?.['REQ | Barniz'] || item.barniz,
+            estampado: saved.raw_data?.['REQ | Estampado'] || item.estampado,
+            embosado: saved.raw_data?.['REQ | Embosado'] || item.embosado,
+            troquelado: saved.raw_data?.['REQ | Troquelado'] || item.troquelado,
+            numeracion: saved.raw_data?.['REQ | Numeracion'] || saved.raw_data?.['REQ | Numeracion Aviso'] || item.numeracion,
             materialCode: saved.raw_data?.['Material Convencional | Id Material'] || saved.raw_data?.['Material Digital | Id Material'] || item.materialCode,
             finalizadaOrden: Boolean(saved.finalized_for_order || saved.raw_data?.['CODEX_FINALIZED_FOR_ORDER'] || item.finalizadaOrden),
             estado: saved.status || item.estado,
-            subtotal1: saved.subtotal_1 || item.subtotal1,
+            lineOrder: Number(saved.line_order) || item.lineOrder,
+            subtotal1: saved.subtotal_1 ?? item.subtotal1,
             productId: saved.product_code || item.productId,
             processType: saved.process_type || item.processType
         } : item);
@@ -1832,10 +2075,7 @@ rowsBody?.addEventListener('click', async (event) => {
     }
 });
 
-rowsBody?.addEventListener('mousedown', (event) => {
-    const handle = event.target.closest('[data-action="drag-handle"]');
-    if (!handle) return;
-
+function startRowDrag(event, handle) {
     const rowElement = handle.closest('tr[data-id]');
     if (!rowElement) return;
 
@@ -1845,7 +2085,26 @@ rowsBody?.addEventListener('mousedown', (event) => {
     dropAfterTarget = false;
     clearDropIndicators();
     rowElement.classList.add('is-dragging');
+    createDragGhost(rowElement, event.clientX, event.clientY);
+    if (event.pointerId !== undefined && handle.setPointerCapture) {
+        handle.setPointerCapture(event.pointerId);
+        dragPointerHandle = handle;
+    }
+}
 
+rowsBody?.addEventListener('pointerdown', (event) => {
+    const handle = event.target.closest('[data-action="drag-handle"]');
+    if (!handle) return;
+    startRowDrag(event, handle);
+    document.addEventListener('pointermove', handlePointerDragMove);
+    document.addEventListener('pointerup', finishPointerDrag);
+    document.addEventListener('pointercancel', finishPointerDrag);
+});
+
+rowsBody?.addEventListener('mousedown', (event) => {
+    const handle = event.target.closest('[data-action="drag-handle"]');
+    if (!handle || draggedRowId) return;
+    startRowDrag(event, handle);
     document.addEventListener('mousemove', handlePointerDragMove);
     document.addEventListener('mouseup', finishPointerDrag);
 });
@@ -1855,7 +2114,6 @@ rowsBody?.addEventListener('focusin', (event) => {
     const rowElement = event.target.closest('tr[data-id]');
     if (!rowElement) return;
     activeRowId = Number(rowElement.dataset.id);
-    renderRows();
 });
 
 rowsBody?.addEventListener('input', (event) => {
@@ -1951,10 +2209,6 @@ window.addEventListener('message', (event) => {
     }
 });
 
-window.addEventListener('focus', () => {
-    refreshQuoteIfNeeded();
-});
-
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
         refreshQuoteIfNeeded();
@@ -2044,6 +2298,3 @@ window.addEventListener('popstate', (event) => {
         setStatus(error.message, 'error');
     }
 })();
-
-
-

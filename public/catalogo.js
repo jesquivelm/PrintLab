@@ -539,10 +539,14 @@ function updateInventoryRoute(view = 'list', id = '') {
 function getTableColumns() {
     const actionColumn = { key: 'open', label: '', width: '56px', className: 'inventory-col-open', isAction: true };
     if (!isTroquelesInventory()) {
+        const baseColumns = page.columns.map((column) => Array.isArray(column)
+            ? { key: column[0], label: column[1] }
+            : column);
+        if (page.inventoryKey === 'socios') {
+            return baseColumns;
+        }
         return [
-            ...page.columns.map((column) => Array.isArray(column)
-                ? { key: column[0], label: column[1] }
-                : column),
+            ...baseColumns,
             actionColumn
         ];
     }
@@ -1503,6 +1507,54 @@ function capacitiesStateSanity() {
     }
 }
 
+function handleCatalogTouchAction(event, element, action) {
+    if (!element || (event.pointerType !== 'touch' && event.pointerType !== 'pen')) return false;
+    event.preventDefault();
+    event.stopPropagation();
+    element.dataset.pointerHandled = 'true';
+    action();
+    return true;
+}
+
+function consumeCatalogTouchAction(element) {
+    if (!element || element.dataset.pointerHandled !== 'true') return false;
+    delete element.dataset.pointerHandled;
+    return true;
+}
+
+catalogBody.addEventListener('pointerdown', (event) => {
+    if (isOutputTypesInventory()) return;
+
+    const openLink = event.target.closest('[data-open-detail]');
+    if (openLink) {
+        handleCatalogTouchAction(event, openLink, () => {
+            selectedId = openLink.dataset.openDetail || '';
+            const selectedItem = currentItems.find((item) => item.id === selectedId);
+            renderTable(currentItems);
+            if (selectedItem) {
+                renderForm(selectedItem);
+                updateInventoryView('detail', selectedId);
+                catalogStatus.textContent = 'Troquel abierto.';
+            }
+        });
+        return;
+    }
+
+    const editButton = event.target.closest('[data-select-item]');
+    if (editButton) {
+        handleCatalogTouchAction(event, editButton, () => {
+            selectedId = editButton.dataset.selectItem || '';
+            renderTable(currentItems);
+            const selectedItem = currentItems.find((item) => item.id === selectedId);
+            if (selectedItem) {
+                renderForm(selectedItem);
+                updateInventoryView('list', selectedId);
+                catalogStatus.textContent = 'Registro cargado en el editor.';
+            }
+        });
+    }
+});
+
 catalogBody.addEventListener('click', (event) => {
     if (isOutputTypesInventory()) {
         const uploadButton = event.target.closest('[data-action="upload-output-image"]');
@@ -1516,6 +1568,7 @@ catalogBody.addEventListener('click', (event) => {
     const openLink = event.target.closest('[data-open-detail]');
     if (openLink) {
         event.preventDefault();
+        if (consumeCatalogTouchAction(openLink)) return;
         selectedId = openLink.dataset.openDetail || '';
         const selectedItem = currentItems.find((item) => item.id === selectedId);
         renderTable(currentItems);
@@ -1528,6 +1581,7 @@ catalogBody.addEventListener('click', (event) => {
     }
     const editButton = event.target.closest('[data-select-item]');
     if (editButton) {
+        if (consumeCatalogTouchAction(editButton)) return;
         selectedId = editButton.dataset.selectItem || '';
         renderTable(currentItems);
         const selectedItem = currentItems.find((item) => item.id === selectedId);

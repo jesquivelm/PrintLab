@@ -37,7 +37,16 @@ const coreDiameterInput = document.getElementById('coreDiameterInput');
 const applicationModeInput = document.getElementById('applicationModeInput');
 const environmentInput = document.getElementById('environmentInput');
 const surfaceTypeInput = document.getElementById('surfaceTypeInput');
+const inkProfileTypeInput = document.getElementById('inkProfileType');
+const inkCoveragePctInput = document.getElementById('inkCoveragePct');
+const inkAniloxBcmInput = document.getElementById('inkAniloxBcm');
+const inkGsmInput = document.getElementById('inkGsm');
+const inlineVarnishActiveInput = document.getElementById('inlineVarnishActive');
+const inlineVarnishCoveragePctInput = document.getElementById('inlineVarnishCoveragePct');
+const inlineVarnishGsmInput = document.getElementById('inlineVarnishGsm');
+const inlineFinishBox = inlineVarnishActiveInput?.closest('.flexo-inline-finish-box') || null;
 const PRESENTATION_KEY = 'calculos';
+const COSTS_CONFIG_ENDPOINT = '/api/costos-config';
 
 let catalogs = null;
 let currentCalculation = null;
@@ -45,6 +54,7 @@ let currentQuote = null;
 let relatedLines = [];
 let quantityValues = [''];
 let loadedConfig = null;
+let loadedCostsConfig = null;
 
 function toggleCalcMenu(forceState) {
     if (!calcMenuPanel || !calcMenuToggle) return;
@@ -82,6 +92,14 @@ function firstFilled(...values) {
         }
     }
     return '';
+}
+
+function normalizeCalcText(value) {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase();
 }
 
 function normalizeQuantityValue(value) {
@@ -173,6 +191,198 @@ function parseConfigNumber(value, fallback = null) {
     return Number.isFinite(numeric) ? numeric : fallback;
 }
 
+function deepClone(value) {
+    if (value === null || value === undefined) return value;
+    return JSON.parse(JSON.stringify(value));
+}
+
+function inferProfileCoverage(row, fallback = null) {
+    const normalizedType = normalizeCalcText(row?.tipo);
+    if (row?.coveragePct !== undefined && row?.coveragePct !== null && row?.coveragePct !== '') {
+        return parseConfigNumber(row.coveragePct, fallback);
+    }
+    if (normalizedType.includes('barniz')) return 100;
+    if (normalizedType.includes('solido') || normalizedType.includes('blanco')) return 100;
+    if (normalizedType.includes('texto') || normalizedType.includes('linea')) return 10;
+    if (normalizedType.includes('cmyk') || normalizedType.includes('policrom')) return 25;
+    return fallback;
+}
+
+function getInkProfileRows() {
+    const rows = Array.isArray(loadedCostsConfig?.convencional?.tintaGeneral?.depositos)
+        ? loadedCostsConfig.convencional.tintaGeneral.depositos
+        : [];
+    return rows.map((row, index) => ({
+        id: String(row?.id || `conv-profile-${index + 1}`),
+        tipo: String(row?.tipo || '').trim(),
+        bcm: parseConfigNumber(row?.bcm, 0) || 0,
+        gsm: parseConfigNumber(row?.gsm, 0) || 0,
+        coveragePct: inferProfileCoverage(row, parseConfigNumber(loadedCostsConfig?.convencional?.tintaGeneral?.coberturaTintaPct, 0) || 0)
+    }));
+}
+
+function getPrintableInkProfiles() {
+    return getInkProfileRows().filter((row) => !normalizeCalcText(row.tipo).includes('barniz'));
+}
+
+function getBarnizInkProfile() {
+    return getInkProfileRows().find((row) => normalizeCalcText(row.tipo).includes('barniz')) || null;
+}
+
+function inferInkProfileId() {
+    const existingPrintState = currentCalculation?.uiState?.print || currentCalculation?.uiState?.printStages?.[0] || {};
+    if (existingPrintState.profileId) return String(existingPrintState.profileId);
+
+    const printable = getPrintableInkProfiles();
+    if (!printable.length) return '';
+    const byMatch = (terms = []) => printable.find((row) => terms.some((term) => normalizeCalcText(row.tipo).includes(term)));
+
+    const useCmyk = Boolean(cmykInput?.checked || currentCalculation?.cmyk || currentCalculation?.uiState?.header?.useCmyk);
+    const useWhiteInk = Boolean(
+        currentCalculation?.uiState?.header?.useWhiteInk
+        || currentCalculation?.raw_data?.['TINTA BLANCA | CHECK']
+        || currentCalculation?.raw_data?.['GENERAL | TINTA BLANCA']
+    );
+    const pantoneCount = parseConfigNumber(currentCalculation?.uiState?.header?.pantoneCount, currentCalculation?.pantoneCount) || 0;
+    const tintCount = parseConfigNumber(stationCountInput?.value, currentCalculation?.tintCount) || 0;
+
+    if (useCmyk) return byMatch(['cmyk', 'policrom'])?.id || printable[0].id;
+    if (useWhiteInk) return byMatch(['solido', 'blanco'])?.id || printable[0].id;
+    if (pantoneCount > 0 || tintCount <= 1) return byMatch(['texto', 'linea'])?.id || printable[0].id;
+    if (tintCount >= 4) return byMatch(['cmyk', 'policrom'])?.id || printable[0].id;
+    return byMatch(['texto', 'linea'])?.id || printable[0].id;
+}
+
+function buildInitialPrintState() {
+    const existingPrintState = deepClone(currentCalculation?.uiState?.print || currentCalculation?.uiState?.printStages?.[0] || {}) || {};
+    const existingBarniz = deepClone(existingPrintState.inlineFinishes?.barniz || {}) || {};
+    const profiles = getInkProfileRows();
+    const selectedProfileId = String(existingPrintState.profileId || inferInkProfileId() || '');
+    const selectedProfile = profiles.find((row) => row.id === selectedProfileId) || null;
+    const barnizProfile = getBarnizInkProfile();
+    const rawBarniz = normalizeCalcText(currentCalculation?.raw_data?.['REQ | Barniz']);
+    const barnizActive = existingBarniz.active !== undefined
+        ? Boolean(existingBarniz.active)
+        : Boolean(rawBarniz && !['sin barniz', 'sin', 'no', 'ninguno'].includes(rawBarniz));
+
+    return {
+        profileId: selectedProfileId,
+        profileLabel: selectedProfile?.tipo || existingPrintState.profileLabel || '',
+        coveragePct: parseConfigNumber(existingPrintState.coveragePct, selectedProfile?.coveragePct) || 0,
+        aniloxBcm: parseConfigNumber(existingPrintState.aniloxBcm, selectedProfile?.bcm) || 0,
+        inkGsm: parseConfigNumber(existingPrintState.inkGsm, selectedProfile?.gsm) || 0,
+        barnizActive,
+        barnizCoveragePct: parseConfigNumber(existingBarniz.coveragePct, barnizProfile?.coveragePct) || 0,
+        barnizGsm: parseConfigNumber(existingBarniz.layerGsm, barnizProfile?.gsm) || 0
+    };
+}
+
+function renderInkProfileOptions() {
+    if (!inkProfileTypeInput) return;
+    const rows = getPrintableInkProfiles();
+    inkProfileTypeInput.innerHTML = ['<option value="">Seleccionar...</option>']
+        .concat(rows.map((row) => `<option value="${row.id}">${row.tipo}</option>`))
+        .join('');
+}
+
+function syncInlineVarnishState() {
+    const active = Boolean(inlineVarnishActiveInput?.checked);
+    [inlineVarnishCoveragePctInput, inlineVarnishGsmInput].forEach((input) => {
+        if (!input) return;
+        input.disabled = !active;
+    });
+    inlineFinishBox?.classList.toggle('is-disabled', !active);
+}
+
+function applySelectedInkProfile(profileId, preserveUserValues = false) {
+    const row = getPrintableInkProfiles().find((item) => item.id === String(profileId)) || null;
+    if (inkProfileTypeInput) inkProfileTypeInput.value = row?.id || '';
+    if (!row) return;
+    if (!preserveUserValues || !inkCoveragePctInput?.value) inkCoveragePctInput.value = row.coveragePct;
+    if (!preserveUserValues || !inkAniloxBcmInput?.value) inkAniloxBcmInput.value = row.bcm;
+    if (!preserveUserValues || !inkGsmInput?.value) inkGsmInput.value = row.gsm;
+}
+
+function renderInkProfileEditor() {
+    if (inkProfileTypeInput) delete inkProfileTypeInput.dataset.manualChange;
+    renderInkProfileOptions();
+    const initial = buildInitialPrintState();
+    applySelectedInkProfile(initial.profileId, false);
+    if (inkCoveragePctInput) inkCoveragePctInput.value = initial.coveragePct;
+    if (inkAniloxBcmInput) inkAniloxBcmInput.value = initial.aniloxBcm;
+    if (inkGsmInput) inkGsmInput.value = initial.inkGsm;
+    if (inlineVarnishActiveInput) inlineVarnishActiveInput.checked = Boolean(initial.barnizActive);
+    if (inlineVarnishCoveragePctInput) inlineVarnishCoveragePctInput.value = initial.barnizCoveragePct;
+    if (inlineVarnishGsmInput) inlineVarnishGsmInput.value = initial.barnizGsm;
+    syncInlineVarnishState();
+}
+
+function buildPrintStateFromInputs(existingPrintState = {}) {
+    const next = deepClone(existingPrintState) || {};
+    const profiles = getInkProfileRows();
+    const selectedProfile = profiles.find((row) => row.id === String(inkProfileTypeInput?.value || '')) || null;
+    const barnizProfile = getBarnizInkProfile();
+    next.profileId = String(inkProfileTypeInput?.value || selectedProfile?.id || '');
+    next.profileLabel = selectedProfile?.tipo || next.profileLabel || '';
+    next.coveragePct = parseConfigNumber(inkCoveragePctInput?.value, selectedProfile?.coveragePct) || 0;
+    next.aniloxBcm = parseConfigNumber(inkAniloxBcmInput?.value, selectedProfile?.bcm) || 0;
+    next.inkGsm = parseConfigNumber(inkGsmInput?.value, selectedProfile?.gsm) || 0;
+    next.bcmGenerico = parseConfigNumber(loadedCostsConfig?.convencional?.tintaGeneral?.bcmGenerico, next.bcmGenerico) || 0;
+    next.inkDensity = parseConfigNumber(loadedCostsConfig?.convencional?.tintaGeneral?.densidadUv, next.inkDensity) || 0;
+    next.designCoveragePct = parseConfigNumber(loadedCostsConfig?.convencional?.tintaGeneral?.coberturaDisenoPct, next.designCoveragePct) || 0;
+    next.inkCostPerLb = parseConfigNumber(loadedCostsConfig?.convencional?.tintaGeneral?.costoLbCmyk, next.inkCostPerLb) || 0;
+    next.whiteInkCostPerLb = parseConfigNumber(loadedCostsConfig?.convencional?.tintaGeneral?.costoLbBlanco, next.whiteInkCostPerLb) || 0;
+    next.pantoneInkCostPerLb = parseConfigNumber(loadedCostsConfig?.convencional?.tintaGeneral?.costoLbPantone, next.pantoneInkCostPerLb) || 0;
+    next.inkProfiles = profiles;
+    next.inlineFinishes = deepClone(next.inlineFinishes) || {};
+    next.inlineFinishes.barniz = {
+        ...(deepClone(next.inlineFinishes.barniz) || {}),
+        active: Boolean(inlineVarnishActiveInput?.checked),
+        coveragePct: parseConfigNumber(inlineVarnishCoveragePctInput?.value, barnizProfile?.coveragePct) || 0,
+        layerGsm: parseConfigNumber(inlineVarnishGsmInput?.value, barnizProfile?.gsm) || 0
+    };
+    return next;
+}
+
+function buildMergedUiState() {
+    const captured = captureUiState();
+    const existing = deepClone(currentCalculation?.uiState) || {};
+    const existingPrint = deepClone(existing.print || existing.printStages?.[0]) || {};
+    const printState = buildPrintStateFromInputs(existingPrint);
+    const next = {
+        ...existing,
+        ...captured,
+        print: printState
+    };
+    const otherStages = Array.isArray(existing.printStages) ? existing.printStages.slice(1) : [];
+    next.printStages = [deepClone(printState), ...otherStages];
+    next.header = {
+        ...(deepClone(existing.header) || {}),
+        jobName: currentCalculation?.jobName || getSelectedProduct()?.jobName || '',
+        lineCode: currentCalculation?.lineCode || params.get('lineId') || '',
+        quoteCode: currentCalculation?.quoteCode || params.get('quoteId') || '',
+        quantity: parseConfigNumber(quantityInput?.value, currentCalculation?.quantityProducts) || 0,
+        processType: getEffectiveProcessType(),
+        labelsPerRoll: parseConfigNumber(labelsPerRollInput?.value, currentCalculation?.labelsPerRoll) || 0,
+        quantityTypes: parseConfigNumber(quantityTypesInput?.value, currentCalculation?.quantityTypes) || 0,
+        quantityChanges: parseConfigNumber(existing.header?.quantityChanges, currentCalculation?.quantityChanges) || 0,
+        outputType: outputTypeInput?.value || '',
+        applicationType: applicationTypeInput?.value || '',
+        useCmyk: Boolean(cmykInput?.checked),
+        coreDiameter: coreDiameterInput?.value || '',
+        customerCode: currentCalculation?.customerCode || '',
+        customerName: currentCalculation?.customerName || '',
+        salespersonName: currentCalculation?.salespersonName || '',
+        labelWidthIn: parseConfigNumber(widthInput?.value, currentCalculation?.widthInches) || 0,
+        labelHeightIn: parseConfigNumber(lengthInput?.value, currentCalculation?.lengthInches) || 0,
+        rollWidthIn: parseConfigNumber(coreWidthInput?.value, existing.header?.rollWidthIn) || parseConfigNumber(coreWidthInput?.value, 0) || 0,
+        useWhiteInk: Boolean(existing.header?.useWhiteInk),
+        pantoneCount: parseConfigNumber(existing.header?.pantoneCount, currentCalculation?.pantoneCount) || 0,
+        applicationEnvironment: environmentInput?.value || ''
+    };
+    return next;
+}
+
 function getQuoteDefaultSettings() {
     const general = loadedConfig?.general || {};
     return {
@@ -199,7 +409,7 @@ function updateTechnicalIndicators() {
     const coreWidth = parseConfigNumber(coreWidthInput?.value, 0) || 0;
     const coreDiameter = parseConfigNumber(coreDiameterInput?.value, 0);
     const quantityTypes = parseConfigNumber(quantityTypesInput?.value, 0) || 0;
-    const applicationType = normalizeText(applicationTypeInput?.value);
+    const applicationType = normalizeCalcText(applicationTypeInput?.value);
 
     setFieldAlert(labelsPerRollInput, labelsPerRoll <= 0, 'Debes indicar etiquetas por rollo.');
     setFieldAlert(applicationTypeInput, !applicationType, 'Debes indicar el tipo de etiquetado.');
@@ -394,6 +604,12 @@ async function loadConfig() {
     applyHeaderConfig(loadedConfig);
 }
 
+async function loadCostsConfig() {
+    const response = await fetch(COSTS_CONFIG_ENDPOINT);
+    if (!response.ok) throw new Error('No fue posible cargar la configuración de costos.');
+    loadedCostsConfig = await response.json();
+}
+
 function money(value) {
     if (value === '' || value === null || typeof value === 'undefined' || Number.isNaN(Number(value))) return '';
     return new Intl.NumberFormat('es-CR', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(Number(value));
@@ -525,13 +741,14 @@ function syncProductData() {
     applicationTypeInput.value = product.applicationType || '';
     outputTypeInput.value = product.outputType || '';
     const defaults = getQuoteDefaultSettings();
-    if (coreWidthInput && !normalizeText(coreWidthInput.value)) coreWidthInput.value = defaults.rollWidth || '';
-    if (coreDiameterInput && !normalizeText(coreDiameterInput.value)) coreDiameterInput.value = defaults.coreDiameter || '';
-    if (quantityTypesInput && !normalizeText(quantityTypesInput.value)) quantityTypesInput.value = defaults.quantityTypes || 1;
+    if (coreWidthInput && !normalizeCalcText(coreWidthInput.value)) coreWidthInput.value = defaults.rollWidth || '';
+    if (coreDiameterInput && !normalizeCalcText(coreDiameterInput.value)) coreDiameterInput.value = defaults.coreDiameter || '';
+    if (quantityTypesInput && !normalizeCalcText(quantityTypesInput.value)) quantityTypesInput.value = defaults.quantityTypes || 1;
     if (cmykInput) cmykInput.checked = defaults.cmyk;
     updateHeaderMeta(product.clientName || '', product.salespersonName || '');
     syncOutputPreview();
     updateTechnicalIndicators();
+    renderInkProfileEditor();
 
     renderKeyValue(summaryGrid, [
         ['Cotización', params.get('quoteId') || product.quoteId || ''],
@@ -576,6 +793,7 @@ function renderCalculation(data) {
         quantityTypes: currentCalculation.uiState?.quantityTypes || currentCalculation.quantityTypes || '',
         cmyk: currentCalculation.uiState?.cmyk ?? currentCalculation.cmyk ?? getQuoteDefaultSettings().cmyk
     });
+    renderInkProfileEditor();
     updateHeaderMeta(currentCalculation.customerName || '', currentCalculation.salespersonName || '');
 
     if (currentQuote?.quote_code) {
@@ -718,6 +936,7 @@ async function loadCurrentCalculation() {
 
 async function calculatePreview() {
     calcStatus.textContent = 'Calculando vista previa operativa...';
+    const mergedUiState = buildMergedUiState();
     const payload = {
         productId: productSelect.value,
         materialId: materialSelect.value,
@@ -729,6 +948,7 @@ async function calculatePreview() {
         quantityTypes: quantityTypesInput?.value,
         processType: getEffectiveProcessType(),
         cmyk: Boolean(cmykInput?.checked),
+        uiState: mergedUiState,
         machineSelections: {
             impresion: machineSelect.value
         }
@@ -777,6 +997,7 @@ async function saveCalculation() {
     }
 
     calcStatus.textContent = 'Guardando cálculo en la base de datos...';
+    const mergedUiState = buildMergedUiState();
 
     const response = await fetch('/api/flexo/calculo/guardar', {
         method: 'POST',
@@ -806,7 +1027,7 @@ async function saveCalculation() {
             cmyk: Boolean(cmykInput?.checked),
             applicationType: applicationTypeInput.value,
             outputType: outputTypeInput.value,
-            uiState: captureUiState(),
+            uiState: mergedUiState,
             finalTotal: currentCalculation?.finalTotal,
             unitPrice: currentCalculation?.unitPrice
         })
@@ -819,6 +1040,7 @@ async function saveCalculation() {
 
     const data = await response.json();
     currentCalculation = data.calculo || currentCalculation;
+    renderInkProfileEditor();
     calcStatus.textContent = `Cálculo ${currentCalculation.lineCode} guardado correctamente.`;
 }
 
@@ -829,7 +1051,22 @@ outputTypeInput?.addEventListener('input', syncOutputPreview);
 [labelsPerRollInput, applicationTypeInput, coreWidthInput, coreDiameterInput, quantityTypesInput]
     .filter(Boolean)
     .forEach((input) => input.addEventListener('input', updateTechnicalIndicators));
-cmykInput?.addEventListener('change', updateTechnicalIndicators);
+cmykInput?.addEventListener('change', () => {
+    updateTechnicalIndicators();
+    if (!inkProfileTypeInput?.dataset.manualChange) {
+        applySelectedInkProfile(inferInkProfileId(), false);
+    }
+});
+inkProfileTypeInput?.addEventListener('change', () => {
+    inkProfileTypeInput.dataset.manualChange = 'true';
+    applySelectedInkProfile(inkProfileTypeInput.value, false);
+});
+[inkCoveragePctInput, inkAniloxBcmInput, inkGsmInput, inlineVarnishCoveragePctInput, inlineVarnishGsmInput]
+    .filter(Boolean)
+    .forEach((input) => input.addEventListener('input', () => {
+        if (inkProfileTypeInput) inkProfileTypeInput.dataset.manualChange = 'true';
+    }));
+inlineVarnishActiveInput?.addEventListener('change', syncInlineVarnishState);
     quantityProductsList?.addEventListener('input', (event) => {
         const input = event.target.closest('[data-quantity-index]');
         if (!input) return;
@@ -873,6 +1110,7 @@ document.addEventListener('click', (event) => {
 
 async function init() {
     await loadConfig();
+    await loadCostsConfig();
     await loadCatalogs();
     if (params.get('lineId') || params.get('quoteId')) {
         await loadCurrentCalculation();
@@ -886,6 +1124,7 @@ async function init() {
             cmyk: defaults.cmyk
         });
         syncProductData();
+        renderInkProfileEditor();
         calcStatus.textContent = 'No se recibió una línea específica. Puedes usar esta pantalla para revisar catálogos y generar una vista previa.';
     }
 }

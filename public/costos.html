@@ -56,12 +56,20 @@
                         <label><span>Costo Lb Blanco</span><input id="costosCostoLbBlanco" type="number" step="0.01"></label>
                         <label><span>Costo Lb Pantone</span><input id="costosCostoLbPantone" type="number" step="0.01"></label>
                     </div>
+                    <div class="costs-table-title">Perfil de aplicaci&oacute;n de tinta</div>
                     <div class="copy-popover-table-wrap costs-table-wrap">
                         <table class="copy-popover-table costs-table">
+                            <colgroup>
+                                <col>
+                                <col>
+                                <col>
+                                <col>
+                            </colgroup>
                             <thead>
                                 <tr>
                                     <th>Tipo de Trabajo</th>
                                     <th>BCM Anilox</th>
+                                    <th>Cobertura %</th>
                                     <th><span title="Cantidad de peso real transferido al sustrato. En Barniz UV corresponde al GSM barniz.">GSM / GSM Barniz</span></th>
                                 </tr>
                             </thead>
@@ -79,7 +87,7 @@
                             <thead>
                                 <tr>
                                     <th>Proceso</th>
-                                    <th>Minutos por Estaci&oacute;n</th>
+                                    <th>Minutos de Montaje</th>
                                 </tr>
                             </thead>
                             <tbody id="inlineFinishSetupTableBody"></tbody>

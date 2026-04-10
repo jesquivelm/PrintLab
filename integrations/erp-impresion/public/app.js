@@ -380,7 +380,7 @@ function toggleFavoriteDocument() {
   renderFavoriteDocumentButton();
 }
 
-function applyCostsConfigToCurrentLine() {
+function applyCostsConfigToCurrentLine(force = false) {
   const maculaConfig = defaultMaculaConfig();
   state.form.macula = {
     source: maculaConfig.source,
@@ -391,29 +391,30 @@ function applyCostsConfigToCurrentLine() {
   const inkDefaults = conventionalInkDefaults();
   const applyStageDefaults = (stage) => {
     if (!stage || typeof stage !== "object") return;
-    stage.coveragePct = inkDefaults.coberturaTintaPct;
-    stage.aniloxBcm = inkDefaults.cmykBcm || inkDefaults.bcmGenerico;
-    stage.inkGsm = inkDefaults.cmykGsm;
-    stage.bcmGenerico = inkDefaults.bcmGenerico;
-    stage.transferFactor = 0.3;
-    stage.inkDensity = inkDefaults.densidadUv;
-    stage.inkCostPerLb = inkDefaults.costoLbCmyk;
-    stage.whiteInkCostPerLb = inkDefaults.costoLbBlanco;
-    stage.pantoneInkCostPerLb = inkDefaults.costoLbPantone;
-    stage.designCoveragePct = inkDefaults.coberturaDisenoPct;
+    stage.coveragePct = force ? inkDefaults.cmykCoveragePct : (n(stage.coveragePct, 0) > 0 ? n(stage.coveragePct, 0) : inkDefaults.cmykCoveragePct);
+    stage.aniloxBcm = force ? (inkDefaults.cmykBcm || inkDefaults.bcmGenerico) : (n(stage.aniloxBcm, 0) > 0 ? n(stage.aniloxBcm, 0) : (inkDefaults.cmykBcm || inkDefaults.bcmGenerico));
+    stage.inkGsm = force ? inkDefaults.cmykGsm : (n(stage.inkGsm, 0) > 0 ? n(stage.inkGsm, 0) : inkDefaults.cmykGsm);
+    stage.bcmGenerico = force ? inkDefaults.bcmGenerico : (n(stage.bcmGenerico, 0) > 0 ? n(stage.bcmGenerico, 0) : inkDefaults.bcmGenerico);
+    stage.transferFactor = force ? 0.3 : (n(stage.transferFactor, 0) > 0 ? n(stage.transferFactor, 0) : 0.3);
+    stage.inkDensity = force ? inkDefaults.densidadUv : (n(stage.inkDensity, 0) > 0 ? n(stage.inkDensity, 0) : inkDefaults.densidadUv);
+    stage.inkCostPerLb = force ? inkDefaults.costoLbCmyk : (n(stage.inkCostPerLb, 0) > 0 ? n(stage.inkCostPerLb, 0) : inkDefaults.costoLbCmyk);
+    stage.whiteInkCostPerLb = force ? inkDefaults.costoLbBlanco : (n(stage.whiteInkCostPerLb, 0) > 0 ? n(stage.whiteInkCostPerLb, 0) : inkDefaults.costoLbBlanco);
+    stage.pantoneInkCostPerLb = force ? inkDefaults.costoLbPantone : (n(stage.pantoneInkCostPerLb, 0) > 0 ? n(stage.pantoneInkCostPerLb, 0) : inkDefaults.costoLbPantone);
+    stage.designCoveragePct = force ? inkDefaults.coberturaDisenoPct : (n(stage.designCoveragePct, 0) > 0 ? n(stage.designCoveragePct, 0) : inkDefaults.coberturaDisenoPct);
     stage.inkProfiles = inkDefaults.depositos.map((item, index) => ({
       id: first(item?.id, `deposito-${index + 1}`),
       tipo: first(item?.tipo, ""),
       bcm: n(item?.bcm, 0),
+      coveragePct: n(item?.coveragePct, 0),
       gsm: n(item?.gsm, 0)
     }));
     INLINE_PRINT_SLOTS.forEach((slot) => {
       const inline = stage.inlineFinishes?.[slot.key];
       if (!inline) return;
-      inline.setupMinutes = inlineFinishSetupMinutes(slot.key) * Math.max(1, n(stage.availableColors, 1));
+      inline.setupMinutes = force ? inlineFinishSetupMinutes(slot.key) : (n(inline.setupMinutes, 0) > 0 ? n(inline.setupMinutes, 0) : inlineFinishSetupMinutes(slot.key));
       if (slot.key === "barniz") {
-        inline.coveragePct = 100;
-        inline.layerGsm = inkDefaults.barnizGsm;
+        inline.coveragePct = force ? inkDefaults.barnizCoveragePct : (n(inline.coveragePct, 0) > 0 ? n(inline.coveragePct, 0) : inkDefaults.barnizCoveragePct);
+        inline.layerGsm = force ? inkDefaults.barnizGsm : (n(inline.layerGsm, 0) > 0 ? n(inline.layerGsm, 0) : inkDefaults.barnizGsm);
       }
     });
   };
@@ -439,7 +440,12 @@ async function refreshCostsForCurrentLine() {
     els.refreshCostsButton.disabled = true;
     const costsConfig = await getJson("/api/costos-config");
     state.costsConfig = costsConfig;
-    applyCostsConfigToCurrentLine();
+    applyCostsConfigToCurrentLine(true);
+    activePrintStages().forEach((stage, stageIndex) => {
+      INLINE_PRINT_SLOTS.forEach((slot) => {
+        if (stage?.inlineFinishes?.[slot.key]?.active) applyInlineFinishSetupDefaults(stageIndex, slot.key, true);
+      });
+    });
     renderProcesses();
     scheduleSave();
     els.calcStatus.textContent = "Costos actualizados en la línea actual.";
@@ -698,6 +704,17 @@ function conventionalInkDefaults() {
   const depositos = Array.isArray(defaults.depositos) ? defaults.depositos : [];
   const cmykDeposito = depositos.find((item) => norm(item?.tipo).includes("cmyk")) || null;
   const barnizDeposito = depositos.find((item) => norm(item?.tipo).includes("barniz")) || null;
+  const inferCoveragePct = (item, fallback) => {
+    if (item?.coveragePct !== undefined && item?.coveragePct !== null && item?.coveragePct !== "") {
+      return n(item.coveragePct, fallback);
+    }
+    const tipo = norm(item?.tipo);
+    if (tipo.includes("barniz")) return 100;
+    if (tipo.includes("solido") || tipo.includes("blanco")) return 100;
+    if (tipo.includes("texto") || tipo.includes("linea")) return 10;
+    if (tipo.includes("cmyk") || tipo.includes("policrom")) return 25;
+    return fallback;
+  };
   return {
     bcmGenerico: n(defaults.bcmGenerico, 2),
     coberturaTintaPct: n(defaults.coberturaTintaPct, 30),
@@ -707,13 +724,16 @@ function conventionalInkDefaults() {
     costoLbBlanco: n(defaults.costoLbBlanco, 30),
     costoLbPantone: n(defaults.costoLbPantone, 35),
     cmykBcm: n(cmykDeposito?.bcm, n(defaults.bcmGenerico, 2)),
+    cmykCoveragePct: inferCoveragePct(cmykDeposito, n(defaults.coberturaTintaPct, 30)),
     cmykGsm: n(cmykDeposito?.gsm, 1),
     barnizBcm: n(barnizDeposito?.bcm, 7),
+    barnizCoveragePct: inferCoveragePct(barnizDeposito, 100),
     barnizGsm: n(barnizDeposito?.gsm, 3),
     depositos: depositos.map((item, index) => ({
       id: first(item?.id, `deposito-${index + 1}`),
       tipo: first(item?.tipo, ""),
       bcm: n(item?.bcm, 0),
+      coveragePct: inferCoveragePct(item, n(defaults.coberturaTintaPct, 30)),
       gsm: n(item?.gsm, 0)
     }))
   };
@@ -721,11 +741,29 @@ function conventionalInkDefaults() {
 
 function inlineFinishSetupMinutes(processKey = "") {
   const rows = state.costsConfig?.convencional?.inlineFinishSetup || [];
-  const target = norm(processKey);
-  const row = rows.find((item) => norm(item?.proceso) === target)
-    || rows.find((item) => target.includes(norm(item?.proceso)))
-    || rows.find((item) => norm(item?.proceso).includes(target));
+  const target = normalizeMaculaProcessKey(processKey);
+  const row = rows.find((item) => normalizeMaculaProcessKey(item?.proceso) === target)
+    || rows.find((item) => target.includes(normalizeMaculaProcessKey(item?.proceso)))
+    || rows.find((item) => normalizeMaculaProcessKey(item?.proceso).includes(target));
   return n(row?.minutosPorEstacion, 5);
+}
+
+function applyInlineFinishSetupDefaults(stageIndex, inlineKey, force = false) {
+  const stage = state.form?.printStages?.[stageIndex];
+  const inline = stage?.inlineFinishes?.[inlineKey];
+  if (!inline) return;
+  const inkDefaults = conventionalInkDefaults();
+  inline.setupMinutes = force || n(inline.setupMinutes, 0) <= 0
+    ? inlineFinishSetupMinutes(inlineKey)
+    : n(inline.setupMinutes, 0);
+  if (inlineKey === "barniz") {
+    inline.coveragePct = force || n(inline.coveragePct, 0) <= 0
+      ? inkDefaults.barnizCoveragePct
+      : n(inline.coveragePct, 0);
+    inline.layerGsm = force || n(inline.layerGsm, 0) <= 0
+      ? inkDefaults.barnizGsm
+      : n(inline.layerGsm, 0);
+  }
 }
 
 function finishWasteDefault(processKey = "") {
@@ -760,7 +798,7 @@ function activePrintStages() {
 }
 
 function createPrintStage(base = {}) {
-  const defaultInlineStations = Math.max(1, n(base.availableColors, n(state.form?.print?.availableColors, 1)));
+  const inkDefaults = conventionalInkDefaults();
   const inlineFinishes = {};
   INLINE_PRINT_SLOTS.forEach((slot) => {
     const source = base.inlineFinishes?.[slot.key] || {};
@@ -768,14 +806,18 @@ function createPrintStage(base = {}) {
       active: Boolean(source.active),
       processId: source.processId || "",
       materialId: source.materialId || "",
-      setupMinutes: n(source.setupMinutes, inlineFinishSetupMinutes(slot.key) * defaultInlineStations),
+      setupMinutes: n(source.setupMinutes, inlineFinishSetupMinutes(slot.key)),
       costHour: n(source.costHour, 0),
       fixedCost: n(source.fixedCost, 0),
       costPerFoot: n(source.costPerFoot, 0),
       costPerMeter: n(source.costPerMeter, 0),
       costPerMsi: n(source.costPerMsi, 0),
-      coveragePct: n(source.coveragePct, slot.key === "barniz" ? 100 : 100),
-      layerGsm: n(source.layerGsm, slot.key === "barniz" ? conventionalInkDefaults().barnizGsm : 0),
+      coveragePct: slot.key === "barniz"
+        ? (n(source.coveragePct, 0) > 0 ? n(source.coveragePct, 0) : inkDefaults.barnizCoveragePct)
+        : n(source.coveragePct, 100),
+      layerGsm: slot.key === "barniz"
+        ? (n(source.layerGsm, 0) > 0 ? n(source.layerGsm, 0) : inkDefaults.barnizGsm)
+        : n(source.layerGsm, 0),
       costPerLb: n(source.costPerLb, 0),
       plateCost: n(source.plateCost, 0),
       comment: source.comment || ""
@@ -792,12 +834,12 @@ function createPrintStage(base = {}) {
     availableColors: n(base.availableColors, 0),
     costHour: n(base.costHour, 0),
     operatorHourCost: n(base.operatorHourCost, 0),
-    coveragePct: n(base.coveragePct, 12),
+    coveragePct: n(base.coveragePct, 0) > 0 ? n(base.coveragePct, 0) : inkDefaults.cmykCoveragePct,
     aniloxBcm: n(first(base.aniloxBcm, base.inkGsm), 3),
     transferFactor: n(base.transferFactor, 0.3),
     inkDensity: n(base.inkDensity, 1.5),
     inkCostPerLb: n(base.inkCostPerLb, 0),
-    inkGsm: n(base.inkGsm, 1),
+    inkGsm: n(base.inkGsm, 0) > 0 ? n(base.inkGsm, 0) : inkDefaults.cmykGsm,
     bcmGenerico: n(base.bcmGenerico, 2),
     whiteInkCostPerLb: n(base.whiteInkCostPerLb, 30),
     pantoneInkCostPerLb: n(base.pantoneInkCostPerLb, 35),
@@ -806,6 +848,7 @@ function createPrintStage(base = {}) {
       id: first(item?.id, `deposito-${index + 1}`),
       tipo: first(item?.tipo, ""),
       bcm: n(item?.bcm, 0),
+      coveragePct: n(item?.coveragePct, 0),
       gsm: n(item?.gsm, 0)
     })) : [],
     inlineFinishes
@@ -2681,7 +2724,7 @@ function renderMaculaTirajeRows(rows = []) {
 
 function renderInkProfiles(scope, profiles = []) {
   if (!profiles.length) return `<div class="macula-empty">Sin perfiles cargados en Costos.</div>`;
-  return `<div class="ink-profile-table"><div class="ink-profile-head ink-profile-row"><span>Tipo de Trabajo</span><span>BCM</span><span>GSM</span></div>${profiles.map((row, index) => `<div class="ink-profile-row"><input data-scope="${scope}.inkProfiles.${index}" data-field="tipo" type="text" value="${esc(row.tipo || "")}"><input data-scope="${scope}.inkProfiles.${index}" data-field="bcm" type="number" step="0.01" value="${esc(row.bcm)}"><input data-scope="${scope}.inkProfiles.${index}" data-field="gsm" type="number" step="0.01" value="${esc(row.gsm)}"></div>`).join("")}</div>`;
+  return `<div class="ink-profile-table"><div class="ink-profile-head ink-profile-row"><span>Tipo de Trabajo</span><span>BCM</span><span>Cobertura %</span><span>GSM</span></div>${profiles.map((row, index) => `<div class="ink-profile-row"><input data-scope="${scope}.inkProfiles.${index}" data-field="tipo" type="text" value="${esc(row.tipo || "")}"><input data-scope="${scope}.inkProfiles.${index}" data-field="bcm" type="number" step="0.01" value="${esc(row.bcm)}"><input data-scope="${scope}.inkProfiles.${index}" data-field="coveragePct" type="number" step="0.01" value="${esc(row.coveragePct)}"><input data-scope="${scope}.inkProfiles.${index}" data-field="gsm" type="number" step="0.01" value="${esc(row.gsm)}"></div>`).join("")}</div>`;
 }
 
 function renderProcesses() {
@@ -3016,6 +3059,13 @@ function bindProcesses() {
     }
     setNested(scope, field, value);
     if (scope.startsWith("printStages.")) syncPrimaryPrintStage();
+    if (scope.startsWith("printStages.") && scope.includes(".inlineFinishes.") && field === "active" && value) {
+      const parts = scope.split(".");
+      const stageIndex = Number(parts[1]);
+      const inlineKey = parts[3];
+      applyInlineFinishSetupDefaults(stageIndex, inlineKey);
+      syncPrimaryPrintStage();
+    }
     if (scope === "substrate" && field === "materialId") {
       const material = findMaterial(value);
       const costMsi = n(material?.costoMaterialPorMsi || material?.precioUnitarioCotizacionDol, 0);

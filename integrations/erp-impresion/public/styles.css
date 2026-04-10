@@ -1120,7 +1120,7 @@ textarea {
 
 .ink-profile-row {
   display: grid;
-  grid-template-columns: 1.8fr 0.8fr 0.8fr;
+  grid-template-columns: minmax(0, 1.8fr) repeat(3, minmax(96px, 0.8fr));
   gap: 8px;
   align-items: center;
 }
@@ -1847,7 +1847,7 @@ textarea {
 
 .ink-profile-row {
   display: grid;
-  grid-template-columns: 1.8fr 0.8fr 0.8fr;
+  grid-template-columns: minmax(0, 1.8fr) repeat(3, minmax(96px, 0.8fr));
   gap: 8px;
   align-items: center;
 }
@@ -1872,9 +1872,12 @@ textarea {
   .readonly-grid,
   .quantity-row,
   .macula-table-row,
-  .macula-table-row-short,
-  .ink-profile-row {
+  .macula-table-row-short {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ink-profile-row {
+    grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(72px, 0.7fr));
   }
 
   .process-layout-print,

@@ -16,6 +16,15 @@ const guardarNuevoSocioButton = document.getElementById('guardarNuevoSocioButton
 let browserConfig = null;
 let currentSearch = '';
 
+function openSocioRoute(partnerCode) {
+    if (!partnerCode) return;
+    const route = `/socios-documento.html?codigo=${encodeURIComponent(partnerCode)}`;
+    const label = `Socio ${partnerCode}`;
+    if (!openRouteInShell(route, label)) {
+        window.location.href = route;
+    }
+}
+
 function escapeHtml(value) {
     return String(value || '')
         .replace(/&/g, '&amp;')
@@ -30,10 +39,6 @@ function formatDate(value) {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return String(value);
     return date.toLocaleDateString('es-CR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-
-function isShellEmbedded() {
-    return window !== window.parent && new URLSearchParams(window.location.search).get('shell') === '1';
 }
 
 function isSvgValue(value) {
@@ -97,7 +102,9 @@ async function loadConfig() {
 }
 
 function openRouteInShell(route, label) {
-    if (!isShellEmbedded()) return false;
+    if (window === window.parent || new URLSearchParams(window.location.search).get('shell') !== '1') {
+        return false;
+    }
     window.parent.postMessage({ type: 'erp-open-tab', route, label }, window.location.origin);
     return true;
 }
@@ -116,9 +123,7 @@ async function loadSocios(search = '') {
     const items = payload.socios || [];
     const openIcon = getOpenIconConfig();
 
-    sociosTableBody.innerHTML = items.length ? items.map((item) => {
-        const route = `/socios-documento.html?codigo=${encodeURIComponent(item.partner_code)}`;
-        return `
+    sociosTableBody.innerHTML = items.length ? items.map((item) => `
         <tr>
             <td>${escapeHtml(item.partner_code)}</td>
             <td>${escapeHtml(item.partner_name)}</td>
@@ -126,9 +131,8 @@ async function loadSocios(search = '') {
             <td>${escapeHtml(item.email)}</td>
             <td>${escapeHtml(item.sector)}</td>
             <td>${escapeHtml(formatDate(item.creation_date))}</td>
-            <td><a class="browser-open-link" href="${route}" data-route="${route}" data-label="Socio ${escapeHtml(item.partner_code)}" aria-label="Abrir socio ${escapeHtml(item.partner_code)}" style="--icon-color:${escapeHtml(openIcon.color)};--icon-hover-color:${escapeHtml(openIcon.hover)};--config-icon-size:${escapeHtml(String(openIcon.size))}px;">${iconMarkup(openIcon.value, 'Abrir socio', 'table-icon-media')}</a></td>
-        </tr>`;
-    }).join('') : '<tr><td colspan="7">No hay socios registrados.</td></tr>';
+            <td><button type="button" class="browser-open-link" data-open-socio="${escapeHtml(item.partner_code)}" aria-label="Abrir socio ${escapeHtml(item.partner_code)}" title="Abrir socio ${escapeHtml(item.partner_code)}" style="--icon-color:${escapeHtml(openIcon.color)};--icon-hover-color:${escapeHtml(openIcon.hover)};--config-icon-size:${escapeHtml(String(openIcon.size))}px;">${iconMarkup(openIcon.value, 'Abrir socio', 'table-icon-media')}</button></td>
+        </tr>`).join('') : '<tr><td colspan="7">No hay socios registrados.</td></tr>';
 }
 
 function setCreateStatus(message, isError = false) {
@@ -201,13 +205,11 @@ sociosSearchInput?.addEventListener('input', () => {
 });
 
 sociosTableBody?.addEventListener('click', (event) => {
-    const link = event.target.closest('a[data-route]');
-    if (!link) return;
+    const button = event.target.closest('[data-open-socio]');
+    if (!button) return;
     event.preventDefault();
     event.stopPropagation();
-    if (!openRouteInShell(link.dataset.route, link.dataset.label)) {
-        window.location.href = link.href;
-    }
+    openSocioRoute(button.dataset.openSocio || '');
 });
 
 nuevoSocioButton?.addEventListener('click', openCreatePopover);
@@ -233,9 +235,6 @@ document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
         loadSocios(currentSearch).catch(() => {});
     }
-});
-window.addEventListener('focus', () => {
-    loadSocios(currentSearch).catch(() => {});
 });
 
 async function init() {
