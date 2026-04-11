@@ -5,7 +5,9 @@ const PRESENTATION_KEY = 'socios';
 const sociosSearchInput = document.getElementById('sociosSearchInput');
 const sociosTableBody = document.getElementById('sociosTableBody');
 const nuevoSocioButton = document.getElementById('nuevoSocioButton');
+const importarSociosSapButton = document.getElementById('importarSociosSapButton');
 const refreshSociosButton = document.getElementById('refreshSociosButton');
+const sociosImportStatus = document.getElementById('sociosImportStatus');
 const nuevoSocioPopover = document.getElementById('nuevoSocioPopover');
 const cerrarNuevoSocioButton = document.getElementById('cerrarNuevoSocioButton');
 const cancelarNuevoSocioButton = document.getElementById('cancelarNuevoSocioButton');
@@ -15,6 +17,7 @@ const guardarNuevoSocioButton = document.getElementById('guardarNuevoSocioButton
 
 let browserConfig = null;
 let currentSearch = '';
+let sociosImportStatusTimer = null;
 
 function openSocioRoute(partnerCode) {
     if (!partnerCode) return;
@@ -142,6 +145,27 @@ function setCreateStatus(message, isError = false) {
     nuevoSocioStatus.classList.toggle('is-success', Boolean(message && !isError));
 }
 
+function setImportStatus(message, isError = false, persistent = false) {
+    if (!sociosImportStatus) return;
+    if (sociosImportStatusTimer) {
+        window.clearTimeout(sociosImportStatusTimer);
+        sociosImportStatusTimer = null;
+    }
+    sociosImportStatus.hidden = !message;
+    sociosImportStatus.textContent = message || '';
+    sociosImportStatus.classList.toggle('is-error', Boolean(message && isError));
+    sociosImportStatus.classList.toggle('is-success', Boolean(message && !isError));
+
+    if (message && !persistent) {
+        sociosImportStatusTimer = window.setTimeout(() => {
+            sociosImportStatus.hidden = true;
+            sociosImportStatus.textContent = '';
+            sociosImportStatus.classList.remove('is-error', 'is-success');
+            sociosImportStatusTimer = null;
+        }, 7000);
+    }
+}
+
 function openCreatePopover() {
     nuevoSocioPopover.hidden = false;
     document.body.classList.add('popover-open');
@@ -198,6 +222,38 @@ async function createSocio(event) {
     }
 }
 
+function buildImportSummaryText(summary = {}) {
+    return [
+        `${Number(summary.inserted || 0)} cargados`,
+        `${Number(summary.duplicateByCode || 0)} duplicados por código`,
+        `${Number(summary.duplicateByTaxId || 0)} duplicados por ID fiscal`,
+        `${Number(summary.duplicateByBoth || 0)} duplicados por ambos`,
+        `${Number(summary.skippedWithoutTaxId || 0)} sin ID fiscal`,
+        `${Number(summary.skippedWithoutCode || 0)} sin código`
+    ].join(' · ');
+}
+
+async function importSociosFromSap() {
+    if (!importarSociosSapButton) return;
+    importarSociosSapButton.disabled = true;
+    setImportStatus('Actualizando socios desde SAP...', false, true);
+
+    try {
+        const response = await fetch('/api/socios/importar-sap', { method: 'POST' });
+        const payload = await response.json();
+        if (!response.ok) {
+            throw new Error(payload.error || 'No fue posible importar socios desde SAP.');
+        }
+
+        await loadSocios(currentSearch);
+        setImportStatus(buildImportSummaryText(payload.summary || {}), false, false);
+    } catch (error) {
+        setImportStatus(error.message || 'No fue posible importar socios desde SAP.', true, false);
+    } finally {
+        importarSociosSapButton.disabled = false;
+    }
+}
+
 sociosSearchInput?.addEventListener('input', () => {
     loadSocios(sociosSearchInput.value).catch((error) => {
         sociosTableBody.innerHTML = `<tr><td colspan="7">${escapeHtml(error.message)}</td></tr>`;
@@ -213,6 +269,11 @@ sociosTableBody?.addEventListener('click', (event) => {
 });
 
 nuevoSocioButton?.addEventListener('click', openCreatePopover);
+importarSociosSapButton?.addEventListener('click', () => {
+    importSociosFromSap().catch((error) => {
+        setImportStatus(error.message || 'No fue posible importar socios desde SAP.', true, false);
+    });
+});
 refreshSociosButton?.addEventListener('click', () => {
     loadSocios(currentSearch).catch((error) => {
         sociosTableBody.innerHTML = `<tr><td colspan="7">${escapeHtml(error.message)}</td></tr>`;

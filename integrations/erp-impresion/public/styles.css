@@ -334,20 +334,16 @@ label span,
 .output-type-field {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 10px;
+  gap: 12px;
   align-items: stretch;
   justify-items: stretch;
 }
 
 .output-preview-row {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  align-items: start;
-}
-
-.output-preview-spacer {
-  min-height: 1px;
+  grid-template-columns: minmax(0, 1fr) minmax(190px, 0.82fr);
+  gap: 14px;
+  align-items: stretch;
 }
 
 .output-type-select-field select {
@@ -1543,20 +1539,27 @@ textarea {
 
 .output-type-preview {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 84px;
-  padding: 8px;
-  border: 1px dashed #c6d6e2;
-  border-radius: 16px;
-  background: #f9fcfe;
+  gap: 10px;
+  min-height: 100%;
+  height: 100%;
+  padding: 14px 12px;
+  border: 1px solid #d1dfea;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at top, rgba(255,255,255,0.96), rgba(241,247,252,0.88)),
+    linear-gradient(180deg, #f9fcfe 0%, #eef5fa 100%);
   width: 100%;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.8), 0 10px 26px rgba(23, 61, 93, 0.06);
+  margin-top: 24px;
 }
 
 .output-tile,
 .output-placeholder {
-  width: 84px;
-  height: 84px;
+  width: 88px;
+  height: 88px;
   border-radius: 22px;
 }
 

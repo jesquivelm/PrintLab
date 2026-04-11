@@ -1728,9 +1728,10 @@ async function saveInventory(kind, payload) {
 async function saveOutputType(payload) {
     const current = await loadOutputTypesConfig();
     const codigo = buildUniqueOutputTypeCode(current, payload);
+    const normalizedId = asText(payload.id, codigo);
 
     const normalized = {
-        id: asText(payload.id, codigo),
+        id: normalizedId,
         codigo,
         nombre: asText(payload.nombre, codigo),
         descripcion: asText(payload.descripcion),
@@ -1738,7 +1739,11 @@ async function saveOutputType(payload) {
         activo: asBoolean(payload.activo, true)
     };
 
-    const next = current.filter((item) => asText(item.codigo || item.id) !== codigo);
+    const next = current.filter((item) => {
+        const itemId = asText(item.id || item.codigo);
+        const itemCode = asText(item.codigo || item.id);
+        return itemId !== normalizedId && itemCode !== codigo;
+    });
     next.push(normalized);
     await saveOutputTypesConfig(next);
     return normalized.id;

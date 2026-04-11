@@ -9,7 +9,7 @@ const XLSX = require('xlsx');
 const { query: pgQuery, withTransaction } = require('./db/postgres');
 const { ensureInventorySchema, listInventory, getTroquelByCode, saveInventory, importInventory, exportInventoryWorkbook } = require('./inventory-service');
 const { calculateProcessQuote } = require('./process-quote-service');
-const { ensureSapSchema, registerSapRoutes, startSapScheduler } = require('./integrations/sap-service-layer');
+const { ensureSapSchema, registerSapRoutes, startSapScheduler, fetchSapBusinessPartnersForImport, fetchSapItemsForImport } = require('./integrations/sap-service-layer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -956,6 +956,416 @@ function buildNewPartnerRawData(payload, partnerCode) {
         'RANGO CREDITO': payload.payment_terms,
         GROUPCODE_NOMBRE: payload.currency_code
     };
+}
+
+function normalizePartnerCode(value) {
+    return String(value || '').trim().toUpperCase();
+}
+
+function normalizeInventoryCode(value) {
+    return String(value || '').trim().toUpperCase();
+}
+
+function pickSapFiscalId(row = {}) {
+    return String(
+        row.FederalTaxID != null && String(row.FederalTaxID).trim() !== ''
+            ? row.FederalTaxID
+            : (row.LicTradNum != null ? row.LicTradNum : '')
+    ).trim();
+}
+
+function pickSapPrimaryAddress(row = {}) {
+    const addresses = Array.isArray(row.BPAddresses) ? row.BPAddresses : [];
+    if (!addresses.length) return null;
+    return addresses.find((address) => String(address?.AddressType || '').trim().toLowerCase() === 'bo_billto')
+        || addresses[0]
+        || null;
+}
+
+function normalizeSapMaterialFamily(value) {
+    const normalized = String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase();
+
+    if (!normalized) return '';
+    if (normalized.includes('barniz')) return 'barniz';
+    if (normalized.includes('laminad')) return 'laminado';
+    if (normalized.includes('foil') || normalized.includes('estamp')) return 'foil';
+    if (normalized.includes('core') || normalized.includes('nucleo') || normalized.includes('núcleo')) return 'core';
+    if (normalized.includes('tinta')) return 'tinta';
+    if (normalized.includes('plancha') || normalized.includes('cliche') || normalized.includes('cliché') || normalized.includes('fotopol')) return 'plancha';
+    if (normalized.includes('sustrat') || normalized.includes('papel') || normalized.includes('film') || normalized.includes('bopp') || normalized.includes('pet') || normalized.includes('opp')) return 'sustrato';
+    return normalized;
+}
+
+function buildSapMaterialImportPayload(row = {}) {
+    const codigo = normalizeInventoryCode(row.ItemCode);
+    const nombre = String(row.ItemName || '').trim();
+    const itemGroup = String(row.ItemGroup || row.ItemsGroupCode || '').trim();
+    const buyUnit = String(row.BuyUnitMsr || row.SalesUnitMsr || '').trim().toUpperCase();
+    const unitCost = Number(row.Price || 0) || 0;
+    const familySeed = [itemGroup, nombre, codigo].filter(Boolean).join(' ');
+    const familia = normalizeSapMaterialFamily(familySeed) || 'sustrato';
+
+    const payload = {
+        codigo,
+        nombre,
+        ancho_mm: 0,
+        largo_mm: null,
+        gramaje_g_m2: null,
+        calibre_micras: null,
+        costo_x_lamina: null,
+        costo_x_msi: 0,
+        costo_x_m2: 0,
+        costo_x_kg: 0,
+        costo_x_libra: null,
+        peso_capa_gsm: null,
+        familia_proceso: familia,
+        costo_x_unidad: unitCost || null,
+        merma_pct: null,
+        rendimiento_g_ft2: null,
+        temperatura_aplicacion_c: null,
+        tipo_transferencia: '',
+        comentario_tipo_proforma: 'Importado desde SAP',
+        compatible_convencional: true,
+        compatible_digital: true,
+        tipo_proforma: itemGroup || nombre,
+        activo: true
+    };
+
+    if (buyUnit === 'M2') {
+        payload.costo_x_m2 = unitCost;
+    } else if (buyUnit === 'KG' || buyUnit === 'KGS') {
+        payload.costo_x_kg = unitCost;
+    } else if (buyUnit === 'LB' || buyUnit === 'LBR' || buyUnit === 'LIBRA' || buyUnit === 'LIBRAS') {
+        payload.costo_x_libra = unitCost;
+    }
+
+    return payload;
+}
+
+function buildSapPartnerImportPayload(row = {}) {
+    const partnerCode = normalizePartnerCode(row.CardCode);
+    const partnerName = String(row.CardName || '').trim();
+    const taxId = pickSapFiscalId(row);
+    const email = String(row.Email || row.EmailAddress || '').trim();
+    const contactName = String(row.ContactPerson || row.CardName || '').trim();
+    const primaryAddress = pickSapPrimaryAddress(row) || {};
+    const addressLine = [
+        String(primaryAddress.Street || '').trim(),
+        String(primaryAddress.Block || '').trim(),
+        String(primaryAddress.City || '').trim()
+    ].filter(Boolean).join(', ');
+
+    return {
+        partnerCode,
+        partnerName,
+        taxId,
+        email,
+        currencyCode: String(row.Currency || 'USD').trim() || 'USD',
+        paymentTerms: 'Contado',
+        contactName,
+        contactIdentification: taxId,
+        contactMobile: String(row.Phone1 || row.Cellular || '').trim(),
+        contactEmail: email,
+        contactPhone: String(row.Phone1 || '').trim(),
+        addressCountry: String(primaryAddress.Country || '').trim(),
+        addressStateProvince: String(primaryAddress.State || primaryAddress.StateProvince || '').trim(),
+        addressCounty: String(primaryAddress.County || '').trim(),
+        addressLine,
+        rawData: {
+            source: 'sap_service_layer',
+            imported_at: new Date().toISOString(),
+            sap: row
+        }
+    };
+}
+
+async function importSociosFromSap() {
+    const sapResponse = await fetchSapBusinessPartnersForImport(pgQuery, { top: 500, type: 'C' });
+    const sapRows = Array.isArray(sapResponse?.value) ? sapResponse.value : [];
+
+    return withTransaction(async (client) => {
+        const existingResult = await client.query(
+            `SELECT partner_code, tax_id
+               FROM business_partners`
+        );
+
+        const existingCodes = new Set();
+        const existingTaxIds = new Set();
+        for (const row of existingResult.rows) {
+            const code = normalizePartnerCode(row.partner_code);
+            const taxId = normalizeFiscalId(row.tax_id);
+            if (code) existingCodes.add(code);
+            if (taxId) existingTaxIds.add(taxId);
+        }
+
+        const summary = {
+            source: sapResponse?.source || 'sap',
+            total: sapRows.length,
+            inserted: 0,
+            duplicateByCode: 0,
+            duplicateByTaxId: 0,
+            duplicateByBoth: 0,
+            skippedWithoutCode: 0,
+            skippedWithoutTaxId: 0
+        };
+
+        for (const row of sapRows) {
+            const partner = buildSapPartnerImportPayload(row);
+            const normalizedCode = normalizePartnerCode(partner.partnerCode);
+            const normalizedTaxId = normalizeFiscalId(partner.taxId);
+
+            if (!normalizedCode) {
+                summary.skippedWithoutCode += 1;
+                continue;
+            }
+
+            if (!normalizedTaxId) {
+                summary.skippedWithoutTaxId += 1;
+                continue;
+            }
+
+            const duplicateCode = existingCodes.has(normalizedCode);
+            const duplicateTaxId = existingTaxIds.has(normalizedTaxId);
+
+            if (duplicateCode && duplicateTaxId) {
+                summary.duplicateByBoth += 1;
+                continue;
+            }
+            if (duplicateCode) {
+                summary.duplicateByCode += 1;
+                continue;
+            }
+            if (duplicateTaxId) {
+                summary.duplicateByTaxId += 1;
+                continue;
+            }
+
+            const contactNameParts = splitContactName(partner.contactName || partner.partnerName);
+
+            await client.query(
+                `INSERT INTO business_partners (
+                    partner_code,
+                    partner_name,
+                    salesperson_name,
+                    tax_id,
+                    email,
+                    email_facturacion,
+                    currency_code,
+                    payment_terms,
+                    sector,
+                    sub_sector,
+                    is_tax_exempt,
+                    allowed_percentage,
+                    client_type,
+                    creation_date,
+                    raw_data,
+                    updated_at
+                ) VALUES (
+                    $1, $2, '', $3, $4, $5, $6, $7, '', '', false, NULL, $8, CURRENT_DATE, $9::jsonb, NOW()
+                )`,
+                [
+                    partner.partnerCode,
+                    partner.partnerName,
+                    partner.taxId,
+                    partner.contactEmail,
+                    partner.email,
+                    sanitizePartnerCodePrefix(partner.currencyCode).slice(0, 10) || 'USD',
+                    partner.paymentTerms,
+                    String(row.CardType || '').trim() === 'S' ? 'PR' : 'CL',
+                    JSON.stringify(partner.rawData)
+                ]
+            );
+
+            await client.query(
+                `INSERT INTO business_partner_contacts (
+                    partner_code,
+                    contact_name,
+                    first_name,
+                    last_name,
+                    email,
+                    phone,
+                    mobile,
+                    fax,
+                    position,
+                    is_legal_representative,
+                    country,
+                    state_province,
+                    county,
+                    raw_data
+                ) VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, '', 'Principal', false, $8, $9, $10, $11::jsonb
+                )`,
+                [
+                    partner.partnerCode,
+                    partner.contactName || partner.partnerName,
+                    contactNameParts.firstName,
+                    contactNameParts.lastName,
+                    partner.contactEmail,
+                    partner.contactPhone,
+                    partner.contactMobile,
+                    partner.addressCountry,
+                    partner.addressStateProvince,
+                    partner.addressCounty,
+                    JSON.stringify({
+                        IDENTIFICACION: partner.contactIdentification,
+                        ADDRESS: partner.addressLine,
+                        source: 'sap_service_layer'
+                    })
+                ]
+            );
+
+            if (partner.addressLine || partner.addressCountry || partner.addressStateProvince || partner.addressCounty) {
+                await client.query(
+                    `INSERT INTO business_partner_addresses (
+                        partner_code,
+                        address_name,
+                        address_type,
+                        country,
+                        state_province,
+                        county,
+                        district,
+                        address_line,
+                        zip_code,
+                        raw_data
+                    ) VALUES (
+                        $1, 'Principal', 'Facturación', $2, $3, $4, '', $5, '', $6::jsonb
+                    )`,
+                    [
+                        partner.partnerCode,
+                        partner.addressCountry,
+                        partner.addressStateProvince,
+                        partner.addressCounty,
+                        partner.addressLine,
+                        JSON.stringify({
+                            ADDRESS: partner.addressLine,
+                            source: 'sap_service_layer'
+                        })
+                    ]
+                );
+            }
+
+            existingCodes.add(normalizedCode);
+            existingTaxIds.add(normalizedTaxId);
+            summary.inserted += 1;
+        }
+
+        return summary;
+    });
+}
+
+async function importMaterialesFromSap() {
+    const sapResponse = await fetchSapItemsForImport(pgQuery, { top: 1000 });
+    const sapRows = Array.isArray(sapResponse?.value) ? sapResponse.value : [];
+
+    return withTransaction(async (client) => {
+        const existingResult = await client.query(`SELECT codigo FROM material`);
+        const existingCodes = new Set(
+            existingResult.rows
+                .map((row) => normalizeInventoryCode(row.codigo))
+                .filter(Boolean)
+        );
+
+        const tenantResult = await client.query(
+            `SELECT id::text
+               FROM tenant
+              WHERE activo = true
+              ORDER BY creado_en ASC
+              LIMIT 1`
+        );
+        const tenantId = tenantResult.rows[0]?.id;
+        if (!tenantId) {
+            throw new Error('No se encontró un tenant activo para guardar inventario.');
+        }
+
+        const summary = {
+            source: sapResponse?.source || 'sap',
+            total: sapRows.length,
+            inserted: 0,
+            duplicateByCode: 0,
+            skippedWithoutCode: 0,
+            skippedWithoutName: 0
+        };
+
+        for (const row of sapRows) {
+            const material = buildSapMaterialImportPayload(row);
+            if (!material.codigo) {
+                summary.skippedWithoutCode += 1;
+                continue;
+            }
+            if (!material.nombre) {
+                summary.skippedWithoutName += 1;
+                continue;
+            }
+            if (existingCodes.has(material.codigo)) {
+                summary.duplicateByCode += 1;
+                continue;
+            }
+
+            await client.query(
+                `INSERT INTO material (
+                    tenant_id, codigo, nombre, ancho_mm, largo_mm, gramaje_g_m2, calibre_micras, costo_x_lamina, costo_x_msi,
+                    costo_x_m2, costo_x_kg, costo_x_libra, peso_capa_gsm, familia_proceso, costo_x_unidad, merma_pct,
+                    rendimiento_g_ft2, temperatura_aplicacion_c, tipo_transferencia,
+                    comentario_ancho_mm, comentario_largo_mm, comentario_gramaje_g_m2, comentario_calibre_micras,
+                    comentario_costo_x_lamina, comentario_costo_x_msi, comentario_costo_x_m2, comentario_costo_x_kg,
+                    comentario_costo_x_libra, comentario_peso_capa_gsm, comentario_rendimiento_g_ft2,
+                    comentario_compatible_convencional, comentario_compatible_digital, comentario_tipo_proforma,
+                    compatible_convencional, compatible_digital, tipo_proforma, activo
+                 ) VALUES (
+                    $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,
+                    $20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37
+                 )`,
+                [
+                    tenantId,
+                    material.codigo,
+                    material.nombre,
+                    material.ancho_mm,
+                    material.largo_mm,
+                    material.gramaje_g_m2,
+                    material.calibre_micras,
+                    material.costo_x_lamina,
+                    material.costo_x_msi,
+                    material.costo_x_m2,
+                    material.costo_x_kg,
+                    material.costo_x_libra,
+                    material.peso_capa_gsm,
+                    material.familia_proceso,
+                    material.costo_x_unidad,
+                    material.merma_pct,
+                    material.rendimiento_g_ft2,
+                    material.temperatura_aplicacion_c,
+                    material.tipo_transferencia,
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    material.comentario_tipo_proforma,
+                    material.compatible_convencional,
+                    material.compatible_digital,
+                    material.tipo_proforma,
+                    material.activo
+                ]
+            );
+
+            existingCodes.add(material.codigo);
+            summary.inserted += 1;
+        }
+
+        return summary;
+    });
 }
 
 function normalizeGeneralConfigRecord(config) {
@@ -4049,6 +4459,22 @@ app.post('/api/socios', async (req, res) => {
         });
     } catch (error) {
         res.status(500).json({ error: error.message || 'No fue posible crear el socio.' });
+    }
+});
+
+app.post('/api/socios/importar-sap', async (req, res) => {
+    try {
+        const summary = await importSociosFromSap();
+        res.json({
+            ok: true,
+            summary,
+            message: `Importación completada. ${summary.inserted} socios nuevos cargados.`
+        });
+    } catch (error) {
+        res.status(400).json({
+            ok: false,
+            error: error.message || 'No fue posible importar socios desde SAP.'
+        });
     }
 });
 
@@ -7625,6 +8051,19 @@ app.get('/vendedores', (req, res) => {
         res.type('html').send(renderSellerMobileHtml());
     } catch (error) {
         res.status(500).send(error.message || 'No fue posible abrir la vista móvil de vendedores.');
+    }
+});
+
+app.post('/api/inventario/materiales/importar-sap', async (req, res) => {
+    try {
+        const summary = await importMaterialesFromSap();
+        res.json({
+            ok: true,
+            summary,
+            message: `Importación completada. ${summary.inserted || 0} materiales nuevos cargados.`
+        });
+    } catch (error) {
+        res.status(400).json({ error: error.message || 'No fue posible importar materiales desde SAP.' });
     }
 });
 

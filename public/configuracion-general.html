@@ -321,6 +321,108 @@
             color: #fff;
             box-shadow: 0 8px 18px rgba(17,143,198,0.24);
         }
+        .quote-output-types-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+        .quote-output-types-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+        .quote-output-types-status {
+            margin: 0;
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: #eef7fd;
+            color: #23516a;
+            font-size: 12px;
+            line-height: 1.3;
+            white-space: nowrap;
+        }
+        .quote-output-types-status.is-error {
+            background: #fff1f1;
+            color: #a74343;
+        }
+        .quote-output-types-status.is-success {
+            background: #edf8ef;
+            color: #27623a;
+        }
+        .quote-output-types-wrap {
+            overflow-x: auto;
+            border: 1px solid #dce6ef;
+            border-radius: 22px;
+            background: linear-gradient(180deg, #fbfdff 0%, #f4f9fd 100%);
+            padding: 14px;
+        }
+        .quote-output-types-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            min-width: 820px;
+        }
+        .quote-output-types-table thead th {
+            text-align: left;
+            padding: 0 14px 12px;
+            font-size: 12px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #8296ab;
+        }
+        .quote-output-types-table tbody td {
+            padding: 12px 14px;
+            border-top: 1px solid #dce6ef;
+            vertical-align: top;
+            background: rgba(255,255,255,0.76);
+        }
+        .quote-output-types-table tbody tr.is-saving td {
+            background: rgba(238, 247, 253, 0.92);
+        }
+        .quote-output-types-table tbody tr.is-error td {
+            background: rgba(255, 241, 241, 0.9);
+        }
+        .quote-output-types-table .inventory-inline-input {
+            min-height: 46px;
+            background: #fff;
+        }
+        .quote-output-types-table .inventory-output-image-shell {
+            width: 124px;
+            height: 124px;
+            border-radius: 16px;
+        }
+        .quote-output-types-table .inventory-output-image-cell {
+            min-width: 156px;
+            width: 156px;
+        }
+        .quote-output-types-table .inventory-output-code-cell {
+            min-width: 180px;
+            width: 180px;
+        }
+        .quote-output-types-table .inventory-output-description-cell {
+            min-width: 320px;
+        }
+        .quote-output-row-status {
+            display: block;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #7a8793;
+        }
+        .quote-output-row-status.is-error {
+            color: #a74343;
+        }
+        .quote-output-row-status.is-success {
+            color: #27623a;
+        }
+        .quote-output-empty {
+            text-align: center;
+            padding: 24px 14px;
+            color: #7a8793;
+        }
         .quotes-subpanel[hidden] {
             display: none;
         }
@@ -3190,6 +3292,7 @@
                             <div class="quotes-subtabs">
                                 <button type="button" class="quotes-subtab active" data-quotes-tab="calculo">Cálculo</button>
                                 <button type="button" class="quotes-subtab" data-quotes-tab="proforma">Proforma</button>
+                                <button type="button" class="quotes-subtab" data-quotes-tab="salidas">Salidas</button>
                             </div>
 
                             <div id="quotes-panel-calculo" class="quotes-subpanel">
@@ -3459,6 +3562,39 @@
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                        </section>
+                    </div>
+
+                            <div id="quotes-panel-salidas" class="quotes-subpanel" hidden>
+                                <section class="config-card">
+                                    <div class="quote-output-types-head">
+                                        <div>
+                                            <h2>Tipos de Salida</h2>
+                                            <p class="section-caption">Administra código, imagen y descripción con guardado automático inmediato.</p>
+                                        </div>
+                                        <div class="quote-output-types-actions">
+                                            <button type="button" id="quoteOutputTypesAddButton" class="action-btn">Agregar Línea</button>
+                                            <p id="quoteOutputTypesStatus" class="quote-output-types-status">Listo para editar.</p>
+                                        </div>
+                                    </div>
+                                    <div class="quote-output-types-wrap">
+                                        <table class="quote-output-types-table">
+                                            <thead>
+                                                <tr>
+                                                    <th class="inventory-output-code-cell">Código</th>
+                                                    <th class="inventory-output-image-cell">Imagen</th>
+                                                    <th class="inventory-output-description-cell">Descripción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="quoteOutputTypesTableBody">
+                                                <tr>
+                                                    <td colspan="3" class="quote-output-empty">Cargando tipos de salida...</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </section>
                             </div>
                         </section>
                     </div>
@@ -4031,6 +4167,9 @@
         const designSubpanels = [...document.querySelectorAll('.design-subpanel')];
         const quotesSubtabs = [...document.querySelectorAll('.quotes-subtab')];
         const quotesSubpanels = [...document.querySelectorAll('.quotes-subpanel')];
+        const quoteOutputTypesTableBody = document.getElementById('quoteOutputTypesTableBody');
+        const quoteOutputTypesStatus = document.getElementById('quoteOutputTypesStatus');
+        const quoteOutputTypesAddButton = document.getElementById('quoteOutputTypesAddButton');
         const securitySubtabs = [...document.querySelectorAll('.security-subtab')];
         const securitySubpanels = [...document.querySelectorAll('.security-subpanel')];
         const sapAdvancedToggle = document.getElementById('sapAdvancedToggle');
@@ -4076,6 +4215,10 @@
         let loginRepositoryPreviewCurrentSlide = null;
         let loginRepositoryPreviewPrevSlide = null;
         let sapConnectorLoadedOnce = false;
+        let quoteOutputTypesLoadedOnce = false;
+        let quoteOutputTypeDraftCounter = 0;
+        let quoteOutputTypes = [];
+        const quoteOutputTypeSaveTimers = new Map();
         const LOGIN_SCREENSAVER_ANIM_VARIANTS = ['anim-0', 'anim-1', 'anim-2'];
         const ICON_LIBRARY = [
             { key: 'topBack', label: 'Volver Superior', group: 'Barra Superior', placeholder: '\u2190', color: '#9ba2ab', size: 20 },
@@ -5294,6 +5437,11 @@
             quotesSubpanels.forEach((panel) => {
                 panel.hidden = panel.id !== `quotes-panel-${tabKey}`;
             });
+            if (tabKey === 'salidas') {
+                loadQuoteOutputTypes().catch((error) => {
+                    setQuoteOutputTypesStatus(error.message || 'No fue posible cargar los tipos de salida.', 'error');
+                });
+            }
             syncConfigTabHeights();
         }
 
@@ -5343,6 +5491,220 @@
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#39;');
+        }
+
+        function nextQuoteOutputTypeDraftId() {
+            quoteOutputTypeDraftCounter += 1;
+            return `quote-output-${Date.now()}-${quoteOutputTypeDraftCounter}`;
+        }
+
+        function buildEmptyQuoteOutputTypeRow() {
+            return {
+                __draftId: nextQuoteOutputTypeDraftId(),
+                id: '',
+                codigo: '',
+                nombre: '',
+                descripcion: '',
+                image_url: '',
+                activo: true,
+                __status: '',
+                __statusTone: ''
+            };
+        }
+
+        function hasQuoteOutputTypeContent(item = {}) {
+            return Boolean(String(item.codigo || '').trim() || String(item.descripcion || '').trim() || String(item.image_url || '').trim());
+        }
+
+        function ensureQuoteOutputTypesTrailingRow() {
+            if (!quoteOutputTypes.length || hasQuoteOutputTypeContent(quoteOutputTypes[quoteOutputTypes.length - 1])) {
+                quoteOutputTypes.push(buildEmptyQuoteOutputTypeRow());
+            }
+        }
+
+        function setQuoteOutputTypesStatus(message, tone = '') {
+            if (!quoteOutputTypesStatus) return;
+            quoteOutputTypesStatus.textContent = message || 'Listo para editar.';
+            quoteOutputTypesStatus.classList.remove('is-error', 'is-success');
+            if (tone === 'error') quoteOutputTypesStatus.classList.add('is-error');
+            if (tone === 'success') quoteOutputTypesStatus.classList.add('is-success');
+        }
+
+        function renderQuoteOutputRowStatus(row) {
+            const toneClass = row.__statusTone === 'error'
+                ? ' is-error'
+                : row.__statusTone === 'success'
+                    ? ' is-success'
+                    : '';
+            return `<span class="quote-output-row-status${toneClass}" data-output-row-status="${escapeHtml(row.__draftId)}">${escapeHtml(row.__status || '')}</span>`;
+        }
+
+        function renderQuoteOutputTypesTable(focusState = null) {
+            if (!quoteOutputTypesTableBody) return;
+            ensureQuoteOutputTypesTrailingRow();
+            quoteOutputTypesTableBody.innerHTML = quoteOutputTypes.map((row) => `
+                <tr data-output-draft-row="${escapeHtml(row.__draftId)}" class="${row.__statusTone === 'error' ? 'is-error' : row.__status === 'Guardando...' ? 'is-saving' : ''}">
+                    <td class="inventory-output-code-cell">
+                        <input
+                            type="text"
+                            class="inventory-inline-input"
+                            data-output-draft="${escapeHtml(row.__draftId)}"
+                            data-output-field="codigo"
+                            value="${escapeHtml(row.codigo || '')}"
+                            placeholder="Código">
+                    </td>
+                    <td class="inventory-output-image-cell">
+                        <button
+                            type="button"
+                            class="inventory-output-image-button"
+                            data-output-image-trigger="${escapeHtml(row.__draftId)}"
+                            aria-label="Cargar imagen">
+                            <span class="inventory-output-image-shell">
+                                ${row.image_url
+                                    ? `<img src="${escapeHtml(row.image_url)}" alt="${escapeHtml(row.descripcion || row.codigo || 'Salida')}" class="inventory-output-image">`
+                                    : '<span class="inventory-output-image-empty">Cargar imagen</span>'}
+                            </span>
+                        </button>
+                        <input
+                            type="file"
+                            accept="image/*"
+                            data-output-file="${escapeHtml(row.__draftId)}"
+                            hidden>
+                    </td>
+                    <td class="inventory-output-description-cell">
+                        <textarea
+                            class="inventory-inline-input"
+                            data-output-draft="${escapeHtml(row.__draftId)}"
+                            data-output-field="descripcion"
+                            rows="3"
+                            placeholder="Descripción">${escapeHtml(row.descripcion || '')}</textarea>
+                        ${renderQuoteOutputRowStatus(row)}
+                    </td>
+                </tr>
+            `).join('');
+
+            if (focusState?.draftId && focusState?.field) {
+                const selector = `[data-output-draft="${focusState.draftId}"][data-output-field="${focusState.field}"]`;
+                const target = quoteOutputTypesTableBody.querySelector(selector);
+                if (target) {
+                    target.focus();
+                    if (typeof focusState.start === 'number' && typeof target.setSelectionRange === 'function') {
+                        target.setSelectionRange(focusState.start, focusState.end ?? focusState.start);
+                    }
+                }
+            }
+        }
+
+        function scheduleQuoteOutputTypeSave(draftId, immediate = false) {
+            const row = quoteOutputTypes.find((item) => item.__draftId === draftId);
+            if (!row || !hasQuoteOutputTypeContent(row)) return;
+            row.__status = 'Pendiente...';
+            row.__statusTone = '';
+            const statusNode = quoteOutputTypesTableBody?.querySelector(`[data-output-row-status="${draftId}"]`);
+            if (statusNode) {
+                statusNode.textContent = row.__status;
+                statusNode.classList.remove('is-error', 'is-success');
+            }
+            const previous = quoteOutputTypeSaveTimers.get(draftId);
+            if (previous) window.clearTimeout(previous);
+            const timer = window.setTimeout(() => {
+                saveQuoteOutputTypeRow(draftId).catch((error) => {
+                    row.__status = error.message || 'No fue posible guardar.';
+                    row.__statusTone = 'error';
+                    const currentStatusNode = quoteOutputTypesTableBody?.querySelector(`[data-output-row-status="${draftId}"]`);
+                    if (currentStatusNode) {
+                        currentStatusNode.textContent = row.__status;
+                        currentStatusNode.classList.remove('is-success');
+                        currentStatusNode.classList.add('is-error');
+                    }
+                    const tr = quoteOutputTypesTableBody?.querySelector(`[data-output-draft-row="${draftId}"]`);
+                    tr?.classList.add('is-error');
+                    setQuoteOutputTypesStatus(row.__status, 'error');
+                });
+            }, immediate ? 0 : 320);
+            quoteOutputTypeSaveTimers.set(draftId, timer);
+        }
+
+        async function saveQuoteOutputTypeRow(draftId) {
+            const row = quoteOutputTypes.find((item) => item.__draftId === draftId);
+            if (!row || !hasQuoteOutputTypeContent(row)) return;
+            row.__status = 'Guardando...';
+            row.__statusTone = '';
+            const tr = quoteOutputTypesTableBody?.querySelector(`[data-output-draft-row="${draftId}"]`);
+            const statusNode = quoteOutputTypesTableBody?.querySelector(`[data-output-row-status="${draftId}"]`);
+            tr?.classList.remove('is-error');
+            tr?.classList.add('is-saving');
+            if (statusNode) {
+                statusNode.textContent = row.__status;
+                statusNode.classList.remove('is-error', 'is-success');
+            }
+
+            const response = await fetch('/api/inventario/tipos-salida', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: row.id || undefined,
+                    codigo: row.codigo,
+                    nombre: row.descripcion || row.codigo || row.nombre,
+                    descripcion: row.descripcion,
+                    image_url: row.image_url,
+                    activo: true
+                })
+            });
+            const payload = await response.json();
+            if (!response.ok) {
+                throw new Error(payload.error || 'No fue posible guardar esta salida.');
+            }
+
+            const saved = payload.item || {};
+            row.id = saved.id || payload.id || row.id;
+            row.codigo = saved.codigo || row.codigo;
+            row.nombre = saved.nombre || row.nombre || row.descripcion || row.codigo;
+            row.descripcion = saved.descripcion ?? row.descripcion;
+            row.image_url = saved.image_url ?? row.image_url;
+            row.activo = saved.activo !== false;
+            row.__status = 'Guardado';
+            row.__statusTone = 'success';
+
+            tr?.classList.remove('is-saving', 'is-error');
+            const codeInput = quoteOutputTypesTableBody?.querySelector(`[data-output-draft="${draftId}"][data-output-field="codigo"]`);
+            if (codeInput && codeInput.value !== row.codigo) codeInput.value = row.codigo;
+            const currentStatusNode = quoteOutputTypesTableBody?.querySelector(`[data-output-row-status="${draftId}"]`);
+            if (currentStatusNode) {
+                currentStatusNode.textContent = row.__status;
+                currentStatusNode.classList.remove('is-error');
+                currentStatusNode.classList.add('is-success');
+            }
+            setQuoteOutputTypesStatus('Cambios guardados automáticamente.', 'success');
+        }
+
+        async function loadQuoteOutputTypes(forceReload = false) {
+            if (!quoteOutputTypesTableBody) return;
+            if (quoteOutputTypesLoadedOnce && !forceReload) {
+                renderQuoteOutputTypesTable();
+                return;
+            }
+            quoteOutputTypesTableBody.innerHTML = '<tr><td colspan="3" class="quote-output-empty">Cargando tipos de salida...</td></tr>';
+            const response = await fetch('/api/inventario/tipos-salida?limit=500');
+            const payload = await response.json();
+            if (!response.ok) {
+                throw new Error(payload.error || 'No fue posible cargar los tipos de salida.');
+            }
+            quoteOutputTypes = (payload.items || []).map((item) => ({
+                __draftId: nextQuoteOutputTypeDraftId(),
+                id: item.id || '',
+                codigo: item.codigo || '',
+                nombre: item.nombre || '',
+                descripcion: item.descripcion || '',
+                image_url: item.image_url || '',
+                activo: item.activo !== false,
+                __status: '',
+                __statusTone: ''
+            }));
+            ensureQuoteOutputTypesTrailingRow();
+            renderQuoteOutputTypesTable();
+            quoteOutputTypesLoadedOnce = true;
+            setQuoteOutputTypesStatus('Listo para editar.');
         }
 
         function renderAdminUserAvatar(container, user, className = '') {
@@ -7748,6 +8110,65 @@
             tab.addEventListener('click', () => {
                 activateQuotesTab(tab.dataset.quotesTab || 'calculo');
             });
+        });
+
+        quoteOutputTypesAddButton?.addEventListener('click', () => {
+            ensureQuoteOutputTypesTrailingRow();
+            const lastRow = quoteOutputTypes[quoteOutputTypes.length - 1];
+            renderQuoteOutputTypesTable({
+                draftId: lastRow?.__draftId,
+                field: 'codigo'
+            });
+            setQuoteOutputTypesStatus('Nueva línea lista para capturar.');
+        });
+
+        quoteOutputTypesTableBody?.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-output-image-trigger]');
+            if (!button) return;
+            const draftId = button.dataset.outputImageTrigger || '';
+            quoteOutputTypesTableBody.querySelector(`[data-output-file="${draftId}"]`)?.click();
+        });
+
+        quoteOutputTypesTableBody?.addEventListener('input', (event) => {
+            const field = event.target?.dataset?.outputField;
+            const draftId = event.target?.dataset?.outputDraft;
+            if (!field || !draftId) return;
+            const row = quoteOutputTypes.find((item) => item.__draftId === draftId);
+            if (!row) return;
+            row[field] = event.target.value;
+            const isLastRow = quoteOutputTypes[quoteOutputTypes.length - 1]?.__draftId === draftId;
+            if (isLastRow && hasQuoteOutputTypeContent(row)) {
+                const focusState = {
+                    draftId,
+                    field,
+                    start: event.target.selectionStart,
+                    end: event.target.selectionEnd
+                };
+                ensureQuoteOutputTypesTrailingRow();
+                renderQuoteOutputTypesTable(focusState);
+            }
+            scheduleQuoteOutputTypeSave(draftId);
+        });
+
+        quoteOutputTypesTableBody?.addEventListener('change', (event) => {
+            const fileInput = event.target.closest('[data-output-file]');
+            if (!fileInput) return;
+            const draftId = fileInput.dataset.outputFile || '';
+            const row = quoteOutputTypes.find((item) => item.__draftId === draftId);
+            const [file] = Array.from(fileInput.files || []);
+            if (!row || !file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                row.image_url = typeof reader.result === 'string' ? reader.result : '';
+                const isLastRow = quoteOutputTypes[quoteOutputTypes.length - 1]?.__draftId === draftId;
+                if (isLastRow && hasQuoteOutputTypeContent(row)) {
+                    ensureQuoteOutputTypesTrailingRow();
+                }
+                renderQuoteOutputTypesTable();
+                scheduleQuoteOutputTypeSave(draftId, true);
+            };
+            reader.readAsDataURL(file);
+            fileInput.value = '';
         });
 
         sapAdvancedCheckbox?.addEventListener('change', syncSapAdvancedToggle);

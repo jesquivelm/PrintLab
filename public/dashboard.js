@@ -27,8 +27,7 @@ const INVENTORY_CARD_ROUTE = '/inventario-materiales';
 const INVENTORY_OPTIONS = [
     { route: '/inventario-maquinas', label: 'Inventario de Maquinas' },
     { route: '/inventario-materiales', label: 'Inventario de Materia Prima' },
-    { route: '/inventario-troqueles', label: 'Inventario de Troqueles' },
-    { route: '/inventario-tipos-salida', label: 'Inventario de Tipos de Salida' }
+    { route: '/inventario-troqueles', label: 'Inventario de Troqueles' }
 ];
 
 let tabs = [{ id: HOME_TAB_ID, label: 'PrintLab', route: '', closable: false, family: 'home', level: 'root' }];

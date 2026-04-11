@@ -1159,6 +1159,27 @@ body.popover-open { overflow: hidden; }
 .socios-browser-create-btn {
     min-width: 104px;
 }
+.socios-import-status {
+    margin: 0;
+    padding: 10px 14px;
+    border-radius: 999px;
+    background: #eef7fd;
+    color: #23516a;
+    font-size: 12px;
+    line-height: 1.3;
+    white-space: nowrap;
+}
+.inventory-actions .socios-import-status {
+    max-width: 340px;
+}
+.socios-import-status.is-error {
+    background: #fff1f1;
+    color: #a74343;
+}
+.socios-import-status.is-success {
+    background: #edf8ef;
+    color: #27623a;
+}
 .quote-browser-table-wrap {
     max-height: calc(100vh - 210px);
     margin-top: 8px;
@@ -3398,9 +3419,14 @@ body.shell-embedded .summary-footer {
 }
 .flexo-tagging-layout {
     display: grid;
-    grid-template-columns: minmax(220px, 1fr) minmax(220px, 0.9fr);
-    gap: 12px;
+    grid-template-columns: minmax(250px, 1fr) minmax(220px, 0.95fr);
+    gap: 16px;
     align-items: start;
+}
+.flexo-output-fields {
+    display: grid;
+    gap: 12px;
+    align-content: start;
 }
 .flexo-inline-finish-box {
     display: grid;
@@ -3433,14 +3459,17 @@ body.shell-embedded .summary-footer {
     letter-spacing: 0;
 }
 .flexo-output-preview {
-    min-height: 108px;
-    border: 1px dashed #d5e0e8;
-    border-radius: 16px;
-    background: linear-gradient(180deg, #f9fbfd 0%, #f1f6fa 100%);
+    min-height: 156px;
+    border: 1px solid #d5e2eb;
+    border-radius: 22px;
+    background:
+        radial-gradient(circle at top, rgba(255,255,255,0.95), rgba(241,246,250,0.88)),
+        linear-gradient(180deg, #f9fbfd 0%, #eef4f8 100%);
     display: grid;
     place-items: center;
-    gap: 10px;
-    padding: 12px;
+    gap: 12px;
+    padding: 18px 16px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.72), 0 10px 24px rgba(26, 61, 89, 0.06);
 }
 .flexo-output-badge {
     display: inline-flex;
@@ -3467,9 +3496,10 @@ body.shell-embedded .summary-footer {
 }
 .flexo-output-preview-image {
     max-width: 100%;
-    max-height: 56px;
+    max-height: 96px;
     object-fit: contain;
     display: block;
+    filter: drop-shadow(0 10px 20px rgba(28, 70, 103, 0.12));
 }
 .flexo-quantity-editor {
     display: grid;
@@ -4509,7 +4539,8 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
     }
     .quote-browser-search-wrap,
     .quote-browser-action-btn,
-    .socios-browser-create-btn {
+    .socios-browser-create-btn,
+    .socios-import-status {
         width: 100%;
     }
 }

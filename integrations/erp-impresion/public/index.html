@@ -117,25 +117,22 @@
                     <input id="labelsPerRoll" type="number" min="0" step="1">
                   </label>
                 </div>
-                <div class="panel-grid two-up panel-grid-align-start">
-                  <label class="output-type-select-field">
-                    <span>Tipo de Salida</span>
-                    <select id="outputType"></select>
-                  </label>
-                  <label>
-                    <span>Tipo de Etiquetado</span>
-                    <select id="applicationType">
-                      <option value="">Seleccionar...</option>
-                      <option value="Manual">Manual</option>
-                      <option value="Automatico">Automático</option>
-                    </select>
-                  </label>
-                </div>
                 <div class="output-preview-row">
                   <div class="output-type-field">
-                    <div id="outputTypePreview" class="output-type-preview"></div>
+                    <label class="output-type-select-field">
+                      <span>Tipo de Salida</span>
+                      <select id="outputType"></select>
+                    </label>
+                    <label>
+                      <span>Tipo de Etiquetado</span>
+                      <select id="applicationType">
+                        <option value="">Seleccionar...</option>
+                        <option value="Manual">Manual</option>
+                        <option value="Automatico">Automático</option>
+                      </select>
+                    </label>
                   </div>
-                  <div class="output-preview-spacer" aria-hidden="true"></div>
+                  <div id="outputTypePreview" class="output-type-preview"></div>
                 </div>
               </section>
             </div>

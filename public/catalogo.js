@@ -11,6 +11,8 @@ const catalogForm = document.getElementById('catalogForm');
 const editorTitle = document.getElementById('editorTitle');
 const catalogNewButton = document.getElementById('catalogNewButton');
 const catalogSaveButton = document.getElementById('catalogSaveButton');
+const catalogImportSapButton = document.getElementById('catalogImportSapButton');
+const catalogImportSapStatus = document.getElementById('catalogImportSapStatus');
 const catalogImportButton = document.getElementById('catalogImportButton');
 const catalogExportButton = document.getElementById('catalogExportButton');
 const catalogBackButton = document.getElementById('catalogBackButton');
@@ -403,6 +405,31 @@ function resolveRouteConfig() {
 
     const inventoryKey = routeMap[window.location.pathname] || 'materiales';
     return { inventoryKey, ...pageConfig[inventoryKey] };
+}
+
+function isMaterialsInventory() {
+    return page.inventoryKey === 'materiales';
+}
+
+function setSapImportStatus(message = '', tone = '') {
+    if (!catalogImportSapStatus) return;
+    catalogImportSapStatus.hidden = !message;
+    catalogImportSapStatus.textContent = message;
+    catalogImportSapStatus.classList.remove('is-error', 'is-success');
+    if (tone === 'error') {
+        catalogImportSapStatus.classList.add('is-error');
+    } else if (tone === 'success') {
+        catalogImportSapStatus.classList.add('is-success');
+    }
+}
+
+function buildSapImportSummaryText(summary = {}) {
+    const parts = [];
+    parts.push(`${summary.inserted || 0} nuevos`);
+    if (summary.duplicateByCode) parts.push(`${summary.duplicateByCode} duplicados`);
+    if (summary.skippedWithoutCode) parts.push(`${summary.skippedWithoutCode} sin código`);
+    if (summary.skippedWithoutName) parts.push(`${summary.skippedWithoutName} sin nombre`);
+    return `SAP: ${parts.join(' · ')}`;
 }
 
 const page = resolveRouteConfig();
@@ -1501,6 +1528,28 @@ async function importInventoryFile(file) {
     catalogStatus.textContent = `Importación completada. ${result.imported || 0} registros procesados.`;
 }
 
+async function importMaterialsFromSap() {
+    if (!isMaterialsInventory()) return;
+    setSapImportStatus('Consultando SAP...', '');
+    catalogStatus.textContent = 'Importando materiales desde SAP...';
+
+    const response = await fetch('/api/inventario/materiales/importar-sap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+        throw new Error(result.error || 'No fue posible importar materiales desde SAP.');
+    }
+
+    await loadCatalog();
+    setSapImportStatus(buildSapImportSummaryText(result.summary || {}), 'success');
+    catalogStatus.textContent = result.message || 'Materiales importados correctamente.';
+    window.clearTimeout(importMaterialsFromSap._timer);
+    importMaterialsFromSap._timer = window.setTimeout(() => setSapImportStatus('', ''), 7000);
+}
+
 function capacitiesStateSanity() {
     if (!Array.isArray(capabilitiesState)) {
         capabilitiesState = [];
@@ -1733,6 +1782,18 @@ if (isOutputTypesInventory()) {
     catalogNewButton.textContent = 'Agregar fila';
     catalogSaveButton.textContent = 'Guardar cambios';
     catalogSearch.placeholder = 'Buscar por codigo o descripcion';
+}
+
+if (catalogImportSapButton) {
+    catalogImportSapButton.hidden = !isMaterialsInventory();
+    if (isMaterialsInventory()) {
+        catalogImportSapButton.addEventListener('click', () => {
+            importMaterialsFromSap().catch((error) => {
+                setSapImportStatus(error.message, 'error');
+                catalogStatus.textContent = error.message;
+            });
+        });
+    }
 }
 
 Promise.all([loadHeaderConfig(), loadMachineOptions(), loadCatalog()]).catch((error) => {

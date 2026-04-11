@@ -1704,6 +1704,26 @@ async function getSapStatus(pgQuery) {
     };
 }
 
+async function fetchSapBusinessPartnersForImport(pgQuery, query = {}) {
+    const config = await loadSapConfig(pgQuery);
+    const normalizedQuery = {
+        top: query.top || 500,
+        type: query.type || '',
+        search: query.search || ''
+    };
+    return queryBusinessPartners({ pgQuery, config, query: normalizedQuery });
+}
+
+async function fetchSapItemsForImport(pgQuery, query = {}) {
+    const config = await loadSapConfig(pgQuery);
+    const normalizedQuery = {
+        top: query.top || 500,
+        group: query.group || '',
+        search: query.search || ''
+    };
+    return queryItems({ pgQuery, config, query: normalizedQuery });
+}
+
 function registerSapRoutes({ app, pgQuery, withTransaction }) {
     app.get('/api/sap/config', async (req, res) => {
         try {
@@ -1878,5 +1898,7 @@ function startSapScheduler({ pgQuery, withTransaction, intervalMs = 60_000 }) {
 module.exports = {
     ensureSapSchema,
     registerSapRoutes,
-    startSapScheduler
+    startSapScheduler,
+    fetchSapBusinessPartnersForImport,
+    fetchSapItemsForImport
 };
