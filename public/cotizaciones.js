@@ -35,6 +35,7 @@ const rowsBody = document.getElementById('quotesTableBody');
 const quotesSearchInput = document.getElementById('quotesSearchInput');
 const nuevaCotizacionButton = document.getElementById('nuevaCotizacionButton');
 const refreshQuotesButton = document.getElementById('refreshQuotesButton');
+const sapConnectorButton = document.getElementById('sapConnectorButton');
 const popover = document.getElementById('nuevaCotizacionPopover');
 const popoverPanel = popover?.querySelector('.quote-request-popover-panel');
 const closeButton = document.getElementById('cerrarNuevaCotizacionButton');
@@ -66,6 +67,41 @@ const advancedButton = document.getElementById('modoAvanzadoFabButton');
 const shapePicker = document.getElementById('dieShapePicker');
 const launcherErrors = document.getElementById('processLauncherErrors');
 const launcherErrorsList = document.getElementById('processLauncherErrorsList');
+const sapConfigPopover = document.getElementById('sapConfigPopover');
+const cerrarSapConfigButton = document.getElementById('cerrarSapConfigButton');
+const sapStatusRow = document.getElementById('sapStatusRow');
+const sapStatusNote = document.getElementById('sapStatusNote');
+const sapLocalCounts = document.getElementById('sapLocalCounts');
+const sapConfigStatus = document.getElementById('sapConfigStatus');
+const sapLogList = document.getElementById('sapLogList');
+const sapSaveButton = document.getElementById('sapSaveButton');
+const sapTestButton = document.getElementById('sapTestButton');
+const sapSyncButton = document.getElementById('sapSyncButton');
+const sapResetDemoButton = document.getElementById('sapResetDemoButton');
+const sapModeSelect = document.getElementById('sapModeSelect');
+const sapCompanyInput = document.getElementById('sapCompanyInput');
+const sapHostInput = document.getElementById('sapHostInput');
+const sapPortInput = document.getElementById('sapPortInput');
+const sapProtocolSelect = document.getElementById('sapProtocolSelect');
+const sapUserInput = document.getElementById('sapUserInput');
+const sapPasswordInput = document.getElementById('sapPasswordInput');
+const sapAutoSyncCheckbox = document.getElementById('sapAutoSyncCheckbox');
+const sapAllowSelfSignedCheckbox = document.getElementById('sapAllowSelfSignedCheckbox');
+const sapKeepDemoCheckbox = document.getElementById('sapKeepDemoCheckbox');
+const sapSyncIntervalInput = document.getElementById('sapSyncIntervalInput');
+const sapQueryEntity = document.getElementById('sapQueryEntity');
+const sapQuerySource = document.getElementById('sapQuerySource');
+const sapQueryFilterInput = document.getElementById('sapQueryFilterInput');
+const sapQuerySearchInput = document.getElementById('sapQuerySearchInput');
+const sapQueryTopInput = document.getElementById('sapQueryTopInput');
+const sapRunQueryButton = document.getElementById('sapRunQueryButton');
+const sapRefreshLogsButton = document.getElementById('sapRefreshLogsButton');
+const sapWriteEntity = document.getElementById('sapWriteEntity');
+const sapLoadTemplateButton = document.getElementById('sapLoadTemplateButton');
+const sapSendPayloadButton = document.getElementById('sapSendPayloadButton');
+const sapPayloadInput = document.getElementById('sapPayloadInput');
+const sapQueryResult = document.getElementById('sapQueryResult');
+const sapWriteResult = document.getElementById('sapWriteResult');
 
 let loadedConfig = {};
 let quoteCatalog = [];
@@ -88,6 +124,7 @@ let attachmentPreviewState = {
     startX: 0,
     startY: 0
 };
+let sapConfigState = null;
 
 function escapeHtml(value) {
     return String(value ?? '')
@@ -116,6 +153,279 @@ async function fetchJson(url, options) {
         throw new Error(payload.error || 'No fue posible completar la solicitud.');
     }
     return payload;
+}
+
+function setSapConfigStatus(message, tone = 'info') {
+    if (!sapConfigStatus) return;
+    sapConfigStatus.textContent = message || 'Listo para configurar.';
+    sapConfigStatus.dataset.tone = tone;
+}
+
+function setSapResult(node, payload) {
+    if (!node) return;
+    node.textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
+}
+
+function escapeText(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function getSapPayloadTemplate(entity) {
+    if (entity === 'invoices') {
+        return {
+            docEntry: 1041,
+            baseLine: 0
+        };
+    }
+    if (entity === 'inventory-exit') {
+        return {
+            date: new Date().toISOString().slice(0, 10),
+            productionOrderId: 'OP-2041',
+            comments: 'Consumo de materiales desde ERP',
+            materials: [
+                { itemCode: 'INS-030', quantity: 120, warehouse: '01' },
+                { itemCode: 'INS-020', quantity: 2.5, warehouse: '01' }
+            ]
+        };
+    }
+    return {
+        clientCode: 'C001',
+        date: new Date().toISOString().slice(0, 10),
+        dueDate: new Date(Date.now() + (7 * 24 * 60 * 60 * 1000)).toISOString().slice(0, 10),
+        notes: 'Generado desde Cotizaciones',
+        lines: [
+            { itemCode: 'TRQ-001', qty: 2, price: 89500, warehouse: '01' },
+            { itemCode: 'SRV-001', qty: 4, price: 12000, warehouse: '01' }
+        ]
+    };
+}
+
+function populateSapConfigForm(config) {
+    if (!config || !sapModeSelect || !sapCompanyInput || !sapHostInput || !sapPortInput || !sapProtocolSelect || !sapUserInput || !sapPasswordInput || !sapAutoSyncCheckbox || !sapAllowSelfSignedCheckbox || !sapKeepDemoCheckbox || !sapSyncIntervalInput) return;
+    sapModeSelect.value = config.mode || 'demo';
+    sapCompanyInput.value = config.sapCompany || '';
+    sapHostInput.value = config.sapHost || '';
+    sapPortInput.value = config.sapPort || 50000;
+    sapProtocolSelect.value = config.sapProtocol || 'https';
+    sapUserInput.value = config.sapUser || '';
+    sapPasswordInput.value = '';
+    sapPasswordInput.placeholder = config.hasPassword ? 'Se conserva la clave actual si lo dejas vacio' : 'Ingresa la clave SAP';
+    sapAutoSyncCheckbox.checked = Boolean(config.autoSyncEnabled);
+    sapAllowSelfSignedCheckbox.checked = Boolean(config.allowSelfSigned);
+    sapKeepDemoCheckbox.checked = Boolean(config.keepDemoEnabled);
+    sapSyncIntervalInput.value = config.syncIntervalMinutes || 30;
+}
+
+function renderSapStatus(statusPayload) {
+    sapConfigState = statusPayload || null;
+    const config = statusPayload?.config || {};
+    const counts = statusPayload?.localSummary?.counts || {};
+    if (sapStatusRow) {
+        const modeTone = statusPayload?.mode === 'live' ? 'live' : 'demo';
+        const pills = [
+            `<span class="sap-config-pill" data-tone="${modeTone}">Modo ${escapeText((statusPayload?.mode || 'demo').toUpperCase())}</span>`,
+            `<span class="sap-config-pill">${config.isLiveReady ? 'Live listo' : 'Live pendiente'}</span>`,
+            `<span class="sap-config-pill">${config.hasPassword ? 'Clave guardada' : 'Sin clave'}</span>`
+        ];
+        if (config.lastSyncStatus) {
+            const tone = config.lastSyncStatus === 'error' ? 'error' : (config.lastSyncStatus === 'success' ? 'live' : 'demo');
+            pills.push(`<span class="sap-config-pill" data-tone="${tone}">Sync ${escapeText(config.lastSyncStatus)}</span>`);
+        }
+        sapStatusRow.innerHTML = pills.join('');
+    }
+    if (sapStatusNote) {
+        const lastSync = config.lastSyncFinishedAt ? new Date(config.lastSyncFinishedAt).toLocaleString('es-CR') : 'Sin sincronizacion';
+        sapStatusNote.textContent = `${config.lastSyncMessage || 'Configuracion lista.'} Ultimo cierre: ${lastSync}.`;
+    }
+    if (sapLocalCounts) {
+        sapLocalCounts.innerHTML = [
+            ['Socios', counts.businessPartners || 0],
+            ['Articulos', counts.items || 0],
+            ['Bodegas', counts.warehouses || 0],
+            ['Ordenes', counts.orders || 0],
+            ['Facturas', counts.invoices || 0]
+        ].map(([label, value]) => `
+            <div class="sap-config-count">
+                <strong>${escapeText(String(value))}</strong>
+                <span>${escapeText(label)}</span>
+            </div>
+        `).join('');
+    }
+    populateSapConfigForm(config);
+}
+
+function renderSapLogs(logsPayload) {
+    const syncLog = Array.isArray(logsPayload?.syncLog) ? logsPayload.syncLog : [];
+    const writeLog = Array.isArray(logsPayload?.writeLog) ? logsPayload.writeLog : [];
+    const rows = [
+        ...syncLog.map((entry) => ({
+            title: `${entry.entity_name} | ${entry.status}`,
+            meta: `${entry.mode} | ${entry.records_count || 0} registros | ${entry.started_at ? new Date(entry.started_at).toLocaleString('es-CR') : ''}`,
+            detail: entry.message || 'Sin detalle'
+        })),
+        ...writeLog.map((entry) => ({
+            title: `${entry.entity_name} | ${entry.status}`,
+            meta: `${entry.mode} | ${entry.created_at ? new Date(entry.created_at).toLocaleString('es-CR') : ''}`,
+            detail: entry.error_message || 'Envio registrado correctamente'
+        }))
+    ].slice(0, 20);
+    if (!sapLogList) return;
+    if (!rows.length) {
+        sapLogList.innerHTML = '<div class="sap-config-empty">Sin actividad reciente.</div>';
+        return;
+    }
+    sapLogList.innerHTML = rows.map((entry) => `
+        <div class="sap-config-log-item">
+            <strong>${escapeText(entry.title)}</strong>
+            <span>${escapeText(entry.meta)}</span>
+            <span>${escapeText(entry.detail)}</span>
+        </div>
+    `).join('');
+}
+
+async function loadSapPanelData() {
+    const [configPayload, logsPayload] = await Promise.all([
+        fetchJson('/api/sap/config'),
+        fetchJson('/api/sap/logs')
+    ]);
+    renderSapStatus(configPayload);
+    renderSapLogs(logsPayload);
+}
+
+function collectSapConfigPayload() {
+    if (!sapModeSelect || !sapCompanyInput || !sapHostInput || !sapPortInput || !sapProtocolSelect || !sapUserInput || !sapPasswordInput || !sapAutoSyncCheckbox || !sapAllowSelfSignedCheckbox || !sapKeepDemoCheckbox || !sapSyncIntervalInput) {
+        throw new Error('La configuracion SAP no esta disponible en esta vista.');
+    }
+    return {
+        mode: sapModeSelect.value,
+        sapCompany: normalizeText(sapCompanyInput.value),
+        sapHost: normalizeText(sapHostInput.value),
+        sapPort: Number(sapPortInput.value || 50000),
+        sapProtocol: sapProtocolSelect.value || 'https',
+        sapUser: normalizeText(sapUserInput.value),
+        sapPassword: sapPasswordInput.value,
+        autoSyncEnabled: sapAutoSyncCheckbox.checked,
+        allowSelfSigned: sapAllowSelfSignedCheckbox.checked,
+        keepDemoEnabled: sapKeepDemoCheckbox.checked,
+        syncIntervalMinutes: Number(sapSyncIntervalInput.value || 30)
+    };
+}
+
+async function saveSapConfig() {
+    setSapConfigStatus('Guardando configuracion SAP...', 'saving');
+    const payload = await fetchJson('/api/sap/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(collectSapConfigPayload())
+    });
+    sapPasswordInput.value = '';
+    setSapConfigStatus('Configuracion SAP guardada.', 'saved');
+    renderSapStatus({
+        ...(sapConfigState || {}),
+        config: payload.config
+    });
+    await loadSapPanelData();
+}
+
+async function testSapConnection() {
+    setSapConfigStatus('Probando conexion SAP...', 'saving');
+    const payload = await fetchJson('/api/sap/test', { method: 'POST' });
+    setSapConfigStatus(payload.message || 'Conexion validada.', 'saved');
+    await loadSapPanelData();
+}
+
+async function syncSapData() {
+    setSapConfigStatus('Sincronizando tablas SAP...', 'saving');
+    const payload = await fetchJson('/api/sap/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entityName: 'all' })
+    });
+    setSapConfigStatus(payload.ok ? 'Sincronizacion completada.' : (payload.error || 'Sincronizacion parcial.'), payload.ok ? 'saved' : 'error');
+    setSapResult(sapQueryResult, payload);
+    await loadSapPanelData();
+}
+
+async function resetSapDemo() {
+    setSapConfigStatus('Reiniciando demo SAP...', 'saving');
+    await fetchJson('/api/sap/reset-demo', { method: 'POST' });
+    setSapConfigStatus('Demo SAP reiniciado.', 'saved');
+}
+
+function buildSapQueryUrl() {
+    const entity = sapQueryEntity.value || 'business-partners';
+    const params = new URLSearchParams();
+    const source = normalizeText(sapQuerySource.value);
+    const search = normalizeText(sapQuerySearchInput.value);
+    const filter = normalizeText(sapQueryFilterInput.value);
+    const top = normalizeText(sapQueryTopInput.value);
+    if (source) params.set('source', source);
+    if (search) params.set('search', search);
+    if (top) params.set('top', top);
+    if (filter) {
+        if (entity === 'business-partners') params.set('type', filter);
+        if (entity === 'items') params.set('group', filter);
+        if (entity === 'orders') params.set('status', filter);
+    }
+    return `/api/sap/${entity}${params.toString() ? `?${params.toString()}` : ''}`;
+}
+
+async function runSapQuery() {
+    setSapConfigStatus('Consultando SAP...', 'saving');
+    const payload = await fetchJson(buildSapQueryUrl());
+    setSapResult(sapQueryResult, payload);
+    setSapConfigStatus('Consulta SAP completada.', 'saved');
+}
+
+async function runSapWrite() {
+    const entity = sapWriteEntity.value || 'orders';
+    let parsed;
+    try {
+        parsed = JSON.parse(sapPayloadInput.value || '{}');
+    } catch (error) {
+        setSapConfigStatus('El JSON del envio no es valido.', 'error');
+        return;
+    }
+    setSapConfigStatus('Enviando documento a SAP...', 'saving');
+    const route = entity === 'inventory-exit' ? '/api/sap/inventory/exit' : `/api/sap/${entity}`;
+    const payload = await fetchJson(route, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(parsed)
+    });
+    setSapResult(sapWriteResult, payload);
+    setSapConfigStatus('Envio SAP completado.', 'saved');
+    await loadSapPanelData();
+}
+
+function loadSapTemplate() {
+    if (!sapWriteEntity || !sapPayloadInput) return;
+    const template = getSapPayloadTemplate(sapWriteEntity.value || 'orders');
+    sapPayloadInput.value = JSON.stringify(template, null, 2);
+}
+
+async function refreshSapLogs() {
+    const payload = await fetchJson('/api/sap/logs');
+    renderSapLogs(payload);
+}
+
+async function openSapPopover() {
+    if (!sapConfigPopover) return;
+    sapConfigPopover.hidden = false;
+    setSapConfigStatus('Cargando configuracion SAP...', 'info');
+    if (!sapPayloadInput.value.trim()) {
+        loadSapTemplate();
+    }
+    await loadSapPanelData();
+}
+
+function closeSapPopover() {
+    if (!sapConfigPopover) return;
+    sapConfigPopover.hidden = true;
 }
 
 function isShellEmbedded() {
@@ -901,10 +1211,26 @@ async function toggleAudioRecording() {
 function bindEvents() {
     nuevaCotizacionButton?.addEventListener('click', openPopover);
     refreshQuotesButton?.addEventListener('click', () => loadQuotes().catch((error) => setStatus(error.message, 'error')));
+    sapConnectorButton?.addEventListener('click', () => {
+        openSapPopover().catch((error) => setSapConfigStatus(error.message, 'error'));
+    });
     closeButton?.addEventListener('click', () => closePopover());
     popover?.addEventListener('click', (event) => {
         if (event.target?.dataset?.closeQuoteCreate === 'true') closePopover();
     });
+    cerrarSapConfigButton?.addEventListener('click', closeSapPopover);
+    sapConfigPopover?.addEventListener('click', (event) => {
+        if (event.target?.dataset?.closeSapConfig === 'true') closeSapPopover();
+    });
+    sapSaveButton?.addEventListener('click', () => saveSapConfig().catch((error) => setSapConfigStatus(error.message, 'error')));
+    sapTestButton?.addEventListener('click', () => testSapConnection().catch((error) => setSapConfigStatus(error.message, 'error')));
+    sapSyncButton?.addEventListener('click', () => syncSapData().catch((error) => setSapConfigStatus(error.message, 'error')));
+    sapResetDemoButton?.addEventListener('click', () => resetSapDemo().catch((error) => setSapConfigStatus(error.message, 'error')));
+    sapRunQueryButton?.addEventListener('click', () => runSapQuery().catch((error) => setSapConfigStatus(error.message, 'error')));
+    sapRefreshLogsButton?.addEventListener('click', () => refreshSapLogs().catch((error) => setSapConfigStatus(error.message, 'error')));
+    sapLoadTemplateButton?.addEventListener('click', loadSapTemplate);
+    sapSendPayloadButton?.addEventListener('click', () => runSapWrite().catch((error) => setSapConfigStatus(error.message, 'error')));
+    sapWriteEntity?.addEventListener('change', loadSapTemplate);
 
     processLauncherButton?.addEventListener('click', (event) => {
         if (dragState?.moved) return;
@@ -1117,6 +1443,7 @@ async function init() {
     renderAttachments();
     bindEvents();
     syncToggleChipState();
+    loadSapTemplate();
     await Promise.all([loadConfig(), loadQuotes()]);
 
     const savedPos = localStorage.getItem(LAUNCHER_POSITION_KEY);

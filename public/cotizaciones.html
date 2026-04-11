@@ -152,8 +152,44 @@
 .icon-glyph{display:inline-flex;align-items:center;justify-content:center;line-height:1}
 .icon-image{display:block;object-fit:contain}
 .icon-svg-mask{display:inline-block;background:currentColor;background-repeat:no-repeat;background-position:center;background-size:contain}
+.sap-config-popover-panel{width:min(1480px,calc(100vw - 26px));max-height:calc(100vh - 24px);overflow:hidden}
+.sap-config-shell{display:grid;grid-template-columns:320px minmax(0,1fr);gap:16px;min-height:0}
+.sap-config-sidebar,.sap-config-main{display:grid;gap:14px;min-height:0}
+.sap-config-main{grid-template-rows:auto auto minmax(0,1fr)}
+.sap-config-card{border:1px solid #d8e2ea;border-radius:18px;background:linear-gradient(180deg,#fff 0%,#f7fbfc 100%);box-shadow:0 8px 22px rgba(13,35,52,.06);padding:16px;display:grid;gap:12px}
+.sap-config-card h3,.sap-config-card h4{margin:0;color:#17354a}
+.sap-config-card p{margin:0;color:#5f7487;font-size:12px;line-height:1.4}
+.sap-config-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.sap-config-grid-compact{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.sap-config-field{display:grid;gap:6px;min-width:0}
+.sap-config-field span{font-size:12px;font-weight:700;color:#28465c}
+.sap-config-status-row{display:flex;flex-wrap:wrap;gap:8px}
+.sap-config-pill{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:#edf7fb;color:#17506c;font-size:12px;font-weight:700}
+.sap-config-pill[data-tone="demo"]{background:#eef9f0;color:#1d6b3c}
+.sap-config-pill[data-tone="live"]{background:#e8f1fb;color:#0e5c94}
+.sap-config-pill[data-tone="error"]{background:#fff0f0;color:#ad3434}
+.sap-config-counts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.sap-config-count{padding:12px;border-radius:14px;border:1px solid #dce7ef;background:#fff}
+.sap-config-count strong{display:block;font-size:22px;color:#17354a}
+.sap-config-count span{font-size:12px;color:#688095}
+.sap-config-actions{display:flex;flex-wrap:wrap;gap:10px}
+.sap-config-actions .action-btn{min-height:38px}
+.sap-config-subtitle{font-size:12px;color:#61788b}
+.sap-config-result{min-height:140px;max-height:320px;overflow:auto;border:1px solid #d9e4ec;border-radius:16px;background:#0f1720;color:#dbe8f3;padding:14px;font:12px/1.5 Consolas,"Courier New",monospace;white-space:pre-wrap;word-break:break-word}
+.sap-config-log-list{display:grid;gap:10px;max-height:220px;overflow:auto}
+.sap-config-log-item{padding:12px;border:1px solid #d9e4ec;border-radius:14px;background:#fff}
+.sap-config-log-item strong{display:block;color:#17354a;font-size:12px}
+.sap-config-log-item span{display:block;color:#708493;font-size:11px;line-height:1.4}
+.sap-config-json-actions{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.sap-config-json-actions .action-btn{min-height:36px}
+.sap-config-textarea{min-height:210px;font:12px/1.5 Consolas,"Courier New",monospace}
+.sap-config-empty{padding:12px;border:1px dashed #cad8e3;border-radius:14px;background:#fff;color:#7990a2;font-size:12px}
+.sap-config-inline{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.sap-config-inline label{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:#37566f}
+.sap-config-status-note{font-size:12px;color:#4d677b}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(239,68,68,.5)}70%{box-shadow:0 0 0 9px rgba(239,68,68,0)}100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}}
-@media (max-width:980px){.quote-request-columns,.quote-request-grid,.quote-request-finishes-grid,.quote-request-shape-grid{grid-template-columns:1fr}.quote-request-create-floating{top:auto !important;left:auto !important;bottom:22px !important;right:22px !important}}
+@media (max-width:1180px){.sap-config-shell{grid-template-columns:1fr}.sap-config-main{grid-template-rows:auto auto auto}.sap-config-grid-compact{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:980px){.quote-request-columns,.quote-request-grid,.quote-request-finishes-grid,.quote-request-shape-grid,.sap-config-grid,.sap-config-grid-compact,.sap-config-counts{grid-template-columns:1fr}.quote-request-create-floating{top:auto !important;left:auto !important;bottom:22px !important;right:22px !important}}
 </style>
 </head>
 <body>

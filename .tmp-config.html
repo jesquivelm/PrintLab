@@ -6,14 +6,13 @@
     <title>Configuracion General - PrintLab</title>
     <link rel="stylesheet" href="/styles.css">
     <style>
-        .config-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; width: 100%; min-width: 0; margin-bottom: 20px; padding: 4px; border: 1px solid #d8e2ea; border-radius: 14px; background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.75); }
+        .config-tabs { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; width: 100%; margin-bottom: 20px; padding: 4px; border: 1px solid #d8e2ea; border-radius: 14px; background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.75); }
         .topbar.topbar-quote { display: none; }
         .config-tab { display: inline-flex; align-items: center; justify-content: center; width: 100%; min-width: 0; padding: 10px 18px; cursor: pointer; border: none; background: transparent; color: #60707f; font-size: 13px; font-weight: 600; border-radius: 10px; transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease; }
         .config-tab:hover { background: rgba(11,129,184,0.08); color: #23516a; }
         .config-tab.active { background: linear-gradient(180deg, #24a8df 0%, #118fc6 100%); color: #fff; box-shadow: 0 8px 18px rgba(17,143,198,0.24); }
-        .config-tab-content { display: none; min-height: var(--config-tabs-min-height, auto); width: 100%; min-width: 0; max-width: 100%; }
+        .config-tab-content { display: none; min-height: var(--config-tabs-min-height, auto); width: 100%; min-width: 100%; }
         .config-tab-content.active { display: block; }
-        #generalConfigForm { width: 100%; min-width: 0; }
         
         .config-section-title { font-size: 14px; font-weight: 600; margin: 20px 0 10px; padding-bottom: 5px; border-bottom: 1px solid #ddd; }
         
@@ -246,7 +245,6 @@
         .icon-group[hidden] {
             display: none;
         }
-        .design-subtabs,
         .security-subtabs {
             display: flex;
             flex-wrap: wrap;
@@ -257,7 +255,6 @@
             border-radius: 14px;
             background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%);
         }
-        .design-subtab,
         .security-subtab {
             border: none;
             border-radius: 10px;
@@ -269,27 +266,17 @@
             cursor: pointer;
             transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
         }
-        .design-subtab:hover,
         .security-subtab:hover {
             background: rgba(11,129,184,0.08);
             color: #23516a;
         }
-        .design-subtab.active,
         .security-subtab.active {
             background: linear-gradient(180deg, #24a8df 0%, #118fc6 100%);
             color: #fff;
             box-shadow: 0 8px 18px rgba(17,143,198,0.24);
         }
-        .design-subpanel[hidden],
         .security-subpanel[hidden] {
             display: none;
-        }
-        .design-subpanel,
-        .quotes-subpanel,
-        .security-subpanel {
-            width: 100%;
-            min-width: 0;
-            max-width: 100%;
         }
         .quotes-subtabs {
             display: flex;
@@ -451,24 +438,6 @@
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
-        }
-        .sap-security-actions .action-btn,
-        .sap-security-actions .action-btn-primary {
-            min-height: 34px;
-            padding: 6px 14px;
-            border-radius: 10px;
-            border-color: #d4dde6;
-            background: linear-gradient(180deg, #ffffff 0%, #f3f7fa 100%);
-            color: #4c5d6d;
-            box-shadow: none;
-        }
-        .sap-security-actions .action-btn:hover,
-        .sap-security-actions .action-btn:focus-visible,
-        .sap-security-actions .action-btn-primary:hover,
-        .sap-security-actions .action-btn-primary:focus-visible {
-            border-color: #bfd0de;
-            background: linear-gradient(180deg, #ffffff 0%, #eef4f8 100%);
-            color: #355066;
         }
         .sap-security-status-row {
             display: flex;
@@ -762,7 +731,7 @@
             box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18);
             background: var(--swatch-color, #d8dde3);
         }
-        #tab-datos-generales { display: flex; flex-direction: column; gap: 16px; }
+        #tab-datos-generales.active { display: flex; flex-direction: column; gap: 16px; }
         #infoEmpresaSection { order: 1; }
         #encabezadoGeneralSection { order: 2; }
         #pieGeneralSection { order: 3; }
@@ -2263,25 +2232,20 @@
                     
                     <!-- Tabs -->
                     <div class="config-tabs">
-                        <button type="button" class="config-tab active" data-tab="diseno">Diseño</button>
+                        <button type="button" class="config-tab active" data-tab="datos-generales">Datos Generales</button>
+                        <button type="button" class="config-tab" data-tab="nomenclaturas">Nomenclaturas</button>
+                        <button type="button" class="config-tab" data-tab="repositorio">Repositorio</button>
+                        <button type="button" class="config-tab" data-tab="iconos">Iconos</button>
+                        <button type="button" class="config-tab" data-tab="colores-tabs">Colores de Tabs</button>
+                        <button type="button" class="config-tab" data-tab="presentaciones">Presentaciones</button>
+                        <button type="button" class="config-tab" data-tab="favoritos">Favoritos</button>
                         <button type="button" class="config-tab" data-tab="cotizaciones">Cotizaciones</button>
                         <button type="button" class="config-tab" data-tab="seguridad">Seguridad</button>
-                        <button type="button" class="config-tab" data-tab="nomenclaturas">Nomenclaturas</button>
                         <button type="button" class="config-tab" data-tab="auditoria">Auditoría</button>
                     </div>
 
-                    <!-- DISEÑO -->
-                    <div id="tab-diseno" class="config-tab-content active">
-                        <div class="design-subtabs">
-                            <button type="button" class="design-subtab active" data-design-tab="datos-generales">Presentación General</button>
-                            <button type="button" class="design-subtab" data-design-tab="repositorio">Repositorio</button>
-                            <button type="button" class="design-subtab" data-design-tab="iconos">Iconos</button>
-                            <button type="button" class="design-subtab" data-design-tab="colores-tabs">Colores de Tabs</button>
-                            <button type="button" class="design-subtab" data-design-tab="presentaciones">Presentaciones</button>
-                            <button type="button" class="design-subtab" data-design-tab="favoritos">Control de Favoritos</button>
-                        </div>
-
-                        <div id="tab-datos-generales" class="design-subpanel">
+                    <!-- DATOS GENERALES -->
+                    <div id="tab-datos-generales" class="config-tab-content active">
                         
                         <!-- Información Empresa -->
                         <section id="infoEmpresaSection" class="config-card">
@@ -2671,9 +2635,22 @@
                                 <label><span>Margen Izquierdo</span><input name="layout.pageMarginLeft" type="number" value="16" style="width:65px;"></label>
                             </div>
                         </section>
-                        </div>
+                    </div>
 
-                        <div id="tab-repositorio" class="design-subpanel" hidden>
+                    <div id="tab-nomenclaturas" class="config-tab-content">
+                        <section class="config-card">
+                            <h2>Nomenclaturas</h2>
+                            <div class="config-form-row">
+                                <label>
+                                    <span>Nomenclatura de socio</span>
+                                    <input name="general.partnerCodePrefix" type="text" maxlength="10" style="width:180px;" placeholder="CL">
+                                </label>
+                            </div>
+                            <p class="config-status" style="margin-top:4px;">Este prefijo se usará para generar el código del socio con su consecutivo.</p>
+                        </section>
+                    </div>
+
+                    <div id="tab-repositorio" class="config-tab-content">
                         <section class="repository-grid">
                             <div class="repository-panel">
                                 <div>
@@ -2728,19 +2705,20 @@
                                 </div>
                                 <div id="loginRepositoryGallery" class="repository-gallery-grid">
                                     <div class="repository-empty">Todavía no hay imágenes en el repositorio.</div>
-                                </div>
+                                    </div>
+                                </section>
                             </div>
                         </section>
                     </div>
 
-                        <div id="tab-iconos" class="design-subpanel" hidden>
+                    <div id="tab-iconos" class="config-tab-content">
                         <section class="config-card">
                             <h2>Biblioteca de Iconos</h2>
                             <div id="iconsTabMount"></div>
                         </section>
                     </div>
 
-                        <div id="tab-colores-tabs" class="design-subpanel" hidden>
+                    <div id="tab-colores-tabs" class="config-tab-content">
                         <section class="config-card">
                             <div class="section-head">
                                 <div>
@@ -2865,7 +2843,7 @@
                     </div>
 
                     <!-- PRESENTACIONES -->
-                        <div id="tab-presentaciones" class="design-subpanel" hidden>
+                    <div id="tab-presentaciones" class="config-tab-content">
                         
                         <section class="config-card">
                             <h2>Seleccionar Presentación</h2>
@@ -3047,9 +3025,9 @@
                         </section>
                     </div>
 
-                        <div id="tab-favoritos" class="design-subpanel" hidden>
+                    <div id="tab-favoritos" class="config-tab-content">
                         <section class="config-card">
-                            <h2>Control de Favoritos</h2>
+                            <h2>Presentación de Favoritos</h2>
                             <div class="favorites-config-grid">
                                 <div class="favorites-controls-grid">
                                     <label class="favorites-slider-group">
@@ -3168,20 +3146,6 @@
                             <p style="margin-top:10px; color:#6f7a84; font-size:12px;">
                                 En escritorio seguirás viendo cotizaciones normales, salvo cuando abras la prueba o uses <code>?mobilePreview=1</code>.
                             </p>
-                        </section>
-                        </div>
-                    </div>
-
-                    <div id="tab-nomenclaturas" class="config-tab-content">
-                        <section class="config-card">
-                            <h2>Nomenclaturas</h2>
-                            <div class="config-form-row">
-                                <label>
-                                    <span>Nomenclatura de socio</span>
-                                    <input name="general.partnerCodePrefix" type="text" maxlength="10" style="width:180px;" placeholder="CL">
-                                </label>
-                            </div>
-                            <p class="config-status" style="margin-top:4px;">Este prefijo se usará para generar el código del socio con su consecutivo.</p>
                         </section>
                     </div>
 
@@ -3464,6 +3428,7 @@
                     </div>
                 </section>
             </div>
+
                     <div id="tab-seguridad" class="config-tab-content">
                         <section class="config-card">
                             <div class="security-subtabs">
@@ -3636,15 +3601,15 @@
                                             <div class="sap-security-grid">
                                                 <label class="sap-security-field">
                                                     <span>Base SAP</span>
-                                                    <input id="sapCompanyInput" type="text" autocomplete="off">
+                                                    <input id="sapCompanyInput" type="text" placeholder="SBO_pruebas">
                                                 </label>
                                                 <label class="sap-security-field">
                                                     <span>Servidor</span>
-                                                    <input id="sapHostInput" type="text" autocomplete="off">
+                                                    <input id="sapHostInput" type="text" placeholder="192.168.1.50">
                                                 </label>
                                                 <label class="sap-security-field">
                                                     <span>Puerto</span>
-                                                    <input id="sapPortInput" type="number" inputmode="numeric" autocomplete="off">
+                                                    <input id="sapPortInput" type="number" inputmode="numeric" placeholder="50000">
                                                 </label>
                                                 <label class="sap-security-field">
                                                     <span>Protocolo</span>
@@ -3655,11 +3620,11 @@
                                                 </label>
                                                 <label class="sap-security-field">
                                                     <span>Usuario</span>
-                                                    <input id="sapUserInput" type="text" autocomplete="off">
+                                                    <input id="sapUserInput" type="text" placeholder="manager">
                                                 </label>
                                                 <label class="sap-security-field">
                                                     <span>Clave</span>
-                                                    <input id="sapPasswordInput" type="password" autocomplete="new-password">
+                                                    <input id="sapPasswordInput" type="password" placeholder="Se conserva si lo dejas vacío">
                                                 </label>
                                             </div>
                                             <div class="sap-security-grid-compact">
@@ -3683,7 +3648,7 @@
                                                 </label>
                                             </div>
                                             <div class="sap-security-actions">
-                                                <button type="button" id="sapSaveButton" class="action-btn">Guardar</button>
+                                                <button type="button" id="sapSaveButton" class="action-btn action-btn-primary">Guardar</button>
                                                 <button type="button" id="sapTestButton" class="action-btn">Probar</button>
                                                 <button type="button" id="sapSyncButton" class="action-btn">Sincronizar</button>
                                                 <button type="button" id="sapResetDemoButton" class="action-btn">Reiniciar</button>
@@ -3725,10 +3690,9 @@
                                                 </label>
                                             </div>
                                             <div class="sap-security-actions">
-                                                <button type="button" id="sapRunQueryButton" class="action-btn">Consultar</button>
+                                                <button type="button" id="sapRunQueryButton" class="action-btn action-btn-primary">Consultar</button>
                                                 <button type="button" id="sapRefreshLogsButton" class="action-btn">Actualizar</button>
                                             </div>
-                                            <pre id="sapQueryRequest" class="sap-security-result">Sin solicitudes todavía.</pre>
                                             <pre id="sapQueryResult" class="sap-security-result">Sin consultas todavía.</pre>
                                         </section>
 
@@ -3742,11 +3706,10 @@
                                                         <option value="inventory-exit">Salida inventario</option>
                                                     </select>
                                                     <button type="button" id="sapLoadTemplateButton" class="action-btn">Ejemplo</button>
-                                                    <button type="button" id="sapSendPayloadButton" class="action-btn">Enviar</button>
+                                                    <button type="button" id="sapSendPayloadButton" class="action-btn action-btn-primary">Enviar</button>
                                                 </div>
                                             </div>
                                             <textarea id="sapPayloadInput" spellcheck="false"></textarea>
-                                            <pre id="sapWriteRequest" class="sap-security-result">Sin envíos todavía.</pre>
                                             <pre id="sapWriteResult" class="sap-security-result">Sin envíos todavía.</pre>
                                             <div class="sap-security-actions">
                                                 <label id="sapAdvancedToggle" class="sap-security-toggle">
@@ -4027,8 +3990,6 @@
         const loginScreensaverMotionSecondsValue = document.getElementById('loginScreensaverMotionSecondsValue');
         const loginScreensaverSlideSeconds = document.getElementById('loginScreensaverSlideSeconds');
         const loginScreensaverSlideSecondsValue = document.getElementById('loginScreensaverSlideSecondsValue');
-        const designSubtabs = [...document.querySelectorAll('.design-subtab')];
-        const designSubpanels = [...document.querySelectorAll('.design-subpanel')];
         const quotesSubtabs = [...document.querySelectorAll('.quotes-subtab')];
         const quotesSubpanels = [...document.querySelectorAll('.quotes-subpanel')];
         const securitySubtabs = [...document.querySelectorAll('.security-subtab')];
@@ -4056,13 +4017,11 @@
         const sapQueryTopInput = document.getElementById('sapQueryTopInput');
         const sapRunQueryButton = document.getElementById('sapRunQueryButton');
         const sapRefreshLogsButton = document.getElementById('sapRefreshLogsButton');
-        const sapQueryRequest = document.getElementById('sapQueryRequest');
         const sapQueryResult = document.getElementById('sapQueryResult');
         const sapWriteEntity = document.getElementById('sapWriteEntity');
         const sapLoadTemplateButton = document.getElementById('sapLoadTemplateButton');
         const sapSendPayloadButton = document.getElementById('sapSendPayloadButton');
         const sapPayloadInput = document.getElementById('sapPayloadInput');
-        const sapWriteRequest = document.getElementById('sapWriteRequest');
         const sapWriteResult = document.getElementById('sapWriteResult');
         const sapStatusRow = document.getElementById('sapStatusRow');
         const sapStatusNote = document.getElementById('sapStatusNote');
@@ -4796,7 +4755,7 @@
                 const fallbackValue = field === 'tabWidth' ? '88' : '18';
                 presentationInput.value = generalInput?.value || fallbackValue;
                 presentationInput.readOnly = true;
-                presentationInput.title = 'Este valor se controla desde Presentación General.';
+                presentationInput.title = 'Este valor se controla desde Datos Generales.';
                 presentationInput.dataset.inherited = 'true';
             });
         }
@@ -4903,86 +4862,6 @@
             node.textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
         }
 
-        function getSapServiceLayerEntity(entity) {
-            if (entity === 'business-partners') return 'BusinessPartners';
-            if (entity === 'items') return 'Items';
-            if (entity === 'orders') return 'Orders';
-            return entity;
-        }
-
-        function buildSapServiceLayerQueryPath() {
-            const entity = sapQueryEntity?.value || 'business-partners';
-            const params = new URLSearchParams();
-            const search = (sapQuerySearchInput?.value || '').trim();
-            const filter = (sapQueryFilterInput?.value || '').trim();
-            const top = (sapQueryTopInput?.value || '').trim();
-            const clauses = [];
-            if (top) params.set('$top', top);
-            if (search) {
-                const field = entity === 'business-partners'
-                    ? 'CardName'
-                    : entity === 'items'
-                        ? 'ItemName'
-                        : 'CardCode';
-                clauses.push(`contains(${field},'${search.replace(/'/g, "''")}')`);
-            }
-            if (filter) {
-                if (entity === 'business-partners') clauses.push(`CardType eq '${filter.replace(/'/g, "''")}'`);
-                if (entity === 'items') clauses.push(`ItemsGroupCode eq ${filter}`);
-                if (entity === 'orders') clauses.push(`DocumentStatus eq '${filter.replace(/'/g, "''")}'`);
-            }
-            if (clauses.length) params.set('$filter', clauses.join(' and '));
-            return `/b1s/v1/${getSapServiceLayerEntity(entity)}${params.toString() ? `?${params.toString()}` : ''}`;
-        }
-
-        function renderSapQueryRequestPreview() {
-            const sourceLabel = (sapQuerySource?.value || '').trim() === 'local' ? 'tablas locales' : 'servidor SAP';
-            setSapResult(sapQueryRequest, {
-                tipo: 'consulta',
-                destinoInterno: {
-                    metodo: 'GET',
-                    url: buildSapQueryUrl()
-                },
-                serviceLayer: {
-                    origen: sourceLabel,
-                    ruta: buildSapServiceLayerQueryPath()
-                }
-            });
-        }
-
-        function getSapWriteRoute(entity) {
-            return entity === 'inventory-exit' ? '/api/sap/inventory/exit' : `/api/sap/${entity}`;
-        }
-
-        function getSapWriteServiceLayerPath(entity) {
-            if (entity === 'inventory-exit') return '/b1s/v1/InventoryGenExits';
-            if (entity === 'invoices') return '/b1s/v1/Invoices';
-            return '/b1s/v1/Orders';
-        }
-
-        function renderSapWriteRequestPreview(payloadOverride = null) {
-            const entity = sapWriteEntity?.value || 'orders';
-            let body = payloadOverride;
-            if (body == null) {
-                try {
-                    body = JSON.parse(sapPayloadInput?.value || '{}');
-                } catch (error) {
-                    body = sapPayloadInput?.value || '';
-                }
-            }
-            setSapResult(sapWriteRequest, {
-                tipo: 'envio',
-                destinoInterno: {
-                    metodo: 'POST',
-                    url: getSapWriteRoute(entity)
-                },
-                serviceLayer: {
-                    ruta: getSapWriteServiceLayerPath(entity)
-                },
-                body
-            });
-        }
-
         function getSapPayloadTemplate(entity) {
             if (entity === 'invoices') {
                 return { docEntry: 1041, baseLine: 0 };
@@ -5017,15 +4896,16 @@
         }
 
         function applySapConfigToForm(config = {}) {
+            const baseName = !config.sapCompany || config.sapCompany === 'SBO_DEMO' ? 'SBO_pruebas' : config.sapCompany;
             if (sapAdvancedCheckbox) sapAdvancedCheckbox.checked = String(config.mode || 'demo').trim().toLowerCase() !== 'live';
-            if (sapCompanyInput) sapCompanyInput.value = config.sapCompany || '';
+            if (sapCompanyInput) sapCompanyInput.value = baseName;
             if (sapHostInput) sapHostInput.value = config.sapHost || '';
-            if (sapPortInput) sapPortInput.value = config.sapPort || '';
+            if (sapPortInput) sapPortInput.value = config.sapPort || 50000;
             if (sapProtocolSelect) sapProtocolSelect.value = config.sapProtocol || 'https';
-            if (sapUserInput) sapUserInput.value = config.sapUser || '';
+            if (sapUserInput) sapUserInput.value = config.sapUser || 'manager';
             if (sapPasswordInput) {
                 sapPasswordInput.value = '';
-                sapPasswordInput.placeholder = '';
+                sapPasswordInput.placeholder = config.hasPassword ? 'Se conserva la clave actual si lo dejas vacío' : 'Ingresa la clave SAP';
             }
             if (sapSyncIntervalInput) sapSyncIntervalInput.value = config.syncIntervalMinutes || 30;
             if (sapAllowSelfSignedSelect) sapAllowSelfSignedSelect.value = String(config.allowSelfSigned !== false);
@@ -5117,46 +4997,22 @@
         }
 
         function collectSapConfigPayload() {
-            const payload = {
+            return {
                 mode: sapAdvancedCheckbox?.checked ? 'demo' : 'live',
-                sapCompany: (sapCompanyInput?.value || '').trim(),
+                sapCompany: (sapCompanyInput?.value || '').trim() || 'SBO_pruebas',
                 sapHost: (sapHostInput?.value || '').trim(),
+                sapPort: Number(sapPortInput?.value || 50000),
                 sapProtocol: sapProtocolSelect?.value || 'https',
-                sapUser: (sapUserInput?.value || '').trim(),
+                sapUser: (sapUserInput?.value || '').trim() || 'manager',
+                sapPassword: sapPasswordInput?.value || '',
                 autoSyncEnabled: sapAutoSyncSelect?.value === 'true',
                 allowSelfSigned: sapAllowSelfSignedSelect?.value !== 'false',
                 keepDemoEnabled: true,
                 syncIntervalMinutes: Number(sapSyncIntervalInput?.value || 30)
             };
-            const sapPort = String(sapPortInput?.value || '').trim();
-            const sapPassword = sapPasswordInput?.value || '';
-            if (sapPort) payload.sapPort = Number(sapPort);
-            if (sapPassword) payload.sapPassword = sapPassword;
-            return payload;
-        }
-
-        function captureSapFormValues() {
-            return {
-                sapCompany: sapCompanyInput?.value || '',
-                sapHost: sapHostInput?.value || '',
-                sapPort: sapPortInput?.value || '',
-                sapProtocol: sapProtocolSelect?.value || 'https',
-                sapUser: sapUserInput?.value || '',
-                sapPassword: sapPasswordInput?.value || ''
-            };
-        }
-
-        function restoreSapFormValues(values = {}) {
-            if (sapCompanyInput) sapCompanyInput.value = values.sapCompany || '';
-            if (sapHostInput) sapHostInput.value = values.sapHost || '';
-            if (sapPortInput) sapPortInput.value = values.sapPort || '';
-            if (sapProtocolSelect) sapProtocolSelect.value = values.sapProtocol || 'https';
-            if (sapUserInput) sapUserInput.value = values.sapUser || '';
-            if (sapPasswordInput) sapPasswordInput.value = values.sapPassword || '';
         }
 
         async function saveSapConnectorConfig() {
-            const currentValues = captureSapFormValues();
             setSapConfigStatus('Guardando...', false);
             const response = await fetch('/api/sap/config', {
                 method: 'POST',
@@ -5167,19 +5023,16 @@
             if (!response.ok) throw new Error(payload.error || 'No fue posible guardar la configuración SAP.');
             setSapConfigStatus('Guardado correctamente.', false);
             await loadSapConnectorState(true);
-            restoreSapFormValues(currentValues);
         }
 
         async function testSapConnector() {
-            const currentValues = captureSapFormValues();
             await saveSapConnectorConfig();
             setSapConfigStatus('Probando conexión...', false);
             const response = await fetch('/api/sap/test', { method: 'POST' });
             const payload = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(payload.error || 'No fue posible validar la conexión SAP.');
-            setSapConfigStatus('OK', false);
+            setSapConfigStatus(payload.message || 'Conexión validada.', false);
             await loadSapConnectorState(true);
-            restoreSapFormValues(currentValues);
         }
 
         async function syncSapConnector() {
@@ -5226,9 +5079,7 @@
         async function runSapConnectorQuery() {
             await saveSapConnectorConfig();
             setSapConfigStatus('Consultando...', false);
-            const queryUrl = buildSapQueryUrl();
-            renderSapQueryRequestPreview();
-            const response = await fetch(queryUrl);
+            const response = await fetch(buildSapQueryUrl());
             const payload = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(payload.error || 'No fue posible consultar SAP.');
             setSapResult(sapQueryResult, payload);
@@ -5238,7 +5089,6 @@
         function loadSapPayloadTemplate() {
             if (!sapPayloadInput) return;
             sapPayloadInput.value = JSON.stringify(getSapPayloadTemplate(sapWriteEntity?.value || 'orders'), null, 2);
-            renderSapWriteRequestPreview();
         }
 
         async function sendSapPayload() {
@@ -5250,9 +5100,8 @@
             }
             await saveSapConnectorConfig();
             const entity = sapWriteEntity?.value || 'orders';
-            const route = getSapWriteRoute(entity);
+            const route = entity === 'inventory-exit' ? '/api/sap/inventory/exit' : `/api/sap/${entity}`;
             setSapConfigStatus('Enviando...', false);
-            renderSapWriteRequestPreview(parsed);
             const response = await fetch(route, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -5282,8 +5131,6 @@
                 loadSapConnectorState().catch((error) => {
                     setSapConfigStatus(error.message || 'No fue posible cargar SAP.', true);
                 });
-                renderSapQueryRequestPreview();
-                renderSapWriteRequestPreview();
             }
         }
 
@@ -5294,30 +5141,6 @@
             quotesSubpanels.forEach((panel) => {
                 panel.hidden = panel.id !== `quotes-panel-${tabKey}`;
             });
-            syncConfigTabHeights();
-        }
-
-        function getActiveDesignTabKey() {
-            return document.querySelector('.design-subtab.active')?.dataset.designTab || 'datos-generales';
-        }
-
-        function activateDesignTab(tabKey = 'datos-generales') {
-            designSubtabs.forEach((tab) => {
-                tab.classList.toggle('active', tab.dataset.designTab === tabKey);
-            });
-            designSubpanels.forEach((panel) => {
-                panel.hidden = panel.id !== `tab-${tabKey}`;
-            });
-            if (tabKey === 'presentaciones') {
-                populatePresentationFields();
-                updatePreviews();
-            }
-            if (tabKey === 'repositorio' && !loginRepositoryLoadedOnce) {
-                loadLoginRepositoryImages().catch((error) => {
-                    console.error(error);
-                    setConfigStatus(error.message || 'No fue posible cargar el repositorio.', true);
-                });
-            }
             syncConfigTabHeights();
         }
 
@@ -7420,14 +7243,17 @@
 
         document.querySelectorAll('.config-tab').forEach(tab => {
             tab.addEventListener('click', () => {
-                const activeMainTabKey = document.querySelector('.config-tab.active')?.dataset.tab;
-                if (activeMainTabKey === 'diseno' && getActiveDesignTabKey() === 'presentaciones') {
+                if (tab.dataset.tab === 'presentaciones') {
                     captureCurrentPresentationData();
                 }
                 document.querySelectorAll('.config-tab').forEach(t => t.classList.remove('active'));
                 document.querySelectorAll('.config-tab-content').forEach(c => c.classList.remove('active'));
                 tab.classList.add('active');
                 document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+                if (tab.dataset.tab === 'presentaciones') {
+                    populatePresentationFields();
+                    updatePreviews();
+                }
                 if (tab.dataset.tab === 'auditoria') {
                     loadAuditEntries();
                 }
@@ -7439,21 +7265,13 @@
                     const activeQuotesTab = document.querySelector('.quotes-subtab.active')?.dataset.quotesTab || 'calculo';
                     activateQuotesTab(activeQuotesTab);
                 }
-                if (tab.dataset.tab === 'diseno') {
-                    activateDesignTab(getActiveDesignTabKey());
-                } else {
-                    syncConfigTabHeights();
+                if (tab.dataset.tab === 'repositorio' && !loginRepositoryLoadedOnce) {
+                    loadLoginRepositoryImages().catch((error) => {
+                        console.error(error);
+                        setConfigStatus(error.message || 'No fue posible cargar el repositorio.', true);
+                    });
                 }
-            });
-        });
-
-        designSubtabs.forEach((tab) => {
-            tab.addEventListener('click', () => {
-                const nextTab = tab.dataset.designTab || 'datos-generales';
-                if (getActiveDesignTabKey() === 'presentaciones' && nextTab !== 'presentaciones') {
-                    captureCurrentPresentationData();
-                }
-                activateDesignTab(nextTab);
+                syncConfigTabHeights();
             });
         });
 
@@ -7786,10 +7604,6 @@
                 setSapConfigStatus(error.message || 'No fue posible consultar SAP.', true);
             }
         });
-        [sapQueryEntity, sapQuerySource, sapQueryFilterInput, sapQuerySearchInput, sapQueryTopInput].forEach((node) => {
-            node?.addEventListener('input', renderSapQueryRequestPreview);
-            node?.addEventListener('change', renderSapQueryRequestPreview);
-        });
         sapRefreshLogsButton?.addEventListener('click', async () => {
             try {
                 await loadSapConnectorState(true);
@@ -7799,7 +7613,6 @@
         });
         sapLoadTemplateButton?.addEventListener('click', loadSapPayloadTemplate);
         sapWriteEntity?.addEventListener('change', loadSapPayloadTemplate);
-        sapPayloadInput?.addEventListener('input', () => renderSapWriteRequestPreview());
         sapSendPayloadButton?.addEventListener('click', async () => {
             try {
                 await sendSapPayload();
@@ -7835,10 +7648,10 @@
         bindAdminPermissionEvents();
         syncSapAdvancedToggle();
         loadSapPayloadTemplate();
-        activateDesignTab('datos-generales');
         activateSecurityTab('usuarios');
         loadConfig();
         document.getElementById('mobileSellerTheme')?.addEventListener('change', updateMobilePreviewLink);
     </script>
 </body>
 </html>
+
