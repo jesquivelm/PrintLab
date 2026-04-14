@@ -4,6 +4,8 @@ const PRESENTATION_KEY = 'socios';
 
 const sociosSearchInput = document.getElementById('sociosSearchInput');
 const sociosTableBody = document.getElementById('sociosTableBody');
+const sociosTableWrap = document.querySelector('.quote-browser-table-wrap');
+const sociosScrollBottomIndicator = document.getElementById('sociosScrollBottomIndicator');
 const nuevoSocioButton = document.getElementById('nuevoSocioButton');
 const importarSociosSapButton = document.getElementById('importarSociosSapButton');
 const refreshSociosButton = document.getElementById('refreshSociosButton');
@@ -14,10 +16,33 @@ const cancelarNuevoSocioButton = document.getElementById('cancelarNuevoSocioButt
 const nuevoSocioForm = document.getElementById('nuevoSocioForm');
 const nuevoSocioStatus = document.getElementById('nuevoSocioStatus');
 const guardarNuevoSocioButton = document.getElementById('guardarNuevoSocioButton');
+const sociosImportPopover = document.getElementById('sociosImportPopover');
+const cerrarSociosImportPopoverButton = document.getElementById('cerrarSociosImportPopoverButton');
+const cancelarSociosImportPopoverButton = document.getElementById('cancelarSociosImportPopoverButton');
+const ejecutarSociosImportButton = document.getElementById('ejecutarSociosImportButton');
+const sociosImportPopoverSummary = document.getElementById('sociosImportPopoverSummary');
+const sociosImportLimitInput = document.getElementById('sociosImportLimitInput');
+const sociosImportPopoverStatus = document.getElementById('sociosImportPopoverStatus');
 
 let browserConfig = null;
 let currentSearch = '';
 let sociosImportStatusTimer = null;
+let sociosImportDiagnosis = null;
+let sociosVisibleCount = 0;
+
+function formatVisibleCountLabel(count, noun) {
+    const total = Math.max(0, Number(count) || 0);
+    return `${total} ${noun}${total === 1 ? '' : 's'} mostrados`;
+}
+
+function updateSociosScrollBottomIndicator() {
+    if (!sociosTableWrap || !sociosScrollBottomIndicator) return;
+    const hasScrollableContent = sociosTableWrap.scrollHeight - sociosTableWrap.clientHeight > 6;
+    const distanceToBottom = sociosTableWrap.scrollHeight - sociosTableWrap.scrollTop - sociosTableWrap.clientHeight;
+    const shouldShow = sociosVisibleCount > 0 && (!hasScrollableContent || distanceToBottom <= 8);
+    sociosScrollBottomIndicator.textContent = formatVisibleCountLabel(sociosVisibleCount, 'registro');
+    sociosScrollBottomIndicator.classList.toggle('is-visible', shouldShow);
+}
 
 function openSocioRoute(partnerCode) {
     if (!partnerCode) return;
@@ -91,11 +116,43 @@ function getOpenIconConfig() {
     };
 }
 
+function getDeleteIconConfig() {
+    const general = browserConfig?.general || {};
+    const presentation = getPresentationConfig(browserConfig || {}, PRESENTATION_KEY);
+    return {
+        value: browserConfig?.icons?.lineDelete || browserConfig?.icons?.loginRepositoryDelete || browserConfig?.icons?.adminUserDelete || 'X',
+        color: firstFilled(general.iconColorLineDelete, general.iconColor, '#a74343'),
+        hover: firstFilled(general.iconColorHoverLineDelete, '#d03535'),
+        size: Number(firstFilled(general.iconSizeLineDelete, presentation.iconSize, 18)) || 18
+    };
+}
+
+function setActionButtonIcon(button, iconValue, label, color, size) {
+    if (!button) return;
+    const iconMarkupValue = iconMarkup(iconValue, label, 'table-icon-media');
+    button.innerHTML = `${iconMarkupValue}<span class="quote-browser-action-label">${escapeHtml(label)}</span>`;
+    button.style.setProperty('--icon-color', color || '#178fc7');
+    button.style.setProperty('--config-icon-size', `${Number(size) || 16}px`);
+    button.setAttribute('aria-label', label);
+}
+
 function applyBrowserConfig(config) {
     browserConfig = config || {};
     const root = document.documentElement;
     const presentation = getPresentationConfig(browserConfig, PRESENTATION_KEY);
     root.style.setProperty('--tab-color', presentation.tabColor);
+
+    const general = browserConfig?.general || {};
+    const addValue = browserConfig?.icons?.tableAdd || browserConfig?.icons?.quantityAdd || '+';
+    const refreshValue = browserConfig?.icons?.refreshCosts || browserConfig?.icons?.mobileRefresh || '↻';
+    const addColor = firstFilled(general.iconColorTableAdd, general.iconColorQuantityAdd, general.iconColor, '#178fc7');
+    const refreshColor = firstFilled(general.iconColorRefreshCosts, general.iconColorMobileRefresh, general.iconColor, '#178fc7');
+    const addSize = Number(firstFilled(general.iconSizeTableAdd, general.iconSizeQuantityAdd, presentation.iconSize, 16)) || 16;
+    const refreshSize = Number(firstFilled(general.iconSizeRefreshCosts, general.iconSizeMobileRefresh, presentation.iconSize, 16)) || 16;
+
+    setActionButtonIcon(nuevoSocioButton, addValue, 'Nuevo', addColor, addSize);
+    setActionButtonIcon(importarSociosSapButton, refreshValue, 'Actualizar desde SAP', refreshColor, refreshSize);
+    setActionButtonIcon(refreshSociosButton, refreshValue, 'Refrescar', refreshColor, refreshSize);
 }
 
 async function loadConfig() {
@@ -124,7 +181,9 @@ async function loadSocios(search = '') {
     }
 
     const items = payload.socios || [];
+    sociosVisibleCount = items.length;
     const openIcon = getOpenIconConfig();
+    const deleteIcon = getDeleteIconConfig();
 
     sociosTableBody.innerHTML = items.length ? items.map((item) => `
         <tr>
@@ -134,8 +193,14 @@ async function loadSocios(search = '') {
             <td>${escapeHtml(item.email)}</td>
             <td>${escapeHtml(item.sector)}</td>
             <td>${escapeHtml(formatDate(item.creation_date))}</td>
-            <td><button type="button" class="browser-open-link" data-open-socio="${escapeHtml(item.partner_code)}" aria-label="Abrir socio ${escapeHtml(item.partner_code)}" title="Abrir socio ${escapeHtml(item.partner_code)}" style="--icon-color:${escapeHtml(openIcon.color)};--icon-hover-color:${escapeHtml(openIcon.hover)};--config-icon-size:${escapeHtml(String(openIcon.size))}px;">${iconMarkup(openIcon.value, 'Abrir socio', 'table-icon-media')}</button></td>
+            <td>
+                <div class="quote-browser-actions">
+                    <button type="button" class="browser-open-link" data-open-socio="${escapeHtml(item.partner_code)}" aria-label="Abrir socio ${escapeHtml(item.partner_code)}" title="Abrir socio ${escapeHtml(item.partner_code)}" style="--icon-color:${escapeHtml(openIcon.color)};--icon-hover-color:${escapeHtml(openIcon.hover)};--config-icon-size:${escapeHtml(String(openIcon.size))}px;">${iconMarkup(openIcon.value, 'Abrir socio', 'table-icon-media')}</button>
+                    <button type="button" class="browser-open-link browser-open-link-danger" data-delete-socio="${escapeHtml(item.partner_code)}" aria-label="Eliminar socio ${escapeHtml(item.partner_code)}" title="Eliminar socio ${escapeHtml(item.partner_code)}" style="--icon-color:${escapeHtml(deleteIcon.color)};--icon-hover-color:${escapeHtml(deleteIcon.hover)};--config-icon-size:${escapeHtml(String(deleteIcon.size))}px;">${iconMarkup(deleteIcon.value, 'Eliminar socio', 'table-icon-media')}</button>
+                </div>
+            </td>
         </tr>`).join('') : '<tr><td colspan="7">No hay socios registrados.</td></tr>';
+    requestAnimationFrame(updateSociosScrollBottomIndicator);
 }
 
 function setCreateStatus(message, isError = false) {
@@ -233,25 +298,121 @@ function buildImportSummaryText(summary = {}) {
     ].join(' · ');
 }
 
-async function importSociosFromSap() {
-    if (!importarSociosSapButton) return;
-    importarSociosSapButton.disabled = true;
-    setImportStatus('Actualizando socios desde SAP...', false, true);
+function setSociosImportPopoverStatus(message, isError = false) {
+    if (!sociosImportPopoverStatus) return;
+    sociosImportPopoverStatus.hidden = !message;
+    sociosImportPopoverStatus.textContent = message || '';
+    sociosImportPopoverStatus.classList.toggle('is-error', Boolean(message && isError));
+    sociosImportPopoverStatus.classList.toggle('is-success', Boolean(message && !isError));
+}
 
-    try {
-        const response = await fetch('/api/socios/importar-sap', { method: 'POST' });
-        const payload = await response.json();
-        if (!response.ok) {
-            throw new Error(payload.error || 'No fue posible importar socios desde SAP.');
-        }
+function renderSociosImportDiagnosis(summary = {}) {
+    if (!sociosImportPopoverSummary) return;
+    const cards = [
+        ['Disponibles', Number(summary.importable || 0)],
+        ['Total leídos', Number(summary.total || 0)],
+        ['Duplicados código', Number(summary.duplicateByCode || 0)],
+        ['Duplicados ID', Number(summary.duplicateByTaxId || 0)],
+        ['Duplicados ambos', Number(summary.duplicateByBoth || 0)],
+        ['Sin código/ID', Number(summary.skippedWithoutCode || 0) + Number(summary.skippedWithoutTaxId || 0)]
+    ];
+    sociosImportPopoverSummary.innerHTML = cards.map(([label, value]) => `
+        <div class="socios-import-diagnosis-card">
+            <span>${escapeHtml(label)}</span>
+            <strong>${escapeHtml(String(value))}</strong>
+        </div>
+    `).join('');
+}
 
-        await loadSocios(currentSearch);
-        setImportStatus(buildImportSummaryText(payload.summary || {}), false, false);
-    } catch (error) {
-        setImportStatus(error.message || 'No fue posible importar socios desde SAP.', true, false);
-    } finally {
-        importarSociosSapButton.disabled = false;
+async function runSociosImportDiagnosis() {
+    setSociosImportPopoverStatus('Consultando y diagnosticando socios en SAP...');
+    sociosImportPopoverSummary.innerHTML = '';
+    ejecutarSociosImportButton.disabled = true;
+
+    const response = await fetch('/api/socios/importar-sap/diagnostico', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+        throw new Error(payload.error || 'No fue posible diagnosticar socios desde SAP.');
     }
+
+    sociosImportDiagnosis = payload.summary || {};
+    renderSociosImportDiagnosis(sociosImportDiagnosis);
+    const importable = Number(sociosImportDiagnosis.importable || 0);
+    if (sociosImportLimitInput) {
+        sociosImportLimitInput.max = String(Math.max(importable, 1));
+        sociosImportLimitInput.value = importable ? String(importable) : '';
+    }
+    ejecutarSociosImportButton.disabled = importable <= 0;
+    setSociosImportPopoverStatus(importable > 0 ? 'Diagnóstico listo. Indica cuántos quieres importar.' : 'No hay socios nuevos disponibles para importar.', importable <= 0);
+}
+
+function openSociosImportPopover() {
+    if (!sociosImportPopover) return;
+    sociosImportPopover.hidden = false;
+    document.body.classList.add('popover-open');
+    sociosImportDiagnosis = null;
+    if (sociosImportLimitInput) {
+        sociosImportLimitInput.value = '';
+        sociosImportLimitInput.removeAttribute('max');
+    }
+    runSociosImportDiagnosis().catch((error) => {
+        setSociosImportPopoverStatus(error.message || 'No fue posible diagnosticar socios desde SAP.', true);
+    });
+}
+
+function closeSociosImportPopover() {
+    if (!sociosImportPopover) return;
+    sociosImportPopover.hidden = true;
+    document.body.classList.remove('popover-open');
+    sociosImportDiagnosis = null;
+    setSociosImportPopoverStatus('');
+}
+
+async function executeSociosImportFromPopover() {
+    const importable = Number(sociosImportDiagnosis?.importable || 0);
+    if (importable <= 0) {
+        throw new Error('No hay socios nuevos para importar.');
+    }
+
+    const requested = Number(sociosImportLimitInput?.value || importable);
+    const safeLimit = Math.min(importable, Math.max(1, Math.floor(requested || importable)));
+
+    ejecutarSociosImportButton.disabled = true;
+    setSociosImportPopoverStatus(`Importando ${safeLimit} socios desde SAP...`);
+    setImportStatus('Importando socios desde SAP...', false, true);
+
+    const response = await fetch('/api/socios/importar-sap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit: safeLimit })
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+        throw new Error(payload.error || 'No fue posible importar socios desde SAP.');
+    }
+
+    await loadSocios(currentSearch);
+    setSociosImportPopoverStatus(payload.message || `Importación completada. ${payload.summary?.inserted || 0} socios cargados.`);
+    setImportStatus(buildImportSummaryText(payload.summary || {}), false, false);
+    ejecutarSociosImportButton.disabled = false;
+}
+
+async function deleteSocio(partnerCode) {
+    const code = String(partnerCode || '').trim();
+    if (!code) return;
+    const confirmed = window.confirm(`Se eliminara el socio ${code}. Esta accion no se puede deshacer. Deseas continuar?`);
+    if (!confirmed) return;
+
+    const response = await fetch(`${SOCIOS_ENDPOINT}/${encodeURIComponent(code)}`, { method: 'DELETE' });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        throw new Error(payload.error || 'No fue posible eliminar el socio.');
+    }
+    await loadSocios(currentSearch);
+    setImportStatus(`Socio ${code} eliminado correctamente.`, false, false);
 }
 
 sociosSearchInput?.addEventListener('input', () => {
@@ -261,6 +422,15 @@ sociosSearchInput?.addEventListener('input', () => {
 });
 
 sociosTableBody?.addEventListener('click', (event) => {
+    const deleteButton = event.target.closest('[data-delete-socio]');
+    if (deleteButton) {
+        event.preventDefault();
+        event.stopPropagation();
+        deleteSocio(deleteButton.dataset.deleteSocio || '').catch((error) => {
+            setImportStatus(error.message || 'No fue posible eliminar el socio.', true, false);
+        });
+        return;
+    }
     const button = event.target.closest('[data-open-socio]');
     if (!button) return;
     event.preventDefault();
@@ -269,11 +439,7 @@ sociosTableBody?.addEventListener('click', (event) => {
 });
 
 nuevoSocioButton?.addEventListener('click', openCreatePopover);
-importarSociosSapButton?.addEventListener('click', () => {
-    importSociosFromSap().catch((error) => {
-        setImportStatus(error.message || 'No fue posible importar socios desde SAP.', true, false);
-    });
-});
+importarSociosSapButton?.addEventListener('click', openSociosImportPopover);
 refreshSociosButton?.addEventListener('click', () => {
     loadSocios(currentSearch).catch((error) => {
         sociosTableBody.innerHTML = `<tr><td colspan="7">${escapeHtml(error.message)}</td></tr>`;
@@ -281,14 +447,31 @@ refreshSociosButton?.addEventListener('click', () => {
 });
 cerrarNuevoSocioButton?.addEventListener('click', closeCreatePopover);
 cancelarNuevoSocioButton?.addEventListener('click', closeCreatePopover);
+cerrarSociosImportPopoverButton?.addEventListener('click', closeSociosImportPopover);
+cancelarSociosImportPopoverButton?.addEventListener('click', closeSociosImportPopover);
+ejecutarSociosImportButton?.addEventListener('click', () => {
+    executeSociosImportFromPopover().catch((error) => {
+        ejecutarSociosImportButton.disabled = false;
+        setSociosImportPopoverStatus(error.message || 'No fue posible importar socios desde SAP.', true);
+        setImportStatus(error.message || 'No fue posible importar socios desde SAP.', true, false);
+    });
+});
 nuevoSocioPopover?.addEventListener('click', (event) => {
     if (event.target.closest('[data-close-popover="true"]')) {
         closeCreatePopover();
     }
 });
+sociosImportPopover?.addEventListener('click', (event) => {
+    if (event.target.closest('[data-close-import-popover="true"]')) {
+        closeSociosImportPopover();
+    }
+});
 window.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && nuevoSocioPopover && !nuevoSocioPopover.hidden) {
         closeCreatePopover();
+    }
+    if (event.key === 'Escape' && sociosImportPopover && !sociosImportPopover.hidden) {
+        closeSociosImportPopover();
     }
 });
 nuevoSocioForm?.addEventListener('submit', createSocio);
@@ -297,6 +480,9 @@ document.addEventListener('visibilitychange', () => {
         loadSocios(currentSearch).catch(() => {});
     }
 });
+
+sociosTableWrap?.addEventListener('scroll', updateSociosScrollBottomIndicator, { passive: true });
+window.addEventListener('resize', updateSociosScrollBottomIndicator);
 
 async function init() {
     try {

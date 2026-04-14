@@ -7,9 +7,10 @@ const fs = require('fs');
 const { pathToFileURL } = require('url');
 const XLSX = require('xlsx');
 const { query: pgQuery, withTransaction } = require('./db/postgres');
-const { ensureInventorySchema, listInventory, getTroquelByCode, saveInventory, importInventory, exportInventoryWorkbook } = require('./inventory-service');
+const { ensureInventorySchema, listInventory, getTroquelByCode, saveInventory, deleteInventory, importInventory, exportInventoryWorkbook } = require('./inventory-service');
 const { calculateProcessQuote } = require('./process-quote-service');
 const { ensureSapSchema, registerSapRoutes, startSapScheduler, fetchSapBusinessPartnersForImport, fetchSapItemsForImport } = require('./integrations/sap-service-layer');
+const { ensureExchangeRateSchema, registerExchangeRateRoutes, startExchangeRateScheduler, buildProformaExchangeContext } = require('./integrations/exchange-rate-service');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -595,34 +596,34 @@ if (fs.existsSync(ERP_IMPRESION_PUBLIC_DIR)) {
     app.use('/erp-impresion-assets', express.static(ERP_IMPRESION_PUBLIC_DIR));
 }
 ensureGeneralConfig();
-ensureInventorySchema().catch((error) => {
-    console.error('No fue posible preparar el esquema de inventarios:', error.message);
-});
-ensureProductionSchema().catch((error) => {
-    console.error('No fue posible preparar el esquema de órdenes de producción:', error.message);
-});
-ensureAttachmentsSchema().catch((error) => {
-    console.error('No fue posible preparar el esquema de adjuntos:', error.message);
-});
-ensureNotificationsSchema().catch((error) => {
-    console.error('No fue posible preparar el esquema de notificaciones:', error.message);
-});
-ensureAuditSchema().catch((error) => {
-    console.error('No fue posible preparar el esquema de auditoría:', error.message);
-});
-ensurePlanningSchema().catch((error) => {
-    console.error('No fue posible preparar el esquema de planificación:', error.message);
-});
-ensureSapSchema(pgQuery).catch((error) => {
-    console.error('No fue posible preparar el esquema de SAP Service Layer:', error.message);
-});
-ensureAdminPermissionsSchema()
-    .then(() => ensureAdminUsersSchema())
-    .then(() => ensureQuoteProformasSchema())
-    .then(() => ensureSecuritySeed())
-    .catch((error) => {
-        console.error('No fue posible preparar el esquema de seguridad administrativa:', error.message);
+
+async function runStartupSchemaStep(label, action) {
+    try {
+        await action();
+    } catch (error) {
+        console.error(`${label}:`, error.message);
+    }
+}
+
+async function initializeStartupSchemas() {
+    await runStartupSchemaStep('No fue posible preparar el esquema de inventarios', () => ensureInventorySchema());
+    await runStartupSchemaStep('No fue posible preparar el esquema de órdenes de producción', () => ensureProductionSchema());
+    await runStartupSchemaStep('No fue posible preparar el esquema de adjuntos', () => ensureAttachmentsSchema());
+    await runStartupSchemaStep('No fue posible preparar el esquema de notificaciones', () => ensureNotificationsSchema());
+    await runStartupSchemaStep('No fue posible preparar el esquema de auditoría', () => ensureAuditSchema());
+    await runStartupSchemaStep('No fue posible preparar el esquema de planificación', () => ensurePlanningSchema());
+    await runStartupSchemaStep('No fue posible preparar el esquema de SAP Service Layer', () => ensureSapSchema(pgQuery));
+    await runStartupSchemaStep('No fue posible preparar el esquema de seguridad administrativa', async () => {
+        await ensureAdminPermissionsSchema();
+        await ensureAdminUsersSchema();
+        await ensureQuoteProformasSchema();
+        await ensureSecuritySeed();
     });
+}
+
+initializeStartupSchemas().catch((error) => {
+    console.error('No fue posible completar la inicialización de esquemas:', error.message);
+});
 
 let erpImpresionHelpersPromise = null;
 
@@ -1083,67 +1084,94 @@ function buildSapPartnerImportPayload(row = {}) {
     };
 }
 
-async function importSociosFromSap() {
+async function diagnoseSociosImportFromSap() {
     const sapResponse = await fetchSapBusinessPartnersForImport(pgQuery, { top: 500, type: 'C' });
     const sapRows = Array.isArray(sapResponse?.value) ? sapResponse.value : [];
 
-    return withTransaction(async (client) => {
-        const existingResult = await client.query(
-            `SELECT partner_code, tax_id
-               FROM business_partners`
-        );
+    const existingResult = await pgQuery(
+        `SELECT partner_code, tax_id
+           FROM business_partners`
+    );
 
-        const existingCodes = new Set();
-        const existingTaxIds = new Set();
-        for (const row of existingResult.rows) {
-            const code = normalizePartnerCode(row.partner_code);
-            const taxId = normalizeFiscalId(row.tax_id);
-            if (code) existingCodes.add(code);
-            if (taxId) existingTaxIds.add(taxId);
+    const existingCodes = new Set();
+    const existingTaxIds = new Set();
+    for (const row of existingResult.rows) {
+        const code = normalizePartnerCode(row.partner_code);
+        const taxId = normalizeFiscalId(row.tax_id);
+        if (code) existingCodes.add(code);
+        if (taxId) existingTaxIds.add(taxId);
+    }
+
+    const summary = {
+        source: sapResponse?.source || 'sap',
+        total: sapRows.length,
+        importable: 0,
+        duplicateByCode: 0,
+        duplicateByTaxId: 0,
+        duplicateByBoth: 0,
+        skippedWithoutCode: 0,
+        skippedWithoutTaxId: 0
+    };
+
+    const importablePartners = [];
+
+    for (const row of sapRows) {
+        const partner = buildSapPartnerImportPayload(row);
+        const normalizedCode = normalizePartnerCode(partner.partnerCode);
+        const normalizedTaxId = normalizeFiscalId(partner.taxId);
+
+        if (!normalizedCode) {
+            summary.skippedWithoutCode += 1;
+            continue;
         }
 
+        if (!normalizedTaxId) {
+            summary.skippedWithoutTaxId += 1;
+            continue;
+        }
+
+        const duplicateCode = existingCodes.has(normalizedCode);
+        const duplicateTaxId = existingTaxIds.has(normalizedTaxId);
+
+        if (duplicateCode && duplicateTaxId) {
+            summary.duplicateByBoth += 1;
+            continue;
+        }
+        if (duplicateCode) {
+            summary.duplicateByCode += 1;
+            continue;
+        }
+        if (duplicateTaxId) {
+            summary.duplicateByTaxId += 1;
+            continue;
+        }
+
+        importablePartners.push(partner);
+        existingCodes.add(normalizedCode);
+        existingTaxIds.add(normalizedTaxId);
+        summary.importable += 1;
+    }
+
+    return { summary, importablePartners };
+}
+
+async function importSociosFromSap(options = {}) {
+    const diagnosis = await diagnoseSociosImportFromSap();
+    const limitValue = Number(options.limit);
+    const requestedLimit = Number.isFinite(limitValue) && limitValue > 0 ? Math.max(1, Math.floor(limitValue)) : null;
+    const importablePartners = requestedLimit
+        ? diagnosis.importablePartners.slice(0, requestedLimit)
+        : diagnosis.importablePartners;
+
+    return withTransaction(async (client) => {
         const summary = {
-            source: sapResponse?.source || 'sap',
-            total: sapRows.length,
-            inserted: 0,
-            duplicateByCode: 0,
-            duplicateByTaxId: 0,
-            duplicateByBoth: 0,
-            skippedWithoutCode: 0,
-            skippedWithoutTaxId: 0
+            ...diagnosis.summary,
+            requestedLimit,
+            selectedForImport: importablePartners.length,
+            inserted: 0
         };
 
-        for (const row of sapRows) {
-            const partner = buildSapPartnerImportPayload(row);
-            const normalizedCode = normalizePartnerCode(partner.partnerCode);
-            const normalizedTaxId = normalizeFiscalId(partner.taxId);
-
-            if (!normalizedCode) {
-                summary.skippedWithoutCode += 1;
-                continue;
-            }
-
-            if (!normalizedTaxId) {
-                summary.skippedWithoutTaxId += 1;
-                continue;
-            }
-
-            const duplicateCode = existingCodes.has(normalizedCode);
-            const duplicateTaxId = existingTaxIds.has(normalizedTaxId);
-
-            if (duplicateCode && duplicateTaxId) {
-                summary.duplicateByBoth += 1;
-                continue;
-            }
-            if (duplicateCode) {
-                summary.duplicateByCode += 1;
-                continue;
-            }
-            if (duplicateTaxId) {
-                summary.duplicateByTaxId += 1;
-                continue;
-            }
-
+        for (const partner of importablePartners) {
             const contactNameParts = splitContactName(partner.contactName || partner.partnerName);
 
             await client.query(
@@ -1175,7 +1203,7 @@ async function importSociosFromSap() {
                     partner.email,
                     sanitizePartnerCodePrefix(partner.currencyCode).slice(0, 10) || 'USD',
                     partner.paymentTerms,
-                    String(row.CardType || '').trim() === 'S' ? 'PR' : 'CL',
+                    String(partner.rawData?.sap?.CardType || '').trim() === 'S' ? 'PR' : 'CL',
                     JSON.stringify(partner.rawData)
                 ]
             );
@@ -1247,9 +1275,6 @@ async function importSociosFromSap() {
                     ]
                 );
             }
-
-            existingCodes.add(normalizedCode);
-            existingTaxIds.add(normalizedTaxId);
             summary.inserted += 1;
         }
 
@@ -1257,18 +1282,60 @@ async function importSociosFromSap() {
     });
 }
 
-async function importMaterialesFromSap() {
+async function diagnoseMaterialesImportFromSap() {
     const sapResponse = await fetchSapItemsForImport(pgQuery, { top: 1000 });
     const sapRows = Array.isArray(sapResponse?.value) ? sapResponse.value : [];
 
-    return withTransaction(async (client) => {
-        const existingResult = await client.query(`SELECT codigo FROM material`);
-        const existingCodes = new Set(
-            existingResult.rows
-                .map((row) => normalizeInventoryCode(row.codigo))
-                .filter(Boolean)
-        );
+    const existingResult = await pgQuery(`SELECT codigo FROM material`);
+    const existingCodes = new Set(
+        existingResult.rows
+            .map((row) => normalizeInventoryCode(row.codigo))
+            .filter(Boolean)
+    );
 
+    const summary = {
+        source: sapResponse?.source || 'sap',
+        total: sapRows.length,
+        importable: 0,
+        duplicateByCode: 0,
+        skippedWithoutCode: 0,
+        skippedWithoutName: 0
+    };
+
+    const importableMaterials = [];
+
+    for (const row of sapRows) {
+        const material = buildSapMaterialImportPayload(row);
+        if (!material.codigo) {
+            summary.skippedWithoutCode += 1;
+            continue;
+        }
+        if (!material.nombre) {
+            summary.skippedWithoutName += 1;
+            continue;
+        }
+        if (existingCodes.has(material.codigo)) {
+            summary.duplicateByCode += 1;
+            continue;
+        }
+
+        importableMaterials.push(material);
+        existingCodes.add(material.codigo);
+        summary.importable += 1;
+    }
+
+    return { summary, importableMaterials };
+}
+
+async function importMaterialesFromSap(options = {}) {
+    const diagnosis = await diagnoseMaterialesImportFromSap();
+    const limitValue = Number(options.limit);
+    const requestedLimit = Number.isFinite(limitValue) && limitValue > 0 ? Math.max(1, Math.floor(limitValue)) : null;
+    const importableMaterials = requestedLimit
+        ? diagnosis.importableMaterials.slice(0, requestedLimit)
+        : diagnosis.importableMaterials;
+
+    return withTransaction(async (client) => {
         const tenantResult = await client.query(
             `SELECT id::text
                FROM tenant
@@ -1282,29 +1349,13 @@ async function importMaterialesFromSap() {
         }
 
         const summary = {
-            source: sapResponse?.source || 'sap',
-            total: sapRows.length,
-            inserted: 0,
-            duplicateByCode: 0,
-            skippedWithoutCode: 0,
-            skippedWithoutName: 0
+            ...diagnosis.summary,
+            requestedLimit,
+            selectedForImport: importableMaterials.length,
+            inserted: 0
         };
 
-        for (const row of sapRows) {
-            const material = buildSapMaterialImportPayload(row);
-            if (!material.codigo) {
-                summary.skippedWithoutCode += 1;
-                continue;
-            }
-            if (!material.nombre) {
-                summary.skippedWithoutName += 1;
-                continue;
-            }
-            if (existingCodes.has(material.codigo)) {
-                summary.duplicateByCode += 1;
-                continue;
-            }
-
+        for (const material of importableMaterials) {
             await client.query(
                 `INSERT INTO material (
                     tenant_id, codigo, nombre, ancho_mm, largo_mm, gramaje_g_m2, calibre_micras, costo_x_lamina, costo_x_msi,
@@ -1359,8 +1410,6 @@ async function importMaterialesFromSap() {
                     material.activo
                 ]
             );
-
-            existingCodes.add(material.codigo);
             summary.inserted += 1;
         }
 
@@ -2443,6 +2492,26 @@ function pickFirstValue(...values) {
     return '';
 }
 
+function pickFirstMeaningfulNumber(...values) {
+    let firstNumeric = null;
+    for (const value of values) {
+        if (value === null || typeof value === 'undefined' || Number.isNaN(value)) {
+            continue;
+        }
+        const numericValue = Number(value);
+        if (!Number.isFinite(numericValue)) {
+            continue;
+        }
+        if (firstNumeric === null) {
+            firstNumeric = numericValue;
+        }
+        if (numericValue !== 0) {
+            return numericValue;
+        }
+    }
+    return firstNumeric;
+}
+
 function buildSyntheticAddressFromPartner(partner) {
     const raw = partner?.raw_data?.socio || {};
     const line = pickFirstValue(raw.STREET, raw['Cliente | Direccion']);
@@ -2513,6 +2582,7 @@ function mapCalculationLine(row) {
           material_name: pickFirstValue(raw['GENERAL | MATERIAL'], raw.Material, row.material_code),
           finalized_for_order: Boolean(row.finalized_for_order ?? raw['CODEX_FINALIZED_FOR_ORDER']),
           status: pickFirstValue(raw['SOLICITUD ESTADO'], raw['ESTADO LINEA'], 'Cotizada'),
+        quantity: parseLegacyNumber(row.quantity),
         subtotal_1: subtotal1,
         subtotal_2: null,
         subtotal_3: null,
@@ -2523,6 +2593,7 @@ function mapCalculationLine(row) {
         process_type: row.process_type || pickFirstValue(raw['Proceso Productivo']),
         product_code: row.product_code,
         machine_name: pickFirstValue(row.machine_name, raw['DIGITAL | MAQUINA'], raw['CONV | MAQUINA']),
+        unit_price: parseLegacyNumber(row.unit_price),
         raw_data: raw
     };
 }
@@ -2665,7 +2736,41 @@ function normalizeProformaStatus(value) {
 
 function normalizeProformaPriceDisplayMode(value) {
     const normalized = String(value || '').trim();
-    return ['unit', 'thousand', 'both', 'product_totals', 'global_totals'].includes(normalized) ? normalized : 'both';
+    const aliases = {
+        both: 'totalized_unit',
+        unit: 'regular_unit',
+        thousand: 'regular_thousand',
+        product_totals: 'totalized_simple',
+        global_totals: 'totalized_simple',
+        totalized_unit: 'totalized_simple',
+        totalized_thousand: 'totalized_simple'
+    };
+    const resolved = aliases[normalized] || normalized;
+    return [
+        'regular_simple',
+        'regular_unit',
+        'regular_thousand',
+        'totalized_simple'
+    ].includes(resolved) ? resolved : 'regular_unit';
+}
+
+function getProformaPricePresentation(mode) {
+    return String(mode || '').startsWith('totalized_') ? 'totalized' : 'regular';
+}
+
+function getProformaPriceDetail(mode) {
+    if (String(mode || '').endsWith('_unit')) return 'unit';
+    if (String(mode || '').endsWith('_thousand')) return 'thousand';
+    return 'simple';
+}
+
+function buildProformaPriceDisplayOptions() {
+    return [
+        { value: 'regular_simple', label: 'Regular' },
+        { value: 'regular_unit', label: 'Regular Con Precio Unitario' },
+        { value: 'regular_thousand', label: 'Regular Con Precio Millar' },
+        { value: 'totalized_simple', label: 'Totalizado' }
+    ];
 }
 
 function normalizeProformaHeaderColor(value, fallback = '#203852') {
@@ -2673,11 +2778,19 @@ function normalizeProformaHeaderColor(value, fallback = '#203852') {
     return /^#([0-9a-fA-F]{6})$/.test(normalized) ? normalized : fallback;
 }
 
-function getProformaConfigSnapshot(config = {}) {
+async function getProformaConfigSnapshot(config = {}) {
     const general = config.general || {};
-    const currencies = normalizeProformaCurrencyList(general.proformaCurrenciesJson);
-    const defaultCurrency = String(general.proformaDefaultCurrency || currencies[0]?.code || 'CRC').trim().toUpperCase();
-    const selectedCurrency = currencies.find((item) => item.code === defaultCurrency) || currencies[0] || { code: 'CRC', label: 'Colones', symbol: '₡', exchangeRate: 1 };
+    const exchangeContext = await buildProformaExchangeContext(pgQuery, general);
+    const currencies = exchangeContext.currencies?.length
+        ? exchangeContext.currencies
+        : normalizeProformaCurrencyList(general.proformaCurrenciesJson);
+    const defaultCurrency = String(
+        exchangeContext.defaultCurrency
+        || general.proformaDefaultCurrency
+        || currencies[0]?.code
+        || 'CRC'
+    ).trim().toUpperCase();
+    const selectedCurrency = currencies.find((item) => item.code === defaultCurrency) || exchangeContext.defaultCurrencyMeta || currencies[0] || { code: 'CRC', label: 'Colones', symbol: '₡', exchangeRate: 1 };
     return {
         logoUrl: String(general.proformaLogoUrl || '').trim(),
         companyName: String(general.proformaCompanyName || '').trim(),
@@ -2702,6 +2815,8 @@ function getProformaConfigSnapshot(config = {}) {
         currencies,
         defaultCurrency: defaultCurrency || selectedCurrency.code,
         defaultCurrencyMeta: selectedCurrency,
+        baseCurrency: exchangeContext.baseCurrency || 'USD',
+        exchangeRateDate: exchangeContext.rateDate || null,
         defaultValidity: String(general.proformaDefaultValidity || '').trim(),
         intro: String(general.proformaIntro || '').trim(),
         introStyle: {
@@ -2721,17 +2836,44 @@ function getProformaConfigSnapshot(config = {}) {
 
 function buildProformaProductSummary(line = {}, currency = {}, displayMode = 'both') {
     const raw = line.raw_data || {};
-    const quantity = parseLegacyNumber(raw['CANTIDAD SOLICITADA']) ?? parseLegacyNumber(raw.CANTIDAD) ?? parseLegacyNumber(raw['Cantidad']) ?? null;
+    const quantity = parseLegacyNumber(line.quantity)
+        ?? parseLegacyNumber(raw['CANTIDAD SOLICITADA'])
+        ?? parseLegacyNumber(raw.CANTIDAD)
+        ?? parseLegacyNumber(raw['Cantidad'])
+        ?? null;
     const width = parseLegacyNumber(raw['DIMENSIONES ETIQUETA | ANCHO']) ?? null;
     const length = parseLegacyNumber(raw['DIMENSIONES ETIQUETA | LARGO']) ?? null;
-    const unitPriceUsd = pickFirstValue(
+    const unitPriceUsd = pickFirstMeaningfulNumber(
         parseLegacyNumber(raw['PRECIO UNITARIO']),
+        parseLegacyNumber(raw['GENERAL | 9 | UNITARIO | DOL']),
         parseLegacyNumber(raw['GENERAL | 9 | PRECIO UNITARIO']),
         parseLegacyNumber(raw['PRECIO UNITARIO FINAL']),
+        parseLegacyNumber(line.unit_price),
         quantity && Number(line.subtotal_1) ? Number(line.subtotal_1) / quantity : null
     );
     const thousandPriceUsd = unitPriceUsd != null ? unitPriceUsd * 1000 : null;
-    const totalUsd = Number(line.subtotal_1 || 0) || 0;
+    const taxPercent = parseLegacyNumber(raw['GENERAL | 8 | PORCENTAJE IVA']) ?? 0;
+    const rawTaxUsd = parseLegacyNumber(raw['GENERAL | 9 | Impuestos']);
+    const totalUsd = pickFirstMeaningfulNumber(
+        parseLegacyNumber(raw['PRECIO TOTAL AL FINALIZAR']),
+        parseLegacyNumber(raw['GENERAL | 9 | TOTAL | DOL']),
+        parseLegacyNumber(raw['GENERAL | 7 | TOTAL | DOL']),
+        Number(line.subtotal_1 || 0) || 0
+    ) || 0;
+    let subtotalUsd = pickFirstMeaningfulNumber(
+        parseLegacyNumber(raw['GENERAL | 7 | SUBTOTAL CALC ANTES IV | DOL']),
+        parseLegacyNumber(raw['GENERAL | 5 | SUBTOTAL'])
+    );
+    let taxUsd = rawTaxUsd;
+    if (subtotalUsd == null && taxUsd != null) {
+        subtotalUsd = totalUsd - taxUsd;
+    }
+    if (subtotalUsd == null) {
+        subtotalUsd = totalUsd;
+    }
+    if (taxUsd == null) {
+        taxUsd = taxPercent > 0 ? subtotalUsd * (taxPercent / 100) : Math.max(totalUsd - subtotalUsd, 0);
+    }
     const exchangeRate = Number(currency?.exchangeRate || 1) || 1;
     return {
         lineCode: line.line_code,
@@ -2742,6 +2884,8 @@ function buildProformaProductSummary(line = {}, currency = {}, displayMode = 'bo
         quantity,
         unitPrice: unitPriceUsd != null ? roundCurrency(unitPriceUsd * exchangeRate) : null,
         thousandPrice: thousandPriceUsd != null ? roundCurrency(thousandPriceUsd * exchangeRate) : null,
+        subtotal: roundCurrency(subtotalUsd * exchangeRate),
+        taxAmount: roundCurrency(taxUsd * exchangeRate),
         totalPrice: roundCurrency(totalUsd * exchangeRate),
         currencyCode: currency?.code || 'CRC',
         currencySymbol: currency?.symbol || '',
@@ -2781,7 +2925,7 @@ async function closeQuoteProforma(quoteCode, reason = 'manual', client = null) {
 async function buildQuoteProformaPayload(quoteCode, client = null) {
     const executor = client || { query: pgQuery };
     const config = await loadGeneralConfig();
-    const configSnapshot = getProformaConfigSnapshot(config);
+    const configSnapshot = await getProformaConfigSnapshot(config);
     const quoteContext = client
         ? await getQuoteLineContext(quoteCode, '__header_only__', client)
         : await getQuoteLineContext(quoteCode, '__header_only__');
@@ -2829,7 +2973,10 @@ async function buildQuoteProformaPayload(quoteCode, client = null) {
         sellerSignatureUrl = sanitizeAdminUserText(signatureResult.rows[0]?.signature_url);
     }
     const issueDate = existing?.issue_date_fixed ? new Date(existing.issue_date_fixed) : new Date();
-    const products = lines.map((line) => buildProformaProductSummary(line, currency, rawData.priceDisplayMode || configSnapshot.priceDisplayMode));
+    const selectedPriceDisplayMode = normalizeProformaPriceDisplayMode(rawData.priceDisplayMode || configSnapshot.priceDisplayMode);
+    const products = lines.map((line) => buildProformaProductSummary(line, currency, selectedPriceDisplayMode));
+    const subtotalSummary = roundCurrency(products.reduce((acc, item) => acc + Number(item.subtotal || 0), 0));
+    const taxSummary = roundCurrency(products.reduce((acc, item) => acc + Number(item.taxAmount || 0), 0));
     const grandTotal = roundCurrency(products.reduce((acc, item) => acc + Number(item.totalPrice || 0), 0));
     return {
         quoteCode,
@@ -2874,7 +3021,9 @@ async function buildQuoteProformaPayload(quoteCode, client = null) {
         },
         currencies: configSnapshot.currencies,
         validity: pickFirstValue(rawData.validity, configSnapshot.defaultValidity),
-        priceDisplayMode: normalizeProformaPriceDisplayMode(rawData.priceDisplayMode || configSnapshot.priceDisplayMode),
+        priceDisplayMode: selectedPriceDisplayMode,
+        pricePresentation: getProformaPricePresentation(selectedPriceDisplayMode),
+        priceDetailMode: getProformaPriceDetail(selectedPriceDisplayMode),
         intro: pickFirstValue(rawData.intro, configSnapshot.intro),
         introStyle: rawData.introStyle || configSnapshot.introStyle,
         termsConditions: pickFirstValue(rawData.termsConditions, configSnapshot.termsConditions),
@@ -2883,15 +3032,11 @@ async function buildQuoteProformaPayload(quoteCode, client = null) {
         technicalSpecs: pickFirstValue(rawData.technicalSpecs, configSnapshot.technicalSpecs),
         qualityPolicies: pickFirstValue(rawData.qualityPolicies, configSnapshot.qualityPolicies),
         sellerSignatureEnabled: configSnapshot.sellerSignatureEnabled,
-        priceDisplayModeOptions: [
-            { value: 'unit', label: 'Mostrar precio unitario' },
-            { value: 'thousand', label: 'Mostrar precio por millar' },
-            { value: 'both', label: 'Mostrar ambos' },
-            { value: 'product_totals', label: 'Mostrar únicamente totales por producto' },
-            { value: 'global_totals', label: 'Mostrar totales globales' }
-        ],
+        priceDisplayModeOptions: buildProformaPriceDisplayOptions(),
         products,
         totals: {
+            subtotal: subtotalSummary,
+            taxAmount: taxSummary,
             grandTotal,
             currencyCode: currency.code,
             currencySymbol: currency.symbol
@@ -4464,7 +4609,7 @@ app.post('/api/socios', async (req, res) => {
 
 app.post('/api/socios/importar-sap', async (req, res) => {
     try {
-        const summary = await importSociosFromSap();
+        const summary = await importSociosFromSap({ limit: req.body?.limit });
         res.json({
             ok: true,
             summary,
@@ -4475,6 +4620,375 @@ app.post('/api/socios/importar-sap', async (req, res) => {
             ok: false,
             error: error.message || 'No fue posible importar socios desde SAP.'
         });
+    }
+});
+
+app.post('/api/socios/importar-sap/diagnostico', async (req, res) => {
+    try {
+        const diagnosis = await diagnoseSociosImportFromSap();
+        res.json({ ok: true, summary: diagnosis.summary });
+    } catch (error) {
+        res.status(400).json({
+            ok: false,
+            error: error.message || 'No fue posible diagnosticar la importación de socios desde SAP.'
+        });
+    }
+});
+
+app.delete('/api/socios/:codigo', async (req, res) => {
+    try {
+        const codigo = String(req.params.codigo || '').trim();
+        if (!codigo) {
+            return res.status(400).json({ error: 'Codigo de socio invalido.' });
+        }
+
+        const deleted = await withTransaction(async (client) => {
+            const existing = await client.query(
+                `SELECT partner_code, partner_name
+                 FROM business_partners
+                 WHERE partner_code = $1
+                 LIMIT 1`,
+                [codigo]
+            );
+            if (!existing.rows.length) {
+                return null;
+            }
+
+            await client.query(`DELETE FROM business_partner_contacts WHERE partner_code = $1`, [codigo]);
+            await client.query(`DELETE FROM business_partner_addresses WHERE partner_code = $1`, [codigo]);
+            await client.query(`DELETE FROM business_partners WHERE partner_code = $1`, [codigo]);
+
+            return existing.rows[0];
+        });
+
+        if (!deleted) {
+            return res.status(404).json({ error: 'Socio no encontrado.' });
+        }
+
+        res.json({
+            ok: true,
+            socio: deleted,
+            message: `Socio ${deleted.partner_code} eliminado correctamente.`
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible eliminar el socio.' });
+    }
+});
+
+app.post('/api/socios/prune', async (req, res) => {
+    try {
+        const keepCount = Math.max(1, Math.min(Number(req.body?.keepCount) || 0, 500));
+        if (!Number.isFinite(keepCount) || keepCount <= 0) {
+            return res.status(400).json({ error: 'Debes indicar cuántos socios deseas conservar.' });
+        }
+
+        const summary = await withTransaction(async (client) => {
+            const totalResult = await client.query(`SELECT COUNT(*)::int AS total FROM business_partners`);
+            const totalBefore = Number(totalResult.rows[0]?.total || 0);
+
+            const keepResult = await client.query(
+                `SELECT partner_code, partner_name
+                   FROM business_partners
+                  ORDER BY partner_name NULLS LAST, partner_code NULLS LAST
+                  LIMIT $1`,
+                [keepCount]
+            );
+            const keepRows = keepResult.rows || [];
+            const keepCodes = keepRows.map((row) => row.partner_code).filter(Boolean);
+
+            if (!keepCodes.length && totalBefore > 0) {
+                throw new Error('No fue posible determinar los socios a conservar.');
+            }
+
+            let deletedContacts = 0;
+            let deletedAddresses = 0;
+            let deletedPartners = 0;
+
+            if (totalBefore > keepCodes.length) {
+                const contactDelete = await client.query(
+                    `DELETE FROM business_partner_contacts
+                      WHERE partner_code NOT IN (
+                        SELECT partner_code
+                          FROM business_partners
+                         ORDER BY partner_name NULLS LAST, partner_code NULLS LAST
+                         LIMIT $1
+                      )`,
+                    [keepCodes.length]
+                );
+                deletedContacts = Number(contactDelete.rowCount || 0);
+
+                const addressDelete = await client.query(
+                    `DELETE FROM business_partner_addresses
+                      WHERE partner_code NOT IN (
+                        SELECT partner_code
+                          FROM business_partners
+                         ORDER BY partner_name NULLS LAST, partner_code NULLS LAST
+                         LIMIT $1
+                      )`,
+                    [keepCodes.length]
+                );
+                deletedAddresses = Number(addressDelete.rowCount || 0);
+
+                const partnerDelete = await client.query(
+                    `DELETE FROM business_partners
+                      WHERE partner_code NOT IN (
+                        SELECT partner_code
+                          FROM business_partners
+                         ORDER BY partner_name NULLS LAST, partner_code NULLS LAST
+                         LIMIT $1
+                      )`,
+                    [keepCodes.length]
+                );
+                deletedPartners = Number(partnerDelete.rowCount || 0);
+            }
+
+            return {
+                ok: true,
+                totalBefore,
+                kept: keepRows.length,
+                deleted: deletedPartners,
+                deletedContacts,
+                deletedAddresses,
+                keepCountRequested: keepCount,
+                keptPartners: keepRows
+            };
+        });
+
+        res.json({
+            ...summary,
+            message: `Se conservaron ${summary.kept} socios y se eliminaron ${summary.deleted}.`
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible depurar los socios.' });
+    }
+});
+
+app.post('/api/testing/external-data-admin', async (req, res) => {
+    try {
+        const target = String(req.body?.target || '').trim().toLowerCase();
+        const mode = String(req.body?.mode || '').trim().toLowerCase();
+        const keepCount = Math.max(1, Math.min(Number(req.body?.keepCount) || 0, 5000));
+
+        if (!['socios', 'materiales'].includes(target)) {
+            return res.status(400).json({ error: 'Debes indicar si deseas administrar socios o materiales.' });
+        }
+
+        if (!['keep', 'delete_sap'].includes(mode)) {
+            return res.status(400).json({ error: 'Debes indicar una acción válida para la depuración.' });
+        }
+
+        if (mode === 'keep' && (!Number.isFinite(keepCount) || keepCount <= 0)) {
+            return res.status(400).json({ error: 'Debes indicar cuántos registros deseas conservar.' });
+        }
+
+        const summary = await withTransaction(async (client) => {
+            if (target === 'socios') {
+                if (mode === 'keep') {
+                    const totalResult = await client.query(`SELECT COUNT(*)::int AS total FROM business_partners`);
+                    const totalBefore = Number(totalResult.rows[0]?.total || 0);
+
+                    const keepResult = await client.query(
+                        `SELECT partner_code, partner_name
+                           FROM business_partners
+                          ORDER BY partner_name NULLS LAST, partner_code NULLS LAST
+                          LIMIT $1`,
+                        [keepCount]
+                    );
+                    const keepRows = keepResult.rows || [];
+                    const effectiveKeepCount = keepRows.length;
+
+                    if (!effectiveKeepCount && totalBefore > 0) {
+                        throw new Error('No fue posible determinar los socios a conservar.');
+                    }
+
+                    let deletedContacts = 0;
+                    let deletedAddresses = 0;
+                    let deletedRecords = 0;
+
+                    if (totalBefore > effectiveKeepCount) {
+                        const contactDelete = await client.query(
+                            `DELETE FROM business_partner_contacts
+                              WHERE partner_code NOT IN (
+                                SELECT partner_code
+                                  FROM business_partners
+                                 ORDER BY partner_name NULLS LAST, partner_code NULLS LAST
+                                 LIMIT $1
+                              )`,
+                            [effectiveKeepCount]
+                        );
+                        deletedContacts = Number(contactDelete.rowCount || 0);
+
+                        const addressDelete = await client.query(
+                            `DELETE FROM business_partner_addresses
+                              WHERE partner_code NOT IN (
+                                SELECT partner_code
+                                  FROM business_partners
+                                 ORDER BY partner_name NULLS LAST, partner_code NULLS LAST
+                                 LIMIT $1
+                              )`,
+                            [effectiveKeepCount]
+                        );
+                        deletedAddresses = Number(addressDelete.rowCount || 0);
+
+                        const partnerDelete = await client.query(
+                            `DELETE FROM business_partners
+                              WHERE partner_code NOT IN (
+                                SELECT partner_code
+                                  FROM business_partners
+                                 ORDER BY partner_name NULLS LAST, partner_code NULLS LAST
+                                 LIMIT $1
+                              )`,
+                            [effectiveKeepCount]
+                        );
+                        deletedRecords = Number(partnerDelete.rowCount || 0);
+                    }
+
+                    return {
+                        ok: true,
+                        target,
+                        mode,
+                        totalBefore,
+                        kept: effectiveKeepCount,
+                        deleted: deletedRecords,
+                        deletedContacts,
+                        deletedAddresses,
+                        message: `Se conservaron ${effectiveKeepCount} socios y se eliminaron ${deletedRecords}.`
+                    };
+                }
+
+                const importedPartners = await client.query(
+                    `SELECT partner_code
+                       FROM business_partners
+                      WHERE COALESCE(raw_data->>'source', '') = 'sap_service_layer'`
+                );
+                const importedCodes = importedPartners.rows.map((row) => row.partner_code).filter(Boolean);
+
+                if (!importedCodes.length) {
+                    return {
+                        ok: true,
+                        target,
+                        mode,
+                        totalBefore: 0,
+                        deleted: 0,
+                        deletedContacts: 0,
+                        deletedAddresses: 0,
+                        message: 'No se encontraron socios importados desde SAP para eliminar.'
+                    };
+                }
+
+                const contactDelete = await client.query(
+                    `DELETE FROM business_partner_contacts
+                      WHERE partner_code IN (
+                        SELECT partner_code
+                          FROM business_partners
+                         WHERE COALESCE(raw_data->>'source', '') = 'sap_service_layer'
+                      )`
+                );
+                const addressDelete = await client.query(
+                    `DELETE FROM business_partner_addresses
+                      WHERE partner_code IN (
+                        SELECT partner_code
+                          FROM business_partners
+                         WHERE COALESCE(raw_data->>'source', '') = 'sap_service_layer'
+                      )`
+                );
+                const partnerDelete = await client.query(
+                    `DELETE FROM business_partners
+                      WHERE COALESCE(raw_data->>'source', '') = 'sap_service_layer'`
+                );
+
+                return {
+                    ok: true,
+                    target,
+                    mode,
+                    totalBefore: importedCodes.length,
+                    deleted: Number(partnerDelete.rowCount || 0),
+                    deletedContacts: Number(contactDelete.rowCount || 0),
+                    deletedAddresses: Number(addressDelete.rowCount || 0),
+                    message: `Se eliminaron ${Number(partnerDelete.rowCount || 0)} socios importados desde SAP.`
+                };
+            }
+
+            if (mode === 'keep') {
+                const totalResult = await client.query(`SELECT COUNT(*)::int AS total FROM material`);
+                const totalBefore = Number(totalResult.rows[0]?.total || 0);
+
+                const keepResult = await client.query(
+                    `SELECT codigo, nombre
+                       FROM material
+                      ORDER BY nombre NULLS LAST, codigo NULLS LAST
+                      LIMIT $1`,
+                    [keepCount]
+                );
+                const keepRows = keepResult.rows || [];
+                const effectiveKeepCount = keepRows.length;
+
+                if (!effectiveKeepCount && totalBefore > 0) {
+                    throw new Error('No fue posible determinar los materiales a conservar.');
+                }
+
+                let deletedRecords = 0;
+                if (totalBefore > effectiveKeepCount) {
+                    const materialDelete = await client.query(
+                        `DELETE FROM material
+                          WHERE codigo NOT IN (
+                            SELECT codigo
+                              FROM material
+                             ORDER BY nombre NULLS LAST, codigo NULLS LAST
+                             LIMIT $1
+                          )`,
+                        [effectiveKeepCount]
+                    );
+                    deletedRecords = Number(materialDelete.rowCount || 0);
+                }
+
+                return {
+                    ok: true,
+                    target,
+                    mode,
+                    totalBefore,
+                    kept: effectiveKeepCount,
+                    deleted: deletedRecords,
+                    message: `Se conservaron ${effectiveKeepCount} materiales y se eliminaron ${deletedRecords}.`
+                };
+            }
+
+            const importedResult = await client.query(
+                `SELECT COUNT(*)::int AS total
+                   FROM material
+                  WHERE COALESCE(comentario_tipo_proforma, '') ILIKE '%Importado desde SAP%'`
+            );
+            const totalImported = Number(importedResult.rows[0]?.total || 0);
+
+            if (!totalImported) {
+                return {
+                    ok: true,
+                    target,
+                    mode,
+                    totalBefore: 0,
+                    deleted: 0,
+                    message: 'No se encontraron materiales importados desde SAP para eliminar.'
+                };
+            }
+
+            const materialDelete = await client.query(
+                `DELETE FROM material
+                  WHERE COALESCE(comentario_tipo_proforma, '') ILIKE '%Importado desde SAP%'`
+            );
+
+            return {
+                ok: true,
+                target,
+                mode,
+                totalBefore: totalImported,
+                deleted: Number(materialDelete.rowCount || 0),
+                message: `Se eliminaron ${Number(materialDelete.rowCount || 0)} materiales importados desde SAP.`
+            };
+        });
+
+        res.json(summary);
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible administrar los datos de conexiones externas.' });
     }
 });
 
@@ -4780,7 +5294,7 @@ app.patch('/api/proformas/:codigo', async (req, res) => {
             return res.status(409).json({ error: 'La proforma ya fue cerrada y no puede editarse.' });
         }
         const config = await loadGeneralConfig();
-        const configSnapshot = getProformaConfigSnapshot(config);
+        const configSnapshot = await getProformaConfigSnapshot(config);
         const currencies = configSnapshot.currencies;
         const currencyCode = String(req.body?.currencyCode || before.currency?.code || configSnapshot.defaultCurrency).trim().toUpperCase();
         const selectedCurrency = currencies.find((item) => item.code === currencyCode) || configSnapshot.defaultCurrencyMeta;
@@ -6142,6 +6656,58 @@ app.get('/api/ordenes-produccion/:codigo', async (req, res) => {
         res.json({ orden: result.rows[0] });
     } catch (error) {
         res.status(500).json({ error: error.message || 'No fue posible cargar la orden de producción.' });
+    }
+});
+
+app.patch('/api/ordenes-produccion/:codigo/details', async (req, res) => {
+    try {
+        const orderResult = await pgQuery(`SELECT * FROM flexo_orders WHERE order_code = $1 LIMIT 1`, [req.params.codigo]);
+        if (!orderResult.rows.length) {
+            return res.status(404).json({ error: 'Orden de producción no encontrada.' });
+        }
+
+        const payload = req.body || {};
+        const current = orderResult.rows[0];
+        const rawData = { ...(current.raw_data || {}) };
+        const lineSnapshot = { ...(rawData.line_snapshot || {}) };
+        const lineRaw = { ...(lineSnapshot.raw_data || {}) };
+
+        if (payload.samples && typeof payload.samples === 'object') {
+            lineRaw['MUESTRAS | TIPO'] = pickFirstValue(payload.samples.mode);
+            lineRaw['MUESTRAS | VISTO BUENO'] = pickFirstValue(payload.samples.approval);
+            lineRaw['MUESTRAS | CONTACTO'] = pickFirstValue(payload.samples.contact);
+            lineRaw['MUESTRAS | TELEFONO'] = pickFirstValue(payload.samples.phone);
+            lineRaw['MUESTRAS | EMAIL'] = pickFirstValue(payload.samples.email);
+            lineRaw['MUESTRAS | DIRECCION'] = pickFirstValue(payload.samples.address);
+            lineRaw['MUESTRAS | DETALLE'] = pickFirstValue(payload.samples.detail);
+        }
+
+        if (payload.delivery && typeof payload.delivery === 'object') {
+            lineRaw['ENTREGA | TIPO'] = pickFirstValue(payload.delivery.mode);
+            lineRaw['ENTREGA | CONTACTO'] = pickFirstValue(payload.delivery.contact);
+            lineRaw['ENTREGA | DETALLE'] = pickFirstValue(payload.delivery.detail);
+        }
+
+        if (payload.art && typeof payload.art === 'object') {
+            lineRaw['COMENTARIOS VENDEDOR'] = pickFirstValue(payload.art.comments);
+            lineRaw['ORDEN DE ARTE'] = pickFirstValue(payload.art.artworkNumber);
+            lineRaw['ARTE EN PODER DE'] = pickFirstValue(payload.art.artworkHolder);
+        }
+
+        lineSnapshot.raw_data = lineRaw;
+        rawData.line_snapshot = lineSnapshot;
+
+        await pgQuery(
+            `UPDATE flexo_orders
+                SET raw_data = $2::jsonb
+              WHERE order_code = $1`,
+            [req.params.codigo, JSON.stringify(rawData)]
+        );
+
+        const updated = await pgQuery(`SELECT * FROM flexo_orders WHERE order_code = $1 LIMIT 1`, [req.params.codigo]);
+        res.json({ ok: true, orden: updated.rows[0] });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible actualizar los datos de la orden.' });
     }
 });
 
@@ -7722,6 +8288,15 @@ app.post('/api/inventario/:kind', async (req, res) => {
     }
 });
 
+app.delete('/api/inventario/:kind/:id', async (req, res) => {
+    try {
+        const deleted = await deleteInventory(req.params.kind, req.params.id);
+        res.json({ ok: true, deleted });
+    } catch (error) {
+        res.status(400).json({ error: error.message || 'No fue posible eliminar el registro.' });
+    }
+});
+
 app.post('/api/inventario/:kind/import', async (req, res) => {
     try {
         const base64 = String(req.body?.contentBase64 || '').trim();
@@ -8056,7 +8631,7 @@ app.get('/vendedores', (req, res) => {
 
 app.post('/api/inventario/materiales/importar-sap', async (req, res) => {
     try {
-        const summary = await importMaterialesFromSap();
+        const summary = await importMaterialesFromSap({ limit: req.body?.limit });
         res.json({
             ok: true,
             summary,
@@ -8064,6 +8639,15 @@ app.post('/api/inventario/materiales/importar-sap', async (req, res) => {
         });
     } catch (error) {
         res.status(400).json({ error: error.message || 'No fue posible importar materiales desde SAP.' });
+    }
+});
+
+app.post('/api/inventario/materiales/importar-sap/diagnostico', async (req, res) => {
+    try {
+        const diagnosis = await diagnoseMaterialesImportFromSap();
+        res.json({ ok: true, summary: diagnosis.summary });
+    } catch (error) {
+        res.status(400).json({ error: error.message || 'No fue posible diagnosticar la importación de materiales desde SAP.' });
     }
 });
 
@@ -8081,6 +8665,9 @@ app.get('/', (req, res) => {
 
 registerSapRoutes({ app, pgQuery, withTransaction });
 startSapScheduler({ pgQuery, withTransaction });
+registerExchangeRateRoutes({ app, pgQuery });
+ensureExchangeRateSchema(pgQuery).catch(() => {});
+startExchangeRateScheduler({ pgQuery });
 
 app.listen(PORT, () => {
     console.log(`Servidor corriendo en http://localhost:${PORT}`);

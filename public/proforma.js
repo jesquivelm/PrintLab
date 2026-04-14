@@ -8,6 +8,27 @@ const closeButton = document.getElementById('proformaCloseButton');
 const refreshButton = document.getElementById('proformaRefreshButton');
 const CONFIG_ENDPOINT = '/api/config/general';
 let loadedConfig = {};
+const PAYMENT_TERM_OPTIONS = [
+    'Contado',
+    '15 días',
+    '30 días',
+    '45 días',
+    '60 días',
+    '90 días',
+    '50% adelanto',
+    '50% contra entrega',
+    'Trámite de pago',
+    'Cancelación por adelantado'
+];
+const DELIVERY_TIME_OPTIONS = [
+    '5 días',
+    '8 días',
+    '15 días',
+    '22 días',
+    '30 días',
+    'De acuerdo a la programación con el cliente',
+    'Según lo establecido en el cartel de compra'
+];
 
 const fields = {
     clientCompany: document.getElementById('proformaClientCompany'),
@@ -15,15 +36,12 @@ const fields = {
     clientPhone: document.getElementById('proformaClientPhone'),
     clientEmail: document.getElementById('proformaClientEmail'),
     currencyCode: document.getElementById('proformaCurrency'),
-    exchangeRate: document.getElementById('proformaExchangeRate'),
     validity: document.getElementById('proformaValidity'),
+    pricePresentation: document.getElementById('proformaPricePresentation'),
     priceDisplayMode: document.getElementById('proformaPriceDisplayMode'),
     intro: document.getElementById('proformaIntro'),
-    termsConditions: document.getElementById('proformaTermsConditions'),
     paymentTerms: document.getElementById('proformaPaymentTerms'),
-    deliveryTime: document.getElementById('proformaDeliveryTime'),
-    technicalSpecs: document.getElementById('proformaTechnicalSpecs'),
-    qualityPolicies: document.getElementById('proformaQualityPolicies')
+    deliveryTime: document.getElementById('proformaDeliveryTime')
 };
 
 const docNodes = {
@@ -49,7 +67,8 @@ const docNodes = {
     qualityPolicies: document.getElementById('docQualityPolicies'),
     signatureAsset: document.getElementById('docSignatureAsset'),
     sellerName: document.getElementById('docSellerName'),
-    footerDate: document.getElementById('docFooterDate')
+    footerDate: document.getElementById('docFooterDate'),
+    totalBox: document.querySelector('.proforma-total-box')
 };
 
 let proformaState = null;
@@ -115,12 +134,33 @@ function formatCurrency(amount, currency) {
     }
 }
 
+function formatQuantity(value) {
+    const amount = Number(value);
+    if (!Number.isFinite(amount)) return value == null ? '' : String(value);
+    return amount.toLocaleString('es-CR', { maximumFractionDigits: 0 });
+}
+
 function buildSellerBlock(seller = {}) {
     const parts = [
         seller.name || '',
         'Ejecutivo de Ventas'
     ].filter(Boolean);
     return parts.join('\n');
+}
+
+function setDocumentSection(node, value) {
+    if (!node) return;
+    const text = String(value || '').trim();
+    node.textContent = text;
+    const card = node.closest('.proforma-terms-card');
+    if (card) card.hidden = !text;
+}
+
+function refreshTermsGridVisibility() {
+    const grid = document.querySelector('.proforma-terms-grid');
+    if (!grid) return;
+    const visibleCards = [...grid.querySelectorAll('.proforma-terms-card')].filter((card) => !card.hidden);
+    grid.hidden = visibleCards.length === 0;
 }
 
 function renderIcon(target, iconValue, color, size) {
@@ -177,19 +217,75 @@ function buildClientBlock(client = {}) {
 
 function getPriceColumns(mode) {
     switch (mode) {
-        case 'unit':
-            return [{ key: 'unitPrice', label: 'Precio Unitario' }, { key: 'totalPrice', label: 'Total' }];
-        case 'thousand':
-            return [{ key: 'thousandPrice', label: 'Precio por Millar' }, { key: 'totalPrice', label: 'Total' }];
-        case 'product_totals':
-        case 'global_totals':
-            return [{ key: 'totalPrice', label: 'Total' }];
+        case 'regular_simple':
+            return [
+                { key: 'subtotal', label: 'Subtotal' },
+                { key: 'taxAmount', label: 'Impuestos' },
+                { key: 'totalPrice', label: 'Total' }
+            ];
+        case 'regular_unit':
+            return [
+                { key: 'unitPrice', label: 'Precio Unitario' },
+                { key: 'subtotal', label: 'Subtotal' },
+                { key: 'taxAmount', label: 'Impuestos' },
+                { key: 'totalPrice', label: 'Total' }
+            ];
+        case 'regular_thousand':
+            return [
+                { key: 'subtotal', label: 'Subtotal' },
+                { key: 'taxAmount', label: 'Impuestos' },
+                { key: 'totalPrice', label: 'Total' },
+                { key: 'thousandPrice', label: 'Precio Millar' }
+            ];
+        case 'totalized_simple':
+            return [{ key: 'subtotal', label: 'Subtotal' }];
         default:
             return [
                 { key: 'unitPrice', label: 'Precio Unitario' },
-                { key: 'thousandPrice', label: 'Precio por Millar' },
+                { key: 'subtotal', label: 'Subtotal' },
+                { key: 'taxAmount', label: 'Impuestos' },
                 { key: 'totalPrice', label: 'Total' }
             ];
+    }
+}
+
+function getPriceDisplayOptions() {
+    return {
+        regular: [
+            { value: 'regular_simple', label: 'Regular' },
+            { value: 'regular_unit', label: 'Regular Con Precio Unitario' },
+            { value: 'regular_thousand', label: 'Regular Con Precio Millar' }
+        ],
+        totalized: [
+            { value: 'totalized_simple', label: 'Totalizado' }
+        ]
+    };
+}
+
+function getPricePresentation(mode) {
+    return String(mode || '').startsWith('totalized_') ? 'totalized' : 'regular';
+}
+
+function fillSelectOptions(field, options = [], selectedValue = '') {
+    if (!field) return;
+    const selectedText = String(selectedValue || '').trim();
+    const values = [...options];
+    if (selectedText && !values.includes(selectedText)) values.push(selectedText);
+    field.innerHTML = values.map((item) => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join('');
+    field.value = selectedText && values.includes(selectedText) ? selectedText : (values[0] || '');
+}
+
+function syncPriceModeOptions(selectedMode) {
+    const presentation = fields.pricePresentation?.value || getPricePresentation(selectedMode);
+    const optionGroups = getPriceDisplayOptions();
+    const options = optionGroups[presentation] || optionGroups.regular;
+    if (fields.priceDisplayMode) {
+        fields.priceDisplayMode.innerHTML = options.map((item) => `
+            <option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>
+        `).join('');
+        const safeValue = options.some((item) => item.value === selectedMode) ? selectedMode : options[0]?.value;
+        fields.priceDisplayMode.value = safeValue || 'regular_unit';
+        fields.priceDisplayMode.disabled = presentation === 'totalized';
     }
 }
 
@@ -267,32 +363,34 @@ function applyFormState(readOnly) {
 }
 
 function fillForm(data) {
-    fields.clientCompany.value = data.client?.company || '';
-    fields.clientContactName.value = data.client?.contactName || '';
-    fields.clientPhone.value = data.client?.phone || '';
-    fields.clientEmail.value = data.client?.email || '';
+    if (fields.clientCompany) fields.clientCompany.value = data.client?.company || '';
+    if (fields.clientContactName) fields.clientContactName.value = data.client?.contactName || '';
+    if (fields.clientPhone) fields.clientPhone.value = data.client?.phone || '';
+    if (fields.clientEmail) fields.clientEmail.value = data.client?.email || '';
     fields.currencyCode.innerHTML = (data.currencies || []).map((currency) => `
         <option value="${escapeHtml(currency.code)}">${escapeHtml(`${currency.code} · ${currency.label}`)}</option>
     `).join('');
     fields.currencyCode.value = data.currency?.code || data.currencies?.[0]?.code || 'CRC';
-    fields.exchangeRate.value = String(data.currency?.exchangeRate || 1);
     fields.validity.value = data.validity || '';
-    fields.priceDisplayMode.innerHTML = (data.priceDisplayModeOptions || []).map((item) => `
-        <option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>
-    `).join('');
-    fields.priceDisplayMode.value = data.priceDisplayMode || 'both';
+    if (fields.pricePresentation) {
+        fields.pricePresentation.innerHTML = `
+            <option value="regular">Regular</option>
+            <option value="totalized">Totalizado</option>
+        `;
+        fields.pricePresentation.value = data.pricePresentation || getPricePresentation(data.priceDisplayMode);
+    }
+    syncPriceModeOptions(data.priceDisplayMode || 'regular_unit');
     fields.intro.value = data.intro || '';
-    fields.termsConditions.value = data.termsConditions || '';
-    fields.paymentTerms.value = data.paymentTerms || '';
-    fields.deliveryTime.value = data.deliveryTime || '';
-    fields.technicalSpecs.value = data.technicalSpecs || '';
-    fields.qualityPolicies.value = data.qualityPolicies || '';
+    fillSelectOptions(fields.paymentTerms, PAYMENT_TERM_OPTIONS, data.paymentTerms || '');
+    fillSelectOptions(fields.deliveryTime, DELIVERY_TIME_OPTIONS, data.deliveryTime || '');
 }
 
 function renderDocument(data) {
-    quoteMetaEl.textContent = `Cotización ${data.quoteCode || ''}`;
-    statusChipEl.textContent = data.status === 'closed' ? 'Cerrada' : 'Abierta';
-    statusChipEl.classList.toggle('is-closed', data.status === 'closed');
+    if (quoteMetaEl) quoteMetaEl.textContent = `Cotización ${data.quoteCode || ''}`;
+    if (statusChipEl) {
+        statusChipEl.textContent = data.status === 'closed' ? 'Cerrada' : 'Abierta';
+        statusChipEl.classList.toggle('is-closed', data.status === 'closed');
+    }
 
     docNodes.logo.innerHTML = data.company?.logoUrl
         ? `<img src="${escapeHtml(data.company.logoUrl)}" alt="${escapeHtml(data.company?.name || 'Logo')}">`
@@ -306,11 +404,12 @@ function renderDocument(data) {
     docNodes.clientBlock.textContent = buildClientBlock(data.client);
     docNodes.sellerBlock.textContent = buildSellerBlock(data.seller);
     docNodes.intro.textContent = data.intro || ' ';
-    docNodes.termsConditions.textContent = data.termsConditions || 'Pendiente de definir.';
-    docNodes.paymentTerms.textContent = data.paymentTerms || 'Pendiente de definir.';
-    docNodes.deliveryTime.textContent = data.deliveryTime || 'Pendiente de definir.';
-    docNodes.technicalSpecs.textContent = data.technicalSpecs || 'Pendiente de definir.';
-    docNodes.qualityPolicies.textContent = data.qualityPolicies || 'Pendiente de definir.';
+    setDocumentSection(docNodes.termsConditions, data.termsConditions || '');
+    setDocumentSection(docNodes.paymentTerms, data.paymentTerms || '');
+    setDocumentSection(docNodes.deliveryTime, data.deliveryTime || '');
+    setDocumentSection(docNodes.technicalSpecs, data.technicalSpecs || '');
+    setDocumentSection(docNodes.qualityPolicies, data.qualityPolicies || '');
+    refreshTermsGridVisibility();
     docNodes.sellerName.textContent = data.seller?.name || '';
     const signatureBlock = docNodes.signatureAsset?.closest('.proforma-signature');
     if (signatureBlock) {
@@ -319,10 +418,15 @@ function renderDocument(data) {
     docNodes.signatureAsset.innerHTML = data.seller?.signatureUrl
         ? `<img src="${escapeHtml(data.seller.signatureUrl)}" alt="Firma del vendedor">`
         : '';
-    docNodes.footerDate.textContent = formatDateTime(data.footer?.generatedOn || data.issueDate);
+    if (docNodes.footerDate) {
+        docNodes.footerDate.textContent = formatDateTime(data.footer?.generatedOn || data.issueDate);
+    }
     applyIntroStyle(data.introStyle);
 
     const columns = getPriceColumns(data.priceDisplayMode);
+    if (docNodes.totalBox) {
+        docNodes.totalBox.hidden = !String(data.priceDisplayMode || '').startsWith('totalized_');
+    }
     docNodes.tableHead.innerHTML = `
         <th>Producto</th>
         <th>Cantidad</th>
@@ -334,30 +438,46 @@ function renderDocument(data) {
                 <span class="proforma-product-name">${escapeHtml(product.name || 'Producto')}</span>
                 <span class="proforma-product-desc">${escapeHtml([product.material, product.processType, product.dimensionsText].filter(Boolean).join(' · '))}</span>
             </td>
-            <td>${escapeHtml(product.quantity == null ? '' : String(product.quantity))}</td>
-            ${columns.map((column) => `<td>${column.key === 'totalPrice' || data.priceDisplayMode !== 'global_totals' ? escapeHtml(formatCurrency(product[column.key], data.currency)) : ''}</td>`).join('')}
+            <td>${escapeHtml(product.quantity == null ? '' : formatQuantity(product.quantity))}</td>
+            ${columns.map((column) => `<td>${escapeHtml(formatCurrency(product[column.key], data.currency))}</td>`).join('')}
         </tr>
     `).join('');
-    docNodes.grandTotal.textContent = formatCurrency(data.totals?.grandTotal || 0, data.currency);
+    if (docNodes.totalBox) {
+        const totalBoxBody = docNodes.totalBox.querySelector('tbody');
+        if (totalBoxBody) {
+            totalBoxBody.innerHTML = `
+                <tr>
+                    <td>Subtotal</td>
+                    <td>${escapeHtml(formatCurrency(data.totals?.subtotal || 0, data.currency))}</td>
+                </tr>
+                <tr>
+                    <td>Impuestos de Venta</td>
+                    <td>${escapeHtml(formatCurrency(data.totals?.taxAmount || 0, data.currency))}</td>
+                </tr>
+                <tr>
+                    <td>Total</td>
+                    <td id="docGrandTotal">${escapeHtml(formatCurrency(data.totals?.grandTotal || 0, data.currency))}</td>
+                </tr>
+            `;
+        }
+    }
     applyHeaderColor(data.company?.headerColor);
 }
 
 function collectPayload() {
     return {
-        clientCompany: fields.clientCompany.value.trim(),
-        clientContactName: fields.clientContactName.value.trim(),
-        clientPhone: fields.clientPhone.value.trim(),
-        clientEmail: fields.clientEmail.value.trim(),
+        clientCompany: fields.clientCompany?.value.trim?.() || proformaState?.client?.company || '',
+        clientContactName: fields.clientContactName?.value.trim?.() || proformaState?.client?.contactName || '',
+        clientPhone: fields.clientPhone?.value.trim?.() || proformaState?.client?.phone || '',
+        clientEmail: fields.clientEmail?.value.trim?.() || proformaState?.client?.email || '',
         currencyCode: fields.currencyCode.value,
-        exchangeRate: Number(fields.exchangeRate.value || 1) || 1,
+        exchangeRate: Number(proformaState?.currency?.exchangeRate || 1) || 1,
         validity: fields.validity.value.trim(),
+        pricePresentation: fields.pricePresentation?.value || getPricePresentation(fields.priceDisplayMode.value),
         priceDisplayMode: fields.priceDisplayMode.value,
         intro: fields.intro.value.trim(),
-        termsConditions: fields.termsConditions.value.trim(),
         paymentTerms: fields.paymentTerms.value.trim(),
-        deliveryTime: fields.deliveryTime.value.trim(),
-        technicalSpecs: fields.technicalSpecs.value.trim(),
-        qualityPolicies: fields.qualityPolicies.value.trim()
+        deliveryTime: fields.deliveryTime.value.trim()
     };
 }
 
@@ -444,35 +564,36 @@ function refreshPreviewFromForm() {
     proformaState = {
         ...proformaState,
         client: {
-            company: fields.clientCompany.value.trim(),
-            contactName: fields.clientContactName.value.trim(),
-            phone: fields.clientPhone.value.trim(),
-            email: fields.clientEmail.value.trim()
+            company: fields.clientCompany?.value.trim?.() || proformaState.client?.company || '',
+            contactName: fields.clientContactName?.value.trim?.() || proformaState.client?.contactName || '',
+            phone: fields.clientPhone?.value.trim?.() || proformaState.client?.phone || '',
+            email: fields.clientEmail?.value.trim?.() || proformaState.client?.email || ''
         },
         currency: {
             ...(currency || {}),
             code: fields.currencyCode.value,
-            exchangeRate: Number(fields.exchangeRate.value || 1) || 1
+            exchangeRate: Number(proformaState.currency?.exchangeRate || currency?.exchangeRate || 1) || 1
         },
         validity: fields.validity.value.trim(),
+        pricePresentation: fields.pricePresentation?.value || getPricePresentation(fields.priceDisplayMode.value),
         priceDisplayMode: fields.priceDisplayMode.value,
         intro: fields.intro.value.trim(),
-        termsConditions: fields.termsConditions.value.trim(),
         paymentTerms: fields.paymentTerms.value.trim(),
-        deliveryTime: fields.deliveryTime.value.trim(),
-        technicalSpecs: fields.technicalSpecs.value.trim(),
-        qualityPolicies: fields.qualityPolicies.value.trim()
+        deliveryTime: fields.deliveryTime.value.trim()
     };
     renderDocument(proformaState);
 }
 
 function bindEvents() {
-    Object.values(fields).forEach((field) => {
+    Object.entries(fields).forEach(([key, field]) => {
         field?.addEventListener('input', () => {
             refreshPreviewFromForm();
             queueSave();
         });
         field?.addEventListener('change', () => {
+            if (key === 'pricePresentation') {
+                syncPriceModeOptions();
+            }
             refreshPreviewFromForm();
             queueSave();
         });

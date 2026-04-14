@@ -252,7 +252,7 @@ label span,
 }
 
 .header-grid {
-  grid-template-columns: minmax(0, 1.8fr) minmax(260px, max-content) minmax(220px, max-content);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: end;
 }
 
@@ -260,16 +260,28 @@ label span,
   min-width: 0;
 }
 
-.header-field-work {
-  min-width: 260px;
+.header-field-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+  align-items: end;
+  width: 100%;
 }
 
+.header-field-work,
 .header-field-product {
-  min-width: 220px;
+  min-width: 0;
+}
+
+.header-field-meta select {
+  padding-right: 30px;
+  font-size: 0.94rem;
 }
 
 .technical-grid {
   grid-template-columns: minmax(0, 1.5fr) minmax(320px, 1fr);
+  align-items: stretch;
 }
 
 .technical-column {
@@ -278,7 +290,7 @@ label span,
 }
 
 .technical-column-right {
-  align-content: start;
+  align-content: stretch;
 }
 
 .technical-panel {
@@ -331,30 +343,70 @@ label span,
   align-self: start;
 }
 
-.output-type-field {
+.output-layout {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(178px, 0.76fr);
+  grid-template-areas:
+    "core output"
+    "roll preview"
+    "application preview";
   gap: 12px;
   align-items: stretch;
-  justify-items: stretch;
 }
 
-.output-preview-row {
+.output-core-grid {
+  grid-area: core;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(190px, 0.82fr);
-  gap: 14px;
-  align-items: stretch;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
 }
+
+.output-layout-output { grid-area: output; }
+.output-layout-roll { grid-area: roll; }
+.output-layout-application { grid-area: application; }
+.output-layout-preview { grid-area: preview; }
 
 .output-type-select-field select {
   text-align: center;
   font-weight: 700;
 }
 
+.output-layout > label,
+.output-core-grid > label {
+  min-width: 0;
+}
+
+.output-core-grid > label > span,
+.output-layout > label > span {
+  min-height: 18px;
+  display: flex;
+  align-items: flex-end;
+}
+
 .technical-panel-notes textarea {
-  min-height: 122px;
-  max-height: 122px;
+  min-height: 0;
+  height: 100%;
   resize: none;
+}
+
+.technical-panel-notes {
+  height: 100%;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.technical-panel-notes .panel-grid.one-up {
+  height: 100%;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.technical-panel-notes .panel-grid.one-up > label {
+  height: 100%;
+}
+
+.technical-panel-notes .panel-grid.one-up > label > textarea {
+  flex: 1 1 auto;
 }
 
 .editable-grid,
@@ -381,6 +433,57 @@ label span,
 .commercial-grid,
 .impression-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.impression-grid-compact {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  align-items: stretch;
+}
+
+.impression-compact-field,
+.impression-toggle-card {
+  min-width: 0;
+}
+
+.impression-compact-field > span,
+.impression-toggle-card > span {
+  min-height: 18px;
+  display: flex;
+  align-items: flex-end;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.impression-compact-field > input {
+  text-align: center;
+}
+
+.impression-toggle-card {
+  display: grid;
+  grid-template-rows: minmax(18px, auto) 36px;
+  align-items: stretch;
+  gap: 6px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.impression-toggle-card > span {
+  width: 100%;
+  justify-content: center;
+  text-align: center;
+}
+
+.impression-toggle-card > input {
+  width: 18px;
+  min-height: 18px;
+  margin: 0;
+  align-self: center;
+  justify-self: center;
 }
 
 .toggle-row {
@@ -871,6 +974,17 @@ textarea {
   background: #fff;
   color: var(--text);
   padding: 8px 11px;
+}
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 34px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath d='M3.25 5.25 7 9l3.75-3.75' fill='none' stroke='%2398A6B4' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+  background-size: 14px 14px;
 }
 
 input.field-required-input,
@@ -1542,25 +1656,26 @@ textarea {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  min-height: 100%;
+  gap: 6px;
+  min-height: 126px;
   height: 100%;
-  padding: 14px 12px;
+  padding: 6px 5px;
   border: 1px solid #d1dfea;
   border-radius: 18px;
   background:
     radial-gradient(circle at top, rgba(255,255,255,0.96), rgba(241,247,252,0.88)),
     linear-gradient(180deg, #f9fcfe 0%, #eef5fa 100%);
   width: 100%;
+  box-sizing: border-box;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.8), 0 10px 26px rgba(23, 61, 93, 0.06);
-  margin-top: 24px;
+  overflow: hidden;
 }
 
 .output-tile,
 .output-placeholder {
-  width: 88px;
-  height: 88px;
-  border-radius: 22px;
+  width: 112px;
+  height: 112px;
+  border-radius: 24px;
 }
 
 .output-placeholder {
@@ -1583,13 +1698,14 @@ textarea {
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 66px;
+  min-height: 0;
+  height: 100%;
 }
 
 .output-image {
   display: block;
   max-width: 100%;
-  max-height: 68px;
+  max-height: 100%;
   object-fit: contain;
 }
 
@@ -1890,11 +2006,19 @@ textarea {
     grid-template-columns: 1fr;
   }
 
+  .impression-grid-compact {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
   .process-finish-grid {
     grid-template-columns: 1fr;
   }
 
-  .output-preview-row {
+  .output-layout {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .output-core-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1957,9 +2081,19 @@ textarea {
 
   .header-grid,
   .technical-grid,
-  .output-type-field,
-  .output-preview-row {
+  .impression-grid-compact,
+  .output-layout,
+  .output-core-grid {
     grid-template-columns: 1fr;
+  }
+
+  .output-layout {
+    grid-template-areas:
+      "core"
+      "output"
+      "roll"
+      "application"
+      "preview";
   }
 }
 

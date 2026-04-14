@@ -64,15 +64,17 @@
               <input id="jobName" type="text">
             </label>
 
-            <label class="header-field-work">
-              <span>Tipo de Trabajo</span>
-              <select id="workType"></select>
-            </label>
+            <div class="header-field-meta">
+              <label class="header-field-work">
+                <span>Tipo de Trabajo</span>
+                <select id="workType"></select>
+              </label>
 
-            <label class="header-field-product">
-              <span>Tipo de Producto</span>
-              <select id="productType"></select>
-            </label>
+              <label class="header-field-product">
+                <span>Tipo de Producto</span>
+                <select id="productType"></select>
+              </label>
+            </div>
           </div>
         </article>
 
@@ -103,36 +105,34 @@
                 <div class="technical-panel-head">
                   <h3>Datos de Etiquetado</h3>
                 </div>
-                <div class="panel-grid three-up">
-                  <label>
-                    <span>Ancho de Core</span>
-                    <input id="rollWidthIn" type="number" min="0" step="0.001">
+                <div class="output-layout">
+                  <div class="output-core-grid">
+                    <label>
+                      <span>Ancho de Core</span>
+                      <input id="rollWidthIn" type="number" min="0" step="0.001">
+                    </label>
+                    <label>
+                      <span>Diámetro de Core</span>
+                      <select id="coreDiameter"></select>
+                    </label>
+                  </div>
+                  <label class="output-type-select-field output-layout-output">
+                    <span>Tipo de Salida</span>
+                    <select id="outputType"></select>
                   </label>
-                  <label>
-                    <span>Diámetro de Core</span>
-                    <select id="coreDiameter"></select>
-                  </label>
-                  <label>
+                  <label class="output-layout-roll">
                     <span>Cantidad de Etiquetas por Rollo</span>
                     <input id="labelsPerRoll" type="number" min="0" step="1">
                   </label>
-                </div>
-                <div class="output-preview-row">
-                  <div class="output-type-field">
-                    <label class="output-type-select-field">
-                      <span>Tipo de Salida</span>
-                      <select id="outputType"></select>
-                    </label>
-                    <label>
-                      <span>Tipo de Etiquetado</span>
-                      <select id="applicationType">
-                        <option value="">Seleccionar...</option>
-                        <option value="Manual">Manual</option>
-                        <option value="Automatico">Automático</option>
-                      </select>
-                    </label>
-                  </div>
-                  <div id="outputTypePreview" class="output-type-preview"></div>
+                  <label class="output-layout-application">
+                    <span>Tipo de Etiquetado</span>
+                    <select id="applicationType">
+                      <option value="">Seleccionar...</option>
+                      <option value="Manual">Manual</option>
+                      <option value="Automatico">Automático</option>
+                    </select>
+                  </label>
+                  <div id="outputTypePreview" class="output-type-preview output-layout-preview"></div>
                 </div>
               </section>
             </div>
@@ -162,37 +162,35 @@
             <div><h2>Configuración de Impresión</h2></div>
           </div>
 
-          <div class="impression-grid">
-            <label>
-              <span>Cantidad de tipos</span>
+          <div class="impression-grid impression-grid-compact">
+            <label class="impression-compact-field">
+              <span>Tipos</span>
               <input id="quantityTypes" type="number" min="1" step="1">
             </label>
-            <label>
-              <span>Cantidad de cambios</span>
+            <label class="impression-compact-field">
+              <span>Cambios</span>
               <input id="quantityChanges" type="number" min="0" step="1">
             </label>
-            <label>
-              <span>Cantidad de pantones</span>
+            <label class="impression-compact-field">
+              <span>Pantones</span>
               <input id="pantoneCount" type="number" min="0" step="1">
             </label>
-            <div class="toggle-row">
-              <label class="toggle-field">
-                <input id="useCmyk" type="checkbox">
-                <span>CMYK</span>
-              </label>
-              <label class="toggle-field">
-                <input id="useWhiteInk" type="checkbox">
-                <span>Tinta blanca</span>
-              </label>
-              <label class="toggle-field">
-                <input id="doubleWhitePass" type="checkbox">
-                <span>Doble pasada blanca</span>
-              </label>
-              <label class="toggle-field">
-                <input id="noPrint" type="checkbox">
-                <span>Sin impresion</span>
-              </label>
-            </div>
+            <label class="impression-toggle-card">
+              <span>CMYK</span>
+              <input id="useCmyk" type="checkbox">
+            </label>
+            <label class="impression-toggle-card">
+              <span>Tinta Blanca</span>
+              <input id="useWhiteInk" type="checkbox">
+            </label>
+            <label class="impression-toggle-card">
+              <span>Doble Blanca</span>
+              <input id="doubleWhitePass" type="checkbox">
+            </label>
+            <label class="impression-toggle-card">
+              <span>Sin Impresión</span>
+              <input id="noPrint" type="checkbox">
+            </label>
           </div>
         </article>
 

@@ -145,11 +145,11 @@
             grid-column: 1 / -1;
         }
         .proforma-field label {
-            font-size: 11px;
-            font-weight: 600;
+            font-size: 12px;
+            font-weight: 500;
             color: var(--muted);
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
+            text-transform: none;
+            letter-spacing: 0;
         }
         .proforma-field input,
         .proforma-field select,
@@ -376,14 +376,17 @@
         }
         .proforma-document-footer {
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: flex-end;
             gap: 20px;
             padding-top: 18px;
+            padding-bottom: 10px;
             border-top: 1px solid var(--line);
+            border-bottom: 5px solid var(--header);
         }
         .proforma-signature {
             min-width: 220px;
+            text-align: center;
         }
         .proforma-signature-asset {
             min-height: 66px;
@@ -409,12 +412,7 @@
             font-size: 12px;
             color: var(--muted);
         }
-        .proforma-disclaimer {
-            text-align: right;
-            color: var(--muted);
-            font-size: 12px;
-            line-height: 1.7;
-        }
+        .proforma-disclaimer { display: none; }
         .proforma-loading {
             min-height: 100vh;
             display: flex;
@@ -454,70 +452,23 @@
 <body>
     <div id="proformaShell" class="proforma-shell">
         <aside class="proforma-sidebar">
-            <div class="proforma-topbar">
-                <div>
-                    <h1>Proforma</h1>
-                    <p id="proformaQuoteMeta">Cotización</p>
-                </div>
-                <button type="button" id="proformaBackButton" class="proforma-btn">
-                    <span data-icon="back"></span>
-                    <span>Volver</span>
-                </button>
-            </div>
-            <div class="proforma-status-line">
-                <span id="proformaStatusChip" class="proforma-status">Abierta</span>
-                <span id="proformaSaveStatus" class="proforma-status">Sin cambios</span>
-            </div>
-            <div class="proforma-actions">
-                <button type="button" id="proformaCloseButton" class="proforma-btn is-primary">
-                    <span data-icon="close"></span>
-                    <span>Cerrar Proforma</span>
-                </button>
-                <button type="button" id="proformaRefreshButton" class="proforma-btn">
-                    <span data-icon="refresh"></span>
-                    <span>Actualizar</span>
-                </button>
-            </div>
-
-            <section class="proforma-panel">
-                <h2>Cliente</h2>
-                <div class="proforma-fields">
-                    <div class="proforma-field is-full">
-                        <label for="proformaClientCompany">Empresa</label>
-                        <input id="proformaClientCompany" type="text">
-                    </div>
-                    <div class="proforma-field">
-                        <label for="proformaClientContact">Contacto</label>
-                        <input id="proformaClientContact" type="text">
-                    </div>
-                    <div class="proforma-field">
-                        <label for="proformaClientPhone">Teléfono</label>
-                        <input id="proformaClientPhone" type="text">
-                    </div>
-                    <div class="proforma-field is-full">
-                        <label for="proformaClientEmail">Correo</label>
-                        <input id="proformaClientEmail" type="email">
-                    </div>
-                </div>
-            </section>
-
             <section class="proforma-panel">
                 <h2>Comercial</h2>
                 <div class="proforma-fields">
-                    <div class="proforma-field">
+                    <div class="proforma-field is-full">
                         <label for="proformaCurrency">Moneda</label>
                         <select id="proformaCurrency"></select>
                     </div>
-                    <div class="proforma-field">
-                        <label for="proformaExchangeRate">Tipo de Cambio</label>
-                        <input id="proformaExchangeRate" type="number" min="0.000001" step="0.000001">
-                    </div>
-                    <div class="proforma-field">
+                    <div class="proforma-field is-full">
                         <label for="proformaValidity">Validez</label>
                         <input id="proformaValidity" type="text">
                     </div>
-                    <div class="proforma-field">
-                        <label for="proformaPriceDisplayMode">Visualización de Precios</label>
+                    <div class="proforma-field is-full">
+                        <label for="proformaPricePresentation">Tipo de Visualización</label>
+                        <select id="proformaPricePresentation"></select>
+                    </div>
+                    <div class="proforma-field is-full">
+                        <label for="proformaPriceDisplayMode">Detalle de Precio</label>
                         <select id="proformaPriceDisplayMode"></select>
                     </div>
                 </div>
@@ -531,24 +482,12 @@
                         <textarea id="proformaIntro"></textarea>
                     </div>
                     <div class="proforma-field is-full">
-                        <label for="proformaTermsConditions">Términos y Condiciones</label>
-                        <textarea id="proformaTermsConditions"></textarea>
-                    </div>
-                    <div class="proforma-field">
                         <label for="proformaPaymentTerms">Términos de Pago</label>
-                        <textarea id="proformaPaymentTerms"></textarea>
+                        <select id="proformaPaymentTerms"></select>
                     </div>
-                    <div class="proforma-field">
+                    <div class="proforma-field is-full">
                         <label for="proformaDeliveryTime">Tiempos de Entrega</label>
-                        <textarea id="proformaDeliveryTime"></textarea>
-                    </div>
-                    <div class="proforma-field">
-                        <label for="proformaTechnicalSpecs">Especificaciones Técnicas</label>
-                        <textarea id="proformaTechnicalSpecs"></textarea>
-                    </div>
-                    <div class="proforma-field">
-                        <label for="proformaQualityPolicies">Políticas de Calidad</label>
-                        <textarea id="proformaQualityPolicies"></textarea>
+                        <select id="proformaDeliveryTime"></select>
                     </div>
                 </div>
             </section>
@@ -606,7 +545,6 @@
 
                     <section class="proforma-terms-grid">
                         <article class="proforma-terms-card">
-                            <h3>Términos y Condiciones</h3>
                             <p id="docTermsConditions"></p>
                         </article>
                         <article class="proforma-terms-card">
@@ -632,10 +570,6 @@
                             <div id="docSignatureAsset" class="proforma-signature-asset"></div>
                             <strong id="docSellerName"></strong>
                             <span>Ejecutivo de Ventas</span>
-                        </div>
-                        <div class="proforma-disclaimer">
-                            <div>Cotización proforma no constituye una factura fiscal</div>
-                            <div id="docFooterDate"></div>
                         </div>
                     </footer>
                 </div>

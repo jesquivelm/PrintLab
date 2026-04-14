@@ -1725,6 +1725,33 @@ async function saveInventory(kind, payload) {
     throw new Error('Tipo de inventario no soportado.');
 }
 
+async function deleteMaterial(id) {
+    const materialId = asText(id);
+    if (!materialId) {
+        throw new Error('Debes indicar el material a eliminar.');
+    }
+
+    return withTransaction(async (client) => {
+        const result = await client.query(
+            `DELETE FROM material
+              WHERE id = $1::uuid
+              RETURNING id::text, codigo, nombre`,
+            [materialId]
+        );
+
+        if (!result.rows.length) {
+            throw new Error('No se encontró el material a eliminar.');
+        }
+
+        return result.rows[0];
+    });
+}
+
+async function deleteInventory(kind, id) {
+    if (kind === INVENTORY_TYPES.materiales) return deleteMaterial(id);
+    throw new Error('El borrado no está disponible para este tipo de inventario.');
+}
+
 async function saveOutputType(payload) {
     const current = await loadOutputTypesConfig();
     const codigo = buildUniqueOutputTypeCode(current, payload);
@@ -2211,6 +2238,7 @@ module.exports = {
     listInventory,
     getTroquelByCode,
     saveInventory,
+    deleteInventory,
     importInventory,
     exportInventoryWorkbook
 };

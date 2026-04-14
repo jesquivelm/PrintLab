@@ -570,6 +570,30 @@ async function ensureSapSchema(pgQuery) {
         )
     `);
     await pgQuery(`CREATE INDEX IF NOT EXISTS sap_write_log_created_at_idx ON sap_write_log (created_at DESC)`);
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS sap_activity_log (
+            id BIGSERIAL PRIMARY KEY,
+            action_type TEXT NOT NULL,
+            entity_name TEXT NOT NULL DEFAULT '',
+            module_name TEXT NOT NULL DEFAULT 'sap',
+            actor TEXT NOT NULL DEFAULT 'admin',
+            mode TEXT NOT NULL DEFAULT '',
+            status TEXT NOT NULL DEFAULT '',
+            internal_method TEXT NOT NULL DEFAULT 'GET',
+            internal_url TEXT NOT NULL DEFAULT '',
+            service_method TEXT NOT NULL DEFAULT 'GET',
+            service_url TEXT NOT NULL DEFAULT '',
+            request_vars JSONB NOT NULL DEFAULT '{}'::jsonb,
+            response_summary JSONB NOT NULL DEFAULT '{}'::jsonb,
+            error_message TEXT NOT NULL DEFAULT '',
+            started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            finished_at TIMESTAMPTZ NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    `);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS sap_activity_log_started_at_idx ON sap_activity_log (started_at DESC)`);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS sap_activity_log_action_type_idx ON sap_activity_log (action_type)`);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS sap_activity_log_status_idx ON sap_activity_log (status)`);
     const currentConfig = await loadSapConfig(pgQuery);
     await saveSapConfigSnapshotToAppConfig(pgQuery, currentConfig);
 }
@@ -717,6 +741,191 @@ async function logWrite(pgQuery, entry) {
         JSON.stringify(entry.responsePayload || {}),
         normalizeText(entry.errorMessage)
     ]);
+}
+
+function summarizeSapValue(value) {
+    if (Array.isArray(value)) {
+        return { type: 'array', count: value.length };
+    }
+    if (value && typeof value === 'object') {
+        const summary = {
+            type: 'object',
+            keys: Object.keys(value).slice(0, 20)
+        };
+        ['DocEntry', 'DocNum', 'CardCode', 'CardName', 'ItemCode', 'ItemName', 'SessionId', 'source', 'mode', 'ok', 'message'].forEach((key) => {
+            if (value[key] != null && summary[key] == null) summary[key] = value[key];
+        });
+        if (Array.isArray(value.value)) summary.records = value.value.length;
+        if (value.entities && typeof value.entities === 'object') summary.entities = value.entities;
+        return summary;
+    }
+    return value;
+}
+
+function summarizeSapPayload(payload) {
+    if (Array.isArray(payload?.value)) {
+        return {
+            records: payload.value.length,
+            source: payload.source || '',
+            preview: payload.value.slice(0, 3).map((entry) => summarizeSapValue(entry))
+        };
+    }
+    return summarizeSapValue(payload || {});
+}
+
+async function getSapActor(pgQuery) {
+    try {
+        const result = await pgQuery(`
+            SELECT config_value
+              FROM app_config
+             WHERE config_key = 'general'
+             LIMIT 1
+        `);
+        const config = result.rows[0]?.config_value || {};
+        return normalizeText(config?.session?.currentUser || config?.general?.currentUser, 'admin');
+    } catch (error) {
+        return 'admin';
+    }
+}
+
+async function logSapActivity(pgQuery, entry = {}) {
+    await pgQuery(`
+        INSERT INTO sap_activity_log (
+            action_type,
+            entity_name,
+            module_name,
+            actor,
+            mode,
+            status,
+            internal_method,
+            internal_url,
+            service_method,
+            service_url,
+            request_vars,
+            response_summary,
+            error_message,
+            started_at,
+            finished_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13, $14, $15)
+    `, [
+        normalizeText(entry.actionType),
+        normalizeText(entry.entityName),
+        normalizeText(entry.moduleName, 'sap'),
+        normalizeText(entry.actor, 'admin'),
+        normalizeText(entry.mode),
+        normalizeText(entry.status),
+        normalizeText(entry.internalMethod, 'GET'),
+        normalizeText(entry.internalUrl),
+        normalizeText(entry.serviceMethod, 'GET'),
+        normalizeText(entry.serviceUrl),
+        JSON.stringify(entry.requestVars || {}),
+        JSON.stringify(entry.responseSummary || {}),
+        normalizeText(entry.errorMessage),
+        entry.startedAt || new Date().toISOString(),
+        entry.finishedAt || new Date().toISOString()
+    ]);
+}
+
+async function logSapRouteFailure(pgQuery, entry = {}) {
+    try {
+        await logSapActivity(pgQuery, {
+            status: 'error',
+            finishedAt: new Date().toISOString(),
+            ...entry
+        });
+    } catch (error) {
+        // Best-effort logging; do not mask the original route failure.
+    }
+}
+
+function buildActivityFilters(query = {}) {
+    return {
+        type: normalizeText(query?.type),
+        status: normalizeText(query?.status),
+        entity: normalizeText(query?.entity),
+        actor: normalizeText(query?.actor),
+        search: normalizeText(query?.search),
+        from: normalizeText(query?.from),
+        to: normalizeText(query?.to),
+        limit: normalizePositiveInt(query?.limit, 100, 1, 300)
+    };
+}
+
+async function loadSapActivityLog(pgQuery, query = {}) {
+    const filters = buildActivityFilters(query);
+    const values = [];
+    const clauses = [];
+    if (filters.type) {
+        values.push(filters.type);
+        clauses.push(`action_type = $${values.length}`);
+    }
+    if (filters.status) {
+        values.push(filters.status);
+        clauses.push(`status = $${values.length}`);
+    }
+    if (filters.entity) {
+        values.push(filters.entity);
+        clauses.push(`entity_name = $${values.length}`);
+    }
+    if (filters.actor) {
+        values.push(`%${filters.actor}%`);
+        clauses.push(`actor ILIKE $${values.length}`);
+    }
+    if (filters.search) {
+        values.push(`%${filters.search}%`);
+        clauses.push(`(
+            entity_name ILIKE $${values.length}
+            OR actor ILIKE $${values.length}
+            OR internal_url ILIKE $${values.length}
+            OR service_url ILIKE $${values.length}
+            OR error_message ILIKE $${values.length}
+        )`);
+    }
+    if (filters.from) {
+        values.push(`${filters.from}T00:00:00`);
+        clauses.push(`started_at >= $${values.length}::timestamptz`);
+    }
+    if (filters.to) {
+        values.push(`${filters.to}T23:59:59.999`);
+        clauses.push(`started_at <= $${values.length}::timestamptz`);
+    }
+    values.push(filters.limit);
+    const result = await pgQuery(`
+        SELECT id,
+               action_type,
+               entity_name,
+               module_name,
+               actor,
+               mode,
+               status,
+               internal_method,
+               internal_url,
+               service_method,
+               service_url,
+               request_vars,
+               response_summary,
+               error_message,
+               started_at,
+               finished_at,
+               created_at
+          FROM sap_activity_log
+          ${clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''}
+      ORDER BY started_at DESC
+         LIMIT $${values.length}
+    `, values);
+    const catalog = await pgQuery(`
+        SELECT
+            ARRAY(SELECT DISTINCT action_type FROM sap_activity_log WHERE action_type <> '' ORDER BY action_type) AS types,
+            ARRAY(SELECT DISTINCT status FROM sap_activity_log WHERE status <> '' ORDER BY status) AS statuses,
+            ARRAY(SELECT DISTINCT entity_name FROM sap_activity_log WHERE entity_name <> '' ORDER BY entity_name) AS entities,
+            ARRAY(SELECT DISTINCT actor FROM sap_activity_log WHERE actor <> '' ORDER BY actor) AS actors
+    `);
+    return {
+        filters,
+        rows: result.rows,
+        catalog: catalog.rows[0] || { types: [], statuses: [], entities: [], actors: [] }
+    };
 }
 
 async function fetchPagedFromSap(config, entityName, baseQuery, pageSize) {
@@ -1750,19 +1959,84 @@ function registerSapRoutes({ app, pgQuery, withTransaction }) {
 
     app.post('/api/sap/test', async (req, res) => {
         try {
+            const actor = await getSapActor(pgQuery);
             const config = await loadSapConfig(pgQuery);
-            res.json(await testSapConnection(config));
+            const startedAt = new Date().toISOString();
+            const payload = await testSapConnection(config);
+            await logSapActivity(pgQuery, {
+                actionType: 'test',
+                entityName: 'connection',
+                actor,
+                mode: resolveOperatingMode(config),
+                status: payload.ok ? 'success' : 'error',
+                internalMethod: 'POST',
+                internalUrl: '/api/sap/test',
+                serviceMethod: 'POST',
+                serviceUrl: `${config.sapProtocol}://${config.sapHost}:${config.sapPort}/b1s/v1/Login`,
+                requestVars: {
+                    sapCompany: config.sapCompany,
+                    sapUser: config.sapUser
+                },
+                responseSummary: summarizeSapPayload(payload),
+                startedAt,
+                finishedAt: new Date().toISOString()
+            });
+            res.json(payload);
         } catch (error) {
+            const config = await loadSapConfig(pgQuery).catch(() => ({}));
+            await logSapRouteFailure(pgQuery, {
+                actionType: 'test',
+                entityName: 'connection',
+                actor: await getSapActor(pgQuery),
+                mode: resolveOperatingMode(config),
+                internalMethod: 'POST',
+                internalUrl: '/api/sap/test',
+                serviceMethod: 'POST',
+                serviceUrl: config.sapHost ? `${config.sapProtocol}://${config.sapHost}:${config.sapPort}/b1s/v1/Login` : '',
+                errorMessage: error.message
+            });
             res.status(400).json({ error: error.message || 'No fue posible validar la conexion SAP.' });
         }
     });
 
     app.post('/api/sap/sync', async (req, res) => {
         try {
+            const actor = await getSapActor(pgQuery);
             const entityName = normalizeText(req.body?.entityName || req.body?.entity || 'all');
             const normalizedEntity = entityName === 'all' ? 'all' : (Object.keys(SYNC_ENTITY_DEFS).includes(entityName) ? entityName : 'all');
-            res.json(await runSapSync({ pgQuery, withTransaction, entityName: normalizedEntity }));
+            const config = await loadSapConfig(pgQuery);
+            const startedAt = new Date().toISOString();
+            const payload = await runSapSync({ pgQuery, withTransaction, entityName: normalizedEntity });
+            await logSapActivity(pgQuery, {
+                actionType: 'sync',
+                entityName: normalizedEntity,
+                actor,
+                mode: resolveOperatingMode(config),
+                status: payload.ok ? 'success' : 'error',
+                internalMethod: 'POST',
+                internalUrl: '/api/sap/sync',
+                serviceMethod: 'SYNC',
+                serviceUrl: `${config.sapProtocol}://${config.sapHost}:${config.sapPort}/b1s/v1`,
+                requestVars: { entityName: normalizedEntity },
+                responseSummary: summarizeSapPayload(payload),
+                startedAt,
+                finishedAt: new Date().toISOString()
+            });
+            res.json(payload);
         } catch (error) {
+            const config = await loadSapConfig(pgQuery).catch(() => ({}));
+            await logSapRouteFailure(pgQuery, {
+                actionType: 'sync',
+                entityName: normalizeText(req.body?.entityName || req.body?.entity || 'all'),
+                actor: await getSapActor(pgQuery),
+                mode: resolveOperatingMode(config),
+                internalMethod: 'POST',
+                internalUrl: '/api/sap/sync',
+                serviceMethod: 'SYNC',
+                serviceUrl: config.sapHost ? `${config.sapProtocol}://${config.sapHost}:${config.sapPort}/b1s/v1` : '',
+                requestVars: { entityName: normalizeText(req.body?.entityName || req.body?.entity || 'all') },
+                errorMessage: error.message
+            });
             res.status(400).json({ error: error.message || 'No fue posible sincronizar SAP.' });
         }
     });
@@ -1778,18 +2052,104 @@ function registerSapRoutes({ app, pgQuery, withTransaction }) {
 
     app.get('/api/sap/business-partners', async (req, res) => {
         try {
+            const actor = await getSapActor(pgQuery);
             const config = await loadSapConfig(pgQuery);
-            res.json(await queryBusinessPartners({ pgQuery, config, query: req.query || {} }));
+            const startedAt = new Date().toISOString();
+            const payload = await queryBusinessPartners({ pgQuery, config, query: req.query || {} });
+            await logSapActivity(pgQuery, {
+                actionType: 'query',
+                entityName: 'BusinessPartners',
+                actor,
+                mode: resolveOperatingMode(config),
+                status: 'success',
+                internalMethod: 'GET',
+                internalUrl: req.originalUrl || '/api/sap/business-partners',
+                serviceMethod: 'GET',
+                serviceUrl: String(req.query?.source || '').trim().toLowerCase() === 'local'
+                    ? 'tablas-locales://business-partners'
+                    : `${config.sapProtocol}://${config.sapHost}:${config.sapPort}/b1s/v1/BusinessPartners`,
+                requestVars: {
+                    source: req.query?.source || '',
+                    type: req.query?.type || '',
+                    search: req.query?.search || '',
+                    top: req.query?.top || 20
+                },
+                responseSummary: summarizeSapPayload(payload),
+                startedAt,
+                finishedAt: new Date().toISOString()
+            });
+            res.json(payload);
         } catch (error) {
+            const config = await loadSapConfig(pgQuery).catch(() => ({}));
+            await logSapRouteFailure(pgQuery, {
+                actionType: 'query',
+                entityName: 'BusinessPartners',
+                actor: await getSapActor(pgQuery),
+                mode: resolveOperatingMode(config),
+                internalMethod: 'GET',
+                internalUrl: req.originalUrl || '/api/sap/business-partners',
+                serviceMethod: 'GET',
+                serviceUrl: config.sapHost ? `${config.sapProtocol}://${config.sapHost}:${config.sapPort}/b1s/v1/BusinessPartners` : '',
+                requestVars: {
+                    source: req.query?.source || '',
+                    type: req.query?.type || '',
+                    search: req.query?.search || '',
+                    top: req.query?.top || 20
+                },
+                errorMessage: error.message
+            });
             res.status(400).json({ error: error.message || 'No fue posible consultar socios SAP.' });
         }
     });
 
     app.get('/api/sap/items', async (req, res) => {
         try {
+            const actor = await getSapActor(pgQuery);
             const config = await loadSapConfig(pgQuery);
-            res.json(await queryItems({ pgQuery, config, query: req.query || {} }));
+            const startedAt = new Date().toISOString();
+            const payload = await queryItems({ pgQuery, config, query: req.query || {} });
+            await logSapActivity(pgQuery, {
+                actionType: 'query',
+                entityName: 'Items',
+                actor,
+                mode: resolveOperatingMode(config),
+                status: 'success',
+                internalMethod: 'GET',
+                internalUrl: req.originalUrl || '/api/sap/items',
+                serviceMethod: 'GET',
+                serviceUrl: String(req.query?.source || '').trim().toLowerCase() === 'local'
+                    ? 'tablas-locales://items'
+                    : `${config.sapProtocol}://${config.sapHost}:${config.sapPort}/b1s/v1/Items`,
+                requestVars: {
+                    source: req.query?.source || '',
+                    group: req.query?.group || '',
+                    search: req.query?.search || '',
+                    top: req.query?.top || 50
+                },
+                responseSummary: summarizeSapPayload(payload),
+                startedAt,
+                finishedAt: new Date().toISOString()
+            });
+            res.json(payload);
         } catch (error) {
+            const config = await loadSapConfig(pgQuery).catch(() => ({}));
+            await logSapRouteFailure(pgQuery, {
+                actionType: 'query',
+                entityName: 'Items',
+                actor: await getSapActor(pgQuery),
+                mode: resolveOperatingMode(config),
+                internalMethod: 'GET',
+                internalUrl: req.originalUrl || '/api/sap/items',
+                serviceMethod: 'GET',
+                serviceUrl: config.sapHost ? `${config.sapProtocol}://${config.sapHost}:${config.sapPort}/b1s/v1/Items` : '',
+                requestVars: {
+                    source: req.query?.source || '',
+                    group: req.query?.group || '',
+                    search: req.query?.search || '',
+                    top: req.query?.top || 50
+                },
+                errorMessage: error.message
+            });
             res.status(400).json({ error: error.message || 'No fue posible consultar articulos SAP.' });
         }
     });
@@ -1810,36 +2170,170 @@ function registerSapRoutes({ app, pgQuery, withTransaction }) {
 
     app.get('/api/sap/orders', async (req, res) => {
         try {
+            const actor = await getSapActor(pgQuery);
             const config = await loadSapConfig(pgQuery);
-            res.json(await queryOrders({ pgQuery, config, query: req.query || {} }));
+            const startedAt = new Date().toISOString();
+            const payload = await queryOrders({ pgQuery, config, query: req.query || {} });
+            await logSapActivity(pgQuery, {
+                actionType: 'query',
+                entityName: 'Orders',
+                actor,
+                mode: resolveOperatingMode(config),
+                status: 'success',
+                internalMethod: 'GET',
+                internalUrl: req.originalUrl || '/api/sap/orders',
+                serviceMethod: 'GET',
+                serviceUrl: String(req.query?.source || '').trim().toLowerCase() === 'local'
+                    ? 'tablas-locales://orders'
+                    : `${config.sapProtocol}://${config.sapHost}:${config.sapPort}/b1s/v1/Orders`,
+                requestVars: {
+                    source: req.query?.source || '',
+                    statusFilter: req.query?.status || '',
+                    top: req.query?.top || 20
+                },
+                responseSummary: summarizeSapPayload(payload),
+                startedAt,
+                finishedAt: new Date().toISOString()
+            });
+            res.json(payload);
         } catch (error) {
+            const config = await loadSapConfig(pgQuery).catch(() => ({}));
+            await logSapRouteFailure(pgQuery, {
+                actionType: 'query',
+                entityName: 'Orders',
+                actor: await getSapActor(pgQuery),
+                mode: resolveOperatingMode(config),
+                internalMethod: 'GET',
+                internalUrl: req.originalUrl || '/api/sap/orders',
+                serviceMethod: 'GET',
+                serviceUrl: config.sapHost ? `${config.sapProtocol}://${config.sapHost}:${config.sapPort}/b1s/v1/Orders` : '',
+                requestVars: {
+                    source: req.query?.source || '',
+                    statusFilter: req.query?.status || '',
+                    top: req.query?.top || 20
+                },
+                errorMessage: error.message
+            });
             res.status(400).json({ error: error.message || 'No fue posible consultar ordenes SAP.' });
         }
     });
 
     app.post('/api/sap/orders', async (req, res) => {
         try {
+            const actor = await getSapActor(pgQuery);
             const config = await loadSapConfig(pgQuery);
-            res.status(201).json(await createOrder({ pgQuery, config, body: req.body || {} }));
+            const startedAt = new Date().toISOString();
+            const payload = await createOrder({ pgQuery, config, body: req.body || {} });
+            await logSapActivity(pgQuery, {
+                actionType: 'write',
+                entityName: 'Orders',
+                actor,
+                mode: resolveOperatingMode(config),
+                status: 'success',
+                internalMethod: 'POST',
+                internalUrl: '/api/sap/orders',
+                serviceMethod: 'POST',
+                serviceUrl: `${config.sapProtocol}://${config.sapHost}:${config.sapPort}/b1s/v1/Orders`,
+                requestVars: summarizeSapPayload(req.body || {}),
+                responseSummary: summarizeSapPayload(payload),
+                startedAt,
+                finishedAt: new Date().toISOString()
+            });
+            res.status(201).json(payload);
         } catch (error) {
+            const config = await loadSapConfig(pgQuery).catch(() => ({}));
+            await logSapRouteFailure(pgQuery, {
+                actionType: 'write',
+                entityName: 'Orders',
+                actor: await getSapActor(pgQuery),
+                mode: resolveOperatingMode(config),
+                internalMethod: 'POST',
+                internalUrl: '/api/sap/orders',
+                serviceMethod: 'POST',
+                serviceUrl: config.sapHost ? `${config.sapProtocol}://${config.sapHost}:${config.sapPort}/b1s/v1/Orders` : '',
+                requestVars: summarizeSapPayload(req.body || {}),
+                errorMessage: error.message
+            });
             res.status(400).json({ error: error.message || 'No fue posible crear la orden SAP.' });
         }
     });
 
     app.post('/api/sap/invoices', async (req, res) => {
         try {
+            const actor = await getSapActor(pgQuery);
             const config = await loadSapConfig(pgQuery);
-            res.status(201).json(await createInvoice({ pgQuery, config, body: req.body || {} }));
+            const startedAt = new Date().toISOString();
+            const payload = await createInvoice({ pgQuery, config, body: req.body || {} });
+            await logSapActivity(pgQuery, {
+                actionType: 'write',
+                entityName: 'Invoices',
+                actor,
+                mode: resolveOperatingMode(config),
+                status: 'success',
+                internalMethod: 'POST',
+                internalUrl: '/api/sap/invoices',
+                serviceMethod: 'POST',
+                serviceUrl: `${config.sapProtocol}://${config.sapHost}:${config.sapPort}/b1s/v1/Invoices`,
+                requestVars: summarizeSapPayload(req.body || {}),
+                responseSummary: summarizeSapPayload(payload),
+                startedAt,
+                finishedAt: new Date().toISOString()
+            });
+            res.status(201).json(payload);
         } catch (error) {
+            const config = await loadSapConfig(pgQuery).catch(() => ({}));
+            await logSapRouteFailure(pgQuery, {
+                actionType: 'write',
+                entityName: 'Invoices',
+                actor: await getSapActor(pgQuery),
+                mode: resolveOperatingMode(config),
+                internalMethod: 'POST',
+                internalUrl: '/api/sap/invoices',
+                serviceMethod: 'POST',
+                serviceUrl: config.sapHost ? `${config.sapProtocol}://${config.sapHost}:${config.sapPort}/b1s/v1/Invoices` : '',
+                requestVars: summarizeSapPayload(req.body || {}),
+                errorMessage: error.message
+            });
             res.status(400).json({ error: error.message || 'No fue posible crear la factura SAP.' });
         }
     });
 
     app.post('/api/sap/inventory/exit', async (req, res) => {
         try {
+            const actor = await getSapActor(pgQuery);
             const config = await loadSapConfig(pgQuery);
-            res.status(201).json(await createInventoryExit({ pgQuery, config, body: req.body || {} }));
+            const startedAt = new Date().toISOString();
+            const payload = await createInventoryExit({ pgQuery, config, body: req.body || {} });
+            await logSapActivity(pgQuery, {
+                actionType: 'write',
+                entityName: 'InventoryGenExits',
+                actor,
+                mode: resolveOperatingMode(config),
+                status: 'success',
+                internalMethod: 'POST',
+                internalUrl: '/api/sap/inventory/exit',
+                serviceMethod: 'POST',
+                serviceUrl: `${config.sapProtocol}://${config.sapHost}:${config.sapPort}/b1s/v1/InventoryGenExits`,
+                requestVars: summarizeSapPayload(req.body || {}),
+                responseSummary: summarizeSapPayload(payload),
+                startedAt,
+                finishedAt: new Date().toISOString()
+            });
+            res.status(201).json(payload);
         } catch (error) {
+            const config = await loadSapConfig(pgQuery).catch(() => ({}));
+            await logSapRouteFailure(pgQuery, {
+                actionType: 'write',
+                entityName: 'InventoryGenExits',
+                actor: await getSapActor(pgQuery),
+                mode: resolveOperatingMode(config),
+                internalMethod: 'POST',
+                internalUrl: '/api/sap/inventory/exit',
+                serviceMethod: 'POST',
+                serviceUrl: config.sapHost ? `${config.sapProtocol}://${config.sapHost}:${config.sapPort}/b1s/v1/InventoryGenExits` : '',
+                requestVars: summarizeSapPayload(req.body || {}),
+                errorMessage: error.message
+            });
             res.status(400).json({ error: error.message || 'No fue posible crear la salida de inventario SAP.' });
         }
     });
@@ -1864,6 +2358,14 @@ function registerSapRoutes({ app, pgQuery, withTransaction }) {
             });
         } catch (error) {
             res.status(500).json({ error: error.message || 'No fue posible cargar los logs SAP.' });
+        }
+    });
+
+    app.get('/api/sap/activity', async (req, res) => {
+        try {
+            res.json(await loadSapActivityLog(pgQuery, req.query || {}));
+        } catch (error) {
+            res.status(500).json({ error: error.message || 'No fue posible cargar los registros SAP.' });
         }
     });
 }

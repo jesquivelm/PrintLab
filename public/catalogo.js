@@ -12,6 +12,7 @@ const editorTitle = document.getElementById('editorTitle');
 const catalogNewButton = document.getElementById('catalogNewButton');
 const catalogSaveButton = document.getElementById('catalogSaveButton');
 const catalogImportSapButton = document.getElementById('catalogImportSapButton');
+const catalogRefreshButton = document.getElementById('catalogRefreshButton');
 const catalogImportSapStatus = document.getElementById('catalogImportSapStatus');
 const catalogImportButton = document.getElementById('catalogImportButton');
 const catalogExportButton = document.getElementById('catalogExportButton');
@@ -24,10 +25,36 @@ const catalogHeaderSearchButton = document.getElementById('catalogHeaderSearchBu
 const catalogMenuToggle = document.getElementById('catalogMenuToggle');
 const catalogMenuPanel = document.getElementById('catalogMenuPanel');
 const catalogDetailPreview = document.getElementById('catalogDetailPreview');
+const catalogTableWrap = document.querySelector('.inventory-table-wrap');
+const catalogScrollBottomIndicator = document.getElementById('catalogScrollBottomIndicator');
 const inventoryToolbarShell = document.querySelector('.inventory-toolbar-shell');
 const inventoryActions = document.querySelector('.inventory-actions');
 const inventoryPanelHead = document.querySelector('.inventory-panel-head');
 const inventoryEditorPanel = document.querySelector('.inventory-editor-panel');
+const catalogImportSapPopover = document.getElementById('catalogImportSapPopover');
+const cerrarCatalogImportSapPopoverButton = document.getElementById('cerrarCatalogImportSapPopoverButton');
+const cancelarCatalogImportSapPopoverButton = document.getElementById('cancelarCatalogImportSapPopoverButton');
+const ejecutarCatalogImportSapButton = document.getElementById('ejecutarCatalogImportSapButton');
+const catalogImportSapPopoverSummary = document.getElementById('catalogImportSapPopoverSummary');
+const catalogImportSapLimitInput = document.getElementById('catalogImportSapLimitInput');
+const catalogImportSapPopoverStatus = document.getElementById('catalogImportSapPopoverStatus');
+let companyConfig = null;
+let catalogSapImportDiagnosis = null;
+let catalogVisibleCount = 0;
+
+function formatVisibleCountLabel(count, noun) {
+    const total = Math.max(0, Number(count) || 0);
+    return `${total} ${noun}${total === 1 ? '' : 's'} mostrados`;
+}
+
+function updateCatalogScrollBottomIndicator() {
+    if (!catalogTableWrap || !catalogScrollBottomIndicator) return;
+    const hasScrollableContent = catalogTableWrap.scrollHeight - catalogTableWrap.clientHeight > 6;
+    const distanceToBottom = catalogTableWrap.scrollHeight - catalogTableWrap.scrollTop - catalogTableWrap.clientHeight;
+    const shouldShow = catalogVisibleCount > 0 && (!hasScrollableContent || distanceToBottom <= 8);
+    catalogScrollBottomIndicator.textContent = formatVisibleCountLabel(catalogVisibleCount, 'registro');
+    catalogScrollBottomIndicator.classList.toggle('is-visible', shouldShow);
+}
 
 function resolveRouteConfig() {
     const routeMap = {
@@ -47,15 +74,9 @@ function resolveRouteConfig() {
             exportEndpoint: '/api/inventario/materiales/export',
             importEndpoint: '/api/inventario/materiales/import',
             columns: [
-                ['codigo', 'Código'],
-                ['nombre', 'Nombre'],
-                ['familia_proceso', 'Proceso'],
-                ['tipo_proforma', 'Familia Comercial'],
-                ['costo_x_libra', 'Costo Libra'],
-                ['peso_capa_gsm', 'GSM Tinta'],
-                ['ancho_mm', 'Ancho mm'],
-                ['gramaje_g_m2', 'Gramaje'],
-                ['activo', 'Activo']
+                { key: 'codigo', label: 'Código', width: '148px', className: 'inventory-col-code inventory-col-code-material' },
+                { key: 'nombre', label: 'Nombre', className: 'inventory-col-name inventory-col-name-material' },
+                { key: 'familia_proceso', label: 'Proceso', width: '320px', className: 'inventory-col-process inventory-col-process-material' }
             ],
             formFields: [
                 { key: 'id', type: 'hidden' },
@@ -411,6 +432,10 @@ function isMaterialsInventory() {
     return page.inventoryKey === 'materiales';
 }
 
+function isMachinesInventory() {
+    return page.inventoryKey === 'maquinas';
+}
+
 function setSapImportStatus(message = '', tone = '') {
     if (!catalogImportSapStatus) return;
     catalogImportSapStatus.hidden = !message;
@@ -423,6 +448,18 @@ function setSapImportStatus(message = '', tone = '') {
     }
 }
 
+function setCatalogSapImportPopoverStatus(message = '', tone = '') {
+    if (!catalogImportSapPopoverStatus) return;
+    catalogImportSapPopoverStatus.hidden = !message;
+    catalogImportSapPopoverStatus.textContent = message;
+    catalogImportSapPopoverStatus.classList.remove('is-error', 'is-success');
+    if (tone === 'error') {
+        catalogImportSapPopoverStatus.classList.add('is-error');
+    } else if (tone === 'success') {
+        catalogImportSapPopoverStatus.classList.add('is-success');
+    }
+}
+
 function buildSapImportSummaryText(summary = {}) {
     const parts = [];
     parts.push(`${summary.inserted || 0} nuevos`);
@@ -430,6 +467,23 @@ function buildSapImportSummaryText(summary = {}) {
     if (summary.skippedWithoutCode) parts.push(`${summary.skippedWithoutCode} sin código`);
     if (summary.skippedWithoutName) parts.push(`${summary.skippedWithoutName} sin nombre`);
     return `SAP: ${parts.join(' · ')}`;
+}
+
+function renderCatalogSapImportDiagnosis(summary = {}) {
+    if (!catalogImportSapPopoverSummary) return;
+    const cards = [
+        ['Disponibles', Number(summary.importable || 0)],
+        ['Total leídos', Number(summary.total || 0)],
+        ['Duplicados', Number(summary.duplicateByCode || 0)],
+        ['Sin código', Number(summary.skippedWithoutCode || 0)],
+        ['Sin nombre', Number(summary.skippedWithoutName || 0)]
+    ];
+    catalogImportSapPopoverSummary.innerHTML = cards.map(([label, value]) => `
+        <div class="socios-import-diagnosis-card">
+            <span>${escapeHtml(label)}</span>
+            <strong>${escapeHtml(String(value))}</strong>
+        </div>
+    `).join('');
 }
 
 const page = resolveRouteConfig();
@@ -536,6 +590,14 @@ function setHeaderIcon(button, value, altText) {
     button.setAttribute('aria-label', altText);
 }
 
+function isSvgValue(value) {
+    return String(value || '').trim().startsWith('data:image/svg+xml');
+}
+
+function isImageValue(value) {
+    return String(value || '').trim().startsWith('data:image/');
+}
+
 function escapeHtml(value) {
     return String(value ?? '')
         .replace(/&/g, '&amp;')
@@ -543,6 +605,79 @@ function escapeHtml(value) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+}
+
+function iconMarkup(value, altText, extraClass = '') {
+    if (isSvgValue(value)) {
+        const safeUrl = escapeHtml(value);
+        return `<span class="icon-svg-mask ${extraClass}" role="img" aria-label="${escapeHtml(altText)}" style="-webkit-mask-image:url('${safeUrl}');mask-image:url('${safeUrl}');"></span>`;
+    }
+    if (isImageValue(value)) {
+        return `<img src="${escapeHtml(value)}" alt="${escapeHtml(altText)}" class="icon-image ${extraClass}">`;
+    }
+    return `<span class="icon-glyph ${extraClass}">${escapeHtml(value || '')}</span>`;
+}
+
+function getOpenIconConfig() {
+    const general = companyConfig?.general || {};
+    const presentation = getPresentationConfig(companyConfig || {}, PRESENTATION_KEY);
+    return {
+        value: companyConfig?.icons?.browserOpen || companyConfig?.icons?.tableOpen || '↗',
+        color: firstFilled(general.iconColorBrowserOpen, general.iconColorTableOpen, general.iconColor, '#0b81b8'),
+        hover: firstFilled(general.iconColorHoverBrowserOpen, general.iconColorHoverTableOpen, '#07638c'),
+        size: Number(firstFilled(general.iconSizeBrowserOpen, general.iconSizeTableOpen, presentation.iconSize, 18)) || 18
+    };
+}
+
+function getDeleteIconConfig() {
+    const general = companyConfig?.general || {};
+    const presentation = getPresentationConfig(companyConfig || {}, PRESENTATION_KEY);
+    return {
+        value: companyConfig?.icons?.lineDelete || companyConfig?.icons?.loginRepositoryDelete || companyConfig?.icons?.adminUserDelete || 'X',
+        color: firstFilled(general.iconColorLineDelete, general.iconColor, '#a74343'),
+        hover: firstFilled(general.iconColorHoverLineDelete, '#d03535'),
+        size: Number(firstFilled(general.iconSizeLineDelete, presentation.iconSize, 18)) || 18
+    };
+}
+
+function setActionButtonIcon(button, iconValue, label, color, size) {
+    if (!button) return;
+    const iconMarkupValue = iconMarkup(iconValue, label, 'table-icon-media');
+    button.innerHTML = `${iconMarkupValue}<span class="quote-browser-action-label">${escapeHtml(label)}</span>`;
+    button.style.setProperty('--icon-color', color || '#178fc7');
+    button.style.setProperty('--config-icon-size', `${Number(size) || 18}px`);
+    button.setAttribute('aria-label', label);
+}
+
+function applyMaterialsActionIcons() {
+    if (!isMaterialsInventory()) return;
+    const general = companyConfig?.general || {};
+    const presentation = getPresentationConfig(companyConfig || {}, PRESENTATION_KEY);
+    const addValue = companyConfig?.icons?.tableAdd || companyConfig?.icons?.quantityAdd || '+';
+    const refreshValue = companyConfig?.icons?.refreshCosts || companyConfig?.icons?.mobileRefresh || '↻';
+    const addColor = firstFilled(general.iconColorTableAdd, general.iconColorQuantityAdd, general.iconColor, '#178fc7');
+    const refreshColor = firstFilled(general.iconColorRefreshCosts, general.iconColorMobileRefresh, general.iconColor, '#178fc7');
+    const addSize = Number(firstFilled(general.iconSizeTableAdd, general.iconSizeQuantityAdd, presentation.iconSize, 16)) || 16;
+    const refreshSize = Number(firstFilled(general.iconSizeRefreshCosts, general.iconSizeMobileRefresh, presentation.iconSize, 16)) || 16;
+
+    setActionButtonIcon(catalogNewButton, addValue, 'Nuevo', addColor, addSize);
+    setActionButtonIcon(catalogImportSapButton, refreshValue, 'Actualizar desde SAP', refreshColor, refreshSize);
+    setActionButtonIcon(catalogRefreshButton, refreshValue, 'Refrescar', refreshColor, refreshSize);
+}
+
+function applyMachinesActionIcons() {
+    if (!isMachinesInventory()) return;
+    const general = companyConfig?.general || {};
+    const presentation = getPresentationConfig(companyConfig || {}, PRESENTATION_KEY);
+    const addValue = companyConfig?.icons?.tableAdd || companyConfig?.icons?.quantityAdd || '+';
+    const saveValue = companyConfig?.icons?.floatingSave || '💾';
+    const addColor = firstFilled(general.iconColorTableAdd, general.iconColorQuantityAdd, general.iconColor, '#178fc7');
+    const saveColor = firstFilled(general.iconColorFloatingSave, general.iconColor, '#178fc7');
+    const addSize = Number(firstFilled(general.iconSizeTableAdd, general.iconSizeQuantityAdd, presentation.iconSize, 16)) || 16;
+    const saveSize = Number(firstFilled(general.iconSizeFloatingSave, presentation.iconSize, 16)) || 16;
+
+    setActionButtonIcon(catalogNewButton, addValue, 'Nuevo', addColor, addSize);
+    setActionButtonIcon(catalogSaveButton, saveValue, 'Guardar', saveColor, saveSize);
 }
 
 function buildInventoryUrl(view = 'list', id = '') {
@@ -564,7 +699,9 @@ function updateInventoryRoute(view = 'list', id = '') {
 }
 
 function getTableColumns() {
-    const actionColumn = { key: 'open', label: '', width: '56px', className: 'inventory-col-open', isAction: true };
+    const actionColumn = isMaterialsInventory()
+        ? { key: 'actions', label: '', width: '92px', className: 'inventory-col-open inventory-col-actions', isAction: true }
+        : { key: 'open', label: '', width: '56px', className: 'inventory-col-open', isAction: true };
     if (!isTroquelesInventory()) {
         const baseColumns = page.columns.map((column) => Array.isArray(column)
             ? { key: column[0], label: column[1] }
@@ -857,6 +994,7 @@ function getPresentationConfig(config, key) {
 }
 
 function applyConfig(config) {
+    companyConfig = config || {};
     const presentation = getPresentationConfig(config, PRESENTATION_KEY);
     if (catalogTitle) {
         catalogTitle.textContent = presentation.moduleTitle;
@@ -941,12 +1079,18 @@ function applyConfig(config) {
         catalogMenuToggle.style.width = `${size}px`;
         catalogMenuToggle.style.height = `${size}px`;
     }
+
+    applyMaterialsActionIcons();
+    applyMachinesActionIcons();
 }
 
 async function loadHeaderConfig() {
     const response = await fetch('/api/config/general');
     if (!response.ok) throw new Error('No se pudo cargar la configuración.');
     applyConfig(await response.json());
+    if (isMaterialsInventory() && Array.isArray(currentItems) && currentItems.length) {
+        renderTable(currentItems);
+    }
 }
 
 function createInput(field, value) {
@@ -1158,6 +1302,12 @@ function syncMachineActions() {
     if (catalogSaveButton && catalogSaveButton.parentElement !== inventoryActions) {
         inventoryActions.appendChild(catalogSaveButton);
     }
+    if (catalogSaveButton) {
+        catalogSaveButton.hidden = isMaterialsInventory();
+    }
+    if (catalogRefreshButton) {
+        catalogRefreshButton.hidden = !isMaterialsInventory();
+    }
     if (catalogImportButton) catalogImportButton.hidden = true;
     if (catalogExportButton) catalogExportButton.hidden = true;
     if (inventoryToolbarShell) inventoryToolbarShell.hidden = false;
@@ -1330,6 +1480,7 @@ function buildPayloadFromForm() {
 }
 
 function renderTable(items) {
+    catalogVisibleCount = Array.isArray(items) ? items.length : 0;
     if (isOutputTypesInventory()) {
         catalogHead.innerHTML = `
             <th class="inventory-output-col-code">Codigo</th>
@@ -1347,8 +1498,11 @@ function renderTable(items) {
     }).join('');
     if (!items.length) {
         catalogBody.innerHTML = `<tr><td colspan="${columns.length}">Sin resultados.</td></tr>`;
+        requestAnimationFrame(updateCatalogScrollBottomIndicator);
         return;
     }
+    const openIcon = getOpenIconConfig();
+    const deleteIcon = getDeleteIconConfig();
     catalogBody.innerHTML = items.map((item) => `
         <tr class="${item.id === selectedId ? 'is-active' : ''}" data-id="${escapeHtml(item.id)}">
             ${columns.map((column) => {
@@ -1356,6 +1510,14 @@ function renderTable(items) {
                 if (column.isAction) {
                     if (!isTroquelesInventory()) {
                         const label = escapeHtml(item.codigo || item.nombre || item.descripcion || 'registro');
+                        if (isMaterialsInventory()) {
+                            return `<td${className}>
+                                <div class="quote-browser-actions">
+                                    <button type="button" class="browser-open-link" data-select-item="${escapeHtml(item.id)}" aria-label="Abrir material ${label}" title="Abrir material ${label}" style="--icon-color:${escapeHtml(openIcon.color)};--icon-hover-color:${escapeHtml(openIcon.hover)};--config-icon-size:${escapeHtml(String(openIcon.size))}px;">${iconMarkup(openIcon.value, 'Abrir material', 'table-icon-media')}</button>
+                                    <button type="button" class="browser-open-link browser-open-link-danger" data-delete-item="${escapeHtml(item.id)}" data-delete-label="${label}" aria-label="Eliminar material ${label}" title="Eliminar material ${label}" style="--icon-color:${escapeHtml(deleteIcon.color)};--icon-hover-color:${escapeHtml(deleteIcon.hover)};--config-icon-size:${escapeHtml(String(deleteIcon.size))}px;">${iconMarkup(deleteIcon.value, 'Eliminar material', 'table-icon-media')}</button>
+                                </div>
+                            </td>`;
+                        }
                         return `<td${className}><button type="button" class="browser-open-link inventory-edit-link" data-select-item="${escapeHtml(item.id)}" aria-label="Editar ${label}"></button></td>`;
                     }
                     const href = escapeHtml(buildInventoryUrl('detail', item.id));
@@ -1366,6 +1528,7 @@ function renderTable(items) {
             }).join('')}
         </tr>
     `).join('');
+    requestAnimationFrame(updateCatalogScrollBottomIndicator);
 }
 
 async function loadCatalog(selectId = '') {
@@ -1398,7 +1561,7 @@ async function loadCatalog(selectId = '') {
     updateInventoryView(currentView === 'detail' && selectedItem && isTroquelesInventory() ? 'detail' : 'list', selectedItem?.id || '');
     catalogStatus.textContent = isOutputTypesInventory()
         ? ''
-        : `${currentItems.length} registros cargados.`;
+        : (isMaterialsInventory() ? '' : `${currentItems.length} registros cargados.`);
 }
 
 async function loadMachineOptions() {
@@ -1424,7 +1587,33 @@ function resetEditor() {
     renderTable(currentItems);
     renderForm(page.createEmptyItem());
     updateInventoryView(isOutputTypesInventory() ? 'list' : 'detail');
-    catalogStatus.textContent = 'Formulario listo para un nuevo registro.';
+    catalogStatus.textContent = isMaterialsInventory() ? '' : 'Formulario listo para un nuevo registro.';
+}
+
+async function deleteCurrentMaterial(id, label) {
+    const materialId = String(id || '').trim();
+    if (!materialId) return;
+    const materialLabel = String(label || 'este material').trim() || 'este material';
+    const confirmed = window.confirm(`Se va a eliminar ${materialLabel}. Esta acción no se puede deshacer.\n\n¿Deseas continuar?`);
+    if (!confirmed) return;
+
+    catalogStatus.textContent = `Eliminando ${materialLabel}...`;
+    const response = await fetch(`${page.endpoint}/${encodeURIComponent(materialId)}`, {
+        method: 'DELETE'
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        throw new Error(result.error || 'No fue posible eliminar el material.');
+    }
+
+    if (selectedId === materialId) {
+        selectedId = '';
+        renderForm(page.createEmptyItem());
+        updateInventoryView('list');
+    }
+
+    await loadCatalog();
+    catalogStatus.textContent = '';
 }
 
 async function saveCurrentRecord() {
@@ -1530,12 +1719,23 @@ async function importInventoryFile(file) {
 
 async function importMaterialsFromSap() {
     if (!isMaterialsInventory()) return;
-    setSapImportStatus('Consultando SAP...', '');
+    const importable = Number(catalogSapImportDiagnosis?.importable || 0);
+    if (importable <= 0) {
+        throw new Error('No hay materiales nuevos para importar.');
+    }
+
+    const requested = Number(catalogImportSapLimitInput?.value || importable);
+    const safeLimit = Math.min(importable, Math.max(1, Math.floor(requested || importable)));
+
+    setCatalogSapImportPopoverStatus(`Importando ${safeLimit} materiales desde SAP...`);
+    setSapImportStatus('Importando materiales desde SAP...', '');
     catalogStatus.textContent = 'Importando materiales desde SAP...';
+    if (ejecutarCatalogImportSapButton) ejecutarCatalogImportSapButton.disabled = true;
 
     const response = await fetch('/api/inventario/materiales/importar-sap', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit: safeLimit })
     });
 
     const result = await response.json();
@@ -1546,8 +1746,58 @@ async function importMaterialsFromSap() {
     await loadCatalog();
     setSapImportStatus(buildSapImportSummaryText(result.summary || {}), 'success');
     catalogStatus.textContent = result.message || 'Materiales importados correctamente.';
+    setCatalogSapImportPopoverStatus(result.message || 'Materiales importados correctamente.', 'success');
+    if (ejecutarCatalogImportSapButton) ejecutarCatalogImportSapButton.disabled = false;
     window.clearTimeout(importMaterialsFromSap._timer);
     importMaterialsFromSap._timer = window.setTimeout(() => setSapImportStatus('', ''), 7000);
+}
+
+async function runCatalogSapImportDiagnosis() {
+    if (!isMaterialsInventory()) return;
+    setCatalogSapImportPopoverStatus('Consultando y diagnosticando materiales en SAP...');
+    if (catalogImportSapPopoverSummary) catalogImportSapPopoverSummary.innerHTML = '';
+    if (ejecutarCatalogImportSapButton) ejecutarCatalogImportSapButton.disabled = true;
+
+    const response = await fetch('/api/inventario/materiales/importar-sap/diagnostico', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+        throw new Error(payload.error || 'No fue posible diagnosticar materiales desde SAP.');
+    }
+
+    catalogSapImportDiagnosis = payload.summary || {};
+    renderCatalogSapImportDiagnosis(catalogSapImportDiagnosis);
+    const importable = Number(catalogSapImportDiagnosis.importable || 0);
+    if (catalogImportSapLimitInput) {
+        catalogImportSapLimitInput.max = String(Math.max(importable, 1));
+        catalogImportSapLimitInput.value = importable ? String(importable) : '';
+    }
+    if (ejecutarCatalogImportSapButton) ejecutarCatalogImportSapButton.disabled = importable <= 0;
+    setCatalogSapImportPopoverStatus(importable > 0 ? 'Diagnóstico listo. Indica cuántos quieres importar.' : 'No hay materiales nuevos disponibles para importar.', importable <= 0 ? 'error' : '');
+}
+
+function openCatalogSapImportPopover() {
+    if (!catalogImportSapPopover || !isMaterialsInventory()) return;
+    catalogImportSapPopover.hidden = false;
+    document.body.classList.add('popover-open');
+    catalogSapImportDiagnosis = null;
+    if (catalogImportSapLimitInput) {
+        catalogImportSapLimitInput.value = '';
+        catalogImportSapLimitInput.removeAttribute('max');
+    }
+    runCatalogSapImportDiagnosis().catch((error) => {
+        setCatalogSapImportPopoverStatus(error.message || 'No fue posible diagnosticar materiales desde SAP.', 'error');
+    });
+}
+
+function closeCatalogSapImportPopover() {
+    if (!catalogImportSapPopover) return;
+    catalogImportSapPopover.hidden = true;
+    document.body.classList.remove('popover-open');
+    catalogSapImportDiagnosis = null;
+    setCatalogSapImportPopoverStatus('', '');
 }
 
 function capacitiesStateSanity() {
@@ -1641,6 +1891,14 @@ catalogBody.addEventListener('click', (event) => {
         }
         return;
     }
+    const deleteButton = event.target.closest('[data-delete-item]');
+    if (deleteButton) {
+        if (consumeCatalogTouchAction(deleteButton)) return;
+        deleteCurrentMaterial(deleteButton.dataset.deleteItem, deleteButton.dataset.deleteLabel).catch((error) => {
+            catalogStatus.textContent = error.message;
+        });
+        return;
+    }
     const row = event.target.closest('tr[data-id]');
     if (!row) return;
     selectedId = row.dataset.id || '';
@@ -1707,6 +1965,11 @@ catalogBackButton?.addEventListener('click', () => {
 });
 catalogSaveButton.addEventListener('click', () => {
     saveCurrentRecord().catch((error) => {
+        catalogStatus.textContent = error.message;
+    });
+});
+catalogRefreshButton?.addEventListener('click', () => {
+    loadCatalog(selectedId).catch((error) => {
         catalogStatus.textContent = error.message;
     });
 });
@@ -1777,6 +2040,18 @@ document.addEventListener('click', (event) => {
         toggleHeaderMenu(false);
     }
 });
+catalogTableWrap?.addEventListener('scroll', updateCatalogScrollBottomIndicator, { passive: true });
+window.addEventListener('resize', updateCatalogScrollBottomIndicator);
+catalogImportSapPopover?.addEventListener('click', (event) => {
+    if (event.target.closest('[data-close-catalog-import-popover="true"]')) {
+        closeCatalogSapImportPopover();
+    }
+});
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && catalogImportSapPopover && !catalogImportSapPopover.hidden) {
+        closeCatalogSapImportPopover();
+    }
+});
 
 if (isOutputTypesInventory()) {
     catalogNewButton.textContent = 'Agregar fila';
@@ -1784,17 +2059,27 @@ if (isOutputTypesInventory()) {
     catalogSearch.placeholder = 'Buscar por codigo o descripcion';
 }
 
+if (isMaterialsInventory()) {
+    catalogSearch.placeholder = 'Buscar por código o nombre';
+}
+
 if (catalogImportSapButton) {
     catalogImportSapButton.hidden = !isMaterialsInventory();
     if (isMaterialsInventory()) {
-        catalogImportSapButton.addEventListener('click', () => {
-            importMaterialsFromSap().catch((error) => {
-                setSapImportStatus(error.message, 'error');
-                catalogStatus.textContent = error.message;
-            });
-        });
+        catalogImportSapButton.addEventListener('click', openCatalogSapImportPopover);
     }
 }
+
+cerrarCatalogImportSapPopoverButton?.addEventListener('click', closeCatalogSapImportPopover);
+cancelarCatalogImportSapPopoverButton?.addEventListener('click', closeCatalogSapImportPopover);
+ejecutarCatalogImportSapButton?.addEventListener('click', () => {
+    importMaterialsFromSap().catch((error) => {
+        if (ejecutarCatalogImportSapButton) ejecutarCatalogImportSapButton.disabled = false;
+        setCatalogSapImportPopoverStatus(error.message, 'error');
+        setSapImportStatus(error.message, 'error');
+        catalogStatus.textContent = error.message;
+    });
+});
 
 Promise.all([loadHeaderConfig(), loadMachineOptions(), loadCatalog()]).catch((error) => {
     catalogStatus.textContent = error.message;

@@ -32,6 +32,8 @@ const STATIC_MATERIALS = [
 const DEFAULT_SURFACES = ['Botella', 'Caja', 'Carton', 'Envase', 'Frasco', 'Pouch', 'Tapa', 'Vidrio'];
 
 const rowsBody = document.getElementById('quotesTableBody');
+const quotesTableWrap = document.querySelector('.quote-browser-table-wrap');
+const quotesScrollBottomIndicator = document.getElementById('quotesScrollBottomIndicator');
 const quotesSearchInput = document.getElementById('quotesSearchInput');
 const nuevaCotizacionButton = document.getElementById('nuevaCotizacionButton');
 const refreshQuotesButton = document.getElementById('refreshQuotesButton');
@@ -102,6 +104,22 @@ const sapSendPayloadButton = document.getElementById('sapSendPayloadButton');
 const sapPayloadInput = document.getElementById('sapPayloadInput');
 const sapQueryResult = document.getElementById('sapQueryResult');
 const sapWriteResult = document.getElementById('sapWriteResult');
+
+let visibleQuotesCount = 0;
+
+function formatVisibleCountLabel(count, noun) {
+    const total = Math.max(0, Number(count) || 0);
+    return `${total} ${noun}${total === 1 ? '' : 'es'} mostradas`;
+}
+
+function updateQuotesScrollBottomIndicator() {
+    if (!quotesTableWrap || !quotesScrollBottomIndicator) return;
+    const hasScrollableContent = quotesTableWrap.scrollHeight - quotesTableWrap.clientHeight > 6;
+    const distanceToBottom = quotesTableWrap.scrollHeight - quotesTableWrap.scrollTop - quotesTableWrap.clientHeight;
+    const shouldShow = visibleQuotesCount > 0 && (!hasScrollableContent || distanceToBottom <= 8);
+    quotesScrollBottomIndicator.textContent = formatVisibleCountLabel(visibleQuotesCount, 'cotización');
+    quotesScrollBottomIndicator.classList.toggle('is-visible', shouldShow);
+}
 
 let loadedConfig = {};
 let quoteCatalog = [];
@@ -554,8 +572,10 @@ function formatDate(value) {
 
 function renderQuotesTable(items) {
     if (!rowsBody) return;
+    visibleQuotesCount = Array.isArray(items) ? items.length : 0;
     if (!items.length) {
         rowsBody.innerHTML = '<tr><td colspan="8">No hay cotizaciones.</td></tr>';
+        requestAnimationFrame(updateQuotesScrollBottomIndicator);
         return;
     }
     const openConf = getResolvedIcon(['browserOpen', 'tableOpen'], 'tableOpen');
@@ -583,6 +603,7 @@ function renderQuotesTable(items) {
             </td>
         </tr>
     `).join('');
+    requestAnimationFrame(updateQuotesScrollBottomIndicator);
 }
 
 function getFilteredQuotes() {
@@ -1211,6 +1232,8 @@ async function toggleAudioRecording() {
 function bindEvents() {
     nuevaCotizacionButton?.addEventListener('click', openPopover);
     refreshQuotesButton?.addEventListener('click', () => loadQuotes().catch((error) => setStatus(error.message, 'error')));
+    quotesTableWrap?.addEventListener('scroll', updateQuotesScrollBottomIndicator, { passive: true });
+    window.addEventListener('resize', updateQuotesScrollBottomIndicator);
     sapConnectorButton?.addEventListener('click', () => {
         openSapPopover().catch((error) => setSapConfigStatus(error.message, 'error'));
     });

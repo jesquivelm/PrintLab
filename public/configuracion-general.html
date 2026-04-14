@@ -321,6 +321,250 @@
             color: #fff;
             box-shadow: 0 8px 18px rgba(17,143,198,0.24);
         }
+        .quotes-orders-general-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .quotes-orders-general-grid label {
+            min-width: 0;
+        }
+        .quotes-orders-general-grid input,
+        .quotes-orders-general-grid select {
+            width: 100%;
+        }
+        .exchange-rate-subtabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .exchange-rate-subtab {
+            border: 1px solid #d7e2eb;
+            border-radius: 999px;
+            padding: 8px 14px;
+            background: linear-gradient(180deg, #ffffff 0%, #f4f8fb 100%);
+            color: #5f7283;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .exchange-rate-subtab.active {
+            border-color: #4db8ea;
+            background: linear-gradient(180deg, #39afe4 0%, #1890d4 100%);
+            color: #fff;
+            box-shadow: 0 8px 18px rgba(17,143,198,0.18);
+        }
+        .exchange-rate-panel[hidden] {
+            display: none;
+        }
+        .exchange-rate-grid,
+        .exchange-rate-summary-grid {
+            display: grid;
+            gap: 12px;
+        }
+        .exchange-rate-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+        .exchange-rate-summary-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            margin-bottom: 14px;
+        }
+        .exchange-rate-card,
+        .exchange-rate-summary-card,
+        .exchange-rate-calc-result,
+        .exchange-rate-empty {
+            border: 1px solid #dce7ef;
+            border-radius: 18px;
+            background: linear-gradient(180deg, #ffffff 0%, #f7fbfd 100%);
+            padding: 14px 16px;
+        }
+        .exchange-rate-summary-card strong,
+        .exchange-rate-card strong {
+            display: block;
+            color: #17354a;
+        }
+        .exchange-rate-summary-card span,
+        .exchange-rate-card span {
+            display: block;
+            color: #6b8192;
+            font-size: 12px;
+        }
+        .exchange-rate-card-value {
+            margin-top: 8px;
+            font-size: 20px;
+            font-weight: 800;
+            color: #17354a;
+        }
+        .exchange-rate-status-row,
+        .exchange-rate-toolbar,
+        .exchange-rate-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        .exchange-rate-toolbar {
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+        .exchange-rate-status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 14px;
+            border-radius: 999px;
+            background: #eef7fd;
+            color: #23516a;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .exchange-rate-status-pill.is-error {
+            background: #fff1f1;
+            color: #a74343;
+        }
+        .exchange-rate-status-pill.is-success {
+            background: #edf8ef;
+            color: #27623a;
+        }
+        .exchange-rate-status-pill.is-running {
+            background: #fff8ea;
+            color: #9c6a17;
+        }
+        .exchange-rate-status-meta {
+            margin: 0;
+            color: #6f8293;
+            font-size: 12px;
+        }
+        .exchange-rate-calc-grid,
+        .exchange-rate-config-grid,
+        .exchange-rate-log-grid {
+            display: grid;
+            gap: 12px;
+        }
+        .exchange-rate-calc-grid,
+        .exchange-rate-config-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        .exchange-rate-config-grid label,
+        .exchange-rate-calc-grid label {
+            display: grid;
+            gap: 6px;
+        }
+        .exchange-rate-config-grid label span,
+        .exchange-rate-calc-grid label span {
+            font-size: 12px;
+            font-weight: 700;
+            color: #28465c;
+        }
+        .exchange-rate-config-grid input,
+        .exchange-rate-config-grid select,
+        .exchange-rate-calc-grid input,
+        .exchange-rate-calc-grid select {
+            min-height: 42px;
+            border: 1px solid #c9d6e2;
+            border-radius: 12px;
+            padding: 10px 12px;
+            background: #fff;
+            color: #17354a;
+            font: inherit;
+        }
+        .exchange-rate-config-grid input:focus,
+        .exchange-rate-config-grid select:focus,
+        .exchange-rate-calc-grid input:focus,
+        .exchange-rate-calc-grid select:focus {
+            outline: none;
+            border-color: #23a2cb;
+            box-shadow: 0 0 0 3px rgba(35,162,203,.12);
+        }
+        .exchange-rate-config-span {
+            grid-column: 1 / -1;
+        }
+        .exchange-rate-chip-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .exchange-rate-chip {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            border: 1px solid #d7e2eb;
+            background: #fff;
+            cursor: pointer;
+        }
+        .exchange-rate-chip input {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .exchange-rate-chip span {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #5b7081;
+        }
+        .exchange-rate-chip.is-selected {
+            border-color: #5bc3ef;
+            background: linear-gradient(180deg, #eef8fe 0%, #f5fbff 100%);
+        }
+        .exchange-rate-chip.is-selected span {
+            color: #118fc6;
+        }
+        .exchange-rate-table-wrap {
+            overflow: auto;
+            border: 1px solid #dce6ef;
+            border-radius: 20px;
+            background: linear-gradient(180deg, #fbfdff 0%, #f4f9fd 100%);
+        }
+        .exchange-rate-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 760px;
+        }
+        .exchange-rate-table th,
+        .exchange-rate-table td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #dce6ef;
+            text-align: left;
+            font-size: 12px;
+            color: #28465c;
+            vertical-align: top;
+        }
+        .exchange-rate-table thead th {
+            background: #f1f6fa;
+            color: #7a8fa2;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            font-size: 11px;
+        }
+        .exchange-rate-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        .exchange-rate-log-message {
+            color: #6f8293;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+        @media (max-width: 1100px) {
+            .exchange-rate-grid,
+            .exchange-rate-summary-grid,
+            .exchange-rate-calc-grid,
+            .exchange-rate-config-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+        @media (max-width: 760px) {
+            .exchange-rate-grid,
+            .exchange-rate-summary-grid,
+            .exchange-rate-calc-grid,
+            .exchange-rate-config-grid {
+                grid-template-columns: 1fr;
+            }
+        }
         .quote-output-types-head {
             display: flex;
             align-items: flex-start;
@@ -436,6 +680,39 @@
         .sap-security-side {
             display: grid;
             gap: 14px;
+        }
+        .sap-security-subtabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 4px;
+            margin-bottom: 16px;
+            border: 1px solid #d8e2ea;
+            border-radius: 14px;
+            background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%);
+        }
+        .sap-security-subtab {
+            border: none;
+            border-radius: 10px;
+            padding: 9px 14px;
+            background: transparent;
+            color: #60707f;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+        }
+        .sap-security-subtab:hover {
+            background: rgba(11,129,184,0.08);
+            color: #23516a;
+        }
+        .sap-security-subtab.active {
+            background: linear-gradient(180deg, #24a8df 0%, #118fc6 100%);
+            color: #fff;
+            box-shadow: 0 8px 18px rgba(17,143,198,0.24);
+        }
+        .sap-security-tabpanel[hidden] {
+            display: none;
         }
         .sap-security-card {
             border: 1px solid #d8e2ea;
@@ -651,6 +928,68 @@
             color: #708493;
             line-height: 1.4;
         }
+        .sap-records-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .sap-records-filter-grid {
+            display: grid;
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            gap: 12px;
+            align-items: end;
+        }
+        .sap-records-filter-span {
+            grid-column: span 2;
+        }
+        .sap-records-table-wrap {
+            max-height: 620px;
+        }
+        .sap-records-summary {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+        }
+        .sap-records-summary-card {
+            padding: 12px;
+            border: 1px solid #dce7ef;
+            border-radius: 14px;
+            background: #fff;
+        }
+        .sap-records-summary-card strong {
+            display: block;
+            font-size: 20px;
+            color: #17354a;
+        }
+        .sap-records-summary-card span {
+            font-size: 12px;
+            color: #688095;
+        }
+        .sap-records-process {
+            display: grid;
+            gap: 6px;
+        }
+        .sap-records-process code {
+            font: 11px/1.5 Consolas, "Courier New", monospace;
+            color: #355066;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .sap-records-result {
+            display: grid;
+            gap: 4px;
+        }
+        .sap-records-result strong {
+            font-size: 12px;
+            color: #223140;
+        }
+        .sap-records-result span {
+            font-size: 11px;
+            color: #708493;
+            white-space: pre-wrap;
+        }
         .sap-security-empty {
             padding: 12px;
             border: 1px dashed #cad8e3;
@@ -670,8 +1009,13 @@
         @media (max-width: 760px) {
             .sap-security-grid,
             .sap-security-grid-compact,
-            .sap-security-counts {
+            .sap-security-counts,
+            .sap-records-filter-grid,
+            .sap-records-summary {
                 grid-template-columns: 1fr;
+            }
+            .sap-records-filter-span {
+                grid-column: auto;
             }
         }
         .icon-row .icon-item {
@@ -1913,6 +2257,81 @@
             margin-bottom: 12px;
         }
         .permission-admin-popover-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        .audit-maintenance-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-top: 14px;
+            flex-wrap: wrap;
+        }
+        .audit-maintenance-note {
+            margin: 0;
+            font-size: 12px;
+            color: #6b7986;
+        }
+        .audit-partner-prune-status {
+            margin: 0;
+            font-size: 12px;
+            color: #3b4a58;
+        }
+        .audit-partner-prune-status.is-error {
+            color: #b42318;
+        }
+        .audit-partner-prune-status.is-success {
+            color: #166534;
+        }
+        .audit-partner-prune-popover {
+            position: fixed;
+            z-index: 2200;
+            width: 360px;
+            max-width: calc(100vw - 24px);
+            padding: 16px;
+            border-radius: 14px;
+            border: 1px solid #d8dde3;
+            background: #fff;
+            box-shadow: 0 20px 40px rgba(15, 23, 42, 0.16);
+        }
+        .audit-partner-prune-popover[hidden] {
+            display: none;
+        }
+        .audit-partner-prune-popover h3 {
+            margin: 0 0 6px;
+            font-size: 16px;
+            color: #223140;
+        }
+        .audit-partner-prune-popover p {
+            margin: 0 0 12px;
+            font-size: 12px;
+            color: #6b7986;
+        }
+        .audit-partner-prune-popover label {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 12px;
+            font-size: 12px;
+            color: #41505d;
+        }
+        .audit-partner-prune-popover input,
+        .audit-partner-prune-popover select {
+            width: 100%;
+            height: 40px;
+            padding: 0 12px;
+            border-radius: 10px;
+            border: 1px solid #d1d9e0;
+            font-size: 14px;
+        }
+        .audit-partner-prune-helper {
+            margin: -4px 0 12px;
+            font-size: 12px;
+            color: #6b7986;
+        }
+        .audit-partner-prune-popover-actions {
             display: flex;
             justify-content: flex-end;
             gap: 8px;
@@ -3290,12 +3709,48 @@
                     <div id="tab-cotizaciones" class="config-tab-content">
                         <section class="config-card">
                             <div class="quotes-subtabs">
-                                <button type="button" class="quotes-subtab active" data-quotes-tab="calculo">Cálculo</button>
+                                <button type="button" class="quotes-subtab active" data-quotes-tab="general">General</button>
+                                <button type="button" class="quotes-subtab" data-quotes-tab="calculo">Cálculo</button>
                                 <button type="button" class="quotes-subtab" data-quotes-tab="proforma">Proforma</button>
                                 <button type="button" class="quotes-subtab" data-quotes-tab="salidas">Salidas</button>
+                                <button type="button" class="quotes-subtab" data-quotes-tab="tipo-cambio">Tipo de cambio</button>
                             </div>
 
-                            <div id="quotes-panel-calculo" class="quotes-subpanel">
+                            <div id="quotes-panel-general" class="quotes-subpanel">
+                                <section id="ordersGeneralSection" class="config-card">
+                                    <h2 class="config-section-title">Configuración de Creación de Órdenes</h2>
+                                    <div class="config-form-grid quotes-orders-general-grid">
+                                        <label>
+                                            <span>Día Máximo</span>
+                                            <select name="general.ordersCutoffDay">
+                                                <option value="viernes">Viernes</option>
+                                                <option value="sabado">Sábado</option>
+                                                <option value="domingo">Domingo</option>
+                                                <option value="jueves">Jueves</option>
+                                            </select>
+                                        </label>
+                                        <label>
+                                            <span>Hora Máxima</span>
+                                            <input name="general.ordersCutoffHour" type="time" value="17:00">
+                                        </label>
+                                        <label>
+                                            <span>Se Reprograma a</span>
+                                            <select name="general.ordersCutoffNextDay">
+                                                <option value="lunes">Lunes</option>
+                                                <option value="martes">Martes</option>
+                                                <option value="miercoles">Miércoles</option>
+                                            </select>
+                                        </label>
+                                        <label>
+                                            <span>Hora de Recepción</span>
+                                            <input name="general.ordersCutoffNextHour" type="time" value="06:00">
+                                        </label>
+                                    </div>
+                                    <p class="config-help">Define el corte para solicitudes tardías de orden y la fecha/hora efectiva con la que deben entrar a producción.</p>
+                                </section>
+                            </div>
+
+                            <div id="quotes-panel-calculo" class="quotes-subpanel" hidden>
                                 <section id="dieShapesGeneralSection" class="config-card">
                                     <h2 class="config-section-title">Formas de Troquel</h2>
                                     <div id="dieShapeConfigGrid" class="die-shape-config-grid"></div>
@@ -3596,10 +4051,136 @@
                                     </div>
                                 </section>
                             </div>
+
+                            <div id="quotes-panel-tipo-cambio" class="quotes-subpanel" hidden>
+                                <section class="config-card">
+                                    <div class="quote-output-types-head">
+                                        <div>
+                                            <h2>Tipo de cambio</h2>
+                                            <p class="section-caption">Resumen diario, calculadora, historial y control de actualizaciones para proformas.</p>
+                                        </div>
+                                        <div class="exchange-rate-actions">
+                                            <button type="button" id="exchangeRateRefreshButton" class="action-btn action-btn-primary">Actualizar ahora</button>
+                                            <button type="button" id="exchangeRateReloadButton" class="action-btn">Recargar</button>
+                                        </div>
+                                    </div>
+
+                                    <div class="exchange-rate-subtabs">
+                                        <button type="button" class="exchange-rate-subtab active" data-exchange-rate-tab="tasas">Tasas del día</button>
+                                        <button type="button" class="exchange-rate-subtab" data-exchange-rate-tab="calculadora">Calculadora</button>
+                                        <button type="button" class="exchange-rate-subtab" data-exchange-rate-tab="historial">Historial</button>
+                                        <button type="button" class="exchange-rate-subtab" data-exchange-rate-tab="actualizacion">Actualización</button>
+                                    </div>
+
+                                    <div id="exchange-rate-panel-tasas" class="exchange-rate-panel">
+                                        <div class="exchange-rate-toolbar">
+                                            <div class="exchange-rate-status-row">
+                                                <div id="exchangeRateStatusPill" class="exchange-rate-status-pill">Cargando tasas...</div>
+                                                <p id="exchangeRateStatusMeta" class="exchange-rate-status-meta">Esperando respuesta del servidor.</p>
+                                            </div>
+                                        </div>
+                                        <div id="exchangeRateSummaryGrid" class="exchange-rate-summary-grid">
+                                            <div class="exchange-rate-summary-card"><span>Base</span><strong>USD</strong></div>
+                                            <div class="exchange-rate-summary-card"><span>Fecha</span><strong>Sin datos</strong></div>
+                                        </div>
+                                        <div id="exchangeRateCards" class="exchange-rate-grid">
+                                            <div class="exchange-rate-empty">Todavía no hay tasas guardadas.</div>
+                                        </div>
+                                    </div>
+
+                                    <div id="exchange-rate-panel-calculadora" class="exchange-rate-panel" hidden>
+                                        <div class="exchange-rate-calc-grid">
+                                            <label>
+                                                <span>Monto</span>
+                                                <input id="exchangeRateCalcAmount" type="number" min="0" step="any" value="1000">
+                                            </label>
+                                            <label>
+                                                <span>De</span>
+                                                <select id="exchangeRateCalcFrom"></select>
+                                            </label>
+                                            <label>
+                                                <span>A</span>
+                                                <select id="exchangeRateCalcTo"></select>
+                                            </label>
+                                        </div>
+                                        <div id="exchangeRateCalcResult" class="exchange-rate-calc-result" style="margin-top:14px;">Selecciona las monedas para ver la conversión.</div>
+                                    </div>
+
+                                    <div id="exchange-rate-panel-historial" class="exchange-rate-panel" hidden>
+                                        <div id="exchangeRateHistorySummary" class="exchange-rate-status-meta" style="margin-bottom:12px;">Cargando historial...</div>
+                                        <div class="exchange-rate-table-wrap">
+                                            <table class="exchange-rate-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Fecha de tasa</th>
+                                                        <th>Base</th>
+                                                        <th>Momento</th>
+                                                        <th>Resumen</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="exchangeRateHistoryBody">
+                                                    <tr><td colspan="4">Cargando historial...</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    <div id="exchange-rate-panel-actualizacion" class="exchange-rate-panel" hidden>
+                                        <div class="exchange-rate-config-grid">
+                                            <label>
+                                                <span>Moneda base</span>
+                                                <select id="exchangeRateBaseCurrency"></select>
+                                            </label>
+                                            <label>
+                                                <span>Moneda por defecto en proforma</span>
+                                                <select id="exchangeRateDefaultCurrency"></select>
+                                            </label>
+                                            <label>
+                                                <span>Actualización automática</span>
+                                                <select id="exchangeRateAutoUpdate">
+                                                    <option value="true">Sí</option>
+                                                    <option value="false">No</option>
+                                                </select>
+                                            </label>
+                                            <label>
+                                                <span>Hora</span>
+                                                <input id="exchangeRateUpdateTime" type="time" value="00:00">
+                                            </label>
+                                            <div class="exchange-rate-config-span">
+                                                <span style="display:block; margin-bottom:6px; font-size:12px; font-weight:700; color:#28465c;">Días de actualización</span>
+                                                <div id="exchangeRateDays" class="exchange-rate-chip-grid"></div>
+                                            </div>
+                                            <div class="exchange-rate-config-span">
+                                                <span style="display:block; margin-bottom:6px; font-size:12px; font-weight:700; color:#28465c;">Monedas habilitadas para proforma</span>
+                                                <div id="exchangeRateCurrencies" class="exchange-rate-chip-grid"></div>
+                                            </div>
+                                        </div>
+                                        <div class="exchange-rate-actions" style="margin-top:14px;">
+                                            <button type="button" id="exchangeRateSaveConfigButton" class="action-btn action-btn-primary">Guardar configuración</button>
+                                            <p id="exchangeRateConfigStatus" class="quote-output-types-status">Listo para editar.</p>
+                                        </div>
+                                        <div id="exchangeRateLogSummary" class="exchange-rate-status-meta" style="margin:16px 0 12px;">Cargando bitácora...</div>
+                                        <div class="exchange-rate-table-wrap">
+                                            <table class="exchange-rate-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Inicio</th>
+                                                        <th>Tipo</th>
+                                                        <th>Estado</th>
+                                                        <th>Monedas</th>
+                                                        <th>Resultado</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="exchangeRateLogBody">
+                                                    <tr><td colspan="5">Cargando bitácora...</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </section>
+                            </div>
                         </section>
                     </div>
-                </section>
-            </div>
                     <div id="tab-seguridad" class="config-tab-content">
                         <section class="config-card">
                             <div class="security-subtabs">
@@ -3765,6 +4346,12 @@
                             </div>
 
                             <div id="security-panel-sap" class="security-subpanel" hidden>
+                                <div class="sap-security-subtabs">
+                                    <button type="button" class="sap-security-subtab active" data-sap-tab="config">Configuración</button>
+                                    <button type="button" class="sap-security-subtab" data-sap-tab="registros">Registros</button>
+                                </div>
+
+                                <div id="sap-tab-config" class="sap-security-tabpanel">
                                 <div class="sap-security-shell">
                                     <div class="sap-security-main">
                                         <section class="sap-security-card">
@@ -3864,8 +4451,18 @@
                                                 <button type="button" id="sapRunQueryButton" class="action-btn">Consultar</button>
                                                 <button type="button" id="sapRefreshLogsButton" class="action-btn">Actualizar</button>
                                             </div>
-                                            <pre id="sapQueryRequest" class="sap-security-result">Sin solicitudes todavía.</pre>
-                                            <pre id="sapQueryResult" class="sap-security-result">Sin consultas todavía.</pre>
+                                            <div>
+                                                <h4>Consulta enviada</h4>
+                                                <pre id="sapQueryRequest" class="sap-security-result">Sin solicitudes todavía.</pre>
+                                            </div>
+                                            <div>
+                                                <h4>Proceso</h4>
+                                                <pre id="sapQueryTrace" class="sap-security-result">Todavía no se ha ejecutado ninguna consulta.</pre>
+                                            </div>
+                                            <div>
+                                                <h4>Resultado</h4>
+                                                <pre id="sapQueryResult" class="sap-security-result">Sin consultas todavía.</pre>
+                                            </div>
                                         </section>
 
                                         <section class="sap-security-card">
@@ -3911,6 +4508,76 @@
                                             </div>
                                         </section>
                                     </aside>
+                                </div>
+                                </div>
+
+                                <div id="sap-tab-registros" class="sap-security-tabpanel" hidden>
+                                    <section class="sap-security-card">
+                                        <div class="sap-records-toolbar">
+                                            <div>
+                                                <h3>Registros SAP</h3>
+                                                <p class="section-caption">Consulta el historial de envíos, pruebas, sincronizaciones y consultas sin duplicar los datos devueltos.</p>
+                                            </div>
+                                            <div class="sap-security-actions">
+                                                <button type="button" id="sapActivityApplyButton" class="action-btn action-btn-primary">Filtrar</button>
+                                                <button type="button" id="sapActivityResetButton" class="action-btn">Limpiar</button>
+                                            </div>
+                                        </div>
+                                        <div class="sap-records-filter-grid">
+                                            <label class="sap-security-field">
+                                                <span>Tipo</span>
+                                                <select id="sapActivityTypeFilter">
+                                                    <option value="">Todos</option>
+                                                </select>
+                                            </label>
+                                            <label class="sap-security-field">
+                                                <span>Estado</span>
+                                                <select id="sapActivityStatusFilter">
+                                                    <option value="">Todos</option>
+                                                </select>
+                                            </label>
+                                            <label class="sap-security-field">
+                                                <span>Módulo</span>
+                                                <select id="sapActivityEntityFilter">
+                                                    <option value="">Todos</option>
+                                                </select>
+                                            </label>
+                                            <label class="sap-security-field">
+                                                <span>Usuario</span>
+                                                <input id="sapActivityActorFilter" type="text" placeholder="admin">
+                                            </label>
+                                            <label class="sap-security-field">
+                                                <span>Desde</span>
+                                                <input id="sapActivityDateFromFilter" type="date">
+                                            </label>
+                                            <label class="sap-security-field">
+                                                <span>Hasta</span>
+                                                <input id="sapActivityDateToFilter" type="date">
+                                            </label>
+                                            <label class="sap-security-field sap-records-filter-span">
+                                                <span>Buscar</span>
+                                                <input id="sapActivitySearchFilter" type="text" placeholder="ruta, entidad, error o destino">
+                                            </label>
+                                        </div>
+                                        <div id="sapActivitySummary" class="sap-security-empty">Cargando registros SAP...</div>
+                                        <div class="audit-table-wrap sap-records-table-wrap">
+                                            <table class="audit-table sap-records-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Cuándo</th>
+                                                        <th>Tipo</th>
+                                                        <th>Usuario</th>
+                                                        <th>Módulo</th>
+                                                        <th>Proceso</th>
+                                                        <th>Resultado</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="sapActivityTableBody">
+                                                    <tr><td colspan="6" class="audit-empty">Sin registros todavía.</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </section>
                                 </div>
                             </div>
                         </section>
@@ -3972,6 +4639,13 @@
                                     </tbody>
                                 </table>
                             </div>
+                            <div class="audit-maintenance-actions">
+                                <p class="audit-maintenance-note">Herramienta de prueba para depurar datos traídos desde conexiones externas sin tocar otras pantallas.</p>
+                                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                                    <p id="auditPartnerPruneStatus" class="audit-partner-prune-status" hidden></p>
+                                    <button type="button" id="auditPartnerPruneButton" class="action-btn">Administrar conexiones externas</button>
+                                </div>
+                            </div>
                         </section>
                     </div>
 
@@ -3996,6 +4670,33 @@
         <div class="permission-admin-popover-actions">
             <button type="button" id="permissionAdminCreateCancel" class="action-btn">Cancelar</button>
             <button type="button" id="permissionAdminCreateConfirm" class="action-btn action-btn-primary">Crear</button>
+        </div>
+    </div>
+    <div id="auditPartnerPrunePopover" class="audit-partner-prune-popover" hidden>
+        <h3>Administrar conexiones externas</h3>
+        <p>Depura temporalmente los registros cargados por pruebas. Puedes conservar solo una cantidad o eliminar únicamente lo importado desde SAP.</p>
+        <label>
+            <span>Qué quieres administrar</span>
+            <select id="auditPartnerPruneTargetField">
+                <option value="socios">Socios</option>
+                <option value="materiales">Inventario de materia prima</option>
+            </select>
+        </label>
+        <label>
+            <span>Acción</span>
+            <select id="auditPartnerPruneModeField">
+                <option value="keep">Conservar solo una cantidad</option>
+                <option value="delete_sap">Eliminar solo importados desde SAP</option>
+            </select>
+        </label>
+        <p id="auditPartnerPruneHelper" class="audit-partner-prune-helper">Se conservarán solo los primeros socios del listado actual y se eliminará el resto.</p>
+        <label id="auditPartnerPruneCountLabel">
+            <span id="auditPartnerPruneCountText">¿Con cuántos socios te quieres quedar?</span>
+            <input id="auditPartnerPruneCountField" type="number" min="1" step="1" value="5">
+        </label>
+        <div class="audit-partner-prune-popover-actions">
+            <button type="button" id="auditPartnerPruneCancel" class="action-btn">Cancelar</button>
+            <button type="button" id="auditPartnerPruneConfirm" class="action-btn action-btn-primary">Ejecutar acción</button>
         </div>
     </div>
 
@@ -4023,6 +4724,7 @@
         let loadedConfig = {};
         let presentationsData = {};
         let auditLoadedOnce = false;
+        let auditPartnerPruneBusy = false;
         let configSaveTimer = null;
         let configSaveInFlight = false;
         let configSaveQueued = false;
@@ -4051,6 +4753,17 @@
         const auditApplyButton = document.getElementById('auditApplyButton');
         const auditResetButton = document.getElementById('auditResetButton');
         const auditTableBody = document.getElementById('auditTableBody');
+        const auditPartnerPruneButton = document.getElementById('auditPartnerPruneButton');
+        const auditPartnerPruneStatus = document.getElementById('auditPartnerPruneStatus');
+        const auditPartnerPrunePopover = document.getElementById('auditPartnerPrunePopover');
+        const auditPartnerPruneTargetField = document.getElementById('auditPartnerPruneTargetField');
+        const auditPartnerPruneModeField = document.getElementById('auditPartnerPruneModeField');
+        const auditPartnerPruneHelper = document.getElementById('auditPartnerPruneHelper');
+        const auditPartnerPruneCountLabel = document.getElementById('auditPartnerPruneCountLabel');
+        const auditPartnerPruneCountText = document.getElementById('auditPartnerPruneCountText');
+        const auditPartnerPruneCountField = document.getElementById('auditPartnerPruneCountField');
+        const auditPartnerPruneCancel = document.getElementById('auditPartnerPruneCancel');
+        const auditPartnerPruneConfirm = document.getElementById('auditPartnerPruneConfirm');
         const userAdminTableBody = document.getElementById('userAdminTableBody');
         const userAdminCreateButton = document.getElementById('userAdminCreateButton');
         const userAdminDetailEmpty = document.getElementById('userAdminDetailEmpty');
@@ -4170,6 +4883,30 @@
         const quoteOutputTypesTableBody = document.getElementById('quoteOutputTypesTableBody');
         const quoteOutputTypesStatus = document.getElementById('quoteOutputTypesStatus');
         const quoteOutputTypesAddButton = document.getElementById('quoteOutputTypesAddButton');
+        const exchangeRateSubtabs = [...document.querySelectorAll('.exchange-rate-subtab')];
+        const exchangeRatePanels = [...document.querySelectorAll('.exchange-rate-panel')];
+        const exchangeRateRefreshButton = document.getElementById('exchangeRateRefreshButton');
+        const exchangeRateReloadButton = document.getElementById('exchangeRateReloadButton');
+        const exchangeRateStatusPill = document.getElementById('exchangeRateStatusPill');
+        const exchangeRateStatusMeta = document.getElementById('exchangeRateStatusMeta');
+        const exchangeRateSummaryGrid = document.getElementById('exchangeRateSummaryGrid');
+        const exchangeRateCards = document.getElementById('exchangeRateCards');
+        const exchangeRateCalcAmount = document.getElementById('exchangeRateCalcAmount');
+        const exchangeRateCalcFrom = document.getElementById('exchangeRateCalcFrom');
+        const exchangeRateCalcTo = document.getElementById('exchangeRateCalcTo');
+        const exchangeRateCalcResult = document.getElementById('exchangeRateCalcResult');
+        const exchangeRateHistorySummary = document.getElementById('exchangeRateHistorySummary');
+        const exchangeRateHistoryBody = document.getElementById('exchangeRateHistoryBody');
+        const exchangeRateBaseCurrency = document.getElementById('exchangeRateBaseCurrency');
+        const exchangeRateDefaultCurrency = document.getElementById('exchangeRateDefaultCurrency');
+        const exchangeRateAutoUpdate = document.getElementById('exchangeRateAutoUpdate');
+        const exchangeRateUpdateTime = document.getElementById('exchangeRateUpdateTime');
+        const exchangeRateDays = document.getElementById('exchangeRateDays');
+        const exchangeRateCurrencies = document.getElementById('exchangeRateCurrencies');
+        const exchangeRateSaveConfigButton = document.getElementById('exchangeRateSaveConfigButton');
+        const exchangeRateConfigStatus = document.getElementById('exchangeRateConfigStatus');
+        const exchangeRateLogSummary = document.getElementById('exchangeRateLogSummary');
+        const exchangeRateLogBody = document.getElementById('exchangeRateLogBody');
         const securitySubtabs = [...document.querySelectorAll('.security-subtab')];
         const securitySubpanels = [...document.querySelectorAll('.security-subpanel')];
         const sapAdvancedToggle = document.getElementById('sapAdvancedToggle');
@@ -4188,6 +4925,8 @@
         const sapSyncButton = document.getElementById('sapSyncButton');
         const sapResetDemoButton = document.getElementById('sapResetDemoButton');
         const sapConfigStatus = document.getElementById('sapConfigStatus');
+        const sapSubtabs = [...document.querySelectorAll('.sap-security-subtab')];
+        const sapTabPanels = [...document.querySelectorAll('.sap-security-tabpanel')];
         const sapQueryEntity = document.getElementById('sapQueryEntity');
         const sapQuerySource = document.getElementById('sapQuerySource');
         const sapQueryFilterInput = document.getElementById('sapQueryFilterInput');
@@ -4196,6 +4935,7 @@
         const sapRunQueryButton = document.getElementById('sapRunQueryButton');
         const sapRefreshLogsButton = document.getElementById('sapRefreshLogsButton');
         const sapQueryRequest = document.getElementById('sapQueryRequest');
+        const sapQueryTrace = document.getElementById('sapQueryTrace');
         const sapQueryResult = document.getElementById('sapQueryResult');
         const sapWriteEntity = document.getElementById('sapWriteEntity');
         const sapLoadTemplateButton = document.getElementById('sapLoadTemplateButton');
@@ -4207,6 +4947,17 @@
         const sapStatusNote = document.getElementById('sapStatusNote');
         const sapLocalCounts = document.getElementById('sapLocalCounts');
         const sapLogList = document.getElementById('sapLogList');
+        const sapActivityTypeFilter = document.getElementById('sapActivityTypeFilter');
+        const sapActivityStatusFilter = document.getElementById('sapActivityStatusFilter');
+        const sapActivityEntityFilter = document.getElementById('sapActivityEntityFilter');
+        const sapActivityActorFilter = document.getElementById('sapActivityActorFilter');
+        const sapActivityDateFromFilter = document.getElementById('sapActivityDateFromFilter');
+        const sapActivityDateToFilter = document.getElementById('sapActivityDateToFilter');
+        const sapActivitySearchFilter = document.getElementById('sapActivitySearchFilter');
+        const sapActivityApplyButton = document.getElementById('sapActivityApplyButton');
+        const sapActivityResetButton = document.getElementById('sapActivityResetButton');
+        const sapActivitySummary = document.getElementById('sapActivitySummary');
+        const sapActivityTableBody = document.getElementById('sapActivityTableBody');
         const LOGIN_REPOSITORY_ENDPOINT = '/api/login-repository';
         let loginRepositoryImages = [];
         let loginRepositoryLoadedOnce = false;
@@ -4215,7 +4966,10 @@
         let loginRepositoryPreviewCurrentSlide = null;
         let loginRepositoryPreviewPrevSlide = null;
         let sapConnectorLoadedOnce = false;
+        let sapActivityLoadedOnce = false;
         let quoteOutputTypesLoadedOnce = false;
+        let exchangeRateLoadedOnce = false;
+        let exchangeRateState = null;
         let quoteOutputTypeDraftCounter = 0;
         let quoteOutputTypes = [];
         const quoteOutputTypeSaveTimers = new Map();
@@ -4286,7 +5040,13 @@
             { key: 'quoteRequestAttachment', label: 'Adjuntar Archivos Solicitud', group: 'Acciones Documento', placeholder: '\uD83D\uDCCE', color: '#1e516d', size: 18 },
             { key: 'quoteRequestRecord', label: 'Grabar Audio Solicitud', group: 'Acciones Documento', placeholder: '\uD83C\uDFA4', color: '#1e516d', size: 18 },
             { key: 'quoteRequestRecordStop', label: 'Detener Grabacion Solicitud', group: 'Acciones Documento', placeholder: '\u25A0', color: '#1e516d', size: 18 },
-            { key: 'quoteRequestAttachmentDelete', label: 'Eliminar Adjunto Solicitud', group: 'Acciones Documento', placeholder: '\u2573', color: '#b94848', size: 18 }
+            { key: 'quoteRequestAttachmentDelete', label: 'Eliminar Adjunto Solicitud', group: 'Acciones Documento', placeholder: '\u2573', color: '#b94848', size: 18 },
+            { key: 'orderPlanning', label: 'Órdenes Control de Planificación', group: 'Órdenes', placeholder: '\u25F3', color: '#1e516d', size: 18 },
+            { key: 'orderPlanningRoute', label: 'Órdenes Ruta de Planificación', group: 'Órdenes', placeholder: '\u25F3', color: '#1e516d', size: 18 },
+            { key: 'orderPantones', label: 'Órdenes Pantones', group: 'Órdenes', placeholder: '\u25CC', color: '#1e516d', size: 18 },
+            { key: 'orderDeliveries', label: 'Órdenes Entregas', group: 'Órdenes', placeholder: '\u21C4', color: '#1e516d', size: 18 },
+            { key: 'orderNumbering', label: 'Órdenes Numerado', group: 'Órdenes', placeholder: '#', color: '#1e516d', size: 18 },
+            { key: 'orderAttachments', label: 'Órdenes Adjuntos', group: 'Órdenes', placeholder: '\uD83D\uDCCE', color: '#1e516d', size: 18 }
         ];
 
         function firstFilled(...values) {
@@ -5046,6 +5806,27 @@
             node.textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
         }
 
+        function setSapQueryTrace(entries) {
+            if (!sapQueryTrace) return;
+            sapQueryTrace.textContent = Array.isArray(entries) ? entries.join('\n\n') : String(entries || '');
+        }
+
+        function buildSapServiceLayerAbsoluteUrl() {
+            const protocol = sapProtocolSelect?.value || 'https';
+            const host = (sapHostInput?.value || '').trim();
+            const port = (sapPortInput?.value || '').trim();
+            const path = buildSapServiceLayerQueryPath();
+            if (!host) return `(pendiente de configurar host SAP)${path}`;
+            return `${protocol}://${host}${port ? `:${port}` : ''}${path}`;
+        }
+
+        function formatSapTraceEntry(title, detail = '') {
+            const time = new Date().toLocaleTimeString('es-CR');
+            return detail
+                ? `[${time}] ${title}\n${detail}`
+                : `[${time}] ${title}`;
+        }
+
         function getSapServiceLayerEntity(entity) {
             if (entity === 'business-partners') return 'BusinessPartners';
             if (entity === 'items') return 'Items';
@@ -5088,9 +5869,16 @@
                 },
                 serviceLayer: {
                     origen: sourceLabel,
-                    ruta: buildSapServiceLayerQueryPath()
+                    ruta: buildSapServiceLayerQueryPath(),
+                    urlFinal: buildSapServiceLayerAbsoluteUrl()
                 }
             });
+            setSapQueryTrace([
+                '1. El navegador prepara los filtros y arma la ruta interna del ERP.',
+                `2. El navegador enviará: GET ${buildSapQueryUrl()}`,
+                `3. El backend del ERP transformará esa solicitud y la reenviará a: GET ${buildSapServiceLayerAbsoluteUrl()}`,
+                '4. El ERP esperará la respuesta del servidor SAP y luego la mostrará en el panel de resultado.'
+            ]);
         }
 
         function getSapWriteRoute(entity) {
@@ -5244,6 +6032,161 @@
             `).join('');
         }
 
+        function populateSapActivityFilterOptions(select, values = [], fallbackLabel = 'Todos') {
+            if (!select) return;
+            const current = select.value;
+            const options = [`<option value="">${fallbackLabel}</option>`]
+                .concat((Array.isArray(values) ? values : []).filter(Boolean).map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`));
+            select.innerHTML = options.join('');
+            if ([...select.options].some((option) => option.value === current)) {
+                select.value = current;
+            }
+        }
+
+        function collectSapActivityFilters() {
+            return {
+                type: sapActivityTypeFilter?.value || '',
+                status: sapActivityStatusFilter?.value || '',
+                entity: sapActivityEntityFilter?.value || '',
+                actor: sapActivityActorFilter?.value?.trim() || '',
+                from: sapActivityDateFromFilter?.value || '',
+                to: sapActivityDateToFilter?.value || '',
+                search: sapActivitySearchFilter?.value?.trim() || '',
+                limit: 100
+            };
+        }
+
+        function buildSapActivityUrl() {
+            const params = new URLSearchParams();
+            const filters = collectSapActivityFilters();
+            Object.entries(filters).forEach(([key, value]) => {
+                if (value !== '' && value != null) params.set(key, value);
+            });
+            return `/api/sap/activity${params.toString() ? `?${params.toString()}` : ''}`;
+        }
+
+        function describeSapActivityResult(entry = {}) {
+            const summary = entry.response_summary || {};
+            if (summary.records != null) return `${summary.records} registros recibidos`;
+            if (summary.count != null) return `${summary.count} elementos`;
+            if (summary.DocNum != null) return `Documento ${summary.DocNum}`;
+            if (summary.DocEntry != null) return `DocEntry ${summary.DocEntry}`;
+            if (summary.message) return String(summary.message);
+            if (summary.entities && typeof summary.entities === 'object') {
+                return Object.entries(summary.entities).map(([key, value]) => `${key}: ${value}`).join(' | ');
+            }
+            if (entry.error_message) return entry.error_message;
+            return 'Sin detalle adicional';
+        }
+
+        function renderSapActivitySummary(rows = []) {
+            if (!sapActivitySummary) return;
+            if (!rows.length) {
+                sapActivitySummary.className = 'sap-security-empty';
+                sapActivitySummary.textContent = 'No hay registros SAP para los filtros seleccionados.';
+                return;
+            }
+            const successCount = rows.filter((entry) => entry.status === 'success').length;
+            const errorCount = rows.filter((entry) => entry.status === 'error').length;
+            const queryCount = rows.filter((entry) => entry.action_type === 'query').length;
+            const syncCount = rows.filter((entry) => entry.action_type === 'sync').length;
+            sapActivitySummary.className = 'sap-records-summary';
+            sapActivitySummary.innerHTML = [
+                ['Registros', rows.length],
+                ['Consultas', queryCount],
+                ['Sincronizaciones', syncCount],
+                ['Éxitos / Errores', `${successCount} / ${errorCount}`]
+            ].map(([label, value]) => `
+                <div class="sap-records-summary-card">
+                    <strong>${escapeHtml(String(value))}</strong>
+                    <span>${escapeHtml(label)}</span>
+                </div>
+            `).join('');
+        }
+
+        function renderSapActivityTable(payload = {}) {
+            const rows = Array.isArray(payload.rows) ? payload.rows : [];
+            populateSapActivityFilterOptions(sapActivityTypeFilter, payload.catalog?.types || []);
+            populateSapActivityFilterOptions(sapActivityStatusFilter, payload.catalog?.statuses || []);
+            populateSapActivityFilterOptions(sapActivityEntityFilter, payload.catalog?.entities || []);
+            renderSapActivitySummary(rows);
+            if (!sapActivityTableBody) return;
+            if (!rows.length) {
+                sapActivityTableBody.innerHTML = '<tr><td colspan="6" class="audit-empty">No hay registros SAP para mostrar.</td></tr>';
+                return;
+            }
+            sapActivityTableBody.innerHTML = rows.map((entry) => {
+                const whenLabel = entry.started_at ? new Date(entry.started_at).toLocaleString('es-CR') : 'Sin fecha';
+                const timingLabel = entry.finished_at && entry.started_at
+                    ? `${Math.max(0, new Date(entry.finished_at) - new Date(entry.started_at))} ms`
+                    : '';
+                const processLines = [
+                    `${entry.internal_method || 'GET'} ${entry.internal_url || ''}`,
+                    `${entry.service_method || 'GET'} ${entry.service_url || ''}`
+                ].filter(Boolean).join('\n');
+                const varsLabel = entry.request_vars && Object.keys(entry.request_vars).length
+                    ? JSON.stringify(entry.request_vars, null, 2)
+                    : '{}';
+                const resultLabel = describeSapActivityResult(entry);
+                return `
+                    <tr>
+                        <td>
+                            <div class="audit-meta">
+                                <strong>${escapeHtml(whenLabel)}</strong>
+                                <span>${escapeHtml(timingLabel)}</span>
+                            </div>
+                        </td>
+                        <td><span class="audit-chip">${escapeHtml(entry.action_type || '')}</span></td>
+                        <td>${escapeHtml(entry.actor || 'admin')}</td>
+                        <td>
+                            <div class="audit-meta">
+                                <strong>${escapeHtml(entry.entity_name || '')}</strong>
+                                <span>${escapeHtml(entry.mode || '')}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="sap-records-process">
+                                <code>${escapeHtml(processLines)}</code>
+                                <code>${escapeHtml(varsLabel)}</code>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="sap-records-result">
+                                <strong>${escapeHtml(entry.status || '')}</strong>
+                                <span>${escapeHtml(resultLabel)}</span>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function loadSapActivityRecords(force = false) {
+            if (!force && sapActivityLoadedOnce) return;
+            const response = await fetch(buildSapActivityUrl());
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.error || 'No fue posible cargar los registros SAP.');
+            renderSapActivityTable(payload);
+            sapActivityLoadedOnce = true;
+        }
+
+        function activateSapTab(tabKey = 'config') {
+            sapSubtabs.forEach((tab) => {
+                tab.classList.toggle('active', tab.dataset.sapTab === tabKey);
+            });
+            sapTabPanels.forEach((panel) => {
+                panel.hidden = panel.id !== `sap-tab-${tabKey}`;
+            });
+            if (tabKey === 'registros') {
+                loadSapActivityRecords().catch((error) => {
+                    if (sapActivitySummary) {
+                        sapActivitySummary.className = 'sap-security-empty';
+                        sapActivitySummary.textContent = error.message || 'No fue posible cargar los registros SAP.';
+                    }
+                });
+            }
+        }
+
         async function loadSapConnectorState(force = false) {
             if (!force && sapConnectorLoadedOnce) return;
             const [configResponse, logsResponse] = await Promise.all([
@@ -5370,12 +6313,39 @@
             await saveSapConnectorConfig();
             setSapConfigStatus('Consultando...', false);
             const queryUrl = buildSapQueryUrl();
+            const serviceLayerUrl = buildSapServiceLayerAbsoluteUrl();
             renderSapQueryRequestPreview();
-            const response = await fetch(queryUrl);
-            const payload = await response.json().catch(() => ({}));
-            if (!response.ok) throw new Error(payload.error || 'No fue posible consultar SAP.');
-            setSapResult(sapQueryResult, payload);
-            setSapConfigStatus('Consulta completada.', false);
+            setSapQueryTrace([
+                formatSapTraceEntry('Preparando consulta en el navegador.'),
+                formatSapTraceEntry('Solicitud interna lista para el ERP.', `GET ${queryUrl}`),
+                formatSapTraceEntry('Destino final calculado para SAP Service Layer.', `GET ${serviceLayerUrl}`),
+                formatSapTraceEntry('Esperando respuesta del ERP y del servidor SAP...')
+            ]);
+            const startedAt = Date.now();
+            try {
+                const response = await fetch(queryUrl);
+                const payload = await response.json().catch(() => ({}));
+                const elapsed = Date.now() - startedAt;
+                setSapQueryTrace([
+                    formatSapTraceEntry('Preparando consulta en el navegador.'),
+                    formatSapTraceEntry('Solicitud interna enviada al ERP.', `GET ${queryUrl}`),
+                    formatSapTraceEntry('ERP reenvía la consulta al Service Layer.', `GET ${serviceLayerUrl}`),
+                    formatSapTraceEntry('Respuesta recibida.', `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}\nTiempo aproximado: ${elapsed} ms`),
+                    formatSapTraceEntry('Resultado entregado al panel inferior.')
+                ]);
+                if (!response.ok) throw new Error(payload.error || 'No fue posible consultar SAP.');
+                setSapResult(sapQueryResult, payload);
+                setSapConfigStatus('Consulta completada.', false);
+            } catch (error) {
+                const elapsed = Date.now() - startedAt;
+                setSapQueryTrace([
+                    formatSapTraceEntry('Preparando consulta en el navegador.'),
+                    formatSapTraceEntry('Solicitud interna enviada al ERP.', `GET ${queryUrl}`),
+                    formatSapTraceEntry('ERP intentó reenviar la consulta al Service Layer.', `GET ${serviceLayerUrl}`),
+                    formatSapTraceEntry('La consulta falló.', `${error.message || 'Error no controlado.'}\nTiempo aproximado: ${elapsed} ms`)
+                ]);
+                throw error;
+            }
         }
 
         function loadSapPayloadTemplate() {
@@ -5425,12 +6395,13 @@
                 loadSapConnectorState().catch((error) => {
                     setSapConfigStatus(error.message || 'No fue posible cargar SAP.', true);
                 });
+                activateSapTab(document.querySelector('.sap-security-subtab.active')?.dataset.sapTab || 'config');
                 renderSapQueryRequestPreview();
                 renderSapWriteRequestPreview();
             }
         }
 
-        function activateQuotesTab(tabKey = 'calculo') {
+        function activateQuotesTab(tabKey = 'general') {
             quotesSubtabs.forEach((tab) => {
                 tab.classList.toggle('active', tab.dataset.quotesTab === tabKey);
             });
@@ -5441,6 +6412,12 @@
                 loadQuoteOutputTypes().catch((error) => {
                     setQuoteOutputTypesStatus(error.message || 'No fue posible cargar los tipos de salida.', 'error');
                 });
+            }
+            if (tabKey === 'tipo-cambio') {
+                loadExchangeRateModule().catch((error) => {
+                    setExchangeRateConfigStatus(error.message || 'No fue posible cargar el tipo de cambio.', 'error');
+                });
+                activateExchangeRateTab(document.querySelector('.exchange-rate-subtab.active')?.dataset.exchangeRateTab || 'tasas');
             }
             syncConfigTabHeights();
         }
@@ -5491,6 +6468,272 @@
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#39;');
+        }
+
+        function setExchangeRateConfigStatus(message, tone = '') {
+            if (!exchangeRateConfigStatus) return;
+            exchangeRateConfigStatus.textContent = message || 'Listo para editar.';
+            exchangeRateConfigStatus.classList.remove('is-error', 'is-success');
+            if (tone === 'error') exchangeRateConfigStatus.classList.add('is-error');
+            if (tone === 'success') exchangeRateConfigStatus.classList.add('is-success');
+        }
+
+        function getExchangeRateStatusTone(status) {
+            const normalized = String(status || '').trim().toLowerCase();
+            if (normalized === 'success') return 'is-success';
+            if (normalized === 'error') return 'is-error';
+            if (normalized === 'running') return 'is-running';
+            return '';
+        }
+
+        function formatExchangeRateNumber(value) {
+            const numeric = Number(value || 0) || 0;
+            if (numeric >= 1000) return numeric.toLocaleString('es-CR', { maximumFractionDigits: 2 });
+            if (numeric >= 1) return numeric.toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+            return numeric.toFixed(6);
+        }
+
+        function formatExchangeRateDateTime(value) {
+            if (!value) return 'Sin registro';
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return 'Sin registro';
+            return date.toLocaleString('es-CR', {
+                dateStyle: 'short',
+                timeStyle: 'short'
+            });
+        }
+
+        function activateExchangeRateTab(tabKey = 'tasas') {
+            exchangeRateSubtabs.forEach((tab) => {
+                tab.classList.toggle('active', tab.dataset.exchangeRateTab === tabKey);
+            });
+            exchangeRatePanels.forEach((panel) => {
+                panel.hidden = panel.id !== `exchange-rate-panel-${tabKey}`;
+            });
+        }
+
+        function renderExchangeRateSelectOptions(select, rows = [], selectedValue = '') {
+            if (!select) return;
+            select.innerHTML = rows.map((row) => `<option value="${escapeHtml(row.code)}">${escapeHtml(`${row.code} · ${row.name || row.label || row.code}`)}</option>`).join('');
+            if ([...select.options].some((option) => option.value === selectedValue)) {
+                select.value = selectedValue;
+            }
+        }
+
+        function renderExchangeRateChipGroup(host, items = [], selectedValues = [], fieldName) {
+            if (!host) return;
+            const selected = new Set((selectedValues || []).map((item) => {
+                const raw = String(item || '').trim();
+                return fieldName === 'day' ? raw.toLowerCase() : raw.toUpperCase();
+            }));
+            host.innerHTML = items.map((item) => {
+                const value = fieldName === 'day' ? String(item.value || '').trim().toLowerCase() : String(item.code || '').trim().toUpperCase();
+                const selectedClass = selected.has(value);
+                return `
+                    <label class="exchange-rate-chip${selectedClass ? ' is-selected' : ''}" data-exchange-chip="${escapeHtml(value)}" data-exchange-chip-group="${escapeHtml(fieldName)}">
+                        <input type="checkbox" value="${escapeHtml(value)}" ${selectedClass ? 'checked' : ''}>
+                        <span>${escapeHtml(item.label || `${item.code} · ${item.name || item.code}`)}</span>
+                    </label>
+                `;
+            }).join('');
+        }
+
+        function syncExchangeRateChipSelection(host) {
+            host?.querySelectorAll('.exchange-rate-chip').forEach((chip) => {
+                const input = chip.querySelector('input');
+                chip.classList.toggle('is-selected', Boolean(input?.checked));
+            });
+        }
+
+        function getSelectedExchangeRateChipValues(host, transform = (value) => value) {
+            return [...(host?.querySelectorAll('input:checked') || [])].map((input) => transform(input.value));
+        }
+
+        function renderExchangeRateState() {
+            const state = exchangeRateState;
+            if (!state) return;
+            const config = state.config || {};
+            const today = state.today || {};
+            const items = Array.isArray(today.items) ? today.items : [];
+            const history = Array.isArray(state.history) ? state.history : [];
+            const logs = Array.isArray(state.logs) ? state.logs : [];
+            const catalog = Array.isArray(state.catalog) ? state.catalog : [];
+
+            if (exchangeRateStatusPill) {
+                exchangeRateStatusPill.className = `exchange-rate-status-pill ${getExchangeRateStatusTone(config.lastSyncStatus)}`.trim();
+                exchangeRateStatusPill.textContent = config.lastSyncStatus === 'success'
+                    ? 'Actualizado correctamente'
+                    : config.lastSyncStatus === 'error'
+                        ? 'Error de actualización'
+                        : config.lastSyncStatus === 'running'
+                            ? 'Actualizando...'
+                            : 'Sincronización pendiente';
+            }
+            if (exchangeRateStatusMeta) {
+                const baseText = today.baseCurrency || config.baseCurrency || 'USD';
+                const dateText = today.rateDate || 'sin fecha';
+                exchangeRateStatusMeta.textContent = `${baseText} · ${dateText} · Último intento: ${formatExchangeRateDateTime(config.lastSyncFinishedAt || config.lastSyncStartedAt)}`;
+            }
+            if (exchangeRateSummaryGrid) {
+                exchangeRateSummaryGrid.innerHTML = `
+                    <div class="exchange-rate-summary-card">
+                        <span>Moneda base</span>
+                        <strong>${escapeHtml(today.baseCurrency || config.baseCurrency || 'USD')}</strong>
+                    </div>
+                    <div class="exchange-rate-summary-card">
+                        <span>Fecha de tasa</span>
+                        <strong>${escapeHtml(today.rateDate || 'Sin datos')}</strong>
+                    </div>
+                `;
+            }
+            if (exchangeRateCards) {
+                exchangeRateCards.innerHTML = items.length
+                    ? items.map((item) => `
+                        <div class="exchange-rate-card">
+                            <span>${escapeHtml(item.code)} · ${escapeHtml(item.name || item.code)}</span>
+                            <strong>${item.isBase ? 'Moneda base' : '1 ' + escapeHtml(today.baseCurrency || config.baseCurrency || 'USD')}</strong>
+                            <div class="exchange-rate-card-value">${item.isBase ? '1.0000' : escapeHtml(formatExchangeRateNumber(item.rate))}</div>
+                        </div>
+                    `).join('')
+                    : '<div class="exchange-rate-empty">Todavía no hay tasas guardadas. Usa "Actualizar ahora" para traerlas.</div>';
+            }
+
+            renderExchangeRateSelectOptions(exchangeRateCalcFrom, items.length ? items : catalog, today.baseCurrency || config.baseCurrency || 'USD');
+            renderExchangeRateSelectOptions(exchangeRateCalcTo, items.length ? items : catalog, today.defaultCurrency || config.defaultCurrency || 'CRC');
+            renderExchangeRateSelectOptions(exchangeRateBaseCurrency, catalog, config.baseCurrency || 'USD');
+            renderExchangeRateSelectOptions(exchangeRateDefaultCurrency, catalog.filter((item) => (config.enabledCurrencies || []).includes(item.code) || item.code === config.baseCurrency), config.defaultCurrency || 'CRC');
+            if (exchangeRateAutoUpdate) exchangeRateAutoUpdate.value = String(config.autoUpdateEnabled) === 'false' ? 'false' : 'true';
+            if (exchangeRateUpdateTime) exchangeRateUpdateTime.value = config.updateTime || '00:00';
+
+            renderExchangeRateChipGroup(exchangeRateDays, [
+                { value: 'sun', label: 'Domingo' },
+                { value: 'mon', label: 'Lunes' },
+                { value: 'tue', label: 'Martes' },
+                { value: 'wed', label: 'Miércoles' },
+                { value: 'thu', label: 'Jueves' },
+                { value: 'fri', label: 'Viernes' },
+                { value: 'sat', label: 'Sábado' }
+            ], config.updateDays || [], 'day');
+            renderExchangeRateChipGroup(exchangeRateCurrencies, catalog.map((item) => ({
+                code: item.code,
+                label: `${item.code} · ${item.name}`
+            })), config.enabledCurrencies || [], 'currency');
+
+            if (exchangeRateHistorySummary) {
+                exchangeRateHistorySummary.textContent = history.length
+                    ? `${history.length} actualizaciones históricas cargadas.`
+                    : 'Todavía no hay historial de tasas guardado.';
+            }
+            if (exchangeRateHistoryBody) {
+                exchangeRateHistoryBody.innerHTML = history.length
+                    ? history.map((row) => {
+                        const preview = Object.entries(row.rates || {}).slice(0, 6)
+                            .map(([code, rate]) => `${code}: ${formatExchangeRateNumber(rate)}`)
+                            .join(' · ');
+                        return `
+                            <tr>
+                                <td>${escapeHtml(row.rateDate || '')}</td>
+                                <td>${escapeHtml(row.baseCurrency || '')}</td>
+                                <td>${escapeHtml(formatExchangeRateDateTime(row.fetchedAt))}</td>
+                                <td class="exchange-rate-log-message">${escapeHtml(preview || 'Sin detalle')}</td>
+                            </tr>
+                        `;
+                    }).join('')
+                    : '<tr><td colspan="4">Todavía no hay historial disponible.</td></tr>';
+            }
+
+            if (exchangeRateLogSummary) {
+                exchangeRateLogSummary.textContent = logs.length
+                    ? `${logs.length} ejecuciones registradas.`
+                    : 'Todavía no hay bitácora de actualización.';
+            }
+            if (exchangeRateLogBody) {
+                exchangeRateLogBody.innerHTML = logs.length
+                    ? logs.map((row) => `
+                        <tr>
+                            <td>${escapeHtml(formatExchangeRateDateTime(row.started_at))}</td>
+                            <td>${escapeHtml(String(row.trigger_type || '').trim() || 'manual')}</td>
+                            <td>${escapeHtml(String(row.status || '').trim() || '')}</td>
+                            <td>${escapeHtml(String(row.currencies_count || 0))}</td>
+                            <td class="exchange-rate-log-message">${escapeHtml(row.error_message || row.response_summary?.providerUrl || row.response_summary?.providerName || 'Sin observaciones')}</td>
+                        </tr>
+                    `).join('')
+                    : '<tr><td colspan="5">Todavía no hay bitácora disponible.</td></tr>';
+            }
+
+            renderExchangeRateCalculation();
+            syncConfigTabHeights();
+        }
+
+        function renderExchangeRateCalculation() {
+            if (!exchangeRateCalcResult || !exchangeRateState) return;
+            const items = Array.isArray(exchangeRateState?.today?.items) ? exchangeRateState.today.items : [];
+            const rateMap = new Map(items.map((item) => [item.code, Number(item.rate || 0) || 0]));
+            const baseCurrency = exchangeRateState?.config?.baseCurrency || 'USD';
+            const from = exchangeRateCalcFrom?.value || baseCurrency;
+            const to = exchangeRateCalcTo?.value || exchangeRateState?.config?.defaultCurrency || baseCurrency;
+            const amount = Number(exchangeRateCalcAmount?.value || 0) || 0;
+            const fromRate = from === baseCurrency ? 1 : Number(rateMap.get(from) || 0) || 0;
+            const toRate = to === baseCurrency ? 1 : Number(rateMap.get(to) || 0) || 0;
+            if ((from !== baseCurrency && fromRate <= 0) || (to !== baseCurrency && toRate <= 0)) {
+                exchangeRateCalcResult.textContent = 'No hay tasas suficientes para convertir estas monedas.';
+                return;
+            }
+            const amountInBase = from === baseCurrency ? amount : (amount / fromRate);
+            const result = to === baseCurrency ? amountInBase : (amountInBase * toRate);
+            exchangeRateCalcResult.innerHTML = `
+                <strong style="display:block; color:#17354a; font-size:16px;">${escapeHtml(amount.toLocaleString('es-CR', { maximumFractionDigits: 4 }))} ${escapeHtml(from)} = ${escapeHtml(result.toLocaleString('es-CR', { maximumFractionDigits: 4 }))} ${escapeHtml(to)}</strong>
+                <span style="display:block; margin-top:6px; color:#6b8192; font-size:12px;">Base usada: ${escapeHtml(baseCurrency)} · Fecha: ${escapeHtml(exchangeRateState?.today?.rateDate || 'Sin datos')}</span>
+            `;
+        }
+
+        async function loadExchangeRateModule(force = false) {
+            if (exchangeRateLoadedOnce && !force) {
+                renderExchangeRateState();
+                return;
+            }
+            const response = await fetch('/api/exchange-rates/state');
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.error || 'No fue posible cargar el tipo de cambio.');
+            exchangeRateState = payload;
+            exchangeRateLoadedOnce = true;
+            renderExchangeRateState();
+        }
+
+        async function saveExchangeRateModuleConfig() {
+            const enabledCurrencies = getSelectedExchangeRateChipValues(exchangeRateCurrencies, (value) => String(value || '').trim().toUpperCase());
+            const updateDays = getSelectedExchangeRateChipValues(exchangeRateDays, (value) => String(value || '').trim().toLowerCase());
+            const response = await fetch('/api/exchange-rates/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    baseCurrency: exchangeRateBaseCurrency?.value || 'USD',
+                    defaultCurrency: exchangeRateDefaultCurrency?.value || 'CRC',
+                    autoUpdateEnabled: exchangeRateAutoUpdate?.value !== 'false',
+                    updateTime: exchangeRateUpdateTime?.value || '00:00',
+                    updateDays,
+                    enabledCurrencies
+                })
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.error || 'No fue posible guardar la configuración del tipo de cambio.');
+            setExchangeRateConfigStatus('Configuración guardada.', 'success');
+            await loadExchangeRateModule(true);
+        }
+
+        async function refreshExchangeRateModule() {
+            setExchangeRateConfigStatus('Actualizando tasas...', '');
+            const response = await fetch('/api/exchange-rates/refresh', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ triggerType: 'manual' })
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.error || 'No fue posible actualizar las tasas.');
+            exchangeRateState = payload.state || exchangeRateState;
+            exchangeRateLoadedOnce = true;
+            renderExchangeRateState();
+            setExchangeRateConfigStatus('Tasas actualizadas correctamente.', 'success');
         }
 
         function nextQuoteOutputTypeDraftId() {
@@ -7125,6 +8368,13 @@
                 if (event.target.closest('#permissionAdminCreateButton')) return;
                 closePermissionAdminCreatePopover();
             });
+            document.addEventListener('pointerdown', (event) => {
+                if (auditPartnerPrunePopover?.hidden) return;
+                if (auditPartnerPrunePopover.contains(event.target)) return;
+                if (event.target.closest('#auditPartnerPruneButton')) return;
+                if (auditPartnerPruneBusy) return;
+                closeAuditPartnerPrunePopover();
+            });
             permissionAdminTableBody?.addEventListener('click', (event) => {
                 const row = event.target.closest('[data-permission-id]');
                 if (row) {
@@ -7430,6 +8680,92 @@
                 cell.textContent = error.message || 'No fue posible cargar la auditoría.';
                 row.appendChild(cell);
                 auditTableBody.appendChild(row);
+            }
+        }
+
+        function setAuditPartnerPruneStatus(message = '', isError = false) {
+            if (!auditPartnerPruneStatus) return;
+            auditPartnerPruneStatus.hidden = !message;
+            auditPartnerPruneStatus.textContent = message || '';
+            auditPartnerPruneStatus.classList.toggle('is-error', Boolean(message && isError));
+            auditPartnerPruneStatus.classList.toggle('is-success', Boolean(message && !isError));
+        }
+
+        function syncAuditPartnerPruneControls() {
+            const target = auditPartnerPruneTargetField?.value || 'socios';
+            const mode = auditPartnerPruneModeField?.value || 'keep';
+            const targetLabel = target === 'materiales' ? 'materiales' : 'socios';
+            if (auditPartnerPruneCountText) {
+                auditPartnerPruneCountText.textContent = `¿Con cuántos ${targetLabel} te quieres quedar?`;
+            }
+            if (auditPartnerPruneHelper) {
+                auditPartnerPruneHelper.textContent = mode === 'delete_sap'
+                    ? `Se eliminarán solo los ${targetLabel} identificados como importados desde SAP.`
+                    : `Se conservarán solo los primeros ${targetLabel} del listado actual y se eliminará el resto.`;
+            }
+            if (auditPartnerPruneCountLabel) {
+                auditPartnerPruneCountLabel.hidden = mode === 'delete_sap';
+            }
+        }
+
+        function openAuditPartnerPrunePopover() {
+            if (!auditPartnerPrunePopover || !auditPartnerPruneButton) return;
+            const rect = auditPartnerPruneButton.getBoundingClientRect();
+            const popoverWidth = 360;
+            const left = Math.min(window.innerWidth - popoverWidth - 12, Math.max(12, rect.right - popoverWidth));
+            const top = rect.bottom + 10;
+            auditPartnerPrunePopover.style.left = `${left}px`;
+            auditPartnerPrunePopover.style.top = `${top}px`;
+            auditPartnerPrunePopover.hidden = false;
+            syncAuditPartnerPruneControls();
+            if (auditPartnerPruneCountField) {
+                auditPartnerPruneCountField.value = auditPartnerPruneCountField.value || '5';
+                requestAnimationFrame(() => auditPartnerPruneCountField.focus());
+            }
+        }
+
+        function closeAuditPartnerPrunePopover() {
+            if (auditPartnerPrunePopover) auditPartnerPrunePopover.hidden = true;
+        }
+
+        async function prunePartnersForTesting() {
+            const target = auditPartnerPruneTargetField?.value || 'socios';
+            const mode = auditPartnerPruneModeField?.value || 'keep';
+            const targetLabel = target === 'materiales' ? 'materiales' : 'socios';
+            const keepCount = Math.max(1, Number(auditPartnerPruneCountField?.value || 0));
+            if (mode === 'keep' && (!Number.isFinite(keepCount) || keepCount <= 0)) {
+                auditPartnerPruneCountField?.focus();
+                throw new Error(`Indica una cantidad válida de ${targetLabel} para conservar.`);
+            }
+            const confirmationMessage = mode === 'delete_sap'
+                ? `Se eliminarán solo los ${targetLabel} identificados como importados desde SAP. Esta acción no se puede deshacer. ¿Deseas continuar?`
+                : `Se conservarán solo ${keepCount} ${targetLabel} y se eliminará el resto. Esta acción no se puede deshacer. ¿Deseas continuar?`;
+            const accepted = window.confirm(confirmationMessage);
+            if (!accepted) return;
+            auditPartnerPruneBusy = true;
+            if (auditPartnerPruneConfirm) auditPartnerPruneConfirm.disabled = true;
+            if (auditPartnerPruneCancel) auditPartnerPruneCancel.disabled = true;
+            setAuditPartnerPruneStatus('Procesando datos de prueba...', false);
+            try {
+                const response = await fetch('/api/testing/external-data-admin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        target,
+                        mode,
+                        keepCount: mode === 'keep' ? keepCount : undefined
+                    })
+                });
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(payload.error || 'No fue posible ejecutar la depuración.');
+                }
+                closeAuditPartnerPrunePopover();
+                setAuditPartnerPruneStatus(payload.message || 'Acción ejecutada correctamente.', false);
+            } finally {
+                auditPartnerPruneBusy = false;
+                if (auditPartnerPruneConfirm) auditPartnerPruneConfirm.disabled = false;
+                if (auditPartnerPruneCancel) auditPartnerPruneCancel.disabled = false;
             }
         }
 
@@ -7798,7 +9134,7 @@
                     activateSecurityTab(activeSecurityTab);
                 }
                 if (tab.dataset.tab === 'cotizaciones') {
-                    const activeQuotesTab = document.querySelector('.quotes-subtab.active')?.dataset.quotesTab || 'calculo';
+                    const activeQuotesTab = document.querySelector('.quotes-subtab.active')?.dataset.quotesTab || 'general';
                     activateQuotesTab(activeQuotesTab);
                 }
                 if (tab.dataset.tab === 'diseno') {
@@ -8099,6 +9435,20 @@
             if (auditFieldFilter) auditFieldFilter.value = '';
             loadAuditEntries(true);
         });
+        auditPartnerPruneButton?.addEventListener('click', openAuditPartnerPrunePopover);
+        auditPartnerPruneTargetField?.addEventListener('change', syncAuditPartnerPruneControls);
+        auditPartnerPruneModeField?.addEventListener('change', syncAuditPartnerPruneControls);
+        auditPartnerPruneCancel?.addEventListener('click', () => {
+            if (auditPartnerPruneBusy) return;
+            closeAuditPartnerPrunePopover();
+        });
+        auditPartnerPruneConfirm?.addEventListener('click', async () => {
+            try {
+                await prunePartnersForTesting();
+            } catch (error) {
+                setAuditPartnerPruneStatus(error.message || 'No fue posible ejecutar la depuración.', true);
+            }
+        });
 
         securitySubtabs.forEach((tab) => {
             tab.addEventListener('click', () => {
@@ -8106,9 +9456,68 @@
             });
         });
 
+        sapSubtabs.forEach((tab) => {
+            tab.addEventListener('click', () => {
+                activateSapTab(tab.dataset.sapTab || 'config');
+            });
+        });
+
         quotesSubtabs.forEach((tab) => {
             tab.addEventListener('click', () => {
                 activateQuotesTab(tab.dataset.quotesTab || 'calculo');
+            });
+        });
+
+        exchangeRateSubtabs.forEach((tab) => {
+            tab.addEventListener('click', () => {
+                activateExchangeRateTab(tab.dataset.exchangeRateTab || 'tasas');
+            });
+        });
+
+        exchangeRateDays?.addEventListener('change', () => {
+            syncExchangeRateChipSelection(exchangeRateDays);
+        });
+
+        exchangeRateCurrencies?.addEventListener('change', () => {
+            syncExchangeRateChipSelection(exchangeRateCurrencies);
+            const selectedCurrencies = getSelectedExchangeRateChipValues(exchangeRateCurrencies, (value) => String(value || '').trim().toUpperCase());
+            const options = (exchangeRateState?.catalog || []).filter((item) => selectedCurrencies.includes(item.code) || item.code === (exchangeRateBaseCurrency?.value || 'USD'));
+            renderExchangeRateSelectOptions(exchangeRateDefaultCurrency, options, exchangeRateDefaultCurrency?.value || exchangeRateState?.config?.defaultCurrency || 'CRC');
+        });
+
+        exchangeRateBaseCurrency?.addEventListener('change', () => {
+            const baseCurrency = exchangeRateBaseCurrency.value || 'USD';
+            const selectedCurrencies = getSelectedExchangeRateChipValues(exchangeRateCurrencies, (value) => String(value || '').trim().toUpperCase());
+            if (!selectedCurrencies.includes(baseCurrency)) {
+                const baseInput = exchangeRateCurrencies?.querySelector(`input[value="${baseCurrency}"]`);
+                if (baseInput) {
+                    baseInput.checked = true;
+                    syncExchangeRateChipSelection(exchangeRateCurrencies);
+                }
+            }
+            const options = (exchangeRateState?.catalog || []).filter((item) => {
+                const enabled = getSelectedExchangeRateChipValues(exchangeRateCurrencies, (value) => String(value || '').trim().toUpperCase());
+                return enabled.includes(item.code) || item.code === baseCurrency;
+            });
+            renderExchangeRateSelectOptions(exchangeRateDefaultCurrency, options, exchangeRateDefaultCurrency?.value || exchangeRateState?.config?.defaultCurrency || 'CRC');
+        });
+
+        exchangeRateCalcAmount?.addEventListener('input', renderExchangeRateCalculation);
+        exchangeRateCalcFrom?.addEventListener('change', renderExchangeRateCalculation);
+        exchangeRateCalcTo?.addEventListener('change', renderExchangeRateCalculation);
+        exchangeRateReloadButton?.addEventListener('click', () => {
+            loadExchangeRateModule(true).catch((error) => {
+                setExchangeRateConfigStatus(error.message || 'No fue posible recargar el tipo de cambio.', 'error');
+            });
+        });
+        exchangeRateRefreshButton?.addEventListener('click', () => {
+            refreshExchangeRateModule().catch((error) => {
+                setExchangeRateConfigStatus(error.message || 'No fue posible actualizar las tasas.', 'error');
+            });
+        });
+        exchangeRateSaveConfigButton?.addEventListener('click', () => {
+            saveExchangeRateModuleConfig().catch((error) => {
+                setExchangeRateConfigStatus(error.message || 'No fue posible guardar la configuración del tipo de cambio.', 'error');
             });
         });
 
@@ -8214,9 +9623,30 @@
         sapRefreshLogsButton?.addEventListener('click', async () => {
             try {
                 await loadSapConnectorState(true);
+                await loadSapActivityRecords(true);
             } catch (error) {
                 setSapConfigStatus(error.message || 'No fue posible actualizar la actividad SAP.', true);
             }
+        });
+        sapActivityApplyButton?.addEventListener('click', () => {
+            loadSapActivityRecords(true).catch((error) => {
+                if (sapActivitySummary) {
+                    sapActivitySummary.className = 'sap-security-empty';
+                    sapActivitySummary.textContent = error.message || 'No fue posible cargar los registros SAP.';
+                }
+            });
+        });
+        sapActivityResetButton?.addEventListener('click', () => {
+            [sapActivityTypeFilter, sapActivityStatusFilter, sapActivityEntityFilter, sapActivityActorFilter, sapActivityDateFromFilter, sapActivityDateToFilter, sapActivitySearchFilter].forEach((field) => {
+                if (!field) return;
+                field.value = '';
+            });
+            loadSapActivityRecords(true).catch((error) => {
+                if (sapActivitySummary) {
+                    sapActivitySummary.className = 'sap-security-empty';
+                    sapActivitySummary.textContent = error.message || 'No fue posible cargar los registros SAP.';
+                }
+            });
         });
         sapLoadTemplateButton?.addEventListener('click', loadSapPayloadTemplate);
         sapWriteEntity?.addEventListener('change', loadSapPayloadTemplate);
@@ -8257,6 +9687,7 @@
         syncSapAdvancedToggle();
         loadSapPayloadTemplate();
         activateDesignTab('datos-generales');
+        activateSapTab('config');
         activateSecurityTab('usuarios');
         loadConfig();
         document.getElementById('mobileSellerTheme')?.addEventListener('change', updateMobilePreviewLink);
