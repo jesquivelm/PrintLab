@@ -2451,6 +2451,13 @@ function calculateFlexoPreview(payload, catalogs = loadFlexoCatalogs()) {
     const profitabilityFactor = 1 + ((catalogs.globalCosts.commercialSettings.profitabilityPercent || 0) / 100);
     const totalCost = subtotalCost * contingencyFactor * financialFactor * profitabilityFactor;
     const unitPrice = quantity > 0 ? totalCost / quantity : 0;
+    const processSnapshot = buildCalculationProcessSnapshot({
+        raw: {},
+        processType: pickFirstValue(payload.processType, payload.process),
+        machineName: selectedPrintMachine?.machineName || '',
+        dieCode: die?.id || '',
+        uiState: payload.uiState || null
+    });
 
     return {
         selection: {
@@ -2464,7 +2471,8 @@ function calculateFlexoPreview(payload, catalogs = loadFlexoCatalogs()) {
             digitalPlatesDisabled
         },
         metrics: { labelsPerPass: roundCurrency(labelsPerPass), linearInches: roundCurrency(linearInches), linearFeet: roundCurrency(linearFeet), materialWidth: roundCurrency(materialWidth), msi: roundCurrency(msi) },
-        costBreakdown: { material: roundCurrency(materialCost), machineStages: breakdown, subtotalCost: roundCurrency(subtotalCost), totalCost: roundCurrency(totalCost), unitPrice: roundCurrency(unitPrice) }
+        costBreakdown: { material: roundCurrency(materialCost), machineStages: breakdown, subtotalCost: roundCurrency(subtotalCost), totalCost: roundCurrency(totalCost), unitPrice: roundCurrency(unitPrice) },
+        processes: processSnapshot
     };
 }
 
@@ -2642,6 +2650,13 @@ function mapFlexoCalculationDetail(row) {
             ? Number(subtotalBeforeTax) + Number(taxAmount)
             : null
     );
+    const processSnapshot = buildCalculationProcessSnapshot({
+        raw,
+        processType,
+        machineName: quotedMachine,
+        dieCode: pickFirstValue(raw['GENERAL | TROQUEL | ID'], raw[`${activePrefix} | TROQUEL | ID`], row.die_code),
+        uiState: raw['CODEX_UI_STATE'] || null
+    });
 
       return {
           calculationCode: row.calculation_code || '',
@@ -2724,6 +2739,7 @@ function mapFlexoCalculationDetail(row) {
             observations: pickFirstValue(raw['OBSERVACIONES SOLICITUD']),
             creationStatus: pickFirstValue(raw['CREACION ESTADO'])
         },
+        processes: processSnapshot,
         uiState: raw['CODEX_UI_STATE'] || null,
         digitalPlatesDisabled,
         raw_data: raw
@@ -3225,10 +3241,160 @@ function isTruthyProcessFlag(value) {
     return value === true || ['si', 'sí', 'true', '1', 'x', 'activo'].includes(normalized);
 }
 
+function hasDeclaredProcessDetail(value) {
+    const normalized = String(value ?? '').trim().toLowerCase();
+    if (!normalized) return false;
+    return !['no', 'sin', 'ninguno', 'n/a'].includes(normalized);
+}
+
+function normalizeProcessDisplayList(list = []) {
+    if (!Array.isArray(list)) return [];
+    return list
+        .map((item, index) => {
+            if (!item) return null;
+            if (typeof item === 'string') {
+                const label = item.trim();
+                if (!label) return null;
+                return {
+                    processKey: slugify(label),
+                    processName: label,
+                    sequenceOrder: index + 1,
+                    source: 'declared'
+                };
+            }
+            const processName = pickFirstValue(item.processName, item.name, item.label, item.title);
+            if (!processName) return null;
+            return {
+                processKey: pickFirstValue(item.processKey, item.code, slugify(processName)),
+                processName,
+                sequenceOrder: Number(item.sequenceOrder || index + 1) || index + 1,
+                source: pickFirstValue(item.source, 'declared')
+            };
+        })
+        .filter(Boolean);
+}
+
+function resolveRawProcessDetail(raw = {}, keys = []) {
+    for (const key of keys) {
+        const value = raw[key];
+        if (hasDeclaredProcessDetail(value)) {
+            return String(value).trim();
+        }
+    }
+    return '';
+}
+
+function buildCalculationProcessSnapshot({ raw = {}, processType = '', machineName = '', dieCode = '', uiState = null } = {}) {
+    const declaredList = normalizeProcessDisplayList(
+        Array.isArray(raw['CODEX_PROCESS_SNAPSHOT']) && raw['CODEX_PROCESS_SNAPSHOT'].length
+            ? raw['CODEX_PROCESS_SNAPSHOT']
+            : Array.isArray(uiState?.processSequence) && uiState.processSequence.length
+                ? uiState.processSequence
+                : (() => {
+                    if (!raw['BOT | Process Sequence Json']) return [];
+                    try {
+                        return JSON.parse(raw['BOT | Process Sequence Json']);
+                    } catch (error) {
+                        return [];
+                    }
+                })()
+    );
+    if (declaredList.length) {
+        return declaredList.map((item, index) => ({
+            ...item,
+            sequenceOrder: index + 1
+        }));
+    }
+
+    const normalizedProcessType = String(processType || raw['Proceso Productivo'] || '').trim() || 'Convencional';
+    const isDigital = hasDigitalPrintingContext({
+        processType: normalizedProcessType,
+        machineName,
+        raw
+    });
+    const varnishDetail = resolveRawProcessDetail(raw, ['BARNIZ', 'ACABADOS | BARNIZ DETALLE', 'REQ | Barniz', 'BARNIZ UV']);
+    const laminateDetail = resolveRawProcessDetail(raw, ['LAMINADO', 'ACABADOS | LAMINADO DETALLE', 'REQ | Laminado']);
+    const stampingDetail = resolveRawProcessDetail(raw, ['ESTAMPADO', 'FOIL', 'ACABADOS | FOIL DETALLE', 'REQ | Estampado']);
+    const numberingDetail = resolveRawProcessDetail(raw, ['NUMERADO', 'ACABADOS | NUMERADO DETALLE', 'REQ | Numeracion', 'REQ | Numeracion Aviso']);
+    const embossDetail = resolveRawProcessDetail(raw, ['EMBOSADO', 'REQ | Embosado']);
+    const processKeys = inferRouteProcessKeys({
+        process_type: normalizedProcessType,
+        machine_name: machineName,
+        die_code: dieCode,
+        raw_data: {
+            line_snapshot: { raw_data: raw },
+            line_summary: {
+                process_type: normalizedProcessType,
+                machine_name: machineName,
+                die_code: dieCode
+            }
+        }
+    });
+
+    return processKeys.map((processKey, index) => {
+        let processName = processKey;
+        switch (processKey) {
+        case 'preprensa':
+            processName = 'Preprensa';
+            break;
+        case 'planchas':
+            processName = 'Planchas';
+            break;
+        case 'impresion':
+            processName = isDigital ? 'Impresión Digital' : 'Impresión Convencional';
+            break;
+        case 'barnizado':
+            processName = `Barniz ${varnishDetail}`.trim();
+            break;
+        case 'laminado':
+            processName = `Laminado ${laminateDetail}`.trim();
+            break;
+        case 'estampado':
+            processName = `Estampado ${stampingDetail}`.trim();
+            break;
+        case 'numeracion':
+            processName = numberingDetail || 'Numeración';
+            break;
+        case 'embosado':
+            processName = embossDetail ? `Embosado ${embossDetail}`.trim() : 'Embosado';
+            break;
+        case 'troquelado':
+            processName = dieCode ? `Troquelado (${dieCode})` : 'Troquelado';
+            break;
+        case 'rebobinado':
+            processName = 'Rebobinado';
+            break;
+        case 'empaque':
+            processName = 'Empaque';
+            break;
+        default:
+            processName = processKey;
+            break;
+        }
+        return {
+            processKey,
+            processName,
+            sequenceOrder: index + 1,
+            source: 'inferred'
+        };
+    });
+}
+
 function inferRouteProcessKeys(orderRow = {}) {
     const snapshot = inferPlanningOrderSnapshot(orderRow);
     const raw = snapshot.raw?.line_snapshot?.raw_data || snapshot.raw || {};
-    const processKeys = ['preprensa', 'impresion'];
+    const isDigital = hasDigitalPrintingContext({
+        processType: snapshot.processType,
+        machineName: snapshot.machineName,
+        raw
+    });
+    const processKeys = ['preprensa'];
+
+    if (!isDigital) {
+        processKeys.push('planchas');
+    }
+
+    processKeys.push('impresion');
 
     if (isTruthyProcessFlag(raw['ACABADOS | BARNIZ']) || isTruthyProcessFlag(raw['BARNIZ']) || isTruthyProcessFlag(raw['BARNIZ UV'])) {
         processKeys.push('barnizado');
@@ -3238,6 +3404,14 @@ function inferRouteProcessKeys(orderRow = {}) {
     }
     if (isTruthyProcessFlag(raw['ACABADOS | FOIL']) || isTruthyProcessFlag(raw['FOIL']) || isTruthyProcessFlag(raw['ESTAMPADO'])) {
         processKeys.push('estampado');
+    }
+    if (
+        hasDeclaredProcessDetail(raw['REQ | Numeracion'])
+        || hasDeclaredProcessDetail(raw['ACABADOS | NUMERADO DETALLE'])
+        || isTruthyProcessFlag(raw['ACABADOS | NUMERADO'])
+        || hasDeclaredProcessDetail(raw['NUMERADO'])
+    ) {
+        processKeys.push('numeracion');
     }
     if (isTruthyProcessFlag(raw['ACABADOS | EMBOSADO']) || isTruthyProcessFlag(raw['EMBOSADO'])) {
         processKeys.push('embosado');
@@ -3613,14 +3787,16 @@ async function ensurePlanningSchema() {
     const seededProcesses = [
         { processKey: 'diseno', processName: 'Diseño', sequenceOrder: 1, colorHex: '#8B5CF6', iconKey: '[D]', isParallel: false },
         { processKey: 'preprensa', processName: 'Preprensa', sequenceOrder: 2, colorHex: '#6366F1', iconKey: '[PP]', isParallel: false },
-        { processKey: 'impresion', processName: 'Impresión', sequenceOrder: 3, colorHex: '#1D9E75', iconKey: '[IMP]', isParallel: false },
-        { processKey: 'barnizado', processName: 'Barnizado', sequenceOrder: 4, colorHex: '#BA7517', iconKey: '[B]', isParallel: true },
-        { processKey: 'laminado', processName: 'Laminado', sequenceOrder: 5, colorHex: '#0EA5E9', iconKey: '[L]', isParallel: false },
-        { processKey: 'estampado', processName: 'Estampado', sequenceOrder: 6, colorHex: '#F59E0B', iconKey: '[E]', isParallel: false },
-        { processKey: 'embosado', processName: 'Embosado', sequenceOrder: 7, colorHex: '#A855F7', iconKey: '[EMB]', isParallel: false },
-        { processKey: 'troquelado', processName: 'Troquelado', sequenceOrder: 8, colorHex: '#06B6D4', iconKey: '[T]', isParallel: false },
-        { processKey: 'rebobinado', processName: 'Rebobinado', sequenceOrder: 9, colorHex: '#F97316', iconKey: '[R]', isParallel: false },
-        { processKey: 'empaque', processName: 'Empaque', sequenceOrder: 10, colorHex: '#10B981', iconKey: '[EMP]', isParallel: false }
+        { processKey: 'planchas', processName: 'Planchas', sequenceOrder: 3, colorHex: '#4F46E5', iconKey: '[PL]', isParallel: false },
+        { processKey: 'impresion', processName: 'Impresión', sequenceOrder: 4, colorHex: '#1D9E75', iconKey: '[IMP]', isParallel: false },
+        { processKey: 'barnizado', processName: 'Barnizado', sequenceOrder: 5, colorHex: '#BA7517', iconKey: '[B]', isParallel: true },
+        { processKey: 'laminado', processName: 'Laminado', sequenceOrder: 6, colorHex: '#0EA5E9', iconKey: '[L]', isParallel: false },
+        { processKey: 'estampado', processName: 'Estampado', sequenceOrder: 7, colorHex: '#F59E0B', iconKey: '[E]', isParallel: false },
+        { processKey: 'numeracion', processName: 'Numeración', sequenceOrder: 8, colorHex: '#D97706', iconKey: '[NUM]', isParallel: false },
+        { processKey: 'embosado', processName: 'Embosado', sequenceOrder: 9, colorHex: '#A855F7', iconKey: '[EMB]', isParallel: false },
+        { processKey: 'troquelado', processName: 'Troquelado', sequenceOrder: 10, colorHex: '#06B6D4', iconKey: '[T]', isParallel: false },
+        { processKey: 'rebobinado', processName: 'Rebobinado', sequenceOrder: 11, colorHex: '#F97316', iconKey: '[R]', isParallel: false },
+        { processKey: 'empaque', processName: 'Empaque', sequenceOrder: 12, colorHex: '#10B981', iconKey: '[EMP]', isParallel: false }
     ];
     seededProcesses.forEach((row) => {
         if (!processRegistry.has(row.processKey)) {
@@ -4100,6 +4276,16 @@ function buildCalculationRawData(payload = {}, existingRawData = {}) {
     })) {
         zeroDigitalPlateCostFields(rawData);
     }
+
+    const processSnapshot = buildCalculationProcessSnapshot({
+        raw: rawData,
+        processType,
+        machineName: rawData[`${activePrefix} | MAQUINA`],
+        dieCode: rawData['GENERAL | TROQUEL | ID'],
+        uiState: rawData['CODEX_UI_STATE'] || null
+    });
+    rawData['CODEX_PROCESS_SNAPSHOT'] = processSnapshot;
+    rawData['CODEX_PROCESS_SEQUENCE_TEXT'] = processSnapshot.map((item) => item.processName).join(' -> ');
 
     return rawData;
 }
@@ -6892,9 +7078,9 @@ app.get('/api/planificacion/lanzamiento', async (req, res) => {
                 const tintCount = Number(lineSnapshot.tintCount || lineSnapshot.pantoneCount || lineRaw['CANTIDAD TINTAS'] || 0);
                 const plannedFeet = Number(lineSnapshot.materialFeet || lineRaw['GENERAL | SUSTRATO | CONSUMO PIES'] || 0);
                 const missing = [];
-                if (!snapshot.machineName && processKeys.some((key) => !['preprensa', 'diseno'].includes(key))) missing.push('Máquina');
+                if (!snapshot.machineName && processKeys.some((key) => !['preprensa', 'planchas', 'diseno'].includes(key))) missing.push('Máquina');
                 if (!snapshot.materialName && processKeys.some((key) => ['impresion', 'barnizado', 'laminado', 'rebobinado', 'empaque'].includes(key))) missing.push('Sustrato');
-                if (!snapshot.dieCode && processKeys.some((key) => ['preprensa', 'impresion', 'troquelado', 'estampado', 'embosado'].includes(key))) missing.push('Troquel / plancha');
+                if (!snapshot.dieCode && processKeys.some((key) => ['preprensa', 'planchas', 'impresion', 'troquelado', 'estampado', 'embosado'].includes(key))) missing.push('Troquel / plancha');
                 if (processKeys.includes('impresion') && tintCount <= 0) missing.push('Tintas');
 
                 return {
@@ -7408,9 +7594,9 @@ app.get('/api/planificacion/preturno', async (req, res) => {
             const troquelRecord = troquelCatalog.get(normalizedLookup(dieCode)) || null;
             const machineRecord = machineCatalog.get(normalizedLookup(machineName)) || null;
 
-            const machineRequired = !['preprensa', 'diseno'].includes(processKey);
+            const machineRequired = !['preprensa', 'planchas', 'diseno'].includes(processKey);
             const materialRequired = ['impresion', 'barnizado', 'laminado', 'rebobinado', 'empaque'].includes(processKey);
-            const dieRequired = ['preprensa', 'impresion', 'troquelado', 'estampado', 'embosado'].includes(processKey);
+            const dieRequired = ['preprensa', 'planchas', 'impresion', 'troquelado', 'estampado', 'embosado'].includes(processKey);
             const tintRequired = processKey === 'impresion';
             const accessoryRequired = ['estampado', 'embosado'].includes(processKey);
 

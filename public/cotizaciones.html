@@ -55,6 +55,26 @@
 .quote-request-toggle-chip{display:inline-flex;align-items:center;border-radius:999px;background:transparent}
 .quote-request-tab{display:inline-flex;align-items:center;justify-content:center;height:38px;padding:0 14px;border-radius:999px;border:1px solid #d9e5ee;background:linear-gradient(180deg,#ffffff 0%,#f3f8fb 100%);color:#5a7083;font-size:13px;font-weight:600;white-space:nowrap;transition:background-color .18s ease,color .18s ease,border-color .18s ease,box-shadow .18s ease}
 .quote-request-toggle-chip.is-selected .quote-request-tab{border-color:#5bc3ef;background:linear-gradient(180deg,#39afe4 0%,#1890d4 100%);color:#fff;box-shadow:0 6px 16px rgba(24,144,212,.22)}
+.quote-request-finish-popover-wrap{position:relative;display:grid;gap:10px}
+.quote-request-finish-trigger{display:inline-flex;align-items:center;gap:10px;min-height:40px;padding:0 16px;border:1px solid #d9e5ee;border-radius:999px;background:linear-gradient(180deg,#ffffff 0%,#f3f8fb 100%);color:#28465c;font:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease}
+.quote-request-finish-trigger:hover,.quote-request-finish-trigger[aria-expanded="true"]{border-color:#29a6db;box-shadow:0 10px 24px rgba(16,111,176,.12);transform:translateY(-1px)}
+.quote-request-finish-trigger::after{content:"";width:9px;height:9px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg) translateY(-1px);opacity:.72}
+.quote-request-finish-summary{display:grid;gap:4px;padding:10px 12px;border:1px solid #dbe6ee;border-radius:14px;background:#fff}
+.quote-request-finish-summary strong{font-size:13px;color:#17354a}
+.quote-request-finish-summary span{font-size:12px;color:#6b7f90}
+.quote-request-finish-popover{position:absolute;top:calc(100% + 10px);left:0;z-index:30;width:min(420px,calc(100vw - 72px));display:grid;gap:12px;padding:14px;border:1px solid #d7e2ea;border-radius:18px;background:rgba(255,255,255,.98);box-shadow:0 20px 44px rgba(15,38,56,.18);backdrop-filter:blur(12px)}
+.quote-request-finish-popover[hidden]{display:none}
+.quote-request-finish-popover::before{content:"";position:absolute;top:-7px;left:26px;width:14px;height:14px;border-top:1px solid #d7e2ea;border-left:1px solid #d7e2ea;background:#fff;transform:rotate(45deg)}
+.quote-request-finish-popover-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.quote-request-finish-popover-head h5{margin:0;font-size:14px;color:#17354a}
+.quote-request-finish-popover-head p{margin:4px 0 0;font-size:12px;color:#6b7f90}
+.quote-request-finish-popover-close{width:32px;height:32px;border:1px solid #d7e2ea;border-radius:12px;background:#fff;color:#4b6578;font-size:18px;line-height:1;cursor:pointer}
+.quote-request-finish-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.quote-request-finish-attachment{display:grid;gap:8px;padding:12px;border:1px dashed #cfdce6;border-radius:16px;background:linear-gradient(180deg,#fcfeff 0%,#f6fafc 100%)}
+.quote-request-finish-attachment-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.quote-request-finish-file{display:none}
+.quote-request-finish-file-button{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:0 14px;border:1px solid #cfe0ea;border-radius:999px;background:#fff;color:#1d688e;font-size:12px;font-weight:700;cursor:pointer}
+.quote-request-finish-file-meta{font-size:12px;color:#6b7f90}
 .quote-request-attachments-card{display:grid;gap:10px;padding:14px;border:1px solid #d9e3eb;border-radius:16px;background:linear-gradient(180deg,#fff 0%,#f6fbfd 100%)}
 .quote-request-attachment-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px}
 .quote-request-icon-action{position:relative;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;cursor:pointer;color:var(--icon-color,#1e516d);transition:transform .16s ease,color .16s ease,filter .16s ease}
@@ -317,6 +337,10 @@
 <label class="quote-request-toggle-chip"><input type="radio" name="stamping" value="Plata"><span class="quote-request-tab">Plata</span></label>
 <label class="quote-request-toggle-chip"><input type="radio" name="stamping" value="Holográfico"><span class="quote-request-tab">Holográfico</span></label>
 </div>
+<label class="quote-request-field">
+<span>Ancho de estampado (mm)</span>
+<input id="stampingWidth" class="quote-request-input" type="number" min="0" step="0.01" placeholder="Ej. 12">
+</label>
 </div>
 <div class="quote-request-subblock">
 <h4>Embosado</h4>
@@ -328,11 +352,51 @@
 <div class="quote-request-finishes-column">
 <div class="quote-request-subblock">
 <h4>Numeración</h4>
+<div class="quote-request-finish-popover-wrap">
+<button id="numberingPopoverTrigger" type="button" class="quote-request-finish-trigger" aria-haspopup="dialog" aria-expanded="false">Numeración</button>
+<div id="numberingSummary" class="quote-request-finish-summary">
+<strong>Sin numeración configurada</strong>
+<span>Haz clic en “Numeración” para definir tipo, rango y adjunto Excel.</span>
+</div>
+<div id="numberingPopover" class="quote-request-finish-popover" role="dialog" aria-modal="false" aria-label="Configuración de numeración" hidden>
+<div class="quote-request-finish-popover-head">
+<div>
+<h5>Configuración de numeración</h5>
+<p>Define el tipo, el rango y cualquier soporte externo para este acabado.</p>
+</div>
+<button id="numberingPopoverClose" type="button" class="quote-request-finish-popover-close" aria-label="Cerrar">×</button>
+</div>
 <div class="quote-request-tabset">
 <label class="quote-request-toggle-chip"><input type="radio" name="numbering" value="" checked><span class="quote-request-tab">Ninguna</span></label>
 <label class="quote-request-toggle-chip"><input type="radio" name="numbering" value="Numeración"><span class="quote-request-tab">Numeración</span></label>
 <label class="quote-request-toggle-chip"><input type="radio" name="numbering" value="Código de Barras"><span class="quote-request-tab">Código de Barras</span></label>
 <label class="quote-request-toggle-chip"><input type="radio" name="numbering" value="Código QR"><span class="quote-request-tab">Código QR</span></label>
+</div>
+<div class="quote-request-finish-detail-grid">
+<label class="quote-request-field">
+<span>Desde</span>
+<input id="numberingRangeStart" class="quote-request-input" type="text" placeholder="Ej. 0001">
+</label>
+<label class="quote-request-field">
+<span>Hasta</span>
+<input id="numberingRangeEnd" class="quote-request-input" type="text" placeholder="Ej. 2500">
+</label>
+</div>
+<label class="quote-request-field">
+<span>Detalle</span>
+<input id="numberingDetail" class="quote-request-input" type="text" placeholder="Ej. QR variable por lote o numeración consecutiva">
+</label>
+<div class="quote-request-finish-attachment">
+<div class="quote-request-finish-attachment-row">
+<div>
+<strong>Adjunto Excel</strong>
+<div id="numberingAttachmentMeta" class="quote-request-finish-file-meta">Puedes adjuntar un Excel o CSV con la secuencia.</div>
+</div>
+<label class="quote-request-finish-file-button" for="numberingAttachmentInput">Adjuntar</label>
+</div>
+<input id="numberingAttachmentInput" class="quote-request-finish-file" type="file" accept=".xls,.xlsx,.csv">
+</div>
+</div>
 </div>
 </div>
 <div class="quote-request-subblock">

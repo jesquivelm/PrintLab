@@ -52,6 +52,16 @@ const materialInput = document.getElementById('requestMaterial');
 const materialSuggestions = document.getElementById('materialSuggestions');
 const surfaceInput = document.getElementById('requestSurface');
 const surfaceSuggestions = document.getElementById('surfaceSuggestions');
+const stampingWidthInput = document.getElementById('stampingWidth');
+const numberingPopoverTrigger = document.getElementById('numberingPopoverTrigger');
+const numberingPopover = document.getElementById('numberingPopover');
+const numberingPopoverClose = document.getElementById('numberingPopoverClose');
+const numberingSummary = document.getElementById('numberingSummary');
+const numberingRangeStartInput = document.getElementById('numberingRangeStart');
+const numberingRangeEndInput = document.getElementById('numberingRangeEnd');
+const numberingDetailInput = document.getElementById('numberingDetail');
+const numberingAttachmentInput = document.getElementById('numberingAttachmentInput');
+const numberingAttachmentMeta = document.getElementById('numberingAttachmentMeta');
 const attachmentsInput = document.getElementById('requestAttachments');
 const attachmentsPreview = document.getElementById('requestAttachmentsPreview');
 const attachmentPreviewModal = document.getElementById('attachmentPreviewModal');
@@ -155,6 +165,82 @@ function escapeHtml(value) {
 
 function normalizeText(value) {
     return String(value ?? '').trim();
+}
+
+function getSelectedNumberingValue() {
+    return form?.querySelector('input[name="numbering"]:checked')?.value || '';
+}
+
+function findPendingAttachmentIndex(predicate) {
+    return pendingAttachments.findIndex((item) => {
+        try {
+            return predicate(item);
+        } catch (error) {
+            return false;
+        }
+    });
+}
+
+function removePendingAttachmentByIndex(index) {
+    if (!Number.isInteger(index) || index < 0 || index >= pendingAttachments.length) return null;
+    const removed = pendingAttachments.splice(index, 1)[0];
+    if (removed?.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(removed.previewUrl);
+    if (removed?.previewUrl && removed.previewUrl === activeAttachmentPreviewUrl) closeAttachmentPreview();
+    return removed;
+}
+
+function buildNumberingSummaryText() {
+    const numberingType = getSelectedNumberingValue();
+    if (!numberingType) {
+        return {
+            title: 'Sin numeración configurada',
+            detail: 'Haz clic en “Numeración” para definir tipo, rango y adjunto Excel.'
+        };
+    }
+    const from = normalizeText(numberingRangeStartInput?.value);
+    const to = normalizeText(numberingRangeEndInput?.value);
+    const detail = normalizeText(numberingDetailInput?.value);
+    const attachmentIndex = findPendingAttachmentIndex((item) => item?.slot === 'numbering');
+    const fragments = [];
+    if (from || to) fragments.push(`Rango ${from || '...'} a ${to || '...'}`);
+    if (detail) fragments.push(detail);
+    if (attachmentIndex >= 0) fragments.push(`Adjunto: ${pendingAttachments[attachmentIndex]?.fileName || 'Excel cargado'}`);
+    return {
+        title: numberingType,
+        detail: fragments.join(' · ') || 'Configuración lista para cotizar.'
+    };
+}
+
+function renderNumberingSummary() {
+    if (!numberingSummary) return;
+    const summary = buildNumberingSummaryText();
+    numberingSummary.innerHTML = `<strong>${escapeHtml(summary.title)}</strong><span>${escapeHtml(summary.detail)}</span>`;
+    if (numberingAttachmentMeta) {
+        const attachmentIndex = findPendingAttachmentIndex((item) => item?.slot === 'numbering');
+        numberingAttachmentMeta.textContent = attachmentIndex >= 0
+            ? `Archivo cargado: ${pendingAttachments[attachmentIndex]?.fileName || 'Excel adjunto'}`
+            : 'Puedes adjuntar un Excel o CSV con la secuencia.';
+    }
+}
+
+function closeNumberingPopover() {
+    if (!numberingPopover || !numberingPopoverTrigger) return;
+    numberingPopover.hidden = true;
+    numberingPopoverTrigger.setAttribute('aria-expanded', 'false');
+}
+
+function openNumberingPopover() {
+    if (!numberingPopover || !numberingPopoverTrigger) return;
+    numberingPopover.hidden = false;
+    numberingPopoverTrigger.setAttribute('aria-expanded', 'true');
+    renderNumberingSummary();
+}
+
+function toggleNumberingPopover(forceOpen) {
+    if (!numberingPopover) return;
+    const willOpen = typeof forceOpen === 'boolean' ? forceOpen : numberingPopover.hidden;
+    if (willOpen) openNumberingPopover();
+    else closeNumberingPopover();
 }
 
 function setStatus(message, tone = 'info') {
@@ -959,6 +1045,9 @@ function resetFormState() {
     syncToggleChipState();
     applyConfiguredIcons();
     closeAttachmentPreview();
+    closeNumberingPopover();
+    if (numberingAttachmentInput) numberingAttachmentInput.value = '';
+    renderNumberingSummary();
 }
 
 function setDefaultLauncherPosition() {
@@ -993,12 +1082,21 @@ function renderShapePicker() {
 function collectRequestPayload() {
     const selectedShape = form.querySelector('input[name="die_shape"]:checked')?.value || '';
     const selectedSize = fixedSizeSelect?.selectedOptions?.[0];
-    const numbering = form.querySelector('input[name="numbering"]:checked')?.value || '';
+    const numbering = getSelectedNumberingValue();
     const stamping = form.querySelector('input[name="stamping"]:checked')?.value || '';
     const varnish = form.querySelector('input[name="varnish"]:checked')?.value || '';
+    const stampingWidth = normalizeText(stampingWidthInput?.value);
     const placement = form.querySelector('input[name="placement"]:checked')?.value || '';
     const productType = document.getElementById('requestProductType')?.value || '';
     const processType = document.getElementById('requestProcessType')?.value || '';
+    const numberingFrom = normalizeText(numberingRangeStartInput?.value);
+    const numberingTo = normalizeText(numberingRangeEndInput?.value);
+    const numberingDetail = normalizeText(numberingDetailInput?.value);
+    const numberingAttachmentIndex = findPendingAttachmentIndex((item) => item?.slot === 'numbering');
+    const numberingAttachment = numberingAttachmentIndex >= 0 ? pendingAttachments[numberingAttachmentIndex] : null;
+    const numberingSummary = numbering
+        ? [numbering, numberingFrom || numberingTo ? `Desde ${numberingFrom || '...'} hasta ${numberingTo || '...'}` : '', numberingDetail].filter(Boolean).join(' | ')
+        : '';
 
     return {
         customer_code: normalizeText(customerCodeInput.value),
@@ -1017,7 +1115,13 @@ function collectRequestPayload() {
             'REQ | Forma': selectedShape,
             'REQ | Barniz': varnish,
             'REQ | Estampado': stamping,
+            'REQ | Estampado Ancho': stampingWidth,
             'REQ | Numeracion': numbering,
+            'REQ | Numeracion Desde': numberingFrom,
+            'REQ | Numeracion Hasta': numberingTo,
+            'REQ | Numeracion Detalle': numberingDetail,
+            'REQ | Numeracion Resumen': numberingSummary,
+            'REQ | Numeracion Adjunto': numberingAttachment?.fileName || '',
             'REQ | Embosado': document.getElementById('finishEmbossed')?.checked ? 'Si' : 'No',
             'REQ | Troquelado': document.getElementById('finishDieCut')?.checked ? 'Si' : 'No',
             'REQ | Superficie': normalizeText(surfaceInput?.value),
@@ -1029,7 +1133,19 @@ function collectRequestPayload() {
                 productType: normalizeText(document.getElementById('requestProductType')?.value),
                 dieShape: selectedShape,
                 widthInches: Number(selectedSize?.dataset.width || 0) || null,
-                lengthInches: Number(selectedSize?.dataset.length || 0) || null
+                lengthInches: Number(selectedSize?.dataset.length || 0) || null,
+                numbering: {
+                    type: numbering,
+                    from: numberingFrom,
+                    to: numberingTo,
+                    detail: numberingDetail,
+                    attachmentName: numberingAttachment?.fileName || ''
+                },
+                finishes: {
+                    varnish,
+                    stamping,
+                    stampingWidth
+                }
             }
         }
     };
@@ -1087,7 +1203,7 @@ async function uploadPendingAttachments(quoteCode, lineCode) {
                 mimeType: attachment.mimeType,
                 fileExt: attachment.fileExt,
                 contentBase64: attachment.contentBase64,
-                notes: attachment.kind === 'audio' ? 'Audio grabado' : 'Adjunto'
+                notes: attachment.notes || (attachment.kind === 'audio' ? 'Audio grabado' : 'Adjunto')
             })
         });
     }
@@ -1153,6 +1269,7 @@ function openPopover() {
     if (launcherErrors) launcherErrors.hidden = true;
     if (processLauncherButton) processLauncherButton.setAttribute('aria-expanded', 'false');
     renderAttachments();
+    renderNumberingSummary();
     syncToggleChipState();
     setTimeout(() => customerNameInput?.focus(), 30);
 }
@@ -1168,6 +1285,35 @@ function closePopover(force = false) {
     hideInlinePanels();
     resetFormState();
     form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+}
+
+async function handleNumberingAttachmentChange() {
+    const file = numberingAttachmentInput?.files?.[0];
+    if (!file) {
+        renderNumberingSummary();
+        return;
+    }
+    const previousIndex = findPendingAttachmentIndex((item) => item?.slot === 'numbering');
+    if (previousIndex >= 0) removePendingAttachmentByIndex(previousIndex);
+    const previewUrl = URL.createObjectURL(file);
+    const mimeType = file.type || 'application/octet-stream';
+    const fileExt = file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : '';
+    pendingAttachments.push({
+        kind: 'file',
+        slot: 'numbering',
+        fileName: file.name,
+        mimeType,
+        fileExt,
+        contentBase64: await readAsBase64(file),
+        previewUrl,
+        sizeLabel: formatFileSize(file.size),
+        previewOrientation: await resolveAttachmentOrientation(file, previewUrl, mimeType),
+        previewNote: 'Adjunto de numeración',
+        notes: 'Adjunto Excel de numeración'
+    });
+    numberingAttachmentInput.value = '';
+    renderAttachments();
+    renderNumberingSummary();
 }
 
 function toggleProcessLauncher(forceOpen) {
@@ -1241,6 +1387,11 @@ function bindEvents() {
     popover?.addEventListener('click', (event) => {
         if (event.target?.dataset?.closeQuoteCreate === 'true') closePopover();
     });
+    numberingPopoverTrigger?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        toggleNumberingPopover();
+    });
+    numberingPopoverClose?.addEventListener('click', () => closeNumberingPopover());
     cerrarSapConfigButton?.addEventListener('click', closeSapPopover);
     sapConfigPopover?.addEventListener('click', (event) => {
         if (event.target?.dataset?.closeSapConfig === 'true') closeSapPopover();
@@ -1312,6 +1463,11 @@ function bindEvents() {
 
     document.addEventListener('click', (event) => {
         if (!event.target.closest('#processLauncherStack')) toggleProcessLauncher(false);
+        if (!numberingPopover?.hidden) {
+            if (event.target === numberingPopoverTrigger || numberingPopoverTrigger?.contains(event.target)) return;
+            if (numberingPopover.contains(event.target)) return;
+            closeNumberingPopover();
+        }
     });
     
     // Real-time error clearing
@@ -1324,9 +1480,18 @@ function bindEvents() {
         if (event.target.matches('.quote-request-toggle-chip input, .quote-request-shape-card input')) {
             syncToggleChipState();
         }
+        if (event.target.matches('input[name="numbering"]')) {
+            renderNumberingSummary();
+        }
         if (event.target.classList.contains('is-invalid')) {
             event.target.classList.remove('is-invalid');
         }
+    });
+    [numberingRangeStartInput, numberingRangeEndInput, numberingDetailInput].forEach((input) => {
+        input?.addEventListener('input', renderNumberingSummary);
+    });
+    numberingAttachmentInput?.addEventListener('change', () => {
+        handleNumberingAttachmentChange().catch((error) => setStatus(error.message, 'error'));
     });
 
     customerNameInput?.addEventListener('input', (e) => searchPartners(e.target.value).catch(console.error));
@@ -1409,6 +1574,7 @@ function bindEvents() {
             if (removed?.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(removed.previewUrl);
             if (removed?.previewUrl && removed.previewUrl === activeAttachmentPreviewUrl) closeAttachmentPreview();
             renderAttachments();
+            renderNumberingSummary();
             return;
         }
         const previewIdx = e.target.closest('[data-preview-attachment]')?.dataset.previewAttachment;
@@ -1464,6 +1630,7 @@ function bindEvents() {
 
 async function init() {
     renderAttachments();
+    renderNumberingSummary();
     bindEvents();
     syncToggleChipState();
     loadSapTemplate();

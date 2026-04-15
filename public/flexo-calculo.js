@@ -19,6 +19,7 @@ const globalCostSettings = document.getElementById('globalCostSettings');
 const machineCategoryGrid = document.getElementById('machineCategoryGrid');
 const previewMetrics = document.getElementById('previewMetrics');
 const previewBreakdown = document.getElementById('previewBreakdown');
+const processPanels = document.getElementById('processPanels');
 const validationPanels = document.getElementById('validationPanels');
 const calcStatus = document.getElementById('calcStatus');
 const calculatePreviewButton = document.getElementById('calculatePreview');
@@ -678,6 +679,28 @@ function textBlock(title, body) {
     `;
 }
 
+function renderProcessPanels(processes = [], title = 'Ruta de procesos') {
+    if (!processPanels) return;
+    const items = Array.isArray(processes) ? processes.filter(Boolean) : [];
+    if (!items.length) {
+        processPanels.innerHTML = textBlock('Ruta de procesos', 'No hay procesos estructurados para esta línea todavía.');
+        return;
+    }
+    processPanels.innerHTML = `
+        <div class="preview-block">
+            <h3>${escapeHtml(title)}</h3>
+            <div class="stage-card">
+                ${items.map((process, index) => `
+                    <div class="preview-row">
+                        <span>Paso ${escapeHtml(String(process.sequenceOrder || index + 1))}</span>
+                        <strong>${escapeHtml(process.processName || process.name || process.processKey || 'Proceso')}</strong>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
 async function loadCatalogs() {
     const response = await fetch('/api/flexo/catalogos');
     if (!response.ok) throw new Error('No fue posible cargar los catálogos de flexografía.');
@@ -913,6 +936,7 @@ function renderCalculation(data) {
         ${textBlock('Información de impresión', currentCalculation.notes.printSummary)}
         ${textBlock('Estado de creación', currentCalculation.notes.creationStatus)}
     `;
+    renderProcessPanels(currentCalculation.processes, 'Ruta de procesos de la línea');
 
     validationPanels.innerHTML = [
         ['Validación de solicitud', currentCalculation.validations.solicitud],
@@ -980,6 +1004,7 @@ async function calculatePreview() {
                 ${data.selection?.digitalPlatesDisabled ? '<div class="preview-row"><span>Planchas</span><strong>Costo desactivado por el proceso de impresión seleccionado</strong></div>' : ''}
             </div>
         `;
+        renderProcessPanels(data.processes, 'Ruta de procesos estimada');
         calcStatus.textContent = currentCalculation
             ? `Se agregó una vista previa para comparar contra el cálculo importado de ${currentCalculation.lineCode}.`
             : 'Vista previa generada con catálogos dinámicos.';

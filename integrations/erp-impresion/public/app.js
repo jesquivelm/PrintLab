@@ -799,9 +799,11 @@ function activePrintStages() {
 
 function createPrintStage(base = {}) {
   const inkDefaults = conventionalInkDefaults();
+  const rawNumbering = state.context?.calculo?.raw_data || {};
   const inlineFinishes = {};
   INLINE_PRINT_SLOTS.forEach((slot) => {
     const source = base.inlineFinishes?.[slot.key] || {};
+    const numberingConfig = slot.key === "numerado" ? buildNumberingConfig(rawNumbering, source) : null;
     inlineFinishes[slot.key] = {
       active: Boolean(source.active),
       processId: source.processId || "",
@@ -820,7 +822,13 @@ function createPrintStage(base = {}) {
         : n(source.layerGsm, 0),
       costPerLb: n(source.costPerLb, 0),
       plateCost: n(source.plateCost, 0),
-      comment: source.comment || ""
+      comment: source.comment || numberingConfig?.detail || "",
+      numberingType: numberingConfig?.numberingType || "",
+      isQr: Boolean(numberingConfig?.isQr),
+      rangeFrom: numberingConfig?.rangeFrom || "",
+      rangeTo: numberingConfig?.rangeTo || "",
+      attachmentName: numberingConfig?.attachmentName || "",
+      detail: numberingConfig?.detail || ""
     };
   });
   return {
@@ -1123,6 +1131,58 @@ function machineSupportsInline(machine) {
   if (type.includes("conv")) return true;
   const capacity = primaryMachineCapacity(machine);
   return norm(capacity?.subproceso || "").includes("convencional") || norm(capacity?.subproceso || "").includes("hibrida");
+}
+
+function inlineFinishAllowedForMachine(machine, inlineKey) {
+  const key = norm(inlineKey);
+  if (!key) return false;
+  const type = machineType(machine);
+  if (type.includes("digital")) return key === "numerado";
+  return machineSupportsInline(machine);
+}
+
+function availableInlineSlotsForMachine(machine) {
+  return INLINE_PRINT_SLOTS.filter((slot) => inlineFinishAllowedForMachine(machine, slot.key));
+}
+
+function machineAllowsAnyInline(machine) {
+  return availableInlineSlotsForMachine(machine).length > 0;
+}
+
+function numberingTypeOptions() {
+  return [
+    { id: "", nombre: "Selecciona..." },
+    { id: "Numeracion", nombre: "Numeración" },
+    { id: "Codigo de Barras", nombre: "Código de Barras" },
+    { id: "Codigo QR", nombre: "Código QR" }
+  ];
+}
+
+function buildNumberingConfig(raw = {}, inline = {}) {
+  const numberingType = String(first(
+    inline.numberingType,
+    raw["REQ | Numeracion Tipo"],
+    raw["REQ | Numeracion"],
+    raw["ACABADOS | NUMERADO DETALLE"],
+    raw.NUMERADO,
+    ""
+  ) || "").trim();
+  const detail = String(first(
+    inline.detail,
+    raw["REQ | Numeracion Detalle"],
+    raw["REQ | Numeracion Resumen"],
+    raw["BOT | Numeracion Detalle"],
+    inline.comment,
+    ""
+  ) || "").trim();
+  return {
+    numberingType,
+    isQr: inline.isQr === true || String(inline.isQr || "").toLowerCase() === "true" || /qr/i.test(numberingType),
+    rangeFrom: String(first(inline.rangeFrom, raw["REQ | Numeracion Desde"], raw["BOT | Numeracion Desde"], "") || "").trim(),
+    rangeTo: String(first(inline.rangeTo, raw["REQ | Numeracion Hasta"], raw["BOT | Numeracion Hasta"], "") || "").trim(),
+    attachmentName: String(first(inline.attachmentName, raw["REQ | Numeracion Adjunto"], raw["BOT | Numeracion Adjunto"], "") || "").trim(),
+    detail
+  };
 }
 
 function printMachineOptions(currentMachineId = "") {
@@ -2157,6 +2217,7 @@ function calcPrint() {
     const inkSubtotal = r(inkConsumption * inkCostPerLb);
     const inlineItems = INLINE_PRINT_SLOTS.map((slot) => {
       const inline = item.inlineFinishes?.[slot.key] || {};
+      const inlineAllowed = inlineFinishAllowedForMachine(machine, slot.key);
       const material = findMaterial(inline.materialId);
       const inlineOperatorHourCost = n(item.operatorHourCost, n(state.form.print.operatorHourCost, 0));
       const unitCost = state.form.substrate.unit === "metros"
@@ -2189,10 +2250,11 @@ function calcPrint() {
         layerGsm: varnishGsm,
         costPerLb: varnishCostPerLb,
         operatorHourCost: inlineOperatorHourCost,
+        allowedForMachine: inlineAllowed,
         setupCost,
         materialSubtotal,
         plateCost,
-        subtotal: inline.active && supportsInline ? r(setupCost + materialSubtotal + plateCost + n(inline.fixedCost, 0)) : 0
+        subtotal: inline.active && inlineAllowed ? r(setupCost + materialSubtotal + plateCost + n(inline.fixedCost, 0)) : 0
       };
     });
     const inlineSubtotal = r(inlineItems.reduce((sum, inline) => sum + inline.subtotal, 0));
@@ -2221,6 +2283,7 @@ function calcPrint() {
       return {
         ...item,
         machineSupportsInline: supportsInline,
+        availableInlineSlots: availableInlineSlotsForMachine(machine).map((slot) => slot.key),
         colors: base.colors,
         linealFeet: base.linealFeet,
         linealMeters: base.linealMeters,
@@ -2581,8 +2644,17 @@ function renderPlateStep(entry, plates) {
 function renderInlinePrintBlock(stage, stageIndex, inline) {
   const materialOptions = materialsByClassification(inline.materialFamily, inline.materialKeywords || []).map((item) => ({ id: item.id, nombre: item.descripcion || item.nombre || item.id }));
   const scope = `printStages.${stageIndex}.inlineFinishes.${inline.key}`;
-  const configZone = `<div class="process-zone"><div class="process-zone-head"><h4>Parámetros de Configuración</h4></div><div class="process-finish-grid">${inline.key === "barniz" ? `<label class="span-2"><span>Tipo de Barniz</span><select data-scope="${scope}" data-field="materialId">${processOptions(materialOptions, inline.materialId)}</select></label><label><span>Cobertura Barniz</span>${displayInput(scope, "coveragePct", inline.coveragePct, { suffix: "%", maximumFractionDigits: 2 })}</label><label><span>GSM Barniz</span>${displayInput(scope, "layerGsm", inline.layerGsm, { maximumFractionDigits: 4 })}</label><label><span>Costo Libra</span>${displayInput(scope, "costPerLb", inline.costPerLb, { prefix: "$", maximumFractionDigits: 4 })}</label>` : ""}<label><span>Montaje</span>${displayInput(scope, "setupMinutes", inline.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label>${inline.usesMaterial && inline.key !== "barniz" ? `<label class="span-2"><span>Material</span><select data-scope="${scope}" data-field="materialId">${processOptions(materialOptions, inline.materialId)}</select></label><label><span>Costo Pie</span>${displayInput(scope, "costPerFoot", inline.costPerFoot, { prefix: "$", maximumFractionDigits: 6 })}</label><label><span>Costo Metro</span>${displayInput(scope, "costPerMeter", inline.costPerMeter, { prefix: "$", maximumFractionDigits: 6 })}</label>` : ""}${inline.usesPlateCost ? `<label><span>Costo Cliché</span>${displayInput(scope, "plateCost", inline.plateCost, { prefix: "$", maximumFractionDigits: 2 })}</label>` : ""}<label class="span-2"><span>Comentario</span><input data-scope="${scope}" data-field="comment" type="text" value="${esc(inline.comment || "")}"></label></div></div>`;
-  const metricsZone = `<div class="process-zone process-zone-accent"><div class="process-zone-head"><h4>Resumen</h4></div><div class="process-kpi-grid">${metric("Montaje", `${num(inline.setupMinutes, 2)} min`)}${inline.key === "barniz" ? metric("Consumo Barniz", `${num(inline.materialConsumptionLb || 0, 4)} lb`) : ""}${inline.usesMaterial || inline.key === "barniz" ? metric("Material", esc(inline.materialName || "Sin definir")) : ""}${inline.usesMaterial || inline.key === "barniz" ? metric("Subtotal Material", money(inline.materialSubtotal)) : ""}${inline.usesPlateCost ? metric("Costo Cliché", money(inline.plateCost)) : ""}${metricWithInfo("Subtotal", money(inline.subtotal), `Cálculo ${inline.label}`, `Subtotal = montaje + insumos + costos únicos del subproceso.`)}</div></div>`;
+  const numberingFields = inline.key === "numerado"
+    ? `<label class="span-2"><span>Tipo de Numerado</span><select data-scope="${scope}" data-field="numberingType">${processOptions(numberingTypeOptions(), inline.numberingType)}</select></label><label><span>Desde</span><input data-scope="${scope}" data-field="rangeFrom" type="text" value="${esc(inline.rangeFrom || "")}"></label><label><span>Hasta</span><input data-scope="${scope}" data-field="rangeTo" type="text" value="${esc(inline.rangeTo || "")}"></label><label><span>Es QR</span><select data-scope="${scope}" data-field="isQr"><option value="false"${inline.isQr ? "" : " selected"}>No</option><option value="true"${inline.isQr ? " selected" : ""}>Sí</option></select></label><label><span>Costo fijo</span>${displayInput(scope, "fixedCost", inline.fixedCost, { prefix: "$", maximumFractionDigits: 2 })}</label><label class="span-2"><span>Adjunto</span><input data-scope="${scope}" data-field="attachmentName" data-kind="file" type="file"></label><label class="span-2"><span>Detalle</span><input data-scope="${scope}" data-field="detail" type="text" value="${esc(inline.detail || "")}"></label>`
+    : "";
+  const commentField = inline.key === "numerado"
+    ? `<label class="span-2"><span>Comentario interno</span><input data-scope="${scope}" data-field="comment" type="text" value="${esc(inline.comment || "")}"></label>`
+    : `<label class="span-2"><span>Comentario</span><input data-scope="${scope}" data-field="comment" type="text" value="${esc(inline.comment || "")}"></label>`;
+  const configZone = `<div class="process-zone"><div class="process-zone-head"><h4>Parámetros de Configuración</h4></div><div class="process-finish-grid">${inline.key === "barniz" ? `<label class="span-2"><span>Tipo de Barniz</span><select data-scope="${scope}" data-field="materialId">${processOptions(materialOptions, inline.materialId)}</select></label><label><span>Cobertura Barniz</span>${displayInput(scope, "coveragePct", inline.coveragePct, { suffix: "%", maximumFractionDigits: 2 })}</label><label><span>GSM Barniz</span>${displayInput(scope, "layerGsm", inline.layerGsm, { maximumFractionDigits: 4 })}</label><label><span>Costo Libra</span>${displayInput(scope, "costPerLb", inline.costPerLb, { prefix: "$", maximumFractionDigits: 4 })}</label>` : ""}<label><span>Montaje</span>${displayInput(scope, "setupMinutes", inline.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label>${inline.usesMaterial && inline.key !== "barniz" ? `<label class="span-2"><span>Material</span><select data-scope="${scope}" data-field="materialId">${processOptions(materialOptions, inline.materialId)}</select></label><label><span>Costo Pie</span>${displayInput(scope, "costPerFoot", inline.costPerFoot, { prefix: "$", maximumFractionDigits: 6 })}</label><label><span>Costo Metro</span>${displayInput(scope, "costPerMeter", inline.costPerMeter, { prefix: "$", maximumFractionDigits: 6 })}</label>` : ""}${inline.usesPlateCost ? `<label><span>Costo Cliché</span>${displayInput(scope, "plateCost", inline.plateCost, { prefix: "$", maximumFractionDigits: 2 })}</label>` : ""}${numberingFields}${commentField}</div></div>`;
+  const numberingSummary = inline.key === "numerado"
+    ? `${metric("Tipo", esc(inline.numberingType || (inline.isQr ? "Código QR" : "Sin definir")))}${metric("Rango", esc([inline.rangeFrom, inline.rangeTo].filter(Boolean).join(" - ") || "Sin rango"))}${metric("Adjunto", esc(inline.attachmentName || "Sin adjunto"))}`
+    : "";
+  const metricsZone = `<div class="process-zone process-zone-accent"><div class="process-zone-head"><h4>Resumen</h4></div><div class="process-kpi-grid">${metric("Montaje", `${num(inline.setupMinutes, 2)} min`)}${inline.key === "barniz" ? metric("Consumo Barniz", `${num(inline.materialConsumptionLb || 0, 4)} lb`) : ""}${inline.usesMaterial || inline.key === "barniz" ? metric("Material", esc(inline.materialName || "Sin definir")) : ""}${inline.usesMaterial || inline.key === "barniz" ? metric("Subtotal Material", money(inline.materialSubtotal)) : ""}${inline.usesPlateCost ? metric("Costo Cliché", money(inline.plateCost)) : ""}${numberingSummary}${metricWithInfo("Subtotal", money(inline.subtotal), `Cálculo ${inline.label}`, `Subtotal = montaje + insumos + costos únicos del subproceso.`)}</div></div>`;
   return `<details class="subprocess-card inline-process-card" data-open-key="${esc(scope)}"><summary class="inline-process-summary"><div class="inline-process-heading"><label class="inline-process-check"><input data-scope="printStages.${stageIndex}.inlineFinishes.${inline.key}" data-field="active" type="checkbox"${inline.active ? " checked" : ""}><span>${esc(inline.label)}</span></label></div><div class="process-summary-side"><em>${money(inline.subtotal)}</em></div></summary><div class="process-body"><div class="process-layout process-layout-inline"><div class="process-layout-main">${configZone}</div><div class="process-layout-side">${metricsZone}</div></div></div></details>`;
 }
 
@@ -2593,9 +2665,11 @@ function renderInlineToggleBar(stageIndex, inlineItems) {
 function renderPrintStageCard(item, printItem, index, orderNumber) {
   const stageMachine = findMachine(item.machineId);
   const stagePrintOptions = printMachineOptions(item.machineId);
-  const inlineZone = machineSupportsInline(stageMachine)
-    ? `<div class="process-zone inline-zone-shell"><div class="process-zone-head"><h4>Subprocesos Acabados Impresión</h4></div><div class="subprocess-stack inline-print-stack">${(printItem.inlineItems || []).map((inline) => renderInlinePrintBlock(item, index, inline)).join("")}</div></div>`
-    : `<div class="inline-toggle-note">Los subprocesos En Línea solo aplican a máquinas de impresión convencional o híbrida.</div>`;
+  const allowedInlineKeys = new Set((printItem.availableInlineSlots || []).map((key) => String(key)));
+  const visibleInlineItems = (printItem.inlineItems || []).filter((inline) => allowedInlineKeys.has(String(inline.key)));
+  const inlineZone = machineAllowsAnyInline(stageMachine)
+    ? `<div class="process-zone inline-zone-shell"><div class="process-zone-head"><h4>Subprocesos Acabados Impresión</h4></div><div class="subprocess-stack inline-print-stack">${visibleInlineItems.map((inline) => renderInlinePrintBlock(item, index, inline)).join("")}</div></div>`
+    : `<div class="inline-toggle-note">Esta máquina no tiene subprocesos inline habilitados para cotización.</div>`;
   const scope = `printStages.${index}`;
   const speedDisplayValue = n(item.speedMetersMin, 0);
   const speedUnit = printSpeedUnit(stageMachine);
@@ -3054,6 +3128,7 @@ function bindProcesses() {
     if (!scope || !field) return;
     if (scope.startsWith("additional.") && !state.form.additional[Number(scope.split(".")[1])]) state.form.additional[Number(scope.split(".")[1])] = { description: "", cost: 0, attachmentName: "", comments: "" };
     let value = target.dataset.kind === "file" ? (target.files?.[0]?.name || "") : target.type === "checkbox" ? target.checked : target.type === "number" ? n(target.value, 0) : target.value;
+    if (target.tagName === "SELECT" && field === "isQr") value = String(target.value).toLowerCase() === "true";
     if ((scope === "print" || scope.startsWith("printStages.")) && field === "speedMetersMin") {
       value = printSpeedValue(value);
     }
@@ -3065,6 +3140,13 @@ function bindProcesses() {
       const inlineKey = parts[3];
       applyInlineFinishSetupDefaults(stageIndex, inlineKey);
       syncPrimaryPrintStage();
+    }
+    if (scope.startsWith("printStages.") && scope.includes(".inlineFinishes.numerado") && field === "numberingType") {
+      const parts = scope.split(".");
+      const stageIndex = Number(parts[1]);
+      if (state.form.printStages?.[stageIndex]?.inlineFinishes?.numerado) {
+        state.form.printStages[stageIndex].inlineFinishes.numerado.isQr = /qr/i.test(String(value || ""));
+      }
     }
     if (scope === "substrate" && field === "materialId") {
       const material = findMaterial(value);
