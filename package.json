@@ -9,7 +9,9 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "db:init": "node scripts/init-postgres.js",
     "db:import": "node scripts/import-master-data.js",
-    "db:reset": "npm run db:init && npm run db:import"
+    "db:reset": "npm run db:init && npm run db:import",
+    "db:portability-check": "node scripts/check-db-portability.js",
+    "assets:optimize-login": "node scripts/optimize-login-repository.js"
   },
   "keywords": [
     "flexografia",

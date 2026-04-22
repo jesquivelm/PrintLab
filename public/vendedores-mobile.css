@@ -85,6 +85,8 @@ button {
 }
 
 .hero-card {
+    position: relative;
+    z-index: 30;
     padding: 14px;
     background:
         linear-gradient(140deg, color-mix(in srgb, var(--mobile-surface-strong) 84%, transparent) 0%, var(--mobile-surface) 100%),
@@ -201,7 +203,7 @@ button {
     position: fixed;
     inset: 0;
     display: none;
-    z-index: 120;
+    z-index: 240;
 }
 
 .menu-panel-backdrop {
@@ -211,6 +213,7 @@ button {
 
 .menu-panel-card {
     position: absolute;
+    z-index: 2;
     top: 74px;
     right: 14px;
     width: min(220px, calc(100vw - 28px));
@@ -294,6 +297,8 @@ button {
 }
 
 .list-panel {
+    position: relative;
+    z-index: 1;
     padding: 10px 12px;
 }
 

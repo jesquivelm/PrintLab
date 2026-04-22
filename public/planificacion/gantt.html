@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<script src="/theme.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flexo APS — Consola de Planificación</title>
 <style>
@@ -118,6 +119,7 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 .conn-status.online{background:#e8f7f1;color:#0F6E56}
 .conn-status.offline{background:#fceaea;color:#A32D2D}
 </style>
+<link rel="stylesheet" href="/theme-extensions.css">
 </head>
 <body>
 
@@ -1272,6 +1274,9 @@ setInterval(() => { if (!currentDP) loadFromAPI(); }, 30000);
 
 // ── INICIO ─────────────────────────────────────────────────
 loadFromAPI();
+  const erpAccessScript = document.createElement('script');
+  erpAccessScript.src = '/access-control.js';
+  document.head.appendChild(erpAccessScript);
 </script>
 </body>
 </html>

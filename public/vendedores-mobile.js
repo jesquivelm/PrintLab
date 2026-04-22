@@ -185,8 +185,16 @@ function buildQuoteModel(item) {
 function getThemePreference() {
     const query = new URLSearchParams(window.location.search);
     const forcedTheme = query.get('theme');
-    if (forcedTheme === 'light' || forcedTheme === 'dark' || forcedTheme === 'auto') return forcedTheme;
-    return String(configState?.general?.mobileSellerTheme || 'light');
+    if (forcedTheme === 'light' || forcedTheme === 'dark') return forcedTheme;
+    const globalTheme = window.PrintLabTheme?.current?.();
+    if (globalTheme?.mode === 'light' || globalTheme?.mode === 'dark') return globalTheme.mode;
+    try {
+        const stored = localStorage.getItem('printlab-theme-mode');
+        if (stored === 'light' || stored === 'dark') return stored;
+    } catch (_) {
+        // Fall back to the configured mobile preference.
+    }
+    return String(configState?.general?.mobileSellerTheme || 'light') === 'dark' ? 'dark' : 'light';
 }
 
 function setQuickStatus(message, isError = false) {
@@ -196,17 +204,13 @@ function setQuickStatus(message, isError = false) {
 }
 
 function updateMenuThemeButton() {
-    const labels = { light: 'Tema: Día', dark: 'Tema: Noche', auto: 'Tema: Auto' };
+    const labels = { light: 'Tema: Dia', dark: 'Tema: Noche' };
     setButtonIcon(themeCycleButton, 'mobileTheme', '☼', labels[selectedThemeMode] || 'Tema: Día', true);
 }
 
 function applyTheme(theme) {
-    selectedThemeMode = theme;
-    let resolved = theme;
-    if (theme === 'auto') {
-        const hour = new Date().getHours();
-        resolved = hour >= 18 || hour < 6 ? 'dark' : 'light';
-    }
+    const resolved = theme === 'dark' ? 'dark' : 'light';
+    selectedThemeMode = resolved;
     document.body.dataset.theme = resolved === 'dark' ? 'dark' : 'light';
     document.documentElement.style.setProperty(
         '--mobile-bg',
@@ -218,9 +222,26 @@ function applyTheme(theme) {
 }
 
 function cycleThemeMode() {
-    const order = ['light', 'dark', 'auto'];
-    const currentIndex = order.indexOf(selectedThemeMode);
-    applyTheme(order[(currentIndex + 1) % order.length]);
+    const next = selectedThemeMode === 'dark' ? 'light' : 'dark';
+    if (window.PrintLabTheme?.apply) {
+        window.PrintLabTheme.apply(next);
+    } else {
+        try {
+            localStorage.setItem('printlab-theme-mode', next);
+        } catch (_) {
+            // The visual state still changes for this screen.
+        }
+        document.documentElement.dataset.themeMode = next;
+        document.documentElement.dataset.theme = next;
+        document.documentElement.style.colorScheme = next;
+    }
+    applyTheme(next);
+}
+
+function syncMobileThemeFromGlobal() {
+    const globalTheme = window.PrintLabTheme?.current?.();
+    const next = globalTheme?.theme === 'dark' ? 'dark' : 'light';
+    if (next !== selectedThemeMode || document.body.dataset.theme !== next) applyTheme(next);
 }
 
 function updatePhotoUi(src) {
@@ -604,6 +625,18 @@ function initEvents() {
     themeCycleButton.addEventListener('click', () => {
         cycleThemeMode();
         closeMenu();
+    });
+    window.addEventListener('storage', (event) => {
+        if (event.key === 'printlab-theme-mode') syncMobileThemeFromGlobal();
+    });
+    window.addEventListener('message', (event) => {
+        if (event.origin === window.location.origin && event.data?.type === 'printlab-theme-change') {
+            window.setTimeout(syncMobileThemeFromGlobal, 0);
+        }
+    });
+    new MutationObserver(syncMobileThemeFromGlobal).observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-theme']
     });
 
     moduleButtons.forEach((button) => {

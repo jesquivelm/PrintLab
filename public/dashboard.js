@@ -15,19 +15,19 @@ const favoritesBody = document.getElementById('dashboardFavoritesBody');
 const HOME_TAB_ID = 'home';
 const FAVORITE_DOCUMENTS_STORAGE_KEY = 'erp-favorite-documents';
 const DASHBOARD_CARDS = [
-{ route: '/socios', label: 'Socios', iconKey: 'dashboardBusinessPartners' },
-{ route: '/cotizaciones', label: 'Cotizaciones', iconKey: 'dashboardQuotes' },
-{ route: '/inventario-materiales', label: 'Inventarios', iconKey: 'dashboardInventory' },
-{ route: '/configuracion-general', label: 'Configuraci\u00f3n', iconKey: 'dashboardSettings' },
-{ route: '/ordenes-produccion', label: '\u00d3rdenes', iconKey: 'dashboardOrders' },
-{ route: '/planificacion/lanzamiento', label: 'Planificaci\u00f3n', iconKey: 'dashboardPlanning' },
-{ route: '/costos.html', label: 'Costos', iconKey: 'dashboardCosts' }
+{ route: '/socios', label: 'Socios', iconKey: 'dashboardBusinessPartners', modules: ['socios'] },
+{ route: '/cotizaciones', label: 'Cotizaciones', iconKey: 'dashboardQuotes', modules: ['cotizaciones'] },
+{ route: '/inventario-materiales', label: 'Inventarios', iconKey: 'dashboardInventory', modules: ['inventario-mp', 'inventario-troqueles', 'inventario-maquinaria'] },
+{ route: '/configuracion-general', label: 'Configuraci\u00f3n', iconKey: 'dashboardSettings', modules: ['configuracion-general'] },
+{ route: '/ordenes-produccion', label: '\u00d3rdenes', iconKey: 'dashboardOrders', modules: ['ordenes'] },
+{ route: '/planificacion/lanzamiento', label: 'Planificaci\u00f3n', iconKey: 'dashboardPlanning', modules: ['planificacion'] },
+{ route: '/costos.html', label: 'Costos', iconKey: 'dashboardCosts', modules: ['costos'] }
 ];
 const INVENTORY_CARD_ROUTE = '/inventario-materiales';
 const INVENTORY_OPTIONS = [
-    { route: '/inventario-maquinas', label: 'Inventario de Maquinas' },
-    { route: '/inventario-materiales', label: 'Inventario de Materia Prima' },
-    { route: '/inventario-troqueles', label: 'Inventario de Troqueles' }
+    { route: '/inventario-maquinas', label: 'Inventario de Maquinas', modules: ['inventario-maquinaria'] },
+    { route: '/inventario-materiales', label: 'Inventario de Materia Prima', modules: ['inventario-mp'] },
+    { route: '/inventario-troqueles', label: 'Inventario de Troqueles', modules: ['inventario-troqueles'] }
 ];
 
 let tabs = [{ id: HOME_TAB_ID, label: 'PrintLab', route: '', closable: false, family: 'home', level: 'root' }];
@@ -70,6 +70,56 @@ function getStoredSession() {
 const activeUserSession = getStoredSession();
 if (!activeUserSession?.username) {
     window.location.replace('/login');
+}
+
+function normalizePermissionLevel(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (normalized === 'view' || normalized === 'edit') return normalized;
+    return 'none';
+}
+
+function getSessionModules() {
+    const modules = activeUserSession?.modules;
+    return modules && typeof modules === 'object' ? modules : null;
+}
+
+function canViewModule(moduleKey) {
+    if (!moduleKey || moduleKey === 'dashboard') return true;
+    const modules = getSessionModules();
+    if (!modules) return true;
+    return normalizePermissionLevel(modules[moduleKey]) !== 'none';
+}
+
+function canViewAnyModule(moduleKeys = []) {
+    return moduleKeys.some((moduleKey) => canViewModule(moduleKey));
+}
+
+function getRoutePermissionKeys(route) {
+    const pathname = new URL(route || '/', window.location.origin).pathname.toLowerCase();
+    if (pathname === '/' || pathname === '/dashboard' || pathname === '/login') return ['dashboard'];
+    if (pathname === '/socios' || pathname === '/socios.html' || pathname === '/socios-documento.html' || pathname.startsWith('/socios/')) return ['socios'];
+    if (pathname === '/cotizaciones' || pathname === '/cotizaciones.html' || pathname === '/index.html' || pathname.startsWith('/cotizaciones/')) return ['cotizaciones'];
+    if (pathname === '/calculo-flexografia' || pathname === '/flexo-calculo' || pathname === '/flexo-calculo.html') return ['calculos'];
+    if (pathname === '/ordenes-produccion' || pathname === '/ordenes-produccion.html' || pathname === '/orden-produccion.html' || pathname.startsWith('/orden-produccion')) return ['ordenes'];
+    if (pathname === '/planificacion' || pathname.startsWith('/planificacion/')) return ['planificacion'];
+    if (pathname === '/costos' || pathname === '/costos.html') return ['costos'];
+    if (pathname === '/configuracion-general' || pathname === '/configuracion-general.html') return ['configuracion-general'];
+    if (pathname === '/vendedores' || pathname === '/vendedores-mobile.html') return ['vendedores'];
+    if (pathname === '/proforma' || pathname === '/proforma.html') return ['cotizaciones'];
+    if (pathname === '/inventario-materiales' || pathname === '/catalogo.html') return ['inventario-mp'];
+    if (pathname === '/inventario-troqueles' || pathname === '/inventario-troqueles.html' || pathname === '/troquel-documento.html' || pathname.startsWith('/inventario-troqueles/')) return ['inventario-troqueles'];
+    if (pathname === '/inventario-maquinas') return ['inventario-maquinaria'];
+    if (pathname.startsWith('/inventario-')) return ['inventario-mp', 'inventario-troqueles', 'inventario-maquinaria'];
+    return [];
+}
+
+function canViewRoute(route) {
+    const keys = getRoutePermissionKeys(route);
+    return !keys.length || canViewAnyModule(keys);
+}
+
+function getVisibleInventoryOptions() {
+    return INVENTORY_OPTIONS.filter((item) => canViewAnyModule(item.modules));
 }
 
 function escapeHtml(value) {
@@ -357,7 +407,27 @@ function activateTab(tabId) {
     document.title = `${tab.label} | ERP`;
 }
 
+function showAccessDeniedNotice(label = 'este modulo') {
+    let notice = document.getElementById('dashboardAccessDeniedNotice');
+    if (!notice) {
+        notice = document.createElement('div');
+        notice.id = 'dashboardAccessDeniedNotice';
+        notice.className = 'dashboard-access-toast';
+        document.body.appendChild(notice);
+    }
+    notice.textContent = `Tu permiso actual no permite abrir ${label}.`;
+    notice.hidden = false;
+    window.clearTimeout(showAccessDeniedNotice.timer);
+    showAccessDeniedNotice.timer = window.setTimeout(() => {
+        notice.hidden = true;
+    }, 3200);
+}
+
 function openTab(route, label) {
+    if (!canViewRoute(route)) {
+        showAccessDeniedNotice(label || 'este modulo');
+        return null;
+    }
     const normalizedRoute = normalizeRoute(route);
     const existing = tabs.find((tab) => normalizeRoute(tab.route) === normalizedRoute);
     if (existing) {
@@ -437,10 +507,35 @@ function getPresentationConfig(config, key) {
     };
 }
 
+function renderAccessEmptyState(visibleCount) {
+    const grid = document.querySelector('.dashboard-grid');
+    if (!grid) return;
+    let empty = document.getElementById('dashboardAccessEmpty');
+    if (visibleCount > 0) {
+        empty?.remove();
+        return;
+    }
+    if (!empty) {
+        empty = document.createElement('div');
+        empty.id = 'dashboardAccessEmpty';
+        empty.className = 'dashboard-access-empty';
+        grid.insertAdjacentElement('afterend', empty);
+    }
+    empty.innerHTML = `
+        <strong>No tienes modulos visibles asignados.</strong>
+        <span>Solicita a un administrador que revise el permiso "${escapeHtml(activeUserSession?.permissionName || 'sin permiso')}".</span>
+    `;
+}
+
 function renderCards() {
+    let visibleCount = 0;
     DASHBOARD_CARDS.forEach((card) => {
         const button = document.querySelector(`.dashboard-card[data-route="${card.route}"]`);
         if (!button) return;
+        const isAllowed = canViewAnyModule(card.modules);
+        button.hidden = !isAllowed;
+        if (!isAllowed) return;
+        visibleCount += 1;
         const iconTarget = button.querySelector(`[data-icon-target="${card.iconKey}"]`);
         const iconValue = loadedConfig?.icons?.[card.iconKey] || '□';
         const suffix = card.iconKey.charAt(0).toUpperCase() + card.iconKey.slice(1);
@@ -458,6 +553,10 @@ function renderCards() {
             iconTarget.style.flexBasis = `${tileSize}px`;
         }
     });
+    renderAccessEmptyState(visibleCount);
+    if (searchButton) {
+        searchButton.hidden = !canViewAnyModule(['cotizaciones', 'ordenes']);
+    }
 }
 
 function readFavoriteDocuments() {
@@ -607,6 +706,10 @@ function openFavoriteDrumActiveDocument() {
     if (!favoriteDrumState?.favorites?.length) return;
     const active = favoriteDrumState.favorites[favoriteDrumState.activeIndex];
     if (!active?.route) return;
+    if (!canViewRoute(active.route)) {
+        showAccessDeniedNotice(active.label || active.displayLabel || 'este documento');
+        return;
+    }
     openTab(active.route, active.label || active.displayLabel || 'Documento');
 }
 
@@ -717,6 +820,7 @@ function mountFavoriteDrum(favorites) {
 function renderFavoriteDocuments() {
     if (!favoritesPanel || !favoritesBody) return;
     const favorites = readFavoriteDocuments()
+        .filter((item) => canViewRoute(item.route))
         .map((item) => ({
             ...item,
             displayLabel: [item.quoteCode || item.id, item.customerName, item.jobName].filter(Boolean).join('  |  ')
@@ -835,17 +939,18 @@ function ensureInventoryPopover() {
     inventoryPopover = document.createElement('div');
     inventoryPopover.className = 'dashboard-inventory-popover';
     inventoryPopover.hidden = true;
+    const inventoryItems = getVisibleInventoryOptions();
     inventoryPopover.innerHTML = `
         <div class="dashboard-inventory-head">
             <div class="dashboard-inventory-title">Inventarios</div>
             <div class="dashboard-inventory-help">Selecciona el inventario que quieres abrir.</div>
         </div>
         <div class="dashboard-inventory-list">
-            ${INVENTORY_OPTIONS.map((item) => `
+            ${inventoryItems.length ? inventoryItems.map((item) => `
                 <button type="button" class="dashboard-inventory-item" data-route="${escapeHtml(item.route)}" data-label="${escapeHtml(item.label)}">
                     ${escapeHtml(item.label)}
                 </button>
-            `).join('')}
+            `).join('') : '<div class="dashboard-inventory-empty">No tienes inventarios asignados.</div>'}
         </div>
     `;
     document.body.appendChild(inventoryPopover);
@@ -853,6 +958,10 @@ function ensureInventoryPopover() {
     inventoryPopover.addEventListener('click', (event) => {
         const option = event.target.closest('[data-route]');
         if (!option) return;
+        if (!canViewRoute(option.dataset.route)) {
+            showAccessDeniedNotice(option.dataset.label || 'este inventario');
+            return;
+        }
         openTab(option.dataset.route, option.dataset.label || 'Inventario');
         closeInventoryPopover();
     });
@@ -944,7 +1053,7 @@ async function runDashboardSearch(term) {
             label: `Orden ${item.order_code}`
         }));
 
-        renderSearchResults([...orderItems, ...quoteItems].slice(0, 20), search);
+        renderSearchResults([...orderItems, ...quoteItems].filter((item) => canViewRoute(item.route)).slice(0, 20), search);
     } catch (error) {
         if (token !== searchRequestToken) return;
         if (searchResults) {
@@ -1064,7 +1173,15 @@ tabsContainer.addEventListener('dragend', () => {
 
 document.querySelectorAll('.dashboard-card').forEach((card) => {
     card.addEventListener('click', () => {
+        if (!canViewRoute(card.dataset.route)) {
+            showAccessDeniedNotice(card.dataset.label || 'este modulo');
+            return;
+        }
         if (card.dataset.route === INVENTORY_CARD_ROUTE) {
+            if (!getVisibleInventoryOptions().length) {
+                showAccessDeniedNotice('Inventarios');
+                return;
+            }
             ensureInventoryPopover();
             const shouldOpen = inventoryPopover.hidden;
             closeSearchPopover();

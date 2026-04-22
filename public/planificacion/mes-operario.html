@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<script src="/theme.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Control de Produccion</title>
 <style>
@@ -112,6 +113,7 @@ input[type=number],select{
 }
 .loading{padding:36px 16px;text-align:center;color:var(--muted)}
 </style>
+<link rel="stylesheet" href="/theme-extensions.css">
 </head>
 <body>
 <div class="device">
@@ -434,6 +436,9 @@ async function loadContext() {
 }
 
 loadContext();
+  const erpAccessScript = document.createElement('script');
+  erpAccessScript.src = '/access-control.js';
+  document.head.appendChild(erpAccessScript);
 </script>
 </body>
 </html>

@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/theme.js"></script>
     <title>Configuracion General - PrintLab</title>
     <link rel="stylesheet" href="/styles.css">
+    <script src="/access-control.js"></script>
     <style>
         .config-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; width: 100%; min-width: 0; margin-bottom: 20px; padding: 4px; border: 1px solid #d8e2ea; border-radius: 14px; background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.75); }
         .topbar.topbar-quote { display: none; }
@@ -744,6 +746,9 @@
             gap: 6px;
             min-width: 0;
         }
+        .sap-security-field[hidden] {
+            display: none;
+        }
         .sap-security-field span {
             font-size: 11px;
             color: #68727c;
@@ -1004,6 +1009,9 @@
             }
             .sap-security-grid-compact {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .user-admin-permissions-groups {
+                grid-template-columns: 1fr;
             }
         }
         @media (max-width: 760px) {
@@ -1436,6 +1444,11 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
+        .user-admin-row-permission {
+            font-size: 11px;
+            color: #4f6b80;
+            line-height: 1.35;
+        }
         .user-admin-delete-button {
             width: 34px;
             height: 34px;
@@ -1479,8 +1492,9 @@
         }
         .user-admin-detail-header {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: space-between;
+            flex-direction: column;
             gap: 16px;
             margin-bottom: 20px;
         }
@@ -1525,37 +1539,35 @@
         }
         .user-admin-form-grid input,
         .user-admin-form-grid select {
+            width: 100%;
             height: 38px;
             padding: 0 12px;
             border: 1px solid #cfd8df;
             border-radius: 12px;
             font-size: 13px;
             background: #fff;
+            box-sizing: border-box;
         }
         .password-field-wrap {
             position: relative;
+            width: 100%;
         }
         .password-field-wrap input {
             padding-right: 48px;
         }
         .user-admin-asset-stack {
             display: flex;
-            flex-direction: column;
-            gap: 10px;
-            align-items: center;
+            width: 100%;
+            gap: 14px;
+            align-items: flex-start;
+            flex-wrap: wrap;
         }
         .user-admin-signature-block {
-            width: 100%;
+            width: min(100%, 220px);
             display: flex;
             flex-direction: column;
             gap: 6px;
             align-items: stretch;
-        }
-        .user-admin-signature-block span {
-            font-size: 11px;
-            color: #60707f;
-            text-align: center;
-            font-weight: 600;
         }
         .user-admin-signature-dropzone {
             min-width: 128px;
@@ -1576,6 +1588,72 @@
             height: 100%;
             object-fit: contain;
         }
+        .user-admin-permissions-panel {
+            display: grid;
+            gap: 10px;
+            margin: 18px 0 0;
+            padding: 16px 18px;
+            border: 1px solid #dce7ef;
+            border-radius: 18px;
+            background: linear-gradient(180deg, #fbfdff 0%, #f4f9fd 100%);
+        }
+        .user-admin-permissions-panel h3 {
+            margin: 0;
+            font-size: 13px;
+            color: #223140;
+        }
+        .user-admin-permissions-note {
+            margin: 0;
+            font-size: 12px;
+            color: #6a7b88;
+        }
+        .user-admin-permissions-groups {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            align-items: start;
+        }
+        .user-admin-permissions-group {
+            display: grid;
+            gap: 8px;
+            padding: 12px 14px;
+            border: 1px solid #dce7ef;
+            border-radius: 14px;
+            background: #fff;
+        }
+        .user-admin-permissions-group strong {
+            font-size: 12px;
+            color: #28465c;
+        }
+        .user-admin-permissions-badges {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 8px;
+        }
+        .user-admin-permissions-badge,
+        .user-admin-permissions-empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 34px;
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1.25;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        .user-admin-permissions-badge {
+            border: 1px solid #cfe0ec;
+            background: #eef7fd;
+            color: #23516a;
+        }
+        .user-admin-permissions-empty {
+            border: 1px dashed #d8e2ea;
+            color: #7a8e9f;
+            background: #fbfdff;
+        }
         .password-toggle-btn {
             position: absolute;
             top: 50%;
@@ -1591,6 +1669,16 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
+            z-index: 1;
+        }
+        .password-toggle-btn .icon-svg-mask,
+        .password-toggle-btn .icon-image {
+            width: 16px;
+            height: 16px;
+        }
+        .password-toggle-btn .icon-glyph {
+            font-size: 16px;
+            line-height: 1;
         }
         .login-image-panel {
             display: grid;
@@ -4211,18 +4299,17 @@
                                         <div id="userAdminDetailShell" class="user-admin-detail-shell" hidden>
                                             <div class="user-admin-detail-header">
                                                 <div class="user-admin-detail-headline">
-                                                    <div class="user-admin-asset-stack">
-                                                        <div id="userAdminPhotoDropzone" class="user-admin-detail-avatar" title="Cambiar fotografía"></div>
-                                                        <input id="userAdminPhotoUpload" type="file" accept="image/*" hidden>
-                                                        <div class="user-admin-signature-block">
-                                                            <span>Firma</span>
-                                                            <div id="userAdminSignatureDropzone" class="user-admin-signature-dropzone" title="Cambiar firma"></div>
-                                                            <input id="userAdminSignatureUpload" type="file" accept="image/*" hidden>
-                                                        </div>
-                                                    </div>
+                                                    <div id="userAdminPhotoDropzone" class="user-admin-detail-avatar" title="Cambiar fotografía"></div>
+                                                    <input id="userAdminPhotoUpload" type="file" accept="image/*" hidden>
                                                     <div class="user-admin-detail-meta">
                                                         <strong id="userAdminDetailName">Usuario</strong>
                                                         <span id="userAdminDetailSubline">Sin departamento</span>
+                                                    </div>
+                                                </div>
+                                                <div class="user-admin-asset-stack">
+                                                    <div class="user-admin-signature-block">
+                                                        <div id="userAdminSignatureDropzone" class="user-admin-signature-dropzone" title="Cambiar firma"></div>
+                                                        <input id="userAdminSignatureUpload" type="file" accept="image/*" hidden>
                                                     </div>
                                                 </div>
                                             </div>
@@ -4273,6 +4360,11 @@
                                                     <select id="userAdminFieldPermission"></select>
                                                 </label>
                                             </div>
+                                        <div class="user-admin-permissions-panel">
+                                            <h3>Accesos del permiso</h3>
+                                            <p id="userAdminPermissionsNote" class="user-admin-permissions-note">Selecciona un permiso para ver los accesos disponibles.</p>
+                                            <div id="userAdminPermissionAccessSummary" class="user-admin-permissions-groups"></div>
+                                        </div>
                                         </div>
                                     </div>
                                 </div>
@@ -4358,29 +4450,40 @@
                                             <h2>Conector SAP</h2>
                                             <div class="sap-security-grid">
                                                 <label class="sap-security-field">
+                                                    <span>Proveedor</span>
+                                                    <select id="sapProviderSelect">
+                                                        <option value="service-layer">Service Layer</option>
+                                                        <option value="di-api">DI API</option>
+                                                    </select>
+                                                </label>
+                                                <label class="sap-security-field" data-sap-provider-field="service-layer">
                                                     <span>Base SAP</span>
                                                     <input id="sapCompanyInput" type="text" autocomplete="off">
                                                 </label>
-                                                <label class="sap-security-field">
+                                                <label class="sap-security-field" data-sap-provider-field="service-layer">
                                                     <span>Servidor</span>
                                                     <input id="sapHostInput" type="text" autocomplete="off">
                                                 </label>
-                                                <label class="sap-security-field">
+                                                <label class="sap-security-field" data-sap-provider-field="service-layer">
                                                     <span>Puerto</span>
                                                     <input id="sapPortInput" type="number" inputmode="numeric" autocomplete="off">
                                                 </label>
-                                                <label class="sap-security-field">
+                                                <label class="sap-security-field" data-sap-provider-field="service-layer">
                                                     <span>Protocolo</span>
                                                     <select id="sapProtocolSelect">
                                                         <option value="https">HTTPS</option>
                                                         <option value="http">HTTP</option>
                                                     </select>
                                                 </label>
-                                                <label class="sap-security-field">
+                                                <label class="sap-security-field" data-sap-provider-field="di-api" hidden>
+                                                    <span>URL conector DI API</span>
+                                                    <input id="sapDiApiBaseUrlInput" type="text" autocomplete="off" placeholder="http://localhost:4100">
+                                                </label>
+                                                <label class="sap-security-field" data-sap-provider-field="service-layer">
                                                     <span>Usuario</span>
                                                     <input id="sapUserInput" type="text" autocomplete="off">
                                                 </label>
-                                                <label class="sap-security-field">
+                                                <label class="sap-security-field" data-sap-provider-field="service-layer">
                                                     <span>Clave</span>
                                                     <input id="sapPasswordInput" type="password" autocomplete="new-password">
                                                 </label>
@@ -4390,7 +4493,7 @@
                                                     <span>Sync (min)</span>
                                                     <input id="sapSyncIntervalInput" type="number" inputmode="numeric" min="5" max="1440">
                                                 </label>
-                                                <label class="sap-security-field">
+                                                <label class="sap-security-field" data-sap-provider-field="service-layer">
                                                     <span>Certificado</span>
                                                     <select id="sapAllowSelfSignedSelect">
                                                         <option value="true">Permitido</option>
@@ -4497,15 +4600,6 @@
                                         <section class="sap-security-card">
                                             <h3>Estado</h3>
                                             <div id="sapStatusRow" class="sap-security-status-row"></div>
-                                            <div id="sapStatusNote" class="sap-security-empty">Cargando conector SAP...</div>
-                                            <div id="sapLocalCounts" class="sap-security-counts"></div>
-                                        </section>
-
-                                        <section class="sap-security-card">
-                                            <h3>Actividad</h3>
-                                            <div id="sapLogList" class="sap-security-logs">
-                                                <div class="sap-security-empty">Sin actividad reciente.</div>
-                                            </div>
                                         </section>
                                     </aside>
                                 </div>
@@ -4778,6 +4872,8 @@
         const userAdminSummaryDepartment = document.getElementById('userAdminSummaryDepartment');
         const userAdminSummaryProcess = document.getElementById('userAdminSummaryProcess');
         const userAdminSummaryPermission = document.getElementById('userAdminSummaryPermission');
+        const userAdminPermissionsNote = document.getElementById('userAdminPermissionsNote');
+        const userAdminPermissionAccessSummary = document.getElementById('userAdminPermissionAccessSummary');
         const userAdminFieldName = document.getElementById('userAdminFieldName');
         const userAdminFieldUsername = document.getElementById('userAdminFieldUsername');
         const userAdminFieldPassword = document.getElementById('userAdminFieldPassword');
@@ -4911,15 +5007,18 @@
         const securitySubpanels = [...document.querySelectorAll('.security-subpanel')];
         const sapAdvancedToggle = document.getElementById('sapAdvancedToggle');
         const sapAdvancedCheckbox = document.getElementById('sapAdvancedCheckbox');
+        const sapProviderSelect = document.getElementById('sapProviderSelect');
         const sapCompanyInput = document.getElementById('sapCompanyInput');
         const sapHostInput = document.getElementById('sapHostInput');
         const sapPortInput = document.getElementById('sapPortInput');
         const sapProtocolSelect = document.getElementById('sapProtocolSelect');
+        const sapDiApiBaseUrlInput = document.getElementById('sapDiApiBaseUrlInput');
         const sapUserInput = document.getElementById('sapUserInput');
         const sapPasswordInput = document.getElementById('sapPasswordInput');
         const sapSyncIntervalInput = document.getElementById('sapSyncIntervalInput');
         const sapAllowSelfSignedSelect = document.getElementById('sapAllowSelfSignedSelect');
         const sapAutoSyncSelect = document.getElementById('sapAutoSyncSelect');
+        const sapProviderFields = [...document.querySelectorAll('[data-sap-provider-field]')];
         const sapSaveButton = document.getElementById('sapSaveButton');
         const sapTestButton = document.getElementById('sapTestButton');
         const sapSyncButton = document.getElementById('sapSyncButton');
@@ -4944,9 +5043,6 @@
         const sapWriteRequest = document.getElementById('sapWriteRequest');
         const sapWriteResult = document.getElementById('sapWriteResult');
         const sapStatusRow = document.getElementById('sapStatusRow');
-        const sapStatusNote = document.getElementById('sapStatusNote');
-        const sapLocalCounts = document.getElementById('sapLocalCounts');
-        const sapLogList = document.getElementById('sapLogList');
         const sapActivityTypeFilter = document.getElementById('sapActivityTypeFilter');
         const sapActivityStatusFilter = document.getElementById('sapActivityStatusFilter');
         const sapActivityEntityFilter = document.getElementById('sapActivityEntityFilter');
@@ -5811,6 +5907,12 @@
             sapQueryTrace.textContent = Array.isArray(entries) ? entries.join('\n\n') : String(entries || '');
         }
 
+        function resetSapQueryPanels() {
+            setSapResult(sapQueryRequest, 'Sin solicitudes todavía.');
+            setSapQueryTrace('Todavía no se ha ejecutado ninguna consulta.');
+            setSapResult(sapQueryResult, 'Sin consultas todavía.');
+        }
+
         function buildSapServiceLayerAbsoluteUrl() {
             const protocol = sapProtocolSelect?.value || 'https';
             const host = (sapHostInput?.value || '').trim();
@@ -5818,6 +5920,33 @@
             const path = buildSapServiceLayerQueryPath();
             if (!host) return `(pendiente de configurar host SAP)${path}`;
             return `${protocol}://${host}${port ? `:${port}` : ''}${path}`;
+        }
+
+        function getSapProvider() {
+            return (sapProviderSelect?.value || 'service-layer').trim().toLowerCase() === 'di-api'
+                ? 'di-api'
+                : 'service-layer';
+        }
+
+        function getSapProviderLabel() {
+            return getSapProvider() === 'di-api' ? 'DI API' : 'Service Layer';
+        }
+
+        function buildSapProviderAbsoluteUrl() {
+            if (getSapProvider() === 'di-api') {
+                const baseUrl = (sapDiApiBaseUrlInput?.value || '').trim().replace(/\/+$/, '');
+                const path = `/${(sapQueryEntity?.value || 'business-partners').trim()}`;
+                return baseUrl ? `${baseUrl}${path}` : `(pendiente de configurar URL DI API)${path}`;
+            }
+            return buildSapServiceLayerAbsoluteUrl();
+        }
+
+        function syncSapProviderFields() {
+            const provider = getSapProvider();
+            sapProviderFields.forEach((field) => {
+                const visibility = field.dataset.sapProviderField || '';
+                field.hidden = visibility !== provider;
+            });
         }
 
         function formatSapTraceEntry(title, detail = '') {
@@ -5868,15 +5997,16 @@
                     url: buildSapQueryUrl()
                 },
                 serviceLayer: {
+                    proveedor: getSapProviderLabel(),
                     origen: sourceLabel,
-                    ruta: buildSapServiceLayerQueryPath(),
-                    urlFinal: buildSapServiceLayerAbsoluteUrl()
+                    ruta: getSapProvider() === 'di-api' ? `/${sapQueryEntity?.value || 'business-partners'}` : buildSapServiceLayerQueryPath(),
+                    urlFinal: buildSapProviderAbsoluteUrl()
                 }
             });
             setSapQueryTrace([
                 '1. El navegador prepara los filtros y arma la ruta interna del ERP.',
                 `2. El navegador enviará: GET ${buildSapQueryUrl()}`,
-                `3. El backend del ERP transformará esa solicitud y la reenviará a: GET ${buildSapServiceLayerAbsoluteUrl()}`,
+                `3. El backend del ERP transformará esa solicitud y la reenviará a: GET ${buildSapProviderAbsoluteUrl()}`,
                 '4. El ERP esperará la respuesta del servidor SAP y luego la mostrará en el panel de resultado.'
             ]);
         }
@@ -5949,10 +6079,12 @@
 
         function applySapConfigToForm(config = {}) {
             if (sapAdvancedCheckbox) sapAdvancedCheckbox.checked = String(config.mode || 'demo').trim().toLowerCase() !== 'live';
+            if (sapProviderSelect) sapProviderSelect.value = (config.provider || 'service-layer') === 'di-api' ? 'di-api' : 'service-layer';
             if (sapCompanyInput) sapCompanyInput.value = config.sapCompany || '';
             if (sapHostInput) sapHostInput.value = config.sapHost || '';
             if (sapPortInput) sapPortInput.value = config.sapPort || '';
             if (sapProtocolSelect) sapProtocolSelect.value = config.sapProtocol || 'https';
+            if (sapDiApiBaseUrlInput) sapDiApiBaseUrlInput.value = config.diApiBaseUrl || '';
             if (sapUserInput) sapUserInput.value = config.sapUser || '';
             if (sapPasswordInput) {
                 sapPasswordInput.value = '';
@@ -5962,74 +6094,16 @@
             if (sapAllowSelfSignedSelect) sapAllowSelfSignedSelect.value = String(config.allowSelfSigned !== false);
             if (sapAutoSyncSelect) sapAutoSyncSelect.value = String(config.autoSyncEnabled === true);
             syncSapAdvancedToggle();
+            syncSapProviderFields();
         }
 
         function renderSapStatus(payload = {}) {
             const config = payload.config || {};
+            const providerLabel = (config.provider || getSapProvider()) === 'di-api' ? 'DI API' : 'Service Layer';
             if (sapStatusRow) {
-                const pills = [];
-                if (String(config.mode || '').toLowerCase() === 'live') {
-                    pills.push('<span class="sap-security-pill">Conexión real</span>');
-                } else {
-                    pills.push('<span class="sap-security-pill">Avanzado activo</span>');
-                }
-                pills.push(`<span class="sap-security-pill">${config.hasPassword ? 'Clave guardada' : 'Sin clave'}</span>`);
-                if (config.lastSyncStatus) {
-                    const tone = config.lastSyncStatus === 'error' ? 'error' : (config.lastSyncStatus === 'success' ? 'ok' : '');
-                    const label = config.lastSyncStatus === 'success' ? 'Sync listo' : (config.lastSyncStatus === 'error' ? 'Sync con error' : 'Sync pendiente');
-                    pills.push(`<span class="sap-security-pill" data-tone="${tone}">${label}</span>`);
-                }
-                sapStatusRow.innerHTML = pills.join('');
-            }
-            if (sapStatusNote) {
-                const lastSync = config.lastSyncFinishedAt ? new Date(config.lastSyncFinishedAt).toLocaleString('es-CR') : 'Sin sincronización';
-                sapStatusNote.textContent = config.lastSyncMessage ? `${config.lastSyncMessage} | ${lastSync}` : lastSync;
-            }
-            if (sapLocalCounts) {
-                const counts = payload.localSummary?.counts || {};
-                sapLocalCounts.innerHTML = [
-                    ['Socios', counts.businessPartners || 0],
-                    ['Artículos', counts.items || 0],
-                    ['Bodegas', counts.warehouses || 0],
-                    ['Órdenes', counts.orders || 0],
-                    ['Facturas', counts.invoices || 0]
-                ].map(([label, value]) => `
-                    <div class="sap-security-count">
-                        <strong>${escapeHtml(String(value))}</strong>
-                        <span>${escapeHtml(label)}</span>
-                    </div>
-                `).join('');
+                sapStatusRow.innerHTML = `<span class="sap-security-pill">${escapeHtml(providerLabel)}</span>`;
             }
             applySapConfigToForm(config);
-        }
-
-        function renderSapLogs(payload = {}) {
-            if (!sapLogList) return;
-            const syncLog = Array.isArray(payload.syncLog) ? payload.syncLog : [];
-            const writeLog = Array.isArray(payload.writeLog) ? payload.writeLog : [];
-            const rows = [
-                ...syncLog.map((entry) => ({
-                    title: `${entry.entity_name} | ${entry.status}`,
-                    meta: `${entry.mode} | ${entry.records_count || 0} registros`,
-                    detail: entry.started_at ? new Date(entry.started_at).toLocaleString('es-CR') : ''
-                })),
-                ...writeLog.map((entry) => ({
-                    title: `${entry.entity_name} | ${entry.status}`,
-                    meta: entry.mode,
-                    detail: entry.error_message || (entry.created_at ? new Date(entry.created_at).toLocaleString('es-CR') : '')
-                }))
-            ].slice(0, 20);
-            if (!rows.length) {
-                sapLogList.innerHTML = '<div class="sap-security-empty">Sin actividad reciente.</div>';
-                return;
-            }
-            sapLogList.innerHTML = rows.map((entry) => `
-                <div class="sap-security-log-item">
-                    <strong>${escapeHtml(entry.title)}</strong>
-                    <span>${escapeHtml(entry.meta)}</span>
-                    <span>${escapeHtml(entry.detail)}</span>
-                </div>
-            `).join('');
         }
 
         function populateSapActivityFilterOptions(select, values = [], fallbackLabel = 'Todos') {
@@ -6189,56 +6263,61 @@
 
         async function loadSapConnectorState(force = false) {
             if (!force && sapConnectorLoadedOnce) return;
-            const [configResponse, logsResponse] = await Promise.all([
-                fetch('/api/sap/config'),
-                fetch('/api/sap/logs')
-            ]);
+            const configResponse = await fetch('/api/sap/config');
             if (!configResponse.ok) throw new Error('No fue posible cargar la configuración SAP.');
-            if (!logsResponse.ok) throw new Error('No fue posible cargar la actividad SAP.');
             const configPayload = await configResponse.json();
-            const logsPayload = await logsResponse.json();
             renderSapStatus(configPayload);
-            renderSapLogs(logsPayload);
             sapConnectorLoadedOnce = true;
         }
 
         function collectSapConfigPayload() {
+            const provider = getSapProvider();
             const payload = {
                 mode: sapAdvancedCheckbox?.checked ? 'demo' : 'live',
-                sapCompany: (sapCompanyInput?.value || '').trim(),
-                sapHost: (sapHostInput?.value || '').trim(),
-                sapProtocol: sapProtocolSelect?.value || 'https',
-                sapUser: (sapUserInput?.value || '').trim(),
+                provider,
+                diApiBaseUrl: (sapDiApiBaseUrlInput?.value || '').trim(),
                 autoSyncEnabled: sapAutoSyncSelect?.value === 'true',
-                allowSelfSigned: sapAllowSelfSignedSelect?.value !== 'false',
-                keepDemoEnabled: true,
+                keepDemoEnabled: false,
                 syncIntervalMinutes: Number(sapSyncIntervalInput?.value || 30)
             };
-            const sapPort = String(sapPortInput?.value || '').trim();
-            const sapPassword = sapPasswordInput?.value || '';
-            if (sapPort) payload.sapPort = Number(sapPort);
-            if (sapPassword) payload.sapPassword = sapPassword;
+            if (provider === 'service-layer') {
+                payload.sapCompany = (sapCompanyInput?.value || '').trim();
+                payload.sapHost = (sapHostInput?.value || '').trim();
+                payload.sapProtocol = sapProtocolSelect?.value || 'https';
+                payload.sapUser = (sapUserInput?.value || '').trim();
+                payload.allowSelfSigned = sapAllowSelfSignedSelect?.value !== 'false';
+
+                const sapPort = String(sapPortInput?.value || '').trim();
+                const sapPassword = sapPasswordInput?.value || '';
+                if (sapPort) payload.sapPort = Number(sapPort);
+                if (sapPassword) payload.sapPassword = sapPassword;
+            }
             return payload;
         }
 
         function captureSapFormValues() {
             return {
+                provider: getSapProvider(),
                 sapCompany: sapCompanyInput?.value || '',
                 sapHost: sapHostInput?.value || '',
                 sapPort: sapPortInput?.value || '',
                 sapProtocol: sapProtocolSelect?.value || 'https',
+                diApiBaseUrl: sapDiApiBaseUrlInput?.value || '',
                 sapUser: sapUserInput?.value || '',
                 sapPassword: sapPasswordInput?.value || ''
             };
         }
 
         function restoreSapFormValues(values = {}) {
+            if (sapProviderSelect) sapProviderSelect.value = values.provider || 'service-layer';
             if (sapCompanyInput) sapCompanyInput.value = values.sapCompany || '';
             if (sapHostInput) sapHostInput.value = values.sapHost || '';
             if (sapPortInput) sapPortInput.value = values.sapPort || '';
             if (sapProtocolSelect) sapProtocolSelect.value = values.sapProtocol || 'https';
+            if (sapDiApiBaseUrlInput) sapDiApiBaseUrlInput.value = values.diApiBaseUrl || '';
             if (sapUserInput) sapUserInput.value = values.sapUser || '';
             if (sapPasswordInput) sapPasswordInput.value = values.sapPassword || '';
+            syncSapProviderFields();
         }
 
         async function saveSapConnectorConfig() {
@@ -6263,7 +6342,7 @@
             const response = await fetch('/api/sap/test', { method: 'POST' });
             const payload = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(payload.error || 'No fue posible validar la conexión SAP.');
-            setSapConfigStatus('OK', false);
+            setSapConfigStatus(payload.message || 'Conexión real validada.', false);
             await loadSapConnectorState(true);
             restoreSapFormValues(currentValues);
         }
@@ -6313,12 +6392,14 @@
             await saveSapConnectorConfig();
             setSapConfigStatus('Consultando...', false);
             const queryUrl = buildSapQueryUrl();
-            const serviceLayerUrl = buildSapServiceLayerAbsoluteUrl();
+            const serviceUrl = buildSapProviderAbsoluteUrl();
+            const providerLabel = getSapProviderLabel();
             renderSapQueryRequestPreview();
+            setSapResult(sapQueryResult, 'Consultando SAP...');
             setSapQueryTrace([
                 formatSapTraceEntry('Preparando consulta en el navegador.'),
                 formatSapTraceEntry('Solicitud interna lista para el ERP.', `GET ${queryUrl}`),
-                formatSapTraceEntry('Destino final calculado para SAP Service Layer.', `GET ${serviceLayerUrl}`),
+                formatSapTraceEntry(`Destino final calculado para ${providerLabel}.`, `GET ${serviceUrl}`),
                 formatSapTraceEntry('Esperando respuesta del ERP y del servidor SAP...')
             ]);
             const startedAt = Date.now();
@@ -6326,22 +6407,23 @@
                 const response = await fetch(queryUrl);
                 const payload = await response.json().catch(() => ({}));
                 const elapsed = Date.now() - startedAt;
+                if (!response.ok) throw new Error(payload.error || 'No fue posible consultar SAP.');
                 setSapQueryTrace([
                     formatSapTraceEntry('Preparando consulta en el navegador.'),
                     formatSapTraceEntry('Solicitud interna enviada al ERP.', `GET ${queryUrl}`),
-                    formatSapTraceEntry('ERP reenvía la consulta al Service Layer.', `GET ${serviceLayerUrl}`),
+                    formatSapTraceEntry(`ERP reenvía la consulta a ${providerLabel}.`, `GET ${serviceUrl}`),
                     formatSapTraceEntry('Respuesta recibida.', `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}\nTiempo aproximado: ${elapsed} ms`),
                     formatSapTraceEntry('Resultado entregado al panel inferior.')
                 ]);
-                if (!response.ok) throw new Error(payload.error || 'No fue posible consultar SAP.');
                 setSapResult(sapQueryResult, payload);
                 setSapConfigStatus('Consulta completada.', false);
             } catch (error) {
                 const elapsed = Date.now() - startedAt;
+                setSapResult(sapQueryResult, 'La consulta falló. No hay resultados para mostrar.');
                 setSapQueryTrace([
                     formatSapTraceEntry('Preparando consulta en el navegador.'),
                     formatSapTraceEntry('Solicitud interna enviada al ERP.', `GET ${queryUrl}`),
-                    formatSapTraceEntry('ERP intentó reenviar la consulta al Service Layer.', `GET ${serviceLayerUrl}`),
+                    formatSapTraceEntry(`ERP intentó reenviar la consulta a ${providerLabel}.`, `GET ${serviceUrl}`),
                     formatSapTraceEntry('La consulta falló.', `${error.message || 'Error no controlado.'}\nTiempo aproximado: ${elapsed} ms`)
                 ]);
                 throw error;
@@ -6396,7 +6478,7 @@
                     setSapConfigStatus(error.message || 'No fue posible cargar SAP.', true);
                 });
                 activateSapTab(document.querySelector('.sap-security-subtab.active')?.dataset.sapTab || 'config');
-                renderSapQueryRequestPreview();
+                resetSapQueryPanels();
                 renderSapWriteRequestPreview();
             }
         }
@@ -6965,6 +7047,74 @@
             return adminUsers.find((user) => Number(user.id) === Number(selectedAdminUserId)) || null;
         }
 
+        function getAdminPermissionById(permissionId) {
+            return adminPermissions.find((item) => Number(item.id) === Number(permissionId)) || null;
+        }
+
+        function getAdminUserPermissionAccess(user) {
+            const permission = getAdminPermissionById(user?.permissionId);
+            const modules = createEmptyPermissionModules(permission?.modules);
+            const edit = [];
+            const view = [];
+            PERMISSION_PRESENTATION_KEYS.forEach((key) => {
+                const label = getPermissionPresentationLabel(key);
+                if (modules[key] === 'edit') edit.push(label);
+                if (modules[key] === 'view') view.push(label);
+            });
+            return { permission, edit, view };
+        }
+
+        function formatAdminUserProcessLine(user) {
+            const department = String(user?.department || '').trim() || 'Sin departamento';
+            const process = String(user?.process || '').trim();
+            return process ? `${department} - ${process}` : department;
+        }
+
+        function formatAdminUserPermissionLine(user) {
+            const { permission, edit, view } = getAdminUserPermissionAccess(user);
+            const permissionName = permission?.name || user?.permissionName || 'Sin permiso';
+            const summary = [];
+            if (edit.length) summary.push(`Edita ${edit.length}`);
+            if (view.length) summary.push(`Visualiza ${view.length}`);
+            return summary.length ? `${permissionName} | ${summary.join(' · ')}` : permissionName;
+        }
+
+        function renderAdminUserPermissionBadges(items, emptyLabel) {
+            if (!items.length) {
+                return `<span class="user-admin-permissions-empty">${escapeHtml(emptyLabel)}</span>`;
+            }
+            return items.map((item) => `<span class="user-admin-permissions-badge">${escapeHtml(item)}</span>`).join('');
+        }
+
+        function renderAdminUserPermissionAccessSummary(user) {
+            if (!userAdminPermissionsNote || !userAdminPermissionAccessSummary) return;
+            const { permission, edit, view } = getAdminUserPermissionAccess(user);
+            const permissionName = permission?.name || user?.permissionName || '';
+            if (!permissionName) {
+                userAdminPermissionsNote.textContent = 'Este usuario todavía no tiene un permiso asignado.';
+                userAdminPermissionAccessSummary.innerHTML = `
+                    <div class="user-admin-permissions-group">
+                        <strong>Sin accesos configurados</strong>
+                        <div class="user-admin-permissions-badges">
+                            <span class="user-admin-permissions-empty">Asigna un permiso para ver sus módulos.</span>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            userAdminPermissionsNote.textContent = `Permiso asignado: ${permissionName}`;
+            userAdminPermissionAccessSummary.innerHTML = `
+                <div class="user-admin-permissions-group">
+                    <strong>Puede editar</strong>
+                    <div class="user-admin-permissions-badges">${renderAdminUserPermissionBadges(edit, 'Sin módulos con edición')}</div>
+                </div>
+                <div class="user-admin-permissions-group">
+                    <strong>Puede visualizar</strong>
+                    <div class="user-admin-permissions-badges">${renderAdminUserPermissionBadges(view, 'Sin módulos en consulta')}</div>
+                </div>
+            `;
+        }
+
         function populateUserPermissionOptions() {
             if (!userAdminFieldPermission) return;
             const current = String(userAdminFieldPermission.value || '');
@@ -6991,7 +7141,8 @@
                                 <div class="user-admin-avatar" data-user-avatar="${user.id}">${getAdminUserInitials(user.name)}</div>
                                 <div class="user-admin-row-text">
                                     <span class="user-admin-row-name">${escapeHtml(user.name || 'Sin nombre')}</span>
-                                    <span class="user-admin-row-department">${escapeHtml(user.department || 'Sin departamento')}</span>
+                                    <span class="user-admin-row-department">${escapeHtml(formatAdminUserProcessLine(user))}</span>
+                                    <span class="user-admin-row-permission">${escapeHtml(formatAdminUserPermissionLine(user))}</span>
                                 </div>
                             </div>
                             <button type="button" class="user-admin-delete-button" data-user-delete="${user.id}" aria-label="Eliminar usuario" title="Eliminar usuario"></button>
@@ -7022,6 +7173,8 @@
             if (!user) {
                 if (userAdminDetailEmpty) userAdminDetailEmpty.hidden = false;
                 if (userAdminDetailShell) userAdminDetailShell.hidden = true;
+                if (userAdminPermissionsNote) userAdminPermissionsNote.textContent = 'Selecciona un permiso para ver los accesos disponibles.';
+                if (userAdminPermissionAccessSummary) userAdminPermissionAccessSummary.innerHTML = '';
                 return;
             }
             if (userAdminDetailEmpty) userAdminDetailEmpty.hidden = true;
@@ -7037,19 +7190,20 @@
             if (userAdminFieldPermission) userAdminFieldPermission.value = user.permissionId == null ? '' : String(user.permissionId);
 
             if (userAdminDetailName) userAdminDetailName.textContent = user.name || 'Usuario';
-            if (userAdminDetailSubline) userAdminDetailSubline.textContent = `${user.department || 'Sin departamento'} · ${user.process || 'Sin proceso'}`;
+            if (userAdminDetailSubline) userAdminDetailSubline.textContent = formatAdminUserProcessLine(user);
             if (userAdminSummaryUsername) userAdminSummaryUsername.textContent = user.username || 'Pendiente';
             if (userAdminSummaryDepartment) userAdminSummaryDepartment.textContent = user.department || 'Pendiente';
             if (userAdminSummaryProcess) userAdminSummaryProcess.textContent = user.process || 'Pendiente';
-            if (userAdminSummaryPermission) userAdminSummaryPermission.textContent = user.permissionName || 'Pendiente';
+            if (userAdminSummaryPermission) userAdminSummaryPermission.textContent = getAdminPermissionById(user.permissionId)?.name || user.permissionName || 'Pendiente';
             if (userAdminPhotoDropzone) {
                 renderAdminUserAvatar(userAdminPhotoDropzone, user, 'user-admin-detail-avatar');
             }
             if (userAdminSignatureDropzone) {
                 userAdminSignatureDropzone.innerHTML = user.signatureUrl
                     ? `<img src="${escapeHtml(user.signatureUrl)}" alt="Firma de ${escapeHtml(user.name || 'usuario')}">`
-                    : 'Firma';
+                    : 'Sin firma';
             }
+            renderAdminUserPermissionAccessSummary(user);
             renderPasswordToggleButton(userAdminPasswordToggle, userAdminPasswordVisible);
         }
 
@@ -9581,6 +9735,11 @@
         });
 
         sapAdvancedCheckbox?.addEventListener('change', syncSapAdvancedToggle);
+        sapProviderSelect?.addEventListener('change', () => {
+            syncSapProviderFields();
+            renderSapStatus({ config: { provider: getSapProvider() } });
+            resetSapQueryPanels();
+        });
         sapSaveButton?.addEventListener('click', async () => {
             try {
                 await saveSapConnectorConfig();
@@ -9616,9 +9775,9 @@
                 setSapConfigStatus(error.message || 'No fue posible consultar SAP.', true);
             }
         });
-        [sapQueryEntity, sapQuerySource, sapQueryFilterInput, sapQuerySearchInput, sapQueryTopInput].forEach((node) => {
-            node?.addEventListener('input', renderSapQueryRequestPreview);
-            node?.addEventListener('change', renderSapQueryRequestPreview);
+        [sapQueryEntity, sapQuerySource, sapQueryFilterInput, sapQuerySearchInput, sapQueryTopInput, sapProviderSelect, sapHostInput, sapPortInput, sapProtocolSelect, sapDiApiBaseUrlInput].forEach((node) => {
+            node?.addEventListener('input', resetSapQueryPanels);
+            node?.addEventListener('change', resetSapQueryPanels);
         });
         sapRefreshLogsButton?.addEventListener('click', async () => {
             try {

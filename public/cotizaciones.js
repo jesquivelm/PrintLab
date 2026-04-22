@@ -133,6 +133,12 @@ function updateQuotesScrollBottomIndicator() {
 
 let loadedConfig = {};
 let quoteCatalog = [];
+let quoteSearchTimer = null;
+let quoteTreeLineSequence = 100000;
+const expandedQuoteCodes = new Set();
+const quoteLineCache = new Map();
+const quoteLineLoading = new Set();
+const quoteLineLookup = new Map();
 let partnerLookupAbort = null;
 let materialItems = STATIC_MATERIALS.map((name) => ({ code: '', name }));
 let surfaceItems = [...DEFAULT_SURFACES];
@@ -656,14 +662,230 @@ function formatDate(value) {
     return date.toLocaleDateString('es-CR');
 }
 
-function renderQuotesTable(items) {
-    if (!rowsBody) return;
-    visibleQuotesCount = Array.isArray(items) ? items.length : 0;
-    if (!items.length) {
-        rowsBody.innerHTML = '<tr><td colspan="8">No hay cotizaciones.</td></tr>';
-        requestAnimationFrame(updateQuotesScrollBottomIndicator);
-        return;
+function parseMoneyValue(value) {
+    if (value === null || value === undefined || value === '') return 0;
+    if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+    const normalized = String(value)
+        .replace(/[^0-9,.-]/g, '')
+        .replace(/\s/g, '')
+        .replace(/\.(?=\d{3}(?:\D|$))/g, '')
+        .replace(',', '.');
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatMoney(value) {
+    const number = parseMoneyValue(value);
+    return number
+        ? `$${number.toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        : '$0.00';
+}
+
+function normalizeQuoteLine(line, quoteCode, index = 0) {
+    quoteTreeLineSequence += 1;
+    const raw = line.raw_data || {};
+    return {
+        id: quoteTreeLineSequence,
+        quoteId: quoteCode || line.quote_code || '',
+        linea: line.line_code || '',
+        originalLinea: line.line_code || '',
+        lineOrder: Number(line.line_order) || index + 1,
+        departamento: line.department || 'Flexografia',
+        nombreTrabajo: line.job_name || 'Nuevo cálculo',
+        material: line.material_name || '',
+        materialCode: raw['Material Convencional | Id Material'] || raw['Material Digital | Id Material'] || '',
+        medida: [raw['DIMENSIONES ETIQUETA | ANCHO'], raw['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join(' x '),
+        machineName: line.machine_name || raw['CONV | MAQUINA'] || raw['DIGITAL | MAQUINA'] || '',
+        processType: line.process_type || raw['Proceso Productivo'] || '',
+        estado: line.status || raw['SOLICITUD ESTADO'] || raw['ESTADO LINEA'] || 'Borrador',
+        finalizadaOrden: Boolean(line.finalized_for_order || raw['CODEX_FINALIZED_FOR_ORDER']),
+        subtotal1: line.subtotal_1 ?? line.total_cost ?? '',
+        productId: line.product_code || ''
+    };
+}
+
+function quoteTreeLineTitle(row) {
+    return [
+        row.nombreTrabajo || 'Nuevo cálculo',
+        row.medida ? `(${row.medida})` : ''
+    ].filter(Boolean).join(' ');
+}
+
+function quoteTreeLineMeta(row) {
+    return [
+        row.material || 'Sin material',
+        row.machineName || 'Sin máquina',
+        row.processType || ''
+    ].filter(Boolean).join(' · ');
+}
+
+function quoteTotalFromLines(lines = []) {
+    return lines.reduce((sum, line) => sum + parseMoneyValue(line.subtotal1), 0);
+}
+
+async function fetchQuoteLines(quoteCode, options = {}) {
+    if (!quoteCode) return [];
+    if (!options.force && quoteLineCache.has(quoteCode)) return quoteLineCache.get(quoteCode);
+    quoteLineLoading.add(quoteCode);
+    renderQuotesTable(getFilteredQuotes());
+    try {
+        const payload = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(quoteCode)}`);
+        const lines = (payload.lineas || []).map((line, index) => normalizeQuoteLine(line, quoteCode, index));
+        quoteLineCache.set(quoteCode, lines);
+        return lines;
+    } finally {
+        quoteLineLoading.delete(quoteCode);
+        renderQuotesTable(getFilteredQuotes());
     }
+}
+
+function buildLineTitle(row, index) {
+    const name = row.nombreTrabajo || 'Sin nombre';
+    const material = row.material || '';
+    return [name, material].filter(Boolean).join(' · ');
+}
+
+function buildLineMeta(row) {
+    const parts = [];
+    if (row.linea) parts.push(row.linea);
+    if (row.processType) parts.push(row.processType);
+    if (row.medida) parts.push(row.medida);
+    if (row.machineName) parts.push(row.machineName);
+    if (row.materialCode) parts.push(row.materialCode);
+    return parts.filter(Boolean).join(' · ');
+}
+
+function lineMenuIconConfig(key, fallbackValue, fallbackColor = '#46515d', fallbackSize = 18) {
+    const iconKeyMap = {
+        duplicate: ['lineDuplicate'],
+        copy: ['lineCopy'],
+        createQuote: ['lineCreateQuote'],
+        export: ['lineExport'],
+        attachments: ['lineAttachments'],
+        delete: ['lineDelete', 'loginRepositoryDelete', 'adminUserDelete']
+    };
+    const canonicalMap = {
+        duplicate: 'lineDuplicate',
+        copy: 'lineCopy',
+        createQuote: 'lineCreateQuote',
+        export: 'lineExport',
+        attachments: 'lineAttachments',
+        delete: 'lineDelete'
+    };
+    const conf = getResolvedIcon(iconKeyMap[key] || [], canonicalMap[key]);
+    const suffixMap = {
+        duplicate: 'LineDuplicate',
+        copy: 'LineCopy',
+        createQuote: 'LineCreateQuote',
+        export: 'LineExport',
+        attachments: 'LineAttachments',
+        delete: 'LineDelete'
+    };
+    const suffix = suffixMap[key] || '';
+    const color = loadedConfig?.general?.[`iconColor${suffix}`] || conf.color || fallbackColor;
+    const hover = loadedConfig?.general?.[`iconColorHover${suffix}`] || (key === 'delete' ? '#d03535' : '#0b81b8');
+    const size = Number(loadedConfig?.general?.[`iconSize${suffix}`]) || conf.size || fallbackSize;
+    return {
+        value: conf.value || fallbackValue,
+        color,
+        hover,
+        size
+    };
+}
+
+function lineMenuIconMarkup(key, label, fallbackValue, danger = false) {
+    const conf = lineMenuIconConfig(key, fallbackValue, danger ? '#a74343' : '#46515d', 18);
+    return `
+        <span class="row-action-menu-icon" style="--menu-icon-color:${escapeHtml(conf.color)};--menu-icon-hover-color:${escapeHtml(conf.hover)};--menu-icon-size:${escapeHtml(String(conf.size))}px;--config-icon-size:${escapeHtml(String(conf.size))}px;">
+            ${iconMarkup(conf.value, label, 'table-icon-media')}
+        </span>
+    `;
+}
+
+// Drag state for line reordering
+let lineDragState = null;
+let lineDragDropInitialized = false;
+
+function renderQuoteLineCard(row, index, totalLines) {
+    quoteLineLookup.set(row.id, row);
+    const lineTitle = buildLineTitle(row, index);
+    const lineMeta = buildLineMeta(row);
+    const openConf = getResolvedIcon(['browserOpen', 'tableOpen'], 'tableOpen');
+    const openColor = loadedConfig?.general?.iconColorBrowserOpen || loadedConfig?.general?.iconColorTableOpen || '#0b81b8';
+    const openHover = loadedConfig?.general?.iconColorHoverBrowserOpen || loadedConfig?.general?.iconColorHoverTableOpen || '#07638c';
+    const openSize = Number(loadedConfig?.general?.iconSizeBrowserOpen || loadedConfig?.general?.iconSizeTableOpen) || openConf.size || 18;
+    return `
+        <article class="quote-master-line" data-line-id="${row.id}" data-line-index="${index}" data-quote-id="${escapeHtml(row.quoteId)}" draggable="true">
+            <div class="quote-master-line-order" title="Arrastrar para reordenar">
+                <span class="quote-master-line-num">${index + 1}</span>
+                <span class="quote-master-drag-handle" aria-hidden="true">&#8942;&#8942;</span>
+            </div>
+            <div class="quote-master-line-body">
+                <div class="quote-master-line-title">${escapeHtml(lineTitle)}</div>
+                ${lineMeta ? `<div class="quote-master-line-meta">${escapeHtml(lineMeta)}</div>` : ''}
+            </div>
+            <div class="quote-master-line-right">
+                <span class="quote-master-line-total">${escapeHtml(formatMoney(row.subtotal1))}</span>
+                <div class="quote-line-actions row-tools row-tools-row-end">
+                    <span class="row-action-divider" aria-hidden="true"></span>
+                    <button type="button" class="quote-line-icon-btn quote-line-edit-btn" data-line-action="edit" data-line-id="${row.id}" title="Editar cálculo" aria-label="Editar" style="--icon-color:${escapeHtml(openColor)};--icon-hover-color:${escapeHtml(openHover)};--config-icon-size:${escapeHtml(String(openSize))}px;">${iconMarkup(openConf.value, 'Editar cálculo', 'table-icon-media')}</button>
+                    <span class="row-action-divider" aria-hidden="true"></span>
+                    <div class="quote-line-menu-wrap" data-line-menu-id="${row.id}">
+                        <button type="button" class="quote-line-icon-btn quote-line-menu-trigger" data-line-menu-toggle="${row.id}" title="Más opciones" aria-label="Más opciones" aria-haspopup="true" aria-expanded="false">&#8942;</button>
+                        <div class="quote-line-menu-panel" data-line-menu-panel="${row.id}" hidden>
+                            <div class="row-action-menu-list">
+                                <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="duplicate" data-line-id="${row.id}">${lineMenuIconMarkup('duplicate', 'Duplicar línea', '⎘')}<span>Duplicar línea</span></button>
+                                <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="copy" data-line-id="${row.id}">${lineMenuIconMarkup('copy', 'Copiar línea a otra cotización', '⎘')}<span>Copiar línea a otra cotización</span></button>
+                                <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="create-quote" data-line-id="${row.id}">${lineMenuIconMarkup('createQuote', 'Crear nueva cotización a partir de esta línea', '▣')}<span>Crear nueva cotización a partir de esta línea</span></button>
+                                <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="export" data-line-id="${row.id}">${lineMenuIconMarkup('export', 'Exportar línea a Excel', '⭳')}<span>Exportar línea a Excel</span></button>
+                                <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="attachments" data-line-id="${row.id}">${lineMenuIconMarkup('attachments', 'Ver adjuntos', '📎')}<span>Ver adjuntos</span></button>
+                                <div class="row-action-menu-section-divider" aria-hidden="true"></div>
+                                <button type="button" class="row-action-menu-item quote-line-menu-item is-toggle" data-line-action="finalize" data-line-id="${row.id}">
+                                    <span class="row-action-menu-toggle"><span class="row-action-check ${row.finalizadaOrden ? 'is-checked' : ''}" aria-hidden="true"></span><span>${row.finalizadaOrden ? 'Desmarcar finalizado' : 'Finalizar cálculo'}</span></span>
+                                </button>
+                                <div class="row-action-menu-section-divider" aria-hidden="true"></div>
+                                <button type="button" class="row-action-menu-item quote-line-menu-item is-danger" data-line-action="delete" data-line-id="${row.id}">${lineMenuIconMarkup('delete', 'Eliminar línea', '×', true)}<span>Eliminar línea</span></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </article>
+    `;
+}
+
+function renderQuoteLinesPanel(quoteCode) {
+    const footer = `
+        <div class="quote-master-lines-footer">
+            <button type="button" class="quote-line-action-btn quote-line-proforma-btn" data-print-proforma="${escapeHtml(quoteCode)}" title="Ver Proforma">
+                <span class="quote-line-action-icon" aria-hidden="true">↓</span> Ver Proforma
+            </button>
+            <button type="button" class="quote-line-action-btn quote-line-add-btn" data-add-line="${escapeHtml(quoteCode)}" title="Agregar línea de cálculo">
+                <span class="quote-line-action-icon" aria-hidden="true">+</span> Agregar línea
+            </button>
+        </div>
+    `;
+    if (quoteLineLoading.has(quoteCode)) {
+        return `<div class="quote-master-line-message">Cargando líneas de cálculo...</div>${footer}`;
+    }
+    const lines = quoteLineCache.get(quoteCode);
+    if (!lines) {
+        return `<div class="quote-master-line-message">Abre esta cotización para cargar sus líneas.</div>${footer}`;
+    }
+    if (!lines.length) {
+        return `<div class="quote-master-line-message">Esta cotización todavía no tiene líneas de cálculo.</div>${footer}`;
+    }
+    return `<div class="quote-master-lines">${lines.map((line, index) => renderQuoteLineCard(line, index, lines.length)).join('')}</div>${footer}`;
+}
+
+function renderQuoteParentRow(item) {
+    const quoteCode = item.quote_code || '';
+    const isExpanded = expandedQuoteCodes.has(quoteCode);
+    const cachedLines = quoteLineCache.get(quoteCode) || [];
+    const lineCount = Math.max(0, Number(item.line_count || cachedLines.length || 0));
+    const total = cachedLines.length
+        ? formatMoney(quoteTotalFromLines(cachedLines))
+        : (lineCount > 0 ? formatMoney(item.quote_total) : '—');
     const openConf = getResolvedIcon(['browserOpen', 'tableOpen'], 'tableOpen');
     const openColor = loadedConfig?.general?.iconColorBrowserOpen || loadedConfig?.general?.iconColorTableOpen || '#0b81b8';
     const openHover = loadedConfig?.general?.iconColorHoverBrowserOpen || loadedConfig?.general?.iconColorHoverTableOpen || '#07638c';
@@ -672,35 +894,178 @@ function renderQuotesTable(items) {
     const deleteColor = loadedConfig?.general?.iconColorLineDelete || '#a74343';
     const deleteHover = loadedConfig?.general?.iconColorHoverLineDelete || '#d03535';
     const deleteSize = Number(loadedConfig?.general?.iconSizeLineDelete) || deleteConf.size || 18;
-    rowsBody.innerHTML = items.map((item) => `
-        <tr>
-            <td>${escapeHtml(item.quote_code || '')}</td>
-            <td>${escapeHtml(item.customer_code || '')}</td>
-            <td>${escapeHtml(item.customer_name || '')}</td>
-            <td>${escapeHtml(item.salesperson_name || '')}</td>
-            <td>${escapeHtml(formatDate(item.created_on))}</td>
-            <td>${escapeHtml(formatDate(item.due_on))}</td>
-            <td>${escapeHtml(item.status || '')}</td>
-            <td>
-                <div class="quote-browser-actions">
-                    <button type="button" class="browser-open-link" data-open-quote="${escapeHtml(item.quote_code || '')}" aria-label="Abrir cotizacion" title="Abrir cotizacion" style="--icon-color:${escapeHtml(openColor)};--icon-hover-color:${escapeHtml(openHover)};--config-icon-size:${escapeHtml(String(openSize))}px;">${iconMarkup(openConf.value, 'Abrir cotizacion', 'table-icon-media')}</button>
-                    <button type="button" class="browser-open-link browser-open-link-danger" data-delete-quote="${escapeHtml(item.quote_code || '')}" aria-label="Eliminar cotizacion" title="Eliminar cotizacion" style="--icon-color:${escapeHtml(deleteColor)};--icon-hover-color:${escapeHtml(deleteHover)};--config-icon-size:${escapeHtml(String(deleteSize))}px;">${iconMarkup(deleteConf.value, 'Eliminar cotizacion', 'table-icon-media')}</button>
+    const customerName = item.customer_name || '';
+    const customerCode = item.customer_code || '';
+    const vendor = item.salesperson_name || '';
+    const createdOn = formatDate(item.created_on);
+    const dueOn = formatDate(item.due_on);
+    return `
+        <tr class="quote-master-row ${isExpanded ? 'is-expanded' : ''}" data-quote-code="${escapeHtml(quoteCode)}">
+            <td class="quote-master-td-toggle">
+                <button type="button" class="quote-master-toggle" data-toggle-quote="${escapeHtml(quoteCode)}" aria-expanded="${isExpanded ? 'true' : 'false'}" aria-label="${isExpanded ? 'Contraer' : 'Expandir'} cotización">
+                    <span class="quote-master-toggle-glyph" aria-hidden="true">&#9656;</span>
+                    <span class="quote-master-toggle-count">${lineCount}</span>
+                </button>
+            </td>
+            <td class="quote-master-td-code">
+                <button type="button" class="quote-master-code" data-open-quote="${escapeHtml(quoteCode)}">${escapeHtml(quoteCode)}</button>
+            </td>
+            <td class="quote-master-td-info">
+                <div class="quote-master-info-block">
+                    <span class="quote-master-info-name">${escapeHtml(customerName)}</span>
+                    ${customerCode ? `<span class="quote-master-info-code">${escapeHtml(customerCode)}</span>` : ''}
+                    ${vendor ? `<span class="quote-master-info-sep">·</span><span class="quote-master-info-vendor">${escapeHtml(vendor)}</span>` : ''}
+                </div>
+            </td>
+            <td class="quote-master-td-date">${escapeHtml(createdOn)}</td>
+            <td class="quote-master-td-date">${escapeHtml(dueOn)}</td>
+            <td class="quote-master-td-total">${escapeHtml(total)}</td>
+            <td class="quote-master-td-actions">
+                <div class="quote-browser-actions row-tools row-tools-row-end">
+                    <span class="row-action-divider" aria-hidden="true"></span>
+                    <button type="button" class="browser-open-link" data-open-quote="${escapeHtml(quoteCode)}" aria-label="Abrir cotizacion" title="Abrir cotización" style="--icon-color:${escapeHtml(openColor)};--icon-hover-color:${escapeHtml(openHover)};--config-icon-size:${escapeHtml(String(openSize))}px;">${iconMarkup(openConf.value, 'Abrir cotizacion', 'table-icon-media')}</button>
+                    <span class="row-action-divider" aria-hidden="true"></span>
+                    <button type="button" class="browser-open-link browser-open-link-danger" data-delete-quote="${escapeHtml(quoteCode)}" aria-label="Eliminar cotizacion" title="Eliminar cotización" style="--icon-color:${escapeHtml(deleteColor)};--icon-hover-color:${escapeHtml(deleteHover)};--config-icon-size:${escapeHtml(String(deleteSize))}px;">${iconMarkup(deleteConf.value, 'Eliminar cotizacion', 'table-icon-media')}</button>
                 </div>
             </td>
         </tr>
-    `).join('');
+        ${isExpanded ? `<tr class="quote-master-lines-row"><td colspan="7">${renderQuoteLinesPanel(quoteCode)}</td></tr>` : ''}
+    `;
+}
+
+async function refreshQuoteLines(quoteCode) {
+    await fetchQuoteLines(quoteCode, { force: true });
+    renderQuotesTable(getFilteredQuotes());
+}
+
+function openQuoteDocument(quoteCode) {
+    if (!quoteCode) return;
+    const route = `/cotizaciones/documento?codigo=${encodeURIComponent(quoteCode)}`;
+    if (!openRouteInShell(route, `Cotizacion ${quoteCode}`)) {
+        window.location.href = route;
+    }
+}
+
+function openLineCalculation(row) {
+    if (!row?.quoteId || !row?.linea) return;
+    const route = `/calculo-flexografia?${new URLSearchParams({
+        lineId: row.linea,
+        quoteId: row.quoteId,
+        productId: row.productId || '',
+        department: row.departamento || ''
+    }).toString()}`;
+    if (!openRouteInShell(route, `Cálculo ${row.linea}`)) {
+        window.location.href = route;
+    }
+}
+
+async function persistQuoteLineOrder(quoteCode, lines) {
+    await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(quoteCode)}/lineas/orden`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            lineas: lines.map((line, index) => ({
+                line_code: line.originalLinea || line.linea,
+                line_order: index + 1
+            }))
+        })
+    });
+    await refreshQuoteLines(quoteCode);
+}
+
+async function moveQuoteLine(row, direction) {
+    const lines = quoteLineCache.get(row.quoteId) || await fetchQuoteLines(row.quoteId);
+    const index = lines.findIndex((item) => item.linea === row.linea);
+    const nextIndex = index + direction;
+    if (index < 0 || nextIndex < 0 || nextIndex >= lines.length) return;
+    const nextLines = [...lines];
+    const [moved] = nextLines.splice(index, 1);
+    nextLines.splice(nextIndex, 0, moved);
+    quoteLineCache.set(row.quoteId, nextLines);
+    renderQuotesTable(getFilteredQuotes());
+    await persistQuoteLineOrder(row.quoteId, nextLines);
+}
+
+async function duplicateQuoteLine(row) {
+    await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}/duplicar`, { method: 'POST' });
+    await refreshQuoteLines(row.quoteId);
+}
+
+async function createQuoteFromLine(row) {
+    const payload = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}/nueva-cotizacion`, { method: 'POST' });
+    await loadQuotes();
+    const code = payload?.cotizacion?.quote_code;
+    if (code) openQuoteDocument(code);
+}
+
+async function toggleLineFinalized(row) {
+    await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            finalized_for_order: !row.finalizadaOrden,
+            status: row.estado,
+            line_order: row.lineOrder,
+            job_name: row.nombreTrabajo,
+            material_name: row.material,
+            process_type: row.processType || 'Convencional',
+            product_code: row.productId || row.linea,
+            total_cost: parseMoneyValue(row.subtotal1),
+            unit_price: parseMoneyValue(row.subtotal1)
+        })
+    });
+    await refreshQuoteLines(row.quoteId);
+}
+
+async function deleteQuoteLine(row) {
+    const confirmed = window.confirm(`Se eliminará la línea ${row.linea}. ¿Deseas continuar?`);
+    if (!confirmed) return;
+    await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}`, { method: 'DELETE' });
+    await refreshQuoteLines(row.quoteId);
+}
+
+async function handleQuoteLineAction(action, row) {
+    if (!row) return;
+    if (action === 'edit') return openLineCalculation(row);
+    if (action === 'move-up') return moveQuoteLine(row, -1);
+    if (action === 'move-down') return moveQuoteLine(row, 1);
+    if (action === 'duplicate') return duplicateQuoteLine(row);
+    if (action === 'copy') return openQuoteDocument(row.quoteId);
+    if (action === 'create-quote') return createQuoteFromLine(row);
+    if (action === 'export') {
+        window.open(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}/exportar`, '_blank', 'noopener');
+        return;
+    }
+    if (action === 'attachments') return openQuoteDocument(row.quoteId);
+    if (action === 'finalize') return toggleLineFinalized(row);
+    if (action === 'delete') return deleteQuoteLine(row);
+}
+
+function renderQuotesTable(items) {
+    if (!rowsBody) return;
+    visibleQuotesCount = Array.isArray(items) ? items.length : 0;
+    quoteLineLookup.clear();
+    if (!items.length) {
+        rowsBody.innerHTML = '<tr><td colspan="7">No hay cotizaciones.</td></tr>';
+        requestAnimationFrame(updateQuotesScrollBottomIndicator);
+        return;
+    }
+    rowsBody.innerHTML = items.map(renderQuoteParentRow).join('');
     requestAnimationFrame(updateQuotesScrollBottomIndicator);
 }
 
 function getFilteredQuotes() {
     const term = normalizeText(quotesSearchInput?.value).toLowerCase();
     if (!term) return quoteCatalog;
-    return quoteCatalog.filter((item) => [item.quote_code, item.customer_code, item.customer_name, item.salesperson_name]
+    return quoteCatalog.filter((item) => [item.quote_code, item.customer_code, item.customer_name, item.contact_name, item.salesperson_name]
         .some((value) => String(value || '').toLowerCase().includes(term)));
 }
 
 async function loadQuotes() {
-    const payload = await fetchJson(QUOTES_ENDPOINT);
+    const params = new URLSearchParams({ limit: '200' });
+    const search = normalizeText(quotesSearchInput?.value);
+    if (search) params.set('q', search);
+    const payload = await fetchJson(`${QUOTES_ENDPOINT}?${params.toString()}`);
     quoteCatalog = Array.isArray(payload.cotizaciones) ? payload.cotizaciones : [];
     renderQuotesTable(getFilteredQuotes());
 }
@@ -1377,7 +1742,16 @@ async function toggleAudioRecording() {
 
 function bindEvents() {
     nuevaCotizacionButton?.addEventListener('click', openPopover);
-    refreshQuotesButton?.addEventListener('click', () => loadQuotes().catch((error) => setStatus(error.message, 'error')));
+    refreshQuotesButton?.addEventListener('click', () => {
+        quoteLineCache.clear();
+        loadQuotes().catch((error) => setStatus(error.message, 'error'));
+    });
+    quotesSearchInput?.addEventListener('input', () => {
+        if (quoteSearchTimer) clearTimeout(quoteSearchTimer);
+        quoteSearchTimer = setTimeout(() => {
+            loadQuotes().catch((error) => setStatus(error.message, 'error'));
+        }, 240);
+    });
     quotesTableWrap?.addEventListener('scroll', updateQuotesScrollBottomIndicator, { passive: true });
     window.addEventListener('resize', updateQuotesScrollBottomIndicator);
     sapConnectorButton?.addEventListener('click', () => {
@@ -1468,6 +1842,11 @@ function bindEvents() {
             if (numberingPopover.contains(event.target)) return;
             closeNumberingPopover();
         }
+        // Close any open line submenus when clicking outside
+        if (!event.target.closest('[data-line-menu-id]')) {
+            rowsBody?.querySelectorAll('[data-line-menu-panel]').forEach((p) => { p.hidden = true; });
+            rowsBody?.querySelectorAll('[data-line-menu-toggle]').forEach((t) => { t.setAttribute('aria-expanded', 'false'); });
+        }
     });
     
     // Real-time error clearing
@@ -1522,6 +1901,63 @@ function bindEvents() {
     });
 
     rowsBody?.addEventListener('click', (e) => {
+        // Line submenu toggle
+        const menuToggle = e.target.closest('[data-line-menu-toggle]');
+        if (menuToggle) {
+            e.stopPropagation();
+            const lineId = menuToggle.dataset.lineMenuToggle;
+            const panel = rowsBody.querySelector(`[data-line-menu-panel="${lineId}"]`);
+            if (!panel) return;
+            const isOpen = !panel.hidden;
+            // Close all open menus first
+            rowsBody.querySelectorAll('[data-line-menu-panel]').forEach((p) => { p.hidden = true; });
+            rowsBody.querySelectorAll('[data-line-menu-toggle]').forEach((t) => { t.setAttribute('aria-expanded', 'false'); });
+            if (!isOpen) {
+                panel.hidden = false;
+                menuToggle.setAttribute('aria-expanded', 'true');
+            }
+            return;
+        }
+
+        const toggleButton = e.target.closest('[data-toggle-quote]');
+        if (toggleButton) {
+            const code = toggleButton.dataset.toggleQuote;
+            if (!code) return;
+            if (expandedQuoteCodes.has(code)) {
+                expandedQuoteCodes.delete(code);
+                renderQuotesTable(getFilteredQuotes());
+                return;
+            }
+            expandedQuoteCodes.add(code);
+            fetchQuoteLines(code).catch((error) => setStatus(error.message, 'error'));
+            return;
+        }
+        const proformaButton = e.target.closest('[data-print-proforma]');
+        if (proformaButton) {
+            const code = proformaButton.dataset.printProforma;
+            if (!code) return;
+            const route = `/proforma?codigo=${encodeURIComponent(code)}`;
+            if (!openRouteInShell(route, `Proforma ${code}`)) window.open(route, '_blank', 'noopener');
+            return;
+        }
+        // Add line button
+        const addLineButton = e.target.closest('[data-add-line]');
+        if (addLineButton) {
+            const code = addLineButton.dataset.addLine;
+            if (!code) return;
+            const route = `/calculo-flexografia?${new URLSearchParams({ quoteId: code, lineId: '', productId: '', department: 'Flexografia' }).toString()}`;
+            if (!openRouteInShell(route, `Nueva línea - ${code}`)) window.location.href = route;
+            return;
+        }
+        const lineActionButton = e.target.closest('[data-line-action]');
+        if (lineActionButton) {
+            const row = quoteLineLookup.get(Number(lineActionButton.dataset.lineId));
+            // Close any open menu panel
+            rowsBody.querySelectorAll('[data-line-menu-panel]').forEach((p) => { p.hidden = true; });
+            rowsBody.querySelectorAll('[data-line-menu-toggle]').forEach((t) => { t.setAttribute('aria-expanded', 'false'); });
+            handleQuoteLineAction(lineActionButton.dataset.lineAction, row).catch((error) => setStatus(error.message, 'error'));
+            return;
+        }
         const deleteButton = e.target.closest('[data-delete-quote]');
         if (deleteButton) {
             const code = deleteButton.dataset.deleteQuote;
@@ -1533,14 +1969,14 @@ function bindEvents() {
                 .catch((error) => setStatus(error.message, 'error'));
             return;
         }
+        // Close open menus on outside click
+        rowsBody.querySelectorAll('[data-line-menu-panel]').forEach((p) => { p.hidden = true; });
+        rowsBody.querySelectorAll('[data-line-menu-toggle]').forEach((t) => { t.setAttribute('aria-expanded', 'false'); });
         const button = e.target.closest('[data-open-quote]');
         if (!button) return;
         const code = button.dataset.openQuote;
         if (!code) return;
-        const route = `/cotizaciones/documento?codigo=${encodeURIComponent(code)}`;
-        if (!openRouteInShell(route, `Cotizacion ${code}`)) {
-            window.location.href = route;
-        }
+        openQuoteDocument(code);
     });
 
     audioRecordButton?.addEventListener('click', toggleAudioRecording);
@@ -1656,3 +2092,96 @@ init().catch((error) => {
     console.error(error);
     setStatus(error.message || 'No fue posible inicializar cotizaciones.', 'error');
 });
+
+// ── Drag & Drop para reordenar líneas de cálculo ──────────────────────────────
+
+function initLineDragDrop() {
+    if (!rowsBody) return;
+    if (lineDragDropInitialized) return;
+    lineDragDropInitialized = true;
+
+    rowsBody.addEventListener('dragstart', (e) => {
+        const article = e.target.closest('.quote-master-line[draggable]');
+        if (!article) return;
+        lineDragState = {
+            lineId: Number(article.dataset.lineId),
+            quoteId: article.dataset.quoteId,
+            sourceIndex: Number(article.dataset.lineIndex)
+        };
+        article.classList.add('is-dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', article.dataset.lineId);
+    });
+
+    rowsBody.addEventListener('dragend', (e) => {
+        rowsBody.querySelectorAll('.quote-master-line').forEach((el) => {
+            el.classList.remove('is-dragging', 'drag-over-top', 'drag-over-bottom');
+        });
+        lineDragState = null;
+    });
+
+    rowsBody.addEventListener('dragover', (e) => {
+        const target = e.target.closest('.quote-master-line[draggable]');
+        if (!target || !lineDragState) return;
+        if (target.dataset.quoteId !== lineDragState.quoteId) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        rowsBody.querySelectorAll('.quote-master-line').forEach((el) => {
+            el.classList.remove('drag-over-top', 'drag-over-bottom');
+        });
+        const rect = target.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        if (e.clientY < midY) {
+            target.classList.add('drag-over-top');
+        } else {
+            target.classList.add('drag-over-bottom');
+        }
+    });
+
+    rowsBody.addEventListener('dragleave', (e) => {
+        const target = e.target.closest('.quote-master-line[draggable]');
+        if (target) {
+            target.classList.remove('drag-over-top', 'drag-over-bottom');
+        }
+    });
+
+    rowsBody.addEventListener('drop', async (e) => {
+        const target = e.target.closest('.quote-master-line[draggable]');
+        if (!target || !lineDragState) return;
+        if (target.dataset.quoteId !== lineDragState.quoteId) return;
+        e.preventDefault();
+
+        const targetIndex = Number(target.dataset.lineIndex);
+        const sourceIndex = lineDragState.sourceIndex;
+        const quoteId = lineDragState.quoteId;
+
+        rowsBody.querySelectorAll('.quote-master-line').forEach((el) => {
+            el.classList.remove('drag-over-top', 'drag-over-bottom', 'is-dragging');
+        });
+
+        if (sourceIndex === targetIndex) return;
+
+        const rect = target.getBoundingClientRect();
+        const insertBefore = e.clientY < rect.top + rect.height / 2;
+        let destIndex = insertBefore ? targetIndex : targetIndex + 1;
+        if (sourceIndex < destIndex) destIndex -= 1;
+
+        const lines = quoteLineCache.get(quoteId) ? [...quoteLineCache.get(quoteId)] : [];
+        if (!lines.length) return;
+
+        const [moved] = lines.splice(sourceIndex, 1);
+        lines.splice(destIndex, 0, moved);
+        quoteLineCache.set(quoteId, lines);
+        renderQuotesTable(getFilteredQuotes());
+
+        try {
+            await persistQuoteLineOrder(quoteId, lines);
+        } catch (err) {
+            setStatus('No fue posible guardar el nuevo orden.', 'error');
+        }
+    });
+}
+
+// Initialize drag & drop after DOM is ready
+document.addEventListener('DOMContentLoaded', initLineDragDrop);
+if (document.readyState !== 'loading') initLineDragDrop();

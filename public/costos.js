@@ -3,6 +3,23 @@ const COSTS_ENDPOINT = "/api/costos-config";
 const PRESENTATION_KEY = "costos";
 const COSTS_FALLBACK_STORAGE_KEY = "erp-costos-config";
 const DEFAULT_FLOATING_SAVE_ICON = "\u{1F4BE}";
+const PROCESS_DEFAULTS = [
+    { key: "macula", label: "Mácula", active: true, locked: true, order: 5 },
+    { key: "troquel", label: "Troquel", active: true, locked: true, order: 10 },
+    { key: "sustrato", label: "Sustrato", active: true, locked: true, order: 20 },
+    { key: "diseno", label: "Diseño", active: false, locked: false, order: 30 },
+    { key: "preprensa", label: "Preprensa", active: true, locked: true, order: 40 },
+    { key: "planchas", label: "Planchas", active: false, locked: false, order: 50 },
+    { key: "impresion", label: "Impresión", active: false, locked: false, order: 60 },
+    { key: "barnizado", label: "Barnizado", active: false, locked: false, order: 69 },
+    { key: "laminado", label: "Laminado", active: false, locked: false, order: 70 },
+    { key: "estampado", label: "Estampado", active: false, locked: false, order: 71 },
+    { key: "embosado", label: "Embosado", active: false, locked: false, order: 72 },
+    { key: "troquelado", label: "Troquelado", active: false, locked: false, order: 73 },
+    { key: "rebobinado", label: "Rebobinado", active: false, locked: false, order: 74 },
+    { key: "empaque", label: "Empaque", active: false, locked: false, order: 80 },
+    { key: "adicionales", label: "Procesos adicionales", active: false, locked: false, order: 90 }
+];
 
 const DEFAULT_COSTS_CONFIG = {
     general: {
@@ -12,7 +29,8 @@ const DEFAULT_COSTS_CONFIG = {
         defaultCoreDiameter: 3,
         coreDiameterOptions: ["1", "1.5", "3", "6"],
         defaultQuantityTypes: 1,
-        defaultCmykEnabled: "true"
+        defaultCmykEnabled: "true",
+        processDefaults: PROCESS_DEFAULTS.map((item) => ({ ...item, minimumCost: 0 }))
     },
     convencional: {
         tintaGeneral: {
@@ -79,6 +97,7 @@ const generalDefaultFields = {
 };
 const coreDiameterOptionsTableBody = document.getElementById("costosCoreDiameterOptionsTableBody");
 const addCoreDiameterOptionButton = document.getElementById("costosAddCoreDiameterOption");
+const processDefaultsList = document.getElementById("costosProcessDefaultsList");
 const maculaMontajeTableBody = document.getElementById("maculaMontajeTableBody");
 const maculaTirajeTableBody = document.getElementById("maculaTirajeTableBody");
 const depositosTableBody = document.getElementById("costosDepositosTableBody");
@@ -99,6 +118,7 @@ let costsState = null;
 let costsSaveTimer = null;
 let costsSaveInFlight = false;
 let costsSaveQueued = false;
+let draggedProcessKey = "";
 
 function escapeHtml(value) {
     return String(value || "")
@@ -130,6 +150,15 @@ function numberValue(value, fallback = 0) {
     return Number.isFinite(numeric) ? numeric : fallback;
 }
 
+function booleanValue(value, fallback = false) {
+    if (value === true || value === false) return value;
+    if (value == null || value === "") return fallback;
+    const normalized = String(value).trim().toLowerCase();
+    if (["true", "1", "si", "sí", "yes", "on"].includes(normalized)) return true;
+    if (["false", "0", "no", "off"].includes(normalized)) return false;
+    return fallback;
+}
+
 function normalizeCoreDiameterOptions(value, fallback = DEFAULT_COSTS_CONFIG.general.coreDiameterOptions, allowEmpty = false) {
     if (Array.isArray(value)) {
         const items = value.map((item) => normalizeText(item)).filter(Boolean);
@@ -140,6 +169,58 @@ function normalizeCoreDiameterOptions(value, fallback = DEFAULT_COSTS_CONFIG.gen
     if (!text) return allowEmpty ? [] : [...fallback];
     const items = text.split(",").map((item) => normalizeText(item)).filter(Boolean);
     return items.length || allowEmpty ? items.slice(0, 5) : [...fallback];
+}
+
+function normalizeProcessDefaults(value) {
+    const rows = Array.isArray(value) ? value : [];
+    const fallbackByKey = Object.fromEntries(PROCESS_DEFAULTS.map((item) => [item.key, item]));
+    const seen = new Set();
+    const normalized = rows.map((row, index) => {
+        const key = normalizeText(row?.key).toLowerCase();
+        const fallback = fallbackByKey[key];
+        if (!fallback || seen.has(key)) return null;
+        seen.add(key);
+        const locked = booleanValue(row?.locked, fallback.locked);
+        const active = locked ? true : booleanValue(row?.active, fallback.active);
+        return {
+            key,
+            label: normalizeText(row?.label) || fallback.label,
+            active,
+            locked,
+            order: numberValue(row?.order, fallback.order ?? ((index + 1) * 10)),
+            minimumCost: Math.max(0, numberValue(row?.minimumCost, 0))
+        };
+    }).filter(Boolean);
+    PROCESS_DEFAULTS.forEach((item, index) => {
+        if (seen.has(item.key)) return;
+        normalized.push({
+            key: item.key,
+            label: item.label,
+            active: item.locked ? true : item.active,
+            locked: item.locked,
+            order: item.order ?? ((index + 1) * 10),
+            minimumCost: 0
+        });
+    });
+    return normalized
+        .sort((left, right) => numberValue(left.order, 999) - numberValue(right.order, 999))
+        .map((item, index) => ({ ...item, order: (index + 1) * 10 }));
+}
+
+function syncProcessDefaultOrders() {
+    if (!costsState?.general?.processDefaults) return;
+    costsState.general.processDefaults = normalizeProcessDefaults(costsState.general.processDefaults)
+        .map((item, index) => ({ ...item, order: (index + 1) * 10 }));
+}
+
+function moveProcessDefault(fromIndex, toIndex) {
+    if (!costsState?.general?.processDefaults) return false;
+    const rows = [...costsState.general.processDefaults];
+    if (fromIndex < 0 || toIndex < 0 || fromIndex >= rows.length || toIndex >= rows.length || fromIndex === toIndex) return false;
+    const [moved] = rows.splice(fromIndex, 1);
+    rows.splice(toIndex, 0, moved);
+    costsState.general.processDefaults = rows.map((item, index) => ({ ...item, order: (index + 1) * 10 }));
+    return true;
 }
 
 function getPresentationConfig(config, key) {
@@ -254,7 +335,8 @@ function normalizeCostsConfig(config) {
             defaultCoreDiameter: numberValue(source?.general?.defaultCoreDiameter, DEFAULT_COSTS_CONFIG.general.defaultCoreDiameter),
             coreDiameterOptions: normalizeCoreDiameterOptions(source?.general?.coreDiameterOptions, DEFAULT_COSTS_CONFIG.general.coreDiameterOptions, true),
             defaultQuantityTypes: Math.max(1, numberValue(source?.general?.defaultQuantityTypes, DEFAULT_COSTS_CONFIG.general.defaultQuantityTypes)),
-            defaultCmykEnabled: String(source?.general?.defaultCmykEnabled || DEFAULT_COSTS_CONFIG.general.defaultCmykEnabled).trim().toLowerCase() === "false" ? "false" : "true"
+            defaultCmykEnabled: String(source?.general?.defaultCmykEnabled || DEFAULT_COSTS_CONFIG.general.defaultCmykEnabled).trim().toLowerCase() === "false" ? "false" : "true",
+            processDefaults: normalizeProcessDefaults(source?.general?.processDefaults || DEFAULT_COSTS_CONFIG.general.processDefaults)
         },
         convencional: {
             tintaGeneral: {
@@ -386,6 +468,7 @@ function renderCosts() {
         node.value = costsState?.general?.[key] ?? DEFAULT_COSTS_CONFIG.general[key] ?? "";
     });
     renderCoreDiameterOptionsRows();
+    renderProcessDefaultRows();
     renderInkFields();
     renderDepositosRows();
     renderInlineFinishSetupRows();
@@ -394,21 +477,52 @@ function renderCosts() {
     renderFinishWasteRows();
 }
 
+function renderProcessDefaultRows() {
+    if (!processDefaultsList) return;
+    const rows = costsState?.general?.processDefaults || [];
+    processDefaultsList.innerHTML = rows.map((row, index) => `
+        <tr class="costs-process-default-row" data-process-default-row="${index}" data-process-key="${escapeHtml(row.key)}">
+            <td>
+                <div class="costs-process-default-main">
+                    <button type="button" class="costs-process-default-handle" data-action="drag-process" data-index="${index}" draggable="true" aria-label="Mover proceso">⋮⋮</button>
+                    <span class="costs-process-default-label">${escapeHtml(row.label)}</span>
+                </div>
+            </td>
+            <td class="costs-process-default-cell-check">
+                <label class="costs-process-default-check" aria-label="Activo">
+                    <input type="checkbox" data-process-field="active" data-index="${index}"${row.active ? " checked" : ""}>
+                </label>
+            </td>
+            <td class="costs-process-default-cell-check">
+                <label class="costs-process-default-check" aria-label="No Eliminar">
+                    <input type="checkbox" data-process-field="locked" data-index="${index}"${row.locked ? " checked" : ""}>
+                </label>
+            </td>
+            <td>
+                <label class="costs-process-default-cost" aria-label="Costo Mínimo">
+                    <span class="costs-process-default-currency">$</span>
+                    <input type="number" min="0" step="1" inputmode="numeric" data-process-field="minimumCost" data-index="${index}" value="${escapeHtml(Math.round(Number(row.minimumCost || 0)))}" placeholder="0">
+                </label>
+            </td>
+        </tr>
+    `).join("");
+}
+
 function renderCoreDiameterOptionsRows() {
     if (!coreDiameterOptionsTableBody) return;
     const rows = Array.isArray(costsState?.general?.coreDiameterOptions)
         ? costsState.general.coreDiameterOptions
         : [];
-    coreDiameterOptionsTableBody.innerHTML = rows.length ? rows.map((value, index) => `
-        <div class="costs-core-option-row">
-            <input type="text" class="costs-core-option-input" data-core-diameter-option-input="${index}" value="${escapeHtml(value)}" placeholder="Ej. 1.5">
-            <button type="button" class="costs-option-remove" data-core-diameter-option-remove="${index}" aria-label="Quitar opción">×</button>
-        </div>
-    `).join("") : `
-        <div class="costs-core-option-row">
-            <input type="text" class="costs-core-option-input" data-core-diameter-option-input="0" value="" placeholder="Ej. 1.5">
-        </div>
-    `;
+    coreDiameterOptionsTableBody.innerHTML = (rows.length ? rows : [""]).map((value, index) => `
+        <tr class="costs-core-option-row">
+            <td>
+                <input type="text" class="costs-core-option-input" data-core-diameter-option-input="${index}" value="${escapeHtml(value)}" placeholder="Ej. 1.5">
+            </td>
+            <td class="costs-core-option-action-cell">
+                <button type="button" class="costs-option-remove" data-core-diameter-option-remove="${index}" aria-label="Quitar opción">×</button>
+            </td>
+        </tr>
+    `).join("");
     if (addCoreDiameterOptionButton) {
         addCoreDiameterOptionButton.disabled = rows.length >= 5;
     }
@@ -433,7 +547,6 @@ async function saveCosts() {
         throw new Error(payload.error || "No se pudo guardar la configuración de costos.");
     }
     costsState = normalizeCostsConfig(payload);
-    renderCosts();
     setSaveStatus("Configuración guardada.");
 }
 
@@ -503,6 +616,88 @@ coreDiameterOptionsTableBody?.addEventListener("click", (event) => {
     costsState.general.coreDiameterOptions = (costsState.general.coreDiameterOptions || []).filter((_, rowIndex) => rowIndex !== index);
     renderCoreDiameterOptionsRows();
     queueCostsSave();
+});
+
+processDefaultsList?.addEventListener("input", (event) => {
+    const target = event.target.closest("[data-process-field]");
+    if (!target || !costsState) return;
+    const row = costsState.general.processDefaults?.[Number(target.dataset.index)];
+    if (!row) return;
+    if (target.dataset.processField === "minimumCost") {
+        row.minimumCost = Math.max(0, numberValue(target.value, 0));
+    }
+    queueCostsSave();
+});
+
+processDefaultsList?.addEventListener("change", (event) => {
+    const target = event.target.closest("[data-process-field]");
+    if (!target || !costsState) return;
+    const row = costsState.general.processDefaults?.[Number(target.dataset.index)];
+    if (!row) return;
+    if (target.dataset.processField === "active") {
+        row.active = target.checked;
+        if (!row.active) row.locked = false;
+    }
+    if (target.dataset.processField === "locked") {
+        row.locked = target.checked;
+        if (row.locked) row.active = true;
+    }
+    syncProcessDefaultOrders();
+    renderProcessDefaultRows();
+    queueCostsSave();
+});
+
+processDefaultsList?.addEventListener("click", (event) => {
+    const upButton = event.target.closest('[data-action="move-process-up"]');
+    if (upButton && moveProcessDefault(Number(upButton.dataset.index), Number(upButton.dataset.index) - 1)) {
+        renderProcessDefaultRows();
+        queueCostsSave();
+        return;
+    }
+    const downButton = event.target.closest('[data-action="move-process-down"]');
+    if (downButton && moveProcessDefault(Number(downButton.dataset.index), Number(downButton.dataset.index) + 1)) {
+        renderProcessDefaultRows();
+        queueCostsSave();
+    }
+});
+
+processDefaultsList?.addEventListener("dragstart", (event) => {
+    const handle = event.target.closest('[data-action="drag-process"]');
+    if (!handle) {
+        event.preventDefault();
+        return;
+    }
+    draggedProcessKey = String(handle.closest("[data-process-key]")?.dataset.processKey || "");
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", draggedProcessKey);
+    handle.closest(".costs-process-default-row")?.classList.add("is-dragging");
+});
+
+processDefaultsList?.addEventListener("dragover", (event) => {
+    if (!draggedProcessKey) return;
+    event.preventDefault();
+    const row = event.target.closest(".costs-process-default-row");
+    processDefaultsList.querySelectorAll(".costs-process-default-row.is-drop-before").forEach((node) => node.classList.remove("is-drop-before"));
+    if (row) row.classList.add("is-drop-before");
+});
+
+processDefaultsList?.addEventListener("drop", (event) => {
+    if (!draggedProcessKey || !costsState) return;
+    event.preventDefault();
+    const row = event.target.closest(".costs-process-default-row");
+    const fromIndex = (costsState.general.processDefaults || []).findIndex((item) => item.key === draggedProcessKey);
+    const toIndex = Number(row?.dataset.processDefaultRow ?? -1);
+    processDefaultsList.querySelectorAll(".costs-process-default-row").forEach((node) => node.classList.remove("is-drop-before", "is-dragging"));
+    draggedProcessKey = "";
+    if (moveProcessDefault(fromIndex, toIndex)) {
+        renderProcessDefaultRows();
+        queueCostsSave();
+    }
+});
+
+processDefaultsList?.addEventListener("dragend", () => {
+    processDefaultsList.querySelectorAll(".costs-process-default-row").forEach((node) => node.classList.remove("is-drop-before", "is-dragging"));
+    draggedProcessKey = "";
 });
 
 addCoreDiameterOptionButton?.addEventListener("click", () => {

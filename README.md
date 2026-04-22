@@ -140,10 +140,16 @@ Editar la función `calcularCotizacion()` en `public/js/app.js` para ajustar:
 
 ## Desarrollo
 
+### Portabilidad de Base de Datos
+- Línea base de reglas: `docs/database-portability.md`
+- Estructura objetivo para acceso a datos: `db/repositories/` y `db/adapters/`
+- Verificación rápida: `npm run db:portability-check`
+
 ### Scripts Disponibles
 - `npm start` - Iniciar servidor en producción
 - `npm run dev` - Iniciar servidor con nodemon (desarrollo)
 - `npm test` - Ejecutar pruebas (pendiente de implementar)
+- `npm run db:portability-check` - Verificar que el código nuevo no profundice el acoplamiento a PostgreSQL
 
 ### Extensiones Futuras
 - [ ] Sistema de autenticación de usuarios

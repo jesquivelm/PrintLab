@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<script src="/theme.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flexo APS — Configuración de Procesos y Máquinas</title>
 <style>
@@ -104,6 +105,7 @@ input[type="checkbox"]{width:16px;height:16px;accent-color:#1D9E75;cursor:pointe
 .summary-num{font-size:28px;font-weight:600}
 .summary-lbl{font-size:11px;color:#888}
 </style>
+<link rel="stylesheet" href="/theme-extensions.css">
 </head>
 <body>
 
@@ -673,6 +675,9 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
 
 // ── INICIO ────────────────────────────────────────────────────
 loadAll();
+  const erpAccessScript = document.createElement('script');
+  erpAccessScript.src = '/access-control.js';
+  document.head.appendChild(erpAccessScript);
 </script>
 </body>
 </html>

@@ -4,13 +4,14 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
 const fs = require('fs');
+const { spawn } = require('child_process');
 const { pathToFileURL } = require('url');
 const XLSX = require('xlsx');
 const { query: pgQuery, withTransaction } = require('./db/postgres');
 const { ensureInventorySchema, listInventory, getTroquelByCode, saveInventory, deleteInventory, importInventory, exportInventoryWorkbook } = require('./inventory-service');
 const { calculateProcessQuote } = require('./process-quote-service');
-const { ensureSapSchema, registerSapRoutes, startSapScheduler, fetchSapBusinessPartnersForImport, fetchSapItemsForImport } = require('./integrations/sap-service-layer');
-const { ensureExchangeRateSchema, registerExchangeRateRoutes, startExchangeRateScheduler, buildProformaExchangeContext } = require('./integrations/exchange-rate-service');
+const { ensureSapSchema, registerSapRoutes, startSapScheduler, fetchSapBusinessPartnersForImport, fetchSapItemsForImport } = require('./services/sap-service-layer');
+const { ensureExchangeRateSchema, registerExchangeRateRoutes, startExchangeRateScheduler, buildProformaExchangeContext } = require('./services/exchange-rate-service');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -21,10 +22,14 @@ const GENERAL_CONFIG_PATH = path.join(CONFIG_DIR, 'general-config.json');
 const PUBLIC_UPLOADS_DIR = path.join(APP_ROOT, 'public', 'uploads');
 const LOGIN_REPOSITORY_DIR = path.join(PUBLIC_UPLOADS_DIR, 'login-repository');
 const LOGIN_REPOSITORY_URL_BASE = '/uploads/login-repository';
-const ERP_IMPRESION_DIR = path.join(APP_ROOT, 'integrations', 'erp-impresion');
-const ERP_IMPRESION_PUBLIC_DIR = path.join(ERP_IMPRESION_DIR, 'public');
-const ERP_IMPRESION_HELPERS_PATH = path.join(ERP_IMPRESION_DIR, 'dist', 'web', 'server-helpers.js');
+const FLEXO_ENGINE_DIR = path.join(APP_ROOT, 'services', 'flexo-engine');
+const FLEXO_ENGINE_HELPERS_PATH = path.join(FLEXO_ENGINE_DIR, 'dist', 'web', 'server-helpers.js');
+const FLEXO_CALCULATOR_PUBLIC_DIR = path.join(APP_ROOT, 'public', 'calculo-flexografia');
 const FT2_PER_M2 = 10.7639104167;
+const IN2_PER_M2 = 1550.0031;
+const ONE_HOUR_MS = 60 * 60 * 1000;
+const ONE_DAY_MS = 24 * ONE_HOUR_MS;
+const THIRTY_DAYS_MS = 30 * ONE_DAY_MS;
 
 const PRESENTATION_NAMES = {
     'dashboard': 'Dashboard',
@@ -154,6 +159,7 @@ const DEFAULT_GENERAL_CONFIG = {
         tableAdd: '+',
         quantityAdd: '+',
         fieldInfo: 'i',
+        formulaInfo: 'i',
         processLauncher: '\u25CE',
         favoriteDocumentOff: '\u2606',
         favoriteDocumentOn: '\u2605',
@@ -380,6 +386,9 @@ const DEFAULT_GENERAL_CONFIG = {
         iconColorFieldInfo: '#4f6f8f',
         iconColor2FieldInfo: '#ffffff',
         iconColorHoverFieldInfo: '#0b81b8',
+        iconColorFormulaInfo: '#4f6f8f',
+        iconColor2FormulaInfo: '#ffffff',
+        iconColorHoverFormulaInfo: '#0b81b8',
         iconColorProcessLauncher: '#0b81b8',
         iconColor2ProcessLauncher: '#ffffff',
         iconColorHoverProcessLauncher: '#07638c',
@@ -491,6 +500,7 @@ const DEFAULT_GENERAL_CONFIG = {
         iconSizeTableAdd: 20,
         iconSizeQuantityAdd: 20,
         iconSizeFieldInfo: 12,
+        iconSizeFormulaInfo: 13,
         iconSizeProcessLauncher: 24,
         iconSizeFavoriteDocumentOff: 20,
         iconSizeFavoriteDocumentOn: 20,
@@ -533,7 +543,24 @@ const DEFAULT_COSTS_CONFIG = {
         defaultCoreDiameter: 3,
         coreDiameterOptions: ['1', '1.5', '3', '6'],
         defaultQuantityTypes: 1,
-        defaultCmykEnabled: 'true'
+        defaultCmykEnabled: 'true',
+        processDefaults: [
+            { key: 'macula', label: 'Mácula', active: true, locked: true, order: 5, minimumCost: 0 },
+            { key: 'troquel', label: 'Troquel', active: true, locked: true, order: 10, minimumCost: 0 },
+            { key: 'sustrato', label: 'Sustrato', active: true, locked: true, order: 20, minimumCost: 0 },
+            { key: 'diseno', label: 'Diseño', active: false, locked: false, order: 30, minimumCost: 0 },
+            { key: 'preprensa', label: 'Preprensa', active: true, locked: true, order: 40, minimumCost: 0 },
+            { key: 'planchas', label: 'Planchas', active: false, locked: false, order: 50, minimumCost: 0 },
+            { key: 'impresion', label: 'Impresión', active: false, locked: false, order: 60, minimumCost: 0 },
+            { key: 'barnizado', label: 'Barnizado', active: false, locked: false, order: 69, minimumCost: 0 },
+            { key: 'laminado', label: 'Laminado', active: false, locked: false, order: 70, minimumCost: 0 },
+            { key: 'estampado', label: 'Estampado', active: false, locked: false, order: 71, minimumCost: 0 },
+            { key: 'embosado', label: 'Embosado', active: false, locked: false, order: 72, minimumCost: 0 },
+            { key: 'troquelado', label: 'Troquelado', active: false, locked: false, order: 73, minimumCost: 0 },
+            { key: 'rebobinado', label: 'Rebobinado', active: false, locked: false, order: 74, minimumCost: 0 },
+            { key: 'empaque', label: 'Empaque', active: false, locked: false, order: 80, minimumCost: 0 },
+            { key: 'adicionales', label: 'Procesos adicionales', active: false, locked: false, order: 90, minimumCost: 0 }
+        ]
     },
     convencional: {
         tintaGeneral: {
@@ -591,9 +618,43 @@ const DEFAULT_COSTS_CONFIG = {
 app.use(cors());
 app.use(bodyParser.json({ limit: '20mb' }));
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public'), { index: false }));
-if (fs.existsSync(ERP_IMPRESION_PUBLIC_DIR)) {
-    app.use('/erp-impresion-assets', express.static(ERP_IMPRESION_PUBLIC_DIR));
+app.use(express.static(path.join(__dirname, 'public'), {
+    index: false,
+    redirect: false,
+    etag: true,
+    lastModified: true,
+    maxAge: ONE_DAY_MS,
+    setHeaders: (res, filePath) => {
+        const normalized = String(filePath || '').replace(/\\/g, '/').toLowerCase();
+        if (normalized.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-cache');
+            return;
+        }
+        if (normalized.includes('/uploads/') || normalized.match(/\.(png|jpg|jpeg|webp|gif|svg|ico)$/)) {
+            res.setHeader('Cache-Control', `public, max-age=${Math.floor(THIRTY_DAYS_MS / 1000)}, immutable`);
+            return;
+        }
+        res.setHeader('Cache-Control', `public, max-age=${Math.floor(ONE_DAY_MS / 1000)}`);
+    }
+}));
+if (fs.existsSync(FLEXO_CALCULATOR_PUBLIC_DIR)) {
+    app.use('/erp-impresion-assets', express.static(FLEXO_CALCULATOR_PUBLIC_DIR, {
+        etag: true,
+        lastModified: true,
+        maxAge: ONE_DAY_MS,
+        setHeaders: (res, filePath) => {
+            const normalized = String(filePath || '').replace(/\\/g, '/').toLowerCase();
+            if (normalized.match(/\.(html|js|css)$/)) {
+                res.setHeader('Cache-Control', 'no-cache');
+                return;
+            }
+            if (normalized.match(/\.(png|jpg|jpeg|webp|gif|svg|ico)$/)) {
+                res.setHeader('Cache-Control', `public, max-age=${Math.floor(THIRTY_DAYS_MS / 1000)}, immutable`);
+                return;
+            }
+            res.setHeader('Cache-Control', `public, max-age=${Math.floor(ONE_DAY_MS / 1000)}`);
+        }
+    }));
 }
 ensureGeneralConfig();
 
@@ -625,9 +686,9 @@ initializeStartupSchemas().catch((error) => {
     console.error('No fue posible completar la inicialización de esquemas:', error.message);
 });
 
-let erpImpresionHelpersPromise = null;
+let flexoEngineHelpersPromise = null;
 
-function ensureErpImpresionDbEnv() {
+function ensureFlexoEngineDbEnv() {
     if (process.env.DB_HOST && process.env.DB_NAME && process.env.DB_USER) {
         return;
     }
@@ -648,29 +709,29 @@ function ensureErpImpresionDbEnv() {
     }
 }
 
-async function loadErpImpresionHelpers() {
-    if (!fs.existsSync(ERP_IMPRESION_HELPERS_PATH)) {
-        throw new Error('No se encontró el cotizador integrado de ERP Impresión.');
+async function loadFlexoEngineHelpers() {
+    if (!fs.existsSync(FLEXO_ENGINE_HELPERS_PATH)) {
+        throw new Error('No se encontró el motor de cálculo de flexografía.');
     }
 
-    if (!erpImpresionHelpersPromise) {
-        ensureErpImpresionDbEnv();
-        erpImpresionHelpersPromise = import(pathToFileURL(ERP_IMPRESION_HELPERS_PATH).href);
+    if (!flexoEngineHelpersPromise) {
+        ensureFlexoEngineDbEnv();
+        flexoEngineHelpersPromise = import(pathToFileURL(FLEXO_ENGINE_HELPERS_PATH).href);
     }
 
-    return erpImpresionHelpersPromise;
+    return flexoEngineHelpersPromise;
 }
 
 function renderIntegratedFlexoHtml() {
-    const indexPath = path.join(ERP_IMPRESION_PUBLIC_DIR, 'index.html');
+    // Single source of truth:
+    // /calculo-flexografia is rendered from public/calculo-flexografia.
+    // public/flexo-calculo.* is only a legacy compatibility shim.
+    const indexPath = path.join(FLEXO_CALCULATOR_PUBLIC_DIR, 'index.html');
     if (!fs.existsSync(indexPath)) {
-        throw new Error('No se encontró la interfaz pública del cotizador integrado.');
+        throw new Error('No se encontró la interfaz pública del cálculo de flexografía.');
     }
 
-    const raw = fs.readFileSync(indexPath, 'utf8');
-    return raw
-        .replace(/href="\/styles\.css"/g, 'href="/styles.css">\n  <link rel="stylesheet" href="/erp-impresion-assets/styles.css"')
-        .replace(/src="\/app\.js"/g, 'src="/erp-impresion-assets/app.js"');
+    return fs.readFileSync(indexPath, 'utf8');
 }
 
 function ensureGeneralConfig() {
@@ -712,13 +773,70 @@ function extensionFromMimeType(mimeType) {
     return map[String(mimeType || '').toLowerCase()] || '';
 }
 
-function buildLoginRepositoryImageRecord(fileName, stats) {
+function isOptimizableLoginImage(fileName) {
+    return /\.(png|jpe?g|webp|avif)$/i.test(String(fileName || ''));
+}
+
+function buildOptimizedLoginRepositoryFileName(fileName) {
+    const parsed = path.parse(String(fileName || ''));
+    return `${parsed.name}.optimized.webp`;
+}
+
+function buildLoginRepositoryImageRecord(fileName, stats, optimizedStats = null) {
+    const optimizedFileName = buildOptimizedLoginRepositoryFileName(fileName);
+    const optimizedAvailable = Boolean(optimizedStats);
     return {
         fileName,
-        url: `${LOGIN_REPOSITORY_URL_BASE}/${encodeURIComponent(fileName)}`,
+        url: optimizedAvailable
+            ? `${LOGIN_REPOSITORY_URL_BASE}/${encodeURIComponent(optimizedFileName)}`
+            : `${LOGIN_REPOSITORY_URL_BASE}/${encodeURIComponent(fileName)}`,
+        originalUrl: `${LOGIN_REPOSITORY_URL_BASE}/${encodeURIComponent(fileName)}`,
+        optimizedUrl: optimizedAvailable
+            ? `${LOGIN_REPOSITORY_URL_BASE}/${encodeURIComponent(optimizedFileName)}`
+            : null,
+        optimized: optimizedAvailable,
         size: Number(stats?.size || 0),
+        optimizedSize: Number(optimizedStats?.size || 0),
         updatedAt: stats?.mtime ? stats.mtime.toISOString() : null
     };
+}
+
+async function optimizeLoginRepositoryImage(sourcePath, fileName) {
+    if (!isOptimizableLoginImage(fileName)) {
+        return null;
+    }
+
+    const optimizedFileName = buildOptimizedLoginRepositoryFileName(fileName);
+    const optimizedPath = path.join(LOGIN_REPOSITORY_DIR, optimizedFileName);
+
+    await new Promise((resolve, reject) => {
+        const ffmpeg = spawn('ffmpeg', [
+            '-y',
+            '-i', sourcePath,
+            '-vf', "scale='min(1920,iw)':-2",
+            '-frames:v', '1',
+            '-compression_level', '6',
+            '-quality', '78',
+            optimizedPath
+        ], {
+            windowsHide: true
+        });
+
+        let stderr = '';
+        ffmpeg.stderr.on('data', (chunk) => {
+            stderr += String(chunk || '');
+        });
+        ffmpeg.on('error', reject);
+        ffmpeg.on('close', (code) => {
+            if (code === 0) {
+                resolve();
+                return;
+            }
+            reject(new Error(stderr.trim() || `ffmpeg finalizó con código ${code}.`));
+        });
+    });
+
+    return optimizedPath;
 }
 
 async function listLoginRepositoryImages() {
@@ -728,10 +846,13 @@ async function listLoginRepositoryImages() {
     for (const entry of entries) {
         if (!entry.isFile()) continue;
         const fileName = entry.name;
+        if (/\.optimized\.webp$/i.test(fileName)) continue;
         if (!/\.(png|jpe?g|webp|gif|svg|avif)$/i.test(fileName)) continue;
         const fullPath = path.join(LOGIN_REPOSITORY_DIR, fileName);
         const stats = await fs.promises.stat(fullPath);
-        images.push(buildLoginRepositoryImageRecord(fileName, stats));
+        const optimizedPath = path.join(LOGIN_REPOSITORY_DIR, buildOptimizedLoginRepositoryFileName(fileName));
+        const optimizedStats = fs.existsSync(optimizedPath) ? await fs.promises.stat(optimizedPath) : null;
+        images.push(buildLoginRepositoryImageRecord(fileName, stats, optimizedStats));
     }
     images.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
     return images;
@@ -754,7 +875,16 @@ async function saveLoginRepositoryImage({ fileName, dataUrl }) {
     const targetPath = path.join(LOGIN_REPOSITORY_DIR, finalFileName);
     await fs.promises.writeFile(targetPath, Buffer.from(encoded, 'base64'));
     const stats = await fs.promises.stat(targetPath);
-    return buildLoginRepositoryImageRecord(finalFileName, stats);
+    let optimizedStats = null;
+    try {
+        const optimizedPath = await optimizeLoginRepositoryImage(targetPath, finalFileName);
+        if (optimizedPath) {
+            optimizedStats = await fs.promises.stat(optimizedPath);
+        }
+    } catch (error) {
+        console.warn(`No fue posible optimizar la imagen ${finalFileName}:`, error.message);
+    }
+    return buildLoginRepositoryImageRecord(finalFileName, stats, optimizedStats);
 }
 
 async function deleteLoginRepositoryImage(fileName) {
@@ -768,6 +898,10 @@ async function deleteLoginRepositoryImage(fileName) {
         throw new Error('La imagen indicada no existe en el repositorio.');
     }
     await fs.promises.unlink(targetPath);
+    const optimizedPath = path.join(LOGIN_REPOSITORY_DIR, buildOptimizedLoginRepositoryFileName(safeName));
+    if (fs.existsSync(optimizedPath)) {
+        await fs.promises.unlink(optimizedPath);
+    }
 }
 
 function deepMerge(base, override) {
@@ -1060,6 +1194,7 @@ function buildSapPartnerImportPayload(row = {}) {
         String(primaryAddress.City || '').trim()
     ].filter(Boolean).join(', ');
 
+    const provider = String(row.__sapProvider || row.provider || '').trim() || 'service-layer';
     return {
         partnerCode,
         partnerName,
@@ -1077,7 +1212,8 @@ function buildSapPartnerImportPayload(row = {}) {
         addressCounty: String(primaryAddress.County || '').trim(),
         addressLine,
         rawData: {
-            source: 'sap_service_layer',
+            source: 'sap',
+            sapProvider: provider,
             imported_at: new Date().toISOString(),
             sap: row
         }
@@ -1086,7 +1222,12 @@ function buildSapPartnerImportPayload(row = {}) {
 
 async function diagnoseSociosImportFromSap() {
     const sapResponse = await fetchSapBusinessPartnersForImport(pgQuery, { top: 500, type: 'C' });
-    const sapRows = Array.isArray(sapResponse?.value) ? sapResponse.value : [];
+    const sapRows = Array.isArray(sapResponse?.value)
+        ? sapResponse.value.map((row) => ({
+            ...row,
+            __sapProvider: sapResponse?.provider || row?.provider || 'service-layer'
+        }))
+        : [];
 
     const existingResult = await pgQuery(
         `SELECT partner_code, tax_id
@@ -1241,7 +1382,8 @@ async function importSociosFromSap(options = {}) {
                     JSON.stringify({
                         IDENTIFICACION: partner.contactIdentification,
                         ADDRESS: partner.addressLine,
-                        source: 'sap_service_layer'
+                        source: 'sap',
+                        sapProvider: partner.rawData?.sapProvider || 'service-layer'
                     })
                 ]
             );
@@ -1270,7 +1412,8 @@ async function importSociosFromSap(options = {}) {
                         partner.addressLine,
                         JSON.stringify({
                             ADDRESS: partner.addressLine,
-                            source: 'sap_service_layer'
+                            source: 'sap',
+                            sapProvider: partner.rawData?.sapProvider || 'service-layer'
                         })
                     ]
                 );
@@ -1595,6 +1738,43 @@ function normalizeCostsConfigRecord(config) {
         proceso: String(row?.proceso || '').trim(),
         minutosPorEstacion: Number(row?.minutosPorEstacion || 0)
     }));
+    const normalizeProcessDefaults = (rows = []) => {
+        const sourceRows = Array.isArray(rows) ? rows : [];
+        const fallbackRows = Array.isArray(DEFAULT_COSTS_CONFIG.general.processDefaults) ? DEFAULT_COSTS_CONFIG.general.processDefaults : [];
+        const fallbackByKey = new Map(fallbackRows.map((item) => [String(item.key || '').trim().toLowerCase(), item]));
+        const seen = new Set();
+        const normalized = sourceRows.map((row, index) => {
+            const key = String(row?.key || '').trim().toLowerCase();
+            const fallback = fallbackByKey.get(key);
+            if (!key || !fallback || seen.has(key)) return null;
+            seen.add(key);
+            const locked = row?.locked === true || String(row?.locked || '').trim().toLowerCase() === 'true';
+            const active = locked ? true : (row?.active === true || String(row?.active || '').trim().toLowerCase() === 'true');
+            return {
+                key,
+                label: String(row?.label || fallback.label || '').trim(),
+                active,
+                locked,
+                order: Number(row?.order || fallback.order || ((index + 1) * 10)),
+                minimumCost: Math.max(0, Number(row?.minimumCost || 0))
+            };
+        }).filter(Boolean);
+        fallbackRows.forEach((item, index) => {
+            const key = String(item.key || '').trim().toLowerCase();
+            if (!key || seen.has(key)) return;
+            normalized.push({
+                key,
+                label: String(item.label || '').trim(),
+                active: item.locked ? true : Boolean(item.active),
+                locked: Boolean(item.locked),
+                order: Number(item.order || ((index + 1) * 10)),
+                minimumCost: Math.max(0, Number(item.minimumCost || 0))
+            });
+        });
+        return normalized
+            .sort((left, right) => Number(left.order || 999) - Number(right.order || 999))
+            .map((item, index) => ({ ...item, order: (index + 1) * 10 }));
+    };
 
     return {
         general: {
@@ -1604,7 +1784,8 @@ function normalizeCostsConfigRecord(config) {
             defaultCoreDiameter: Number(source?.general?.defaultCoreDiameter || DEFAULT_COSTS_CONFIG.general.defaultCoreDiameter || 0),
             coreDiameterOptions: normalizeCoreDiameterOptions(source?.general?.coreDiameterOptions, DEFAULT_COSTS_CONFIG.general.coreDiameterOptions),
             defaultQuantityTypes: Number(source?.general?.defaultQuantityTypes || DEFAULT_COSTS_CONFIG.general.defaultQuantityTypes || 1),
-            defaultCmykEnabled: String(source?.general?.defaultCmykEnabled || DEFAULT_COSTS_CONFIG.general.defaultCmykEnabled || 'true').trim().toLowerCase() === 'false' ? 'false' : 'true'
+            defaultCmykEnabled: String(source?.general?.defaultCmykEnabled || DEFAULT_COSTS_CONFIG.general.defaultCmykEnabled || 'true').trim().toLowerCase() === 'false' ? 'false' : 'true',
+            processDefaults: normalizeProcessDefaults(source?.general?.processDefaults || DEFAULT_COSTS_CONFIG.general.processDefaults)
         },
         convencional: {
             tintaGeneral: {
@@ -2416,6 +2597,84 @@ function estimateMachineStageCost(machine, metrics) {
     };
 }
 
+function findPlateProcessCatalog(catalogs = {}) {
+    return (Array.isArray(catalogs.processes) ? catalogs.processes : []).find((item) => normalizeText(item?.categoria).includes('planch')) || null;
+}
+
+function getPlateDimensionMetrics(die, width = 0, length = 0) {
+    const plateWidthIn = Math.max(
+        toNumber(die?.ancho_total_troquel_in, 0),
+        toNumber(die?.anchoTroquel, 0),
+        toNumber(die?.widthInches, 0),
+        toNumber(width, 0)
+    );
+    const plateLengthIn = Math.max(
+        toNumber(die?.largo_total_troquel_in, 0),
+        toNumber(die?.largoTroquel, 0),
+        toNumber(die?.lengthInches, 0),
+        toNumber(length, 0)
+    );
+    const areaFromDimensions = plateWidthIn > 0 && plateLengthIn > 0 ? plateWidthIn * plateLengthIn : 0;
+    const areaPerPlateIn2 = Math.max(
+        areaFromDimensions,
+        parseLegacyNumber(die?.areaTroquelIn2) ?? 0,
+        parseLegacyNumber(die?.areaEtiquetaExcesosIn) ?? 0,
+        toNumber(width, 0) * toNumber(length, 0)
+    );
+    return { plateWidthIn, plateLengthIn, areaPerPlateIn2 };
+}
+
+function estimatePlateDetails(payload, catalogs, context = {}) {
+    const plateMaterialId = pickFirstValue(payload.plateMaterialId, payload.uiState?.plates?.plateMaterialId);
+    const plateMaterial = (catalogs.materials || []).find((item) => item.id === plateMaterialId) || null;
+    const chargePlates = Boolean(Object.prototype.hasOwnProperty.call(payload, 'chargePlates')
+        ? payload.chargePlates
+        : payload.uiState?.plates?.chargePlates);
+    const processType = pickFirstValue(payload.processType, payload.process, context.selectedPrintMachine?.process, '');
+    const digitalPlatesDisabled = Boolean(context.digitalPlatesDisabled);
+    const stationCount = Math.max(0, toNumber(payload.stationCount, payload.tintCount || context.stationCount || 0));
+    const width = Math.max(0, toNumber(payload.widthInches, context.width || 0));
+    const length = Math.max(0, toNumber(payload.lengthInches, context.length || 0));
+    const die = context.die || null;
+    const plateDimensions = getPlateDimensionMetrics(die, width, length);
+    const plateCount = stationCount;
+    const areaPerColorIn2 = plateDimensions.areaPerPlateIn2;
+    const totalSquareInches = areaPerColorIn2 * plateCount;
+    const billableSquareInches = chargePlates && !digitalPlatesDisabled ? totalSquareInches : 0;
+    const unitCost = plateMaterial?.costPerSquareInchUsd ? Number(plateMaterial.costPerSquareInchUsd) : 0;
+    const materialSubtotal = billableSquareInches * unitCost;
+    const plateProcess = findPlateProcessCatalog(catalogs);
+
+    let processSubtotal = 0;
+    if (chargePlates && !digitalPlatesDisabled && plateProcess) {
+        const setupMinutes =
+            Number(plateProcess.tiempo_preparacion_general || 0) +
+            (Number(plateProcess.tiempo_por_estacion || 0) * stationCount) +
+            Number(plateProcess.tiempo_fijo_min || 0);
+        const people = Math.max(1, Number(plateProcess.cantidad_personas || 1));
+        const machineCost = (setupMinutes / 60) * Number(plateProcess.costo_hora_maquina || 0);
+        const operatorCost = ((setupMinutes / 60) * people) * Number(plateProcess.costo_hora_operario || 0);
+        processSubtotal = machineCost + operatorCost + Number(plateProcess.costo_fijo || 0);
+    }
+
+    return {
+        chargePlates,
+        plateMaterialId: plateMaterial?.id || '',
+        plateName: plateMaterial?.name || '',
+        plateCount: roundCurrency(plateCount),
+        plateWidthIn: roundCurrency(plateDimensions.plateWidthIn),
+        plateLengthIn: roundCurrency(plateDimensions.plateLengthIn),
+        unitCost: roundCurrency(unitCost),
+        areaPerColorIn2: roundCurrency(areaPerColorIn2),
+        totalSquareInches: roundCurrency(totalSquareInches),
+        billableSquareInches: roundCurrency(billableSquareInches),
+        materialSubtotal: roundCurrency(materialSubtotal),
+        processSubtotal: roundCurrency(processSubtotal),
+        totalSubtotal: roundCurrency(materialSubtotal + processSubtotal),
+        digitalPlatesDisabled
+    };
+}
+
 function calculateFlexoPreview(payload, catalogs = loadFlexoCatalogs()) {
     const product = catalogs.products.find((item) => item.id === payload.productId) || null;
     const material = catalogs.materials.find((item) => item.id === payload.materialId) || null;
@@ -2445,7 +2704,15 @@ function calculateFlexoPreview(payload, catalogs = loadFlexoCatalogs()) {
         return estimateMachineStageCost(selectedMachine, { productQuantity: quantity, linearInches, stationCount, msi });
     }).filter(Boolean);
     const machineCostTotal = breakdown.reduce((sum, item) => sum + item.totalCost, 0);
-    const subtotalCost = materialCost + machineCostTotal;
+    const plates = estimatePlateDetails(payload, catalogs, {
+        die,
+        width,
+        length,
+        stationCount,
+        selectedPrintMachine,
+        digitalPlatesDisabled
+    });
+    const subtotalCost = materialCost + machineCostTotal + Number(plates.totalSubtotal || 0);
     const contingencyFactor = 1 + ((catalogs.globalCosts.commercialSettings.contingencyPercent || 0) / 100);
     const financialFactor = 1 + ((catalogs.globalCosts.commercialSettings.financialPercent || 0) / 100);
     const profitabilityFactor = 1 + ((catalogs.globalCosts.commercialSettings.profitabilityPercent || 0) / 100);
@@ -2472,7 +2739,8 @@ function calculateFlexoPreview(payload, catalogs = loadFlexoCatalogs()) {
         },
         metrics: { labelsPerPass: roundCurrency(labelsPerPass), linearInches: roundCurrency(linearInches), linearFeet: roundCurrency(linearFeet), materialWidth: roundCurrency(materialWidth), msi: roundCurrency(msi) },
         costBreakdown: { material: roundCurrency(materialCost), machineStages: breakdown, subtotalCost: roundCurrency(subtotalCost), totalCost: roundCurrency(totalCost), unitPrice: roundCurrency(unitPrice) },
-        processes: processSnapshot
+        processes: processSnapshot,
+        plates
     };
 }
 
@@ -4332,10 +4600,14 @@ async function resolveSingleInventoryMachineName(preferredMachineName = '') {
 }
 
 async function loadFlexoCatalogsFromDb() {
-    const [materialsResult, diesResult, machinesResult, productsResult, globalCostsResult, outputTypes] = await Promise.all([
+    const [materialsResult, diesResult, machinesResult, productsResult, globalCostsResult, outputTypes, processRows] = await Promise.all([
         pgQuery(
-            `SELECT codigo, nombre, ancho_mm, gramaje_g_m2, costo_x_msi, costo_x_m2, costo_x_kg,
-                    compatible_convencional, compatible_digital, tipo_proforma, activo
+            `SELECT codigo, nombre, ancho_mm, largo_mm, gramaje_g_m2, calibre_micras, costo_x_lamina, costo_x_msi, costo_x_m2, costo_x_kg,
+                    costo_x_libra, peso_capa_gsm, rendimiento_g_ft2, compatible_convencional, compatible_digital, tipo_proforma,
+                    familia_proceso, comentario_ancho_mm, comentario_largo_mm, comentario_gramaje_g_m2, comentario_calibre_micras,
+                    comentario_costo_x_lamina, comentario_costo_x_msi, comentario_costo_x_m2, comentario_costo_x_kg,
+                    comentario_costo_x_libra, comentario_peso_capa_gsm, comentario_rendimiento_g_ft2,
+                    comentario_compatible_convencional, comentario_compatible_digital, comentario_tipo_proforma, activo
                FROM material
               ORDER BY codigo`
         ),
@@ -4362,6 +4634,8 @@ async function loadFlexoCatalogsFromDb() {
                     m.factor_preparacion,
                     m.macula_default_pies,
                     m.factor_tiraje_digital,
+                    m.comentario_setup,
+                    m.comentario_montaje,
                     mc.id AS capacidad_id,
                     mc.clasificacion,
                     mc.proceso,
@@ -4396,7 +4670,8 @@ async function loadFlexoCatalogsFromDb() {
               ORDER BY actualizado_en DESC NULLS LAST, creado_en DESC NULLS LAST
               LIMIT 1`
         ),
-        listInventory('tipos-salida', { limit: 500 })
+        listInventory('tipos-salida', { limit: 500 }),
+        listInventory('procesos', { limit: 2000 })
     ]);
 
     const machinesById = new Map();
@@ -4414,6 +4689,8 @@ async function loadFlexoCatalogsFromDb() {
                 legacySetupPerStationMinutes: Number(row.factor_montaje_estacion || 0),
                 legacySetupBaseMinutes: Number(row.factor_preparacion || 0),
                 legacySetupExtraMinutes: Number(row.macula_default_pies || 0),
+                comentario_setup: row.comentario_setup || '',
+                comentario_montaje: row.comentario_montaje || '',
                 capacities: []
             });
         }
@@ -4468,6 +4745,8 @@ async function loadFlexoCatalogsFromDb() {
             costFormula: primary?.costFormula || '',
             maxWidthInches: primary?.maxWidthInches ?? 0,
             availableColors: isDigital ? 0 : 8,
+            comentario_setup: machine.comentario_setup || '',
+            comentario_montaje: machine.comentario_montaje || '',
             capacities: machine.capacities
         };
     });
@@ -4491,14 +4770,40 @@ async function loadFlexoCatalogsFromDb() {
             displayName: `${row.codigo} | ${row.nombre}`,
             widthInches: row.ancho_mm ? Number(row.ancho_mm) / 25.4 : null,
             widthMm: row.ancho_mm,
+            lengthInches: row.largo_mm ? Number(row.largo_mm) / 25.4 : null,
+            lengthMm: row.largo_mm,
+            plateAreaIn2: row.ancho_mm && row.largo_mm ? (Number(row.ancho_mm) * Number(row.largo_mm)) / 645.16 : null,
             gramaje: row.gramaje_g_m2,
+            calibreMicras: row.calibre_micras,
+            costPerSheetUsd: row.costo_x_lamina,
+            costPerSquareInchUsd: row.costo_x_lamina && row.ancho_mm && row.largo_mm
+                ? Number(row.costo_x_lamina) / ((Number(row.ancho_mm) * Number(row.largo_mm)) / 645.16)
+                : 0,
             costPerMsiUsd: row.costo_x_msi,
             costPerSquareMeterUsd: row.costo_x_m2,
             costPerKgUsd: row.costo_x_kg,
+            costPerLbUsd: row.costo_x_libra,
+            coatWeightGsm: row.peso_capa_gsm,
+            yieldGft2: row.rendimiento_g_ft2,
             conventionalEnabled: row.compatible_convencional,
             digitalEnabled: row.compatible_digital,
             active: row.activo !== false,
-            presentationType: row.tipo_proforma || ''
+            presentationType: row.tipo_proforma || '',
+            familiaProceso: row.familia_proceso || '',
+            comentario_ancho_mm: row.comentario_ancho_mm || '',
+            comentario_largo_mm: row.comentario_largo_mm || '',
+            comentario_gramaje_g_m2: row.comentario_gramaje_g_m2 || '',
+            comentario_calibre_micras: row.comentario_calibre_micras || '',
+            comentario_costo_x_lamina: row.comentario_costo_x_lamina || '',
+            comentario_costo_x_msi: row.comentario_costo_x_msi || '',
+            comentario_costo_x_m2: row.comentario_costo_x_m2 || '',
+            comentario_costo_x_kg: row.comentario_costo_x_kg || '',
+            comentario_costo_x_libra: row.comentario_costo_x_libra || '',
+            comentario_peso_capa_gsm: row.comentario_peso_capa_gsm || '',
+            comentario_rendimiento_g_ft2: row.comentario_rendimiento_g_ft2 || '',
+            comentario_compatible_convencional: row.comentario_compatible_convencional || '',
+            comentario_compatible_digital: row.comentario_compatible_digital || '',
+            comentario_tipo_proforma: row.comentario_tipo_proforma || ''
         })),
         dies: diesResult.rows.map((row) => ({
             id: row.codigo,
@@ -4578,7 +4883,30 @@ async function loadFlexoCatalogsFromDb() {
                 minimumCost: Number(globalCostsResult.rows[0]?.minuto_hombre || 0)
             }
         },
-        outputTypes
+        outputTypes,
+        processes: processRows.map((row) => ({
+            id: row.id,
+            codigo: row.codigo,
+            nombre: row.nombre,
+            categoria: row.categoria,
+            tiempo_preparacion_general: Number(row.tiempo_preparacion_general || 0),
+            tiempo_por_estacion: Number(row.tiempo_por_estacion || 0),
+            tiempo_fijo_min: Number(row.tiempo_fijo_min || 0),
+            velocidad_produccion: Number(row.velocidad_produccion || 0),
+            unidad_trabajo: row.unidad_trabajo || '',
+            costo_hora_maquina: Number(row.costo_hora_maquina || 0),
+            costo_hora_operario: Number(row.costo_hora_operario || 0),
+            costo_fijo: Number(row.costo_fijo || 0),
+            costo_x_msi: Number(row.costo_x_msi || 0),
+            costo_x_kg: Number(row.costo_x_kg || 0),
+            costo_x_pie: Number(row.costo_x_pie || 0),
+            costo_x_millar: Number(row.costo_x_millar || 0),
+            cantidad_personas: Number(row.cantidad_personas || 1),
+            es_inline: Boolean(row.es_inline),
+            comparte_tiempo_linea: Boolean(row.comparte_tiempo_linea),
+            comparte_operario: Boolean(row.comparte_operario),
+            activo: row.activo !== false
+        }))
     };
 }
 app.get('/api/socios', async (req, res) => {
@@ -5045,7 +5373,7 @@ app.post('/api/testing/external-data-admin', async (req, res) => {
                 const importedPartners = await client.query(
                     `SELECT partner_code
                        FROM business_partners
-                      WHERE COALESCE(raw_data->>'source', '') = 'sap_service_layer'`
+                      WHERE COALESCE(raw_data->>'source', '') IN ('sap_service_layer', 'sap')`
                 );
                 const importedCodes = importedPartners.rows.map((row) => row.partner_code).filter(Boolean);
 
@@ -5067,7 +5395,7 @@ app.post('/api/testing/external-data-admin', async (req, res) => {
                       WHERE partner_code IN (
                         SELECT partner_code
                           FROM business_partners
-                         WHERE COALESCE(raw_data->>'source', '') = 'sap_service_layer'
+                         WHERE COALESCE(raw_data->>'source', '') IN ('sap_service_layer', 'sap')
                       )`
                 );
                 const addressDelete = await client.query(
@@ -5075,12 +5403,12 @@ app.post('/api/testing/external-data-admin', async (req, res) => {
                       WHERE partner_code IN (
                         SELECT partner_code
                           FROM business_partners
-                         WHERE COALESCE(raw_data->>'source', '') = 'sap_service_layer'
+                         WHERE COALESCE(raw_data->>'source', '') IN ('sap_service_layer', 'sap')
                       )`
                 );
                 const partnerDelete = await client.query(
                     `DELETE FROM business_partners
-                      WHERE COALESCE(raw_data->>'source', '') = 'sap_service_layer'`
+                      WHERE COALESCE(raw_data->>'source', '') IN ('sap_service_layer', 'sap')`
                 );
 
                 return {
@@ -5271,16 +5599,65 @@ app.get('/api/cotizaciones', async (req, res) => {
             values.push(`%${search}%`);
             values.push(`%${search}%`);
             values.push(`%${search}%`);
-            whereClause = "WHERE quote_code ILIKE $1 OR COALESCE(customer_name, '') ILIKE $2 OR COALESCE(salesperson_name, '') ILIKE $3";
+            values.push(`%${search}%`);
+            values.push(`%${search}%`);
+            whereClause = "WHERE q.quote_code ILIKE $1 OR COALESCE(q.customer_name, '') ILIKE $2 OR COALESCE(q.salesperson_name, '') ILIKE $3 OR COALESCE(q.customer_code, '') ILIKE $4 OR COALESCE(q.contact_name, '') ILIKE $5";
         }
 
         values.push(limit);
 
         const quoteResult = await pgQuery(
-            `SELECT quote_code, customer_code, customer_name, contact_name, email, salesperson_name, phone, status, created_on, due_on
-             FROM quotes
+            `SELECT
+                q.quote_code,
+                q.customer_code,
+                q.customer_name,
+                q.contact_name,
+                q.email,
+                q.salesperson_name,
+                q.phone,
+                q.status,
+                q.created_on,
+                q.due_on,
+                COALESCE(calc.line_count, 0) AS line_count,
+                COALESCE(calc.quote_total, 0) AS quote_total
+             FROM quotes q
+             LEFT JOIN (
+                SELECT
+                    latest.quote_code,
+                    COUNT(*) AS line_count,
+                    COALESCE(SUM(
+                        COALESCE(
+                            latest.total_cost,
+                            CASE
+                                WHEN latest.unit_price IS NOT NULL AND latest.quantity IS NOT NULL
+                                    THEN latest.unit_price * latest.quantity
+                                ELSE NULL
+                            END,
+                            0
+                        )
+                    ), 0) AS quote_total
+                FROM (
+                    SELECT DISTINCT ON (quote_code, line_code)
+                        quote_code,
+                        line_code,
+                        total_cost,
+                        unit_price,
+                        quantity,
+                        raw_data,
+                        created_at,
+                        calculation_code
+                    FROM flexo_calculations
+                    ORDER BY
+                        quote_code,
+                        line_code NULLS LAST,
+                        created_at DESC NULLS LAST,
+                        calculation_code DESC NULLS LAST
+                ) latest
+                GROUP BY latest.quote_code
+             ) calc
+               ON calc.quote_code = q.quote_code
              ${whereClause}
-             ORDER BY quote_code DESC
+             ORDER BY q.quote_code DESC
              LIMIT $${values.length}`,
             values
         );
@@ -5298,6 +5675,8 @@ app.get('/api/cotizaciones', async (req, res) => {
                 status: row.status || '',
                 created_on: row.created_on || '',
                 due_on: row.due_on || '',
+                line_count: Number(row.line_count || 0),
+                quote_total: Number(row.quote_total || 0),
                 exchange_sale: null,
                 exchange_buy: null,
                 footer_dates: '',
@@ -5311,7 +5690,7 @@ app.get('/api/cotizaciones', async (req, res) => {
         let items = Array.from(quoteMap.values()).sort((a, b) => String(b.quote_code).localeCompare(String(a.quote_code)));
         if (search) {
             const term = search.toLowerCase();
-            items = items.filter((item) => [item.quote_code, item.customer_name, item.salesperson_name].join(' ').toLowerCase().includes(term));
+            items = items.filter((item) => [item.quote_code, item.customer_code, item.customer_name, item.contact_name, item.salesperson_name].join(' ').toLowerCase().includes(term));
         }
 
         res.json({ cotizaciones: items.slice(0, limit), total: items.length });
@@ -5444,6 +5823,7 @@ app.delete('/api/cotizaciones/:codigo', async (req, res) => {
 
 app.get('/api/config/general', async (req, res) => {
     try {
+        res.setHeader('Cache-Control', 'private, max-age=30, must-revalidate');
         res.json(await loadGeneralConfig());
     } catch (error) {
         res.status(500).json({ error: 'No fue posible cargar la configuración general.' });
@@ -5533,6 +5913,7 @@ app.post('/api/proformas/:codigo/close', async (req, res) => {
 
 app.get('/api/login-repository', async (req, res) => {
     try {
+        res.setHeader('Cache-Control', 'private, max-age=60, must-revalidate');
         res.json({ images: await listLoginRepositoryImages() });
     } catch (error) {
         res.status(500).json({ error: error.message || 'No fue posible cargar el repositorio de imágenes.' });
@@ -8512,7 +8893,7 @@ app.get('/api/inventario/:kind/export', async (req, res) => {
 
 app.get('/api/catalogs', async (req, res) => {
     try {
-        const helpers = await loadErpImpresionHelpers();
+        const helpers = await loadFlexoEngineHelpers();
         const catalogs = await helpers.loadWebCatalogs();
         const materialRows = await listInventory('materiales', { limit: 5000 });
         const machineRows = await listInventory('maquinas', { limit: 5000 });
@@ -8640,7 +9021,7 @@ app.get('/api/catalogs', async (req, res) => {
 
 app.get('/api/inventories', async (req, res) => {
     try {
-        const helpers = await loadErpImpresionHelpers();
+        const helpers = await loadFlexoEngineHelpers();
         const inventories = await helpers.loadInventoryViews();
         const processRows = await listInventory('procesos', { limit: 2000 });
         inventories.processes = {
@@ -8655,7 +9036,7 @@ app.get('/api/inventories', async (req, res) => {
 
 app.post('/api/flexo-regular/calculate', async (req, res) => {
     try {
-        const helpers = await loadErpImpresionHelpers();
+        const helpers = await loadFlexoEngineHelpers();
         res.json(await helpers.calculateFlexoRegularFromRequest(req.body || {}));
     } catch (error) {
         res.status(400).json({ error: error.message || 'No fue posible calcular en el cotizador integrado.' });

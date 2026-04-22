@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/theme.js"></script>
     <title>Costos</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles.css?v=costos-20260420c">
 </head>
 <body>
     <main class="workspace workspace-quote quote-browser-main costs-shell">
@@ -16,22 +17,58 @@
             </div>
 
             <section class="costs-panel is-active" data-panel="general">
+                <article class="costs-section-card costs-section-card-plain">
+                    <div class="costs-section-head">
+                        <h2>Predeterminados de Cotizaci&oacute;n</h2>
+                    </div>
+                    <div class="costs-defaults-layout">
+                        <div class="costs-defaults-fields">
+                            <label><span>Ancho de Core</span><input id="costosDefaultRollWidth" type="number" step="0.01" min="0"></label>
+                            <label><span>Di&aacute;metro de Core</span><input id="costosDefaultCoreDiameter" type="number" step="0.01" min="0"></label>
+                            <label><span>Cantidad de Tipos</span><input id="costosDefaultQuantityTypes" type="number" step="1" min="1"></label>
+                            <label><span>CMYK por Defecto</span><select id="costosDefaultCmykEnabled"><option value="true">S&iacute;</option><option value="false">No</option></select></label>
+                        </div>
+                        <section class="costs-core-options-field" aria-label="Opciones de Di&aacute;metro de Core">
+                            <div class="costs-core-options-head">
+                                <span>Opciones de Di&aacute;metro de Core</span>
+                                <button type="button" id="costosAddCoreDiameterOption" class="costs-mini-action" aria-label="Agregar opción">+</button>
+                            </div>
+                            <div class="copy-popover-table-wrap costs-table-wrap costs-core-options-table-wrap">
+                                <table class="copy-popover-table costs-table costs-core-options-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Opci&oacute;n</th>
+                                            <th class="costs-core-options-actions-head"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="costosCoreDiameterOptionsTableBody"></tbody>
+                                </table>
+                            </div>
+                        </section>
+                    </div>
+                </article>
                 <article class="costs-section-card">
                     <div class="costs-section-head">
-                        <h2>Predeterminados de cotizaci&oacute;n</h2>
+                        <h2>Procesos del C&aacute;lculo</h2>
                     </div>
-                    <div class="costs-ink-grid costs-defaults-grid">
-                        <label><span>Ancho de Core</span><input id="costosDefaultRollWidth" type="number" step="0.01" min="0"></label>
-                        <label><span>Di&aacute;metro de Core</span><input id="costosDefaultCoreDiameter" type="number" step="0.01" min="0"></label>
-                        <label><span>Cantidad de Tipos</span><input id="costosDefaultQuantityTypes" type="number" step="1" min="1"></label>
-                        <label><span>CMYK por Defecto</span><select id="costosDefaultCmykEnabled"><option value="true">S&iacute;</option><option value="false">No</option></select></label>
-                        <section class="costs-core-options-field" aria-label="Opciones de di&aacute;metro de core">
-                            <div class="costs-core-options-head">
-                                <span>Opciones de di&aacute;metro de core</span>
-                                <button type="button" id="costosAddCoreDiameterOption" class="browser-open-link costs-mini-action">Agregar</button>
-                            </div>
-                            <div id="costosCoreDiameterOptionsTableBody" class="costs-core-options-list"></div>
-                        </section>
+                    <div class="copy-popover-table-wrap costs-table-wrap costs-process-table-wrap" aria-label="Orden y costos m&iacute;nimos por proceso">
+                        <table class="copy-popover-table costs-table costs-process-table">
+                            <colgroup>
+                                <col class="costs-process-col-process">
+                                <col class="costs-process-col-check">
+                                <col class="costs-process-col-check">
+                                <col class="costs-process-col-cost">
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th>Proceso</th>
+                                    <th>Activo</th>
+                                    <th>No Eliminar</th>
+                                    <th>Costo M&iacute;nimo</th>
+                                </tr>
+                            </thead>
+                            <tbody id="costosProcessDefaultsList"></tbody>
+                        </table>
                     </div>
                 </article>
                 <article class="costs-section-card">
@@ -167,6 +204,7 @@
         </section>
     </main>
 
-    <script src="/costos.js"></script>
+    <script src="/access-control.js?v=costos-20260420c"></script>
+    <script src="/costos.js?v=costos-20260420c"></script>
 </body>
 </html>

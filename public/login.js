@@ -3,6 +3,10 @@ const LOGIN_REPOSITORY_ENDPOINT = '/api/login-repository';
 const LOGIN_AUTH_ENDPOINT = '/api/auth/login';
 const SESSION_STORAGE_KEY = 'erp-user-session';
 const REMEMBER_STORAGE_KEY = 'erp-remembered-login';
+const LOGIN_CONFIG_CACHE_KEY = 'erp-login-config-cache';
+const LOGIN_REPOSITORY_CACHE_KEY = 'erp-login-repository-cache';
+const LOGIN_CONFIG_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+const LOGIN_REPOSITORY_CACHE_TTL_MS = 30 * 60 * 1000;
 const LOGIN_ANIM_VARIANTS = ['anim-0', 'anim-1', 'anim-2'];
 
 const loginForm = document.getElementById('loginForm');
@@ -50,6 +54,48 @@ function getStoredSession() {
     } catch (error) {
         return null;
     }
+}
+
+function readCache(key, ttlMs) {
+    try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        const storedAt = Number(parsed?.storedAt || 0);
+        if (!storedAt || (Date.now() - storedAt) > ttlMs) {
+            return null;
+        }
+        return parsed.data ?? null;
+    } catch (error) {
+        return null;
+    }
+}
+
+function writeCache(key, data) {
+    try {
+        localStorage.setItem(key, JSON.stringify({
+            storedAt: Date.now(),
+            data
+        }));
+    } catch (error) {
+        console.warn('No fue posible actualizar el caché local.', error);
+    }
+}
+
+function areJsonEqual(left, right) {
+    return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+}
+
+function preloadLoginImages(images, limit = 3) {
+    (Array.isArray(images) ? images : [])
+        .filter(Boolean)
+        .slice(0, Math.max(0, limit))
+        .forEach((url) => {
+            const image = new Image();
+            image.decoding = 'async';
+            image.loading = 'eager';
+            image.src = url;
+        });
 }
 
 function setStoredSession(session, remember) {
@@ -104,6 +150,42 @@ function resolveRouteForLanding(key) {
         solicitudes: '/cotizaciones'
     };
     return map[key] || '/dashboard';
+}
+
+function normalizeLoginPermissionLevel(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (normalized === 'view' || normalized === 'edit') return normalized;
+    return 'none';
+}
+
+function getLoginRouteModules(route) {
+    const pathname = new URL(route || '/', window.location.origin).pathname.toLowerCase();
+    if (pathname === '/' || pathname === '/dashboard') return ['dashboard'];
+    if (pathname === '/socios' || pathname.startsWith('/socios/')) return ['socios'];
+    if (pathname === '/cotizaciones' || pathname.startsWith('/cotizaciones/')) return ['cotizaciones'];
+    if (pathname === '/calculo-flexografia' || pathname === '/flexo-calculo') return ['calculos'];
+    if (pathname === '/ordenes-produccion' || pathname.startsWith('/orden-produccion')) return ['ordenes'];
+    if (pathname === '/planificacion' || pathname.startsWith('/planificacion/')) return ['planificacion'];
+    if (pathname === '/costos' || pathname === '/costos.html') return ['costos'];
+    if (pathname === '/configuracion-general') return ['configuracion-general'];
+    if (pathname === '/vendedores') return ['vendedores'];
+    if (pathname === '/inventario-materiales') return ['inventario-mp'];
+    if (pathname === '/inventario-troqueles' || pathname.startsWith('/inventario-troqueles/')) return ['inventario-troqueles'];
+    if (pathname === '/inventario-maquinas') return ['inventario-maquinaria'];
+    if (pathname.startsWith('/inventario-')) return ['inventario-mp', 'inventario-troqueles', 'inventario-maquinaria'];
+    return [];
+}
+
+function canOpenLoginLanding(session, route) {
+    const modules = session?.modules && typeof session.modules === 'object' ? session.modules : null;
+    if (!modules) return true;
+    const keys = getLoginRouteModules(route);
+    return !keys.length || keys.some((key) => key === 'dashboard' || normalizeLoginPermissionLevel(modules[key]) !== 'none');
+}
+
+function resolveAllowedLandingRoute(session) {
+    const preferred = resolveRouteForLanding(session?.defaultLanding || 'dashboard');
+    return canOpenLoginLanding(session, preferred) ? preferred : '/dashboard';
 }
 
 function getSlideSeconds() {
@@ -201,6 +283,7 @@ function startLoginScreensaver(images) {
     }
 
     showLoginSlide(0);
+    preloadLoginImages(loginRepositoryImages.slice(1), 2);
 
     if (loginRepositoryImages.length > 1) {
         loginSlideTimer = window.setInterval(() => {
@@ -233,22 +316,46 @@ function applyLoginBranding(config, repositoryImages = []) {
 }
 
 async function loadConfig() {
-    const [configResponse, repositoryResponse] = await Promise.all([
-        fetch(LOGIN_CONFIG_ENDPOINT),
-        fetch(LOGIN_REPOSITORY_ENDPOINT)
+    const cachedConfig = readCache(LOGIN_CONFIG_CACHE_KEY, LOGIN_CONFIG_CACHE_TTL_MS);
+    const cachedRepository = readCache(LOGIN_REPOSITORY_CACHE_KEY, LOGIN_REPOSITORY_CACHE_TTL_MS);
+    const cachedImages = Array.isArray(cachedRepository?.images)
+        ? cachedRepository.images.map((item) => item?.url).filter(Boolean)
+        : [];
+
+    if (cachedConfig) {
+        applyLoginBranding(cachedConfig, cachedImages);
+    }
+
+    const [configResponse, repositoryResponse] = await Promise.allSettled([
+        fetch(LOGIN_CONFIG_ENDPOINT, { cache: 'no-cache' }),
+        fetch(LOGIN_REPOSITORY_ENDPOINT, { cache: 'no-cache' })
     ]);
-    if (!configResponse.ok) {
+
+    const configFetchFailed = configResponse.status !== 'fulfilled' || !configResponse.value.ok;
+    if (configFetchFailed && !cachedConfig) {
         throw new Error('No fue posible cargar la configuración del login.');
     }
-    const config = await configResponse.json();
-    let repositoryImages = [];
-    if (repositoryResponse.ok) {
-        const repository = await repositoryResponse.json();
-        repositoryImages = Array.isArray(repository?.images)
-            ? repository.images.map((item) => item?.url).filter(Boolean)
-            : [];
+
+    const config = !configFetchFailed ? await configResponse.value.json() : cachedConfig;
+    let repository = cachedRepository;
+    if (repositoryResponse.status === 'fulfilled' && repositoryResponse.value.ok) {
+        repository = await repositoryResponse.value.json();
     }
-    applyLoginBranding(config, repositoryImages);
+
+    const repositoryImages = Array.isArray(repository?.images)
+        ? repository.images.map((item) => item?.url).filter(Boolean)
+        : [];
+
+    if (!areJsonEqual(config, cachedConfig)) {
+        writeCache(LOGIN_CONFIG_CACHE_KEY, config);
+    }
+    if (!areJsonEqual(repository, cachedRepository)) {
+        writeCache(LOGIN_REPOSITORY_CACHE_KEY, repository);
+    }
+
+    if (!cachedConfig || !areJsonEqual(config, cachedConfig) || !areJsonEqual(repository, cachedRepository)) {
+        applyLoginBranding(config, repositoryImages);
+    }
 }
 
 async function handleLogin(event) {
@@ -276,7 +383,7 @@ async function handleLogin(event) {
         persistRememberedCredentials();
         setStoredSession(data.user, loginRemember.checked);
         loginStatus.textContent = '';
-        window.location.href = resolveRouteForLanding(data.user?.defaultLanding || 'dashboard');
+        window.location.href = resolveAllowedLandingRoute(data.user);
     } catch (error) {
         loginStatus.textContent = error.message || 'No fue posible iniciar sesión.';
     }
@@ -294,7 +401,7 @@ async function bootLogin() {
     loadRememberedCredentials();
     const existingSession = getStoredSession();
     if (existingSession?.username && window.location.search.includes('continue=1')) {
-        window.location.href = resolveRouteForLanding(existingSession.defaultLanding || 'dashboard');
+        window.location.href = resolveAllowedLandingRoute(existingSession);
         return;
     }
     try {
