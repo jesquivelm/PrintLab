@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/theme.js"></script>
     <title>Costos</title>
-    <link rel="stylesheet" href="/styles.css?v=costos-20260420c">
+    <link rel="stylesheet" href="/styles.css?v=costos-20260423a">
 </head>
 <body>
     <main class="workspace workspace-quote quote-browser-main costs-shell">
@@ -17,34 +17,37 @@
             </div>
 
             <section class="costs-panel is-active" data-panel="general">
+                <div class="costs-panel-frame">
                 <article class="costs-section-card costs-section-card-plain">
                     <div class="costs-section-head">
                         <h2>Predeterminados de Cotizaci&oacute;n</h2>
                     </div>
-                    <div class="costs-defaults-layout">
-                        <div class="costs-defaults-fields">
-                            <label><span>Ancho de Core</span><input id="costosDefaultRollWidth" type="number" step="0.01" min="0"></label>
-                            <label><span>Di&aacute;metro de Core</span><input id="costosDefaultCoreDiameter" type="number" step="0.01" min="0"></label>
-                            <label><span>Cantidad de Tipos</span><input id="costosDefaultQuantityTypes" type="number" step="1" min="1"></label>
-                            <label><span>CMYK por Defecto</span><select id="costosDefaultCmykEnabled"><option value="true">S&iacute;</option><option value="false">No</option></select></label>
+                    <div class="costs-defaults-shell">
+                        <div class="costs-defaults-layout">
+                            <div class="costs-defaults-fields">
+                                <label><span>Ancho de Core</span><input id="costosDefaultRollWidth" type="number" step="0.01" min="0"></label>
+                                <label><span>Di&aacute;metro de Core</span><input id="costosDefaultCoreDiameter" type="number" step="0.01" min="0"></label>
+                                <label><span>Cantidad de Tipos</span><input id="costosDefaultQuantityTypes" type="number" step="1" min="1"></label>
+                                <label><span>CMYK por Defecto</span><select id="costosDefaultCmykEnabled"><option value="true">S&iacute;</option><option value="false">No</option></select></label>
+                            </div>
+                            <section class="costs-core-options-field" aria-label="Opciones de Di&aacute;metro de Core">
+                                <div class="costs-core-options-head">
+                                    <span>Opciones de Di&aacute;metro de Core</span>
+                                    <button type="button" id="costosAddCoreDiameterOption" class="costs-mini-action" aria-label="Agregar opción">+</button>
+                                </div>
+                                <div class="copy-popover-table-wrap costs-table-wrap costs-core-options-table-wrap">
+                                    <table class="copy-popover-table costs-table costs-core-options-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Opci&oacute;n</th>
+                                                <th class="costs-core-options-actions-head"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="costosCoreDiameterOptionsTableBody"></tbody>
+                                    </table>
+                                </div>
+                            </section>
                         </div>
-                        <section class="costs-core-options-field" aria-label="Opciones de Di&aacute;metro de Core">
-                            <div class="costs-core-options-head">
-                                <span>Opciones de Di&aacute;metro de Core</span>
-                                <button type="button" id="costosAddCoreDiameterOption" class="costs-mini-action" aria-label="Agregar opción">+</button>
-                            </div>
-                            <div class="copy-popover-table-wrap costs-table-wrap costs-core-options-table-wrap">
-                                <table class="copy-popover-table costs-table costs-core-options-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Opci&oacute;n</th>
-                                            <th class="costs-core-options-actions-head"></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="costosCoreDiameterOptionsTableBody"></tbody>
-                                </table>
-                            </div>
-                        </section>
                     </div>
                 </article>
                 <article class="costs-section-card">
@@ -77,9 +80,11 @@
                         <textarea id="costosGeneralNotes" rows="5" placeholder="Aqu&iacute; puedes dejar observaciones sobre criterios de c&aacute;lculo o acuerdos de costos."></textarea>
                     </label>
                 </article>
+                </div>
             </section>
 
             <section class="costs-panel" data-panel="convencional">
+                <div class="costs-panel-frame">
                 <article class="costs-section-card">
                     <div class="costs-section-head">
                         <h2>Tintas y Dep&oacute;sito</h2>
@@ -187,24 +192,131 @@
                         </table>
                     </div>
                 </article>
+                <article class="costs-section-card">
+                    <div class="costs-section-head">
+                        <h2>Referencia Convencional</h2>
+                    </div>
+                    <div class="costs-info-stack">
+                        <div class="costs-formula-card">
+                            <strong>F&oacute;rmula Base</strong>
+                            <p>Consumo tinta = &Aacute;rea impresa x Cobertura x BCM anilox x Factor transferencia x Densidad tinta x Tintas requeridas.</p>
+                        </div>
+                        <div class="costs-formula-card">
+                            <strong>Explicaci&oacute;n</strong>
+                            <p>Estos valores alimentan la cotizaci&oacute;n convencional, el barniz inline y la reposici&oacute;n autom&aacute;tica cuando el cotizador presiona actualizar costos en la proforma.</p>
+                        </div>
+                    </div>
+                </article>
+                </div>
             </section>
 
             <section class="costs-panel" data-panel="digital">
+                <div class="costs-panel-frame">
                 <article class="costs-section-card">
                     <div class="costs-section-head">
-                        <h2>Digital</h2>
+                        <h2>Premier</h2>
                     </div>
-                    <div class="costs-notice">
-                        <p>Esta pesta&ntilde;a queda lista para cargar la l&oacute;gica de costos de impresi&oacute;n digital.</p>
+                    <div class="costs-info-stack">
+                        <div class="costs-formula-card">
+                            <strong>F&oacute;rmula Premier</strong>
+                            <p id="costosDigitalPremierFormulaText"></p>
+                        </div>
+                        <div class="costs-formula-card">
+                            <strong>Explicaci&oacute;n</strong>
+                            <p id="costosDigitalPremierExplanationText"></p>
+                        </div>
                     </div>
+                    <div class="costs-digital-grid">
+                        <label><span>Modo Predeterminado</span><select id="costosDigitalPremierMode"><option value="offline">Offline</option><option value="inline">In-line</option></select></label>
+                        <label><span>Setup Premier</span><input id="costosDigitalPremierSetupMin" type="number" step="0.01"></label>
+                        <label><span>Consumo Premier</span><input id="costosDigitalPremierConsumptionGm2" type="number" step="0.0001"></label>
+                        <label><span>Costo Premier kg</span><input id="costosDigitalPremierCostPerKg" type="number" step="0.000001"></label>
+                        <label><span>Costo Premier m&sup2;</span><input id="costosDigitalPremierCostPerM2" type="number" step="0.000001"></label>
+                        <label><span>Mantenimiento In-line</span><input id="costosDigitalPremierMaintenanceCost" type="number" step="0.000001"></label>
+                    </div>
+                    <label class="costs-notes-field">
+                        <span>Comentario Premier</span>
+                        <textarea id="costosDigitalPremierComment" rows="4" placeholder="Ej. Si el material ya viene pretratado por el proveedor, no se cobra l&iacute;quido ni proceso."></textarea>
+                    </label>
                 </article>
+
+                <article class="costs-section-card">
+                    <div class="costs-section-head">
+                        <h2>Tintas Digitales</h2>
+                    </div>
+                    <div class="costs-info-stack">
+                        <div class="costs-formula-card">
+                            <strong>F&oacute;rmula Consumo</strong>
+                            <p id="costosDigitalInkFormulaConsumptionText"></p>
+                        </div>
+                        <div class="costs-formula-card">
+                            <strong>F&oacute;rmula Clic</strong>
+                            <p id="costosDigitalInkFormulaClickText"></p>
+                        </div>
+                        <div class="costs-formula-card">
+                            <strong>Explicaci&oacute;n</strong>
+                            <p id="costosDigitalInkExplanationText"></p>
+                        </div>
+                    </div>
+                    <div class="costs-digital-grid">
+                        <label><span>Tipo Cobro</span><select id="costosDigitalBillingType"><option value="consumo">Consumo</option><option value="clic">Clic</option></select></label>
+                        <label><span>Costo kg Tinta</span><input id="costosDigitalInkCostPerKg" type="number" step="0.000001"></label>
+                        <label><span>Costo kg Blanco</span><input id="costosDigitalWhiteInkCostPerKg" type="number" step="0.000001"></label>
+                        <label><span>Costo kg Especial</span><input id="costosDigitalSpecialInkCostPerKg" type="number" step="0.000001"></label>
+                        <label><span>Tarifa Clic</span><input id="costosDigitalClickRate" type="number" step="0.000001"></label>
+                        <label><span>Modo Clic</span><select id="costosDigitalClickMode"><option value="por_estacion">Por estaci&oacute;n</option><option value="por_vuelta">Por vuelta</option></select></label>
+                        <label><span>Cobertura CMYK</span><input id="costosDigitalCoverageCmykPct" type="number" step="0.01"></label>
+                        <label><span>Cobertura Blanco</span><input id="costosDigitalCoverageWhitePct" type="number" step="0.01"></label>
+                        <label><span>Gramaje CMYK</span><input id="costosDigitalCmykGm2" type="number" step="0.0001"></label>
+                        <label><span>Gramaje Blanco</span><input id="costosDigitalWhiteGm2" type="number" step="0.0001"></label>
+                        <label><span>Factor Merma</span><input id="costosDigitalWasteFactor" type="number" step="0.0001"></label>
+                        <label><span>Costo Lavado Especial</span><input id="costosDigitalSpecialWashCost" type="number" step="0.000001"></label>
+                    </div>
+                    <div class="costs-table-title">Perfiles de cobertura digital</div>
+                    <div class="copy-popover-table-wrap costs-table-wrap">
+                        <table class="copy-popover-table costs-table">
+                            <thead>
+                                <tr>
+                                    <th>Perfil</th>
+                                    <th>Cobertura %</th>
+                                </tr>
+                            </thead>
+                            <tbody id="costosDigitalCoverageProfilesTableBody"></tbody>
+                        </table>
+                    </div>
+                    <label class="costs-notes-field">
+                        <span>Comentario Tintas Digitales</span>
+                        <textarea id="costosDigitalInkComment" rows="4" placeholder="Ej. Blanco sobre transparente impacta consumo y velocidad."></textarea>
+                    </label>
+                </article>
+
+                <article class="costs-section-card">
+                    <div class="costs-section-head">
+                        <h2>Velocidad y Estaciones</h2>
+                    </div>
+                    <div class="costs-info-stack">
+                        <div class="costs-formula-card">
+                            <strong>Regla de velocidad</strong>
+                            <p>La velocidad debe bajar cuando se usan m&aacute;s de 4 estaciones, blanco, gamut extendido o colores especiales.</p>
+                        </div>
+                    </div>
+                    <div class="costs-digital-grid costs-digital-grid-compact">
+                        <label><span>Velocidad CMYK m/min</span><input id="costosDigitalSpeedCmykMpm" type="number" step="0.01"></label>
+                        <label><span>Velocidad Extendida m/min</span><input id="costosDigitalSpeedExtendedMpm" type="number" step="0.01"></label>
+                    </div>
+                    <label class="costs-notes-field">
+                        <span>Comentario Velocidad</span>
+                        <textarea id="costosDigitalSpeedComment" rows="3" placeholder="Ej. 5 a 7 colores reduce la velocidad nominal por carga de estaciones y secado."></textarea>
+                    </label>
+                </article>
+                </div>
             </section>
 
             <p id="costosSaveStatus" class="costs-save-status" aria-live="polite" hidden></p>
         </section>
     </main>
 
-    <script src="/access-control.js?v=costos-20260420c"></script>
-    <script src="/costos.js?v=costos-20260420c"></script>
+    <script src="/access-control.js?v=costos-20260423a"></script>
+    <script src="/costos.js?v=costos-20260423a"></script>
 </body>
 </html>

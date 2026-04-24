@@ -1,6 +1,7 @@
 ﻿const CONFIG_ENDPOINT = '/api/config/general';
 const QUOTES_ENDPOINT = '/api/cotizaciones';
 const PARTNERS_ENDPOINT = '/api/socios';
+const SESSION_STORAGE_KEY = 'erp-user-session';
 const LAUNCHER_POSITION_KEY = 'quote-request-launcher-position-v2';
 const DEFAULT_ICON_MAP = {
     processLauncher: { value: '/assets/icons/exclusive-launcher.png', color: '#1e516d', size: 48 },
@@ -116,6 +117,35 @@ const sapQueryResult = document.getElementById('sapQueryResult');
 const sapWriteResult = document.getElementById('sapWriteResult');
 
 let visibleQuotesCount = 0;
+
+function readUserSession() {
+    try {
+        return JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || sessionStorage.getItem(SESSION_STORAGE_KEY) || 'null');
+    } catch (error) {
+        return null;
+    }
+}
+
+function normalizePermissionLevel(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (normalized === 'view' || normalized === 'create' || normalized === 'edit') return normalized;
+    return 'none';
+}
+
+function canCreateModule(moduleKey) {
+    if (window.ErpAccess?.canCreateModule) return window.ErpAccess.canCreateModule(moduleKey);
+    const session = readUserSession();
+    const modules = session?.modules && typeof session.modules === 'object' ? session.modules : null;
+    if (!modules) return true;
+    const level = normalizePermissionLevel(modules[moduleKey]);
+    if (moduleKey === 'productos') return level === 'create';
+    return level === 'create';
+}
+
+function sessionHeader() {
+    const session = readUserSession();
+    return session ? { 'x-erp-session': JSON.stringify(session) } : {};
+}
 
 function formatVisibleCountLabel(count, noun) {
     const total = Math.max(0, Number(count) || 0);
@@ -337,7 +367,7 @@ function renderSapStatus(statusPayload) {
     if (sapStatusRow) {
         const modeTone = statusPayload?.mode === 'live' ? 'live' : 'demo';
         const pills = [
-            `<span class="sap-config-pill" data-tone="${modeTone}">Modo ${escapeText((statusPayload?.mode || 'demo').toUpperCase())}</span>`,
+            `<span class="sap-config-pill" data-tone="${modeTone}">Modo ${escapeText((statusPayload?.mode === 'live' ? 'LIVE' : 'LOCAL'))}</span>`,
             `<span class="sap-config-pill">${config.isLiveReady ? 'Live listo' : 'Live pendiente'}</span>`,
             `<span class="sap-config-pill">${config.hasPassword ? 'Clave guardada' : 'Sin clave'}</span>`
         ];
@@ -461,9 +491,9 @@ async function syncSapData() {
 }
 
 async function resetSapDemo() {
-    setSapConfigStatus('Reiniciando demo SAP...', 'saving');
+    setSapConfigStatus('Reiniciando entorno SAP...', 'saving');
     await fetchJson('/api/sap/reset-demo', { method: 'POST' });
-    setSapConfigStatus('Demo SAP reiniciado.', 'saved');
+    setSapConfigStatus('Entorno SAP reiniciado.', 'saved');
 }
 
 function buildSapQueryUrl() {
@@ -759,6 +789,7 @@ function lineMenuIconConfig(key, fallbackValue, fallbackColor = '#46515d', fallb
     const iconKeyMap = {
         duplicate: ['lineDuplicate'],
         copy: ['lineCopy'],
+        product: ['lineCreateProduct', 'dashboardProducts'],
         createQuote: ['lineCreateQuote'],
         export: ['lineExport'],
         attachments: ['lineAttachments'],
@@ -767,6 +798,7 @@ function lineMenuIconConfig(key, fallbackValue, fallbackColor = '#46515d', fallb
     const canonicalMap = {
         duplicate: 'lineDuplicate',
         copy: 'lineCopy',
+        product: 'lineCreateProduct',
         createQuote: 'lineCreateQuote',
         export: 'lineExport',
         attachments: 'lineAttachments',
@@ -776,6 +808,7 @@ function lineMenuIconConfig(key, fallbackValue, fallbackColor = '#46515d', fallb
     const suffixMap = {
         duplicate: 'LineDuplicate',
         copy: 'LineCopy',
+        product: 'LineCreateProduct',
         createQuote: 'LineCreateQuote',
         export: 'LineExport',
         attachments: 'LineAttachments',
@@ -814,6 +847,7 @@ function renderQuoteLineCard(row, index, totalLines) {
     const openColor = loadedConfig?.general?.iconColorBrowserOpen || loadedConfig?.general?.iconColorTableOpen || '#0b81b8';
     const openHover = loadedConfig?.general?.iconColorHoverBrowserOpen || loadedConfig?.general?.iconColorHoverTableOpen || '#07638c';
     const openSize = Number(loadedConfig?.general?.iconSizeBrowserOpen || loadedConfig?.general?.iconSizeTableOpen) || openConf.size || 18;
+    const canCreateProduct = canCreateModule('productos');
     return `
         <article class="quote-master-line" data-line-id="${row.id}" data-line-index="${index}" data-quote-id="${escapeHtml(row.quoteId)}" draggable="true">
             <div class="quote-master-line-order" title="Arrastrar para reordenar">
@@ -834,17 +868,18 @@ function renderQuoteLineCard(row, index, totalLines) {
                         <button type="button" class="quote-line-icon-btn quote-line-menu-trigger" data-line-menu-toggle="${row.id}" title="Más opciones" aria-label="Más opciones" aria-haspopup="true" aria-expanded="false">&#8942;</button>
                         <div class="quote-line-menu-panel" data-line-menu-panel="${row.id}" hidden>
                             <div class="row-action-menu-list">
-                                <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="duplicate" data-line-id="${row.id}">${lineMenuIconMarkup('duplicate', 'Duplicar línea', '⎘')}<span>Duplicar línea</span></button>
-                                <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="copy" data-line-id="${row.id}">${lineMenuIconMarkup('copy', 'Copiar línea a otra cotización', '⎘')}<span>Copiar línea a otra cotización</span></button>
+                                <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="duplicate" data-line-id="${row.id}">${lineMenuIconMarkup('duplicate', 'Duplicar Línea', '⎘')}<span>Duplicar Línea</span></button>
+                                <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="copy" data-line-id="${row.id}">${lineMenuIconMarkup('copy', 'Copiar Línea a Otra Cotización', '⎘')}<span>Copiar Línea a Otra Cotización</span></button>
+                                ${canCreateProduct ? `<button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="create-product" data-line-id="${row.id}">${lineMenuIconMarkup('product', 'Convertir en producto', '▣')}<span>Convertir en producto</span></button>` : ''}
                                 <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="create-quote" data-line-id="${row.id}">${lineMenuIconMarkup('createQuote', 'Crear nueva cotización a partir de esta línea', '▣')}<span>Crear nueva cotización a partir de esta línea</span></button>
-                                <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="export" data-line-id="${row.id}">${lineMenuIconMarkup('export', 'Exportar línea a Excel', '⭳')}<span>Exportar línea a Excel</span></button>
-                                <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="attachments" data-line-id="${row.id}">${lineMenuIconMarkup('attachments', 'Ver adjuntos', '📎')}<span>Ver adjuntos</span></button>
+                                <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="export" data-line-id="${row.id}">${lineMenuIconMarkup('export', 'Exportar Línea a Excel', '⭳')}<span>Exportar Línea a Excel</span></button>
+                                <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="attachments" data-line-id="${row.id}">${lineMenuIconMarkup('attachments', 'Ver Adjuntos', '📎')}<span>Ver Adjuntos</span></button>
                                 <div class="row-action-menu-section-divider" aria-hidden="true"></div>
                                 <button type="button" class="row-action-menu-item quote-line-menu-item is-toggle" data-line-action="finalize" data-line-id="${row.id}">
-                                    <span class="row-action-menu-toggle"><span class="row-action-check ${row.finalizadaOrden ? 'is-checked' : ''}" aria-hidden="true"></span><span>${row.finalizadaOrden ? 'Desmarcar finalizado' : 'Finalizar cálculo'}</span></span>
+                                    <span class="row-action-menu-toggle"><span class="row-action-check ${row.finalizadaOrden ? 'is-checked' : ''}" aria-hidden="true"></span><span>${row.finalizadaOrden ? 'Desmarcar Finalizado' : 'Finalizar Cálculo'}</span></span>
                                 </button>
                                 <div class="row-action-menu-section-divider" aria-hidden="true"></div>
-                                <button type="button" class="row-action-menu-item quote-line-menu-item is-danger" data-line-action="delete" data-line-id="${row.id}">${lineMenuIconMarkup('delete', 'Eliminar línea', '×', true)}<span>Eliminar línea</span></button>
+                                <button type="button" class="row-action-menu-item quote-line-menu-item is-danger" data-line-action="delete" data-line-id="${row.id}">${lineMenuIconMarkup('delete', 'Eliminar Línea', '×', true)}<span>Eliminar Línea</span></button>
                             </div>
                         </div>
                     </div>
@@ -855,14 +890,15 @@ function renderQuoteLineCard(row, index, totalLines) {
 }
 
 function renderQuoteLinesPanel(quoteCode) {
+    const canCreateQuoteLines = canCreateModule('cotizaciones');
     const footer = `
         <div class="quote-master-lines-footer">
             <button type="button" class="quote-line-action-btn quote-line-proforma-btn" data-print-proforma="${escapeHtml(quoteCode)}" title="Ver Proforma">
                 <span class="quote-line-action-icon" aria-hidden="true">↓</span> Ver Proforma
             </button>
-            <button type="button" class="quote-line-action-btn quote-line-add-btn" data-add-line="${escapeHtml(quoteCode)}" title="Agregar línea de cálculo">
+            ${canCreateQuoteLines ? `<button type="button" class="quote-line-action-btn quote-line-add-btn" data-add-line="${escapeHtml(quoteCode)}" title="Agregar línea de cálculo">
                 <span class="quote-line-action-icon" aria-hidden="true">+</span> Agregar línea
-            </button>
+            </button>` : ''}
         </div>
     `;
     if (quoteLineLoading.has(quoteCode)) {
@@ -998,6 +1034,23 @@ async function createQuoteFromLine(row) {
     if (code) openQuoteDocument(code);
 }
 
+async function createProductFromLine(row) {
+    if (!canCreateModule('productos')) {
+        throw new Error('Tu permiso permite ver productos, pero no crear productos desde cotizaciones.');
+    }
+    const payload = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}/producto`, {
+        method: 'POST',
+        headers: sessionHeader()
+    });
+    const code = payload?.producto?.product_code;
+    if (code) {
+        const route = '/productos';
+        if (!openRouteInShell(route, 'Productos')) {
+            window.location.href = route;
+        }
+    }
+}
+
 async function toggleLineFinalized(row) {
     await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}`, {
         method: 'PATCH',
@@ -1031,6 +1084,7 @@ async function handleQuoteLineAction(action, row) {
     if (action === 'move-down') return moveQuoteLine(row, 1);
     if (action === 'duplicate') return duplicateQuoteLine(row);
     if (action === 'copy') return openQuoteDocument(row.quoteId);
+    if (action === 'create-product') return createProductFromLine(row);
     if (action === 'create-quote') return createQuoteFromLine(row);
     if (action === 'export') {
         window.open(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}/exportar`, '_blank', 'noopener');
@@ -2065,6 +2119,12 @@ function bindEvents() {
 }
 
 async function init() {
+    if (nuevaCotizacionButton) {
+        nuevaCotizacionButton.hidden = !canCreateModule('cotizaciones');
+    }
+    if (launcherWrap) {
+        launcherWrap.hidden = !canCreateModule('cotizaciones');
+    }
     renderAttachments();
     renderNumberingSummary();
     bindEvents();

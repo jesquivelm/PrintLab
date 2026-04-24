@@ -10,14 +10,52 @@ function readErpAccessSession() {
 
 function normalizeErpAccessLevel(value) {
     const normalized = String(value || '').trim().toLowerCase();
-    if (normalized === 'view' || normalized === 'edit') return normalized;
+    if (normalized === 'view' || normalized === 'create' || normalized === 'edit') return normalized;
     return 'none';
+}
+
+function getErpModuleAccessLevel(modules, moduleKey) {
+    if (moduleKey === 'productos' && modules && !Object.prototype.hasOwnProperty.call(modules, 'productos')) {
+        return normalizeErpAccessLevel(modules.cotizaciones);
+    }
+    return normalizeErpAccessLevel(modules?.[moduleKey]);
+}
+
+function canErpViewModule(moduleKey, modulesOverride) {
+    if (!moduleKey || moduleKey === 'dashboard') return true;
+    const session = readErpAccessSession();
+    const modules = modulesOverride && typeof modulesOverride === 'object'
+        ? modulesOverride
+        : (session?.modules && typeof session.modules === 'object' ? session.modules : null);
+    if (!modules) return true;
+    return getErpModuleAccessLevel(modules, moduleKey) !== 'none';
+}
+
+function canErpCreateModule(moduleKey, modulesOverride) {
+    if (!moduleKey) return false;
+    const session = readErpAccessSession();
+    const modules = modulesOverride && typeof modulesOverride === 'object'
+        ? modulesOverride
+        : (session?.modules && typeof session.modules === 'object' ? session.modules : null);
+    if (!modules) return true;
+    return getErpModuleAccessLevel(modules, moduleKey) === 'create';
+}
+
+function canErpEditModule(moduleKey, modulesOverride) {
+    if (!moduleKey) return false;
+    const session = readErpAccessSession();
+    const modules = modulesOverride && typeof modulesOverride === 'object'
+        ? modulesOverride
+        : (session?.modules && typeof session.modules === 'object' ? session.modules : null);
+    if (!modules) return true;
+    return getErpModuleAccessLevel(modules, moduleKey) === 'edit';
 }
 
 function getErpAccessRouteModules(pathname) {
     const path = String(pathname || window.location.pathname || '/').toLowerCase();
     if (path === '/' || path === '/login' || path === '/dashboard') return ['dashboard'];
     if (path === '/socios' || path === '/socios.html' || path === '/socios-documento.html' || path.startsWith('/socios/')) return ['socios'];
+    if (path === '/productos' || path === '/productos.html' || path.startsWith('/productos/')) return ['productos'];
     if (path === '/cotizaciones' || path === '/cotizaciones.html' || path === '/index.html' || path.startsWith('/cotizaciones/')) return ['cotizaciones'];
     if (path === '/calculo-flexografia' || path === '/flexo-calculo' || path === '/flexo-calculo.html') return ['calculos'];
     if (path === '/ordenes-produccion' || path === '/ordenes-produccion.html' || path === '/orden-produccion.html' || path.startsWith('/orden-produccion')) return ['ordenes'];
@@ -74,8 +112,18 @@ function showErpAccessBlocked(moduleName) {
     if (!modules) return;
 
     const routeModules = getErpAccessRouteModules(window.location.pathname);
-    const isAllowed = !routeModules.length || routeModules.some((moduleKey) => normalizeErpAccessLevel(modules[moduleKey]) !== 'none');
+    const isAllowed = !routeModules.length || routeModules.some((moduleKey) => getErpModuleAccessLevel(modules, moduleKey) !== 'none');
     if (!isAllowed) {
         showErpAccessBlocked(routeModules.join(', '));
     }
 })();
+
+window.ErpAccess = {
+    readSession: readErpAccessSession,
+    normalizeLevel: normalizeErpAccessLevel,
+    getModuleAccessLevel: getErpModuleAccessLevel,
+    getRouteModules: getErpAccessRouteModules,
+    canViewModule: canErpViewModule,
+    canCreateModule: canErpCreateModule,
+    canEditModule: canErpEditModule
+};

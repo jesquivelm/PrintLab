@@ -145,11 +145,40 @@ async function testConnection(config) {
         ok: payload.ok !== false,
         mode: 'live',
         provider: 'di-api',
-        message: payload.message || 'Conexión DI API válida.'
+        message: payload.message || 'Conexión DI API válida.',
+        dataSource: payload.dataSource || payload.DataSource || '',
+        businessPartners: payload.businessPartners,
+        items: payload.items,
+        orders: payload.orders,
+        raw: payload
     };
 }
 
 async function queryBusinessPartners(config, query = {}) {
+    const cardTypes = String(query.cardTypes || '')
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean);
+    if (!query.type && cardTypes.length > 1) {
+        const top = normalizePositiveInt(query.top, 200, 1, 5000);
+        const rows = [];
+        for (const type of cardTypes) {
+            const payload = await requestJson(config, '/business-partners', {
+                query: {
+                    ...query,
+                    cardTypes: undefined,
+                    type,
+                    top
+                }
+            });
+            rows.push(...normalizeCollectionPayload(payload).value);
+        }
+        return {
+            value: rows.slice(0, top),
+            source: 'sap',
+            provider: 'di-api'
+        };
+    }
     const payload = await requestJson(config, '/business-partners', { query });
     return normalizeCollectionPayload(payload);
 }

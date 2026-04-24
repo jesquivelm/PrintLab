@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socio</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <main class="workspace socios-workspace socios-documento-workspace">
+        <section class="socios-codes socios-codes-single">
+            <div class="socios-code-card socios-code-card-primary">
+                <div class="socios-code-main">
+                    <span>Código Cliente</span>
+                    <div class="socios-code-value-row">
+                        <button id="prevSocioButton" type="button" class="plain-icon socios-nav-btn" aria-label="Socio anterior"></button>
+                        <strong id="partnerCode">-</strong>
+                        <button id="nextSocioButton" type="button" class="plain-icon socios-nav-btn" aria-label="Siguiente socio"></button>
+                    </div>
+                </div>
+            </div>
+            <div class="socios-code-card socios-code-card-name">
+                <span>Nombre del socio</span>
+                <strong id="partnerNameHero">-</strong>
+            </div>
+        </section>
+
+        <section class="socios-content">
+            <div class="socios-overview-layout">
+                <div class="socios-section">
+                    <div class="section-caption">Información General</div>
+                    <div class="socios-grid socios-grid-general-summary">
+                        <div class="field"><label>Vendedor</label><input id="salesperson" type="text" readonly></div>
+                        <div class="field"><label>Correo General</label><input id="generalEmail" type="text" readonly></div>
+                        <div class="field"><label>Fecha de Creación</label><input id="creationDate" type="text" readonly></div>
+                    </div>
+                </div>
+
+                <div class="socios-section">
+                    <div class="section-caption">Información Financiera</div>
+                    <div class="socios-grid socios-grid-financial">
+                        <div class="field"><label>Id Fiscal</label><input id="taxId" type="text" readonly></div>
+                        <div class="field"><label>Correo de Facturación</label><input id="invoiceEmail" type="text" readonly></div>
+                        <div class="field"><label>Días de Crédito</label><input id="paymentTerms" type="text" readonly></div>
+                        <div class="field"><label>Moneda</label><input id="currencyCode" type="text" readonly></div>
+                        <div class="field"><label>Sector</label><input id="sector" type="text" readonly></div>
+                        <div class="field"><label>Sub-sector</label><input id="subSector" type="text" readonly></div>
+                        <div class="field field-checkbox-inline">
+                            <label for="taxExempt">Socio Exento</label>
+                            <input id="taxExempt" type="checkbox" disabled>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="socios-section">
+                <div class="section-caption">Contacto Principal</div>
+                <div class="socios-contact-layout">
+                    <div class="socios-grid socios-grid-contact">
+                        <div class="field"><label>Nombre</label><input id="contactFirstName" type="text" readonly></div>
+                        <div class="field"><label>Apellido</label><input id="contactLastName" type="text" readonly></div>
+                        <div class="field"><label>Identificación</label><input id="contactId" type="text" readonly></div>
+                        <div class="field"><label>Celular</label><input id="contactMobile" type="text" readonly></div>
+                        <div class="field"><label>Correo</label><input id="contactEmail" type="text" readonly></div>
+                        <div class="field"><label>Fax</label><input id="contactFax" type="text" readonly></div>
+                        <div class="field"><label>Teléfono</label><input id="contactPhone" type="text" readonly></div>
+                        <div class="field"><label>País</label><input id="contactCountry" type="text" readonly></div>
+                        <div class="field"><label>Estado o Provincia</label><input id="contactState" type="text" readonly></div>
+                        <div class="field"><label>Cantón</label><input id="contactCounty" type="text" readonly></div>
+                        <div class="field field-full"><label>Detalle de Dirección</label><input id="contactAddress" type="text" readonly></div>
+                    </div>
+                    <aside class="socios-map-card">
+                        <div class="socios-map-head">
+                            <span>Ubicación</span>
+                            <a id="contactMapLink" href="https://maps.google.com/" target="_blank" rel="noopener noreferrer" class="browser-open-link socios-map-open" aria-label="Abrir ubicación en Google Maps">↗</a>
+                        </div>
+                        <p id="contactMapSummary" class="socios-map-summary">Buscando referencia de la dirección del socio.</p>
+                        <iframe id="contactMapFrame" class="socios-map-frame" title="Mapa del socio" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                    </aside>
+                </div>
+            </div>
+
+            <div class="socios-related-layout">
+                <div class="socios-section">
+                    <div class="section-caption">Contactos del Socio</div>
+                    <div class="socios-table-wrap">
+                        <table class="quote-table socios-table">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Puesto</th>
+                                    <th>Email</th>
+                                    <th>Teléfono</th>
+                                    <th>Celular</th>
+                                    <th>Provincia</th>
+                                </tr>
+                            </thead>
+                            <tbody id="contactsTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="socios-section">
+                    <div class="section-caption">Direcciones del Socio</div>
+                    <div class="socios-table-wrap">
+                        <table class="quote-table socios-table">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Tipo</th>
+                                    <th>País</th>
+                                    <th>Provincia</th>
+                                    <th>Cantón</th>
+                                    <th>Dirección</th>
+                                </tr>
+                            </thead>
+                            <tbody id="addressesTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="socios-section">
+                <div class="section-caption">Manejo y Entrega</div>
+                <div class="socios-grid socios-grid-delivery">
+                    <div class="field"><label>Excedentes</label><input id="manejoExcedentes" type="text" readonly></div>
+                    <div class="field"><label>Porcentaje Permitido</label><input id="allowedPercentage" type="text" readonly></div>
+                    <div class="field"><label>Adelantos</label><input id="manejoAdelantos" type="text" readonly></div>
+                    <div class="field"><label>Faltantes</label><input id="manejoFaltantes" type="text" readonly></div>
+                    <div class="field"><label>Porcentaje de Faltantes</label><input id="faltantesPorcentaje" type="text" readonly></div>
+                    <div class="field"><label>Entrega de Muestras</label><input id="entregaMuestras" type="text" readonly></div>
+                    <div class="field"><label>Forma de Entrega VB</label><input id="entregaVB" type="text" readonly></div>
+                    <div class="field"><label>Contacto VB</label><input id="contactoVB" type="text" readonly></div>
+                    <div class="field"><label>Forma de Entrega del Producto</label><input id="entregaProducto" type="text" readonly></div>
+                    <div class="field"><label>Contacto del Producto</label><input id="contactoProducto" type="text" readonly></div>
+                    <div class="field field-full"><label>Indicaciones</label><input id="indicacionesEntrega" type="text" readonly></div>
+                </div>
+            </div>
+
+            <div class="socios-section">
+                <div class="section-caption">Calidad</div>
+                <div class="socios-grid socios-grid-quality">
+                    <div class="field"><label>Requiere Cartilla</label><input id="requiereCartilla" type="text" readonly></div>
+                    <div class="field"><label>Requiere Certificado</label><input id="requiereCertificado" type="text" readonly></div>
+                    <div class="field"><label>Usar Cartilla</label><input id="usarCartilla" type="text" readonly></div>
+                    <div class="field"><label>Unidad por Defecto</label><input id="unidadDefecto" type="text" readonly></div>
+                    <div class="field field-full"><label>Notificación al Vendedor y Enlace</label><input id="correoNotificacion" type="text" readonly></div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="/access-control.js"></script>
+    <script src="/socios-documento.js"></script>
+</body>
+</html>

@@ -10,7 +10,15 @@ const XLSX = require('xlsx');
 const { query: pgQuery, withTransaction } = require('./db/postgres');
 const { ensureInventorySchema, listInventory, getTroquelByCode, saveInventory, deleteInventory, importInventory, exportInventoryWorkbook } = require('./inventory-service');
 const { calculateProcessQuote } = require('./process-quote-service');
-const { ensureSapSchema, registerSapRoutes, startSapScheduler, fetchSapBusinessPartnersForImport, fetchSapItemsForImport } = require('./services/sap-service-layer');
+const {
+    ensureSapSchema,
+    registerSapRoutes,
+    startSapScheduler,
+    fetchSapBusinessPartnersForImport,
+    fetchSapItemsForImport,
+    stageSapMirrorOrder,
+    stageSapMirrorBom
+} = require('./services/sap-service-layer');
 const { ensureExchangeRateSchema, registerExchangeRateRoutes, startExchangeRateScheduler, buildProformaExchangeContext } = require('./services/exchange-rate-service');
 
 const app = express();
@@ -34,6 +42,7 @@ const THIRTY_DAYS_MS = 30 * ONE_DAY_MS;
 const PRESENTATION_NAMES = {
     'dashboard': 'Dashboard',
     'configuracion-general': 'Configuración General',
+    'productos': 'Productos',
     'cotizaciones': 'Cotizaciones',
     'solicitudes': 'Solicitudes',
     'calculos': 'Cálculos',
@@ -47,6 +56,7 @@ const PRESENTATION_NAMES = {
     'costos': 'Costos',
     'vendedores': 'Vendedores',
     'ordenes': 'Ordenes',
+    'sap': 'SAP',
     'planificacion': 'Planificación',
     'seguimiento': 'Seguimiento'
 };
@@ -133,8 +143,9 @@ const DEFAULT_GENERAL_CONFIG = {
         topBack: '\u2190',
         topMenu: '\u2261',
         topSearch: '\u2315',
-        topUser: '\u25D4',
+        topUser: '\u25D1',
         dashboardBusinessPartners: '\u25A6',
+        dashboardProducts: '\u25A7',
         dashboardQuotes: '\u25A4',
         dashboardInventory: '\u25A5',
         dashboardOrders: '\u2699',
@@ -169,6 +180,7 @@ const DEFAULT_GENERAL_CONFIG = {
         tableActions: '\u22EF',
         lineDuplicate: '\u2398',
         lineCopy: '\u2398',
+        lineCreateProduct: '\u25A3',
         lineCreateQuote: '\u25A3',
         lineExport: '\u2B73',
         lineAttachments: '📎',
@@ -335,6 +347,9 @@ const DEFAULT_GENERAL_CONFIG = {
         iconColorDashboardBusinessPartners: '#0b81b8',
         iconColor2DashboardBusinessPartners: '#ffffff',
         iconColorHoverDashboardBusinessPartners: '#17abdf',
+        iconColorDashboardProducts: '#0b81b8',
+        iconColor2DashboardProducts: '#ffffff',
+        iconColorHoverDashboardProducts: '#17abdf',
         iconColorDashboardQuotes: '#0b81b8',
         iconColor2DashboardQuotes: '#ffffff',
         iconColorHoverDashboardQuotes: '#17abdf',
@@ -419,6 +434,9 @@ const DEFAULT_GENERAL_CONFIG = {
         iconColorLineCreateQuote: '#46515d',
         iconColor2LineCreateQuote: '#ffffff',
         iconColorHoverLineCreateQuote: '#0b81b8',
+        iconColorLineCreateProduct: '#46515d',
+        iconColor2LineCreateProduct: '#ffffff',
+        iconColorHoverLineCreateProduct: '#0b81b8',
         iconColorLineExport: '#46515d',
         iconColor2LineExport: '#ffffff',
         iconColorHoverLineExport: '#0b81b8',
@@ -483,6 +501,7 @@ const DEFAULT_GENERAL_CONFIG = {
         iconSizeTopSearch: 20,
         iconSizeTopUser: 20,
         iconSizeDashboardBusinessPartners: 38,
+        iconSizeDashboardProducts: 38,
         iconSizeDashboardQuotes: 38,
         iconSizeDashboardInventory: 38,
         iconSizeDashboardOrders: 38,
@@ -510,6 +529,7 @@ const DEFAULT_GENERAL_CONFIG = {
         iconSizeTableActions: 20,
         iconSizeLineDuplicate: 18,
         iconSizeLineCopy: 18,
+        iconSizeLineCreateProduct: 18,
         iconSizeLineCreateQuote: 18,
         iconSizeLineExport: 18,
         iconSizeLineAttachments: 18,
@@ -610,6 +630,47 @@ const DEFAULT_COSTS_CONFIG = {
         ]
     },
     digital: {
+        premier: {
+            formulaText: 'Costo Premier = ((Area m2 x Consumo g/m2) / 1000 x Costo kg) + Setup Premier + Mantenimiento In-line. Si el sustrato viene pretratado, Premier = 0.',
+            explanation: 'El costo por metro del tratamiento offline no se define aqui como estandar general. Si la planta trata fuera de linea, ese costo operativo debe vivir en la maquina tratadora o ya venir absorbido por el sustrato pretratado.',
+            comment: 'Costo kg provisional tomado como referencia interna de liquido tipo coating. Si Gerencia define el SKU exacto del Primer, debe reemplazarse aqui y en los sustratos que lo usen.',
+            mode: 'offline',
+            setupMin: 20,
+            consumptionGm2: 0.65,
+            costPerKg: 9.25,
+            costPerM2: 0.006013,
+            offlineCostPerMeter: 0,
+            maintenanceCost: 14
+        },
+        tintaGeneral: {
+            billingType: 'consumo',
+            costPerKg: 0,
+            whiteCostPerKg: 0,
+            specialCostPerKg: 0,
+            clickRate: 0,
+            clickMode: 'por_estacion',
+            coverageCmykPct: 30,
+            coverageWhitePct: 100,
+            cmykGm2: 1.5,
+            whiteGm2: 4,
+            wasteFactor: 1.1,
+            specialWashCost: 18,
+            formulaConsumptionText: 'Costo Tinta = ((Área Total x Cobertura x Gramaje) / 1000) x Factor Merma x Costo Kg.',
+            formulaClickText: 'Costo Clics = Cantidad Impresiones x Estaciones Facturables x Tarifa Clic.',
+            explanation: 'La máquina digital puede cobrar por consumo o por clic. Estos valores funcionan como respaldo general; si la máquina tiene datos propios, la cotización usa primero los de la máquina.',
+            comment: 'Lavado especial provisional: referencia operativa para limpieza, purga o cambio de color especial. Debe sustituirse por el costo real de cada equipo si la planta lo define.',
+            coverageProfiles: [
+                { id: 'digital-simple', tipo: 'Simple / textos / logos', coveragePct: 15 },
+                { id: 'digital-estandar', tipo: 'Estándar / imagen y texto', coveragePct: 30 },
+                { id: 'digital-complejo', tipo: 'Complejo / fondo sólido', coveragePct: 90 },
+                { id: 'digital-blanco', tipo: 'Blanco sobre transparente', coveragePct: 100 }
+            ]
+        },
+        velocidad: {
+            speedCmykMpm: 42,
+            speedExtendedMpm: 26,
+            comment: 'Velocidades generales de respaldo. Si la máquina digital tiene sus propios metros por minuto, la cotización toma primero esos valores.'
+        },
         maculaMontaje: [],
         maculaTiraje: []
     }
@@ -668,6 +729,7 @@ async function runStartupSchemaStep(label, action) {
 
 async function initializeStartupSchemas() {
     await runStartupSchemaStep('No fue posible preparar el esquema de inventarios', () => ensureInventorySchema());
+    await runStartupSchemaStep('No fue posible preparar el esquema de productos', () => ensureProductCatalogSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de órdenes de producción', () => ensureProductionSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de adjuntos', () => ensureAttachmentsSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de notificaciones', () => ensureNotificationsSchema());
@@ -1738,6 +1800,11 @@ function normalizeCostsConfigRecord(config) {
         proceso: String(row?.proceso || '').trim(),
         minutosPorEstacion: Number(row?.minutosPorEstacion || 0)
     }));
+    const normalizeDigitalCoverageProfiles = (rows = [], prefix) => (Array.isArray(rows) ? rows : []).map((row, index) => ({
+        id: normalizeCostsRowId(row?.id, `${prefix}-profile-${index + 1}`),
+        tipo: String(row?.tipo || '').trim(),
+        coveragePct: Number(row?.coveragePct || 0)
+    }));
     const normalizeProcessDefaults = (rows = []) => {
         const sourceRows = Array.isArray(rows) ? rows : [];
         const fallbackRows = Array.isArray(DEFAULT_COSTS_CONFIG.general.processDefaults) ? DEFAULT_COSTS_CONFIG.general.processDefaults : [];
@@ -1804,6 +1871,42 @@ function normalizeCostsConfigRecord(config) {
             finishWaste: normalizeFinishWaste(rowsOrDefault(source?.convencional?.finishWaste, DEFAULT_COSTS_CONFIG.convencional.finishWaste), 'convencional')
         },
         digital: {
+            premier: {
+                formulaText: String(source?.digital?.premier?.formulaText || DEFAULT_COSTS_CONFIG.digital.premier.formulaText || '').trim(),
+                explanation: String(source?.digital?.premier?.explanation || DEFAULT_COSTS_CONFIG.digital.premier.explanation || '').trim(),
+                comment: String(source?.digital?.premier?.comment || '').trim(),
+                mode: String(source?.digital?.premier?.mode || DEFAULT_COSTS_CONFIG.digital.premier.mode || 'offline').trim().toLowerCase() === 'inline' ? 'inline' : 'offline',
+                setupMin: Number(source?.digital?.premier?.setupMin || DEFAULT_COSTS_CONFIG.digital.premier.setupMin || 0),
+                consumptionGm2: Number(source?.digital?.premier?.consumptionGm2 || DEFAULT_COSTS_CONFIG.digital.premier.consumptionGm2 || 0),
+                costPerKg: Number(source?.digital?.premier?.costPerKg || DEFAULT_COSTS_CONFIG.digital.premier.costPerKg || 0),
+                costPerM2: Number(source?.digital?.premier?.costPerM2 || DEFAULT_COSTS_CONFIG.digital.premier.costPerM2 || 0),
+                offlineCostPerMeter: Number(source?.digital?.premier?.offlineCostPerMeter || DEFAULT_COSTS_CONFIG.digital.premier.offlineCostPerMeter || 0),
+                maintenanceCost: Number(source?.digital?.premier?.maintenanceCost || DEFAULT_COSTS_CONFIG.digital.premier.maintenanceCost || 0)
+            },
+            tintaGeneral: {
+                billingType: String(source?.digital?.tintaGeneral?.billingType || DEFAULT_COSTS_CONFIG.digital.tintaGeneral.billingType || 'consumo').trim().toLowerCase() === 'clic' ? 'clic' : 'consumo',
+                costPerKg: Number(source?.digital?.tintaGeneral?.costPerKg || DEFAULT_COSTS_CONFIG.digital.tintaGeneral.costPerKg || 0),
+                whiteCostPerKg: Number(source?.digital?.tintaGeneral?.whiteCostPerKg || DEFAULT_COSTS_CONFIG.digital.tintaGeneral.whiteCostPerKg || 0),
+                specialCostPerKg: Number(source?.digital?.tintaGeneral?.specialCostPerKg || DEFAULT_COSTS_CONFIG.digital.tintaGeneral.specialCostPerKg || 0),
+                clickRate: Number(source?.digital?.tintaGeneral?.clickRate || DEFAULT_COSTS_CONFIG.digital.tintaGeneral.clickRate || 0),
+                clickMode: String(source?.digital?.tintaGeneral?.clickMode || DEFAULT_COSTS_CONFIG.digital.tintaGeneral.clickMode || 'por_estacion').trim().toLowerCase() === 'por_vuelta' ? 'por_vuelta' : 'por_estacion',
+                coverageCmykPct: Number(source?.digital?.tintaGeneral?.coverageCmykPct || DEFAULT_COSTS_CONFIG.digital.tintaGeneral.coverageCmykPct || 0),
+                coverageWhitePct: Number(source?.digital?.tintaGeneral?.coverageWhitePct || DEFAULT_COSTS_CONFIG.digital.tintaGeneral.coverageWhitePct || 0),
+                cmykGm2: Number(source?.digital?.tintaGeneral?.cmykGm2 || DEFAULT_COSTS_CONFIG.digital.tintaGeneral.cmykGm2 || 0),
+                whiteGm2: Number(source?.digital?.tintaGeneral?.whiteGm2 || DEFAULT_COSTS_CONFIG.digital.tintaGeneral.whiteGm2 || 0),
+                wasteFactor: Number(source?.digital?.tintaGeneral?.wasteFactor || DEFAULT_COSTS_CONFIG.digital.tintaGeneral.wasteFactor || 0),
+                specialWashCost: Number(source?.digital?.tintaGeneral?.specialWashCost || DEFAULT_COSTS_CONFIG.digital.tintaGeneral.specialWashCost || 0),
+                formulaConsumptionText: String(source?.digital?.tintaGeneral?.formulaConsumptionText || DEFAULT_COSTS_CONFIG.digital.tintaGeneral.formulaConsumptionText || '').trim(),
+                formulaClickText: String(source?.digital?.tintaGeneral?.formulaClickText || DEFAULT_COSTS_CONFIG.digital.tintaGeneral.formulaClickText || '').trim(),
+                explanation: String(source?.digital?.tintaGeneral?.explanation || DEFAULT_COSTS_CONFIG.digital.tintaGeneral.explanation || '').trim(),
+                comment: String(source?.digital?.tintaGeneral?.comment || '').trim(),
+                coverageProfiles: normalizeDigitalCoverageProfiles(rowsOrDefault(source?.digital?.tintaGeneral?.coverageProfiles, DEFAULT_COSTS_CONFIG.digital.tintaGeneral.coverageProfiles), 'digital')
+            },
+            velocidad: {
+                speedCmykMpm: Number(source?.digital?.velocidad?.speedCmykMpm || DEFAULT_COSTS_CONFIG.digital.velocidad.speedCmykMpm || 0),
+                speedExtendedMpm: Number(source?.digital?.velocidad?.speedExtendedMpm || DEFAULT_COSTS_CONFIG.digital.velocidad.speedExtendedMpm || 0),
+                comment: String(source?.digital?.velocidad?.comment || '').trim()
+            },
             maculaMontaje: normalizeMontaje(rowsOrDefault(source?.digital?.maculaMontaje, DEFAULT_COSTS_CONFIG.digital.maculaMontaje), 'digital'),
             maculaTiraje: normalizeTiraje(rowsOrDefault(source?.digital?.maculaTiraje, DEFAULT_COSTS_CONFIG.digital.maculaTiraje), 'digital')
         }
@@ -2124,6 +2227,9 @@ function normalizeAdminUserRecord(row = {}) {
         process: sanitizeAdminUserText(row.process),
         photoUrl: sanitizeAdminUserText(row.photo_url),
         signatureUrl: sanitizeAdminUserText(row.signature_url),
+        email: sanitizeAdminUserText(row.email),
+        phone: sanitizeAdminUserText(row.phone),
+        phoneSecondary: sanitizeAdminUserText(row.phone_secondary),
         permissionId: row.permission_id == null ? null : Number(row.permission_id),
         permissionName: sanitizeAdminUserText(row.permission_name)
     };
@@ -2147,6 +2253,9 @@ async function ensureAdminUsersSchema() {
     `);
     await pgQuery(`ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS permission_id BIGINT REFERENCES admin_permissions(id) ON DELETE SET NULL`);
     await pgQuery(`ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS signature_url TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS email TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS phone TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS phone_secondary TEXT NOT NULL DEFAULT ''`);
     await pgQuery(`CREATE INDEX IF NOT EXISTS admin_users_name_idx ON admin_users (full_name)`);
 }
 
@@ -2169,7 +2278,7 @@ async function ensureQuoteProformasSchema() {
 
 function sanitizePermissionAccess(value) {
     const normalized = String(value || '').trim().toLowerCase();
-    if (normalized === 'view' || normalized === 'edit') return normalized;
+    if (normalized === 'view' || normalized === 'create' || normalized === 'edit') return normalized;
     return 'none';
 }
 
@@ -2184,6 +2293,36 @@ function normalizePermissionMatrix(input = {}) {
         output[key] = sanitizePermissionAccess(input[key]);
     });
     return output;
+}
+
+function readPermissionModulesFromRequest(req) {
+    const raw = String(req.get?.('x-erp-session') || '').trim();
+    if (!raw) return null;
+    try {
+        const parsed = JSON.parse(raw);
+        return parsed?.modules && typeof parsed.modules === 'object' ? parsed.modules : null;
+    } catch (error) {
+        return {};
+    }
+}
+
+function readErpSessionFromRequest(req) {
+    const raw = String(req.get?.('x-erp-session') || '').trim();
+    if (!raw) return null;
+    try {
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch (error) {
+        return null;
+    }
+}
+
+function canRequestCreateModule(req, moduleKey) {
+    const modules = readPermissionModulesFromRequest(req);
+    if (!modules) return true;
+    const level = sanitizePermissionAccess(modules[moduleKey]);
+    if (moduleKey === 'productos') return level === 'create';
+    return level === 'create' || level === 'edit';
 }
 
 function normalizeAdminPermissionRecord(row = {}) {
@@ -2207,6 +2346,28 @@ async function ensureAdminPermissionsSchema() {
         )
     `);
     await pgQuery(`CREATE INDEX IF NOT EXISTS admin_permissions_name_idx ON admin_permissions (permission_name)`);
+    await pgQuery(`
+        UPDATE admin_permissions
+           SET module_permissions = jsonb_set(
+                   COALESCE(module_permissions, '{}'::jsonb),
+                   '{productos}',
+                   to_jsonb(COALESCE(module_permissions->>'cotizaciones', 'none')),
+                   true
+               ),
+               updated_at = NOW()
+         WHERE NOT COALESCE(module_permissions, '{}'::jsonb) ? 'productos'
+    `);
+    await pgQuery(`
+        UPDATE admin_permissions
+           SET module_permissions = jsonb_set(
+                   COALESCE(module_permissions, '{}'::jsonb),
+                   '{sap}',
+                   to_jsonb(COALESCE(module_permissions->>'configuracion-general', 'none')),
+                   true
+               ),
+               updated_at = NOW()
+         WHERE NOT COALESCE(module_permissions, '{}'::jsonb) ? 'sap'
+    `);
 }
 
 async function ensureSecuritySeed() {
@@ -3377,6 +3538,19 @@ async function generateNextCalculationCode(client = null) {
     return `CF-${String(current + 1).padStart(6, '0')}`;
 }
 
+async function generateNextProductCode(client = null) {
+    const executor = client || { query: pgQuery };
+    const result = await executor.query(
+        `SELECT product_code
+           FROM flexo_products
+          WHERE product_code ~ '^P-[0-9]+$'
+          ORDER BY CAST(REPLACE(product_code, 'P-', '') AS INTEGER) DESC
+          LIMIT 1`
+    );
+    const current = Number(String(result.rows[0]?.product_code || 'P-0').replace('P-', '')) || 0;
+    return `P-${String(current + 1).padStart(6, '0')}`;
+}
+
 async function generateNextOrderCode(client = null) {
     const executor = client || { query: pgQuery };
     const result = await executor.query(
@@ -3388,6 +3562,51 @@ async function generateNextOrderCode(client = null) {
     );
     const current = Number(String(result.rows[0]?.order_code || 'OP-0').replace('OP-', '')) || 0;
     return `OP-${String(current + 1).padStart(6, '0')}`;
+}
+
+async function ensureProductCatalogSchema() {
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS flexo_products (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            product_code TEXT UNIQUE,
+            line_code TEXT,
+            quote_code TEXT,
+            client_code TEXT,
+            client_name TEXT,
+            product_name TEXT,
+            product_type TEXT,
+            department TEXT,
+            material_name TEXT,
+            quoted_machine TEXT,
+            die_code TEXT,
+            quantity_products NUMERIC(14,4),
+            quantity_types NUMERIC(14,4),
+            tint_count NUMERIC(14,4),
+            width_inches NUMERIC(12,4),
+            length_inches NUMERIC(12,4),
+            price_unit NUMERIC(14,4),
+            total_price NUMERIC(14,4),
+            raw_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    `);
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS flexo_product_quote_history (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            product_code TEXT NOT NULL,
+            quote_code TEXT NOT NULL,
+            line_code TEXT,
+            action TEXT NOT NULL DEFAULT 'quote',
+            raw_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+            created_by TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    `);
+    await pgQuery(`ALTER TABLE flexo_products ADD COLUMN IF NOT EXISTS source_calculation_code TEXT`);
+    await pgQuery(`ALTER TABLE flexo_products ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS idx_flexo_products_client ON flexo_products(client_code, client_name)`);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS idx_flexo_product_history_product ON flexo_product_quote_history(product_code, created_at DESC)`);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS idx_flexo_product_history_quote ON flexo_product_quote_history(quote_code, line_code)`);
 }
 
 async function ensureProductionSchema() {
@@ -4193,6 +4412,89 @@ function summarizeLineForDestination(row) {
     };
 }
 
+function getProductNameFromRaw(raw = {}, fallback = '') {
+    return pickFirstValue(
+        raw['NOMBRE TRABAJO'],
+        raw['Nombre Trabajo'],
+        raw['REQ | Nombre Producto'],
+        raw['TIPO TRABAJO | ORDEN REFERENCIA 1'],
+        fallback
+    );
+}
+
+function mapProductCatalogRow(row = {}) {
+    const raw = row.raw_data || {};
+    return {
+        id: row.id,
+        product_code: row.product_code || '',
+        line_code: row.line_code || '',
+        quote_code: row.quote_code || '',
+        client_code: pickFirstValue(row.client_code, raw['ID CLIENTE']),
+        client_name: pickFirstValue(row.client_name, raw.CLIENTE, raw['CLIENTE NOMBRE']),
+        product_name: pickFirstValue(row.product_name, getProductNameFromRaw(raw, row.product_code)),
+        product_type: pickFirstValue(row.product_type, raw['REQ | Tipo de Producto']),
+        department: pickFirstValue(row.department, raw.DEPARTAMENTO, 'Flexografia'),
+        material_name: pickFirstValue(row.material_name, raw['GENERAL | MATERIAL']),
+        quoted_machine: pickFirstValue(row.quoted_machine, raw['CONV | MAQUINA'], raw['DIGITAL | MAQUINA']),
+        die_code: pickFirstValue(row.die_code, raw['GENERAL | TROQUEL | ID']),
+        quantity_products: parseLegacyNumber(row.quantity_products) ?? parseLegacyNumber(raw['Cantidad Productos']),
+        quantity_types: parseLegacyNumber(row.quantity_types) ?? parseLegacyNumber(raw['CANTIDAD TIPOS']),
+        tint_count: parseLegacyNumber(row.tint_count) ?? parseLegacyNumber(raw['CANTIDAD TINTAS']),
+        width_inches: parseLegacyNumber(row.width_inches) ?? parseLegacyNumber(raw['DIMENSIONES ETIQUETA | ANCHO']),
+        length_inches: parseLegacyNumber(row.length_inches) ?? parseLegacyNumber(raw['DIMENSIONES ETIQUETA | LARGO']),
+        price_unit: parseLegacyNumber(row.price_unit) ?? parseLegacyNumber(raw['GENERAL | 9 | UNITARIO | DOL']),
+        total_price: parseLegacyNumber(row.total_price) ?? parseLegacyNumber(raw['PRECIO TOTAL AL FINALIZAR']),
+        quote_count: Number(row.quote_count || 0),
+        last_quoted_at: row.last_quoted_at || null,
+        created_at: row.created_at || null,
+        raw_data: raw
+    };
+}
+
+function buildProductPayloadFromLine({ productCode, quoteRow, lineRow }) {
+    const raw = { ...(lineRow.raw_data || {}) };
+    const processType = pickFirstValue(lineRow.process_type, raw['Proceso Productivo'], 'Convencional');
+    const activePrefix = String(processType).toLowerCase().includes('digit') ? 'DIGITAL' : 'CONV';
+    const productName = getProductNameFromRaw(raw, lineRow.product_code || lineRow.line_code || productCode);
+    const metadata = buildTraceabilityMetadata({
+        action: 'create-product-from-line',
+        sourceQuoteCode: lineRow.quote_code,
+        sourceLineCode: lineRow.line_code,
+        actor: getConfiguredCurrentUser()
+    });
+    raw['CODIGO PRODUCTO'] = productCode;
+    raw['TRAZABILIDAD | ACCION'] = metadata.action;
+    raw['TRAZABILIDAD | USUARIO'] = metadata.created_by;
+    raw['TRAZABILIDAD | FECHA'] = metadata.created_at;
+    raw['TRAZABILIDAD | COTIZACION ORIGEN'] = metadata.source_quote_code;
+    raw['TRAZABILIDAD | LINEA ORIGEN'] = metadata.source_line_code;
+    raw.traceability = metadata;
+
+    return {
+        productCode,
+        lineCode: lineRow.line_code,
+        quoteCode: lineRow.quote_code,
+        clientCode: pickFirstValue(quoteRow?.customer_code, lineRow.customer_code, raw['ID CLIENTE']),
+        clientName: pickFirstValue(quoteRow?.customer_name, raw.CLIENTE, raw['CLIENTE NOMBRE']),
+        productName,
+        productType: pickFirstValue(raw['REQ | Tipo de Producto']),
+        department: pickFirstValue(raw.DEPARTAMENTO, 'Flexografia'),
+        materialName: pickFirstValue(raw['GENERAL | MATERIAL'], lineRow.material_code),
+        quotedMachine: pickFirstValue(lineRow.machine_name, raw[`${activePrefix} | MAQUINA`], raw['CONV | MAQUINA'], raw['DIGITAL | MAQUINA']),
+        dieCode: pickFirstValue(lineRow.die_code, raw['GENERAL | TROQUEL | ID']),
+        quantityProducts: parseLegacyNumber(lineRow.quantity) ?? parseLegacyNumber(raw['Cantidad Productos']),
+        quantityTypes: parseLegacyNumber(raw['CANTIDAD TIPOS']),
+        tintCount: parseLegacyNumber(raw['CANTIDAD TINTAS']),
+        widthInches: parseLegacyNumber(raw['DIMENSIONES ETIQUETA | ANCHO']),
+        lengthInches: parseLegacyNumber(raw['DIMENSIONES ETIQUETA | LARGO']),
+        priceUnit: parseLegacyNumber(lineRow.unit_price) ?? parseLegacyNumber(raw['GENERAL | 9 | UNITARIO | DOL']),
+        totalPrice: parseLegacyNumber(lineRow.total_cost) ?? parseLegacyNumber(raw['PRECIO TOTAL AL FINALIZAR']),
+        sourceCalculationCode: lineRow.calculation_code,
+        rawData: raw,
+        metadata
+    };
+}
+
 function extractLineAttachments(row) {
     const raw = row?.raw_data || {};
     const attachments = [];
@@ -4213,6 +4515,136 @@ function extractLineAttachments(row) {
         });
     });
     return attachments;
+}
+
+function buildStableSapDocEntry(prefix, quoteCode, lineCode) {
+    const source = `${prefix}|${quoteCode || ''}|${lineCode || ''}`;
+    let hash = 0;
+    for (let index = 0; index < source.length; index += 1) {
+        hash = ((hash << 5) - hash + source.charCodeAt(index)) | 0;
+    }
+    return Math.abs(hash % 800000000) + 100000;
+}
+
+function normalizeSapDate(value, fallback = new Date().toISOString().slice(0, 10)) {
+    const text = String(value || '').trim();
+    if (!text) return fallback;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+    const parsed = new Date(text);
+    if (!Number.isNaN(parsed.getTime())) {
+        return parsed.toISOString().slice(0, 10);
+    }
+    return fallback;
+}
+
+function getLocalSapDate() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function buildSapExportPayloadsFromQuoteLine({ quoteRow, lineRow }) {
+    const raw = lineRow?.raw_data || {};
+    const quoteCode = lineRow?.quote_code || quoteRow?.quote_code || '';
+    const lineCode = lineRow?.line_code || '';
+    const quantity = parseLegacyNumber(lineRow?.quantity) ?? parseLegacyNumber(raw['Cantidad Productos']) ?? 1;
+    const total = parseLegacyNumber(lineRow?.total_cost) ?? parseLegacyNumber(raw['PRECIO TOTAL AL FINALIZAR']) ?? 0;
+    const unitPrice = parseLegacyNumber(lineRow?.unit_price) ?? parseLegacyNumber(raw['GENERAL | 9 | UNITARIO | DOL']) ?? (quantity ? total / quantity : total);
+    const itemCode = pickFirstValue(lineRow?.product_code, raw['CODIGO PRODUCTO'], lineCode, `PROD-${quoteCode}-${lineCode}`);
+    const itemName = getProductNameFromRaw(raw, itemCode);
+    const cardCode = pickFirstValue(quoteRow?.customer_code, lineRow?.customer_code, raw['ID CLIENTE']);
+    const cardName = pickFirstValue(quoteRow?.customer_name, raw.CLIENTE, raw['CLIENTE NOMBRE']);
+    const docDate = getLocalSapDate();
+    const dueDate = normalizeSapDate(pickFirstValue(quoteRow?.due_on, raw['FECHA VENCIMIENTO']), docDate);
+    const warehouse = pickFirstValue(raw.BODEGA, raw.WhsCode, '01');
+    const materialCode = pickFirstValue(
+        lineRow?.material_code,
+        raw['Material Convencional | Id Material'],
+        raw['Material Digital | Id Material'],
+        raw['GENERAL | MATERIAL']
+    );
+    const components = [];
+
+    if (materialCode) {
+        components.push({
+            LineNum: 0,
+            ItemCode: materialCode,
+            ItemName: pickFirstValue(raw['GENERAL | MATERIAL'], materialCode),
+            Quantity: parseLegacyNumber(raw['SUSTRATO | PIES LINEALES CON MERMA']) ?? parseLegacyNumber(raw['GENERAL | MSI MERMADO']) ?? quantity,
+            WarehouseCode: warehouse,
+            Source: 'Sustrato'
+        });
+    }
+
+    const tintCount = parseLegacyNumber(raw['CANTIDAD TINTAS']);
+    if (tintCount && tintCount > 0) {
+        components.push({
+            LineNum: components.length,
+            ItemCode: pickFirstValue(raw['TINTA | CODIGO'], raw['CONV | TINTA | CODIGO'], 'TINTAS'),
+            ItemName: 'Tintas',
+            Quantity: tintCount,
+            WarehouseCode: warehouse,
+            Source: 'Tintas'
+        });
+    }
+
+    return {
+        order: {
+            DocEntry: buildStableSapDocEntry('ORDR', quoteCode, lineCode),
+            DocNum: `${quoteCode}-${lineCode}`,
+            CardCode: cardCode,
+            CardName: cardName,
+            DocDate: docDate,
+            DocDueDate: dueDate,
+            Currency: pickFirstValue(raw.MONEDA, raw.Currency, 'CRC'),
+            DocStatus: 'Pendiente',
+            Comments: `Preparado desde cotización ${quoteCode}, línea ${lineCode}`,
+            DocumentLines: [{
+                LineNum: 0,
+                ItemCode: itemCode,
+                ItemDescription: itemName,
+                Quantity: quantity,
+                Price: unitPrice,
+                LineTotal: total || (quantity * unitPrice),
+                WarehouseCode: warehouse
+            }],
+            source: {
+                quoteCode,
+                lineCode,
+                calculationCode: lineRow?.calculation_code || '',
+                stagedFrom: 'quote-finalization'
+            }
+        },
+        bom: {
+            DocEntry: buildStableSapDocEntry('OWOR', quoteCode, lineCode),
+            DocNum: `${quoteCode}-${lineCode}-BOM`,
+            ItemCode: itemCode,
+            ProdName: itemName,
+            PlannedQty: quantity,
+            PostDate: docDate,
+            DueDate: dueDate,
+            Status: 'P',
+            OriginNum: quoteCode,
+            Comments: `BOM preparado desde cotización ${quoteCode}, línea ${lineCode}`,
+            components,
+            source: {
+                quoteCode,
+                lineCode,
+                calculationCode: lineRow?.calculation_code || '',
+                stagedFrom: 'quote-finalization'
+            }
+        }
+    };
+}
+
+async function stageSapExportsForQuoteLine({ quoteRow, lineRow, client }) {
+    const payloads = buildSapExportPayloadsFromQuoteLine({ quoteRow, lineRow });
+    const executor = client ? (sql, params) => client.query(sql, params) : pgQuery;
+    const order = await stageSapMirrorOrder(executor, payloads.order);
+    const bom = await stageSapMirrorBom(executor, payloads.bom);
+    return { order, bom };
 }
 
 async function getStoredAttachments(quoteCode, lineCode) {
@@ -4604,6 +5036,7 @@ async function loadFlexoCatalogsFromDb() {
         pgQuery(
             `SELECT codigo, nombre, ancho_mm, largo_mm, gramaje_g_m2, calibre_micras, costo_x_lamina, costo_x_msi, costo_x_m2, costo_x_kg,
                     costo_x_libra, peso_capa_gsm, rendimiento_g_ft2, compatible_convencional, compatible_digital, tipo_proforma,
+                    tipo_superficie, requiere_premier, premier_preaplicado, premier_consumo_g_m2, premier_costo_x_kg, premier_costo_x_m2,
                     familia_proceso, comentario_ancho_mm, comentario_largo_mm, comentario_gramaje_g_m2, comentario_calibre_micras,
                     comentario_costo_x_lamina, comentario_costo_x_msi, comentario_costo_x_m2, comentario_costo_x_kg,
                     comentario_costo_x_libra, comentario_peso_capa_gsm, comentario_rendimiento_g_ft2,
@@ -4634,6 +5067,22 @@ async function loadFlexoCatalogsFromDb() {
                     m.factor_preparacion,
                     m.macula_default_pies,
                     m.factor_tiraje_digital,
+                    m.digital_tipo_cobro,
+                    m.digital_costo_kg_tinta,
+                    m.digital_costo_kg_tinta_blanco,
+                    m.digital_costo_kg_tinta_especial,
+                    m.digital_tarifa_click,
+                    m.digital_modo_click,
+                    m.digital_velocidad_cmyk_mpm,
+                    m.digital_velocidad_extendida_mpm,
+                    m.digital_gramaje_cmyk_g_m2,
+                    m.digital_gramaje_blanco_g_m2,
+                    m.digital_factor_merma,
+                    m.digital_costo_lavado_especial,
+                    m.digital_premier_modo,
+                    m.digital_premier_setup_min,
+                    m.digital_premier_costo_mantenimiento,
+                    m.digital_premier_costo_offline_m,
                     m.comentario_setup,
                     m.comentario_montaje,
                     mc.id AS capacidad_id,
@@ -4689,6 +5138,22 @@ async function loadFlexoCatalogsFromDb() {
                 legacySetupPerStationMinutes: Number(row.factor_montaje_estacion || 0),
                 legacySetupBaseMinutes: Number(row.factor_preparacion || 0),
                 legacySetupExtraMinutes: Number(row.macula_default_pies || 0),
+                digitalBillingType: row.digital_tipo_cobro || 'consumo',
+                digitalInkCostPerKg: Number(row.digital_costo_kg_tinta || 0),
+                digitalWhiteInkCostPerKg: Number(row.digital_costo_kg_tinta_blanco || 0),
+                digitalSpecialInkCostPerKg: Number(row.digital_costo_kg_tinta_especial || 0),
+                digitalClickRate: Number(row.digital_tarifa_click || 0),
+                digitalClickMode: row.digital_modo_click || 'por_estacion',
+                digitalSpeedCmykMpm: Number(row.digital_velocidad_cmyk_mpm || 0),
+                digitalSpeedExtendedMpm: Number(row.digital_velocidad_extendida_mpm || 0),
+                digitalCmykGsm: Number(row.digital_gramaje_cmyk_g_m2 || 1.5),
+                digitalWhiteGsm: Number(row.digital_gramaje_blanco_g_m2 || 4),
+                digitalWasteFactor: Number(row.digital_factor_merma || 1.1),
+                digitalSpecialWashCost: Number(row.digital_costo_lavado_especial || 0),
+                digitalPremierMode: row.digital_premier_modo || 'offline',
+                digitalPremierSetupMin: Number(row.digital_premier_setup_min || 20),
+                digitalPremierMaintenanceCost: Number(row.digital_premier_costo_mantenimiento || 0),
+                digitalPremierOfflineCostPerMeter: Number(row.digital_premier_costo_offline_m || 0),
                 comentario_setup: row.comentario_setup || '',
                 comentario_montaje: row.comentario_montaje || '',
                 capacities: []
@@ -4740,6 +5205,22 @@ async function loadFlexoCatalogsFromDb() {
             setupPerStationMinutes: primary?.setupPerStationMinutes ?? machine.legacySetupPerStationMinutes,
             setupBaseMinutes: primary?.setupBaseMinutes ?? machine.legacySetupBaseMinutes,
             setupExtraMinutes: primary?.setupExtraMinutes ?? machine.legacySetupExtraMinutes,
+            digitalBillingType: machine.digitalBillingType,
+            digitalInkCostPerKg: machine.digitalInkCostPerKg,
+            digitalWhiteInkCostPerKg: machine.digitalWhiteInkCostPerKg,
+            digitalSpecialInkCostPerKg: machine.digitalSpecialInkCostPerKg,
+            digitalClickRate: machine.digitalClickRate,
+            digitalClickMode: machine.digitalClickMode,
+            digitalSpeedCmykMpm: machine.digitalSpeedCmykMpm,
+            digitalSpeedExtendedMpm: machine.digitalSpeedExtendedMpm,
+            digitalCmykGsm: machine.digitalCmykGsm,
+            digitalWhiteGsm: machine.digitalWhiteGsm,
+            digitalWasteFactor: machine.digitalWasteFactor,
+            digitalSpecialWashCost: machine.digitalSpecialWashCost,
+            digitalPremierMode: machine.digitalPremierMode,
+            digitalPremierSetupMin: machine.digitalPremierSetupMin,
+            digitalPremierMaintenanceCost: machine.digitalPremierMaintenanceCost,
+            digitalPremierOfflineCostPerMeter: machine.digitalPremierOfflineCostPerMeter,
             areaFactor: primary?.areaFactor ?? 0,
             timeFormula: primary?.timeFormula || '',
             costFormula: primary?.costFormula || '',
@@ -4785,6 +5266,12 @@ async function loadFlexoCatalogsFromDb() {
             costPerLbUsd: row.costo_x_libra,
             coatWeightGsm: row.peso_capa_gsm,
             yieldGft2: row.rendimiento_g_ft2,
+            surfaceType: row.tipo_superficie || '',
+            requiresPremier: row.requiere_premier,
+            premierPreapplied: row.premier_preaplicado,
+            premierConsumptionGm2: Number(row.premier_consumo_g_m2 || 0.65),
+            premierCostPerKgUsd: Number(row.premier_costo_x_kg || 0),
+            premierCostPerM2Usd: Number(row.premier_costo_x_m2 || 0),
             conventionalEnabled: row.compatible_convencional,
             digitalEnabled: row.compatible_digital,
             active: row.activo !== false,
@@ -5821,6 +6308,369 @@ app.delete('/api/cotizaciones/:codigo', async (req, res) => {
     }
 });
 
+app.get('/api/productos', async (req, res) => {
+    try {
+        const search = String(req.query.q || '').trim();
+        const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 300);
+        const values = [];
+        const filters = [];
+
+        if (search) {
+            values.push(`%${search}%`);
+            filters.push(`(
+                p.product_code ILIKE $${values.length}
+                OR COALESCE(p.product_name, '') ILIKE $${values.length}
+                OR COALESCE(p.client_name, '') ILIKE $${values.length}
+                OR COALESCE(p.client_code, '') ILIKE $${values.length}
+                OR COALESCE(p.material_name, '') ILIKE $${values.length}
+                OR COALESCE(p.quote_code, '') ILIKE $${values.length}
+            )`);
+        }
+
+        values.push(limit);
+        const result = await pgQuery(
+            `SELECT p.*,
+                    COALESCE(history.quote_count, 0) AS quote_count,
+                    history.last_quoted_at
+               FROM flexo_products p
+          LEFT JOIN (
+                    SELECT product_code,
+                           COUNT(DISTINCT quote_code)::int AS quote_count,
+                           MAX(created_at) AS last_quoted_at
+                      FROM flexo_product_quote_history
+                     GROUP BY product_code
+               ) history ON history.product_code = p.product_code
+              ${filters.length ? `WHERE ${filters.join(' AND ')}` : ''}
+              ORDER BY p.updated_at DESC NULLS LAST, p.created_at DESC NULLS LAST, p.product_code DESC
+              LIMIT $${values.length}`,
+            values
+        );
+        res.json({ productos: result.rows.map(mapProductCatalogRow), total: result.rows.length });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible cargar productos.' });
+    }
+});
+
+app.get('/api/productos/:codigo', async (req, res) => {
+    try {
+        const code = String(req.params.codigo || '').trim();
+        const productResult = await pgQuery(
+            `SELECT p.*,
+                    COALESCE(history.quote_count, 0) AS quote_count,
+                    history.last_quoted_at
+               FROM flexo_products p
+          LEFT JOIN (
+                    SELECT product_code,
+                           COUNT(DISTINCT quote_code)::int AS quote_count,
+                           MAX(created_at) AS last_quoted_at
+                      FROM flexo_product_quote_history
+                     GROUP BY product_code
+               ) history ON history.product_code = p.product_code
+              WHERE p.product_code = $1
+              LIMIT 1`,
+            [code]
+        );
+        if (!productResult.rows.length) {
+            return res.status(404).json({ error: 'Producto no encontrado.' });
+        }
+        const historyResult = await pgQuery(
+            `SELECT h.product_code, h.quote_code, h.line_code, h.action, h.created_by, h.created_at,
+                    q.customer_code, q.customer_name, q.salesperson_name, q.status, q.created_on,
+                    fc.product_code AS quoted_product_code,
+                    fc.total_cost,
+                    fc.unit_price,
+                    fc.raw_data AS line_raw_data
+               FROM flexo_product_quote_history h
+          LEFT JOIN quotes q ON q.quote_code = h.quote_code
+          LEFT JOIN LATERAL (
+                    SELECT product_code, total_cost, unit_price, raw_data
+                      FROM flexo_calculations fc
+                     WHERE fc.quote_code = h.quote_code
+                       AND fc.line_code = h.line_code
+                     ORDER BY fc.created_at DESC NULLS LAST, fc.calculation_code DESC NULLS LAST
+                     LIMIT 1
+               ) fc ON TRUE
+              WHERE h.product_code = $1
+              ORDER BY h.created_at DESC NULLS LAST`,
+            [code]
+        );
+        res.json({
+            producto: mapProductCatalogRow(productResult.rows[0]),
+            historial: historyResult.rows.map((row) => ({
+                product_code: row.product_code,
+                quote_code: row.quote_code,
+                line_code: row.line_code || '',
+                action: row.action || 'quote',
+                customer_code: row.customer_code || '',
+                customer_name: row.customer_name || '',
+                salesperson_name: row.salesperson_name || '',
+                status: row.status || '',
+                created_on: row.created_on || '',
+                created_at: row.created_at || '',
+                total_cost: parseLegacyNumber(row.total_cost),
+                unit_price: parseLegacyNumber(row.unit_price),
+                job_name: getProductNameFromRaw(row.line_raw_data || {}, row.quoted_product_code || row.line_code || '')
+            }))
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible cargar el producto.' });
+    }
+});
+
+app.post('/api/cotizaciones/:codigo/lineas/:linea/producto', async (req, res) => {
+    try {
+        if (!canRequestCreateModule(req, 'productos')) {
+            return res.status(403).json({ error: 'No tienes permiso para crear productos.' });
+        }
+        const { codigo, linea } = req.params;
+        const result = await withTransaction(async (client) => {
+            const context = await getQuoteLineContext(codigo, linea, client);
+            if (!context.quote || !context.line) {
+                throw new Error('No se encontró la línea para convertirla en producto.');
+            }
+
+            const existing = await client.query(
+                `SELECT product_code
+                   FROM flexo_products
+                  WHERE quote_code = $1 AND line_code = $2
+                  ORDER BY created_at DESC NULLS LAST
+                  LIMIT 1`,
+                [codigo, linea]
+            );
+            const productCode = existing.rows[0]?.product_code || await generateNextProductCode(client);
+            const product = buildProductPayloadFromLine({
+                productCode,
+                quoteRow: context.quote,
+                lineRow: context.line
+            });
+
+            const saved = await client.query(
+                `INSERT INTO flexo_products (
+                    product_code, line_code, quote_code, client_code, client_name, product_name, product_type,
+                    department, material_name, quoted_machine, die_code, quantity_products, quantity_types,
+                    tint_count, width_inches, length_inches, price_unit, total_price, source_calculation_code,
+                    raw_data, updated_at
+                 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20::jsonb,NOW())
+                 ON CONFLICT (product_code)
+                 DO UPDATE SET
+                    line_code = EXCLUDED.line_code,
+                    quote_code = EXCLUDED.quote_code,
+                    client_code = EXCLUDED.client_code,
+                    client_name = EXCLUDED.client_name,
+                    product_name = EXCLUDED.product_name,
+                    product_type = EXCLUDED.product_type,
+                    department = EXCLUDED.department,
+                    material_name = EXCLUDED.material_name,
+                    quoted_machine = EXCLUDED.quoted_machine,
+                    die_code = EXCLUDED.die_code,
+                    quantity_products = EXCLUDED.quantity_products,
+                    quantity_types = EXCLUDED.quantity_types,
+                    tint_count = EXCLUDED.tint_count,
+                    width_inches = EXCLUDED.width_inches,
+                    length_inches = EXCLUDED.length_inches,
+                    price_unit = EXCLUDED.price_unit,
+                    total_price = EXCLUDED.total_price,
+                    source_calculation_code = EXCLUDED.source_calculation_code,
+                    raw_data = EXCLUDED.raw_data,
+                    updated_at = NOW()
+                 RETURNING *`,
+                [
+                    product.productCode,
+                    product.lineCode,
+                    product.quoteCode,
+                    product.clientCode,
+                    product.clientName,
+                    product.productName,
+                    product.productType,
+                    product.department,
+                    product.materialName,
+                    product.quotedMachine,
+                    product.dieCode,
+                    product.quantityProducts,
+                    product.quantityTypes,
+                    product.tintCount,
+                    product.widthInches,
+                    product.lengthInches,
+                    product.priceUnit,
+                    product.totalPrice,
+                    product.sourceCalculationCode,
+                    JSON.stringify(product.rawData)
+                ]
+            );
+            await client.query(
+                `INSERT INTO flexo_product_quote_history (product_code, quote_code, line_code, action, raw_data, created_by)
+                 SELECT $1,$2,$3,'source-quote',$4::jsonb,$5
+                 WHERE NOT EXISTS (
+                    SELECT 1 FROM flexo_product_quote_history
+                     WHERE product_code = $1 AND quote_code = $2 AND line_code = $3 AND action = 'source-quote'
+                 )`,
+                [product.productCode, codigo, linea, JSON.stringify(product.metadata), product.metadata.created_by]
+            );
+            return saved.rows[0];
+        });
+        res.json({ ok: true, producto: mapProductCatalogRow(result) });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible convertir la línea en producto.' });
+    }
+});
+
+app.post('/api/productos/:codigo/cotizar', async (req, res) => {
+    try {
+        if (!canRequestCreateModule(req, 'cotizaciones')) {
+            return res.status(403).json({ error: 'No tienes permiso para crear cotizaciones.' });
+        }
+        const productCode = String(req.params.codigo || '').trim();
+        const payload = req.body || {};
+        const result = await withTransaction(async (client) => {
+            const productResult = await client.query(`SELECT * FROM flexo_products WHERE product_code = $1 LIMIT 1`, [productCode]);
+            if (!productResult.rows.length) {
+                throw new Error('Producto no encontrado.');
+            }
+            const product = productResult.rows[0];
+            const productRaw = product.raw_data || {};
+            let targetQuote = null;
+            const targetQuoteCode = String(payload.targetQuoteCode || '').trim();
+
+            if (targetQuoteCode) {
+                const targetResult = await client.query(`SELECT * FROM quotes WHERE quote_code = $1 LIMIT 1`, [targetQuoteCode]);
+                if (!targetResult.rows.length) throw new Error('Cotización destino no encontrada.');
+                targetQuote = targetResult.rows[0];
+            } else {
+                const quoteCode = await generateNextQuoteCode(client);
+                const today = new Date().toISOString().slice(0, 10);
+                const quoteRaw = buildQuoteRawData({
+                    quote_code: quoteCode,
+                    customer_code: product.client_code,
+                    customer_name: product.client_name,
+                    contact_name: productRaw['CLIENTE | CONTACTO NOMBRE COMPLETO'],
+                    email: productRaw['CLIENTE | CONTACTO EMAIL'],
+                    salesperson_name: productRaw.VENDEDOR || getConfiguredCurrentUser(),
+                    phone: productRaw['CLIENTE | CONTACTO TELEFONO'],
+                    status: 'Borrador',
+                    created_on: today,
+                    due_on: today
+                }, productRaw);
+                quoteRaw['TRAZABILIDAD | ACCION'] = 'create-quote-from-product';
+                quoteRaw['TRAZABILIDAD | PRODUCTO ORIGEN'] = productCode;
+
+                await client.query(
+                    `INSERT INTO quotes (
+                        quote_code, customer_code, customer_name, contact_name, email, salesperson_name, phone, status, created_on, due_on, raw_data
+                     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb)`,
+                    [
+                        quoteCode,
+                        product.client_code,
+                        product.client_name,
+                        pickFirstValue(productRaw['CLIENTE | CONTACTO NOMBRE COMPLETO']),
+                        pickFirstValue(productRaw['CLIENTE | CONTACTO EMAIL']),
+                        pickFirstValue(productRaw.VENDEDOR, getConfiguredCurrentUser()),
+                        pickFirstValue(productRaw['CLIENTE | CONTACTO TELEFONO']),
+                        'Borrador',
+                        today,
+                        today,
+                        JSON.stringify(quoteRaw)
+                    ]
+                );
+                const createdQuote = await client.query(`SELECT * FROM quotes WHERE quote_code = $1 LIMIT 1`, [quoteCode]);
+                targetQuote = createdQuote.rows[0];
+            }
+
+            const lineCode = await generateNextLineCode(client);
+            const calculationCode = await generateNextCalculationCode(client);
+            const metadata = buildTraceabilityMetadata({
+                action: 'quote-from-product',
+                sourceQuoteCode: product.quote_code,
+                sourceLineCode: product.line_code,
+                actor: getConfiguredCurrentUser()
+            });
+            const rawData = buildCalculationRawData(
+                {
+                    quote_code: targetQuote.quote_code,
+                    line_code: lineCode,
+                    product_code: product.product_code,
+                    customer_code: targetQuote.customer_code,
+                    customer_name: targetQuote.customer_name,
+                    salesperson_name: targetQuote.salesperson_name,
+                    department: product.department,
+                    job_name: product.product_name,
+                    material_name: product.material_name,
+                    status: 'Borrador',
+                    process_type: productRaw['Proceso Productivo'],
+                    machine_name: product.quoted_machine,
+                    die_code: product.die_code,
+                    quantity: product.quantity_products,
+                    quantityProducts: product.quantity_products,
+                    total_cost: product.total_price,
+                    unit_price: product.price_unit
+                },
+                {
+                    ...productRaw,
+                    'ID COTIZACION': targetQuote.quote_code,
+                    'ID LINEA': lineCode,
+                    'ID CLIENTE': targetQuote.customer_code,
+                    CLIENTE: targetQuote.customer_name,
+                    'CLIENTE NOMBRE': targetQuote.customer_name,
+                    VENDEDOR: targetQuote.salesperson_name,
+                    'TRAZABILIDAD | ACCION': metadata.action,
+                    'TRAZABILIDAD | USUARIO': metadata.created_by,
+                    'TRAZABILIDAD | FECHA': metadata.created_at,
+                    'TRAZABILIDAD | PRODUCTO ORIGEN': product.product_code,
+                    'TRAZABILIDAD | COTIZACION ORIGEN': product.quote_code,
+                    'TRAZABILIDAD | LINEA ORIGEN': product.line_code,
+                    traceability: metadata
+                }
+            );
+            rawData['CODEX_LINE_ORDER'] = await getNextQuoteLineOrder(targetQuote.quote_code);
+
+            await client.query(
+                `INSERT INTO flexo_calculations (
+                    calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name,
+                    die_code, material_code, quantity, subtotal_cost, total_cost, unit_price, raw_data
+                 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NULL,$11,$12,$13::jsonb)`,
+                [
+                    calculationCode,
+                    targetQuote.quote_code,
+                    lineCode,
+                    product.product_code,
+                    targetQuote.customer_code,
+                    pickFirstValue(productRaw['Proceso Productivo'], 'Convencional'),
+                    product.quoted_machine,
+                    product.die_code,
+                    pickFirstValue(productRaw['Material Convencional | Id Material'], productRaw['Material Digital | Id Material']),
+                    parseLegacyNumber(product.quantity_products),
+                    parseLegacyNumber(product.total_price),
+                    parseLegacyNumber(product.price_unit),
+                    JSON.stringify(rawData)
+                ]
+            );
+            await client.query(
+                `INSERT INTO flexo_product_quote_history (product_code, quote_code, line_code, action, raw_data, created_by)
+                 VALUES ($1,$2,$3,'quote-from-product',$4::jsonb,$5)`,
+                [product.product_code, targetQuote.quote_code, lineCode, JSON.stringify(metadata), metadata.created_by]
+            );
+            const lineResult = await client.query(
+                `SELECT calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name, die_code, material_code,
+                        quantity, subtotal_cost, total_cost, unit_price, raw_data
+                   FROM flexo_calculations
+                  WHERE calculation_code = $1
+                  LIMIT 1`,
+                [calculationCode]
+            );
+            return { quote: targetQuote, line: lineResult.rows[0] };
+        });
+
+        res.json({
+            ok: true,
+            cotizacion: mapQuoteHeader(result.quote),
+            linea: mapCalculationLine(result.line),
+            calculo: mapFlexoCalculationDetail(result.line)
+        });
+    } catch (error) {
+        const status = /no encontrad/i.test(error.message || '') ? 404 : 500;
+        res.status(status).json({ error: error.message || 'No fue posible cotizar el producto.' });
+    }
+});
+
 app.get('/api/config/general', async (req, res) => {
     try {
         res.setHeader('Cache-Control', 'private, max-age=30, must-revalidate');
@@ -5942,7 +6792,7 @@ app.delete('/api/login-repository/:fileName', async (req, res) => {
 app.get('/api/admin-users', async (req, res) => {
     try {
         const result = await pgQuery(
-            `SELECT u.id, u.full_name, u.username, u.password, u.department, u.process, u.photo_url, u.signature_url, u.permission_id,
+            `SELECT u.id, u.full_name, u.username, u.password, u.department, u.process, u.photo_url, u.signature_url, u.email, u.phone, u.phone_secondary, u.permission_id,
                     p.permission_name
                FROM admin_users u
           LEFT JOIN admin_permissions p
@@ -5962,9 +6812,9 @@ app.post('/api/admin-users', async (req, res) => {
             return res.status(400).json({ error: 'El nombre es obligatorio.' });
         }
         const result = await pgQuery(
-            `INSERT INTO admin_users (full_name, username, password, department, process, photo_url, signature_url, permission_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-             RETURNING id, full_name, username, password, department, process, photo_url, signature_url, permission_id`,
+            `INSERT INTO admin_users (full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary, permission_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+             RETURNING id, full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary, permission_id`,
             [
                 name,
                 sanitizeAdminUserText(req.body?.username),
@@ -5973,6 +6823,9 @@ app.post('/api/admin-users', async (req, res) => {
                 sanitizeAdminUserText(req.body?.process),
                 sanitizeAdminUserText(req.body?.photoUrl),
                 sanitizeAdminUserText(req.body?.signatureUrl),
+                sanitizeAdminUserText(req.body?.email),
+                sanitizeAdminUserText(req.body?.phone),
+                sanitizeAdminUserText(req.body?.phoneSecondary),
                 req.body?.permissionId ? Number(req.body.permissionId) : null
             ]
         );
@@ -6006,10 +6859,13 @@ app.patch('/api/admin-users/:id', async (req, res) => {
                     process = $6,
                     photo_url = $7,
                     signature_url = $8,
-                    permission_id = $9,
+                    email = $9,
+                    phone = $10,
+                    phone_secondary = $11,
+                    permission_id = $12,
                     updated_at = NOW()
               WHERE id = $1
-          RETURNING id, full_name, username, password, department, process, photo_url, signature_url, permission_id`,
+          RETURNING id, full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary, permission_id`,
             [
                 id,
                 name,
@@ -6019,6 +6875,9 @@ app.patch('/api/admin-users/:id', async (req, res) => {
                 sanitizeAdminUserText(req.body?.process),
                 sanitizeAdminUserText(req.body?.photoUrl),
                 sanitizeAdminUserText(req.body?.signatureUrl),
+                sanitizeAdminUserText(req.body?.email),
+                sanitizeAdminUserText(req.body?.phone),
+                sanitizeAdminUserText(req.body?.phoneSecondary),
                 req.body?.permissionId ? Number(req.body.permissionId) : null
             ]
         );
@@ -6033,6 +6892,110 @@ app.patch('/api/admin-users/:id', async (req, res) => {
         res.json(normalizeAdminUserRecord(updated));
     } catch (error) {
         res.status(400).json({ error: error.message || 'No fue posible actualizar el usuario.' });
+    }
+});
+
+app.get('/api/admin-profile', async (req, res) => {
+    try {
+        const session = readErpSessionFromRequest(req);
+        const sessionUser = sanitizeAdminUserText(session?.username);
+        if (!sessionUser) {
+            return res.status(401).json({ error: 'Sesión no válida.' });
+        }
+        const result = await pgQuery(
+            `SELECT u.id, u.full_name, u.username, u.password, u.department, u.process, u.photo_url, u.signature_url, u.email, u.phone, u.phone_secondary, u.permission_id,
+                    p.permission_name
+               FROM admin_users u
+          LEFT JOIN admin_permissions p
+                 ON p.id = u.permission_id
+              WHERE LOWER(TRIM(u.username)) = LOWER(TRIM($1))
+                 OR LOWER(TRIM(u.full_name)) = LOWER(TRIM($1))
+              ORDER BY u.id
+              LIMIT 1`,
+            [sessionUser]
+        );
+        if (!result.rows.length) {
+            return res.json({
+                id: 0,
+                name: sanitizeAdminUserText(session?.name, sessionUser),
+                username: sessionUser,
+                password: '',
+                department: sanitizeAdminUserText(session?.department),
+                process: sanitizeAdminUserText(session?.process),
+                photoUrl: sanitizeAdminUserText(session?.photoUrl),
+                signatureUrl: '',
+                email: '',
+                phone: '',
+                phoneSecondary: '',
+                permissionId: null,
+                permissionName: sanitizeAdminUserText(session?.permissionName)
+            });
+        }
+        res.json(normalizeAdminUserRecord(result.rows[0]));
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible cargar el perfil.' });
+    }
+});
+
+app.patch('/api/admin-profile', async (req, res) => {
+    try {
+        const session = readErpSessionFromRequest(req);
+        const sessionUser = sanitizeAdminUserText(session?.username);
+        if (!sessionUser) {
+            return res.status(401).json({ error: 'Sesión no válida.' });
+        }
+        const existing = await pgQuery(
+            `SELECT id, full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary, permission_id
+               FROM admin_users
+              WHERE LOWER(TRIM(username)) = LOWER(TRIM($1))
+                 OR LOWER(TRIM(full_name)) = LOWER(TRIM($1))
+              ORDER BY id
+              LIMIT 1`,
+            [sessionUser]
+        );
+        if (!existing.rows.length) {
+            const inserted = await pgQuery(
+                `INSERT INTO admin_users (
+                    full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary, permission_id
+                 ) VALUES ($1,$2,$3,$4,$5,$6,'',$7,$8,$9,NULL)
+                 RETURNING id, full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary, permission_id`,
+                [
+                    sanitizeAdminUserText(session?.name, sessionUser),
+                    sessionUser,
+                    sanitizeAdminUserText(req.body?.password),
+                    sanitizeAdminUserText(session?.department),
+                    sanitizeAdminUserText(session?.process),
+                    sanitizeAdminUserText(req.body?.photoUrl, session?.photoUrl),
+                    sanitizeAdminUserText(req.body?.email),
+                    sanitizeAdminUserText(req.body?.phone),
+                    sanitizeAdminUserText(req.body?.phoneSecondary)
+                ]
+            );
+            return res.json(normalizeAdminUserRecord(inserted.rows[0]));
+        }
+        const row = existing.rows[0];
+        const result = await pgQuery(
+            `UPDATE admin_users
+                SET password = $2,
+                    photo_url = $3,
+                    email = $4,
+                    phone = $5,
+                    phone_secondary = $6,
+                    updated_at = NOW()
+              WHERE id = $1
+          RETURNING id, full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary, permission_id`,
+            [
+                Number(row.id),
+                sanitizeAdminUserText(req.body?.password, row.password),
+                sanitizeAdminUserText(req.body?.photoUrl, row.photo_url),
+                sanitizeAdminUserText(req.body?.email, row.email),
+                sanitizeAdminUserText(req.body?.phone, row.phone),
+                sanitizeAdminUserText(req.body?.phoneSecondary, row.phone_secondary)
+            ]
+        );
+        res.json(normalizeAdminUserRecord(result.rows[0]));
+    } catch (error) {
+        res.status(400).json({ error: error.message || 'No fue posible actualizar el perfil.' });
     }
 });
 
@@ -6097,6 +7060,21 @@ app.patch('/api/admin-permissions/:id', async (req, res) => {
         if (!name) {
             return res.status(400).json({ error: 'El nombre del permiso es obligatorio.' });
         }
+        const existingResult = await pgQuery(
+            `SELECT module_permissions
+               FROM admin_permissions
+              WHERE id = $1
+              LIMIT 1`,
+            [id]
+        );
+        if (!existingResult.rows.length) {
+            return res.status(404).json({ error: 'Permiso no encontrado.' });
+        }
+        const incomingModules = req.body?.modules && typeof req.body.modules === 'object' ? req.body.modules : {};
+        const mergedModules = {
+            ...(existingResult.rows[0]?.module_permissions || {}),
+            ...incomingModules
+        };
         const result = await pgQuery(
             `UPDATE admin_permissions
                 SET permission_name = $2,
@@ -6109,12 +7087,9 @@ app.patch('/api/admin-permissions/:id', async (req, res) => {
                 id,
                 name,
                 sanitizePresentationKey(req.body?.defaultLanding),
-                JSON.stringify(normalizePermissionMatrix(req.body?.modules || {}))
+                JSON.stringify(normalizePermissionMatrix(mergedModules))
             ]
         );
-        if (!result.rows.length) {
-            return res.status(404).json({ error: 'Permiso no encontrado.' });
-        }
         res.json(normalizeAdminPermissionRecord(result.rows[0]));
     } catch (error) {
         res.status(400).json({ error: error.message || 'No fue posible actualizar el permiso.' });
@@ -6362,25 +7337,6 @@ app.post('/api/clientes', async (req, res) => {
         res.json({ codigo: partnerCode, message: 'Cliente guardado exitosamente.' });
     } catch (error) {
         res.status(500).json({ error: error.message || 'No fue posible guardar el cliente.' });
-    }
-});
-
-app.get('/api/productos', async (req, res) => {
-    try {
-        const result = await pgQuery(
-            `SELECT DISTINCT ON (line_code)
-                    line_code AS codigo,
-                    product_code,
-                    quote_code,
-                    raw_data->>'NOMBRE TRABAJO' AS nombre,
-                    raw_data->>'GENERAL | MATERIAL' AS material
-               FROM flexo_calculations
-              WHERE line_code IS NOT NULL AND line_code <> ''
-              ORDER BY line_code, created_at DESC NULLS LAST`
-        );
-        res.json({ productos: result.rows });
-    } catch (error) {
-        res.status(500).json({ error: error.message || 'No fue posible cargar los productos.' });
     }
 });
 
@@ -6698,7 +7654,15 @@ app.patch('/api/cotizaciones/:codigo/lineas/:linea', async (req, res) => {
               WHERE calculation_code = $1`,
             [existing.rows[0].calculation_code]
         );
-        res.json({ linea: mapCalculationLine(detail.rows[0]), calculo: mapFlexoCalculationDetail(detail.rows[0]) });
+        let sapExport = null;
+        if (Boolean(detail.rows[0]?.raw_data?.['CODEX_FINALIZED_FOR_ORDER'])) {
+            const quoteResult = await pgQuery(`SELECT * FROM quotes WHERE quote_code = $1 LIMIT 1`, [codigo]);
+            sapExport = await stageSapExportsForQuoteLine({
+                quoteRow: quoteResult.rows[0] || null,
+                lineRow: detail.rows[0]
+            });
+        }
+        res.json({ linea: mapCalculationLine(detail.rows[0]), calculo: mapFlexoCalculationDetail(detail.rows[0]), sapExport });
     } catch (error) {
         res.status(500).json({ error: error.message || 'No fue posible guardar la línea.' });
     }
@@ -9128,6 +10092,10 @@ app.get('/calculo-flexografia', (req, res) => {
 app.get('/cotizador-flexografia-pro', (req, res) => {
     const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
     res.redirect(`/calculo-flexografia${query}`);
+});
+
+app.get('/productos', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'productos.html'));
 });
 
 app.get('/orden-produccion/:codigo', (req, res) => {

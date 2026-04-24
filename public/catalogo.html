@@ -7,7 +7,10 @@
     <title>Inventario</title>
     <link rel="stylesheet" href="/styles.css">
     <style>
-        .topbar.topbar-quote { display: none; }
+        .topbar.topbar-quote {
+            display: flex;
+            align-items: center;
+        }
     </style>
 </head>
 <body>
@@ -21,7 +24,10 @@
                 <h1 id="catalogTitle">Inventario</h1>
 
                 <div class="topbar-user-tools topbar-user-tools-compact">
+                    <button type="button" class="tool-icon plain-icon" data-topbar-favorite="true" aria-label="Favoritos"></button>
                     <button type="button" id="catalogHeaderSearchButton" class="tool-icon plain-icon" aria-label="Buscar"></button>
+                    <button type="button" class="tool-icon plain-icon" data-user-profile-open="true" aria-label="Perfil de usuario"></button>
+                    <div data-theme-toggle-slot></div>
                     <button type="button" id="catalogMenuToggle" class="tool-icon plain-icon" aria-label="Abrir opciones"></button>
                     <div id="catalogMenuPanel" class="menu-panel" hidden>
                         <a href="/" class="menu-link">Cotizaciones</a>
@@ -124,5 +130,6 @@
     <input id="catalogImportInput" type="file" accept=".xlsx,.xls,.csv" hidden>
     <script src="/access-control.js"></script>
     <script src="/catalogo.js"></script>
+    <script src="/topbar-tools.js"></script>
 </body>
 </html>

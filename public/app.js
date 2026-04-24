@@ -832,13 +832,13 @@ function getRowActionDefinitionsForRow(row) {
     const canCreateOrder = Boolean(row?.finalizadaOrden);
     return [
         ...(canCreateOrder ? [{ dividerBefore: true, key: 'createOrder', label: 'Crear orden de producción', icon: rowIcons.createOrder, action: 'create-production-order' }] : []),
-        { key: 'duplicate', label: 'Duplicar línea', icon: rowIcons.duplicate, action: 'duplicate-line' },
-        { key: 'copy', label: 'Copiar línea a otra cotización', icon: rowIcons.copy, action: 'copy-line' },
-        { key: 'createQuote', label: 'Crear nueva cotización a partir de esta línea', icon: rowIcons.createQuote, action: 'create-quote-from-line' },
-        { key: 'export', label: 'Exportar línea a Excel', icon: rowIcons.export, action: 'export-line' },
-        { key: 'attachments', label: 'Ver adjuntos', icon: rowIcons.attachments, action: 'view-attachments' },
-        { dividerBefore: true, key: 'finalize', label: 'Finalizar cotización', action: 'toggle-finalize-order', checked: Boolean(row?.finalizadaOrden) },
-        { dividerBefore: true, key: 'delete', label: 'Eliminar línea', icon: rowIcons.delete, action: 'delete-line', danger: true }
+        { key: 'duplicate', label: 'Duplicar Línea', icon: rowIcons.duplicate, action: 'duplicate-line' },
+        { key: 'copy', label: 'Copiar Línea a Otra Cotización', icon: rowIcons.copy, action: 'copy-line' },
+        { key: 'createQuote', label: 'Crear Nueva Cotización a Partir de Esta Línea', icon: rowIcons.createQuote, action: 'create-quote-from-line' },
+        { key: 'export', label: 'Exportar Línea a Excel', icon: rowIcons.export, action: 'export-line' },
+        { key: 'attachments', label: 'Ver Adjuntos', icon: rowIcons.attachments, action: 'view-attachments' },
+        { dividerBefore: true, key: 'finalize', label: 'Finalizar Cálculo', action: 'toggle-finalize-order', checked: Boolean(row?.finalizadaOrden) },
+        { dividerBefore: true, key: 'delete', label: 'Eliminar Línea', icon: rowIcons.delete, action: 'delete-line', danger: true }
     ];
 }
 

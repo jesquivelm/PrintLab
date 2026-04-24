@@ -157,6 +157,185 @@ const SYNC_ENTITY_DEFS = Object.freeze({
     }
 });
 
+const SAP_MIRROR_TABLES = Object.freeze({
+    OCRD: {
+        label: 'Importación de socios',
+        group: 'socios',
+        direction: 'import',
+        key: 'CardCode',
+        columns: ['CardCode', 'CardName', 'CardType', 'Currency', 'LicTradNum', 'FederalTaxID', 'Phone1', 'E_Mail', 'CntctPrsn', 'ListNum', 'validFor', 'Balance']
+    },
+    CRD1: {
+        label: 'Direcciones de socios',
+        group: 'socios',
+        direction: 'import',
+        key: 'CardCode',
+        columns: ['CardCode', 'Address', 'AdresType', 'Street', 'Block', 'City', 'County', 'State', 'Country', 'ZipCode']
+    },
+    OCPR: {
+        label: 'Contactos de socios',
+        group: 'socios',
+        direction: 'import',
+        key: 'CardCode',
+        columns: ['CardCode', 'Name', 'FirstName', 'LastName', 'E_MailL', 'Tel1', 'Cellolar', 'Position']
+    },
+    OITM: {
+        label: 'Importación de artículos',
+        group: 'inventario',
+        direction: 'import',
+        key: 'ItemCode',
+        columns: ['ItemCode', 'ItemName', 'ItmsGrpCod', 'InvntryUom', 'BuyUnitMsr', 'SalUnitMsr', 'validFor', 'OnHand', 'IsCommited', 'OnOrder', 'AvgPrice', 'LastPurPrc', 'Price', 'Currency']
+    },
+    OITW: {
+        label: 'Inventario por bodega',
+        group: 'inventario',
+        direction: 'import',
+        key: 'ItemCode',
+        columns: ['ItemCode', 'WhsCode', 'OnHand', 'IsCommited', 'OnOrder', 'AvailableQuantity']
+    },
+    ITM1: {
+        label: 'Precios por lista',
+        group: 'inventario',
+        direction: 'import',
+        key: 'ItemCode',
+        columns: ['ItemCode', 'PriceList', 'Price', 'Currency']
+    },
+    OWHS: {
+        label: 'Bodegas',
+        group: 'inventario',
+        direction: 'import',
+        key: 'WhsCode',
+        columns: ['WhsCode', 'WhsName', 'Location']
+    },
+    ORDR: {
+        label: 'Exportación de órdenes',
+        group: 'ordenes',
+        direction: 'export',
+        key: 'DocEntry',
+        columns: ['DocEntry', 'DocNum', 'CardCode', 'CardName', 'DocDate', 'DocDueDate', 'DocTotal', 'Currency', 'DocStatus', 'Comments']
+    },
+    RDR1: {
+        label: 'Líneas de órdenes',
+        group: 'ordenes',
+        direction: 'export',
+        key: 'DocEntry',
+        columns: ['DocEntry', 'LineNum', 'ItemCode', 'Dscription', 'Quantity', 'Price', 'LineTotal', 'WhsCode']
+    },
+    OWOR: {
+        label: 'Exportación de órdenes de producción',
+        group: 'bom',
+        direction: 'export',
+        key: 'DocEntry',
+        columns: ['DocEntry', 'DocNum', 'ItemCode', 'ProdName', 'PlannedQty', 'CmpltQty', 'PostDate', 'DueDate', 'Status', 'OriginNum', 'Comments']
+    },
+    WOR1: {
+        label: 'Componentes de producción',
+        group: 'bom',
+        direction: 'export',
+        key: 'DocEntry',
+        columns: ['DocEntry', 'LineNum', 'ItemCode', 'ItemName', 'PlannedQty', 'IssuedQty', 'warehous']
+    },
+    OITT: {
+        label: 'BOM / árbol de producto',
+        group: 'bom',
+        direction: 'export',
+        key: 'Code',
+        columns: ['Code', 'Name', 'Qauntity', 'TreeType']
+    },
+    ITT1: {
+        label: 'Componentes BOM',
+        group: 'bom',
+        direction: 'export',
+        key: 'Father',
+        columns: ['Father', 'Code', 'Quantity', 'Warehouse', 'PriceList']
+    }
+});
+
+const SAP_MIRROR_PROCESS_DEFS = Object.freeze({
+    'import-business-partners': {
+        key: 'import-business-partners',
+        label: 'Importar Socios',
+        direction: 'import',
+        entity: 'BusinessPartners',
+        targetTables: ['OCRD', 'CRD1', 'OCPR'],
+        endpoint: '/api/sap/mirror/import-business-partners',
+        previewEndpoint: '/api/sap/mirror/preview',
+        diApiRoute: '/business-partners',
+        serviceLayerRoute: 'BusinessPartners',
+        sql: [
+            'SELECT CardCode, CardName, CardType, Currency, LicTradNum, FederalTaxID, Phone1, E_Mail, CntctPrsn, ListNum, validFor, Balance',
+            '  FROM OCRD',
+            " WHERE validFor = 'Y'",
+            "   AND CardType IN ('C', 'L')",
+            ' ORDER BY CardCode ASC'
+        ].join('\n'),
+        relatedSql: [
+            'SELECT CardCode, Address, AdresType, Street, City, County, Country FROM CRD1 WHERE CardCode IN (:CardCode)',
+            'SELECT CardCode, CntctCode, Name, Tel1, E_MailL FROM OCPR WHERE CardCode IN (:CardCode)'
+        ],
+        note: 'Socios activos. Incluye clientes y prospectos; direcciones y contactos se guardan en tablas separadas.'
+    },
+    'import-items': {
+        key: 'import-items',
+        label: 'Importar Inventario',
+        direction: 'import',
+        entity: 'Items',
+        targetTables: ['OITM', 'OITW', 'ITM1', 'OWHS'],
+        endpoint: '/api/sap/mirror/import-items',
+        previewEndpoint: '/api/sap/mirror/preview',
+        diApiRoute: '/items',
+        serviceLayerRoute: 'Items',
+        sql: [
+            'SELECT ItemCode, ItemName, ItemsGroupCode, OnHand, AvailableQuantity, Price, Currency, BuyUnitMsr, SalesUnitMsr, validFor',
+            '  FROM OITM',
+            " WHERE validFor = 'Y'",
+            ' ORDER BY ItemCode ASC'
+        ].join('\n'),
+        relatedSql: [
+            'SELECT ItemCode, WhsCode, OnHand, IsCommited, OnOrder, Counted FROM OITW WHERE ItemCode IN (:ItemCode)',
+            'SELECT ItemCode, PriceList, Price, Currency FROM ITM1 WHERE ItemCode IN (:ItemCode)',
+            'SELECT WhsCode, WhsName, Locked FROM OWHS'
+        ],
+        note: 'Artículos activos, existencias por bodega y precios por lista. ITM1 alimenta listas de precio sin mezclar costo con precio comercial.'
+    },
+    'export-order': {
+        key: 'export-order',
+        label: 'Enviar Orden de Venta',
+        direction: 'export',
+        entity: 'Orders',
+        targetTables: ['ORDR', 'RDR1'],
+        endpoint: '/api/sap/mirror/export-order',
+        previewEndpoint: '/api/sap/mirror/preview',
+        diApiRoute: '/orders',
+        diApiMethod: 'POST',
+        serviceLayerRoute: 'POST Orders',
+        sql: [
+            'INSERT INTO ORDR (DocEntry, DocNum, CardCode, CardName, DocDate, DocDueDate, DocTotal, Currency, DocStatus, Comments)',
+            'INSERT INTO RDR1 (DocEntry, LineNum, ItemCode, Dscription, Quantity, Price, LineTotal, WhsCode)'
+        ].join('\n'),
+        note: 'Prepara el encabezado y las líneas de la orden con la misma estructura que SAP B1 usa para ORDR/RDR1.'
+    },
+    'export-bom': {
+        key: 'export-bom',
+        label: 'Enviar BOM / Producción',
+        direction: 'export',
+        entity: 'ProductionOrders',
+        targetTables: ['OWOR', 'WOR1', 'OITT', 'ITT1'],
+        endpoint: '/api/sap/mirror/export-bom',
+        previewEndpoint: '/api/sap/mirror/preview',
+        diApiRoute: '/production-orders',
+        diApiMethod: 'POST',
+        serviceLayerRoute: 'POST ProductionOrders / ProductTrees',
+        sql: [
+            'INSERT INTO OWOR (DocEntry, DocNum, ItemCode, ProdName, PlannedQty, PostDate, DueDate, Status, OriginNum)',
+            'INSERT INTO WOR1 (DocEntry, LineNum, ItemCode, ItemName, PlannedQty, warehous)',
+            'INSERT INTO OITT (Code, Name, Qauntity, TreeType)',
+            'INSERT INTO ITT1 (Father, Code, Quantity, Warehouse, PriceList)'
+        ].join('\n'),
+        note: 'Mantiene visible la orden de producción y el árbol de materiales. SAP debe confirmar si el cierre final se hará por OWOR/WOR1, OITT/ITT1 o ambos.'
+    }
+});
+
 const SESSION_STATE = {
     cacheKey: '',
     cookie: '',
@@ -240,6 +419,47 @@ function normalizeTimestamp(value) {
     if (!value) return null;
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function sapNumber(value, fallback = null) {
+    if (value == null || value === '') return fallback;
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function sapText(value, fallback = '') {
+    return normalizeText(value, fallback);
+}
+
+function getSapItemPrice(row = {}) {
+    if (row.Price != null) return row.Price;
+    if (row.LastPurPrc != null) return row.LastPurPrc;
+    if (row.AvgPrice != null) return row.AvgPrice;
+    const prices = Array.isArray(row.ItemPrices) ? row.ItemPrices : [];
+    const firstPrice = prices.find((price) => price && price.Price != null);
+    return firstPrice?.Price;
+}
+
+function getSapItemPriceRows(row = {}) {
+    const itemCode = sapText(row.ItemCode);
+    const currency = sapText(row.Currency);
+    const prices = Array.isArray(row.ItemPrices) ? row.ItemPrices : [];
+    if (prices.length) {
+        return prices.map((price, index) => ({
+            ItemCode: itemCode,
+            PriceList: sapNumber(price.PriceList || price.PriceListNum, index + 1),
+            Price: sapNumber(price.Price, 0),
+            Currency: sapText(price.Currency || currency),
+            raw_data: price || {}
+        }));
+    }
+    return [{
+        ItemCode: itemCode,
+        PriceList: sapNumber(row.PriceListNum, 1),
+        Price: sapNumber(getSapItemPrice(row), 0),
+        Currency: currency,
+        raw_data: row || {}
+    }];
 }
 
 function normalizeSapProvider(value, fallback = DEFAULT_SAP_CONFIG.provider) {
@@ -577,6 +797,213 @@ async function ensureSapSchema(pgQuery) {
          WHERE id = 1
            AND (sap_company IS NULL OR sap_company = '' OR sap_company = 'SBO_DEMO')
     `, [DEFAULT_SAP_CONFIG.sapCompany]);
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS "OCRD" (
+            "CardCode" TEXT PRIMARY KEY,
+            "CardName" TEXT NOT NULL DEFAULT '',
+            "CardType" TEXT NOT NULL DEFAULT '',
+            "Currency" TEXT NOT NULL DEFAULT '',
+            "LicTradNum" TEXT NOT NULL DEFAULT '',
+            "FederalTaxID" TEXT NOT NULL DEFAULT '',
+            "Phone1" TEXT NOT NULL DEFAULT '',
+            "E_Mail" TEXT NOT NULL DEFAULT '',
+            "CntctPrsn" TEXT NOT NULL DEFAULT '',
+            "ListNum" INTEGER NULL,
+            "validFor" TEXT NOT NULL DEFAULT 'Y',
+            "frozenFor" TEXT NOT NULL DEFAULT 'N',
+            "Balance" NUMERIC NULL,
+            raw_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+            synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    `);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS "OCRD_CardName_idx" ON "OCRD" ("CardName")`);
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS "CRD1" (
+            id BIGSERIAL PRIMARY KEY,
+            "CardCode" TEXT NOT NULL,
+            "Address" TEXT NOT NULL DEFAULT '',
+            "AdresType" TEXT NOT NULL DEFAULT '',
+            "Street" TEXT NOT NULL DEFAULT '',
+            "Block" TEXT NOT NULL DEFAULT '',
+            "City" TEXT NOT NULL DEFAULT '',
+            "County" TEXT NOT NULL DEFAULT '',
+            "State" TEXT NOT NULL DEFAULT '',
+            "Country" TEXT NOT NULL DEFAULT '',
+            "ZipCode" TEXT NOT NULL DEFAULT '',
+            raw_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+            synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            UNIQUE ("CardCode", "Address", "AdresType")
+        )
+    `);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS "CRD1_CardCode_idx" ON "CRD1" ("CardCode")`);
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS "OCPR" (
+            id BIGSERIAL PRIMARY KEY,
+            "CardCode" TEXT NOT NULL,
+            "Name" TEXT NOT NULL DEFAULT '',
+            "FirstName" TEXT NOT NULL DEFAULT '',
+            "LastName" TEXT NOT NULL DEFAULT '',
+            "E_MailL" TEXT NOT NULL DEFAULT '',
+            "Tel1" TEXT NOT NULL DEFAULT '',
+            "Cellolar" TEXT NOT NULL DEFAULT '',
+            "Position" TEXT NOT NULL DEFAULT '',
+            raw_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+            synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            UNIQUE ("CardCode", "Name")
+        )
+    `);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS "OCPR_CardCode_idx" ON "OCPR" ("CardCode")`);
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS "OITM" (
+            "ItemCode" TEXT PRIMARY KEY,
+            "ItemName" TEXT NOT NULL DEFAULT '',
+            "ItmsGrpCod" TEXT NOT NULL DEFAULT '',
+            "InvntryUom" TEXT NOT NULL DEFAULT '',
+            "BuyUnitMsr" TEXT NOT NULL DEFAULT '',
+            "SalUnitMsr" TEXT NOT NULL DEFAULT '',
+            "validFor" TEXT NOT NULL DEFAULT 'Y',
+            "frozenFor" TEXT NOT NULL DEFAULT 'N',
+            "OnHand" NUMERIC NULL,
+            "IsCommited" NUMERIC NULL,
+            "OnOrder" NUMERIC NULL,
+            "AvgPrice" NUMERIC NULL,
+            "LastPurPrc" NUMERIC NULL,
+            "Price" NUMERIC NULL,
+            "Currency" TEXT NOT NULL DEFAULT '',
+            raw_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+            synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    `);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS "OITM_ItemName_idx" ON "OITM" ("ItemName")`);
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS "OITW" (
+            id BIGSERIAL PRIMARY KEY,
+            "ItemCode" TEXT NOT NULL,
+            "WhsCode" TEXT NOT NULL DEFAULT '',
+            "OnHand" NUMERIC NULL,
+            "IsCommited" NUMERIC NULL,
+            "OnOrder" NUMERIC NULL,
+            "AvailableQuantity" NUMERIC NULL,
+            raw_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+            synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            UNIQUE ("ItemCode", "WhsCode")
+        )
+    `);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS "OITW_ItemCode_idx" ON "OITW" ("ItemCode")`);
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS "ITM1" (
+            id BIGSERIAL PRIMARY KEY,
+            "ItemCode" TEXT NOT NULL,
+            "PriceList" INTEGER NOT NULL DEFAULT 1,
+            "Price" NUMERIC NULL,
+            "Currency" TEXT NOT NULL DEFAULT '',
+            raw_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+            synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            UNIQUE ("ItemCode", "PriceList")
+        )
+    `);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS "ITM1_ItemCode_idx" ON "ITM1" ("ItemCode")`);
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS "OWHS" (
+            "WhsCode" TEXT PRIMARY KEY,
+            "WhsName" TEXT NOT NULL DEFAULT '',
+            "Location" TEXT NOT NULL DEFAULT '',
+            raw_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+            synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    `);
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS "ORDR" (
+            "DocEntry" BIGINT PRIMARY KEY,
+            "DocNum" TEXT NOT NULL DEFAULT '',
+            "CardCode" TEXT NOT NULL DEFAULT '',
+            "CardName" TEXT NOT NULL DEFAULT '',
+            "DocDate" TEXT NOT NULL DEFAULT '',
+            "DocDueDate" TEXT NOT NULL DEFAULT '',
+            "DocTotal" NUMERIC NULL,
+            "Currency" TEXT NOT NULL DEFAULT '',
+            "DocStatus" TEXT NOT NULL DEFAULT '',
+            "Comments" TEXT NOT NULL DEFAULT '',
+            raw_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+            exported_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    `);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS "ORDR_CardCode_idx" ON "ORDR" ("CardCode")`);
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS "RDR1" (
+            id BIGSERIAL PRIMARY KEY,
+            "DocEntry" BIGINT NOT NULL,
+            "LineNum" INTEGER NOT NULL DEFAULT 0,
+            "ItemCode" TEXT NOT NULL DEFAULT '',
+            "Dscription" TEXT NOT NULL DEFAULT '',
+            "Quantity" NUMERIC NULL,
+            "Price" NUMERIC NULL,
+            "LineTotal" NUMERIC NULL,
+            "WhsCode" TEXT NOT NULL DEFAULT '',
+            raw_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+            exported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            UNIQUE ("DocEntry", "LineNum")
+        )
+    `);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS "RDR1_DocEntry_idx" ON "RDR1" ("DocEntry")`);
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS "OWOR" (
+            "DocEntry" BIGINT PRIMARY KEY,
+            "DocNum" TEXT NOT NULL DEFAULT '',
+            "ItemCode" TEXT NOT NULL DEFAULT '',
+            "ProdName" TEXT NOT NULL DEFAULT '',
+            "PlannedQty" NUMERIC NULL,
+            "CmpltQty" NUMERIC NULL,
+            "PostDate" TEXT NOT NULL DEFAULT '',
+            "DueDate" TEXT NOT NULL DEFAULT '',
+            "Status" TEXT NOT NULL DEFAULT '',
+            "OriginNum" TEXT NOT NULL DEFAULT '',
+            "Comments" TEXT NOT NULL DEFAULT '',
+            raw_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+            exported_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    `);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS "OWOR_ItemCode_idx" ON "OWOR" ("ItemCode")`);
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS "WOR1" (
+            id BIGSERIAL PRIMARY KEY,
+            "DocEntry" BIGINT NOT NULL,
+            "LineNum" INTEGER NOT NULL DEFAULT 0,
+            "ItemCode" TEXT NOT NULL DEFAULT '',
+            "ItemName" TEXT NOT NULL DEFAULT '',
+            "PlannedQty" NUMERIC NULL,
+            "IssuedQty" NUMERIC NULL,
+            "warehous" TEXT NOT NULL DEFAULT '',
+            raw_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+            exported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            UNIQUE ("DocEntry", "LineNum")
+        )
+    `);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS "WOR1_DocEntry_idx" ON "WOR1" ("DocEntry")`);
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS "OITT" (
+            "Code" TEXT PRIMARY KEY,
+            "Name" TEXT NOT NULL DEFAULT '',
+            "Qauntity" NUMERIC NULL,
+            "TreeType" TEXT NOT NULL DEFAULT 'P',
+            raw_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+            exported_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    `);
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS "ITT1" (
+            id BIGSERIAL PRIMARY KEY,
+            "Father" TEXT NOT NULL,
+            "Code" TEXT NOT NULL DEFAULT '',
+            "Quantity" NUMERIC NULL,
+            "Warehouse" TEXT NOT NULL DEFAULT '',
+            "PriceList" INTEGER NULL,
+            raw_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+            exported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            UNIQUE ("Father", "Code", "Warehouse")
+        )
+    `);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS "ITT1_Father_idx" ON "ITT1" ("Father")`);
     await pgQuery(`
         CREATE TABLE IF NOT EXISTS sap_business_partners (
             card_code TEXT PRIMARY KEY,
@@ -1201,6 +1628,9 @@ async function fetchPagedFromSap(config, entityName, baseQuery, pageSize) {
 }
 
 async function fetchSyncRecords(config, entityName) {
+    if (resolveOperatingMode(config) === 'demo') {
+        return deepClone(demoState[entityName] || []);
+    }
     const liveConfig = assertLiveSapConfigReady(config, 'La sincronización');
     if (isDiApiProvider(liveConfig)) {
         return diApiBridge.fetchSyncRecords(liveConfig, entityName);
@@ -1240,6 +1670,114 @@ async function upsertBusinessPartners(client, records) {
             syncSnapshot.tax_id = taxId;
         }
         const sapAddresses = extractSapAddresses(row);
+
+        if (partnerCode) {
+            await client.query(`
+                INSERT INTO "OCRD" (
+                    "CardCode", "CardName", "CardType", "Currency", "LicTradNum", "FederalTaxID",
+                    "Phone1", "E_Mail", "CntctPrsn", "ListNum", "validFor", "frozenFor", "Balance",
+                    raw_data, synced_at
+                )
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb,NOW())
+                ON CONFLICT ("CardCode")
+                DO UPDATE SET
+                    "CardName" = EXCLUDED."CardName",
+                    "CardType" = EXCLUDED."CardType",
+                    "Currency" = EXCLUDED."Currency",
+                    "LicTradNum" = EXCLUDED."LicTradNum",
+                    "FederalTaxID" = EXCLUDED."FederalTaxID",
+                    "Phone1" = EXCLUDED."Phone1",
+                    "E_Mail" = EXCLUDED."E_Mail",
+                    "CntctPrsn" = EXCLUDED."CntctPrsn",
+                    "ListNum" = EXCLUDED."ListNum",
+                    "validFor" = EXCLUDED."validFor",
+                    "frozenFor" = EXCLUDED."frozenFor",
+                    "Balance" = EXCLUDED."Balance",
+                    raw_data = EXCLUDED.raw_data,
+                    synced_at = NOW()
+            `, [
+                partnerCode,
+                partnerName,
+                cardType,
+                currency,
+                sapText(row.LicTradNum || taxId),
+                sapText(row.FederalTaxID || taxId),
+                phone,
+                email,
+                contactPerson,
+                sapNumber(row.PriceListNum || row.ListNum),
+                sapText(row.validFor || row.ValidFor || 'Y', 'Y'),
+                sapText(row.frozenFor || row.FrozenFor || 'N', 'N'),
+                balance,
+                JSON.stringify(row || {})
+            ]);
+            await client.query(`DELETE FROM "CRD1" WHERE "CardCode" = $1`, [partnerCode]);
+            for (const address of (Array.isArray(row.BPAddresses) ? row.BPAddresses : [])) {
+                await client.query(`
+                    INSERT INTO "CRD1" (
+                        "CardCode", "Address", "AdresType", "Street", "Block", "City",
+                        "County", "State", "Country", "ZipCode", raw_data, synced_at
+                    )
+                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,NOW())
+                    ON CONFLICT ("CardCode", "Address", "AdresType")
+                    DO UPDATE SET
+                        "Street" = EXCLUDED."Street",
+                        "Block" = EXCLUDED."Block",
+                        "City" = EXCLUDED."City",
+                        "County" = EXCLUDED."County",
+                        "State" = EXCLUDED."State",
+                        "Country" = EXCLUDED."Country",
+                        "ZipCode" = EXCLUDED."ZipCode",
+                        raw_data = EXCLUDED.raw_data,
+                        synced_at = NOW()
+                `, [
+                    partnerCode,
+                    sapText(address.AddressName || address.Address),
+                    sapText(address.AddressType || address.AdresType),
+                    sapText(address.Street),
+                    sapText(address.Block),
+                    sapText(address.City),
+                    sapText(address.County),
+                    sapText(address.State),
+                    sapText(address.Country),
+                    sapText(address.ZipCode),
+                    JSON.stringify(address || {})
+                ]);
+            }
+            const contacts = Array.isArray(row.ContactEmployees) ? row.ContactEmployees : [];
+            const contactRows = contacts.length ? contacts : (contactPerson ? [{ Name: contactPerson, FirstName: contactPerson, E_MailL: email, Tel1: phone, Position: 'Principal' }] : []);
+            for (const contact of contactRows) {
+                const name = sapText(contact.Name || contact.ContactName || contactPerson);
+                if (!name) continue;
+                await client.query(`
+                    INSERT INTO "OCPR" (
+                        "CardCode", "Name", "FirstName", "LastName", "E_MailL",
+                        "Tel1", "Cellolar", "Position", raw_data, synced_at
+                    )
+                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,NOW())
+                    ON CONFLICT ("CardCode", "Name")
+                    DO UPDATE SET
+                        "FirstName" = EXCLUDED."FirstName",
+                        "LastName" = EXCLUDED."LastName",
+                        "E_MailL" = EXCLUDED."E_MailL",
+                        "Tel1" = EXCLUDED."Tel1",
+                        "Cellolar" = EXCLUDED."Cellolar",
+                        "Position" = EXCLUDED."Position",
+                        raw_data = EXCLUDED.raw_data,
+                        synced_at = NOW()
+                `, [
+                    partnerCode,
+                    name,
+                    sapText(contact.FirstName || name),
+                    sapText(contact.LastName),
+                    sapText(contact.E_MailL || contact.Email || email),
+                    sapText(contact.Tel1 || contact.Phone1 || phone),
+                    sapText(contact.Cellolar || contact.MobilePhone),
+                    sapText(contact.Position),
+                    JSON.stringify(contact || {})
+                ]);
+            }
+        }
 
         await client.query(`
             INSERT INTO sap_business_partners (
@@ -1431,6 +1969,104 @@ async function upsertItems(client, records) {
         const committedQty = row.CommitedQty == null && row.CommittedQty == null ? null : Number(row.CommitedQty != null ? row.CommitedQty : row.CommittedQty);
         const availableQty = row.AvailableQuantity == null && row.AvailableQty == null ? null : Number(row.AvailableQuantity != null ? row.AvailableQuantity : row.AvailableQty);
         const buyUnit = normalizeText(row.BuyUnitMsr);
+        if (itemCode) {
+            await client.query(`
+                INSERT INTO "OITM" (
+                    "ItemCode", "ItemName", "ItmsGrpCod", "InvntryUom", "BuyUnitMsr", "SalUnitMsr",
+                    "validFor", "frozenFor", "OnHand", "IsCommited", "OnOrder", "AvgPrice",
+                    "LastPurPrc", "Price", "Currency", raw_data, synced_at
+                )
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::jsonb,NOW())
+                ON CONFLICT ("ItemCode")
+                DO UPDATE SET
+                    "ItemName" = EXCLUDED."ItemName",
+                    "ItmsGrpCod" = EXCLUDED."ItmsGrpCod",
+                    "InvntryUom" = EXCLUDED."InvntryUom",
+                    "BuyUnitMsr" = EXCLUDED."BuyUnitMsr",
+                    "SalUnitMsr" = EXCLUDED."SalUnitMsr",
+                    "validFor" = EXCLUDED."validFor",
+                    "frozenFor" = EXCLUDED."frozenFor",
+                    "OnHand" = EXCLUDED."OnHand",
+                    "IsCommited" = EXCLUDED."IsCommited",
+                    "OnOrder" = EXCLUDED."OnOrder",
+                    "AvgPrice" = EXCLUDED."AvgPrice",
+                    "LastPurPrc" = EXCLUDED."LastPurPrc",
+                    "Price" = EXCLUDED."Price",
+                    "Currency" = EXCLUDED."Currency",
+                    raw_data = EXCLUDED.raw_data,
+                    synced_at = NOW()
+            `, [
+                itemCode,
+                itemName,
+                itemGroupCode,
+                sapText(row.InvntryUom || buyUnit),
+                buyUnit,
+                sapText(row.SalesUnitMsr || row.SalUnitMsr),
+                sapText(row.validFor || row.ValidFor || 'Y', 'Y'),
+                sapText(row.frozenFor || row.FrozenFor || 'N', 'N'),
+                onHand,
+                committedQty,
+                sapNumber(row.OnOrder),
+                sapNumber(row.AvgPrice),
+                sapNumber(row.LastPurPrc),
+                sapNumber(getSapItemPrice(row)),
+                sapText(row.Currency),
+                JSON.stringify(row || {})
+            ]);
+            const warehouseRows = Array.isArray(row.ItemWarehouseInfoCollection) ? row.ItemWarehouseInfoCollection : [];
+            const normalizedWarehouses = warehouseRows.length ? warehouseRows : [{
+                WarehouseCode: row.WarehouseCode || row.WhsCode || '',
+                InStock: onHand,
+                Committed: committedQty,
+                Ordered: row.OnOrder,
+                AvailableQuantity: availableQty
+            }];
+            for (const warehouseRow of normalizedWarehouses) {
+                await client.query(`
+                    INSERT INTO "OITW" (
+                        "ItemCode", "WhsCode", "OnHand", "IsCommited", "OnOrder",
+                        "AvailableQuantity", raw_data, synced_at
+                    )
+                    VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,NOW())
+                    ON CONFLICT ("ItemCode", "WhsCode")
+                    DO UPDATE SET
+                        "OnHand" = EXCLUDED."OnHand",
+                        "IsCommited" = EXCLUDED."IsCommited",
+                        "OnOrder" = EXCLUDED."OnOrder",
+                        "AvailableQuantity" = EXCLUDED."AvailableQuantity",
+                        raw_data = EXCLUDED.raw_data,
+                        synced_at = NOW()
+                `, [
+                    itemCode,
+                    sapText(warehouseRow.WarehouseCode || warehouseRow.WhsCode),
+                    sapNumber(warehouseRow.InStock ?? warehouseRow.OnHand ?? onHand),
+                    sapNumber(warehouseRow.Committed ?? warehouseRow.IsCommited ?? committedQty),
+                    sapNumber(warehouseRow.Ordered ?? warehouseRow.OnOrder),
+                    sapNumber(warehouseRow.AvailableQuantity ?? warehouseRow.AvailableQty ?? availableQty),
+                    JSON.stringify(warehouseRow || {})
+                ]);
+            }
+            for (const priceRow of getSapItemPriceRows(row)) {
+                await client.query(`
+                    INSERT INTO "ITM1" (
+                        "ItemCode", "PriceList", "Price", "Currency", raw_data, synced_at
+                    )
+                    VALUES ($1,$2,$3,$4,$5::jsonb,NOW())
+                    ON CONFLICT ("ItemCode", "PriceList")
+                    DO UPDATE SET
+                        "Price" = EXCLUDED."Price",
+                        "Currency" = EXCLUDED."Currency",
+                        raw_data = EXCLUDED.raw_data,
+                        synced_at = NOW()
+                `, [
+                    itemCode,
+                    priceRow.PriceList || 1,
+                    priceRow.Price,
+                    priceRow.Currency,
+                    JSON.stringify(priceRow.raw_data || {})
+                ]);
+            }
+        }
         await client.query(`
             INSERT INTO sap_items (
                 item_code,
@@ -1514,6 +2150,21 @@ async function upsertItems(client, records) {
 async function upsertWarehouses(client, records) {
     for (const row of records) {
         await client.query(`
+            INSERT INTO "OWHS" ("WhsCode", "WhsName", "Location", raw_data, synced_at)
+            VALUES ($1,$2,$3,$4::jsonb,NOW())
+            ON CONFLICT ("WhsCode")
+            DO UPDATE SET
+                "WhsName" = EXCLUDED."WhsName",
+                "Location" = EXCLUDED."Location",
+                raw_data = EXCLUDED.raw_data,
+                synced_at = NOW()
+        `, [
+            normalizeText(row.WarehouseCode || row.WhsCode),
+            normalizeText(row.WarehouseName || row.WhsName),
+            normalizeText(row.Location),
+            JSON.stringify(row || {})
+        ]);
+        await client.query(`
             INSERT INTO sap_warehouses (
                 warehouse_code,
                 warehouse_name,
@@ -1539,6 +2190,72 @@ async function upsertWarehouses(client, records) {
 
 async function upsertOrders(client, records) {
     for (const row of records) {
+        const docEntry = Number(row.DocEntry);
+        if (Number.isFinite(docEntry)) {
+            await client.query(`
+                INSERT INTO "ORDR" (
+                    "DocEntry", "DocNum", "CardCode", "CardName", "DocDate", "DocDueDate",
+                    "DocTotal", "Currency", "DocStatus", "Comments", raw_data, exported_at
+                )
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,NOW())
+                ON CONFLICT ("DocEntry")
+                DO UPDATE SET
+                    "DocNum" = EXCLUDED."DocNum",
+                    "CardCode" = EXCLUDED."CardCode",
+                    "CardName" = EXCLUDED."CardName",
+                    "DocDate" = EXCLUDED."DocDate",
+                    "DocDueDate" = EXCLUDED."DocDueDate",
+                    "DocTotal" = EXCLUDED."DocTotal",
+                    "Currency" = EXCLUDED."Currency",
+                    "DocStatus" = EXCLUDED."DocStatus",
+                    "Comments" = EXCLUDED."Comments",
+                    raw_data = EXCLUDED.raw_data,
+                    exported_at = NOW()
+            `, [
+                docEntry,
+                normalizeText(row.DocNum),
+                normalizeText(row.CardCode),
+                normalizeText(row.CardName),
+                normalizeText(row.DocDate),
+                normalizeText(row.DocDueDate),
+                row.DocTotal == null ? null : Number(row.DocTotal),
+                normalizeText(row.Currency),
+                normalizeText(row.DocumentStatus || row.DocStatus),
+                normalizeText(row.Comments),
+                JSON.stringify(row || {})
+            ]);
+            const lines = Array.isArray(row.DocumentLines) ? row.DocumentLines : [];
+            for (let index = 0; index < lines.length; index += 1) {
+                const line = lines[index] || {};
+                await client.query(`
+                    INSERT INTO "RDR1" (
+                        "DocEntry", "LineNum", "ItemCode", "Dscription", "Quantity",
+                        "Price", "LineTotal", "WhsCode", raw_data, exported_at
+                    )
+                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,NOW())
+                    ON CONFLICT ("DocEntry", "LineNum")
+                    DO UPDATE SET
+                        "ItemCode" = EXCLUDED."ItemCode",
+                        "Dscription" = EXCLUDED."Dscription",
+                        "Quantity" = EXCLUDED."Quantity",
+                        "Price" = EXCLUDED."Price",
+                        "LineTotal" = EXCLUDED."LineTotal",
+                        "WhsCode" = EXCLUDED."WhsCode",
+                        raw_data = EXCLUDED.raw_data,
+                        exported_at = NOW()
+                `, [
+                    docEntry,
+                    sapNumber(line.LineNum, index),
+                    sapText(line.ItemCode),
+                    sapText(line.ItemDescription || line.Dscription || line.Description),
+                    sapNumber(line.Quantity),
+                    sapNumber(line.Price),
+                    sapNumber(line.LineTotal),
+                    sapText(line.WarehouseCode || line.WhsCode),
+                    JSON.stringify(line || {})
+                ]);
+            }
+        }
         await client.query(`
             INSERT INTO sap_orders (
                 doc_entry,
@@ -1714,6 +2431,507 @@ async function loadLocalSummary(pgQuery) {
         counts,
         recentSync: syncResult.rows
     };
+}
+
+function getSapMirrorTableConfig(tableName) {
+    const normalized = String(tableName || '').trim().toUpperCase();
+    const config = SAP_MIRROR_TABLES[normalized];
+    if (!config) throw new Error('Tabla SAP no soportada.');
+    return { tableName: normalized, ...config };
+}
+
+async function loadSapMirrorSummary(pgQuery) {
+    const tables = [];
+    for (const tableName of Object.keys(SAP_MIRROR_TABLES)) {
+        const config = SAP_MIRROR_TABLES[tableName];
+        const countResult = await pgQuery(`SELECT COUNT(*)::int AS total FROM "${tableName}"`);
+        tables.push({
+            tableName,
+            ...config,
+            total: Number(countResult.rows[0]?.total || 0)
+        });
+    }
+    return {
+        ok: true,
+        groups: {
+            socios: 'Importación de socios',
+            inventario: 'Importación de artículos de inventario',
+            ordenes: 'Exportación de órdenes',
+            bom: 'Envío de BOM / producción'
+        },
+        tables
+    };
+}
+
+async function listSapMirrorTable(pgQuery, tableName, query = {}) {
+    const config = getSapMirrorTableConfig(tableName);
+    const limit = normalizePositiveInt(query.limit, 50, 1, 300);
+    const search = normalizeText(query.search).toLowerCase();
+    const values = [];
+    const where = [];
+    if (search) {
+        values.push(`%${search}%`);
+        const searchClauses = config.columns
+            .slice(0, 6)
+            .map((column) => `LOWER(COALESCE("${column}"::text, '')) LIKE $${values.length}`);
+        where.push(`(${searchClauses.join(' OR ')})`);
+    }
+    values.push(limit);
+    const orderColumn = config.columns.includes(config.key) ? config.key : config.columns[0];
+    const selectColumns = config.columns.map((column) => `"${column}"`).join(', ');
+    const result = await pgQuery(`
+        SELECT ${selectColumns}
+          FROM "${config.tableName}"
+         ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+      ORDER BY "${orderColumn}" ASC
+         LIMIT $${values.length}
+    `, values);
+    return {
+        ok: true,
+        table: config,
+        rows: result.rows
+    };
+}
+
+function getSapMirrorProcessDefinition(processKey) {
+    const key = normalizeText(processKey || 'import-business-partners');
+    return SAP_MIRROR_PROCESS_DEFS[key] || SAP_MIRROR_PROCESS_DEFS['import-business-partners'];
+}
+
+async function getSapConnectorHealth(config = {}) {
+    if (!isDiApiProvider(config)) {
+        return { ok: true, provider: normalizeSapProvider(config.provider), message: 'Proveedor Service Layer configurado.' };
+    }
+    try {
+        return await diApiBridge.testConnection(config);
+    } catch (error) {
+        return {
+            ok: false,
+            provider: 'di-api',
+            message: error.message || 'No fue posible validar el conector DI API.'
+        };
+    }
+}
+
+function isMockSapConnectorHealth(health = {}) {
+    const dataSource = normalizeText(health.dataSource || health.raw?.dataSource || health.raw?.DataSource).toLowerCase();
+    return dataSource.endsWith('.json') || dataSource.includes('db.json') || dataSource.includes('datos internos');
+}
+
+function buildMockConnectorError(health = {}) {
+    const dataSource = normalizeText(health.dataSource || health.raw?.dataSource || health.raw?.DataSource, 'datos internos');
+    const partnerCount = health.businessPartners ?? health.raw?.businessPartners ?? '';
+    const itemCount = health.items ?? health.raw?.items ?? '';
+    return [
+        'El conector DI API no está consultando SAP real.',
+        `Fuente actual: ${dataSource}.`,
+        `El propio conector reporta ${partnerCount || 0} socios y ${itemCount || 0} artículos en esa fuente.`,
+        'Configura el conector con SAPServer, Database, SAPUser, contraseña SAP, SQL y LicenseServer antes de importar.'
+    ].join(' ');
+}
+
+function buildSapMirrorOrderTemplate() {
+    return {
+        CardCode: 'C001',
+        CardName: 'Cliente SAP',
+        DocDate: new Date().toISOString().slice(0, 10),
+        DocDueDate: new Date().toISOString().slice(0, 10),
+        Currency: 'CRC',
+        Comments: 'Orden preparada desde ERP',
+        DocumentLines: [
+            { ItemCode: 'SRV-001', ItemDescription: 'Servicio de impresión', Quantity: 1, Price: 0, WarehouseCode: '01' }
+        ]
+    };
+}
+
+function buildSapMirrorBomTemplate() {
+    return {
+        ItemCode: 'PROD-SAP',
+        ProdName: 'Producto preparado desde cotización',
+        PlannedQty: 1,
+        TreeType: 'P',
+        Comments: 'BOM preparado desde ERP',
+        components: [
+            { ItemCode: 'INS-030', ItemName: 'Sustrato', Quantity: 1, Warehouse: '01' },
+            { ItemCode: 'INS-020', ItemName: 'Tinta', Quantity: 1, Warehouse: '01' }
+        ]
+    };
+}
+
+function buildSapMirrorImportQuery(processKey, input = {}) {
+    const limit = normalizePositiveInt(input.limit || input.top, processKey === 'import-items' ? 50 : 20, 1, 1000);
+    const search = normalizeText(input.search);
+    const query = {
+        top: limit,
+        validFor: 'Y'
+    };
+    if (search) query.search = search;
+    if (processKey === 'import-business-partners') {
+        query.cardTypes = 'C,L';
+        if (normalizeText(input.type)) query.type = normalizeText(input.type);
+    }
+    if (processKey === 'import-items' && normalizeText(input.group)) {
+        query.group = normalizeText(input.group);
+    }
+    return query;
+}
+
+function filterDemoSapRows(rows = [], processKey, query = {}) {
+    const search = normalizeText(query.search).toLowerCase();
+    const type = normalizeText(query.type);
+    const limit = normalizePositiveInt(query.top, rows.length || 1, 1, 1000);
+    return rows.filter((row) => {
+        if (processKey === 'import-business-partners') {
+            const cardType = normalizeText(row.CardType);
+            const allowedTypes = type ? [type] : ['C', 'L'];
+            if (cardType && !allowedTypes.includes(cardType)) return false;
+        }
+        if (!search) return true;
+        return Object.values(row || {}).some((value) => normalizeText(value).toLowerCase().includes(search));
+    }).slice(0, limit);
+}
+
+function buildSapMirrorProcedure(config = {}, processKey = 'import-business-partners', input = {}, connectorHealth = null) {
+    const definition = getSapMirrorProcessDefinition(processKey);
+    const mode = resolveOperatingMode(config);
+    const provider = normalizeSapProvider(config.provider || config.sapProvider);
+    const importQuery = definition.direction === 'import' ? buildSapMirrorImportQuery(processKey, input) : null;
+    const exportInput = { ...(input || {}) };
+    delete exportInput.processKey;
+    delete exportInput.limit;
+    delete exportInput.search;
+    delete exportInput.demo;
+    const hasExportPayload = Object.keys(exportInput).length > 0;
+    const payload = processKey === 'export-order'
+        ? buildOrderPayload(hasExportPayload ? exportInput : buildSapMirrorOrderTemplate())
+        : (processKey === 'export-bom' ? (hasExportPayload ? exportInput : buildSapMirrorBomTemplate()) : null);
+    const serviceUrl = provider === 'di-api'
+        ? `${normalizeText(config.diApiBaseUrl || config.di_api_base_url).replace(/\/+$/, '')}${definition.diApiRoute.startsWith('/') ? definition.diApiRoute : `/${definition.diApiRoute}`}`
+        : `${normalizeText(config.sapServiceUrl || config.sap_service_url).replace(/\/+$/, '')}/${definition.serviceLayerRoute}`;
+    return {
+        ...definition,
+        mode,
+        provider,
+        connector: connectorHealth,
+        connectorUsesLocalSource: connectorHealth ? isMockSapConnectorHealth(connectorHealth) : false,
+        connectorWarning: connectorHealth && isMockSapConnectorHealth(connectorHealth) ? buildMockConnectorError(connectorHealth) : '',
+        request: definition.direction === 'import'
+            ? { method: 'GET', url: serviceUrl, query: importQuery }
+            : { method: definition.diApiMethod || 'POST', url: serviceUrl, payload },
+        queryText: definition.direction === 'import'
+            ? `${definition.sql}\nLIMIT ${importQuery.top};`
+            : definition.sql,
+        relatedSql: definition.relatedSql || [],
+        targetTables: definition.targetTables
+    };
+}
+
+async function fetchSapMirrorBusinessPartners({ pgQuery, config, limit, search, type, demo = false }) {
+    if (!demo && resolveOperatingMode(config) !== 'demo') {
+        const health = await getSapConnectorHealth(config);
+        if (isMockSapConnectorHealth(health)) {
+            throw new Error(buildMockConnectorError(health));
+        }
+    }
+    const query = buildSapMirrorImportQuery('import-business-partners', { limit, search, type });
+    if (demo || resolveOperatingMode(config) === 'demo') {
+        return filterDemoSapRows(deepClone(demoState.BusinessPartners), 'import-business-partners', query);
+    }
+    const payload = await queryBusinessPartners({ pgQuery, config, query });
+    return (Array.isArray(payload.value) ? payload.value : []).slice(0, query.top);
+}
+
+async function fetchSapMirrorItems({ pgQuery, config, limit, search, group, demo = false }) {
+    if (!demo && resolveOperatingMode(config) !== 'demo') {
+        const health = await getSapConnectorHealth(config);
+        if (isMockSapConnectorHealth(health)) {
+            throw new Error(buildMockConnectorError(health));
+        }
+    }
+    const query = buildSapMirrorImportQuery('import-items', { limit, search, group });
+    if (demo || resolveOperatingMode(config) === 'demo') {
+        return filterDemoSapRows(deepClone(demoState.Items), 'import-items', query);
+    }
+    const payload = await queryItems({ pgQuery, config, query });
+    return (Array.isArray(payload.value) ? payload.value : []).slice(0, query.top);
+}
+
+async function previewSapMirrorProcess({ pgQuery, processKey, input = {} }) {
+    const config = await loadSapConfig(pgQuery);
+    const definition = getSapMirrorProcessDefinition(processKey);
+    const connectorHealth = await getSapConnectorHealth(config);
+    const procedure = buildSapMirrorProcedure(config, definition.key, input, connectorHealth);
+    if (!normalizeBoolean(input.demo, false) && resolveOperatingMode(config) !== 'demo' && isMockSapConnectorHealth(connectorHealth)) {
+        return {
+            ok: false,
+            blocked: true,
+            error: buildMockConnectorError(connectorHealth),
+            procedure,
+            rows: [],
+            records: 0
+        };
+    }
+    if (definition.key === 'import-business-partners') {
+        const rows = await fetchSapMirrorBusinessPartners({
+            pgQuery,
+            config,
+            limit: input.limit,
+            search: input.search,
+            type: input.type,
+            demo: normalizeBoolean(input.demo, false)
+        });
+        return { ok: true, procedure, rows, records: rows.length };
+    }
+    if (definition.key === 'import-items') {
+        const rows = await fetchSapMirrorItems({
+            pgQuery,
+            config,
+            limit: input.limit,
+            search: input.search,
+            group: input.group,
+            demo: normalizeBoolean(input.demo, false)
+        });
+        return { ok: true, procedure, rows, records: rows.length };
+    }
+    return {
+        ok: true,
+        procedure,
+        payload: procedure.request.payload,
+        records: Array.isArray(procedure.request.payload?.DocumentLines)
+            ? procedure.request.payload.DocumentLines.length
+            : (Array.isArray(procedure.request.payload?.components) ? procedure.request.payload.components.length : 1)
+    };
+}
+
+async function importSapMirrorBusinessPartners({ pgQuery, withTransaction, limit, search, type, demo = false }) {
+    const config = await loadSapConfig(pgQuery);
+    const records = await fetchSapMirrorBusinessPartners({ pgQuery, config, limit, search, type, demo });
+    await withTransaction(async (client) => {
+        await upsertBusinessPartners(client, records);
+    });
+    return {
+        ok: true,
+        entity: 'BusinessPartners',
+        procedure: buildSapMirrorProcedure(config, 'import-business-partners', { limit, search, type }),
+        records: records.length,
+        tables: ['OCRD', 'CRD1', 'OCPR']
+    };
+}
+
+async function importSapMirrorItems({ pgQuery, withTransaction, limit, search, group, demo = false }) {
+    const config = await loadSapConfig(pgQuery);
+    const itemRecords = await fetchSapMirrorItems({ pgQuery, config, limit, search, group, demo });
+    let warehouseRecords = [];
+    try {
+        warehouseRecords = demo || resolveOperatingMode(config) === 'demo'
+            ? deepClone(demoState.Warehouses)
+            : await fetchSyncRecords(config, 'Warehouses');
+    } catch (error) {
+        warehouseRecords = [];
+    }
+    await withTransaction(async (client) => {
+        await upsertItems(client, itemRecords);
+        if (warehouseRecords.length) await upsertWarehouses(client, warehouseRecords);
+    });
+    return {
+        ok: true,
+        entity: 'Items',
+        procedure: buildSapMirrorProcedure(config, 'import-items', { limit, search, group }),
+        records: itemRecords.length,
+        warehouses: warehouseRecords.length,
+        tables: ['OITM', 'OITW', 'ITM1', 'OWHS']
+    };
+}
+
+async function stageSapMirrorOrder(pgQuery, input = {}) {
+    const payload = buildOrderPayload(input || {});
+    const docEntry = sapNumber(input.DocEntry || input.docEntry, Date.now());
+    const docNum = sapText(input.DocNum || input.docNum || docEntry);
+    const docDate = sapText(payload.DocDate || new Date().toISOString().slice(0, 10));
+    const dueDate = sapText(payload.DocDueDate || docDate);
+    const lines = Array.isArray(payload.DocumentLines) ? payload.DocumentLines : [];
+    const total = lines.reduce((acc, line) => acc + (sapNumber(line.LineTotal, sapNumber(line.Price, 0) * sapNumber(line.Quantity, 0)) || 0), 0);
+    await pgQuery(`
+        INSERT INTO "ORDR" (
+            "DocEntry", "DocNum", "CardCode", "CardName", "DocDate", "DocDueDate",
+            "DocTotal", "Currency", "DocStatus", "Comments", raw_data, exported_at
+        )
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,NOW())
+        ON CONFLICT ("DocEntry")
+        DO UPDATE SET
+            "DocNum" = EXCLUDED."DocNum",
+            "CardCode" = EXCLUDED."CardCode",
+            "CardName" = EXCLUDED."CardName",
+            "DocDate" = EXCLUDED."DocDate",
+            "DocDueDate" = EXCLUDED."DocDueDate",
+            "DocTotal" = EXCLUDED."DocTotal",
+            "Currency" = EXCLUDED."Currency",
+            "DocStatus" = EXCLUDED."DocStatus",
+            "Comments" = EXCLUDED."Comments",
+            raw_data = EXCLUDED.raw_data,
+            exported_at = NOW()
+    `, [
+        docEntry,
+        docNum,
+        sapText(payload.CardCode),
+        sapText(input.CardName || input.cardName || payload.CardCode),
+        docDate,
+        dueDate,
+        total,
+        sapText(input.Currency || input.currency || 'CRC'),
+        sapText(input.DocStatus || input.DocumentStatus || 'Pendiente'),
+        sapText(payload.Comments),
+        JSON.stringify(payload)
+    ]);
+    for (let index = 0; index < lines.length; index += 1) {
+        const line = lines[index] || {};
+        const quantity = sapNumber(line.Quantity, 0);
+        const price = sapNumber(line.Price, 0);
+        await pgQuery(`
+            INSERT INTO "RDR1" (
+                "DocEntry", "LineNum", "ItemCode", "Dscription", "Quantity", "Price",
+                "LineTotal", "WhsCode", raw_data, exported_at
+            )
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,NOW())
+            ON CONFLICT ("DocEntry", "LineNum")
+            DO UPDATE SET
+                "ItemCode" = EXCLUDED."ItemCode",
+                "Dscription" = EXCLUDED."Dscription",
+                "Quantity" = EXCLUDED."Quantity",
+                "Price" = EXCLUDED."Price",
+                "LineTotal" = EXCLUDED."LineTotal",
+                "WhsCode" = EXCLUDED."WhsCode",
+                raw_data = EXCLUDED.raw_data,
+                exported_at = NOW()
+        `, [
+            docEntry,
+            sapNumber(line.LineNum, index),
+            sapText(line.ItemCode),
+            sapText(line.ItemDescription || line.Dscription || line.Description),
+            quantity,
+            price,
+            sapNumber(line.LineTotal, quantity * price),
+            sapText(line.WarehouseCode || line.WhsCode || '01'),
+            JSON.stringify(line)
+        ]);
+    }
+    return { ok: true, DocEntry: docEntry, DocNum: docNum, lines: lines.length, tables: ['ORDR', 'RDR1'] };
+}
+
+async function stageSapMirrorBom(pgQuery, input = {}) {
+    const docEntry = sapNumber(input.DocEntry || input.docEntry, Date.now());
+    const docNum = sapText(input.DocNum || input.docNum || docEntry);
+    const productCode = sapText(input.ItemCode || input.productCode || input.itemCode || `PROD-${docEntry}`);
+    const productName = sapText(input.ProdName || input.productName || input.name || productCode);
+    const plannedQty = sapNumber(input.PlannedQty || input.quantity || input.plannedQty, 1);
+    const postDate = sapText(input.PostDate || input.postDate || new Date().toISOString().slice(0, 10));
+    const dueDate = sapText(input.DueDate || input.dueDate || postDate);
+    const components = Array.isArray(input.DocumentLines)
+        ? input.DocumentLines
+        : (Array.isArray(input.components) ? input.components : (Array.isArray(input.lines) ? input.lines : []));
+    await pgQuery(`
+        INSERT INTO "OWOR" (
+            "DocEntry", "DocNum", "ItemCode", "ProdName", "PlannedQty", "CmpltQty",
+            "PostDate", "DueDate", "Status", "OriginNum", "Comments", raw_data, exported_at
+        )
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,NOW())
+        ON CONFLICT ("DocEntry")
+        DO UPDATE SET
+            "DocNum" = EXCLUDED."DocNum",
+            "ItemCode" = EXCLUDED."ItemCode",
+            "ProdName" = EXCLUDED."ProdName",
+            "PlannedQty" = EXCLUDED."PlannedQty",
+            "CmpltQty" = EXCLUDED."CmpltQty",
+            "PostDate" = EXCLUDED."PostDate",
+            "DueDate" = EXCLUDED."DueDate",
+            "Status" = EXCLUDED."Status",
+            "OriginNum" = EXCLUDED."OriginNum",
+            "Comments" = EXCLUDED."Comments",
+            raw_data = EXCLUDED.raw_data,
+            exported_at = NOW()
+    `, [
+        docEntry,
+        docNum,
+        productCode,
+        productName,
+        plannedQty,
+        sapNumber(input.CmpltQty || input.completedQty, 0),
+        postDate,
+        dueDate,
+        sapText(input.Status || input.status || 'P'),
+        sapText(input.OriginNum || input.originNum || input.quoteCode || ''),
+        sapText(input.Comments || input.comments || 'BOM generado desde ERP'),
+        JSON.stringify(input || {})
+    ]);
+    await pgQuery(`
+        INSERT INTO "OITT" ("Code", "Name", "Qauntity", "TreeType", raw_data, exported_at)
+        VALUES ($1,$2,$3,$4,$5::jsonb,NOW())
+        ON CONFLICT ("Code")
+        DO UPDATE SET
+            "Name" = EXCLUDED."Name",
+            "Qauntity" = EXCLUDED."Qauntity",
+            "TreeType" = EXCLUDED."TreeType",
+            raw_data = EXCLUDED.raw_data,
+            exported_at = NOW()
+    `, [
+        productCode,
+        productName,
+        plannedQty,
+        sapText(input.TreeType || input.treeType || 'P', 'P'),
+        JSON.stringify(input || {})
+    ]);
+    for (let index = 0; index < components.length; index += 1) {
+        const component = components[index] || {};
+        const itemCode = sapText(component.ItemCode || component.Code || component.itemCode || component.sapItemCode);
+        const itemName = sapText(component.ItemName || component.ItemDescription || component.itemName || component.description);
+        const qty = sapNumber(component.PlannedQty || component.Quantity || component.quantity || component.requiredQty, 0);
+        const whs = sapText(component.WarehouseCode || component.Warehouse || component.WhsCode || component.warehouse || '01');
+        await pgQuery(`
+            INSERT INTO "WOR1" (
+                "DocEntry", "LineNum", "ItemCode", "ItemName", "PlannedQty",
+                "IssuedQty", "warehous", raw_data, exported_at
+            )
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,NOW())
+            ON CONFLICT ("DocEntry", "LineNum")
+            DO UPDATE SET
+                "ItemCode" = EXCLUDED."ItemCode",
+                "ItemName" = EXCLUDED."ItemName",
+                "PlannedQty" = EXCLUDED."PlannedQty",
+                "IssuedQty" = EXCLUDED."IssuedQty",
+                "warehous" = EXCLUDED."warehous",
+                raw_data = EXCLUDED.raw_data,
+                exported_at = NOW()
+        `, [
+            docEntry,
+            sapNumber(component.LineNum, index),
+            itemCode,
+            itemName,
+            qty,
+            sapNumber(component.IssuedQty || component.issuedQty, 0),
+            whs,
+            JSON.stringify(component)
+        ]);
+        if (itemCode) {
+            await pgQuery(`
+                INSERT INTO "ITT1" ("Father", "Code", "Quantity", "Warehouse", "PriceList", raw_data, exported_at)
+                VALUES ($1,$2,$3,$4,$5,$6::jsonb,NOW())
+                ON CONFLICT ("Father", "Code", "Warehouse")
+                DO UPDATE SET
+                    "Quantity" = EXCLUDED."Quantity",
+                    "PriceList" = EXCLUDED."PriceList",
+                    raw_data = EXCLUDED.raw_data,
+                    exported_at = NOW()
+            `, [
+                productCode,
+                itemCode,
+                qty,
+                whs,
+                sapNumber(component.PriceList),
+                JSON.stringify(component)
+            ]);
+        }
+    }
+    return { ok: true, DocEntry: docEntry, DocNum: docNum, ItemCode: productCode, components: components.length, tables: ['OWOR', 'WOR1', 'OITT', 'ITT1'] };
 }
 
 function buildSequenceCode(prefix = 'SAP') {
@@ -2330,7 +3548,7 @@ function filterDemoBusinessPartners(query) {
     if (search) {
         rows = rows.filter((row) => String(row.CardName || '').toLowerCase().includes(search) || String(row.CardCode || '').toLowerCase().includes(search));
     }
-    return { value: rows.slice(0, top), source: 'mock' };
+    return { value: rows.slice(0, top), source: 'local' };
 }
 
 function filterDemoItems(query) {
@@ -2342,7 +3560,7 @@ function filterDemoItems(query) {
     if (search) {
         rows = rows.filter((row) => String(row.ItemName || '').toLowerCase().includes(search) || String(row.ItemCode || '').toLowerCase().includes(search));
     }
-    return { value: rows.slice(0, top), source: 'mock' };
+    return { value: rows.slice(0, top), source: 'local' };
 }
 
 function filterDemoOrders(query) {
@@ -2350,7 +3568,7 @@ function filterDemoOrders(query) {
     const status = normalizeText(query?.status);
     const top = normalizePositiveInt(query?.top, 20, 1, 200);
     if (status) rows = rows.filter((row) => String(row.DocumentStatus || '').trim() === status);
-    return { value: rows.slice(0, top), source: 'mock' };
+    return { value: rows.slice(0, top), source: 'local' };
 }
 
 function buildOrderPayload(input = {}) {
@@ -2424,7 +3642,7 @@ function buildMockOrderResponse(input = {}) {
             Price: row.Price,
             LineTotal: Number(row.Price || 0) * Number(row.Quantity || 0)
         })),
-        _mock: true
+        _local: true
     };
     demoState.Orders.unshift(response);
     return response;
@@ -2439,7 +3657,7 @@ function buildMockInvoiceResponse(input = {}) {
         DocNum: nextDocNum,
         DocumentLines: payload.DocumentLines,
         DocumentStatus: 'bost_Open',
-        _mock: true
+        _local: true
     };
     demoState.Invoices.unshift(response);
     return response;
@@ -2458,7 +3676,7 @@ function buildMockInventoryExitResponse(input = {}) {
     return {
         DocNum: Date.now(),
         ...payload,
-        _mock: true
+        _local: true
     };
 }
 
@@ -2471,10 +3689,18 @@ async function queryBusinessPartners({ pgQuery, config, query }) {
         return diApiBridge.queryBusinessPartners(liveConfig, query);
     }
     const type = normalizeText(query?.type);
+    const cardTypes = normalizeText(query?.cardTypes || (type ? '' : 'C,L'))
+        .split(',')
+        .map((value) => normalizeText(value))
+        .filter(Boolean);
     const search = normalizeText(query?.search);
     const top = normalizePositiveInt(query?.top, 20, 1, 200);
     const filters = [];
-    if (type) filters.push(`CardType eq '${type.replace(/'/g, "''")}'`);
+    if (cardTypes.length) {
+        filters.push(`(${cardTypes.map((cardType) => `CardType eq '${cardType.replace(/'/g, "''")}'`).join(' or ')})`);
+    } else if (type) {
+        filters.push(`CardType eq '${type.replace(/'/g, "''")}'`);
+    }
     if (search) {
         const escaped = search.replace(/'/g, "''");
         filters.push(`(contains(CardName,'${escaped}') or contains(CardCode,'${escaped}'))`);
@@ -2817,12 +4043,161 @@ function registerSapRoutes({ app, pgQuery, withTransaction }) {
         }
     });
 
+    app.get('/api/sap/mirror/summary', async (req, res) => {
+        try {
+            res.json(await loadSapMirrorSummary(pgQuery));
+        } catch (error) {
+            res.status(500).json({ error: error.message || 'No fue posible cargar las tablas espejo SAP.' });
+        }
+    });
+
+    app.get('/api/sap/mirror/processes', async (req, res) => {
+        try {
+            const config = await loadSapConfig(pgQuery);
+            res.json({
+                ok: true,
+                processes: Object.keys(SAP_MIRROR_PROCESS_DEFS).map((key) => buildSapMirrorProcedure(config, key, req.query || {}))
+            });
+        } catch (error) {
+            res.status(500).json({ error: error.message || 'No fue posible cargar los procesos SAP.' });
+        }
+    });
+
+    app.post('/api/sap/mirror/preview', async (req, res) => {
+        try {
+            const payload = await previewSapMirrorProcess({
+                pgQuery,
+                processKey: req.body?.processKey,
+                input: req.body || {}
+            });
+            res.json(payload);
+        } catch (error) {
+            res.status(400).json({ error: error.message || 'No fue posible previsualizar el proceso SAP.' });
+        }
+    });
+
+    app.get('/api/sap/mirror/tables/:tableName', async (req, res) => {
+        try {
+            res.json(await listSapMirrorTable(pgQuery, req.params.tableName, req.query || {}));
+        } catch (error) {
+            res.status(400).json({ error: error.message || 'No fue posible cargar la tabla SAP.' });
+        }
+    });
+
+    app.post('/api/sap/mirror/import-business-partners', async (req, res) => {
+        const startedAt = new Date().toISOString();
+        const config = await loadSapConfig(pgQuery).catch(() => ({}));
+        try {
+            const actor = await getSapActor(pgQuery);
+            const payload = await importSapMirrorBusinessPartners({
+                pgQuery,
+                withTransaction,
+                limit: req.body?.limit,
+                search: req.body?.search,
+                type: req.body?.type,
+                demo: normalizeBoolean(req.body?.demo, false)
+            });
+            await logSapActivity(pgQuery, {
+                actionType: 'import',
+                entityName: 'OCRD/CRD1/OCPR',
+                actor,
+                mode: resolveOperatingMode(config),
+                status: 'success',
+                internalMethod: 'POST',
+                internalUrl: '/api/sap/mirror/import-business-partners',
+                serviceMethod: 'IMPORT',
+                serviceUrl: 'sap-mirror://BusinessPartners',
+                requestVars: { limit: req.body?.limit || '', search: req.body?.search || '', type: req.body?.type || '', demo: normalizeBoolean(req.body?.demo, false) },
+                responseSummary: summarizeSapPayload(payload),
+                startedAt,
+                finishedAt: new Date().toISOString()
+            });
+            res.json(payload);
+        } catch (error) {
+            await logSapRouteFailure(pgQuery, {
+                actionType: 'import',
+                entityName: 'OCRD/CRD1/OCPR',
+                actor: await getSapActor(pgQuery),
+                mode: resolveOperatingMode(config),
+                internalMethod: 'POST',
+                internalUrl: '/api/sap/mirror/import-business-partners',
+                serviceMethod: 'IMPORT',
+                serviceUrl: 'sap-mirror://BusinessPartners',
+                requestVars: { limit: req.body?.limit || '', search: req.body?.search || '', type: req.body?.type || '', demo: normalizeBoolean(req.body?.demo, false) },
+                errorMessage: error.message
+            });
+            res.status(400).json({ error: error.message || 'No fue posible importar socios SAP.' });
+        }
+    });
+
+    app.post('/api/sap/mirror/import-items', async (req, res) => {
+        const startedAt = new Date().toISOString();
+        const config = await loadSapConfig(pgQuery).catch(() => ({}));
+        try {
+            const actor = await getSapActor(pgQuery);
+            const payload = await importSapMirrorItems({
+                pgQuery,
+                withTransaction,
+                limit: req.body?.limit,
+                search: req.body?.search,
+                group: req.body?.group,
+                demo: normalizeBoolean(req.body?.demo, false)
+            });
+            await logSapActivity(pgQuery, {
+                actionType: 'import',
+                entityName: 'OITM/OITW/ITM1',
+                actor,
+                mode: resolveOperatingMode(config),
+                status: 'success',
+                internalMethod: 'POST',
+                internalUrl: '/api/sap/mirror/import-items',
+                serviceMethod: 'IMPORT',
+                serviceUrl: 'sap-mirror://Items',
+                requestVars: { limit: req.body?.limit || '', search: req.body?.search || '', group: req.body?.group || '', demo: normalizeBoolean(req.body?.demo, false) },
+                responseSummary: summarizeSapPayload(payload),
+                startedAt,
+                finishedAt: new Date().toISOString()
+            });
+            res.json(payload);
+        } catch (error) {
+            await logSapRouteFailure(pgQuery, {
+                actionType: 'import',
+                entityName: 'OITM/OITW/ITM1',
+                actor: await getSapActor(pgQuery),
+                mode: resolveOperatingMode(config),
+                internalMethod: 'POST',
+                internalUrl: '/api/sap/mirror/import-items',
+                serviceMethod: 'IMPORT',
+                serviceUrl: 'sap-mirror://Items',
+                requestVars: { limit: req.body?.limit || '', search: req.body?.search || '', group: req.body?.group || '', demo: normalizeBoolean(req.body?.demo, false) },
+                errorMessage: error.message
+            });
+            res.status(400).json({ error: error.message || 'No fue posible importar artículos SAP.' });
+        }
+    });
+
+    app.post('/api/sap/mirror/export-order', async (req, res) => {
+        try {
+            res.status(201).json(await stageSapMirrorOrder(pgQuery, req.body || {}));
+        } catch (error) {
+            res.status(400).json({ error: error.message || 'No fue posible preparar la exportación de orden SAP.' });
+        }
+    });
+
+    app.post('/api/sap/mirror/export-bom', async (req, res) => {
+        try {
+            res.status(201).json(await stageSapMirrorBom(pgQuery, req.body || {}));
+        } catch (error) {
+            res.status(400).json({ error: error.message || 'No fue posible preparar el BOM SAP.' });
+        }
+    });
+
     app.post('/api/sap/reset-demo', async (req, res) => {
         try {
             resetDemoState();
             res.json({ ok: true });
         } catch (error) {
-            res.status(500).json({ error: error.message || 'No fue posible reiniciar el demo SAP.' });
+            res.status(500).json({ error: error.message || 'No fue posible reiniciar el entorno SAP.' });
         }
     });
 
@@ -3252,5 +4627,7 @@ module.exports = {
     registerSapRoutes,
     startSapScheduler,
     fetchSapBusinessPartnersForImport,
-    fetchSapItemsForImport
+    fetchSapItemsForImport,
+    stageSapMirrorOrder,
+    stageSapMirrorBom
 };

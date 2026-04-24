@@ -117,6 +117,12 @@ function resolveRouteConfig() {
                     rendimiento_g_ft2: '',
                     temperatura_aplicacion_c: '',
                     tipo_transferencia: '',
+                    tipo_superficie: '',
+                    requiere_premier: false,
+                    premier_preaplicado: false,
+                    premier_consumo_g_m2: 0.65,
+                    premier_costo_x_kg: 0,
+                    premier_costo_x_m2: 0,
                     tipo_proforma: '',
                     compatible_convencional: true,
                     compatible_digital: true,
@@ -280,6 +286,24 @@ function resolveRouteConfig() {
                 { key: 'unidad_velocidad_produccion', label: 'Unidad Velocidad', type: 'select', options: [['ft/min', 'ft/min'], ['m/min', 'm/min']] },
                 { key: 'costo_hora_maquina', label: 'Costo Hora Maquina', type: 'number', step: '0.01' },
                 { key: 'costo_hora_operario', label: 'Costo Hora Hombre', type: 'number', step: '0.01' },
+                { type: 'section', label: 'Impresión Digital', span: 2 },
+                { key: 'digital_tipo_cobro', label: 'Tipo Cobro Digital', type: 'select', options: [['consumo', 'Consumo'], ['clic', 'Clic']] },
+                { key: 'digital_costo_kg_tinta', label: 'Costo kg Tinta', type: 'number', step: '0.000001' },
+                { key: 'digital_costo_kg_tinta_blanco', label: 'Costo kg Blanco', type: 'number', step: '0.000001' },
+                { key: 'digital_costo_kg_tinta_especial', label: 'Costo kg Especial', type: 'number', step: '0.000001' },
+                { key: 'digital_tarifa_click', label: 'Tarifa Clic', type: 'number', step: '0.000001' },
+                { key: 'digital_modo_click', label: 'Modo Clic', type: 'select', options: [['por_estacion', 'Por estación'], ['por_vuelta', 'Por vuelta']] },
+                { key: 'digital_velocidad_cmyk_mpm', label: 'Velocidad CMYK m/min', type: 'number', step: '0.01' },
+                { key: 'digital_velocidad_extendida_mpm', label: 'Velocidad Extendida m/min', type: 'number', step: '0.01' },
+                { key: 'digital_gramaje_cmyk_g_m2', label: 'Gramaje CMYK g/m²', type: 'number', step: '0.0001' },
+                { key: 'digital_gramaje_blanco_g_m2', label: 'Gramaje Blanco g/m²', type: 'number', step: '0.0001' },
+                { key: 'digital_factor_merma', label: 'Factor Merma Tinta', type: 'number', step: '0.0001' },
+                { key: 'digital_costo_lavado_especial', label: 'Costo Lavado Especial', type: 'number', step: '0.000001' },
+                { type: 'section', label: 'Premier Digital', span: 2 },
+                { key: 'digital_premier_modo', label: 'Modo Premier', type: 'select', options: [['offline', 'Offline'], ['inline', 'In-line']] },
+                { key: 'digital_premier_setup_min', label: 'Setup Premier min', type: 'number', step: '0.01' },
+                { key: 'digital_premier_costo_mantenimiento', label: 'Mantenimiento Premier', type: 'number', step: '0.000001' },
+                { key: 'digital_premier_costo_offline_m', label: 'Costo Offline m', type: 'number', step: '0.000001' },
                 { key: 'activa', label: 'Activa', type: 'checkbox' }
             ],
             createEmptyItem() {
@@ -299,6 +323,22 @@ function resolveRouteConfig() {
                     minuto_hombre: 0,
                     factor_tiraje: 0,
                     factor_tiraje_digital: '',
+                    digital_tipo_cobro: 'consumo',
+                    digital_costo_kg_tinta: 0,
+                    digital_costo_kg_tinta_blanco: 0,
+                    digital_costo_kg_tinta_especial: 0,
+                    digital_tarifa_click: 0.09,
+                    digital_modo_click: 'por_estacion',
+                    digital_velocidad_cmyk_mpm: 42,
+                    digital_velocidad_extendida_mpm: 26,
+                    digital_gramaje_cmyk_g_m2: 1.5,
+                    digital_gramaje_blanco_g_m2: 4,
+                    digital_factor_merma: 1.1,
+                    digital_costo_lavado_especial: 18,
+                    digital_premier_modo: 'offline',
+                    digital_premier_setup_min: 20,
+                    digital_premier_costo_mantenimiento: 14,
+                    digital_premier_costo_offline_m: 0,
                     factor_montaje_estacion: 0,
                     factor_preparacion: 0,
                     comentario_setup: '',
@@ -495,6 +535,18 @@ let capabilitiesState = [];
 let machineCatalogOptions = [];
 let currentView = routeState.get('view') === 'detail' ? 'detail' : 'list';
 let searchTimer = null;
+
+function canCreateInventoryRecords() {
+    if (!window.ErpAccess?.canCreateModule) return true;
+    const moduleKeyMap = {
+        materiales: 'inventario-mp',
+        troqueles: 'inventario-troqueles',
+        maquinas: 'inventario-maquinaria',
+        procesos: 'inventario-maquinaria',
+        'tipos-salida': 'configuracion-general'
+    };
+    return window.ErpAccess.canCreateModule(moduleKeyMap[page.inventoryKey] || PRESENTATION_KEY);
+}
 
 function isTroquelesInventory() {
     return page.inventoryKey === 'troqueles';
@@ -748,9 +800,16 @@ function getFormFields() {
         { key: 'tipo_proforma', label: 'Familia Comercial', type: 'text', className: 'inventory-material-field' },
         { key: 'comentario_tipo_proforma', label: 'Comentario', type: 'textarea', rows: 2, className: 'inventory-material-comment' },
         { key: 'activo', label: 'Activo', type: 'checkbox', className: 'inventory-material-field' },
-        { key: 'compatible_convencional', label: 'Compatible Convencional', type: 'checkbox', className: 'inventory-material-field' },
-        { key: 'compatible_digital', label: 'Compatible Digital', type: 'checkbox', className: 'inventory-material-field' },
-        { type: 'section', label: 'Datos para Cotización', span: 2 },
+                { key: 'compatible_convencional', label: 'Compatible Convencional', type: 'checkbox', className: 'inventory-material-field' },
+                { key: 'compatible_digital', label: 'Compatible Digital', type: 'checkbox', className: 'inventory-material-field' },
+                { type: 'section', label: 'Tratamiento Digital de Sustrato', span: 2 },
+                { key: 'tipo_superficie', label: 'Tipo Superficie', type: 'select', options: [['', 'Sin definir'], ['poroso', 'Poroso'], ['no_poroso', 'No poroso']] },
+                { key: 'requiere_premier', label: 'Requiere Premier', type: 'checkbox', className: 'inventory-material-field' },
+                { key: 'premier_preaplicado', label: 'Premier Preaplicado', type: 'checkbox', className: 'inventory-material-field' },
+                { key: 'premier_consumo_g_m2', label: 'Premier g/m²', type: 'number', step: '0.0001', className: 'inventory-material-field' },
+                { key: 'premier_costo_x_kg', label: 'Premier Costo kg', type: 'number', step: '0.000001', className: 'inventory-material-field' },
+                { key: 'premier_costo_x_m2', label: 'Premier Costo m²', type: 'number', step: '0.000001', className: 'inventory-material-field' },
+                { type: 'section', label: 'Datos para Cotización', span: 2 },
         { key: 'costo_x_lamina', label: 'Costo Lámina', type: 'number', step: '0.000001', className: 'inventory-material-field' },
         { key: 'comentario_costo_x_lamina', label: 'Comentario', type: 'textarea', rows: 2, className: 'inventory-material-comment' },
         { key: 'costo_x_libra', label: 'Costo Libra', type: 'number', step: '0.000001', className: 'inventory-material-field' },
@@ -1304,6 +1363,9 @@ function syncMachineActions() {
     }
     if (catalogSaveButton) {
         catalogSaveButton.hidden = isMaterialsInventory();
+    }
+    if (catalogNewButton) {
+        catalogNewButton.hidden = !canCreateInventoryRecords();
     }
     if (catalogRefreshButton) {
         catalogRefreshButton.hidden = !isMaterialsInventory();

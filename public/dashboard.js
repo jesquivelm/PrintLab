@@ -16,6 +16,7 @@ const HOME_TAB_ID = 'home';
 const FAVORITE_DOCUMENTS_STORAGE_KEY = 'erp-favorite-documents';
 const DASHBOARD_CARDS = [
 { route: '/socios', label: 'Socios', iconKey: 'dashboardBusinessPartners', modules: ['socios'] },
+{ route: '/productos', label: 'Productos', iconKey: 'dashboardProducts', modules: ['productos'] },
 { route: '/cotizaciones', label: 'Cotizaciones', iconKey: 'dashboardQuotes', modules: ['cotizaciones'] },
 { route: '/inventario-materiales', label: 'Inventarios', iconKey: 'dashboardInventory', modules: ['inventario-mp', 'inventario-troqueles', 'inventario-maquinaria'] },
 { route: '/configuracion-general', label: 'Configuraci\u00f3n', iconKey: 'dashboardSettings', modules: ['configuracion-general'] },
@@ -74,7 +75,7 @@ if (!activeUserSession?.username) {
 
 function normalizePermissionLevel(value) {
     const normalized = String(value || '').trim().toLowerCase();
-    if (normalized === 'view' || normalized === 'edit') return normalized;
+    if (normalized === 'view' || normalized === 'create' || normalized === 'edit') return normalized;
     return 'none';
 }
 
@@ -87,7 +88,19 @@ function canViewModule(moduleKey) {
     if (!moduleKey || moduleKey === 'dashboard') return true;
     const modules = getSessionModules();
     if (!modules) return true;
+    if (moduleKey === 'productos' && !Object.prototype.hasOwnProperty.call(modules, 'productos')) {
+        return normalizePermissionLevel(modules.cotizaciones) !== 'none';
+    }
     return normalizePermissionLevel(modules[moduleKey]) !== 'none';
+}
+
+function canCreateModule(moduleKey) {
+    if (!moduleKey) return false;
+    if (window.ErpAccess?.canCreateModule) return window.ErpAccess.canCreateModule(moduleKey);
+    const modules = getSessionModules();
+    if (!modules) return true;
+    const level = normalizePermissionLevel(modules[moduleKey]);
+    return level === 'create';
 }
 
 function canViewAnyModule(moduleKeys = []) {
@@ -98,6 +111,7 @@ function getRoutePermissionKeys(route) {
     const pathname = new URL(route || '/', window.location.origin).pathname.toLowerCase();
     if (pathname === '/' || pathname === '/dashboard' || pathname === '/login') return ['dashboard'];
     if (pathname === '/socios' || pathname === '/socios.html' || pathname === '/socios-documento.html' || pathname.startsWith('/socios/')) return ['socios'];
+    if (pathname === '/productos' || pathname === '/productos.html' || pathname.startsWith('/productos/')) return ['productos'];
     if (pathname === '/cotizaciones' || pathname === '/cotizaciones.html' || pathname === '/index.html' || pathname.startsWith('/cotizaciones/')) return ['cotizaciones'];
     if (pathname === '/calculo-flexografia' || pathname === '/flexo-calculo' || pathname === '/flexo-calculo.html') return ['calculos'];
     if (pathname === '/ordenes-produccion' || pathname === '/ordenes-produccion.html' || pathname === '/orden-produccion.html' || pathname.startsWith('/orden-produccion')) return ['ordenes'];
@@ -172,6 +186,7 @@ function getTabFamilyMeta(route) {
     if (!route) return TAB_FAMILY_META.home;
     const pathname = new URL(route, window.location.origin).pathname.toLowerCase();
     if (pathname === '/cotizaciones') return TAB_FAMILY_META.quotes;
+    if (pathname === '/productos') return TAB_FAMILY_META.orders;
     if (pathname.startsWith('/cotizaciones/documento') || pathname.startsWith('/calculo-flexografia')) return TAB_FAMILY_META.quoteChild;
   if (pathname === '/ordenes-produccion') return TAB_FAMILY_META.orders;
   if (pathname === '/planificacion' || pathname.startsWith('/planificacion/')) return TAB_FAMILY_META.orders;

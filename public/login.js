@@ -136,6 +136,7 @@ function resolveRouteForLanding(key) {
     const map = {
         dashboard: '/dashboard',
         socios: '/socios',
+        productos: '/productos',
         cotizaciones: '/cotizaciones',
         ordenes: '/ordenes-produccion',
         planificacion: '/planificacion/lanzamiento',
@@ -146,6 +147,7 @@ function resolveRouteForLanding(key) {
         'inventario-maquinaria': '/inventario-maquinas',
         'configuracion-general': '/configuracion-general',
         vendedores: '/vendedores',
+        sap: '/configuracion-general',
         seguimiento: '/ordenes-produccion',
         solicitudes: '/cotizaciones'
     };
@@ -154,14 +156,22 @@ function resolveRouteForLanding(key) {
 
 function normalizeLoginPermissionLevel(value) {
     const normalized = String(value || '').trim().toLowerCase();
-    if (normalized === 'view' || normalized === 'edit') return normalized;
+    if (normalized === 'view' || normalized === 'create' || normalized === 'edit') return normalized;
     return 'none';
+}
+
+function getLoginModuleAccessLevel(modules, moduleKey) {
+    if (moduleKey === 'productos' && modules && !Object.prototype.hasOwnProperty.call(modules, 'productos')) {
+        return normalizeLoginPermissionLevel(modules.cotizaciones);
+    }
+    return normalizeLoginPermissionLevel(modules?.[moduleKey]);
 }
 
 function getLoginRouteModules(route) {
     const pathname = new URL(route || '/', window.location.origin).pathname.toLowerCase();
     if (pathname === '/' || pathname === '/dashboard') return ['dashboard'];
     if (pathname === '/socios' || pathname.startsWith('/socios/')) return ['socios'];
+    if (pathname === '/productos' || pathname.startsWith('/productos/')) return ['productos'];
     if (pathname === '/cotizaciones' || pathname.startsWith('/cotizaciones/')) return ['cotizaciones'];
     if (pathname === '/calculo-flexografia' || pathname === '/flexo-calculo') return ['calculos'];
     if (pathname === '/ordenes-produccion' || pathname.startsWith('/orden-produccion')) return ['ordenes'];
@@ -180,7 +190,7 @@ function canOpenLoginLanding(session, route) {
     const modules = session?.modules && typeof session.modules === 'object' ? session.modules : null;
     if (!modules) return true;
     const keys = getLoginRouteModules(route);
-    return !keys.length || keys.some((key) => key === 'dashboard' || normalizeLoginPermissionLevel(modules[key]) !== 'none');
+    return !keys.length || keys.some((key) => key === 'dashboard' || getLoginModuleAccessLevel(modules, key) !== 'none');
 }
 
 function resolveAllowedLandingRoute(session) {

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/theme.js"></script>
+    <title>PrintLab</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="dashboard-body">
+    <div class="app-shell dashboard-app-shell">
+        <header class="topbar topbar-quote dashboard-topbar">
+            <div class="brand brand-quote">
+                <div class="brand-logo-wrap">
+                    <img id="dashboardCompanyLogo" class="company-logo" alt="Logo empresa">
+                    <div id="dashboardBrandFallback" class="brand-mark">PrintLab</div>
+                </div>
+                <h1 id="dashboardPageTitle">PrintLab</h1>
+                <div class="topbar-user-tools topbar-user-tools-compact">
+                    <button type="button" id="dashboardSearchButton" class="tool-icon plain-icon" aria-label="Buscar"></button>
+                </div>
+            </div>
+        </header>
+
+        <header class="dashboard-tabs-bar">
+            <div id="dashboardTabs" class="dashboard-tabs"></div>
+        </header>
+
+        <main class="workspace dashboard-workspace-shell">
+            <section id="dashboardHome" class="dashboard-home">
+                <section class="dashboard-grid">
+                    <button type="button" class="dashboard-card" data-route="/socios" data-label="Socios" data-icon-key="dashboardBusinessPartners">
+                        <span class="dashboard-card-icon" data-icon-target="dashboardBusinessPartners"></span>
+                        <span class="dashboard-card-title">Socios</span>
+                    </button>
+                    <button type="button" class="dashboard-card" data-route="/cotizaciones" data-label="Cotizaciones" data-icon-key="dashboardQuotes">
+                        <span class="dashboard-card-icon" data-icon-target="dashboardQuotes"></span>
+                        <span class="dashboard-card-title">Cotizaciones</span>
+                    </button>
+                    <button type="button" class="dashboard-card" data-route="/inventario-materiales" data-label="Inventarios" data-icon-key="dashboardInventory">
+                        <span class="dashboard-card-icon" data-icon-target="dashboardInventory"></span>
+                        <span class="dashboard-card-title">Inventarios</span>
+                    </button>
+                    <button type="button" class="dashboard-card" data-route="/configuracion-general" data-label="Configuraci&oacute;n" data-icon-key="dashboardSettings">
+                        <span class="dashboard-card-icon" data-icon-target="dashboardSettings"></span>
+                        <span class="dashboard-card-title">Configuraci&oacute;n General</span>
+                    </button>
+                    <button type="button" class="dashboard-card" data-route="/ordenes-produccion" data-label="&Oacute;rdenes" data-icon-key="dashboardOrders">
+                        <span class="dashboard-card-icon" data-icon-target="dashboardOrders"></span>
+                        <span class="dashboard-card-title">&Oacute;rdenes de Producci&oacute;n</span>
+                    </button>
+                    <button type="button" class="dashboard-card" data-route="/planificacion/lanzamiento" data-label="Planificaci&oacute;n" data-icon-key="dashboardPlanning">
+                        <span class="dashboard-card-icon" data-icon-target="dashboardPlanning"></span>
+                        <span class="dashboard-card-title">Planificaci&oacute;n</span>
+                    </button>
+                    <button type="button" class="dashboard-card" data-route="/costos.html" data-label="Costos" data-icon-key="dashboardCosts">
+                        <span class="dashboard-card-icon" data-icon-target="dashboardCosts"></span>
+                        <span class="dashboard-card-title">Costos</span>
+                    </button>
+                </section>
+
+                <section id="dashboardFavorites" class="dashboard-favorites" hidden>
+                    <div class="dashboard-favorites-head">
+                        <h2>Documentos Favoritos</h2>
+                    </div>
+                    <div id="dashboardFavoritesBody" class="dashboard-favorites-body"></div>
+                </section>
+            </section>
+
+            <section id="dashboardWorkspace" class="dashboard-workspace" hidden></section>
+        </main>
+    </div>
+
+    <script src="/dashboard.js"></script>
+</body>
+</html>

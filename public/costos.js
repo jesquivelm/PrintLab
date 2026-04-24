@@ -80,6 +80,47 @@ const DEFAULT_COSTS_CONFIG = {
         ]
     },
     digital: {
+        premier: {
+            formulaText: "Costo Premier = ((Area m2 x Consumo g/m2) / 1000 x Costo kg) + Setup Premier + Mantenimiento In-line. Si el sustrato viene pretratado, Premier = 0.",
+            explanation: "El costo por metro del tratamiento offline no se define aqui como estandar general. Si la planta trata fuera de linea, ese costo operativo debe vivir en la maquina tratadora o ya venir absorbido por el sustrato pretratado.",
+            comment: "Costo kg provisional tomado como referencia interna de liquido tipo coating. Si Gerencia define el SKU exacto del Primer, debe reemplazarse aqui y en los sustratos que lo usen.",
+            mode: "offline",
+            setupMin: 20,
+            consumptionGm2: 0.65,
+            costPerKg: 9.25,
+            costPerM2: 0.006013,
+            offlineCostPerMeter: 0,
+            maintenanceCost: 14
+        },
+        tintaGeneral: {
+            billingType: "consumo",
+            costPerKg: 0,
+            whiteCostPerKg: 0,
+            specialCostPerKg: 0,
+            clickRate: 0,
+            clickMode: "por_estacion",
+            coverageCmykPct: 30,
+            coverageWhitePct: 100,
+            cmykGm2: 1.5,
+            whiteGm2: 4,
+            wasteFactor: 1.1,
+            specialWashCost: 18,
+            formulaConsumptionText: "Costo Tinta = ((Área Total x Cobertura x Gramaje) / 1000) x Factor Merma x Costo Kg.",
+            formulaClickText: "Costo Clics = Cantidad Impresiones x Estaciones Facturables x Tarifa Clic.",
+            explanation: "La máquina digital puede cobrar por consumo o por clic. Estos valores funcionan como respaldo general; si la máquina tiene datos propios, la cotización usa primero los de la máquina.",
+            comment: "Lavado especial provisional: referencia operativa para limpieza, purga o cambio de color especial. Debe sustituirse por el costo real de cada equipo si la planta lo define.",
+            coverageProfiles: [
+                { id: "digital-simple", tipo: "Simple / textos / logos", coveragePct: 15 },
+                { id: "digital-estandar", tipo: "Estándar / imagen y texto", coveragePct: 30 },
+                { id: "digital-complejo", tipo: "Complejo / fondo sólido", coveragePct: 90 },
+                { id: "digital-blanco", tipo: "Blanco sobre transparente", coveragePct: 100 }
+            ]
+        },
+        velocidad: {
+            speedCmykMpm: 42,
+            speedExtendedMpm: 26,
+            comment: "Velocidades generales de respaldo. Si la máquina digital tiene sus propios metros por minuto, la cotización toma primero esos valores."
+        },
         maculaMontaje: [],
         maculaTiraje: []
     }
@@ -103,6 +144,7 @@ const maculaTirajeTableBody = document.getElementById("maculaTirajeTableBody");
 const depositosTableBody = document.getElementById("costosDepositosTableBody");
 const finishWasteTableBody = document.getElementById("costosFinishWasteTableBody");
 const inlineFinishSetupTableBody = document.getElementById("inlineFinishSetupTableBody");
+const digitalCoverageProfilesTableBody = document.getElementById("costosDigitalCoverageProfilesTableBody");
 const inkFields = {
     bcmGenerico: document.getElementById("costosBcmGenerico"),
     coberturaTintaPct: document.getElementById("costosCoberturaTinta"),
@@ -112,6 +154,41 @@ const inkFields = {
     costoLbBlanco: document.getElementById("costosCostoLbBlanco"),
     costoLbPantone: document.getElementById("costosCostoLbPantone")
 };
+const digitalPremierFields = {
+    mode: document.getElementById("costosDigitalPremierMode"),
+    setupMin: document.getElementById("costosDigitalPremierSetupMin"),
+    consumptionGm2: document.getElementById("costosDigitalPremierConsumptionGm2"),
+    costPerKg: document.getElementById("costosDigitalPremierCostPerKg"),
+    costPerM2: document.getElementById("costosDigitalPremierCostPerM2"),
+    offlineCostPerMeter: document.getElementById("costosDigitalPremierOfflineCostPerMeter"),
+    maintenanceCost: document.getElementById("costosDigitalPremierMaintenanceCost"),
+    comment: document.getElementById("costosDigitalPremierComment")
+};
+const digitalInkFields = {
+    billingType: document.getElementById("costosDigitalBillingType"),
+    costPerKg: document.getElementById("costosDigitalInkCostPerKg"),
+    whiteCostPerKg: document.getElementById("costosDigitalWhiteInkCostPerKg"),
+    specialCostPerKg: document.getElementById("costosDigitalSpecialInkCostPerKg"),
+    clickRate: document.getElementById("costosDigitalClickRate"),
+    clickMode: document.getElementById("costosDigitalClickMode"),
+    coverageCmykPct: document.getElementById("costosDigitalCoverageCmykPct"),
+    coverageWhitePct: document.getElementById("costosDigitalCoverageWhitePct"),
+    cmykGm2: document.getElementById("costosDigitalCmykGm2"),
+    whiteGm2: document.getElementById("costosDigitalWhiteGm2"),
+    wasteFactor: document.getElementById("costosDigitalWasteFactor"),
+    specialWashCost: document.getElementById("costosDigitalSpecialWashCost"),
+    comment: document.getElementById("costosDigitalInkComment")
+};
+const digitalSpeedFields = {
+    speedCmykMpm: document.getElementById("costosDigitalSpeedCmykMpm"),
+    speedExtendedMpm: document.getElementById("costosDigitalSpeedExtendedMpm"),
+    comment: document.getElementById("costosDigitalSpeedComment")
+};
+const digitalPremierFormulaText = document.getElementById("costosDigitalPremierFormulaText");
+const digitalPremierExplanationText = document.getElementById("costosDigitalPremierExplanationText");
+const digitalInkFormulaConsumptionText = document.getElementById("costosDigitalInkFormulaConsumptionText");
+const digitalInkFormulaClickText = document.getElementById("costosDigitalInkFormulaClickText");
+const digitalInkExplanationText = document.getElementById("costosDigitalInkExplanationText");
 
 let loadedConfig = null;
 let costsState = null;
@@ -326,6 +403,11 @@ function normalizeCostsConfig(config) {
         proceso: normalizeText(row?.proceso),
         minutosPorEstacion: numberValue(row?.minutosPorEstacion, 5)
     }));
+    const normalizeDigitalCoverageProfiles = (rows) => (Array.isArray(rows) ? rows : []).map((row, index) => ({
+        id: normalizeText(row?.id) || `digital-profile-${index + 1}`,
+        tipo: normalizeText(row?.tipo),
+        coveragePct: numberValue(row?.coveragePct, 0)
+    }));
 
     return {
         general: {
@@ -355,6 +437,42 @@ function normalizeCostsConfig(config) {
             finishWaste: normalizeFinishWaste(rowsOrDefault(source?.convencional?.finishWaste, DEFAULT_COSTS_CONFIG.convencional.finishWaste))
         },
         digital: {
+            premier: {
+                formulaText: normalizeText(source?.digital?.premier?.formulaText) || DEFAULT_COSTS_CONFIG.digital.premier.formulaText,
+                explanation: normalizeText(source?.digital?.premier?.explanation) || DEFAULT_COSTS_CONFIG.digital.premier.explanation,
+                comment: normalizeText(source?.digital?.premier?.comment),
+                mode: normalizeText(source?.digital?.premier?.mode) === "inline" ? "inline" : DEFAULT_COSTS_CONFIG.digital.premier.mode,
+                setupMin: numberValue(source?.digital?.premier?.setupMin, DEFAULT_COSTS_CONFIG.digital.premier.setupMin),
+                consumptionGm2: numberValue(source?.digital?.premier?.consumptionGm2, DEFAULT_COSTS_CONFIG.digital.premier.consumptionGm2),
+                costPerKg: numberValue(source?.digital?.premier?.costPerKg, DEFAULT_COSTS_CONFIG.digital.premier.costPerKg),
+                costPerM2: numberValue(source?.digital?.premier?.costPerM2, DEFAULT_COSTS_CONFIG.digital.premier.costPerM2),
+                offlineCostPerMeter: numberValue(source?.digital?.premier?.offlineCostPerMeter, DEFAULT_COSTS_CONFIG.digital.premier.offlineCostPerMeter),
+                maintenanceCost: numberValue(source?.digital?.premier?.maintenanceCost, DEFAULT_COSTS_CONFIG.digital.premier.maintenanceCost)
+            },
+            tintaGeneral: {
+                billingType: normalizeText(source?.digital?.tintaGeneral?.billingType) === "clic" ? "clic" : DEFAULT_COSTS_CONFIG.digital.tintaGeneral.billingType,
+                costPerKg: numberValue(source?.digital?.tintaGeneral?.costPerKg, DEFAULT_COSTS_CONFIG.digital.tintaGeneral.costPerKg),
+                whiteCostPerKg: numberValue(source?.digital?.tintaGeneral?.whiteCostPerKg, DEFAULT_COSTS_CONFIG.digital.tintaGeneral.whiteCostPerKg),
+                specialCostPerKg: numberValue(source?.digital?.tintaGeneral?.specialCostPerKg, DEFAULT_COSTS_CONFIG.digital.tintaGeneral.specialCostPerKg),
+                clickRate: numberValue(source?.digital?.tintaGeneral?.clickRate, DEFAULT_COSTS_CONFIG.digital.tintaGeneral.clickRate),
+                clickMode: normalizeText(source?.digital?.tintaGeneral?.clickMode) === "por_vuelta" ? "por_vuelta" : DEFAULT_COSTS_CONFIG.digital.tintaGeneral.clickMode,
+                coverageCmykPct: numberValue(source?.digital?.tintaGeneral?.coverageCmykPct, DEFAULT_COSTS_CONFIG.digital.tintaGeneral.coverageCmykPct),
+                coverageWhitePct: numberValue(source?.digital?.tintaGeneral?.coverageWhitePct, DEFAULT_COSTS_CONFIG.digital.tintaGeneral.coverageWhitePct),
+                cmykGm2: numberValue(source?.digital?.tintaGeneral?.cmykGm2, DEFAULT_COSTS_CONFIG.digital.tintaGeneral.cmykGm2),
+                whiteGm2: numberValue(source?.digital?.tintaGeneral?.whiteGm2, DEFAULT_COSTS_CONFIG.digital.tintaGeneral.whiteGm2),
+                wasteFactor: numberValue(source?.digital?.tintaGeneral?.wasteFactor, DEFAULT_COSTS_CONFIG.digital.tintaGeneral.wasteFactor),
+                specialWashCost: numberValue(source?.digital?.tintaGeneral?.specialWashCost, DEFAULT_COSTS_CONFIG.digital.tintaGeneral.specialWashCost),
+                formulaConsumptionText: normalizeText(source?.digital?.tintaGeneral?.formulaConsumptionText) || DEFAULT_COSTS_CONFIG.digital.tintaGeneral.formulaConsumptionText,
+                formulaClickText: normalizeText(source?.digital?.tintaGeneral?.formulaClickText) || DEFAULT_COSTS_CONFIG.digital.tintaGeneral.formulaClickText,
+                explanation: normalizeText(source?.digital?.tintaGeneral?.explanation) || DEFAULT_COSTS_CONFIG.digital.tintaGeneral.explanation,
+                comment: normalizeText(source?.digital?.tintaGeneral?.comment),
+                coverageProfiles: normalizeDigitalCoverageProfiles(rowsOrDefault(source?.digital?.tintaGeneral?.coverageProfiles, DEFAULT_COSTS_CONFIG.digital.tintaGeneral.coverageProfiles))
+            },
+            velocidad: {
+                speedCmykMpm: numberValue(source?.digital?.velocidad?.speedCmykMpm, DEFAULT_COSTS_CONFIG.digital.velocidad.speedCmykMpm),
+                speedExtendedMpm: numberValue(source?.digital?.velocidad?.speedExtendedMpm, DEFAULT_COSTS_CONFIG.digital.velocidad.speedExtendedMpm),
+                comment: normalizeText(source?.digital?.velocidad?.comment)
+            },
             maculaMontaje: normalizeMontaje(rowsOrDefault(source?.digital?.maculaMontaje, DEFAULT_COSTS_CONFIG.digital.maculaMontaje)),
             maculaTiraje: normalizeTiraje(rowsOrDefault(source?.digital?.maculaTiraje, DEFAULT_COSTS_CONFIG.digital.maculaTiraje))
         }
@@ -461,6 +579,46 @@ function renderFinishWasteRows() {
     `).join("") : '<tr><td colspan="3">No hay filas configuradas.</td></tr>';
 }
 
+function renderDigitalPremierFields() {
+    const premier = costsState?.digital?.premier || DEFAULT_COSTS_CONFIG.digital.premier;
+    Object.entries(digitalPremierFields).forEach(([key, node]) => {
+        if (!node) return;
+        node.value = premier[key] ?? "";
+    });
+    if (digitalPremierFormulaText) digitalPremierFormulaText.textContent = premier.formulaText || "";
+    if (digitalPremierExplanationText) digitalPremierExplanationText.textContent = premier.explanation || "";
+}
+
+function renderDigitalInkFields() {
+    const digitalInk = costsState?.digital?.tintaGeneral || DEFAULT_COSTS_CONFIG.digital.tintaGeneral;
+    Object.entries(digitalInkFields).forEach(([key, node]) => {
+        if (!node) return;
+        node.value = digitalInk[key] ?? "";
+    });
+    if (digitalInkFormulaConsumptionText) digitalInkFormulaConsumptionText.textContent = digitalInk.formulaConsumptionText || "";
+    if (digitalInkFormulaClickText) digitalInkFormulaClickText.textContent = digitalInk.formulaClickText || "";
+    if (digitalInkExplanationText) digitalInkExplanationText.textContent = digitalInk.explanation || "";
+}
+
+function renderDigitalCoverageProfileRows() {
+    if (!digitalCoverageProfilesTableBody) return;
+    const rows = costsState?.digital?.tintaGeneral?.coverageProfiles || [];
+    digitalCoverageProfilesTableBody.innerHTML = rows.length ? rows.map((row, index) => `
+        <tr>
+            <td><input type="text" data-section="digital.tintaGeneral.coverageProfiles" data-index="${index}" data-field="tipo" value="${escapeHtml(row.tipo)}"></td>
+            <td><input type="number" min="0" step="0.01" data-section="digital.tintaGeneral.coverageProfiles" data-index="${index}" data-field="coveragePct" value="${escapeHtml(row.coveragePct)}"></td>
+        </tr>
+    `).join("") : '<tr><td colspan="2">No hay perfiles configurados.</td></tr>';
+}
+
+function renderDigitalSpeedFields() {
+    const velocidad = costsState?.digital?.velocidad || DEFAULT_COSTS_CONFIG.digital.velocidad;
+    Object.entries(digitalSpeedFields).forEach(([key, node]) => {
+        if (!node) return;
+        node.value = velocidad[key] ?? "";
+    });
+}
+
 function renderCosts() {
     generalNotes.value = costsState?.general?.notes || "";
     Object.entries(generalDefaultFields).forEach(([key, node]) => {
@@ -475,6 +633,10 @@ function renderCosts() {
     renderMontajeRows();
     renderTirajeRows();
     renderFinishWasteRows();
+    renderDigitalPremierFields();
+    renderDigitalInkFields();
+    renderDigitalCoverageProfileRows();
+    renderDigitalSpeedFields();
 }
 
 function renderProcessDefaultRows() {
@@ -775,6 +937,45 @@ maculaTirajeTableBody?.addEventListener("click", (event) => {
     if (!button || !costsState) return;
     costsState.convencional.maculaTiraje.splice(Number(button.dataset.index), 1);
     renderTirajeRows();
+    queueCostsSave();
+});
+
+Object.entries(digitalPremierFields).forEach(([key, node]) => {
+    node?.addEventListener("input", () => {
+        if (!costsState) return;
+        costsState.digital.premier[key] = node.tagName === "TEXTAREA" || node.tagName === "SELECT"
+            ? node.value
+            : numberValue(node.value, DEFAULT_COSTS_CONFIG.digital.premier[key]);
+        queueCostsSave();
+    });
+});
+
+Object.entries(digitalInkFields).forEach(([key, node]) => {
+    node?.addEventListener("input", () => {
+        if (!costsState) return;
+        costsState.digital.tintaGeneral[key] = node.tagName === "TEXTAREA" || node.tagName === "SELECT"
+            ? node.value
+            : numberValue(node.value, DEFAULT_COSTS_CONFIG.digital.tintaGeneral[key]);
+        queueCostsSave();
+    });
+});
+
+Object.entries(digitalSpeedFields).forEach(([key, node]) => {
+    node?.addEventListener("input", () => {
+        if (!costsState) return;
+        costsState.digital.velocidad[key] = node.tagName === "TEXTAREA"
+            ? node.value
+            : numberValue(node.value, DEFAULT_COSTS_CONFIG.digital.velocidad[key]);
+        queueCostsSave();
+    });
+});
+
+digitalCoverageProfilesTableBody?.addEventListener("input", (event) => {
+    const target = event.target.closest('[data-section="digital.tintaGeneral.coverageProfiles"]');
+    if (!target || !costsState) return;
+    const row = costsState.digital.tintaGeneral.coverageProfiles[Number(target.dataset.index)];
+    if (!row) return;
+    row[target.dataset.field] = target.type === "number" ? numberValue(target.value, 0) : target.value;
     queueCostsSave();
 });
 

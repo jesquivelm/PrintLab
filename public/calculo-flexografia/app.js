@@ -1,7 +1,7 @@
 const params = new URLSearchParams(window.location.search);
 
 const PRODUCT_TYPES = ["Etiquetas", "Cinta Continua", "Empaque Flexible", "Código de Barras", "Números de Carrera"];
-const WORK_TYPES = ["Nuevo", "Repetición", "Repetición con Cambio", "Prueba", "Muestra", "Regalía", "Proyecto"];
+const WORK_TYPES = ["Nuevo", "Repetición", "Repetición con Cambio", "Validación", "Muestra", "Regalía", "Proyecto"];
 const DEFAULT_OUTPUT_TYPES = [
   { id: "A", name: "A", description: "Configuracion de salida tipo A" },
   { id: "B", name: "B", description: "Configuracion de salida tipo B" },
@@ -406,8 +406,13 @@ function applyCostsConfigToCurrentLine(force = false) {
   };
 
   const inkDefaults = conventionalInkDefaults();
+  const digitalDefaults = digitalInkDefaults();
+  const substrateMaterial = findMaterial(state.form?.substrate?.materialId);
   const applyStageDefaults = (stage) => {
     if (!stage || typeof stage !== "object") return;
+    const machine = findMachine(stage.machineId);
+    const digitalSettings = digitalMachineSettings(machine || {}, stage);
+    const isDigital = isDigitalProductionMachine(machine);
     stage.coveragePct = force ? inkDefaults.cmykCoveragePct : (n(stage.coveragePct, 0) > 0 ? n(stage.coveragePct, 0) : inkDefaults.cmykCoveragePct);
     stage.aniloxBcm = force ? (inkDefaults.cmykBcm || inkDefaults.bcmGenerico) : (n(stage.aniloxBcm, 0) > 0 ? n(stage.aniloxBcm, 0) : (inkDefaults.cmykBcm || inkDefaults.bcmGenerico));
     stage.inkGsm = force ? inkDefaults.cmykGsm : (n(stage.inkGsm, 0) > 0 ? n(stage.inkGsm, 0) : inkDefaults.cmykGsm);
@@ -434,6 +439,36 @@ function applyCostsConfigToCurrentLine(force = false) {
         inline.layerGsm = force ? inkDefaults.barnizGsm : (n(inline.layerGsm, 0) > 0 ? n(inline.layerGsm, 0) : inkDefaults.barnizGsm);
       }
     });
+    if (isDigital) {
+      const materialNeedsPremier = materialRequiresPremier(substrateMaterial);
+      const materialPreTreated = materialPremierPreapplied(substrateMaterial);
+      stage.digitalBillingType = force ? digitalSettings.billingType : first(stage.digitalBillingType, digitalSettings.billingType, digitalDefaults.billingType);
+      stage.digitalInkCostPerKg = force ? digitalSettings.inkCostPerKg : firstPositiveNumber(stage.digitalInkCostPerKg, digitalSettings.inkCostPerKg);
+      stage.digitalWhiteInkCostPerKg = force ? digitalSettings.whiteInkCostPerKg : firstPositiveNumber(stage.digitalWhiteInkCostPerKg, digitalSettings.whiteInkCostPerKg);
+      stage.digitalSpecialInkCostPerKg = force ? digitalSettings.specialInkCostPerKg : firstPositiveNumber(stage.digitalSpecialInkCostPerKg, digitalSettings.specialInkCostPerKg);
+      stage.digitalClickRate = force ? digitalSettings.clickRate : firstPositiveNumber(stage.digitalClickRate, digitalSettings.clickRate);
+      stage.digitalClickMode = force ? digitalSettings.clickMode : first(stage.digitalClickMode, digitalSettings.clickMode, digitalDefaults.clickMode);
+      stage.digitalCmykCoveragePct = force ? digitalDefaults.cmykCoveragePct : firstPositiveNumber(stage.digitalCmykCoveragePct, digitalDefaults.cmykCoveragePct);
+      stage.digitalWhiteCoveragePct = force ? digitalDefaults.whiteCoveragePct : firstPositiveNumber(stage.digitalWhiteCoveragePct, digitalDefaults.whiteCoveragePct);
+      stage.digitalCmykGsm = force ? digitalSettings.cmykGsm : firstPositiveNumber(stage.digitalCmykGsm, digitalSettings.cmykGsm);
+      stage.digitalWhiteGsm = force ? digitalSettings.whiteGsm : firstPositiveNumber(stage.digitalWhiteGsm, digitalSettings.whiteGsm);
+      stage.digitalWasteFactor = force ? digitalSettings.wasteFactor : firstPositiveNumber(stage.digitalWasteFactor, digitalSettings.wasteFactor);
+      stage.digitalSpecialWashCost = force ? digitalSettings.specialWashCost : firstPositiveNumber(stage.digitalSpecialWashCost, digitalSettings.specialWashCost);
+      stage.digitalPremierMode = force ? digitalSettings.premierMode : first(stage.digitalPremierMode, digitalSettings.premierMode, digitalDefaults.premierMode);
+      stage.digitalPremierSetupMin = force ? digitalSettings.premierSetupMin : firstPositiveNumber(stage.digitalPremierSetupMin, digitalSettings.premierSetupMin);
+      stage.digitalPremierConsumptionGm2 = force
+        ? firstPositiveNumber(substrateMaterial?.premierConsumptionGm2, substrateMaterial?.premier_consumo_g_m2, digitalDefaults.premierConsumptionGm2)
+        : firstPositiveNumber(stage.digitalPremierConsumptionGm2, substrateMaterial?.premierConsumptionGm2, substrateMaterial?.premier_consumo_g_m2, digitalDefaults.premierConsumptionGm2);
+      stage.digitalPremierCostPerKg = force
+        ? firstPositiveNumber(substrateMaterial?.premierCostPerKgUsd, substrateMaterial?.premier_costo_x_kg, digitalDefaults.premierCostPerKg)
+        : firstPositiveNumber(stage.digitalPremierCostPerKg, substrateMaterial?.premierCostPerKgUsd, substrateMaterial?.premier_costo_x_kg, digitalDefaults.premierCostPerKg);
+      stage.digitalPremierCostPerM2 = force
+        ? firstPositiveNumber(substrateMaterial?.premierCostPerM2Usd, substrateMaterial?.premier_costo_x_m2, digitalDefaults.premierCostPerM2)
+        : firstPositiveNumber(stage.digitalPremierCostPerM2, substrateMaterial?.premierCostPerM2Usd, substrateMaterial?.premier_costo_x_m2, digitalDefaults.premierCostPerM2);
+      stage.digitalPremierOfflineCostPerMeter = force ? digitalSettings.premierOfflineCostPerMeter : firstPositiveNumber(stage.digitalPremierOfflineCostPerMeter, digitalSettings.premierOfflineCostPerMeter);
+      stage.digitalPremierMaintenanceCost = force ? digitalSettings.premierMaintenanceCost : firstPositiveNumber(stage.digitalPremierMaintenanceCost, digitalSettings.premierMaintenanceCost);
+      stage.requiresSubstrateTreatment = materialNeedsPremier && !materialPreTreated;
+    }
   };
   const applyFinishWaste = (finish) => {
     if (!finish || typeof finish !== "object") return;
@@ -861,6 +896,44 @@ function conventionalInkDefaults() {
   };
 }
 
+function digitalInkDefaults() {
+  const defaults = state.costsConfig?.digital?.tintaGeneral || {};
+  const premier = state.costsConfig?.digital?.premier || {};
+  const velocidad = state.costsConfig?.digital?.velocidad || {};
+  const baseInkCostPerKg = n(first(defaults.costPerKg, defaults.costoKgTinta), 0);
+  const whiteInkCostPerKg = firstPositiveNumber(
+    n(first(defaults.whiteCostPerKg, defaults.costoKgTintaBlanco), 0),
+    baseInkCostPerKg
+  );
+  const specialInkCostPerKg = firstPositiveNumber(
+    n(first(defaults.specialCostPerKg, defaults.costoKgTintaEspecial), 0),
+    baseInkCostPerKg
+  );
+  return {
+    billingType: String(first(defaults.billingType, defaults.tipoCobro, "consumo")).toLowerCase(),
+    cmykCoveragePct: n(first(defaults.coverageCmykPct, defaults.coberturaCmykPct), 30),
+    whiteCoveragePct: n(first(defaults.coverageWhitePct, defaults.coberturaBlancoPct), 100),
+    cmykGsm: n(first(defaults.cmykGm2, defaults.gramajeCmykGm2), 1.5),
+    whiteGsm: n(first(defaults.whiteGm2, defaults.gramajeBlancoGm2), 4),
+    wasteFactor: n(first(defaults.wasteFactor, defaults.factorMerma), 1.1),
+    inkCostPerKg: baseInkCostPerKg,
+    whiteInkCostPerKg,
+    specialInkCostPerKg,
+    clickRate: n(first(defaults.clickRate, defaults.tarifaClick), 0),
+    clickMode: String(first(defaults.clickMode, defaults.modoClick, "por_estacion")).toLowerCase(),
+    specialWashCost: n(first(defaults.specialWashCost, defaults.costoLavadoEspecial), 0),
+    speedCmykMpm: n(first(velocidad.speedCmykMpm, defaults.speedCmykMpm), 0),
+    speedExtendedMpm: n(first(velocidad.speedExtendedMpm, defaults.speedExtendedMpm), 0),
+    premierMode: String(first(premier.mode, defaults.premierModo, "offline")).toLowerCase(),
+    premierSetupMin: n(first(premier.setupMin, defaults.premierSetupMin), 20),
+    premierConsumptionGm2: n(first(premier.consumptionGm2, defaults.premierConsumoGm2), 0.65),
+    premierCostPerKg: n(first(premier.costPerKg, defaults.premierCostoKg), 0),
+    premierCostPerM2: n(first(premier.costPerM2, defaults.premierCostoM2), 0),
+    premierOfflineCostPerMeter: n(first(premier.offlineCostPerMeter, defaults.premierCostoOfflineM), 0),
+    premierMaintenanceCost: n(first(premier.maintenanceCost, defaults.premierMantenimiento), 0)
+  };
+}
+
 function inlineFinishSetupMinutes(processKey = "") {
   const rows = state.costsConfig?.convencional?.inlineFinishSetup || [];
   const target = normalizeMaculaProcessKey(processKey);
@@ -993,6 +1066,7 @@ function activePrintStages() {
 
 function createPrintStage(base = {}) {
   const inkDefaults = conventionalInkDefaults();
+  const digitalDefaults = digitalInkDefaults();
   const rawNumbering = state.context?.calculo?.raw_data || {};
   const inlineFinishes = {};
   INLINE_PRINT_SLOTS.forEach((slot) => {
@@ -1049,6 +1123,28 @@ function createPrintStage(base = {}) {
     whiteInkCostPerLb: n(base.whiteInkCostPerLb, 30),
     pantoneInkCostPerLb: n(base.pantoneInkCostPerLb, 35),
     designCoveragePct: n(base.designCoveragePct, 60),
+    requiresSubstrateTreatment: base.requiresSubstrateTreatment,
+    digitalBillingType: first(base.digitalBillingType, digitalDefaults.billingType),
+    digitalInkCostPerKg: n(base.digitalInkCostPerKg, digitalDefaults.inkCostPerKg),
+    digitalWhiteInkCostPerKg: n(base.digitalWhiteInkCostPerKg, digitalDefaults.whiteInkCostPerKg),
+    digitalSpecialInkCostPerKg: n(base.digitalSpecialInkCostPerKg, digitalDefaults.specialInkCostPerKg),
+    digitalClickRate: n(base.digitalClickRate, digitalDefaults.clickRate),
+    digitalClickMode: first(base.digitalClickMode, digitalDefaults.clickMode),
+    digitalCmykCoveragePct: n(base.digitalCmykCoveragePct, digitalDefaults.cmykCoveragePct),
+    digitalWhiteCoveragePct: n(base.digitalWhiteCoveragePct, digitalDefaults.whiteCoveragePct),
+    digitalCmykGsm: n(base.digitalCmykGsm, digitalDefaults.cmykGsm),
+    digitalWhiteGsm: n(base.digitalWhiteGsm, digitalDefaults.whiteGsm),
+    digitalWasteFactor: n(base.digitalWasteFactor, digitalDefaults.wasteFactor),
+    digitalSpecialColors: n(base.digitalSpecialColors, 0),
+    digitalSpecialWashCount: n(base.digitalSpecialWashCount, 0),
+    digitalSpecialWashCost: n(base.digitalSpecialWashCost, digitalDefaults.specialWashCost),
+    digitalPremierMode: first(base.digitalPremierMode, digitalDefaults.premierMode),
+    digitalPremierSetupMin: n(base.digitalPremierSetupMin, digitalDefaults.premierSetupMin),
+    digitalPremierConsumptionGm2: n(base.digitalPremierConsumptionGm2, digitalDefaults.premierConsumptionGm2),
+    digitalPremierCostPerKg: n(base.digitalPremierCostPerKg, digitalDefaults.premierCostPerKg),
+    digitalPremierCostPerM2: n(base.digitalPremierCostPerM2, digitalDefaults.premierCostPerM2),
+    digitalPremierOfflineCostPerMeter: n(base.digitalPremierOfflineCostPerMeter, digitalDefaults.premierOfflineCostPerMeter),
+    digitalPremierMaintenanceCost: n(base.digitalPremierMaintenanceCost, digitalDefaults.premierMaintenanceCost),
     inkProfiles: Array.isArray(base.inkProfiles) ? base.inkProfiles.map((item, index) => ({
       id: first(item?.id, `deposito-${index + 1}`),
       tipo: first(item?.tipo, ""),
@@ -1314,6 +1410,47 @@ function isDigitalProductionMachine(machine) {
   return machineType(machine).includes("digital");
 }
 
+function digitalMachineSettings(machine, stage = {}) {
+  const defaults = digitalInkDefaults();
+  const inkCostPerKg = n(first(stage.digitalInkCostPerKg, machine?.digitalInkCostPerKg, defaults.inkCostPerKg), 0);
+  const whiteInkCostPerKg = firstPositiveNumber(
+    n(first(stage.digitalWhiteInkCostPerKg, machine?.digitalWhiteInkCostPerKg, defaults.whiteInkCostPerKg), 0),
+    inkCostPerKg,
+    defaults.whiteInkCostPerKg
+  );
+  const specialInkCostPerKg = firstPositiveNumber(
+    n(first(stage.digitalSpecialInkCostPerKg, machine?.digitalSpecialInkCostPerKg, defaults.specialInkCostPerKg), 0),
+    inkCostPerKg,
+    defaults.specialInkCostPerKg
+  );
+  return {
+    billingType: String(first(stage.digitalBillingType, machine?.digitalBillingType, defaults.billingType, "consumo")).toLowerCase(),
+    inkCostPerKg,
+    whiteInkCostPerKg,
+    specialInkCostPerKg,
+    clickRate: n(first(stage.digitalClickRate, machine?.digitalClickRate, defaults.clickRate), 0),
+    clickMode: String(first(stage.digitalClickMode, machine?.digitalClickMode, defaults.clickMode, "por_estacion")).toLowerCase(),
+    speedCmykMpm: n(first(stage.digitalSpeedCmykMpm, machine?.digitalSpeedCmykMpm, machine?.productionSpeed, defaults.speedCmykMpm), 0),
+    speedExtendedMpm: n(first(stage.digitalSpeedExtendedMpm, machine?.digitalSpeedExtendedMpm, defaults.speedExtendedMpm), 0),
+    cmykGsm: n(first(stage.digitalCmykGsm, machine?.digitalCmykGsm, defaults.cmykGsm), 1.5),
+    whiteGsm: n(first(stage.digitalWhiteGsm, machine?.digitalWhiteGsm, defaults.whiteGsm), 4),
+    wasteFactor: n(first(stage.digitalWasteFactor, machine?.digitalWasteFactor, defaults.wasteFactor), 1.1),
+    specialWashCost: n(first(stage.digitalSpecialWashCost, machine?.digitalSpecialWashCost, defaults.specialWashCost), 0),
+    premierMode: String(first(stage.digitalPremierMode, machine?.digitalPremierMode, defaults.premierMode, "offline")).toLowerCase(),
+    premierSetupMin: n(first(stage.digitalPremierSetupMin, machine?.digitalPremierSetupMin, defaults.premierSetupMin), 20),
+    premierMaintenanceCost: n(first(stage.digitalPremierMaintenanceCost, machine?.digitalPremierMaintenanceCost, defaults.premierMaintenanceCost), 0),
+    premierOfflineCostPerMeter: n(first(stage.digitalPremierOfflineCostPerMeter, machine?.digitalPremierOfflineCostPerMeter, defaults.premierOfflineCostPerMeter), 0)
+  };
+}
+
+function digitalSpeedForStations(machine, stage, stations) {
+  const settings = digitalMachineSettings(machine, stage);
+  if (stations > 4) {
+    return firstPositiveNumber(settings.speedExtendedMpm, settings.speedCmykMpm, n(stage.speedMetersMin, 0), n(machine?.productionSpeed, 0));
+  }
+  return firstPositiveNumber(settings.speedCmykMpm, n(stage.speedMetersMin, 0), n(machine?.productionSpeed, 0));
+}
+
 function printSpeedUnit(machine) {
   const token = norm(first(machine?.speedUnit, machine?.unidad_velocidad_produccion, ""));
   if (token === "m/min" || token === "mpm" || token === "metros/min" || token === "metro/min") return "m/min";
@@ -1518,6 +1655,19 @@ function byCategory(name) {
 
 function findMaterial(id) {
   return (state.catalogs.materials || []).find((item) => String(item.id) === String(id)) || null;
+}
+
+function materialRequiresPremier(material) {
+  const surface = norm(first(material?.surfaceType, material?.tipo_superficie, ""));
+  const haystack = norm(`${material?.id || ""} ${material?.name || ""} ${material?.displayName || ""} ${material?.familiaProceso || ""}`);
+  return Boolean(material?.requiresPremier || material?.requiere_premier)
+    || surface.includes("no_poroso")
+    || surface.includes("no poroso")
+    || ["bopp", "opp", "pet", "pe", "metaliz"].some((token) => haystack.includes(token));
+}
+
+function materialPremierPreapplied(material) {
+  return Boolean(material?.premierPreapplied || material?.premier_preaplicado);
 }
 
 function materialCostPerPound(material) {
@@ -2255,6 +2405,9 @@ function buildForm() {
             return haystack.includes("impresion") || haystack.includes("digital");
           }) || primaryMachineCapacity(selectedPrintMachine))
         : null;
+      const digitalDefaults = digitalMachineSettings(selectedPrintMachine || {});
+      const materialNeedsPremier = materialRequiresPremier(material);
+      const materialPreTreated = materialPremierPreapplied(material);
       return {
         machineId: selectedPrintMachine?.id || "",
         machineName: selectedPrintMachine ? machineDisplayName(selectedPrintMachine) : "",
@@ -2275,6 +2428,28 @@ function buildForm() {
         whiteInkCostPerLb: inkDefaults.costoLbBlanco,
         pantoneInkCostPerLb: inkDefaults.costoLbPantone,
         designCoveragePct: inkDefaults.coberturaDisenoPct,
+        requiresSubstrateTreatment: materialNeedsPremier && !materialPreTreated,
+        digitalBillingType: digitalDefaults.billingType,
+        digitalInkCostPerKg: digitalDefaults.inkCostPerKg,
+        digitalWhiteInkCostPerKg: digitalDefaults.whiteInkCostPerKg,
+        digitalSpecialInkCostPerKg: digitalDefaults.specialInkCostPerKg,
+        digitalClickRate: digitalDefaults.clickRate,
+        digitalClickMode: digitalDefaults.clickMode,
+        digitalCmykCoveragePct: digitalInkDefaults().cmykCoveragePct,
+        digitalWhiteCoveragePct: digitalInkDefaults().whiteCoveragePct,
+        digitalCmykGsm: digitalDefaults.cmykGsm,
+        digitalWhiteGsm: digitalDefaults.whiteGsm,
+        digitalWasteFactor: digitalDefaults.wasteFactor,
+        digitalSpecialColors: 0,
+        digitalSpecialWashCount: 0,
+        digitalSpecialWashCost: digitalDefaults.specialWashCost,
+        digitalPremierMode: digitalDefaults.premierMode,
+        digitalPremierSetupMin: digitalDefaults.premierSetupMin,
+        digitalPremierConsumptionGm2: firstPositiveNumber(material?.premierConsumptionGm2, material?.premier_consumo_g_m2, digitalInkDefaults().premierConsumptionGm2),
+        digitalPremierCostPerKg: firstPositiveNumber(material?.premierCostPerKgUsd, material?.premier_costo_x_kg, digitalInkDefaults().premierCostPerKg),
+        digitalPremierCostPerM2: firstPositiveNumber(material?.premierCostPerM2Usd, material?.premier_costo_x_m2, digitalInkDefaults().premierCostPerM2),
+        digitalPremierOfflineCostPerMeter: digitalDefaults.premierOfflineCostPerMeter,
+        digitalPremierMaintenanceCost: digitalDefaults.premierMaintenanceCost,
         inkProfiles: inkDefaults.depositos
       };
     })(),
@@ -2585,7 +2760,10 @@ function calcPrint() {
   const items = stages.map((item) => {
     const machine = findMachine(item.machineId);
     const supportsInline = machineSupportsInline(machine);
-    const speedMetersMin = n(item.speedMetersMin, 0);
+    const isDigitalMachine = isDigitalProductionMachine(machine);
+    const digitalSettings = digitalMachineSettings(machine, item);
+    const digitalStations = Math.max(0, base.colors + n(item.digitalSpecialColors, 0));
+    const speedMetersMin = isDigitalMachine ? digitalSpeedForStations(machine, item, digitalStations) : n(item.speedMetersMin, 0);
     const speedUnit = printSpeedUnit(machine);
     const inkCoverage = n(item.coveragePct, 0) / 100;
     const aniloxBcm = n(first(item.aniloxBcm, item.inkGsm), 0);
@@ -2593,9 +2771,19 @@ function calcPrint() {
     const inkDensity = n(item.inkDensity, 0);
     const inkCostPerLb = n(item.inkCostPerLb, 0);
     const printedAreaIn2 = r((base.printedAreaFt2 || 0) * 144, 6);
-    const inkConsumptionPerColorLb = state.form.header.noPrint ? 0 : r((printedAreaIn2 * inkCoverage * aniloxBcm * transferFactor * inkDensity * 0.001) / 453.59237, 6);
-    const inkConsumption = state.form.header.noPrint ? 0 : r(inkConsumptionPerColorLb * base.colors, 6);
-    const inkSubtotal = r(inkConsumption * inkCostPerLb);
+    const conventionalInkConsumptionPerColorLb = state.form.header.noPrint ? 0 : r((printedAreaIn2 * inkCoverage * aniloxBcm * transferFactor * inkDensity * 0.001) / 453.59237, 6);
+    const conventionalInkConsumption = state.form.header.noPrint ? 0 : r(conventionalInkConsumptionPerColorLb * base.colors, 6);
+    const conventionalInkSubtotal = r(conventionalInkConsumption * inkCostPerLb);
+    let inkConsumptionPerColorLb = conventionalInkConsumptionPerColorLb;
+    let inkConsumption = conventionalInkConsumption;
+    let inkSubtotal = conventionalInkSubtotal;
+    let digitalInkKg = 0;
+    let digitalClickSubtotal = 0;
+    let digitalWashSubtotal = 0;
+    let premierSubtotal = 0;
+    let premierLiquidSubtotal = 0;
+    let premierProcessSubtotal = 0;
+    let premierSetupSubtotal = 0;
     const inlineItems = INLINE_PRINT_SLOTS.map((slot) => {
       const inline = item.inlineFinishes?.[slot.key] || {};
       const inlineAllowed = inlineFinishAllowedForMachine(machine, slot.key);
@@ -2654,6 +2842,44 @@ function calcPrint() {
     const totalLengthFeet = r(base.linealFeet + startupWasteFeet, 2);
     const totalLengthMeters = r(totalLengthFeet * 0.3048, 4);
     const totalAreaFt2 = r(totalLengthFeet * (n(base.webWidthIn, 0) / 12), 6);
+    const totalAreaM2 = r(totalAreaFt2 * 0.09290304, 6);
+    if (isDigitalMachine) {
+      const cmykStations = state.form.header.useCmyk ? 4 : 0;
+      const whitePasses = state.form.header.useWhiteInk ? (state.form.header.doubleWhitePass ? 2 : 1) : 0;
+      const cmykKg = state.form.header.noPrint ? 0 : r((base.printedAreaM2 * (n(item.digitalCmykCoveragePct, 0) / 100) * n(item.digitalCmykGsm, digitalSettings.cmykGsm) * Math.max(0, cmykStations / 4) * n(item.digitalWasteFactor, digitalSettings.wasteFactor)) / 1000, 6);
+      const whiteKg = state.form.header.noPrint ? 0 : r((base.printedAreaM2 * (n(item.digitalWhiteCoveragePct, 0) / 100) * n(item.digitalWhiteGsm, digitalSettings.whiteGsm) * whitePasses * n(item.digitalWasteFactor, digitalSettings.wasteFactor)) / 1000, 6);
+      const specialKg = state.form.header.noPrint ? 0 : r((base.printedAreaM2 * (n(item.digitalCmykCoveragePct, 0) / 100) * n(item.digitalCmykGsm, digitalSettings.cmykGsm) * Math.max(0, n(item.digitalSpecialColors, 0)) * n(item.digitalWasteFactor, digitalSettings.wasteFactor)) / 1000, 6);
+      digitalInkKg = r(cmykKg + whiteKg + specialKg, 6);
+      const billingType = String(first(item.digitalBillingType, digitalSettings.billingType)).toLowerCase();
+      const billableStations = String(first(item.digitalClickMode, digitalSettings.clickMode)).toLowerCase() === "por_vuelta" ? 1 : Math.max(1, digitalStations);
+      digitalClickSubtotal = billingType === "clic" ? r(base.qty * billableStations * n(item.digitalClickRate, digitalSettings.clickRate)) : 0;
+      inkSubtotal = billingType === "clic"
+        ? digitalClickSubtotal
+        : r(
+          (cmykKg * n(item.digitalInkCostPerKg, digitalSettings.inkCostPerKg))
+          + (whiteKg * n(item.digitalWhiteInkCostPerKg, digitalSettings.whiteInkCostPerKg))
+          + (specialKg * n(item.digitalSpecialInkCostPerKg, digitalSettings.specialInkCostPerKg))
+        );
+      inkConsumption = digitalInkKg;
+      inkConsumptionPerColorLb = 0;
+      digitalWashSubtotal = r(n(item.digitalSpecialWashCount, 0) * n(item.digitalSpecialWashCost, digitalSettings.specialWashCost));
+      const material = findMaterial(state.form.substrate.materialId);
+      const shouldTreat = Boolean(item.requiresSubstrateTreatment) && !materialPremierPreapplied(material);
+      if (shouldTreat) {
+        const premierCostPerM2 = n(item.digitalPremierCostPerM2, 0);
+        const premierKg = r((totalAreaM2 * n(item.digitalPremierConsumptionGm2, 0.65)) / 1000, 6);
+        premierLiquidSubtotal = premierCostPerM2 > 0
+          ? r(totalAreaM2 * premierCostPerM2)
+          : r(premierKg * n(item.digitalPremierCostPerKg, 0));
+        premierSetupSubtotal = r((n(item.digitalPremierSetupMin, digitalSettings.premierSetupMin) / 60) * n(item.costHour, 0));
+        const premierMode = String(first(item.digitalPremierMode, digitalSettings.premierMode)).toLowerCase();
+        const offlineSubtotal = premierMode === "offline"
+          ? r(totalLengthMeters * n(item.digitalPremierOfflineCostPerMeter, digitalSettings.premierOfflineCostPerMeter))
+          : r(n(item.digitalPremierMaintenanceCost, digitalSettings.premierMaintenanceCost));
+        premierProcessSubtotal = offlineSubtotal;
+        premierSubtotal = r(premierLiquidSubtotal + premierSetupSubtotal + premierProcessSubtotal);
+      }
+    }
     const setupAdjustmentMin = r(n(item.setupMinutes, 0) + n(item.cleaningMinutes, 0) + n(item.mountingMinutes, 0), 2);
     const runMinutes = printSpeedMinutes(totalLengthFeet, totalLengthMeters, speedMetersMin, machine);
     const totalMinutes = r(runMinutes + setupAdjustmentMin, 2);
@@ -2682,6 +2908,7 @@ function calcPrint() {
         totalLengthFeet,
         totalLengthMeters,
         totalAreaFt2,
+        totalAreaM2,
         speedFtMin: speedUnit === "ft/min" ? speedMetersMin : 0,
         speedMMin: speedUnit === "m/min" ? speedMetersMin : 0,
         speedUnit,
@@ -2699,26 +2926,38 @@ function calcPrint() {
         inkCostPerLb,
         inkConsumption,
         inkSubtotal,
+        digitalStations,
+        digitalInkKg,
+        digitalWhiteKg: whiteKg,
+        digitalSpecialInkKg: specialKg,
+        digitalClickSubtotal,
+        digitalWashSubtotal,
+        premierSubtotal,
+        premierLiquidSubtotal,
+        premierProcessSubtotal,
+        premierSetupSubtotal,
         inlineItems,
         macula,
         maculaMaterialSubtotal,
         issues,
         inlineSubtotal,
-        subtotal: r(machineSubtotal + operatorSubtotal + inkSubtotal + inlineSubtotal)
+        subtotal: r(machineSubtotal + operatorSubtotal + inkSubtotal + digitalWashSubtotal + premierSubtotal + inlineSubtotal)
       };
   });
   const machineSubtotal = r(items.reduce((sum, item) => sum + item.machineSubtotal, 0));
   const operatorSubtotal = r(items.reduce((sum, item) => sum + item.operatorSubtotal, 0));
   const inkConsumption = r(items.reduce((sum, item) => sum + item.inkConsumption, 0));
   const inkSubtotal = r(items.reduce((sum, item) => sum + item.inkSubtotal, 0));
+  const digitalWashSubtotal = r(items.reduce((sum, item) => sum + n(item.digitalWashSubtotal, 0), 0));
+  const premierSubtotal = r(items.reduce((sum, item) => sum + n(item.premierSubtotal, 0), 0));
   const inlineSubtotal = r(items.reduce((sum, item) => sum + item.inlineSubtotal, 0));
   const maculaSetupFeet = r(items.reduce((sum, item) => sum + n(item.macula?.setupFeet, 0), 0), 2);
   const maculaTirajeFeet = r(items.reduce((sum, item) => sum + n(item.macula?.tirajeFeet, 0), 0), 2);
   const maculaTotalFeet = r(items.reduce((sum, item) => sum + n(item.macula?.totalFeet, 0), 0), 2);
   const totalMinutes = r(items.reduce((sum, item) => sum + item.totalMinutes, 0));
   const runMinutes = r(items.reduce((sum, item) => sum + item.runMinutes, 0));
-  const pricing = applyProcessMinimum("impresion", r(machineSubtotal + operatorSubtotal + inkSubtotal + inlineSubtotal));
-  return { ...base, ...pricing, items, runMinutes, totalMinutes, machineSubtotal, operatorSubtotal, inkConsumption, inkSubtotal, inlineSubtotal, maculaSetupFeet, maculaTirajeFeet, maculaTotalFeet, timeFormula: "Tiempo Total en Máquina (min) = (Longitud Total en pies / Velocidad de Operación en FT/min) + Tiempo de Montaje y Ajuste", inkFormula: "Consumo tinta = área impresa × cobertura × BCM anilox × factor transferencia × densidad tinta × tintas requeridas", explanation: "Impresión calcula el tiempo de corrida usando la longitud total del trabajo, incluyendo la mácula o desperdicio de arranque, antes de sumar el tiempo de montaje y ajuste." };
+  const pricing = applyProcessMinimum("impresion", r(machineSubtotal + operatorSubtotal + inkSubtotal + digitalWashSubtotal + premierSubtotal + inlineSubtotal));
+  return { ...base, ...pricing, items, runMinutes, totalMinutes, machineSubtotal, operatorSubtotal, inkConsumption, inkSubtotal, digitalWashSubtotal, premierSubtotal, inlineSubtotal, maculaSetupFeet, maculaTirajeFeet, maculaTotalFeet, timeFormula: "Tiempo Total en Máquina (min) = (Longitud Total en pies / Velocidad de Operación en FT/min) + Tiempo de Montaje y Ajuste", inkFormula: "Consumo tinta = área impresa × cobertura × BCM anilox × factor transferencia × densidad tinta × tintas requeridas", explanation: "Impresión calcula el tiempo de corrida usando la longitud total del trabajo, incluyendo la mácula o desperdicio de arranque, antes de sumar el tiempo de montaje y ajuste." };
 }
 
 function calcFinishes() {
@@ -3173,6 +3412,19 @@ function renderPrintInkBlock(scope, item, printItem) {
   return `<details class="subprocess-card inline-process-card print-ink-card" data-open-key="${esc(scope)}.ink"><summary class="inline-process-summary"><div class="inline-process-heading"><strong>Cálculo de Tinta Convencional</strong></div><div class="process-summary-side"><em>${money(printItem.inkSubtotal || 0)}</em>${infoPopoverButton("Cálculo de Tinta Convencional", info, "formula-help")}</div></summary><div class="process-body">${parameterZone}${profileZone}<div class="readonly-grid compact-top step-metrics">${metric("Tintas Requeridas", num(printItem.colors || 0, 0))}${metric("Consumo Tinta", `${num(printItem.inkConsumption || 0, 4)} lb`)}${metric("Costo por Lb", money(printItem.inkCostPerLb || 0))}${metric("Subtotal Tinta", money(printItem.inkSubtotal || 0))}</div></div></details>`;
 }
 
+function renderDigitalPremierBlock(scope, item, printItem) {
+  const material = findMaterial(state.form.substrate.materialId);
+  const pretreated = materialPremierPreapplied(material);
+  const treatmentDisabled = pretreated ? " disabled" : "";
+  const premierZone = `<div class="process-zone"><div class="process-zone-head"><h4>Premier / Tratamiento de Sustrato</h4></div><div class="process-print-grid process-print-grid-ink"><label class="inline-process-check inline-field-check"><input data-scope="${scope}" data-field="requiresSubstrateTreatment" type="checkbox"${item.requiresSubstrateTreatment ? " checked" : ""}${treatmentDisabled}><span>Requiere Tratamiento de Sustrato</span></label><label><span>Modo Premier</span><select data-scope="${scope}" data-field="digitalPremierMode"${treatmentDisabled}><option value="offline"${String(item.digitalPremierMode) !== "inline" ? " selected" : ""}>Offline</option><option value="inline"${String(item.digitalPremierMode) === "inline" ? " selected" : ""}>In-line</option></select></label><label><span>Setup Premier</span>${displayInput(scope, "digitalPremierSetupMin", item.digitalPremierSetupMin, { suffix: "min", maximumFractionDigits: 2 })}</label><label><span>Consumo Premier</span>${displayInput(scope, "digitalPremierConsumptionGm2", item.digitalPremierConsumptionGm2, { suffix: "g/m²", maximumFractionDigits: 4 })}</label><label><span>Costo kg Premier</span>${displayInput(scope, "digitalPremierCostPerKg", item.digitalPremierCostPerKg, { prefix: "$", maximumFractionDigits: 6 })}</label><label><span>Costo m² Premier</span>${displayInput(scope, "digitalPremierCostPerM2", item.digitalPremierCostPerM2, { prefix: "$", maximumFractionDigits: 6 })}</label><label><span>Costo Offline m</span>${displayInput(scope, "digitalPremierOfflineCostPerMeter", item.digitalPremierOfflineCostPerMeter, { prefix: "$", maximumFractionDigits: 6 })}</label><label><span>Mantenimiento ILP</span>${displayInput(scope, "digitalPremierMaintenanceCost", item.digitalPremierMaintenanceCost, { prefix: "$", maximumFractionDigits: 6 })}</label></div></div>`;
+  return `<details class="subprocess-card inline-process-card print-ink-card" data-open-key="${esc(scope)}.premier"><summary class="inline-process-summary"><div class="inline-process-heading"><strong>Premier</strong></div><div class="process-summary-side"><em>${pretreated ? "Pretratado" : money(printItem.premierSubtotal || 0)}</em>${infoPopoverButton("Premier", "Premier se aplica antes de imprimir. Si el sustrato ya viene pretratado, no se cobra líquido ni proceso. Offline agrega un paso adicional; in-line usa la misma prensa.", "formula-help")}</div></summary><div class="process-body">${premierZone}<div class="readonly-grid compact-top step-metrics">${metric("Tratamiento", item.requiresSubstrateTreatment ? "Sí" : "No")}${metric("Modo", String(item.digitalPremierMode || "offline") === "inline" ? "In-line" : "Offline")}${metric("Costo Premier", pretreated ? "Pretratado" : money(printItem.premierSubtotal || 0))}</div></div></details>`;
+}
+
+function renderDigitalInkBlock(scope, item, printItem) {
+  const parameterZone = `<div class="process-zone"><div class="process-zone-head"><h4>Tintas Digitales</h4></div><div class="process-print-grid process-print-grid-ink"><label><span>Tipo Cobro</span><select data-scope="${scope}" data-field="digitalBillingType"><option value="consumo"${String(item.digitalBillingType) !== "clic" ? " selected" : ""}>Consumo</option><option value="clic"${String(item.digitalBillingType) === "clic" ? " selected" : ""}>Clic</option></select></label><label><span>Costo kg Tinta</span>${displayInput(scope, "digitalInkCostPerKg", item.digitalInkCostPerKg, { prefix: "$", maximumFractionDigits: 6 })}</label><label><span>Costo kg Blanco</span>${displayInput(scope, "digitalWhiteInkCostPerKg", item.digitalWhiteInkCostPerKg, { prefix: "$", maximumFractionDigits: 6 })}</label><label><span>Costo kg Especial</span>${displayInput(scope, "digitalSpecialInkCostPerKg", item.digitalSpecialInkCostPerKg, { prefix: "$", maximumFractionDigits: 6 })}</label><label><span>Tarifa Clic</span>${displayInput(scope, "digitalClickRate", item.digitalClickRate, { prefix: "$", maximumFractionDigits: 6 })}</label><label><span>Modo Clic</span><select data-scope="${scope}" data-field="digitalClickMode"><option value="por_estacion"${String(item.digitalClickMode) !== "por_vuelta" ? " selected" : ""}>Por estación</option><option value="por_vuelta"${String(item.digitalClickMode) === "por_vuelta" ? " selected" : ""}>Por vuelta</option></select></label><label><span>Cobertura CMYK</span>${displayInput(scope, "digitalCmykCoveragePct", item.digitalCmykCoveragePct, { suffix: "%", maximumFractionDigits: 2 })}</label><label><span>Cobertura Blanco</span>${displayInput(scope, "digitalWhiteCoveragePct", item.digitalWhiteCoveragePct, { suffix: "%", maximumFractionDigits: 2 })}</label><label><span>Gramaje CMYK</span>${displayInput(scope, "digitalCmykGsm", item.digitalCmykGsm, { suffix: "g/m²", maximumFractionDigits: 4 })}</label><label><span>Gramaje Blanco</span>${displayInput(scope, "digitalWhiteGsm", item.digitalWhiteGsm, { suffix: "g/m²", maximumFractionDigits: 4 })}</label><label><span>Factor Merma</span>${displayInput(scope, "digitalWasteFactor", item.digitalWasteFactor, { maximumFractionDigits: 4 })}</label><label><span>Colores Especiales</span>${displayInput(scope, "digitalSpecialColors", item.digitalSpecialColors, { integer: true, maximumFractionDigits: 0 })}</label><label><span>Lavados Especiales</span>${displayInput(scope, "digitalSpecialWashCount", item.digitalSpecialWashCount, { integer: true, maximumFractionDigits: 0 })}</label><label><span>Costo Lavado</span>${displayInput(scope, "digitalSpecialWashCost", item.digitalSpecialWashCost, { prefix: "$", maximumFractionDigits: 4 })}</label></div></div>`;
+  return `<details class="subprocess-card inline-process-card print-ink-card" data-open-key="${esc(scope)}.digital"><summary class="inline-process-summary"><div class="inline-process-heading"><strong>Tintas Digitales</strong></div><div class="process-summary-side"><em>${money((printItem.inkSubtotal || 0) + (printItem.digitalWashSubtotal || 0))}</em>${infoPopoverButton("Tintas Digitales", "El cálculo digital cambia según la máquina: consumo por kg o clic por estación o por vuelta. Blanco y colores especiales pueden tener un costo por kg distinto al CMYK.", "formula-help")}</div></summary><div class="process-body">${parameterZone}<div class="readonly-grid compact-top step-metrics">${metric("Estaciones", num(printItem.digitalStations || 0, 0))}${metric("Consumo Total", `${num(printItem.digitalInkKg || 0, 4)} kg`)}${metric("Consumo Blanco", `${num(printItem.digitalWhiteKg || 0, 4)} kg`)}${metric("Consumo Especial", `${num(printItem.digitalSpecialInkKg || 0, 4)} kg`)}${metric("Tinta / Clics", money(printItem.inkSubtotal || 0))}${metric("Lavados", money(printItem.digitalWashSubtotal || 0))}</div></div></details>`;
+}
+
 function renderPrintMaculaBlock(scope, printItem, isConventional) {
   if (!isConventional) return "";
   const info = "Mácula Total = Mácula Setup + Mácula Tiraje. El Costo Material Mácula usa el costo del sustrato seleccionado y la cantidad de pies adicionales consumidos.";
@@ -3199,13 +3451,14 @@ function renderPrintStageCard(item, printItem, index, orderNumber) {
   const speedDisplayValue = n(item.speedMetersMin, 0);
   const speedUnit = printSpeedUnit(stageMachine);
   const configZone = `<div class="process-zone"><div class="process-zone-head"><h4>Parámetros de Configuración</h4></div><div class="process-machine-row"><label class="span-2"><span>Máquina</span><select data-scope="${scope}" data-field="machineId">${processOptions(stagePrintOptions, item.machineId)}</select></label></div><div class="process-subsection"><h5>Producción</h5><div class="process-print-grid process-print-grid-production"><label><span>Setup <span class="field-unit">min</span></span>${displayInput(scope, "setupMinutes", item.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label><label><span>Limpieza <span class="field-unit">min</span></span>${displayInput(scope, "cleaningMinutes", item.cleaningMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label><label><span>Montaje <span class="field-unit">min</span></span>${displayInput(scope, "mountingMinutes", item.mountingMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label><label><span>Velocidad <span class="field-unit">${speedUnit}</span></span>${displayInput(scope, "speedMetersMin", item.speedMetersMin, { suffix: speedUnit, maximumFractionDigits: 2, inputValue: speedDisplayValue, displayValue: speedDisplayValue })}</label><label><span>Estaciones Disponibles</span>${displayInput(scope, "availableColors", item.availableColors, { integer: true, maximumFractionDigits: 0, step: "1" })}</label><label><span>Costo Máquina <span class="field-unit">$/h</span></span>${displayInput(scope, "costHour", item.costHour, { prefix: "$", maximumFractionDigits: 2 })}</label><label><span>Costo Operador <span class="field-unit">$/h</span></span>${displayInput(scope, "operatorHourCost", item.operatorHourCost, { prefix: "$", maximumFractionDigits: 2 })}</label></div></div></div>`;
-  const costInfo = "Tiempo total = setup + limpieza + montaje + proceso lineal. Consumo tinta = área impresa x cobertura x BCM anilox x factor transferencia x densidad tinta x tintas requeridas.";
+  const costInfo = isConventionalMachine ? "Tiempo total = setup + limpieza + montaje + proceso lineal. Consumo tinta = área impresa x cobertura x BCM anilox x factor transferencia x densidad tinta x tintas requeridas." : "Tiempo total = setup + limpieza + montaje + proceso lineal. En digital, la tinta se cobra por consumo kg o por clic según la máquina; Premier se suma si el sustrato requiere tratamiento.";
   const metricsZone = `<div class="process-zone process-zone-accent"><div class="process-zone-head"><h4>Indicadores del Proceso</h4></div><div class="process-kpi-grid">${metricBox("Pies Netos", printItem.linealFeet > 0 ? `${num(printItem.linealFeet || 0, 2)} pies` : "Pendiente", n(printItem.linealFeet, 0) <= 0)}${metricBox("Desperdicio de Arranque", printItem.startupWasteFeet > 0 ? `${num(printItem.startupWasteFeet || 0, 2)} pies` : "Pendiente", (printItem.issues || []).some((issue) => issue.includes("Desperdicio de Arranque")))}${metricBox("Longitud Total", printItem.totalLengthFeet > 0 ? `${num(printItem.totalLengthFeet || 0, 2)} pies` : "Pendiente", (printItem.issues || []).length > 0)}${metricBox("Tiempo Total", printItem.totalMinutes > 0 ? `${num(printItem.totalMinutes || 0, 2)} min` : "Pendiente", (printItem.issues || []).some((issue) => issue.includes("Velocidad") || issue.includes("Montaje y Ajuste")))}</div>${issueList("Problemas detectados en la fórmula", printItem.issues || [])}</div>`;
   const maculaZone = renderPrintMaculaBlock(scope, printItem, isConventionalMachine);
-  const inkZone = renderPrintInkBlock(scope, item, printItem);
-  const costZone = `<div class="process-zone process-zone-accent"><div class="process-zone-head"><h4>Desglose de Costos</h4></div><div class="summary-rows process-cost-summary">${summaryRowWithInfo("Costo Máquina", money(printItem.machineSubtotal || 0), "Costo Máquina", costInfo)}${summaryRowWithInfo("Costo Operador", money(printItem.operatorSubtotal || 0), "Costo Operador", costInfo)}${summaryRowWithInfo("Costo Tinta", money(printItem.inkSubtotal || 0), "Costo Tinta", costInfo)}${isConventionalMachine ? summaryRowWithInfo("Costo Material Mácula", money(printItem.maculaMaterialSubtotal || 0), "Costo Material Mácula", "Costo de material adicional generado por mácula. Se muestra aquí para lectura operativa y forma parte del consumo de sustrato.") : ""}${summaryRowWithInfo("Subprocesos En Línea", money(printItem.inlineSubtotal || 0), "Subprocesos En Línea", "Subtotal de acabados activados dentro de la misma línea de impresión.")}<div class="summary-row process-row-total"><span>Subtotal Impresión</span><strong>${money(printItem.subtotal || 0)}</strong></div></div></div>`;
+  const premierZone = !isConventionalMachine ? renderDigitalPremierBlock(scope, item, printItem) : "";
+  const inkZone = isConventionalMachine ? renderPrintInkBlock(scope, item, printItem) : renderDigitalInkBlock(scope, item, printItem);
+  const costZone = `<div class="process-zone process-zone-accent"><div class="process-zone-head"><h4>Desglose de Costos</h4></div><div class="summary-rows process-cost-summary">${summaryRowWithInfo("Costo Máquina", money(printItem.machineSubtotal || 0), "Costo Máquina", costInfo)}${summaryRowWithInfo("Costo Operador", money(printItem.operatorSubtotal || 0), "Costo Operador", costInfo)}${summaryRowWithInfo("Costo Tinta", money(printItem.inkSubtotal || 0), "Costo Tinta", costInfo)}${!isConventionalMachine ? summaryRowWithInfo("Premier", money(printItem.premierSubtotal || 0), "Premier", "Tratamiento de sustrato: líquido, setup y proceso offline o mantenimiento in-line.") : ""}${!isConventionalMachine ? summaryRowWithInfo("Lavados Especiales", money(printItem.digitalWashSubtotal || 0), "Lavados Especiales", "Costo por lavados de tintas especiales o gamut extendido.") : ""}${isConventionalMachine ? summaryRowWithInfo("Costo Material Mácula", money(printItem.maculaMaterialSubtotal || 0), "Costo Material Mácula", "Costo de material adicional generado por mácula. Se muestra aquí para lectura operativa y forma parte del consumo de sustrato.") : ""}${summaryRowWithInfo("Subprocesos En Línea", money(printItem.inlineSubtotal || 0), "Subprocesos En Línea", "Subtotal de acabados activados dentro de la misma línea de impresión.")}<div class="summary-row process-row-total"><span>Subtotal Impresión</span><strong>${money(printItem.subtotal || 0)}</strong></div></div></div>`;
   const speedLengthUnit = speedUnit === "m/min" ? "metros" : "pies";
-  const lowerBlocks = [maculaZone, inkZone, `<div class="inline-print-zone">${inlineZone}</div>`].filter(Boolean).join("");
+  const lowerBlocks = [maculaZone, premierZone, inkZone, `<div class="inline-print-zone">${inlineZone}</div>`].filter(Boolean).join("");
   const body = `<div class="process-layout process-layout-print"><div class="process-layout-main">${configZone}</div><div class="process-layout-side">${metricsZone}${costZone}</div></div><div class="print-stage-expanded-blocks">${lowerBlocks}</div>${formula("Fórmula de Tiempo Total", `Tiempo Total en Máquina (min) = (Longitud Total en ${speedLengthUnit} / Velocidad de Operación en ${speedUnit}) + Tiempo de Montaje y Ajuste`, "La longitud total de impresión suma la mácula y luego se divide entre la velocidad real de operación. Después se agrega el tiempo de preparación, limpieza y montaje.", {
     exampleLines: [
       `Tiempo Total: (${formulaValue(printItem.totalLengthFeet || printItem.totalLengthMeters || 0, 2)} / ${formulaValue(item.speedMetersMin, 2)}) + ${formulaValue(printItem.setupAdjustmentMin || 0, 2)} = ${formulaValue(printItem.totalMinutes || 0, 2)} min`,
@@ -3593,15 +3846,32 @@ function applyPrintStageMachineDefaults(scope, machineId) {
   }) || primaryMachineCapacity(machine);
   const index = Number(scope.split(".")[1]);
   if (!Number.isInteger(index) || !state.form.printStages[index]) return;
+  const digitalSettings = digitalMachineSettings(machine, state.form.printStages[index]);
+  const isDigital = isDigitalProductionMachine(machine);
+  const stations = Math.max(0, effectiveColors(state.form) + n(state.form.printStages[index].digitalSpecialColors, 0));
   Object.assign(state.form.printStages[index], {
     machineId,
     machineName: machineDisplayName(machine) || state.form.printStages[index].machineName,
     setupMinutes: firstPositiveNumber(machine.setupBaseMinutes, capacity?.tiempo_preparacion_general, state.form.printStages[index].setupMinutes),
     mountingMinutes: firstPositiveNumber(machine.setupPerStationMinutes, capacity?.tiempo_por_estacion, 0) * Math.max(1, effectiveColors(state.form)),
-    speedMetersMin: printSpeedValue(firstPositiveNumber(machine.productionSpeed, capacity?.velocidad_produccion, 0)) || state.form.printStages[index].speedMetersMin,
+    speedMetersMin: isDigital ? digitalSpeedForStations(machine, state.form.printStages[index], stations) : (printSpeedValue(firstPositiveNumber(machine.productionSpeed, capacity?.velocidad_produccion, 0)) || state.form.printStages[index].speedMetersMin),
     costHour: firstPositiveNumber(machine.hourlyMachineCost, capacity?.costo_hora_maquina, state.form.printStages[index].costHour),
     operatorHourCost: firstPositiveNumber(machine.hourlyOperatorCost, capacity?.costo_hora_operario, state.form.printStages[index].operatorHourCost),
-    availableColors: machineSupportsInline(machine) ? 8 : 4
+    availableColors: machineSupportsInline(machine) ? 8 : 4,
+    digitalBillingType: digitalSettings.billingType,
+    digitalInkCostPerKg: digitalSettings.inkCostPerKg,
+    digitalWhiteInkCostPerKg: digitalSettings.whiteInkCostPerKg,
+    digitalSpecialInkCostPerKg: digitalSettings.specialInkCostPerKg,
+    digitalClickRate: digitalSettings.clickRate,
+    digitalClickMode: digitalSettings.clickMode,
+    digitalCmykGsm: digitalSettings.cmykGsm,
+    digitalWhiteGsm: digitalSettings.whiteGsm,
+    digitalWasteFactor: digitalSettings.wasteFactor,
+    digitalSpecialWashCost: digitalSettings.specialWashCost,
+    digitalPremierMode: digitalSettings.premierMode,
+    digitalPremierSetupMin: digitalSettings.premierSetupMin,
+    digitalPremierOfflineCostPerMeter: digitalSettings.premierOfflineCostPerMeter,
+    digitalPremierMaintenanceCost: digitalSettings.premierMaintenanceCost
   });
   if (index === 0) syncPrimaryPrintStage();
 }
@@ -3759,6 +4029,15 @@ function bindProcesses() {
       state.form.substrate.costPerFoot = r(costPerInch * 12, 6);
       state.form.substrate.costPerMeter = r(costPerInch / 0.0254, 6);
       state.form.substrate.costPerMsi = r(costMsi, 6);
+      const materialNeedsPremier = materialRequiresPremier(material);
+      const materialPreTreated = materialPremierPreapplied(material);
+      const premierDefaults = digitalInkDefaults();
+      activePrintStages().forEach((stage) => {
+        stage.requiresSubstrateTreatment = materialNeedsPremier && !materialPreTreated;
+        stage.digitalPremierConsumptionGm2 = firstPositiveNumber(material?.premierConsumptionGm2, material?.premier_consumo_g_m2, stage.digitalPremierConsumptionGm2, premierDefaults.premierConsumptionGm2);
+        stage.digitalPremierCostPerKg = firstPositiveNumber(material?.premierCostPerKgUsd, material?.premier_costo_x_kg, stage.digitalPremierCostPerKg, premierDefaults.premierCostPerKg);
+        stage.digitalPremierCostPerM2 = firstPositiveNumber(material?.premierCostPerM2Usd, material?.premier_costo_x_m2, stage.digitalPremierCostPerM2, premierDefaults.premierCostPerM2);
+      });
     }
       if (scope.startsWith("finishes.") && field === "materialId") {
         const index = Number(scope.split(".")[1]);

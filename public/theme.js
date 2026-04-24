@@ -76,13 +76,14 @@
     }
 
     function createToggle() {
-        if (!canHostToggle) return;
         if (document.querySelector('[data-theme-toggle]')) return;
-        const host = document.body;
+        const slot = document.querySelector('[data-theme-toggle-slot]');
+        if (!slot && !canHostToggle) return;
+        const host = slot || document.body;
         if (!host) return;
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = 'theme-toggle theme-toggle-floating';
+        button.className = `theme-toggle${slot ? '' : ' theme-toggle-floating'}`;
         button.dataset.themeToggle = 'true';
         button.addEventListener('click', () => {
             const current = normalizeMode(root.dataset.themeMode);

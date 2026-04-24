@@ -4,12 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/theme.js"></script>
-    <title>Configuracion General - PrintLab</title>
+    <title>Configuración General - PrintLab</title>
     <link rel="stylesheet" href="/styles.css">
     <script src="/access-control.js"></script>
     <style>
         .config-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; width: 100%; min-width: 0; margin-bottom: 20px; padding: 4px; border: 1px solid #d8e2ea; border-radius: 14px; background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.75); }
-        .topbar.topbar-quote { display: none; }
+        .topbar.topbar-quote {
+            display: flex;
+            align-items: center;
+        }
         .config-tab { display: inline-flex; align-items: center; justify-content: center; width: 100%; min-width: 0; padding: 10px 18px; cursor: pointer; border: none; background: transparent; color: #60707f; font-size: 13px; font-weight: 600; border-radius: 10px; transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease; }
         .config-tab:hover { background: rgba(11,129,184,0.08); color: #23516a; }
         .config-tab.active { background: linear-gradient(180deg, #24a8df 0%, #118fc6 100%); color: #fff; box-shadow: 0 8px 18px rgba(17,143,198,0.24); }
@@ -995,6 +998,53 @@
             color: #708493;
             white-space: pre-wrap;
         }
+        .sap-mirror-flow {
+            display: grid;
+            gap: 18px;
+        }
+        .sap-mirror-step {
+            display: grid;
+            gap: 10px;
+            padding: 0 0 18px;
+            border-bottom: 1px solid #e4edf4;
+        }
+        .sap-mirror-step:last-child {
+            padding-bottom: 0;
+            border-bottom: 0;
+        }
+        .sap-mirror-step > strong,
+        .sap-mirror-step-head strong {
+            color: #17354a;
+            font-size: 14px;
+        }
+        .sap-mirror-step-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .sap-mirror-step-head span {
+            color: #708493;
+            font-size: 12px;
+        }
+        .sap-mirror-query {
+            min-height: 210px;
+        }
+        .sap-mirror-table-card {
+            display: grid;
+            gap: 14px;
+            margin-top: 18px;
+        }
+        .sap-mirror-table-wrap {
+            background: #f7fafc;
+        }
+        .sap-mirror-table-wrap .audit-table {
+            background: #f7fafc;
+        }
+        .sap-mirror-table-wrap .audit-table tbody td {
+            background: #fbfdff;
+        }
         .sap-security-empty {
             padding: 12px;
             border: 1px dashed #cad8e3;
@@ -1025,6 +1075,263 @@
             .sap-records-filter-span {
                 grid-column: auto;
             }
+        }
+        html[data-theme="dark"] .sap-mirror-step {
+            border-bottom-color: var(--app-border);
+        }
+        html[data-theme="dark"] .sap-mirror-step > strong,
+        html[data-theme="dark"] .sap-mirror-step-head strong {
+            color: var(--app-text) !important;
+        }
+        html[data-theme="dark"] .sap-mirror-step-head span {
+            color: var(--app-text-muted) !important;
+        }
+        html[data-theme="dark"] .sap-mirror-table-wrap,
+        html[data-theme="dark"] .sap-mirror-table-wrap .audit-table {
+            background: var(--app-surface) !important;
+            border-color: var(--app-border) !important;
+        }
+        html[data-theme="dark"] .sap-mirror-table-wrap .audit-table thead th {
+            background: var(--app-surface-soft) !important;
+            color: var(--app-text-muted) !important;
+            border-bottom-color: var(--app-border) !important;
+        }
+        html[data-theme="dark"] .sap-mirror-table-wrap .audit-table tbody td {
+            background: var(--app-surface) !important;
+            color: var(--app-text-soft) !important;
+            border-bottom-color: var(--app-border) !important;
+        }
+        html[data-theme="dark"] .sap-mirror-table-wrap .audit-table tbody tr:hover td {
+            background: color-mix(in srgb, var(--app-primary-soft) 34%, var(--app-surface)) !important;
+        }
+        html[data-theme="dark"] body,
+        html[data-theme="dark"] .app-shell,
+        html[data-theme="dark"] .page,
+        html[data-theme="dark"] .main-content,
+        html[data-theme="dark"] .config-tab-content,
+        html[data-theme="dark"] #generalConfigForm {
+            background: var(--app-bg) !important;
+            color: var(--app-text) !important;
+        }
+        html[data-theme="dark"] .config-tabs,
+        html[data-theme="dark"] .design-subtabs,
+        html[data-theme="dark"] .security-subtabs,
+        html[data-theme="dark"] .sap-security-subtabs,
+        html[data-theme="dark"] .icon-library-tabs {
+            border-color: var(--app-border) !important;
+            background: linear-gradient(180deg, var(--app-surface-raised) 0%, var(--app-surface) 100%) !important;
+            box-shadow: none !important;
+        }
+        html[data-theme="dark"] .config-tab,
+        html[data-theme="dark"] .design-subtab,
+        html[data-theme="dark"] .security-subtab,
+        html[data-theme="dark"] .sap-security-subtab,
+        html[data-theme="dark"] .icon-library-tab {
+            color: var(--app-text-muted) !important;
+        }
+        html[data-theme="dark"] .config-tab:hover,
+        html[data-theme="dark"] .design-subtab:hover,
+        html[data-theme="dark"] .security-subtab:hover,
+        html[data-theme="dark"] .sap-security-subtab:hover,
+        html[data-theme="dark"] .icon-library-tab:hover {
+            background: var(--app-primary-soft) !important;
+            color: var(--app-text) !important;
+        }
+        html[data-theme="dark"] .config-section-title,
+        html[data-theme="dark"] .sap-security-card h2,
+        html[data-theme="dark"] .sap-security-card h3,
+        html[data-theme="dark"] .sap-security-card h4,
+        html[data-theme="dark"] .user-admin-toolbar h2,
+        html[data-theme="dark"] .user-admin-detail-header h2,
+        html[data-theme="dark"] .permission-admin-toolbar h2,
+        html[data-theme="dark"] .permission-admin-detail-header h2,
+        html[data-theme="dark"] .permission-admin-title-block h2,
+        html[data-theme="dark"] .user-admin-detail-meta strong,
+        html[data-theme="dark"] .user-admin-row-name,
+        html[data-theme="dark"] .permission-admin-row-name,
+        html[data-theme="dark"] .permission-admin-summary-chip strong,
+        html[data-theme="dark"] .permission-admin-module-label strong {
+            color: var(--app-text) !important;
+            border-color: var(--app-border) !important;
+        }
+        html[data-theme="dark"] .section-caption,
+        html[data-theme="dark"] .config-form-row label span,
+        html[data-theme="dark"] .favorites-slider-label,
+        html[data-theme="dark"] .favorites-slider-value,
+        html[data-theme="dark"] .preview-title,
+        html[data-theme="dark"] .sap-security-field span,
+        html[data-theme="dark"] .sap-mirror-step-head span,
+        html[data-theme="dark"] .user-admin-row-department,
+        html[data-theme="dark"] .user-admin-row-permission,
+        html[data-theme="dark"] .user-admin-empty,
+        html[data-theme="dark"] .user-admin-detail-empty,
+        html[data-theme="dark"] .user-admin-form-grid label span,
+        html[data-theme="dark"] .user-admin-detail-meta span,
+        html[data-theme="dark"] .user-admin-permissions-note,
+        html[data-theme="dark"] .permission-admin-row-subtitle,
+        html[data-theme="dark"] .permission-admin-detail-empty,
+        html[data-theme="dark"] .permission-admin-summary-chip span,
+        html[data-theme="dark"] .permission-admin-title-block span,
+        html[data-theme="dark"] .permission-admin-grid-fields label span,
+        html[data-theme="dark"] .permission-admin-module-label span,
+        html[data-theme="dark"] .audit-empty,
+        html[data-theme="dark"] .audit-maintenance-note,
+        html[data-theme="dark"] .audit-partner-prune-status {
+            color: var(--app-text-muted) !important;
+        }
+        html[data-theme="dark"] .preview-panel,
+        html[data-theme="dark"] .favorites-preview-viewport,
+        html[data-theme="dark"] .icon-row .icon-item,
+        html[data-theme="dark"] .sap-security-card,
+        html[data-theme="dark"] .sap-security-log-item,
+        html[data-theme="dark"] .sap-security-count,
+        html[data-theme="dark"] .sap-records-summary-card,
+        html[data-theme="dark"] .sap-security-empty,
+        html[data-theme="dark"] .user-admin-table-wrap,
+        html[data-theme="dark"] .user-admin-detail-card,
+        html[data-theme="dark"] .user-admin-permissions-panel,
+        html[data-theme="dark"] .user-admin-permissions-group,
+        html[data-theme="dark"] .user-admin-summary-chip,
+        html[data-theme="dark"] .permission-admin-table-wrap,
+        html[data-theme="dark"] .permission-admin-detail-card,
+        html[data-theme="dark"] .permission-admin-summary-chip,
+        html[data-theme="dark"] .permission-admin-matrix,
+        html[data-theme="dark"] .audit-table-wrap,
+        html[data-theme="dark"] .audit-partner-prune-popover,
+        html[data-theme="dark"] .user-admin-popover,
+        html[data-theme="dark"] .permission-admin-popover,
+        html[data-theme="dark"] .color-popover {
+            border-color: var(--app-border) !important;
+            background: linear-gradient(180deg, var(--app-surface-raised) 0%, var(--app-surface) 100%) !important;
+            color: var(--app-text) !important;
+            box-shadow: var(--app-shadow-sm) !important;
+        }
+        html[data-theme="dark"] input,
+        html[data-theme="dark"] select,
+        html[data-theme="dark"] textarea,
+        html[data-theme="dark"] .config-form-row input[type="text"],
+        html[data-theme="dark"] .config-form-row input[type="number"],
+        html[data-theme="dark"] .config-form-row input[type="email"],
+        html[data-theme="dark"] .config-form-row input[type="tel"],
+        html[data-theme="dark"] .config-form-row select,
+        html[data-theme="dark"] .sap-security-field input,
+        html[data-theme="dark"] .sap-security-field select,
+        html[data-theme="dark"] .sap-security-select,
+        html[data-theme="dark"] .sap-security-card textarea,
+        html[data-theme="dark"] .user-admin-form-grid input,
+        html[data-theme="dark"] .user-admin-form-grid select,
+        html[data-theme="dark"] .permission-admin-grid-fields input,
+        html[data-theme="dark"] .permission-admin-grid-fields select,
+        html[data-theme="dark"] .permission-admin-popover input,
+        html[data-theme="dark"] .user-admin-popover input,
+        html[data-theme="dark"] .color-popover-hex,
+        html[data-theme="dark"] .color-popover-native {
+            border-color: var(--app-border-strong) !important;
+            background: var(--app-surface-soft) !important;
+            color: var(--app-text) !important;
+        }
+        html[data-theme="dark"] input::placeholder,
+        html[data-theme="dark"] textarea::placeholder {
+            color: var(--app-text-muted) !important;
+        }
+        html[data-theme="dark"] .toggle-btn,
+        html[data-theme="dark"] .color-field-trigger,
+        html[data-theme="dark"] .sap-security-actions .action-btn,
+        html[data-theme="dark"] .sap-security-actions .action-btn-primary,
+        html[data-theme="dark"] .user-admin-create-button,
+        html[data-theme="dark"] .permission-admin-create-button,
+        html[data-theme="dark"] .permission-admin-delete-button,
+        html[data-theme="dark"] .user-admin-delete-button {
+            border-color: var(--app-border-strong) !important;
+            background: linear-gradient(180deg, var(--app-surface-soft) 0%, var(--app-surface) 100%) !important;
+            color: var(--app-text-soft) !important;
+            box-shadow: none !important;
+        }
+        html[data-theme="dark"] .toggle-btn:hover,
+        html[data-theme="dark"] .sap-security-actions .action-btn:hover,
+        html[data-theme="dark"] .sap-security-actions .action-btn-primary:hover,
+        html[data-theme="dark"] .user-admin-create-button:hover,
+        html[data-theme="dark"] .permission-admin-create-button:hover {
+            border-color: var(--app-primary) !important;
+            background: var(--app-primary-soft) !important;
+            color: var(--app-primary-strong) !important;
+        }
+        html[data-theme="dark"] .sap-security-toggle,
+        html[data-theme="dark"] .permission-admin-access label,
+        html[data-theme="dark"] .user-admin-permissions-badge,
+        html[data-theme="dark"] .user-admin-permissions-empty,
+        html[data-theme="dark"] .audit-chip {
+            border-color: var(--app-border) !important;
+            background: var(--app-surface-soft) !important;
+            color: var(--app-text-soft) !important;
+        }
+        html[data-theme="dark"] .sap-security-toggle-label strong {
+            color: var(--app-text) !important;
+        }
+        html[data-theme="dark"] .sap-security-toggle-check {
+            border-color: var(--app-border-strong) !important;
+            background: var(--app-surface) !important;
+        }
+        html[data-theme="dark"] .sap-security-toggle.is-active,
+        html[data-theme="dark"] .user-admin-table tbody tr.is-selected,
+        html[data-theme="dark"] .permission-admin-table tbody tr.is-selected {
+            border-color: var(--app-primary) !important;
+            background: var(--app-primary-soft) !important;
+        }
+        html[data-theme="dark"] .sap-security-pill,
+        html[data-theme="dark"] .sap-security-pill[data-tone="ok"],
+        html[data-theme="dark"] .sap-security-pill[data-tone="error"] {
+            background: var(--app-surface-soft) !important;
+            color: var(--app-text-soft) !important;
+        }
+        html[data-theme="dark"] .sap-security-pill[data-tone="error"],
+        html[data-theme="dark"] .audit-partner-prune-status.is-error {
+            color: var(--app-danger) !important;
+        }
+        html[data-theme="dark"] .sap-security-pill[data-tone="ok"],
+        html[data-theme="dark"] .audit-partner-prune-status.is-success {
+            color: var(--app-success) !important;
+        }
+        html[data-theme="dark"] .sap-security-result {
+            border-color: var(--app-border-strong) !important;
+            background: #0b1220 !important;
+            color: #dbeafe !important;
+        }
+        html[data-theme="dark"] .audit-table,
+        html[data-theme="dark"] .permission-admin-matrix table,
+        html[data-theme="dark"] .permission-admin-table,
+        html[data-theme="dark"] .user-admin-table {
+            background: var(--app-surface) !important;
+            color: var(--app-text-soft) !important;
+        }
+        html[data-theme="dark"] .audit-table thead th,
+        html[data-theme="dark"] .permission-admin-matrix thead th {
+            border-bottom-color: var(--app-border) !important;
+            background: var(--app-surface-soft) !important;
+            color: var(--app-text-muted) !important;
+        }
+        html[data-theme="dark"] .audit-table tbody td,
+        html[data-theme="dark"] .permission-admin-matrix tbody td,
+        html[data-theme="dark"] .permission-admin-table td,
+        html[data-theme="dark"] .user-admin-table td {
+            border-bottom-color: var(--app-border) !important;
+            background: transparent !important;
+            color: var(--app-text-soft) !important;
+        }
+        html[data-theme="dark"] .audit-value,
+        html[data-theme="dark"] .sap-records-process code,
+        html[data-theme="dark"] .sap-records-result strong,
+        html[data-theme="dark"] .sap-records-result span {
+            color: var(--app-text-soft) !important;
+        }
+        html[data-theme="dark"] .user-admin-table tbody tr:hover,
+        html[data-theme="dark"] .permission-admin-table tbody tr:hover {
+            background: var(--app-primary-soft) !important;
+        }
+        html[data-theme="dark"] .preview-header-quote-field {
+            border-color: var(--app-border-strong) !important;
+            background: var(--app-surface-soft) !important;
+            color: var(--app-text) !important;
         }
         .icon-row .icon-item {
             display: grid;
@@ -2855,9 +3162,12 @@
                     <img id="configCompanyLogo" class="company-logo" alt="Logo empresa">
                     <div class="brand-mark" id="configBrandFallback">PrintLab</div>
                 </div>
-                <h1 id="configPageTitle">Configuracion general</h1>
+                <h1 id="configPageTitle">Configuración General</h1>
                 <div class="topbar-user-tools topbar-user-tools-compact">
+                    <button type="button" class="tool-icon plain-icon" data-topbar-favorite="true" aria-label="Favoritos"></button>
                     <button type="button" id="configSearchButton" class="tool-icon plain-icon" aria-label="Buscar"></button>
+                    <button type="button" class="tool-icon plain-icon" data-user-profile-open="true" aria-label="Perfil de usuario"></button>
+                    <div data-theme-toggle-slot></div>
                     <button type="button" id="configMenuToggle" class="tool-icon plain-icon" aria-label="Abrir opciones"></button>
                     <div id="configMenuPanel" class="menu-panel" hidden>
                         <a href="/" class="menu-link">Volver</a>
@@ -3775,7 +4085,7 @@
                                 <a class="action-btn" href="/vendedores?mobilePreview=1" target="_blank" rel="noopener">Abrir ruta directa</a>
                             </div>
                             <p style="margin-top:10px; color:#6f7a84; font-size:12px;">
-                                En escritorio seguirás viendo cotizaciones normales, salvo cuando abras la prueba o uses <code>?mobilePreview=1</code>.
+                                En escritorio seguirás viendo cotizaciones normales, salvo cuando abras la vista de validación o uses <code>?mobilePreview=1</code>.
                             </p>
                         </section>
                         </div>
@@ -3797,10 +4107,8 @@
                     <div id="tab-cotizaciones" class="config-tab-content">
                         <section class="config-card">
                             <div class="quotes-subtabs">
-                                <button type="button" class="quotes-subtab active" data-quotes-tab="general">General</button>
-                                <button type="button" class="quotes-subtab" data-quotes-tab="calculo">Cálculo</button>
+                                <button type="button" class="quotes-subtab active" data-quotes-tab="calculo">Cálculo</button>
                                 <button type="button" class="quotes-subtab" data-quotes-tab="proforma">Proforma</button>
-                                <button type="button" class="quotes-subtab" data-quotes-tab="salidas">Salidas</button>
                                 <button type="button" class="quotes-subtab" data-quotes-tab="tipo-cambio">Tipo de cambio</button>
                             </div>
 
@@ -4440,6 +4748,7 @@
                             <div id="security-panel-sap" class="security-subpanel" hidden>
                                 <div class="sap-security-subtabs">
                                     <button type="button" class="sap-security-subtab active" data-sap-tab="config">Configuración</button>
+                                    <button type="button" class="sap-security-subtab" data-sap-tab="tablas">Tablas</button>
                                     <button type="button" class="sap-security-subtab" data-sap-tab="registros">Registros</button>
                                 </div>
 
@@ -4605,12 +4914,98 @@
                                 </div>
                                 </div>
 
+                                <div id="sap-tab-tablas" class="sap-security-tabpanel" hidden>
+                                    <section class="sap-security-card">
+                                        <div class="sap-records-toolbar">
+                                            <div>
+                                                <h3>Tablas Espejo SAP</h3>
+                                            </div>
+                                        </div>
+                                    </section>
+
+                                    <section class="sap-security-card sap-mirror-flow">
+                                        <div class="sap-mirror-step">
+                                            <strong>1. Proceso</strong>
+                                            <div class="sap-security-grid-compact">
+                                                <label class="sap-security-field">
+                                                    <span>Flujo SAP</span>
+                                                    <select id="sapMirrorProcessSelect">
+                                                        <option value="import-business-partners">Importar Socios · OCRD / CRD1 / OCPR</option>
+                                                        <option value="import-items">Importar Inventario · OITM / OITW / ITM1 / OWHS</option>
+                                                        <option value="export-order">Enviar Orden de Venta · ORDR / RDR1</option>
+                                                        <option value="export-bom">Enviar BOM / Producción · OWOR / WOR1 / OITT / ITT1</option>
+                                                    </select>
+                                                </label>
+                                                <label class="sap-security-field">
+                                                    <span>Buscar en SAP</span>
+                                                    <input id="sapMirrorProcessSearchInput" type="text" placeholder="Código o nombre">
+                                                </label>
+                                                <label class="sap-security-field">
+                                                    <span>Límite de lectura</span>
+                                                    <input id="sapMirrorLimitInput" type="number" min="1" max="1000" value="50">
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="sap-mirror-step">
+                                            <div class="sap-mirror-step-head">
+                                                <strong>2. Consulta / Envío</strong>
+                                                <span id="sapMirrorProcessHint"></span>
+                                            </div>
+                                            <pre id="sapMirrorQueryPreview" class="sap-security-result sap-mirror-query">Cargando procedimiento SAP...</pre>
+                                        </div>
+                                        <div class="sap-mirror-step">
+                                            <div class="sap-mirror-step-head">
+                                                <strong>3. Previsualización y Ejecución</strong>
+                                                <div class="sap-security-actions">
+                                                    <button type="button" id="sapMirrorPreviewButton" class="action-btn">Previsualizar</button>
+                                                    <button type="button" id="sapMirrorExecuteButton" class="action-btn action-btn-primary">Ejecutar Proceso</button>
+                                                </div>
+                                            </div>
+                                            <pre id="sapMirrorProcessResult" class="sap-security-result">Sin procesos ejecutados todavía.</pre>
+                                        </div>
+                                    </section>
+
+                                    <section class="sap-security-card sap-mirror-table-card">
+                                        <div class="sap-records-toolbar">
+                                            <div>
+                                                <h3>4. Tablas SAP</h3>
+                                                <p class="section-caption">Revisa los datos ya copiados en las tablas espejo con nombres y campos SAP.</p>
+                                            </div>
+                                        </div>
+                                        <div class="sap-security-grid-compact">
+                                            <label class="sap-security-field">
+                                                <span>Tabla</span>
+                                                <select id="sapMirrorTableSelect"></select>
+                                            </label>
+                                            <label class="sap-security-field">
+                                                <span>Buscar</span>
+                                                <input id="sapMirrorSearchInput" type="text" placeholder="Código, nombre o documento">
+                                            </label>
+                                            <label class="sap-security-field">
+                                                <span>Límite</span>
+                                                <input id="sapMirrorTableLimitInput" type="number" min="1" max="300" value="50">
+                                            </label>
+                                        </div>
+                                        <div class="sap-security-actions">
+                                            <button type="button" id="sapMirrorLoadTableButton" class="action-btn">Ver tabla</button>
+                                        </div>
+                                        <div class="audit-table-wrap sap-records-table-wrap sap-mirror-table-wrap">
+                                            <table class="audit-table sap-records-table">
+                                                <thead id="sapMirrorTableHead"></thead>
+                                                <tbody id="sapMirrorTableBody">
+                                                    <tr><td class="audit-empty">Selecciona una tabla para ver sus registros.</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </section>
+                                </div>
+
                                 <div id="sap-tab-registros" class="sap-security-tabpanel" hidden>
                                     <section class="sap-security-card">
                                         <div class="sap-records-toolbar">
                                             <div>
                                                 <h3>Registros SAP</h3>
-                                                <p class="section-caption">Consulta el historial de envíos, pruebas, sincronizaciones y consultas sin duplicar los datos devueltos.</p>
+                                                <p class="section-caption">Consulta el historial de envíos, validaciones, sincronizaciones y consultas sin duplicar los datos devueltos.</p>
                                             </div>
                                             <div class="sap-security-actions">
                                                 <button type="button" id="sapActivityApplyButton" class="action-btn action-btn-primary">Filtrar</button>
@@ -4734,7 +5129,7 @@
                                 </table>
                             </div>
                             <div class="audit-maintenance-actions">
-                                <p class="audit-maintenance-note">Herramienta de prueba para depurar datos traídos desde conexiones externas sin tocar otras pantallas.</p>
+                                <p class="audit-maintenance-note">Herramienta de validación para depurar datos traídos desde conexiones externas sin tocar otras pantallas.</p>
                                 <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                                     <p id="auditPartnerPruneStatus" class="audit-partner-prune-status" hidden></p>
                                     <button type="button" id="auditPartnerPruneButton" class="action-btn">Administrar conexiones externas</button>
@@ -4768,7 +5163,7 @@
     </div>
     <div id="auditPartnerPrunePopover" class="audit-partner-prune-popover" hidden>
         <h3>Administrar conexiones externas</h3>
-        <p>Depura temporalmente los registros cargados por pruebas. Puedes conservar solo una cantidad o eliminar únicamente lo importado desde SAP.</p>
+        <p>Depura temporalmente los registros cargados por validaciones. Puedes conservar solo una cantidad o eliminar únicamente lo importado desde SAP.</p>
         <label>
             <span>Qué quieres administrar</span>
             <select id="auditPartnerPruneTargetField">
@@ -4795,11 +5190,12 @@
     </div>
 
     <script>
-        const PRESENTATION_KEYS = ['cotizaciones','solicitudes','calculos','socios','inventario-mp','inventario-troqueles','inventario-maquinaria','costos','vendedores','ordenes','seguimiento'];
+        const PRESENTATION_KEYS = ['productos','cotizaciones','solicitudes','calculos','socios','inventario-mp','inventario-troqueles','inventario-maquinaria','costos','vendedores','ordenes','seguimiento'];
         const PRESENTATION_LABELS = {
             general: 'General',
             'configuracion-general': 'Configuración General',
             dashboard: 'Dashboard',
+            productos: 'Productos',
             cotizaciones: 'Cotizaciones',
             solicitudes: 'Solicitudes',
             calculos: 'Cálculos',
@@ -4810,10 +5206,11 @@
             costos: 'Costos',
             vendedores: 'Vendedores',
             ordenes: 'Órdenes',
+            sap: 'SAP',
             planificacion: 'Planificación',
             seguimiento: 'Seguimiento'
         };
-        const PERMISSION_PRESENTATION_KEYS = ['dashboard', 'socios', 'cotizaciones', 'ordenes', 'planificacion', 'calculos', 'costos', 'inventario-mp', 'inventario-troqueles', 'inventario-maquinaria', 'configuracion-general', 'vendedores', 'seguimiento', 'solicitudes'];
+        const PERMISSION_PRESENTATION_KEYS = ['dashboard', 'socios', 'productos', 'cotizaciones', 'ordenes', 'sap', 'planificacion', 'calculos', 'costos', 'inventario-mp', 'inventario-troqueles', 'inventario-maquinaria', 'configuracion-general', 'vendedores', 'seguimiento', 'solicitudes'];
         
         let loadedConfig = {};
         let presentationsData = {};
@@ -5054,6 +5451,20 @@
         const sapActivityResetButton = document.getElementById('sapActivityResetButton');
         const sapActivitySummary = document.getElementById('sapActivitySummary');
         const sapActivityTableBody = document.getElementById('sapActivityTableBody');
+        const sapMirrorProcessSelect = document.getElementById('sapMirrorProcessSelect');
+        const sapMirrorProcessSearchInput = document.getElementById('sapMirrorProcessSearchInput');
+        const sapMirrorProcessHint = document.getElementById('sapMirrorProcessHint');
+        const sapMirrorQueryPreview = document.getElementById('sapMirrorQueryPreview');
+        const sapMirrorPreviewButton = document.getElementById('sapMirrorPreviewButton');
+        const sapMirrorExecuteButton = document.getElementById('sapMirrorExecuteButton');
+        const sapMirrorLimitInput = document.getElementById('sapMirrorLimitInput');
+        const sapMirrorProcessResult = document.getElementById('sapMirrorProcessResult');
+        const sapMirrorTableSelect = document.getElementById('sapMirrorTableSelect');
+        const sapMirrorSearchInput = document.getElementById('sapMirrorSearchInput');
+        const sapMirrorTableLimitInput = document.getElementById('sapMirrorTableLimitInput');
+        const sapMirrorLoadTableButton = document.getElementById('sapMirrorLoadTableButton');
+        const sapMirrorTableHead = document.getElementById('sapMirrorTableHead');
+        const sapMirrorTableBody = document.getElementById('sapMirrorTableBody');
         const LOGIN_REPOSITORY_ENDPOINT = '/api/login-repository';
         let loginRepositoryImages = [];
         let loginRepositoryLoadedOnce = false;
@@ -5063,6 +5474,8 @@
         let loginRepositoryPreviewPrevSlide = null;
         let sapConnectorLoadedOnce = false;
         let sapActivityLoadedOnce = false;
+        let sapMirrorLoadedOnce = false;
+        let sapMirrorTables = [];
         let quoteOutputTypesLoadedOnce = false;
         let exchangeRateLoadedOnce = false;
         let exchangeRateState = null;
@@ -6244,6 +6657,205 @@
             sapActivityLoadedOnce = true;
         }
 
+        function renderSapMirrorSummary(payload = {}) {
+            sapMirrorTables = Array.isArray(payload.tables) ? payload.tables : [];
+            if (sapMirrorTableSelect) {
+                const current = sapMirrorTableSelect.value;
+                sapMirrorTableSelect.innerHTML = sapMirrorTables.map((table) => (
+                    `<option value="${escapeHtml(table.tableName)}">${escapeHtml(table.tableName)} · ${escapeHtml(table.label)}</option>`
+                )).join('');
+                if (current && sapMirrorTables.some((table) => table.tableName === current)) {
+                    sapMirrorTableSelect.value = current;
+                }
+            }
+        }
+
+        async function loadSapMirrorSummary(force = false) {
+            if (!force && sapMirrorLoadedOnce) return;
+            const response = await fetch('/api/sap/mirror/summary');
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.error || 'No fue posible cargar las tablas SAP.');
+            renderSapMirrorSummary(payload);
+            sapMirrorLoadedOnce = true;
+        }
+
+        function renderSapMirrorTable(payload = {}) {
+            const table = payload.table || {};
+            const columns = Array.isArray(table.columns) ? table.columns : [];
+            const rows = Array.isArray(payload.rows) ? payload.rows : [];
+            if (sapMirrorTableHead) {
+                sapMirrorTableHead.innerHTML = columns.length
+                    ? `<tr>${columns.map((column) => `<th>${escapeHtml(column)}</th>`).join('')}</tr>`
+                    : '';
+            }
+            if (!sapMirrorTableBody) return;
+            if (!rows.length) {
+                sapMirrorTableBody.innerHTML = `<tr><td colspan="${Math.max(columns.length, 1)}" class="audit-empty">No hay registros para mostrar.</td></tr>`;
+                return;
+            }
+            sapMirrorTableBody.innerHTML = rows.map((row) => (
+                `<tr>${columns.map((column) => `<td>${escapeHtml(row[column] ?? '')}</td>`).join('')}</tr>`
+            )).join('');
+        }
+
+        async function loadSapMirrorTable() {
+            const tableName = sapMirrorTableSelect?.value || 'OCRD';
+            const params = new URLSearchParams();
+            params.set('limit', sapMirrorTableLimitInput?.value || '50');
+            const search = sapMirrorSearchInput?.value?.trim();
+            if (search) params.set('search', search);
+            const response = await fetch(`/api/sap/mirror/tables/${encodeURIComponent(tableName)}?${params.toString()}`);
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.error || 'No fue posible cargar la tabla SAP.');
+            renderSapMirrorTable(payload);
+        }
+
+        function getSapMirrorOrderTemplate() {
+            return {
+                CardCode: 'C001',
+                CardName: 'Cliente SAP',
+                DocDate: new Date().toISOString().slice(0, 10),
+                DocDueDate: new Date().toISOString().slice(0, 10),
+                Currency: 'CRC',
+                Comments: 'Orden preparada desde ERP',
+                DocumentLines: [
+                    { ItemCode: 'SRV-001', ItemDescription: 'Servicio de impresión', Quantity: 1, Price: 0, WarehouseCode: '01' }
+                ]
+            };
+        }
+
+        function getSapMirrorBomTemplate() {
+            return {
+                ItemCode: 'PROD-SAP',
+                ProdName: 'Producto preparado desde cotización',
+                PlannedQty: 1,
+                TreeType: 'P',
+                Comments: 'BOM preparado desde ERP',
+                components: [
+                    { ItemCode: 'INS-030', ItemName: 'Sustrato', Quantity: 1, Warehouse: '01' },
+                    { ItemCode: 'INS-020', ItemName: 'Tinta', Quantity: 1, Warehouse: '01' }
+                ]
+            };
+        }
+
+        function getSapMirrorProcessPayload() {
+            const processKey = sapMirrorProcessSelect?.value || 'import-business-partners';
+            const limit = Number(sapMirrorLimitInput?.value || 0);
+            const search = sapMirrorProcessSearchInput?.value?.trim();
+            const payload = {
+                processKey,
+                ...(Number.isFinite(limit) && limit > 0 ? { limit } : {}),
+                ...(search ? { search } : {})
+            };
+            if (processKey === 'export-order') return { ...getSapMirrorOrderTemplate(), processKey };
+            if (processKey === 'export-bom') return { ...getSapMirrorBomTemplate(), processKey };
+            return payload;
+        }
+
+        function formatSapMirrorProcedure(procedure = {}) {
+            const request = procedure.request || {};
+            const connector = procedure.connector || {};
+            const connectorLines = connector.provider
+                ? [
+                    '',
+                    `Estado conector: ${connector.ok === false || procedure.connectorUsesLocalSource ? 'ERROR' : 'OK'}`,
+                    `Fuente conector: ${connector.dataSource || connector.raw?.dataSource || ''}`,
+                    `Conteo reportado: socios=${connector.businessPartners ?? connector.raw?.businessPartners ?? ''} artículos=${connector.items ?? connector.raw?.items ?? ''} órdenes=${connector.orders ?? connector.raw?.orders ?? ''}`
+                ]
+                : [];
+            const lines = [
+                `Proceso: ${procedure.label || ''}`,
+                `Proveedor: ${procedure.provider || ''}`,
+                `Endpoint interno: ${procedure.endpoint || ''}`,
+                `Servicio SAP: ${request.method || ''} ${request.url || ''}`,
+                `Tablas destino: ${(procedure.targetTables || []).join(', ')}`,
+                ...connectorLines,
+                '',
+                request.query ? `Parámetros enviados:\n${JSON.stringify(request.query, null, 2)}` : `Payload enviado:\n${JSON.stringify(request.payload || {}, null, 2)}`,
+                '',
+                `Consulta / Escritura SAP:\n${procedure.queryText || ''}`,
+                ...(Array.isArray(procedure.relatedSql) && procedure.relatedSql.length ? ['', `Consultas relacionadas:\n${procedure.relatedSql.join('\n')}`] : [])
+            ];
+            return lines.join('\n');
+        }
+
+        async function refreshSapMirrorProcedure() {
+            if (!sapMirrorQueryPreview) return;
+            const payload = getSapMirrorProcessPayload();
+            setSapResult(sapMirrorQueryPreview, 'Cargando procedimiento SAP...');
+            const response = await fetch('/api/sap/mirror/preview', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...payload, limit: payload.limit || 1 })
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.error || 'No fue posible cargar la consulta SAP.');
+            sapMirrorQueryPreview.textContent = formatSapMirrorProcedure(data.procedure || {});
+            if (sapMirrorProcessHint) {
+                const records = Number(data.records || 0);
+                sapMirrorProcessHint.textContent = data.blocked
+                    ? 'Error en la consulta.'
+                    : data.procedure?.direction === 'import'
+                    ? ''
+                    : '';
+            }
+            return data;
+        }
+
+        async function previewSapMirrorProcess() {
+            setSapConfigStatus('Consultando SAP para previsualizar...', false);
+            setSapResult(sapMirrorProcessResult, 'Consultando SAP...');
+            const response = await fetch('/api/sap/mirror/preview', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(getSapMirrorProcessPayload())
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.error || 'No fue posible previsualizar el proceso SAP.');
+            sapMirrorQueryPreview.textContent = formatSapMirrorProcedure(payload.procedure || {});
+            setSapResult(sapMirrorProcessResult, payload.blocked ? 'Error en la consulta.' : payload);
+            if (sapMirrorProcessHint) sapMirrorProcessHint.textContent = payload.blocked ? 'Error en la consulta.' : '';
+            setSapConfigStatus(payload.blocked ? 'Error en la consulta.' : 'Previsualización SAP cargada.', Boolean(payload.blocked));
+        }
+
+        async function runSapMirrorProcess(route, body = {}, successMessage = 'Proceso completado.') {
+            setSapConfigStatus('Ejecutando proceso SAP...', false);
+            setSapResult(sapMirrorProcessResult, 'Procesando...');
+            const response = await fetch(route, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.error || 'No fue posible ejecutar el proceso SAP.');
+            setSapResult(sapMirrorProcessResult, payload);
+            if (payload.procedure && sapMirrorQueryPreview) {
+                sapMirrorQueryPreview.textContent = formatSapMirrorProcedure(payload.procedure);
+            }
+            setSapConfigStatus(successMessage, false);
+            sapMirrorLoadedOnce = false;
+            await loadSapMirrorSummary(true);
+            await loadSapMirrorTable();
+        }
+
+        function getSapMirrorExecutionRoute(processKey) {
+            if (processKey === 'import-items') return '/api/sap/mirror/import-items';
+            if (processKey === 'export-order') return '/api/sap/mirror/export-order';
+            if (processKey === 'export-bom') return '/api/sap/mirror/export-bom';
+            return '/api/sap/mirror/import-business-partners';
+        }
+
+        async function executeSapMirrorSelectedProcess() {
+            const processKey = sapMirrorProcessSelect?.value || 'import-business-partners';
+            const successMessages = {
+                'import-business-partners': 'Socios SAP importados.',
+                'import-items': 'Inventario SAP importado.',
+                'export-order': 'Orden de venta preparada en tablas SAP.',
+                'export-bom': 'BOM / producción preparado en tablas SAP.'
+            };
+            await runSapMirrorProcess(getSapMirrorExecutionRoute(processKey), getSapMirrorProcessPayload(), successMessages[processKey] || 'Proceso SAP completado.');
+        }
+
         function activateSapTab(tabKey = 'config') {
             sapSubtabs.forEach((tab) => {
                 tab.classList.toggle('active', tab.dataset.sapTab === tabKey);
@@ -6257,6 +6869,13 @@
                         sapActivitySummary.className = 'sap-security-empty';
                         sapActivitySummary.textContent = error.message || 'No fue posible cargar los registros SAP.';
                     }
+                });
+            }
+            if (tabKey === 'tablas') {
+                loadSapMirrorSummary()
+                    .then(() => Promise.all([loadSapMirrorTable(), refreshSapMirrorProcedure()]))
+                    .catch((error) => {
+                    setSapConfigStatus(error.message || 'No fue posible cargar las tablas SAP.', true);
                 });
             }
         }
@@ -6483,19 +7102,25 @@
             }
         }
 
-        function activateQuotesTab(tabKey = 'general') {
+        function activateQuotesTab(tabKey = 'calculo') {
+            const normalizedTabKey = tabKey === 'general' || tabKey === 'salidas' ? 'calculo' : tabKey;
             quotesSubtabs.forEach((tab) => {
-                tab.classList.toggle('active', tab.dataset.quotesTab === tabKey);
+                tab.classList.toggle('active', tab.dataset.quotesTab === normalizedTabKey);
             });
             quotesSubpanels.forEach((panel) => {
-                panel.hidden = panel.id !== `quotes-panel-${tabKey}`;
+                const panelKey = panel.id.replace('quotes-panel-', '');
+                if (normalizedTabKey === 'calculo') {
+                    panel.hidden = !['general', 'calculo', 'salidas'].includes(panelKey);
+                    return;
+                }
+                panel.hidden = panelKey !== normalizedTabKey;
             });
-            if (tabKey === 'salidas') {
+            if (normalizedTabKey === 'calculo') {
                 loadQuoteOutputTypes().catch((error) => {
                     setQuoteOutputTypesStatus(error.message || 'No fue posible cargar los tipos de salida.', 'error');
                 });
             }
-            if (tabKey === 'tipo-cambio') {
+            if (normalizedTabKey === 'tipo-cambio') {
                 loadExchangeRateModule().catch((error) => {
                     setExchangeRateConfigStatus(error.message || 'No fue posible cargar el tipo de cambio.', 'error');
                 });
@@ -7055,13 +7680,15 @@
             const permission = getAdminPermissionById(user?.permissionId);
             const modules = createEmptyPermissionModules(permission?.modules);
             const edit = [];
+            const create = [];
             const view = [];
             PERMISSION_PRESENTATION_KEYS.forEach((key) => {
                 const label = getPermissionPresentationLabel(key);
                 if (modules[key] === 'edit') edit.push(label);
+                if (modules[key] === 'create') create.push(label);
                 if (modules[key] === 'view') view.push(label);
             });
-            return { permission, edit, view };
+            return { permission, edit, create, view };
         }
 
         function formatAdminUserProcessLine(user) {
@@ -7071,10 +7698,11 @@
         }
 
         function formatAdminUserPermissionLine(user) {
-            const { permission, edit, view } = getAdminUserPermissionAccess(user);
+            const { permission, edit, create, view } = getAdminUserPermissionAccess(user);
             const permissionName = permission?.name || user?.permissionName || 'Sin permiso';
             const summary = [];
             if (edit.length) summary.push(`Edita ${edit.length}`);
+            if (create.length) summary.push(`Crea ${create.length}`);
             if (view.length) summary.push(`Visualiza ${view.length}`);
             return summary.length ? `${permissionName} | ${summary.join(' · ')}` : permissionName;
         }
@@ -7088,7 +7716,7 @@
 
         function renderAdminUserPermissionAccessSummary(user) {
             if (!userAdminPermissionsNote || !userAdminPermissionAccessSummary) return;
-            const { permission, edit, view } = getAdminUserPermissionAccess(user);
+            const { permission, edit, create, view } = getAdminUserPermissionAccess(user);
             const permissionName = permission?.name || user?.permissionName || '';
             if (!permissionName) {
                 userAdminPermissionsNote.textContent = 'Este usuario todavía no tiene un permiso asignado.';
@@ -7107,6 +7735,10 @@
                 <div class="user-admin-permissions-group">
                     <strong>Puede editar</strong>
                     <div class="user-admin-permissions-badges">${renderAdminUserPermissionBadges(edit, 'Sin módulos con edición')}</div>
+                </div>
+                <div class="user-admin-permissions-group">
+                    <strong>Puede crear</strong>
+                    <div class="user-admin-permissions-badges">${renderAdminUserPermissionBadges(create, 'Sin módulos con creación')}</div>
                 </div>
                 <div class="user-admin-permissions-group">
                     <strong>Puede visualizar</strong>
@@ -7485,7 +8117,7 @@
             const output = {};
             PERMISSION_PRESENTATION_KEYS.forEach((key) => {
                 const current = String(source?.[key] || '').trim().toLowerCase();
-                output[key] = current === 'view' || current === 'edit' ? current : 'none';
+                output[key] = current === 'view' || current === 'create' || current === 'edit' ? current : 'none';
             });
             return output;
         }
@@ -8240,6 +8872,7 @@
             permissionAdminTableBody.innerHTML = adminPermissions.map((permission) => {
                 const modules = createEmptyPermissionModules(permission.modules);
                 const editCount = Object.values(modules).filter((value) => value === 'edit').length;
+                const createCount = Object.values(modules).filter((value) => value === 'create').length;
                 const viewCount = Object.values(modules).filter((value) => value === 'view').length;
                 return `
                     <tr class="${Number(permission.id) === Number(selectedAdminPermissionId) ? 'is-selected' : ''}" data-permission-id="${permission.id}">
@@ -8247,7 +8880,7 @@
                             <div class="permission-admin-row-main">
                                 <div class="permission-admin-row-text">
                                     <span class="permission-admin-row-name">${escapeHtml(permission.name || 'Sin nombre')}</span>
-                                    <span class="permission-admin-row-subtitle">${editCount} editar · ${viewCount} ver · ${escapeHtml(getPermissionPresentationLabel(permission.defaultLanding || 'dashboard'))}</span>
+                                    <span class="permission-admin-row-subtitle">${editCount} editar · ${createCount} crear · ${viewCount} ver · ${escapeHtml(getPermissionPresentationLabel(permission.defaultLanding || 'dashboard'))}</span>
                                 </div>
                             </div>
                         </td>
@@ -8285,6 +8918,7 @@
                         <div class="permission-admin-access">
                             <label><input type="radio" name="permission-access-${key}" value="none" ${modules[key] === 'none' ? 'checked' : ''}>Sin Acceso</label>
                             <label><input type="radio" name="permission-access-${key}" value="view" ${modules[key] === 'view' ? 'checked' : ''}>Ver</label>
+                            <label><input type="radio" name="permission-access-${key}" value="create" ${modules[key] === 'create' ? 'checked' : ''}>Crear</label>
                             <label><input type="radio" name="permission-access-${key}" value="edit" ${modules[key] === 'edit' ? 'checked' : ''}>Editar</label>
                         </div>
                     </td>
@@ -8303,9 +8937,10 @@
             if (permissionAdminDetailShell) permissionAdminDetailShell.hidden = false;
             const modules = createEmptyPermissionModules(permission.modules);
             const editCount = Object.values(modules).filter((value) => value === 'edit').length;
+            const createCount = Object.values(modules).filter((value) => value === 'create').length;
             const viewCount = Object.values(modules).filter((value) => value === 'view').length;
             if (permissionAdminDetailName) permissionAdminDetailName.textContent = permission.name || 'Permiso';
-            if (permissionAdminDetailSubline) permissionAdminDetailSubline.textContent = `${editCount} módulos con edición · ${viewCount} módulos en consulta`;
+            if (permissionAdminDetailSubline) permissionAdminDetailSubline.textContent = `${editCount} módulos con edición · ${createCount} módulos con creación · ${viewCount} módulos en consulta`;
             if (permissionAdminSummaryEdit) permissionAdminSummaryEdit.textContent = `${editCount} módulos`;
             if (permissionAdminSummaryView) permissionAdminSummaryView.textContent = `${viewCount} módulos`;
             if (permissionAdminSummaryLanding) permissionAdminSummaryLanding.textContent = getPermissionPresentationLabel(permission.defaultLanding || 'dashboard');
@@ -8899,7 +9534,7 @@
             auditPartnerPruneBusy = true;
             if (auditPartnerPruneConfirm) auditPartnerPruneConfirm.disabled = true;
             if (auditPartnerPruneCancel) auditPartnerPruneCancel.disabled = true;
-            setAuditPartnerPruneStatus('Procesando datos de prueba...', false);
+            setAuditPartnerPruneStatus('Procesando datos de validación...', false);
             try {
                 const response = await fetch('/api/testing/external-data-admin', {
                     method: 'POST',
@@ -9288,7 +9923,7 @@
                     activateSecurityTab(activeSecurityTab);
                 }
                 if (tab.dataset.tab === 'cotizaciones') {
-                    const activeQuotesTab = document.querySelector('.quotes-subtab.active')?.dataset.quotesTab || 'general';
+                    const activeQuotesTab = document.querySelector('.quotes-subtab.active')?.dataset.quotesTab || 'calculo';
                     activateQuotesTab(activeQuotesTab);
                 }
                 if (tab.dataset.tab === 'diseno') {
@@ -9807,6 +10442,47 @@
                 }
             });
         });
+        sapMirrorLoadTableButton?.addEventListener('click', () => {
+            loadSapMirrorTable().catch((error) => {
+                setSapConfigStatus(error.message || 'No fue posible cargar la tabla SAP.', true);
+            });
+        });
+        sapMirrorTableSelect?.addEventListener('change', () => {
+            loadSapMirrorTable().catch((error) => {
+                setSapConfigStatus(error.message || 'No fue posible cargar la tabla SAP.', true);
+            });
+        });
+        sapMirrorProcessSelect?.addEventListener('change', () => {
+            refreshSapMirrorProcedure().catch((error) => {
+                setSapConfigStatus(error.message || 'No fue posible cargar la consulta SAP.', true);
+                setSapResult(sapMirrorQueryPreview, error.message || 'No fue posible cargar la consulta SAP.');
+            });
+        });
+        sapMirrorProcessSearchInput?.addEventListener('input', () => {
+            clearTimeout(sapMirrorProcessSearchInput._sapMirrorTimer);
+            sapMirrorProcessSearchInput._sapMirrorTimer = setTimeout(() => {
+                refreshSapMirrorProcedure().catch(() => {});
+            }, 450);
+        });
+        sapMirrorLimitInput?.addEventListener('change', () => {
+            refreshSapMirrorProcedure().catch((error) => {
+                setSapConfigStatus(error.message || 'No fue posible cargar la consulta SAP.', true);
+            });
+        });
+        sapMirrorPreviewButton?.addEventListener('click', () => {
+            previewSapMirrorProcess().catch((error) => {
+                setSapConfigStatus('Error en la consulta.', true);
+                setSapResult(sapMirrorProcessResult, 'Error en la consulta.');
+                if (sapMirrorProcessHint) sapMirrorProcessHint.textContent = 'Error en la consulta.';
+            });
+        });
+        sapMirrorExecuteButton?.addEventListener('click', () => {
+            executeSapMirrorSelectedProcess().catch((error) => {
+                setSapConfigStatus('Error en la consulta.', true);
+                setSapResult(sapMirrorProcessResult, 'Error en la consulta.');
+                if (sapMirrorProcessHint) sapMirrorProcessHint.textContent = 'Error en la consulta.';
+            });
+        });
         sapLoadTemplateButton?.addEventListener('click', loadSapPayloadTemplate);
         sapWriteEntity?.addEventListener('change', loadSapPayloadTemplate);
         sapPayloadInput?.addEventListener('input', () => renderSapWriteRequestPreview());
@@ -9850,6 +10526,7 @@
         activateSecurityTab('usuarios');
         loadConfig();
         document.getElementById('mobileSellerTheme')?.addEventListener('change', updateMobilePreviewLink);
-    </script>
+</script>
+<script src="/topbar-tools.js"></script>
 </body>
 </html>

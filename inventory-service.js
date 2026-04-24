@@ -492,6 +492,22 @@ await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS comentario_mont
 await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS marca VARCHAR(120)`);
 await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS modelo VARCHAR(120)`);
 await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS unidad_velocidad_produccion VARCHAR(20) DEFAULT 'ft/min'`);
+await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS digital_tipo_cobro VARCHAR(20) DEFAULT 'consumo'`);
+await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS digital_costo_kg_tinta DECIMAL(12,6) DEFAULT 0`);
+await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS digital_costo_kg_tinta_blanco DECIMAL(12,6) DEFAULT 0`);
+await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS digital_costo_kg_tinta_especial DECIMAL(12,6) DEFAULT 0`);
+await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS digital_tarifa_click DECIMAL(12,6) DEFAULT 0`);
+await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS digital_modo_click VARCHAR(20) DEFAULT 'por_estacion'`);
+await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS digital_velocidad_cmyk_mpm DECIMAL(12,4) DEFAULT 0`);
+await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS digital_velocidad_extendida_mpm DECIMAL(12,4) DEFAULT 0`);
+await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS digital_gramaje_cmyk_g_m2 DECIMAL(12,6) DEFAULT 1.5`);
+await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS digital_gramaje_blanco_g_m2 DECIMAL(12,6) DEFAULT 4`);
+await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS digital_factor_merma DECIMAL(12,6) DEFAULT 1.1`);
+await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS digital_costo_lavado_especial DECIMAL(12,6) DEFAULT 0`);
+await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS digital_premier_modo VARCHAR(20) DEFAULT 'offline'`);
+await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS digital_premier_setup_min DECIMAL(12,4) DEFAULT 20`);
+await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS digital_premier_costo_mantenimiento DECIMAL(12,6) DEFAULT 0`);
+await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS digital_premier_costo_offline_m DECIMAL(12,6) DEFAULT 0`);
 await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS largo_mm DECIMAL(12,4)`);
 await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS costo_x_lamina DECIMAL(12,6)`);
 await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS costo_x_libra DECIMAL(12,6)`);
@@ -502,6 +518,12 @@ await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS merma_pct DECI
 await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS rendimiento_g_ft2 DECIMAL(12,6)`);
 await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS temperatura_aplicacion_c DECIMAL(10,4)`);
 await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS tipo_transferencia VARCHAR(120)`);
+await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS tipo_superficie VARCHAR(40)`);
+await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS requiere_premier BOOLEAN DEFAULT FALSE`);
+await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS premier_preaplicado BOOLEAN DEFAULT FALSE`);
+await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS premier_consumo_g_m2 DECIMAL(12,6) DEFAULT 0.65`);
+await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS premier_costo_x_kg DECIMAL(12,6) DEFAULT 0`);
+await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS premier_costo_x_m2 DECIMAL(12,6) DEFAULT 0`);
 await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS comentario_ancho_mm TEXT`);
     await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS comentario_largo_mm TEXT`);
     await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS comentario_gramaje_g_m2 TEXT`);
@@ -794,6 +816,12 @@ async function listMaterials({ q = '', limit = 300 } = {}) {
             rendimiento_g_ft2,
             temperatura_aplicacion_c,
             tipo_transferencia,
+            tipo_superficie,
+            requiere_premier,
+            premier_preaplicado,
+            premier_consumo_g_m2,
+            premier_costo_x_kg,
+            premier_costo_x_m2,
             comentario_ancho_mm,
             comentario_largo_mm,
             comentario_gramaje_g_m2,
@@ -968,6 +996,22 @@ async function listMaquinas({ q = '', limit = 300 } = {}) {
             m.factor_preparacion,
             m.macula_default_pies,
             m.factor_tiraje_digital,
+            m.digital_tipo_cobro,
+            m.digital_costo_kg_tinta,
+            m.digital_costo_kg_tinta_blanco,
+            m.digital_costo_kg_tinta_especial,
+            m.digital_tarifa_click,
+            m.digital_modo_click,
+            m.digital_velocidad_cmyk_mpm,
+            m.digital_velocidad_extendida_mpm,
+            m.digital_gramaje_cmyk_g_m2,
+            m.digital_gramaje_blanco_g_m2,
+            m.digital_factor_merma,
+            m.digital_costo_lavado_especial,
+            m.digital_premier_modo,
+            m.digital_premier_setup_min,
+            m.digital_premier_costo_mantenimiento,
+            m.digital_premier_costo_offline_m,
             COALESCE(
                 json_agg(
                     json_build_object(
@@ -1126,6 +1170,12 @@ async function saveMaterial(payload) {
             asNullableNumber(payload.rendimiento_g_ft2) ?? gsmToGPerFt2(payload.peso_capa_gsm),
             asNullableNumber(payload.temperatura_aplicacion_c),
             asText(payload.tipo_transferencia),
+            asText(payload.tipo_superficie),
+            asBoolean(payload.requiere_premier, false),
+            asBoolean(payload.premier_preaplicado, false),
+            asNullableNumber(payload.premier_consumo_g_m2) ?? 0.65,
+            asNullableNumber(payload.premier_costo_x_kg),
+            asNullableNumber(payload.premier_costo_x_m2),
             asText(payload.comentario_ancho_mm),
             asText(payload.comentario_largo_mm),
             asText(payload.comentario_gramaje_g_m2),
@@ -1171,24 +1221,30 @@ async function saveMaterial(payload) {
                         rendimiento_g_ft2 = $17,
                         temperatura_aplicacion_c = $18,
                         tipo_transferencia = $19,
-                        comentario_ancho_mm = $20,
-                        comentario_largo_mm = $21,
-                        comentario_gramaje_g_m2 = $22,
-                        comentario_calibre_micras = $23,
-                        comentario_costo_x_lamina = $24,
-                        comentario_costo_x_msi = $25,
-                        comentario_costo_x_m2 = $26,
-                        comentario_costo_x_kg = $27,
-                        comentario_costo_x_libra = $28,
-                        comentario_peso_capa_gsm = $29,
-                        comentario_rendimiento_g_ft2 = $30,
-                        comentario_compatible_convencional = $31,
-                        comentario_compatible_digital = $32,
-                        comentario_tipo_proforma = $33,
-                        compatible_convencional = $34,
-                        compatible_digital = $35,
-                        tipo_proforma = $36,
-                        activo = $37,
+                        tipo_superficie = $20,
+                        requiere_premier = $21,
+                        premier_preaplicado = $22,
+                        premier_consumo_g_m2 = $23,
+                        premier_costo_x_kg = $24,
+                        premier_costo_x_m2 = $25,
+                        comentario_ancho_mm = $26,
+                        comentario_largo_mm = $27,
+                        comentario_gramaje_g_m2 = $28,
+                        comentario_calibre_micras = $29,
+                        comentario_costo_x_lamina = $30,
+                        comentario_costo_x_msi = $31,
+                        comentario_costo_x_m2 = $32,
+                        comentario_costo_x_kg = $33,
+                        comentario_costo_x_libra = $34,
+                        comentario_peso_capa_gsm = $35,
+                        comentario_rendimiento_g_ft2 = $36,
+                        comentario_compatible_convencional = $37,
+                        comentario_compatible_digital = $38,
+                        comentario_tipo_proforma = $39,
+                        compatible_convencional = $40,
+                        compatible_digital = $41,
+                        tipo_proforma = $42,
+                        activo = $43,
                         actualizado_en = NOW()
                   WHERE id = $1::uuid
                   RETURNING id::text`,
@@ -1206,13 +1262,14 @@ async function saveMaterial(payload) {
                 tenant_id, codigo, nombre, ancho_mm, largo_mm, gramaje_g_m2, calibre_micras, costo_x_lamina, costo_x_msi,
                 costo_x_m2, costo_x_kg, costo_x_libra, peso_capa_gsm, familia_proceso, costo_x_unidad, merma_pct,
                 rendimiento_g_ft2, temperatura_aplicacion_c, tipo_transferencia,
-                comentario_ancho_mm, comentario_largo_mm, comentario_gramaje_g_m2, comentario_calibre_micras,
+                tipo_superficie, requiere_premier, premier_preaplicado, premier_consumo_g_m2, premier_costo_x_kg,
+                premier_costo_x_m2, comentario_ancho_mm, comentario_largo_mm, comentario_gramaje_g_m2, comentario_calibre_micras,
                 comentario_costo_x_lamina, comentario_costo_x_msi, comentario_costo_x_m2, comentario_costo_x_kg,
                 comentario_costo_x_libra, comentario_peso_capa_gsm, comentario_rendimiento_g_ft2,
                 comentario_compatible_convencional, comentario_compatible_digital, comentario_tipo_proforma,
                 compatible_convencional, compatible_digital, tipo_proforma, activo
              ) VALUES (
-                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37
+                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43
              )
              ON CONFLICT (tenant_id, codigo) DO UPDATE SET
                 nombre = EXCLUDED.nombre,
@@ -1232,6 +1289,12 @@ async function saveMaterial(payload) {
                 rendimiento_g_ft2 = EXCLUDED.rendimiento_g_ft2,
                 temperatura_aplicacion_c = EXCLUDED.temperatura_aplicacion_c,
                 tipo_transferencia = EXCLUDED.tipo_transferencia,
+                tipo_superficie = EXCLUDED.tipo_superficie,
+                requiere_premier = EXCLUDED.requiere_premier,
+                premier_preaplicado = EXCLUDED.premier_preaplicado,
+                premier_consumo_g_m2 = EXCLUDED.premier_consumo_g_m2,
+                premier_costo_x_kg = EXCLUDED.premier_costo_x_kg,
+                premier_costo_x_m2 = EXCLUDED.premier_costo_x_m2,
                 comentario_ancho_mm = EXCLUDED.comentario_ancho_mm,
                 comentario_largo_mm = EXCLUDED.comentario_largo_mm,
                 comentario_gramaje_g_m2 = EXCLUDED.comentario_gramaje_g_m2,
@@ -1478,7 +1541,23 @@ async function saveMachine(payload) {
             asNumber(payload.factor_montaje_estacion, 0),
             asNumber(payload.factor_preparacion, 0),
             Math.max(0, Math.round(asNumber(payload.macula_default_pies, 0))),
-            asNullableNumber(payload.factor_tiraje_digital)
+            asNullableNumber(payload.factor_tiraje_digital),
+            asText(payload.digital_tipo_cobro || 'consumo').toLowerCase() === 'clic' ? 'clic' : 'consumo',
+            asNumber(payload.digital_costo_kg_tinta, 0),
+            asNumber(payload.digital_costo_kg_tinta_blanco, 0),
+            asNumber(payload.digital_costo_kg_tinta_especial, 0),
+            asNumber(payload.digital_tarifa_click, 0),
+            asText(payload.digital_modo_click || 'por_estacion').toLowerCase() === 'por_vuelta' ? 'por_vuelta' : 'por_estacion',
+            asNumber(payload.digital_velocidad_cmyk_mpm, 0),
+            asNumber(payload.digital_velocidad_extendida_mpm, 0),
+            asNumber(payload.digital_gramaje_cmyk_g_m2, 1.5),
+            asNumber(payload.digital_gramaje_blanco_g_m2, 4),
+            asNumber(payload.digital_factor_merma, 1.1),
+            asNumber(payload.digital_costo_lavado_especial, 0),
+            ['inline', 'offline'].includes(asText(payload.digital_premier_modo || 'offline').toLowerCase()) ? asText(payload.digital_premier_modo || 'offline').toLowerCase() : 'offline',
+            asNumber(payload.digital_premier_setup_min, 20),
+            asNumber(payload.digital_premier_costo_mantenimiento, 0),
+            asNumber(payload.digital_premier_costo_offline_m, 0)
         ];
 
         if (!machineValues[1]) {
@@ -1519,6 +1598,22 @@ async function saveMachine(payload) {
                         factor_preparacion = $14,
                         macula_default_pies = $15,
                         factor_tiraje_digital = $16,
+                        digital_tipo_cobro = $17,
+                        digital_costo_kg_tinta = $18,
+                        digital_costo_kg_tinta_blanco = $19,
+                        digital_costo_kg_tinta_especial = $20,
+                        digital_tarifa_click = $21,
+                        digital_modo_click = $22,
+                        digital_velocidad_cmyk_mpm = $23,
+                        digital_velocidad_extendida_mpm = $24,
+                        digital_gramaje_cmyk_g_m2 = $25,
+                        digital_gramaje_blanco_g_m2 = $26,
+                        digital_factor_merma = $27,
+                        digital_costo_lavado_especial = $28,
+                        digital_premier_modo = $29,
+                        digital_premier_setup_min = $30,
+                        digital_premier_costo_mantenimiento = $31,
+                        digital_premier_costo_offline_m = $32,
                         actualizado_en = NOW()
                   WHERE id = $1::uuid
                   RETURNING id::text`,
@@ -1534,9 +1629,13 @@ async function saveMachine(payload) {
                 `INSERT INTO maquina (
                     tenant_id, nombre, marca, modelo, tipo, activa, observaciones, minuto_hombre, factor_tiraje,
                     factor_montaje_estacion, factor_preparacion, macula_default_pies, factor_tiraje_digital,
-                    comentario_setup, comentario_montaje, unidad_velocidad_produccion
+                    comentario_setup, comentario_montaje, unidad_velocidad_produccion, digital_tipo_cobro,
+                    digital_costo_kg_tinta, digital_costo_kg_tinta_blanco, digital_costo_kg_tinta_especial, digital_tarifa_click, digital_modo_click, digital_velocidad_cmyk_mpm,
+                    digital_velocidad_extendida_mpm, digital_gramaje_cmyk_g_m2, digital_gramaje_blanco_g_m2,
+                    digital_factor_merma, digital_costo_lavado_especial, digital_premier_modo, digital_premier_setup_min,
+                    digital_premier_costo_mantenimiento, digital_premier_costo_offline_m
                  ) VALUES (
-                    $1,$2,$3,$4,$5::proceso_productivo,$6,$7,$11,$12,$13,$14,$15,$16,$8,$9,$10
+                    $1,$2,$3,$4,$5::proceso_productivo,$6,$7,$11,$12,$13,$14,$15,$16,$8,$9,$10,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32
                  )
                  RETURNING id::text`,
                 machineValues

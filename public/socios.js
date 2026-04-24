@@ -153,6 +153,11 @@ function applyBrowserConfig(config) {
     setActionButtonIcon(nuevoSocioButton, addValue, 'Nuevo', addColor, addSize);
     setActionButtonIcon(importarSociosSapButton, refreshValue, 'Actualizar desde SAP', refreshColor, refreshSize);
     setActionButtonIcon(refreshSociosButton, refreshValue, 'Refrescar', refreshColor, refreshSize);
+    if (nuevoSocioButton) {
+        nuevoSocioButton.hidden = window.ErpAccess?.canCreateModule
+            ? !window.ErpAccess.canCreateModule('socios')
+            : false;
+    }
 }
 
 async function loadConfig() {

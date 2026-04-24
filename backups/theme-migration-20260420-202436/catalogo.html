@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventario</title>
+    <link rel="stylesheet" href="/styles.css">
+    <style>
+        .topbar.topbar-quote { display: none; }
+    </style>
+</head>
+<body>
+    <div class="app-shell">
+        <header class="topbar topbar-quote">
+            <div class="brand brand-quote">
+                <div class="brand-logo-wrap">
+                    <img id="companyLogo" class="company-logo" alt="Logo empresa">
+                    <div id="brandFallback" class="brand-mark">PrintLab</div>
+                </div>
+                <h1 id="catalogTitle">Inventario</h1>
+
+                <div class="topbar-user-tools topbar-user-tools-compact">
+                    <button type="button" id="catalogHeaderSearchButton" class="tool-icon plain-icon" aria-label="Buscar"></button>
+                    <button type="button" id="catalogMenuToggle" class="tool-icon plain-icon" aria-label="Abrir opciones"></button>
+                    <div id="catalogMenuPanel" class="menu-panel" hidden>
+                        <a href="/" class="menu-link">Cotizaciones</a>
+                        <a href="/socios" class="menu-link">Socios de Negocio</a>
+                        <a href="/flexo-calculo" class="menu-link">Cálculos</a>
+                        <a href="/inventario-materiales" class="menu-link">Inventario Materia Prima</a>
+                        <a href="/inventario-troqueles" class="menu-link">Inventario Troqueles</a>
+                        <a href="/inventario-maquinas" class="menu-link">Inventario Máquinas</a>
+                        <a href="/inventario-procesos" class="menu-link">Inventario Procesos</a>
+                        <a href="/calculo-flexografia" class="menu-link">Cálculo de Flexografía</a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="workspace inventory-workspace">
+            <section class="inventory-toolbar-shell quote-browser-search-row">
+                <div class="inventory-actions quote-browser-actions-left">
+                    <button id="catalogBackButton" type="button" class="action-btn quote-browser-action-btn" hidden>Listado</button>
+                    <button id="catalogNewButton" type="button" class="action-btn quote-browser-action-btn">Nuevo</button>
+                    <button id="catalogSaveButton" type="button" class="action-btn quote-browser-action-btn">Guardar</button>
+                    <button id="catalogImportSapButton" type="button" class="action-btn quote-browser-action-btn" hidden>Actualizar desde SAP</button>
+                    <button id="catalogRefreshButton" type="button" class="action-btn quote-browser-action-btn" hidden>Refrescar</button>
+                    <button id="catalogImportButton" type="button" class="action-btn quote-browser-action-btn" hidden>Importar</button>
+                    <button id="catalogExportButton" type="button" class="action-btn quote-browser-action-btn" hidden>Exportar</button>
+                    <p id="catalogImportSapStatus" class="socios-import-status" hidden></p>
+                </div>
+                <div class="quote-browser-search-wrap inventory-search-toolbar">
+                    <input id="catalogSearch" class="quote-browser-search" type="text" placeholder="Código, nombre o descripción">
+                    <button id="catalogSearchButton" type="button" class="action-btn quote-browser-action-btn" hidden>Buscar</button>
+                </div>
+            </section>
+
+            <section class="inventory-layout">
+                <section class="inventory-panel-main">
+                    <div class="inventory-panel-head" hidden></div>
+                    <div class="section-caption" id="catalogSubtitle">Inventario</div>
+                    <div class="scroll-bottom-indicator-host">
+                        <div class="socios-table-wrap inventory-table-wrap">
+                            <table class="quote-table socios-table inventory-table">
+                                <thead>
+                                    <tr id="catalogHead"></tr>
+                                </thead>
+                                <tbody id="catalogBody"></tbody>
+                            </table>
+                        </div>
+                        <div id="catalogScrollBottomIndicator" class="scroll-bottom-indicator" aria-hidden="true"></div>
+                    </div>
+                </section>
+
+                <aside class="inventory-editor-panel">
+                    <div class="section-caption" id="editorTitle">Editor</div>
+                    <div id="catalogDetailPreview" class="inventory-detail-preview" hidden></div>
+                    <form id="catalogForm" class="config-form-grid config-form-grid-wide inventory-form"></form>
+                    <section id="machineCapabilitiesSection" class="inventory-capabilities" hidden>
+                        <div class="inventory-capabilities-head">
+                            <div class="section-caption">Capacidades / Procesos</div>
+                            <button id="addCapabilityButton" type="button" class="action-btn">Agregar proceso</button>
+                        </div>
+                        <div id="machineCapabilitiesList" class="machine-capabilities-list"></div>
+                    </section>
+                </aside>
+            </section>
+
+            <section class="save-status-bar">
+                <span id="catalogStatus">Cargando inventario...</span>
+            </section>
+        </main>
+    </div>
+
+    <div id="catalogImportSapPopover" class="socios-create-popover" hidden>
+        <div class="socios-create-popover-backdrop" data-close-catalog-import-popover="true"></div>
+        <section class="socios-create-popover-panel quote-create-popover-panel" role="dialog" aria-modal="true" aria-labelledby="catalogImportSapTitle">
+            <div class="copy-popover-body socios-import-popover-body">
+                <div class="copy-popover-header socios-create-header">
+                    <div>
+                        <h2 id="catalogImportSapTitle">Importar desde SAP</h2>
+                        <p class="socios-create-subtitle">Se diagnostica primero y luego eliges cuántos registros traer a tu base de datos.</p>
+                    </div>
+                    <button id="cerrarCatalogImportSapPopoverButton" type="button" class="calc-popover-close" aria-label="Cerrar">×</button>
+                </div>
+
+                <div id="catalogImportSapPopoverSummary" class="socios-import-diagnosis"></div>
+
+                <label class="socios-create-field">
+                    <span>Cuántos registros importar</span>
+                    <input id="catalogImportSapLimitInput" type="number" min="1" step="1" inputmode="numeric">
+                </label>
+
+                <p id="catalogImportSapPopoverStatus" class="socios-create-status" hidden></p>
+
+                <div class="socios-create-actions">
+                    <button type="button" id="cancelarCatalogImportSapPopoverButton" class="action-btn">Cancelar</button>
+                    <button type="button" id="ejecutarCatalogImportSapButton" class="action-btn action-btn-primary">Importar</button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <input id="catalogImportInput" type="file" accept=".xlsx,.xls,.csv" hidden>
+    <script src="/access-control.js"></script>
+    <script src="/catalogo.js"></script>
+</body>
+</html>

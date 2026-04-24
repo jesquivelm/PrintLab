@@ -17,7 +17,10 @@
                 </div>
                 <h1 id="dashboardPageTitle">PrintLab</h1>
                 <div class="topbar-user-tools topbar-user-tools-compact">
+                    <button type="button" class="tool-icon plain-icon" data-topbar-favorite="true" data-topbar-favorite-target="dashboardFavorites" aria-label="Favoritos"></button>
                     <button type="button" id="dashboardSearchButton" class="tool-icon plain-icon" aria-label="Buscar"></button>
+                    <button type="button" class="tool-icon plain-icon" data-user-profile-open="true" aria-label="Perfil de usuario"></button>
+                    <div data-theme-toggle-slot></div>
                 </div>
             </div>
         </header>
@@ -32,6 +35,10 @@
                     <button type="button" class="dashboard-card" data-route="/socios" data-label="Socios" data-icon-key="dashboardBusinessPartners">
                         <span class="dashboard-card-icon" data-icon-target="dashboardBusinessPartners"></span>
                         <span class="dashboard-card-title">Socios</span>
+                    </button>
+                    <button type="button" class="dashboard-card" data-route="/productos" data-label="Productos" data-icon-key="dashboardProducts">
+                        <span class="dashboard-card-icon" data-icon-target="dashboardProducts"></span>
+                        <span class="dashboard-card-title">Productos</span>
                     </button>
                     <button type="button" class="dashboard-card" data-route="/cotizaciones" data-label="Cotizaciones" data-icon-key="dashboardQuotes">
                         <span class="dashboard-card-icon" data-icon-target="dashboardQuotes"></span>
@@ -71,6 +78,8 @@
         </main>
     </div>
 
+    <script src="/access-control.js"></script>
     <script src="/dashboard.js"></script>
+    <script src="/topbar-tools.js"></script>
 </body>
 </html>
