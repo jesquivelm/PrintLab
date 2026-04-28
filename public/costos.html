@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/theme.js"></script>
     <title>Costos</title>
-    <link rel="stylesheet" href="/styles.css?v=costos-20260423a">
+    <link rel="stylesheet" href="/styles.css?v=costos-20260424d">
 </head>
 <body>
     <main class="workspace workspace-quote quote-browser-main costs-shell">
@@ -18,11 +18,11 @@
 
             <section class="costs-panel is-active" data-panel="general">
                 <div class="costs-panel-frame">
-                <article class="costs-section-card costs-section-card-plain">
+                <article class="costs-section-card costs-section-card-plain costs-defaults-card-plain">
                     <div class="costs-section-head">
-                        <h2>Predeterminados de Cotizaci&oacute;n</h2>
+                        <h2 class="costs-section-title">Predeterminados de Cotizaci&oacute;n</h2>
                     </div>
-                    <div class="costs-defaults-shell">
+                    <div class="costs-defaults-shell costs-defaults-shell-plain">
                         <div class="costs-defaults-layout">
                             <div class="costs-defaults-fields">
                                 <label><span>Ancho de Core</span><input id="costosDefaultRollWidth" type="number" step="0.01" min="0"></label>
@@ -30,17 +30,16 @@
                                 <label><span>Cantidad de Tipos</span><input id="costosDefaultQuantityTypes" type="number" step="1" min="1"></label>
                                 <label><span>CMYK por Defecto</span><select id="costosDefaultCmykEnabled"><option value="true">S&iacute;</option><option value="false">No</option></select></label>
                             </div>
-                            <section class="costs-core-options-field" aria-label="Opciones de Di&aacute;metro de Core">
+                            <section class="costs-core-options-field costs-core-options-field-plain" aria-label="Opciones de Di&aacute;metro de Core">
                                 <div class="costs-core-options-head">
                                     <span>Opciones de Di&aacute;metro de Core</span>
-                                    <button type="button" id="costosAddCoreDiameterOption" class="costs-mini-action" aria-label="Agregar opción">+</button>
                                 </div>
-                                <div class="copy-popover-table-wrap costs-table-wrap costs-core-options-table-wrap">
+                                <div class="copy-popover-table-wrap costs-table-wrap costs-core-options-table-wrap costs-core-options-table-wrap-plain">
                                     <table class="copy-popover-table costs-table costs-core-options-table">
                                         <thead>
                                             <tr>
-                                                <th>Opci&oacute;n</th>
-                                                <th class="costs-core-options-actions-head"></th>
+                                                <th class="costs-core-options-title-head"><span>Opci&oacute;n</span></th>
+                                                <th class="costs-core-options-actions-head"><button type="button" id="costosAddCoreDiameterOption" class="costs-mini-action" aria-label="Agregar opción">+</button></th>
                                             </tr>
                                         </thead>
                                         <tbody id="costosCoreDiameterOptionsTableBody"></tbody>
@@ -50,14 +49,15 @@
                         </div>
                     </div>
                 </article>
-                <article class="costs-section-card">
+                <article class="costs-section-card costs-section-card-plain costs-processes-card-plain">
                     <div class="costs-section-head">
-                        <h2>Procesos del C&aacute;lculo</h2>
+                        <h2 class="costs-section-title">Procesos del C&aacute;lculo</h2>
                     </div>
-                    <div class="copy-popover-table-wrap costs-table-wrap costs-process-table-wrap" aria-label="Orden y costos m&iacute;nimos por proceso">
+                    <div class="copy-popover-table-wrap costs-table-wrap costs-process-table-wrap costs-process-table-wrap-plain" aria-label="Orden y costos m&iacute;nimos por proceso">
                         <table class="copy-popover-table costs-table costs-process-table">
                             <colgroup>
                                 <col class="costs-process-col-process">
+                                <col class="costs-process-col-check">
                                 <col class="costs-process-col-check">
                                 <col class="costs-process-col-check">
                                 <col class="costs-process-col-cost">
@@ -67,6 +67,7 @@
                                     <th>Proceso</th>
                                     <th>Activo</th>
                                     <th>No Eliminar</th>
+                                    <th>Repetir</th>
                                     <th>Costo M&iacute;nimo</th>
                                 </tr>
                             </thead>
@@ -74,10 +75,12 @@
                         </table>
                     </div>
                 </article>
-                <article class="costs-section-card">
-                    <label class="costs-notes-field">
-                        <span>Notas generales</span>
-                        <textarea id="costosGeneralNotes" rows="5" placeholder="Aqu&iacute; puedes dejar observaciones sobre criterios de c&aacute;lculo o acuerdos de costos."></textarea>
+                <article class="costs-section-card costs-section-card-plain costs-notes-card-plain">
+                    <div class="costs-section-head">
+                        <h2 class="costs-section-title">Notas generales</h2>
+                    </div>
+                    <label class="costs-notes-field costs-notes-field-plain">
+                        <textarea id="costosGeneralNotes" rows="5" placeholder="Aqu&iacute; puedes dejar observaciones sobre criterios de c&aacute;lculo o acuerdos de costos." aria-label="Notas generales"></textarea>
                     </label>
                 </article>
                 </div>

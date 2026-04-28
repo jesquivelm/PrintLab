@@ -227,8 +227,8 @@
 </div>
 <div class="scroll-bottom-indicator-host">
 <div class="copy-popover-table-wrap quote-browser-table-wrap">
-<table class="copy-popover-table quote-browser-table quote-master-tree-table">
-<thead><tr><th></th><th>Cotización</th><th>Descripción</th><th>Creación</th><th>Vencimiento</th><th>Total</th><th></th></tr></thead>
+<table class="copy-popover-table quote-browser-table">
+<thead><tr><th>Cotización</th><th>ID Socio</th><th>Nombre del Socio</th><th>Vendedor</th><th>Creación</th><th>Vencimiento</th><th>Estado</th><th></th></tr></thead>
 <tbody id="quotesTableBody"></tbody>
 </table>
 </div>
@@ -455,42 +455,6 @@
 
 </div>
 </section>
-<div id="quoteRequestCreateButtonWrap" class="quote-request-create-floating">
-    <div id="processLauncherStack" class="process-launcher-stack">
-        <div id="processLauncherPrimary" class="process-launcher-primary">
-            <button id="processLauncherButton" type="button" class="process-launcher-button floating-action-button" aria-label="Abrir acciones" aria-expanded="false">
-                <span id="processLauncherIcon" class="process-launcher-icon floating-action-icon" aria-hidden="true">
-                    <span data-launcher-icon="primary"></span>
-                </span>
-            </button>
-        </div>
-        <div id="processLauncherBridge" class="process-launcher-bridge">
-            <div id="processLauncherMenu" class="process-launcher-menu">
-        <div id="processLauncherErrors" class="process-launcher-errors" hidden>
-            <ul id="processLauncherErrorsList" class="process-launcher-errors-list"></ul>
-        </div>
-        <button type="button" id="enviarSolicitudFabButton" class="process-launcher-item" title="Solicitud de Cotización" aria-label="Solicitud de Cotización">
-                    <span data-fab-icon="submit"></span>
-                    <span class="process-launcher-item-text">Solicitud de Cotización</span>
-                </button>
-                <button type="button" id="modoAvanzadoFabButton" class="process-launcher-item" title="Cotizaciones" aria-label="Ir a Cotizaciones">
-                    <span data-fab-icon="advanced"></span>
-                    <span class="process-launcher-item-text">Cotizaciones</span>
-                </button>
-                <button type="button" id="verProformaFabButton" class="process-launcher-item" title="Ver Proforma" aria-label="Ver Proforma">
-                    <span data-fab-icon="proforma"></span>
-                    <span class="process-launcher-item-text">Ver Proforma</span>
-                </button>
-            </div>
-        </div>
-        <div id="processLauncherErrors" class="process-launcher-errors" hidden>
-            <div class="process-launcher-errors-head">Campos requeridos pendientes</div>
-            <ul id="processLauncherErrorsList" class="process-launcher-errors-list"></ul>
-        </div>
-    </div>
-</div>
-</div>
-
 <div id="attachmentPreviewModal" class="quote-request-preview-modal" hidden>
 <div class="quote-request-preview-panel" role="dialog" aria-modal="true" aria-label="Vista previa de adjunto">
 <div class="quote-request-preview-head">

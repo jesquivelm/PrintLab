@@ -1,5 +1,6 @@
 ﻿const CONFIG_ENDPOINT = '/api/config/general';
 const QUOTES_ENDPOINT = '/api/cotizaciones';
+const SMART_CATALOGS_ENDPOINT = '/api/cotizaciones-inteligentes/catalogos';
 const PARTNERS_ENDPOINT = '/api/socios';
 const SESSION_STORAGE_KEY = 'erp-user-session';
 const LAUNCHER_POSITION_KEY = 'quote-request-launcher-position-v2';
@@ -11,6 +12,7 @@ const DEFAULT_ICON_MAP = {
     quoteRequestRecord: { value: 'â—', color: '#1e516d', size: 18 },
     quoteRequestRecordStop: { value: 'â– ', color: '#ef4444', size: 18 },
     quoteRequestAttachmentDelete: { value: 'X', color: '#b94848', size: 18 },
+    'icons.quantity.delete': { value: '×', color: '#a74343', size: 18 },
     // New keys for premium sync
     crearCotizacion: { value: 'âž¤', color: '#1e516d', size: 24 },
     procesoAvanzadoFlotante: { value: 'âš™', color: '#5f7288', size: 20 },
@@ -18,19 +20,18 @@ const DEFAULT_ICON_MAP = {
     proformaClose: { value: 'âœ“', color: '#1e516d', size: 18 }
 };
 const STATIC_MATERIALS = [
-    'BOPP Blanco',
-    'BOPP Transparente',
+    'OPP Blanco',
+    'OPP Transparente',
     'Papel Couche',
-    'Papel Termico',
+    'Papel Térmico',
     'Papel Transfer',
     'PET Blanco',
     'PET Transparente',
-    'Polipropileno Blanco',
-    'Polipropileno Transparente',
     'Vinil Blanco',
     'Vinil Transparente'
 ];
 const DEFAULT_SURFACES = ['Botella', 'Caja', 'Carton', 'Envase', 'Frasco', 'Pouch', 'Tapa', 'Vidrio'];
+const DEFAULT_PRODUCT_TYPES = ['Etiquetas', 'Cinta Continua', 'Empaque Flexible', 'Código de Barras', 'Números de Carrera'];
 
 const rowsBody = document.getElementById('quotesTableBody');
 const quotesTableWrap = document.querySelector('.quote-browser-table-wrap');
@@ -53,7 +54,24 @@ const materialInput = document.getElementById('requestMaterial');
 const materialSuggestions = document.getElementById('materialSuggestions');
 const surfaceInput = document.getElementById('requestSurface');
 const surfaceSuggestions = document.getElementById('surfaceSuggestions');
+const requestProductTypeSelect = document.getElementById('requestProductType');
+const requestQuantityRepeater = document.getElementById('requestQuantityRepeater');
 const stampingWidthInput = document.getElementById('stampingWidth');
+const routePreviewConfig = document.getElementById('requestRoutePreviewConfig');
+const routePreviewList = document.getElementById('requestRoutePreviewList');
+const wizardSections = Array.from(form?.querySelectorAll('.quote-request-section[data-step]') || []);
+const wizardProgress = document.getElementById('quoteWizardProgress');
+const wizardBackButton = document.getElementById('quoteWizardBackButton');
+const wizardNextButton = document.getElementById('quoteWizardNextButton');
+const wizardPrintButton = document.getElementById('quoteWizardPrintButton');
+const wizardAdvancedButton = document.getElementById('quoteWizardAdvancedButton');
+const requestSummaryGrid = document.getElementById('requestSummaryGrid');
+const requestTechnicalNotes = document.getElementById('requestTechnicalNotes');
+const requestSummaryRows = document.getElementById('requestSummaryRows');
+const requestSummaryTotals = document.getElementById('requestSummaryTotals');
+const requestSummarySubtotal = document.getElementById('requestSummarySubtotal');
+const requestSummaryTax = document.getElementById('requestSummaryTax');
+const requestSummaryGrandTotal = document.getElementById('requestSummaryGrandTotal');
 const numberingPopoverTrigger = document.getElementById('numberingPopoverTrigger');
 const numberingPopover = document.getElementById('numberingPopover');
 const numberingPopoverClose = document.getElementById('numberingPopoverClose');
@@ -115,8 +133,13 @@ const sapSendPayloadButton = document.getElementById('sapSendPayloadButton');
 const sapPayloadInput = document.getElementById('sapPayloadInput');
 const sapQueryResult = document.getElementById('sapQueryResult');
 const sapWriteResult = document.getElementById('sapWriteResult');
+const disableQuoteRequestLauncherDrag = true;
 
 let visibleQuotesCount = 0;
+let smartCatalogMeta = {
+    digitalThreshold: 100000,
+    labelsPerRollDefault: 1000
+};
 
 function readUserSession() {
     try {
@@ -127,9 +150,24 @@ function readUserSession() {
 }
 
 function normalizePermissionLevel(value) {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+        return {
+            view: Boolean(value.view || value.create || value.edit),
+            create: Boolean(value.create),
+            edit: Boolean(value.edit)
+        };
+    }
     const normalized = String(value || '').trim().toLowerCase();
-    if (normalized === 'view' || normalized === 'create' || normalized === 'edit') return normalized;
-    return 'none';
+    if (!normalized || normalized === 'none') return { view: false, create: false, edit: false };
+    if (normalized === 'view') return { view: true, create: false, edit: false };
+    if (normalized === 'create') return { view: true, create: true, edit: false };
+    if (normalized === 'edit') return { view: true, create: false, edit: true };
+    const parts = normalized.split(/[,\s|/+]+/).filter(Boolean);
+    return {
+        view: parts.includes('view') || parts.includes('create') || parts.includes('edit'),
+        create: parts.includes('create'),
+        edit: parts.includes('edit')
+    };
 }
 
 function canCreateModule(moduleKey) {
@@ -137,9 +175,7 @@ function canCreateModule(moduleKey) {
     const session = readUserSession();
     const modules = session?.modules && typeof session.modules === 'object' ? session.modules : null;
     if (!modules) return true;
-    const level = normalizePermissionLevel(modules[moduleKey]);
-    if (moduleKey === 'productos') return level === 'create';
-    return level === 'create';
+    return normalizePermissionLevel(modules[moduleKey]).create;
 }
 
 function sessionHeader() {
@@ -169,6 +205,8 @@ const expandedQuoteCodes = new Set();
 const quoteLineCache = new Map();
 const quoteLineLoading = new Set();
 const quoteLineLookup = new Map();
+let selectedQuoteContextCode = '';
+let selectedQuoteContextLineId = 0;
 let partnerLookupAbort = null;
 let materialItems = STATIC_MATERIALS.map((name) => ({ code: '', name }));
 let surfaceItems = [...DEFAULT_SURFACES];
@@ -189,6 +227,136 @@ let attachmentPreviewState = {
     startY: 0
 };
 let sapConfigState = null;
+let quoteRequestWizardState = {
+    currentStep: 1,
+    totalSteps: Math.max(1, wizardSections.length || 5),
+    previewQuoteCode: '',
+    previewFirstLineCode: '',
+    previewFingerprint: '',
+    previewProforma: null,
+    previewDirty: false,
+    keepPreviewQuote: false
+};
+
+function resolveConfiguredProductTypes() {
+    const rawValue = loadedConfig?.general?.quoteProductTypesJson;
+    let parsed = rawValue;
+    if (typeof parsed === 'string') {
+        const trimmed = parsed.trim();
+        if (!trimmed) parsed = [];
+        else {
+            try {
+                parsed = JSON.parse(trimmed);
+            } catch (_) {
+                parsed = trimmed.split(/[\n,;]+/);
+            }
+        }
+    }
+    const source = Array.isArray(parsed) ? parsed : [];
+    const seen = new Set();
+    const items = source
+        .map((item) => {
+            if (typeof item === 'string') return item.trim();
+            if (item && typeof item === 'object') return String(item.name || item.label || item.value || '').trim();
+            return '';
+        })
+        .filter((item) => {
+            if (!item) return false;
+            const key = item.toLowerCase();
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+    return items.length ? items : [...DEFAULT_PRODUCT_TYPES];
+}
+
+function renderRequestProductTypeOptions() {
+    if (!requestProductTypeSelect) return;
+    const options = resolveConfiguredProductTypes();
+    const currentValue = normalizeText(requestProductTypeSelect.value);
+    requestProductTypeSelect.innerHTML = options.map((item) => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join('');
+    requestProductTypeSelect.value = options.includes(currentValue) ? currentValue : (options[0] || '');
+}
+
+function parseRequestedQuantityValue(rawValue) {
+    const normalized = String(rawValue || '')
+        .replace(/\s+/g, '')
+        .replace(/\.(?=\d{3}(\D|$))/g, '')
+        .replace(/,/g, '');
+    const parsed = Number(normalized);
+    if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+    return Math.round(parsed);
+}
+
+function formatRequestedQuantityValue(value) {
+    const parsed = parseRequestedQuantityValue(value);
+    return parsed > 0 ? formatNumber(parsed) : '';
+}
+
+function readRequestedQuantities() {
+    return Array.from(requestQuantityRepeater?.querySelectorAll('input[data-request-quantity-index]') || [])
+        .map((input) => parseRequestedQuantityValue(input.value))
+        .filter((value) => value > 0)
+        .slice(0, 6);
+}
+
+function renderRequestQuantityRepeater(values = null) {
+    if (!requestQuantityRepeater) return;
+    const source = Array.isArray(values) ? values : readRequestedQuantities();
+    const normalized = source
+        .map((value) => parseRequestedQuantityValue(value))
+        .filter((value) => value > 0)
+        .slice(0, 6);
+    if (!normalized.length) normalized.push(0);
+
+    // Clear and set container styles directly — no external CSS dependency
+    requestQuantityRepeater.innerHTML = '';
+    requestQuantityRepeater.style.cssText = 'display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;gap:6px;width:100%;overflow:visible;';
+
+    normalized.forEach((value, index) => {
+        const isLast = index === normalized.length - 1;
+        const hasValue = value > 0;
+
+        // Input
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.inputMode = 'numeric';
+        input.dataset.requestQuantityIndex = String(index);
+        input.setAttribute('aria-label', `Cantidad ${index + 1}`);
+        input.placeholder = '999 999';
+        input.value = hasValue ? formatNumber(value) : '';
+        input.style.cssText = 'width:110px;min-width:110px;max-width:110px;height:36px;padding:6px 10px;border:1px solid #c9d6e2;border-radius:10px;background:#fff;color:#17354a;font:inherit;font-size:13px;text-align:center;font-variant-numeric:tabular-nums;box-sizing:border-box;flex-shrink:0;';
+        requestQuantityRepeater.appendChild(input);
+
+        // Add button — only on last field, only if it has a value, and max 6
+        if (isLast && hasValue && normalized.length < 6) {
+            const addBtn = document.createElement('button');
+            addBtn.type = 'button';
+            addBtn.dataset.addRequestQuantity = 'true';
+            addBtn.setAttribute('aria-label', 'Agregar cantidad');
+            addBtn.title = 'Agregar cantidad';
+            addBtn.textContent = '+';
+            addBtn.style.cssText = 'width:32px;min-width:32px;height:32px;border:1px solid #c9d6e2;border-radius:8px;background:#fff;color:#1e6fa8;font-size:20px;font-weight:700;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;';
+            addBtn.addEventListener('mouseenter', () => { addBtn.style.background = '#e8f4fb'; addBtn.style.borderColor = '#29a6db'; });
+            addBtn.addEventListener('mouseleave', () => { addBtn.style.background = '#fff'; addBtn.style.borderColor = '#c9d6e2'; });
+            requestQuantityRepeater.appendChild(addBtn);
+        }
+
+        // Delete button — only on last field, only if more than 1 field
+        if (isLast && normalized.length > 1) {
+            const delBtn = document.createElement('button');
+            delBtn.type = 'button';
+            delBtn.dataset.removeRequestQuantity = 'true';
+            delBtn.setAttribute('aria-label', 'Eliminar ultima cantidad');
+            delBtn.title = 'Eliminar ultima cantidad';
+            delBtn.textContent = 'x';
+            delBtn.style.cssText = 'width:32px;min-width:32px;height:32px;border:1px solid #e0c0c0;border-radius:8px;background:#fff;color:#a74343;font-size:22px;font-weight:400;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;';
+            delBtn.addEventListener('mouseenter', () => { delBtn.style.background = '#fdf0f0'; delBtn.style.borderColor = '#d03535'; });
+            delBtn.addEventListener('mouseleave', () => { delBtn.style.background = '#fff'; delBtn.style.borderColor = '#e0c0c0'; });
+            requestQuantityRepeater.appendChild(delBtn);
+        }
+    });
+}
 
 function escapeHtml(value) {
     return String(value ?? '')
@@ -579,6 +747,40 @@ function openRouteInShell(route, label) {
     return true;
 }
 
+function getCurrentQuoteBrowserContext() {
+    const quoteCode = selectedQuoteContextCode || [...expandedQuoteCodes][0] || '';
+    if (!quoteCode) return null;
+    const quote = quoteCatalog.find((item) => item.quote_code === quoteCode) || null;
+    const line = quoteLineLookup.get(Number(selectedQuoteContextLineId)) || (quoteLineCache.get(quoteCode) || [])[0] || null;
+    return {
+        kind: 'quotes-browser',
+        title: `Cotización ${quoteCode}`,
+        subtitle: [
+            quote?.customer_name || '',
+            line?.nombreTrabajo || ''
+        ].filter(Boolean).join(' · ') || 'Contexto activo: Cotizaciones',
+        secondaryRoute: quoteCode ? `/proforma?codigo=${encodeURIComponent(quoteCode)}` : '',
+        secondaryActionId: 'open-quote-proforma',
+        secondaryLabel: 'Ver proforma',
+        secondaryDescription: 'Abrir la proforma asociada a esta cotización',
+        quoteCode,
+        lineCode: String(line?.linea || '').trim(),
+        productCode: String(line?.productId || '').trim(),
+        status: String(line?.estado || quote?.status || '').trim(),
+        canCreateOrder: Boolean(line?.finalizadaOrden),
+        dates: {
+            createdAt: quote?.created_on || '',
+            updatedAt: quote?.updated_at || '',
+            dueAt: quote?.due_on || ''
+        }
+    };
+}
+
+function publishBdfgContext() {
+    if (!isShellEmbedded()) return;
+    window.parent.postMessage({ type: 'erp-bdfg-context', context: getCurrentQuoteBrowserContext() }, window.location.origin);
+}
+
 function isSvgValue(value) {
     const normalized = String(value || '').trim().toLowerCase();
     return normalized.startsWith('data:image/svg+xml') || normalized.endsWith('.svg');
@@ -596,7 +798,7 @@ function isImageValue(value) {
 
 function renderIcon(target, iconValue, color, size) {
     if (!target) return;
-    const host = target.closest('.quote-request-icon-action, .quote-request-attachment-remove, .process-launcher-icon');
+    const host = target.closest('.quote-request-icon-action, .quote-request-attachment-remove, .process-launcher-icon, .quantity-trash-button, .quantity-inline-action');
     const value = String(iconValue || '').trim();
     if (host) {
         host.style.setProperty('--icon-color', color || '');
@@ -668,6 +870,22 @@ function applyConfiguredIcons() {
     renderIcon(document.querySelector('[data-inline-icon="record"]'), recordConf.value, recordConf.color, recordConf.size);
     document.querySelectorAll('.quote-request-attachment-remove').forEach((button) => renderIcon(button, deleteConf.value, deleteConf.color, deleteConf.size));
 
+    // Iconos de cantidades desde base de datos
+    const qtyAddConf = getResolvedIcon(['icons.quantity.add', 'quantityAdd', 'tableAdd'], 'quantityAdd');
+    const qtyDelConf = getResolvedIcon(['icons.quantity.delete'], 'icons.quantity.delete');
+    document.querySelectorAll('[data-qty-icon="add"]').forEach((span) => {
+        if (qtyAddConf.value) {
+            span.parentElement.style.color = qtyAddConf.color || '#1e6fa8';
+            renderIcon(span, qtyAddConf.value, qtyAddConf.color || '#1e6fa8', qtyAddConf.size || 18);
+        }
+    });
+    document.querySelectorAll('[data-qty-icon="delete"]').forEach((span) => {
+        if (qtyDelConf.value) {
+            span.parentElement.style.color = qtyDelConf.color || '#a74343';
+            renderIcon(span, qtyDelConf.value, qtyDelConf.color || '#a74343', qtyDelConf.size || 18);
+        }
+    });
+
     if (processLauncherButton) {
         processLauncherButton.style.setProperty('--floating-icon-color', primaryConf.color);
         processLauncherButton.style.setProperty('--floating-icon-hover', loadedConfig?.general?.iconColorHoverProcessLauncher || '#0b81b8');
@@ -711,9 +929,67 @@ function formatMoney(value) {
         : '$0.00';
 }
 
+function formatCurrencyValue(value, currency = {}) {
+    const amount = Number(value || 0);
+    const currencyCode = String(currency.code || '').trim().toUpperCase();
+    if (currencyCode) {
+        try {
+            return new Intl.NumberFormat('es-CR', {
+                style: 'currency',
+                currency: currencyCode,
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(amount);
+        } catch (error) {
+            // Fallback handled below.
+        }
+    }
+    const symbol = String(currency.symbol || '$').trim() || '$';
+    return `${symbol}${amount.toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function formatNumber(value) {
+    const number = pickFirstMeaningfulNumber(value);
+    if (number === null || number === undefined) return '';
+    return Number(number).toLocaleString('es-CR', { maximumFractionDigits: 0 });
+}
+
+function pickFirstMeaningfulNumber(...values) {
+    for (const value of values) {
+        if (value === null || value === undefined || value === '') continue;
+        if (typeof value === 'number' && Number.isFinite(value)) return value;
+        const text = String(value).trim();
+        if (!text) continue;
+        const cleaned = text
+            .replace(/[^0-9,.-]/g, '')
+            .replace(/\s/g, '')
+            .replace(/\.(?=\d{3}(?:\D|$))/g, '')
+            .replace(',', '.');
+        if (!cleaned || cleaned === '-' || cleaned === '.' || cleaned === '-.') continue;
+        const parsed = Number(cleaned);
+        if (Number.isFinite(parsed)) return value;
+    }
+    return '';
+}
+
 function normalizeQuoteLine(line, quoteCode, index = 0) {
     quoteTreeLineSequence += 1;
     const raw = line.raw_data || {};
+    const autoSelection = raw.CODEX_AUTO_SELECTION || {};
+    const autoWarnings = Array.isArray(autoSelection.warnings)
+        ? autoSelection.warnings.filter(Boolean)
+        : String(raw['REQ | Advertencias Automáticas'] || '')
+            .split('|')
+            .map((item) => normalizeText(item))
+            .filter(Boolean);
+    const fallbackTotal = pickFirstMeaningfulNumber(
+        line.subtotal_1,
+        line.total_cost,
+        raw['PRECIO TOTAL AL FINALIZAR'],
+        raw['GENERAL | 9 | TOTAL | DOL'],
+        raw['GENERAL | 7 | TOTAL | DOL'],
+        raw['GENERAL | 9 | TOTAL | COL EXPORTAR REPORTE VENTAS']
+    );
     return {
         id: quoteTreeLineSequence,
         quoteId: quoteCode || line.quote_code || '',
@@ -723,14 +999,27 @@ function normalizeQuoteLine(line, quoteCode, index = 0) {
         departamento: line.department || 'Flexografia',
         nombreTrabajo: line.job_name || 'Nuevo cálculo',
         material: line.material_name || '',
-        materialCode: raw['Material Convencional | Id Material'] || raw['Material Digital | Id Material'] || '',
+        materialCode: line.material_code || raw['Material Convencional | Id Material'] || raw['Material Digital | Id Material'] || '',
         medida: [raw['DIMENSIONES ETIQUETA | ANCHO'], raw['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join(' x '),
         machineName: line.machine_name || raw['CONV | MAQUINA'] || raw['DIGITAL | MAQUINA'] || '',
         processType: line.process_type || raw['Proceso Productivo'] || '',
+        processSequenceText: raw['CODEX_PROCESS_SEQUENCE_TEXT'] || raw['BOT | Process Sequence'] || '',
         estado: line.status || raw['SOLICITUD ESTADO'] || raw['ESTADO LINEA'] || 'Borrador',
         finalizadaOrden: Boolean(line.finalized_for_order || raw['CODEX_FINALIZED_FOR_ORDER']),
-        subtotal1: line.subtotal_1 ?? line.total_cost ?? '',
-        productId: line.product_code || ''
+        subtotal1: fallbackTotal ?? '',
+        productId: line.product_code || '',
+        quantity: pickFirstMeaningfulNumber(line.quantity, raw['Cantidad Productos']),
+        autoRoute: autoSelection.processType || raw['REQ | Ruta Automática'] || line.process_type || '',
+        autoMaterialCode: autoSelection.materialCode || raw['REQ | Material Automático'] || line.material_code || '',
+        autoMaterialName: line.material_name || raw['GENERAL | MATERIAL'] || '',
+        autoMaterialFamily: autoSelection.materialFamily || raw['REQ | Material Comercial'] || '',
+        autoMachineName: autoSelection.machineName || raw['REQ | Máquina Automática'] || line.machine_name || '',
+        autoDieCode: autoSelection.dieCode || raw['REQ | Troquel Automático'] || line.die_code || '',
+        autoLabelsPerRoll: pickFirstMeaningfulNumber(autoSelection.labelsPerRoll, raw['REQ | Etiquetas x Rollo Automática'], raw['CANTIDAD ETIQUETAS X ROLLO']),
+        autoMountingSummary: raw['REQ | Montaje Automático'] || '',
+        autoTechnicalComment: raw['REQ | Comentario Técnico Automático'] || '',
+        autoWarnings,
+        autoFallbackApplied: String(raw['REQ | Fallback de Ruta'] || '').trim().toLowerCase() === 'sí'
     };
 }
 
@@ -778,11 +1067,35 @@ function buildLineTitle(row, index) {
 function buildLineMeta(row) {
     const parts = [];
     if (row.linea) parts.push(row.linea);
-    if (row.processType) parts.push(row.processType);
+    if (row.quantity) parts.push(`Cantidad ${formatNumber(row.quantity)}`);
+    if (row.processSequenceText) parts.push(row.processSequenceText);
+    else if (row.processType) parts.push(row.processType);
     if (row.medida) parts.push(row.medida);
     if (row.machineName) parts.push(row.machineName);
     if (row.materialCode) parts.push(row.materialCode);
     return parts.filter(Boolean).join(' · ');
+}
+
+function renderAutoSelectionSummary(row) {
+    const summaryItems = [
+        row.autoRoute ? `Ruta ${row.autoRoute}` : '',
+        row.autoMaterialFamily ? `Familia ${row.autoMaterialFamily}` : '',
+        row.autoMaterialCode ? `Material ${row.autoMaterialCode}` : '',
+        row.autoMachineName ? `Máquina ${row.autoMachineName}` : '',
+        row.autoDieCode ? `Troquel ${row.autoDieCode}` : (row.autoRoute ? 'Troquel estimado/no requerido' : ''),
+        row.autoLabelsPerRoll ? `${formatNumber(row.autoLabelsPerRoll)} etiq./rollo` : ''
+    ].filter(Boolean);
+    const warningMarkup = (row.autoWarnings || []).slice(0, 3).map((warning) => `
+        <div class="quote-line-auto-warning">${escapeHtml(warning)}</div>
+    `).join('');
+    return `
+        <div class="quote-line-auto-block">
+            ${summaryItems.length ? `<div class="quote-line-auto-summary">${summaryItems.map((item) => `<span class="quote-line-auto-chip">${escapeHtml(item)}</span>`).join('')}</div>` : ''}
+            ${row.autoMountingSummary ? `<div class="quote-line-auto-mounting">${escapeHtml(row.autoMountingSummary)}</div>` : ''}
+            ${row.autoTechnicalComment ? `<div class="quote-line-auto-comment">${escapeHtml(row.autoTechnicalComment)}</div>` : ''}
+            ${warningMarkup ? `<div class="quote-line-auto-warnings">${warningMarkup}</div>` : ''}
+        </div>
+    `;
 }
 
 function lineMenuIconConfig(key, fallbackValue, fallbackColor = '#46515d', fallbackSize = 18) {
@@ -857,6 +1170,7 @@ function renderQuoteLineCard(row, index, totalLines) {
             <div class="quote-master-line-body">
                 <div class="quote-master-line-title">${escapeHtml(lineTitle)}</div>
                 ${lineMeta ? `<div class="quote-master-line-meta">${escapeHtml(lineMeta)}</div>` : ''}
+                ${renderAutoSelectionSummary(row)}
             </div>
             <div class="quote-master-line-right">
                 <span class="quote-master-line-total">${escapeHtml(formatMoney(row.subtotal1))}</span>
@@ -1102,10 +1416,12 @@ function renderQuotesTable(items) {
     if (!items.length) {
         rowsBody.innerHTML = '<tr><td colspan="7">No hay cotizaciones.</td></tr>';
         requestAnimationFrame(updateQuotesScrollBottomIndicator);
+        publishBdfgContext();
         return;
     }
     rowsBody.innerHTML = items.map(renderQuoteParentRow).join('');
     requestAnimationFrame(updateQuotesScrollBottomIndicator);
+    publishBdfgContext();
 }
 
 function getFilteredQuotes() {
@@ -1121,16 +1437,46 @@ async function loadQuotes() {
     if (search) params.set('q', search);
     const payload = await fetchJson(`${QUOTES_ENDPOINT}?${params.toString()}`);
     quoteCatalog = Array.isArray(payload.cotizaciones) ? payload.cotizaciones : [];
+    if (selectedQuoteContextCode && !quoteCatalog.some((item) => item.quote_code === selectedQuoteContextCode)) {
+        selectedQuoteContextCode = '';
+        selectedQuoteContextLineId = 0;
+    }
     renderQuotesTable(getFilteredQuotes());
 }
 
 async function loadConfig() {
     loadedConfig = await fetchJson(CONFIG_ENDPOINT);
     applyConfiguredIcons();
+    renderRequestQuantityRepeater();
+    renderRequestProductTypeOptions();
     renderShapePicker();
     if (quoteCatalog.length) {
         renderQuotesTable(getFilteredQuotes());
     }
+}
+
+async function loadSmartCatalogs() {
+    try {
+        const payload = await fetchJson(SMART_CATALOGS_ENDPOINT);
+        const families = Array.isArray(payload?.materialFamilies) ? payload.materialFamilies : [];
+        smartCatalogMeta = {
+            digitalThreshold: Number(payload?.digitalThreshold || 100000) || 100000,
+            labelsPerRollDefault: Number(payload?.labelsPerRollDefault || 1000) || 1000
+        };
+        if (families.length) {
+            materialItems = families.map((item) => ({
+                code: item.code || item.name || '',
+                name: item.name || item.code || ''
+            }));
+        }
+    } catch (error) {
+        materialItems = STATIC_MATERIALS.map((name) => ({ code: '', name }));
+        smartCatalogMeta = {
+            digitalThreshold: 100000,
+            labelsPerRollDefault: 1000
+        };
+    }
+    renderAutomaticRoutePreview();
 }
 
 function renderInlineSuggestionList(panel, items, emptyMessage) {
@@ -1443,6 +1789,7 @@ function renderAttachments() {
 
 function formHasContent() {
     if (!form) return false;
+    if (readRequestedQuantities().length > 0) return true;
     const data = new FormData(form);
     for (const [key, value] of data.entries()) {
         if (key === 'customer_code') continue;
@@ -1463,19 +1810,35 @@ function resetFormState() {
     setStatus('');
     syncToggleChipState();
     applyConfiguredIcons();
+    renderRequestProductTypeOptions();
+    renderRequestQuantityRepeater([0]);
     closeAttachmentPreview();
     closeNumberingPopover();
     if (numberingAttachmentInput) numberingAttachmentInput.value = '';
     renderNumberingSummary();
+    quoteRequestWizardState = {
+        currentStep: 1,
+        totalSteps: Math.max(1, wizardSections.length || 5),
+        previewQuoteCode: '',
+        previewFirstLineCode: '',
+        previewFingerprint: '',
+        previewProforma: null,
+        previewDirty: false,
+        keepPreviewQuote: false
+    };
+    renderQuickRequestSummaryPlaceholder('Completa los pasos anteriores para generar el resumen final.');
+    updateQuickRequestWizard();
 }
 
 function setDefaultLauncherPosition() {
     if (!launcherWrap || !popoverPanel) return;
     const rect = popoverPanel.getBoundingClientRect();
-    const left = Math.max(16, Math.min(window.innerWidth - 96, rect.right - 120));
-    const top = Math.max(88, rect.top + 120);
+    const left = Math.max(16, Math.min(window.innerWidth - 96, rect.right - 88));
+    const top = Math.max(88, rect.bottom - 124);
     launcherWrap.style.left = `${left}px`;
     launcherWrap.style.top = `${top}px`;
+    launcherWrap.style.right = 'auto';
+    launcherWrap.style.bottom = 'auto';
 }
 
 function renderShapePicker() {
@@ -1503,11 +1866,12 @@ function collectRequestPayload() {
     const selectedSize = fixedSizeSelect?.selectedOptions?.[0];
     const numbering = getSelectedNumberingValue();
     const stamping = form.querySelector('input[name="stamping"]:checked')?.value || '';
+    const lamination = form.querySelector('input[name="lamination"]:checked')?.value || '';
     const varnish = form.querySelector('input[name="varnish"]:checked')?.value || '';
     const stampingWidth = normalizeText(stampingWidthInput?.value);
     const placement = form.querySelector('input[name="placement"]:checked')?.value || '';
-    const productType = document.getElementById('requestProductType')?.value || '';
-    const processType = document.getElementById('requestProcessType')?.value || '';
+    const productType = requestProductTypeSelect?.value || '';
+    const quantities = readRequestedQuantities();
     const numberingFrom = normalizeText(numberingRangeStartInput?.value);
     const numberingTo = normalizeText(numberingRangeEndInput?.value);
     const numberingDetail = normalizeText(numberingDetailInput?.value);
@@ -1521,8 +1885,8 @@ function collectRequestPayload() {
         customer_code: normalizeText(customerCodeInput.value),
         customer_name: normalizeText(customerNameInput.value),
         job_name: normalizeText(document.getElementById('requestJobName')?.value),
-        quantity: normalizeText(document.getElementById('requestQuantity')?.value),
-        process_type: normalizeText(processType),
+        quantity: quantities.map((item) => formatNumber(item)).join(', '),
+        quantities,
         product_type: normalizeText(productType),
         material_name: normalizeText(materialInput?.value),
         applicationType: normalizeText(surfaceInput?.value),
@@ -1530,9 +1894,12 @@ function collectRequestPayload() {
         widthInches: Number(selectedSize?.dataset.width || 0) || null,
         lengthInches: Number(selectedSize?.dataset.length || 0) || null,
         request_meta: {
-            'REQ | Tipo de Producto': normalizeText(document.getElementById('requestProductType')?.value),
+            'REQ | Tipo de Producto': normalizeText(productType),
+            'REQ | Cantidades': quantities.map((item) => formatNumber(item)).join(', '),
+            'REQ | Ruta Solicitada': 'Automática',
             'REQ | Forma': selectedShape,
             'REQ | Barniz': varnish,
+            'REQ | Laminado': lamination,
             'REQ | Estampado': stamping,
             'REQ | Estampado Ancho': stampingWidth,
             'REQ | Numeracion': numbering,
@@ -1549,7 +1916,8 @@ function collectRequestPayload() {
             'REQ | Medida Fija': normalizeText(fixedSizeSelect?.value),
             'REQ | Numeracion Aviso': numbering ? 'Revisar proceso adicional de impresion para numerado.' : '',
             'CODEX_UI_STATE': {
-                productType: normalizeText(document.getElementById('requestProductType')?.value),
+                productType: normalizeText(productType),
+                quantities,
                 dieShape: selectedShape,
                 widthInches: Number(selectedSize?.dataset.width || 0) || null,
                 lengthInches: Number(selectedSize?.dataset.length || 0) || null,
@@ -1562,6 +1930,7 @@ function collectRequestPayload() {
                 },
                 finishes: {
                     varnish,
+                    laminado: lamination,
                     stamping,
                     stampingWidth
                 }
@@ -1570,13 +1939,88 @@ function collectRequestPayload() {
     };
 }
 
+function parseRequestedQuantities(rawValue) {
+    if (Array.isArray(rawValue)) {
+        return rawValue
+            .map((item) => parseRequestedQuantityValue(item))
+            .filter((item) => item > 0)
+            .slice(0, 6);
+    }
+    return String(rawValue || '')
+        .split(/[\n,;]+/)
+        .map((item) => parseRequestedQuantityValue(item))
+        .filter((item) => item > 0)
+        .slice(0, 6);
+}
+
+function renderAutomaticRoutePreview() {
+    if (routePreviewList) routePreviewList.innerHTML = '';
+    if (routePreviewConfig) routePreviewConfig.textContent = '';
+}
+
+function clearQuickRequestValidationState() {
+    form?.querySelectorAll('.is-invalid').forEach((el) => el.classList.remove('is-invalid'));
+    if (launcherErrors) launcherErrors.hidden = true;
+}
+
+function showQuickRequestErrors(errors) {
+    if (!launcherErrors || !launcherErrorsList) return;
+    const rect = launcherWrap?.getBoundingClientRect?.() || { top: 0 };
+    launcherErrors.classList.toggle('is-below', rect.top < (window.innerHeight / 2));
+    launcherErrorsList.innerHTML = errors.map((err) => `<li class="process-launcher-errors-item">${escapeHtml(err)}</li>`).join('');
+    launcherErrors.hidden = false;
+}
+
+function markQuickRequestInvalid(element, errors, label) {
+    element?.classList?.add('is-invalid');
+    if (label) errors.push(label);
+}
+
+function validateQuickRequestStep(stepNumber) {
+    const payload = collectRequestPayload();
+    payload.quantities = parseRequestedQuantities(payload.quantities);
+    const errors = [];
+    clearQuickRequestValidationState();
+
+    if (stepNumber === 1) {
+        if (!payload.customer_name) markQuickRequestInvalid(customerNameInput, errors, 'Nombre del cliente');
+        if (!payload.job_name) markQuickRequestInvalid(document.getElementById('requestJobName'), errors, 'Nombre del producto');
+        if (!payload.product_type) markQuickRequestInvalid(requestProductTypeSelect, errors, 'Tipo de producto');
+        if (!payload.quantities.length) {
+            markQuickRequestInvalid(requestQuantityRepeater, errors, 'Cantidad');
+            requestQuantityRepeater?.querySelectorAll('input[data-request-quantity-index]')?.forEach((input) => input.classList.add('is-invalid'));
+        }
+    }
+
+    if (stepNumber === 2) {
+        if (!fixedSizeSelect?.value) markQuickRequestInvalid(fixedSizeSelect, errors, 'Medida');
+        const selectedShape = form?.querySelector('input[name="die_shape"]:checked')?.value || '';
+        if (!selectedShape) {
+            markQuickRequestInvalid(shapePicker, errors, 'Forma');
+        }
+    }
+
+    if (stepNumber === 3) {
+        if (!payload.material_name) markQuickRequestInvalid(materialInput, errors, 'Material');
+    }
+
+    if (stepNumber === 4) {
+        if (!payload.applicationType) markQuickRequestInvalid(surfaceInput, errors, 'Superficie de aplicación');
+        if (!payload.outputType) markQuickRequestInvalid(form?.querySelector('input[name="placement"]'), errors, 'Colocación');
+    }
+
+    if (errors.length > 0) {
+        showQuickRequestErrors(errors);
+        throw new Error('Por favor, completa los campos requeridos.');
+    }
+    return payload;
+}
+
 function validateQuickRequest(forAdvanced) {
     const payload = collectRequestPayload();
+    payload.quantities = parseRequestedQuantities(payload.quantities);
     const errors = [];
-    
-    // Clear previous errors
-    form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
-    if (launcherErrors) launcherErrors.hidden = true;
+    clearQuickRequestValidationState();
 
     const check = (value, el, name) => {
         if (!value) {
@@ -1587,10 +2031,17 @@ function validateQuickRequest(forAdvanced) {
 
     check(payload.customer_name, customerNameInput, 'Nombre del socio');
     check(payload.job_name, document.getElementById('requestJobName'), 'Nombre del producto');
-    check(payload.quantity, document.getElementById('requestQuantity'), 'Cantidad');
+    check(payload.product_type, requestProductTypeSelect, 'Tipo de producto');
+    if (!payload.quantities.length) {
+        requestQuantityRepeater?.querySelectorAll('input[data-request-quantity-index]')?.forEach((input) => input.classList.add('is-invalid'));
+        errors.push('Cantidad válida');
+    }
+    if (payload.quantities.length > 6) {
+        requestQuantityRepeater?.querySelectorAll('input[data-request-quantity-index]')?.forEach((input) => input.classList.add('is-invalid'));
+        errors.push('Máximo 6 cantidades');
+    }
 
     if (!forAdvanced) {
-        check(payload.process_type, document.getElementById('requestProcessType'), 'Proceso productivo');
         check(payload.material_name, materialInput, 'Material');
         check(payload.applicationType, surfaceInput, 'Superficie de aplicaciÃ³n');
         check(fixedSizeSelect?.value, fixedSizeSelect, 'Medida');
@@ -1598,18 +2049,219 @@ function validateQuickRequest(forAdvanced) {
 
     check(payload.outputType, form.querySelector('input[name="placement"]'), 'Colocacion');
     if (errors.length > 0) {
-        if (launcherErrors && launcherErrorsList) {
-            // Adaptive positioning: Flip below if launcher is in top half
-            const rect = launcherWrap.getBoundingClientRect();
-            launcherErrors.classList.toggle('is-below', rect.top < (window.innerHeight / 2));
-            
-            launcherErrorsList.innerHTML = errors.map(err => `<li class="process-launcher-errors-item">${err}</li>`).join('');
-            launcherErrors.hidden = false;
-        }
+        showQuickRequestErrors(errors);
         throw new Error('Por favor, completa los campos requeridos.');
     }
 
     return payload;
+}
+
+function buildQuickRequestFingerprint(payload) {
+    return JSON.stringify({
+        customer: payload.customer_code || payload.customer_name,
+        job: payload.job_name,
+        quantity: payload.quantities || [],
+        material: payload.material_name,
+        surface: payload.applicationType,
+        placement: payload.outputType,
+        width: payload.widthInches,
+        length: payload.lengthInches,
+        meta: payload.request_meta || {}
+    });
+}
+
+async function createQuickQuoteDraft(payload, options = {}) {
+    const status = options.status || 'Solicitud';
+    const quoteResponse = await fetchJson(QUOTES_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            customer_code: payload.customer_code,
+            customer_name: payload.customer_name,
+            status: 'Borrador'
+        })
+    });
+    const quoteCode = quoteResponse?.cotizacion?.quote_code;
+    if (!quoteCode) throw new Error('La cotización se creó sin código.');
+    const quantities = payload.quantities?.length ? payload.quantities : [payload.quantity];
+    let firstLineCode = '';
+    for (let index = 0; index < quantities.length; index += 1) {
+        const quantityValue = quantities[index];
+        const lineResponse = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(quoteCode)}/lineas`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                customer_code: payload.customer_code,
+                customer_name: payload.customer_name,
+                job_name: payload.job_name,
+                quantity: quantityValue,
+                material_name: payload.material_name,
+                material_code: payload.material_name,
+                applicationType: payload.applicationType,
+                outputType: payload.outputType,
+                widthInches: payload.widthInches,
+                lengthInches: payload.lengthInches,
+                status,
+                line_order: index + 1,
+                request_meta: {
+                    ...payload.request_meta,
+                    'REQ | Cantidad Solicitada Original': String(quantityValue),
+                    'REQ | Grupo de Cantidades': quantities.join(', ')
+                }
+            })
+        });
+        const lineCode = lineResponse?.linea?.line_code;
+        if (!lineCode) throw new Error('La línea se creó sin código.');
+        if (!firstLineCode) firstLineCode = lineCode;
+        await uploadPendingAttachments(quoteCode, lineCode);
+    }
+    return { quoteCode, firstLineCode, quantities };
+}
+
+async function deleteQuickQuoteDraft(quoteCode) {
+    if (!quoteCode) return;
+    try {
+        await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(quoteCode)}`, { method: 'DELETE' });
+    } catch (error) {
+        console.error('No fue posible eliminar la cotización temporal.', error);
+    }
+}
+
+function renderQuickRequestSummaryPlaceholder(message) {
+    if (requestSummaryGrid) requestSummaryGrid.innerHTML = '';
+    if (requestTechnicalNotes) requestTechnicalNotes.textContent = message;
+    if (requestSummaryRows) {
+        requestSummaryRows.innerHTML = `<tr><td colspan="5" class="quote-request-summary-empty">${escapeHtml(message)}</td></tr>`;
+    }
+    if (requestSummaryTotals) requestSummaryTotals.hidden = true;
+}
+
+function renderQuickRequestSummary(payload, proformaData) {
+    const technical = proformaData?.technicalSummary || {};
+    const currency = proformaData?.currency || {};
+    const totals = proformaData?.totals || {};
+    const summaryItems = [
+        ['Cliente', payload.customer_name],
+        ['Producto', payload.job_name],
+        ['Forma', technical.shapesText || payload.request_meta?.['REQ | Forma'] || ''],
+        ['Medida', technical.measuresText || `${payload.widthInches || ''}" x ${payload.lengthInches || ''}"`],
+        ['Material', technical.materialsText || payload.material_name],
+        ['Aplicación', technical.applicationsText || payload.applicationType],
+        ['Colocación', technical.placementsText || payload.outputType],
+        ['Acabados', technical.finishesText || 'Sin acabados especiales'],
+        ['Numeración', technical.numberingText || 'Sin numeración'],
+        ['Rutas', technical.routesText || 'Pendiente']
+    ].filter(([, value]) => normalizeText(value));
+    if (requestSummaryGrid) {
+        requestSummaryGrid.innerHTML = summaryItems.map(([label, value]) => `
+            <div class="quote-request-summary-field">
+                <span class="quote-request-summary-label">${escapeHtml(label)}</span>
+                <span class="quote-request-summary-value">${escapeHtml(value)}</span>
+            </div>
+        `).join('');
+    }
+    const technicalNotes = [
+        technical.technicalNotesText,
+        ...(Array.isArray(proformaData?.products) ? proformaData.products.flatMap((product) => {
+            const notes = [];
+            if (product?.technicalComment) notes.push(product.technicalComment);
+            if (product?.warnings) notes.push(product.warnings);
+            return notes;
+        }) : [])
+    ].filter(Boolean);
+    if (requestTechnicalNotes) {
+        requestTechnicalNotes.textContent = technicalNotes.length
+            ? [...new Set(technicalNotes)].join('\n')
+            : 'La proforma se generó con la selección automática actual.';
+    }
+    if (requestSummaryRows) {
+        const products = Array.isArray(proformaData?.products) ? proformaData.products : [];
+        requestSummaryRows.innerHTML = products.length
+            ? products.map((product) => `
+                <tr>
+                    <td>${escapeHtml(formatNumber(product.quantity || 0))}</td>
+                    <td><span class="quote-request-summary-route">${escapeHtml(product.routeSummary || 'Pendiente')}</span></td>
+                    <td>${escapeHtml(formatCurrencyValue(product.subtotal || 0, currency))}</td>
+                    <td>${escapeHtml(formatCurrencyValue(product.taxAmount || 0, currency))}</td>
+                    <td>${escapeHtml(formatCurrencyValue(product.totalPrice || 0, currency))}</td>
+                </tr>
+            `).join('')
+            : '<tr><td colspan="5" class="quote-request-summary-empty">No hay cantidades calculadas para mostrar.</td></tr>';
+    }
+    if (requestSummarySubtotal) requestSummarySubtotal.textContent = formatCurrencyValue(totals.subtotal || 0, currency);
+    if (requestSummaryTax) requestSummaryTax.textContent = formatCurrencyValue(totals.taxAmount || 0, currency);
+    if (requestSummaryGrandTotal) requestSummaryGrandTotal.textContent = formatCurrencyValue(totals.grandTotal || 0, currency);
+    if (requestSummaryTotals) requestSummaryTotals.hidden = false;
+}
+
+async function ensureQuickRequestPreview() {
+    const payload = validateQuickRequest(false);
+    const fingerprint = buildQuickRequestFingerprint(payload);
+    if (
+        quoteRequestWizardState.previewQuoteCode
+        && !quoteRequestWizardState.previewDirty
+        && quoteRequestWizardState.previewFingerprint === fingerprint
+        && quoteRequestWizardState.previewProforma
+    ) {
+        renderQuickRequestSummary(payload, quoteRequestWizardState.previewProforma);
+        return quoteRequestWizardState;
+    }
+    if (quoteRequestWizardState.previewQuoteCode) {
+        await deleteQuickQuoteDraft(quoteRequestWizardState.previewQuoteCode);
+    }
+    renderQuickRequestSummaryPlaceholder('Generando proforma automática...');
+    setStatus('Generando resumen final de la cotización...', 'saving');
+    const draft = await createQuickQuoteDraft(payload, { status: 'Solicitud' });
+    const proformaData = await fetchJson(`/api/proformas/${encodeURIComponent(draft.quoteCode)}`);
+    quoteRequestWizardState.previewQuoteCode = draft.quoteCode;
+    quoteRequestWizardState.previewFirstLineCode = draft.firstLineCode;
+    quoteRequestWizardState.previewFingerprint = fingerprint;
+    quoteRequestWizardState.previewProforma = proformaData;
+    quoteRequestWizardState.previewDirty = false;
+    quoteRequestWizardState.keepPreviewQuote = false;
+    renderQuickRequestSummary(payload, proformaData);
+    await loadQuotes();
+    setStatus(`Cotización ${draft.quoteCode} lista para revisar o imprimir.`, 'saved');
+    return quoteRequestWizardState;
+}
+
+function invalidateQuickRequestPreview() {
+    if (!quoteRequestWizardState.previewQuoteCode) return;
+    quoteRequestWizardState.previewDirty = true;
+    quoteRequestWizardState.keepPreviewQuote = false;
+    quoteRequestWizardState.previewFingerprint = '';
+    quoteRequestWizardState.previewProforma = null;
+}
+
+function updateQuickRequestWizard() {
+    const totalSteps = quoteRequestWizardState.totalSteps;
+    const currentStep = Math.min(Math.max(1, quoteRequestWizardState.currentStep), totalSteps);
+    quoteRequestWizardState.currentStep = currentStep;
+    wizardSections.forEach((section) => {
+        const step = Number(section.dataset.step || 0);
+        section.hidden = step !== currentStep;
+    });
+    if (wizardProgress) wizardProgress.textContent = `Paso ${currentStep} de ${totalSteps}`;
+    if (wizardBackButton) wizardBackButton.hidden = currentStep === 1;
+    if (wizardNextButton) wizardNextButton.hidden = currentStep === totalSteps;
+    if (wizardPrintButton) wizardPrintButton.hidden = currentStep !== totalSteps;
+    if (wizardAdvancedButton) wizardAdvancedButton.hidden = currentStep !== totalSteps;
+}
+
+async function goToQuickRequestStep(targetStep) {
+    const totalSteps = quoteRequestWizardState.totalSteps;
+    const nextStep = Math.min(Math.max(1, Number(targetStep) || 1), totalSteps);
+    const currentStep = quoteRequestWizardState.currentStep;
+    if (nextStep > currentStep) {
+        for (let step = currentStep; step < nextStep; step += 1) {
+            validateQuickRequestStep(step);
+        }
+        if (nextStep === totalSteps) {
+            await ensureQuickRequestPreview();
+        }
+    }
+    quoteRequestWizardState.currentStep = nextStep;
+    updateQuickRequestWizard();
 }
 
 async function uploadPendingAttachments(quoteCode, lineCode) {
@@ -1631,40 +2283,9 @@ async function uploadPendingAttachments(quoteCode, lineCode) {
 async function submitQuoteRequest(forAdvanced = false) {
     try {
         const payload = validateQuickRequest(forAdvanced);
-        setStatus(forAdvanced ? 'Preparando proceso avanzado...' : 'Creando cotizacion...', 'saving');
-        const quoteResponse = await fetchJson(QUOTES_ENDPOINT, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                customer_code: payload.customer_code,
-                customer_name: payload.customer_name,
-                status: 'Borrador'
-            })
-        });
-        const quoteCode = quoteResponse?.cotizacion?.quote_code;
-        if (!quoteCode) throw new Error('La cotizacion se creo sin codigo.');
-        const lineResponse = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(quoteCode)}/lineas`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                customer_code: payload.customer_code,
-                customer_name: payload.customer_name,
-                job_name: payload.job_name,
-                quantity: payload.quantity,
-                process_type: payload.process_type || 'Convencional',
-                material_name: payload.material_name,
-                material_code: payload.material_name,
-                applicationType: payload.applicationType,
-                outputType: payload.outputType,
-                widthInches: payload.widthInches,
-                lengthInches: payload.lengthInches,
-                status: forAdvanced ? 'Borrador' : 'Solicitud',
-                request_meta: payload.request_meta
-            })
-        });
-        const lineCode = lineResponse?.linea?.line_code;
-        if (!lineCode) throw new Error('La linea se creo sin codigo.');
-        await uploadPendingAttachments(quoteCode, lineCode);
+        setStatus(forAdvanced ? 'Preparando proceso avanzado...' : 'Creando cotización...', 'saving');
+        const draft = await createQuickQuoteDraft(payload, { status: forAdvanced ? 'Borrador' : 'Solicitud' });
+        const { quoteCode, quantities } = draft;
         await loadQuotes();
         if (forAdvanced) {
             const route = `/cotizaciones/documento?codigo=${encodeURIComponent(quoteCode)}`;
@@ -1673,7 +2294,7 @@ async function submitQuoteRequest(forAdvanced = false) {
             }
             return;
         }
-        setStatus(`Cotizacion ${quoteCode} creada.`, 'saved');
+        setStatus(`Cotizacion ${quoteCode} creada con ${quantities.length} cantidad(es).`, 'saved');
         resetFormState();
         closePopover(true);
     } catch (error) {
@@ -1684,12 +2305,14 @@ async function submitQuoteRequest(forAdvanced = false) {
 function openPopover() {
     popover.hidden = false;
     setDefaultLauncherPosition();
+    if (launcherWrap) launcherWrap.hidden = true;
     if (processLauncherStack) processLauncherStack.classList.remove('is-active');
     if (launcherErrors) launcherErrors.hidden = true;
     if (processLauncherButton) processLauncherButton.setAttribute('aria-expanded', 'false');
     renderAttachments();
     renderNumberingSummary();
     syncToggleChipState();
+    updateQuickRequestWizard();
     setTimeout(() => customerNameInput?.focus(), 30);
 }
 
@@ -1812,6 +2435,40 @@ function bindEvents() {
         openSapPopover().catch((error) => setSapConfigStatus(error.message, 'error'));
     });
     closeButton?.addEventListener('click', () => closePopover());
+    wizardBackButton?.addEventListener('click', () => {
+        goToQuickRequestStep(quoteRequestWizardState.currentStep - 1).catch((error) => setStatus(error.message, 'error'));
+    });
+    wizardNextButton?.addEventListener('click', () => {
+        goToQuickRequestStep(quoteRequestWizardState.currentStep + 1).catch((error) => setStatus(error.message, 'error'));
+    });
+    wizardPrintButton?.addEventListener('click', async () => {
+        try {
+            const previewState = await ensureQuickRequestPreview();
+            previewState.keepPreviewQuote = true;
+            const route = `/proforma?codigo=${encodeURIComponent(previewState.previewQuoteCode)}`;
+            await loadQuotes();
+            if (!openRouteInShell(route, `Proforma ${previewState.previewQuoteCode}`)) {
+                window.location.href = route;
+            }
+            closePopover(true);
+        } catch (error) {
+            setStatus(error.message, 'error');
+        }
+    });
+    wizardAdvancedButton?.addEventListener('click', async () => {
+        try {
+            const previewState = await ensureQuickRequestPreview();
+            previewState.keepPreviewQuote = true;
+            const route = `/cotizaciones/documento?codigo=${encodeURIComponent(previewState.previewQuoteCode)}`;
+            await loadQuotes();
+            if (!openRouteInShell(route, `Cotizacion ${previewState.previewQuoteCode}`)) {
+                window.location.href = route;
+            }
+            closePopover(true);
+        } catch (error) {
+            setStatus(error.message, 'error');
+        }
+    });
     popover?.addEventListener('click', (event) => {
         if (event.target?.dataset?.closeQuoteCreate === 'true') closePopover();
     });
@@ -1840,8 +2497,8 @@ function bindEvents() {
         toggleProcessLauncher();
     });
 
-    // Premium Draggable functionality
     processLauncherButton?.addEventListener('pointerdown', (event) => {
+        if (disableQuoteRequestLauncherDrag) return;
         if (event.button !== 0 || !launcherWrap) return;
         const rect = launcherWrap.getBoundingClientRect();
         dragState = {
@@ -1857,6 +2514,7 @@ function bindEvents() {
     });
 
     processLauncherButton?.addEventListener('pointermove', (event) => {
+        if (disableQuoteRequestLauncherDrag) return;
         if (!dragState || dragState.pointerId !== event.pointerId) return;
         const dx = event.clientX - dragState.startX;
         const dy = event.clientY - dragState.startY;
@@ -1872,6 +2530,7 @@ function bindEvents() {
     });
 
     processLauncherButton?.addEventListener('pointerup', (event) => {
+        if (disableQuoteRequestLauncherDrag) return;
         if (!dragState || dragState.pointerId !== event.pointerId) return;
         if (dragState.moved) {
             const rect = launcherWrap.getBoundingClientRect();
@@ -1881,8 +2540,14 @@ function bindEvents() {
         dragState = null;
     });
 
-    createButton?.addEventListener('click', () => submitQuoteRequest(false));
-    advancedButton?.addEventListener('click', () => submitQuoteRequest(true));
+    createButton?.addEventListener('click', () => {
+        toggleProcessLauncher(false);
+        submitQuoteRequest(false).catch((error) => setStatus(error.message, 'error'));
+    });
+    advancedButton?.addEventListener('click', () => {
+        toggleProcessLauncher(false);
+        submitQuoteRequest(true).catch((error) => setStatus(error.message, 'error'));
+    });
     
     // Dismiss error panel on click
     launcherErrors?.addEventListener('click', () => {
@@ -1904,10 +2569,68 @@ function bindEvents() {
     });
     
     // Real-time error clearing
+    requestQuantityRepeater?.addEventListener('input', (event) => {
+        const input = event.target.closest('input[data-request-quantity-index]');
+        if (!input) return;
+        // Clear invalid state
+        input.style.borderColor = '#c9d6e2';
+        input.style.boxShadow = '';
+        requestQuantityRepeater.style.outline = '';
+        requestQuantityRepeater.classList.remove('is-invalid');
+        // Show/hide + button based on whether this field has a value
+        const hasValue = parseRequestedQuantityValue(input.value) > 0;
+        const existingAdd = requestQuantityRepeater.querySelector('[data-add-request-quantity]');
+        const existingDel = requestQuantityRepeater.querySelector('[data-remove-request-quantity]');
+        const allInputs = Array.from(requestQuantityRepeater.querySelectorAll('input[data-request-quantity-index]'));
+        const isLast = allInputs.indexOf(input) === allInputs.length - 1;
+        if (isLast) {
+            if (hasValue && allInputs.length < 6) {
+                if (!existingAdd) {
+                    const addBtn = document.createElement('button');
+                    addBtn.type = 'button';
+                    addBtn.dataset.addRequestQuantity = 'true';
+                    addBtn.setAttribute('aria-label', 'Agregar cantidad');
+                    addBtn.title = 'Agregar cantidad';
+                    addBtn.textContent = '+';
+                    addBtn.style.cssText = 'width:32px;min-width:32px;height:32px;border:1px solid #c9d6e2;border-radius:8px;background:#fff;color:#1e6fa8;font-size:20px;font-weight:700;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;';
+                    addBtn.addEventListener('mouseenter', () => { addBtn.style.background = '#e8f4fb'; addBtn.style.borderColor = '#29a6db'; });
+                    addBtn.addEventListener('mouseleave', () => { addBtn.style.background = '#fff'; addBtn.style.borderColor = '#c9d6e2'; });
+                    if (existingDel) requestQuantityRepeater.insertBefore(addBtn, existingDel);
+                    else requestQuantityRepeater.appendChild(addBtn);
+                }
+            } else {
+                existingAdd?.remove();
+            }
+        }
+        invalidateQuickRequestPreview();
+    });
+    requestQuantityRepeater?.addEventListener('click', (event) => {
+        const addButton = event.target.closest('[data-add-request-quantity]');
+        if (addButton) {
+            const quantities = readRequestedQuantities();
+            if (quantities.length >= 6) return;
+            quantities.push(0);
+            renderRequestQuantityRepeater(quantities);
+            const inputs = requestQuantityRepeater.querySelectorAll('input[data-request-quantity-index]');
+            inputs[inputs.length - 1]?.focus();
+            invalidateQuickRequestPreview();
+            return;
+        }
+        const removeButton = event.target.closest('[data-remove-request-quantity]');
+        if (removeButton) {
+            const quantities = readRequestedQuantities();
+            if (quantities.length <= 1) return;
+            quantities.pop();
+            renderRequestQuantityRepeater(quantities);
+            invalidateQuickRequestPreview();
+        }
+    });
     form?.addEventListener('input', (event) => {
         if (event.target.classList.contains('is-invalid')) {
             event.target.classList.remove('is-invalid');
         }
+        invalidateQuickRequestPreview();
+        renderAutomaticRoutePreview();
     });
     form?.addEventListener('change', (event) => {
         if (event.target.matches('.quote-request-toggle-chip input, .quote-request-shape-card input')) {
@@ -1919,6 +2642,8 @@ function bindEvents() {
         if (event.target.classList.contains('is-invalid')) {
             event.target.classList.remove('is-invalid');
         }
+        invalidateQuickRequestPreview();
+        renderAutomaticRoutePreview();
     });
     [numberingRangeStartInput, numberingRangeEndInput, numberingDetailInput].forEach((input) => {
         input?.addEventListener('input', renderNumberingSummary);
@@ -1928,7 +2653,6 @@ function bindEvents() {
     });
 
     customerNameInput?.addEventListener('input', (e) => searchPartners(e.target.value).catch(console.error));
-    customerNameInput?.addEventListener('focus', (e) => searchPartners(e.target.value).catch(console.error));
     customerLookupResults?.addEventListener('click', (e) => {
         const item = e.target.closest('.quote-request-lookup-item');
         if (item) applyPartnerSelection(item.dataset.partnerCode, item.dataset.partnerName);
@@ -1977,8 +2701,13 @@ function bindEvents() {
         if (toggleButton) {
             const code = toggleButton.dataset.toggleQuote;
             if (!code) return;
+            selectedQuoteContextCode = code;
+            selectedQuoteContextLineId = 0;
             if (expandedQuoteCodes.has(code)) {
                 expandedQuoteCodes.delete(code);
+                if (selectedQuoteContextCode === code) {
+                    selectedQuoteContextCode = [...expandedQuoteCodes][0] || '';
+                }
                 renderQuotesTable(getFilteredQuotes());
                 return;
             }
@@ -2006,6 +2735,10 @@ function bindEvents() {
         const lineActionButton = e.target.closest('[data-line-action]');
         if (lineActionButton) {
             const row = quoteLineLookup.get(Number(lineActionButton.dataset.lineId));
+            if (row) {
+                selectedQuoteContextCode = row.quoteId || selectedQuoteContextCode;
+                selectedQuoteContextLineId = Number(lineActionButton.dataset.lineId) || 0;
+            }
             // Close any open menu panel
             rowsBody.querySelectorAll('[data-line-menu-panel]').forEach((p) => { p.hidden = true; });
             rowsBody.querySelectorAll('[data-line-menu-toggle]').forEach((t) => { t.setAttribute('aria-expanded', 'false'); });
@@ -2030,6 +2763,8 @@ function bindEvents() {
         if (!button) return;
         const code = button.dataset.openQuote;
         if (!code) return;
+        selectedQuoteContextCode = code;
+        selectedQuoteContextLineId = 0;
         openQuoteDocument(code);
     });
 
@@ -2123,27 +2858,38 @@ async function init() {
         nuevaCotizacionButton.hidden = !canCreateModule('cotizaciones');
     }
     if (launcherWrap) {
-        launcherWrap.hidden = !canCreateModule('cotizaciones');
+        launcherWrap.hidden = true;
     }
     renderAttachments();
     renderNumberingSummary();
+    renderRequestQuantityRepeater([0]);
+    renderAutomaticRoutePreview();
+    renderQuickRequestSummaryPlaceholder('Completa los pasos anteriores para generar el resumen final.');
+    updateQuickRequestWizard();
     bindEvents();
     syncToggleChipState();
     loadSapTemplate();
-    await Promise.all([loadConfig(), loadQuotes()]);
+    await Promise.all([loadConfig(), loadQuotes(), loadSmartCatalogs()]);
 
-    const savedPos = localStorage.getItem(LAUNCHER_POSITION_KEY);
-    if (savedPos && launcherWrap) {
-        try {
-            const pos = JSON.parse(savedPos);
-            if (typeof pos.x === 'number' && typeof pos.y === 'number') {
-                launcherWrap.style.left = `${pos.x}px`;
-                launcherWrap.style.top = `${pos.y}px`;
-                launcherWrap.style.right = 'auto';
-                launcherWrap.style.bottom = 'auto';
+    if (launcherWrap) {
+        if (disableQuoteRequestLauncherDrag) {
+            localStorage.removeItem(LAUNCHER_POSITION_KEY);
+            setDefaultLauncherPosition();
+        } else {
+            const savedPos = localStorage.getItem(LAUNCHER_POSITION_KEY);
+            if (savedPos) {
+                try {
+                    const pos = JSON.parse(savedPos);
+                    if (typeof pos.x === 'number' && typeof pos.y === 'number') {
+                        launcherWrap.style.left = `${pos.x}px`;
+                        launcherWrap.style.top = `${pos.y}px`;
+                        launcherWrap.style.right = 'auto';
+                        launcherWrap.style.bottom = 'auto';
+                    }
+                } catch (e) {
+                    console.error('No fue posible restaurar posicion del launcher.', e);
+                }
             }
-        } catch (e) {
-            console.error('No fue posible restaurar posicion del launcher.', e);
         }
     }
 }

@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/theme.js"></script>
+    <title>Notificaciones</title>
+    <link rel="stylesheet" href="/styles.css">
+    <style>
+        .notifications-workspace {
+            min-height: calc(100vh - 44px);
+        }
+        .notifications-card {
+            min-height: calc(100vh - 132px);
+            padding: 0;
+            overflow: hidden;
+        }
+        .notifications-shell {
+            display: grid;
+            grid-template-columns: 360px minmax(0, 1fr);
+            min-height: calc(100vh - 132px);
+        }
+        .notifications-sidebar,
+        .notifications-detail {
+            min-width: 0;
+            display: grid;
+            min-height: 0;
+        }
+        .notifications-sidebar {
+            border-right: 1px solid var(--app-border);
+            background: color-mix(in srgb, var(--app-surface-soft) 48%, var(--app-surface));
+            grid-template-rows: auto auto minmax(0, 1fr);
+        }
+        .notifications-detail {
+            grid-template-rows: auto auto minmax(0, 1fr) auto;
+            background: var(--app-surface);
+        }
+        .notifications-toolbar,
+        .notifications-detail-head,
+        .notifications-compose {
+            padding: 18px 20px;
+        }
+        .notifications-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            border-bottom: 1px solid var(--app-border);
+        }
+        .notifications-toolbar h2,
+        .notifications-detail-title {
+            margin: 0;
+            color: var(--app-text);
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .notifications-toolbar-note,
+        .notifications-detail-subtitle,
+        .notifications-empty,
+        .notifications-meta-chip,
+        .notifications-attachment-name,
+        .notifications-compose-note {
+            color: var(--app-text-muted);
+            font-size: 12px;
+        }
+        .notifications-toolbar-copy {
+            display: grid;
+            gap: 4px;
+        }
+        .notifications-search {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--app-border);
+        }
+        .notifications-search input,
+        .notifications-compose textarea {
+            width: 100%;
+            border: 1px solid var(--app-border);
+            border-radius: 14px;
+            background: var(--app-surface-soft);
+            color: var(--app-text);
+            font: inherit;
+        }
+        .notifications-search input {
+            min-height: 42px;
+            padding: 0 14px;
+        }
+        .notifications-compose textarea {
+            min-height: 96px;
+            padding: 12px 14px;
+            resize: vertical;
+        }
+        .notifications-search input:focus,
+        .notifications-compose textarea:focus {
+            outline: none;
+            border-color: var(--app-primary);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-primary) 18%, transparent);
+        }
+        .notifications-thread-list,
+        .notifications-message-list {
+            min-height: 0;
+            overflow: auto;
+        }
+        .notifications-thread-list {
+            display: grid;
+            gap: 10px;
+            padding: 14px;
+        }
+        .notifications-thread-row {
+            display: grid;
+            gap: 10px;
+            padding: 14px;
+            border: 1px solid var(--app-border);
+            border-radius: 16px;
+            background: var(--app-surface);
+            cursor: pointer;
+            transition: border-color .18s ease, background-color .18s ease, transform .18s ease, box-shadow .18s ease;
+        }
+        .notifications-thread-row:hover,
+        .notifications-thread-row:focus-visible {
+            border-color: color-mix(in srgb, var(--app-primary) 40%, var(--app-border));
+            box-shadow: var(--app-shadow-sm);
+            transform: translateY(-1px);
+            outline: none;
+        }
+        .notifications-thread-row.is-selected {
+            border-color: color-mix(in srgb, var(--app-primary) 48%, var(--app-border));
+            background: color-mix(in srgb, var(--app-primary-soft) 52%, var(--app-surface));
+            box-shadow: var(--app-shadow-sm);
+        }
+        .notifications-thread-head,
+        .notifications-message-head,
+        .notifications-detail-row,
+        .notifications-compose-actions,
+        .notifications-detail-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .notifications-thread-main {
+            min-width: 0;
+            display: grid;
+            gap: 4px;
+        }
+        .notifications-thread-title,
+        .notifications-message-author {
+            color: var(--app-text);
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+        .notifications-thread-subline,
+        .notifications-thread-preview,
+        .notifications-message-time,
+        .notifications-message-body,
+        .notifications-message-empty {
+            color: var(--app-text-soft);
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        .notifications-thread-preview {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .notifications-unread {
+            flex: 0 0 auto;
+            min-width: 24px;
+            height: 24px;
+            padding: 0 8px;
+            border-radius: 999px;
+            background: linear-gradient(180deg, var(--app-primary) 0%, var(--app-primary-strong) 100%);
+            color: #ffffff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .notifications-detail-head {
+            border-bottom: 1px solid var(--app-border);
+        }
+        .notifications-detail-copy {
+            min-width: 0;
+            display: grid;
+            gap: 6px;
+        }
+        .notifications-detail-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .notifications-detail-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 0 20px 16px;
+            border-bottom: 1px solid var(--app-border);
+        }
+        .notifications-meta-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 30px;
+            padding: 0 12px;
+            border-radius: 999px;
+            background: var(--app-surface-soft);
+            color: var(--app-text-soft);
+            white-space: nowrap;
+        }
+        .notifications-message-list {
+            display: grid;
+            gap: 14px;
+            padding: 18px 20px;
+            background:
+                linear-gradient(180deg, color-mix(in srgb, var(--app-surface-soft) 28%, transparent) 0%, transparent 220px),
+                var(--app-surface);
+        }
+        .notifications-message {
+            max-width: min(74%, 760px);
+            display: grid;
+            gap: 10px;
+            padding: 14px 16px;
+            border: 1px solid var(--app-border);
+            border-radius: 18px;
+            background: var(--app-surface-soft);
+            box-shadow: var(--app-shadow-xs);
+        }
+        .notifications-message.is-own {
+            justify-self: end;
+            background: color-mix(in srgb, var(--app-primary-soft) 72%, var(--app-surface));
+            border-color: color-mix(in srgb, var(--app-primary) 30%, var(--app-border));
+        }
+        .notifications-message-body {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .notifications-message-attachments {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .notifications-message-attachment {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 34px;
+            padding: 0 12px;
+            border-radius: 999px;
+            border: 1px solid var(--app-border);
+            background: var(--app-surface);
+            color: var(--app-text);
+            font-size: 12px;
+            text-decoration: none;
+        }
+        .notifications-message-attachment:hover,
+        .notifications-message-attachment:focus-visible {
+            border-color: var(--app-primary);
+            color: var(--app-primary);
+            outline: none;
+        }
+        .notifications-compose {
+            display: grid;
+            gap: 12px;
+            border-top: 1px solid var(--app-border);
+            background: color-mix(in srgb, var(--app-surface-soft) 52%, var(--app-surface));
+        }
+        .notifications-compose-actions {
+            flex-wrap: wrap;
+        }
+        .notifications-compose-left,
+        .notifications-compose-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .notifications-attachment-name {
+            display: inline-flex;
+            align-items: center;
+            min-height: 34px;
+            padding: 0 12px;
+            border-radius: 999px;
+            background: var(--app-surface);
+            color: var(--app-text-soft);
+        }
+        .notifications-empty {
+            padding: 22px 20px;
+        }
+        .notifications-empty-strong {
+            display: block;
+            margin-bottom: 6px;
+            color: var(--app-text);
+            font-size: 14px;
+            font-weight: 700;
+        }
+        .notifications-status {
+            padding: 10px 20px 0;
+            color: var(--app-text-muted);
+            font-size: 12px;
+        }
+        .notifications-status.is-error {
+            color: #b94a4a;
+        }
+        @media (max-width: 1180px) {
+            .notifications-shell {
+                grid-template-columns: 1fr;
+            }
+            .notifications-sidebar {
+                border-right: 0;
+                border-bottom: 1px solid var(--app-border);
+            }
+            .notifications-card {
+                min-height: auto;
+            }
+            .notifications-shell {
+                min-height: auto;
+            }
+            .notifications-thread-list {
+                max-height: 340px;
+            }
+            .notifications-message {
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-shell">
+        <header class="topbar topbar-quote">
+            <div class="brand brand-quote">
+                <div class="brand-logo-wrap">
+                    <img id="notificationsCompanyLogo" class="company-logo" alt="Logo empresa">
+                    <div id="notificationsBrandFallback" class="brand-mark">PrintLab</div>
+                </div>
+                <h1 id="notificationsPageTitle">Notificaciones</h1>
+            </div>
+        </header>
+
+        <main class="workspace workspace-quote notifications-workspace">
+            <section class="quote-card quote-card-clean notifications-card">
+                <div class="notifications-shell">
+                    <aside class="notifications-sidebar">
+                        <div class="notifications-toolbar">
+                            <div class="notifications-toolbar-copy">
+                                <h2>Conversaciones</h2>
+                                <span class="notifications-toolbar-note">Centro interno de seguimiento y respuesta.</span>
+                            </div>
+                            <button type="button" id="notificationsRefreshButton" class="action-btn quote-browser-action-btn">Refrescar</button>
+                        </div>
+                        <div class="notifications-search">
+                            <input id="notificationsSearchInput" type="search" placeholder="Buscar por documento, cliente o producto">
+                        </div>
+                        <div id="notificationsThreadList" class="notifications-thread-list"></div>
+                    </aside>
+
+                    <section class="notifications-detail">
+                        <div class="notifications-detail-head">
+                            <div class="notifications-detail-copy">
+                                <h2 id="notificationsDetailTitle" class="notifications-detail-title">Selecciona una conversación</h2>
+                                <span id="notificationsDetailSubtitle" class="notifications-detail-subtitle">Aquí verás el contexto completo del documento y los mensajes intercambiados.</span>
+                            </div>
+                            <div class="notifications-detail-actions">
+                                <button type="button" id="notificationsOpenDocumentButton" class="action-btn quote-browser-action-btn" hidden>Abrir Documento</button>
+                            </div>
+                        </div>
+                        <div id="notificationsDetailMeta" class="notifications-detail-meta"></div>
+                        <div id="notificationsStatus" class="notifications-status"></div>
+                        <div id="notificationsMessageList" class="notifications-message-list">
+                            <div class="notifications-empty">
+                                <strong class="notifications-empty-strong">Todavía no hay una conversación seleccionada.</strong>
+                                <span>Selecciona un hilo del listado para ver sus mensajes y responder.</span>
+                            </div>
+                        </div>
+                        <div class="notifications-compose">
+                            <textarea id="notificationsComposeBody" placeholder="Escribe una respuesta..."></textarea>
+                            <div class="notifications-compose-actions">
+                                <div class="notifications-compose-left">
+                                    <input id="notificationsAttachmentInput" type="file" hidden>
+                                    <button type="button" id="notificationsAttachmentButton" class="action-btn">Adjuntar Archivo</button>
+                                    <span id="notificationsAttachmentName" class="notifications-attachment-name" hidden></span>
+                                </div>
+                                <div class="notifications-compose-right">
+                                    <span class="notifications-compose-note">Solo se enviará dentro del sistema en esta fase.</span>
+                                    <button type="button" id="notificationsSendButton" class="action-btn action-btn-primary">Enviar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/access-control.js"></script>
+    <script src="/notificaciones.js"></script>
+    <script src="/topbar-tools.js"></script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 const params = new URLSearchParams(window.location.search);
 
-const PRODUCT_TYPES = ["Etiquetas", "Cinta Continua", "Empaque Flexible", "Código de Barras", "Números de Carrera"];
+const DEFAULT_PRODUCT_TYPES = ["Etiquetas", "Cinta Continua", "Empaque Flexible", "Código de Barras", "Números de Carrera"];
 const WORK_TYPES = ["Nuevo", "Repetición", "Repetición con Cambio", "Validación", "Muestra", "Regalía", "Proyecto"];
 const DEFAULT_OUTPUT_TYPES = [
   { id: "A", name: "A", description: "Configuracion de salida tipo A" },
@@ -59,8 +59,9 @@ const INTERNAL_PROCESS_KEYS = new Set(["macula"]);
 const PROCESS_CONFIG_FALLBACK = PROCESS_MENU.map((item) => ({
   key: item.key,
   label: item.label,
-  active: Boolean(item.locked),
+  active: true,
   locked: Boolean(item.locked),
+  repeatable: Boolean(item.repeatable),
   order: Number(item.order || 999),
   minimumCost: 0
 }));
@@ -103,6 +104,9 @@ const els = {
   processLauncherIcon: document.getElementById("processLauncherIcon"),
   processLauncherLabel: document.getElementById("processLauncherLabel"),
   processLauncherMenu: document.getElementById("processLauncherMenu"),
+  processPickerButton: document.getElementById("processPickerButton"),
+  processPickerPanel: document.getElementById("processPickerPanel"),
+  processPickerMenu: document.getElementById("processPickerMenu"),
   timelineLauncherPrimary: document.getElementById("timelineLauncherPrimary"),
   timelineLauncherBridge: document.getElementById("timelineLauncherBridge"),
   timelineLauncherButton: document.getElementById("timelineLauncherButton"),
@@ -129,6 +133,7 @@ const els = {
   processSections: document.getElementById("processSections"),
   calcStatus: document.getElementById("calcStatus"),
   contextRows: document.getElementById("contextRows"),
+  automaticSummaryRows: document.getElementById("automaticSummaryRows"),
   overheadPct: document.getElementById("overheadPct"),
   marginPct: document.getElementById("marginPct"),
   discountPct: document.getElementById("discountPct"),
@@ -155,7 +160,8 @@ const state = {
   },
   draggingProcessKey: "",
   launcherDrag: null,
-  suppressLauncherClick: false
+  suppressLauncherClick: false,
+  processPickerOpen: false
 };
 
 const QUANTITY_LAYOUT = {
@@ -361,6 +367,41 @@ function writeFavoriteDocuments(items) {
   }
 }
 
+function isShellEmbedded() {
+  return window.parent && window.parent !== window;
+}
+
+function buildBdfgContext() {
+  const quoteCode = String(state.form?.header?.quoteCode || "").trim();
+  const lineCode = String(state.form?.header?.lineCode || "").trim();
+  const activeKeys = new Set(state.form?.activeProcessKeys || []);
+  return {
+    kind: "calculo-flexografia",
+    title: quoteCode ? `Cálculo ${quoteCode}` : "Cálculo de Cotizaciones",
+    subtitle: [
+      state.form?.header?.customerName || "",
+      state.form?.header?.jobName || ""
+    ].filter(Boolean).join(" · ") || "Procesos del cálculo activo",
+    quoteCode,
+    lineCode,
+    canEdit: true,
+    documentDescription: "Abrir el cálculo actual",
+    processes: configuredProcessDefinitions().map((item) => ({
+      id: item.key,
+      name: item.label,
+      repeatable: item.repeatable === true,
+      locked: item.locked === true,
+      added: activeKeys.has(item.key),
+      canAdd: item.locked ? false : (item.repeatable === true || !activeKeys.has(item.key))
+    }))
+  };
+}
+
+function publishBdfgContext() {
+  if (!isShellEmbedded()) return;
+  window.parent.postMessage({ type: "erp-bdfg-context", context: buildBdfgContext() }, window.location.origin);
+}
+
 function isCurrentDocumentFavorite() {
   const current = buildFavoriteDocumentRecord();
   if (!current) return false;
@@ -500,6 +541,8 @@ async function refreshCostsForCurrentLine() {
         if (stage?.inlineFinishes?.[slot.key]?.active) applyInlineFinishSetupDefaults(stageIndex, slot.key, true);
       });
     });
+    renderProcessLauncher();
+    renderProcessPicker();
     renderProcesses();
     scheduleSave();
     els.calcStatus.textContent = "Costos actualizados en la línea actual.";
@@ -984,12 +1027,14 @@ function configuredProcessDefinitions() {
     seen.add(key);
     const locked = item?.locked === true || String(item?.locked || "").trim().toLowerCase() === "true";
     const active = locked ? true : (item?.active === true || String(item?.active || "").trim().toLowerCase() === "true");
+    const repeatable = item?.repeatable === true || String(item?.repeatable || "").trim().toLowerCase() === "true";
     return {
       ...PROCESS_MENU_BY_KEY[key],
       key,
       label: first(item?.label, fallback.label, PROCESS_MENU_BY_KEY[key]?.label, key),
       locked,
       active,
+      repeatable,
       order: n(item?.order, fallback.order),
       minimumCost: Math.max(0, n(item?.minimumCost, 0))
     };
@@ -1002,6 +1047,82 @@ function configuredProcessDefinitions() {
     });
   });
   return merged.sort((left, right) => n(left.order, 999) - n(right.order, 999));
+}
+
+function localProcessCategory(key = "") {
+  const normalized = norm(key);
+  if (["diseno"].includes(normalized)) return "diseno";
+  if (["preprensa"].includes(normalized)) return "preprensa";
+  if (["planchas"].includes(normalized)) return "planchas";
+  if (["impresion"].includes(normalized)) return "impresion";
+  if (["barnizado", "laminado", "estampado", "embosado", "troquelado", "rebobinado"].includes(normalized)) return "acabados";
+  if (["empaque"].includes(normalized)) return "empaque";
+  return "soporte";
+}
+
+function processHelperText(key = "") {
+  return String(PROCESS_MENU_BY_KEY[norm(key)]?.helper || "").trim();
+}
+
+function buildLocalProcessCatalog(sourceProcesses = []) {
+  const source = Array.isArray(sourceProcesses) ? sourceProcesses : [];
+  const sourceByKey = new Map();
+
+  source.forEach((item) => {
+    const candidates = [
+      item?.key,
+      item?.processKey,
+      item?.codigo,
+      item?.id,
+      item?.nombre,
+      item?.name,
+      item?.descripcion
+    ].map((value) => norm(value)).filter(Boolean);
+    const matchedKey = candidates.find((candidate) => PROCESS_MENU_BY_KEY[candidate]);
+    if (matchedKey && !sourceByKey.has(matchedKey)) {
+      sourceByKey.set(matchedKey, item);
+    }
+  });
+
+  return configuredProcessDefinitions().map((item) => {
+    const sourceItem = sourceByKey.get(item.key) || null;
+    const category = localProcessCategory(item.key);
+    const label = first(item.label, PROCESS_MENU_BY_KEY[item.key]?.label, item.key);
+    return {
+      id: item.key,
+      key: item.key,
+      codigo: first(sourceItem?.codigo, item.key.toUpperCase()),
+      nombre: label,
+      name: label,
+      descripcion: first(processHelperText(item.key), sourceItem?.descripcion, label),
+      categoria: category,
+      subcategoria: first(sourceItem?.subcategoria, ""),
+      machine_id: "",
+      machine_name: "",
+      proceso_productivo: first(sourceItem?.proceso_productivo, item.key === "impresion" ? "convencional" : ""),
+      modo_recurso: first(sourceItem?.modo_recurso, "mixto"),
+      cantidad_personas: n(sourceItem?.cantidad_personas, 0),
+      tiempo_preparacion_general: n(sourceItem?.tiempo_preparacion_general, 0),
+      tiempo_por_estacion: n(sourceItem?.tiempo_por_estacion, 0),
+      tiempo_fijo_min: n(sourceItem?.tiempo_fijo_min, 0),
+      velocidad_produccion: n(sourceItem?.velocidad_produccion, 0),
+      unidad_trabajo: first(sourceItem?.unidad_trabajo, "pies"),
+      costo_hora_maquina: n(sourceItem?.costo_hora_maquina, 0),
+      costo_hora_operario: n(sourceItem?.costo_hora_operario, 0),
+      costo_fijo: n(sourceItem?.costo_fijo, 0),
+      costo_x_msi: n(sourceItem?.costo_x_msi, 0),
+      costo_x_kg: n(sourceItem?.costo_x_kg, 0),
+      costo_x_pie: n(sourceItem?.costo_x_pie, 0),
+      costo_x_millar: n(sourceItem?.costo_x_millar, 0),
+      formula_tiempo: first(sourceItem?.formula_tiempo, ""),
+      formula_costo: first(sourceItem?.formula_costo, ""),
+      orden_base: n(item.order, 999),
+      activo: item.active !== false,
+      locked: item.locked === true,
+      minimumCost: Math.max(0, n(item.minimumCost, 0)),
+      legacyIds: sourceItem?.id ? [String(sourceItem.id)] : []
+    };
+  });
 }
 
 function processMeta(key = "") {
@@ -1244,8 +1365,9 @@ function addProcessKey(key) {
   const meta = processMeta(key);
   if (!meta) return false;
   if (meta?.locked) return false;
+  const alreadyActive = hasActiveProcess(key);
+  if (!meta.repeatable && alreadyActive) return false;
   if (key === "impresion") {
-    const alreadyActive = hasActiveProcess(key);
     state.form.activeProcessKeys = sortActiveProcessKeys((state.form.activeProcessKeys || []).concat(key));
     const stages = activePrintStages();
     const defaultPrintMachine = selectSingleMachineOrNull(printMachines());
@@ -1298,7 +1420,6 @@ function addProcessKey(key) {
       }, finishes.length));
     return true;
   }
-  if (!meta.repeatable && hasActiveProcess(key)) return false;
   state.form.activeProcessKeys = sortActiveProcessKeys((state.form.activeProcessKeys || []).concat(key));
   return true;
 }
@@ -1364,11 +1485,26 @@ function processOptions(items, selected = "") {
 }
 
 function findProcess(id) {
-  return (state.catalogs.processes || []).find((item) => String(item.id) === String(id)) || null;
+  const target = String(id || "").trim();
+  if (!target) return null;
+  const normalized = norm(target);
+  return (state.catalogs.processes || []).find((item) => {
+    if (String(item.id) === target) return true;
+    if (Array.isArray(item.legacyIds) && item.legacyIds.includes(target)) return true;
+    if (norm(item.key) === normalized) return true;
+    if (norm(item.codigo) === normalized) return true;
+    return norm(item.nombre) === normalized;
+  }) || null;
 }
 
 function findMachine(id) {
   return (state.catalogs.machines || []).find((item) => String(item.id) === String(id)) || null;
+}
+
+function findMachineByDisplayName(name) {
+  const target = norm(name);
+  if (!target) return null;
+  return (state.catalogs.machines || []).find((item) => norm(machineDisplayName(item)) === target) || null;
 }
 
 function machineCapacities(machine) {
@@ -1392,6 +1528,49 @@ function primaryMachineCapacity(machine, predicate = null) {
 
 function machineDisplayName(machine) {
   return machine?.machineName || machine?.nombre || machine?.name || machine?.id || "";
+}
+
+function autoSelectionSnapshot() {
+  return state.context?.calculo?.raw_data?.CODEX_AUTO_SELECTION || {};
+}
+
+function autoPricingSnapshot() {
+  return state.context?.calculo?.raw_data?.CODEX_AUTO_PRICING || {};
+}
+
+function autoProcessSnapshot() {
+  const declared = state.context?.calculo?.processes;
+  if (Array.isArray(declared) && declared.length) return declared;
+  const rawDeclared = state.context?.calculo?.raw_data?.CODEX_PROCESS_SNAPSHOT;
+  return Array.isArray(rawDeclared) ? rawDeclared : [];
+}
+
+function autoWarningsList() {
+  const warnings = autoSelectionSnapshot()?.warnings;
+  if (Array.isArray(warnings)) {
+    return warnings.map((item) => String(item || "").trim()).filter(Boolean);
+  }
+  return String(state.context?.calculo?.raw_data?.["REQ | Advertencias Automáticas"] || "")
+    .split(/\n+/)
+    .map((item) => item.replace(/^[\s\-•]+/, "").trim())
+    .filter(Boolean);
+}
+
+function processKeyFromAutoSnapshot(value = "") {
+  const token = norm(value);
+  if (!token) return "";
+  if (token.includes("preprensa")) return "preprensa";
+  if (token.includes("planch")) return "planchas";
+  if (token.includes("impres")) return "impresion";
+  if (token.includes("barniz")) return "barnizado";
+  if (token.includes("laminad")) return "laminado";
+  if (token.includes("estamp")) return "estampado";
+  if (token.includes("embos")) return "embosado";
+  if (token.includes("troquel")) return "troquelado";
+  if (token.includes("rebob")) return "rebobinado";
+  if (token.includes("empaque")) return "empaque";
+  if (token.includes("numer") || token.includes("codigo qr") || token.includes("codigo de barras")) return "numerado";
+  return "";
 }
 
 function machineType(machine) {
@@ -2332,7 +2511,18 @@ function buildForm() {
   const quote = state.context?.cotizacion || null;
   const savedUi = context?.uiState || null;
   const raw = context?.raw_data || {};
+  const autoSelection = raw?.CODEX_AUTO_SELECTION || {};
+  const autoPricing = raw?.CODEX_AUTO_PRICING || {};
+  const autoProcesses = Array.isArray(context?.processes) && context.processes.length
+    ? context.processes
+    : Array.isArray(raw?.CODEX_PROCESS_SNAPSHOT)
+      ? raw.CODEX_PROCESS_SNAPSHOT
+      : [];
   const die = findDie(context?.dieCode);
+  const selectedQuotedMachine = findMachineByDisplayName(context?.quotedMachine)
+    || findMachine(autoSelection?.machineId)
+    || findMachineByDisplayName(autoSelection?.machineName)
+    || null;
   const printProcess = byCategory("impresion")[0] || findProcessByKeywords(["impresion"]);
   const materialId = context?.materialCode || "";
   const material = findMaterial(materialId);
@@ -2346,20 +2536,21 @@ function buildForm() {
   const maculaConfig = defaultMaculaConfig();
   const inkDefaults = conventionalInkDefaults();
   const quoteDefaults = quoteDefaultsFromConfig();
+  const productTypes = resolveProductTypes();
 
   const form = {
     header: {
       customerCode: first(quote?.customer_code, context?.customerCode),
       customerName: first(quote?.customer_name, context?.customerName),
-      productType: "Etiquetas",
+      productType: first(context?.productType, productTypes[0], "Etiquetas"),
       jobName: first(context?.jobName, "Nuevo trabajo"),
       salespersonName: first(quote?.salesperson_name, context?.salespersonName),
       workType: first(context?.orderType, "Nuevo"),
       labelWidthIn: n(context?.widthInches, 0),
       labelHeightIn: n(context?.lengthInches, 0),
-      rollWidthIn: n(first(savedUi?.header?.rollWidthIn, context?.coreWidth, context?.materialWidth, dieMetrics.materialWidthIn, context?.widthInches, quoteDefaults.rollWidth), 0),
+      rollWidthIn: n(first(savedUi?.header?.rollWidthIn, autoSelection?.mounting?.requiredWidthInches, autoSelection?.mounting?.usedWidthInches, context?.coreWidth, context?.materialWidth, dieMetrics.materialWidthIn, context?.widthInches, quoteDefaults.rollWidth), 0),
       coreDiameter: String(first(savedUi?.header?.coreDiameter, context?.coreDiameter, quoteDefaults.coreDiameter)).trim(),
-      labelsPerRoll: n(context?.labelsPerRoll, 0),
+      labelsPerRoll: n(first(savedUi?.header?.labelsPerRoll, context?.labelsPerRoll, autoSelection?.labelsPerRoll), 0),
       applicationType: first(context?.applicationType, ""),
       outputType,
       applicationEnvironment: first(raw["AMBIENTE APLICACION"], ""),
@@ -2378,7 +2569,12 @@ function buildForm() {
       lineStatus: context?.lineStatus || "",
       processType: context?.processType || ""
     },
-    commercial: { overheadPct: 0, marginPct: 35, discountPct: 0, taxPct: 13 },
+    commercial: {
+      overheadPct: n(first(savedUi?.commercial?.overheadPct, context?.contingencyPercent), 0),
+      marginPct: n(first(savedUi?.commercial?.marginPct, context?.extraPercent, 35), 35),
+      discountPct: n(first(savedUi?.commercial?.discountPct, 0), 0),
+      taxPct: n(first(savedUi?.commercial?.taxPct, context?.taxPercent, autoPricing?.taxPercent, 13), 13)
+    },
     macula: {
       source: maculaConfig.source,
       montajeRows: maculaConfig.montajeRows,
@@ -2398,7 +2594,7 @@ function buildForm() {
     prepress: { artCount: Math.max(1, n(context?.quantityTypes, n(raw["CANTIDAD TIPOS"], n(raw["CANTIDAD ARTES"], 1)))), artsPerHour: 2, hourCost: n(findProcessByKeywords(["preprensa"])?.costo_hora_operario, 15) },
     plates: { chargePlates: true, chargeVirginPlate: true },
     print: (() => {
-      const selectedPrintMachine = selectSingleMachineOrNull(printMachines());
+      const selectedPrintMachine = selectedQuotedMachine || selectSingleMachineOrNull(printMachines());
       const selectedPrintCapacity = selectedPrintMachine
         ? (primaryMachineCapacity(selectedPrintMachine, (item) => {
             const haystack = capacityHaystack(selectedPrintMachine, item);
@@ -2410,7 +2606,7 @@ function buildForm() {
       const materialPreTreated = materialPremierPreapplied(material);
       return {
         machineId: selectedPrintMachine?.id || "",
-        machineName: selectedPrintMachine ? machineDisplayName(selectedPrintMachine) : "",
+        machineName: selectedPrintMachine ? machineDisplayName(selectedPrintMachine) : first(context?.quotedMachine, autoSelection?.machineName, ""),
         setupMinutes: firstPositiveNumber(selectedPrintMachine?.setupBaseMinutes, selectedPrintCapacity?.tiempo_preparacion_general, printProcess?.tiempo_preparacion_general, 20),
         cleaningMinutes: 12,
         mountingMinutes: firstPositiveNumber(selectedPrintMachine?.setupPerStationMinutes, selectedPrintCapacity?.tiempo_por_estacion, printProcess?.tiempo_por_estacion, 0) * Math.max(1, n(context?.tintCount, 0)),
@@ -2518,10 +2714,48 @@ function buildForm() {
       slotLabel: item.slotLabel || EXTERNAL_FINISH_BY_KEY[item.processKey || item.slotKey || item.key || ""]?.label
     }, index))
     .filter((item) => EXTERNAL_FINISH_BY_KEY[item.processKey]);
+  const inferredProcessKeys = autoProcesses
+    .map((item) => processKeyFromAutoSnapshot(item?.processKey || item?.processName || item?.name || ""))
+    .filter(Boolean);
+  if (inferredProcessKeys.length) {
+    form.activeProcessKeys = sortActiveProcessKeys((form.activeProcessKeys || []).concat(inferredProcessKeys));
+  }
+  const quotedMachine = selectedQuotedMachine || findMachine(form.print?.machineId);
+  if (quotedMachine) {
+    form.print.machineId = quotedMachine.id || "";
+    form.print.machineName = machineDisplayName(quotedMachine);
+  }
+  const numberingProcessPresent = inferredProcessKeys.includes("numerado");
+  const inlineSource = form.printStages?.[0]?.inlineFinishes || {};
+  if (inferredProcessKeys.includes("barnizado")) {
+    inlineSource.barniz = { ...(inlineSource.barniz || {}), active: machineSupportsInline(quotedMachine) };
+  }
+  if (inferredProcessKeys.includes("laminado")) {
+    inlineSource.laminado = { ...(inlineSource.laminado || {}), active: machineSupportsInline(quotedMachine) };
+  }
+  if (inferredProcessKeys.includes("estampado")) {
+    inlineSource.estampado = { ...(inlineSource.estampado || {}), active: machineSupportsInline(quotedMachine) };
+  }
+  if (inferredProcessKeys.includes("embosado")) {
+    inlineSource.embosado = { ...(inlineSource.embosado || {}), active: machineSupportsInline(quotedMachine) };
+  }
+  if (numberingProcessPresent) {
+    inlineSource.numerado = { ...(inlineSource.numerado || {}), active: true };
+  }
+  if (form.printStages?.[0]) {
+    form.printStages[0].inlineFinishes = inlineSource;
+  }
   const shouldExpand = false;
   state.form = form;
   ensureActiveProcessKeys(shouldExpand);
   ensureConfiguredProcessInstances();
+  if (form.printStages?.[0]) {
+    ["barniz", "laminado", "estampado", "embosado", "numerado"].forEach((inlineKey) => {
+      if (form.printStages[0].inlineFinishes?.[inlineKey]?.active) {
+        applyInlineFinishSetupDefaults(0, inlineKey, true);
+      }
+    });
+  }
   syncPrimaryPrintStage();
   return form;
 }
@@ -2778,6 +3012,8 @@ function calcPrint() {
     let inkConsumption = conventionalInkConsumption;
     let inkSubtotal = conventionalInkSubtotal;
     let digitalInkKg = 0;
+    let whiteKg = 0;
+    let specialKg = 0;
     let digitalClickSubtotal = 0;
     let digitalWashSubtotal = 0;
     let premierSubtotal = 0;
@@ -2847,8 +3083,8 @@ function calcPrint() {
       const cmykStations = state.form.header.useCmyk ? 4 : 0;
       const whitePasses = state.form.header.useWhiteInk ? (state.form.header.doubleWhitePass ? 2 : 1) : 0;
       const cmykKg = state.form.header.noPrint ? 0 : r((base.printedAreaM2 * (n(item.digitalCmykCoveragePct, 0) / 100) * n(item.digitalCmykGsm, digitalSettings.cmykGsm) * Math.max(0, cmykStations / 4) * n(item.digitalWasteFactor, digitalSettings.wasteFactor)) / 1000, 6);
-      const whiteKg = state.form.header.noPrint ? 0 : r((base.printedAreaM2 * (n(item.digitalWhiteCoveragePct, 0) / 100) * n(item.digitalWhiteGsm, digitalSettings.whiteGsm) * whitePasses * n(item.digitalWasteFactor, digitalSettings.wasteFactor)) / 1000, 6);
-      const specialKg = state.form.header.noPrint ? 0 : r((base.printedAreaM2 * (n(item.digitalCmykCoveragePct, 0) / 100) * n(item.digitalCmykGsm, digitalSettings.cmykGsm) * Math.max(0, n(item.digitalSpecialColors, 0)) * n(item.digitalWasteFactor, digitalSettings.wasteFactor)) / 1000, 6);
+      whiteKg = state.form.header.noPrint ? 0 : r((base.printedAreaM2 * (n(item.digitalWhiteCoveragePct, 0) / 100) * n(item.digitalWhiteGsm, digitalSettings.whiteGsm) * whitePasses * n(item.digitalWasteFactor, digitalSettings.wasteFactor)) / 1000, 6);
+      specialKg = state.form.header.noPrint ? 0 : r((base.printedAreaM2 * (n(item.digitalCmykCoveragePct, 0) / 100) * n(item.digitalCmykGsm, digitalSettings.cmykGsm) * Math.max(0, n(item.digitalSpecialColors, 0)) * n(item.digitalWasteFactor, digitalSettings.wasteFactor)) / 1000, 6);
       digitalInkKg = r(cmykKg + whiteKg + specialKg, 6);
       const billingType = String(first(item.digitalBillingType, digitalSettings.billingType)).toLowerCase();
       const billableStations = String(first(item.digitalClickMode, digitalSettings.clickMode)).toLowerCase() === "por_vuelta" ? 1 : Math.max(1, digitalStations);
@@ -3124,8 +3360,40 @@ function scheduleSave() {
   }, 500);
 }
 
+function resolveProductTypes() {
+  let parsed = state.config?.general?.quoteProductTypesJson;
+  if (typeof parsed === "string") {
+    const trimmed = parsed.trim();
+    if (!trimmed) {
+      parsed = [];
+    } else {
+      try {
+        parsed = JSON.parse(trimmed);
+      } catch (_) {
+        parsed = trimmed.split(/[\n,;]+/);
+      }
+    }
+  }
+  const source = Array.isArray(parsed) ? parsed : [];
+  const seen = new Set();
+  const items = source
+    .map((item) => {
+      if (typeof item === "string") return item.trim();
+      if (item && typeof item === "object") return String(item.name || item.label || item.value || "").trim();
+      return "";
+    })
+    .filter((item) => {
+      if (!item) return false;
+      const key = item.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  return items.length ? items : [...DEFAULT_PRODUCT_TYPES];
+}
+
 function renderHeader() {
-  fillSelect(els.productType, PRODUCT_TYPES.map((item) => ({ value: item, label: item })), state.form.header.productType);
+  fillSelect(els.productType, resolveProductTypes().map((item) => ({ value: item, label: item })), state.form.header.productType);
   fillSelect(els.workType, WORK_TYPES.map((item) => ({ value: item, label: item })), state.form.header.workType);
   fillSelect(els.outputType, outputTypesCatalog().map((item) => ({ value: item.id || item.codigo, label: item.name || item.nombre || item.id || item.codigo })), state.form.header.outputType);
   fillSelect(els.coreDiameter, coreDiameterSelectOptions(), state.form.header.coreDiameter);
@@ -3148,6 +3416,7 @@ function renderHeader() {
 }
 
 function renderProcessLauncher() {
+  if (!els.processLauncherButton || !els.processLauncherIcon || !els.processLauncherMenu) return;
   const launcherIcon = iconPresentation("processLauncher", "◎", "#0b81b8", 24);
   const refreshIcon = iconPresentation("refreshCosts", "↻", "#5b7896", 20);
   const activeExtras = (state.form?.activeProcessKeys || []).filter((key) => !processMeta(key)?.locked);
@@ -3165,10 +3434,26 @@ function renderProcessLauncher() {
   applyIconToContainer(els.processLauncherIcon, launcherIcon.value, "Procesos");
   applyIconToContainer(els.refreshCostsIcon, refreshIcon.value, "Actualizar costos");
   els.processLauncherMenu.innerHTML = configuredProcessDefinitions()
-    .filter((item) => !item.locked)
-    .map((item) => `<button type="button" class="process-launcher-item" data-process-key="${esc(item.key)}" draggable="true"><strong>${esc(item.label)}</strong></button>`)
+    .filter((item) => !item.locked && item.active !== false)
+    .map((item) => {
+      const disabled = !item.repeatable && hasActiveProcess(item.key);
+      return `<button type="button" class="process-launcher-item${disabled ? " is-disabled" : ""}" data-process-key="${esc(item.key)}"${disabled ? " disabled" : ' draggable="true"'}><strong>${esc(item.label)}</strong></button>`;
+    })
     .join("");
   updateProcessLauncherMenuPlacement();
+}
+
+function renderProcessPicker() {
+  if (!els.processPickerButton || !els.processPickerPanel || !els.processPickerMenu) return;
+  els.processPickerButton.setAttribute("aria-expanded", state.processPickerOpen ? "true" : "false");
+  if (state.processPickerOpen) els.processPickerPanel.removeAttribute("hidden");
+  else els.processPickerPanel.setAttribute("hidden", "");
+  els.processPickerMenu.innerHTML = configuredProcessDefinitions()
+    .map((item) => {
+      const disabled = item.locked || (!item.repeatable && hasActiveProcess(item.key));
+      return `<button type="button" class="process-picker-item${disabled ? " is-disabled" : ""}" data-process-key="${esc(item.key)}"${disabled ? " disabled" : ""}${disabled ? "" : ' draggable="true"'}>${esc(item.label)}</button>`;
+    })
+    .join("");
 }
 
 function renderTimelineLauncher() {
@@ -3242,10 +3527,35 @@ function renderSidebar(result) {
   const printProcess = findProcess(state.form.print.processId);
   const quantities = normalizeQuantities(state.form.header.quantities).map((item) => num(item.value, 0)).join(" │ ");
   const processProductiveType = currentPrintProductionType() || (state.form.header.noPrint ? "Sin impresion" : state.form.header.processType || "Flexografia");
+  const autoSelection = autoSelectionSnapshot();
+  const autoPricing = autoPricingSnapshot();
+  const autoWarnings = autoWarningsList();
+  const autoProcesses = autoProcessSnapshot();
   const plateRule = digitalPlateRuleApplies() ? "Planchas no se cobran" : "Planchas sí se cobran";
   const statusBase = state.form.header.quoteCode && state.form.header.lineCode ? `Evaluando ${state.form.header.quoteCode} / ${state.form.header.lineCode}.` : "Evaluando cálculo de flexografía.";
   els.calcStatus.textContent = digitalPlateRuleApplies() ? `${statusBase} ${digitalPlateRuleMessage()}` : statusBase;
-  els.contextRows.innerHTML = [["Cotización", state.form.header.quoteCode || "Sin base"], ["Línea", state.form.header.lineCode || "Sin base"], ["Cantidades productos", quantities || "Sin definir"], ["Cantidad base", num(currentQuantity(state.form), 0)], ["Troquel", state.form.troquel.dieCode || "No definido"], ["Sustrato", material?.descripcion || "No definido"], ["Máquina impresión", printProcess?.machine_name || state.form.print.machineName || "No definida"], ["Proceso productivo", processProductiveType], ["Regla planchas", plateRule], ["Estado línea", state.form.header.lineStatus || "En evaluación"]].map(([label, value]) => `<div class="summary-row"><span>${esc(label)}</span><span class="summary-row-value">${esc(value)}</span></div>`).join("");
+  els.contextRows.innerHTML = [["Cotización", state.form.header.quoteCode || "Sin base"], ["Línea", state.form.header.lineCode || "Sin base"], ["Cantidades productos", quantities || "Sin definir"], ["Cantidad base", num(currentQuantity(state.form), 0)], ["Troquel", state.form.troquel.dieCode || "No definido"], ["Sustrato", material?.descripcion || "No definido"], ["Máquina impresión", printProcess?.machine_name || state.form.print.machineName || "No definida"], ["Proceso productivo", processProductiveType], ["Ruta automática", state.context?.calculo?.processType || autoSelection?.route || "No definida"], ["Montaje base", first(autoSelection?.mounting?.summary, state.context?.calculo?.raw_data?.["REQ | Montaje Automático"], "Pendiente")], ["Regla planchas", plateRule], ["Estado línea", state.form.header.lineStatus || "En evaluación"]].map(([label, value]) => `<div class="summary-row"><span>${esc(label)}</span><span class="summary-row-value">${esc(value)}</span></div>`).join("");
+  if (els.automaticSummaryRows) {
+    const processSequence = autoProcesses.length
+      ? autoProcesses.map((item) => item.processName || item.name || item.processKey || "").filter(Boolean).join(" → ")
+      : first(state.context?.calculo?.raw_data?.CODEX_PROCESS_SEQUENCE_TEXT, "Pendiente");
+    const warningText = autoWarnings.length ? autoWarnings.join(" | ") : "Sin advertencias";
+    els.automaticSummaryRows.innerHTML = [
+      ["Ruta", state.context?.calculo?.processType || autoSelection?.route || "No definida"],
+      ["Material automático", first(autoSelection?.materialName, state.context?.calculo?.materialName, "Pendiente")],
+      ["Máquina automática", first(autoSelection?.machineName, state.context?.calculo?.quotedMachine, "Pendiente")],
+      ["Troquel automático", first(autoSelection?.dieCode, state.context?.calculo?.dieCode, "No definido")],
+      ["Etiquetas por rollo", num(first(autoSelection?.labelsPerRoll, state.context?.calculo?.labelsPerRoll), 0)],
+      ["Montaje automático", first(autoSelection?.mounting?.summary, "Pendiente")],
+      ["Secuencia", processSequence || "Pendiente"],
+      ["Sustrato base", autoPricing?.materialCost > 0 ? money(autoPricing.materialCost) : "Pendiente"],
+      ["Producción base", autoPricing?.productionCost > 0 ? money(autoPricing.productionCost) : "Pendiente"],
+      ["Subtotal automático", autoPricing?.subtotalBeforeTax > 0 ? money(autoPricing.subtotalBeforeTax) : "Pendiente"],
+      ["IVA automático", autoPricing?.taxAmount > 0 ? money(autoPricing.taxAmount) : "Pendiente"],
+      ["Total automático", autoPricing?.totalAmount > 0 ? money(autoPricing.totalAmount) : "Pendiente"],
+      ["Advertencias", warningText]
+    ].map(([label, value]) => `<div class="summary-row${label === "Total automático" ? " summary-row-total" : ""}"><span>${esc(label)}</span><span class="summary-row-value">${esc(value)}</span></div>`).join("");
+  }
   const discountRows = result.discount > 0
     ? [["Descuento (" + num(result.discountPct, 2) + "%)", "− " + money(result.discount)], ["Precio con Descuento", money(result.afterDiscount)]]
     : [];
@@ -3717,6 +4027,7 @@ function renderProcesses() {
   applyRequiredHighlights(result);
   normalizeVisibleFieldLabels(els.processSections);
   restoreFocus(focusSnapshot);
+  publishBdfgContext();
 }
 
 function setNested(scope, field, value) {
@@ -4115,6 +4426,7 @@ function bindProcesses() {
         removeProcessKey(button.dataset.removeIndex);
       }
       renderProcessLauncher();
+      renderProcessPicker();
       renderProcesses();
       scheduleSave();
       return;
@@ -4150,6 +4462,7 @@ function bindProcesses() {
     state.draggingProcessKey = "";
     if (addProcessKey(key)) {
       renderProcessLauncher();
+      renderProcessPicker();
       renderProcesses();
       scheduleSave();
     }
@@ -4157,6 +4470,7 @@ function bindProcesses() {
 }
 
 function bindProcessLauncher() {
+  if (!els.processLauncherButton || !els.processLauncherBridge || !els.processLauncherMenu) return;
   els.processLauncherButton.addEventListener("click", () => {
     if (state.suppressLauncherClick) {
       state.suppressLauncherClick = false;
@@ -4176,6 +4490,7 @@ function bindProcessLauncher() {
     const processKey = button.dataset.processKey;
     if (addProcessKey(processKey)) {
       renderProcessLauncher();
+      renderProcessPicker();
       renderProcesses();
       scheduleSave();
     }
@@ -4263,6 +4578,77 @@ function bindProcessLauncher() {
   els.processLauncherButton.addEventListener("pointercancel", finishDrag);
 }
 
+function bindProcessPicker() {
+  if (!els.processPickerButton || !els.processPickerPanel || !els.processPickerMenu) return;
+
+  els.processPickerButton.addEventListener("click", () => {
+    state.processPickerOpen = !state.processPickerOpen;
+    renderProcessPicker();
+  });
+
+  els.processPickerMenu.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-process-key]");
+    if (!button || button.disabled) return;
+    const processKey = button.dataset.processKey || "";
+    if (!processKey) return;
+    if (addProcessKey(processKey)) {
+      state.processPickerOpen = false;
+      renderProcessPicker();
+      renderProcessLauncher();
+      renderProcesses();
+      scheduleSave();
+    }
+  });
+
+  els.processPickerMenu.addEventListener("dragstart", (event) => {
+    const button = event.target.closest("button[data-process-key]");
+    if (!button || button.disabled || !event.dataTransfer) return;
+    state.draggingProcessKey = button.dataset.processKey || "";
+    event.dataTransfer.setData("text/process-key", state.draggingProcessKey);
+    event.dataTransfer.effectAllowed = "copy";
+    els.processSections.classList.add("is-drop-target");
+  });
+
+  els.processPickerMenu.addEventListener("dragend", () => {
+    state.draggingProcessKey = "";
+    els.processSections.classList.remove("is-drop-target");
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!state.processPickerOpen) return;
+    if (event.target.closest(".process-picker")) return;
+    state.processPickerOpen = false;
+    renderProcessPicker();
+  });
+}
+
+function bindBdfgProcessTray() {
+  window.addEventListener("message", (event) => {
+    if (event.origin !== window.location.origin) return;
+    const data = event.data || {};
+    if (data.type === "erp-process-drag-start") {
+      state.draggingProcessKey = String(data.processId || "").trim();
+      els.processSections?.classList.add("is-drop-target");
+      return;
+    }
+    if (data.type === "erp-process-drag-end") {
+      state.draggingProcessKey = "";
+      els.processSections?.classList.remove("is-drop-target");
+      return;
+    }
+    if (data.type === "erp-process-tap-add") {
+      const processKey = String(data.processId || "").trim();
+      if (!processKey) return;
+      if (addProcessKey(processKey)) {
+        renderProcessLauncher();
+        renderProcessPicker();
+        renderProcesses();
+        scheduleSave();
+      }
+    }
+  });
+}
+
 async function init() {
   try {
     const quoteId = params.get("quoteId") || "";
@@ -4276,12 +4662,20 @@ async function init() {
     state.config = config;
     state.context = context;
     state.costsConfig = costsConfig;
-    state.catalogs = { materials: catalogs.materials || [], troqueles: catalogs.troqueles || [], machines: catalogs.machines || [], machineCategories: catalogs.machineCategories || {}, processes: catalogs.processes || [], outputTypes: catalogs.outputTypes || [] };
+    state.catalogs = {
+      materials: catalogs.materials || [],
+      troqueles: catalogs.troqueles || [],
+      machines: catalogs.machines || [],
+      machineCategories: catalogs.machineCategories || {},
+      processes: buildLocalProcessCatalog(catalogs.processes || []),
+      outputTypes: catalogs.outputTypes || []
+    };
     state.form = buildForm();
     await loadLineNotifications();
     els.pageTitle.textContent = "Cálculo de Flexografía";
     renderHeader();
     renderProcessLauncher();
+    renderProcessPicker();
     renderTimelineLauncher();
     renderProcesses();
     try {
@@ -4303,7 +4697,9 @@ async function init() {
     bindTimelineLauncher();
     bindQuantityRepeater();
     bindProcesses();
+    bindProcessPicker();
     bindProcessLauncher();
+    bindBdfgProcessTray();
     window.addEventListener("resize", () => {
       renderQuantities();
       updateProcessLauncherMenuPlacement();

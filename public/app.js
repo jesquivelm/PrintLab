@@ -1,4 +1,4 @@
-﻿const CONFIG_ENDPOINT = '/api/config/general';
+const CONFIG_ENDPOINT = '/api/config/general';
 const QUOTES_ENDPOINT = '/api/cotizaciones';
 
 const GENERAL_CONFIG_CACHE_KEY = 'erp-general-config-cache';
@@ -372,6 +372,42 @@ function openRouteInShell(route, label) {
     return true;
 }
 
+function buildBdfgContext() {
+    if (!currentQuote?.quote_code) return null;
+    const activeRow = quoteRows.find((row) => row.id === activeRowId) || quoteRows[0] || null;
+    const quoteCode = String(currentQuote.quote_code || '').trim();
+    const lineCode = String(activeRow?.linea || activeRow?.originalLinea || '').trim();
+    return {
+        kind: 'quote-document',
+        title: `Cotización ${quoteCode}`,
+        subtitle: [
+            currentQuote.customer_name || '',
+            activeRow?.nombreTrabajo || ''
+        ].filter(Boolean).join(' · ') || `Contexto activo: Cotización ${quoteCode}`,
+        secondaryRoute: quoteCode ? `/proforma?codigo=${encodeURIComponent(quoteCode)}` : '',
+        secondaryActionId: 'open-quote-proforma',
+        secondaryLabel: 'Ver proforma',
+        secondaryDescription: 'Abrir la proforma asociada a esta cotización',
+        quoteCode,
+        lineCode,
+        productCode: String(activeRow?.productId || '').trim(),
+        status: String(activeRow?.estado || currentQuote.status || '').trim(),
+        canCreateOrder: Boolean(activeRow?.finalizadaOrden),
+        documentDescription: 'Abrir la cotización actual',
+        dates: {
+            createdAt: currentQuote.created_on || '',
+            quotedAt: currentQuote.created_on || '',
+            updatedAt: currentQuote.updated_at || '',
+            dueAt: currentQuote.due_on || ''
+        }
+    };
+}
+
+function publishBdfgContext() {
+    if (!isShellEmbedded()) return;
+    window.parent.postMessage({ type: 'erp-bdfg-context', context: buildBdfgContext() }, window.location.origin);
+}
+
 function openProformaForCurrentQuote() {
     const code = currentQuote?.quote_code || document.getElementById('numeroCotizacion')?.value?.trim();
     if (!code) {
@@ -646,6 +682,7 @@ function renderLineSummary(row) {
 
     const finishes = uniqueSummaryParts([
         isMeaningfulSummaryValue(row.barniz) ? row.barniz : '',
+        isMeaningfulSummaryValue(row.laminado) ? row.laminado : '',
         isMeaningfulSummaryValue(row.estampado) ? row.estampado : '',
         isMeaningfulSummaryValue(row.embosado) ? row.embosado : '',
         isMeaningfulSummaryValue(row.troquelado) ? row.troquelado : '',
@@ -655,9 +692,13 @@ function renderLineSummary(row) {
         ? finishes.map((part) => `<span>${escapeHtml(part)}</span>`).join(' - ')
         : '<span class="is-warning">Sin acabados</span>';
 
+    const pType = row.processType || row.routeLabel;
+    const pSeq = row.processSequenceText || row.mountingSummary;
+
     const summaryTitle = [
         title,
         [...secondaryParts, machineDefined || 'Sin máquina'].join(' - '),
+        [pType, pSeq].filter(Boolean).join(' - '),
         finishes.length ? finishes.join(' - ') : 'Sin acabados'
     ].filter(Boolean).join(' | ');
 
@@ -665,6 +706,7 @@ function renderLineSummary(row) {
         <div class="quote-line-summary" title="${escapeHtml(summaryTitle)}">
             <div class="quote-line-summary-title">${escapeHtml(title)}</div>
             <div class="quote-line-summary-meta">${secondaryMarkup}</div>
+            <div class="quote-line-summary-meta">${pType ? `<span>${escapeHtml(pType)}</span>` : '<span class="is-warning">Sin tipo de proceso</span>'}${pSeq ? ` - <span>${escapeHtml(pSeq)}</span>` : ''}</div>
             <div class="quote-line-summary-meta">${finishesMarkup}</div>
         </div>
     `;
@@ -714,7 +756,6 @@ function renderDataRow(row, index, subtotalKeys) {
             </td>
             <td>${quoteCellMarkup(row.linea)}</td>
             <td>${renderLineSummary(row)}</td>
-            <td>${quoteCellMarkup(row.material)}</td>
             ${renderSubtotalCells(row, subtotalKeys)}
             <td>
                 <div class="row-tools row-tools-row-end">
@@ -740,7 +781,7 @@ function renderBlankRow(isFirstBlank, subtotalColumnCount) {
                     ` : ''}
                 </div>
             </td>
-            <td></td><td></td><td></td>${blankSubtotalCells}<td></td>
+            <td></td><td></td>${blankSubtotalCells}<td></td>
         </tr>
     `;
 }
@@ -754,8 +795,7 @@ function renderRows() {
             <th class="col-index"></th>
             <th class="col-actions"></th>
             <th>L&iacute;nea</th>
-            <th>Nombre Trabajo</th>
-            <th>Material</th>
+            <th>Descripci&oacute;n</th>
             ${renderSubtotalHeaderCells(subtotalKeys)}
             <th class="col-row-actions"></th>
         `;
@@ -771,6 +811,7 @@ function renderRows() {
     }
     rowsBody.innerHTML = markup;
     bindRowActions();
+    publishBdfgContext();
 }
 
 function getRowById(rowId) {
@@ -1227,10 +1268,20 @@ function applyQuotePayload(payload) {
     const quote = payload?.cotizacion || null;
     const lines = payload?.lineas || [];
     const resumen = payload?.resumen || {};
+    const firstLineRaw = lines[0]?.raw_data || {};
     currentQuote = quote;
 
     setFieldValue('numeroCotizacion', quote?.quote_code || '');
-    setFieldValue('clienteCodigo', quote?.customer_code || '');
+    setFieldValue('clienteCodigo', firstFilled(
+        quote?.customer_code,
+        quote?.customer_id,
+        quote?.card_code,
+        firstLineRaw?.customer_code,
+        firstLineRaw?.customer_id,
+        firstLineRaw?.['CLIENTE | CODIGO'],
+        firstLineRaw?.['SOCIO | CODIGO'],
+        firstLineRaw?.['ID SOCIO']
+    ));
     setFieldValue('clienteNombre', quote?.customer_name || '');
     setFieldValue('dirigidoA', quote?.contact_name || '');
     setFieldValue('correoCliente', quote?.email || '');
@@ -1244,6 +1295,7 @@ function applyQuotePayload(payload) {
     syncQuoteNumberFieldAppearance();
 
     quoteRows = lines.map((line, index) => ({
+        autoSelection: line.raw_data?.['CODEX_AUTO_SELECTION'] || {},
         id: index + 1,
         linea: line.line_code || '',
         originalLinea: line.line_code || '',
@@ -1255,10 +1307,14 @@ function applyQuotePayload(payload) {
       medida: [line.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'], line.raw_data?.['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join('x'),
       machineName: line.machine_name || line.raw_data?.['CONV | MAQUINA'] || line.raw_data?.['DIGITAL | MAQUINA'] || '',
       barniz: line.raw_data?.['REQ | Barniz'] || '',
+      laminado: line.raw_data?.['REQ | Laminado'] || '',
       estampado: line.raw_data?.['REQ | Estampado'] || '',
       embosado: line.raw_data?.['REQ | Embosado'] || '',
       troquelado: line.raw_data?.['REQ | Troquelado'] || '',
       numeracion: line.raw_data?.['REQ | Numeracion'] || line.raw_data?.['REQ | Numeracion Aviso'] || '',
+      routeLabel: line.raw_data?.['REQ | Ruta Automática'] || line.process_type || '',
+      mountingSummary: line.raw_data?.['REQ | Montaje Automático'] || line.raw_data?.['CODEX_PROCESS_SEQUENCE_TEXT'] || '',
+      autoWarningsText: String(line.raw_data?.['REQ | Advertencias Automáticas'] || '').trim(),
       materialCode: line.raw_data?.['Material Convencional | Id Material'] || line.raw_data?.['Material Digital | Id Material'] || '',
       finalizadaOrden: Boolean(line.finalized_for_order || line.raw_data?.['CODEX_FINALIZED_FOR_ORDER']),
       estado: line.status || 'Cotizada',
@@ -1272,7 +1328,8 @@ function applyQuotePayload(payload) {
         route: '/flexo-calculo',
         quoteId: quote?.quote_code || '',
         productId: line.product_code || '',
-        processType: line.process_type || ''
+        processType: line.process_type || '',
+        processSequenceText: line.process_sequence_text || line.raw_data?.['CODEX_PROCESS_SEQUENCE_TEXT'] || ''
     }));
 
     setHeaderLockState(quoteRows.length > 0);
@@ -1453,6 +1510,7 @@ function mapLineUpdatePayload(row) {
         total_cost: parseMoneyInput(row.subtotal1),
         unit_price: parseMoneyInput(row.subtotal1),
         process_type: row.processType || 'Convencional',
+        process_sequence_text: row.processSequenceText || '',
         product_code: row.productId || row.linea
     };
 }
@@ -1557,14 +1615,20 @@ async function persistNewRow() {
         medida: [linea.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'], linea.raw_data?.['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join('x'),
         machineName: linea.machine_name || linea.raw_data?.['CONV | MAQUINA'] || linea.raw_data?.['DIGITAL | MAQUINA'] || '',
         barniz: linea.raw_data?.['REQ | Barniz'] || '',
+        laminado: linea.raw_data?.['REQ | Laminado'] || '',
         estampado: linea.raw_data?.['REQ | Estampado'] || '',
         embosado: linea.raw_data?.['REQ | Embosado'] || '',
         troquelado: linea.raw_data?.['REQ | Troquelado'] || '',
         numeracion: linea.raw_data?.['REQ | Numeracion'] || linea.raw_data?.['REQ | Numeracion Aviso'] || '',
+        routeLabel: linea.raw_data?.['REQ | Ruta Automática'] || linea.process_type || '',
+        mountingSummary: linea.raw_data?.['REQ | Montaje Automático'] || linea.raw_data?.['CODEX_PROCESS_SEQUENCE_TEXT'] || '',
+        autoWarningsText: String(linea.raw_data?.['REQ | Advertencias Automáticas'] || '').trim(),
         estado: linea.status || newRow.estado,
         subtotal1: linea.subtotal_1 ?? '',
         quoteId: currentQuote.quote_code,
-        productId: linea.product_code || linea.line_code
+        productId: linea.product_code || linea.line_code,
+        processType: linea.process_type || newRow.processType || '',
+        processSequenceText: linea.process_sequence_text || linea.raw_data?.['CODEX_PROCESS_SEQUENCE_TEXT'] || newRow.processSequenceText || ''
     };
     quoteRows = [...quoteRows, row];
     setHeaderLockState(true);
@@ -1595,17 +1659,22 @@ async function saveRow(row) {
             medida: [saved.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'], saved.raw_data?.['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join('x') || item.medida,
             machineName: saved.machine_name || saved.raw_data?.['CONV | MAQUINA'] || saved.raw_data?.['DIGITAL | MAQUINA'] || item.machineName,
             barniz: saved.raw_data?.['REQ | Barniz'] || item.barniz,
+            laminado: saved.raw_data?.['REQ | Laminado'] || item.laminado,
             estampado: saved.raw_data?.['REQ | Estampado'] || item.estampado,
             embosado: saved.raw_data?.['REQ | Embosado'] || item.embosado,
             troquelado: saved.raw_data?.['REQ | Troquelado'] || item.troquelado,
             numeracion: saved.raw_data?.['REQ | Numeracion'] || saved.raw_data?.['REQ | Numeracion Aviso'] || item.numeracion,
+            routeLabel: saved.raw_data?.['REQ | Ruta Automática'] || saved.process_type || item.routeLabel,
+            mountingSummary: saved.raw_data?.['REQ | Montaje Automático'] || saved.raw_data?.['CODEX_PROCESS_SEQUENCE_TEXT'] || item.mountingSummary,
+            autoWarningsText: String(saved.raw_data?.['REQ | Advertencias Automáticas'] || item.autoWarningsText || '').trim(),
             materialCode: saved.raw_data?.['Material Convencional | Id Material'] || saved.raw_data?.['Material Digital | Id Material'] || item.materialCode,
             finalizadaOrden: Boolean(saved.finalized_for_order || saved.raw_data?.['CODEX_FINALIZED_FOR_ORDER'] || item.finalizadaOrden),
             estado: saved.status || item.estado,
             lineOrder: Number(saved.line_order) || item.lineOrder,
             subtotal1: saved.subtotal_1 ?? item.subtotal1,
             productId: saved.product_code || item.productId,
-            processType: saved.process_type || item.processType
+            processType: saved.process_type || item.processType,
+            processSequenceText: saved.process_sequence_text || saved.raw_data?.['CODEX_PROCESS_SEQUENCE_TEXT'] || item.processSequenceText
         } : item);
         renderRows();
     }

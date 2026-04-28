@@ -23,6 +23,11 @@
             --accent: #118fc6;
             --danger: #ba4343;
             --radius: 18px;
+            --proforma-page-width: 816px;
+            --proforma-page-height: 1056px;
+            --proforma-scroll-track: #d6e2ec;
+            --proforma-scroll-thumb: linear-gradient(180deg, #5a7694 0%, #45627f 100%);
+            --proforma-scroll-thumb-hover: linear-gradient(180deg, #4f6f90 0%, #395674 100%);
         }
         * { box-sizing: border-box; }
         body {
@@ -30,6 +35,27 @@
             font-family: 'Outfit', sans-serif;
             color: var(--ink);
             background: linear-gradient(180deg, #edf5fa 0%, #f6f9fc 100%);
+            scrollbar-color: #6c88a5 #d6e2ec;
+        }
+        body::-webkit-scrollbar,
+        .proforma-sidebar::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        body::-webkit-scrollbar-track,
+        .proforma-sidebar::-webkit-scrollbar-track {
+            background: var(--proforma-scroll-track);
+            border-radius: 999px;
+        }
+        body::-webkit-scrollbar-thumb,
+        .proforma-sidebar::-webkit-scrollbar-thumb {
+            background: var(--proforma-scroll-thumb);
+            border-radius: 999px;
+            border: 1px solid color-mix(in srgb, #ffffff 36%, var(--proforma-scroll-track));
+        }
+        body::-webkit-scrollbar-thumb:hover,
+        .proforma-sidebar::-webkit-scrollbar-thumb:hover {
+            background: var(--proforma-scroll-thumb-hover);
         }
         .proforma-shell {
             min-height: 100vh;
@@ -132,6 +158,13 @@
             font-size: 15px;
             color: var(--navy);
         }
+        .proforma-panel-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
         .proforma-fields {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -152,6 +185,21 @@
             text-transform: none;
             letter-spacing: 0;
         }
+        .proforma-field label.proforma-check {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 42px;
+            color: var(--ink);
+            font-weight: 600;
+        }
+        .proforma-field label.proforma-check input {
+            width: 16px;
+            height: 16px;
+            min-height: 0;
+            margin: 0;
+            accent-color: var(--accent);
+        }
         .proforma-field input,
         .proforma-field select,
         .proforma-field textarea {
@@ -170,19 +218,45 @@
             line-height: 1.6;
         }
         .proforma-preview-area {
-            padding: 30px 26px 38px;
-            overflow: auto;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            background: #e8edf2;
+        }
+        html[data-theme="dark"] {
+            --proforma-scroll-track: #152334;
+            --proforma-scroll-thumb: linear-gradient(180deg, #355274 0%, #294563 100%);
+            --proforma-scroll-thumb-hover: linear-gradient(180deg, #406286 0%, #315171 100%);
+        }
+        html[data-theme="dark"] body {
+            scrollbar-color: #3a5b7d #152334;
+        }
+        #proformaPreviewFrame {
+            flex: 1;
+            width: 100%;
+            border: none;
+            display: block;
+            color-scheme: dark;
+            background: #0f1b2d;
         }
         .proforma-document {
-            width: min(920px, 100%);
+            width: var(--proforma-page-width);
+            min-width: var(--proforma-page-width);
+            max-width: var(--proforma-page-width);
+            height: var(--proforma-page-height);
+            min-height: var(--proforma-page-height);
+            max-height: var(--proforma-page-height);
             margin: 0 auto;
             background: #fff;
             border-radius: 24px;
             box-shadow: 0 26px 46px rgba(11, 29, 51, 0.12);
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            flex: 0 0 auto;
         }
         .proforma-document-header {
-            padding: 34px 40px 28px;
+            padding: 28px 34px 22px;
             background: linear-gradient(135deg, var(--navy) 0%, var(--navy-soft) 100%);
             color: #fff;
             display: flex;
@@ -198,7 +272,10 @@
             display: flex;
             align-items: center;
             gap: 18px;
-            min-width: 0;
+            width: 470px;
+            min-width: 470px;
+            max-width: 470px;
+            flex: 0 0 470px;
         }
         .proforma-brand-logo {
             width: 120px;
@@ -234,7 +311,10 @@
         }
         .proforma-doc-meta {
             text-align: right;
-            min-width: 200px;
+            width: 210px;
+            min-width: 210px;
+            max-width: 210px;
+            flex: 0 0 210px;
         }
         .proforma-doc-meta h2 {
             margin: 0;
@@ -249,29 +329,30 @@
             opacity: 0.82;
         }
         .proforma-document-body {
-            padding: 34px 40px 36px;
+            padding: 24px 32px 22px;
             display: flex;
             flex-direction: column;
-            gap: 24px;
+            gap: 16px;
+            flex: 1 1 auto;
         }
         .proforma-meta-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 18px;
+            grid-template-columns: 1fr;
+            gap: 12px;
         }
         .proforma-meta-card {
             border: 1px solid var(--line);
             border-radius: 18px;
-            padding: 16px 18px;
+            padding: 12px 14px;
             background: #fcfeff;
         }
         .proforma-meta-card h3,
         .proforma-terms-card h3 {
-            margin: 0 0 10px;
+            margin: 0 0 7px;
             color: var(--gold);
             font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.12em;
+            text-transform: none;
+            letter-spacing: 0.04em;
         }
         .proforma-meta-card p {
             margin: 0;
@@ -279,21 +360,34 @@
             line-height: 1.75;
             font-size: 13px;
         }
+        .proforma-client-name {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--navy);
+        }
+        .proforma-client-meta {
+            display: block;
+            font-size: 13px;
+            color: #4d5a68;
+        }
         .proforma-intro {
             border-left: 3px solid var(--gold);
             background: #fbf7f0;
-            padding: 16px 20px;
+            padding: 12px 16px;
             border-radius: 0 16px 16px 0;
             font-size: 15px;
             font-style: italic;
             color: #2f3c46;
-            line-height: 1.6;
+            line-height: 1.5;
         }
         .proforma-table {
             width: 100%;
             border-collapse: collapse;
-            border-radius: 18px;
-            overflow: hidden;
+            border-radius: 0;
+            overflow: visible;
+            table-layout: fixed;
         }
         .proforma-table thead {
             background: var(--navy);
@@ -301,25 +395,47 @@
         }
         .proforma-table th {
             font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
+            text-transform: none;
+            letter-spacing: 0.03em;
             font-weight: 500;
-            padding: 12px 14px;
+            padding: 10px 12px;
             text-align: left;
+            white-space: nowrap;
         }
         .proforma-table th:not(:first-child),
         .proforma-table td:not(:first-child) {
             text-align: right;
         }
         .proforma-table td {
-            padding: 13px 14px;
+            padding: 10px 12px;
             border-bottom: 1px solid #e3ebf0;
             color: #4a5967;
             font-size: 13px;
             vertical-align: top;
         }
+        .proforma-table th.proforma-col-unitPrice,
+        .proforma-table th.proforma-col-thousandPrice,
+        .proforma-table td.proforma-col-unitPrice,
+        .proforma-table td.proforma-col-thousandPrice {
+            width: 110px;
+        }
+        .proforma-table th.proforma-col-subtotal,
+        .proforma-table th.proforma-col-taxAmount,
+        .proforma-table th.proforma-col-totalPrice,
+        .proforma-table td.proforma-col-subtotal,
+        .proforma-table td.proforma-col-taxAmount,
+        .proforma-table td.proforma-col-totalPrice {
+            width: 92px;
+        }
+        .proforma-table th:nth-child(2),
+        .proforma-table td:nth-child(2) {
+            width: 92px;
+        }
         .proforma-table tr:nth-child(even) td {
             background: #fbfdff;
+        }
+        .proforma-table tbody tr:last-child td {
+            border-bottom: 1px solid #e3ebf0;
         }
         .proforma-product-name {
             font-weight: 600;
@@ -327,9 +443,27 @@
         }
         .proforma-product-desc {
             display: block;
-            margin-top: 3px;
+            margin-top: 2px;
             font-size: 11px;
             color: var(--muted);
+        }
+        .proforma-product-route,
+        .proforma-product-tech,
+        .proforma-product-warning {
+            display: block;
+            margin-top: 4px;
+            font-size: 10.5px;
+            line-height: 1.45;
+        }
+        .proforma-product-route {
+            color: #2a536f;
+            font-weight: 600;
+        }
+        .proforma-product-tech {
+            color: #5b6a79;
+        }
+        .proforma-product-warning {
+            color: #7f4f14;
         }
         .proforma-total-box {
             margin-left: auto;
@@ -361,28 +495,59 @@
         .proforma-terms-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 16px;
+            gap: 12px;
         }
         .proforma-terms-card {
             border: 1px solid var(--line);
             border-radius: 18px;
             background: #fbfdff;
-            padding: 16px 18px;
+            padding: 12px 14px;
+        }
+        .proforma-terms-card.is-summary {
+            grid-column: 1 / -1;
+            padding: 14px 16px;
+        }
+        .proforma-terms-summary-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px 14px;
+        }
+        .proforma-terms-item[hidden] {
+            display: none;
         }
         .proforma-terms-card p {
             margin: 0;
-            line-height: 1.7;
+            line-height: 1.5;
             font-size: 13px;
             color: #536273;
+        }
+        .proforma-document-tail {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            margin-top: auto;
+        }
+        .proforma-print-mirror {
+            display: none;
+        }
+        .proforma-print-mirror-page {
+            width: 8.5in;
+            min-width: 8.5in;
+            max-width: 8.5in;
+            height: 11in;
+            min-height: 11in;
+            max-height: 11in;
+            overflow: hidden;
+            background: #fff;
         }
         .proforma-document-footer {
             display: flex;
             justify-content: center;
             align-items: flex-end;
             gap: 20px;
-            padding-top: 18px;
-            padding-bottom: 10px;
-            border-top: 1px solid var(--line);
+            padding-top: 8px;
+            padding-bottom: 0;
+            border-top: none;
             border-bottom: 5px solid var(--header);
         }
         .proforma-signature {
@@ -390,23 +555,26 @@
             text-align: center;
         }
         .proforma-signature-asset {
-            min-height: 66px;
+            min-height: 54px;
             border-bottom: 1px solid var(--navy);
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             display: flex;
             align-items: flex-end;
             justify-content: center;
             overflow: hidden;
-            padding-bottom: 8px;
+            padding-bottom: 6px;
         }
         .proforma-signature-asset img {
             max-width: 180px;
-            max-height: 60px;
+            max-height: 48px;
             object-fit: contain;
         }
         .proforma-signature strong {
             display: block;
-            color: var(--navy);
+            color: #111111 !important;
+            font-weight: 500;
+            opacity: 1;
+            text-shadow: none;
         }
         .proforma-signature span {
             display: block;
@@ -449,13 +617,153 @@
             }
         }
     </style>
-    <link rel="stylesheet" href="/theme-extensions.css">
+    <link rel="stylesheet" href="/theme-extensions.css?v=20260424b">
+    <style>
+        html[data-theme] .proforma-document-footer #docSellerName {
+            color: #111111 !important;
+            font-weight: 500 !important;
+            opacity: 1 !important;
+            text-shadow: none !important;
+        }
+        @page {
+            size: Letter portrait;
+            margin: 0;
+        }
+        @media print {
+            html,
+            body {
+                width: auto !important;
+                height: auto !important;
+                margin: 0 !important;
+                background: #ffffff !important;
+                color: #1f2b3d !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .proforma-shell {
+                display: none !important;
+                min-height: auto !important;
+            }
+            .proforma-print-mirror {
+                display: block !important;
+                width: 8.5in !important;
+                min-width: 8.5in !important;
+                max-width: 8.5in !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: hidden !important;
+                background: #ffffff !important;
+            }
+            .proforma-print-mirror .proforma-document,
+            .proforma-print-mirror-page {
+                width: 8.5in !important;
+                min-width: 8.5in !important;
+                max-width: 8.5in !important;
+                height: 11in !important;
+                min-height: 11in !important;
+                max-height: 11in !important;
+                margin: 0 !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+                overflow: hidden !important;
+                background: #ffffff !important;
+            }
+            .proforma-print-mirror .proforma-document {
+                display: flex !important;
+                flex-direction: column !important;
+            }
+            .proforma-document-header {
+                break-inside: avoid-page;
+                page-break-inside: avoid;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .proforma-brand {
+                width: 470px !important;
+                min-width: 470px !important;
+                max-width: 470px !important;
+                flex: 0 0 470px !important;
+            }
+            .proforma-doc-meta {
+                width: 210px !important;
+                min-width: 210px !important;
+                max-width: 210px !important;
+                flex: 0 0 210px !important;
+            }
+            .proforma-document-body {
+                background: #ffffff !important;
+                padding: 8mm 8mm 6mm !important;
+                gap: 5mm !important;
+            }
+            .proforma-intro,
+            .proforma-table thead,
+            .proforma-total-box tr:last-child td {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .proforma-meta-grid,
+            .proforma-intro,
+            .proforma-total-box,
+            .proforma-document-tail,
+            .proforma-terms-grid,
+            .proforma-terms-card,
+            .proforma-terms-item,
+            .proforma-document-footer,
+            .proforma-signature {
+                break-inside: avoid-page !important;
+                page-break-inside: avoid !important;
+            }
+            .proforma-table {
+                width: 100% !important;
+                table-layout: fixed !important;
+            }
+            .proforma-table thead {
+                display: table-header-group;
+            }
+            .proforma-table tr,
+            .proforma-table td,
+            .proforma-table th {
+                break-inside: avoid-page;
+                page-break-inside: avoid;
+            }
+            .proforma-table th.proforma-col-unitPrice,
+            .proforma-table th.proforma-col-thousandPrice,
+            .proforma-table td.proforma-col-unitPrice,
+            .proforma-table td.proforma-col-thousandPrice {
+                width: 110px !important;
+            }
+            .proforma-table th.proforma-col-subtotal,
+            .proforma-table th.proforma-col-taxAmount,
+            .proforma-table th.proforma-col-totalPrice,
+            .proforma-table td.proforma-col-subtotal,
+            .proforma-table td.proforma-col-taxAmount,
+            .proforma-table td.proforma-col-totalPrice {
+                width: 92px !important;
+            }
+            .proforma-table th:nth-child(2),
+            .proforma-table td:nth-child(2) {
+                width: 92px !important;
+            }
+            .proforma-total-box {
+                min-width: 0 !important;
+                width: 320px !important;
+                max-width: 100% !important;
+            }
+            .proforma-document-footer {
+                padding-top: 4mm !important;
+                padding-bottom: 0 !important;
+            }
+        }
+    </style>
 </head>
 <body>
     <div id="proformaShell" class="proforma-shell">
         <aside class="proforma-sidebar">
             <section class="proforma-panel">
-                <h2>Comercial</h2>
+                <div class="proforma-panel-head">
+                    <h2>Comercial</h2>
+                    <button id="proformaPrintButton" type="button" class="action-btn quote-browser-action-btn">Imprimir</button>
+                </div>
                 <div class="proforma-fields">
                     <div class="proforma-field is-full">
                         <label for="proformaCurrency">Moneda</label>
@@ -472,6 +780,12 @@
                     <div class="proforma-field is-full">
                         <label for="proformaPriceDisplayMode">Detalle de Precio</label>
                         <select id="proformaPriceDisplayMode"></select>
+                    </div>
+                    <div class="proforma-field is-full">
+                        <label for="proformaSellerSignatureEnabled" class="proforma-check">
+                            <input id="proformaSellerSignatureEnabled" type="checkbox">
+                            Imprimir firma del vendedor
+                        </label>
                     </div>
                 </div>
             </section>
@@ -496,89 +810,13 @@
         </aside>
 
         <main class="proforma-preview-area">
-            <article class="proforma-document">
-                <header id="docHeader" class="proforma-document-header">
-                    <div class="proforma-brand">
-                        <div id="docLogo" class="proforma-brand-logo">Logo</div>
-                        <div class="proforma-brand-copy">
-                            <strong id="docCompanyName">Empresa</strong>
-                            <span id="docSlogan">Slogan</span>
-                        </div>
-                    </div>
-                    <div class="proforma-doc-meta">
-                        <h2>Proforma</h2>
-                        <p id="docQuoteCode">Cotización</p>
-                        <p id="docIssueDate">Fecha</p>
-                    </div>
-                </header>
-                <div class="proforma-document-body">
-                    <section class="proforma-meta-grid">
-                        <div class="proforma-meta-card">
-                            <h3>Cliente</h3>
-                            <p id="docClientBlock"></p>
-                        </div>
-                        <div class="proforma-meta-card">
-                            <h3>Atendido por</h3>
-                            <p id="docSellerBlock"></p>
-                        </div>
-                    </section>
-
-                    <section id="docIntro" class="proforma-intro"></section>
-
-                    <section>
-                        <table class="proforma-table">
-                            <thead>
-                                <tr id="docTableHead"></tr>
-                            </thead>
-                            <tbody id="docProductsBody"></tbody>
-                        </table>
-                    </section>
-
-                    <section class="proforma-total-box">
-                        <table>
-                            <tbody>
-                                <tr>
-                                    <td>Total General</td>
-                                    <td id="docGrandTotal"></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </section>
-
-                    <section class="proforma-terms-grid">
-                        <article class="proforma-terms-card">
-                            <p id="docTermsConditions"></p>
-                        </article>
-                        <article class="proforma-terms-card">
-                            <h3>Términos de Pago</h3>
-                            <p id="docPaymentTerms"></p>
-                        </article>
-                        <article class="proforma-terms-card">
-                            <h3>Tiempos Estimados de Entrega</h3>
-                            <p id="docDeliveryTime"></p>
-                        </article>
-                        <article class="proforma-terms-card">
-                            <h3>Especificaciones Técnicas</h3>
-                            <p id="docTechnicalSpecs"></p>
-                        </article>
-                        <article class="proforma-terms-card">
-                            <h3>Políticas de Calidad</h3>
-                            <p id="docQualityPolicies"></p>
-                        </article>
-                    </section>
-
-                    <footer class="proforma-document-footer">
-                        <div class="proforma-signature">
-                            <div id="docSignatureAsset" class="proforma-signature-asset"></div>
-                            <strong id="docSellerName"></strong>
-                            <span>Ejecutivo de Ventas</span>
-                        </div>
-                    </footer>
-                </div>
-            </article>
+            <iframe id="proformaPreviewFrame" title="Vista previa de proforma" allowfullscreen></iframe>
         </main>
     </div>
     <script src="/access-control.js"></script>
-    <script src="/proforma.js"></script>
+    <script src="/proforma.js?v=20260424c"></script>
+    <script>
+        /* Print mirror removed — printing is handled by proforma-print.html */
+    </script>
 </body>
 </html>

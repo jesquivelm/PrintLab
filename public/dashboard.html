@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/theme.js"></script>
     <title>PrintLab</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles.css?v=20260428-process-tray">
 </head>
 <body class="dashboard-body">
     <div class="app-shell dashboard-app-shell">
@@ -16,12 +16,6 @@
                     <div id="dashboardBrandFallback" class="brand-mark">PrintLab</div>
                 </div>
                 <h1 id="dashboardPageTitle">PrintLab</h1>
-                <div class="topbar-user-tools topbar-user-tools-compact">
-                    <button type="button" class="tool-icon plain-icon" data-topbar-favorite="true" data-topbar-favorite-target="dashboardFavorites" aria-label="Favoritos"></button>
-                    <button type="button" id="dashboardSearchButton" class="tool-icon plain-icon" aria-label="Buscar"></button>
-                    <button type="button" class="tool-icon plain-icon" data-user-profile-open="true" aria-label="Perfil de usuario"></button>
-                    <div data-theme-toggle-slot></div>
-                </div>
             </div>
         </header>
 
@@ -44,6 +38,10 @@
                         <span class="dashboard-card-icon" data-icon-target="dashboardQuotes"></span>
                         <span class="dashboard-card-title">Cotizaciones</span>
                     </button>
+                    <button type="button" class="dashboard-card" data-route="/notificaciones.html" data-label="Notificaciones" data-icon-key="dashboardNotifications">
+                        <span class="dashboard-card-icon" data-icon-target="dashboardNotifications"></span>
+                        <span class="dashboard-card-title">Notificaciones</span>
+                    </button>
                     <button type="button" class="dashboard-card" data-route="/inventario-materiales" data-label="Inventarios" data-icon-key="dashboardInventory">
                         <span class="dashboard-card-icon" data-icon-target="dashboardInventory"></span>
                         <span class="dashboard-card-title">Inventarios</span>
@@ -65,20 +63,36 @@
                         <span class="dashboard-card-title">Costos</span>
                     </button>
                 </section>
-
-                <section id="dashboardFavorites" class="dashboard-favorites" hidden>
-                    <div class="dashboard-favorites-head">
-                        <h2>Documentos Favoritos</h2>
-                    </div>
-                    <div id="dashboardFavoritesBody" class="dashboard-favorites-body"></div>
-                </section>
             </section>
 
             <section id="dashboardWorkspace" class="dashboard-workspace" hidden></section>
         </main>
+
+        <div id="dashboardBdfgShell" class="dashboard-bdfg-shell process-launcher-stack" data-placement="left">
+            <div id="dashboardBdfgRadialBridge" class="process-launcher-bridge">
+                <!-- Radial items generated dynamically -->
+            </div>
+
+            <button id="dashboardBdfgButton" type="button" class="dashboard-bdfg-button" aria-label="Abrir panel" aria-expanded="false">
+                <span id="dashboardBdfgIcon" class="dashboard-bdfg-icon" aria-hidden="true">+</span>
+                <span id="dashboardBdfgBadge" class="dashboard-bdfg-badge" hidden>0</span>
+            </button>
+
+            <div id="dashboardBdfgBridge" class="dashboard-bdfg-bridge" hidden>
+                <div class="dashboard-bdfg-head">
+                    <div class="dashboard-bdfg-head-copy">
+                        <strong id="dashboardBdfgTitle">Acciones</strong>
+                        <span id="dashboardBdfgSubtitle">Herramientas globales del sistema</span>
+                    </div>
+                    <button id="dashboardBdfgClose" type="button" class="dashboard-bdfg-close" aria-label="Cerrar">×</button>
+                </div>
+                <div id="dashboardBdfgPanel" class="dashboard-bdfg-panel"></div>
+            </div>
+        </div>
     </div>
 
     <script src="/access-control.js"></script>
+    <script src="/dashboard-floating-button.js"></script>
     <script src="/dashboard.js"></script>
     <script src="/topbar-tools.js"></script>
 </body>

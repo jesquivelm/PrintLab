@@ -20,35 +20,6 @@
       </div>
     </section>
 
-    <div id="processLauncherShell" class="process-launcher-shell" data-drag-root>
-      <div class="process-launcher-stack">
-        <div id="processLauncherPrimary" class="process-launcher-primary">
-          <button id="processLauncherButton" type="button" class="process-launcher-button floating-action-button" aria-label="Abrir procesos">
-            <span id="processLauncherIcon" class="process-launcher-icon floating-action-icon" aria-hidden="true">◎</span>
-          </button>
-          <div id="processLauncherBridge" class="process-launcher-bridge" hidden>
-            <span id="processLauncherLabel" class="process-launcher-label">Procesos</span>
-            <div id="processLauncherMenu" class="process-launcher-menu"></div>
-          </div>
-        </div>
-        <button type="button" id="favoriteDocumentButton" class="floating-action-button floating-action-icon-button" aria-label="Marcar documento favorito" title="Marcar documento favorito">
-          <span id="favoriteDocumentIcon" class="floating-action-icon" aria-hidden="true">☆</span>
-        </button>
-        <button type="button" id="refreshCostsButton" class="floating-action-button floating-action-icon-button" aria-label="Actualizar costos" title="Actualizar costos">
-          <span id="refreshCostsIcon" class="floating-action-icon" aria-hidden="true">↻</span>
-        </button>
-        <div id="timelineLauncherPrimary" class="timeline-launcher-primary process-launcher-primary">
-          <button id="timelineLauncherButton" type="button" class="timeline-launcher-button floating-action-button floating-action-icon-button" aria-label="Abrir línea de tiempo" title="Línea de tiempo">
-            <span id="timelineLauncherIcon" class="floating-action-icon" aria-hidden="true">◴</span>
-          </button>
-          <div id="timelineLauncherBridge" class="timeline-launcher-bridge process-launcher-bridge" hidden>
-            <span id="timelineLauncherLabel" class="process-launcher-label timeline-launcher-label">Línea de tiempo</span>
-            <div id="timelineLauncherPanel" class="timeline-launcher-menu timeline-launcher-panel"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <div class="calc-layout">
       <section class="calc-main">
         <article class="calc-card">
@@ -226,6 +197,13 @@
             <div><h2>Contexto base</h2><p id="calcStatus" class="sr-only">Cargando contexto del calculo.</p></div>
           </div>
           <div id="contextRows" class="summary-rows"></div>
+        </article>
+
+        <article class="calc-card">
+          <div class="card-head">
+            <div><h2>Decisión automática</h2></div>
+          </div>
+          <div id="automaticSummaryRows" class="summary-rows"></div>
         </article>
 
         <article class="calc-card">

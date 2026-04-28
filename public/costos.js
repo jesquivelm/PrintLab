@@ -4,21 +4,21 @@ const PRESENTATION_KEY = "costos";
 const COSTS_FALLBACK_STORAGE_KEY = "erp-costos-config";
 const DEFAULT_FLOATING_SAVE_ICON = "\u{1F4BE}";
 const PROCESS_DEFAULTS = [
-    { key: "macula", label: "Mácula", active: true, locked: true, order: 5 },
-    { key: "troquel", label: "Troquel", active: true, locked: true, order: 10 },
-    { key: "sustrato", label: "Sustrato", active: true, locked: true, order: 20 },
-    { key: "diseno", label: "Diseño", active: false, locked: false, order: 30 },
-    { key: "preprensa", label: "Preprensa", active: true, locked: true, order: 40 },
-    { key: "planchas", label: "Planchas", active: false, locked: false, order: 50 },
-    { key: "impresion", label: "Impresión", active: false, locked: false, order: 60 },
-    { key: "barnizado", label: "Barnizado", active: false, locked: false, order: 69 },
-    { key: "laminado", label: "Laminado", active: false, locked: false, order: 70 },
-    { key: "estampado", label: "Estampado", active: false, locked: false, order: 71 },
-    { key: "embosado", label: "Embosado", active: false, locked: false, order: 72 },
-    { key: "troquelado", label: "Troquelado", active: false, locked: false, order: 73 },
-    { key: "rebobinado", label: "Rebobinado", active: false, locked: false, order: 74 },
-    { key: "empaque", label: "Empaque", active: false, locked: false, order: 80 },
-    { key: "adicionales", label: "Procesos adicionales", active: false, locked: false, order: 90 }
+    { key: "macula", label: "M\u00e1cula", active: true, locked: true, repeatable: false, order: 5 },
+    { key: "troquel", label: "Troquel", active: true, locked: true, repeatable: false, order: 10 },
+    { key: "sustrato", label: "Sustrato", active: true, locked: true, repeatable: false, order: 20 },
+    { key: "diseno", label: "Dise\u00f1o", active: false, locked: false, repeatable: false, order: 30 },
+    { key: "preprensa", label: "Preprensa", active: true, locked: true, repeatable: false, order: 40 },
+    { key: "planchas", label: "Planchas", active: false, locked: false, repeatable: false, order: 50 },
+    { key: "impresion", label: "Impresi\u00f3n", active: false, locked: false, repeatable: false, order: 60 },
+    { key: "barnizado", label: "Barnizado", active: false, locked: false, repeatable: false, order: 69 },
+    { key: "laminado", label: "Laminado", active: false, locked: false, repeatable: false, order: 70 },
+    { key: "estampado", label: "Estampado", active: false, locked: false, repeatable: false, order: 71 },
+    { key: "embosado", label: "Embosado", active: false, locked: false, repeatable: false, order: 72 },
+    { key: "troquelado", label: "Troquelado", active: false, locked: false, repeatable: false, order: 73 },
+    { key: "rebobinado", label: "Rebobinado", active: false, locked: false, repeatable: false, order: 74 },
+    { key: "empaque", label: "Empaque", active: false, locked: false, repeatable: false, order: 80 },
+    { key: "adicionales", label: "Procesos adicionales", active: false, locked: false, repeatable: false, order: 90 }
 ];
 
 const DEFAULT_COSTS_CONFIG = {
@@ -259,11 +259,13 @@ function normalizeProcessDefaults(value) {
         seen.add(key);
         const locked = booleanValue(row?.locked, fallback.locked);
         const active = locked ? true : booleanValue(row?.active, fallback.active);
+        const repeatable = booleanValue(row?.repeatable, fallback.repeatable);
         return {
             key,
-            label: normalizeText(row?.label) || fallback.label,
+            label: fallback.label,
             active,
             locked,
+            repeatable,
             order: numberValue(row?.order, fallback.order ?? ((index + 1) * 10)),
             minimumCost: Math.max(0, numberValue(row?.minimumCost, 0))
         };
@@ -275,6 +277,7 @@ function normalizeProcessDefaults(value) {
             label: item.label,
             active: item.locked ? true : item.active,
             locked: item.locked,
+            repeatable: item.repeatable,
             order: item.order ?? ((index + 1) * 10),
             minimumCost: 0
         });
@@ -660,6 +663,11 @@ function renderProcessDefaultRows() {
                     <input type="checkbox" data-process-field="locked" data-index="${index}"${row.locked ? " checked" : ""}>
                 </label>
             </td>
+            <td class="costs-process-default-cell-check">
+                <label class="costs-process-default-check" aria-label="Permitir repetir">
+                    <input type="checkbox" data-process-field="repeatable" data-index="${index}"${row.repeatable ? " checked" : ""}>
+                </label>
+            </td>
             <td>
                 <label class="costs-process-default-cost" aria-label="Costo Mínimo">
                     <span class="costs-process-default-currency">$</span>
@@ -681,7 +689,7 @@ function renderCoreDiameterOptionsRows() {
                 <input type="text" class="costs-core-option-input" data-core-diameter-option-input="${index}" value="${escapeHtml(value)}" placeholder="Ej. 1.5">
             </td>
             <td class="costs-core-option-action-cell">
-                <button type="button" class="costs-option-remove" data-core-diameter-option-remove="${index}" aria-label="Quitar opción">×</button>
+                <button type="button" class="costs-option-remove" data-core-diameter-option-remove="${index}" aria-label="Quitar opción"><span aria-hidden="true">×</span></button>
             </td>
         </tr>
     `).join("");
@@ -803,6 +811,9 @@ processDefaultsList?.addEventListener("change", (event) => {
     if (target.dataset.processField === "locked") {
         row.locked = target.checked;
         if (row.locked) row.active = true;
+    }
+    if (target.dataset.processField === "repeatable") {
+        row.repeatable = target.checked;
     }
     syncProcessDefaultOrders();
     renderProcessDefaultRows();

@@ -4,6 +4,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const { spawn } = require('child_process');
 const { pathToFileURL } = require('url');
 const XLSX = require('xlsx');
@@ -44,6 +45,7 @@ const PRESENTATION_NAMES = {
     'configuracion-general': 'Configuración General',
     'productos': 'Productos',
     'cotizaciones': 'Cotizaciones',
+    'notificaciones': 'Notificaciones',
     'solicitudes': 'Solicitudes',
     'calculos': 'Cálculos',
     'socios': 'Socios',
@@ -112,6 +114,725 @@ function createDefaultPresentation(name) {
     };
 }
 
+function normalizeCommercialMaterialFamily(value = '') {
+    const normalized = normalizeText(String(value || ''))
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+    if (!normalized) return '';
+    if (
+        normalized.includes('barniz')
+        || normalized.includes('laminad')
+        || normalized.includes('foil')
+        || normalized.includes('estamp')
+        || normalized.includes('embos')
+        || normalized.includes('core')
+        || normalized.includes('tinta')
+        || normalized.includes('adhesivo')
+        || normalized.includes('cinta')
+        || normalized.includes('ribbon')
+        || normalized.includes('hot melt')
+    ) return '';
+    if ((normalized.includes('opp') || normalized.includes('bopp') || normalized.includes('poliprop')) && normalized.includes('trans')) return 'OPP Transparente';
+    if ((normalized.includes('opp') || normalized.includes('bopp') || normalized.includes('poliprop')) && (normalized.includes('blanco') || normalized.includes('white'))) return 'OPP Blanco';
+    if (normalized.includes('opp') || normalized.includes('bopp') || normalized.includes('poliprop')) return 'OPP';
+    if (normalized.includes('pet') && normalized.includes('trans')) return 'PET Transparente';
+    if (normalized.includes('pet') && (normalized.includes('blanco') || normalized.includes('white'))) return 'PET Blanco';
+    if (normalized.includes('pet')) return 'PET';
+    if (normalized.includes('vinil') && normalized.includes('trans')) return 'Vinil Transparente';
+    if (normalized.includes('vinil') && (normalized.includes('blanco') || normalized.includes('white'))) return 'Vinil Blanco';
+    if (normalized.includes('vinil')) return 'Vinil';
+    if (normalized.includes('shrink')) return 'Shrink';
+    if (normalized.includes('cartulina')) return 'Cartulina';
+    if (normalized.includes('termic')) return 'Papel Térmico';
+    if (normalized.includes('transfer')) return 'Papel Transfer';
+    if (normalized.includes('couche') || normalized.includes('cote') || normalized.includes('coat')) return 'Papel Couche';
+    if (normalized.includes('papel')) return 'Papel';
+    return '';
+}
+
+function toCommercialTitleCase(value = '') {
+    return String(value || '')
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((token) => {
+            const upper = token.toUpperCase();
+            if (upper.length <= 4 && /[A-Z]/.test(upper)) return upper;
+            return token.charAt(0).toUpperCase() + token.slice(1).toLowerCase();
+        })
+        .join(' ')
+        .trim();
+}
+
+function buildFallbackCommercialMaterialFamily(value = '') {
+    const normalized = normalizeText(String(value || ''))
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+    if (!normalized) return '';
+    const compact = normalized
+        .replace(/\b(\d+([.,]\d+)?)(\s?("|in|mm|mic|micras|micron|gsm|g|kg|lb|lbs|mil))\b/g, ' ')
+        .replace(/\b(codigo|cod|item|sku|material|film|pelicula|lamina|label stock|stock)\b/g, ' ')
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    if (!compact) return '';
+    const tokens = compact
+        .split(' ')
+        .filter((token) => token.length >= 3)
+        .filter((token) => !/^\d+$/.test(token))
+        .filter((token) => ![
+            'con', 'sin', 'para', 'por', 'una', 'uno', 'the', 'and', 'hot', 'melt',
+            'barniz', 'laminado', 'foil', 'estampado', 'embosado', 'tinta', 'adhesivo',
+            'cinta', 'ribbon', 'liner', 'core', 'rollo', 'bobina'
+        ].includes(token))
+        .slice(0, 3);
+    return toCommercialTitleCase(tokens.join(' '));
+}
+
+function resolveCommercialMaterialFamily(material = {}) {
+    const seeds = [
+        material.presentationType,
+        material.familiaProceso,
+        material.name,
+        material.displayName,
+        material.code
+    ].filter((item) => String(item || '').trim());
+    for (const seed of seeds) {
+        const normalized = normalizeCommercialMaterialFamily(seed);
+        if (normalized) return normalized;
+    }
+    for (const seed of seeds) {
+        const fallback = buildFallbackCommercialMaterialFamily(seed);
+        if (fallback) return fallback;
+    }
+    return '';
+}
+
+function isQuotableSubstrateMaterial(material = {}) {
+    if (!material || material.active === false) return false;
+    const family = normalizeText(material.familiaProceso || '').toLowerCase();
+    if (family && !family.includes('sustrato')) return false;
+    return parsePositiveNumber(material.widthInches, 0) > 0;
+}
+
+function getCommercialMaterialFamilies(materials = []) {
+    const seen = new Set();
+    return (Array.isArray(materials) ? materials : [])
+        .filter((item) => isQuotableSubstrateMaterial(item))
+        .filter((item) => item.conventionalEnabled !== false || item.digitalEnabled !== false)
+        .map((item) => {
+            const family = resolveCommercialMaterialFamily(item);
+            return { code: family, name: family };
+        })
+        .filter((item) => {
+            if (!item.name || seen.has(item.name)) return false;
+            seen.add(item.name);
+            return true;
+        })
+        .sort((left, right) => left.name.localeCompare(right.name, 'es'));
+}
+
+function normalizeRequestedShape(value = '') {
+    const normalized = normalizeText(value)
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+    if (!normalized) return '';
+    if (normalized.includes('redond') || normalized.includes('circular')) return 'circular';
+    if (normalized.includes('cuadr')) return 'cuadrado';
+    if (normalized.includes('rect')) return 'rectangular';
+    if (normalized.includes('oval')) return 'ovalado';
+    if (normalized.includes('especial')) return 'especial';
+    return normalized;
+}
+
+function resolveDieShape(die = {}) {
+    const seed = [
+        die.clasificacion,
+        die.tipoTroquel,
+        die.tipoTroquel2,
+        die.description,
+        die.descripcionCotizaciones,
+        die.code
+    ].filter(Boolean).join(' ');
+    const normalized = normalizeRequestedShape(seed);
+    if (normalized) return normalized;
+    const code = normalizeText(die.code || '').toUpperCase();
+    if (code.startsWith('R-') || code === 'R') return 'circular';
+    if (code.startsWith('O-') || code === 'O') return 'ovalado';
+    if (code.startsWith('CU-') || code === 'CU') return 'cuadrado';
+    if (code.startsWith('E-') || code === 'E') return 'especial';
+    if (code.startsWith('C-') || code.startsWith('BC-')) return 'rectangular';
+    return '';
+}
+
+function parsePositiveNumber(value, fallback = 0) {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) && numeric > 0 ? numeric : fallback;
+}
+
+function getDieLabelWidthInches(die = {}) {
+    return parsePositiveNumber(die.anchoEtiquetaIn, parsePositiveNumber(die.widthMm) / 25.4);
+}
+
+function getDieLabelLengthInches(die = {}) {
+    return parsePositiveNumber(die.largoEtiquetaIn, parsePositiveNumber(die.lengthMm) / 25.4);
+}
+
+function getDieRequiredMaterialWidthInches(die = {}, fallbackWidth = 0) {
+    return parsePositiveNumber(die.anchoMaterialIn, parsePositiveNumber(die.ancho_total_troquel_in, fallbackWidth));
+}
+
+function isDieProcessCompatible(die = {}, processType = 'convencional') {
+    if (processType === 'digital') return die.usoDigital !== false;
+    return die.usoConvencional !== false;
+}
+
+function isMaterialProcessCompatible(material = {}, processType = 'convencional') {
+    if (material.active === false) return false;
+    if (processType === 'digital') return material.digitalEnabled !== false;
+    return material.conventionalEnabled !== false;
+}
+
+function isMachineProcessCompatible(machine = {}, processType = 'convencional') {
+    if (!machine || machine.active === false) return false;
+    const seed = normalizeText(`${machine.type || ''} ${machine.process || ''} ${machine.subprocess || ''} ${machine.category || ''}`).toLowerCase();
+    if (processType === 'digital') return seed.includes('digit');
+    return !seed.includes('digit');
+}
+
+function dieMatchesRequestedGeometry(die = {}, requestedShape = '', widthInches = 0, lengthInches = 0) {
+    const dieShape = resolveDieShape(die);
+    if (requestedShape && dieShape && dieShape !== requestedShape) return false;
+    const dieWidth = getDieLabelWidthInches(die);
+    const dieLength = getDieLabelLengthInches(die);
+    if (!widthInches || !lengthInches || !dieWidth || !dieLength) return true;
+    const tolerance = 0.12;
+    const directMatch = Math.abs(dieWidth - widthInches) <= tolerance && Math.abs(dieLength - lengthInches) <= tolerance;
+    const rotatedMatch = Math.abs(dieWidth - lengthInches) <= tolerance && Math.abs(dieLength - widthInches) <= tolerance;
+    return directMatch || rotatedMatch;
+}
+
+function scoreDieCandidate(die = {}, widthInches = 0, lengthInches = 0) {
+    const dieWidth = getDieLabelWidthInches(die);
+    const dieLength = getDieLabelLengthInches(die);
+    const sizePenalty = Math.abs(dieWidth - widthInches) + Math.abs(dieLength - lengthInches);
+    const repetitionScore = parsePositiveNumber(die.repetitions, 1) * 100;
+    const rowsScore = parsePositiveNumber(die.rows, 1) * 25;
+    const widthScore = parsePositiveNumber(getDieRequiredMaterialWidthInches(die, dieWidth), dieWidth);
+    return repetitionScore + rowsScore - (sizePenalty * 100) - widthScore;
+}
+
+function selectBestDie({ dies = [], requestedShape = '', widthInches = 0, lengthInches = 0, processType = 'convencional' }) {
+    const candidates = (Array.isArray(dies) ? dies : [])
+        .filter((die) => die && die.active !== false)
+        .filter((die) => isDieProcessCompatible(die, processType))
+        .filter((die) => dieMatchesRequestedGeometry(die, requestedShape, widthInches, lengthInches))
+        .sort((left, right) => scoreDieCandidate(right, widthInches, lengthInches) - scoreDieCandidate(left, widthInches, lengthInches));
+    return candidates[0] || null;
+}
+
+function selectCandidateMaterials({ materials = [], requestedFamily = '', processType = 'convencional', minimumWidthInches = 0 }) {
+    const normalizedFamily = normalizeCommercialMaterialFamily(requestedFamily);
+    const familyCandidates = (Array.isArray(materials) ? materials : [])
+        .filter((material) => isQuotableSubstrateMaterial(material))
+        .filter((material) => isMaterialProcessCompatible(material, processType))
+        .filter((material) => !normalizedFamily || resolveCommercialMaterialFamily(material) === normalizedFamily)
+        .sort((left, right) => {
+            const leftWidth = parsePositiveNumber(left.widthInches, 0);
+            const rightWidth = parsePositiveNumber(right.widthInches, 0);
+            return leftWidth - rightWidth || parsePositiveNumber(left.costPerMsiUsd, 0) - parsePositiveNumber(right.costPerMsiUsd, 0);
+        });
+    const widthCandidates = familyCandidates.filter((material) => !minimumWidthInches || parsePositiveNumber(material.widthInches, 0) >= (minimumWidthInches - 0.01));
+    return {
+        familyCandidates,
+        widthCandidates
+    };
+}
+
+function selectCandidateMachines({ machines = [], processType = 'convencional', minimumWidthInches = 0, requiredCategory = '' }) {
+    return (Array.isArray(machines) ? machines : [])
+        .filter((machine) => isMachineProcessCompatible(machine, processType))
+        .filter((machine) => !requiredCategory || normalizeText(machine.category || machine.process || '').toLowerCase().includes(requiredCategory))
+        .filter((machine) => {
+            if (!minimumWidthInches) return true;
+            const machineWidth = resolveMachineMaxWidthInches(machine);
+            if (!machineWidth) return true;
+            return machineWidth >= (minimumWidthInches - 0.01);
+        })
+        .sort((left, right) => {
+            const leftWidth = resolveMachineMaxWidthInches(left) || 9999;
+            const rightWidth = resolveMachineMaxWidthInches(right) || 9999;
+            return leftWidth - rightWidth || parsePositiveNumber(left.hourlyMachineCost, 0) - parsePositiveNumber(right.hourlyMachineCost, 0);
+        });
+}
+
+function isShapeDieOptional(requestedShape = '') {
+    return requestedShape === 'rectangular' || requestedShape === 'cuadrado' || requestedShape === 'square';
+}
+
+function resolveMachineMaxWidthInches(machine = {}) {
+    const directWidth = parsePositiveNumber(machine.maxWidthInches, 0);
+    if (directWidth > 0) return directWidth;
+    const capacityWidth = Array.isArray(machine.capacities)
+        ? machine.capacities.reduce((max, item) => Math.max(max, parsePositiveNumber(item?.maxWidthInches, 0)), 0)
+        : 0;
+    if (capacityWidth > 0) return capacityWidth;
+    return inferMachineModelWidthInches(machine);
+}
+
+function hasConfiguredMachineWidth(machine = {}) {
+    if (parsePositiveNumber(machine.maxWidthInches, 0) > 0) return true;
+    return Array.isArray(machine.capacities)
+        ? machine.capacities.some((item) => parsePositiveNumber(item?.maxWidthInches, 0) > 0)
+        : false;
+}
+
+function inferMachineModelWidthInches(machine = {}) {
+    const normalized = normalizeText([
+        machine.machineName,
+        machine.name,
+        machine.type,
+        machine.process,
+        machine.subprocess
+    ].filter(Boolean).join(' ')).toLowerCase();
+    if (!normalized) return 0;
+    const widthByPattern = [
+        [/hp\s*6000/, 13],
+        [/hp\s*8000/, 13],
+        [/konica\s*minolta\s*accuriolabel\s*400/, 12.95],
+        [/durst\s*tau\s*rsci/, 13],
+        [/zz\s*maquina\s*digital\s*codex/, 10],
+        [/mark\s*andy\s*p5/, 13],
+        [/gallus\s*labelmaster/, 17],
+        [/omet\s*xflex\s*x6/, 17],
+        [/mps\s*ef\s*symetron/, 13]
+    ];
+    const matched = widthByPattern.find(([pattern]) => pattern.test(normalized));
+    return matched ? matched[1] : 0;
+}
+
+function resolveMachineSpeedFeetPerMinute(machine = {}, processType = 'convencional') {
+    if (processType === 'digital') {
+        const speedMpm = parsePositiveNumber(machine.digitalSpeedCmykMpm, parsePositiveNumber(machine.productionSpeed, 0));
+        return speedMpm > 0 ? (speedMpm * 3.28084) : 0;
+    }
+    const normalizedUnit = normalizeText(machine.speedUnit || machine.workUnit || '').toLowerCase();
+    const productionSpeed = parsePositiveNumber(machine.productionSpeed, 0);
+    if (!productionSpeed) return 0;
+    if (normalizedUnit.includes('metro')) return productionSpeed * 3.28084;
+    return productionSpeed;
+}
+
+function estimateMountingLayout({
+    machine = null,
+    material = null,
+    die = null,
+    processType = 'convencional',
+    widthInches = 0,
+    lengthInches = 0,
+    quantity = 0,
+    labelsPerRoll = 1000
+} = {}) {
+    if (!machine || !material || widthInches <= 0 || lengthInches <= 0 || quantity <= 0) return null;
+    const machineWidth = resolveMachineMaxWidthInches(machine);
+    const materialWidth = parsePositiveNumber(material.widthInches, 0);
+    const usableWidth = Math.min(machineWidth || materialWidth, materialWidth || machineWidth);
+    if (usableWidth <= 0) return null;
+    const horizontalGap = Math.max(0, parsePositiveNumber(die?.gapIn, 0.125));
+    const verticalGap = Math.max(0, parsePositiveNumber(die?.gapIn, 0.125));
+    const labelPitchWidth = Math.max(0.01, widthInches + horizontalGap);
+    const labelPitchLength = Math.max(0.01, lengthInches + verticalGap);
+    const dieRequiredWidth = getDieRequiredMaterialWidthInches(die || {}, 0);
+    const estimatedColumns = Math.max(1, Math.floor((usableWidth + horizontalGap) / labelPitchWidth));
+    let columns = estimatedColumns;
+    if (dieRequiredWidth > 0 && usableWidth + 0.01 >= dieRequiredWidth) {
+        const dieRows = Math.max(1, parsePositiveNumber(die?.rows, 1));
+        const dieRepetitions = Math.max(1, parsePositiveNumber(die?.repetitions, 1));
+        columns = Math.max(1, Math.min(estimatedColumns, dieRows * dieRepetitions));
+    }
+    const rowsNeeded = Math.max(1, Math.ceil(quantity / columns));
+    const linearInches = rowsNeeded * labelPitchLength;
+    const linearFeet = linearInches / 12;
+    const msiBase = (usableWidth * linearInches) / 1000;
+    const wasteFactor = processType === 'digital'
+        ? Math.max(1, parsePositiveNumber(machine.digitalWasteFactor, 1.05))
+        : 1.08;
+    const msiWithWaste = msiBase * wasteFactor;
+    const materialCost = msiWithWaste * parsePositiveNumber(material.costPerMsiUsd, 0);
+    const speedFeetPerMinute = resolveMachineSpeedFeetPerMinute(machine, processType);
+    const runtimeMinutes = speedFeetPerMinute > 0 ? (linearFeet * wasteFactor) / speedFeetPerMinute : 0;
+    const setupMinutes = Math.max(
+        0,
+        parsePositiveNumber(machine.setupBaseMinutes, 0) +
+        parsePositiveNumber(machine.setupExtraMinutes, 0) +
+        (processType === 'convencional' ? parsePositiveNumber(machine.setupPerStationMinutes, 0) : 0)
+    );
+    const totalHours = (setupMinutes + runtimeMinutes) / 60;
+    const machineCost = totalHours * (
+        parsePositiveNumber(machine.hourlyMachineCost, 0) +
+        parsePositiveNumber(machine.hourlyOperatorCost, 0)
+    );
+    const widthGap = Math.max(0, machineWidth - usableWidth);
+    const estimatedTotalCost = materialCost + machineCost + (widthGap * 0.05);
+
+    return {
+        machineWidth,
+        materialWidth,
+        usableWidth,
+        columns,
+        rowsNeeded,
+        horizontalGap,
+        verticalGap,
+        labelPitchWidth,
+        labelPitchLength,
+        linearInches,
+        linearFeet,
+        msiBase,
+        wasteFactor,
+        msiWithWaste,
+        materialCost,
+        machineCost,
+        setupMinutes,
+        runtimeMinutes,
+        totalHours,
+        estimatedTotalCost,
+        labelsPerRoll: Math.max(1, Math.ceil(labelsPerRoll)),
+        estimatedRollCount: Math.max(1, Math.ceil(quantity / Math.max(1, Math.ceil(labelsPerRoll)))),
+        source: die?.code ? 'troquel_y_ancho' : 'ancho_maquina_material'
+    };
+}
+
+function selectBestProductionCombo({
+    materials = [],
+    machines = [],
+    requestedFamily = '',
+    processType = 'convencional',
+    widthInches = 0,
+    lengthInches = 0,
+    quantity = 0,
+    labelsPerRoll = 1000,
+    die = null
+} = {}) {
+    const dieRequiredWidth = getDieRequiredMaterialWidthInches(die || {}, widthInches);
+    const materialSelection = selectCandidateMaterials({
+        materials,
+        requestedFamily,
+        processType,
+        minimumWidthInches: widthInches
+    });
+    const machineCandidates = selectCandidateMachines({
+        machines,
+        processType,
+        minimumWidthInches: widthInches,
+        requiredCategory: 'impres'
+    });
+    const combos = [];
+
+    materialSelection.widthCandidates.forEach((material) => {
+        const materialWidth = parsePositiveNumber(material.widthInches, 0);
+        machineCandidates.forEach((machine) => {
+            const machineWidth = resolveMachineMaxWidthInches(machine);
+            if (materialWidth > 0 && machineWidth > 0 && materialWidth - machineWidth > 0.01) return;
+            if (dieRequiredWidth > 0 && Math.min(materialWidth || machineWidth, machineWidth || materialWidth) + 0.01 < dieRequiredWidth) return;
+            const layout = estimateMountingLayout({
+                machine,
+                material,
+                die,
+                processType,
+                widthInches,
+                lengthInches,
+                quantity,
+                labelsPerRoll
+            });
+            if (!layout || layout.columns <= 0) return;
+            combos.push({
+                machine,
+                material,
+                layout,
+                machineWidthKnown: machineWidth > 0,
+                dieWidthGap: Math.max(0, dieRequiredWidth - layout.usableWidth),
+                widthGap: Math.abs((machineWidth || parsePositiveNumber(material.widthInches, 0)) - parsePositiveNumber(material.widthInches, 0))
+            });
+        });
+    });
+
+    combos.sort((left, right) => {
+        if (left.layout.estimatedTotalCost !== right.layout.estimatedTotalCost) {
+            return left.layout.estimatedTotalCost - right.layout.estimatedTotalCost;
+        }
+        if (left.layout.columns !== right.layout.columns) {
+            return right.layout.columns - left.layout.columns;
+        }
+        return left.widthGap - right.widthGap;
+    });
+
+    return {
+        materialSelection,
+        machineCandidates,
+        combos,
+        best: combos[0] || null
+    };
+}
+
+function buildAutomaticRouteComment({
+    selectedProcessType = '',
+    threshold = 0,
+    quantity = 0,
+    die = null,
+    material = null,
+    machine = null,
+    mounting = null
+}) {
+    const fragments = [];
+    if (threshold > 0 && quantity > 0) {
+        fragments.push(quantity <= threshold
+            ? `Cantidad ${quantity} dentro del límite automático digital (${threshold}).`
+            : `Cantidad ${quantity} supera el límite automático digital (${threshold}).`);
+    }
+    fragments.push(`Ruta seleccionada: ${selectedProcessType === 'digital' ? 'Digital' : 'Convencional'}.`);
+    if (die?.code) fragments.push(`Troquel seleccionado: ${die.code}.`);
+    if (material?.code) fragments.push(`Material seleccionado: ${material.code}.`);
+    if (machine?.machineName) fragments.push(`Máquina seleccionada: ${machine.machineName}.`);
+    if (mounting) {
+        fragments.push(`Montaje estimado: ${mounting.columns} columnas en ${roundCurrency(mounting.usableWidth)}".`);
+    }
+    return fragments.join(' ');
+}
+
+async function resolveSmartQuoteLineSelection(payload = {}) {
+    const generalConfig = await loadGeneralConfig();
+    const catalogs = await loadFlexoCatalogsFromDb();
+    const quantity = parseLegacyNumber(payload.quantity) ?? parseLegacyNumber(payload.quantityProducts) ?? 0;
+    const threshold = Math.max(0, Number(generalConfig?.general?.quoteAutomaticDigitalMaxQuantity || 0)) || 100000;
+    const requestedShape = normalizeRequestedShape(payload?.request_meta?.['REQ | Forma'] || payload?.request_meta?.CODEX_UI_STATE?.dieShape || '');
+    const widthInches = parsePositiveNumber(payload.widthInches, 0);
+    const lengthInches = parsePositiveNumber(payload.lengthInches, 0);
+    const requestedFamily = normalizeCommercialMaterialFamily(payload.material_name || payload.material_code || '');
+    const labelsPerRoll = Math.max(1, parsePositiveNumber(
+        payload.labelsPerRoll,
+        parsePositiveNumber(generalConfig?.general?.quoteAutomaticLabelsPerRoll, 1000)
+    ));
+    const preferredProcess = quantity > 0 && quantity <= threshold ? 'digital' : 'convencional';
+    const processOrder = preferredProcess === 'digital' ? ['digital', 'convencional'] : ['convencional', 'digital'];
+    const attempts = [];
+    const dieOptional = isShapeDieOptional(requestedShape);
+
+    for (const processType of processOrder) {
+        const die = selectBestDie({
+            dies: catalogs.dies,
+            requestedShape,
+            widthInches,
+            lengthInches,
+            processType
+        });
+        const comboSelection = selectBestProductionCombo({
+            materials: catalogs.materials,
+            machines: catalogs.machines,
+            requestedFamily,
+            processType,
+            widthInches,
+            lengthInches,
+            quantity,
+            labelsPerRoll,
+            die
+        });
+        const selectedCombo = comboSelection.best;
+        const material = selectedCombo?.material || null;
+        const machine = selectedCombo?.machine || null;
+        const mounting = selectedCombo?.layout || null;
+        const warnings = [];
+        if (!die) {
+            if (dieOptional && processType === 'digital') {
+                warnings.push('No se encontró troquel oficial compatible; se usó un montaje estimado por ancho de máquina y material.');
+            } else {
+                warnings.push('No se encontró un troquel oficial compatible para la forma y medida solicitadas.');
+            }
+        }
+        if (!material) warnings.push(`No se encontró material activo compatible de la familia ${requestedFamily || 'solicitada'} con el ancho requerido.`);
+        if (!machine) warnings.push(`No se encontró máquina ${processType === 'digital' ? 'digital' : 'convencional'} activa compatible con el ancho requerido.`);
+        if (!mounting && material && machine) warnings.push('No se pudo estimar el montaje automático con la combinación de material y máquina seleccionada.');
+        if (material && machine && mounting && !die && (dieOptional || processType === 'digital')) {
+            warnings.push('La selección quedó basada en ancho útil y costo estimado; requiere validación técnica si la salida del rollo debe ser específica.');
+        }
+        if (machine && !hasConfiguredMachineWidth(machine)) {
+            if (inferMachineModelWidthInches(machine) > 0) {
+                warnings.push('La máquina seleccionada no tiene ancho máximo configurado; se estimó el montaje con un ancho de referencia del modelo y del material disponible.');
+            } else {
+                warnings.push('La máquina seleccionada no tiene ancho máximo configurado; se estimó el montaje usando el ancho del material disponible.');
+            }
+        }
+
+        attempts.push({
+            processType,
+            die,
+            material,
+            machine,
+            mounting,
+            warnings,
+            labelsPerRoll,
+            ok: Boolean(material && machine && mounting && (die || dieOptional || processType === 'digital'))
+        });
+    }
+
+    const selected = attempts.find((item) => item.ok) || attempts[0];
+    return {
+        selectedProcessType: selected.processType,
+        digitalThreshold: threshold,
+        requestedFamily,
+        selectedDie: selected.die,
+        selectedMaterial: selected.material,
+        selectedMachine: selected.machine,
+        selectedMounting: selected.mounting,
+        labelsPerRoll,
+        warnings: selected.warnings,
+        automaticComment: buildAutomaticRouteComment({
+            selectedProcessType: selected.processType,
+            threshold,
+            quantity,
+            die: selected.die,
+            material: selected.material,
+            machine: selected.machine,
+            mounting: selected.mounting
+        }),
+        fallbackApplied: selected.processType !== preferredProcess,
+        attempts
+    };
+}
+
+function inferSmartQuoteTintCount(rawData = {}, processType = 'Convencional') {
+    const explicit = parseLegacyNumber(rawData['CANTIDAD TINTAS']);
+    if (explicit && explicit > 0) return explicit;
+    const usesCmyk = String(rawData.CMYK ?? rawData['GENERAL | CMYK'] ?? 'Si').trim().toLowerCase() !== 'false';
+    const pantones = parseLegacyNumber(rawData['CANTIDAD PANTONES']) || 0;
+    const numberingExtra = hasDeclaredProcessDetail(rawData['REQ | Numeracion']) ? 1 : 0;
+    if (String(processType || '').toLowerCase().includes('digit')) {
+        return Math.max(4, (usesCmyk ? 4 : 0) + numberingExtra);
+    }
+    return Math.max(1, (usesCmyk ? 4 : 0) + pantones + numberingExtra);
+}
+
+function computeSmartQuoteMaterialCost({ material = null, mounting = null, widthInches = 0, lengthInches = 0, quantity = 0 }) {
+    if (mounting?.materialCost > 0) return Number(mounting.materialCost || 0);
+    if (!material || widthInches <= 0 || lengthInches <= 0 || quantity <= 0) return 0;
+    const horizontalGap = 0.125;
+    const verticalGap = 0.125;
+    const columns = Math.max(1, parsePositiveNumber(mounting?.columns, 1));
+    const rowsNeeded = Math.max(1, Math.ceil(quantity / columns));
+    const linearInches = rowsNeeded * Math.max(0.01, lengthInches + verticalGap);
+    const materialWidth = parsePositiveNumber(material.widthInches, widthInches);
+    const msiBase = (materialWidth * linearInches) / 1000;
+    const wasteFactor = Math.max(1, parsePositiveNumber(mounting?.wasteFactor, parsePositiveNumber(material.mermaPct, 0) > 0 ? 1 + (parsePositiveNumber(material.mermaPct, 0) / 100) : 1.1));
+    const msiWithWaste = msiBase * wasteFactor;
+    const areaM2 = ((materialWidth * 0.0254) * (linearInches * 0.0254)) * wasteFactor;
+    const costPerMsi = parsePositiveNumber(material.costPerMsiUsd, 0);
+    const costPerM2 = parsePositiveNumber(material.costPerSquareMeterUsd, 0);
+    if (costPerMsi > 0) return msiWithWaste * costPerMsi;
+    if (costPerM2 > 0) return areaM2 * costPerM2;
+    return 0;
+}
+
+function findCostProcessDefault(costsConfig = {}, processKey = '') {
+    const rows = Array.isArray(costsConfig?.general?.processDefaults) ? costsConfig.general.processDefaults : [];
+    return rows.find((item) => String(item?.key || '').trim().toLowerCase() === String(processKey || '').trim().toLowerCase()) || null;
+}
+
+async function estimateAutomaticQuotePricing({
+    rawData = {},
+    processType = 'Convencional',
+    quantity = 0,
+    selectedMachine = null,
+    selectedMaterial = null,
+    selectedDie = null,
+    selectedMounting = null,
+    costsConfig = {},
+    exchangeRate = 1
+} = {}) {
+    const processMapData = await loadPlanningReferenceMaps();
+    const profileById = new Map();
+    for (const profiles of processMapData.profileMap.values()) {
+        for (const profile of profiles) {
+            if (profile?.id) profileById.set(profile.id, profile);
+        }
+    }
+    const planningSnapshot = buildPlanningSnapshot({
+        line_summary: {
+            process_type: processType,
+            machine_name: selectedMachine?.machineName || '',
+            die_code: selectedDie?.code || '',
+            material_name: selectedMaterial?.name || ''
+        },
+        line_snapshot: {
+            quotedMachine: selectedMachine?.machineName || '',
+            materialCode: selectedMaterial?.code || '',
+            materialName: selectedMaterial?.name || '',
+            dieCode: selectedDie?.code || '',
+            tintCount: inferSmartQuoteTintCount(rawData, processType),
+            materialFeet: Number(selectedMounting?.linearFeet || 0),
+            raw_data: rawData
+        },
+        totals: {
+            quantity: Number(quantity || 0)
+        }
+    }, processMapData.processMap, processMapData.profileMap);
+
+    const stageBreakdown = (planningSnapshot.processes || []).map((stage) => {
+        const profile = profileById.get(stage.machineProfileId) || null;
+        const defaultRow = findCostProcessDefault(costsConfig, stage.processKey);
+        const baseCost = stage.durationHours * (
+            Number(profile?.hourly_machine_cost || 0)
+            + Number(profile?.hourly_operator_cost || 0)
+        );
+        const minimumCost = Number(defaultRow?.minimumCost || 0);
+        const totalCost = Math.max(baseCost, minimumCost);
+        return {
+            processKey: stage.processKey,
+            processName: stage.processName,
+            machineName: stage.machineName || '',
+            durationHours: Number(stage.durationHours || 0),
+            totalCost: roundCurrency(totalCost)
+        };
+    });
+
+    const materialCost = roundCurrency(computeSmartQuoteMaterialCost({
+        material: selectedMaterial,
+        mounting: selectedMounting,
+        widthInches: parseLegacyNumber(rawData['DIMENSIONES ETIQUETA | ANCHO']) || 0,
+        lengthInches: parseLegacyNumber(rawData['DIMENSIONES ETIQUETA | LARGO']) || 0,
+        quantity
+    }));
+    const productionCost = roundCurrency(stageBreakdown.reduce((sum, stage) => sum + Number(stage.totalCost || 0), 0));
+    const baseCost = roundCurrency(materialCost + productionCost);
+    const processTypeNormalized = String(processType || '').toLowerCase();
+    const subtotalBeforeTax = roundCurrency(baseCost * (1 + 0.03) * (1 + 0.02) * (
+        1
+        + (processTypeNormalized.includes('digit') ? 0.22 : 0.28)
+        + 0.03
+        + (processTypeNormalized.includes('digit') ? 0.08 : 0.10)
+    ));
+    const taxPercent = 12;
+    const taxAmount = roundCurrency(subtotalBeforeTax * (taxPercent / 100));
+    const totalAmount = roundCurrency(subtotalBeforeTax + taxAmount);
+    const unitPrice = quantity > 0 ? roundCurrency(subtotalBeforeTax / quantity) : 0;
+    const unitPriceWithTax = quantity > 0 ? roundCurrency(totalAmount / quantity) : 0;
+    const safeExchangeRate = Number(exchangeRate || 1) || 1;
+    return {
+        materialCost,
+        productionCost,
+        baseCost,
+        subtotalBeforeTax,
+        taxPercent,
+        taxAmount,
+        totalAmount,
+        unitPrice,
+        unitPriceWithTax,
+        exchangeRate: safeExchangeRate,
+        processBreakdown: stageBreakdown,
+        planningSnapshot
+    };
+}
+
 const DEFAULT_PRESENTATIONS = {};
 Object.keys(PRESENTATION_NAMES).forEach(key => {
     DEFAULT_PRESENTATIONS[key] = createDefaultPresentation(PRESENTATION_NAMES[key]);
@@ -147,6 +868,7 @@ const DEFAULT_GENERAL_CONFIG = {
         dashboardBusinessPartners: '\u25A6',
         dashboardProducts: '\u25A7',
         dashboardQuotes: '\u25A4',
+        dashboardNotifications: '\u2709',
         dashboardInventory: '\u25A5',
         dashboardOrders: '\u2699',
         dashboardCosts: '\u25A7',
@@ -169,6 +891,11 @@ const DEFAULT_GENERAL_CONFIG = {
         tableOpen: '\u2699',
         tableAdd: '+',
         quantityAdd: '+',
+        quantity: {
+            add: '+',
+            delete: '\u{1F5D1}'
+        },
+        quantityDelete: '\u{1F5D1}',
         fieldInfo: 'i',
         formulaInfo: 'i',
         processLauncher: '\u25CE',
@@ -241,6 +968,15 @@ const DEFAULT_GENERAL_CONFIG = {
         defaultRollWidth: 13,
         defaultCoreDiameter: 3,
         defaultQuantityTypes: 1,
+        quoteProductTypesJson: JSON.stringify([
+            'Etiquetas',
+            'Cinta Continua',
+            'Empaque Flexible',
+            'Código de Barras',
+            'Números de Carrera'
+        ]),
+        quoteAutomaticDigitalMaxQuantity: 100000,
+        quoteAutomaticLabelsPerRoll: 1000,
         defaultCmykEnabled: 'true',
         proformaLogoUrl: '',
         proformaCompanyName: 'PrintLab',
@@ -353,6 +1089,9 @@ const DEFAULT_GENERAL_CONFIG = {
         iconColorDashboardQuotes: '#0b81b8',
         iconColor2DashboardQuotes: '#ffffff',
         iconColorHoverDashboardQuotes: '#17abdf',
+        iconColorDashboardNotifications: '#0b81b8',
+        iconColor2DashboardNotifications: '#ffffff',
+        iconColorHoverDashboardNotifications: '#17abdf',
         iconColorDashboardInventory: '#0b81b8',
         iconColor2DashboardInventory: '#ffffff',
         iconColorHoverDashboardInventory: '#17abdf',
@@ -398,6 +1137,9 @@ const DEFAULT_GENERAL_CONFIG = {
         iconColorQuantityAdd: '#738196',
         iconColor2QuantityAdd: '#ffffff',
         iconColorHoverQuantityAdd: '#0b81b8',
+        iconColorQuantityDelete: '#b94848',
+        iconColor2QuantityDelete: '#ffffff',
+        iconColorHoverQuantityDelete: '#d03535',
         iconColorFieldInfo: '#4f6f8f',
         iconColor2FieldInfo: '#ffffff',
         iconColorHoverFieldInfo: '#0b81b8',
@@ -503,6 +1245,7 @@ const DEFAULT_GENERAL_CONFIG = {
         iconSizeDashboardBusinessPartners: 38,
         iconSizeDashboardProducts: 38,
         iconSizeDashboardQuotes: 38,
+        iconSizeDashboardNotifications: 38,
         iconSizeDashboardInventory: 38,
         iconSizeDashboardOrders: 38,
         iconSizeDashboardCosts: 38,
@@ -518,6 +1261,7 @@ const DEFAULT_GENERAL_CONFIG = {
         iconSizeTableOpen: 20,
         iconSizeTableAdd: 20,
         iconSizeQuantityAdd: 20,
+        iconSizeQuantityDelete: 18,
         iconSizeFieldInfo: 12,
         iconSizeFormulaInfo: 13,
         iconSizeProcessLauncher: 24,
@@ -550,7 +1294,20 @@ const DEFAULT_GENERAL_CONFIG = {
         pageMarginTop: 14,
         pageMarginBottom: 8,
         pageMarginRight: 16,
-        pageMarginLeft: 16
+        pageMarginLeft: 16,
+        bdfgTheme: 'executive',
+        bdfgColorMode: 'auto',
+        bdfgMainSize: 86,
+        bdfgMenuDistance: 108,
+        bdfgMiniShape: 'round',
+        bdfgLayout: 'radial',
+        bdfgMainDay: '#cbd5e1',
+        bdfgMainNight: '#334155',
+        bdfgMiniBg: '#ffffff',
+        bdfgMiniBgAlpha: 100,
+        bdfgMiniBgNight: '#ffffff',
+        bdfgMiniBgNightAlpha: 100,
+        bdfgMiniColor: '#1f2937'
     },
     presentations: EMPTY_PRESENTATIONS
 };
@@ -565,21 +1322,21 @@ const DEFAULT_COSTS_CONFIG = {
         defaultQuantityTypes: 1,
         defaultCmykEnabled: 'true',
         processDefaults: [
-            { key: 'macula', label: 'Mácula', active: true, locked: true, order: 5, minimumCost: 0 },
-            { key: 'troquel', label: 'Troquel', active: true, locked: true, order: 10, minimumCost: 0 },
-            { key: 'sustrato', label: 'Sustrato', active: true, locked: true, order: 20, minimumCost: 0 },
-            { key: 'diseno', label: 'Diseño', active: false, locked: false, order: 30, minimumCost: 0 },
-            { key: 'preprensa', label: 'Preprensa', active: true, locked: true, order: 40, minimumCost: 0 },
-            { key: 'planchas', label: 'Planchas', active: false, locked: false, order: 50, minimumCost: 0 },
-            { key: 'impresion', label: 'Impresión', active: false, locked: false, order: 60, minimumCost: 0 },
-            { key: 'barnizado', label: 'Barnizado', active: false, locked: false, order: 69, minimumCost: 0 },
-            { key: 'laminado', label: 'Laminado', active: false, locked: false, order: 70, minimumCost: 0 },
-            { key: 'estampado', label: 'Estampado', active: false, locked: false, order: 71, minimumCost: 0 },
-            { key: 'embosado', label: 'Embosado', active: false, locked: false, order: 72, minimumCost: 0 },
-            { key: 'troquelado', label: 'Troquelado', active: false, locked: false, order: 73, minimumCost: 0 },
-            { key: 'rebobinado', label: 'Rebobinado', active: false, locked: false, order: 74, minimumCost: 0 },
-            { key: 'empaque', label: 'Empaque', active: false, locked: false, order: 80, minimumCost: 0 },
-            { key: 'adicionales', label: 'Procesos adicionales', active: false, locked: false, order: 90, minimumCost: 0 }
+            { key: 'macula', label: 'Mácula', active: true, locked: true, repeatable: false, order: 5, minimumCost: 0 },
+            { key: 'troquel', label: 'Troquel', active: true, locked: true, repeatable: false, order: 10, minimumCost: 0 },
+            { key: 'sustrato', label: 'Sustrato', active: true, locked: true, repeatable: false, order: 20, minimumCost: 0 },
+            { key: 'diseno', label: 'Diseño', active: false, locked: false, repeatable: false, order: 30, minimumCost: 0 },
+            { key: 'preprensa', label: 'Preprensa', active: true, locked: true, repeatable: false, order: 40, minimumCost: 0 },
+            { key: 'planchas', label: 'Planchas', active: false, locked: false, repeatable: false, order: 50, minimumCost: 0 },
+            { key: 'impresion', label: 'Impresión', active: false, locked: false, repeatable: false, order: 60, minimumCost: 0 },
+            { key: 'barnizado', label: 'Barnizado', active: false, locked: false, repeatable: false, order: 69, minimumCost: 0 },
+            { key: 'laminado', label: 'Laminado', active: false, locked: false, repeatable: false, order: 70, minimumCost: 0 },
+            { key: 'estampado', label: 'Estampado', active: false, locked: false, repeatable: false, order: 71, minimumCost: 0 },
+            { key: 'embosado', label: 'Embosado', active: false, locked: false, repeatable: false, order: 72, minimumCost: 0 },
+            { key: 'troquelado', label: 'Troquelado', active: false, locked: false, repeatable: false, order: 73, minimumCost: 0 },
+            { key: 'rebobinado', label: 'Rebobinado', active: false, locked: false, repeatable: false, order: 74, minimumCost: 0 },
+            { key: 'empaque', label: 'Empaque', active: false, locked: false, repeatable: false, order: 80, minimumCost: 0 },
+            { key: 'adicionales', label: 'Procesos adicionales', active: false, locked: false, repeatable: false, order: 90, minimumCost: 0 }
         ]
     },
     convencional: {
@@ -687,7 +1444,7 @@ app.use(express.static(path.join(__dirname, 'public'), {
     maxAge: ONE_DAY_MS,
     setHeaders: (res, filePath) => {
         const normalized = String(filePath || '').replace(/\\/g, '/').toLowerCase();
-        if (normalized.endsWith('.html')) {
+        if (normalized.match(/\.(html|js|css)$/)) {
             res.setHeader('Cache-Control', 'no-cache');
             return;
         }
@@ -740,6 +1497,7 @@ async function initializeStartupSchemas() {
         await ensureAdminPermissionsSchema();
         await ensureAdminUsersSchema();
         await ensureQuoteProformasSchema();
+        await ensureNotificationCenterSchema();
         await ensureSecuritySeed();
     });
 }
@@ -1622,16 +2380,16 @@ async function importMaterialesFromSap(options = {}) {
     });
 }
 
-function normalizeGeneralConfigRecord(config) {
+function normalizeGeneralConfigRecord(config, baseConfig = DEFAULT_GENERAL_CONFIG) {
     const source = config || {};
     const normalized = {
-        branding: deepMerge(DEFAULT_GENERAL_CONFIG.branding, source.branding || {}),
-        contact: deepMerge(DEFAULT_GENERAL_CONFIG.contact, source.contact || {}),
-        appearance: deepMerge(DEFAULT_GENERAL_CONFIG.appearance, source.appearance || {}),
-        session: deepMerge(DEFAULT_GENERAL_CONFIG.session, source.session || {}),
-        icons: deepMerge(DEFAULT_GENERAL_CONFIG.icons, source.icons || {}),
-        layout: deepMerge(DEFAULT_GENERAL_CONFIG.layout, source.layout || {}),
-        general: deepMerge(DEFAULT_GENERAL_CONFIG.general, source.general || {}),
+        branding: deepMerge(baseConfig.branding || DEFAULT_GENERAL_CONFIG.branding, source.branding || {}),
+        contact: deepMerge(baseConfig.contact || DEFAULT_GENERAL_CONFIG.contact, source.contact || {}),
+        appearance: deepMerge(baseConfig.appearance || DEFAULT_GENERAL_CONFIG.appearance, source.appearance || {}),
+        session: deepMerge(baseConfig.session || DEFAULT_GENERAL_CONFIG.session, source.session || {}),
+        icons: deepMerge(baseConfig.icons || DEFAULT_GENERAL_CONFIG.icons, source.icons || {}),
+        layout: deepMerge(baseConfig.layout || DEFAULT_GENERAL_CONFIG.layout, source.layout || {}),
+        general: deepMerge(baseConfig.general || DEFAULT_GENERAL_CONFIG.general, source.general || {}),
         presentations: {}
     };
 
@@ -1656,6 +2414,7 @@ function normalizeGeneralConfigRecord(config) {
     }
 
     normalized.general.moduleTitle = fixCommonTextArtifacts(normalized.general.moduleTitle);
+    normalized.general.quoteProductTypesJson = JSON.stringify(normalizeQuoteProductTypes(normalized.general.quoteProductTypesJson, DEFAULT_GENERAL_CONFIG.general.quoteProductTypesJson));
     normalized.branding.companyName = fixCommonTextArtifacts(normalized.branding.companyName);
     normalized.general.proformaCurrenciesJson = JSON.stringify(normalizeProformaCurrencyList(normalized.general.proformaCurrenciesJson));
     normalized.general.proformaDefaultCurrency = String(normalized.general.proformaDefaultCurrency || 'CRC').trim().toUpperCase() || 'CRC';
@@ -1673,6 +2432,50 @@ function normalizeGeneralConfigRecord(config) {
     normalized.general.proformaPriceDisplayMode = String(normalized.general.proformaPriceDisplayMode || 'both').trim() || 'both';
     normalized.general.proformaSellerSignatureEnabled = String(normalized.general.proformaSellerSignatureEnabled || 'true').trim().toLowerCase() === 'false' ? 'false' : 'true';
     return normalized;
+}
+
+function normalizeQuoteProductTypes(value, fallbackJson = DEFAULT_GENERAL_CONFIG.general.quoteProductTypesJson) {
+    const parseList = (source) => {
+        if (Array.isArray(source)) return source;
+        if (source && typeof source === 'object') return Object.values(source);
+        if (typeof source === 'string') {
+            const trimmed = source.trim();
+            if (!trimmed) return null;
+            try {
+                const parsed = JSON.parse(trimmed);
+                if (Array.isArray(parsed)) return parsed;
+            } catch (_) {
+                return trimmed
+                    .split(/[\n,;]+/)
+                    .map((item) => item.trim())
+                    .filter(Boolean);
+            }
+        }
+        return null;
+    };
+
+    let list = parseList(value);
+    if (list === null) {
+        list = parseList(fallbackJson) || [];
+    }
+
+    const seen = new Set();
+    return list
+        .map((item) => {
+            if (typeof item === 'string') return fixCommonTextArtifacts(item).trim();
+            if (item && typeof item === 'object') {
+                return fixCommonTextArtifacts(item.name || item.label || item.value || '').trim();
+            }
+            return '';
+        })
+        .filter((item) => {
+            if (!item) return false;
+            const key = item.toLowerCase();
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        })
+        .slice(0, 60);
 }
 
 function loadGeneralConfigFromFile() {
@@ -1714,7 +2517,7 @@ async function loadGeneralConfig() {
 
 async function saveGeneralConfig(config) {
     const previous = await loadGeneralConfig();
-    const normalized = normalizeGeneralConfigRecord(config);
+    const normalized = normalizeGeneralConfigRecord(config, previous);
     saveGeneralConfigToFile(normalized);
     const changedBy = pickFirstValue(normalized?.session?.currentUser, previous?.session?.currentUser, getConfiguredCurrentUser());
     try {
@@ -1817,11 +2620,13 @@ function normalizeCostsConfigRecord(config) {
             seen.add(key);
             const locked = row?.locked === true || String(row?.locked || '').trim().toLowerCase() === 'true';
             const active = locked ? true : (row?.active === true || String(row?.active || '').trim().toLowerCase() === 'true');
+            const repeatable = row?.repeatable === true || String(row?.repeatable || '').trim().toLowerCase() === 'true';
             return {
                 key,
                 label: String(row?.label || fallback.label || '').trim(),
                 active,
                 locked,
+                repeatable,
                 order: Number(row?.order || fallback.order || ((index + 1) * 10)),
                 minimumCost: Math.max(0, Number(row?.minimumCost || 0))
             };
@@ -1834,6 +2639,7 @@ function normalizeCostsConfigRecord(config) {
                 label: String(item.label || '').trim(),
                 active: item.locked ? true : Boolean(item.active),
                 locked: Boolean(item.locked),
+                repeatable: Boolean(item.repeatable),
                 order: Number(item.order || ((index + 1) * 10)),
                 minimumCost: Math.max(0, Number(item.minimumCost || 0))
             });
@@ -2218,6 +3024,15 @@ function normalizeProformaCurrencyList(value, fallbackJson = DEFAULT_GENERAL_CON
 }
 
 function normalizeAdminUserRecord(row = {}) {
+    const floatingButtonConfig = row.floating_button_config && typeof row.floating_button_config === 'object'
+        ? row.floating_button_config
+        : (() => {
+            try {
+                return JSON.parse(String(row.floating_button_config || '{}'));
+            } catch (error) {
+                return {};
+            }
+        })();
     return {
         id: Number(row.id || 0),
         name: sanitizeAdminUserText(row.full_name),
@@ -2230,8 +3045,13 @@ function normalizeAdminUserRecord(row = {}) {
         email: sanitizeAdminUserText(row.email),
         phone: sanitizeAdminUserText(row.phone),
         phoneSecondary: sanitizeAdminUserText(row.phone_secondary),
+        notificationEmail: Boolean(row.notify_email),
+        notificationWhatsapp: Boolean(row.notify_whatsapp),
+        notificationSms: Boolean(row.notify_sms),
+        active: row.is_active !== false,
         permissionId: row.permission_id == null ? null : Number(row.permission_id),
-        permissionName: sanitizeAdminUserText(row.permission_name)
+        permissionName: sanitizeAdminUserText(row.permission_name),
+        floatingButtonConfig: floatingButtonConfig && typeof floatingButtonConfig === 'object' && !Array.isArray(floatingButtonConfig) ? floatingButtonConfig : {}
     };
 }
 
@@ -2246,7 +3066,15 @@ async function ensureAdminUsersSchema() {
             process TEXT NOT NULL DEFAULT '',
             photo_url TEXT NOT NULL DEFAULT '',
             signature_url TEXT NOT NULL DEFAULT '',
+            email TEXT NOT NULL DEFAULT '',
+            phone TEXT NOT NULL DEFAULT '',
+            phone_secondary TEXT NOT NULL DEFAULT '',
+            notify_email BOOLEAN NOT NULL DEFAULT FALSE,
+            notify_whatsapp BOOLEAN NOT NULL DEFAULT FALSE,
+            notify_sms BOOLEAN NOT NULL DEFAULT FALSE,
+            is_active BOOLEAN NOT NULL DEFAULT TRUE,
             permission_id BIGINT REFERENCES admin_permissions(id) ON DELETE SET NULL,
+            floating_button_config JSONB NOT NULL DEFAULT '{}'::jsonb,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
@@ -2256,6 +3084,11 @@ async function ensureAdminUsersSchema() {
     await pgQuery(`ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS email TEXT NOT NULL DEFAULT ''`);
     await pgQuery(`ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS phone TEXT NOT NULL DEFAULT ''`);
     await pgQuery(`ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS phone_secondary TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS notify_email BOOLEAN NOT NULL DEFAULT FALSE`);
+    await pgQuery(`ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS notify_whatsapp BOOLEAN NOT NULL DEFAULT FALSE`);
+    await pgQuery(`ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS notify_sms BOOLEAN NOT NULL DEFAULT FALSE`);
+    await pgQuery(`ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE`);
+    await pgQuery(`ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS floating_button_config JSONB NOT NULL DEFAULT '{}'::jsonb`);
     await pgQuery(`CREATE INDEX IF NOT EXISTS admin_users_name_idx ON admin_users (full_name)`);
 }
 
@@ -2277,9 +3110,33 @@ async function ensureQuoteProformasSchema() {
 }
 
 function sanitizePermissionAccess(value) {
+    const emptyFlags = { view: false, create: false, edit: false };
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+        return {
+            view: Boolean(value.view || value.create || value.edit),
+            create: Boolean(value.create),
+            edit: Boolean(value.edit)
+        };
+    }
+    if (Array.isArray(value)) {
+        const normalizedList = value.map((item) => String(item || '').trim().toLowerCase());
+        return {
+            view: normalizedList.includes('view') || normalizedList.includes('create') || normalizedList.includes('edit'),
+            create: normalizedList.includes('create'),
+            edit: normalizedList.includes('edit')
+        };
+    }
     const normalized = String(value || '').trim().toLowerCase();
-    if (normalized === 'view' || normalized === 'create' || normalized === 'edit') return normalized;
-    return 'none';
+    if (!normalized || normalized === 'none') return emptyFlags;
+    if (normalized === 'view') return { view: true, create: false, edit: false };
+    if (normalized === 'create') return { view: true, create: true, edit: false };
+    if (normalized === 'edit') return { view: true, create: true, edit: true };
+    const tokenList = normalized.split(/[,\s|/+]+/).filter(Boolean);
+    return {
+        view: tokenList.includes('view') || tokenList.includes('create') || tokenList.includes('edit'),
+        create: tokenList.includes('create') || tokenList.includes('edit'),
+        edit: tokenList.includes('edit')
+    };
 }
 
 function sanitizePresentationKey(value) {
@@ -2291,6 +3148,19 @@ function normalizePermissionMatrix(input = {}) {
     const output = {};
     Object.keys(PRESENTATION_NAMES).forEach((key) => {
         output[key] = sanitizePermissionAccess(input[key]);
+    });
+    return output;
+}
+
+function isSuperAdminPermissionName(value) {
+    const name = sanitizeAdminUserText(value);
+    return /administrador(?:es)?|implementador(?:es)?|emergencia/i.test(name);
+}
+
+function buildFullPermissionMatrix() {
+    const output = {};
+    Object.keys(PRESENTATION_NAMES).forEach((key) => {
+        output[key] = { view: true, create: true, edit: true };
     });
     return output;
 }
@@ -2318,19 +3188,71 @@ function readErpSessionFromRequest(req) {
 }
 
 function canRequestCreateModule(req, moduleKey) {
+    const session = readErpSessionFromRequest(req);
+    if (isSuperAdminPermissionName(session?.permissionName)) return true;
+
     const modules = readPermissionModulesFromRequest(req);
     if (!modules) return true;
-    const level = sanitizePermissionAccess(modules[moduleKey]);
-    if (moduleKey === 'productos') return level === 'create';
-    return level === 'create' || level === 'edit';
+    const flags = sanitizePermissionAccess(modules[moduleKey]);
+    return Boolean(flags.create);
 }
 
-function normalizeAdminPermissionRecord(row = {}) {
+function normalizeAdminPermissionRecord(row = {}, { forAccessCheck = false } = {}) {
+    const permissionName = sanitizeAdminUserText(row.permission_name);
+    // Cuando se evalua acceso a modulos (login, navegacion), los super-permisos
+    // siempre tienen acceso total independientemente de lo guardado en DB.
+    // En el panel de administracion de permisos se devuelven los modulos reales
+    // para que el implementador pueda editarlos libremente.
+    const modules = (forAccessCheck && isSuperAdminPermissionName(permissionName))
+        ? buildFullPermissionMatrix()
+        : normalizePermissionMatrix(row.module_permissions || {});
     return {
         id: Number(row.id || 0),
-        name: sanitizeAdminUserText(row.permission_name),
+        name: permissionName,
         defaultLanding: sanitizePresentationKey(row.default_landing),
-        modules: normalizePermissionMatrix(row.module_permissions || {})
+        modules
+    };
+}
+
+async function buildAdminSecurityDiagnostics() {
+    const [orphanUsersResult, usersWithoutPermissionResult, permissionsResult] = await Promise.all([
+        pgQuery(
+            `SELECT u.id, u.full_name, u.username, u.permission_id
+               FROM admin_users u
+          LEFT JOIN admin_permissions p
+                 ON p.id = u.permission_id
+              WHERE u.permission_id IS NOT NULL
+                AND p.id IS NULL
+              ORDER BY LOWER(TRIM(u.username)), u.id`
+        ),
+        pgQuery(
+            `SELECT COUNT(*)::int AS total
+               FROM admin_users
+              WHERE permission_id IS NULL`
+        ),
+        pgQuery(
+            `SELECT p.id, p.permission_name, p.default_landing, p.module_permissions,
+                    COUNT(u.id)::int AS assigned_users
+               FROM admin_permissions p
+          LEFT JOIN admin_users u
+                 ON u.permission_id = p.id
+           GROUP BY p.id, p.permission_name, p.default_landing, p.module_permissions
+           ORDER BY LOWER(p.permission_name), p.id`
+        )
+    ]);
+
+    return {
+        orphanUsers: orphanUsersResult.rows.map((row) => ({
+            id: Number(row.id || 0),
+            name: sanitizeAdminUserText(row.full_name, row.username),
+            username: sanitizeAdminUserText(row.username),
+            permissionId: row.permission_id == null ? null : Number(row.permission_id)
+        })),
+        usersWithoutPermission: Number(usersWithoutPermissionResult.rows[0]?.total || 0),
+        permissions: permissionsResult.rows.map((row) => ({
+            ...normalizeAdminPermissionRecord(row),
+            assignedUsers: Number(row.assigned_users || 0)
+        }))
     };
 }
 
@@ -2377,7 +3299,7 @@ async function ensureSecuritySeed() {
     if (Number(permissionsCount.rows[0]?.total || 0) === 0) {
         const fullAccess = {};
         Object.keys(PRESENTATION_NAMES).forEach((key) => {
-            fullAccess[key] = 'edit';
+            fullAccess[key] = { view: true, create: true, edit: true };
         });
         const insertedPermission = await pgQuery(
             `INSERT INTO admin_permissions (permission_name, default_landing, module_permissions)
@@ -3016,7 +3938,9 @@ function mapCalculationLine(row) {
           line_order: lineOrder,
           department: pickFirstValue(raw.DEPARTAMENTO, 'Flexografia'),
           job_name: pickFirstValue(raw['NOMBRE TRABAJO'], raw['Nombre Trabajo'], raw['TIPO TRABAJO | ORDEN REFERENCIA 1'], row.line_code),
+          material_code: pickFirstValue(row.material_code, raw['Material Digital | Id Material'], raw['Material Convencional | Id Material']),
           material_name: pickFirstValue(raw['GENERAL | MATERIAL'], raw.Material, row.material_code),
+          die_code: pickFirstValue(row.die_code, raw['GENERAL | TROQUEL | ID']),
           finalized_for_order: Boolean(row.finalized_for_order ?? raw['CODEX_FINALIZED_FOR_ORDER']),
           status: pickFirstValue(raw['SOLICITUD ESTADO'], raw['ESTADO LINEA'], 'Cotizada'),
         quantity: parseLegacyNumber(row.quantity),
@@ -3281,6 +4205,47 @@ async function getProformaConfigSnapshot(config = {}) {
 
 function buildProformaProductSummary(line = {}, currency = {}, displayMode = 'both') {
     const raw = line.raw_data || {};
+    const autoSelection = raw['CODEX_AUTO_SELECTION'] || {};
+    const finishDetails = [];
+    const visibleExtras = [];
+    const normalizedUiStateFinishes = Array.isArray(raw?.ui_state?.finishes) ? raw.ui_state.finishes : [];
+    const pushFinish = (label, detail) => {
+        const summary = [label, detail].filter(Boolean).join(': ');
+        if (summary && !finishDetails.includes(summary)) finishDetails.push(summary);
+    };
+    const hasVisibleValue = (value) => {
+        if (typeof value === 'boolean') return value;
+        const normalized = String(value ?? '').trim().toLowerCase();
+        return Boolean(normalized) && !['no', 'ninguno', 'sin', 'false', 'null', '0'].includes(normalized);
+    };
+    const pushExtra = (label) => {
+        if (label && !visibleExtras.includes(label)) visibleExtras.push(label);
+    };
+    if (normalizedUiStateFinishes.length) {
+        normalizedUiStateFinishes.forEach((finish) => {
+            const label = pickFirstValue(finish?.label, finish?.name, finish?.type, finish?.process);
+            const detail = pickFirstValue(finish?.detail, finish?.material, finish?.foil, finish?.laminate, finish?.varnish);
+            pushFinish(label, detail);
+        });
+    }
+    if (raw['CONV | BARNIZ | ACTIVO'] || raw['BARNIZ | ACTIVO']) {
+        pushFinish('Barniz', pickFirstValue(raw['CONV | BARNIZ | TIPO'], raw['BARNIZ | TIPO'], raw['BARNIZ']));
+    }
+    if (raw['CONV | LAMINADO | ACTIVO'] || raw['LAMINADO | ACTIVO']) {
+        pushFinish('Laminado', pickFirstValue(raw['CONV | LAMINADO | TIPO'], raw['LAMINADO | TIPO'], raw['LAMINADO']));
+    }
+    if (raw['CONV | ESTAMPADO | ACTIVO'] || raw['ESTAMPADO | ACTIVO']) {
+        pushFinish('Foil', pickFirstValue(raw['CONV | ESTAMPADO | FOIL'], raw['ESTAMPADO | FOIL'], raw['ESTAMPADO']));
+    }
+    if (raw['EMBOSADO | ACTIVO']) {
+        pushFinish('Embosado', pickFirstValue(raw['EMBOSADO | TIPO'], raw['EMBOSADO']));
+    }
+    if (hasVisibleValue(raw['ACABADOS | NUMERADO']) || hasVisibleValue(raw.NUMERADO) || hasVisibleValue(raw['REQ | Numeracion']) || hasVisibleValue(raw['REQ | Numeracion Aviso'])) {
+        pushExtra('Numerado');
+    }
+    if (hasVisibleValue(raw['ACABADOS | QR']) || hasVisibleValue(raw['ACABADOS | CODIGO QR']) || hasVisibleValue(raw.QR) || hasVisibleValue(raw['CODIGO QR']) || hasVisibleValue(raw.CODIGO_QR)) {
+        pushExtra('Código QR');
+    }
     const quantity = parseLegacyNumber(line.quantity)
         ?? parseLegacyNumber(raw['CANTIDAD SOLICITADA'])
         ?? parseLegacyNumber(raw.CANTIDAD)
@@ -3320,12 +4285,41 @@ function buildProformaProductSummary(line = {}, currency = {}, displayMode = 'bo
         taxUsd = taxPercent > 0 ? subtotalUsd * (taxPercent / 100) : Math.max(totalUsd - subtotalUsd, 0);
     }
     const exchangeRate = Number(currency?.exchangeRate || 1) || 1;
+    const machineSummary = pickFirstValue(line.machine_name, raw['DIGITAL | MAQUINA'], raw['CONV | MAQUINA'], raw['MAQUINA IMPRESION']);
+    const dimensionsText = width && length ? `${width}" x ${length}"` : '';
+    const routeSummary = pickFirstValue(raw['REQ | Ruta Automática'], autoSelection.processType, line.process_type);
+    const materialCode = pickFirstValue(raw['REQ | Material Automático'], autoSelection.materialCode, line.material_code);
+    const dieCode = pickFirstValue(raw['REQ | Troquel Automático'], autoSelection.dieCode, line.die_code);
+    const mountingSummary = pickFirstValue(raw['REQ | Montaje Automático']);
+    const technicalComment = pickFirstValue(raw['REQ | Comentario Técnico Automático']);
+    const warnings = Array.isArray(autoSelection.warnings)
+        ? autoSelection.warnings.filter(Boolean)
+        : String(raw['REQ | Advertencias Automáticas'] || '')
+            .split('|')
+            .map((item) => String(item || '').trim())
+            .filter(Boolean);
+    const descriptionText = [
+        line.material_name || '',
+        machineSummary || '',
+        dimensionsText,
+        finishDetails.join(' · '),
+        visibleExtras.join(' · ')
+    ].filter(Boolean).join(' · ');
     return {
         lineCode: line.line_code,
         name: line.job_name || 'Producto',
         material: line.material_name || '',
+        materialCode,
         processType: line.process_type || '',
-        dimensionsText: width && length ? `${width}" x ${length}"` : '',
+        routeSummary,
+        dieCode,
+        dimensionsText,
+        machineSummary: machineSummary || '',
+        finishesSummary: finishDetails.join(' · '),
+        descriptionText,
+        mountingSummary,
+        technicalComment,
+        warnings,
         quantity,
         unitPrice: unitPriceUsd != null ? roundCurrency(unitPriceUsd * exchangeRate) : null,
         thousandPrice: thousandPriceUsd != null ? roundCurrency(thousandPriceUsd * exchangeRate) : null,
@@ -3335,6 +4329,70 @@ function buildProformaProductSummary(line = {}, currency = {}, displayMode = 'bo
         currencyCode: currency?.code || 'CRC',
         currencySymbol: currency?.symbol || '',
         displayMode
+    };
+}
+
+function buildQuoteProformaTechnicalSummary(lines = []) {
+    const summary = {
+        productNames: [],
+        shapes: [],
+        measures: [],
+        materials: [],
+        applications: [],
+        placements: [],
+        finishes: [],
+        numbering: [],
+        routes: [],
+        technicalNotes: []
+    };
+    const pushUnique = (list, value) => {
+        const normalized = String(value || '').trim();
+        if (!normalized) return;
+        if (!list.some((item) => String(item || '').trim().toLowerCase() === normalized.toLowerCase())) {
+            list.push(normalized);
+        }
+    };
+    const visibleValue = (value) => {
+        const normalized = String(value || '').trim();
+        if (!normalized) return '';
+        const lowered = normalized.toLowerCase();
+        if (['no', 'sin', 'ninguno', 'ninguna', 'n/a', 'false', 'null'].includes(lowered)) return '';
+        if (lowered.startsWith('sin ')) return '';
+        return normalized;
+    };
+    for (const line of Array.isArray(lines) ? lines : []) {
+        const raw = line.raw_data || {};
+        pushUnique(summary.productNames, line.job_name || raw['NOMBRE TRABAJO']);
+        pushUnique(summary.shapes, raw['REQ | Forma']);
+        const width = parseLegacyNumber(raw['DIMENSIONES ETIQUETA | ANCHO']);
+        const length = parseLegacyNumber(raw['DIMENSIONES ETIQUETA | LARGO']);
+        if (width && length) {
+            pushUnique(summary.measures, `${width}" x ${length}"`);
+        } else {
+            pushUnique(summary.measures, raw['REQ | Medida Fija']);
+        }
+        pushUnique(summary.materials, raw['REQ | Material Comercial'] || line.material_name);
+        pushUnique(summary.applications, raw['REQ | Superficie']);
+        pushUnique(summary.placements, raw['REQ | Colocacion']);
+        pushUnique(summary.routes, raw['REQ | Ruta Automática'] || line.process_type);
+        pushUnique(summary.finishes, visibleValue(raw['REQ | Barniz']) ? `Barniz: ${raw['REQ | Barniz']}` : '');
+        pushUnique(summary.finishes, visibleValue(raw['REQ | Laminado']) ? `Laminado: ${raw['REQ | Laminado']}` : '');
+        pushUnique(summary.finishes, visibleValue(raw['REQ | Estampado']) ? `Estampado: ${raw['REQ | Estampado']}` : '');
+        pushUnique(summary.finishes, visibleValue(raw['REQ | Embosado']) ? 'Embosado' : '');
+        pushUnique(summary.numbering, visibleValue(raw['REQ | Numeracion']));
+        pushUnique(summary.technicalNotes, raw['REQ | Comentario Técnico Automático']);
+    }
+    return {
+        productNamesText: summary.productNames.join(' · '),
+        shapesText: summary.shapes.join(' · '),
+        measuresText: summary.measures.join(' · '),
+        materialsText: summary.materials.join(' · '),
+        applicationsText: summary.applications.join(' · '),
+        placementsText: summary.placements.join(' · '),
+        finishesText: summary.finishes.join(' · '),
+        numberingText: summary.numbering.join(' · '),
+        routesText: summary.routes.join(' · '),
+        technicalNotesText: summary.technicalNotes.join(' · ')
     };
 }
 
@@ -3404,8 +4462,9 @@ async function buildQuoteProformaPayload(quoteCode, client = null) {
     const selectedCurrencyCode = String(rawData.currencyCode || configSnapshot.defaultCurrency).trim().toUpperCase();
     const currency = configSnapshot.currencies.find((item) => item.code === selectedCurrencyCode) || configSnapshot.defaultCurrencyMeta;
     const salespersonName = pickFirstValue(rawData.salespersonName, quoteContext.quote.salesperson_name);
+    const sellerSignatureEnabled = rawData.sellerSignatureEnabled === false ? false : configSnapshot.sellerSignatureEnabled;
     let sellerSignatureUrl = '';
-    if (configSnapshot.sellerSignatureEnabled && salespersonName) {
+    if (sellerSignatureEnabled && salespersonName) {
         const signatureResult = await executor.query(
             `SELECT signature_url
                FROM admin_users
@@ -3420,6 +4479,7 @@ async function buildQuoteProformaPayload(quoteCode, client = null) {
     const issueDate = existing?.issue_date_fixed ? new Date(existing.issue_date_fixed) : new Date();
     const selectedPriceDisplayMode = normalizeProformaPriceDisplayMode(rawData.priceDisplayMode || configSnapshot.priceDisplayMode);
     const products = lines.map((line) => buildProformaProductSummary(line, currency, selectedPriceDisplayMode));
+    const technicalSummary = buildQuoteProformaTechnicalSummary(lines);
     const subtotalSummary = roundCurrency(products.reduce((acc, item) => acc + Number(item.subtotal || 0), 0));
     const taxSummary = roundCurrency(products.reduce((acc, item) => acc + Number(item.taxAmount || 0), 0));
     const grandTotal = roundCurrency(products.reduce((acc, item) => acc + Number(item.totalPrice || 0), 0));
@@ -3476,8 +4536,9 @@ async function buildQuoteProformaPayload(quoteCode, client = null) {
         deliveryTime: pickFirstValue(rawData.deliveryTime, configSnapshot.deliveryTime),
         technicalSpecs: pickFirstValue(rawData.technicalSpecs, configSnapshot.technicalSpecs),
         qualityPolicies: pickFirstValue(rawData.qualityPolicies, configSnapshot.qualityPolicies),
-        sellerSignatureEnabled: configSnapshot.sellerSignatureEnabled,
+        sellerSignatureEnabled,
         priceDisplayModeOptions: buildProformaPriceDisplayOptions(),
+        technicalSummary,
         products,
         totals: {
             subtotal: subtotalSummary,
@@ -3665,6 +4726,639 @@ async function ensureNotificationsSchema() {
     await pgQuery(`CREATE INDEX IF NOT EXISTS idx_quote_line_notifications_line ON quote_line_notifications(quote_code, line_code, created_at DESC)`);
 }
 
+function normalizeNotificationChannelKeyRecord(row = {}) {
+    return {
+        channelKey: String(row.channel_key || '').trim(),
+        displayName: String(row.display_name || '').trim(),
+        providerName: String(row.provider_name || '').trim(),
+        apiUrl: String(row.api_url || '').trim(),
+        accountIdentifier: String(row.account_identifier || '').trim(),
+        accessKey: String(row.access_key || '').trim(),
+        accessSecret: String(row.access_secret || '').trim(),
+        enabled: row.is_enabled === true,
+        testMode: row.is_test_mode === true,
+        advancedConfig: row.advanced_config || {},
+        lastValidatedAt: row.last_validated_at || null,
+        updatedAt: row.updated_at || null
+    };
+}
+
+async function ensureNotificationCenterSchema() {
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS notification_center_threads (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            thread_code TEXT NOT NULL UNIQUE,
+            conversation_type TEXT NOT NULL DEFAULT 'quote-line',
+            source_module TEXT NOT NULL DEFAULT 'cotizaciones',
+            document_type TEXT NOT NULL DEFAULT 'cotizacion',
+            document_code TEXT NOT NULL DEFAULT '',
+            quote_code TEXT NOT NULL DEFAULT '',
+            line_code TEXT NOT NULL DEFAULT '',
+            customer_name TEXT NOT NULL DEFAULT '',
+            product_name TEXT NOT NULL DEFAULT '',
+            product_summary TEXT NOT NULL DEFAULT '',
+            seller_user_id BIGINT REFERENCES admin_users(id) ON DELETE SET NULL,
+            seller_name TEXT NOT NULL DEFAULT '',
+            seller_email TEXT NOT NULL DEFAULT '',
+            seller_whatsapp TEXT NOT NULL DEFAULT '',
+            seller_sms TEXT NOT NULL DEFAULT '',
+            created_by_user_id BIGINT REFERENCES admin_users(id) ON DELETE SET NULL,
+            created_by_name TEXT NOT NULL DEFAULT '',
+            target_user_id BIGINT REFERENCES admin_users(id) ON DELETE SET NULL,
+            target_user_name TEXT NOT NULL DEFAULT '',
+            status TEXT NOT NULL DEFAULT 'abierta',
+            last_message_at TIMESTAMPTZ NULL,
+            snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    `);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS notification_center_threads_document_idx ON notification_center_threads(document_code, quote_code, line_code)`);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS notification_center_threads_target_idx ON notification_center_threads(target_user_id, status, updated_at DESC)`);
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS notification_center_participants (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            thread_id UUID NOT NULL REFERENCES notification_center_threads(id) ON DELETE CASCADE,
+            user_id BIGINT REFERENCES admin_users(id) ON DELETE SET NULL,
+            role_key TEXT NOT NULL DEFAULT 'participante',
+            display_name TEXT NOT NULL DEFAULT '',
+            email TEXT NOT NULL DEFAULT '',
+            whatsapp_phone TEXT NOT NULL DEFAULT '',
+            sms_phone TEXT NOT NULL DEFAULT '',
+            can_manage BOOLEAN NOT NULL DEFAULT FALSE,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    `);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS notification_center_participants_thread_idx ON notification_center_participants(thread_id, role_key)`);
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS notification_center_messages (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            message_code TEXT NOT NULL UNIQUE,
+            thread_id UUID NOT NULL REFERENCES notification_center_threads(id) ON DELETE CASCADE,
+            message_type TEXT NOT NULL DEFAULT 'texto',
+            channel_key TEXT NOT NULL DEFAULT 'interno',
+            body_text TEXT NOT NULL DEFAULT '',
+            sender_user_id BIGINT REFERENCES admin_users(id) ON DELETE SET NULL,
+            sender_name TEXT NOT NULL DEFAULT '',
+            sender_email TEXT NOT NULL DEFAULT '',
+            sender_whatsapp TEXT NOT NULL DEFAULT '',
+            sender_sms TEXT NOT NULL DEFAULT '',
+            recipient_user_id BIGINT REFERENCES admin_users(id) ON DELETE SET NULL,
+            recipient_name TEXT NOT NULL DEFAULT '',
+            recipient_email TEXT NOT NULL DEFAULT '',
+            recipient_whatsapp TEXT NOT NULL DEFAULT '',
+            recipient_sms TEXT NOT NULL DEFAULT '',
+            is_inbound BOOLEAN NOT NULL DEFAULT FALSE,
+            external_status TEXT NOT NULL DEFAULT 'pendiente',
+            delivered_at TIMESTAMPTZ NULL,
+            received_at TIMESTAMPTZ NULL,
+            read_at TIMESTAMPTZ NULL,
+            failed_at TIMESTAMPTZ NULL,
+            sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            metadata JSONB NOT NULL DEFAULT '{}'::jsonb
+        )
+    `);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS notification_center_messages_thread_idx ON notification_center_messages(thread_id, sent_at DESC)`);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS notification_center_messages_channel_idx ON notification_center_messages(channel_key, external_status, sent_at DESC)`);
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS notification_center_message_attachments (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            message_id UUID NOT NULL REFERENCES notification_center_messages(id) ON DELETE CASCADE,
+            attachment_kind TEXT NOT NULL DEFAULT 'archivo',
+            file_name TEXT NOT NULL,
+            mime_type TEXT NOT NULL DEFAULT 'application/octet-stream',
+            file_ext TEXT NOT NULL DEFAULT '',
+            content_base64 TEXT NOT NULL DEFAULT '',
+            size_bytes BIGINT NOT NULL DEFAULT 0,
+            notes TEXT NOT NULL DEFAULT '',
+            uploaded_by TEXT NOT NULL DEFAULT '',
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    `);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS notification_center_message_attachments_message_idx ON notification_center_message_attachments(message_id, created_at DESC)`);
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS notification_channel_keys (
+            channel_key TEXT PRIMARY KEY,
+            display_name TEXT NOT NULL DEFAULT '',
+            provider_name TEXT NOT NULL DEFAULT '',
+            api_url TEXT NOT NULL DEFAULT '',
+            account_identifier TEXT NOT NULL DEFAULT '',
+            access_key TEXT NOT NULL DEFAULT '',
+            access_secret TEXT NOT NULL DEFAULT '',
+            is_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+            is_test_mode BOOLEAN NOT NULL DEFAULT TRUE,
+            advanced_config JSONB NOT NULL DEFAULT '{}'::jsonb,
+            last_validated_at TIMESTAMPTZ NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    `);
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS admin_user_channel_settings (
+            user_id BIGINT PRIMARY KEY REFERENCES admin_users(id) ON DELETE CASCADE,
+            outbound_email TEXT NOT NULL DEFAULT '',
+            provider_type TEXT NOT NULL DEFAULT 'smtp',
+            smtp_host TEXT NOT NULL DEFAULT '',
+            smtp_port INTEGER NOT NULL DEFAULT 587,
+            smtp_secure BOOLEAN NOT NULL DEFAULT TRUE,
+            smtp_username TEXT NOT NULL DEFAULT '',
+            smtp_password TEXT NOT NULL DEFAULT '',
+            sender_display_name TEXT NOT NULL DEFAULT '',
+            last_tested_at TIMESTAMPTZ NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    `);
+    await pgQuery(`
+        INSERT INTO notification_channel_keys (
+            channel_key, display_name, provider_name, api_url, account_identifier, access_key, access_secret, is_enabled, is_test_mode
+        )
+        VALUES
+            ('whatsapp', 'WhatsApp', '', '', '', '', '', FALSE, TRUE),
+            ('correo', 'Correo Electrónico', '', '', '', '', '', FALSE, TRUE),
+            ('sms', 'SMS', '', '', '', '', '', FALSE, TRUE),
+            ('interno', 'Mensajería Interna', 'sistema', '', '', '', '', TRUE, TRUE)
+        ON CONFLICT (channel_key) DO NOTHING
+    `);
+}
+
+function buildNotificationCenterThreadCode(quoteCode = '', lineCode = '') {
+    const quotePart = String(quoteCode || '').trim().toUpperCase().replace(/[^A-Z0-9]+/g, '-');
+    const linePart = String(lineCode || '').trim().toUpperCase().replace(/[^A-Z0-9]+/g, '-');
+    return `HILO-${quotePart || 'SIN-COTIZACION'}-${linePart || 'SIN-LINEA'}`;
+}
+
+function buildNotificationCenterMessageCode(threadCode = '') {
+    const prefix = String(threadCode || '').trim().toUpperCase().replace(/[^A-Z0-9]+/g, '-').slice(0, 40) || 'HILO';
+    return `MSG-${prefix}-${crypto.randomUUID()}`;
+}
+
+function buildNotificationCenterProductSummary(lineRow = {}) {
+    const raw = lineRow?.raw_data || {};
+    const parts = [
+        pickFirstValue(raw['Resumen Cotización'], raw['Resumen Cotizacion']),
+        pickFirstValue(raw['GENERAL | MATERIAL'], raw['Material']),
+        pickFirstValue(lineRow.machine_name, raw['CONV | MAQUINA'], raw['DIGITAL | MAQUINA']),
+        pickFirstValue(raw['GENERAL | MEDIDAS'])
+    ]
+        .map((item) => sanitizeAdminUserText(item))
+        .filter(Boolean);
+    return parts.slice(0, 3).join(' · ');
+}
+
+function normalizeNotificationCenterThreadRow(row = {}) {
+    return {
+        id: String(row.id || '').trim(),
+        threadCode: String(row.thread_code || '').trim(),
+        conversationType: String(row.conversation_type || '').trim(),
+        sourceModule: String(row.source_module || '').trim(),
+        documentType: String(row.document_type || '').trim(),
+        documentCode: String(row.document_code || '').trim(),
+        quoteCode: String(row.quote_code || '').trim(),
+        lineCode: String(row.line_code || '').trim(),
+        customerName: String(row.customer_name || '').trim(),
+        productName: String(row.product_name || '').trim(),
+        productSummary: String(row.product_summary || '').trim(),
+        sellerUserId: row.seller_user_id != null ? Number(row.seller_user_id) : null,
+        sellerName: String(row.seller_name || '').trim(),
+        sellerEmail: String(row.seller_email || '').trim(),
+        sellerWhatsapp: String(row.seller_whatsapp || '').trim(),
+        sellerSms: String(row.seller_sms || '').trim(),
+        createdByUserId: row.created_by_user_id != null ? Number(row.created_by_user_id) : null,
+        createdByName: String(row.created_by_name || '').trim(),
+        targetUserId: row.target_user_id != null ? Number(row.target_user_id) : null,
+        targetUserName: String(row.target_user_name || '').trim(),
+        status: String(row.status || '').trim() || 'abierta',
+        lastMessageAt: row.last_message_at || null,
+        createdAt: row.created_at || null,
+        updatedAt: row.updated_at || null,
+        lastMessagePreview: String(row.last_message_preview || '').trim(),
+        messageCount: Number(row.message_count || 0),
+        unreadCount: Number(row.unread_count || 0),
+        attachmentCount: Number(row.attachment_count || 0),
+        snapshot: row.snapshot || {}
+    };
+}
+
+function normalizeNotificationCenterMessageRow(row = {}, attachments = []) {
+    return {
+        id: String(row.id || '').trim(),
+        messageCode: String(row.message_code || '').trim(),
+        threadId: String(row.thread_id || '').trim(),
+        messageType: String(row.message_type || '').trim() || 'texto',
+        channelKey: String(row.channel_key || '').trim() || 'interno',
+        bodyText: String(row.body_text || '').trim(),
+        senderUserId: row.sender_user_id != null ? Number(row.sender_user_id) : null,
+        senderName: String(row.sender_name || '').trim(),
+        senderEmail: String(row.sender_email || '').trim(),
+        senderWhatsapp: String(row.sender_whatsapp || '').trim(),
+        senderSms: String(row.sender_sms || '').trim(),
+        recipientUserId: row.recipient_user_id != null ? Number(row.recipient_user_id) : null,
+        recipientName: String(row.recipient_name || '').trim(),
+        recipientEmail: String(row.recipient_email || '').trim(),
+        recipientWhatsapp: String(row.recipient_whatsapp || '').trim(),
+        recipientSms: String(row.recipient_sms || '').trim(),
+        isInbound: row.is_inbound === true,
+        externalStatus: String(row.external_status || '').trim() || 'pendiente',
+        deliveredAt: row.delivered_at || null,
+        receivedAt: row.received_at || null,
+        readAt: row.read_at || null,
+        failedAt: row.failed_at || null,
+        sentAt: row.sent_at || null,
+        metadata: row.metadata || {},
+        attachments
+    };
+}
+
+function normalizeNotificationCenterParticipantRow(row = {}) {
+    return {
+        id: String(row.id || '').trim(),
+        threadId: String(row.thread_id || '').trim(),
+        userId: row.user_id != null ? Number(row.user_id) : null,
+        roleKey: String(row.role_key || '').trim() || 'participante',
+        displayName: String(row.display_name || '').trim(),
+        email: String(row.email || '').trim(),
+        whatsappPhone: String(row.whatsapp_phone || '').trim(),
+        smsPhone: String(row.sms_phone || '').trim(),
+        canManage: row.can_manage === true,
+        createdAt: row.created_at || null
+    };
+}
+
+async function findAdminUserByIdentity(identity, client = null) {
+    const normalizedIdentity = sanitizeAdminUserText(identity);
+    if (!normalizedIdentity) return null;
+    const executor = client || { query: pgQuery };
+    const result = await executor.query(
+        `SELECT u.id, u.full_name, u.username, u.email, u.phone, u.phone_secondary, u.permission_id, p.permission_name
+           FROM admin_users u
+      LEFT JOIN admin_permissions p
+             ON p.id = u.permission_id
+          WHERE LOWER(TRIM(u.username)) = LOWER(TRIM($1))
+             OR LOWER(TRIM(u.full_name)) = LOWER(TRIM($1))
+             OR LOWER(TRIM(COALESCE(u.email, ''))) = LOWER(TRIM($1))
+          ORDER BY u.id
+          LIMIT 1`,
+        [normalizedIdentity]
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    return {
+        id: Number(row.id || 0),
+        name: sanitizeAdminUserText(row.full_name, row.username),
+        username: sanitizeAdminUserText(row.username),
+        email: sanitizeAdminUserText(row.email),
+        phone: sanitizeAdminUserText(row.phone),
+        phoneSecondary: sanitizeAdminUserText(row.phone_secondary),
+        permissionId: row.permission_id != null ? Number(row.permission_id) : null,
+        permissionName: sanitizeAdminUserText(row.permission_name)
+    };
+}
+
+async function ensureAdminUserFromSession(session, client = null) {
+    const username = sanitizeAdminUserText(session?.username);
+    if (!username) return null;
+    const existing = await findAdminUserByIdentity(username, client);
+    if (existing) return existing;
+    const executor = client || { query: pgQuery };
+    const inserted = await executor.query(
+        `INSERT INTO admin_users (
+            full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary,
+            notify_email, notify_whatsapp, notify_sms, is_active, permission_id
+         ) VALUES ($1,$2,'',$3,$4,$5,'',$6,$7,$8,FALSE,FALSE,FALSE,TRUE,NULL)
+         RETURNING id, full_name, username, email, phone, phone_secondary, permission_id`,
+        [
+            sanitizeAdminUserText(session?.name, username),
+            username,
+            sanitizeAdminUserText(session?.department),
+            sanitizeAdminUserText(session?.process),
+            sanitizeAdminUserText(session?.photoUrl),
+            sanitizeAdminUserText(session?.email),
+            sanitizeAdminUserText(session?.phone),
+            sanitizeAdminUserText(session?.phoneSecondary)
+        ]
+    );
+    const row = inserted.rows[0];
+    if (!row) return null;
+    return {
+        id: Number(row.id || 0),
+        name: sanitizeAdminUserText(row.full_name, row.username),
+        username: sanitizeAdminUserText(row.username),
+        email: sanitizeAdminUserText(row.email),
+        phone: sanitizeAdminUserText(row.phone),
+        phoneSecondary: sanitizeAdminUserText(row.phone_secondary),
+        permissionId: row.permission_id != null ? Number(row.permission_id) : null,
+        permissionName: ''
+    };
+}
+
+async function resolveNotificationRequestActor(req, client = null) {
+    const session = readErpSessionFromRequest(req);
+    const identity = sanitizeAdminUserText(session?.username, session?.name);
+    let user = identity ? await findAdminUserByIdentity(identity, client) : null;
+    if (!user && session?.username) {
+        user = await ensureAdminUserFromSession(session, client);
+    }
+    const permissionName = sanitizeAdminUserText(user?.permissionName, session?.permissionName);
+    return {
+        session,
+        identity: sanitizeAdminUserText(identity, getConfiguredCurrentUser()),
+        user,
+        permissionName,
+        canManageAll: isSuperAdminPermissionName(permissionName)
+    };
+}
+
+async function upsertNotificationCenterParticipant(client, threadId, participant = {}) {
+    const executor = client || { query: pgQuery };
+    const displayName = sanitizeAdminUserText(participant.displayName, participant.name);
+    const roleKey = sanitizeAdminUserText(participant.roleKey, 'participante') || 'participante';
+    if (!threadId || !displayName) return;
+    const existing = await executor.query(
+        `SELECT id
+           FROM notification_center_participants
+          WHERE thread_id = $1
+            AND role_key = $2
+            AND (
+                ($3::bigint IS NOT NULL AND user_id = $3)
+                OR LOWER(TRIM(display_name)) = LOWER(TRIM($4))
+            )
+          ORDER BY created_at
+          LIMIT 1`,
+        [threadId, roleKey, participant.userId ?? null, displayName]
+    );
+    if (existing.rows.length) {
+        await executor.query(
+            `UPDATE notification_center_participants
+                SET user_id = COALESCE($2, user_id),
+                    display_name = $3,
+                    email = $4,
+                    whatsapp_phone = $5,
+                    sms_phone = $6,
+                    can_manage = $7
+              WHERE id = $1`,
+            [
+                existing.rows[0].id,
+                participant.userId ?? null,
+                displayName,
+                sanitizeAdminUserText(participant.email),
+                sanitizeAdminUserText(participant.whatsappPhone, participant.phone),
+                sanitizeAdminUserText(participant.smsPhone, participant.phoneSecondary, participant.phone),
+                participant.canManage === true
+            ]
+        );
+        return;
+    }
+    await executor.query(
+        `INSERT INTO notification_center_participants (
+            thread_id, user_id, role_key, display_name, email, whatsapp_phone, sms_phone, can_manage
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [
+            threadId,
+            participant.userId ?? null,
+            roleKey,
+            displayName,
+            sanitizeAdminUserText(participant.email),
+            sanitizeAdminUserText(participant.whatsappPhone, participant.phone),
+            sanitizeAdminUserText(participant.smsPhone, participant.phoneSecondary, participant.phone),
+            participant.canManage === true
+        ]
+    );
+}
+
+async function ensureNotificationCenterThreadForQuoteLine({ quoteCode, lineCode, payload = {}, actor = null, client = null }) {
+    const executor = client || { query: pgQuery };
+    const context = await getQuoteLineContext(quoteCode, lineCode, client);
+    if (!context?.quote || !context?.line) {
+        throw new Error('No fue posible localizar la línea de cotización para la conversación.');
+    }
+    const quote = context.quote;
+    const line = context.line;
+    const raw = line.raw_data || {};
+    const threadCode = buildNotificationCenterThreadCode(quoteCode, lineCode);
+    const sellerName = sanitizeAdminUserText(payload.sellerName, payload.seller_name, quote.salesperson_name);
+    const targetName = sanitizeAdminUserText(payload.targetUser, payload.target_user, sellerName);
+    const actorIdentity = sanitizeAdminUserText(actor?.user?.name, actor?.identity, payload.actor);
+    const [sellerUser, targetUser, actorUser] = await Promise.all([
+        findAdminUserByIdentity(sellerName, client),
+        findAdminUserByIdentity(targetName, client),
+        findAdminUserByIdentity(actorIdentity, client)
+    ]);
+    const productName = sanitizeAdminUserText(
+        payload.jobName,
+        payload.job_name,
+        line.job_name,
+        line.product_name,
+        getProductNameFromRaw(raw, line.product_code || line.line_code)
+    );
+    const productSummary = buildNotificationCenterProductSummary(line);
+    const snapshot = {
+        quoteCode,
+        lineCode,
+        customerCode: sanitizeAdminUserText(quote.customer_code),
+        customerName: sanitizeAdminUserText(quote.customer_name),
+        contactName: sanitizeAdminUserText(quote.contact_name),
+        sellerName,
+        actorName: actorUser?.name || actorIdentity,
+        jobName: productName,
+        lineStatus: sanitizeAdminUserText(raw['SOLICITUD ESTADO'], raw['ESTADO LINEA']),
+        productSummary
+    };
+    const result = await executor.query(
+        `INSERT INTO notification_center_threads (
+            thread_code, conversation_type, source_module, document_type, document_code, quote_code, line_code,
+            customer_name, product_name, product_summary, seller_user_id, seller_name, seller_email, seller_whatsapp, seller_sms,
+            created_by_user_id, created_by_name, target_user_id, target_user_name, status, last_message_at, snapshot, updated_at
+         ) VALUES (
+            $1,'quote-line','cotizaciones','cotizacion',$2,$3,$4,
+            $5,$6,$7,$8,$9,$10,$11,$12,
+            $13,$14,$15,$16,'abierta',NOW(),$17::jsonb,NOW()
+         )
+         ON CONFLICT (thread_code)
+         DO UPDATE SET
+            document_code = EXCLUDED.document_code,
+            customer_name = EXCLUDED.customer_name,
+            product_name = EXCLUDED.product_name,
+            product_summary = EXCLUDED.product_summary,
+            seller_user_id = COALESCE(EXCLUDED.seller_user_id, notification_center_threads.seller_user_id),
+            seller_name = COALESCE(NULLIF(EXCLUDED.seller_name, ''), notification_center_threads.seller_name),
+            seller_email = COALESCE(NULLIF(EXCLUDED.seller_email, ''), notification_center_threads.seller_email),
+            seller_whatsapp = COALESCE(NULLIF(EXCLUDED.seller_whatsapp, ''), notification_center_threads.seller_whatsapp),
+            seller_sms = COALESCE(NULLIF(EXCLUDED.seller_sms, ''), notification_center_threads.seller_sms),
+            created_by_user_id = COALESCE(EXCLUDED.created_by_user_id, notification_center_threads.created_by_user_id),
+            created_by_name = COALESCE(NULLIF(EXCLUDED.created_by_name, ''), notification_center_threads.created_by_name),
+            target_user_id = COALESCE(EXCLUDED.target_user_id, notification_center_threads.target_user_id),
+            target_user_name = COALESCE(NULLIF(EXCLUDED.target_user_name, ''), notification_center_threads.target_user_name),
+            snapshot = notification_center_threads.snapshot || EXCLUDED.snapshot,
+            updated_at = NOW()
+         RETURNING *`,
+        [
+            threadCode,
+            sanitizeAdminUserText(quoteCode),
+            sanitizeAdminUserText(quoteCode),
+            sanitizeAdminUserText(lineCode),
+            sanitizeAdminUserText(payload.customerName, payload.customer_name, quote.customer_name),
+            productName,
+            productSummary,
+            sellerUser?.id ?? null,
+            sellerName,
+            sanitizeAdminUserText(sellerUser?.email),
+            sanitizeAdminUserText(sellerUser?.phone),
+            sanitizeAdminUserText(sellerUser?.phoneSecondary, sellerUser?.phone),
+            actorUser?.id ?? null,
+            sanitizeAdminUserText(actorUser?.name, actorIdentity),
+            targetUser?.id ?? sellerUser?.id ?? null,
+            sanitizeAdminUserText(targetUser?.name, targetName),
+            JSON.stringify(snapshot)
+        ]
+    );
+    const thread = result.rows[0];
+    await upsertNotificationCenterParticipant(client, thread.id, {
+        userId: sellerUser?.id ?? null,
+        roleKey: 'vendedor',
+        displayName: sellerName,
+        email: sellerUser?.email || '',
+        whatsappPhone: sellerUser?.phone || '',
+        smsPhone: sellerUser?.phoneSecondary || sellerUser?.phone || '',
+        canManage: actor?.canManageAll === true
+    });
+    await upsertNotificationCenterParticipant(client, thread.id, {
+        userId: actorUser?.id ?? null,
+        roleKey: 'creador',
+        displayName: sanitizeAdminUserText(actorUser?.name, actorIdentity),
+        email: actorUser?.email || '',
+        whatsappPhone: actorUser?.phone || '',
+        smsPhone: actorUser?.phoneSecondary || actorUser?.phone || '',
+        canManage: actor?.canManageAll === true
+    });
+    if (sanitizeAdminUserText(targetName) && sanitizeAdminUserText(targetName).toLowerCase() !== sanitizeAdminUserText(actorUser?.name, actorIdentity).toLowerCase()) {
+        await upsertNotificationCenterParticipant(client, thread.id, {
+            userId: targetUser?.id ?? null,
+            roleKey: 'destino',
+            displayName: sanitizeAdminUserText(targetUser?.name, targetName),
+            email: targetUser?.email || '',
+            whatsappPhone: targetUser?.phone || '',
+            smsPhone: targetUser?.phoneSecondary || targetUser?.phone || '',
+            canManage: actor?.canManageAll === true
+        });
+    }
+    return thread;
+}
+
+async function createNotificationCenterMessage({ thread, payload = {}, sender = null, recipient = null, attachments = [], client = null }) {
+    const executor = client || { query: pgQuery };
+    const hasAttachment = Array.isArray(attachments) && attachments.length > 0;
+    const messageType = sanitizeAdminUserText(payload.messageType, hasAttachment ? 'adjunto' : 'texto') || 'texto';
+    const bodyText = String(payload.bodyText || payload.issueText || payload.issue_text || '').trim();
+    if (!bodyText && !hasAttachment) {
+        throw new Error('Debes indicar un mensaje o al menos un adjunto.');
+    }
+    const result = await executor.query(
+        `INSERT INTO notification_center_messages (
+            message_code, thread_id, message_type, channel_key, body_text,
+            sender_user_id, sender_name, sender_email, sender_whatsapp, sender_sms,
+            recipient_user_id, recipient_name, recipient_email, recipient_whatsapp, recipient_sms,
+            is_inbound, external_status, delivered_at, received_at, read_at, sent_at, metadata
+         ) VALUES (
+            $1,$2,$3,'interno',$4,
+            $5,$6,$7,$8,$9,
+            $10,$11,$12,$13,$14,
+            $15,'interno',NOW(),NOW(),$16,NOW(),$17::jsonb
+         )
+         RETURNING *`,
+        [
+            buildNotificationCenterMessageCode(thread.thread_code),
+            thread.id,
+            messageType,
+            bodyText,
+            sender?.id ?? null,
+            sanitizeAdminUserText(sender?.name, payload.actor, getConfiguredCurrentUser()),
+            sanitizeAdminUserText(sender?.email),
+            sanitizeAdminUserText(sender?.phone),
+            sanitizeAdminUserText(sender?.phoneSecondary, sender?.phone),
+            recipient?.id ?? null,
+            sanitizeAdminUserText(recipient?.name, thread.target_user_name, thread.seller_name),
+            sanitizeAdminUserText(recipient?.email),
+            sanitizeAdminUserText(recipient?.phone),
+            sanitizeAdminUserText(recipient?.phoneSecondary, recipient?.phone),
+            payload.isInbound === true,
+            payload.markRead === true ? new Date().toISOString() : null,
+            JSON.stringify(payload.metadata || {})
+        ]
+    );
+    const message = result.rows[0];
+    const insertedAttachments = [];
+    for (const attachment of attachments) {
+        const contentBase64 = String(attachment?.contentBase64 || '').trim();
+        const fileName = sanitizeAdminUserText(attachment?.fileName, attachment?.name);
+        if (!contentBase64 || !fileName) continue;
+        const attachmentResult = await executor.query(
+            `INSERT INTO notification_center_message_attachments (
+                message_id, attachment_kind, file_name, mime_type, file_ext, content_base64, size_bytes, notes, uploaded_by
+             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+             RETURNING id, attachment_kind, file_name, mime_type, file_ext, size_bytes, notes, uploaded_by, created_at`,
+            [
+                message.id,
+                sanitizeAdminUserText(attachment?.attachmentKind, attachment?.kind, 'archivo'),
+                fileName,
+                sanitizeAdminUserText(attachment?.mimeType, 'application/octet-stream') || 'application/octet-stream',
+                sanitizeAdminUserText(attachment?.fileExt),
+                contentBase64,
+                Number(attachment?.sizeBytes || 0) || 0,
+                sanitizeAdminUserText(attachment?.notes),
+                sanitizeAdminUserText(sender?.name, payload.actor, getConfiguredCurrentUser())
+            ]
+        );
+        insertedAttachments.push({
+            id: String(attachmentResult.rows[0]?.id || '').trim(),
+            attachmentKind: String(attachmentResult.rows[0]?.attachment_kind || '').trim(),
+            fileName: String(attachmentResult.rows[0]?.file_name || '').trim(),
+            mimeType: String(attachmentResult.rows[0]?.mime_type || '').trim(),
+            fileExt: String(attachmentResult.rows[0]?.file_ext || '').trim(),
+            sizeBytes: Number(attachmentResult.rows[0]?.size_bytes || 0),
+            notes: String(attachmentResult.rows[0]?.notes || '').trim(),
+            uploadedBy: String(attachmentResult.rows[0]?.uploaded_by || '').trim(),
+            createdAt: attachmentResult.rows[0]?.created_at || null
+        });
+    }
+    await executor.query(
+        `UPDATE notification_center_threads
+            SET last_message_at = NOW(),
+                updated_at = NOW(),
+                status = 'abierta'
+          WHERE id = $1`,
+        [thread.id]
+    );
+    return normalizeNotificationCenterMessageRow(message, insertedAttachments);
+}
+
+async function getAccessibleNotificationThreadByCode(threadCode, actor, client = null) {
+    const executor = client || { query: pgQuery };
+    if (!actor?.canManageAll && !actor?.user?.id) {
+        throw new Error('No fue posible identificar al usuario actual para cargar la conversación.');
+    }
+    const result = await executor.query(
+        `SELECT t.*
+           FROM notification_center_threads t
+          WHERE t.thread_code = $1
+            AND (
+                $2::boolean = TRUE
+                OR t.seller_user_id = $3
+                OR t.created_by_user_id = $3
+                OR t.target_user_id = $3
+                OR EXISTS (
+                    SELECT 1
+                      FROM notification_center_participants p
+                     WHERE p.thread_id = t.id
+                       AND p.user_id = $3
+                )
+            )
+          LIMIT 1`,
+        [threadCode, actor?.canManageAll === true, actor?.user?.id ?? null]
+    );
+    return result.rows[0] || null;
+}
+
 function normalizePlanningKey(value) {
     return String(value || '')
         .normalize('NFD')
@@ -3731,7 +5425,30 @@ function isTruthyProcessFlag(value) {
 function hasDeclaredProcessDetail(value) {
     const normalized = String(value ?? '').trim().toLowerCase();
     if (!normalized) return false;
-    return !['no', 'sin', 'ninguno', 'n/a'].includes(normalized);
+    if (['no', 'sin', 'ninguno', 'ninguna', 'n/a'].includes(normalized)) return false;
+    if (normalized.startsWith('sin ')) return false;
+    return ![
+        'sin barniz',
+        'sin laminado',
+        'sin estampado',
+        'sin embosado',
+        'sin numeracion',
+        'sin numeración'
+    ].includes(normalized);
+}
+
+function getUiStateProcessMeta(raw = {}) {
+    const uiState = raw?.['CODEX_UI_STATE'];
+    if (!uiState || typeof uiState !== 'object') {
+        return {
+            finishes: {},
+            numbering: {}
+        };
+    }
+    return {
+        finishes: uiState.finishes && typeof uiState.finishes === 'object' ? uiState.finishes : {},
+        numbering: uiState.numbering && typeof uiState.numbering === 'object' ? uiState.numbering : {}
+    };
 }
 
 function normalizeProcessDisplayList(list = []) {
@@ -3799,10 +5516,11 @@ function buildCalculationProcessSnapshot({ raw = {}, processType = '', machineNa
         machineName,
         raw
     });
-    const varnishDetail = resolveRawProcessDetail(raw, ['BARNIZ', 'ACABADOS | BARNIZ DETALLE', 'REQ | Barniz', 'BARNIZ UV']);
-    const laminateDetail = resolveRawProcessDetail(raw, ['LAMINADO', 'ACABADOS | LAMINADO DETALLE', 'REQ | Laminado']);
-    const stampingDetail = resolveRawProcessDetail(raw, ['ESTAMPADO', 'FOIL', 'ACABADOS | FOIL DETALLE', 'REQ | Estampado']);
-    const numberingDetail = resolveRawProcessDetail(raw, ['NUMERADO', 'ACABADOS | NUMERADO DETALLE', 'REQ | Numeracion', 'REQ | Numeracion Aviso']);
+    const uiProcessMeta = getUiStateProcessMeta(raw);
+    const varnishDetail = resolveRawProcessDetail(raw, ['BARNIZ', 'ACABADOS | BARNIZ DETALLE', 'REQ | Barniz', 'BARNIZ UV']) || String(uiProcessMeta.finishes.varnish || '').trim();
+    const laminateDetail = resolveRawProcessDetail(raw, ['LAMINADO', 'ACABADOS | LAMINADO DETALLE', 'REQ | Laminado']) || String(uiProcessMeta.finishes.laminado || '').trim();
+    const stampingDetail = resolveRawProcessDetail(raw, ['ESTAMPADO', 'FOIL', 'ACABADOS | FOIL DETALLE', 'REQ | Estampado']) || String(uiProcessMeta.finishes.stamping || '').trim();
+    const numberingDetail = resolveRawProcessDetail(raw, ['NUMERADO', 'ACABADOS | NUMERADO DETALLE', 'REQ | Numeracion', 'REQ | Numeracion Aviso']) || String(uiProcessMeta.numbering.type || '').trim();
     const embossDetail = resolveRawProcessDetail(raw, ['EMBOSADO', 'REQ | Embosado']);
     const processKeys = inferRouteProcessKeys({
         process_type: normalizedProcessType,
@@ -3870,6 +5588,7 @@ function buildCalculationProcessSnapshot({ raw = {}, processType = '', machineNa
 function inferRouteProcessKeys(orderRow = {}) {
     const snapshot = inferPlanningOrderSnapshot(orderRow);
     const raw = snapshot.raw?.line_snapshot?.raw_data || snapshot.raw || {};
+    const uiProcessMeta = getUiStateProcessMeta(raw);
     const isDigital = hasDigitalPrintingContext({
         processType: snapshot.processType,
         machineName: snapshot.machineName,
@@ -3883,13 +5602,30 @@ function inferRouteProcessKeys(orderRow = {}) {
 
     processKeys.push('impresion');
 
-    if (isTruthyProcessFlag(raw['ACABADOS | BARNIZ']) || isTruthyProcessFlag(raw['BARNIZ']) || isTruthyProcessFlag(raw['BARNIZ UV'])) {
+    if (
+        isTruthyProcessFlag(raw['ACABADOS | BARNIZ'])
+        || isTruthyProcessFlag(raw['BARNIZ'])
+        || isTruthyProcessFlag(raw['BARNIZ UV'])
+        || hasDeclaredProcessDetail(raw['REQ | Barniz'])
+        || hasDeclaredProcessDetail(uiProcessMeta.finishes.varnish)
+    ) {
         processKeys.push('barnizado');
     }
-    if (isTruthyProcessFlag(raw['ACABADOS | LAMINADO']) || isTruthyProcessFlag(raw['LAMINADO'])) {
+    if (
+        isTruthyProcessFlag(raw['ACABADOS | LAMINADO'])
+        || isTruthyProcessFlag(raw['LAMINADO'])
+        || hasDeclaredProcessDetail(raw['REQ | Laminado'])
+        || hasDeclaredProcessDetail(uiProcessMeta.finishes.laminado)
+    ) {
         processKeys.push('laminado');
     }
-    if (isTruthyProcessFlag(raw['ACABADOS | FOIL']) || isTruthyProcessFlag(raw['FOIL']) || isTruthyProcessFlag(raw['ESTAMPADO'])) {
+    if (
+        isTruthyProcessFlag(raw['ACABADOS | FOIL'])
+        || isTruthyProcessFlag(raw['FOIL'])
+        || isTruthyProcessFlag(raw['ESTAMPADO'])
+        || hasDeclaredProcessDetail(raw['REQ | Estampado'])
+        || hasDeclaredProcessDetail(uiProcessMeta.finishes.stamping)
+    ) {
         processKeys.push('estampado');
     }
     if (
@@ -3897,13 +5633,23 @@ function inferRouteProcessKeys(orderRow = {}) {
         || hasDeclaredProcessDetail(raw['ACABADOS | NUMERADO DETALLE'])
         || isTruthyProcessFlag(raw['ACABADOS | NUMERADO'])
         || hasDeclaredProcessDetail(raw['NUMERADO'])
+        || hasDeclaredProcessDetail(uiProcessMeta.numbering.type)
     ) {
         processKeys.push('numeracion');
     }
-    if (isTruthyProcessFlag(raw['ACABADOS | EMBOSADO']) || isTruthyProcessFlag(raw['EMBOSADO'])) {
+    if (
+        isTruthyProcessFlag(raw['ACABADOS | EMBOSADO'])
+        || isTruthyProcessFlag(raw['EMBOSADO'])
+        || isTruthyProcessFlag(raw['REQ | Embosado'])
+    ) {
         processKeys.push('embosado');
     }
-    if (snapshot.dieCode || raw['GENERAL | TROQUEL | ID'] || isTruthyProcessFlag(raw['TROQUELADO'])) {
+    if (
+        snapshot.dieCode
+        || raw['GENERAL | TROQUEL | ID']
+        || isTruthyProcessFlag(raw['TROQUELADO'])
+        || isTruthyProcessFlag(raw['REQ | Troquelado'])
+    ) {
         processKeys.push('troquelado');
     }
     processKeys.push('rebobinado', 'empaque');
@@ -4928,6 +6674,15 @@ function buildCalculationRawData(payload = {}, existingRawData = {}) {
         'GENERAL | MATERIAL': hasOwn('material_name')
             ? payload.material_name
             : pickFirstValue(existingRawData['GENERAL | MATERIAL'], payload.material_code),
+        'Material | Tipo Según Proceso Productivo': hasOwn('material_name')
+            ? payload.material_name
+            : pickFirstValue(existingRawData['Material | Tipo Según Proceso Productivo'], existingRawData['GENERAL | MATERIAL'], payload.material_code),
+        'Material Convencional | Id Material': activePrefix === 'CONV'
+            ? pickFirstValue(payload.material_code, existingRawData['Material Convencional | Id Material'])
+            : pickFirstValue(existingRawData['Material Convencional | Id Material']),
+        'Material Digital | Id Material': activePrefix === 'DIGITAL'
+            ? pickFirstValue(payload.material_code, existingRawData['Material Digital | Id Material'])
+            : pickFirstValue(existingRawData['Material Digital | Id Material']),
           'SOLICITUD ESTADO': pickFirstValue(payload.status, existingRawData['SOLICITUD ESTADO'], 'Borrador'),
           'ESTADO LINEA': pickFirstValue(payload.status, existingRawData['ESTADO LINEA'], 'Borrador'),
           'CODEX_FINALIZED_FOR_ORDER': finalizedForOrder,
@@ -6394,6 +8149,41 @@ app.get('/api/productos/:codigo', async (req, res) => {
               ORDER BY h.created_at DESC NULLS LAST`,
             [code]
         );
+        const storedAttachmentsResult = await pgQuery(
+            `SELECT a.id, a.quote_code, a.line_code, a.file_name, a.mime_type, a.file_ext, a.notes, a.uploaded_by, a.created_at,
+                    q.customer_name,
+                    OCTET_LENGTH(DECODE(a.content_base64, 'base64')) AS size_bytes
+               FROM quote_line_attachments a
+               JOIN flexo_product_quote_history h
+                 ON h.quote_code = a.quote_code
+                AND h.line_code = a.line_code
+          LEFT JOIN quotes q
+                 ON q.quote_code = a.quote_code
+              WHERE h.product_code = $1
+              ORDER BY a.created_at DESC NULLS LAST, a.id DESC`,
+            [code]
+        );
+        const inlineAttachments = [];
+        historyResult.rows.forEach((row) => {
+            extractLineAttachments({ raw_data: row.line_raw_data || {} }).forEach((attachment, index) => {
+                inlineAttachments.push({
+                    id: null,
+                    quote_code: row.quote_code,
+                    line_code: row.line_code || '',
+                    file_name: attachment.label || attachment.key || `Adjunto ${index + 1}`,
+                    mime_type: '',
+                    file_ext: '',
+                    notes: '',
+                    uploaded_by: row.salesperson_name || row.created_by || '',
+                    created_at: row.created_at || row.created_on || '',
+                    customer_name: row.customer_name || '',
+                    size_bytes: 0,
+                    url: attachment.isUrl ? attachment.value : '',
+                    value: attachment.value || '',
+                    is_stored: false
+                });
+            });
+        });
         res.json({
             producto: mapProductCatalogRow(productResult.rows[0]),
             historial: historyResult.rows.map((row) => ({
@@ -6410,7 +8200,29 @@ app.get('/api/productos/:codigo', async (req, res) => {
                 total_cost: parseLegacyNumber(row.total_cost),
                 unit_price: parseLegacyNumber(row.unit_price),
                 job_name: getProductNameFromRaw(row.line_raw_data || {}, row.quoted_product_code || row.line_code || '')
-            }))
+            })),
+            attachments: [
+                ...storedAttachmentsResult.rows.map((row) => ({
+                    id: Number(row.id || 0),
+                    quote_code: row.quote_code || '',
+                    line_code: row.line_code || '',
+                    file_name: row.file_name || '',
+                    mime_type: row.mime_type || '',
+                    file_ext: row.file_ext || '',
+                    notes: row.notes || '',
+                    uploaded_by: row.uploaded_by || '',
+                    created_at: row.created_at || '',
+                    customer_name: row.customer_name || '',
+                    size_bytes: Number(row.size_bytes || 0),
+                    download_url: row.id ? `/api/adjuntos/${row.id}/download` : '',
+                    is_stored: true
+                })),
+                ...inlineAttachments
+            ].sort((left, right) => {
+                const leftTime = new Date(left.created_at || 0).getTime();
+                const rightTime = new Date(right.created_at || 0).getTime();
+                return rightTime - leftTime;
+            })
         });
     } catch (error) {
         res.status(500).json({ error: error.message || 'No fue posible cargar el producto.' });
@@ -6730,7 +8542,8 @@ app.patch('/api/proformas/:codigo', async (req, res) => {
             deliveryTime: sanitizeAdminUserText(req.body?.deliveryTime, before.deliveryTime),
             technicalSpecs: sanitizeAdminUserText(req.body?.technicalSpecs, before.technicalSpecs),
             qualityPolicies: sanitizeAdminUserText(req.body?.qualityPolicies, before.qualityPolicies),
-            priceDisplayMode: normalizeProformaPriceDisplayMode(req.body?.priceDisplayMode || before.priceDisplayMode)
+            priceDisplayMode: normalizeProformaPriceDisplayMode(req.body?.priceDisplayMode || before.priceDisplayMode),
+            sellerSignatureEnabled: req.body?.sellerSignatureEnabled === false ? false : req.body?.sellerSignatureEnabled === true ? true : before.sellerSignatureEnabled !== false
         };
         await pgQuery(
             `INSERT INTO quote_proformas (quote_code, status, raw_data)
@@ -6792,12 +8605,13 @@ app.delete('/api/login-repository/:fileName', async (req, res) => {
 app.get('/api/admin-users', async (req, res) => {
     try {
         const result = await pgQuery(
-            `SELECT u.id, u.full_name, u.username, u.password, u.department, u.process, u.photo_url, u.signature_url, u.email, u.phone, u.phone_secondary, u.permission_id,
+            `SELECT u.id, u.full_name, u.username, u.password, u.department, u.process, u.photo_url, u.signature_url, u.email, u.phone, u.phone_secondary,
+                    u.notify_email, u.notify_whatsapp, u.notify_sms, u.is_active, u.permission_id, u.floating_button_config,
                     p.permission_name
                FROM admin_users u
           LEFT JOIN admin_permissions p
                  ON p.id = u.permission_id
-              ORDER BY LOWER(full_name), id`
+              ORDER BY u.is_active DESC, LOWER(full_name), id`
         );
         res.json(result.rows.map(normalizeAdminUserRecord));
     } catch (error) {
@@ -6808,17 +8622,33 @@ app.get('/api/admin-users', async (req, res) => {
 app.post('/api/admin-users', async (req, res) => {
     try {
         const name = sanitizeAdminUserText(req.body?.name);
-        if (!name) {
-            return res.status(400).json({ error: 'El nombre es obligatorio.' });
+        const username = sanitizeAdminUserText(req.body?.username).toLowerCase();
+        const password = sanitizeAdminUserText(req.body?.password);
+        if (!name || !username || !password) {
+            return res.status(400).json({ error: 'Nombre, usuario y contraseña son obligatorios.' });
+        }
+        const exists = await pgQuery(
+            `SELECT id
+               FROM admin_users
+              WHERE LOWER(TRIM(username)) = LOWER(TRIM($1))
+              LIMIT 1`,
+            [username]
+        );
+        if (exists.rows.length) {
+            return res.status(400).json({ error: 'Ese nombre de usuario ya existe.' });
         }
         const result = await pgQuery(
-            `INSERT INTO admin_users (full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary, permission_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-             RETURNING id, full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary, permission_id`,
+            `INSERT INTO admin_users (
+                full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary,
+                notify_email, notify_whatsapp, notify_sms, is_active, permission_id
+             )
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, TRUE, $14)
+             RETURNING id, full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary,
+                       notify_email, notify_whatsapp, notify_sms, is_active, permission_id`,
             [
                 name,
-                sanitizeAdminUserText(req.body?.username),
-                sanitizeAdminUserText(req.body?.password),
+                username,
+                password,
                 sanitizeAdminUserText(req.body?.department),
                 sanitizeAdminUserText(req.body?.process),
                 sanitizeAdminUserText(req.body?.photoUrl),
@@ -6826,6 +8656,9 @@ app.post('/api/admin-users', async (req, res) => {
                 sanitizeAdminUserText(req.body?.email),
                 sanitizeAdminUserText(req.body?.phone),
                 sanitizeAdminUserText(req.body?.phoneSecondary),
+                req.body?.notificationEmail === true,
+                req.body?.notificationWhatsapp === true,
+                req.body?.notificationSms === true,
                 req.body?.permissionId ? Number(req.body.permissionId) : null
             ]
         );
@@ -6846,10 +8679,18 @@ app.patch('/api/admin-users/:id', async (req, res) => {
         if (!Number.isFinite(id) || id <= 0) {
             return res.status(400).json({ error: 'Identificador no válido.' });
         }
-        const name = sanitizeAdminUserText(req.body?.name);
-        if (!name) {
-            return res.status(400).json({ error: 'El nombre es obligatorio.' });
+        const existing = await pgQuery(
+            `SELECT id, full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary,
+                    notify_email, notify_whatsapp, notify_sms, is_active, permission_id
+               FROM admin_users
+              WHERE id = $1
+              LIMIT 1`,
+            [id]
+        );
+        if (!existing.rows.length) {
+            return res.status(404).json({ error: 'Usuario no encontrado.' });
         }
+        const row = existing.rows[0];
         const result = await pgQuery(
             `UPDATE admin_users
                 SET full_name = $2,
@@ -6862,28 +8703,34 @@ app.patch('/api/admin-users/:id', async (req, res) => {
                     email = $9,
                     phone = $10,
                     phone_secondary = $11,
-                    permission_id = $12,
+                    notify_email = $12,
+                    notify_whatsapp = $13,
+                    notify_sms = $14,
+                    is_active = $15,
+                    permission_id = $16,
                     updated_at = NOW()
               WHERE id = $1
-          RETURNING id, full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary, permission_id`,
+          RETURNING id, full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary,
+                    notify_email, notify_whatsapp, notify_sms, is_active, permission_id`,
             [
                 id,
-                name,
-                sanitizeAdminUserText(req.body?.username),
-                sanitizeAdminUserText(req.body?.password),
-                sanitizeAdminUserText(req.body?.department),
-                sanitizeAdminUserText(req.body?.process),
-                sanitizeAdminUserText(req.body?.photoUrl),
-                sanitizeAdminUserText(req.body?.signatureUrl),
-                sanitizeAdminUserText(req.body?.email),
-                sanitizeAdminUserText(req.body?.phone),
-                sanitizeAdminUserText(req.body?.phoneSecondary),
+                sanitizeAdminUserText(row.full_name),
+                sanitizeAdminUserText(row.username),
+                sanitizeAdminUserText(req.body?.password, row.password),
+                sanitizeAdminUserText(req.body?.department, row.department),
+                sanitizeAdminUserText(req.body?.process, row.process),
+                sanitizeAdminUserText(req.body?.photoUrl, row.photo_url),
+                sanitizeAdminUserText(req.body?.signatureUrl, row.signature_url),
+                sanitizeAdminUserText(req.body?.email, row.email),
+                sanitizeAdminUserText(req.body?.phone, row.phone),
+                sanitizeAdminUserText(req.body?.phoneSecondary, row.phone_secondary),
+                req.body?.notificationEmail === undefined ? Boolean(row.notify_email) : req.body?.notificationEmail === true,
+                req.body?.notificationWhatsapp === undefined ? Boolean(row.notify_whatsapp) : req.body?.notificationWhatsapp === true,
+                req.body?.notificationSms === undefined ? Boolean(row.notify_sms) : req.body?.notificationSms === true,
+                req.body?.active === undefined ? row.is_active !== false : req.body?.active === true,
                 req.body?.permissionId ? Number(req.body.permissionId) : null
             ]
         );
-        if (!result.rows.length) {
-            return res.status(404).json({ error: 'Usuario no encontrado.' });
-        }
         const updated = result.rows[0];
         if (updated.permission_id) {
             const permission = await pgQuery(`SELECT permission_name FROM admin_permissions WHERE id = $1 LIMIT 1`, [updated.permission_id]);
@@ -6903,7 +8750,8 @@ app.get('/api/admin-profile', async (req, res) => {
             return res.status(401).json({ error: 'Sesión no válida.' });
         }
         const result = await pgQuery(
-            `SELECT u.id, u.full_name, u.username, u.password, u.department, u.process, u.photo_url, u.signature_url, u.email, u.phone, u.phone_secondary, u.permission_id,
+            `SELECT u.id, u.full_name, u.username, u.password, u.department, u.process, u.photo_url, u.signature_url, u.email, u.phone, u.phone_secondary,
+                    u.notify_email, u.notify_whatsapp, u.notify_sms, u.is_active, u.permission_id, u.floating_button_config,
                     p.permission_name
                FROM admin_users u
           LEFT JOIN admin_permissions p
@@ -6927,8 +8775,13 @@ app.get('/api/admin-profile', async (req, res) => {
                 email: '',
                 phone: '',
                 phoneSecondary: '',
+                notificationEmail: false,
+                notificationWhatsapp: false,
+                notificationSms: false,
+                active: true,
                 permissionId: null,
-                permissionName: sanitizeAdminUserText(session?.permissionName)
+                permissionName: sanitizeAdminUserText(session?.permissionName),
+                floatingButtonConfig: {}
             });
         }
         res.json(normalizeAdminUserRecord(result.rows[0]));
@@ -6945,7 +8798,8 @@ app.patch('/api/admin-profile', async (req, res) => {
             return res.status(401).json({ error: 'Sesión no válida.' });
         }
         const existing = await pgQuery(
-            `SELECT id, full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary, permission_id
+            `SELECT id, full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary,
+                    notify_email, notify_whatsapp, notify_sms, is_active, permission_id, floating_button_config
                FROM admin_users
               WHERE LOWER(TRIM(username)) = LOWER(TRIM($1))
                  OR LOWER(TRIM(full_name)) = LOWER(TRIM($1))
@@ -6956,9 +8810,11 @@ app.patch('/api/admin-profile', async (req, res) => {
         if (!existing.rows.length) {
             const inserted = await pgQuery(
                 `INSERT INTO admin_users (
-                    full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary, permission_id
-                 ) VALUES ($1,$2,$3,$4,$5,$6,'',$7,$8,$9,NULL)
-                 RETURNING id, full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary, permission_id`,
+                    full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary,
+                    notify_email, notify_whatsapp, notify_sms, is_active, permission_id, floating_button_config
+                 ) VALUES ($1,$2,$3,$4,$5,$6,'',$7,$8,$9,FALSE,FALSE,FALSE,TRUE,NULL,$10::jsonb)
+                 RETURNING id, full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary,
+                           notify_email, notify_whatsapp, notify_sms, is_active, permission_id, floating_button_config`,
                 [
                     sanitizeAdminUserText(session?.name, sessionUser),
                     sessionUser,
@@ -6968,7 +8824,8 @@ app.patch('/api/admin-profile', async (req, res) => {
                     sanitizeAdminUserText(req.body?.photoUrl, session?.photoUrl),
                     sanitizeAdminUserText(req.body?.email),
                     sanitizeAdminUserText(req.body?.phone),
-                    sanitizeAdminUserText(req.body?.phoneSecondary)
+                    sanitizeAdminUserText(req.body?.phoneSecondary),
+                    JSON.stringify(req.body?.floatingButtonConfig && typeof req.body.floatingButtonConfig === 'object' ? req.body.floatingButtonConfig : {})
                 ]
             );
             return res.json(normalizeAdminUserRecord(inserted.rows[0]));
@@ -6981,16 +8838,21 @@ app.patch('/api/admin-profile', async (req, res) => {
                     email = $4,
                     phone = $5,
                     phone_secondary = $6,
+                    floating_button_config = $7::jsonb,
                     updated_at = NOW()
               WHERE id = $1
-          RETURNING id, full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary, permission_id`,
+          RETURNING id, full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary,
+                    notify_email, notify_whatsapp, notify_sms, is_active, permission_id, floating_button_config`,
             [
                 Number(row.id),
                 sanitizeAdminUserText(req.body?.password, row.password),
                 sanitizeAdminUserText(req.body?.photoUrl, row.photo_url),
                 sanitizeAdminUserText(req.body?.email, row.email),
                 sanitizeAdminUserText(req.body?.phone, row.phone),
-                sanitizeAdminUserText(req.body?.phoneSecondary, row.phone_secondary)
+                sanitizeAdminUserText(req.body?.phoneSecondary, row.phone_secondary),
+                JSON.stringify(req.body?.floatingButtonConfig && typeof req.body.floatingButtonConfig === 'object'
+                    ? req.body.floatingButtonConfig
+                    : (row.floating_button_config && typeof row.floating_button_config === 'object' ? row.floating_button_config : {}))
             ]
         );
         res.json(normalizeAdminUserRecord(result.rows[0]));
@@ -7005,11 +8867,19 @@ app.delete('/api/admin-users/:id', async (req, res) => {
         if (!Number.isFinite(id) || id <= 0) {
             return res.status(400).json({ error: 'Identificador no válido.' });
         }
-        const result = await pgQuery(`DELETE FROM admin_users WHERE id = $1 RETURNING id`, [id]);
+        const result = await pgQuery(
+            `UPDATE admin_users
+                SET is_active = FALSE,
+                    updated_at = NOW()
+              WHERE id = $1
+          RETURNING id, full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary,
+                    notify_email, notify_whatsapp, notify_sms, is_active, permission_id`,
+            [id]
+        );
         if (!result.rows.length) {
             return res.status(404).json({ error: 'Usuario no encontrado.' });
         }
-        res.json({ ok: true, id });
+        res.json(normalizeAdminUserRecord(result.rows[0]));
     } catch (error) {
         res.status(400).json({ error: error.message || 'No fue posible eliminar el usuario.' });
     }
@@ -7025,6 +8895,14 @@ app.get('/api/admin-permissions', async (req, res) => {
         res.json(result.rows.map(normalizeAdminPermissionRecord));
     } catch (error) {
         res.status(500).json({ error: error.message || 'No fue posible cargar los permisos.' });
+    }
+});
+
+app.get('/api/admin-security-diagnostics', async (req, res) => {
+    try {
+        res.json(await buildAdminSecurityDiagnostics());
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible revisar la integridad de permisos.' });
     }
 });
 
@@ -7143,7 +9021,7 @@ app.post('/api/auth/login', async (req, res) => {
         }
 
         const result = await pgQuery(
-            `SELECT u.id, u.full_name, u.username, u.department, u.process, u.photo_url,
+            `SELECT u.id, u.full_name, u.username, u.department, u.process, u.photo_url, u.is_active,
                     u.permission_id, p.permission_name, p.default_landing, p.module_permissions
                FROM admin_users u
           LEFT JOIN admin_permissions p
@@ -7162,6 +9040,15 @@ app.post('/api/auth/login', async (req, res) => {
         }
 
         const row = result.rows[0];
+        if (row.permission_id != null && !sanitizeAdminUserText(row.permission_name)) {
+            return res.status(409).json({
+                error: 'El usuario tiene un permiso asignado que no existe en esta base de datos. Revisa la migración de permisos antes de continuar.'
+            });
+        }
+        const permissionName = sanitizeAdminUserText(row.permission_name);
+        if (row.is_active === false) {
+            return res.status(403).json({ error: 'Este usuario se encuentra inactivo.' });
+        }
         res.json({
             ok: true,
             user: {
@@ -7172,9 +9059,11 @@ app.post('/api/auth/login', async (req, res) => {
                 process: sanitizeAdminUserText(row.process),
                 photoUrl: sanitizeAdminUserText(row.photo_url),
                 permissionId: row.permission_id == null ? null : Number(row.permission_id),
-                permissionName: sanitizeAdminUserText(row.permission_name),
+                permissionName,
                 defaultLanding: sanitizePresentationKey(row.default_landing),
-                modules: normalizePermissionMatrix(row.module_permissions || {})
+                modules: isSuperAdminPermissionName(permissionName)
+                    ? buildFullPermissionMatrix()
+                    : normalizePermissionMatrix(row.module_permissions || {})
             }
         });
     } catch (error) {
@@ -7344,6 +9233,22 @@ app.post('/api/productos', async (req, res) => {
     res.status(501).json({ error: 'La creación directa de productos aún no está habilitada; se generan desde líneas de cotización.' });
 });
 
+app.get('/api/cotizaciones-inteligentes/catalogos', async (req, res) => {
+    try {
+        const [catalogs, generalConfig] = await Promise.all([
+            loadFlexoCatalogsFromDb(),
+            loadGeneralConfig()
+        ]);
+        res.json({
+            materialFamilies: getCommercialMaterialFamilies(catalogs.materials),
+            digitalThreshold: Math.max(0, Number(generalConfig?.general?.quoteAutomaticDigitalMaxQuantity || 0)) || 100000,
+            labelsPerRollDefault: Math.max(1, Number(generalConfig?.general?.quoteAutomaticLabelsPerRoll || 0)) || 1000
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible cargar los catálogos inteligentes de cotización.' });
+    }
+});
+
 app.post('/api/cotizaciones', async (req, res) => {
     try {
         const payload = req.body || {};
@@ -7459,7 +9364,7 @@ app.patch('/api/cotizaciones/:codigo', async (req, res) => {
 app.post('/api/cotizaciones/:codigo/lineas', async (req, res) => {
     try {
         const { codigo } = req.params;
-        const payload = req.body || {};
+        const payload = { ...(req.body || {}) };
         const generalConfig = await loadGeneralConfig();
         const generalDefaults = generalConfig?.general || {};
         const costsConfig = await loadCostsConfig();
@@ -7472,6 +9377,44 @@ app.post('/api/cotizaciones/:codigo/lineas', async (req, res) => {
         const quote = quoteResult.rows[0];
         const lineCode = pickFirstValue(payload.line_code) || await generateNextLineCode();
         const calculationCode = pickFirstValue(payload.calculation_code) || await generateNextCalculationCode();
+        const autoSelection = await resolveSmartQuoteLineSelection(payload);
+        payload.labelsPerRoll = parsePositiveNumber(
+            payload.labelsPerRoll,
+            autoSelection.labelsPerRoll
+        );
+        payload.process_type = autoSelection.selectedProcessType === 'digital' ? 'Digital' : 'Convencional';
+        payload.material_code = autoSelection.selectedMaterial?.code || pickFirstValue(payload.material_code, payload.material_name);
+        payload.material_name = autoSelection.selectedMaterial?.name || payload.material_name;
+        payload.die_code = autoSelection.selectedDie?.code || pickFirstValue(payload.die_code);
+        payload.machine_name = autoSelection.selectedMachine?.machineName || payload.machine_name;
+        payload.request_meta = {
+            ...(payload.request_meta || {}),
+            'REQ | Material Comercial': autoSelection.requestedFamily || normalizeCommercialMaterialFamily(payload.material_name || ''),
+            'REQ | Ruta Automática': payload.process_type,
+            'REQ | Troquel Automático': autoSelection.selectedDie?.code || '',
+            'REQ | Material Automático': autoSelection.selectedMaterial?.code || '',
+            'REQ | Máquina Automática': autoSelection.selectedMachine?.machineName || '',
+            'REQ | Etiquetas x Rollo Automática': payload.labelsPerRoll,
+            'REQ | Montaje Automático': autoSelection.selectedMounting
+                ? `${autoSelection.selectedMounting.columns} columnas | ancho útil ${roundCurrency(autoSelection.selectedMounting.usableWidth)}" | largo estimado ${roundCurrency(autoSelection.selectedMounting.linearFeet)} pies`
+                : '',
+            'REQ | Comentario Técnico Automático': autoSelection.automaticComment,
+            'REQ | Advertencias Automáticas': autoSelection.warnings.join(' | '),
+            'REQ | Fallback de Ruta': autoSelection.fallbackApplied ? 'Sí' : 'No'
+        };
+        if (payload.request_meta?.CODEX_UI_STATE && typeof payload.request_meta.CODEX_UI_STATE === 'object') {
+            payload.request_meta.CODEX_UI_STATE.smartSelection = {
+                digitalThreshold: autoSelection.digitalThreshold,
+                processType: payload.process_type,
+                dieCode: autoSelection.selectedDie?.code || '',
+                materialCode: autoSelection.selectedMaterial?.code || '',
+                materialFamily: autoSelection.requestedFamily || '',
+                machineName: autoSelection.selectedMachine?.machineName || '',
+                labelsPerRoll: payload.labelsPerRoll,
+                mounting: autoSelection.selectedMounting,
+                warnings: autoSelection.warnings
+            };
+        }
         const machineName = await resolveSingleInventoryMachineName(payload.machine_name);
         const lineOrder = normalizeLineOrder(payload.line_order, await getNextQuoteLineOrder(codigo));
         const rawData = buildCalculationRawData({
@@ -7489,7 +9432,53 @@ app.post('/api/cotizaciones/:codigo/lineas', async (req, res) => {
                 ? payload.cmyk
                 : String(costDefaults.defaultCmykEnabled ?? generalDefaults.defaultCmykEnabled ?? 'true').trim().toLowerCase() !== 'false'
         });
+        rawData['CODEX_AUTO_SELECTION'] = {
+            digitalThreshold: autoSelection.digitalThreshold,
+            processType: payload.process_type,
+            dieCode: autoSelection.selectedDie?.code || '',
+            materialCode: autoSelection.selectedMaterial?.code || '',
+            materialFamily: autoSelection.requestedFamily || '',
+            machineName: autoSelection.selectedMachine?.machineName || '',
+            labelsPerRoll: payload.labelsPerRoll,
+            mounting: autoSelection.selectedMounting,
+            fallbackApplied: autoSelection.fallbackApplied,
+            warnings: autoSelection.warnings
+        };
         rawData['CODEX_LINE_ORDER'] = lineOrder;
+        const automaticPricing = await estimateAutomaticQuotePricing({
+            rawData,
+            processType: payload.process_type,
+            quantity: parseLegacyNumber(payload.quantity) ?? parseLegacyNumber(payload.quantityProducts) ?? 0,
+            selectedMachine: autoSelection.selectedMachine,
+            selectedMaterial: autoSelection.selectedMaterial,
+            selectedDie: autoSelection.selectedDie,
+            selectedMounting: autoSelection.selectedMounting,
+            costsConfig,
+            exchangeRate: payload.exchange_rate ?? payload.exchangeRate ?? 1
+        });
+        rawData['GENERAL | 5 | SUBTOTAL'] = automaticPricing.baseCost;
+        rawData['GENERAL | 7 | SUBTOTAL CALC ANTES IV | DOL'] = automaticPricing.subtotalBeforeTax;
+        rawData['GENERAL | 8 | PORCENTAJE IVA'] = automaticPricing.taxPercent;
+        rawData['GENERAL | 9 | Impuestos'] = automaticPricing.taxAmount;
+        rawData['GENERAL | 7 | TOTAL | DOL'] = automaticPricing.subtotalBeforeTax;
+        rawData['GENERAL | 9 | TOTAL | DOL'] = automaticPricing.totalAmount;
+        rawData['GENERAL | 9 | UNITARIO | DOL'] = automaticPricing.unitPrice;
+        rawData['PRECIO UNITARIO'] = automaticPricing.unitPriceWithTax;
+        rawData['PRECIO TOTAL AL FINALIZAR'] = automaticPricing.totalAmount;
+        rawData['GENERAL | SUSTRATO | CONSUMO PIES'] = Number(autoSelection.selectedMounting?.linearFeet || 0);
+        rawData['CODEX_AUTO_PRICING'] = {
+            materialCost: automaticPricing.materialCost,
+            productionCost: automaticPricing.productionCost,
+            baseCost: automaticPricing.baseCost,
+            subtotalBeforeTax: automaticPricing.subtotalBeforeTax,
+            taxPercent: automaticPricing.taxPercent,
+            taxAmount: automaticPricing.taxAmount,
+            totalAmount: automaticPricing.totalAmount,
+            unitPrice: automaticPricing.unitPrice,
+            unitPriceWithTax: automaticPricing.unitPriceWithTax,
+            processBreakdown: automaticPricing.processBreakdown
+        };
+        rawData['CODEX_PLANNING_SNAPSHOT'] = automaticPricing.planningSnapshot;
         applyCurrencyFieldsToRawData(rawData, payload.exchange_rate ?? payload.exchangeRate);
 
         await pgQuery(
@@ -7508,8 +9497,8 @@ app.post('/api/cotizaciones/:codigo/lineas', async (req, res) => {
                 pickFirstValue(payload.die_code),
                 pickFirstValue(payload.material_code),
                 parseLegacyNumber(payload.quantity) ?? parseLegacyNumber(payload.quantityProducts),
-                parseLegacyNumber(payload.total_cost),
-                parseLegacyNumber(payload.unit_price),
+                automaticPricing.totalAmount,
+                automaticPricing.unitPrice,
                 JSON.stringify(rawData)
             ]
         );
@@ -7611,6 +9600,50 @@ app.patch('/api/cotizaciones/:codigo/lineas/:linea', async (req, res) => {
             existing.rows[0].raw_data || {}
         );
         rawData['CODEX_LINE_ORDER'] = normalizeLineOrder(payload.line_order, normalizeLineOrder(existing.rows[0].raw_data?.['CODEX_LINE_ORDER']));
+        try {
+            const catalogs = await loadFlexoCatalogsFromDb();
+            const processType = pickFirstValue(payload.process_type, rawData['Proceso Productivo'], 'Convencional');
+            const materialCode = pickFirstValue(payload.material_code, rawData['Material Digital | Id Material'], rawData['Material Convencional | Id Material']);
+            const dieCode = pickFirstValue(payload.die_code, rawData['GENERAL | TROQUEL | ID']);
+            const selectedMaterial = catalogs.materials.find((item) => String(item.code || '') === String(materialCode || '')) || null;
+            const selectedDie = catalogs.dies.find((item) => String(item.code || '') === String(dieCode || '')) || null;
+            const selectedMachine = catalogs.machines.find((item) => String(item.machineName || '') === String(machineName || rawData['DIGITAL | MAQUINA'] || rawData['CONV | MAQUINA'] || '')) || null;
+            const selectedMounting = rawData['CODEX_AUTO_SELECTION']?.mounting || null;
+            const automaticPricing = await estimateAutomaticQuotePricing({
+                rawData,
+                processType,
+                quantity: parseLegacyNumber(payload.quantity) ?? parseLegacyNumber(rawData['Cantidad Productos']) ?? 0,
+                selectedMachine,
+                selectedMaterial,
+                selectedDie,
+                selectedMounting,
+                costsConfig: await loadCostsConfig(),
+                exchangeRate: payload.exchange_rate ?? payload.exchangeRate ?? 1
+            });
+            rawData['GENERAL | 5 | SUBTOTAL'] = automaticPricing.baseCost;
+            rawData['GENERAL | 7 | SUBTOTAL CALC ANTES IV | DOL'] = automaticPricing.subtotalBeforeTax;
+            rawData['GENERAL | 8 | PORCENTAJE IVA'] = automaticPricing.taxPercent;
+            rawData['GENERAL | 9 | Impuestos'] = automaticPricing.taxAmount;
+            rawData['GENERAL | 7 | TOTAL | DOL'] = automaticPricing.subtotalBeforeTax;
+            rawData['GENERAL | 9 | TOTAL | DOL'] = automaticPricing.totalAmount;
+            rawData['GENERAL | 9 | UNITARIO | DOL'] = automaticPricing.unitPrice;
+            rawData['PRECIO UNITARIO'] = automaticPricing.unitPriceWithTax;
+            rawData['PRECIO TOTAL AL FINALIZAR'] = automaticPricing.totalAmount;
+            rawData['CODEX_AUTO_PRICING'] = {
+                materialCost: automaticPricing.materialCost,
+                productionCost: automaticPricing.productionCost,
+                baseCost: automaticPricing.baseCost,
+                subtotalBeforeTax: automaticPricing.subtotalBeforeTax,
+                taxPercent: automaticPricing.taxPercent,
+                taxAmount: automaticPricing.taxAmount,
+                totalAmount: automaticPricing.totalAmount,
+                unitPrice: automaticPricing.unitPrice,
+                unitPriceWithTax: automaticPricing.unitPriceWithTax,
+                processBreakdown: automaticPricing.processBreakdown
+            };
+            rawData['CODEX_PLANNING_SNAPSHOT'] = automaticPricing.planningSnapshot;
+        } catch (pricingError) {
+        }
         applyCurrencyFieldsToRawData(rawData, payload.exchange_rate ?? payload.exchangeRate);
         if (Object.prototype.hasOwnProperty.call(payload, 'finalized_for_order') || Object.prototype.hasOwnProperty.call(payload, 'finalizedForOrder')) {
             rawData['CODEX_FINALIZED_FOR_ORDER'] = Boolean(Object.prototype.hasOwnProperty.call(payload, 'finalized_for_order')
@@ -7641,8 +9674,8 @@ app.patch('/api/cotizaciones/:codigo/lineas/:linea', async (req, res) => {
                 pickFirstValue(payload.die_code),
                 pickFirstValue(payload.material_code),
                 parseLegacyNumber(payload.quantity) ?? parseLegacyNumber(payload.quantityProducts),
-                parseLegacyNumber(payload.total_cost),
-                parseLegacyNumber(payload.unit_price),
+                parseLegacyNumber(rawData['PRECIO TOTAL AL FINALIZAR']),
+                parseLegacyNumber(rawData['GENERAL | 9 | UNITARIO | DOL']),
                 JSON.stringify(rawData)
             ]
         );
@@ -9660,26 +11693,415 @@ app.post('/api/flexo/notificaciones', async (req, res) => {
         if (!quoteCode || !lineCode || !issueText) {
             return res.status(400).json({ error: 'Debes indicar quoteCode, lineCode y el problema detectado.' });
         }
-        const result = await pgQuery(
-            `INSERT INTO quote_line_notifications (
-                quote_code, line_code, seller_name, customer_name, job_name, issue_text, target_user, created_by, snapshot
-             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb)
-             RETURNING id, created_at`,
-            [
+        const actor = await resolveNotificationRequestActor(req);
+        const saved = await withTransaction(async (client) => {
+            const result = await client.query(
+                `INSERT INTO quote_line_notifications (
+                    quote_code, line_code, seller_name, customer_name, job_name, issue_text, target_user, created_by, snapshot
+                 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb)
+                 RETURNING id, created_at`,
+                [
+                    quoteCode,
+                    lineCode,
+                    pickFirstValue(payload.sellerName, payload.seller_name),
+                    pickFirstValue(payload.customerName, payload.customer_name),
+                    pickFirstValue(payload.jobName, payload.job_name),
+                    issueText,
+                    pickFirstValue(payload.targetUser, payload.target_user),
+                    pickFirstValue(payload.actor, actor?.user?.name, actor?.identity, getConfiguredCurrentUser()),
+                    JSON.stringify(payload.snapshot || {})
+                ]
+            );
+            const thread = await ensureNotificationCenterThreadForQuoteLine({
                 quoteCode,
                 lineCode,
-                pickFirstValue(payload.sellerName, payload.seller_name),
-                pickFirstValue(payload.customerName, payload.customer_name),
-                pickFirstValue(payload.jobName, payload.job_name),
-                issueText,
-                pickFirstValue(payload.targetUser, payload.target_user),
-                pickFirstValue(payload.actor, getConfiguredCurrentUser()),
-                JSON.stringify(payload.snapshot || {})
-            ]
-        );
-        res.json({ ok: true, id: result.rows[0]?.id, createdAt: result.rows[0]?.created_at });
+                payload,
+                actor,
+                client
+            });
+            const sender = actor?.user || {
+                id: null,
+                name: sanitizeAdminUserText(payload.actor, actor?.identity, getConfiguredCurrentUser()),
+                email: '',
+                phone: '',
+                phoneSecondary: ''
+            };
+            const recipient = thread.seller_user_id && sender.id === thread.seller_user_id
+                ? await findAdminUserByIdentity(thread.created_by_name || thread.target_user_name, client)
+                : await findAdminUserByIdentity(thread.seller_name || payload.targetUser || payload.sellerName, client);
+            const message = await createNotificationCenterMessage({
+                thread,
+                payload: {
+                    bodyText: issueText,
+                    messageType: 'texto',
+                    metadata: {
+                        source: 'flexo-notificacion',
+                        quoteCode,
+                        lineCode
+                    }
+                },
+                sender,
+                recipient,
+                attachments: [],
+                client
+            });
+            return {
+                id: result.rows[0]?.id,
+                createdAt: result.rows[0]?.created_at,
+                thread: normalizeNotificationCenterThreadRow(thread),
+                message
+            };
+        });
+        res.json({ ok: true, ...saved });
     } catch (error) {
         res.status(500).json({ error: error.message || 'No fue posible guardar la notificación.' });
+    }
+});
+
+app.get('/api/notification-center/overview', async (req, res) => {
+    try {
+        const [threadsCount, messagesCount, attachmentsCount, activeChannelsCount, recentThreads, keysResult] = await Promise.all([
+            pgQuery(`SELECT COUNT(*)::int AS total FROM notification_center_threads`),
+            pgQuery(`SELECT COUNT(*)::int AS total FROM notification_center_messages`),
+            pgQuery(`SELECT COUNT(*)::int AS total FROM notification_center_message_attachments`),
+            pgQuery(`SELECT COUNT(*)::int AS total FROM notification_channel_keys WHERE is_enabled = TRUE`),
+            pgQuery(
+                `SELECT thread_code, conversation_type, document_code, quote_code, line_code, customer_name, product_name, product_summary,
+                        seller_name, target_user_name, status, last_message_at, created_at
+                   FROM notification_center_threads
+                  ORDER BY COALESCE(last_message_at, created_at) DESC, created_at DESC
+                  LIMIT 12`
+            ),
+            pgQuery(
+                `SELECT channel_key, display_name, provider_name, is_enabled, last_validated_at, updated_at
+                   FROM notification_channel_keys
+                  ORDER BY CASE channel_key
+                    WHEN 'whatsapp' THEN 1
+                    WHEN 'correo' THEN 2
+                    WHEN 'sms' THEN 3
+                    WHEN 'interno' THEN 4
+                    ELSE 9
+                  END, channel_key`
+            )
+        ]);
+        res.json({
+            counts: {
+                threads: Number(threadsCount.rows[0]?.total || 0),
+                messages: Number(messagesCount.rows[0]?.total || 0),
+                attachments: Number(attachmentsCount.rows[0]?.total || 0),
+                activeChannels: Number(activeChannelsCount.rows[0]?.total || 0)
+            },
+            channels: keysResult.rows.map((row) => ({
+                channelKey: String(row.channel_key || '').trim(),
+                displayName: String(row.display_name || '').trim(),
+                providerName: String(row.provider_name || '').trim(),
+                enabled: row.is_enabled === true,
+                lastValidatedAt: row.last_validated_at || null,
+                updatedAt: row.updated_at || null
+            })),
+            threads: recentThreads.rows.map((row) => ({
+                threadCode: String(row.thread_code || '').trim(),
+                conversationType: String(row.conversation_type || '').trim(),
+                documentCode: String(row.document_code || '').trim(),
+                quoteCode: String(row.quote_code || '').trim(),
+                lineCode: String(row.line_code || '').trim(),
+                customerName: String(row.customer_name || '').trim(),
+                productName: String(row.product_name || '').trim(),
+                productSummary: String(row.product_summary || '').trim(),
+                sellerName: String(row.seller_name || '').trim(),
+                targetUserName: String(row.target_user_name || '').trim(),
+                status: String(row.status || '').trim(),
+                lastMessageAt: row.last_message_at || null,
+                createdAt: row.created_at || null
+            }))
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible cargar el centro de notificaciones.' });
+    }
+});
+
+app.get('/api/notification-center/threads', async (req, res) => {
+    try {
+        const actor = await resolveNotificationRequestActor(req);
+        if (!actor?.canManageAll && !actor?.user?.id) {
+            return res.status(401).json({ error: 'Sesión no válida para cargar conversaciones.' });
+        }
+        const limit = Math.min(Math.max(Number(req.query.limit || 24) || 24, 1), 80);
+        const result = await pgQuery(
+            `SELECT t.*,
+                    COALESCE(last_message.body_text, '') AS last_message_preview,
+                    COALESCE(stats.message_count, 0) AS message_count,
+                    COALESCE(stats.attachment_count, 0) AS attachment_count,
+                    COALESCE(stats.unread_count, 0) AS unread_count
+               FROM notification_center_threads t
+          LEFT JOIN LATERAL (
+                    SELECT m.body_text
+                      FROM notification_center_messages m
+                     WHERE m.thread_id = t.id
+                     ORDER BY m.sent_at DESC
+                     LIMIT 1
+                ) last_message ON TRUE
+          LEFT JOIN LATERAL (
+                    SELECT COUNT(*)::int AS message_count,
+                           COALESCE((
+                               SELECT COUNT(*)::int
+                                 FROM notification_center_message_attachments a
+                                 JOIN notification_center_messages am
+                                   ON am.id = a.message_id
+                                WHERE am.thread_id = t.id
+                           ), 0) AS attachment_count,
+                           COALESCE(SUM(CASE WHEN m.read_at IS NULL AND $2::bigint IS NOT NULL AND m.recipient_user_id = $2 THEN 1 ELSE 0 END), 0)::int AS unread_count
+                      FROM notification_center_messages m
+                     WHERE m.thread_id = t.id
+                ) stats ON TRUE
+              WHERE (
+                    $1::boolean = TRUE
+                    OR t.seller_user_id = $2
+                    OR t.created_by_user_id = $2
+                    OR t.target_user_id = $2
+                    OR EXISTS (
+                        SELECT 1
+                          FROM notification_center_participants p
+                         WHERE p.thread_id = t.id
+                           AND p.user_id = $2
+                    )
+              )
+           ORDER BY COALESCE(t.last_message_at, t.created_at) DESC, t.created_at DESC
+              LIMIT $3`,
+            [actor.canManageAll === true, actor.user?.id ?? null, limit]
+        );
+        res.json({ items: result.rows.map(normalizeNotificationCenterThreadRow) });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible cargar las conversaciones.' });
+    }
+});
+
+app.get('/api/notification-center/threads/:threadCode', async (req, res) => {
+    try {
+        const actor = await resolveNotificationRequestActor(req);
+        const threadCode = String(req.params.threadCode || '').trim();
+        if (!threadCode) {
+            return res.status(400).json({ error: 'Debes indicar el código del hilo.' });
+        }
+        const thread = await getAccessibleNotificationThreadByCode(threadCode, actor);
+        if (!thread) {
+            return res.status(404).json({ error: 'No fue posible localizar la conversación.' });
+        }
+        const [participantsResult, statsResult] = await Promise.all([
+            pgQuery(
+                `SELECT id, thread_id, user_id, role_key, display_name, email, whatsapp_phone, sms_phone, can_manage, created_at
+                   FROM notification_center_participants
+                  WHERE thread_id = $1
+                  ORDER BY created_at, role_key`,
+                [thread.id]
+            ),
+            pgQuery(
+                `SELECT COUNT(*)::int AS message_count,
+                        COALESCE((
+                            SELECT COUNT(*)::int
+                              FROM notification_center_message_attachments a
+                              JOIN notification_center_messages am
+                                ON am.id = a.message_id
+                             WHERE am.thread_id = $1
+                        ), 0) AS attachment_count,
+                        COALESCE(SUM(CASE WHEN read_at IS NULL AND $2::bigint IS NOT NULL AND recipient_user_id = $2 THEN 1 ELSE 0 END), 0)::int AS unread_count
+                   FROM notification_center_messages
+                  WHERE thread_id = $1`,
+                [thread.id, actor.user?.id ?? null]
+            )
+        ]);
+        const normalizedThread = normalizeNotificationCenterThreadRow({
+            ...thread,
+            message_count: statsResult.rows[0]?.message_count || 0,
+            attachment_count: statsResult.rows[0]?.attachment_count || 0,
+            unread_count: statsResult.rows[0]?.unread_count || 0
+        });
+        res.json({
+            ...normalizedThread,
+            participants: participantsResult.rows.map(normalizeNotificationCenterParticipantRow)
+        });
+    } catch (error) {
+        const status = /identificar al usuario/i.test(error.message || '') ? 401 : /localizar la conversación/i.test(error.message || '') ? 404 : 500;
+        res.status(status).json({ error: error.message || 'No fue posible cargar el detalle de la conversación.' });
+    }
+});
+
+app.get('/api/notification-center/threads/:threadCode/messages', async (req, res) => {
+    try {
+        const actor = await resolveNotificationRequestActor(req);
+        const threadCode = String(req.params.threadCode || '').trim();
+        if (!threadCode) {
+            return res.status(400).json({ error: 'Debes indicar el código del hilo.' });
+        }
+        const thread = await getAccessibleNotificationThreadByCode(threadCode, actor);
+        if (!thread) {
+            return res.status(404).json({ error: 'No fue posible localizar la conversación.' });
+        }
+        if (actor.user?.id) {
+            await pgQuery(
+                `UPDATE notification_center_messages
+                    SET delivered_at = COALESCE(delivered_at, NOW()),
+                        received_at = COALESCE(received_at, NOW()),
+                        read_at = COALESCE(read_at, NOW()),
+                        external_status = CASE WHEN channel_key = 'interno' THEN 'leido' ELSE external_status END
+                  WHERE thread_id = $1
+                    AND recipient_user_id = $2
+                    AND read_at IS NULL`,
+                [thread.id, actor.user.id]
+            );
+        }
+        const [messagesResult, attachmentsResult] = await Promise.all([
+            pgQuery(
+                `SELECT id, message_code, thread_id, message_type, channel_key, body_text,
+                        sender_user_id, sender_name, sender_email, sender_whatsapp, sender_sms,
+                        recipient_user_id, recipient_name, recipient_email, recipient_whatsapp, recipient_sms,
+                        is_inbound, external_status, delivered_at, received_at, read_at, failed_at, sent_at, metadata
+                   FROM notification_center_messages
+                  WHERE thread_id = $1
+                  ORDER BY sent_at ASC, id ASC`,
+                [thread.id]
+            ),
+            pgQuery(
+                `SELECT a.id, a.message_id, a.attachment_kind, a.file_name, a.mime_type, a.file_ext, a.size_bytes, a.notes, a.uploaded_by, a.created_at
+                   FROM notification_center_message_attachments a
+                   JOIN notification_center_messages m
+                     ON m.id = a.message_id
+                  WHERE m.thread_id = $1
+                  ORDER BY a.created_at ASC, a.id ASC`,
+                [thread.id]
+            )
+        ]);
+        const attachmentsMap = new Map();
+        for (const row of attachmentsResult.rows) {
+            const messageId = String(row.message_id || '').trim();
+            if (!attachmentsMap.has(messageId)) attachmentsMap.set(messageId, []);
+            attachmentsMap.get(messageId).push({
+                id: String(row.id || '').trim(),
+                attachmentKind: String(row.attachment_kind || '').trim(),
+                fileName: String(row.file_name || '').trim(),
+                mimeType: String(row.mime_type || '').trim(),
+                fileExt: String(row.file_ext || '').trim(),
+                sizeBytes: Number(row.size_bytes || 0),
+                notes: String(row.notes || '').trim(),
+                uploadedBy: String(row.uploaded_by || '').trim(),
+                createdAt: row.created_at || null
+            });
+        }
+        res.json({
+            items: messagesResult.rows.map((row) => normalizeNotificationCenterMessageRow(row, attachmentsMap.get(String(row.id || '').trim()) || []))
+        });
+    } catch (error) {
+        const status = /identificar al usuario/i.test(error.message || '') ? 401 : /localizar la conversación/i.test(error.message || '') ? 404 : 500;
+        res.status(status).json({ error: error.message || 'No fue posible cargar los mensajes.' });
+    }
+});
+
+app.post('/api/notification-center/threads/:threadCode/messages', async (req, res) => {
+    try {
+        const actor = await resolveNotificationRequestActor(req);
+        const threadCode = String(req.params.threadCode || '').trim();
+        if (!threadCode) {
+            return res.status(400).json({ error: 'Debes indicar el código del hilo.' });
+        }
+        const thread = await getAccessibleNotificationThreadByCode(threadCode, actor);
+        if (!thread) {
+            return res.status(404).json({ error: 'No fue posible localizar la conversación.' });
+        }
+        const payload = req.body || {};
+        const attachments = Array.isArray(payload.attachments) ? payload.attachments : [];
+        const sender = actor.user || {
+            id: null,
+            name: sanitizeAdminUserText(payload.actor, actor.identity, getConfiguredCurrentUser()),
+            email: '',
+            phone: '',
+            phoneSecondary: ''
+        };
+        let recipient = null;
+        if (payload.recipientUserId || payload.recipientName) {
+            recipient = await findAdminUserByIdentity(payload.recipientName || payload.recipientUserId, null);
+        }
+        if (!recipient) {
+            const senderId = sender.id ?? null;
+            if (senderId && thread.seller_user_id && senderId === thread.seller_user_id) {
+                recipient = await findAdminUserByIdentity(thread.created_by_name || thread.target_user_name, null);
+            } else {
+                recipient = await findAdminUserByIdentity(thread.seller_name || thread.target_user_name, null);
+            }
+        }
+        const message = await createNotificationCenterMessage({
+            thread,
+            payload,
+            sender,
+            recipient,
+            attachments
+        });
+        res.json(message);
+    } catch (error) {
+        const status = /indicar un mensaje/i.test(error.message || '') ? 400 : /identificar al usuario/i.test(error.message || '') ? 401 : /localizar la conversación/i.test(error.message || '') ? 404 : 500;
+        res.status(status).json({ error: error.message || 'No fue posible enviar el mensaje.' });
+    }
+});
+
+app.get('/api/notification-center/keys', async (req, res) => {
+    try {
+        const result = await pgQuery(
+            `SELECT channel_key, display_name, provider_name, api_url, account_identifier, access_key, access_secret,
+                    is_enabled, is_test_mode, advanced_config, last_validated_at, updated_at
+               FROM notification_channel_keys
+              ORDER BY CASE channel_key
+                WHEN 'whatsapp' THEN 1
+                WHEN 'correo' THEN 2
+                WHEN 'sms' THEN 3
+                WHEN 'interno' THEN 4
+                ELSE 9
+              END, channel_key`
+        );
+        res.json({ items: result.rows.map(normalizeNotificationChannelKeyRecord) });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible cargar las llaves de notificación.' });
+    }
+});
+
+app.patch('/api/notification-center/keys/:channelKey', async (req, res) => {
+    try {
+        const channelKey = String(req.params.channelKey || '').trim().toLowerCase();
+        if (!channelKey) {
+            return res.status(400).json({ error: 'Canal no válido.' });
+        }
+        const result = await pgQuery(
+            `UPDATE notification_channel_keys
+                SET display_name = $2,
+                    provider_name = $3,
+                    api_url = $4,
+                    account_identifier = $5,
+                    access_key = $6,
+                    access_secret = $7,
+                    is_enabled = $8,
+                    is_test_mode = $9,
+                    advanced_config = $10::jsonb,
+                    updated_at = NOW()
+              WHERE channel_key = $1
+          RETURNING channel_key, display_name, provider_name, api_url, account_identifier, access_key, access_secret,
+                    is_enabled, is_test_mode, advanced_config, last_validated_at, updated_at`,
+            [
+                channelKey,
+                pickFirstValue(req.body?.displayName, req.body?.display_name, channelKey),
+                pickFirstValue(req.body?.providerName, req.body?.provider_name),
+                pickFirstValue(req.body?.apiUrl, req.body?.api_url),
+                pickFirstValue(req.body?.accountIdentifier, req.body?.account_identifier),
+                pickFirstValue(req.body?.accessKey, req.body?.access_key),
+                pickFirstValue(req.body?.accessSecret, req.body?.access_secret),
+                req.body?.enabled === true,
+                req.body?.testMode !== false,
+                JSON.stringify(req.body?.advancedConfig || req.body?.advanced_config || {})
+            ]
+        );
+        if (!result.rows.length) {
+            return res.status(404).json({ error: 'Llave de notificación no encontrada.' });
+        }
+        res.json(normalizeNotificationChannelKeyRecord(result.rows[0]));
+    } catch (error) {
+        res.status(400).json({ error: error.message || 'No fue posible guardar la llave de notificación.' });
     }
 });
 
@@ -10098,6 +12520,10 @@ app.get('/productos', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'productos.html'));
 });
 
+app.get('/producto-documento', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'producto-documento.html'));
+});
+
 app.get('/orden-produccion/:codigo', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'orden-produccion.html'));
 });
@@ -10209,11 +12635,3 @@ app.listen(PORT, () => {
 });
 
 module.exports = app;
-
-
-
-
-
-
-
-

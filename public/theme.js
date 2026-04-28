@@ -3,8 +3,6 @@
     const MODES = ['light', 'dark'];
     const root = document.documentElement;
     const isEmbedded = window !== window.parent || new URLSearchParams(window.location.search).get('shell') === '1';
-    const path = window.location.pathname.toLowerCase();
-    const canHostToggle = !isEmbedded && (path === '/dashboard' || path === '/dashboard.html' || path === '/login' || path === '/login.html');
 
     function systemTheme() {
         return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -78,8 +76,8 @@
     function createToggle() {
         if (document.querySelector('[data-theme-toggle]')) return;
         const slot = document.querySelector('[data-theme-toggle-slot]');
-        if (!slot && !canHostToggle) return;
-        const host = slot || document.body;
+        if (!slot) return;
+        const host = slot;
         if (!host) return;
         const button = document.createElement('button');
         button.type = 'button';

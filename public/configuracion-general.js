@@ -50,12 +50,12 @@ const presentationFieldMap = {
 };
 
 const iconPreviewMap = {
-    'icons.topMenu': document.getElementById('preview-icons.topMenu'),
-    'icons.topSearch': document.getElementById('preview-icons.topSearch'),
     'icons.topUser': document.getElementById('preview-icons.topUser'),
     'icons.tableMove': document.getElementById('preview-icons.tableMove'),
     'icons.tableOpen': document.getElementById('preview-icons.tableOpen'),
     'icons.tableAdd': document.getElementById('preview-icons.tableAdd'),
+    'icons.quantity.add': document.getElementById('preview-icons.quantity.add'),
+    'icons.quantity.delete': document.getElementById('preview-icons.quantity.delete'),
     'icons.quoteRequestSubmit': document.getElementById('preview-icons.quoteRequestSubmit'),
     'icons.quoteRequestAdvanced': document.getElementById('preview-icons.quoteRequestAdvanced'),
     'icons.quoteRequestAttachment': document.getElementById('preview-icons.quoteRequestAttachment'),
@@ -225,7 +225,7 @@ function applySharedPreview() {
 }
 
 function applyIconPreviews() {
-    const iconKeys = ['topMenu', 'topSearch', 'topUser', 'tableMove', 'tableOpen', 'tableAdd', 'quoteRequestSubmit', 'quoteRequestAdvanced', 'quoteRequestAttachment', 'quoteRequestRecord', 'quoteRequestRecordStop', 'quoteRequestAttachmentDelete'];
+    const iconKeys = ['topUser', 'tableMove', 'tableOpen', 'tableAdd', 'quantity.add', 'quantity.delete', 'quoteRequestSubmit', 'quoteRequestAdvanced', 'quoteRequestAttachment', 'quoteRequestRecord', 'quoteRequestRecordStop', 'quoteRequestAttachmentDelete'];
     iconKeys.forEach(key => {
         const iconValue = getValue(`icons.${key}`);
         const previewEl = iconPreviewMap[`icons.${key}`];

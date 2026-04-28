@@ -15,16 +15,34 @@
 .quote-request-form{display:grid;gap:14px;min-width:0}
 .quote-request-scroll{display:grid;gap:14px;max-height:calc(100vh - 182px);overflow:auto;padding-right:8px}
 .quote-request-columns,.quote-request-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.quote-request-columns-step1{grid-template-columns:minmax(280px,3fr) minmax(220px,2fr) minmax(160px,1fr) minmax(220px,2fr)}
 .quote-request-grid{gap:12px}
 .quote-request-grid-full{grid-column:1/-1}
 .quote-request-section{border:1px solid #d8e2ea;border-radius:18px;padding:16px;background:linear-gradient(180deg,#fff 0%,#f7fbfc 100%);box-shadow:0 8px 22px rgba(13,35,52,.06)}
 .quote-request-section-head{display:flex;gap:10px;align-items:center;margin-bottom:12px}
 .quote-request-step{width:30px;height:30px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#18a6c1 0%,#0f6fb0 100%);color:#fff;font-size:12px;font-weight:700}
 .quote-request-section-head h3{margin:0;font-size:16px;color:#17354a}
-.quote-request-field{display:grid;gap:6px;min-width:0}
+.quote-request-field{display:flex;flex-direction:column;gap:6px;min-width:0}
 .quote-request-field span{font-size:12px;font-weight:700;color:#28465c}
 .quote-request-input,.quote-request-select,.quote-request-textarea{width:100%;min-height:42px;border:1px solid #c9d6e2;border-radius:12px;padding:10px 12px;background:#fff;color:#17354a;font:inherit}
 .quote-request-input:focus,.quote-request-select:focus,.quote-request-textarea:focus{outline:none;border-color:#23a2cb;box-shadow:0 0 0 3px rgba(35,162,203,.12)}
+.quote-request-product-type{min-width:0}
+.quote-request-quantity-repeater{display:flex !important;flex-wrap:nowrap !important;gap:8px;align-items:center}
+.quantity-row{display:flex;flex-wrap:nowrap;gap:8px;align-items:center;justify-content:start;overflow:hidden}
+.quantity-card{border:0;border-radius:0;background:transparent;padding:0;display:flex;gap:8px;flex:0 0 auto;align-items:center}
+.quantity-card.is-last{display:flex;gap:8px;align-items:center}
+.quantity-input-group{display:flex;align-items:center;gap:0;width:130px;flex-shrink:0}
+.quantity-card.is-last .quantity-input-group{display:flex;align-items:center;gap:0;width:130px;flex-shrink:0}
+.quantity-card .quote-request-input{text-align:center;font-variant-numeric:tabular-nums;min-height:34px;padding:6px 8px;border-radius:12px;width:100px !important;max-width:126px}
+.quantity-card.is-last .quote-request-input{border-radius:12px 0 0 12px}
+.quantity-inline-action,.quantity-trash-button{width:30px;min-width:30px;height:28px;border:0;border-radius:6px;background:transparent;box-shadow:none;color:#8092a6;display:inline-flex;align-items:center;justify-content:center;align-self:center;margin:0;padding:0;line-height:1;vertical-align:middle;transform:none;cursor:pointer}
+.quantity-inline-add{position:relative}
+.quantity-inline-action:hover:not(:disabled),.quantity-inline-action:focus-visible,.quantity-trash-button:hover:not(:disabled),.quantity-trash-button:focus-visible{background:transparent;color:#0b81b8}
+.quantity-trash-button,.quantity-trash-button.browser-open-link-danger{color:var(--icon-color,#a74343)}
+.quantity-trash-button:hover:not(:disabled),.quantity-trash-button:focus-visible{color:var(--icon-hover-color,#d03535);background:transparent}
+.quantity-inline-action:disabled{opacity:.35;cursor:default}
+.quantity-inline-action.browser-open-link,.quantity-trash-button.browser-open-link{background:transparent !important;transform:none !important;box-shadow:none !important;border:0 !important}
+.quantity-inline-action.browser-open-link:hover,.quantity-inline-action.browser-open-link:focus-visible,.quantity-trash-button.browser-open-link:hover,.quantity-trash-button.browser-open-link:focus-visible{background:transparent !important;transform:none !important;box-shadow:none !important;border:0 !important}
 .quote-request-textarea{min-height:88px;resize:vertical}
 .quote-request-search-wrap,.quote-request-inline-wrap{position:relative}
 .quote-request-inline-panel{position:absolute;inset:calc(100% + 6px) 0 auto;z-index:16;border:1px solid #d8e2ea;border-radius:14px;background:#fff;box-shadow:0 16px 40px rgba(15,38,56,.14);overflow:hidden}
@@ -76,6 +94,16 @@
 .quote-request-finish-file{display:none}
 .quote-request-finish-file-button{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:0 14px;border:1px solid #cfe0ea;border-radius:999px;background:#fff;color:#1d688e;font-size:12px;font-weight:700;cursor:pointer}
 .quote-request-finish-file-meta{font-size:12px;color:#6b7f90}
+.quote-request-route-preview{display:grid;gap:10px;padding:14px;border:1px solid #d9e3eb;border-radius:16px;background:linear-gradient(180deg,#fff 0%,#f6fbfd 100%)}
+.quote-request-route-preview-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.quote-request-route-preview-head strong{font-size:13px;color:#17354a}
+.quote-request-route-preview-head span{font-size:12px;color:#6b7f90}
+.quote-request-route-preview-list{display:grid;gap:8px}
+.quote-request-route-preview-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid #dbe6ee;border-radius:12px;background:#fff}
+.quote-request-route-preview-item strong{font-size:13px;color:#17354a}
+.quote-request-route-preview-tag{display:inline-flex;align-items:center;justify-content:center;min-height:28px;padding:0 12px;border-radius:999px;background:rgba(17,143,198,.12);color:#106f9a;font-size:12px;font-weight:700}
+.quote-request-route-preview-note{font-size:12px;color:#60707f}
+.quote-request-route-preview-empty{padding:10px 12px;border:1px dashed #cad8e3;border-radius:12px;background:#fff;color:#6b7f90;font-size:12px}
 .quote-request-attachments-card{display:grid;gap:10px;padding:14px;border:1px solid #d9e3eb;border-radius:16px;background:linear-gradient(180deg,#fff 0%,#f6fbfd 100%)}
 .quote-request-attachment-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px}
 .quote-request-icon-action{position:relative;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;cursor:pointer;color:var(--icon-color,#1e516d);transition:transform .16s ease,color .16s ease,filter .16s ease}
@@ -128,7 +156,7 @@
 .quote-request-create-floating{position:fixed;top:164px;left:calc(50% + 360px);z-index:400;transition:transform 0.2s ease-out}
 .process-launcher-stack{position:relative;width:58px;height:58px;display:flex;align-items:center;justify-content:center}
 .process-launcher-primary{position:relative;z-index:10;width:58px;height:58px}
-.floating-action-button{touch-action:none;user-select:none;width:58px;height:58px;min-width:58px;border-radius:18px;border:1px solid rgba(11,129,184,.18);background:linear-gradient(135deg,rgba(255,255,255,.98) 0%,rgba(237,247,253,.98) 100%);box-shadow:0 12px 28px rgba(15,23,42,.12);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:#6b7580;transition:all .3s cubic-bezier(0.34, 1.56, 0.64, 1);backdrop-filter:blur(10px);z-index:10}
+.floating-action-button{touch-action:auto;user-select:auto;width:58px;height:58px;min-width:58px;border-radius:18px;border:1px solid rgba(11,129,184,.18);background:linear-gradient(135deg,rgba(255,255,255,.98) 0%,rgba(237,247,253,.98) 100%);box-shadow:0 12px 28px rgba(15,23,42,.12);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:#6b7580;transition:all .3s cubic-bezier(0.34, 1.56, 0.64, 1);backdrop-filter:blur(10px);z-index:10}
 .floating-action-button:hover{transform:translateY(-2px);border-color:rgba(11,129,184,.28);box-shadow:0 18px 34px rgba(15,23,42,.16);color:#0b81b8}
 .process-launcher-stack.is-active .floating-action-button{transform:rotate(45deg);background:linear-gradient(135deg,#fff 0%,#f0f9ff 100%);border-color:#0b81b8;color:#0b81b8;box-shadow:0 20px 40px rgba(11,129,184,.2)}
 .process-launcher-bridge{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:5}
@@ -210,7 +238,7 @@
 .sap-config-status-note{font-size:12px;color:#4d677b}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(239,68,68,.5)}70%{box-shadow:0 0 0 9px rgba(239,68,68,0)}100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}}
 @media (max-width:1180px){.sap-config-shell{grid-template-columns:1fr}.sap-config-main{grid-template-rows:auto auto auto}.sap-config-grid-compact{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:980px){.quote-request-columns,.quote-request-grid,.quote-request-finishes-grid,.quote-request-shape-grid,.sap-config-grid,.sap-config-grid-compact,.sap-config-counts{grid-template-columns:1fr}.quote-request-create-floating{top:auto !important;left:auto !important;bottom:22px !important;right:22px !important}}
+@media (max-width:980px){.quote-request-columns,.quote-request-columns-step1,.quote-request-grid,.quote-request-finishes-grid,.quote-request-shape-grid,.sap-config-grid,.sap-config-grid-compact,.sap-config-counts{grid-template-columns:1fr}.quote-request-quantity-repeater{flex-wrap:wrap}.quote-request-create-floating{top:auto !important;left:auto !important;bottom:22px !important;right:22px !important}}
 </style>
 </head>
 <body>
@@ -228,7 +256,7 @@
 <div class="scroll-bottom-indicator-host">
 <div class="copy-popover-table-wrap quote-browser-table-wrap">
 <table class="copy-popover-table quote-browser-table quote-master-tree-table">
-<thead><tr><th></th><th>Cotización</th><th>ID Socio</th><th>Nombre del Socio</th><th>Vendedor</th><th>Creación</th><th>Vencimiento</th><th>Estado</th><th>Total</th><th></th></tr></thead>
+<thead><tr><th></th><th>Cotización</th><th>Descripción</th><th>Creación</th><th>Vencimiento</th><th>Total</th><th></th></tr></thead>
 <tbody id="quotesTableBody"></tbody>
 </table>
 </div>
@@ -248,9 +276,9 @@
 
 <form id="nuevaCotizacionForm" class="quote-request-form">
 <div class="quote-request-scroll">
-<section class="quote-request-section">
+<section class="quote-request-section" data-step="1">
 <div class="quote-request-section-head"><span class="quote-request-step">1</span><div><h3>Información Principal</h3></div></div>
-<div class="quote-request-columns">
+<div class="quote-request-columns quote-request-columns-step1">
 <div class="quote-request-field quote-request-search-wrap">
 <span>Nombre del Cliente</span>
 <input id="nuevoClienteNombre" class="quote-request-input" name="customer_name" type="text" autocomplete="off" required>
@@ -261,35 +289,107 @@
 <span>Nombre del Producto</span>
 <input id="requestJobName" class="quote-request-input" name="job_name" type="text" required>
 </label>
-<label class="quote-request-field">
-<span>Cantidad</span>
-<input id="requestQuantity" class="quote-request-input" name="quantity" type="text" inputmode="numeric" required>
-</label>
-<div class="quote-request-grid">
-<label class="quote-request-field">
-<span>Proceso Productivo</span>
-<select id="requestProcessType" class="quote-request-select" name="process_type" required>
-<option value="">Selecciona una opción</option>
-<option value="Convencional">Convencional</option>
-<option value="Digital">Digital</option>
-</select>
-</label>
-<label class="quote-request-field">
+<label class="quote-request-field quote-request-product-type">
 <span>Tipo de Producto</span>
-<select id="requestProductType" class="quote-request-select">
-<option value="Etiquetas">Etiquetas</option>
-<option value="Manga">Manga</option>
-<option value="Funda">Funda</option>
-<option value="Caja">Caja</option>
-<option value="Empaque Flexible">Empaque Flexible</option>
-<option value="Inserto">Inserto</option>
-</select>
+<select id="requestProductType" class="quote-request-select" required></select>
 </label>
 </div>
+<div style="margin-top:14px;">
+<span style="font-size:12px;font-weight:700;color:#28465c;display:block;margin-bottom:8px;">Cantidades</span>
+<div style="display:flex;flex-direction:row;align-items:flex-end;gap:8px;flex-wrap:nowrap;">
+
+  <!-- Cantidad 1: siempre visible -->
+  <div id="qty-wrap-1" style="display:flex;flex-direction:column;gap:4px;">
+    <span style="font-size:11px;font-weight:500;color:#6b849a;">Cantidad 1</span>
+    <div style="display:flex;align-items:center;gap:4px;">
+      <input id="qty-input-1" data-request-quantity-index="0" type="text" inputmode="numeric" placeholder="999 999" style="width:110px;height:36px;border:1px solid #c9d6e2;border-radius:10px;padding:6px 10px;font:inherit;font-size:13px;text-align:center;background:#fff;color:#17354a;">
+      <button type="button" id="qty-add-btn" onclick="qtyShowNext(2)" title="Agregar cantidad" style="width:30px;height:30px;border:1px solid #c9d6e2;border-radius:8px;background:#fff;color:#1e6fa8;font-size:20px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;flex-shrink:0;"><span data-qty-icon="add">+</span></button>
+    </div>
+  </div>
+
+  <!-- Cantidad 2 -->
+  <div id="qty-wrap-2" style="display:none;flex-direction:column;gap:4px;">
+    <span style="font-size:11px;font-weight:500;color:#6b849a;">Cantidad 2</span>
+    <div style="display:flex;align-items:center;gap:4px;">
+      <input id="qty-input-2" data-request-quantity-index="1" type="text" inputmode="numeric" placeholder="999 999" style="width:110px;height:36px;border:1px solid #c9d6e2;border-radius:10px;padding:6px 10px;font:inherit;font-size:13px;text-align:center;background:#fff;color:#17354a;">
+      <button type="button" id="qty-del-btn-2" onclick="qtyRemove(2)" title="Eliminar cantidad" style="width:30px;height:30px;border:1px solid #e0c0c0;border-radius:8px;background:#fff;color:#a74343;font-size:20px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;flex-shrink:0;"><span data-qty-icon="delete">×</span></button>
+      <button type="button" id="qty-add-btn-2" onclick="qtyShowNext(3)" title="Agregar cantidad" style="width:30px;height:30px;border:1px solid #c9d6e2;border-radius:8px;background:#fff;color:#1e6fa8;font-size:20px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;flex-shrink:0;"><span data-qty-icon="add">+</span></button>
+    </div>
+  </div>
+
+  <!-- Cantidad 3 -->
+  <div id="qty-wrap-3" style="display:none;flex-direction:column;gap:4px;">
+    <span style="font-size:11px;font-weight:500;color:#6b849a;">Cantidad 3</span>
+    <div style="display:flex;align-items:center;gap:4px;">
+      <input id="qty-input-3" data-request-quantity-index="2" type="text" inputmode="numeric" placeholder="999 999" style="width:110px;height:36px;border:1px solid #c9d6e2;border-radius:10px;padding:6px 10px;font:inherit;font-size:13px;text-align:center;background:#fff;color:#17354a;">
+      <button type="button" id="qty-del-btn-3" onclick="qtyRemove(3)" title="Eliminar cantidad" style="width:30px;height:30px;border:1px solid #e0c0c0;border-radius:8px;background:#fff;color:#a74343;font-size:20px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;flex-shrink:0;"><span data-qty-icon="delete">×</span></button>
+      <button type="button" id="qty-add-btn-3" onclick="qtyShowNext(4)" title="Agregar cantidad" style="width:30px;height:30px;border:1px solid #c9d6e2;border-radius:8px;background:#fff;color:#1e6fa8;font-size:20px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;flex-shrink:0;"><span data-qty-icon="add">+</span></button>
+    </div>
+  </div>
+
+  <!-- Cantidad 4 -->
+  <div id="qty-wrap-4" style="display:none;flex-direction:column;gap:4px;">
+    <span style="font-size:11px;font-weight:500;color:#6b849a;">Cantidad 4</span>
+    <div style="display:flex;align-items:center;gap:4px;">
+      <input id="qty-input-4" data-request-quantity-index="3" type="text" inputmode="numeric" placeholder="999 999" style="width:110px;height:36px;border:1px solid #c9d6e2;border-radius:10px;padding:6px 10px;font:inherit;font-size:13px;text-align:center;background:#fff;color:#17354a;">
+      <button type="button" id="qty-del-btn-4" onclick="qtyRemove(4)" title="Eliminar cantidad" style="width:30px;height:30px;border:1px solid #e0c0c0;border-radius:8px;background:#fff;color:#a74343;font-size:20px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;flex-shrink:0;"><span data-qty-icon="delete">×</span></button>
+      <button type="button" id="qty-add-btn-4" onclick="qtyShowNext(5)" title="Agregar cantidad" style="width:30px;height:30px;border:1px solid #c9d6e2;border-radius:8px;background:#fff;color:#1e6fa8;font-size:20px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;flex-shrink:0;"><span data-qty-icon="add">+</span></button>
+    </div>
+  </div>
+
+  <!-- Cantidad 5 -->
+  <div id="qty-wrap-5" style="display:none;flex-direction:column;gap:4px;">
+    <span style="font-size:11px;font-weight:500;color:#6b849a;">Cantidad 5</span>
+    <div style="display:flex;align-items:center;gap:4px;">
+      <input id="qty-input-5" data-request-quantity-index="4" type="text" inputmode="numeric" placeholder="999 999" style="width:110px;height:36px;border:1px solid #c9d6e2;border-radius:10px;padding:6px 10px;font:inherit;font-size:13px;text-align:center;background:#fff;color:#17354a;">
+      <button type="button" id="qty-del-btn-5" onclick="qtyRemove(5)" title="Eliminar cantidad" style="width:30px;height:30px;border:1px solid #e0c0c0;border-radius:8px;background:#fff;color:#a74343;font-size:20px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;flex-shrink:0;"><span data-qty-icon="delete">×</span></button>
+      <button type="button" id="qty-add-btn-5" onclick="qtyShowNext(6)" title="Agregar cantidad" style="width:30px;height:30px;border:1px solid #c9d6e2;border-radius:8px;background:#fff;color:#1e6fa8;font-size:20px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;flex-shrink:0;"><span data-qty-icon="add">+</span></button>
+    </div>
+  </div>
+
+  <!-- Cantidad 6: sin boton + -->
+  <div id="qty-wrap-6" style="display:none;flex-direction:column;gap:4px;">
+    <span style="font-size:11px;font-weight:500;color:#6b849a;">Cantidad 6</span>
+    <div style="display:flex;align-items:center;gap:4px;">
+      <input id="qty-input-6" data-request-quantity-index="5" type="text" inputmode="numeric" placeholder="999 999" style="width:110px;height:36px;border:1px solid #c9d6e2;border-radius:10px;padding:6px 10px;font:inherit;font-size:13px;text-align:center;background:#fff;color:#17354a;">
+      <button type="button" id="qty-del-btn-6" onclick="qtyRemove(6)" title="Eliminar cantidad" style="width:30px;height:30px;border:1px solid #e0c0c0;border-radius:8px;background:#fff;color:#a74343;font-size:20px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;flex-shrink:0;"><span data-qty-icon="delete">×</span></button>
+    </div>
+  </div>
+
 </div>
+</div>
+
+<script>
+function qtyShowNext(n) {
+  var wrap = document.getElementById('qty-wrap-' + n);
+  if (!wrap) return;
+  wrap.style.display = 'flex';
+  // Ocultar boton + del campo anterior
+  var prevAddId = (n - 1 === 1) ? 'qty-add-btn' : 'qty-add-btn-' + (n - 1);
+  var prevAdd = document.getElementById(prevAddId);
+  if (prevAdd) prevAdd.style.display = 'none';
+  // Ocultar boton x del campo anterior
+  var prevDel = document.getElementById('qty-del-btn-' + (n - 1));
+  if (prevDel) prevDel.style.display = 'none';
+  document.getElementById('qty-input-' + n)?.focus();
+}
+function qtyRemove(n) {
+  // Limpiar y ocultar este campo
+  var input = document.getElementById('qty-input-' + n);
+  if (input) input.value = '';
+  var wrap = document.getElementById('qty-wrap-' + n);
+  if (wrap) wrap.style.display = 'none';
+  // Mostrar boton + y x del campo anterior
+  var prevAddId = (n - 1 === 1) ? 'qty-add-btn' : 'qty-add-btn-' + (n - 1);
+  var prevAdd = document.getElementById(prevAddId);
+  if (prevAdd) prevAdd.style.display = 'inline-flex';
+  var prevDel = document.getElementById('qty-del-btn-' + (n - 1));
+  if (prevDel && n - 1 > 1) prevDel.style.display = 'inline-flex';
+}
+</script>
 </section>
 
-<section class="quote-request-section">
+<section class="quote-request-section" data-step="2">
 <div class="quote-request-section-head"><span class="quote-request-step">2</span><div><h3>Forma y Medida</h3></div></div>
 <div id="dieShapePicker" class="quote-request-shape-grid"></div>
 <div class="quote-request-grid" style="margin-top:12px;">
@@ -305,12 +405,13 @@
 <option value="4.5x4.5" data-width="4.5" data-length="4.5">4.5″ x 4.5″</option>
 <option value="5x5" data-width="5" data-length="5">5″ x 5″</option>
 <option value="5.5x5.5" data-width="5.5" data-length="5.5">5.5″ x 5.5″</option>
+<option value="6x6" data-width="6" data-length="6">6″ x 6″</option>
 </select>
 </label>
 </div>
 </section>
 
-<section class="quote-request-section">
+<section class="quote-request-section" data-step="3">
 <div class="quote-request-section-head"><span class="quote-request-step">3</span><div><h3>Materiales y Acabados</h3></div></div>
 <div class="quote-request-inline-wrap" data-inline-suggestions="material">
 <label class="quote-request-field quote-request-grid-full">
@@ -342,6 +443,14 @@
 <span>Ancho de estampado (mm)</span>
 <input id="stampingWidth" class="quote-request-input" type="number" min="0" step="0.01" placeholder="Ej. 12">
 </label>
+</div>
+<div class="quote-request-subblock">
+<h4>Laminado</h4>
+<div class="quote-request-tabset">
+<label class="quote-request-toggle-chip"><input type="radio" name="lamination" value="Sin Laminado" checked><span class="quote-request-tab">Sin Laminado</span></label>
+<label class="quote-request-toggle-chip"><input type="radio" name="lamination" value="Brillante"><span class="quote-request-tab">Brillante</span></label>
+<label class="quote-request-toggle-chip"><input type="radio" name="lamination" value="Mate"><span class="quote-request-tab">Mate</span></label>
+</div>
 </div>
 <div class="quote-request-subblock">
 <h4>Embosado</h4>
@@ -403,14 +512,14 @@
 <div class="quote-request-subblock">
 <h4>Troquelado</h4>
 <div class="quote-request-tabset">
-<label class="quote-request-toggle-chip"><input id="finishDieCut" type="checkbox" value="Troquelado"><span class="quote-request-tab">Troquelado</span></label>
+<label class="quote-request-toggle-chip is-selected"><input id="finishDieCut" type="checkbox" value="Troquelado" checked disabled><span class="quote-request-tab">Siempre incluido</span></label>
 </div>
 </div>
 </div>
 </div>
 </section>
 
-<section class="quote-request-section">
+<section class="quote-request-section" data-step="4">
 <div class="quote-request-section-head"><span class="quote-request-step">4</span><div><h3>Aplicación y Comentarios</h3></div></div>
 <div class="quote-request-grid">
 <div class="quote-request-inline-wrap" data-inline-suggestions="surface">
@@ -449,13 +558,71 @@
 </div>
 </div>
 </section>
+<section class="quote-request-section quote-request-summary-section" data-step="5" hidden>
+<div class="quote-request-section-head"><span class="quote-request-step">5</span><div><h3>Resumen y Proforma</h3></div></div>
+<div class="quote-request-summary-grid">
+<div class="quote-request-summary-card">
+<h4>Resumen de la Solicitud</h4>
+<div id="requestSummaryGrid" class="quote-request-summary-fields"></div>
+</div>
+<div class="quote-request-summary-card">
+<h4>Observaciones Técnicas</h4>
+<div id="requestTechnicalNotes" class="quote-request-summary-notes">Completa los pasos anteriores para generar la proforma automática.</div>
+</div>
+</div>
+<div class="quote-request-summary-card">
+<div class="quote-request-summary-table-wrap">
+<table class="quote-request-summary-table">
+<thead>
+<tr>
+<th>Cantidad</th>
+<th>Ruta</th>
+<th>Subtotal</th>
+<th>Impuesto</th>
+<th>Total</th>
+</tr>
+</thead>
+<tbody id="requestSummaryRows">
+<tr><td colspan="5" class="quote-request-summary-empty">Completa los pasos anteriores para generar el resumen final.</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="quote-request-summary-totals" id="requestSummaryTotals" hidden>
+<table>
+<tbody>
+<tr>
+<td>Subtotal</td>
+<td id="requestSummarySubtotal">₡0.00</td>
+</tr>
+<tr>
+<td>Impuestos de Venta</td>
+<td id="requestSummaryTax">₡0.00</td>
+</tr>
+<tr>
+<td>Total</td>
+<td id="requestSummaryGrandTotal">₡0.00</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
 </div>
 <p id="nuevaCotizacionStatus" class="socios-create-status" hidden></p>
+<div class="quote-request-wizard-footer">
+<div id="quoteWizardProgress" class="quote-request-wizard-progress">Paso 1 de 5</div>
+<div class="quote-request-wizard-actions">
+<button id="quoteWizardBackButton" type="button" class="quote-request-wizard-btn is-secondary">Anterior</button>
+<button id="quoteWizardNextButton" type="button" class="quote-request-wizard-btn is-primary">Siguiente</button>
+<button id="quoteWizardPrintButton" type="button" class="quote-request-wizard-btn is-primary" hidden>Imprimir Proforma</button>
+<button id="quoteWizardAdvancedButton" type="button" class="quote-request-wizard-btn is-secondary" hidden>Ir a Cotización Avanzada</button>
+</div>
+</div>
 </form>
 
 </div>
 </section>
-<div id="quoteRequestCreateButtonWrap" class="quote-request-create-floating">
+<div id="quoteRequestCreateButtonWrap" class="quote-request-create-floating" hidden>
     <div id="processLauncherStack" class="process-launcher-stack">
         <div id="processLauncherPrimary" class="process-launcher-primary">
             <button id="processLauncherButton" type="button" class="process-launcher-button floating-action-button" aria-label="Abrir acciones" aria-expanded="false">
@@ -502,6 +669,6 @@
 </div>
 
 <script src="/access-control.js"></script>
-<script src="/cotizaciones.js"></script>
+<script src="/cotizaciones.js?v=cotizaciones-20260427b"></script>
 </body>
 </html>

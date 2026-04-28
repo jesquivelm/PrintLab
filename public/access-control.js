@@ -8,10 +8,29 @@ function readErpAccessSession() {
     }
 }
 
+function isErpSuperPermission(session) {
+    return /administrador(?:es)?|implementador(?:es)?|emergencia/i.test(String(session?.permissionName || '').trim());
+}
+
 function normalizeErpAccessLevel(value) {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+        return {
+            view: Boolean(value.view || value.create || value.edit),
+            create: Boolean(value.create),
+            edit: Boolean(value.edit)
+        };
+    }
     const normalized = String(value || '').trim().toLowerCase();
-    if (normalized === 'view' || normalized === 'create' || normalized === 'edit') return normalized;
-    return 'none';
+    if (!normalized || normalized === 'none') return { view: false, create: false, edit: false };
+    if (normalized === 'view') return { view: true, create: false, edit: false };
+    if (normalized === 'create') return { view: true, create: true, edit: false };
+    if (normalized === 'edit') return { view: true, create: true, edit: true };
+    const parts = normalized.split(/[,\s|/+]+/).filter(Boolean);
+    return {
+        view: parts.includes('view') || parts.includes('create') || parts.includes('edit'),
+        create: parts.includes('create') || parts.includes('edit'),
+        edit: parts.includes('edit')
+    };
 }
 
 function getErpModuleAccessLevel(modules, moduleKey) {
@@ -24,31 +43,34 @@ function getErpModuleAccessLevel(modules, moduleKey) {
 function canErpViewModule(moduleKey, modulesOverride) {
     if (!moduleKey || moduleKey === 'dashboard') return true;
     const session = readErpAccessSession();
+    if (isErpSuperPermission(session)) return true;
     const modules = modulesOverride && typeof modulesOverride === 'object'
         ? modulesOverride
         : (session?.modules && typeof session.modules === 'object' ? session.modules : null);
-    if (!modules) return true;
-    return getErpModuleAccessLevel(modules, moduleKey) !== 'none';
+    if (!modules || !Object.keys(modules).length) return true;
+    return Boolean(getErpModuleAccessLevel(modules, moduleKey).view);
 }
 
 function canErpCreateModule(moduleKey, modulesOverride) {
     if (!moduleKey) return false;
     const session = readErpAccessSession();
+    if (isErpSuperPermission(session)) return true;
     const modules = modulesOverride && typeof modulesOverride === 'object'
         ? modulesOverride
         : (session?.modules && typeof session.modules === 'object' ? session.modules : null);
-    if (!modules) return true;
-    return getErpModuleAccessLevel(modules, moduleKey) === 'create';
+    if (!modules || !Object.keys(modules).length) return true;
+    return Boolean(getErpModuleAccessLevel(modules, moduleKey).create);
 }
 
 function canErpEditModule(moduleKey, modulesOverride) {
     if (!moduleKey) return false;
     const session = readErpAccessSession();
+    if (isErpSuperPermission(session)) return true;
     const modules = modulesOverride && typeof modulesOverride === 'object'
         ? modulesOverride
         : (session?.modules && typeof session.modules === 'object' ? session.modules : null);
-    if (!modules) return true;
-    return getErpModuleAccessLevel(modules, moduleKey) === 'edit';
+    if (!modules || !Object.keys(modules).length) return true;
+    return Boolean(getErpModuleAccessLevel(modules, moduleKey).edit);
 }
 
 function getErpAccessRouteModules(pathname) {
@@ -57,6 +79,7 @@ function getErpAccessRouteModules(pathname) {
     if (path === '/socios' || path === '/socios.html' || path === '/socios-documento.html' || path.startsWith('/socios/')) return ['socios'];
     if (path === '/productos' || path === '/productos.html' || path.startsWith('/productos/')) return ['productos'];
     if (path === '/cotizaciones' || path === '/cotizaciones.html' || path === '/index.html' || path.startsWith('/cotizaciones/')) return ['cotizaciones'];
+    if (path === '/notificaciones' || path === '/notificaciones.html') return ['dashboard'];
     if (path === '/calculo-flexografia' || path === '/flexo-calculo' || path === '/flexo-calculo.html') return ['calculos'];
     if (path === '/ordenes-produccion' || path === '/ordenes-produccion.html' || path === '/orden-produccion.html' || path.startsWith('/orden-produccion')) return ['ordenes'];
     if (path === '/planificacion' || path.startsWith('/planificacion/')) return ['planificacion'];
@@ -107,12 +130,13 @@ function showErpAccessBlocked(moduleName) {
         window.location.replace('/login');
         return;
     }
+    if (isErpSuperPermission(session)) return;
 
     const modules = session.modules && typeof session.modules === 'object' ? session.modules : null;
-    if (!modules) return;
+    if (!modules || !Object.keys(modules).length) return;
 
     const routeModules = getErpAccessRouteModules(window.location.pathname);
-    const isAllowed = !routeModules.length || routeModules.some((moduleKey) => getErpModuleAccessLevel(modules, moduleKey) !== 'none');
+    const isAllowed = !routeModules.length || routeModules.some((moduleKey) => Boolean(getErpModuleAccessLevel(modules, moduleKey).view));
     if (!isAllowed) {
         showErpAccessBlocked(routeModules.join(', '));
     }

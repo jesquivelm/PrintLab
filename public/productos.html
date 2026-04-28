@@ -1,104 +1,39 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="/theme.js"></script>
-<title>Productos</title>
-<link rel="stylesheet" href="/styles.css">
-<style>
-.topbar.topbar-quote{display:flex;align-items:center}
-.product-catalog-table th:nth-child(1),.product-catalog-table td:nth-child(1){width:46px;text-align:center}
-.product-catalog-table th:nth-child(2),.product-catalog-table td:nth-child(2){width:128px}
-.product-catalog-table th:nth-child(4),.product-catalog-table td:nth-child(4){width:180px}
-.product-catalog-table th:nth-child(5),.product-catalog-table td:nth-child(5){width:120px;text-align:right}
-.product-catalog-table th:nth-child(6),.product-catalog-table td:nth-child(6){width:132px;text-align:right}
-.product-catalog-table th:nth-child(7),.product-catalog-table td:nth-child(7){width:92px;text-align:right}
-.product-catalog-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:16px}
-.product-catalog-title{display:grid;gap:4px}
-.product-catalog-title h1{margin:0;color:var(--app-text);font-size:24px;font-weight:700;letter-spacing:0}
-.product-catalog-title p{margin:0;max-width:760px;color:var(--app-text-muted);font-size:13px;line-height:1.45}
-.product-catalog-kpi{display:grid;gap:3px;min-width:126px;text-align:right;color:var(--app-text-muted);font-size:12px}
-.product-catalog-kpi strong{color:var(--app-text);font-size:22px}
-.product-detail-row>td{padding:0!important;background:transparent!important}
-.product-detail-shell{display:grid;gap:14px;padding:16px 18px 18px;border-top:1px solid #dbe6ee}
-.product-detail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
-.product-detail-title{display:grid;gap:4px}
-.product-detail-title strong{color:var(--app-text);font-size:15px}
-.product-detail-title span{color:var(--app-text-muted);font-size:12px}
-.product-detail-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.product-detail-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
-.product-readonly-field{display:grid;gap:4px;min-height:62px;padding:11px 12px;border:1px solid var(--app-border);border-radius:14px;background:var(--app-surface-raised)}
-.product-readonly-field span{color:var(--app-text-muted);font-size:11px;font-weight:700;text-transform:uppercase}
-.product-readonly-field strong{color:var(--app-text);font-size:13px;font-weight:600;overflow-wrap:anywhere}
-.product-detail-section{display:grid;gap:10px}
-.product-detail-section h3{margin:0;color:var(--app-text);font-size:14px}
-.product-raw-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-height:360px;overflow:auto;padding-right:4px}
-.product-history-list{display:grid;gap:8px}
-.product-history-item{display:grid;grid-template-columns:minmax(110px,.7fr) minmax(0,1.5fr) minmax(120px,.6fr) 42px;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--app-border);border-radius:14px;background:var(--app-surface-raised)}
-.product-history-main{display:grid;gap:3px;min-width:0}
-.product-history-main strong{color:var(--app-text);font-size:13px}
-.product-history-main span,.product-history-meta{color:var(--app-text-muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.product-empty-detail{padding:12px;border:1px dashed var(--app-border);border-radius:14px;background:var(--app-surface-raised);color:var(--app-text-muted);font-size:13px}
-.product-status{min-height:18px;color:var(--app-text-muted);font-size:12px}
-.product-status[data-tone="error"]{color:#b94a4a}
-.product-status[data-tone="saved"]{color:#16724c}
-@media (max-width:1080px){.product-detail-grid,.product-raw-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.product-history-item{grid-template-columns:1fr auto}}
-@media (max-width:720px){.product-catalog-head{display:grid}.product-catalog-kpi{text-align:left}.product-detail-grid,.product-raw-grid{grid-template-columns:1fr}.product-detail-head{display:grid}.product-history-item{grid-template-columns:1fr}.product-catalog-table th:nth-child(4),.product-catalog-table td:nth-child(4),.product-catalog-table th:nth-child(6),.product-catalog-table td:nth-child(6){display:none}}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/theme.js"></script>
+    <title>Productos</title>
+    <link rel="stylesheet" href="/styles.css?v=20260424c">
 </head>
 <body>
-<div class="app-shell">
-<header class="topbar topbar-quote">
-<div class="brand brand-quote">
-<div class="brand-logo-wrap">
-<img id="productsCompanyLogo" class="company-logo" alt="Logo empresa">
-<div id="productsBrandFallback" class="brand-mark">PrintLab</div>
-</div>
-<h1>Productos</h1>
-<div class="topbar-user-tools topbar-user-tools-compact">
-<button type="button" class="tool-icon plain-icon" data-topbar-favorite="true" aria-label="Favoritos"></button>
-<button type="button" id="productsHeaderSearchButton" class="tool-icon plain-icon" aria-label="Buscar"></button>
-<button type="button" class="tool-icon plain-icon" data-user-profile-open="true" aria-label="Perfil de usuario"></button>
-<div data-theme-toggle-slot></div>
-</div>
-</div>
-</header>
-<main class="workspace workspace-quote quote-browser-main">
-<section class="quote-card quote-card-clean quote-browser-card production-order-card product-catalog-card">
-<div class="product-catalog-head">
-<div class="product-catalog-title">
-<h1>Productos</h1>
-<p>Cat&aacute;logo de productos creados desde l&iacute;neas de cotizaci&oacute;n. Cada producto conserva la informaci&oacute;n original como ficha de lectura y permite volver a cotizarlo con sus mismas caracter&iacute;sticas.</p>
-</div>
-<div class="product-catalog-kpi" aria-live="polite">
-<strong id="productsTotalKpi">0</strong>
-<span>productos guardados</span>
-</div>
-</div>
-<div class="quote-browser-search-row">
-<div class="quote-browser-actions-left">
-<button id="refreshProductsButton" type="button" class="action-btn quote-browser-action-btn">Refrescar</button>
-</div>
-<div class="quote-browser-search-wrap">
-<input id="productsSearchInput" class="copy-popover-search quote-browser-search" type="search" placeholder="Buscar por producto, cliente, material o cotizaci&oacute;n">
-</div>
-</div>
-<p id="productsStatus" class="product-status"></p>
-<div class="scroll-bottom-indicator-host">
-<div class="copy-popover-table-wrap quote-browser-table-wrap">
-<table class="copy-popover-table quote-browser-table quote-master-tree-table product-catalog-table">
-<thead><tr><th></th><th>Producto</th><th>Descripci&oacute;n</th><th>Cliente</th><th>Total</th><th>&Uacute;ltima cotizaci&oacute;n</th><th></th></tr></thead>
-<tbody id="productsTableBody"></tbody>
-</table>
-</div>
-<div id="productsScrollBottomIndicator" class="scroll-bottom-indicator" aria-hidden="true"></div>
-</div>
-</section>
-</main>
-</div>
-<script src="/access-control.js"></script>
-<script src="/topbar-tools.js"></script>
-<script src="/productos.js"></script>
+    <main class="workspace workspace-quote quote-browser-main">
+        <section class="quote-card quote-card-clean quote-browser-card quote-browser-card-orders">
+            <div class="quote-browser-search-row">
+                <div class="quote-browser-search-wrap">
+                    <input id="productsSearchInput" class="copy-popover-search quote-browser-search" type="search" placeholder="Buscar por producto, cotizacion o cliente">
+                </div>
+            </div>
+            <div class="copy-popover-table-wrap quote-browser-table-wrap">
+                <table class="copy-popover-table quote-browser-table">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Cotización</th>
+                            <th>Línea</th>
+                            <th>Cliente</th>
+                            <th>Trabajo</th>
+                            <th>Fecha</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="productsTableBody"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+    <script src="/access-control.js?v=20260424c"></script>
+    <script src="/productos.js?v=20260424c"></script>
 </body>
 </html>

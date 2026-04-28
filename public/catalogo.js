@@ -536,6 +536,39 @@ let machineCatalogOptions = [];
 let currentView = routeState.get('view') === 'detail' ? 'detail' : 'list';
 let searchTimer = null;
 
+function isShellEmbedded() {
+    return new URLSearchParams(window.location.search).get('shell') === '1' || window !== window.parent;
+}
+
+function buildBdfgContext() {
+    const selectedItem = currentItems.find((item) => item.id === selectedId) || null;
+    if (!selectedItem) return {
+        kind: 'inventory-browser',
+        title: page.title || 'Inventario',
+        subtitle: `Contexto activo: ${page.title || 'Inventario'}`,
+        documentRoute: buildInventoryUrl(currentView, ''),
+        documentLabel: page.title || 'Inventario'
+    };
+    const label = selectedItem.codigo || selectedItem.nombre || selectedItem.descripcion || 'Registro';
+    return {
+        kind: 'inventory-record',
+        title: String(label),
+        subtitle: page.title || 'Inventario',
+        documentRoute: buildInventoryUrl(currentView, selectedId),
+        documentLabel: String(page.title || 'Inventario'),
+        recordId: String(selectedId || ''),
+        dates: {
+            updatedAt: selectedItem.updated_at || '',
+            createdAt: selectedItem.created_at || ''
+        }
+    };
+}
+
+function publishBdfgContext() {
+    if (!isShellEmbedded()) return;
+    window.parent.postMessage({ type: 'erp-bdfg-context', context: buildBdfgContext() }, window.location.origin);
+}
+
 function canCreateInventoryRecords() {
     if (!window.ErpAccess?.canCreateModule) return true;
     const moduleKeyMap = {
@@ -1624,6 +1657,7 @@ async function loadCatalog(selectId = '') {
     catalogStatus.textContent = isOutputTypesInventory()
         ? ''
         : (isMaterialsInventory() ? '' : `${currentItems.length} registros cargados.`);
+    publishBdfgContext();
 }
 
 async function loadMachineOptions() {
@@ -1650,6 +1684,7 @@ function resetEditor() {
     renderForm(page.createEmptyItem());
     updateInventoryView(isOutputTypesInventory() ? 'list' : 'detail');
     catalogStatus.textContent = isMaterialsInventory() ? '' : 'Formulario listo para un nuevo registro.';
+    publishBdfgContext();
 }
 
 async function deleteCurrentMaterial(id, label) {
@@ -1726,6 +1761,7 @@ async function saveCurrentRecord() {
     selectedId = result.id;
     await loadCatalog(result.id);
     catalogStatus.textContent = 'Registro guardado correctamente.';
+    publishBdfgContext();
 }
 
 async function exportCurrentInventory() {
@@ -1896,6 +1932,7 @@ catalogBody.addEventListener('pointerdown', (event) => {
                 renderForm(selectedItem);
                 updateInventoryView('detail', selectedId);
                 catalogStatus.textContent = 'Troquel abierto.';
+                publishBdfgContext();
             }
         });
         return;
@@ -1911,6 +1948,7 @@ catalogBody.addEventListener('pointerdown', (event) => {
                 renderForm(selectedItem);
                 updateInventoryView('list', selectedId);
                 catalogStatus.textContent = 'Registro cargado en el editor.';
+                publishBdfgContext();
             }
         });
     }
@@ -1929,6 +1967,7 @@ catalogBody.addEventListener('click', (event) => {
     const openLink = event.target.closest('[data-open-detail]');
     if (openLink) {
         event.preventDefault();
+        event.stopPropagation();
         if (consumeCatalogTouchAction(openLink)) return;
         selectedId = openLink.dataset.openDetail || '';
         const selectedItem = currentItems.find((item) => item.id === selectedId);
@@ -1937,11 +1976,14 @@ catalogBody.addEventListener('click', (event) => {
             renderForm(selectedItem);
             updateInventoryView('detail', selectedId);
             catalogStatus.textContent = 'Troquel abierto.';
+            publishBdfgContext();
         }
         return;
     }
     const editButton = event.target.closest('[data-select-item]');
     if (editButton) {
+        event.preventDefault();
+        event.stopPropagation();
         if (consumeCatalogTouchAction(editButton)) return;
         selectedId = editButton.dataset.selectItem || '';
         renderTable(currentItems);
@@ -1950,11 +1992,14 @@ catalogBody.addEventListener('click', (event) => {
             renderForm(selectedItem);
             updateInventoryView('list', selectedId);
             catalogStatus.textContent = 'Registro cargado en el editor.';
+            publishBdfgContext();
         }
         return;
     }
     const deleteButton = event.target.closest('[data-delete-item]');
     if (deleteButton) {
+        event.preventDefault();
+        event.stopPropagation();
         if (consumeCatalogTouchAction(deleteButton)) return;
         deleteCurrentMaterial(deleteButton.dataset.deleteItem, deleteButton.dataset.deleteLabel).catch((error) => {
             catalogStatus.textContent = error.message;
@@ -1971,10 +2016,12 @@ catalogBody.addEventListener('click', (event) => {
         if (isTroquelesInventory()) {
             updateInventoryView('list', selectedId);
             catalogStatus.textContent = 'Troquel seleccionado.';
+            publishBdfgContext();
             return;
         }
         updateInventoryView('list', selectedId);
         catalogStatus.textContent = 'Registro cargado en el editor.';
+        publishBdfgContext();
     }
 });
 

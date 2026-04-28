@@ -208,6 +208,10 @@ html[data-theme="dark"] iframe {
   color-scheme: light;
 }
 
+html[data-theme="dark"] #proformaPreviewFrame {
+  color-scheme: dark;
+}
+
 html[data-theme="dark"] .proforma-paper {
   background: #f8fbff !important;
   color: #1f2b3d !important;

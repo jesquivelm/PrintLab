@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/theme.js"></script>
+    <title>PrintLab</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="dashboard-body">
+    <div class="app-shell dashboard-app-shell">
+        <header class="topbar topbar-quote dashboard-topbar">
+            <div class="brand brand-quote">
+                <div class="brand-logo-wrap">
+                    <img id="dashboardCompanyLogo" class="company-logo" alt="Logo empresa">
+                    <div id="dashboardBrandFallback" class="brand-mark">PrintLab</div>
+                </div>
+                <h1 id="dashboardPageTitle">PrintLab</h1>
+            </div>
+        </header>
+
+        <header class="dashboard-tabs-bar">
+            <div id="dashboardTabs" class="dashboard-tabs"></div>
+        </header>
+
+        <main class="workspace dashboard-workspace-shell">
+            <section id="dashboardHome" class="dashboard-home">
+                <section class="dashboard-grid">
+                    <button type="button" class="dashboard-card" data-route="/socios" data-label="Socios" data-icon-key="dashboardBusinessPartners">
+                        <span class="dashboard-card-icon" data-icon-target="dashboardBusinessPartners"></span>
+                        <span class="dashboard-card-title">Socios</span>
+                    </button>
+                    <button type="button" class="dashboard-card" data-route="/productos" data-label="Productos" data-icon-key="dashboardProducts">
+                        <span class="dashboard-card-icon" data-icon-target="dashboardProducts"></span>
+                        <span class="dashboard-card-title">Productos</span>
+                    </button>
+                    <button type="button" class="dashboard-card" data-route="/cotizaciones" data-label="Cotizaciones" data-icon-key="dashboardQuotes">
+                        <span class="dashboard-card-icon" data-icon-target="dashboardQuotes"></span>
+                        <span class="dashboard-card-title">Cotizaciones</span>
+                    </button>
+                    <button type="button" class="dashboard-card" data-route="/notificaciones.html" data-label="Notificaciones" data-icon-key="dashboardNotifications">
+                        <span class="dashboard-card-icon" data-icon-target="dashboardNotifications"></span>
+                        <span class="dashboard-card-title">Notificaciones</span>
+                    </button>
+                    <button type="button" class="dashboard-card" data-route="/inventario-materiales" data-label="Inventarios" data-icon-key="dashboardInventory">
+                        <span class="dashboard-card-icon" data-icon-target="dashboardInventory"></span>
+                        <span class="dashboard-card-title">Inventarios</span>
+                    </button>
+                    <button type="button" class="dashboard-card" data-route="/configuracion-general" data-label="Configuraci&oacute;n" data-icon-key="dashboardSettings">
+                        <span class="dashboard-card-icon" data-icon-target="dashboardSettings"></span>
+                        <span class="dashboard-card-title">Configuraci&oacute;n General</span>
+                    </button>
+                    <button type="button" class="dashboard-card" data-route="/ordenes-produccion" data-label="&Oacute;rdenes" data-icon-key="dashboardOrders">
+                        <span class="dashboard-card-icon" data-icon-target="dashboardOrders"></span>
+                        <span class="dashboard-card-title">&Oacute;rdenes de Producci&oacute;n</span>
+                    </button>
+                    <button type="button" class="dashboard-card" data-route="/planificacion/lanzamiento" data-label="Planificaci&oacute;n" data-icon-key="dashboardPlanning">
+                        <span class="dashboard-card-icon" data-icon-target="dashboardPlanning"></span>
+                        <span class="dashboard-card-title">Planificaci&oacute;n</span>
+                    </button>
+                    <button type="button" class="dashboard-card" data-route="/costos.html" data-label="Costos" data-icon-key="dashboardCosts">
+                        <span class="dashboard-card-icon" data-icon-target="dashboardCosts"></span>
+                        <span class="dashboard-card-title">Costos</span>
+                    </button>
+                </section>
+            </section>
+
+            <section id="dashboardWorkspace" class="dashboard-workspace" hidden></section>
+        </main>
+
+        <div id="dashboardBdfgShell" class="dashboard-bdfg-shell process-launcher-stack" data-placement="left">
+            <div id="dashboardBdfgRadialBridge" class="process-launcher-bridge">
+                <!-- Radial items generated dynamically -->
+            </div>
+
+            <button id="dashboardBdfgButton" type="button" class="dashboard-bdfg-button" aria-label="Abrir panel" aria-expanded="false">
+                <span id="dashboardBdfgIcon" class="dashboard-bdfg-icon" aria-hidden="true">+</span>
+                <span id="dashboardBdfgBadge" class="dashboard-bdfg-badge" hidden>0</span>
+            </button>
+
+            <div id="dashboardBdfgBridge" class="dashboard-bdfg-bridge" hidden>
+                <div class="dashboard-bdfg-head">
+                    <div class="dashboard-bdfg-head-copy">
+                        <strong id="dashboardBdfgTitle">Acciones</strong>
+                        <span id="dashboardBdfgSubtitle">Herramientas globales del sistema</span>
+                    </div>
+                    <button id="dashboardBdfgClose" type="button" class="dashboard-bdfg-close" aria-label="Cerrar">×</button>
+                </div>
+                <div id="dashboardBdfgPanel" class="dashboard-bdfg-panel"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/access-control.js"></script>
+    <script src="/dashboard-floating-button.js"></script>
+    <script src="/dashboard.js"></script>
+    <script src="/topbar-tools.js"></script>
+</body>
+</html>

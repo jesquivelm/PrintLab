@@ -138,6 +138,7 @@ function resolveRouteForLanding(key) {
         socios: '/socios',
         productos: '/productos',
         cotizaciones: '/cotizaciones',
+        notificaciones: '/notificaciones.html',
         ordenes: '/ordenes-produccion',
         planificacion: '/planificacion/lanzamiento',
         calculos: '/flexo-calculo',
@@ -155,9 +156,24 @@ function resolveRouteForLanding(key) {
 }
 
 function normalizeLoginPermissionLevel(value) {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+        return {
+            view: Boolean(value.view || value.create || value.edit),
+            create: Boolean(value.create),
+            edit: Boolean(value.edit)
+        };
+    }
     const normalized = String(value || '').trim().toLowerCase();
-    if (normalized === 'view' || normalized === 'create' || normalized === 'edit') return normalized;
-    return 'none';
+    if (!normalized || normalized === 'none') return { view: false, create: false, edit: false };
+    if (normalized === 'view') return { view: true, create: false, edit: false };
+    if (normalized === 'create') return { view: true, create: true, edit: false };
+    if (normalized === 'edit') return { view: true, create: true, edit: true };
+    const parts = normalized.split(/[,\s|/+]+/).filter(Boolean);
+    return {
+        view: parts.includes('view') || parts.includes('create') || parts.includes('edit'),
+        create: parts.includes('create'),
+        edit: parts.includes('edit')
+    };
 }
 
 function getLoginModuleAccessLevel(modules, moduleKey) {
@@ -167,12 +183,17 @@ function getLoginModuleAccessLevel(modules, moduleKey) {
     return normalizeLoginPermissionLevel(modules?.[moduleKey]);
 }
 
+function hasLoginSuperPermission(session) {
+    return /administrador(?:es)?|implementador(?:es)?|emergencia/i.test(String(session?.permissionName || '').trim());
+}
+
 function getLoginRouteModules(route) {
     const pathname = new URL(route || '/', window.location.origin).pathname.toLowerCase();
     if (pathname === '/' || pathname === '/dashboard') return ['dashboard'];
     if (pathname === '/socios' || pathname.startsWith('/socios/')) return ['socios'];
     if (pathname === '/productos' || pathname.startsWith('/productos/')) return ['productos'];
     if (pathname === '/cotizaciones' || pathname.startsWith('/cotizaciones/')) return ['cotizaciones'];
+    if (pathname === '/notificaciones' || pathname === '/notificaciones.html') return ['dashboard'];
     if (pathname === '/calculo-flexografia' || pathname === '/flexo-calculo') return ['calculos'];
     if (pathname === '/ordenes-produccion' || pathname.startsWith('/orden-produccion')) return ['ordenes'];
     if (pathname === '/planificacion' || pathname.startsWith('/planificacion/')) return ['planificacion'];
@@ -187,15 +208,27 @@ function getLoginRouteModules(route) {
 }
 
 function canOpenLoginLanding(session, route) {
+    if (hasLoginSuperPermission(session)) return true;
     const modules = session?.modules && typeof session.modules === 'object' ? session.modules : null;
-    if (!modules) return true;
+    if (!modules || !Object.keys(modules).length) return true;
     const keys = getLoginRouteModules(route);
-    return !keys.length || keys.some((key) => key === 'dashboard' || getLoginModuleAccessLevel(modules, key) !== 'none');
+    return !keys.length || keys.some((key) => key === 'dashboard' || getLoginModuleAccessLevel(modules, key).view);
 }
 
 function resolveAllowedLandingRoute(session) {
     const preferred = resolveRouteForLanding(session?.defaultLanding || 'dashboard');
-    return canOpenLoginLanding(session, preferred) ? preferred : '/dashboard';
+    if (canOpenLoginLanding(session, preferred)) return preferred;
+    // Si el preferido no está permitido, busca el primer módulo al que sí tiene acceso
+    const moduleOrder = [
+        'dashboard', 'cotizaciones', 'socios', 'ordenes', 'planificacion',
+        'productos', 'calculos', 'costos', 'inventario-mp', 'inventario-troqueles',
+        'inventario-maquinaria', 'vendedores', 'configuracion-general'
+    ];
+    for (const key of moduleOrder) {
+        const route = resolveRouteForLanding(key);
+        if (canOpenLoginLanding(session, route)) return route;
+    }
+    return '/dashboard';
 }
 
 function getSlideSeconds() {
