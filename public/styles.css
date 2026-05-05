@@ -2229,7 +2229,7 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
 
 .costs-process-table th {
     padding: 12px 14px;
-    background: #f7fbfe;
+    background: rgba(121, 138, 155, 0.03);
     color: #5f7080;
     font-size: 12px;
     font-weight: 700;
@@ -2237,7 +2237,7 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
 
 .costs-process-table td {
     padding: 8px 14px;
-    border-bottom: 1px solid #edf2f6;
+    border-bottom: 1px solid rgba(121, 138, 155, 0.08);
     background: #fff;
 }
 
@@ -6055,11 +6055,45 @@ body.inventory-route-maquinas.inventory-has-selection .inventory-editor-panel {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px 18px;
 }
+.inventory-form.inventory-form-maquinas .standard-module-tabs {
+    grid-column: 1 / -1;
+    margin-bottom: 12px;
+}
+.inventory-form.inventory-form-maquinas .inventory-machine-tab-panels {
+    grid-column: 1 / -1;
+}
+.inventory-form.inventory-form-maquinas .inventory-machine-tab-panel {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 18px;
+}
+.inventory-form.inventory-form-maquinas .inventory-machine-tab-panel[hidden] {
+    display: none;
+}
+.inventory-form.inventory-form-maquinas .inventory-machine-tab-panel .inventory-form-section {
+    display: none;
+}
 .inventory-form.inventory-form-maquinas label {
     padding: 0;
     border: 0;
     border-radius: 0;
     background: transparent;
+}
+.inventory-form.inventory-form-maquinas .inventory-input-wrap {
+    position: relative;
+}
+.inventory-form.inventory-form-maquinas .inventory-input-wrap input {
+    padding-right: 68px;
+}
+.inventory-form.inventory-form-maquinas .inventory-input-suffix {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%);
+    color: #6d7c8b;
+    font-size: 12px;
+    pointer-events: none;
+    white-space: nowrap;
 }
 .inventory-form.inventory-form-maquinas textarea {
     min-height: 72px;
@@ -9263,12 +9297,12 @@ html[data-theme="dark"] .quote-browser-card {
 
 body.inventory-route-materiales .inventory-workspace,
 body.inventory-route-maquinas .inventory-workspace {
-    max-width: min(100% - 32px, 1500px);
+    max-width: min(100% - 24px, 1700px);
 }
 
 body.inventory-route-materiales.inventory-has-selection .inventory-layout,
 body.inventory-route-maquinas.inventory-has-selection .inventory-layout {
-    grid-template-columns: minmax(520px, 1.15fr) minmax(460px, 0.85fr);
+    grid-template-columns: minmax(640px, 1.22fr) minmax(560px, 1fr);
     align-items: start;
 }
 
@@ -11007,6 +11041,14 @@ html[data-theme="dark"] .dashboard-tab.is-active:focus-visible {
 
 .dashboard-card .dashboard-card-title {
     transition: color .18s ease;
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.15;
 }
 
 .dashboard-card-title {
@@ -11105,6 +11147,9 @@ html[data-theme="dark"] .proforma-currency-delete-button:hover {
 
 html[data-theme="dark"] .standard-module-tabs {
     background: linear-gradient(180deg, color-mix(in srgb, var(--app-surface) 92%, #122033) 0%, color-mix(in srgb, var(--app-surface-soft) 88%, #16263b) 100%);
+}
+html[data-theme="dark"] .inventory-form.inventory-form-maquinas .inventory-input-suffix {
+    color: var(--app-text-soft);
 }
 
 .product-catalog-card {
@@ -11479,4 +11524,148 @@ html[data-theme="dark"] .quote-request-wizard-btn.is-secondary:focus-visible {
     .quote-request-wizard-btn {
         width: 100%;
     }
+}
+
+.quote-browser-card,
+.socios-workspace,
+.inventory-workspace,
+.config-page,
+.costs-shell,
+.costs-card,
+.troquel-document-card,
+.production-order-card,
+.costs-tabs,
+body.inventory-route-tipos-salida .inventory-panel-main,
+body.inventory-route-tipos-salida .inventory-toolbar-shell,
+body.inventory-route-troqueles.inventory-view-detail .inventory-editor-panel {
+    width: min(100%, 1520px);
+    max-width: 1520px;
+}
+
+.quote-browser-search-wrap,
+.inventory-search-toolbar {
+    width: min(420px, 100%);
+    flex: 1 1 420px;
+    min-width: min(340px, 100%);
+}
+
+.inventory-search-block,
+.inventory-search-block-inline {
+    min-width: min(460px, 100%);
+}
+
+@media (max-width: 1366px) {
+    :root {
+        --page-margin-right: 12px;
+        --page-margin-left: 12px;
+    }
+
+    .inventory-layout,
+    .config-card-split,
+    .flexo-layout,
+    .flexo-header-grid,
+    .machine-category-grid,
+    .flexo-form-grid,
+    .config-form-grid-wide,
+    .flexo-general-row,
+    .flexo-tech-layout,
+    .flexo-tagging-layout,
+    .troquel-document-main,
+    .troquel-document-header,
+    .troquel-grid-3,
+    .quote-head-columns {
+        grid-template-columns: 1fr;
+    }
+
+    .inventory-toolbar-shell,
+    .inventory-panel-head,
+    .inventory-browser-head,
+    .quote-browser-search-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .quote-browser-actions-left {
+        flex-wrap: wrap;
+    }
+
+    .quote-browser-search-wrap,
+    .inventory-search-toolbar,
+    .inventory-search-block,
+    .inventory-search-block-inline {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        margin-left: 0;
+    }
+}
+
+.quote-master-lines-row > td {
+    padding: 0 12px 12px !important;
+}
+
+.quote-master-lines {
+    gap: 6px !important;
+}
+
+.quote-master-lines .quote-master-line {
+    width: 100% !important;
+    display: grid !important;
+    grid-template-columns: 44px minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 10px !important;
+    padding: 10px 12px !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+}
+
+.quote-master-lines .quote-master-line-order {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    min-width: 0 !important;
+    justify-self: center !important;
+}
+
+.quote-master-lines .quote-master-line-body {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    min-width: 0 !important;
+    display: grid !important;
+    gap: 6px !important;
+    justify-items: start !important;
+    text-align: left !important;
+}
+
+.quote-master-lines .quote-master-line-right {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    min-width: 0 !important;
+    padding-right: 0 !important;
+}
+
+.quote-master-lines .quote-master-line-title,
+.quote-master-lines .quote-master-line-meta {
+    width: 100% !important;
+    text-align: left !important;
+}
+
+.quote-master-lines .quote-master-line-badges {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+
+.quote-master-lines .quote-line-auto-chip {
+    max-width: 100%;
+}
+
+.quote-master-lines .quote-master-line-total {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    min-width: 72px !important;
 }

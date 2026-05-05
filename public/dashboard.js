@@ -29,12 +29,12 @@ const DASHBOARD_CARDS = [
 { route: '/socios', label: 'Socios', iconKey: 'dashboardBusinessPartners', modules: ['socios'] },
 { route: '/productos', label: 'Productos', iconKey: 'dashboardProducts', modules: ['productos'] },
 { route: '/cotizaciones', label: 'Cotizaciones', iconKey: 'dashboardQuotes', modules: ['cotizaciones'] },
-{ route: '/notificaciones.html', label: 'Notificaciones', iconKey: 'dashboardNotifications', modules: ['dashboard'] },
+{ route: '/costos.html', label: 'Costos', iconKey: 'dashboardCosts', modules: ['costos'] },
 { route: '/inventario-materiales', label: 'Inventarios', iconKey: 'dashboardInventory', modules: ['inventario-mp', 'inventario-troqueles', 'inventario-maquinaria'] },
 { route: '/configuracion-general', label: 'Configuraci\u00f3n', iconKey: 'dashboardSettings', modules: ['configuracion-general'] },
 { route: '/ordenes-produccion', label: '\u00d3rdenes', iconKey: 'dashboardOrders', modules: ['ordenes'] },
 { route: '/planificacion/lanzamiento', label: 'Planificaci\u00f3n', iconKey: 'dashboardPlanning', modules: ['planificacion'] },
-{ route: '/costos.html', label: 'Costos', iconKey: 'dashboardCosts', modules: ['costos'] }
+{ route: '/notificaciones.html', label: 'Notificaciones', iconKey: 'dashboardNotifications', modules: ['dashboard'] }
 ];
 const INVENTORY_CARD_ROUTE = '/inventario-materiales';
 const INVENTORY_OPTIONS = [

@@ -49,6 +49,7 @@ const customerNameInput = document.getElementById('nuevoClienteNombre');
 const customerCodeInput = document.getElementById('nuevoClienteCodigo');
 const customerLookupPanel = document.getElementById('quoteCustomerLookupPanel');
 const customerLookupResults = document.getElementById('quoteCustomerLookupResults');
+const requestProcessTypeInput = document.getElementById('requestProcessType');
 const fixedSizeSelect = document.getElementById('requestFixedSize');
 const materialInput = document.getElementById('requestMaterial');
 const materialSuggestions = document.getElementById('materialSuggestions');
@@ -500,6 +501,16 @@ function getSapPayloadTemplate(entity) {
             ]
         };
     }
+    if (entity === 'inventory-entry') {
+        return {
+            date: new Date().toISOString().slice(0, 10),
+            productionOrderId: 'OP-2041',
+            comments: 'Ingreso de producto terminado desde ERP',
+            lines: [
+                { itemCode: 'TRQ-001', quantity: 2, warehouseCode: '01' }
+            ]
+        };
+    }
     return {
         clientCode: 'C001',
         date: new Date().toISOString().slice(0, 10),
@@ -532,6 +543,17 @@ function renderSapStatus(statusPayload) {
     sapConfigState = statusPayload || null;
     const config = statusPayload?.config || {};
     const counts = statusPayload?.localSummary?.counts || {};
+    const salespersons = Array.isArray(statusPayload?.localSummary?.salespersons) ? statusPayload.localSummary.salespersons : [];
+    const salespersonsLabel = salespersons
+        .slice(0, 5)
+        .map((item) => {
+            const name = item.salespersonName || item.salesperson_name || item.name || '';
+            const code = item.salesPersonCode ?? item.sales_person_code ?? '';
+            return code !== '' ? `${name} (${code})` : name;
+        })
+        .filter(Boolean)
+        .join(', ');
+    const productionCostCenter = statusPayload?.localSummary?.productionCostCenter?.defaultCostCenterCode || '';
     if (sapStatusRow) {
         const modeTone = statusPayload?.mode === 'live' ? 'live' : 'demo';
         const pills = [
@@ -547,7 +569,9 @@ function renderSapStatus(statusPayload) {
     }
     if (sapStatusNote) {
         const lastSync = config.lastSyncFinishedAt ? new Date(config.lastSyncFinishedAt).toLocaleString('es-CR') : 'Sin sincronizacion';
-        sapStatusNote.textContent = `${config.lastSyncMessage || 'Configuracion lista.'} Ultimo cierre: ${lastSync}.`;
+        const sellerNote = salespersonsLabel ? ` Vendedores locales: ${salespersonsLabel}.` : '';
+        const productionNote = productionCostCenter ? ` Centro costo produccion: ${productionCostCenter}.` : '';
+        sapStatusNote.textContent = `${config.lastSyncMessage || 'Configuracion lista.'} Ultimo cierre: ${lastSync}.${productionNote}${sellerNote}`;
     }
     if (sapLocalCounts) {
         sapLocalCounts.innerHTML = [
@@ -555,7 +579,8 @@ function renderSapStatus(statusPayload) {
             ['Articulos', counts.items || 0],
             ['Bodegas', counts.warehouses || 0],
             ['Ordenes', counts.orders || 0],
-            ['Facturas', counts.invoices || 0]
+            ['Facturas', counts.invoices || 0],
+            ['Vendedores', counts.salespersons || 0]
         ].map(([label, value]) => `
             <div class="sap-config-count">
                 <strong>${escapeText(String(value))}</strong>
@@ -699,7 +724,11 @@ async function runSapWrite() {
         return;
     }
     setSapConfigStatus('Enviando documento a SAP...', 'saving');
-    const route = entity === 'inventory-exit' ? '/api/sap/inventory/exit' : `/api/sap/${entity}`;
+    const route = entity === 'inventory-exit'
+        ? '/api/sap/inventory/exit'
+        : entity === 'inventory-entry'
+            ? '/api/sap/inventory/entry'
+            : `/api/sap/${entity}`;
     const payload = await fetchJson(route, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -975,6 +1004,12 @@ function pickFirstMeaningfulNumber(...values) {
 function normalizeQuoteLine(line, quoteCode, index = 0) {
     quoteTreeLineSequence += 1;
     const raw = line.raw_data || {};
+    const calculationBlockMessage = String(
+        raw['ANALISIS CAMPOS CREAR ORDEN']
+        || raw['ANALISIS CAMPOS FINALIZAR']
+        || raw['ANALISIS CAMPOS PDF']
+        || ''
+    ).trim();
     const autoSelection = raw.CODEX_AUTO_SELECTION || {};
     const autoWarnings = Array.isArray(autoSelection.warnings)
         ? autoSelection.warnings.filter(Boolean)
@@ -998,14 +1033,17 @@ function normalizeQuoteLine(line, quoteCode, index = 0) {
         lineOrder: Number(line.line_order) || index + 1,
         departamento: line.department || 'Flexografia',
         nombreTrabajo: line.job_name || 'Nuevo cálculo',
+        rawData: raw,
         material: line.material_name || '',
         materialCode: line.material_code || raw['Material Convencional | Id Material'] || raw['Material Digital | Id Material'] || '',
         medida: [raw['DIMENSIONES ETIQUETA | ANCHO'], raw['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join(' x '),
         machineName: line.machine_name || raw['CONV | MAQUINA'] || raw['DIGITAL | MAQUINA'] || '',
+        dieCode: line.die_code || raw['GENERAL | TROQUEL | ID'] || raw['REQ | Troquelado'] || '',
         processType: line.process_type || raw['Proceso Productivo'] || '',
         processSequenceText: raw['CODEX_PROCESS_SEQUENCE_TEXT'] || raw['BOT | Process Sequence'] || '',
         estado: line.status || raw['SOLICITUD ESTADO'] || raw['ESTADO LINEA'] || 'Borrador',
         finalizadaOrden: Boolean(line.finalized_for_order || raw['CODEX_FINALIZED_FOR_ORDER']),
+        calculationBlockMessage,
         subtotal1: fallbackTotal ?? '',
         productId: line.product_code || '',
         quantity: pickFirstMeaningfulNumber(line.quantity, raw['Cantidad Productos']),
@@ -1021,6 +1059,23 @@ function normalizeQuoteLine(line, quoteCode, index = 0) {
         autoWarnings,
         autoFallbackApplied: String(raw['REQ | Fallback de Ruta'] || '').trim().toLowerCase() === 'sí'
     };
+}
+
+function getQuoteCalculationBlockMessage(quoteCode) {
+    const lines = quoteLineCache.get(quoteCode) || [];
+    const blockedLine = lines.find((item) => String(item?.calculationBlockMessage || '').trim());
+    if (!blockedLine) return '';
+    return `La línea ${blockedLine.linea} requiere completar el cálculo. ${blockedLine.calculationBlockMessage}`.trim();
+}
+
+function ensureQuoteReadyForProforma(quoteCode) {
+    const message = getQuoteCalculationBlockMessage(quoteCode);
+    if (message) throw new Error(message);
+}
+
+function ensureLineReadyForOrder(row) {
+    const message = String(row?.calculationBlockMessage || '').trim();
+    if (message) throw new Error(message);
 }
 
 function quoteTreeLineTitle(row) {
@@ -1059,41 +1114,97 @@ async function fetchQuoteLines(quoteCode, options = {}) {
 }
 
 function buildLineTitle(row, index) {
-    const name = row.nombreTrabajo || 'Sin nombre';
-    const material = row.material || '';
-    return [name, material].filter(Boolean).join(' · ');
+    return row.nombreTrabajo || 'Sin nombre';
 }
 
 function buildLineMeta(row) {
-    const parts = [];
-    if (row.linea) parts.push(row.linea);
-    if (row.quantity) parts.push(`Cantidad ${formatNumber(row.quantity)}`);
-    if (row.processSequenceText) parts.push(row.processSequenceText);
-    else if (row.processType) parts.push(row.processType);
-    if (row.medida) parts.push(row.medida);
-    if (row.machineName) parts.push(row.machineName);
-    if (row.materialCode) parts.push(row.materialCode);
-    return parts.filter(Boolean).join(' · ');
+    return row.linea || '';
 }
 
-function renderAutoSelectionSummary(row) {
-    const summaryItems = [
-        row.autoRoute ? `Ruta ${row.autoRoute}` : '',
-        row.autoMaterialFamily ? `Familia ${row.autoMaterialFamily}` : '',
-        row.autoMaterialCode ? `Material ${row.autoMaterialCode}` : '',
-        row.autoMachineName ? `Máquina ${row.autoMachineName}` : '',
-        row.autoDieCode ? `Troquel ${row.autoDieCode}` : (row.autoRoute ? 'Troquel estimado/no requerido' : ''),
-        row.autoLabelsPerRoll ? `${formatNumber(row.autoLabelsPerRoll)} etiq./rollo` : ''
-    ].filter(Boolean);
-    const warningMarkup = (row.autoWarnings || []).slice(0, 3).map((warning) => `
-        <div class="quote-line-auto-warning">${escapeHtml(warning)}</div>
-    `).join('');
+function isEnabledQuoteDetail(value) {
+    const normalized = normalizeText(value).toLowerCase();
+    if (!normalized) return false;
+    return !['no', 'false', '0', 'sin', 'ninguno', 'n/a'].includes(normalized);
+}
+
+function cleanQuoteDetail(value) {
+    const text = normalizeText(value);
+    if (!text) return '';
+    if (!isEnabledQuoteDetail(text)) return '';
+    return text;
+}
+
+function formatQuoteDimension(value) {
+    const text = normalizeText(value);
+    if (!text) return '';
+    return /["a-z%]/i.test(text) ? text : `${text}"`;
+}
+
+function formatQuoteMillimeters(value) {
+    const text = normalizeText(value);
+    if (!text) return '';
+    return /mm$/i.test(text) ? text : `${text} mm`;
+}
+
+function buildQuoteFinishLabel(baseLabel, detailParts = []) {
+    const normalizedParts = detailParts
+        .map((item) => normalizeText(item))
+        .filter((item) => !['si', 'sí', 'yes', 'true', '1', 'activo', 'activa'].includes(item.toLowerCase()))
+        .filter(Boolean);
+    if (!normalizedParts.length) return baseLabel;
+    return `${baseLabel} (${normalizedParts.join(', ')})`;
+}
+
+function buildQuoteRealDetailItems(row) {
+    const raw = row.rawData || {};
+    const items = [];
+    const width = formatQuoteDimension(raw['DIMENSIONES ETIQUETA | ANCHO']);
+    const length = formatQuoteDimension(raw['DIMENSIONES ETIQUETA | LARGO']);
+    if (width && length) items.push(`${width} x ${length}`);
+    else if (row.medida) items.push(row.medida);
+    if (row.quantity) items.push(`Cantidad ${formatNumber(row.quantity)}`);
+    if (row.machineName) items.push(`Impresión ${row.machineName}`);
+
+    const dieCode = cleanQuoteDetail(row.dieCode || raw['GENERAL | TROQUEL | ID']);
+    const troquelRequested = cleanQuoteDetail(raw['REQ | Troquelado']);
+    if (dieCode || troquelRequested) {
+        items.push(buildQuoteFinishLabel('Troquelado', [dieCode || troquelRequested]));
+    }
+
+    const barnizDetail = cleanQuoteDetail(raw['REQ | Barniz'] || raw['BARNIZ'] || raw['CONV | BARNIZ | TIPO']);
+    if (barnizDetail) items.push(buildQuoteFinishLabel('Barniz', [barnizDetail]));
+
+    const laminadoDetail = cleanQuoteDetail(raw['REQ | Laminado'] || raw['LAMINADO'] || raw['CONV | LAMINADO | TIPO']);
+    if (laminadoDetail) items.push(buildQuoteFinishLabel('Laminado', [laminadoDetail]));
+
+    const estampadoDetail = cleanQuoteDetail(raw['REQ | Estampado'] || raw['ESTAMPADO'] || raw['CONV | ESTAMPADO | FOIL']);
+    const estampadoWidth = formatQuoteMillimeters(raw['REQ | Estampado Ancho']);
+    if (estampadoDetail || estampadoWidth) {
+        items.push(buildQuoteFinishLabel('Estampado', [estampadoDetail, estampadoWidth]));
+    }
+
+    const embossDetail = cleanQuoteDetail(raw['REQ | Embosado'] || raw['EMBOSADO | TIPO'] || raw['EMBOSADO']);
+    if (embossDetail) items.push(buildQuoteFinishLabel('Embosado', [embossDetail]));
+
+    const numberingDetail = cleanQuoteDetail(
+        raw['REQ | Numeracion Resumen']
+        || raw['REQ | Numeracion Detalle']
+        || raw['REQ | Numeracion Aviso']
+        || raw['REQ | Numeracion']
+        || raw['ACABADOS | NUMERADO DETALLE']
+        || raw['ACABADOS | NUMERADO']
+    );
+    if (numberingDetail) items.push(buildQuoteFinishLabel('Numeración', [numberingDetail]));
+
+    return items;
+}
+
+function renderQuoteRealSummary(row) {
+    const items = buildQuoteRealDetailItems(row);
+    if (!items.length) return '';
     return `
-        <div class="quote-line-auto-block">
-            ${summaryItems.length ? `<div class="quote-line-auto-summary">${summaryItems.map((item) => `<span class="quote-line-auto-chip">${escapeHtml(item)}</span>`).join('')}</div>` : ''}
-            ${row.autoMountingSummary ? `<div class="quote-line-auto-mounting">${escapeHtml(row.autoMountingSummary)}</div>` : ''}
-            ${row.autoTechnicalComment ? `<div class="quote-line-auto-comment">${escapeHtml(row.autoTechnicalComment)}</div>` : ''}
-            ${warningMarkup ? `<div class="quote-line-auto-warnings">${warningMarkup}</div>` : ''}
+        <div class="quote-master-line-badges">
+            ${items.map((item) => `<span class="quote-line-auto-chip">${escapeHtml(item)}</span>`).join('')}
         </div>
     `;
 }
@@ -1104,6 +1215,7 @@ function lineMenuIconConfig(key, fallbackValue, fallbackColor = '#46515d', fallb
         copy: ['lineCopy'],
         product: ['lineCreateProduct', 'dashboardProducts'],
         createQuote: ['lineCreateQuote'],
+        createOrder: ['lineCreateProductionOrder'],
         export: ['lineExport'],
         attachments: ['lineAttachments'],
         delete: ['lineDelete', 'loginRepositoryDelete', 'adminUserDelete']
@@ -1113,6 +1225,7 @@ function lineMenuIconConfig(key, fallbackValue, fallbackColor = '#46515d', fallb
         copy: 'lineCopy',
         product: 'lineCreateProduct',
         createQuote: 'lineCreateQuote',
+        createOrder: 'lineCreateProductionOrder',
         export: 'lineExport',
         attachments: 'lineAttachments',
         delete: 'lineDelete'
@@ -1123,6 +1236,7 @@ function lineMenuIconConfig(key, fallbackValue, fallbackColor = '#46515d', fallb
         copy: 'LineCopy',
         product: 'LineCreateProduct',
         createQuote: 'LineCreateQuote',
+        createOrder: 'LineCreateProductionOrder',
         export: 'LineExport',
         attachments: 'LineAttachments',
         delete: 'LineDelete'
@@ -1170,7 +1284,7 @@ function renderQuoteLineCard(row, index, totalLines) {
             <div class="quote-master-line-body">
                 <div class="quote-master-line-title">${escapeHtml(lineTitle)}</div>
                 ${lineMeta ? `<div class="quote-master-line-meta">${escapeHtml(lineMeta)}</div>` : ''}
-                ${renderAutoSelectionSummary(row)}
+                ${renderQuoteRealSummary(row)}
             </div>
             <div class="quote-master-line-right">
                 <span class="quote-master-line-total">${escapeHtml(formatMoney(row.subtotal1))}</span>
@@ -1186,6 +1300,7 @@ function renderQuoteLineCard(row, index, totalLines) {
                                 <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="copy" data-line-id="${row.id}">${lineMenuIconMarkup('copy', 'Copiar Línea a Otra Cotización', '⎘')}<span>Copiar Línea a Otra Cotización</span></button>
                                 ${canCreateProduct ? `<button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="create-product" data-line-id="${row.id}">${lineMenuIconMarkup('product', 'Convertir en producto', '▣')}<span>Convertir en producto</span></button>` : ''}
                                 <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="create-quote" data-line-id="${row.id}">${lineMenuIconMarkup('createQuote', 'Crear nueva cotización a partir de esta línea', '▣')}<span>Crear nueva cotización a partir de esta línea</span></button>
+                                ${row.finalizadaOrden ? `<button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="create-production-order" data-line-id="${row.id}">${lineMenuIconMarkup('createOrder', 'Crear orden de producción', '⚒')}<span>Crear orden de producción</span></button>` : ''}
                                 <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="export" data-line-id="${row.id}">${lineMenuIconMarkup('export', 'Exportar Línea a Excel', '⭳')}<span>Exportar Línea a Excel</span></button>
                                 <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="attachments" data-line-id="${row.id}">${lineMenuIconMarkup('attachments', 'Ver Adjuntos', '📎')}<span>Ver Adjuntos</span></button>
                                 <div class="row-action-menu-section-divider" aria-hidden="true"></div>
@@ -1246,7 +1361,6 @@ function renderQuoteParentRow(item) {
     const deleteSize = Number(loadedConfig?.general?.iconSizeLineDelete) || deleteConf.size || 18;
     const customerName = item.customer_name || '';
     const customerCode = item.customer_code || '';
-    const vendor = item.salesperson_name || '';
     const createdOn = formatDate(item.created_on);
     const dueOn = formatDate(item.due_on);
     return `
@@ -1264,7 +1378,6 @@ function renderQuoteParentRow(item) {
                 <div class="quote-master-info-block">
                     <span class="quote-master-info-name">${escapeHtml(customerName)}</span>
                     ${customerCode ? `<span class="quote-master-info-code">${escapeHtml(customerCode)}</span>` : ''}
-                    ${vendor ? `<span class="quote-master-info-sep">·</span><span class="quote-master-info-vendor">${escapeHtml(vendor)}</span>` : ''}
                 </div>
             </td>
             <td class="quote-master-td-date">${escapeHtml(createdOn)}</td>
@@ -1365,7 +1478,25 @@ async function createProductFromLine(row) {
     }
 }
 
+async function createProductionOrder(row) {
+    ensureLineReadyForOrder(row);
+    if (!row?.finalizadaOrden) {
+        throw new Error('Debes marcar la línea como finalizada antes de crear la orden de producción.');
+    }
+    const payload = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}/orden-produccion`, {
+        method: 'POST'
+    });
+    if (payload.orden?.order_code) {
+        setStatus(`Orden ${payload.orden.order_code} creada.`, 'saved');
+        const route = `/orden-produccion/${encodeURIComponent(payload.orden.order_code)}`;
+        if (!openRouteInShell(route, `Orden ${payload.orden.order_code}`)) {
+            window.location.href = route;
+        }
+    }
+}
+
 async function toggleLineFinalized(row) {
+    if (!row?.finalizadaOrden) ensureLineReadyForOrder(row);
     await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -1400,6 +1531,7 @@ async function handleQuoteLineAction(action, row) {
     if (action === 'copy') return openQuoteDocument(row.quoteId);
     if (action === 'create-product') return createProductFromLine(row);
     if (action === 'create-quote') return createQuoteFromLine(row);
+    if (action === 'create-production-order') return createProductionOrder(row);
     if (action === 'export') {
         window.open(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}/exportar`, '_blank', 'noopener');
         return;
@@ -1841,24 +1973,85 @@ function setDefaultLauncherPosition() {
     launcherWrap.style.bottom = 'auto';
 }
 
-function renderShapePicker() {
-    if (!shapePicker) return;
+function getShapeOptions() {
     const general = loadedConfig?.general || {};
-    const shapes = [
+    return [
         { value: 'Circular', label: general.dieShapeLabel1 || 'Circular', image: general.dieShapeImage1 || '' },
         { value: 'Cuadrado', label: general.dieShapeLabel2 || 'Cuadrado', image: general.dieShapeImage2 || '' },
         { value: 'Rectangular', label: general.dieShapeLabel3 || 'Rectangular', image: general.dieShapeImage3 || '' },
         { value: 'Ovalado', label: general.dieShapeLabel4 || 'Ovalado', image: general.dieShapeImage4 || '' },
         { value: 'Especial', label: general.dieShapeLabel5 || 'Especial', image: general.dieShapeImage5 || '' }
     ];
-    shapePicker.innerHTML = shapes.map((shape, index) => `
-        <label class="quote-request-shape-card ${index === 0 ? 'is-selected' : ''}">
-            <input type="radio" name="die_shape" value="${escapeHtml(shape.value)}" ${index === 0 ? 'checked' : ''}>
-            <span class="quote-request-shape-media">${shape.image ? `<img src="${escapeHtml(shape.image)}" alt="${escapeHtml(shape.label)}">` : `<span class="quote-request-shape-fallback" data-shape="${escapeHtml(shape.value)}"></span>`}</span>
-            <span class="quote-request-shape-name">${escapeHtml(shape.label)}</span>
-        </label>
-    `).join('');
-    syncToggleChipState(shapePicker);
+}
+
+function buildShapeThumbMarkup(shape) {
+    return shape.image
+        ? `<img src="${escapeHtml(shape.image)}" alt="${escapeHtml(shape.label)}">`
+        : `<span class="quote-request-shape-fallback" data-shape="${escapeHtml(shape.value)}"></span>`;
+}
+
+function syncShapePickerState() {
+    if (!shapePicker) return;
+    const selectedInput = shapePicker.querySelector('input[name="die_shape"]:checked');
+    const selectedValue = selectedInput?.value || '';
+    const selectedLabel = selectedInput?.dataset.label || selectedValue || 'Selecciona una forma';
+    const selectedImage = selectedInput?.dataset.image || '';
+    const triggerName = shapePicker.querySelector('[data-shape-trigger-label]');
+    const triggerThumb = shapePicker.querySelector('[data-shape-trigger-thumb]');
+    const trigger = shapePicker.querySelector('[data-shape-trigger]');
+    if (triggerName) triggerName.textContent = selectedLabel;
+    if (triggerThumb) {
+        triggerThumb.innerHTML = buildShapeThumbMarkup({
+            value: selectedValue || 'Rectangular',
+            label: selectedLabel,
+            image: selectedImage
+        });
+    }
+    shapePicker.querySelectorAll('.quote-request-shape-option').forEach((option) => {
+        option.classList.toggle('is-selected', option.dataset.shapeValue === selectedValue);
+    });
+    if (trigger) trigger.setAttribute('aria-expanded', 'false');
+    const panel = shapePicker.querySelector('[data-shape-panel]');
+    if (panel) panel.hidden = true;
+}
+
+function toggleShapePickerPanel(forceOpen) {
+    if (!shapePicker) return;
+    const panel = shapePicker.querySelector('[data-shape-panel]');
+    const trigger = shapePicker.querySelector('[data-shape-trigger]');
+    if (!panel || !trigger) return;
+    const nextState = typeof forceOpen === 'boolean' ? forceOpen : panel.hidden;
+    panel.hidden = !nextState;
+    trigger.setAttribute('aria-expanded', nextState ? 'true' : 'false');
+}
+
+function renderShapePicker() {
+    if (!shapePicker) return;
+    const shapes = getShapeOptions();
+    const selectedValue = shapePicker.querySelector('input[name="die_shape"]:checked')?.value || shapes[0]?.value || '';
+    shapePicker.innerHTML = `
+        <div class="quote-request-field">
+            <span>Forma de Troquel</span>
+            <div class="quote-request-shape-dropdown">
+                <button type="button" class="quote-request-select quote-request-shape-trigger" data-shape-trigger aria-expanded="false">
+                    <span class="quote-request-shape-trigger-copy">
+                        <span class="quote-request-shape-thumb" data-shape-trigger-thumb></span>
+                        <span class="quote-request-shape-trigger-label" data-shape-trigger-label></span>
+                    </span>
+                </button>
+                <div class="quote-request-inline-panel quote-request-shape-panel" data-shape-panel hidden>
+                    ${shapes.map((shape) => `
+                        <label class="quote-request-shape-option" data-shape-value="${escapeHtml(shape.value)}">
+                            <input type="radio" name="die_shape" value="${escapeHtml(shape.value)}" data-label="${escapeHtml(shape.label)}" data-image="${escapeHtml(shape.image)}" ${shape.value === selectedValue ? 'checked' : ''}>
+                            <span class="quote-request-shape-thumb">${buildShapeThumbMarkup(shape)}</span>
+                            <span class="quote-request-shape-trigger-label">${escapeHtml(shape.label)}</span>
+                        </label>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+    syncShapePickerState();
 }
 
 function collectRequestPayload() {
@@ -1871,6 +2064,7 @@ function collectRequestPayload() {
     const stampingWidth = normalizeText(stampingWidthInput?.value);
     const placement = form.querySelector('input[name="placement"]:checked')?.value || '';
     const productType = requestProductTypeSelect?.value || '';
+    const processType = normalizeText(requestProcessTypeInput?.value) || 'Convencional';
     const quantities = readRequestedQuantities();
     const numberingFrom = normalizeText(numberingRangeStartInput?.value);
     const numberingTo = normalizeText(numberingRangeEndInput?.value);
@@ -1888,6 +2082,7 @@ function collectRequestPayload() {
         quantity: quantities.map((item) => formatNumber(item)).join(', '),
         quantities,
         product_type: normalizeText(productType),
+        process_type: processType,
         material_name: normalizeText(materialInput?.value),
         applicationType: normalizeText(surfaceInput?.value),
         outputType: placement,
@@ -1998,10 +2193,7 @@ function validateQuickRequestStep(stepNumber) {
         if (!selectedShape) {
             markQuickRequestInvalid(shapePicker, errors, 'Forma');
         }
-    }
-
-    if (stepNumber === 3) {
-        if (!payload.material_name) markQuickRequestInvalid(materialInput, errors, 'Material');
+        if (!payload.material_name) markQuickRequestInvalid(materialInput, errors, 'Sustrato');
     }
 
     if (stepNumber === 4) {
@@ -2021,6 +2213,7 @@ function validateQuickRequest(forAdvanced) {
     payload.quantities = parseRequestedQuantities(payload.quantities);
     const errors = [];
     clearQuickRequestValidationState();
+    const selectedShape = form?.querySelector('input[name="die_shape"]:checked')?.value || '';
 
     const check = (value, el, name) => {
         if (!value) {
@@ -2042,7 +2235,8 @@ function validateQuickRequest(forAdvanced) {
     }
 
     if (!forAdvanced) {
-        check(payload.material_name, materialInput, 'Material');
+        check(selectedShape, shapePicker, 'Forma');
+        check(payload.material_name, materialInput, 'Sustrato');
         check(payload.applicationType, surfaceInput, 'Superficie de aplicaciÃ³n');
         check(fixedSizeSelect?.value, fixedSizeSelect, 'Medida');
     }
@@ -2256,9 +2450,6 @@ async function goToQuickRequestStep(targetStep) {
         for (let step = currentStep; step < nextStep; step += 1) {
             validateQuickRequestStep(step);
         }
-        if (nextStep === totalSteps) {
-            await ensureQuickRequestPreview();
-        }
     }
     quoteRequestWizardState.currentStep = nextStep;
     updateQuickRequestWizard();
@@ -2285,7 +2476,7 @@ async function submitQuoteRequest(forAdvanced = false) {
         const payload = validateQuickRequest(forAdvanced);
         setStatus(forAdvanced ? 'Preparando proceso avanzado...' : 'Creando cotización...', 'saving');
         const draft = await createQuickQuoteDraft(payload, { status: forAdvanced ? 'Borrador' : 'Solicitud' });
-        const { quoteCode, quantities } = draft;
+        const { quoteCode, quantities, firstLineCode } = draft;
         await loadQuotes();
         if (forAdvanced) {
             const route = `/cotizaciones/documento?codigo=${encodeURIComponent(quoteCode)}`;
@@ -2294,9 +2485,18 @@ async function submitQuoteRequest(forAdvanced = false) {
             }
             return;
         }
+        const route = `/calculo-flexografia?${new URLSearchParams({
+            lineId: firstLineCode || '',
+            quoteId: quoteCode,
+            productId: '',
+            department: 'Flexografia'
+        }).toString()}`;
         setStatus(`Cotizacion ${quoteCode} creada con ${quantities.length} cantidad(es).`, 'saved');
-        resetFormState();
         closePopover(true);
+        if (!openRouteInShell(route, `Cálculo ${firstLineCode || quoteCode}`)) {
+            window.location.href = route;
+        }
+        return;
     } catch (error) {
         setStatus(error.message, 'error');
     }
@@ -2311,6 +2511,7 @@ function openPopover() {
     if (processLauncherButton) processLauncherButton.setAttribute('aria-expanded', 'false');
     renderAttachments();
     renderNumberingSummary();
+    toggleShapePickerPanel(false);
     syncToggleChipState();
     updateQuickRequestWizard();
     setTimeout(() => customerNameInput?.focus(), 30);
@@ -2325,6 +2526,7 @@ function closePopover(force = false) {
     if (processLauncherStack) processLauncherStack.classList.remove('is-active');
     if (launcherErrors) launcherErrors.hidden = true;
     hideInlinePanels();
+    toggleShapePickerPanel(false);
     resetFormState();
     form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
 }
@@ -2435,25 +2637,38 @@ function bindEvents() {
         openSapPopover().catch((error) => setSapConfigStatus(error.message, 'error'));
     });
     closeButton?.addEventListener('click', () => closePopover());
+    shapePicker?.addEventListener('click', (event) => {
+        const trigger = event.target.closest('[data-shape-trigger]');
+        if (trigger) {
+            event.preventDefault();
+            event.stopPropagation();
+            toggleShapePickerPanel();
+            return;
+        }
+        const option = event.target.closest('.quote-request-shape-option');
+        if (option) {
+            const input = option.querySelector('input[name="die_shape"]');
+            if (input) {
+                input.checked = true;
+                syncShapePickerState();
+                invalidateQuickRequestPreview();
+            }
+        }
+    });
+    shapePicker?.addEventListener('change', (event) => {
+        if (event.target?.matches?.('input[name="die_shape"]')) {
+            syncShapePickerState();
+            invalidateQuickRequestPreview();
+        }
+    });
     wizardBackButton?.addEventListener('click', () => {
         goToQuickRequestStep(quoteRequestWizardState.currentStep - 1).catch((error) => setStatus(error.message, 'error'));
     });
     wizardNextButton?.addEventListener('click', () => {
         goToQuickRequestStep(quoteRequestWizardState.currentStep + 1).catch((error) => setStatus(error.message, 'error'));
     });
-    wizardPrintButton?.addEventListener('click', async () => {
-        try {
-            const previewState = await ensureQuickRequestPreview();
-            previewState.keepPreviewQuote = true;
-            const route = `/proforma?codigo=${encodeURIComponent(previewState.previewQuoteCode)}`;
-            await loadQuotes();
-            if (!openRouteInShell(route, `Proforma ${previewState.previewQuoteCode}`)) {
-                window.location.href = route;
-            }
-            closePopover(true);
-        } catch (error) {
-            setStatus(error.message, 'error');
-        }
+    wizardPrintButton?.addEventListener('click', () => {
+        submitQuoteRequest(false).catch((error) => setStatus(error.message, 'error'));
     });
     wizardAdvancedButton?.addEventListener('click', async () => {
         try {
@@ -2556,6 +2771,7 @@ function bindEvents() {
 
     document.addEventListener('click', (event) => {
         if (!event.target.closest('#processLauncherStack')) toggleProcessLauncher(false);
+        if (!event.target.closest('#dieShapePicker')) toggleShapePickerPanel(false);
         if (!numberingPopover?.hidden) {
             if (event.target === numberingPopoverTrigger || numberingPopoverTrigger?.contains(event.target)) return;
             if (numberingPopover.contains(event.target)) return;
@@ -2719,6 +2935,12 @@ function bindEvents() {
         if (proformaButton) {
             const code = proformaButton.dataset.printProforma;
             if (!code) return;
+            try {
+                ensureQuoteReadyForProforma(code);
+            } catch (error) {
+                setStatus(error.message, 'error');
+                return;
+            }
             const route = `/proforma?codigo=${encodeURIComponent(code)}`;
             if (!openRouteInShell(route, `Proforma ${code}`)) window.open(route, '_blank', 'noopener');
             return;

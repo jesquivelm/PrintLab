@@ -850,6 +850,42 @@
             margin: 0;
             color: #17354a;
         }
+        .sap-accounting-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            align-items: end;
+            justify-content: space-between;
+        }
+        .sap-accounting-toolbar .sap-security-field {
+            flex: 1 1 240px;
+        }
+        .sap-accounting-inline-input {
+            width: 100%;
+            min-height: 34px;
+            padding: 0 10px;
+            border: 1px solid #d8e2ea;
+            border-radius: 10px;
+            background: #fff;
+            color: #17354a;
+            font: inherit;
+            box-sizing: border-box;
+        }
+        .sap-accounting-inline-input:focus {
+            outline: none;
+            border-color: #0b81b8;
+            box-shadow: 0 0 0 3px rgba(11, 129, 184, 0.12);
+        }
+        .sap-accounting-code {
+            display: inline-block;
+            font-size: 12px;
+            color: #7a8fa2;
+            white-space: nowrap;
+        }
+        .sap-accounting-table-actions {
+            display: flex;
+            justify-content: flex-end;
+        }
         .sap-security-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1079,6 +1115,64 @@
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
+        }
+        .notification-alert-levels {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 10px 12px;
+            min-height: 38px;
+            border: 1px solid #d8dde3;
+            border-radius: 10px;
+            background: #f7fafc;
+        }
+        .notification-alert-level {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: #2f3740;
+        }
+        .notification-alert-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        .notification-alert-routing-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+        .notification-alert-routing-card {
+            padding: 12px;
+            border: 1px solid #dce7ef;
+            border-radius: 14px;
+            background: #fff;
+            display: grid;
+            gap: 8px;
+        }
+        .notification-alert-routing-card strong {
+            color: #1e516d;
+            font-size: 13px;
+        }
+        .notification-alert-routing-list {
+            display: grid;
+            gap: 6px;
+        }
+        .notification-alert-routing-item {
+            padding: 8px 10px;
+            border-radius: 10px;
+            background: #f7fafc;
+            color: #355064;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        .notification-alert-row {
+            cursor: pointer;
+        }
+        .notification-alert-row.is-selected td {
+            background: rgba(17,143,198,0.08);
         }
         .sap-security-pill {
             display: inline-flex;
@@ -1478,6 +1572,27 @@
         html[data-theme="dark"] .notification-center-thread-row.is-selected td {
             background: rgba(14,165,233,.12) !important;
         }
+        html[data-theme="dark"] .notification-alert-levels {
+            background: rgba(15, 23, 42, 0.78) !important;
+            border-color: var(--app-border) !important;
+        }
+        html[data-theme="dark"] .notification-alert-level {
+            color: var(--app-text) !important;
+        }
+        html[data-theme="dark"] .notification-alert-row.is-selected td {
+            background: rgba(14,165,233,.12) !important;
+        }
+        html[data-theme="dark"] .notification-alert-routing-card {
+            background: var(--app-surface-soft) !important;
+            border-color: var(--app-border) !important;
+        }
+        html[data-theme="dark"] .notification-alert-routing-card strong,
+        html[data-theme="dark"] .notification-alert-routing-item {
+            color: var(--app-text) !important;
+        }
+        html[data-theme="dark"] .notification-alert-routing-item {
+            background: rgba(15, 23, 42, 0.78) !important;
+        }
         html[data-theme="dark"] input,
         html[data-theme="dark"] select,
         html[data-theme="dark"] textarea,
@@ -1517,6 +1632,14 @@
             background: linear-gradient(180deg, var(--app-surface-soft) 0%, var(--app-surface) 100%) !important;
             color: var(--app-text-soft) !important;
             box-shadow: none !important;
+        }
+        html[data-theme="dark"] .sap-accounting-inline-input {
+            background: var(--app-surface-soft) !important;
+            border-color: var(--app-border) !important;
+            color: var(--app-text-soft) !important;
+        }
+        html[data-theme="dark"] .sap-accounting-code {
+            color: var(--app-text-muted) !important;
         }
         html[data-theme="dark"] .color-field-trigger {
             border-color: var(--app-border-strong) !important;
@@ -1916,9 +2039,12 @@
         }
         .icon-row .icon-item {
             display: grid;
-            grid-template-columns: 72px 1fr;
-            gap: 10px;
-            align-items: center;
+            grid-template-columns: minmax(0, 1fr) auto;
+            grid-template-areas:
+                "meta preview"
+                "controls preview";
+            gap: 10px 14px;
+            align-items: start;
             padding: 10px;
             border: 1px solid #d8dde3;
             border-radius: 10px;
@@ -1929,6 +2055,10 @@
         .icon-row .icon-preview {
             width: 56px;
             height: 56px;
+            min-width: 56px;
+            min-height: 56px;
+            max-width: 96px;
+            max-height: 96px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1936,19 +2066,29 @@
             border-radius: 8px;
             color: var(--icon-color, #9ba2ab);
             cursor: pointer;
-            flex: 0 0 56px;
+            flex: 0 0 auto;
             overflow: hidden;
+            justify-self: end;
+            align-self: center;
+            grid-area: preview;
+            font-size: var(--icon-preview-size, 20px);
+            line-height: 1;
+            text-align: center;
         }
         .icon-item-controls {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 8px;
             align-items: end;
+            grid-area: controls;
+            min-width: 0;
         }
         .icon-item-meta {
             display: flex;
             flex-direction: column;
             gap: 8px;
+            grid-area: meta;
+            min-width: 0;
         }
         .icon-item-name {
             font-size: 12px;
@@ -2476,6 +2616,17 @@
             font-size: 13px;
             background: #fff;
             box-sizing: border-box;
+        }
+        .user-admin-form-grid label.user-admin-sap-salesperson[hidden] {
+            display: none;
+        }
+        .user-admin-form-grid label.is-required-empty span {
+            color: #c94343;
+        }
+        .user-admin-form-grid select.is-invalid {
+            border-color: #c94343;
+            background: #fff5f5;
+            color: #8f2e2e;
         }
         .password-field-wrap {
             position: relative;
@@ -3131,6 +3282,11 @@
             background: #223045;
             color: #9fb0c2;
             border-color: #32465f;
+        }
+        html[data-theme="dark"] .user-admin-form-grid select.is-invalid {
+            border-color: #d66565 !important;
+            background: rgba(136, 35, 35, 0.22) !important;
+            color: #ffd3d3 !important;
         }
         html[data-theme="dark"] .user-admin-notifications-panel,
         html[data-theme="dark"] .user-admin-notification-check {
@@ -5352,6 +5508,78 @@
                                     </div>
                                     <p class="config-help">Si la cantidad solicitada es menor o igual a este valor, la cotización automática intentará digital primero. Si no encuentra troquel, material o máquina compatible, hará fallback controlado y dejará advertencia técnica. La cantidad por rollo servirá como base automática para el cálculo inicial cuando el vendedor no la defina.</p>
                                 </section>
+                                <section class="config-card">
+                                    <h2 class="config-section-title">Origen de Inventario</h2>
+                                    <div class="config-form-grid quotes-orders-general-grid">
+                                        <label>
+                                            <span>Fuente para Cotización y Cálculo</span>
+                                            <select name="general.inventorySourceMode">
+                                                <option value="local">Inventario Local</option>
+                                                <option value="sap">Inventario Importado SAP</option>
+                                            </select>
+                                        </label>
+                                        <label>
+                                            <span>Campo SAP para Clasificar</span>
+                                            <input name="general.inventoryImportedClassificationField" type="text" placeholder="ItemsGroupCode, U_CategoriaFlexo, etc.">
+                                        </label>
+                                    </div>
+                                    <p class="config-help">Aquí defines si el cálculo usará el inventario local o el inventario importado desde SAP. También puedes indicar el nombre del campo SAP o UDF que servirá como base de clasificación.</p>
+                                </section>
+                                <section class="config-card">
+                                    <div class="sap-records-toolbar">
+                                        <div>
+                                            <h2 class="config-section-title">Mapeo de Clasificación de Inventario SAP</h2>
+                                            <p class="section-caption">Relaciona el valor real del campo SAP con la categoría flexográfica que el proyecto necesita.</p>
+                                        </div>
+                                    </div>
+                                    <div class="config-form-grid quotes-orders-general-grid">
+                                        <label>
+                                            <span>Valor Origen</span>
+                                            <input id="inventoryClassificationSourceValue" type="text" placeholder="Código o valor del campo SAP">
+                                        </label>
+                                        <label>
+                                            <span>Categoría Flexo</span>
+                                            <input id="inventoryClassificationCategory" type="text" placeholder="sustrato, tinta, foil, laminante...">
+                                        </label>
+                                        <label>
+                                            <span>Etiqueta Visible</span>
+                                            <input id="inventoryClassificationDisplayLabel" type="text" placeholder="Nombre amigable">
+                                        </label>
+                                        <label>
+                                            <span>Notas</span>
+                                            <input id="inventoryClassificationNotes" type="text" placeholder="Detalle opcional">
+                                        </label>
+                                        <label>
+                                            <span>Activo</span>
+                                            <select id="inventoryClassificationIsActive">
+                                                <option value="true">Sí</option>
+                                                <option value="false">No</option>
+                                            </select>
+                                        </label>
+                                    </div>
+                                    <div class="sap-security-actions">
+                                        <button type="button" id="inventoryClassificationNewButton" class="action-btn">Nuevo</button>
+                                        <button type="button" id="inventoryClassificationSaveButton" class="action-btn action-btn-primary">Guardar</button>
+                                    </div>
+                                    <div id="inventoryClassificationStatus" class="sap-security-empty">Cargando mapeo de clasificación...</div>
+                                    <div class="audit-table-wrap sap-records-table-wrap">
+                                        <table class="audit-table sap-records-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Valor Origen</th>
+                                                    <th>Categoría</th>
+                                                    <th>Etiqueta</th>
+                                                    <th>Activo</th>
+                                                    <th>Notas</th>
+                                                    <th>Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="inventoryClassificationTableBody">
+                                                <tr><td colspan="6" class="audit-empty">Todavía no hay mapeos configurados.</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </section>
                                 <section id="dieShapesGeneralSection" class="config-card">
                                     <h2 class="config-section-title">Formas de Troquel</h2>
                                     <div id="dieShapeConfigGrid" class="die-shape-config-grid"></div>
@@ -5900,6 +6128,13 @@
                                                     <span>Permiso</span>
                                                     <select id="userAdminFieldPermission"></select>
                                                 </label>
+                                                <label id="userAdminFieldSapSalespersonWrapper" class="user-admin-sap-salesperson" hidden>
+                                                    <span>Vendedor SAP</span>
+                                                    <select id="userAdminFieldSapSalesperson">
+                                                        <option value="">Selecciona un vendedor SAP</option>
+                                                    </select>
+                                                    <input id="userAdminFieldSapSalespersonCode" type="hidden">
+                                                </label>
                                             </div>
                                         <div class="user-admin-notifications-panel">
                                             <h3>Notificaciones</h3>
@@ -6097,6 +6332,46 @@
                                         </section>
 
                                         <section class="sap-security-card">
+                                            <div class="sap-records-toolbar">
+                                                <div>
+                                                    <h3>Centros Contables</h3>
+                                                    <p class="section-caption">Administra el centro de costo único de producción y el centro de beneficio por ejecutivo SAP.</p>
+                                                </div>
+                                            </div>
+                                            <div class="sap-accounting-toolbar">
+                                                <label class="sap-security-field">
+                                                    <span>Centro de costo producción</span>
+                                                    <input id="sapProductionCostCenterInput" type="text" autocomplete="off" placeholder="Ej. CC-PROD-01">
+                                                </label>
+                                                <div class="sap-security-actions">
+                                                    <button type="button" id="sapProductionCostCenterSaveButton" class="action-btn">Guardar</button>
+                                                </div>
+                                            </div>
+                                            <div class="sap-security-grid-compact">
+                                                <label class="sap-security-field">
+                                                    <span>Buscar ejecutivo</span>
+                                                    <input id="sapSalespersonSearchInput" type="text" autocomplete="off" placeholder="Nombre, código SAP o centro beneficio">
+                                                </label>
+                                            </div>
+                                            <div class="audit-table-wrap sap-records-table-wrap">
+                                                <table class="audit-table sap-records-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Ejecutivo</th>
+                                                            <th>Código SAP</th>
+                                                            <th>Centro beneficio</th>
+                                                            <th>Acción</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="sapSalespersonProfitCentersBody">
+                                                        <tr><td colspan="4" class="audit-empty">Cargando ejecutivos SAP...</td></tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            <div id="sapAccountingStatus" class="sap-security-empty">Cargando configuración contable SAP...</div>
+                                        </section>
+
+                                        <section class="sap-security-card">
                                             <h3>Consultas</h3>
                                             <div class="sap-security-grid-compact">
                                                 <label class="sap-security-field">
@@ -6185,7 +6460,7 @@
                                 </div>
 
                                 <div id="sap-tab-tablas" class="sap-security-tabpanel" hidden>
-                                    <section class="sap-security-card">
+                                    <section class="sap-security-card" hidden>
                                         <div class="sap-records-toolbar">
                                             <div>
                                                 <h3>Tablas Espejo SAP</h3>
@@ -6274,8 +6549,41 @@
                                     <section class="sap-security-card">
                                         <div class="sap-records-toolbar">
                                             <div>
+                                                <h3>Automatización de Cargas SAP</h3>
+                                                <p class="section-caption">Activa cargas automáticas para socios e inventario. Cada ejecución quedará visible en el historial inferior.</p>
+                                            </div>
+                                            <div class="sap-security-actions">
+                                                <button type="button" id="sapImportJobsRefreshButton" class="action-btn">Actualizar</button>
+                                            </div>
+                                        </div>
+                                        <div id="sapImportJobsStatus" class="sap-security-empty">Cargando automatización SAP...</div>
+                                        <div class="audit-table-wrap sap-records-table-wrap">
+                                            <table class="audit-table sap-records-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Flujo</th>
+                                                        <th>Activo</th>
+                                                        <th>Cada (min)</th>
+                                                        <th>Límite</th>
+                                                        <th>Filtro</th>
+                                                        <th>Última ejecución</th>
+                                                        <th>Próxima</th>
+                                                        <th>Estado</th>
+                                                        <th>Acción</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="sapImportJobsBody">
+                                                    <tr><td colspan="9" class="audit-empty">Cargando trabajos SAP...</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </section>
+
+                                    <section class="sap-security-card">
+                                        <div class="sap-records-toolbar">
+                                            <div>
                                                 <h3>Registros SAP</h3>
-                                                <p class="section-caption">Consulta el historial de envíos, validaciones, sincronizaciones y consultas sin duplicar los datos devueltos.</p>
+                                                <p class="section-caption">Historial técnico. Import = carga desde SAP, Query = consulta puntual, Sync = sincronización, Test = prueba técnica.</p>
                                             </div>
                                             <div class="sap-security-actions">
                                                 <button type="button" id="sapActivityApplyButton" class="action-btn action-btn-primary">Filtrar</button>
@@ -6318,23 +6626,44 @@
                                                 <input id="sapActivitySearchFilter" type="text" placeholder="ruta, entidad, error o destino">
                                             </label>
                                         </div>
-                                        <div id="sapActivitySummary" class="sap-security-empty">Cargando registros SAP...</div>
+                                        <div id="sapActivitySummary" class="sap-security-empty" hidden></div>
                                         <div class="audit-table-wrap sap-records-table-wrap">
                                             <table class="audit-table sap-records-table">
                                                 <thead>
                                                     <tr>
                                                         <th>Cuándo</th>
-                                                        <th>Tipo</th>
+                                                        <th>Evento</th>
                                                         <th>Usuario</th>
-                                                        <th>Módulo</th>
-                                                        <th>Proceso</th>
+                                                        <th>Qué pasó</th>
+                                                        <th>Referencia</th>
                                                         <th>Resultado</th>
+                                                        <th>Datos</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody id="sapActivityTableBody">
-                                                    <tr><td colspan="6" class="audit-empty">Sin registros todavía.</td></tr>
+                                                    <tr><td colspan="7" class="audit-empty">Sin registros todavía.</td></tr>
                                                 </tbody>
                                             </table>
+                                        </div>
+                                        <div class="notification-alert-routing-grid">
+                                            <section class="notification-alert-routing-card">
+                                                <strong id="notificationAlertRoutingLowTitle">Baja · 0</strong>
+                                                <div id="notificationAlertRoutingLow" class="notification-alert-routing-list">
+                                                    <div class="notification-alert-routing-item">Sin destinatarios activos.</div>
+                                                </div>
+                                            </section>
+                                            <section class="notification-alert-routing-card">
+                                                <strong id="notificationAlertRoutingMediumTitle">Media · 0</strong>
+                                                <div id="notificationAlertRoutingMedium" class="notification-alert-routing-list">
+                                                    <div class="notification-alert-routing-item">Sin destinatarios activos.</div>
+                                                </div>
+                                            </section>
+                                            <section class="notification-alert-routing-card">
+                                                <strong id="notificationAlertRoutingHighTitle">Alta · 0</strong>
+                                                <div id="notificationAlertRoutingHigh" class="notification-alert-routing-list">
+                                                    <div class="notification-alert-routing-item">Sin destinatarios activos.</div>
+                                                </div>
+                                            </section>
                                         </div>
                                     </section>
                                 </div>
@@ -6442,6 +6771,67 @@
                                                 <strong id="notificationCenterChannelsCount">0</strong>
                                                 <span>Canales Activos</span>
                                             </div>
+                                        </div>
+                                    </section>
+
+                                    <section class="sap-security-card">
+                                        <div class="sap-records-toolbar">
+                                            <div>
+                                                <h3>Contactos de Alertas</h3>
+                                                <p class="section-caption">Define quién recibe alertas técnicas según severidad. La entrega real por correo se conectará después.</p>
+                                            </div>
+                                        </div>
+                                        <div class="sap-security-grid">
+                                            <label class="sap-security-field">
+                                                <span>Nombre</span>
+                                                <input id="notificationAlertContactName" type="text" autocomplete="off" placeholder="Nombre del contacto" data-config-ignore="true">
+                                            </label>
+                                            <label class="sap-security-field">
+                                                <span>Correo</span>
+                                                <input id="notificationAlertContactEmail" type="email" autocomplete="off" placeholder="correo@empresa.com" data-config-ignore="true">
+                                            </label>
+                                            <label class="sap-security-field">
+                                                <span>Telefono</span>
+                                                <input id="notificationAlertContactPhone" type="text" autocomplete="off" placeholder="+506 0000-0000" data-config-ignore="true">
+                                            </label>
+                                            <label class="sap-security-field">
+                                                <span>Estado</span>
+                                                <select id="notificationAlertContactActive" data-config-ignore="true">
+                                                    <option value="true">Activo</option>
+                                                    <option value="false">Inactivo</option>
+                                                </select>
+                                            </label>
+                                            <label class="sap-security-field" style="grid-column: 1 / -1;">
+                                                <span>Niveles de severidad</span>
+                                                <div class="notification-alert-levels">
+                                                    <label class="notification-alert-level"><input id="notificationAlertSeverityLow" type="checkbox"> Baja</label>
+                                                    <label class="notification-alert-level"><input id="notificationAlertSeverityMedium" type="checkbox"> Media</label>
+                                                    <label class="notification-alert-level"><input id="notificationAlertSeverityHigh" type="checkbox"> Alta</label>
+                                                </div>
+                                            </label>
+                                        </div>
+                                        <div class="notification-alert-actions">
+                                            <button type="button" id="notificationAlertContactNewButton" class="action-btn">Nuevo</button>
+                                            <button type="button" id="notificationAlertContactSaveButton" class="action-btn-primary">Guardar</button>
+                                            <div id="notificationAlertContactsStatus" class="sap-security-empty">Listo para capturar contactos.</div>
+                                        </div>
+                                        <div class="audit-table-wrap sap-records-table-wrap">
+                                            <table class="audit-table sap-records-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Nombre</th>
+                                                        <th>Correo</th>
+                                                        <th>Telefono</th>
+                                                        <th>Baja</th>
+                                                        <th>Media</th>
+                                                        <th>Alta</th>
+                                                        <th>Estado</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="notificationAlertContactsBody">
+                                                    <tr><td colspan="7" class="audit-empty">Todavia no hay contactos configurados.</td></tr>
+                                                </tbody>
+                                            </table>
                                         </div>
                                     </section>
 
@@ -6711,6 +7101,10 @@
         let notificationCenterThreadsLoadedOnce = false;
         let notificationChannelKeysLoadedOnce = false;
         let notificationChannelKeys = [];
+        let notificationAlertContactsLoadedOnce = false;
+        let notificationAlertContacts = [];
+        let selectedNotificationAlertContactId = '';
+        let notificationAlertRoutingLoadedOnce = false;
         let currentAdminProfile = null;
         let notificationCenterThreads = [];
         let selectedNotificationThreadCode = '';
@@ -6775,6 +7169,8 @@
             session.name = user?.name || session.name || '';
             session.permissionId = user?.permissionId == null ? null : Number(user.permissionId);
             session.permissionName = permission?.name || user?.permissionName || '';
+            session.sapSalespersonCode = user?.sapSalespersonCode == null ? null : Number(user.sapSalespersonCode);
+            session.sapSalespersonName = user?.sapSalespersonName || '';
             session.defaultLanding = permission?.defaultLanding || 'dashboard';
             session.modules = createEmptyPermissionModules(permission?.modules || {});
             writeStoredErpSession(session);
@@ -6872,6 +7268,9 @@
         const userAdminFieldDepartment = document.getElementById('userAdminFieldDepartment');
         const userAdminFieldProcess = document.getElementById('userAdminFieldProcess');
         const userAdminFieldPermission = document.getElementById('userAdminFieldPermission');
+        const userAdminFieldSapSalespersonWrapper = document.getElementById('userAdminFieldSapSalespersonWrapper');
+        const userAdminFieldSapSalesperson = document.getElementById('userAdminFieldSapSalesperson');
+        const userAdminFieldSapSalespersonCode = document.getElementById('userAdminFieldSapSalespersonCode');
         const userAdminFieldEmail = document.getElementById('userAdminFieldEmail');
         const userAdminFieldPhone = document.getElementById('userAdminFieldPhone');
         const userAdminFieldNotifyEmail = document.getElementById('userAdminFieldNotifyEmail');
@@ -6908,6 +7307,23 @@
         const notificationCenterSendButton = document.getElementById('notificationCenterSendButton');
         const notificationCenterChannelsRow = document.getElementById('notificationCenterChannelsRow');
         const notificationCenterStatus = document.getElementById('notificationCenterStatus');
+        const notificationAlertContactName = document.getElementById('notificationAlertContactName');
+        const notificationAlertContactEmail = document.getElementById('notificationAlertContactEmail');
+        const notificationAlertContactPhone = document.getElementById('notificationAlertContactPhone');
+        const notificationAlertContactActive = document.getElementById('notificationAlertContactActive');
+        const notificationAlertSeverityLow = document.getElementById('notificationAlertSeverityLow');
+        const notificationAlertSeverityMedium = document.getElementById('notificationAlertSeverityMedium');
+        const notificationAlertSeverityHigh = document.getElementById('notificationAlertSeverityHigh');
+        const notificationAlertContactNewButton = document.getElementById('notificationAlertContactNewButton');
+        const notificationAlertContactSaveButton = document.getElementById('notificationAlertContactSaveButton');
+        const notificationAlertContactsStatus = document.getElementById('notificationAlertContactsStatus');
+        const notificationAlertContactsBody = document.getElementById('notificationAlertContactsBody');
+        const notificationAlertRoutingLowTitle = document.getElementById('notificationAlertRoutingLowTitle');
+        const notificationAlertRoutingMediumTitle = document.getElementById('notificationAlertRoutingMediumTitle');
+        const notificationAlertRoutingHighTitle = document.getElementById('notificationAlertRoutingHighTitle');
+        const notificationAlertRoutingLow = document.getElementById('notificationAlertRoutingLow');
+        const notificationAlertRoutingMedium = document.getElementById('notificationAlertRoutingMedium');
+        const notificationAlertRoutingHigh = document.getElementById('notificationAlertRoutingHigh');
         const notificationKeyDisplayName = document.getElementById('notificationKeyDisplayName');
         const notificationKeyProviderName = document.getElementById('notificationKeyProviderName');
         const notificationKeyAccountIdentifier = document.getElementById('notificationKeyAccountIdentifier');
@@ -7027,6 +7443,15 @@
         const quoteProductTypesJsonField = document.getElementById('quoteProductTypesJson');
         const quoteProductTypesTableBody = document.getElementById('quoteProductTypesTableBody');
         const quoteProductTypeAddButton = document.getElementById('quoteProductTypeAddButton');
+        const inventoryClassificationSourceValue = document.getElementById('inventoryClassificationSourceValue');
+        const inventoryClassificationCategory = document.getElementById('inventoryClassificationCategory');
+        const inventoryClassificationDisplayLabel = document.getElementById('inventoryClassificationDisplayLabel');
+        const inventoryClassificationNotes = document.getElementById('inventoryClassificationNotes');
+        const inventoryClassificationIsActive = document.getElementById('inventoryClassificationIsActive');
+        const inventoryClassificationNewButton = document.getElementById('inventoryClassificationNewButton');
+        const inventoryClassificationSaveButton = document.getElementById('inventoryClassificationSaveButton');
+        const inventoryClassificationStatus = document.getElementById('inventoryClassificationStatus');
+        const inventoryClassificationTableBody = document.getElementById('inventoryClassificationTableBody');
         const quoteOutputTypesTableBody = document.getElementById('quoteOutputTypesTableBody');
         const quoteOutputTypesStatus = document.getElementById('quoteOutputTypesStatus');
         const quoteOutputTypesAddButton = document.getElementById('quoteOutputTypesAddButton');
@@ -7075,6 +7500,11 @@
         const sapSyncButton = document.getElementById('sapSyncButton');
         const sapResetDemoButton = document.getElementById('sapResetDemoButton');
         const sapConfigStatus = document.getElementById('sapConfigStatus');
+        const sapProductionCostCenterInput = document.getElementById('sapProductionCostCenterInput');
+        const sapProductionCostCenterSaveButton = document.getElementById('sapProductionCostCenterSaveButton');
+        const sapSalespersonSearchInput = document.getElementById('sapSalespersonSearchInput');
+        const sapSalespersonProfitCentersBody = document.getElementById('sapSalespersonProfitCentersBody');
+        const sapAccountingStatus = document.getElementById('sapAccountingStatus');
         const sapSubtabs = [...document.querySelectorAll('.sap-security-subtab')];
         const sapTabPanels = [...document.querySelectorAll('.sap-security-tabpanel')];
         const sapQueryEntity = document.getElementById('sapQueryEntity');
@@ -7105,6 +7535,9 @@
         const sapActivityResetButton = document.getElementById('sapActivityResetButton');
         const sapActivitySummary = document.getElementById('sapActivitySummary');
         const sapActivityTableBody = document.getElementById('sapActivityTableBody');
+        const sapImportJobsStatus = document.getElementById('sapImportJobsStatus');
+        const sapImportJobsBody = document.getElementById('sapImportJobsBody');
+        const sapImportJobsRefreshButton = document.getElementById('sapImportJobsRefreshButton');
         const sapMirrorProcessSelect = document.getElementById('sapMirrorProcessSelect');
         const sapMirrorProcessSearchInput = document.getElementById('sapMirrorProcessSearchInput');
         const sapMirrorProcessHint = document.getElementById('sapMirrorProcessHint');
@@ -7127,9 +7560,18 @@
         let loginRepositoryPreviewCurrentSlide = null;
         let loginRepositoryPreviewPrevSlide = null;
         let sapConnectorLoadedOnce = false;
+        let sapConnectionMode = 'live';
+        let sapSalespersonProfitCenters = [];
+        let sapSalespersonOptionsLoadedOnce = false;
+        let sapProductionCostCenterConfig = null;
         let sapActivityLoadedOnce = false;
+        let sapImportJobsLoadedOnce = false;
+        let sapImportJobs = [];
         let sapMirrorLoadedOnce = false;
         let sapMirrorTables = [];
+        let inventoryClassificationMappingsLoadedOnce = false;
+        let inventoryClassificationMappings = [];
+        let selectedInventoryClassificationId = '';
         let quoteOutputTypesLoadedOnce = false;
         let exchangeRateLoadedOnce = false;
         let exchangeRateState = null;
@@ -7988,6 +8430,104 @@
             `).join('');
         }
 
+        function setInventoryClassificationStatus(message, isError = false) {
+            if (!inventoryClassificationStatus) return;
+            inventoryClassificationStatus.className = 'sap-security-empty';
+            inventoryClassificationStatus.textContent = message || '';
+            inventoryClassificationStatus.dataset.tone = isError ? 'error' : 'ok';
+        }
+
+        function resetInventoryClassificationForm() {
+            selectedInventoryClassificationId = '';
+            if (inventoryClassificationSourceValue) inventoryClassificationSourceValue.value = '';
+            if (inventoryClassificationCategory) inventoryClassificationCategory.value = '';
+            if (inventoryClassificationDisplayLabel) inventoryClassificationDisplayLabel.value = '';
+            if (inventoryClassificationNotes) inventoryClassificationNotes.value = '';
+            if (inventoryClassificationIsActive) inventoryClassificationIsActive.value = 'true';
+        }
+
+        function applyInventoryClassificationForm(item = {}) {
+            selectedInventoryClassificationId = item.id || '';
+            if (inventoryClassificationSourceValue) inventoryClassificationSourceValue.value = item.sourceValue || '';
+            if (inventoryClassificationCategory) inventoryClassificationCategory.value = item.flexoCategory || '';
+            if (inventoryClassificationDisplayLabel) inventoryClassificationDisplayLabel.value = item.displayLabel || '';
+            if (inventoryClassificationNotes) inventoryClassificationNotes.value = item.notes || '';
+            if (inventoryClassificationIsActive) inventoryClassificationIsActive.value = item.isActive === false ? 'false' : 'true';
+        }
+
+        function collectInventoryClassificationPayload() {
+            return {
+                sourceValue: inventoryClassificationSourceValue?.value?.trim() || '',
+                flexoCategory: inventoryClassificationCategory?.value?.trim() || '',
+                displayLabel: inventoryClassificationDisplayLabel?.value?.trim() || '',
+                notes: inventoryClassificationNotes?.value?.trim() || '',
+                isActive: inventoryClassificationIsActive?.value !== 'false'
+            };
+        }
+
+        function renderInventoryClassificationMappings(rows = []) {
+            inventoryClassificationMappings = Array.isArray(rows) ? rows : [];
+            if (!inventoryClassificationTableBody) return;
+            if (!inventoryClassificationMappings.length) {
+                inventoryClassificationTableBody.innerHTML = '<tr><td colspan="6" class="audit-empty">Todavía no hay mapeos configurados.</td></tr>';
+                return;
+            }
+            inventoryClassificationTableBody.innerHTML = inventoryClassificationMappings.map((item) => `
+                <tr data-inventory-classification-id="${escapeHtml(item.id || '')}">
+                    <td>${escapeHtml(item.sourceValue || '')}</td>
+                    <td>${escapeHtml(item.flexoCategory || '')}</td>
+                    <td>${escapeHtml(item.displayLabel || '')}</td>
+                    <td>${item.isActive === false ? 'No' : 'Sí'}</td>
+                    <td>${escapeHtml(item.notes || '')}</td>
+                    <td><button type="button" class="action-btn" data-delete-inventory-classification="${escapeHtml(item.id || '')}">Eliminar</button></td>
+                </tr>
+            `).join('');
+        }
+
+        async function loadInventoryClassificationMappings(force = false) {
+            if (!force && inventoryClassificationMappingsLoadedOnce) return;
+            const response = await fetch('/api/inventory-classification-mappings');
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.error || 'No fue posible cargar el mapeo de clasificación.');
+            renderInventoryClassificationMappings(payload.items || []);
+            inventoryClassificationMappingsLoadedOnce = true;
+        }
+
+        async function saveInventoryClassificationMapping() {
+            const payload = collectInventoryClassificationPayload();
+            if (!payload.sourceValue) throw new Error('Debes indicar el valor origen del campo SAP.');
+            if (!payload.flexoCategory) throw new Error('Debes indicar la categoría flexográfica.');
+            const url = selectedInventoryClassificationId
+                ? `/api/inventory-classification-mappings/${encodeURIComponent(selectedInventoryClassificationId)}`
+                : '/api/inventory-classification-mappings';
+            const method = selectedInventoryClassificationId ? 'PATCH' : 'POST';
+            const response = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(result.error || 'No fue posible guardar el mapeo.');
+            resetInventoryClassificationForm();
+            inventoryClassificationMappingsLoadedOnce = false;
+            await loadInventoryClassificationMappings(true);
+            setInventoryClassificationStatus('Mapeo guardado correctamente.', false);
+        }
+
+        async function deleteInventoryClassificationMapping(id = '') {
+            const cleanId = String(id || '').trim();
+            if (!cleanId) return;
+            const confirmed = window.confirm('Se eliminará este mapeo de clasificación. ¿Deseas continuar?');
+            if (!confirmed) return;
+            const response = await fetch(`/api/inventory-classification-mappings/${encodeURIComponent(cleanId)}`, { method: 'DELETE' });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(result.error || 'No fue posible eliminar el mapeo.');
+            if (selectedInventoryClassificationId === cleanId) resetInventoryClassificationForm();
+            inventoryClassificationMappingsLoadedOnce = false;
+            await loadInventoryClassificationMappings(true);
+            setInventoryClassificationStatus('Mapeo eliminado correctamente.', false);
+        }
+
         function syncPresentationTabLayoutFields() {
             GLOBAL_TAB_LAYOUT_FIELDS.forEach((field) => {
                 const generalInput = document.querySelector(`[name="layout.${field}"]`);
@@ -8045,22 +8585,25 @@
             previewEl.style.color = color || '#9ba2ab';
             previewEl.style.background = getContrastingPreviewBackground(color);
             const resolvedSize = Number(size) || 20;
-            const tileSize = Math.max(56, resolvedSize + 20);
+            const tileSize = Math.min(96, Math.max(56, resolvedSize + 20));
+            const previewSize = Math.min(resolvedSize, tileSize - 12);
             previewEl.style.width = `${tileSize}px`;
             previewEl.style.height = `${tileSize}px`;
             previewEl.style.flexBasis = `${tileSize}px`;
+            previewEl.style.setProperty('--icon-preview-size', `${previewSize}px`);
             if (!iconValue) return;
             if (isSvgValue(iconValue)) {
-                previewEl.innerHTML = `<span class="icon-svg-mask" style="-webkit-mask-image:url('${iconValue}');mask-image:url('${iconValue}');"></span>`;
+                previewEl.innerHTML = `<span class="icon-svg-mask" style="-webkit-mask-image:url('${iconValue}');mask-image:url('${iconValue}');width:${previewSize}px;height:${previewSize}px;"></span>`;
                 return;
             }
             if (String(iconValue).startsWith('data:image')) {
                 previewEl.style.backgroundImage = `url(${iconValue})`;
-                previewEl.style.backgroundSize = 'contain';
+                previewEl.style.backgroundSize = `${previewSize}px ${previewSize}px`;
                 previewEl.style.backgroundRepeat = 'no-repeat';
                 previewEl.style.backgroundPosition = 'center';
                 return;
             }
+            previewEl.style.fontSize = `${previewSize}px`;
             previewEl.textContent = iconValue;
         }
 
@@ -8096,6 +8639,12 @@
             if (!sapConfigStatus) return;
             sapConfigStatus.textContent = message || 'Listo para configurar.';
             sapConfigStatus.style.color = isError ? '#b94848' : '';
+        }
+
+        function setSapAccountingStatus(message, isError = false) {
+            if (!sapAccountingStatus) return;
+            sapAccountingStatus.textContent = message || 'Listo para configurar.';
+            sapAccountingStatus.style.color = isError ? '#b94848' : '';
         }
 
         function setSapResult(node, payload) {
@@ -8279,7 +8828,7 @@
         }
 
         function applySapConfigToForm(config = {}) {
-            if (sapAdvancedCheckbox) sapAdvancedCheckbox.checked = String(config.mode || 'demo').trim().toLowerCase() !== 'live';
+            sapConnectionMode = String(config.mode || sapConnectionMode || 'live').trim().toLowerCase() === 'demo' ? 'demo' : 'live';
             if (sapProviderSelect) sapProviderSelect.value = (config.provider || 'service-layer') === 'di-api' ? 'di-api' : 'service-layer';
             if (sapCompanyInput) sapCompanyInput.value = config.sapCompany || '';
             if (sapHostInput) sapHostInput.value = config.sapHost || '';
@@ -8296,6 +8845,77 @@
             if (sapAutoSyncSelect) sapAutoSyncSelect.value = String(config.autoSyncEnabled === true);
             syncSapAdvancedToggle();
             syncSapProviderFields();
+        }
+
+        function normalizeSapSalespersonProfitCenter(item = {}) {
+            return {
+                id: String(item.id || ''),
+                salespersonName: String(item.salespersonName || item.salesperson_name || '').trim(),
+                salesPersonCode: item.salesPersonCode == null || item.salesPersonCode === '' ? '' : String(item.salesPersonCode).trim(),
+                profitCenterCode: String(item.profitCenterCode || item.profit_center_code || '').trim(),
+                notes: String(item.notes || '').trim(),
+                isActive: item.isActive !== false && item.is_active !== false
+            };
+        }
+
+        function getFilteredSapSalespersonProfitCenters() {
+            const term = (sapSalespersonSearchInput?.value || '').trim().toLowerCase();
+            const items = sapSalespersonProfitCenters.filter((item) => item.isActive !== false);
+            if (!term) return items;
+            return items.filter((item) => (
+                item.salespersonName.toLowerCase().includes(term) ||
+                String(item.salesPersonCode || '').toLowerCase().includes(term) ||
+                item.profitCenterCode.toLowerCase().includes(term)
+            ));
+        }
+
+        function renderSapSalespersonProfitCenters() {
+            if (!sapSalespersonProfitCentersBody) return;
+            const items = getFilteredSapSalespersonProfitCenters();
+            if (!items.length) {
+                sapSalespersonProfitCentersBody.innerHTML = '<tr><td colspan="4" class="audit-empty">No hay ejecutivos SAP para mostrar.</td></tr>';
+                return;
+            }
+            sapSalespersonProfitCentersBody.innerHTML = items.map((item) => `
+                <tr data-sap-salesperson-row="${escapeHtml(item.id)}">
+                    <td>${escapeHtml(item.salespersonName || 'Sin nombre')}</td>
+                    <td><span class="sap-accounting-code">${escapeHtml(item.salesPersonCode || 'Sin código')}</span></td>
+                    <td>
+                        <input
+                            type="text"
+                            class="sap-accounting-inline-input"
+                            data-sap-field="profitCenterCode"
+                            value="${escapeHtml(item.profitCenterCode || '')}"
+                            placeholder="Ej. CP-VTAS-01">
+                    </td>
+                    <td>
+                        <div class="sap-accounting-table-actions">
+                            <button type="button" class="action-btn" data-sap-salesperson-save="${escapeHtml(item.id)}">Guardar</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function loadSapAccountingState() {
+            const [salespersonResponse, productionResponse] = await Promise.all([
+                fetch('/api/sap/salesperson-profit-centers'),
+                fetch('/api/sap/production-cost-center')
+            ]);
+            const salespersonPayload = await salespersonResponse.json().catch(() => ({}));
+            const productionPayload = await productionResponse.json().catch(() => ({}));
+            if (!salespersonResponse.ok) throw new Error(salespersonPayload.error || 'No fue posible cargar los ejecutivos SAP.');
+            if (!productionResponse.ok) throw new Error(productionPayload.error || 'No fue posible cargar el centro de costo de producción.');
+            sapSalespersonProfitCenters = Array.isArray(salespersonPayload.items)
+                ? salespersonPayload.items.map(normalizeSapSalespersonProfitCenter)
+                : [];
+            sapSalespersonOptionsLoadedOnce = true;
+            sapProductionCostCenterConfig = productionPayload || {};
+            if (sapProductionCostCenterInput) {
+                sapProductionCostCenterInput.value = String(productionPayload.defaultCostCenterCode || '').trim();
+            }
+            renderSapSalespersonProfitCenters();
+            setSapAccountingStatus(`Configuración cargada. Ejecutivos SAP: ${sapSalespersonProfitCenters.length}.`, false);
         }
 
         function renderSapStatus(payload = {}) {
@@ -8354,40 +8974,174 @@
             return 'Sin detalle adicional';
         }
 
-        function renderSapActivitySummary(rows = []) {
-            if (!sapActivitySummary) return;
-            if (!rows.length) {
-                sapActivitySummary.className = 'sap-security-empty';
-                sapActivitySummary.textContent = 'No hay registros SAP para los filtros seleccionados.';
-                return;
+        function describeSapActivityType(actionType = '') {
+            const normalized = String(actionType || '').toLowerCase();
+            if (normalized === 'import') return 'Carga';
+            if (normalized === 'query') return 'Consulta';
+            if (normalized === 'sync') return 'Sincronización';
+            if (normalized === 'write') return 'Envío';
+            if (normalized === 'export') return 'Envío';
+            return actionType || 'Registro';
+        }
+
+        function describeSapBusinessObject(entry = {}) {
+            const entity = String(entry.entity_name || '').toLowerCase();
+            if (entity.includes('ocrd') || entity.includes('crd1') || entity.includes('ocpr') || entity.includes('businesspartners')) {
+                return 'Socios de negocio, contactos y direcciones';
             }
-            const successCount = rows.filter((entry) => entry.status === 'success').length;
-            const errorCount = rows.filter((entry) => entry.status === 'error').length;
-            const queryCount = rows.filter((entry) => entry.action_type === 'query').length;
-            const syncCount = rows.filter((entry) => entry.action_type === 'sync').length;
-            sapActivitySummary.className = 'sap-records-summary';
-            sapActivitySummary.innerHTML = [
-                ['Registros', rows.length],
-                ['Consultas', queryCount],
-                ['Sincronizaciones', syncCount],
-                ['Éxitos / Errores', `${successCount} / ${errorCount}`]
-            ].map(([label, value]) => `
-                <div class="sap-records-summary-card">
-                    <strong>${escapeHtml(String(value))}</strong>
-                    <span>${escapeHtml(label)}</span>
-                </div>
-            `).join('');
+            if (entity.includes('oitm') || entity.includes('oitw') || entity.includes('itm1') || entity.includes('owhs') || entity.includes('items')) {
+                return 'Materias primas, inventario, precios y bodegas';
+            }
+            if (entity.includes('ordr') || entity.includes('rdr1') || entity.includes('orders')) {
+                return 'Orden de venta';
+            }
+            if (entity.includes('owor') || entity.includes('wor1') || entity.includes('productionorders')) {
+                return 'Orden de producción';
+            }
+            if (entity.includes('oitt') || entity.includes('itt1') || entity.includes('producttrees')) {
+                return 'BOM o receta estándar';
+            }
+            if (entity.includes('inventorygenexit') || entity.includes('ige1')) {
+                return 'Entrega de componentes o consumo real';
+            }
+            if (entity.includes('inventorygenentry') || entity.includes('ign1')) {
+                return 'Terminación o recibo de producción';
+            }
+            if (entity.includes('obtn') || entity.includes('obtq')) {
+                return 'Lotes y cantidades por bodega';
+            }
+            return entry.entity_name || 'Operación SAP';
+        }
+
+        function describeSapActivityOperation(entry = {}) {
+            const type = String(entry.action_type || '').toLowerCase();
+            if (type === 'import') return 'Carga hacia tablas espejo locales';
+            if (type === 'query') return 'Consulta puntual al origen configurado';
+            if (type === 'sync') return 'Sincronización controlada';
+            if (type === 'write') return 'Envío del ERP hacia SAP';
+            if (type === 'export') return 'Envío del ERP hacia SAP';
+            return 'Movimiento técnico';
+        }
+
+        function describeSapReference(entry = {}) {
+            const vars = entry.request_vars || {};
+            const summary = entry.response_summary || {};
+            const preview = Array.isArray(summary.preview) ? summary.preview[0] || {} : {};
+            const firstReference = [
+                vars.CardCode,
+                vars.ItemCode,
+                vars.BaseEntry,
+                vars.DocEntry,
+                vars.DocNum,
+                vars.orderCode,
+                vars.referenceCode,
+                preview.CardCode,
+                preview.CardName,
+                preview.ItemCode,
+                preview.ItemName,
+                summary.DocNum != null ? `DocNum ${summary.DocNum}` : '',
+                summary.DocEntry != null ? `DocEntry ${summary.DocEntry}` : ''
+            ].find((value) => value !== '' && value != null);
+            if (firstReference) return String(firstReference);
+            if (vars.search) return `Búsqueda: ${vars.search}`;
+            if (entry.internal_url) return entry.internal_url;
+            return 'Sin referencia visible';
+        }
+
+        function buildSapActivityDataLines(entry = {}) {
+            const vars = entry.request_vars || {};
+            const summary = entry.response_summary || {};
+            const preview = Array.isArray(summary.preview) ? summary.preview : [];
+            const lines = [];
+            const type = String(entry.action_type || '').toLowerCase();
+
+            if (type === 'import' || type === 'query' || type === 'sync') {
+                if (preview.length) {
+                    preview.forEach((item) => {
+                        const label = [
+                            item.CardCode && item.CardName ? `${item.CardCode} · ${item.CardName}` : '',
+                            item.ItemCode && item.ItemName ? `${item.ItemCode} · ${item.ItemName}` : '',
+                            item.DocNum != null ? `DocNum ${item.DocNum}` : '',
+                            item.DocEntry != null ? `DocEntry ${item.DocEntry}` : ''
+                        ].find(Boolean);
+                        if (label) lines.push(label);
+                    });
+                }
+                if (!lines.length && summary.records != null) {
+                    lines.push(`Registros obtenidos: ${summary.records}`);
+                }
+                if (vars.limit) lines.push(`Límite: ${vars.limit}`);
+                if (vars.search) lines.push(`Búsqueda: ${vars.search}`);
+                if (vars.type) lines.push(`Tipo: ${vars.type}`);
+                if (vars.group) lines.push(`Grupo: ${vars.group}`);
+            }
+
+            if (type === 'write' || type === 'export') {
+                if (vars.CardCode) lines.push(`Cliente: ${vars.CardCode}${vars.CardName ? ` · ${vars.CardName}` : ''}`);
+                if (vars.ItemCode) lines.push(`Artículo: ${vars.ItemCode}${vars.ItemName ? ` · ${vars.ItemName}` : ''}`);
+                if (vars.BaseEntry != null) lines.push(`BaseEntry: ${vars.BaseEntry}`);
+                if (vars.DocDate) lines.push(`Fecha doc: ${vars.DocDate}`);
+                if (vars.DocDueDate) lines.push(`Fecha venc: ${vars.DocDueDate}`);
+                if (vars.Quantity != null) lines.push(`Cantidad: ${vars.Quantity}`);
+                if (Array.isArray(vars.DocumentLines)) {
+                    vars.DocumentLines.slice(0, 3).forEach((line) => {
+                        lines.push(`Línea: ${line.ItemCode || 'sin código'} x ${line.Quantity != null ? line.Quantity : ''}`);
+                    });
+                }
+                if (Array.isArray(vars.lines)) {
+                    vars.lines.slice(0, 3).forEach((line) => {
+                        lines.push(`Línea: ${line.ItemCode || line.local_code || 'sin código'} x ${line.Quantity != null ? line.Quantity : ''}`);
+                    });
+                }
+                if (!lines.length && Array.isArray(summary.keys)) {
+                    lines.push(`Campos enviados: ${summary.keys.join(', ')}`);
+                }
+            }
+
+            if (entry.error_message) lines.push(`Error: ${entry.error_message}`);
+            return lines.filter(Boolean).slice(0, 6);
+        }
+
+        function isLegacySapConnectionError(entry = {}) {
+            const type = String(entry.action_type || '').toLowerCase();
+            const entity = String(entry.entity_name || '').toLowerCase();
+            const message = String(entry.error_message || '').toLowerCase();
+            const serviceUrl = String(entry.service_url || '').toLowerCase();
+            const isLegacyTestConnection =
+                type === 'test' &&
+                entity === 'connection' &&
+                (
+                    message.includes('di api no responde') ||
+                    serviceUrl.includes('localhost:4100')
+                );
+            const isLegacyMockImport =
+                message.includes('db.json') ||
+                message.includes('modo prueba') ||
+                message.includes('no está consultando sap real') ||
+                message.includes('no esta consultando sap real') ||
+                message.includes('fuente actual:');
+            return (
+                isLegacyTestConnection ||
+                isLegacyMockImport
+            );
+        }
+
+        function renderSapActivitySummary(rows = []) {
+            if (sapActivitySummary) {
+                sapActivitySummary.hidden = true;
+                sapActivitySummary.innerHTML = '';
+            }
         }
 
         function renderSapActivityTable(payload = {}) {
-            const rows = Array.isArray(payload.rows) ? payload.rows : [];
-            populateSapActivityFilterOptions(sapActivityTypeFilter, payload.catalog?.types || []);
+            const rows = (Array.isArray(payload.rows) ? payload.rows : []).filter((entry) => !isLegacySapConnectionError(entry) && String(entry.action_type || '').toLowerCase() !== 'test');
+            populateSapActivityFilterOptions(sapActivityTypeFilter, (payload.catalog?.types || []).filter((value) => String(value || '').toLowerCase() !== 'test'));
             populateSapActivityFilterOptions(sapActivityStatusFilter, payload.catalog?.statuses || []);
             populateSapActivityFilterOptions(sapActivityEntityFilter, payload.catalog?.entities || []);
             renderSapActivitySummary(rows);
             if (!sapActivityTableBody) return;
             if (!rows.length) {
-                sapActivityTableBody.innerHTML = '<tr><td colspan="6" class="audit-empty">No hay registros SAP para mostrar.</td></tr>';
+                sapActivityTableBody.innerHTML = '<tr><td colspan="7" class="audit-empty">No hay registros SAP para mostrar.</td></tr>';
                 return;
             }
             sapActivityTableBody.innerHTML = rows.map((entry) => {
@@ -8395,14 +9149,12 @@
                 const timingLabel = entry.finished_at && entry.started_at
                     ? `${Math.max(0, new Date(entry.finished_at) - new Date(entry.started_at))} ms`
                     : '';
-                const processLines = [
-                    `${entry.internal_method || 'GET'} ${entry.internal_url || ''}`,
-                    `${entry.service_method || 'GET'} ${entry.service_url || ''}`
-                ].filter(Boolean).join('\n');
-                const varsLabel = entry.request_vars && Object.keys(entry.request_vars).length
-                    ? JSON.stringify(entry.request_vars, null, 2)
-                    : '{}';
                 const resultLabel = describeSapActivityResult(entry);
+                const statusTone = String(entry.status || '').toLowerCase() === 'error' ? 'error' : 'ok';
+                const operationLabel = describeSapActivityOperation(entry);
+                const objectLabel = describeSapBusinessObject(entry);
+                const referenceLabel = describeSapReference(entry);
+                const dataLines = buildSapActivityDataLines(entry);
                 return `
                     <tr>
                         <td>
@@ -8411,24 +9163,31 @@
                                 <span>${escapeHtml(timingLabel)}</span>
                             </div>
                         </td>
-                        <td><span class="audit-chip">${escapeHtml(entry.action_type || '')}</span></td>
+                        <td><span class="audit-chip">${escapeHtml(describeSapActivityType(entry.action_type || ''))}</span></td>
                         <td>${escapeHtml(entry.actor || 'admin')}</td>
                         <td>
                             <div class="audit-meta">
-                                <strong>${escapeHtml(entry.entity_name || '')}</strong>
-                                <span>${escapeHtml(entry.mode || '')}</span>
+                                <strong>${escapeHtml(objectLabel)}</strong>
+                                <span>${escapeHtml(operationLabel)}</span>
                             </div>
                         </td>
                         <td>
-                            <div class="sap-records-process">
-                                <code>${escapeHtml(processLines)}</code>
-                                <code>${escapeHtml(varsLabel)}</code>
+                            <div class="audit-meta">
+                                <strong>${escapeHtml(referenceLabel)}</strong>
+                                <span>${escapeHtml(entry.entity_name || '')}</span>
                             </div>
                         </td>
                         <td>
                             <div class="sap-records-result">
-                                <strong>${escapeHtml(entry.status || '')}</strong>
+                                <strong><span class="sap-security-pill" data-tone="${escapeHtml(statusTone)}">${escapeHtml(entry.status || '')}</span></strong>
                                 <span>${escapeHtml(resultLabel)}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="sap-records-process">
+                                ${dataLines.length
+                                    ? dataLines.map((line) => `<code>${escapeHtml(line)}</code>`).join('')
+                                    : '<span class="section-caption">Sin detalle visible.</span>'}
                             </div>
                         </td>
                     </tr>
@@ -8443,6 +9202,127 @@
             if (!response.ok) throw new Error(payload.error || 'No fue posible cargar los registros SAP.');
             renderSapActivityTable(payload);
             sapActivityLoadedOnce = true;
+        }
+
+        function formatSapOpsDate(value) {
+            if (!value) return 'Sin fecha';
+            const parsed = new Date(value);
+            if (Number.isNaN(parsed.getTime())) return 'Sin fecha';
+            return parsed.toLocaleString('es-CR');
+        }
+
+        function describeSapImportJobStatus(status = '') {
+            const normalized = String(status || '').toLowerCase();
+            if (normalized === 'success') return 'Correcto';
+            if (normalized === 'error') return 'Error';
+            if (normalized === 'running') return 'Ejecutando';
+            if (normalized === 'paused') return 'Pausado';
+            return 'Pendiente';
+        }
+
+        function renderSapImportJobs(rows = []) {
+            sapImportJobs = Array.isArray(rows) ? rows : [];
+            if (sapImportJobsStatus) {
+                sapImportJobsStatus.className = 'sap-security-empty';
+                sapImportJobsStatus.textContent = sapImportJobs.length
+                    ? 'Configura cada carga y usa Ejecutar ahora para verificarla en el historial inferior.'
+                    : 'No hay trabajos de importación configurados.';
+            }
+            if (!sapImportJobsBody) return;
+            if (!sapImportJobs.length) {
+                sapImportJobsBody.innerHTML = '<tr><td colspan="9" class="audit-empty">No hay trabajos SAP disponibles.</td></tr>';
+                return;
+            }
+            sapImportJobsBody.innerHTML = sapImportJobs.map((job) => {
+                const filterValue = Object.prototype.hasOwnProperty.call(job.filters || {}, 'type')
+                    ? (job.filters.type || '')
+                    : (job.filters.group || '');
+                const filterPlaceholder = Object.prototype.hasOwnProperty.call(job.filters || {}, 'type')
+                    ? 'Tipo de socio'
+                    : 'Grupo de artículo';
+                const statusTone = String(job.status || '').toLowerCase() === 'error'
+                    ? 'error'
+                    : (String(job.status || '').toLowerCase() === 'success' ? 'ok' : '');
+                return `
+                    <tr data-job-code="${escapeHtml(job.jobCode)}">
+                        <td>
+                            <div class="audit-meta">
+                                <strong>${escapeHtml(job.label || '')}</strong>
+                                <span>${escapeHtml(job.entityLabel || '')}</span>
+                            </div>
+                        </td>
+                        <td><input type="checkbox" data-job-field="enabled" ${job.filters?.enabled ? 'checked' : ''}></td>
+                        <td><input type="number" min="5" max="1440" value="${escapeHtml(String(job.filters?.intervalMinutes || 30))}" data-job-field="intervalMinutes" style="width:90px;"></td>
+                        <td><input type="number" min="1" max="1000" value="${escapeHtml(String(job.filters?.limit || 100))}" data-job-field="limit" style="width:90px;"></td>
+                        <td><input type="text" value="${escapeHtml(String(filterValue || ''))}" placeholder="${escapeHtml(filterPlaceholder)}" data-job-field="filterValue"></td>
+                        <td>${escapeHtml(formatSapOpsDate(job.finishedAt || job.startedAt))}</td>
+                        <td>${escapeHtml(formatSapOpsDate(job.nextRunAt))}</td>
+                        <td>
+                            <div class="audit-meta">
+                                <strong>${statusTone ? `<span class="sap-security-pill" data-tone="${escapeHtml(statusTone)}">${escapeHtml(describeSapImportJobStatus(job.status))}</span>` : escapeHtml(describeSapImportJobStatus(job.status))}</strong>
+                                <span>${escapeHtml(job.message || 'Sin mensaje')}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="sap-security-actions">
+                                <button type="button" class="action-btn" data-job-action="save">Guardar</button>
+                                <button type="button" class="action-btn action-btn-primary" data-job-action="run">Ejecutar ahora</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function collectSapImportJobPayload(row) {
+            const jobCode = row?.dataset.jobCode || '';
+            const base = {
+                enabled: row?.querySelector('[data-job-field="enabled"]')?.checked === true,
+                intervalMinutes: Number(row?.querySelector('[data-job-field="intervalMinutes"]')?.value || 30),
+                limit: Number(row?.querySelector('[data-job-field="limit"]')?.value || 100)
+            };
+            const filterValue = row?.querySelector('[data-job-field="filterValue"]')?.value?.trim() || '';
+            if (jobCode === 'sap-import-business-partners') base.type = filterValue;
+            if (jobCode === 'sap-import-items') base.group = filterValue;
+            return base;
+        }
+
+        async function loadSapImportJobs(force = false) {
+            if (!force && sapImportJobsLoadedOnce) return;
+            const response = await fetch('/api/sap/import-jobs');
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.error || 'No fue posible cargar la automatización SAP.');
+            renderSapImportJobs(payload.rows || []);
+            sapImportJobsLoadedOnce = true;
+        }
+
+        async function saveSapImportJobRow(row) {
+            const jobCode = row?.dataset.jobCode || '';
+            const response = await fetch(`/api/sap/import-jobs/${encodeURIComponent(jobCode)}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(collectSapImportJobPayload(row))
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.error || 'No fue posible guardar la automatización SAP.');
+            sapImportJobsLoadedOnce = false;
+            await loadSapImportJobs(true);
+            return payload.row || null;
+        }
+
+        async function runSapImportJobRow(row) {
+            const jobCode = row?.dataset.jobCode || '';
+            await saveSapImportJobRow(row);
+            const response = await fetch(`/api/sap/import-jobs/${encodeURIComponent(jobCode)}/run`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ automated: true })
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.error || 'No fue posible ejecutar la carga SAP.');
+            sapImportJobsLoadedOnce = false;
+            sapActivityLoadedOnce = false;
+            await Promise.all([loadSapImportJobs(true), loadSapActivityRecords(true)]);
         }
 
         function renderSapMirrorSummary(payload = {}) {
@@ -8481,13 +9361,37 @@
                 sapMirrorTableBody.innerHTML = `<tr><td colspan="${Math.max(columns.length, 1)}" class="audit-empty">No hay registros para mostrar.</td></tr>`;
                 return;
             }
+            const renderSapMirrorCell = (row, column) => {
+                if (table.tableName === 'OITM' && column === 'U_ClasificacionERP') {
+                    const itemCode = String(row.ItemCode || '').trim();
+                    const currentValue = String(row[column] ?? '').trim();
+                    const options = [
+                        `<option value="">Sin clasificar</option>`,
+                        ...inventoryClassificationMappings.map((item) => {
+                            const optionValue = String(item.sourceValue || '').trim();
+                            const optionLabel = String(item.displayLabel || item.flexoCategory || optionValue).trim();
+                            const metaLabel = String(item.flexoCategory || '').trim();
+                            return `<option value="${escapeHtml(optionValue)}" ${optionValue === currentValue ? 'selected' : ''}>${escapeHtml(metaLabel ? `${optionLabel} · ${metaLabel}` : optionLabel)}</option>`;
+                        })
+                    ].join('');
+                    return `
+                        <select class="sap-inline-select" data-sap-item-code="${escapeHtml(itemCode)}" data-sap-classification-select="true" data-previous-value="${escapeHtml(currentValue)}">
+                            ${options}
+                        </select>
+                    `;
+                }
+                return escapeHtml(row[column] ?? '');
+            };
             sapMirrorTableBody.innerHTML = rows.map((row) => (
-                `<tr>${columns.map((column) => `<td>${escapeHtml(row[column] ?? '')}</td>`).join('')}</tr>`
+                `<tr>${columns.map((column) => `<td>${renderSapMirrorCell(row, column)}</td>`).join('')}</tr>`
             )).join('');
         }
 
         async function loadSapMirrorTable() {
             const tableName = sapMirrorTableSelect?.value || 'OCRD';
+            if (tableName === 'OITM') {
+                await loadInventoryClassificationMappings();
+            }
             const params = new URLSearchParams();
             params.set('limit', sapMirrorTableLimitInput?.value || '50');
             const search = sapMirrorSearchInput?.value?.trim();
@@ -8496,6 +9400,18 @@
             const payload = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(payload.error || 'No fue posible cargar la tabla SAP.');
             renderSapMirrorTable(payload);
+        }
+
+        async function saveSapMirrorItemClassification(itemCode, classificationSourceValue) {
+            const response = await fetch(`/api/sap/items/${encodeURIComponent(itemCode)}/classification`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ classificationSourceValue })
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.error || 'No fue posible guardar la clasificación del artículo SAP.');
+            setSapConfigStatus(`Clasificación guardada para ${itemCode}.`, false);
+            return payload;
         }
 
         function getSapMirrorOrderTemplate() {
@@ -8652,6 +9568,12 @@
                 panel.hidden = panel.id !== `sap-tab-${tabKey}`;
             });
             if (tabKey === 'registros') {
+                loadSapImportJobs().catch((error) => {
+                    if (sapImportJobsStatus) {
+                        sapImportJobsStatus.className = 'sap-security-empty';
+                        sapImportJobsStatus.textContent = error.message || 'No fue posible cargar la automatización SAP.';
+                    }
+                });
                 loadSapActivityRecords().catch((error) => {
                     if (sapActivitySummary) {
                         sapActivitySummary.className = 'sap-security-empty';
@@ -8674,13 +9596,63 @@
             if (!configResponse.ok) throw new Error('No fue posible cargar la configuración SAP.');
             const configPayload = await configResponse.json();
             renderSapStatus(configPayload);
+            try {
+                await loadSapAccountingState();
+            } catch (error) {
+                setSapAccountingStatus(error.message || 'No fue posible cargar la configuración contable SAP.', true);
+            }
             sapConnectorLoadedOnce = true;
+        }
+
+        async function saveSapProductionCostCenterConfig() {
+            setSapAccountingStatus('Guardando centro de costo de producción...', false);
+            const response = await fetch('/api/sap/production-cost-center', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    defaultCostCenterCode: (sapProductionCostCenterInput?.value || '').trim(),
+                    notes: sapProductionCostCenterConfig?.notes || ''
+                })
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.error || 'No fue posible guardar el centro de costo de producción.');
+            sapProductionCostCenterConfig = payload || {};
+            if (sapProductionCostCenterInput) {
+                sapProductionCostCenterInput.value = String(payload.defaultCostCenterCode || '').trim();
+            }
+            setSapAccountingStatus('Centro de costo de producción guardado.', false);
+        }
+
+        async function saveSapSalespersonProfitCenterRow(row) {
+            const rowId = row?.dataset.sapSalespersonRow || '';
+            const current = sapSalespersonProfitCenters.find((item) => item.id === rowId);
+            if (!current) throw new Error('No fue posible identificar el ejecutivo de ventas.');
+            const profitCenterInput = row.querySelector('[data-sap-field="profitCenterCode"]');
+            const profitCenterCode = (profitCenterInput?.value || '').trim();
+            setSapAccountingStatus(`Guardando centro de beneficio para ${current.salespersonName}...`, false);
+            const response = await fetch('/api/sap/salesperson-profit-centers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    salespersonName: current.salespersonName,
+                    salesPersonCode: current.salesPersonCode === '' ? null : Number(current.salesPersonCode),
+                    profitCenterCode,
+                    notes: current.notes || '',
+                    isActive: current.isActive !== false
+                })
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.error || 'No fue posible guardar el centro de beneficio.');
+            const normalized = normalizeSapSalespersonProfitCenter(payload);
+            sapSalespersonProfitCenters = sapSalespersonProfitCenters.map((item) => item.id === rowId ? normalized : item);
+            renderSapSalespersonProfitCenters();
+            setSapAccountingStatus(`Centro de beneficio guardado para ${normalized.salespersonName}.`, false);
         }
 
         function collectSapConfigPayload() {
             const provider = getSapProvider();
             const payload = {
-                mode: sapAdvancedCheckbox?.checked ? 'demo' : 'live',
+                mode: sapConnectionMode,
                 provider,
                 diApiBaseUrl: (sapDiApiBaseUrlInput?.value || '').trim(),
                 autoSyncEnabled: sapAutoSyncSelect?.value === 'true',
@@ -8868,6 +9840,10 @@
         }
 
         function activateSecurityTab(tabKey = 'usuarios') {
+            const activeTabKey = document.querySelector('.security-subtab.active')?.dataset.securityTab || 'usuarios';
+            if (activeTabKey === 'usuarios' && tabKey !== activeTabKey && !validateSelectedAdminUserSapSalesperson(true)) {
+                return false;
+            }
             securitySubtabs.forEach((tab) => {
                 tab.classList.toggle('active', tab.dataset.securityTab === tabKey);
             });
@@ -8893,6 +9869,7 @@
                     setNotificationKeyStatus(error.message || 'No fue posible cargar las llaves de notificación.', true);
                 });
             }
+            return true;
         }
 
         function formatNotificationCenterDate(value, emptyLabel = 'Sin fecha') {
@@ -8910,6 +9887,13 @@
             notificationCenterStatus.className = 'sap-security-empty';
             notificationCenterStatus.textContent = message || 'Listo.';
             notificationCenterStatus.style.color = isError ? '#ad3434' : '';
+        }
+
+        function setNotificationAlertContactsStatus(message, isError = false) {
+            if (!notificationAlertContactsStatus) return;
+            notificationAlertContactsStatus.className = 'sap-security-empty';
+            notificationAlertContactsStatus.textContent = message || 'Listo.';
+            notificationAlertContactsStatus.style.color = isError ? '#ad3434' : '';
         }
 
         function setNotificationKeyStatus(message, isError = false) {
@@ -9076,6 +10060,149 @@
                     </td>
                 </tr>
             `).join('');
+        }
+
+        function resetNotificationAlertContactForm() {
+            selectedNotificationAlertContactId = '';
+            if (notificationAlertContactName) notificationAlertContactName.value = '';
+            if (notificationAlertContactEmail) notificationAlertContactEmail.value = '';
+            if (notificationAlertContactPhone) notificationAlertContactPhone.value = '';
+            if (notificationAlertContactActive) notificationAlertContactActive.value = 'true';
+            if (notificationAlertSeverityLow) notificationAlertSeverityLow.checked = false;
+            if (notificationAlertSeverityMedium) notificationAlertSeverityMedium.checked = false;
+            if (notificationAlertSeverityHigh) notificationAlertSeverityHigh.checked = false;
+        }
+
+        function applyNotificationAlertContactForm(item) {
+            if (!item) {
+                resetNotificationAlertContactForm();
+                return;
+            }
+            selectedNotificationAlertContactId = item.id || '';
+            if (notificationAlertContactName) notificationAlertContactName.value = item.fullName || '';
+            if (notificationAlertContactEmail) notificationAlertContactEmail.value = item.email || '';
+            if (notificationAlertContactPhone) notificationAlertContactPhone.value = item.phone || '';
+            if (notificationAlertContactActive) notificationAlertContactActive.value = item.isActive ? 'true' : 'false';
+            if (notificationAlertSeverityLow) notificationAlertSeverityLow.checked = item.severityLow === true;
+            if (notificationAlertSeverityMedium) notificationAlertSeverityMedium.checked = item.severityMedium === true;
+            if (notificationAlertSeverityHigh) notificationAlertSeverityHigh.checked = item.severityHigh === true;
+        }
+
+        function collectNotificationAlertContactPayload() {
+            return {
+                fullName: String(notificationAlertContactName?.value || '').trim(),
+                email: String(notificationAlertContactEmail?.value || '').trim(),
+                phone: String(notificationAlertContactPhone?.value || '').trim(),
+                severityLow: notificationAlertSeverityLow?.checked === true,
+                severityMedium: notificationAlertSeverityMedium?.checked === true,
+                severityHigh: notificationAlertSeverityHigh?.checked === true,
+                isActive: notificationAlertContactActive?.value !== 'false'
+            };
+        }
+
+        function renderNotificationAlertContacts(items = []) {
+            if (!notificationAlertContactsBody) return;
+            if (!items.length) {
+                notificationAlertContactsBody.innerHTML = '<tr><td colspan="7" class="audit-empty">Todavia no hay contactos configurados.</td></tr>';
+                return;
+            }
+            notificationAlertContactsBody.innerHTML = items.map((item) => `
+                <tr class="notification-alert-row${item.id === selectedNotificationAlertContactId ? ' is-selected' : ''}" data-notification-alert-contact-id="${escapeHtml(item.id || '')}">
+                    <td><strong>${escapeHtml(item.fullName || 'Sin nombre')}</strong></td>
+                    <td>${escapeHtml(item.email || '-')}</td>
+                    <td>${escapeHtml(item.phone || '-')}</td>
+                    <td>${item.severityLow ? 'Si' : 'No'}</td>
+                    <td>${item.severityMedium ? 'Si' : 'No'}</td>
+                    <td>${item.severityHigh ? 'Si' : 'No'}</td>
+                    <td>${item.isActive ? 'Activo' : 'Inactivo'}</td>
+                </tr>
+            `).join('');
+        }
+
+        function renderNotificationAlertRoutingColumn(container, items = []) {
+            if (!container) return;
+            if (!items.length) {
+                container.innerHTML = '<div class="notification-alert-routing-item">Sin destinatarios activos.</div>';
+                return;
+            }
+            container.innerHTML = items.map((item) => `
+                <div class="notification-alert-routing-item">
+                    <strong>${escapeHtml(item.fullName || 'Sin nombre')}</strong><br>
+                    ${escapeHtml(item.email || 'Sin correo')}<br>
+                    ${escapeHtml(item.phone || 'Sin telefono')}
+                </div>
+            `).join('');
+        }
+
+        function renderNotificationAlertRouting(payload = {}) {
+            if (notificationAlertRoutingLowTitle) notificationAlertRoutingLowTitle.textContent = `Baja · ${Number(payload.counts?.low || 0)}`;
+            if (notificationAlertRoutingMediumTitle) notificationAlertRoutingMediumTitle.textContent = `Media · ${Number(payload.counts?.medium || 0)}`;
+            if (notificationAlertRoutingHighTitle) notificationAlertRoutingHighTitle.textContent = `Alta · ${Number(payload.counts?.high || 0)}`;
+            renderNotificationAlertRoutingColumn(notificationAlertRoutingLow, Array.isArray(payload.low) ? payload.low : []);
+            renderNotificationAlertRoutingColumn(notificationAlertRoutingMedium, Array.isArray(payload.medium) ? payload.medium : []);
+            renderNotificationAlertRoutingColumn(notificationAlertRoutingHigh, Array.isArray(payload.high) ? payload.high : []);
+        }
+
+        async function loadNotificationAlertContacts(force = false) {
+            if (notificationAlertContactsLoadedOnce && !force) {
+                renderNotificationAlertContacts(notificationAlertContacts);
+                return;
+            }
+            setNotificationAlertContactsStatus('Cargando contactos...', false);
+            const response = await fetch('/api/notification-alert-contacts');
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(payload.error || 'No fue posible cargar los contactos de alerta.');
+            }
+            notificationAlertContacts = Array.isArray(payload.items) ? payload.items : [];
+            notificationAlertContactsLoadedOnce = true;
+            renderNotificationAlertContacts(notificationAlertContacts);
+            const selected = notificationAlertContacts.find((item) => item.id === selectedNotificationAlertContactId);
+            applyNotificationAlertContactForm(selected || null);
+            setNotificationAlertContactsStatus('Contactos cargados correctamente.', false);
+        }
+
+        async function loadNotificationAlertRoutingPreview(force = false) {
+            if (notificationAlertRoutingLoadedOnce && !force) return;
+            const response = await fetch('/api/notification-alert-routing-preview');
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(payload.error || 'No fue posible cargar la vista previa de alertas.');
+            }
+            renderNotificationAlertRouting(payload || {});
+            notificationAlertRoutingLoadedOnce = true;
+        }
+
+        async function saveNotificationAlertContact() {
+            const payload = collectNotificationAlertContactPayload();
+            const isEditing = Boolean(selectedNotificationAlertContactId);
+            if (!payload.fullName) {
+                throw new Error('Debes indicar el nombre del contacto.');
+            }
+            if (!payload.severityLow && !payload.severityMedium && !payload.severityHigh) {
+                throw new Error('Debes activar al menos un nivel de severidad.');
+            }
+            setNotificationAlertContactsStatus(isEditing ? 'Actualizando contacto...' : 'Guardando contacto...', false);
+            const response = await fetch(
+                isEditing
+                    ? `/api/notification-alert-contacts/${encodeURIComponent(selectedNotificationAlertContactId)}`
+                    : '/api/notification-alert-contacts',
+                {
+                    method: isEditing ? 'PATCH' : 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                }
+            );
+            const saved = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(saved.error || 'No fue posible guardar el contacto de alerta.');
+            }
+            notificationAlertContactsLoadedOnce = false;
+            notificationAlertRoutingLoadedOnce = false;
+            selectedNotificationAlertContactId = saved.id || '';
+            await loadNotificationAlertContacts(true);
+            await loadNotificationAlertRoutingPreview(true);
+            setNotificationAlertContactsStatus(isEditing ? 'Contacto actualizado correctamente.' : 'Contacto creado correctamente.', false);
         }
 
         function renderNotificationCenterChannels(items = []) {
@@ -9289,6 +10416,9 @@
             if (normalizedTabKey === 'calculo') {
                 loadQuoteOutputTypes().catch((error) => {
                     setQuoteOutputTypesStatus(error.message || 'No fue posible cargar los tipos de salida.', 'error');
+                });
+                loadInventoryClassificationMappings().catch((error) => {
+                    setInventoryClassificationStatus(error.message || 'No fue posible cargar el mapeo de clasificación.', true);
                 });
             }
             if (normalizedTabKey === 'tipo-cambio') {
@@ -9847,6 +10977,103 @@
             return adminPermissions.find((item) => Number(item.id) === Number(permissionId)) || null;
         }
 
+        function normalizeAdminUserPermissionToken(value = '') {
+            return String(value || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .trim()
+                .toLowerCase()
+                .replace(/\s+/g, ' ');
+        }
+
+        function adminUserPermissionRequiresSapSalesperson(permissionName = '') {
+            const normalized = normalizeAdminUserPermissionToken(permissionName);
+            return normalized === 'vendedores' || normalized === 'vendedores cotizadores';
+        }
+
+        function getCurrentAdminUserPermission() {
+            const selectedPermissionId = userAdminFieldPermission?.value || getSelectedAdminUser()?.permissionId;
+            return getAdminPermissionById(selectedPermissionId);
+        }
+
+        function currentAdminUserRequiresSapSalesperson() {
+            const user = getSelectedAdminUser();
+            const permission = getCurrentAdminUserPermission();
+            return adminUserPermissionRequiresSapSalesperson(permission?.name || user?.permissionName || '');
+        }
+
+        function getSelectedAdminUserSapSalespersonOption() {
+            const selectedCode = String(userAdminFieldSapSalesperson?.value || userAdminFieldSapSalespersonCode?.value || '').trim();
+            if (!selectedCode) return null;
+            return sapSalespersonProfitCenters.find((item) => String(item.salesPersonCode || '').trim() === selectedCode) || null;
+        }
+
+        function renderAdminUserSapSalespersonOptions(selectedCode = '') {
+            if (!userAdminFieldSapSalesperson) return;
+            const current = String(selectedCode || userAdminFieldSapSalesperson.value || userAdminFieldSapSalespersonCode?.value || '').trim();
+            const items = sapSalespersonProfitCenters
+                .filter((item) => item.isActive !== false && Number(item.salesPersonCode) > 0)
+                .sort((left, right) => String(left.salespersonName || '').localeCompare(String(right.salespersonName || ''), 'es', { sensitivity: 'base' }));
+            userAdminFieldSapSalesperson.innerHTML = ['<option value="">Selecciona un vendedor SAP</option>']
+                .concat(items.map((item) => `<option value="${escapeHtml(String(item.salesPersonCode || '').trim())}">${escapeHtml(item.salespersonName || 'Sin nombre')}</option>`))
+                .join('');
+            if ([...userAdminFieldSapSalesperson.options].some((option) => option.value === current)) {
+                userAdminFieldSapSalesperson.value = current;
+            } else {
+                userAdminFieldSapSalesperson.value = '';
+            }
+            if (userAdminFieldSapSalespersonCode) {
+                userAdminFieldSapSalespersonCode.value = String(userAdminFieldSapSalesperson.value || '').trim();
+            }
+        }
+
+        function setAdminUserSapSalespersonInvalidState(isInvalid) {
+            userAdminFieldSapSalespersonWrapper?.classList.toggle('is-required-empty', isInvalid);
+            userAdminFieldSapSalesperson?.classList.toggle('is-invalid', isInvalid);
+        }
+
+        function validateSelectedAdminUserSapSalesperson(showFeedback = false) {
+            const user = getSelectedAdminUser();
+            if (!user) return true;
+            const requiresSalesperson = currentAdminUserRequiresSapSalesperson();
+            if (userAdminFieldSapSalespersonWrapper) {
+                userAdminFieldSapSalespersonWrapper.hidden = !requiresSalesperson;
+            }
+            if (!requiresSalesperson) {
+                setAdminUserSapSalespersonInvalidState(false);
+                if (userAdminFieldSapSalespersonCode) {
+                    userAdminFieldSapSalespersonCode.value = String(userAdminFieldSapSalesperson?.value || user?.sapSalespersonCode || '').trim();
+                }
+                return true;
+            }
+            const selectedCode = String(userAdminFieldSapSalesperson?.value || userAdminFieldSapSalespersonCode?.value || '').trim();
+            const isValid = selectedCode !== '';
+            setAdminUserSapSalespersonInvalidState(!isValid);
+            if (userAdminFieldSapSalespersonCode) {
+                userAdminFieldSapSalespersonCode.value = selectedCode;
+            }
+            if (!isValid && showFeedback) {
+                setConfigStatus('Debes seleccionar un vendedor SAP para este usuario o cambiar el permiso.', true);
+                userAdminFieldSapSalesperson?.focus();
+            }
+            return isValid;
+        }
+
+        async function ensureSapSalespersonOptionsLoaded(force = false) {
+            if (sapSalespersonOptionsLoadedOnce && !force) return;
+            const response = await fetch('/api/sap/salesperson-profit-centers');
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(payload.error || 'No fue posible cargar los vendedores SAP.');
+            }
+            sapSalespersonProfitCenters = Array.isArray(payload.items)
+                ? payload.items.map(normalizeSapSalespersonProfitCenter)
+                : [];
+            sapSalespersonOptionsLoadedOnce = true;
+            renderAdminUserSapSalespersonOptions(String(getSelectedAdminUser()?.sapSalespersonCode || ''));
+            validateSelectedAdminUserSapSalesperson(false);
+        }
+
         function getAdminUserPermissionAccess(user) {
             const permission = getAdminPermissionById(user?.permissionId);
             const modules = createEmptyPermissionModules(permission?.modules);
@@ -10009,6 +11236,10 @@
             if (userAdminFieldProcess) userAdminFieldProcess.value = user.process || '';
             if (userAdminFieldDepartment) userAdminFieldDepartment.readOnly = true;
             if (userAdminFieldProcess) userAdminFieldProcess.readOnly = true;
+            renderAdminUserSapSalespersonOptions(String(user.sapSalespersonCode || ''));
+            if (userAdminFieldSapSalespersonCode) {
+                userAdminFieldSapSalespersonCode.value = String(user.sapSalespersonCode || '').trim();
+            }
             if (userAdminFieldEmail) userAdminFieldEmail.value = user.email || '';
             if (userAdminFieldPhone) userAdminFieldPhone.value = user.phone || '';
             if (userAdminFieldNotifyEmail) userAdminFieldNotifyEmail.checked = user.notificationEmail === true;
@@ -10044,9 +11275,18 @@
             }
             renderAdminUserPermissionAccessSummary(user);
             renderPasswordToggleButton(userAdminPasswordToggle, userAdminPasswordVisible);
+            validateSelectedAdminUserSapSalesperson(false);
+            if (currentAdminUserRequiresSapSalesperson() && !sapSalespersonOptionsLoadedOnce) {
+                ensureSapSalespersonOptionsLoaded().catch((error) => {
+                    setConfigStatus(error.message || 'No fue posible cargar los vendedores SAP.', true);
+                });
+            }
         }
 
         function selectAdminUser(id) {
+            if (Number(id) !== Number(selectedAdminUserId) && !validateSelectedAdminUserSapSalesperson(true)) {
+                return;
+            }
             selectedAdminUserId = Number(id) || null;
             renderAdminUserList();
             updateAdminUserDetail();
@@ -10099,7 +11339,9 @@
                 notificationWhatsapp: userAdminFieldNotifyWhatsapp?.checked === true,
                 notificationSms: userAdminFieldNotifySms?.checked === true,
                 active: user.active !== false,
-                permissionId: userAdminFieldPermission?.value ? Number(userAdminFieldPermission.value) : null
+                permissionId: userAdminFieldPermission?.value ? Number(userAdminFieldPermission.value) : null,
+                sapSalespersonCode: userAdminFieldSapSalespersonCode?.value ? Number(userAdminFieldSapSalespersonCode.value) : null,
+                sapSalespersonName: getSelectedAdminUserSapSalespersonOption()?.salespersonName || ''
             };
         }
 
@@ -10118,6 +11360,8 @@
             user.active = payload.active;
             user.permissionId = payload.permissionId;
             user.permissionName = adminPermissions.find((item) => Number(item.id) === Number(payload.permissionId))?.name || '';
+            user.sapSalespersonCode = payload.sapSalespersonCode;
+            user.sapSalespersonName = payload.sapSalespersonName;
             renderAdminUserList();
             if (userAdminDetailName) userAdminDetailName.textContent = user.name || 'Usuario';
             if (userAdminDetailSubline) userAdminDetailSubline.textContent = formatAdminUserProcessLine(user);
@@ -10133,6 +11377,7 @@
             const user = getSelectedAdminUser();
             const payload = collectAdminUserPayload();
             if (!user || !payload) return;
+            if (!validateSelectedAdminUserSapSalesperson(true)) return;
             const response = await fetch(`/api/admin-users/${user.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
@@ -10152,6 +11397,7 @@
             clearTimeout(adminUserSaveTimer);
             const user = getSelectedAdminUser();
             if (!user) return;
+            if (!validateSelectedAdminUserSapSalesperson(false)) return;
             syncSelectedAdminUserFromInputs();
             adminUserSaveTimer = setTimeout(async () => {
                 try {
@@ -10334,10 +11580,25 @@
                 userAdminFieldNotifyEmail,
                 userAdminFieldNotifyWhatsapp,
                 userAdminFieldNotifySms,
-                userAdminFieldPermission
+                userAdminFieldPermission,
+                userAdminFieldSapSalesperson
             ].forEach((field) => {
                 field?.addEventListener('input', queueAdminUserSave);
                 field?.addEventListener('change', queueAdminUserSave);
+            });
+            userAdminFieldPermission?.addEventListener('change', () => {
+                validateSelectedAdminUserSapSalesperson(false);
+                if (currentAdminUserRequiresSapSalesperson() && !sapSalespersonOptionsLoadedOnce) {
+                    ensureSapSalespersonOptionsLoaded().catch((error) => {
+                        setConfigStatus(error.message || 'No fue posible cargar los vendedores SAP.', true);
+                    });
+                }
+            });
+            userAdminFieldSapSalesperson?.addEventListener('change', () => {
+                if (userAdminFieldSapSalespersonCode) {
+                    userAdminFieldSapSalespersonCode.value = String(userAdminFieldSapSalesperson.value || '').trim();
+                }
+                validateSelectedAdminUserSapSalesperson(false);
             });
             userAdminDeactivateButton?.addEventListener('click', async () => {
                 const user = getSelectedAdminUser();
@@ -12609,6 +13870,10 @@
         document.querySelectorAll('.config-tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 const activeMainTabKey = document.querySelector('.config-tab.active')?.dataset.tab;
+                const activeSecurityTabKey = document.querySelector('.security-subtab.active')?.dataset.securityTab || 'usuarios';
+                if (activeMainTabKey === 'seguridad' && tab.dataset.tab !== 'seguridad' && activeSecurityTabKey === 'usuarios' && !validateSelectedAdminUserSapSalesperson(true)) {
+                    return;
+                }
                 if (activeMainTabKey === 'diseno' && getActiveDesignTabKey() === 'presentaciones') {
                     captureCurrentPresentationData();
                 }
@@ -12626,7 +13891,9 @@
                 if (tab.dataset.tab === 'notificaciones') {
                     Promise.all([
                         loadNotificationCenterOverview(),
-                        loadNotificationCenterThreads()
+                        loadNotificationCenterThreads(),
+                        loadNotificationAlertContacts(),
+                        loadNotificationAlertRoutingPreview()
                     ]).catch((error) => {
                         setNotificationCenterStatus(error.message || 'No fue posible cargar el centro de notificaciones.', true);
                     });
@@ -12882,6 +14149,34 @@
             renderQuoteProductTypesTable();
             queueConfigSave();
         });
+        inventoryClassificationNewButton?.addEventListener('click', () => {
+            resetInventoryClassificationForm();
+            setInventoryClassificationStatus('Formulario listo para un nuevo mapeo.', false);
+        });
+        inventoryClassificationSaveButton?.addEventListener('click', async () => {
+            try {
+                await saveInventoryClassificationMapping();
+            } catch (error) {
+                setInventoryClassificationStatus(error.message || 'No fue posible guardar el mapeo.', true);
+            }
+        });
+        inventoryClassificationTableBody?.addEventListener('click', async (event) => {
+            const deleteButton = event.target.closest('[data-delete-inventory-classification]');
+            if (deleteButton) {
+                try {
+                    await deleteInventoryClassificationMapping(deleteButton.dataset.deleteInventoryClassification || '');
+                } catch (error) {
+                    setInventoryClassificationStatus(error.message || 'No fue posible eliminar el mapeo.', true);
+                }
+                return;
+            }
+            const row = event.target.closest('[data-inventory-classification-id]');
+            if (!row) return;
+            const item = inventoryClassificationMappings.find((entry) => entry.id === (row.dataset.inventoryClassificationId || ''));
+            if (!item) return;
+            applyInventoryClassificationForm(item);
+            setInventoryClassificationStatus(`Editando mapeo: ${item.sourceValue || 'Sin valor'}.`, false);
+        });
         document.getElementById('bdfgTheme')?.addEventListener('change', () => {
             applyBdfgThemeFields(true);
             updatePreviews();
@@ -12965,6 +14260,7 @@
                     renderAdminUserList();
                     updateAdminUserDetail();
                 }
+                ensureSapSalespersonOptionsLoaded().catch(() => {});
                 populatePermissionLandingOptions();
                 renderPermissionAdminCreateButton();
                 if (!adminPermissionsLoadedOnce) {
@@ -13009,6 +14305,7 @@
                     quoteProductTypesJsonField.value = loadedConfig?.general?.quoteProductTypesJson || quoteProductTypesJsonField.value || '[]';
                 }
                 renderQuoteProductTypesTable();
+                setInventoryClassificationStatus('Configura el campo SAP y luego mapea sus valores a categorías flexográficas.', false);
                 populateProformaConfigFields();
                 applyHeaderConfig(loadedConfig);
                 applyDieShapePreviews();
@@ -13084,6 +14381,30 @@
                 await loadNotificationCenterThread(row.dataset.threadCode || '');
             } catch (error) {
                 setNotificationCenterStatus(error.message || 'No fue posible cargar la conversación seleccionada.', true);
+            }
+        });
+
+        notificationAlertContactsBody?.addEventListener('click', (event) => {
+            const row = event.target.closest('[data-notification-alert-contact-id]');
+            if (!row) return;
+            const contact = notificationAlertContacts.find((item) => item.id === (row.dataset.notificationAlertContactId || ''));
+            if (!contact) return;
+            applyNotificationAlertContactForm(contact);
+            renderNotificationAlertContacts(notificationAlertContacts);
+            setNotificationAlertContactsStatus(`Editando contacto: ${contact.fullName || 'Sin nombre'}.`, false);
+        });
+
+        notificationAlertContactNewButton?.addEventListener('click', () => {
+            resetNotificationAlertContactForm();
+            renderNotificationAlertContacts(notificationAlertContacts);
+            setNotificationAlertContactsStatus('Formulario listo para un nuevo contacto.', false);
+        });
+
+        notificationAlertContactSaveButton?.addEventListener('click', async () => {
+            try {
+                await saveNotificationAlertContact();
+            } catch (error) {
+                setNotificationAlertContactsStatus(error.message || 'No fue posible guardar el contacto.', true);
             }
         });
 
@@ -13274,6 +14595,27 @@
                 setSapConfigStatus(error.message || 'No fue posible reiniciar el entorno SAP.', true);
             }
         });
+        sapProductionCostCenterSaveButton?.addEventListener('click', async () => {
+            try {
+                await saveSapProductionCostCenterConfig();
+            } catch (error) {
+                setSapAccountingStatus(error.message || 'No fue posible guardar el centro de costo de producción.', true);
+            }
+        });
+        sapSalespersonSearchInput?.addEventListener('input', () => {
+            renderSapSalespersonProfitCenters();
+        });
+        sapSalespersonProfitCentersBody?.addEventListener('click', async (event) => {
+            const button = event.target.closest('[data-sap-salesperson-save]');
+            if (!button) return;
+            const row = button.closest('[data-sap-salesperson-row]');
+            if (!row) return;
+            try {
+                await saveSapSalespersonProfitCenterRow(row);
+            } catch (error) {
+                setSapAccountingStatus(error.message || 'No fue posible guardar el centro de beneficio.', true);
+            }
+        });
         sapRunQueryButton?.addEventListener('click', async () => {
             try {
                 await runSapConnectorQuery();
@@ -13323,6 +14665,21 @@
                 setSapConfigStatus(error.message || 'No fue posible cargar la tabla SAP.', true);
             });
         });
+        sapMirrorTableBody?.addEventListener('change', (event) => {
+            const select = event.target.closest('[data-sap-classification-select="true"]');
+            if (!select) return;
+            const itemCode = String(select.dataset.sapItemCode || '').trim();
+            const previousValue = String(select.dataset.previousValue || '').trim();
+            const nextValue = String(select.value || '').trim();
+            saveSapMirrorItemClassification(itemCode, nextValue)
+                .then(() => {
+                    select.dataset.previousValue = nextValue;
+                })
+                .catch((error) => {
+                    select.value = previousValue;
+                    setSapConfigStatus(error.message || 'No fue posible guardar la clasificación del artículo SAP.', true);
+                });
+        });
         sapMirrorProcessSelect?.addEventListener('change', () => {
             refreshSapMirrorProcedure().catch((error) => {
                 setSapConfigStatus(error.message || 'No fue posible cargar la consulta SAP.', true);
@@ -13363,6 +14720,29 @@
             } catch (error) {
                 setSapConfigStatus(error.message || 'No fue posible enviar a SAP.', true);
             }
+        });
+        sapImportJobsRefreshButton?.addEventListener('click', () => {
+            Promise.all([loadSapImportJobs(true), loadSapActivityRecords(true)]).catch((error) => {
+                if (sapImportJobsStatus) {
+                    sapImportJobsStatus.className = 'sap-security-empty';
+                    sapImportJobsStatus.textContent = error.message || 'No fue posible actualizar la automatización SAP.';
+                }
+            });
+        });
+        sapImportJobsBody?.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-job-action]');
+            const row = event.target.closest('tr[data-job-code]');
+            if (!button || !row) return;
+            const action = button.dataset.jobAction || '';
+            const run = action === 'run'
+                ? runSapImportJobRow(row)
+                : saveSapImportJobRow(row);
+            run.catch((error) => {
+                if (sapImportJobsStatus) {
+                    sapImportJobsStatus.className = 'sap-security-empty';
+                    sapImportJobsStatus.textContent = error.message || 'No fue posible procesar la automatización SAP.';
+                }
+            });
         });
 
         document.getElementById('presentationKey')?.addEventListener('change', () => {

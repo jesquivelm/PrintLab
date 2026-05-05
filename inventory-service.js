@@ -179,8 +179,6 @@ function normalizeMachineType(value) {
     if (!normalized) return '';
     if (normalized.includes('digital') || normalized.includes('hp')) return 'Digital';
     if (normalized.includes('hibr')) return 'Hibrido';
-    if (normalized === 'abg') return 'ABG';
-    if (normalized === 'p5') return 'P5';
     return 'Convencional';
 }
 
@@ -508,7 +506,11 @@ await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS digital_premier
 await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS digital_premier_setup_min DECIMAL(12,4) DEFAULT 20`);
 await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS digital_premier_costo_mantenimiento DECIMAL(12,6) DEFAULT 0`);
 await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS digital_premier_costo_offline_m DECIMAL(12,6) DEFAULT 0`);
-await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS largo_mm DECIMAL(12,4)`);
+await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS sustrato_consumo_unidad VARCHAR(20) DEFAULT 'pies'`);
+await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS sustrato_setup_merma_cantidad DECIMAL(12,4) DEFAULT 0`);
+await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS sustrato_setup_merma_unidad VARCHAR(20) DEFAULT 'pies'`);
+await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS sustrato_setup_merma_base VARCHAR(20) DEFAULT 'trabajo'`);
+  await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS largo_mm DECIMAL(12,4)`);
 await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS costo_x_lamina DECIMAL(12,6)`);
 await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS costo_x_libra DECIMAL(12,6)`);
 await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS peso_capa_gsm DECIMAL(10,4)`);
@@ -1012,6 +1014,10 @@ async function listMaquinas({ q = '', limit = 300 } = {}) {
             m.digital_premier_setup_min,
             m.digital_premier_costo_mantenimiento,
             m.digital_premier_costo_offline_m,
+            m.sustrato_consumo_unidad,
+            m.sustrato_setup_merma_cantidad,
+            m.sustrato_setup_merma_unidad,
+            m.sustrato_setup_merma_base,
             COALESCE(
                 json_agg(
                     json_build_object(
@@ -1557,7 +1563,11 @@ async function saveMachine(payload) {
             ['inline', 'offline'].includes(asText(payload.digital_premier_modo || 'offline').toLowerCase()) ? asText(payload.digital_premier_modo || 'offline').toLowerCase() : 'offline',
             asNumber(payload.digital_premier_setup_min, 20),
             asNumber(payload.digital_premier_costo_mantenimiento, 0),
-            asNumber(payload.digital_premier_costo_offline_m, 0)
+            asNumber(payload.digital_premier_costo_offline_m, 0),
+            asText(payload.sustrato_consumo_unidad || 'pies'),
+            asNumber(payload.sustrato_setup_merma_cantidad, 0),
+            asText(payload.sustrato_setup_merma_unidad || 'pies'),
+            asText(payload.sustrato_setup_merma_base || 'trabajo')
         ];
 
         if (!machineValues[1]) {
@@ -1614,6 +1624,10 @@ async function saveMachine(payload) {
                         digital_premier_setup_min = $30,
                         digital_premier_costo_mantenimiento = $31,
                         digital_premier_costo_offline_m = $32,
+                        sustrato_consumo_unidad = $33,
+                        sustrato_setup_merma_cantidad = $34,
+                        sustrato_setup_merma_unidad = $35,
+                        sustrato_setup_merma_base = $36,
                         actualizado_en = NOW()
                   WHERE id = $1::uuid
                   RETURNING id::text`,
@@ -1633,9 +1647,10 @@ async function saveMachine(payload) {
                     digital_costo_kg_tinta, digital_costo_kg_tinta_blanco, digital_costo_kg_tinta_especial, digital_tarifa_click, digital_modo_click, digital_velocidad_cmyk_mpm,
                     digital_velocidad_extendida_mpm, digital_gramaje_cmyk_g_m2, digital_gramaje_blanco_g_m2,
                     digital_factor_merma, digital_costo_lavado_especial, digital_premier_modo, digital_premier_setup_min,
-                    digital_premier_costo_mantenimiento, digital_premier_costo_offline_m
+                    digital_premier_costo_mantenimiento, digital_premier_costo_offline_m, sustrato_consumo_unidad,
+                    sustrato_setup_merma_cantidad, sustrato_setup_merma_unidad, sustrato_setup_merma_base
                  ) VALUES (
-                    $1,$2,$3,$4,$5::proceso_productivo,$6,$7,$11,$12,$13,$14,$15,$16,$8,$9,$10,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32
+                    $1,$2,$3,$4,$5::proceso_productivo,$6,$7,$11,$12,$13,$14,$15,$16,$8,$9,$10,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36
                  )
                  RETURNING id::text`,
                 machineValues
@@ -1846,8 +1861,48 @@ async function deleteMaterial(id) {
     });
 }
 
+async function deleteMachine(id) {
+    const machineId = asText(id);
+    if (!machineId) {
+        throw new Error('Debes indicar la máquina a eliminar.');
+    }
+
+    return withTransaction(async (client) => {
+        const machineResult = await client.query(
+            `SELECT id::text, nombre
+               FROM maquina
+              WHERE id = $1::uuid
+              LIMIT 1`,
+            [machineId]
+        );
+
+        if (!machineResult.rows.length) {
+            throw new Error('No se encontró la máquina a eliminar.');
+        }
+
+        await client.query(`UPDATE proceso_catalogo SET machine_id = NULL WHERE machine_id = $1::uuid`, [machineId]);
+        await client.query(`UPDATE calculo_flexo SET maquina_digital_id = NULL WHERE maquina_digital_id = $1::uuid`, [machineId]);
+        await client.query(`UPDATE cantidad_calculo_flexo SET maquina_id = NULL WHERE maquina_id = $1::uuid`, [machineId]);
+        await client.query(`UPDATE calculo_flexo_proceso SET maquina_id = NULL WHERE maquina_id = $1::uuid`, [machineId]);
+
+        const result = await client.query(
+            `DELETE FROM maquina
+              WHERE id = $1::uuid
+              RETURNING id::text, nombre`,
+            [machineId]
+        );
+
+        if (!result.rows.length) {
+            throw new Error('No se encontró la máquina a eliminar.');
+        }
+
+        return result.rows[0];
+    });
+}
+
 async function deleteInventory(kind, id) {
     if (kind === INVENTORY_TYPES.materiales) return deleteMaterial(id);
+    if (kind === INVENTORY_TYPES.maquinas) return deleteMachine(id);
     throw new Error('El borrado no está disponible para este tipo de inventario.');
 }
 

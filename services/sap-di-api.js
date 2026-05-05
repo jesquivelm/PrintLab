@@ -193,12 +193,22 @@ async function queryOrders(config, query = {}) {
     return normalizeCollectionPayload(payload);
 }
 
+async function querySalespersons(config, query = {}) {
+    const payload = await requestJson(config, '/salespersons', { query });
+    return normalizeCollectionPayload(payload);
+}
+
 async function queryItemStock(config, code) {
     return requestJson(config, `/items/${encodeURIComponent(code)}/stock`);
 }
 
 async function createOrder(config, body = {}) {
     const payload = await requestJson(config, '/orders', { method: 'POST', body });
+    return { ...payload, source: 'sap', provider: 'di-api' };
+}
+
+async function createProductTree(config, body = {}) {
+    const payload = await requestJson(config, '/product-trees', { method: 'POST', body });
     return { ...payload, source: 'sap', provider: 'di-api' };
 }
 
@@ -209,6 +219,11 @@ async function createInvoice(config, body = {}) {
 
 async function createInventoryExit(config, body = {}) {
     const payload = await requestJson(config, '/inventory/exit', { method: 'POST', body });
+    return { ...payload, source: 'sap', provider: 'di-api' };
+}
+
+async function createInventoryEntry(config, body = {}) {
+    const payload = await requestJson(config, '/inventory/entry', { method: 'POST', body });
     return { ...payload, source: 'sap', provider: 'di-api' };
 }
 
@@ -234,9 +249,12 @@ module.exports = {
     queryBusinessPartners,
     queryItems,
     queryOrders,
+    querySalespersons,
     queryItemStock,
     createOrder,
+    createProductTree,
     createInvoice,
     createInventoryExit,
+    createInventoryEntry,
     fetchSyncRecords
 };

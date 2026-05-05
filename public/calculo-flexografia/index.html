@@ -11,13 +11,13 @@
 <body>
   <main class="calc-shell">
     <section class="calc-toolbar">
-      <div class="calc-toolbar-brand">
-        <div class="toolbar-brand-copy">
-          <h1 id="pageTitle">Cálculo de Flexografía</h1>
-          <div id="customerNameDisplay" class="toolbar-customer-name"></div>
+        <div class="calc-toolbar-brand">
+          <div class="toolbar-brand-copy">
+            <h1 id="pageTitle">Cálculo de Flexografía</h1>
+          <div id="customerNameDisplay" class="toolbar-customer-name" hidden></div>
           <div id="salespersonDisplay" class="toolbar-salesperson-name"></div>
+          </div>
         </div>
-      </div>
     </section>
 
     <div class="calc-layout">
@@ -65,16 +65,16 @@
                 <div class="panel-grid two-up">
                   <label>
                     <span>Alto</span>
-                    <span class="field-control-with-unit">
-                      <input id="labelWidthIn" type="number" min="0" step="0.001">
-                      <span class="field-control-unit">in</span>
+                    <span class="display-input-wrap has-suffix">
+                      <input id="labelWidthIn" class="display-input" type="number" min="0" step="0.001">
+                      <span id="labelWidthInDisplay" class="display-input-mask"></span>
                     </span>
                   </label>
                   <label>
                     <span>Largo</span>
-                    <span class="field-control-with-unit">
-                      <input id="labelHeightIn" type="number" min="0" step="0.001">
-                      <span class="field-control-unit">in</span>
+                    <span class="display-input-wrap has-suffix">
+                      <input id="labelHeightIn" class="display-input" type="number" min="0" step="0.001">
+                      <span id="labelHeightInDisplay" class="display-input-mask"></span>
                     </span>
                   </label>
                 </div>
@@ -88,16 +88,16 @@
                   <div class="output-core-grid">
                     <label>
                       <span>Ancho de Core</span>
-                      <span class="field-control-with-unit">
-                        <input id="rollWidthIn" type="number" min="0" step="0.001">
-                        <span class="field-control-unit">in</span>
+                      <span class="display-input-wrap has-suffix">
+                        <input id="rollWidthIn" class="display-input" type="number" min="0" step="0.001">
+                        <span id="rollWidthInDisplay" class="display-input-mask"></span>
                       </span>
                     </label>
                     <label>
                       <span>Diámetro de Core</span>
-                      <span class="field-control-with-unit">
-                        <select id="coreDiameter"></select>
-                        <span class="field-control-unit">in</span>
+                      <span class="display-input-wrap has-suffix">
+                        <select id="coreDiameter" class="display-input"></select>
+                        <span id="coreDiameterDisplay" class="display-input-mask"></span>
                       </span>
                     </label>
                   </div>
@@ -160,22 +160,24 @@
               <span>Pantones</span>
               <input id="pantoneCount" type="number" min="0" step="1">
             </label>
-            <label class="impression-check-card">
-              <input id="useCmyk" type="checkbox">
-              <span class="toggle-label">CMYK</span>
-            </label>
-            <label class="impression-check-card">
-              <input id="useWhiteInk" type="checkbox">
-              <span class="toggle-label">Tinta Blanca</span>
-            </label>
-            <label class="impression-check-card">
-              <input id="doubleWhitePass" type="checkbox">
-              <span class="toggle-label">Doble Blanca</span>
-            </label>
-            <label class="impression-check-card">
-              <input id="noPrint" type="checkbox">
-              <span class="toggle-label">Sin Impresión</span>
-            </label>
+            <div class="impression-check-row">
+              <label class="impression-check-card">
+                <input id="useCmyk" type="checkbox">
+                <span class="toggle-label">CMYK</span>
+              </label>
+              <label class="impression-check-card">
+                <input id="useWhiteInk" type="checkbox">
+                <span class="toggle-label">Tinta Blanca</span>
+              </label>
+              <label class="impression-check-card">
+                <input id="doubleWhitePass" type="checkbox">
+                <span class="toggle-label">Doble Blanca</span>
+              </label>
+              <label class="impression-check-card">
+                <input id="noPrint" type="checkbox">
+                <span class="toggle-label">Sin Impresión</span>
+              </label>
+            </div>
           </div>
         </article>
 
@@ -192,25 +194,36 @@
       </section>
 
       <aside class="calc-sidebar">
-        <article class="calc-card">
-          <div class="card-head">
-            <div><h2>Contexto base</h2><p id="calcStatus" class="sr-only">Cargando contexto del calculo.</p></div>
+        <details class="calc-card calc-card-collapsible" open>
+          <summary class="calc-card-summary">
+            <div class="card-head">
+              <div><h2>Contexto base</h2><p id="calcStatus" class="sr-only">Cargando contexto del calculo.</p></div>
+            </div>
+          </summary>
+          <div class="calc-card-body">
+            <div id="contextRows" class="summary-rows"></div>
           </div>
-          <div id="contextRows" class="summary-rows"></div>
-        </article>
+        </details>
 
-        <article class="calc-card">
-          <div class="card-head">
-            <div><h2>Decisión automática</h2></div>
+        <details class="calc-card calc-card-collapsible" open>
+          <summary class="calc-card-summary">
+            <div class="card-head">
+              <div><h2>Decisión automática</h2></div>
+            </div>
+          </summary>
+          <div class="calc-card-body">
+            <div id="automaticSummaryRows" class="summary-rows"></div>
           </div>
-          <div id="automaticSummaryRows" class="summary-rows"></div>
-        </article>
+        </details>
 
-        <article class="calc-card">
-          <div class="card-head">
-            <div><h2>Ajustes comerciales</h2></div>
-          </div>
-          <div class="commercial-grid">
+        <details class="calc-card calc-card-collapsible" open>
+          <summary class="calc-card-summary">
+            <div class="card-head">
+              <div><h2>Ajustes comerciales</h2></div>
+            </div>
+          </summary>
+          <div class="calc-card-body">
+            <div class="commercial-grid">
             <label>
               <span>Overhead (%)</span>
               <input id="overheadPct" type="number" min="0" step="0.01" value="0">
@@ -228,14 +241,50 @@
               <input id="taxPct" type="number" min="0" step="0.01" value="13">
             </label>
           </div>
-        </article>
-
-        <article class="calc-card">
-          <div class="card-head">
-            <div><h2>Resultado final</h2></div>
           </div>
-          <div id="summaryRows" class="summary-rows"></div>
-        </article>
+        </details>
+
+        <details class="calc-card calc-card-collapsible" open>
+          <summary class="calc-card-summary">
+            <div class="card-head">
+              <div><h2>Resultado final</h2></div>
+            </div>
+          </summary>
+          <div class="calc-card-body">
+            <div id="summaryRows" class="summary-rows"></div>
+          </div>
+        </details>
+
+        <details class="calc-card calc-card-collapsible" open>
+          <summary class="calc-card-summary">
+            <div class="card-head">
+              <div><h2>Previsualización SAP</h2></div>
+              <div class="card-head-actions">
+                <button type="button" id="sapPreviewOpenOutputButton" class="inline-button">Ver salida</button>
+                <button type="button" id="sapPreviewSendButton" class="inline-button">Enviar</button>
+              </div>
+            </div>
+          </summary>
+          <div class="calc-card-body">
+            <div id="sapPreviewSummary" class="summary-rows"></div>
+          <details class="subprocess-card" open>
+            <summary class="inline-process-summary">
+              <div class="inline-process-heading"><strong>Orden de Venta</strong></div>
+            </summary>
+            <div class="process-body">
+              <pre id="sapPreviewOrder" class="formula-pre"></pre>
+            </div>
+          </details>
+          <details class="subprocess-card">
+            <summary class="inline-process-summary">
+              <div class="inline-process-heading"><strong>BOM / Producción</strong></div>
+            </summary>
+            <div class="process-body">
+              <pre id="sapPreviewBom" class="formula-pre"></pre>
+            </div>
+          </details>
+          </div>
+        </details>
       </aside>
     </div>
   </main>

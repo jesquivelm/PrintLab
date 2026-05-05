@@ -90,6 +90,10 @@ const els = {
   labelHeightIn: document.getElementById("labelHeightIn"),
   rollWidthIn: document.getElementById("rollWidthIn"),
   coreDiameter: document.getElementById("coreDiameter"),
+  labelWidthInDisplay: document.getElementById("labelWidthInDisplay"),
+  labelHeightInDisplay: document.getElementById("labelHeightInDisplay"),
+  rollWidthInDisplay: document.getElementById("rollWidthInDisplay"),
+  coreDiameterDisplay: document.getElementById("coreDiameterDisplay"),
   labelsPerRoll: document.getElementById("labelsPerRoll"),
   applicationType: document.getElementById("applicationType"),
   applicationEnvironment: document.getElementById("applicationEnvironment"),
@@ -138,11 +142,19 @@ const els = {
   marginPct: document.getElementById("marginPct"),
   discountPct: document.getElementById("discountPct"),
   taxPct: document.getElementById("taxPct"),
-  summaryRows: document.getElementById("summaryRows")
+  summaryRows: document.getElementById("summaryRows"),
+  sapPreviewSummary: document.getElementById("sapPreviewSummary"),
+  sapPreviewOrder: document.getElementById("sapPreviewOrder"),
+  sapPreviewBom: document.getElementById("sapPreviewBom"),
+  sapPreviewSendButton: document.getElementById("sapPreviewSendButton"),
+  sapPreviewOpenOutputButton: document.getElementById("sapPreviewOpenOutputButton")
 };
 
 const state = {
   config: null,
+  sapConfig: null,
+  sapSalespersonConfigs: [],
+  sapProductionCostCenter: null,
   context: null,
   costsConfig: null,
   catalogs: { materials: [], troqueles: [], machines: [], machineCategories: {}, processes: [] },
@@ -163,6 +175,12 @@ const state = {
   suppressLauncherClick: false,
   processPickerOpen: false
 };
+
+function findSapSalespersonConfigByName(name) {
+  const normalized = String(name || "").trim().toLowerCase();
+  if (!normalized) return null;
+  return (state.sapSalespersonConfigs || []).find((item) => String(item?.salespersonName || "").trim().toLowerCase() === normalized) || null;
+}
 
 const QUANTITY_LAYOUT = {
   normalWidth: 126,
@@ -270,6 +288,26 @@ function initialsFromName(name) {
   return parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join("");
 }
 
+function isShellEmbedded() {
+  return params.get("shell") === "1" || window !== window.parent;
+}
+
+function withShellParam(route) {
+  try {
+    const url = new URL(route, window.location.origin);
+    url.searchParams.set("shell", "1");
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch (error) {
+    return route.includes("?") ? `${route}&shell=1` : `${route}?shell=1`;
+  }
+}
+
+function openRouteInShell(route, label) {
+  if (!isShellEmbedded()) return false;
+  window.parent.postMessage({ type: "erp-open-tab", route: withShellParam(route), label }, window.location.origin);
+  return true;
+}
+
 async function loadLineNotifications() {
   const quoteCode = String(state.form?.header?.quoteCode || "").trim();
   const lineCode = String(state.form?.header?.lineCode || "").trim();
@@ -365,10 +403,6 @@ function writeFavoriteDocuments(items) {
   } catch (error) {
     // Ignore cross-frame refresh errors for favorites.
   }
-}
-
-function isShellEmbedded() {
-  return window.parent && window.parent !== window;
 }
 
 function buildBdfgContext() {
@@ -688,7 +722,12 @@ function resolveDieMetrics(die = {}, context = {}) {
 
 function outputTypesCatalog() {
   const dynamic = Array.isArray(state.catalogs?.outputTypes) ? state.catalogs.outputTypes.filter((item) => item && item.active !== false) : [];
-  return dynamic.length ? dynamic : DEFAULT_OUTPUT_TYPES;
+  const source = dynamic.length ? dynamic : DEFAULT_OUTPUT_TYPES;
+  return [...source].sort((left, right) => {
+    const leftLabel = String(left?.name || left?.nombre || left?.id || left?.codigo || left || "").trim();
+    const rightLabel = String(right?.name || right?.nombre || right?.id || right?.codigo || right || "").trim();
+    return leftLabel.localeCompare(rightLabel, "es", { sensitivity: "base" });
+  });
 }
 
 function isSvgValue(value) {
@@ -1188,6 +1227,8 @@ function activePrintStages() {
 function createPrintStage(base = {}) {
   const inkDefaults = conventionalInkDefaults();
   const digitalDefaults = digitalInkDefaults();
+  const tintaConvencional = conventionalInkMaterialOptions();
+  const tintaBlanca = whiteInkMaterialOptions();
   const rawNumbering = state.context?.calculo?.raw_data || {};
   const inlineFinishes = {};
   INLINE_PRINT_SLOTS.forEach((slot) => {
@@ -1238,10 +1279,12 @@ function createPrintStage(base = {}) {
     aniloxBcm: n(first(base.aniloxBcm, base.inkGsm), 3),
     transferFactor: n(base.transferFactor, 0.3),
     inkDensity: n(base.inkDensity, 1.5),
-    inkCostPerLb: n(base.inkCostPerLb, 0),
+    inkMaterialId: base.inkMaterialId || tintaConvencional[0]?.id || "",
+    inkCostPerLb: n(base.inkCostPerLb, materialCostPerPound(findMaterial(base.inkMaterialId || tintaConvencional[0]?.id || ""))),
     inkGsm: n(base.inkGsm, 0) > 0 ? n(base.inkGsm, 0) : inkDefaults.cmykGsm,
     bcmGenerico: n(base.bcmGenerico, 2),
-    whiteInkCostPerLb: n(base.whiteInkCostPerLb, 30),
+    whiteInkMaterialId: base.whiteInkMaterialId || tintaBlanca[0]?.id || "",
+    whiteInkCostPerLb: n(base.whiteInkCostPerLb, materialCostPerPound(findMaterial(base.whiteInkMaterialId || tintaBlanca[0]?.id || "")) || 30),
     pantoneInkCostPerLb: n(base.pantoneInkCostPerLb, 35),
     designCoveragePct: n(base.designCoveragePct, 60),
     requiresSubstrateTreatment: base.requiresSubstrateTreatment,
@@ -1475,7 +1518,10 @@ function coreDiameterSelectOptions() {
   if (selected && !options.includes(selected)) {
     options.push(selected);
   }
-  return options.map((item) => ({ value: item, label: item }));
+  return options.map((item) => {
+    const value = String(item || "").trim();
+    return { value, label: value ? `${value} in` : value };
+  });
 }
 
 function processOptions(items, selected = "") {
@@ -1531,7 +1577,10 @@ function machineDisplayName(machine) {
 }
 
 function autoSelectionSnapshot() {
-  return state.context?.calculo?.raw_data?.CODEX_AUTO_SELECTION || {};
+  const snapshot = state.context?.calculo?.raw_data?.CODEX_AUTO_SELECTION || {};
+  const machineName = String(snapshot?.machineName || "").trim();
+  if (!machineName) return snapshot;
+  return findMachineByDisplayName(machineName) ? snapshot : { ...snapshot, machineName: "", missingMachine: true };
 }
 
 function autoPricingSnapshot() {
@@ -1961,6 +2010,20 @@ function materialsByClassification(family = "", keywords = []) {
   return materialsByKeywords(keywords);
 }
 
+function substrateMaterialOptions() {
+  return materialsByClassification("sustrato", ["sustrato", "papel", "film", "bopp", "opp", "pet", "vinil"]);
+}
+
+function conventionalInkMaterialOptions() {
+  return materialsByClassification("tinta", ["tinta", "ink", "uv", "ue"]);
+}
+
+function whiteInkMaterialOptions() {
+  const options = conventionalInkMaterialOptions();
+  const preferred = options.filter((item) => norm(`${item.descripcion || ""} ${item.nombre || ""}`).includes("blanc"));
+  return preferred.length ? preferred : options;
+}
+
 function materialUnitCosts(material, widthInches = 0) {
   const costFt2 = n(first(material?.costo_x_ft2, material?.costoPorFt2), 0);
   if (costFt2 > 0) {
@@ -1974,6 +2037,17 @@ function materialUnitCosts(material, widthInches = 0) {
   const costMsi = n(material?.costoMaterialPorMsi || material?.precioUnitarioCotizacionDol, 0);
   const width = n(widthInches, 0);
   const costPerInch = width > 0 ? r((costMsi * width) / 1000, 6) : 0;
+  if (costMsi <= 0) {
+    const costPerKg = n(first(material?.costo_x_kg, material?.costPerKgUsd), 0);
+    const costPerLb = n(first(material?.costo_x_libra, material?.costoPorLibra, material?.costPerLbUsd), 0);
+    if (costPerKg > 0 || costPerLb > 0) {
+      return {
+        costMsi: 0,
+        costPerFoot: 0,
+        costPerMeter: 0
+      };
+    }
+  }
   return {
     costMsi: r(costMsi, 6),
     costPerFoot: r(costPerInch * 12, 6),
@@ -2004,6 +2078,20 @@ function normalizeQuantities(values = []) {
 function currentQuantity(form = state.form) {
   const selected = normalizeQuantities(form.header.quantities).find((item) => n(item.value, 0) > 0);
   return Math.max(0, n(selected?.value, 0));
+}
+
+function requestedQuantitiesFromRaw(raw = {}) {
+  const tokens = []
+    .concat(String(first(raw["REQ | Cantidades"], raw["REQ | Grupo de Cantidades"], "")).split(","))
+    .concat(String(first(raw["REQ | Cantidad Solicitada Original"], "")).split(","))
+    .map((item) => n(String(item || "").replace(/[^\d.,-]/g, "").trim(), 0))
+    .filter((value) => value > 0);
+  return [...new Set(tokens)];
+}
+
+function syncDerivedHeaderAndPackaging(form = state.form) {
+  form.header.quantity = currentQuantity(form);
+  form.packaging.rollCount = metrics(form).rollCount;
 }
 
 function quoteDefaultsFromConfig() {
@@ -2202,6 +2290,22 @@ function readonlyDisplay(value) {
   return `<div class="display-input-wrap readonly-display"><input class="display-input" type="text" value="${esc(value)}" readonly tabindex="-1"><span class="display-input-mask">${esc(value)}</span></div>`;
 }
 
+function syncHeaderUnitMasks() {
+  const updateMask = (input, mask, suffix, decimals = 3) => {
+    if (!input || !mask) return;
+    const rawValue = String(input.value ?? "").trim();
+    if (!rawValue) {
+      mask.textContent = "";
+      return;
+    }
+    mask.textContent = `${num(n(rawValue, 0), decimals)} ${suffix}`;
+  };
+  updateMask(els.labelWidthIn, els.labelWidthInDisplay, "in");
+  updateMask(els.labelHeightIn, els.labelHeightInDisplay, "in");
+  updateMask(els.rollWidthIn, els.rollWidthInDisplay, "in");
+  updateMask(els.coreDiameter, els.coreDiameterDisplay, "in");
+}
+
 function normalizeVisibleFieldLabels(root = document) {
   root.querySelectorAll("label > span:first-child").forEach((label) => {
     const text = String(label.textContent || "").replace(/\s+/g, " ").trim();
@@ -2232,6 +2336,205 @@ function markRequiredScoped(scope, field, missing) {
 function clearRequiredHighlights() {
   document.querySelectorAll(".field-required-input").forEach((node) => node.classList.remove("field-required-input"));
   document.querySelectorAll(".field-required-wrap").forEach((node) => node.classList.remove("field-required-wrap"));
+}
+
+function uniqueMessages(messages = []) {
+  return [...new Set((Array.isArray(messages) ? messages : []).map((item) => String(item || "").trim()).filter(Boolean))];
+}
+
+function summarizeMessages(messages = [], limit = 2) {
+  const clean = uniqueMessages(messages);
+  if (!clean.length) return "";
+  if (clean.length <= limit) return clean.join(" ");
+  return `${clean.slice(0, limit).join(" ")} +${clean.length - limit} más.`;
+}
+
+function resolvePrimaryValidationProcessKey() {
+  const orderedKeys = sortActiveProcessKeys(state.form?.activeProcessKeys || []);
+  if (orderedKeys.includes("impresion")) {
+    const firstStage = activePrintStages()[0];
+    if (firstStage) return `impresion-${firstStage.id || 1}`;
+  }
+  return orderedKeys[0] || "troquel";
+}
+
+function buildCalculationValidationState(result = totals()) {
+  const form = state.form || {};
+  const alerts = {};
+  const blockingMessages = [];
+  const primaryTarget = resolvePrimaryValidationProcessKey();
+  const packagingTarget = hasActiveProcess("empaque") ? "empaque" : primaryTarget;
+  const addIssue = (processKey, message) => {
+    const text = String(message || "").trim();
+    if (!processKey || !text) return;
+    if (!Array.isArray(alerts[processKey])) alerts[processKey] = [];
+    if (!alerts[processKey].includes(text)) alerts[processKey].push(text);
+    if (!blockingMessages.includes(text)) blockingMessages.push(text);
+  };
+  const addWhen = (processKey, condition, message) => {
+    if (condition) addIssue(processKey, message);
+  };
+
+  addWhen("troquel", n(form.header?.labelWidthIn, 0) <= 0, "Falta ancho de etiqueta.");
+  addWhen("troquel", n(form.header?.labelHeightIn, 0) <= 0, "Falta largo de etiqueta.");
+  addWhen("troquel", n(form.header?.rollWidthIn, 0) <= 0, "Falta ancho de material.");
+  addWhen("troquel", n(form.header?.coreDiameter, 0) <= 0, "Falta diámetro de core.");
+  addWhen("troquel", n(form.header?.coreDiameter, 0) > 10, "Revisa el diámetro de core.");
+  addWhen("troquel", currentQuantity(form) <= 0, "Falta cantidad a producir.");
+  addWhen("troquel", n(form.header?.quantityTypes, 0) <= 0, "Falta cantidad de tipos.");
+  addWhen("troquel", !String(form.troquel?.dieCode || "").trim(), "Falta troquel.");
+  addWhen(primaryTarget, !String(form.header?.applicationType || "").trim(), "Falta tipo de etiquetado.");
+  addWhen(packagingTarget, n(form.header?.labelsPerRoll, 0) <= 0, "Falta etiquetas por rollo.");
+
+  addWhen("sustrato", !String(form.substrate?.materialId || "").trim(), "Falta sustrato.");
+  addWhen("sustrato", n(form.substrate?.costPerFoot, 0) <= 0, "Falta costo de sustrato.");
+
+  if (hasActiveProcess("diseno")) {
+    addWhen("diseno", n(form.design?.artCount, 0) <= 0, "Falta cantidad de artes.");
+    addWhen("diseno", n(form.design?.timePerArt, 0) <= 0, "Falta tiempo por arte.");
+    addWhen("diseno", n(form.design?.hourCost, 0) <= 0, "Falta costo por hora.");
+  }
+
+  if (hasActiveProcess("preprensa")) {
+    addWhen("preprensa", n(form.prepress?.artsPerHour, 0) <= 0, "Falta artes por hora.");
+    addWhen("preprensa", n(form.prepress?.artCount, 0) <= 0, "Falta cantidad de artes.");
+    addWhen("preprensa", n(form.prepress?.hourCost, 0) <= 0, "Falta costo por hora.");
+  }
+
+  if (hasActiveProcess("planchas")) {
+    const laser = laserPlateMetrics(form);
+    const chargePlates = form.plates?.chargePlates !== false;
+    const chargeVirginPlate = form.plates?.chargeVirginPlate !== false;
+    addWhen("planchas", chargePlates && chargeVirginPlate && laser.missing.material, "Falta material de plancha virgen.");
+    addWhen("planchas", laser.missing.machine, "Falta máquina de grabado láser.");
+    addWhen("planchas", laser.missing.costHourMachine, "Falta costo hora máquina en planchas.");
+    addWhen("planchas", laser.missing.costHourOperator, "Falta costo hora operario en planchas.");
+    addWhen("planchas", laser.missing.speed, "Falta velocidad de planchas.");
+    PLATE_KEYS.filter((entry) => entry.key !== "laser" && !entry.materialOnly).forEach((entry) => {
+      const step = form.plates?.[entry.key] || {};
+      const label = entry.label || entry.title || entry.nombre || entry.key;
+      addWhen("planchas", !String(step.processId || "").trim(), `Falta proceso de ${label}.`);
+      addWhen("planchas", n(step.fixedMinutes, 0) <= 0, `Falta tiempo fijo de ${label}.`);
+      addWhen("planchas", n(step.costHourMachine, 0) <= 0, `Falta costo máquina de ${label}.`);
+      addWhen("planchas", n(step.costHourOperator, 0) <= 0, `Falta costo operario de ${label}.`);
+    });
+  }
+
+  if (hasActiveProcess("impresion")) {
+    const stageWarnings = autoWarningsList();
+    activePrintStages().forEach((stage, index) => {
+      const key = `impresion-${stage.id || index + 1}`;
+      addWhen(key, !String(stage.machineId || "").trim(), "Falta máquina de impresión.");
+      addWhen(key, n(stage.setupMinutes, 0) <= 0, "Falta setup de impresión.");
+      addWhen(key, n(stage.cleaningMinutes, 0) <= 0, "Falta limpieza de impresión.");
+      addWhen(key, n(stage.mountingMinutes, 0) <= 0, "Falta montaje de impresión.");
+      addWhen(key, n(stage.coveragePct, 0) <= 0, "Falta cobertura.");
+      addWhen(key, n(stage.designCoveragePct, 0) <= 0, "Falta cobertura de diseño.");
+      addWhen(key, n(stage.bcmGenerico, 0) <= 0, "Falta BCM genérico.");
+      addWhen(key, n(stage.aniloxBcm, 0) <= 0, "Falta BCM anilox.");
+      addWhen(key, n(stage.inkGsm, 0) <= 0, "Falta consumo de tinta.");
+      addWhen(key, n(stage.transferFactor, 0) <= 0, "Falta factor de transferencia.");
+      addWhen(key, n(stage.inkDensity, 0) <= 0, "Falta densidad de tinta.");
+      addWhen(key, n(stage.speedMetersMin, 0) <= 0, "Falta velocidad de impresión.");
+      addWhen(key, n(stage.inkCostPerLb, 0) <= 0, "Falta costo tinta CMYK.");
+      addWhen(key, n(stage.whiteInkCostPerLb, 0) <= 0, "Falta costo tinta blanca.");
+      addWhen(key, n(stage.pantoneInkCostPerLb, 0) <= 0, "Falta costo tinta especial.");
+      addWhen(key, n(stage.availableColors, 0) <= 0, "Falta cantidad de estaciones.");
+      addWhen(key, n(stage.costHour, 0) <= 0, "Falta costo hora máquina.");
+      addWhen(key, n(stage.operatorHourCost, 0) <= 0, "Falta costo hora operario.");
+      addWhen(key, r(n(stage.maculaSetupFeet, 0) + n(stage.maculaTirajeFeet, 0), 2) <= 0, "Falta desperdicio de arranque.");
+      if (index === 0) stageWarnings.forEach((warning) => addIssue(key, warning));
+    });
+  }
+
+  (form.finishes || []).forEach((finish, index) => {
+    const config = EXTERNAL_FINISH_BY_KEY[finish.processKey];
+    if (!config) return;
+    const key = `${config.key}-${index}`;
+    addWhen(key, !String(finish.machineId || "").trim(), `Falta máquina de ${config.label.toLowerCase()}.`);
+    addWhen(key, n(finish.setupMinutes, 0) <= 0, `Falta setup de ${config.label.toLowerCase()}.`);
+    addWhen(key, n(finish.speed, 0) <= 0, `Falta velocidad de ${config.label.toLowerCase()}.`);
+    addWhen(key, n(first(finish.costHourMachine, finish.costHour), 0) <= 0, `Falta costo máquina de ${config.label.toLowerCase()}.`);
+    addWhen(key, n(finish.costHourOperator, 0) <= 0, `Falta costo operario de ${config.label.toLowerCase()}.`);
+    if (config.usesMaterial) {
+      addWhen(key, !String(finish.materialId || "").trim(), `Falta material de ${config.label.toLowerCase()}.`);
+      if (config.usesWeightMaterial) {
+        addWhen(key, n(finish.layerGft2, 0) <= 0, `Falta consumo de ${config.label.toLowerCase()}.`);
+        addWhen(key, n(finish.costPerKg, 0) <= 0, `Falta costo por kg de ${config.label.toLowerCase()}.`);
+      } else if (config.usesUnitMaterial) {
+        addWhen(key, n(finish.costPerUnit, 0) <= 0, `Falta costo por unidad de ${config.label.toLowerCase()}.`);
+      } else {
+        addWhen(key, n(finish.costPerFt2, 0) <= 0, `Falta costo material de ${config.label.toLowerCase()}.`);
+      }
+    }
+    if (config.usesPlateCost) {
+      addWhen(key, n(finish.plateCost, 0) <= 0, `Falta costo de plancha de ${config.label.toLowerCase()}.`);
+    }
+  });
+
+  if (hasActiveProcess("empaque")) {
+    addWhen("empaque", n(form.packaging?.rollCount, 0) <= 0, "Falta cantidad de rollos.");
+    addWhen("empaque", n(form.packaging?.yieldPerHour, 0) <= 0, "Falta rendimiento por hora.");
+    addWhen("empaque", n(form.packaging?.operators, 0) <= 0, "Falta cantidad de operarios.");
+    addWhen("empaque", n(form.packaging?.hourCost, 0) <= 0, "Falta costo hora operario.");
+  }
+
+  return {
+    alerts,
+    blockingMessages,
+    hasBlockingIssues: blockingMessages.length > 0,
+    summaryText: summarizeMessages(blockingMessages, 3)
+  };
+}
+
+function clearProcessCardAlerts(root = els.processSections) {
+  if (!root) return;
+  root.querySelectorAll(".process-card").forEach((cardNode) => {
+    cardNode.querySelectorAll(".process-summary-alert").forEach((node) => node.remove());
+  });
+}
+
+function applyProcessCardAlerts(validationState = state.processValidation, root = els.processSections) {
+  if (!root) return;
+  clearProcessCardAlerts(root);
+  const alerts = validationState?.alerts || {};
+  root.querySelectorAll(".process-card").forEach((cardNode) => {
+    const processKey = String(cardNode.dataset.processKey || "").trim();
+    const messages = uniqueMessages(alerts[processKey]);
+    if (!messages.length) return;
+    const summaryMain = cardNode.querySelector(".process-summary-main");
+    if (!summaryMain) return;
+    const alertNode = document.createElement("span");
+    alertNode.className = "process-summary-alert";
+    alertNode.textContent = summarizeMessages(messages, 2);
+    summaryMain.appendChild(alertNode);
+  });
+}
+
+function updateCalculationActionState(validationState = state.processValidation) {
+  const blocked = Boolean(validationState?.hasBlockingIssues);
+  if (els.sapPreviewSendButton) {
+    els.sapPreviewSendButton.disabled = blocked;
+    els.sapPreviewSendButton.title = blocked ? (validationState.summaryText || "Completa la información faltante antes de continuar.") : "Enviar";
+  }
+}
+
+function refreshCalculationValidation(result = null) {
+  const totalsResult = result || totals();
+  const validationState = buildCalculationValidationState(totalsResult);
+  state.processValidation = validationState;
+  applyRequiredHighlights(totalsResult);
+  applyProcessCardAlerts(validationState);
+  updateCalculationActionState(validationState);
+  return validationState;
+}
+
+function ensureCalculationReadyForOutput(validationState = null) {
+  const current = validationState || state.processValidation || refreshCalculationValidation();
+  if (current?.hasBlockingIssues) {
+    throw new Error(current.summaryText || "Completa la información faltante antes de continuar.");
+  }
+  return current;
 }
 
 function applyRequiredHighlights(result = null) {
@@ -2305,6 +2608,7 @@ function applyRequiredHighlights(result = null) {
       markRequiredScoped(scope, "availableColors", n(stage.availableColors, 0) <= 0);
       markRequiredScoped(scope, "costHour", n(stage.costHour, 0) <= 0);
       markRequiredScoped(scope, "operatorHourCost", n(stage.operatorHourCost, 0) <= 0);
+      markRequiredScoped(scope, "maculaSetupFeet", r(n(stage.maculaSetupFeet, 0) + n(stage.maculaTirajeFeet, 0), 2) <= 0);
     });
   }
 
@@ -2531,7 +2835,9 @@ function buildForm() {
   const defaultOutputType = String(first(typeOptions[0]?.id, typeOptions[0]?.codigo, "INDIFERENTE")).toUpperCase();
   const requestedOutputType = String(first(context?.outputType, defaultOutputType)).toUpperCase();
   const outputType = typeOptions.some((item) => String(item.id || item.codigo || "").toUpperCase() === requestedOutputType) ? requestedOutputType : defaultOutputType;
-  const quantityProducts = n(context?.quantityProducts, 0);
+  const automaticRouteRequested = norm(raw["REQ | Ruta Solicitada"]).includes("automat");
+  const requestedQuantities = requestedQuantitiesFromRaw(raw);
+  const quantityProducts = requestedQuantities[0] || n(context?.quantityProducts, 0);
   const dieMetrics = resolveDieMetrics(die || {}, context || {});
   const maculaConfig = defaultMaculaConfig();
   const inkDefaults = conventionalInkDefaults();
@@ -2563,7 +2869,7 @@ function buildForm() {
       doubleWhitePass: norm(raw["TINTA BLANCA | DOBLE PASADA | CHECK"]) === "si",
       noPrint: norm(raw["SIN IMPRESION"]) === "si",
       quantity: quantityProducts,
-      quantities: normalizeQuantities([{ id: "qty-1", value: quantityProducts }]),
+      quantities: normalizeQuantities((requestedQuantities.length ? requestedQuantities : [quantityProducts]).map((value, index) => ({ id: `qty-${index + 1}`, value }))),
       quoteCode: context?.quoteCode || quote?.quote_code || "",
       lineCode: context?.lineCode || "",
       lineStatus: context?.lineStatus || "",
@@ -2680,12 +2986,14 @@ function buildForm() {
     ...item,
     variableBase: item.processKey === "estampado" ? base.printedAreaM2 : base.linealFeet
   }, index));
-  form.packaging.rollCount = base.rollCount;
-  form.header.quantity = currentQuantity(form);
+  syncDerivedHeaderAndPackaging(form);
   if (savedUi && typeof savedUi === "object") {
     stateSafeMerge(form, savedUi);
-    form.header.quantities = normalizeQuantities(form.header.quantities);
-    form.header.quantity = currentQuantity(form);
+    form.header.quantities = normalizeQuantities((requestedQuantities.length ? requestedQuantities : form.header.quantities).map((item, index) => ({
+      id: item?.id || `qty-${index + 1}`,
+      value: typeof item === "object" ? item.value : item
+    })));
+    syncDerivedHeaderAndPackaging(form);
   }
   form.plates.chargePlates = form.plates.chargePlates !== false;
   form.plates.chargeVirginPlate = form.plates.chargeVirginPlate !== false;
@@ -2719,6 +3027,20 @@ function buildForm() {
     .filter(Boolean);
   if (inferredProcessKeys.length) {
     form.activeProcessKeys = sortActiveProcessKeys((form.activeProcessKeys || []).concat(inferredProcessKeys));
+  }
+  if (automaticRouteRequested && inferredProcessKeys.length) {
+    const inferredSet = new Set(inferredProcessKeys);
+    form.activeProcessKeys = sortActiveProcessKeys((form.activeProcessKeys || []).filter((key) => {
+      if (EXTERNAL_FINISH_BY_KEY[key]) return inferredSet.has(key);
+      if (INLINE_PRINT_BY_KEY[key]) return inferredSet.has(key);
+      return true;
+    }));
+    form.finishes = form.finishes.map((item) => ({ ...item, active: inferredSet.has(item.processKey) }));
+    if (form.printStages?.[0]?.inlineFinishes) {
+      Object.keys(form.printStages[0].inlineFinishes).forEach((key) => {
+        form.printStages[0].inlineFinishes[key].active = inferredSet.has(key);
+      });
+    }
   }
   const quotedMachine = selectedQuotedMachine || findMachine(form.print?.machineId);
   if (quotedMachine) {
@@ -3268,10 +3590,10 @@ function calcFinishes() {
 
 function calcPackaging() {
   const base = metrics();
-  const rolls = n(state.form.packaging.rollCount, base.rollCount);
+  const rolls = base.rollCount;
   const hours = n(state.form.packaging.yieldPerHour, 0) > 0 ? r(rolls / n(state.form.packaging.yieldPerHour, 0)) : 0;
   const pricing = applyProcessMinimum("empaque", r((hours * n(state.form.packaging.operators, 0) * n(state.form.packaging.hourCost, 0)) + n(state.form.packaging.externalCost, 0)));
-  return { rolls, hours, ...pricing, formulaText: "Tiempo (h) = Rollos / Rendimiento por Hora. Costo = Tiempo x Operarios x Costo Hora Operario + Costo Externo.", explanation: "Empaque se mide por productividad del área, número de operarios y cualquier costo externo asociado." };
+  return { rolls, hours, ...pricing, formulaText: "Cantidad de Rollos = Cantidad de Productos / Etiquetas por Rollo. Tiempo (h) = Rollos / Rendimiento por Hora. Costo = Tiempo x Operarios x Costo Hora Operario + Costo Externo.", explanation: "Empaque calcula primero la cantidad de rollos dividiendo la cantidad de productos entre las etiquetas por rollo y luego valora el tiempo del área, la mano de obra y el costo externo." };
 }
 
 function calcAdditional() {
@@ -3304,7 +3626,9 @@ function totals() {
 }
 
 function buildSavePayload() {
+  syncDerivedHeaderAndPackaging(state.form);
   const result = totals();
+  const validationState = buildCalculationValidationState(result);
   const printProductionType = currentPrintProductionType();
   return {
     quoteCode: state.form.header.quoteCode,
@@ -3333,6 +3657,9 @@ function buildSavePayload() {
     finalTotal: result.total,
     unitPrice: result.unit,
     lineStatus: state.form.header.lineStatus,
+    validationSummary: validationState.hasBlockingIssues ? validationState.summaryText : "",
+    validationMessages: validationState.blockingMessages,
+    validationBlocking: validationState.hasBlockingIssues,
     jobName: state.form.header.jobName,
     department: "Flexografia",
     uiState: JSON.parse(JSON.stringify(state.form))
@@ -3406,13 +3733,14 @@ function renderHeader() {
   els.marginPct.value = state.form.commercial.marginPct;
   els.discountPct.value = state.form.commercial.discountPct ?? 0;
   els.taxPct.value = state.form.commercial.taxPct;
-  els.customerNameDisplay.textContent = state.form.header.customerName || "";
-  els.salespersonDisplay.textContent = state.form.header.salespersonName || "";
+  if (els.customerNameDisplay) els.customerNameDisplay.textContent = state.form.header.customerName || "";
+  if (els.salespersonDisplay) els.salespersonDisplay.textContent = state.form.header.salespersonName || "";
+  syncHeaderUnitMasks();
   renderFavoriteDocumentButton();
   syncCustomerCodeWidth();
   renderQuantities();
   outputPreview();
-  applyRequiredHighlights();
+  refreshCalculationValidation();
 }
 
 function renderProcessLauncher() {
@@ -3531,6 +3859,24 @@ function renderSidebar(result) {
   const autoPricing = autoPricingSnapshot();
   const autoWarnings = autoWarningsList();
   const autoProcesses = autoProcessSnapshot();
+  const currentAutoRoute = state.context?.calculo?.processType || autoSelection?.route || "";
+  const autoMachineName = autoSelection?.missingMachine
+    ? "No disponible"
+    : first(autoSelection?.machineName, state.context?.calculo?.quotedMachine, "");
+  const autoMaterialName = first(autoSelection?.materialName, state.context?.calculo?.materialName, "");
+  const autoDieCode = first(autoSelection?.dieCode, state.context?.calculo?.dieCode, "");
+  const currentMachineName = printProcess?.machine_name || state.form.print.machineName || "";
+  const currentMaterialName = material?.descripcion || "";
+  const currentDieCode = state.form.troquel.dieCode || "";
+  const currentLabelsPerRoll = n(state.form.header.labelsPerRoll, 0);
+  const autoLabelsPerRoll = n(first(autoSelection?.labelsPerRoll, state.context?.calculo?.labelsPerRoll), 0);
+  const manualOverride = Boolean(
+    (currentMachineName && autoMachineName && norm(currentMachineName) !== norm(autoMachineName))
+    || (currentMaterialName && autoMaterialName && norm(currentMaterialName) !== norm(autoMaterialName))
+    || (currentDieCode && autoDieCode && norm(currentDieCode) !== norm(autoDieCode))
+    || (currentLabelsPerRoll > 0 && autoLabelsPerRoll > 0 && currentLabelsPerRoll !== autoLabelsPerRoll)
+    || (processProductiveType && currentAutoRoute && norm(processProductiveType) !== norm(currentAutoRoute))
+  );
   const plateRule = digitalPlateRuleApplies() ? "Planchas no se cobran" : "Planchas sí se cobran";
   const statusBase = state.form.header.quoteCode && state.form.header.lineCode ? `Evaluando ${state.form.header.quoteCode} / ${state.form.header.lineCode}.` : "Evaluando cálculo de flexografía.";
   els.calcStatus.textContent = digitalPlateRuleApplies() ? `${statusBase} ${digitalPlateRuleMessage()}` : statusBase;
@@ -3541,12 +3887,16 @@ function renderSidebar(result) {
       : first(state.context?.calculo?.raw_data?.CODEX_PROCESS_SEQUENCE_TEXT, "Pendiente");
     const warningText = autoWarnings.length ? autoWarnings.join(" | ") : "Sin advertencias";
     els.automaticSummaryRows.innerHTML = [
+      ["Umbral digital", num(first(autoSelection?.digitalThreshold, state.context?.calculo?.raw_data?.CODEX_AUTO_SELECTION?.digitalThreshold), 0)],
       ["Ruta", state.context?.calculo?.processType || autoSelection?.route || "No definida"],
+      ["Familia solicitada", first(autoSelection?.materialFamily, "Pendiente")],
       ["Material automático", first(autoSelection?.materialName, state.context?.calculo?.materialName, "Pendiente")],
       ["Máquina automática", first(autoSelection?.machineName, state.context?.calculo?.quotedMachine, "Pendiente")],
       ["Troquel automático", first(autoSelection?.dieCode, state.context?.calculo?.dieCode, "No definido")],
       ["Etiquetas por rollo", num(first(autoSelection?.labelsPerRoll, state.context?.calculo?.labelsPerRoll), 0)],
       ["Montaje automático", first(autoSelection?.mounting?.summary, "Pendiente")],
+      ["Decisión vigente", manualOverride ? "Manual del cotizador" : "Automática"],
+      ["Usar automático", manualOverride ? "No" : "Sí"],
       ["Secuencia", processSequence || "Pendiente"],
       ["Sustrato base", autoPricing?.materialCost > 0 ? money(autoPricing.materialCost) : "Pendiente"],
       ["Producción base", autoPricing?.productionCost > 0 ? money(autoPricing.productionCost) : "Pendiente"],
@@ -3575,6 +3925,313 @@ function renderSidebar(result) {
     ["Total Final", money(result.total)],
     ["Precio Unitario", money(result.unit)]
   ].map(([label, value]) => `<div class="summary-row${label === "Total Final" ? " summary-row-total" : ""}"><span>${esc(label)}</span><span class="summary-row-value">${esc(value)}</span></div>`).join("");
+  renderSapPreview(result);
+}
+
+function buildSapPreviewPayloads(result) {
+  const quoteCode = String(state.form?.header?.quoteCode || "").trim();
+  const lineCode = String(state.form?.header?.lineCode || "").trim();
+  const quote = state.context?.cotizacion || {};
+  const salespersonName = first(quote.salesperson_name, state.form?.header?.salespersonName, state.context?.calculo?.salespersonName, "");
+  const salespersonConfig = findSapSalespersonConfigByName(salespersonName);
+  const salesPersonCode = salespersonConfig?.salesPersonCode ?? null;
+  const profitCenterCode = first(salespersonConfig?.profitCenterCode, "");
+  const productionCostCenterCode = first(state.sapProductionCostCenter?.defaultCostCenterCode, "");
+  const material = findMaterial(state.form?.substrate?.materialId);
+  const itemCode = first(state.context?.calculo?.productCode, state.form?.header?.lineCode, `PROD-${quoteCode}-${lineCode || "01"}`);
+  const itemName = first(state.form?.header?.jobName, state.context?.calculo?.productName, itemCode);
+  const quantity = n(currentQuantity(state.form), 0);
+  const warehouse = first(state.context?.calculo?.raw_data?.BODEGA, "01");
+  const bomComponents = [];
+  const pushComponent = (sourceLabel, componentCode, componentName, componentQuantity, extra = {}) => {
+    const itemQty = n(componentQuantity, 0);
+    if (!componentCode || itemQty <= 0) return;
+    bomComponents.push({
+      LineNum: bomComponents.length,
+      ItemCode: componentCode,
+      ItemName: componentName || componentCode,
+      Quantity: r(itemQty, 6),
+      WarehouseCode: warehouse,
+      Source: sourceLabel,
+      ...extra
+    });
+  };
+
+  if (material?.id) {
+    pushComponent(
+      "Sustrato",
+      material.id,
+      material.descripcion || material.nombre || material.id,
+      first(result?.sustrato?.totalLengthFeet, result?.sustrato?.linealFeet, quantity)
+    );
+  }
+
+  (result?.print?.items || []).forEach((printItem, index) => {
+    const stage = state.form?.printStages?.[index] || {};
+    const machine = findMachine(stage.machineId);
+    const isDigitalMachine = isDigitalProductionMachine(machine);
+    const cmykQuantity = isDigitalMachine
+      ? Math.max(0, n(printItem?.digitalInkKg, 0) - n(printItem?.digitalWhiteKg, 0) - n(printItem?.digitalSpecialInkKg, 0))
+      : n(printItem?.inkConsumption, 0);
+    if (state.form?.header?.useCmyk && stage.inkMaterialId && cmykQuantity > 0) {
+      const inkMaterial = findMaterial(stage.inkMaterialId);
+      pushComponent(
+        isDigitalMachine ? "Tintas Digitales CMYK" : "Tintas CMYK",
+        stage.inkMaterialId,
+        inkMaterial?.descripcion || inkMaterial?.nombre || stage.inkMaterialId,
+        cmykQuantity,
+        { UnitHint: isDigitalMachine ? "kg" : "lb" }
+      );
+    }
+    const whiteQuantity = isDigitalMachine
+      ? n(printItem?.digitalWhiteKg, 0)
+      : r(n(printItem?.inkConsumptionPerColorLb, 0) * (state.form?.header?.doubleWhitePass ? 2 : 1), 6);
+    if (state.form?.header?.useWhiteInk && stage.whiteInkMaterialId && whiteQuantity > 0) {
+      const whiteMaterial = findMaterial(stage.whiteInkMaterialId);
+      pushComponent(
+        "Tinta Blanca",
+        stage.whiteInkMaterialId,
+        whiteMaterial?.descripcion || whiteMaterial?.nombre || stage.whiteInkMaterialId,
+        whiteQuantity,
+        { UnitHint: isDigitalMachine ? "kg" : "lb" }
+      );
+    }
+    (printItem?.inlineItems || []).forEach((inlineItem) => {
+      if (!inlineItem?.active || !inlineItem?.materialId) return;
+      const inlineMaterial = findMaterial(inlineItem.materialId);
+      pushComponent(
+        inlineItem.label || inlineItem.key || "Acabado Inline",
+        inlineItem.materialId,
+        inlineMaterial?.descripcion || inlineMaterial?.nombre || inlineItem.materialId,
+        first(inlineItem.materialConsumptionLb, inlineItem.materialBase, 0),
+        { UnitHint: inlineItem.key === "barniz" ? "lb" : "base" }
+      );
+    });
+  });
+
+  (result?.finishes?.items || []).forEach((finish) => {
+    if (!finish?.active || !finish?.materialId) return;
+    const finishMaterial = findMaterial(finish.materialId);
+    pushComponent(
+      finish.processLabel || finish.processKey || "Acabado",
+      finish.materialId,
+      finishMaterial?.descripcion || finishMaterial?.nombre || finish.materialId,
+      first(finish.materialConsumptionKg, finish.materialBase, 0)
+    );
+  });
+
+  const orderPayload = {
+    quoteCode,
+    lineCode,
+    target: {
+      internalEndpoint: "/api/sap/mirror/export-order",
+      sapObject: "oOrders",
+      sapTables: "ORDR / RDR1"
+    },
+    config: {
+      inventorySourceMode: first(state.config?.general?.inventorySourceMode, "local"),
+      sapProvider: first(state.sapConfig?.config?.provider, "service-layer"),
+      sapMode: first(state.sapConfig?.config?.mode, "demo")
+    },
+    payload: {
+      DocNum: quoteCode && lineCode ? `${quoteCode}-${lineCode}` : "",
+      CardCode: first(quote.customer_code, state.context?.calculo?.customerCode, ""),
+      CardName: first(quote.customer_name, state.context?.calculo?.customerName, ""),
+      DocDate: new Date().toISOString().slice(0, 10),
+      DocDueDate: first(quote.due_on, new Date().toISOString().slice(0, 10)),
+      Comments: quoteCode && lineCode ? `Preparado desde cotización ${quoteCode}, línea ${lineCode}` : "Preparado desde cálculo de flexografía",
+      ...(salesPersonCode !== null ? { SalesPersonCode: salesPersonCode } : {}),
+      DocumentLines: [{
+        LineNum: 0,
+        ItemCode: itemCode,
+        ItemDescription: itemName,
+        Quantity: quantity,
+        Price: r(result.unit || 0, 6),
+        LineTotal: r(result.total || 0, 6),
+        WarehouseCode: warehouse,
+        ...(profitCenterCode ? { CostingCode: profitCenterCode } : {})
+      }]
+    },
+    source: {
+      salespersonName,
+      salesPersonCode,
+      profitCenterCode
+    }
+  };
+
+  const bomPayload = {
+    quoteCode,
+    lineCode,
+    target: {
+      internalEndpoint: "/api/sap/product-trees",
+      sapObject: "oProductTrees",
+      sapTables: "OITT / ITT1"
+    },
+    config: {
+      classificationField: first(state.config?.general?.inventoryImportedClassificationField, "U_ClasificacionERP"),
+      sapProvider: first(state.sapConfig?.config?.provider, "service-layer"),
+      sapMode: first(state.sapConfig?.config?.mode, "demo")
+    },
+    payload: {
+      DocNum: quoteCode && lineCode ? `${quoteCode}-${lineCode}-BOM` : "",
+      ItemCode: itemCode,
+      ProdName: itemName,
+      PlannedQty: quantity,
+      WarehouseCode: warehouse,
+      Components: bomComponents
+    }
+  };
+
+  const inventoryExitPayload = {
+    quoteCode,
+    lineCode,
+    target: {
+      internalEndpoint: "/api/sap/inventory/exit",
+      sapObject: "oInventoryGenExit",
+      sapTables: "OIGE / IGE1"
+    },
+    payload: {
+      DocDate: new Date().toISOString().slice(0, 10),
+      Comments: quoteCode && lineCode ? `Entrega de componentes desde cotización ${quoteCode}, línea ${lineCode}` : "Entrega de componentes desde cálculo de flexografía",
+      ProductionItemCode: itemCode,
+      ProductionQuantity: quantity,
+      WarehouseCode: warehouse,
+      DocumentLines: bomComponents.map((component, index) => ({
+        LineNum: index,
+        ItemCode: component.ItemCode,
+        ItemDescription: component.ItemName,
+        Quantity: component.Quantity,
+        WarehouseCode: component.WarehouseCode || warehouse,
+        ...(productionCostCenterCode ? { CostingCode: productionCostCenterCode } : {})
+      }))
+    },
+    source: {
+      productionCostCenterCode
+    }
+  };
+
+  const inventoryEntryPayload = {
+    quoteCode,
+    lineCode,
+    target: {
+      internalEndpoint: "/api/sap/inventory/entry",
+      sapObject: "oInventoryGenEntry",
+      sapTables: "OIGN / IGN1"
+    },
+    payload: {
+      DocDate: new Date().toISOString().slice(0, 10),
+      Comments: quoteCode && lineCode ? `Terminación de producción desde cotización ${quoteCode}, línea ${lineCode}` : "Terminación de producción desde cálculo de flexografía",
+      ProductionItemCode: itemCode,
+      ProductionQuantity: quantity,
+      WarehouseCode: warehouse,
+      DocumentLines: [{
+        LineNum: 0,
+        ItemCode: itemCode,
+        ItemDescription: itemName,
+        Quantity: quantity,
+        WarehouseCode: warehouse,
+        ...(productionCostCenterCode ? { CostingCode: productionCostCenterCode } : {})
+      }]
+    },
+    source: {
+      productionCostCenterCode
+    }
+  };
+
+  return { orderPayload, bomPayload, inventoryExitPayload, inventoryEntryPayload, bomComponents };
+}
+
+function renderSapPreview(result) {
+  const { orderPayload, bomPayload, inventoryExitPayload, inventoryEntryPayload, bomComponents } = buildSapPreviewPayloads(result);
+  if (els.sapPreviewSummary) {
+    els.sapPreviewSummary.innerHTML = [
+      ["Destino OV", `${orderPayload.target.sapObject} · ${orderPayload.target.sapTables}`],
+      ["Destino BOM", `${bomPayload.target.sapObject} · ${bomPayload.target.sapTables}`],
+      ["Destino salida", `${inventoryExitPayload.target.sapObject} · ${inventoryExitPayload.target.sapTables}`],
+      ["Destino entrada", `${inventoryEntryPayload.target.sapObject} · ${inventoryEntryPayload.target.sapTables}`],
+      ["Endpoint OV", orderPayload.target.internalEndpoint],
+      ["Endpoint BOM", bomPayload.target.internalEndpoint],
+      ["Endpoint salida", inventoryExitPayload.target.internalEndpoint],
+      ["Endpoint entrada", inventoryEntryPayload.target.internalEndpoint],
+      ["Vendedor", first(orderPayload.source?.salespersonName, "Pendiente")],
+      ["Código vendedor SAP", first(orderPayload.source?.salesPersonCode, "Pendiente")],
+      ["Centro beneficio OV", first(orderPayload.source?.profitCenterCode, "Pendiente")],
+      ["Centro costo producción", first(inventoryExitPayload.source?.productionCostCenterCode, "Pendiente")],
+      ["Fuente inventario", first(state.config?.general?.inventorySourceMode, "local")],
+      ["Campo clasificación", first(state.config?.general?.inventoryImportedClassificationField, "U_ClasificacionERP")],
+      ["Componentes BOM", String(bomComponents.length)],
+      ["Bodega", first(orderPayload.payload.DocumentLines?.[0]?.WarehouseCode, "01")]
+    ].map(([label, value]) => `<div class="summary-row"><span>${esc(label)}</span><span class="summary-row-value">${esc(value)}</span></div>`).join("");
+  }
+  if (els.sapPreviewOrder) {
+    els.sapPreviewOrder.textContent = JSON.stringify(orderPayload, null, 2);
+  }
+  if (els.sapPreviewBom) {
+    els.sapPreviewBom.textContent = JSON.stringify({
+      bom: bomPayload,
+      inventoryExit: inventoryExitPayload,
+      inventoryEntry: inventoryEntryPayload
+    }, null, 2);
+  }
+}
+
+async function sendSapPreview() {
+  ensureCalculationReadyForOutput();
+  const quoteCode = String(state.form?.header?.quoteCode || "").trim();
+  const lineCode = String(state.form?.header?.lineCode || "").trim();
+  if (!quoteCode || !lineCode) {
+    throw new Error("Debes tener una cotización y una línea activas para enviar a SAP.");
+  }
+  const { orderPayload, bomPayload } = buildSapPreviewPayloads(totals());
+  const orderResponse = await fetch("/api/sap/orders", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(orderPayload.payload)
+  });
+  const orderResult = await orderResponse.json().catch(() => ({}));
+  if (!orderResponse.ok) {
+    throw new Error(orderResult.error || "No fue posible enviar la orden real a SAP.");
+  }
+  const bomResponse = await fetch("/api/sap/mirror/export-bom", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(bomPayload.payload)
+  });
+  const bomMirrorResult = await bomResponse.json().catch(() => ({}));
+  if (!bomResponse.ok) {
+    throw new Error(bomMirrorResult.error || "La orden se envió, pero no fue posible preparar el BOM en espejo.");
+  }
+  const bomLiveResponse = await fetch("/api/sap/product-trees", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(bomPayload.payload)
+  });
+  const bomResult = await bomLiveResponse.json().catch(() => ({}));
+  if (!bomLiveResponse.ok) {
+    throw new Error(bomResult.error || "La orden se envió, pero no fue posible enviar el BOM real a SAP.");
+  }
+  els.calcStatus.textContent = `Orden enviada a SAP. Respuesta: ${first(orderResult.DocNum, orderResult.DocEntry, orderResult.message, "OK")} · BOM enviado ${first(bomResult.TreeCode, bomResult.DocNum, bomResult.DocEntry, bomResult.message, "OK")}.`;
+  if (els.sapPreviewOrder) {
+    els.sapPreviewOrder.textContent = JSON.stringify({
+      request: orderPayload,
+      response: orderResult
+    }, null, 2);
+  }
+  if (els.sapPreviewBom) {
+    els.sapPreviewBom.textContent = JSON.stringify({
+      request: bomPayload,
+      response: bomResult,
+      mirror: bomMirrorResult
+    }, null, 2);
+  }
+  return { orderResult, bomResult, bomMirrorResult };
+}
+
+function openSapOutputView() {
+  const target = "/configuracion-general";
+  if (!openRouteInShell(target, "Configuración SAP")) {
+    window.location.href = withShellParam(target);
+  }
 }
 
 function applyDefaultLauncherPosition() {
@@ -3717,7 +4374,10 @@ function renderInlineToggleBar(stageIndex, inlineItems) {
 
 function renderPrintInkBlock(scope, item, printItem) {
   const info = "Consumo Tinta = Área Impresa x Cobertura x BCM Anilox x Factor Transferencia x Densidad x Tintas Requeridas. Subtotal Tinta = Consumo Tinta x Costo por Libra.";
-  const parameterZone = `<div class="process-zone"><div class="process-zone-head"><h4>Parámetros de Tinta</h4></div><div class="process-print-grid process-print-grid-ink"><label><span>Cobertura Tinta</span>${displayInput(scope, "coveragePct", item.coveragePct, { suffix: "%", maximumFractionDigits: 2 })}</label><label><span>Cobertura Diseño</span>${displayInput(scope, "designCoveragePct", item.designCoveragePct, { suffix: "%", maximumFractionDigits: 2 })}</label><label><span>BCM Anilox</span>${displayInput(scope, "aniloxBcm", item.aniloxBcm, { maximumFractionDigits: 4 })}</label><label><span>Factor Transferencia</span>${displayInput(scope, "transferFactor", item.transferFactor, { maximumFractionDigits: 4 })}</label><label><span>Densidad Tinta</span>${displayInput(scope, "inkDensity", item.inkDensity, { maximumFractionDigits: 4 })}</label><label><span>Costo Lb CMYK</span>${displayInput(scope, "inkCostPerLb", item.inkCostPerLb, { prefix: "$", maximumFractionDigits: 4 })}</label><label><span>Costo Lb Blanco</span>${displayInput(scope, "whiteInkCostPerLb", item.whiteInkCostPerLb, { prefix: "$", maximumFractionDigits: 4 })}</label><label><span>Costo Lb Pantone</span>${displayInput(scope, "pantoneInkCostPerLb", item.pantoneInkCostPerLb, { prefix: "$", maximumFractionDigits: 4 })}</label></div></div>`;
+  const tintaOptions = conventionalInkMaterialOptions().map((entry) => ({ id: entry.id, nombre: entry.descripcion || entry.nombre || entry.id }));
+  const tintaBlancaOptions = whiteInkMaterialOptions().map((entry) => ({ id: entry.id, nombre: entry.descripcion || entry.nombre || entry.id }));
+  const tintaSelectors = `<label class="span-2"><span>Tinta CMYK UV</span><select data-scope="${scope}" data-field="inkMaterialId">${processOptions(tintaOptions, item.inkMaterialId)}</select></label>${state.form.header.useWhiteInk ? `<label class="span-2"><span>Tinta Blanca</span><select data-scope="${scope}" data-field="whiteInkMaterialId">${processOptions(tintaBlancaOptions, item.whiteInkMaterialId)}</select></label>` : ""}`;
+  const parameterZone = `<div class="process-zone"><div class="process-zone-head"><h4>Parámetros de Tinta</h4></div><div class="process-print-grid process-print-grid-ink">${tintaSelectors}<label><span>Cobertura Tinta</span>${displayInput(scope, "coveragePct", item.coveragePct, { suffix: "%", maximumFractionDigits: 2 })}</label><label><span>Cobertura Diseño</span>${displayInput(scope, "designCoveragePct", item.designCoveragePct, { suffix: "%", maximumFractionDigits: 2 })}</label><label><span>BCM Anilox</span>${displayInput(scope, "aniloxBcm", item.aniloxBcm, { maximumFractionDigits: 4 })}</label><label><span>Factor Transferencia</span>${displayInput(scope, "transferFactor", item.transferFactor, { maximumFractionDigits: 4 })}</label><label><span>Densidad Tinta</span>${displayInput(scope, "inkDensity", item.inkDensity, { maximumFractionDigits: 4 })}</label><label><span>Costo Lb CMYK</span>${displayInput(scope, "inkCostPerLb", item.inkCostPerLb, { prefix: "$", maximumFractionDigits: 4 })}</label><label><span>Costo Lb Blanco</span>${displayInput(scope, "whiteInkCostPerLb", item.whiteInkCostPerLb, { prefix: "$", maximumFractionDigits: 4 })}</label><label><span>Costo Lb Pantone</span>${displayInput(scope, "pantoneInkCostPerLb", item.pantoneInkCostPerLb, { prefix: "$", maximumFractionDigits: 4 })}</label></div></div>`;
   const profileZone = `<div class="process-zone"><div class="process-zone-head"><h4>Tipos de Trabajo</h4></div><div class="process-inline-table-shell">${renderInkProfiles(scope, item.inkProfiles || [])}</div></div>`;
   return `<details class="subprocess-card inline-process-card print-ink-card" data-open-key="${esc(scope)}.ink"><summary class="inline-process-summary"><div class="inline-process-heading"><strong>Cálculo de Tinta Convencional</strong></div><div class="process-summary-side"><em>${money(printItem.inkSubtotal || 0)}</em>${infoPopoverButton("Cálculo de Tinta Convencional", info, "formula-help")}</div></summary><div class="process-body">${parameterZone}${profileZone}<div class="readonly-grid compact-top step-metrics">${metric("Tintas Requeridas", num(printItem.colors || 0, 0))}${metric("Consumo Tinta", `${num(printItem.inkConsumption || 0, 4)} lb`)}${metric("Costo por Lb", money(printItem.inkCostPerLb || 0))}${metric("Subtotal Tinta", money(printItem.inkSubtotal || 0))}</div></div></details>`;
 }
@@ -3760,13 +4420,45 @@ function renderPrintStageCard(item, printItem, index, orderNumber) {
     : `<div class="inline-toggle-note">Esta máquina no tiene subprocesos inline habilitados para cotización.</div>`;
   const speedDisplayValue = n(item.speedMetersMin, 0);
   const speedUnit = printSpeedUnit(stageMachine);
-  const configZone = `<div class="process-zone"><div class="process-zone-head"><h4>Parámetros de Configuración</h4></div><div class="process-machine-row"><label class="span-2"><span>Máquina</span><select data-scope="${scope}" data-field="machineId">${processOptions(stagePrintOptions, item.machineId)}</select></label></div><div class="process-subsection"><h5>Producción</h5><div class="process-print-grid process-print-grid-production"><label><span>Setup <span class="field-unit">min</span></span>${displayInput(scope, "setupMinutes", item.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label><label><span>Limpieza <span class="field-unit">min</span></span>${displayInput(scope, "cleaningMinutes", item.cleaningMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label><label><span>Montaje <span class="field-unit">min</span></span>${displayInput(scope, "mountingMinutes", item.mountingMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label><label><span>Velocidad <span class="field-unit">${speedUnit}</span></span>${displayInput(scope, "speedMetersMin", item.speedMetersMin, { suffix: speedUnit, maximumFractionDigits: 2, inputValue: speedDisplayValue, displayValue: speedDisplayValue })}</label><label><span>Estaciones Disponibles</span>${displayInput(scope, "availableColors", item.availableColors, { integer: true, maximumFractionDigits: 0, step: "1" })}</label><label><span>Costo Máquina <span class="field-unit">$/h</span></span>${displayInput(scope, "costHour", item.costHour, { prefix: "$", maximumFractionDigits: 2 })}</label><label><span>Costo Operador <span class="field-unit">$/h</span></span>${displayInput(scope, "operatorHourCost", item.operatorHourCost, { prefix: "$", maximumFractionDigits: 2 })}</label></div></div></div>`;
+  const configZone = `<div class="process-zone"><div class="process-zone-head"><h4>Parámetros de Configuración</h4></div><div class="process-machine-row"><label class="span-2"><span>Máquina</span><select data-scope="${scope}" data-field="machineId">${processOptions(stagePrintOptions, item.machineId)}</select></label></div><div class="process-subsection"><h5>Producción</h5><div class="process-print-grid process-print-grid-production"><label><span>Setup <span class="field-unit">min</span></span>${displayInput(scope, "setupMinutes", item.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label><label><span>Limpieza <span class="field-unit">min</span></span>${displayInput(scope, "cleaningMinutes", item.cleaningMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label><label><span>Montaje <span class="field-unit">min</span></span>${displayInput(scope, "mountingMinutes", item.mountingMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label><label><span>Desp. Arranque <span class="field-unit">pies</span></span>${displayInput(scope, "maculaSetupFeet", item.maculaSetupFeet, { suffix: "pies", maximumFractionDigits: 2 })}</label><label><span>Velocidad <span class="field-unit">${speedUnit}</span></span>${displayInput(scope, "speedMetersMin", item.speedMetersMin, { suffix: speedUnit, maximumFractionDigits: 2, inputValue: speedDisplayValue, displayValue: speedDisplayValue })}</label><label><span>Estaciones</span>${displayInput(scope, "availableColors", item.availableColors, { integer: true, maximumFractionDigits: 0, step: "1" })}</label><label><span>Costo Máquina <span class="field-unit">$/h</span></span>${displayInput(scope, "costHour", item.costHour, { prefix: "$", maximumFractionDigits: 2 })}</label><label><span>Costo Operador <span class="field-unit">$/h</span></span>${displayInput(scope, "operatorHourCost", item.operatorHourCost, { prefix: "$", maximumFractionDigits: 2 })}</label></div></div></div>`;
   const costInfo = isConventionalMachine ? "Tiempo total = setup + limpieza + montaje + proceso lineal. Consumo tinta = área impresa x cobertura x BCM anilox x factor transferencia x densidad tinta x tintas requeridas." : "Tiempo total = setup + limpieza + montaje + proceso lineal. En digital, la tinta se cobra por consumo kg o por clic según la máquina; Premier se suma si el sustrato requiere tratamiento.";
   const metricsZone = `<div class="process-zone process-zone-accent"><div class="process-zone-head"><h4>Indicadores del Proceso</h4></div><div class="process-kpi-grid">${metricBox("Pies Netos", printItem.linealFeet > 0 ? `${num(printItem.linealFeet || 0, 2)} pies` : "Pendiente", n(printItem.linealFeet, 0) <= 0)}${metricBox("Desperdicio de Arranque", printItem.startupWasteFeet > 0 ? `${num(printItem.startupWasteFeet || 0, 2)} pies` : "Pendiente", (printItem.issues || []).some((issue) => issue.includes("Desperdicio de Arranque")))}${metricBox("Longitud Total", printItem.totalLengthFeet > 0 ? `${num(printItem.totalLengthFeet || 0, 2)} pies` : "Pendiente", (printItem.issues || []).length > 0)}${metricBox("Tiempo Total", printItem.totalMinutes > 0 ? `${num(printItem.totalMinutes || 0, 2)} min` : "Pendiente", (printItem.issues || []).some((issue) => issue.includes("Velocidad") || issue.includes("Montaje y Ajuste")))}</div>${issueList("Problemas detectados en la fórmula", printItem.issues || [])}</div>`;
   const maculaZone = renderPrintMaculaBlock(scope, printItem, isConventionalMachine);
   const premierZone = !isConventionalMachine ? renderDigitalPremierBlock(scope, item, printItem) : "";
   const inkZone = isConventionalMachine ? renderPrintInkBlock(scope, item, printItem) : renderDigitalInkBlock(scope, item, printItem);
-  const costZone = `<div class="process-zone process-zone-accent"><div class="process-zone-head"><h4>Desglose de Costos</h4></div><div class="summary-rows process-cost-summary">${summaryRowWithInfo("Costo Máquina", money(printItem.machineSubtotal || 0), "Costo Máquina", costInfo)}${summaryRowWithInfo("Costo Operador", money(printItem.operatorSubtotal || 0), "Costo Operador", costInfo)}${summaryRowWithInfo("Costo Tinta", money(printItem.inkSubtotal || 0), "Costo Tinta", costInfo)}${!isConventionalMachine ? summaryRowWithInfo("Premier", money(printItem.premierSubtotal || 0), "Premier", "Tratamiento de sustrato: líquido, setup y proceso offline o mantenimiento in-line.") : ""}${!isConventionalMachine ? summaryRowWithInfo("Lavados Especiales", money(printItem.digitalWashSubtotal || 0), "Lavados Especiales", "Costo por lavados de tintas especiales o gamut extendido.") : ""}${isConventionalMachine ? summaryRowWithInfo("Costo Material Mácula", money(printItem.maculaMaterialSubtotal || 0), "Costo Material Mácula", "Costo de material adicional generado por mácula. Se muestra aquí para lectura operativa y forma parte del consumo de sustrato.") : ""}${summaryRowWithInfo("Subprocesos En Línea", money(printItem.inlineSubtotal || 0), "Subprocesos En Línea", "Subtotal de acabados activados dentro de la misma línea de impresión.")}<div class="summary-row process-row-total"><span>Subtotal Impresión</span><strong>${money(printItem.subtotal || 0)}</strong></div></div></div>`;
+  const costZone = `<div class="process-zone process-zone-accent">
+        <div class="process-zone-head"><h4>1. Configuración de Tintas</h4></div>
+        <div class="summary-rows process-cost-summary">
+            <div class="config-tintas-grid">
+                <span>CMYK: ${printItem.cmykCount || 4} tintas</span>
+                <span>Blanco: ${printItem.whiteActive ? 'Sí' : 'No'}</span>
+                <span>Pantones: ${printItem.pantoneCount || 0}</span>
+                <span>Especiales: ${printItem.specialCount || 0}</span>
+            </div>
+        </div>
+        
+        <div class="process-zone-head"><h4>2. Mácula de Impresión (Startup Waste)</h4></div>
+        <div class="summary-rows process-cost-summary">
+            ${summaryRowWithInfo("Pies de Desperdicio", `${num(printItem.startupWasteFeet || 0, 2)} pies`, "Pies de arranque o mácula activa para completar la longitud total.")}
+            ${isConventionalMachine ? summaryRowWithInfo("Costo Material Mácula", money(printItem.maculaMaterialSubtotal || 0), "Costo de material adicional generado por mácula. Se muestra aquí para lectura operativa y forma parte del consumo de sustrato.") : ""}
+            ${summaryRowWithInfo("Mácula Total", money(printItem.maculaTotalFeetCost || 0), "Mácula = Pies × $/pie. Se incluye en el consumo total de material.")}
+        </div>
+        
+        <div class="process-zone-head"><h4>3. Costos por Tipo de Tinta</h4></div>
+        <div class="summary-rows process-cost-summary">
+            ${summaryRowWithInfo("Costo Máquina", money(printItem.machineSubtotal || 0), "Costo Máquina", costInfo)}
+            ${summaryRowWithInfo("Costo Operador", money(printItem.operatorSubtotal || 0), "Costo Operador", costInfo)}
+            ${summaryRowWithInfo("Costo Tinta", money(printItem.inkSubtotal || 0), "Costo Tinta = MSI consumida × $/MSI × Tintas requeridas", costInfo)}
+            ${!isConventionalMachine ? summaryRowWithInfo("Premier", money(printItem.premierSubtotal || 0), "Premier", "Tratamiento de sustrato: líquido, setup y proceso offline o mantenimiento in-line.") : ""}
+            ${!isConventionalMachine ? summaryRowWithInfo("Lavados Especiales", money(printItem.digitalWashSubtotal || 0), "Lavados Especiales", "Costo por lavados de tintas especiales o gamut extendido.") : ""}
+        </div>
+        
+        <div class="process-zone-head"><h4>4. Cálculo Final</h4></div>
+        <div class="summary-rows process-cost-summary">
+            ${summaryRowWithInfo("Subprocesos En Línea", money(printItem.inlineSubtotal || 0), "Subprocesos En Línea", "Subtotal de acabados activados dentro de la misma línea de impresión.")}
+            <div class="summary-row process-row-total"><span>Subtotal Impresión</span><strong>${money(printItem.subtotal || 0)}</strong></div>
+        </div>
+    </div>`;
   const speedLengthUnit = speedUnit === "m/min" ? "metros" : "pies";
   const lowerBlocks = [maculaZone, premierZone, inkZone, `<div class="inline-print-zone">${inlineZone}</div>`].filter(Boolean).join("");
   const body = `<div class="process-layout process-layout-print"><div class="process-layout-main">${configZone}</div><div class="process-layout-side">${metricsZone}${costZone}</div></div><div class="print-stage-expanded-blocks">${lowerBlocks}</div>${formula("Fórmula de Tiempo Total", `Tiempo Total en Máquina (min) = (Longitud Total en ${speedLengthUnit} / Velocidad de Operación en ${speedUnit}) + Tiempo de Montaje y Ajuste`, "La longitud total de impresión suma la mácula y luego se divide entre la velocidad real de operación. Después se agrega el tiempo de preparación, limpieza y montaje.", {
@@ -3910,7 +4602,7 @@ function renderProcesses() {
   closeInfoPopover();
   const focusSnapshot = captureFocus();
   snapshotOpenProcesses();
-  state.form.header.quantity = currentQuantity(state.form);
+  syncDerivedHeaderAndPackaging(state.form);
   const result = totals();
   const macula = result.macula;
   const troquel = result.troquel;
@@ -3948,7 +4640,7 @@ function renderProcesses() {
       ],
       answer: `R/ El troquel actual entrega ${formulaValue(troquel.labelsPerRepeat || 0, 0)} etiquetas por vuelta y ${formulaValue(troquel.development || 0, 2)} in de desarrollo`
     })}`),
-    sustrato: () => card("sustrato", nextTitle("Sustrato"), material?.descripcion || "Selecciona material", sustrato.subtotal, `<div class="editable-grid substrate-grid"><label class="span-2"><span>Tipo de Material</span><select data-scope="substrate" data-field="materialId">${processOptions((state.catalogs.materials || []).map((item) => ({ id: item.id, nombre: item.descripcion || item.nombre || item.id })), state.form.substrate.materialId)}</select></label><label><span>Costo por Pie <span class="field-unit">$/pie</span></span><input data-scope="substrate" data-field="costPerFoot" type="number" step="0.000001" value="${esc(state.form.substrate.costPerFoot)}"></label></div><div class="readonly-grid compact-top">${metricBox("Etiquetas al Través", sustrato.acrossCount > 0 ? num(sustrato.acrossCount, 0) : "Pendiente", n(sustrato.acrossCount, 0) <= 0)}${metricBox("Desarrollo del Cilindro", sustrato.cylinderDevelopmentIn > 0 ? `${num(sustrato.cylinderDevelopmentIn, 3)} in` : "Pendiente", n(sustrato.cylinderDevelopmentIn, 0) <= 0)}${metricBox("Desperdicio de Arranque", sustrato.startupWasteFeet > 0 ? `${num(sustrato.startupWasteFeet, 2)} pies` : "Pendiente", (sustrato.issues || []).some((issue) => issue.includes("Desperdicio de Arranque")))}${metricBox("Longitud Total", sustrato.totalLengthFeet > 0 ? `${num(sustrato.totalLengthFeet, 2)} pies` : "Pendiente", (sustrato.issues || []).length > 0)}${metricBox("Área Total Consumida", sustrato.totalAreaFt2 > 0 ? `${num(sustrato.totalAreaFt2, 2)} ft²` : "Pendiente", n(sustrato.webWidthIn, 0) <= 0 || (sustrato.issues || []).length > 0)}${metric("Costo por Pie", money(sustrato.unitCost))}${metric("Subtotal", money(sustrato.subtotal))}</div>${issueList("Problemas detectados en la fórmula", sustrato.issues || [])}${formula("Costo del Sustrato", sustrato.formulaCost, sustrato.explanation, {
+    sustrato: () => card("sustrato", nextTitle("Sustrato"), material?.descripcion || "Selecciona material", sustrato.subtotal, `<div class="editable-grid substrate-grid"><label class="span-2"><span>Material</span><select data-scope="substrate" data-field="materialId">${processOptions(substrateMaterialOptions().map((item) => ({ id: item.id, nombre: item.descripcion || item.nombre || item.id })), state.form.substrate.materialId)}</select></label><label><span>Costo/pie</span>${displayInput("substrate", "costPerFoot", state.form.substrate.costPerFoot, { prefix: "$", suffix: "/pie", maximumFractionDigits: 6, step: "0.000001" })}</label></div><div class="readonly-grid compact-top">${metricBox("Etiquetas al Través", sustrato.acrossCount > 0 ? num(sustrato.acrossCount, 0) : "Pendiente", n(sustrato.acrossCount, 0) <= 0)}${metricBox("Desarrollo del Cilindro", sustrato.cylinderDevelopmentIn > 0 ? `${num(sustrato.cylinderDevelopmentIn, 3)} in` : "Pendiente", n(sustrato.cylinderDevelopmentIn, 0) <= 0)}${metricBox("Desperdicio de Arranque", sustrato.startupWasteFeet > 0 ? `${num(sustrato.startupWasteFeet, 2)} pies` : "Pendiente", (sustrato.issues || []).some((issue) => issue.includes("Desperdicio de Arranque")))}${metricBox("Longitud Total", sustrato.totalLengthFeet > 0 ? `${num(sustrato.totalLengthFeet, 2)} pies` : "Pendiente", (sustrato.issues || []).length > 0)}${metricBox("Área Total Consumida", sustrato.totalAreaFt2 > 0 ? `${num(sustrato.totalAreaFt2, 2)} ft²` : "Pendiente", n(sustrato.webWidthIn, 0) <= 0 || (sustrato.issues || []).length > 0)}${metric("Costo por Pie", money(sustrato.unitCost))}${metric("Subtotal", money(sustrato.subtotal))}</div>${issueList("Problemas detectados en la fórmula", sustrato.issues || [])}${formula("Costo del Sustrato", sustrato.formulaCost, sustrato.explanation, {
       exampleLines: [
         `Cantidad Lineal Sustrato: ( ${formulaValue(sustrato.qty || 0, 0)} x ${formulaValue(sustrato.cylinderDevelopmentIn || 0, 2)} ) / ( 12 x ${formulaValue(sustrato.acrossCount || 0, 0)} ) = ${formulaValue(sustrato.linealFeet || 0, 2)}`,
         `Longitud Total: ${formulaValue(sustrato.linealFeet || 0, 2)} + ${formulaValue(sustrato.startupWasteFeet || 0, 2)} = ${formulaValue(sustrato.totalLengthFeet || 0, 2)}`,
@@ -3957,7 +4649,7 @@ function renderProcesses() {
       ],
       answer: `R/ El total a cobrar del consumo de sustrato es ${money(sustrato.subtotal || 0)}`
     })}`),
-    diseno: () => card("diseno", nextTitle("Diseño"), "", design.subtotal, `<div class="editable-grid design-cost-grid"><label><span>Cantidad de Artes</span>${displayInput("design", "artCount", state.form.design.artCount, { integer: true, step: "1" })}</label><label><span>Tiempo por Arte <span class="field-unit">h</span></span>${displayInput("design", "timePerArt", state.form.design.timePerArt, { suffix: "h", maximumFractionDigits: 2 })}</label><label><span>Factor de Cambios</span>${displayInput("design", "changeFactor", state.form.design.changeFactor, { maximumFractionDigits: 2 })}</label><label><span>Costo por Hora <span class="field-unit">$/h</span></span>${displayInput("design", "hourCost", state.form.design.hourCost, { prefix: "$", maximumFractionDigits: 2 })}</label><label><span>Tiempo Total</span>${readonlyDisplay(`${num(design.time, 2)} h`)}</label><label><span>Subtotal</span>${readonlyDisplay(money(design.subtotal))}</label></div>${formula("Cálculo de Diseño", design.formulaText, design.explanation, {
+    diseno: () => card("diseno", nextTitle("Diseño"), "", design.subtotal, `<div class="editable-grid design-cost-grid"><label><span>Artes</span>${displayInput("design", "artCount", state.form.design.artCount, { integer: true, step: "1" })}</label><label><span>Tiempo <span class="field-unit">h</span></span>${displayInput("design", "timePerArt", state.form.design.timePerArt, { suffix: "h", maximumFractionDigits: 2 })}</label><label><span>Cambios</span>${displayInput("design", "changeFactor", state.form.design.changeFactor, { maximumFractionDigits: 2 })}</label><label><span>Costo/h <span class="field-unit">$/h</span></span>${displayInput("design", "hourCost", state.form.design.hourCost, { prefix: "$", maximumFractionDigits: 2 })}</label><label><span>Tiempo Total</span>${readonlyDisplay(`${num(design.time, 2)} h`)}</label><label><span>Subtotal</span>${readonlyDisplay(money(design.subtotal))}</label></div>${formula("Cálculo de Diseño", design.formulaText, design.explanation, {
       exampleLines: [
         `Tiempo total: (${formulaValue(state.form.header.quantityTypes || state.form.design.artCount || 0, 0)} x ${formulaValue(state.form.design.timePerArt || 0, 2)}) + (${formulaValue(state.form.header.quantityChanges || 0, 0)} x ${formulaValue(state.form.design.timePerArt || 0, 2)} x ${formulaValue(state.form.design.changeFactor || 0, 2)}) = ${formulaValue(design.time || 0, 2)} h`,
         `Costo Diseño: ${formulaValue(design.time || 0, 2)} x ${formulaValue(state.form.design.hourCost || 0, 2)} = ${formulaValue(design.rawSubtotal ?? design.subtotal ?? 0, 2)}`,
@@ -3965,7 +4657,7 @@ function renderProcesses() {
       ],
       answer: `R/ El total a cobrar por diseño es ${money(design.subtotal || 0)}`
     })}`),
-    preprensa: () => card("preprensa", nextTitle("Preprensa"), "", prepress.subtotal, `<div class="editable-grid design-cost-grid"><label><span>Cantidad de Artes</span>${displayInput("prepress", "artCount", state.form.prepress.artCount, { integer: true, step: "1" })}</label><label><span>Artes por Hora <span class="field-unit">art/h</span></span>${displayInput("prepress", "artsPerHour", state.form.prepress.artsPerHour, { suffix: "art/h", maximumFractionDigits: 2 })}</label><label><span>Costo por Hora <span class="field-unit">$/h</span></span>${displayInput("prepress", "hourCost", state.form.prepress.hourCost, { prefix: "$", maximumFractionDigits: 2 })}</label><label><span>Tiempo Total</span>${readonlyDisplay(`${num(prepress.time, 2)} h`)}</label><label><span>Subtotal</span>${readonlyDisplay(money(prepress.subtotal))}</label></div>${formula("Cálculo de Preprensa", prepress.formulaText, prepress.explanation, {
+    preprensa: () => card("preprensa", nextTitle("Preprensa"), "", prepress.subtotal, `<div class="editable-grid design-cost-grid"><label><span>Artes</span>${displayInput("prepress", "artCount", state.form.prepress.artCount, { integer: true, step: "1" })}</label><label><span>Artes/h <span class="field-unit">art/h</span></span>${displayInput("prepress", "artsPerHour", state.form.prepress.artsPerHour, { suffix: "art/h", maximumFractionDigits: 2 })}</label><label><span>Costo/h <span class="field-unit">$/h</span></span>${displayInput("prepress", "hourCost", state.form.prepress.hourCost, { prefix: "$", maximumFractionDigits: 2 })}</label><label><span>Tiempo Total</span>${readonlyDisplay(`${num(prepress.time, 2)} h`)}</label><label><span>Subtotal</span>${readonlyDisplay(money(prepress.subtotal))}</label></div>${formula("Cálculo de Preprensa", prepress.formulaText, prepress.explanation, {
       exampleLines: [
         `Tiempo Preprensa: ${formulaValue(Math.max(1, state.form.header.quantityTypes || state.form.prepress.artCount || 0), 0)} / ${formulaValue(state.form.prepress.artsPerHour || 0, 2)} = ${formulaValue(prepress.time || 0, 2)} h`,
         `Costo Preprensa: ${formulaValue(prepress.time || 0, 2)} x ${formulaValue(state.form.prepress.hourCost || 0, 2)} = ${formulaValue(prepress.rawSubtotal ?? prepress.subtotal ?? 0, 2)}`,
@@ -3980,8 +4672,9 @@ function renderProcesses() {
       ],
       answer: `R/ El total a cobrar por planchas es ${money(plates.subtotal || 0)}`
     })}`),
-    empaque: () => card("empaque", nextTitle("Empaque"), "", packaging.subtotal, `<div class="editable-grid"><label><span>Cantidad Rollos</span><input data-scope="packaging" data-field="rollCount" type="number" step="0.01" value="${esc(state.form.packaging.rollCount)}"></label><label><span>Rendimiento por Hora <span class="field-unit">rollos/h</span></span><input data-scope="packaging" data-field="yieldPerHour" type="number" step="0.01" value="${esc(state.form.packaging.yieldPerHour)}"></label><label><span>Operarios</span><input data-scope="packaging" data-field="operators" type="number" step="1" value="${esc(state.form.packaging.operators)}"></label><label><span>Costo Hora Operario <span class="field-unit">$/h</span></span><input data-scope="packaging" data-field="hourCost" type="number" step="0.01" value="${esc(state.form.packaging.hourCost)}"></label><label><span>Costo Externo <span class="field-unit">$</span></span><input data-scope="packaging" data-field="externalCost" type="number" step="0.01" value="${esc(state.form.packaging.externalCost)}"></label><label class="span-2"><span>Comentarios</span><input data-scope="packaging" data-field="comments" type="text" value="${esc(state.form.packaging.comments)}"></label><label class="span-2 file-icon-field"><span>Adjunto <span class="field-unit-clip" aria-hidden="true">&#128206;</span></span><input data-scope="packaging" data-field="attachmentName" data-kind="file" type="file"></label></div><div class="readonly-grid compact-top">${metric("Tiempo", `${num(packaging.hours, 2)} h`)}${metric("Subtotal", money(packaging.subtotal))}</div>${formula("Cálculo de Empaque", packaging.formulaText, packaging.explanation, {
+    empaque: () => card("empaque", nextTitle("Empaque"), "", packaging.subtotal, `<div class="editable-grid"><label><span>Rollos</span>${readonlyDisplay(`${num(state.form.packaging.rollCount || 0, 2)} rollos`)}</label><label><span>Rend./h</span>${displayInput("packaging", "yieldPerHour", state.form.packaging.yieldPerHour, { suffix: "rollos/h", maximumFractionDigits: 2, step: "0.01" })}</label><label><span>Operarios</span>${displayInput("packaging", "operators", state.form.packaging.operators, { integer: true, maximumFractionDigits: 0, step: "1" })}</label><label><span>Costo Op.</span>${displayInput("packaging", "hourCost", state.form.packaging.hourCost, { prefix: "$", maximumFractionDigits: 2, step: "0.01" })}</label><label><span>Costo Ext.</span>${displayInput("packaging", "externalCost", state.form.packaging.externalCost, { prefix: "$", maximumFractionDigits: 2, step: "0.01" })}</label><label class="span-2"><span>Comentarios</span><input data-scope="packaging" data-field="comments" type="text" value="${esc(state.form.packaging.comments)}"></label><label class="span-2 file-icon-field"><span>Adjunto <span class="field-unit-clip" aria-hidden="true">&#128206;</span></span><input data-scope="packaging" data-field="attachmentName" data-kind="file" type="file"></label></div><div class="readonly-grid compact-top">${metric("Tiempo", `${num(packaging.hours, 2)} h`)}${metric("Subtotal", money(packaging.subtotal))}</div>${formula("Cálculo de Empaque", packaging.formulaText, packaging.explanation, {
       exampleLines: [
+        `Cantidad de Rollos: ${formulaValue(currentQuantity(state.form), 0)} / ${formulaValue(state.form.header.labelsPerRoll || 0, 0)} = ${formulaValue(packaging.rolls || 0, 4)}`,
         `Tiempo Empaque: ${formulaValue(packaging.rolls || 0, 2)} / ${formulaValue(state.form.packaging.yieldPerHour || 0, 2)} = ${formulaValue(packaging.hours || 0, 2)} h`,
         `Costo Empaque: (${formulaValue(packaging.hours || 0, 2)} x ${formulaValue(state.form.packaging.operators || 0, 0)} x ${formulaValue(state.form.packaging.hourCost || 0, 2)}) + ${formulaValue(state.form.packaging.externalCost || 0, 2)} = ${formulaValue(packaging.rawSubtotal ?? packaging.subtotal ?? 0, 2)}`,
         ...minimumCostExampleLines(packaging, "Empaque")
@@ -4024,7 +4717,7 @@ function renderProcesses() {
   updateProcessSurface();
   restoreOpenProcesses();
   renderSidebar(result);
-  applyRequiredHighlights(result);
+  refreshCalculationValidation(result);
   normalizeVisibleFieldLabels(els.processSections);
   restoreFocus(focusSnapshot);
   publishBdfgContext();
@@ -4191,11 +4884,13 @@ function bindHeader() {
   [["customerCode", els.customerCode, "text"], ["customerName", els.customerName, "text"], ["productType", els.productType, "text"], ["jobName", els.jobName, "text"], ["salespersonName", els.salespersonName, "text"], ["workType", els.workType, "text"], ["labelWidthIn", els.labelWidthIn, "number"], ["labelHeightIn", els.labelHeightIn, "number"], ["rollWidthIn", els.rollWidthIn, "number"], ["coreDiameter", els.coreDiameter, "text"], ["labelsPerRoll", els.labelsPerRoll, "number"], ["applicationType", els.applicationType, "text"], ["applicationEnvironment", els.applicationEnvironment, "text"], ["surfaceType", els.surfaceType, "text"], ["outputType", els.outputType, "text"], ["quantityTypes", els.quantityTypes, "number"], ["quantityChanges", els.quantityChanges, "number"], ["pantoneCount", els.pantoneCount, "number"]].forEach(([key, element, type]) => {
     const updateState = () => {
       state.form.header[key] = type === "number" ? n(element.value, 0) : element.value;
+      syncDerivedHeaderAndPackaging(state.form);
       if (key === "customerCode") syncCustomerCodeWidth();
       if (key === "outputType") outputPreview();
-      if (key === "customerName") els.customerNameDisplay.textContent = state.form.header.customerName || "";
-      if (key === "salespersonName") els.salespersonDisplay.textContent = state.form.header.salespersonName || "";
-      applyRequiredHighlights();
+      if (key === "customerName" && els.customerNameDisplay) els.customerNameDisplay.textContent = state.form.header.customerName || "";
+      if (key === "salespersonName" && els.salespersonDisplay) els.salespersonDisplay.textContent = state.form.header.salespersonName || "";
+      if (key === "labelWidthIn" || key === "labelHeightIn" || key === "rollWidthIn" || key === "coreDiameter") syncHeaderUnitMasks();
+      refreshCalculationValidation();
       scheduleSave();
     };
     const rerender = () => {
@@ -4207,6 +4902,21 @@ function bindHeader() {
   });
   [["useCmyk", els.useCmyk], ["useWhiteInk", els.useWhiteInk], ["doubleWhitePass", els.doubleWhitePass], ["noPrint", els.noPrint]].forEach(([key, element]) => {
     element.addEventListener("change", () => { state.form.header[key] = element.checked; renderProcesses(); scheduleSave(); });
+  });
+  els.sapPreviewSendButton?.addEventListener("click", async (event) => {
+    event.stopPropagation();
+    try {
+      els.sapPreviewSendButton.disabled = true;
+      await sendSapPreview();
+    } catch (error) {
+      els.calcStatus.textContent = error.message || "No fue posible preparar la salida SAP.";
+    } finally {
+      els.sapPreviewSendButton.disabled = false;
+    }
+  });
+  els.sapPreviewOpenOutputButton?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openSapOutputView();
   });
   [["overheadPct", els.overheadPct], ["marginPct", els.marginPct], ["taxPct", els.taxPct], ["discountPct", els.discountPct]].forEach(([key, element]) => {
     element.addEventListener("input", () => { state.form.commercial[key] = n(element.value, 0); scheduleSave(); });
@@ -4258,8 +4968,8 @@ function bindQuantityRepeater() {
     const index = Number(input.dataset.quantityIndex);
     state.form.header.quantities[index].value = Math.max(0, n(input.value, 0));
     input.value = state.form.header.quantities[index].value ? formatInteger(state.form.header.quantities[index].value) : "";
-    state.form.header.quantity = currentQuantity(state.form);
-    applyRequiredHighlights();
+    syncDerivedHeaderAndPackaging(state.form);
+    refreshCalculationValidation();
     scheduleSave();
   });
   els.quantityRepeater.addEventListener("change", (event) => {
@@ -4268,7 +4978,7 @@ function bindQuantityRepeater() {
     const index = Number(input.dataset.quantityIndex);
     state.form.header.quantities[index].value = Math.max(0, n(input.value, 0));
     input.value = state.form.header.quantities[index].value ? formatInteger(state.form.header.quantities[index].value) : "";
-    state.form.header.quantity = currentQuantity(state.form);
+    syncDerivedHeaderAndPackaging(state.form);
     renderProcesses();
     scheduleSave();
   });
@@ -4279,7 +4989,7 @@ function bindQuantityRepeater() {
       if (state.form.header.quantities.length >= getQuantityCapacity()) return;
       state.form.header.quantities.push({ id: `qty-${state.form.header.quantities.length + 1}`, value: 0 });
       state.form.header.quantities = normalizeQuantities(state.form.header.quantities);
-      state.form.header.quantity = currentQuantity(state.form);
+      syncDerivedHeaderAndPackaging(state.form);
       renderHeader();
       renderProcesses();
       els.quantityRepeater.querySelector(`input[data-quantity-index="${state.form.header.quantities.length - 1}"]`)?.focus();
@@ -4290,7 +5000,7 @@ function bindQuantityRepeater() {
       if (state.form.header.quantities.length <= 1) return;
       state.form.header.quantities.pop();
       state.form.header.quantities = normalizeQuantities(state.form.header.quantities);
-      state.form.header.quantity = currentQuantity(state.form);
+      syncDerivedHeaderAndPackaging(state.form);
       renderHeader();
       renderProcesses();
       scheduleSave();
@@ -4335,11 +5045,10 @@ function bindProcesses() {
     }
     if (scope === "substrate" && field === "materialId") {
       const material = findMaterial(value);
-      const costMsi = n(material?.costoMaterialPorMsi || material?.precioUnitarioCotizacionDol, 0);
-      const costPerInch = r((costMsi * n(state.form.header.rollWidthIn, 0)) / 1000, 6);
-      state.form.substrate.costPerFoot = r(costPerInch * 12, 6);
-      state.form.substrate.costPerMeter = r(costPerInch / 0.0254, 6);
-      state.form.substrate.costPerMsi = r(costMsi, 6);
+      const costs = materialUnitCosts(material, state.form.header.rollWidthIn);
+      state.form.substrate.costPerFoot = costs.costPerFoot;
+      state.form.substrate.costPerMeter = costs.costPerMeter;
+      state.form.substrate.costPerMsi = r(costs.costMsi, 6);
       const materialNeedsPremier = materialRequiresPremier(material);
       const materialPreTreated = materialPremierPreapplied(material);
       const premierDefaults = digitalInkDefaults();
@@ -4349,6 +5058,18 @@ function bindProcesses() {
         stage.digitalPremierCostPerKg = firstPositiveNumber(material?.premierCostPerKgUsd, material?.premier_costo_x_kg, stage.digitalPremierCostPerKg, premierDefaults.premierCostPerKg);
         stage.digitalPremierCostPerM2 = firstPositiveNumber(material?.premierCostPerM2Usd, material?.premier_costo_x_m2, stage.digitalPremierCostPerM2, premierDefaults.premierCostPerM2);
       });
+    }
+    if (scope.startsWith("printStages.") && field === "inkMaterialId") {
+      const stageIndex = Number(scope.split(".")[1]);
+      const material = findMaterial(value);
+      state.form.printStages[stageIndex].inkCostPerLb = materialCostPerPound(material);
+      syncPrimaryPrintStage();
+    }
+    if (scope.startsWith("printStages.") && field === "whiteInkMaterialId") {
+      const stageIndex = Number(scope.split(".")[1]);
+      const material = findMaterial(value);
+      state.form.printStages[stageIndex].whiteInkCostPerLb = materialCostPerPound(material);
+      syncPrimaryPrintStage();
     }
       if (scope.startsWith("finishes.") && field === "materialId") {
         const index = Number(scope.split(".")[1]);
@@ -4390,7 +5111,7 @@ function bindProcesses() {
     if (scope.startsWith("finishes.") && field === "machineId") applyFinishMachineDefaults(scope, value);
     if (!scope.startsWith("plates.") && field === "processId") applyProcessDefaults(scope, value);
     if (shouldRender) renderProcesses();
-    else applyRequiredHighlights();
+      else refreshCalculationValidation();
     scheduleSave();
   };
   els.processSections.addEventListener("input", (event) => update(event, false));
@@ -4653,15 +5374,21 @@ async function init() {
   try {
     const quoteId = params.get("quoteId") || "";
     const lineId = params.get("lineId") || "";
-    const [config, catalogs, context, costsConfig] = await Promise.all([
+    const [config, catalogs, context, costsConfig, sapConfig, sapSalespersonConfigs, sapProductionCostCenter] = await Promise.all([
       getJson("/api/config/general"),
       getJson("/api/catalogs"),
       quoteId || lineId ? getJson(`/api/flexo/calculo?${new URLSearchParams({ quoteId, lineId }).toString()}`) : Promise.resolve(null),
-      getJson("/api/costos-config").catch(() => null)
+      getJson("/api/costos-config").catch(() => null),
+      getJson("/api/sap/config").catch(() => null),
+      getJson("/api/sap/salesperson-profit-centers").catch(() => ({ items: [] })),
+      getJson("/api/sap/production-cost-center").catch(() => null)
     ]);
     state.config = config;
     state.context = context;
     state.costsConfig = costsConfig;
+    state.sapConfig = sapConfig;
+    state.sapSalespersonConfigs = Array.isArray(sapSalespersonConfigs?.items) ? sapSalespersonConfigs.items : [];
+    state.sapProductionCostCenter = sapProductionCostCenter;
     state.catalogs = {
       materials: catalogs.materials || [],
       troqueles: catalogs.troqueles || [],

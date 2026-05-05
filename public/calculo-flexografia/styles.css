@@ -102,7 +102,7 @@ html[data-theme="dark"] body {
 
 .calc-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.75fr) minmax(300px, 0.9fr);
+  grid-template-columns: minmax(0, 1.68fr) minmax(360px, 1fr);
   gap: 18px;
   align-items: start;
 }
@@ -122,6 +122,33 @@ html[data-theme="dark"] body {
 
 .calc-card {
   padding: 16px;
+}
+
+.calc-card-collapsible {
+  padding: 0;
+  overflow: hidden;
+}
+
+.calc-card-summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.calc-card-summary::-webkit-details-marker {
+  display: none;
+}
+
+.calc-card-summary .card-head {
+  margin: 0;
+  padding: 16px;
+}
+
+.calc-card-body {
+  padding: 0 16px 16px;
+}
+
+.calc-card-collapsible:not([open]) .calc-card-body {
+  display: none;
 }
 
 .card-head {
@@ -146,6 +173,8 @@ html[data-theme="dark"] body {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .floating-action-button {
@@ -253,6 +282,7 @@ label span,
   font-size: 1rem;
   font-weight: 700;
   color: var(--text);
+  display: none;
 }
 
 .toolbar-salesperson-name {
@@ -458,9 +488,7 @@ label span,
 
 .plate-virgin-card {
   border-color: #cfe3ef;
-  background:
-    radial-gradient(circle at top right, rgba(9, 137, 196, 0.08), transparent 32%),
-    linear-gradient(180deg, #ffffff 0%, #f8fbfd 100%);
+  background: #ffffff;
 }
 
 .plate-charge-toggle {
@@ -510,9 +538,9 @@ label span,
 }
 
 .impression-grid-compact {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 8px;
-  align-items: stretch;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  gap: 10px;
+  align-items: start;
 }
 
 .impression-compact-field,
@@ -522,7 +550,18 @@ label span,
 }
 
 .impression-compact-field {
-  grid-column: span 2;
+  grid-column: span 1;
+}
+
+.impression-check-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 22px;
+  min-width: 0;
+  min-height: 42px;
+  margin-top: 24px;
+  white-space: nowrap;
 }
 
 .impression-compact-field > span,
@@ -543,9 +582,10 @@ label span,
   display: inline-flex;
   flex-direction: row;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   gap: 9px;
   min-height: 34px;
+  min-width: 0;
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -602,6 +642,10 @@ label span,
   font-weight: 600;
   line-height: 1.1;
   color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
 }
 
 .impression-check-card:has(input:checked) .toggle-label {
@@ -1018,13 +1062,13 @@ label span,
 .process-sections {
   min-height: 140px;
   padding: 14px;
-  border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--line) 92%, #dbe4ec);
   border-radius: 22px;
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--card) 72%, #1a2940) 0%, color-mix(in srgb, var(--card) 58%, #121d30) 100%);
+    linear-gradient(180deg, color-mix(in srgb, var(--card) 98%, #eef3f7) 0%, color-mix(in srgb, var(--card) 96%, #e8eef4) 100%);
   box-shadow:
-    inset 0 1px 0 color-mix(in srgb, #ffffff 10%, transparent),
-    0 16px 32px rgba(8, 15, 28, 0.14);
+    inset 0 1px 0 rgba(255,255,255,0.72),
+    0 8px 18px rgba(15, 23, 42, 0.05);
 }
 
 .process-workspace {
@@ -1536,6 +1580,7 @@ textarea {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1;
 }
 
 .display-input-wrap.has-prefix .display-input-mask,
@@ -1648,11 +1693,22 @@ label:has(> input[data-scope="substrate"][data-field="costPerFoot"])::after {
   min-width: 0;
 }
 
+.header-grid > label > span,
+.header-field-meta > label > span,
+.technical-grid label > span,
+.panel-grid > label > span,
+.quantity-repeater label > span,
+.editable-grid > label > span,
+.readonly-grid > label > span,
+.output-core-grid > label > span,
+.output-layout > label > span,
+.design-cost-grid label > span,
+.macula-cost-grid label > span,
 .process-print-grid > label > span,
 .process-finish-grid > label > span {
   min-width: 0;
   min-height: 20px;
-  white-space: normal;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -1693,6 +1749,7 @@ label:has(> input[data-scope="substrate"][data-field="costPerFoot"])::after {
 
 .field-affix-suffix {
 }
+
 
 .process-kpi-grid {
   display: grid;
@@ -2176,6 +2233,15 @@ label:has(> input[data-scope="substrate"][data-field="costPerFoot"])::after {
   margin-bottom: 4px;
 }
 
+.process-card summary .process-summary-alert {
+  display: block;
+  margin-top: 4px;
+  color: #d03535;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
 .process-card summary em {
   font-style: normal;
   color: var(--accent);
@@ -2414,6 +2480,11 @@ label:has(> input[data-scope="substrate"][data-field="costPerFoot"])::after {
 .summary-rows {
   display: grid;
   gap: 10px;
+  min-width: 0;
+}
+
+#sapPreviewSummary {
+  margin-bottom: 14px;
 }
 
 .summary-row {
@@ -2437,6 +2508,48 @@ label:has(> input[data-scope="substrate"][data-field="costPerFoot"])::after {
   text-align: right;
   font-weight: 400;
   color: var(--text);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.formula-pre {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.04);
+  color: var(--text);
+  font: 12px/1.45 Consolas, "Courier New", monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-height: 320px;
+  overflow: auto;
+  scrollbar-gutter: stable both-edges;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(11, 129, 184, 0.55) rgba(148, 163, 184, 0.16);
+}
+
+.formula-pre::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.formula-pre::-webkit-scrollbar-track {
+  background: rgba(148, 163, 184, 0.14);
+  border-radius: 999px;
+}
+
+.formula-pre::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(11, 129, 184, 0.78) 0%, rgba(11, 129, 184, 0.48) 100%);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.formula-pre::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(11, 129, 184, 0.92) 0%, rgba(11, 129, 184, 0.62) 100%);
+  background-clip: padding-box;
 }
 
 .table-toolbar {
@@ -2542,7 +2655,14 @@ label:has(> input[data-scope="substrate"][data-field="costPerFoot"])::after {
   }
 
   .impression-grid-compact {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .impression-check-row {
+    grid-column: 1 / -1;
+    justify-content: center;
+    margin-top: 2px;
+    flex-wrap: wrap;
   }
 
   .process-finish-grid {
@@ -2620,6 +2740,12 @@ label:has(> input[data-scope="substrate"][data-field="costPerFoot"])::after {
   .output-layout,
   .output-core-grid {
     grid-template-columns: 1fr;
+  }
+
+  .impression-check-row {
+    justify-content: flex-start;
+    margin-top: 0;
+    gap: 14px;
   }
 
   .output-layout {
@@ -2737,8 +2863,8 @@ html[data-theme="dark"] .process-picker-item:focus-visible:not(:disabled) {
 
 html[data-theme="dark"] .process-sections {
   border-color: color-mix(in srgb, var(--accent) 18%, var(--line));
-  background: linear-gradient(180deg, #243345 0%, #1b2738 100%);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 18px 36px rgba(0, 0, 0, 0.26);
+  background: linear-gradient(180deg, #223042 0%, #1a2535 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 14px 28px rgba(0, 0, 0, 0.2);
 }
 
 html[data-theme="dark"] .process-sections.is-drop-target {
@@ -2749,6 +2875,10 @@ html[data-theme="dark"] .process-sections-empty {
   border-color: color-mix(in srgb, var(--accent) 28%, var(--line));
   background: linear-gradient(180deg, #223042 0%, #182435 100%);
   color: color-mix(in srgb, var(--muted) 92%, #d7e4f3);
+}
+
+html[data-theme="dark"] .process-card summary .process-summary-alert {
+  color: #fde68a;
 }
 
 html[data-theme="dark"] label span,

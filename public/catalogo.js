@@ -270,41 +270,45 @@ function resolveRouteConfig() {
             ],
             formFields: [
                 { key: 'id', type: 'hidden' },
-                { type: 'section', label: 'Informacion General', span: 2 },
+                { type: 'section', label: 'Informacion general', span: 2, tabKey: 'general' },
                 { key: 'nombre', label: 'Nombre', type: 'text' },
                 { key: 'marca', label: 'Marca', type: 'text' },
                 { key: 'modelo', label: 'Modelo', type: 'text' },
-                { key: 'tipo', label: 'Tipo', type: 'select', options: [['', 'Sin definir'], ['Convencional', 'Convencional'], ['Digital', 'Digital'], ['Hibrido', 'Híbrido'], ['ABG', 'ABG'], ['P5', 'P5']] },
-                { key: 'proceso_principal', label: 'Proceso Principal', type: 'text' },
+                { key: 'tipo', label: 'Tipo', type: 'select', options: [['', 'Sin definir'], ['Convencional', 'Convencional'], ['Digital', 'Digital'], ['Hibrido', 'Hibrido']] },
+                { key: 'proceso_principal', label: 'Proceso principal', type: 'text' },
                 { key: 'subproceso', label: 'Subproceso', type: 'text' },
-                { key: 'factor_preparacion', label: 'Setup', type: 'number', step: '0.01' },
-                { key: 'factor_montaje_estacion', label: 'Montaje', type: 'number', step: '0.01' },
-                { key: 'comentario_setup', label: 'Comentario Setup', type: 'textarea', rows: 2 },
-                { key: 'comentario_montaje', label: 'Comentario Montaje', type: 'textarea', rows: 2 },
-                { key: 'ancho_max_in', label: 'Ancho Max in', type: 'number', step: '0.01' },
-                { key: 'velocidad_produccion', label: 'Velocidad Produccion', type: 'number', step: '0.01' },
-                { key: 'unidad_velocidad_produccion', label: 'Unidad Velocidad', type: 'select', options: [['ft/min', 'ft/min'], ['m/min', 'm/min']] },
-                { key: 'costo_hora_maquina', label: 'Costo Hora Maquina', type: 'number', step: '0.01' },
-                { key: 'costo_hora_operario', label: 'Costo Hora Hombre', type: 'number', step: '0.01' },
-                { type: 'section', label: 'Impresión Digital', span: 2 },
-                { key: 'digital_tipo_cobro', label: 'Tipo Cobro Digital', type: 'select', options: [['consumo', 'Consumo'], ['clic', 'Clic']] },
-                { key: 'digital_costo_kg_tinta', label: 'Costo kg Tinta', type: 'number', step: '0.000001' },
-                { key: 'digital_costo_kg_tinta_blanco', label: 'Costo kg Blanco', type: 'number', step: '0.000001' },
-                { key: 'digital_costo_kg_tinta_especial', label: 'Costo kg Especial', type: 'number', step: '0.000001' },
-                { key: 'digital_tarifa_click', label: 'Tarifa Clic', type: 'number', step: '0.000001' },
-                { key: 'digital_modo_click', label: 'Modo Clic', type: 'select', options: [['por_estacion', 'Por estación'], ['por_vuelta', 'Por vuelta']] },
-                { key: 'digital_velocidad_cmyk_mpm', label: 'Velocidad CMYK m/min', type: 'number', step: '0.01' },
-                { key: 'digital_velocidad_extendida_mpm', label: 'Velocidad Extendida m/min', type: 'number', step: '0.01' },
-                { key: 'digital_gramaje_cmyk_g_m2', label: 'Gramaje CMYK g/m²', type: 'number', step: '0.0001' },
-                { key: 'digital_gramaje_blanco_g_m2', label: 'Gramaje Blanco g/m²', type: 'number', step: '0.0001' },
-                { key: 'digital_factor_merma', label: 'Factor Merma Tinta', type: 'number', step: '0.0001' },
-                { key: 'digital_costo_lavado_especial', label: 'Costo Lavado Especial', type: 'number', step: '0.000001' },
-                { type: 'section', label: 'Premier Digital', span: 2 },
-                { key: 'digital_premier_modo', label: 'Modo Premier', type: 'select', options: [['offline', 'Offline'], ['inline', 'In-line']] },
-                { key: 'digital_premier_setup_min', label: 'Setup Premier min', type: 'number', step: '0.01' },
-                { key: 'digital_premier_costo_mantenimiento', label: 'Mantenimiento Premier', type: 'number', step: '0.000001' },
-                { key: 'digital_premier_costo_offline_m', label: 'Costo Offline m', type: 'number', step: '0.000001' },
-                { key: 'activa', label: 'Activa', type: 'checkbox' }
+                { key: 'factor_preparacion', label: 'Setup', type: 'number', step: '0.01', suffix: 'min' },
+                { key: 'factor_montaje_estacion', label: 'Montaje', type: 'number', step: '0.01', suffix: 'min' },
+                { key: 'comentario_setup', label: 'Comentario setup', type: 'textarea', rows: 2, span: 2 },
+                { key: 'comentario_montaje', label: 'Comentario montaje', type: 'textarea', rows: 2, span: 2 },
+                { key: 'ancho_max_in', label: 'Ancho maximo', type: 'number', step: '0.01', suffix: 'in' },
+                { key: 'velocidad_produccion', label: 'Velocidad produccion', type: 'number', step: '0.01', suffixSourceKey: 'unidad_velocidad_produccion' },
+                { key: 'unidad_velocidad_produccion', label: 'Unidad velocidad', type: 'select', options: [['ft/min', 'ft/min'], ['m/min', 'm/min']] },
+                { key: 'costo_hora_maquina', label: 'Costo hora maquina', type: 'number', step: '0.01', suffix: '$/h' },
+                { key: 'costo_hora_operario', label: 'Costo hora hombre', type: 'number', step: '0.01', suffix: '$/h' },
+                { key: 'sustrato_consumo_unidad', label: 'Unidad sustrato', type: 'select', options: [['pies', 'Pies'], ['metros', 'Metros']] },
+                { key: 'sustrato_setup_merma_cantidad', label: 'Merma sustrato setup', type: 'number', step: '0.01', suffixSourceKey: 'sustrato_setup_merma_unidad' },
+                { key: 'sustrato_setup_merma_unidad', label: 'Unidad merma setup', type: 'select', options: [['pies', 'Pies'], ['metros', 'Metros']] },
+                { key: 'sustrato_setup_merma_base', label: 'Base merma setup', type: 'select', options: [['trabajo', 'Por trabajo'], ['color', 'Por color'], ['estacion', 'Por estacion'], ['cabezal', 'Por cabezal']] },
+                { key: 'activa', label: 'Activa', type: 'checkbox', tab: 'general', span: 2 },
+                { type: 'section', label: 'Impresion digital', span: 2, tabKey: 'digital' },
+                { key: 'digital_tipo_cobro', label: 'Tipo cobro digital', type: 'select', options: [['consumo', 'Consumo'], ['clic', 'Clic']] },
+                { key: 'digital_costo_kg_tinta', label: 'Costo kg tinta', type: 'number', step: '0.01', suffix: '$/kg' },
+                { key: 'digital_costo_kg_tinta_blanco', label: 'Costo kg blanco', type: 'number', step: '0.01', suffix: '$/kg' },
+                { key: 'digital_costo_kg_tinta_especial', label: 'Costo kg especial', type: 'number', step: '0.01', suffix: '$/kg' },
+                { key: 'digital_tarifa_click', label: 'Tarifa clic', type: 'number', step: '0.01', suffix: '$' },
+                { key: 'digital_modo_click', label: 'Modo clic', type: 'select', options: [['por_estacion', 'Por estacion'], ['por_vuelta', 'Por vuelta']] },
+                { key: 'digital_velocidad_cmyk_mpm', label: 'Velocidad CMYK', type: 'number', step: '0.01', suffix: 'm/min' },
+                { key: 'digital_velocidad_extendida_mpm', label: 'Velocidad extendida', type: 'number', step: '0.01', suffix: 'm/min' },
+                { key: 'digital_gramaje_cmyk_g_m2', label: 'Gramaje CMYK', type: 'number', step: '0.01', suffix: 'g/m2' },
+                { key: 'digital_gramaje_blanco_g_m2', label: 'Gramaje blanco', type: 'number', step: '0.01', suffix: 'g/m2' },
+                { key: 'digital_factor_merma', label: 'Factor merma tinta', type: 'number', step: '0.01' },
+                { key: 'digital_costo_lavado_especial', label: 'Costo lavado especial', type: 'number', step: '0.01', suffix: '$' },
+                { type: 'section', label: 'Premier digital', span: 2, tabKey: 'premier' },
+                { key: 'digital_premier_modo', label: 'Modo premier', type: 'select', options: [['offline', 'Offline'], ['inline', 'In-line']] },
+                { key: 'digital_premier_setup_min', label: 'Setup premier', type: 'number', step: '0.01', suffix: 'min' },
+                { key: 'digital_premier_costo_mantenimiento', label: 'Mantenimiento premier', type: 'number', step: '0.01', suffix: '$' },
+                { key: 'digital_premier_costo_offline_m', label: 'Costo offline', type: 'number', step: '0.01', suffix: '$/m' }
             ],
             createEmptyItem() {
                 return {
@@ -339,6 +343,10 @@ function resolveRouteConfig() {
                     digital_premier_setup_min: 20,
                     digital_premier_costo_mantenimiento: 14,
                     digital_premier_costo_offline_m: 0,
+                    sustrato_consumo_unidad: 'pies',
+                    sustrato_setup_merma_cantidad: 0,
+                    sustrato_setup_merma_unidad: 'pies',
+                    sustrato_setup_merma_base: 'trabajo',
                     factor_montaje_estacion: 0,
                     factor_preparacion: 0,
                     comentario_setup: '',
@@ -589,6 +597,10 @@ function isOutputTypesInventory() {
     return page.inventoryKey === 'tipos-salida';
 }
 
+function supportsDeleteInventory() {
+    return page.inventoryKey === 'materiales' || page.inventoryKey === 'maquinas';
+}
+
 function supportsImagePreviewInventory() {
     return isTroquelesInventory() || isOutputTypesInventory();
 }
@@ -784,7 +796,7 @@ function updateInventoryRoute(view = 'list', id = '') {
 }
 
 function getTableColumns() {
-    const actionColumn = isMaterialsInventory()
+    const actionColumn = supportsDeleteInventory()
         ? { key: 'actions', label: '', width: '92px', className: 'inventory-col-open inventory-col-actions', isAction: true }
         : { key: 'open', label: '', width: '56px', className: 'inventory-col-open', isAction: true };
     if (!isTroquelesInventory()) {
@@ -1185,6 +1197,18 @@ async function loadHeaderConfig() {
     }
 }
 
+function formatFieldValue(field, value) {
+    if (value === null || value === undefined) return '';
+    if (field.type !== 'number') return value ?? '';
+    const raw = String(value).trim();
+    if (!raw) return '';
+    const numeric = Number(raw);
+    if (!Number.isFinite(numeric)) return raw;
+    const stepText = String(field.step || 'any');
+    const decimals = stepText.includes('.') ? stepText.split('.')[1].length : 0;
+    return decimals ? numeric.toFixed(decimals).replace(/\.?0+$/, '') : String(Math.round(numeric));
+}
+
 function createInput(field, value) {
     if (field.type === 'section') {
         const section = document.createElement('div');
@@ -1331,10 +1355,107 @@ function createInput(field, value) {
     input.step = field.step || 'any';
     if (field.min !== undefined) input.min = field.min;
     if (field.placeholder) input.placeholder = field.placeholder;
-    input.value = value ?? '';
+    input.value = formatFieldValue(field, value);
     if (field.inputClass) input.classList.add(field.inputClass);
+    if (field.suffix || field.suffixSourceKey) {
+        const wrap = document.createElement('div');
+        wrap.className = 'inventory-input-wrap';
+        if (field.suffixSourceKey) wrap.dataset.suffixSource = field.suffixSourceKey;
+        const suffix = document.createElement('span');
+        suffix.className = 'inventory-input-suffix';
+        suffix.textContent = field.suffix || '';
+        wrap.appendChild(input);
+        wrap.appendChild(suffix);
+        label.appendChild(wrap);
+        return label;
+    }
     label.appendChild(input);
     return label;
+}
+
+function syncInventorySuffixes(scope = catalogForm) {
+    Array.from(scope.querySelectorAll('.inventory-input-wrap[data-suffix-source]')).forEach((wrap) => {
+        const sourceName = wrap.dataset.suffixSource || '';
+        const source = sourceName ? scope.elements.namedItem(sourceName) : null;
+        const suffix = wrap.querySelector('.inventory-input-suffix');
+        if (!suffix) return;
+        suffix.textContent = source?.value || '';
+    });
+}
+
+function buildMachineTabbedForm(viewItem) {
+    const tabs = [
+        { key: 'general', label: 'Informacion general' },
+        { key: 'digital', label: 'Impresion digital' },
+        { key: 'premier', label: 'Premier digital' }
+    ];
+    const tabBar = document.createElement('div');
+    tabBar.className = 'standard-module-tabs inventory-machine-tabs';
+    const panels = document.createElement('div');
+    panels.className = 'inventory-machine-tab-panels';
+    const panelMap = new Map();
+
+    tabs.forEach((tab) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'standard-module-tab inventory-machine-tab';
+        button.dataset.machineTab = tab.key;
+        button.textContent = tab.label;
+        tabBar.appendChild(button);
+
+        const panel = document.createElement('div');
+        panel.className = 'inventory-machine-tab-panel';
+        panel.dataset.machineTab = tab.key;
+        panels.appendChild(panel);
+        panelMap.set(tab.key, panel);
+    });
+
+    let currentTab = 'general';
+    getFormFields().forEach((field) => {
+        const control = createInput(field, viewItem[field.key]);
+        if (field.type === 'section' && field.tabKey) {
+            currentTab = field.tabKey;
+        }
+        const targetTab = field.tab || currentTab || 'general';
+        panelMap.get(targetTab)?.appendChild(control);
+    });
+
+    catalogForm.appendChild(tabBar);
+    catalogForm.appendChild(panels);
+
+    const setActiveTab = (tabKey) => {
+        Array.from(tabBar.querySelectorAll('.inventory-machine-tab')).forEach((button) => {
+            button.classList.toggle('is-active', button.dataset.machineTab === tabKey);
+        });
+        Array.from(panels.querySelectorAll('.inventory-machine-tab-panel')).forEach((panel) => {
+            panel.hidden = panel.dataset.machineTab !== tabKey;
+        });
+    };
+
+    const syncTabsByType = () => {
+        const typeSelect = catalogForm.elements.namedItem('tipo');
+        const isDigital = String(typeSelect?.value || '').trim() === 'Digital';
+        Array.from(tabBar.querySelectorAll('.inventory-machine-tab')).forEach((button) => {
+            const extraTab = button.dataset.machineTab !== 'general';
+            button.hidden = extraTab && !isDigital;
+        });
+        if (!isDigital) {
+            setActiveTab('general');
+        }
+        syncInventorySuffixes(catalogForm);
+    };
+
+    tabBar.addEventListener('click', (event) => {
+        const button = event.target.closest('.inventory-machine-tab');
+        if (!button || button.hidden) return;
+        setActiveTab(button.dataset.machineTab || 'general');
+    });
+
+    catalogForm.elements.namedItem('tipo')?.addEventListener('change', syncTabsByType);
+    catalogForm.elements.namedItem('unidad_velocidad_produccion')?.addEventListener('change', () => syncInventorySuffixes(catalogForm));
+    catalogForm.elements.namedItem('sustrato_setup_merma_unidad')?.addEventListener('change', () => syncInventorySuffixes(catalogForm));
+    setActiveTab('general');
+    syncTabsByType();
 }
 
 function ensureMachinePrimaryCapability() {
@@ -1506,10 +1627,14 @@ function renderForm(item) {
             costo_hora_operario: primary?.costo_hora_operario ?? 0
         };
     }
-    getFormFields().forEach((field) => {
-        const control = createInput(field, viewItem[field.key]);
-        catalogForm.appendChild(control);
-    });
+    if (page.inventoryKey === 'maquinas') {
+        buildMachineTabbedForm(viewItem);
+    } else {
+        getFormFields().forEach((field) => {
+            const control = createInput(field, viewItem[field.key]);
+            catalogForm.appendChild(control);
+        });
+    }
     editorTitle.textContent = page.inventoryKey === 'troqueles'
         ? (item.codigo || 'Nuevo troquel')
         : (item.id ? `Editor | ${item.nombre || item.codigo || item.descripcion || 'Registro'}` : 'Editor | Nuevo registro');
@@ -1605,11 +1730,12 @@ function renderTable(items) {
                 if (column.isAction) {
                     if (!isTroquelesInventory()) {
                         const label = escapeHtml(item.codigo || item.nombre || item.descripcion || 'registro');
-                        if (isMaterialsInventory()) {
+                        if (supportsDeleteInventory()) {
+                            const entityLabel = page.inventoryKey === 'maquinas' ? 'máquina' : 'material';
                             return `<td${className}>
                                 <div class="quote-browser-actions">
-                                    <button type="button" class="browser-open-link" data-select-item="${escapeHtml(item.id)}" aria-label="Abrir material ${label}" title="Abrir material ${label}" style="--icon-color:${escapeHtml(openIcon.color)};--icon-hover-color:${escapeHtml(openIcon.hover)};--config-icon-size:${escapeHtml(String(openIcon.size))}px;">${iconMarkup(openIcon.value, 'Abrir material', 'table-icon-media')}</button>
-                                    <button type="button" class="browser-open-link browser-open-link-danger" data-delete-item="${escapeHtml(item.id)}" data-delete-label="${label}" aria-label="Eliminar material ${label}" title="Eliminar material ${label}" style="--icon-color:${escapeHtml(deleteIcon.color)};--icon-hover-color:${escapeHtml(deleteIcon.hover)};--config-icon-size:${escapeHtml(String(deleteIcon.size))}px;">${iconMarkup(deleteIcon.value, 'Eliminar material', 'table-icon-media')}</button>
+                                    <button type="button" class="browser-open-link" data-select-item="${escapeHtml(item.id)}" aria-label="Abrir ${entityLabel} ${label}" title="Abrir ${entityLabel} ${label}" style="--icon-color:${escapeHtml(openIcon.color)};--icon-hover-color:${escapeHtml(openIcon.hover)};--config-icon-size:${escapeHtml(String(openIcon.size))}px;">${iconMarkup(openIcon.value, `Abrir ${entityLabel}`, 'table-icon-media')}</button>
+                                    <button type="button" class="browser-open-link browser-open-link-danger" data-delete-item="${escapeHtml(item.id)}" data-delete-label="${label}" aria-label="Eliminar ${entityLabel} ${label}" title="Eliminar ${entityLabel} ${label}" style="--icon-color:${escapeHtml(deleteIcon.color)};--icon-hover-color:${escapeHtml(deleteIcon.hover)};--config-icon-size:${escapeHtml(String(deleteIcon.size))}px;">${iconMarkup(deleteIcon.value, `Eliminar ${entityLabel}`, 'table-icon-media')}</button>
                                 </div>
                             </td>`;
                         }
@@ -1688,22 +1814,23 @@ function resetEditor() {
 }
 
 async function deleteCurrentMaterial(id, label) {
-    const materialId = String(id || '').trim();
-    if (!materialId) return;
-    const materialLabel = String(label || 'este material').trim() || 'este material';
-    const confirmed = window.confirm(`Se va a eliminar ${materialLabel}. Esta acción no se puede deshacer.\n\n¿Deseas continuar?`);
+    const recordId = String(id || '').trim();
+    if (!recordId) return;
+    const entityName = page.inventoryKey === 'maquinas' ? 'esta máquina' : 'este material';
+    const recordLabel = String(label || entityName).trim() || entityName;
+    const confirmed = window.confirm(`Se va a eliminar ${recordLabel}. Esta acción no se puede deshacer.\n\n¿Deseas continuar?`);
     if (!confirmed) return;
 
-    catalogStatus.textContent = `Eliminando ${materialLabel}...`;
-    const response = await fetch(`${page.endpoint}/${encodeURIComponent(materialId)}`, {
+    catalogStatus.textContent = `Eliminando ${recordLabel}...`;
+    const response = await fetch(`${page.endpoint}/${encodeURIComponent(recordId)}`, {
         method: 'DELETE'
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
-        throw new Error(result.error || 'No fue posible eliminar el material.');
+        throw new Error(result.error || `No fue posible eliminar ${entityName}.`);
     }
 
-    if (selectedId === materialId) {
+    if (selectedId === recordId) {
         selectedId = '';
         renderForm(page.createEmptyItem());
         updateInventoryView('list');

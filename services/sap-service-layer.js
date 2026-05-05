@@ -184,7 +184,7 @@ const SAP_MIRROR_TABLES = Object.freeze({
         group: 'inventario',
         direction: 'import',
         key: 'ItemCode',
-        columns: ['ItemCode', 'ItemName', 'ItmsGrpCod', 'InvntryUom', 'BuyUnitMsr', 'SalUnitMsr', 'validFor', 'OnHand', 'IsCommited', 'OnOrder', 'AvgPrice', 'LastPurPrc', 'Price', 'Currency']
+        columns: ['ItemCode', 'ItemName', 'ItmsGrpCod', 'U_ClasificacionERP', 'InvntryUom', 'BuyUnitMsr', 'SalUnitMsr', 'validFor', 'OnHand', 'IsCommited', 'OnOrder', 'AvgPrice', 'LastPurPrc', 'Price', 'Currency']
     },
     OITW: {
         label: 'Inventario por bodega',
@@ -333,6 +333,37 @@ const SAP_MIRROR_PROCESS_DEFS = Object.freeze({
             'INSERT INTO ITT1 (Father, Code, Quantity, Warehouse, PriceList)'
         ].join('\n'),
         note: 'Mantiene visible la orden de producción y el árbol de materiales. SAP debe confirmar si el cierre final se hará por OWOR/WOR1, OITT/ITT1 o ambos.'
+    }
+});
+
+const SAP_IMPORT_JOB_DEFS = Object.freeze({
+    'sap-import-business-partners': {
+        jobCode: 'sap-import-business-partners',
+        label: 'Socios, contactos y direcciones',
+        entityLabel: 'OCRD/CRD1/OCPR',
+        internalUrl: '/api/sap/mirror/import-business-partners',
+        serviceUrl: 'sap-mirror://BusinessPartners',
+        defaultFilters: {
+            enabled: false,
+            intervalMinutes: 30,
+            limit: 200,
+            search: '',
+            type: ''
+        }
+    },
+    'sap-import-items': {
+        jobCode: 'sap-import-items',
+        label: 'Inventario, stock, precios y bodegas',
+        entityLabel: 'OITM/OITW/ITM1/OWHS',
+        internalUrl: '/api/sap/mirror/import-items',
+        serviceUrl: 'sap-mirror://Items',
+        defaultFilters: {
+            enabled: false,
+            intervalMinutes: 30,
+            limit: 500,
+            search: '',
+            group: ''
+        }
     }
 });
 
@@ -858,6 +889,7 @@ async function ensureSapSchema(pgQuery) {
             "ItemCode" TEXT PRIMARY KEY,
             "ItemName" TEXT NOT NULL DEFAULT '',
             "ItmsGrpCod" TEXT NOT NULL DEFAULT '',
+            "U_ClasificacionERP" TEXT NOT NULL DEFAULT '',
             "InvntryUom" TEXT NOT NULL DEFAULT '',
             "BuyUnitMsr" TEXT NOT NULL DEFAULT '',
             "SalUnitMsr" TEXT NOT NULL DEFAULT '',
@@ -875,6 +907,7 @@ async function ensureSapSchema(pgQuery) {
         )
     `);
     await pgQuery(`CREATE INDEX IF NOT EXISTS "OITM_ItemName_idx" ON "OITM" ("ItemName")`);
+    await pgQuery(`ALTER TABLE "OITM" ADD COLUMN IF NOT EXISTS "U_ClasificacionERP" TEXT NOT NULL DEFAULT ''`);
     await pgQuery(`
         CREATE TABLE IF NOT EXISTS "OITW" (
             id BIGSERIAL PRIMARY KEY,
@@ -922,6 +955,7 @@ async function ensureSapSchema(pgQuery) {
             "DocDueDate" TEXT NOT NULL DEFAULT '',
             "DocTotal" NUMERIC NULL,
             "Currency" TEXT NOT NULL DEFAULT '',
+            "SlpCode" INTEGER NULL,
             "DocStatus" TEXT NOT NULL DEFAULT '',
             "Comments" TEXT NOT NULL DEFAULT '',
             raw_data JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -929,6 +963,7 @@ async function ensureSapSchema(pgQuery) {
         )
     `);
     await pgQuery(`CREATE INDEX IF NOT EXISTS "ORDR_CardCode_idx" ON "ORDR" ("CardCode")`);
+    await pgQuery(`ALTER TABLE "ORDR" ADD COLUMN IF NOT EXISTS "SlpCode" INTEGER NULL`);
     await pgQuery(`
         CREATE TABLE IF NOT EXISTS "RDR1" (
             id BIGSERIAL PRIMARY KEY,
@@ -940,12 +975,14 @@ async function ensureSapSchema(pgQuery) {
             "Price" NUMERIC NULL,
             "LineTotal" NUMERIC NULL,
             "WhsCode" TEXT NOT NULL DEFAULT '',
+            "OcrCode" TEXT NOT NULL DEFAULT '',
             raw_data JSONB NOT NULL DEFAULT '{}'::jsonb,
             exported_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             UNIQUE ("DocEntry", "LineNum")
         )
     `);
     await pgQuery(`CREATE INDEX IF NOT EXISTS "RDR1_DocEntry_idx" ON "RDR1" ("DocEntry")`);
+    await pgQuery(`ALTER TABLE "RDR1" ADD COLUMN IF NOT EXISTS "OcrCode" TEXT NOT NULL DEFAULT ''`);
     await pgQuery(`
         CREATE TABLE IF NOT EXISTS "OWOR" (
             "DocEntry" BIGINT PRIMARY KEY,
@@ -1024,6 +1061,7 @@ async function ensureSapSchema(pgQuery) {
             item_code TEXT PRIMARY KEY,
             item_name TEXT NOT NULL DEFAULT '',
             item_group_code TEXT NOT NULL DEFAULT '',
+            classification_source_value TEXT NOT NULL DEFAULT '',
             on_hand NUMERIC NULL,
             available_quantity NUMERIC NULL,
             price NUMERIC NULL,
@@ -1035,6 +1073,7 @@ async function ensureSapSchema(pgQuery) {
         )
     `);
     await pgQuery(`CREATE INDEX IF NOT EXISTS sap_items_name_idx ON sap_items (item_name)`);
+    await pgQuery(`ALTER TABLE sap_items ADD COLUMN IF NOT EXISTS classification_source_value TEXT NOT NULL DEFAULT ''`);
     await pgQuery(`
         CREATE TABLE IF NOT EXISTS sap_warehouses (
             warehouse_code TEXT PRIMARY KEY,
@@ -1254,6 +1293,33 @@ async function ensureSapSchema(pgQuery) {
     `);
     await pgQuery(`CREATE INDEX IF NOT EXISTS sap_outbox_attempts_outbox_idx ON sap_outbox_attempts (outbox_id, created_at DESC)`);
     await pgQuery(`
+        CREATE TABLE IF NOT EXISTS sap_salesperson_profit_centers (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            salesperson_name TEXT NOT NULL,
+            sales_person_code INTEGER NULL,
+            profit_center_code TEXT NOT NULL DEFAULT '',
+            notes TEXT NOT NULL DEFAULT '',
+            is_active BOOLEAN NOT NULL DEFAULT TRUE,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            UNIQUE (salesperson_name)
+        )
+    `);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS sap_salesperson_profit_centers_active_idx ON sap_salesperson_profit_centers (is_active, salesperson_name)`);
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS sap_production_cost_center_settings (
+            id SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+            default_cost_center_code TEXT NOT NULL DEFAULT '',
+            notes TEXT NOT NULL DEFAULT '',
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    `);
+    await pgQuery(`
+        INSERT INTO sap_production_cost_center_settings (id, default_cost_center_code, notes)
+        VALUES (1, '', '')
+        ON CONFLICT (id) DO NOTHING
+    `);
+    await pgQuery(`
         CREATE TABLE IF NOT EXISTS sap_sync_jobs (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             job_code TEXT NOT NULL UNIQUE,
@@ -1270,6 +1336,17 @@ async function ensureSapSchema(pgQuery) {
         )
     `);
     await pgQuery(`CREATE INDEX IF NOT EXISTS sap_sync_jobs_status_idx ON sap_sync_jobs (status, created_at DESC)`);
+    for (const definition of Object.values(SAP_IMPORT_JOB_DEFS)) {
+        await pgQuery(`
+            INSERT INTO sap_sync_jobs (job_code, entity_name, direction, status, filters, message)
+            VALUES ($1, $2, 'pull', 'idle', $3::jsonb, 'Pendiente de configurar automatización.')
+            ON CONFLICT (job_code) DO NOTHING
+        `, [
+            definition.jobCode,
+            definition.entityLabel,
+            JSON.stringify(definition.defaultFilters)
+        ]);
+    }
     const currentConfig = await loadSapConfig(pgQuery);
     await saveSapConfigSnapshotToAppConfig(pgQuery, currentConfig);
 }
@@ -1965,6 +2042,12 @@ async function upsertItems(client, records) {
         const itemCode = normalizeText(row.ItemCode);
         const itemName = normalizeText(row.ItemName);
         const itemGroupCode = normalizeText(row.ItemsGroupCode || row.ItemGroup);
+        const classificationSourceValue = normalizeText(
+            row.U_ClasificacionERP
+            || row.U_CategoriaFlexo
+            || row.U_ClasificacionFlexo
+            || row.ClassificationSourceValue
+        );
         const onHand = row.OnHand == null ? null : Number(row.OnHand);
         const committedQty = row.CommitedQty == null && row.CommittedQty == null ? null : Number(row.CommitedQty != null ? row.CommitedQty : row.CommittedQty);
         const availableQty = row.AvailableQuantity == null && row.AvailableQty == null ? null : Number(row.AvailableQuantity != null ? row.AvailableQuantity : row.AvailableQty);
@@ -1972,15 +2055,16 @@ async function upsertItems(client, records) {
         if (itemCode) {
             await client.query(`
                 INSERT INTO "OITM" (
-                    "ItemCode", "ItemName", "ItmsGrpCod", "InvntryUom", "BuyUnitMsr", "SalUnitMsr",
+                    "ItemCode", "ItemName", "ItmsGrpCod", "U_ClasificacionERP", "InvntryUom", "BuyUnitMsr", "SalUnitMsr",
                     "validFor", "frozenFor", "OnHand", "IsCommited", "OnOrder", "AvgPrice",
                     "LastPurPrc", "Price", "Currency", raw_data, synced_at
                 )
-                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::jsonb,NOW())
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17::jsonb,NOW())
                 ON CONFLICT ("ItemCode")
                 DO UPDATE SET
                     "ItemName" = EXCLUDED."ItemName",
                     "ItmsGrpCod" = EXCLUDED."ItmsGrpCod",
+                    "U_ClasificacionERP" = COALESCE(NULLIF(EXCLUDED."U_ClasificacionERP", ''), "OITM"."U_ClasificacionERP"),
                     "InvntryUom" = EXCLUDED."InvntryUom",
                     "BuyUnitMsr" = EXCLUDED."BuyUnitMsr",
                     "SalUnitMsr" = EXCLUDED."SalUnitMsr",
@@ -1999,6 +2083,7 @@ async function upsertItems(client, records) {
                 itemCode,
                 itemName,
                 itemGroupCode,
+                classificationSourceValue,
                 sapText(row.InvntryUom || buyUnit),
                 buyUnit,
                 sapText(row.SalesUnitMsr || row.SalUnitMsr),
@@ -2072,6 +2157,7 @@ async function upsertItems(client, records) {
                 item_code,
                 item_name,
                 item_group_code,
+                classification_source_value,
                 on_hand,
                 available_quantity,
                 price,
@@ -2081,11 +2167,12 @@ async function upsertItems(client, records) {
                 payload,
                 synced_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, NOW())
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, NOW())
             ON CONFLICT (item_code)
             DO UPDATE SET
                 item_name = EXCLUDED.item_name,
                 item_group_code = EXCLUDED.item_group_code,
+                classification_source_value = COALESCE(NULLIF(EXCLUDED.classification_source_value, ''), sap_items.classification_source_value),
                 on_hand = EXCLUDED.on_hand,
                 available_quantity = EXCLUDED.available_quantity,
                 price = EXCLUDED.price,
@@ -2098,6 +2185,7 @@ async function upsertItems(client, records) {
             itemCode,
             itemName,
             itemGroupCode,
+            classificationSourceValue,
             onHand,
             availableQty,
             row.Price == null ? null : Number(row.Price),
@@ -2414,7 +2502,8 @@ async function loadLocalSummary(pgQuery) {
         ['items', 'sap_items'],
         ['warehouses', 'sap_warehouses'],
         ['orders', 'sap_orders'],
-        ['invoices', 'sap_invoices']
+        ['invoices', 'sap_invoices'],
+        ['salespersons', 'sap_salesperson_profit_centers']
     ];
     const counts = {};
     for (const [key, tableName] of tables) {
@@ -2427,9 +2516,13 @@ async function loadLocalSummary(pgQuery) {
       ORDER BY started_at DESC
          LIMIT 8
     `);
+    const salespersons = await listSapSalespersonProfitCenters(pgQuery);
+    const productionCostCenter = await loadSapProductionCostCenterSettings(pgQuery);
     return {
         counts,
-        recentSync: syncResult.rows
+        recentSync: syncResult.rows,
+        salespersons: salespersons.slice(0, 12),
+        productionCostCenter
     };
 }
 
@@ -2496,6 +2589,272 @@ async function listSapMirrorTable(pgQuery, tableName, query = {}) {
 function getSapMirrorProcessDefinition(processKey) {
     const key = normalizeText(processKey || 'import-business-partners');
     return SAP_MIRROR_PROCESS_DEFS[key] || SAP_MIRROR_PROCESS_DEFS['import-business-partners'];
+}
+
+function getSapImportJobDefinition(jobCode = '') {
+    const key = normalizeText(jobCode);
+    const definition = SAP_IMPORT_JOB_DEFS[key];
+    if (!definition) throw new Error('Trabajo de importación SAP no soportado.');
+    return definition;
+}
+
+function normalizeSapImportJobFilters(jobCode, input = {}) {
+    const definition = getSapImportJobDefinition(jobCode);
+    const source = { ...definition.defaultFilters, ...(input || {}) };
+    const normalized = {
+        enabled: normalizeBoolean(source.enabled, definition.defaultFilters.enabled),
+        intervalMinutes: normalizePositiveInt(source.intervalMinutes, definition.defaultFilters.intervalMinutes, 5, 1440),
+        limit: normalizePositiveInt(source.limit, definition.defaultFilters.limit, 1, 1000),
+        search: normalizeText(source.search)
+    };
+    if (Object.prototype.hasOwnProperty.call(definition.defaultFilters, 'type')) normalized.type = normalizeText(source.type);
+    if (Object.prototype.hasOwnProperty.call(definition.defaultFilters, 'group')) normalized.group = normalizeText(source.group);
+    return normalized;
+}
+
+function buildSapImportJobPublicRow(row = {}) {
+    const definition = getSapImportJobDefinition(row.job_code || row.jobCode);
+    const filters = normalizeSapImportJobFilters(definition.jobCode, row.filters || {});
+    const finishedAt = row.finished_at || row.finishedAt || null;
+    const nextRunAt = filters.enabled && finishedAt
+        ? new Date(new Date(finishedAt).getTime() + (filters.intervalMinutes * 60 * 1000)).toISOString()
+        : (filters.enabled ? new Date().toISOString() : null);
+    return {
+        id: row.id,
+        jobCode: definition.jobCode,
+        label: definition.label,
+        entityLabel: definition.entityLabel,
+        filters,
+        status: normalizeText(row.status || 'idle') || 'idle',
+        recordsCount: Number(row.records_count || row.recordsCount || 0),
+        message: normalizeText(row.message),
+        startedAt: row.started_at || row.startedAt || null,
+        finishedAt,
+        nextRunAt
+    };
+}
+
+function normalizeSapSalespersonProfitCenterRow(row = {}) {
+    return {
+        id: normalizeText(row.id),
+        salespersonName: normalizeText(row.salesperson_name),
+        salesPersonCode: row.sales_person_code == null ? null : Number(row.sales_person_code),
+        profitCenterCode: normalizeText(row.profit_center_code),
+        notes: normalizeText(row.notes),
+        isActive: row.is_active !== false,
+        createdAt: row.created_at || null,
+        updatedAt: row.updated_at || null
+    };
+}
+
+function normalizeSapProductionCostCenterSettingsRow(row = {}) {
+    return {
+        defaultCostCenterCode: normalizeText(row.default_cost_center_code),
+        notes: normalizeText(row.notes),
+        updatedAt: row.updated_at || null
+    };
+}
+
+async function listSapSalespersonProfitCenters(pgQuery) {
+    const result = await pgQuery(`
+        SELECT id, salesperson_name, sales_person_code, profit_center_code, notes, is_active, created_at, updated_at
+          FROM sap_salesperson_profit_centers
+      ORDER BY is_active DESC, LOWER(salesperson_name), created_at DESC
+    `);
+    return result.rows.map(normalizeSapSalespersonProfitCenterRow);
+}
+
+async function saveSapSalespersonProfitCenter(pgQuery, payload = {}) {
+    const salespersonName = normalizeText(payload.salespersonName || payload.salesperson_name);
+    const profitCenterCode = normalizeText(payload.profitCenterCode || payload.profit_center_code);
+    const rawSalesPersonCode = payload.salesPersonCode ?? payload.sales_person_code;
+    const salesPersonCode = rawSalesPersonCode == null || rawSalesPersonCode === '' ? null : Number(rawSalesPersonCode);
+    if (!salespersonName) {
+        throw new Error('Debes indicar el nombre del ejecutivo de ventas.');
+    }
+    if (!profitCenterCode) {
+        throw new Error('Debes indicar el centro de beneficio.');
+    }
+    if (salesPersonCode != null && !Number.isFinite(salesPersonCode)) {
+        throw new Error('El código de vendedor SAP no es válido.');
+    }
+    const result = await pgQuery(`
+        INSERT INTO sap_salesperson_profit_centers (
+            salesperson_name, sales_person_code, profit_center_code, notes, is_active, updated_at
+        )
+        VALUES ($1,$2,$3,$4,$5,NOW())
+        ON CONFLICT (salesperson_name)
+        DO UPDATE SET
+            sales_person_code = EXCLUDED.sales_person_code,
+            profit_center_code = EXCLUDED.profit_center_code,
+            notes = EXCLUDED.notes,
+            is_active = EXCLUDED.is_active,
+            updated_at = NOW()
+        RETURNING id, salesperson_name, sales_person_code, profit_center_code, notes, is_active, created_at, updated_at
+    `, [
+        salespersonName,
+        salesPersonCode,
+        profitCenterCode,
+        normalizeText(payload.notes),
+        payload.isActive !== false && payload.is_active !== false
+    ]);
+    return normalizeSapSalespersonProfitCenterRow(result.rows[0]);
+}
+
+async function deleteSapSalespersonProfitCenter(pgQuery, id) {
+    const result = await pgQuery(`
+        DELETE FROM sap_salesperson_profit_centers
+         WHERE id = $1::uuid
+     RETURNING id
+    `, [id]);
+    if (!result.rows.length) {
+        throw new Error('Configuración por ejecutivo no encontrada.');
+    }
+    return { ok: true, id: normalizeText(result.rows[0].id) };
+}
+
+async function loadSapProductionCostCenterSettings(pgQuery) {
+    const result = await pgQuery(`
+        SELECT default_cost_center_code, notes, updated_at
+          FROM sap_production_cost_center_settings
+         WHERE id = 1
+         LIMIT 1
+    `);
+    return normalizeSapProductionCostCenterSettingsRow(result.rows[0] || {});
+}
+
+async function saveSapProductionCostCenterSettings(pgQuery, payload = {}) {
+    const defaultCostCenterCode = normalizeText(payload.defaultCostCenterCode || payload.default_cost_center_code);
+    const result = await pgQuery(`
+        UPDATE sap_production_cost_center_settings
+           SET default_cost_center_code = $1,
+               notes = $2,
+               updated_at = NOW()
+         WHERE id = 1
+     RETURNING default_cost_center_code, notes, updated_at
+    `, [
+        defaultCostCenterCode,
+        normalizeText(payload.notes)
+    ]);
+    return normalizeSapProductionCostCenterSettingsRow(result.rows[0] || {});
+}
+
+async function findSapSalespersonProfitCenter(pgQuery, payload = {}) {
+    const rawSalesPersonCode = payload.salesPersonCode ?? payload.sales_person_code ?? payload.SalesPersonCode;
+    const salesPersonCode = rawSalesPersonCode == null || rawSalesPersonCode === '' ? null : sapNumber(rawSalesPersonCode, null);
+    const normalizedSalesPersonCode = salesPersonCode != null && Number.isFinite(salesPersonCode) && salesPersonCode >= 0
+        ? Number(salesPersonCode)
+        : null;
+    const salespersonName = normalizeText(payload.salespersonName || payload.salesperson_name || payload.SalesPersonName);
+    if (normalizedSalesPersonCode != null) {
+        const result = await pgQuery(`
+            SELECT id, salesperson_name, sales_person_code, profit_center_code, notes, is_active, created_at, updated_at
+              FROM sap_salesperson_profit_centers
+             WHERE is_active = TRUE
+               AND sales_person_code = $1
+             LIMIT 1
+        `, [normalizedSalesPersonCode]);
+        if (result.rows.length) return normalizeSapSalespersonProfitCenterRow(result.rows[0]);
+    }
+    if (!salespersonName) return null;
+    const result = await pgQuery(`
+        SELECT id, salesperson_name, sales_person_code, profit_center_code, notes, is_active, created_at, updated_at
+          FROM sap_salesperson_profit_centers
+         WHERE is_active = TRUE
+           AND LOWER(salesperson_name) = LOWER($1)
+         LIMIT 1
+    `, [salespersonName]);
+    return result.rows.length ? normalizeSapSalespersonProfitCenterRow(result.rows[0]) : null;
+}
+
+async function enrichOrderPayloadWithProfitCenter(pgQuery, body = {}, requestPayload = {}) {
+    const rawSalesPersonCode = requestPayload.SalesPersonCode ?? body.salesPersonCode ?? body.sales_person_code;
+    const salesPersonCode = rawSalesPersonCode == null || rawSalesPersonCode === '' ? null : sapNumber(rawSalesPersonCode, null);
+    const normalizedSalesPersonCode = salesPersonCode != null && Number.isFinite(salesPersonCode) && salesPersonCode >= 0
+        ? Number(salesPersonCode)
+        : null;
+    const salespersonName = normalizeText(body.salespersonName || body.salesperson_name || body.SalesPersonName);
+    if (normalizedSalesPersonCode == null && !salespersonName) {
+        return requestPayload;
+    }
+    const salespersonConfig = await findSapSalespersonProfitCenter(pgQuery, {
+        salesPersonCode: normalizedSalesPersonCode,
+        salespersonName
+    });
+    if (!salespersonConfig) {
+        throw new Error('No existe configuración de centro de beneficio para el ejecutivo de ventas indicado.');
+    }
+    const profitCenterCode = normalizeText(salespersonConfig.profitCenterCode);
+    if (!profitCenterCode) {
+        throw new Error('El ejecutivo de ventas indicado no tiene centro de beneficio configurado.');
+    }
+    return {
+        ...requestPayload,
+        ...(salespersonConfig.salesPersonCode != null ? { SalesPersonCode: salespersonConfig.salesPersonCode } : {}),
+        DocumentLines: (Array.isArray(requestPayload.DocumentLines) ? requestPayload.DocumentLines : []).map((line) => ({
+            ...line,
+            CostingCode: profitCenterCode
+        }))
+    };
+}
+
+function applyProductionCostCenterToPayload(requestPayload = {}, defaultCostCenterCode = '', contextLabel = 'la transacción de producción') {
+    const lines = Array.isArray(requestPayload.DocumentLines) ? requestPayload.DocumentLines : [];
+    if (!lines.length) return requestPayload;
+    if (defaultCostCenterCode) {
+        return {
+            ...requestPayload,
+            DocumentLines: lines.map((line) => ({
+                ...line,
+                CostingCode: defaultCostCenterCode
+            }))
+        };
+    }
+    const hasMissingCostCenter = lines.some((line) => !normalizeText(line.CostingCode));
+    if (hasMissingCostCenter) {
+        throw new Error(`Debes configurar el centro de costo de producción antes de enviar ${contextLabel}.`);
+    }
+    return requestPayload;
+}
+
+async function listSapImportJobs(pgQuery) {
+    const result = await pgQuery(`
+        SELECT *
+          FROM sap_sync_jobs
+         WHERE job_code = ANY($1::text[])
+      ORDER BY created_at ASC
+    `, [Object.keys(SAP_IMPORT_JOB_DEFS)]);
+    return result.rows.map(buildSapImportJobPublicRow);
+}
+
+async function saveSapImportJob(pgQuery, jobCode, input = {}) {
+    const definition = getSapImportJobDefinition(jobCode);
+    const result = await pgQuery(`
+        SELECT *
+          FROM sap_sync_jobs
+         WHERE job_code = $1
+         LIMIT 1
+    `, [definition.jobCode]);
+    if (!result.rows.length) throw new Error('No se encontró el trabajo de importación SAP.');
+    const current = result.rows[0];
+    const filters = normalizeSapImportJobFilters(definition.jobCode, {
+        ...(current.filters || {}),
+        ...(input || {})
+    });
+    const status = filters.enabled ? (normalizeText(current.status) || 'idle') : 'paused';
+    const update = await pgQuery(`
+        UPDATE sap_sync_jobs
+           SET filters = $2::jsonb,
+               status = $3,
+               updated_at = NOW()
+         WHERE job_code = $1
+     RETURNING *
+    `, [
+        definition.jobCode,
+        JSON.stringify(filters),
+        status
+    ]);
+    return buildSapImportJobPublicRow(update.rows[0]);
 }
 
 async function getSapConnectorHealth(config = {}) {
@@ -2743,20 +3102,121 @@ async function importSapMirrorItems({ pgQuery, withTransaction, limit, search, g
     };
 }
 
+async function executeSapImportJob({ pgQuery, withTransaction, jobCode, actor = 'scheduler', automated = true }) {
+    const definition = getSapImportJobDefinition(jobCode);
+    const jobRow = await pgQuery(`
+        UPDATE sap_sync_jobs
+           SET status = 'running',
+               started_at = NOW(),
+               updated_at = NOW(),
+               message = 'Ejecutando carga automática SAP...'
+         WHERE job_code = $1
+     RETURNING *
+    `, [definition.jobCode]);
+    if (!jobRow.rows.length) throw new Error('No se encontró el trabajo de importación SAP.');
+    const currentJob = jobRow.rows[0];
+    const filters = normalizeSapImportJobFilters(definition.jobCode, currentJob.filters || {});
+    const config = await loadSapConfig(pgQuery).catch(() => ({}));
+    const startedAt = new Date().toISOString();
+    try {
+        const payload = definition.jobCode === 'sap-import-business-partners'
+            ? await importSapMirrorBusinessPartners({
+                pgQuery,
+                withTransaction,
+                limit: filters.limit,
+                search: filters.search,
+                type: filters.type,
+                demo: false
+            })
+            : await importSapMirrorItems({
+                pgQuery,
+                withTransaction,
+                limit: filters.limit,
+                search: filters.search,
+                group: filters.group,
+                demo: false
+            });
+        await pgQuery(`
+            UPDATE sap_sync_jobs
+               SET status = 'success',
+                   records_count = $2,
+                   message = $3,
+                   finished_at = NOW(),
+                   updated_at = NOW()
+             WHERE job_code = $1
+        `, [
+            definition.jobCode,
+            Number(payload.records || 0),
+            `Carga completada correctamente.`
+        ]);
+        await logSapActivity(pgQuery, {
+            actionType: 'import',
+            entityName: definition.entityLabel,
+            actor,
+            mode: resolveOperatingMode(config),
+            status: 'success',
+            internalMethod: 'POST',
+            internalUrl: definition.internalUrl,
+            serviceMethod: 'IMPORT',
+            serviceUrl: definition.serviceUrl,
+            requestVars: {
+                ...filters,
+                automated,
+                jobCode: definition.jobCode
+            },
+            responseSummary: summarizeSapPayload(payload),
+            startedAt,
+            finishedAt: new Date().toISOString()
+        });
+        return payload;
+    } catch (error) {
+        await pgQuery(`
+            UPDATE sap_sync_jobs
+               SET status = 'error',
+                   records_count = 0,
+                   message = $2,
+                   finished_at = NOW(),
+                   updated_at = NOW()
+             WHERE job_code = $1
+        `, [
+            definition.jobCode,
+            error.message || 'No fue posible ejecutar la carga SAP.'
+        ]);
+        await logSapRouteFailure(pgQuery, {
+            actionType: 'import',
+            entityName: definition.entityLabel,
+            actor,
+            mode: resolveOperatingMode(config),
+            internalMethod: 'POST',
+            internalUrl: definition.internalUrl,
+            serviceMethod: 'IMPORT',
+            serviceUrl: definition.serviceUrl,
+            requestVars: {
+                ...filters,
+                automated,
+                jobCode: definition.jobCode
+            },
+            errorMessage: error.message
+        });
+        throw error;
+    }
+}
+
 async function stageSapMirrorOrder(pgQuery, input = {}) {
-    const payload = buildOrderPayload(input || {});
+    const payload = await enrichOrderPayloadWithProfitCenter(pgQuery, input || {}, buildOrderPayload(input || {}));
     const docEntry = sapNumber(input.DocEntry || input.docEntry, Date.now());
     const docNum = sapText(input.DocNum || input.docNum || docEntry);
     const docDate = sapText(payload.DocDate || new Date().toISOString().slice(0, 10));
     const dueDate = sapText(payload.DocDueDate || docDate);
+    const salesPersonCode = payload.SalesPersonCode == null || payload.SalesPersonCode === '' ? null : sapNumber(payload.SalesPersonCode, null);
     const lines = Array.isArray(payload.DocumentLines) ? payload.DocumentLines : [];
     const total = lines.reduce((acc, line) => acc + (sapNumber(line.LineTotal, sapNumber(line.Price, 0) * sapNumber(line.Quantity, 0)) || 0), 0);
     await pgQuery(`
         INSERT INTO "ORDR" (
             "DocEntry", "DocNum", "CardCode", "CardName", "DocDate", "DocDueDate",
-            "DocTotal", "Currency", "DocStatus", "Comments", raw_data, exported_at
+            "DocTotal", "Currency", "SlpCode", "DocStatus", "Comments", raw_data, exported_at
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,NOW())
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,NOW())
         ON CONFLICT ("DocEntry")
         DO UPDATE SET
             "DocNum" = EXCLUDED."DocNum",
@@ -2766,6 +3226,7 @@ async function stageSapMirrorOrder(pgQuery, input = {}) {
             "DocDueDate" = EXCLUDED."DocDueDate",
             "DocTotal" = EXCLUDED."DocTotal",
             "Currency" = EXCLUDED."Currency",
+            "SlpCode" = EXCLUDED."SlpCode",
             "DocStatus" = EXCLUDED."DocStatus",
             "Comments" = EXCLUDED."Comments",
             raw_data = EXCLUDED.raw_data,
@@ -2779,6 +3240,7 @@ async function stageSapMirrorOrder(pgQuery, input = {}) {
         dueDate,
         total,
         sapText(input.Currency || input.currency || 'CRC'),
+        salesPersonCode,
         sapText(input.DocStatus || input.DocumentStatus || 'Pendiente'),
         sapText(payload.Comments),
         JSON.stringify(payload)
@@ -2790,9 +3252,9 @@ async function stageSapMirrorOrder(pgQuery, input = {}) {
         await pgQuery(`
             INSERT INTO "RDR1" (
                 "DocEntry", "LineNum", "ItemCode", "Dscription", "Quantity", "Price",
-                "LineTotal", "WhsCode", raw_data, exported_at
+                "LineTotal", "WhsCode", "OcrCode", raw_data, exported_at
             )
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,NOW())
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,NOW())
             ON CONFLICT ("DocEntry", "LineNum")
             DO UPDATE SET
                 "ItemCode" = EXCLUDED."ItemCode",
@@ -2801,6 +3263,7 @@ async function stageSapMirrorOrder(pgQuery, input = {}) {
                 "Price" = EXCLUDED."Price",
                 "LineTotal" = EXCLUDED."LineTotal",
                 "WhsCode" = EXCLUDED."WhsCode",
+                "OcrCode" = EXCLUDED."OcrCode",
                 raw_data = EXCLUDED.raw_data,
                 exported_at = NOW()
         `, [
@@ -2812,6 +3275,7 @@ async function stageSapMirrorOrder(pgQuery, input = {}) {
             price,
             sapNumber(line.LineTotal, quantity * price),
             sapText(line.WarehouseCode || line.WhsCode || '01'),
+            sapText(line.CostingCode || line.OcrCode),
             JSON.stringify(line)
         ]);
     }
@@ -3493,6 +3957,7 @@ async function loadLocalItems(pgQuery, query) {
         SELECT item_code AS "ItemCode",
                item_name AS "ItemName",
                item_group_code AS "ItemsGroupCode",
+               classification_source_value AS "ClassificationSourceValue",
                on_hand AS "OnHand",
                available_quantity AS "AvailableQuantity",
                price AS "Price",
@@ -3586,7 +4051,8 @@ function buildOrderPayload(input = {}) {
             Quantity: Number(line.qty != null ? line.qty : line.Quantity),
             Price: line.price == null ? 0 : Number(line.price != null ? line.price : line.Price),
             DiscountPercent: line.discount == null ? 0 : Number(line.discount != null ? line.discount : line.DiscountPercent),
-            WarehouseCode: normalizeText(line.warehouse || line.WarehouseCode || '01')
+            WarehouseCode: normalizeText(line.warehouse || line.WarehouseCode || '01'),
+            CostingCode: normalizeText(line.costingCode || line.CostingCode)
         })) : []
     };
 }
@@ -3618,6 +4084,53 @@ function buildInventoryExitPayload(input = {}) {
             WarehouseCode: normalizeText(row.warehouse || row.WarehouseCode || '01'),
             CostingCode: normalizeText(row.costingCode || row.CostingCode)
         })) : []
+    };
+}
+
+function buildInventoryEntryPayload(input = {}) {
+    if (Array.isArray(input.DocumentLines)) {
+        return input;
+    }
+    return {
+        DocDate: normalizeText(input.date || input.DocDate),
+        Comments: normalizeText(input.comments || input.Comments || `Terminación OP ${normalizeText(input.productionOrderId || input.production_order_id)}`),
+        DocumentLines: Array.isArray(input.items) ? input.items.map((row) => ({
+            ItemCode: normalizeText(row.itemCode || row.ItemCode),
+            Quantity: Number(row.quantity != null ? row.quantity : row.Quantity),
+            WarehouseCode: normalizeText(row.warehouse || row.WarehouseCode || '01'),
+            CostingCode: normalizeText(row.costingCode || row.CostingCode)
+        })) : []
+    };
+}
+
+function buildProductTreePayload(input = {}) {
+    if (Array.isArray(input.DocumentLines) && normalizeText(input.TreeCode || input.ItemCode || input.itemCode || input.productCode)) {
+        return input;
+    }
+    const componentSource = Array.isArray(input.DocumentLines)
+        ? input.DocumentLines
+        : (Array.isArray(input.Components)
+            ? input.Components
+            : (Array.isArray(input.components)
+                ? input.components
+                : (Array.isArray(input.lines) ? input.lines : [])));
+    return {
+        TreeCode: normalizeText(input.TreeCode || input.ItemCode || input.itemCode || input.productCode),
+        ItemCode: normalizeText(input.ItemCode || input.itemCode || input.TreeCode || input.productCode),
+        ProdName: normalizeText(input.ProdName || input.productName || input.name),
+        TreeType: normalizeText(input.TreeType || input.treeType || 'P'),
+        PlannedQty: Number(input.PlannedQty != null ? input.PlannedQty : (input.quantity != null ? input.quantity : (input.Quantity != null ? input.Quantity : 1))),
+        WarehouseCode: normalizeText(input.WarehouseCode || input.warehouse || '01'),
+        Comments: normalizeText(input.Comments || input.comments || 'BOM preparado desde ERP'),
+        DocumentLines: componentSource.map((line) => ({
+            ItemCode: normalizeText(line.itemCode || line.ItemCode || line.Code || line.sapItemCode),
+            ItemName: normalizeText(line.itemName || line.ItemName || line.ItemDescription || line.description),
+            Quantity: Number(line.qty != null ? line.qty : (line.quantity != null ? line.quantity : (line.Quantity != null ? line.Quantity : (line.PlannedQty != null ? line.PlannedQty : 0)))),
+            WarehouseCode: normalizeText(line.warehouse || line.WarehouseCode || line.Warehouse || line.WhsCode || '01'),
+            PriceList: line.priceList == null ? 0 : Number(line.priceList),
+            Source: normalizeText(line.Source || line.source),
+            UnitHint: normalizeText(line.UnitHint || line.unitHint)
+        }))
     };
 }
 
@@ -3671,6 +4184,23 @@ function buildMockInventoryExitResponse(input = {}) {
         const quantity = Number(line.Quantity || 0);
         item.OnHand = Math.max(0, Number(item.OnHand || 0) - quantity);
         item.AvailableQty = Math.max(0, Number(item.AvailableQty || item.AvailableQuantity || 0) - quantity);
+        item.AvailableQuantity = item.AvailableQty;
+    }
+    return {
+        DocNum: Date.now(),
+        ...payload,
+        _local: true
+    };
+}
+
+function buildMockInventoryEntryResponse(input = {}) {
+    const payload = buildInventoryEntryPayload(input);
+    for (const line of payload.DocumentLines) {
+        const item = demoState.Items.find((current) => current.ItemCode === line.ItemCode);
+        if (!item) continue;
+        const quantity = Number(line.Quantity || 0);
+        item.OnHand = Number(item.OnHand || 0) + quantity;
+        item.AvailableQty = Number(item.AvailableQty || item.AvailableQuantity || 0) + quantity;
         item.AvailableQuantity = item.AvailableQty;
     }
     return {
@@ -3796,7 +4326,7 @@ async function queryOrders({ pgQuery, config, query }) {
 async function createOrder({ pgQuery, config, body }) {
     const mode = resolveOperatingMode(config);
     const liveConfig = assertLiveSapConfigReady(config, 'La creación de órdenes');
-    const requestPayload = buildOrderPayload(body || {});
+    const requestPayload = await enrichOrderPayloadWithProfitCenter(pgQuery, body || {}, buildOrderPayload(body || {}));
     try {
         const responsePayload = isDiApiProvider(liveConfig)
             ? await diApiBridge.createOrder(liveConfig, requestPayload)
@@ -3815,6 +4345,38 @@ async function createOrder({ pgQuery, config, body }) {
     } catch (error) {
         await logWrite(pgQuery, {
             entityName: 'Orders',
+            mode,
+            status: 'error',
+            requestPayload,
+            responsePayload: {},
+            errorMessage: error.message
+        });
+        throw error;
+    }
+}
+
+async function createProductTree({ pgQuery, config, body }) {
+    const mode = resolveOperatingMode(config);
+    const liveConfig = assertLiveSapConfigReady(config, 'La creación del BOM');
+    const requestPayload = buildProductTreePayload(body || {});
+    try {
+        const responsePayload = isDiApiProvider(liveConfig)
+            ? await diApiBridge.createProductTree(liveConfig, requestPayload)
+            : await sapRequest(liveConfig, 'ProductTrees', {
+                method: 'POST',
+                body: requestPayload
+            });
+        await logWrite(pgQuery, {
+            entityName: 'ProductTrees',
+            mode,
+            status: 'success',
+            requestPayload,
+            responsePayload
+        });
+        return { ...responsePayload, source: 'sap' };
+    } catch (error) {
+        await logWrite(pgQuery, {
+            entityName: 'ProductTrees',
             mode,
             status: 'error',
             requestPayload,
@@ -3860,7 +4422,13 @@ async function createInvoice({ pgQuery, config, body }) {
 async function createInventoryExit({ pgQuery, config, body }) {
     const mode = resolveOperatingMode(config);
     const liveConfig = assertLiveSapConfigReady(config, 'La salida de inventario');
-    const requestPayload = buildInventoryExitPayload(body || {});
+    const settings = await loadSapProductionCostCenterSettings(pgQuery);
+    const defaultCostCenterCode = normalizeText(settings.defaultCostCenterCode);
+    const requestPayload = applyProductionCostCenterToPayload(
+        buildInventoryExitPayload(body || {}),
+        defaultCostCenterCode,
+        'la salida de componentes'
+    );
     try {
         const responsePayload = isDiApiProvider(liveConfig)
             ? await diApiBridge.createInventoryExit(liveConfig, requestPayload)
@@ -3879,6 +4447,44 @@ async function createInventoryExit({ pgQuery, config, body }) {
     } catch (error) {
         await logWrite(pgQuery, {
             entityName: 'InventoryGenExits',
+            mode,
+            status: 'error',
+            requestPayload,
+            responsePayload: {},
+            errorMessage: error.message
+        });
+        throw error;
+    }
+}
+
+async function createInventoryEntry({ pgQuery, config, body }) {
+    const mode = resolveOperatingMode(config);
+    const liveConfig = assertLiveSapConfigReady(config, 'La entrada de inventario');
+    const settings = await loadSapProductionCostCenterSettings(pgQuery);
+    const defaultCostCenterCode = normalizeText(settings.defaultCostCenterCode);
+    const requestPayload = applyProductionCostCenterToPayload(
+        buildInventoryEntryPayload(body || {}),
+        defaultCostCenterCode,
+        'la terminación de producción'
+    );
+    try {
+        const responsePayload = isDiApiProvider(liveConfig)
+            ? await diApiBridge.createInventoryEntry(liveConfig, requestPayload)
+            : await sapRequest(liveConfig, 'InventoryGenEntries', {
+                method: 'POST',
+                body: requestPayload
+            });
+        await logWrite(pgQuery, {
+            entityName: 'InventoryGenEntries',
+            mode,
+            status: 'success',
+            requestPayload,
+            responsePayload
+        });
+        return { ...responsePayload, source: 'sap' };
+    } catch (error) {
+        await logWrite(pgQuery, {
+            entityName: 'InventoryGenEntries',
             mode,
             status: 'error',
             requestPayload,
@@ -3955,6 +4561,38 @@ function registerSapRoutes({ app, pgQuery, withTransaction }) {
             });
         } catch (error) {
             res.status(400).json({ error: error.message || 'No fue posible guardar la configuracion SAP.' });
+        }
+    });
+
+    app.get('/api/sap/import-jobs', async (req, res) => {
+        try {
+            res.json({ rows: await listSapImportJobs(pgQuery) });
+        } catch (error) {
+            res.status(500).json({ error: error.message || 'No fue posible cargar los trabajos de importación SAP.' });
+        }
+    });
+
+    app.patch('/api/sap/import-jobs/:jobCode', async (req, res) => {
+        try {
+            const row = await saveSapImportJob(pgQuery, req.params.jobCode, req.body || {});
+            res.json({ ok: true, row });
+        } catch (error) {
+            res.status(400).json({ error: error.message || 'No fue posible guardar la automatización SAP.' });
+        }
+    });
+
+    app.post('/api/sap/import-jobs/:jobCode/run', async (req, res) => {
+        try {
+            const payload = await executeSapImportJob({
+                pgQuery,
+                withTransaction,
+                jobCode: req.params.jobCode,
+                actor: await getSapActor(pgQuery),
+                automated: normalizeBoolean(req.body?.automated, true)
+            });
+            res.json({ ok: true, payload });
+        } catch (error) {
+            res.status(400).json({ error: error.message || 'No fue posible ejecutar la carga SAP.' });
         }
     });
 
@@ -4305,6 +4943,42 @@ function registerSapRoutes({ app, pgQuery, withTransaction }) {
         }
     });
 
+    app.patch('/api/sap/items/:code/classification', async (req, res) => {
+        try {
+            const itemCode = normalizeText(req.params.code);
+            if (!itemCode) {
+                return res.status(400).json({ error: 'Debe indicar el codigo del articulo.' });
+            }
+            const classificationSourceValue = normalizeText(
+                req.body?.classificationSourceValue
+                || req.body?.classification_source_value
+                || req.body?.value
+            );
+            const itemResult = await pgQuery(
+                `SELECT item_code FROM sap_items WHERE item_code = $1`,
+                [itemCode]
+            );
+            if (!itemResult.rows.length) {
+                return res.status(404).json({ error: 'No se encontro el articulo en el espejo local.' });
+            }
+            await pgQuery(
+                `UPDATE sap_items SET classification_source_value = $2, synced_at = NOW() WHERE item_code = $1`,
+                [itemCode, classificationSourceValue]
+            );
+            await pgQuery(
+                `UPDATE "OITM" SET "U_ClasificacionERP" = $2, synced_at = NOW() WHERE "ItemCode" = $1`,
+                [itemCode, classificationSourceValue]
+            );
+            res.json({
+                ok: true,
+                itemCode,
+                classificationSourceValue
+            });
+        } catch (error) {
+            res.status(400).json({ error: error.message || 'No fue posible actualizar la clasificacion local del articulo.' });
+        }
+    });
+
     app.get('/api/sap/items/:code/stock', async (req, res) => {
         try {
             const config = await loadSapConfig(pgQuery);
@@ -4409,6 +5083,52 @@ function registerSapRoutes({ app, pgQuery, withTransaction }) {
         }
     });
 
+    app.post('/api/sap/product-trees', async (req, res) => {
+        try {
+            const actor = await getSapActor(pgQuery);
+            const config = await loadSapConfig(pgQuery);
+            const startedAt = new Date().toISOString();
+            const payload = await createProductTree({ pgQuery, config, body: req.body || {} });
+            const serviceUrl = isDiApiProvider(config)
+                ? `${normalizeText(config.diApiBaseUrl || config.di_api_base_url).replace(/\/+$/, '')}/product-trees`
+                : `${config.sapProtocol}://${config.sapHost}:${config.sapPort}/b1s/v1/ProductTrees`;
+            await logSapActivity(pgQuery, {
+                actionType: 'write',
+                entityName: 'ProductTrees',
+                actor,
+                mode: resolveOperatingMode(config),
+                status: 'success',
+                internalMethod: 'POST',
+                internalUrl: '/api/sap/product-trees',
+                serviceMethod: 'POST',
+                serviceUrl,
+                requestVars: summarizeSapPayload(req.body || {}),
+                responseSummary: summarizeSapPayload(payload),
+                startedAt,
+                finishedAt: new Date().toISOString()
+            });
+            res.status(201).json(payload);
+        } catch (error) {
+            const config = await loadSapConfig(pgQuery).catch(() => ({}));
+            const serviceUrl = isDiApiProvider(config)
+                ? `${normalizeText(config.diApiBaseUrl || config.di_api_base_url).replace(/\/+$/, '')}/product-trees`
+                : (config.sapHost ? `${config.sapProtocol}://${config.sapHost}:${config.sapPort}/b1s/v1/ProductTrees` : '');
+            await logSapRouteFailure(pgQuery, {
+                actionType: 'write',
+                entityName: 'ProductTrees',
+                actor: await getSapActor(pgQuery),
+                mode: resolveOperatingMode(config),
+                internalMethod: 'POST',
+                internalUrl: '/api/sap/product-trees',
+                serviceMethod: 'POST',
+                serviceUrl,
+                requestVars: summarizeSapPayload(req.body || {}),
+                errorMessage: error.message
+            });
+            res.status(400).json({ error: error.message || 'No fue posible crear el BOM SAP.' });
+        }
+    });
+
     app.post('/api/sap/invoices', async (req, res) => {
         try {
             const actor = await getSapActor(pgQuery);
@@ -4486,6 +5206,87 @@ function registerSapRoutes({ app, pgQuery, withTransaction }) {
                 errorMessage: error.message
             });
             res.status(400).json({ error: error.message || 'No fue posible crear la salida de inventario SAP.' });
+        }
+    });
+
+    app.post('/api/sap/inventory/entry', async (req, res) => {
+        try {
+            const actor = await getSapActor(pgQuery);
+            const config = await loadSapConfig(pgQuery);
+            const startedAt = new Date().toISOString();
+            const payload = await createInventoryEntry({ pgQuery, config, body: req.body || {} });
+            await logSapActivity(pgQuery, {
+                actionType: 'write',
+                entityName: 'InventoryGenEntries',
+                actor,
+                mode: resolveOperatingMode(config),
+                status: 'success',
+                internalMethod: 'POST',
+                internalUrl: '/api/sap/inventory/entry',
+                serviceMethod: 'POST',
+                serviceUrl: `${config.sapProtocol}://${config.sapHost}:${config.sapPort}/b1s/v1/InventoryGenEntries`,
+                requestVars: summarizeSapPayload(req.body || {}),
+                responseSummary: summarizeSapPayload(payload),
+                startedAt,
+                finishedAt: new Date().toISOString()
+            });
+            res.status(201).json(payload);
+        } catch (error) {
+            const config = await loadSapConfig(pgQuery).catch(() => ({}));
+            await logSapRouteFailure(pgQuery, {
+                actionType: 'write',
+                entityName: 'InventoryGenEntries',
+                actor: await getSapActor(pgQuery),
+                mode: resolveOperatingMode(config),
+                internalMethod: 'POST',
+                internalUrl: '/api/sap/inventory/entry',
+                serviceMethod: 'POST',
+                serviceUrl: config.sapHost ? `${config.sapProtocol}://${config.sapHost}:${config.sapPort}/b1s/v1/InventoryGenEntries` : '',
+                requestVars: summarizeSapPayload(req.body || {}),
+                errorMessage: error.message
+            });
+            res.status(400).json({ error: error.message || 'No fue posible crear la entrada de inventario SAP.' });
+        }
+    });
+
+    app.get('/api/sap/salesperson-profit-centers', async (req, res) => {
+        try {
+            res.json({ items: await listSapSalespersonProfitCenters(pgQuery) });
+        } catch (error) {
+            res.status(500).json({ error: error.message || 'No fue posible cargar la configuración por ejecutivo.' });
+        }
+    });
+
+    app.post('/api/sap/salesperson-profit-centers', async (req, res) => {
+        try {
+            res.status(201).json(await saveSapSalespersonProfitCenter(pgQuery, req.body || {}));
+        } catch (error) {
+            res.status(400).json({ error: error.message || 'No fue posible guardar la configuración por ejecutivo.' });
+        }
+    });
+
+    app.delete('/api/sap/salesperson-profit-centers/:id', async (req, res) => {
+        try {
+            res.json(await deleteSapSalespersonProfitCenter(pgQuery, normalizeText(req.params.id)));
+        } catch (error) {
+            const status = /no encontrada/i.test(error.message || '') ? 404 : 400;
+            res.status(status).json({ error: error.message || 'No fue posible eliminar la configuración por ejecutivo.' });
+        }
+    });
+
+    app.get('/api/sap/production-cost-center', async (req, res) => {
+        try {
+            res.json(await loadSapProductionCostCenterSettings(pgQuery));
+        } catch (error) {
+            res.status(500).json({ error: error.message || 'No fue posible cargar el centro de costo de producción.' });
+        }
+    });
+
+    app.post('/api/sap/production-cost-center', async (req, res) => {
+        try {
+            res.json(await saveSapProductionCostCenterSettings(pgQuery, req.body || {}));
+        } catch (error) {
+            res.status(400).json({ error: error.message || 'No fue posible guardar el centro de costo de producción.' });
         }
     });
 
@@ -4600,12 +5401,26 @@ function startSapScheduler({ pgQuery, withTransaction, intervalMs = 60_000 }) {
     schedulerHandle = setInterval(async () => {
         if (syncInFlight) return;
         try {
+            syncInFlight = true;
+            const jobs = await listSapImportJobs(pgQuery);
+            for (const job of jobs) {
+                if (!job.filters?.enabled) continue;
+                const lastFinished = job.finishedAt ? new Date(job.finishedAt).getTime() : 0;
+                const due = !lastFinished || (Date.now() - lastFinished) >= ((job.filters.intervalMinutes || 30) * 60 * 1000);
+                if (!due) continue;
+                await executeSapImportJob({
+                    pgQuery,
+                    withTransaction,
+                    jobCode: job.jobCode,
+                    actor: 'scheduler',
+                    automated: true
+                });
+            }
             const config = await loadSapConfig(pgQuery);
             if (!config.autoSyncEnabled) return;
             const lastFinished = config.lastSyncFinishedAt ? new Date(config.lastSyncFinishedAt).getTime() : 0;
             const enoughTimeElapsed = !lastFinished || (Date.now() - lastFinished) >= (config.syncIntervalMinutes * 60 * 1000);
             if (!enoughTimeElapsed) return;
-            syncInFlight = true;
             await runSapSync({ pgQuery, withTransaction, entityName: 'all' });
         } catch (error) {
             await updateSyncState(pgQuery, {

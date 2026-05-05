@@ -49,12 +49,31 @@ function calcularDesglose(entrada, parametros, metricas) {
     const costoPreprensaCambios = Math.max(0, (entrada.cantidadCambios ?? 1) - 1) *
         (parametros.minutosPreprensaPorCambio ?? 10) *
         safeDivide(parametros.costoHoraPreprensa ?? 0, 60);
-    const costoMontaje = entrada.procesoProductivo === "convencional"
+    // Material cost of plates (NEW - Area based)
+    const costoPlanchasMaterial = (() => {
+        if (entrada.procesoProductivo !== "convencional") return 0;
+        // Don't charge plates for repeat orders (plates already exist)
+        if (entrada.tipoOrden === "Repeticion" || entrada.tipoOrden === "Repeticion con Cambio") {
+            return 0;
+        }
+        
+        // Calculate plate area from troquel dimensions (mm to cm)
+        const troquel = entrada.troquel;
+        const areaTroquelCm2 = troquel ? 
+            ((troquel.ancho_mm || 300) / 10) * ((troquel.largo_mm || 400) / 10) : 1200; // Default 30x40cm = 1200cm²
+        const costoPorCm2 = parametros.costoCyrelPorCm2 ?? 0.05; // $0.05/cm²
+        return areaTroquelCm2 * metricas.tintasEfectivas * costoPorCm2;
+    })();
+
+    // Time cost of plate mounting (original, now separated)
+    const costoMontajeTiempo = entrada.procesoProductivo === "convencional"
         ? metricas.tintasEfectivas *
             (parametros.factorMontajePorEstacion ?? 6) *
-            Math.max(1, entrada.cantidadCambios ?? 1) *
-            (parametros.costoMinutoMaquina ?? 0)
+                Math.max(1, entrada.cantidadCambios ?? 1) *
+                (parametros.costoMinutoMaquina ?? 0)
         : 0;
+
+    const costoMontaje = costoPlanchasMaterial + costoMontajeTiempo;
     const costoTintas = metricas.tintasEfectivas > 0
         ? metricas.msiConMerma *
             (parametros.costoTintaPorMsi ?? 0) *
@@ -74,17 +93,25 @@ function calcularDesglose(entrada, parametros, metricas) {
     const costoMaquila = entrada.acabados?.maquila ? parametros.costoMaquila ?? 0 : 0;
     const costoFlete = entrada.acabados?.flete ? parametros.costoFlete ?? 0 : 0;
     const costoEmpaque = entrada.acabados?.empaque ? parametros.costoEmpaque ?? 0 : 0;
+    
+    // NEW: Macula de Impresión (Startup Waste) - goes in Tintas section
+    const maculaPies = metricas.startupWasteFeet || (entrada.procesoProductivo === "digital" ? 80 : 100); // Default: Digital 80, Conv 100
+    const maculaCosto = maculaPies * (parametros.costoMaculaPorPie || 0.50); // $0.50/pie
+    
     return {
         material: toMoney(costoMaterial),
         preprensa: toMoney(costoPreprensaBase + costoPreprensaCambios),
-        montaje: toMoney(costoMontaje),
+        montaje: toMoney(costoMontaje),  // Total: platosMaterial + montajeTiempo
+        platosMaterial: toMoney(costoPlanchasMaterial),  // NEW - Plate material cost by area
+        montajeTiempo: toMoney(costoMontajeTiempo),  // NEW - Plate mounting time cost
         tintas: toMoney(costoTintas),
         tiraje: toMoney(costoTiraje),
         laminado: toMoney(costoLaminado),
         barniz: toMoney(costoBarniz),
         troquel: toMoney(costoTroquel),
         arte: toMoney(costoArte),
-        cyrel: toMoney(costoCyrel),
+        // cyrel field removed - replaced by platosMaterial
+        macula: toMoney(maculaCosto),  // NEW - Startup waste in Tintas section
         maquila: toMoney(costoMaquila),
         flete: toMoney(costoFlete),
         empaque: toMoney(costoEmpaque)
