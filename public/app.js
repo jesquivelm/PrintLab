@@ -2321,9 +2321,24 @@ configPopoverFrame?.addEventListener('load', () => {
 });
 
 window.addEventListener('message', (event) => {
+    if (event.origin !== window.location.origin) return;
     if (event.data?.type === 'close-config-popover') {
         closeConfigPopover();
     }
+    if (event.data?.type === 'erp-general-config-updated') {
+        if (event.data.config && typeof event.data.config === 'object') {
+            writeCache(GENERAL_CONFIG_CACHE_KEY, event.data.config);
+            applyConfig(event.data.config);
+            renderRows();
+            return;
+        }
+        loadConfig().then(renderRows).catch((error) => setStatus(error.message, 'error'));
+    }
+});
+
+window.addEventListener('storage', (event) => {
+    if (event.key !== 'erp-general-config-updated') return;
+    loadConfig().then(renderRows).catch((error) => setStatus(error.message, 'error'));
 });
 
 document.addEventListener('visibilitychange', () => {

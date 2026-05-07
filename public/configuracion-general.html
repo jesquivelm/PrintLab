@@ -95,6 +95,37 @@
         .config-form-row input[type="email"],
         .config-form-row input[type="tel"],
         .config-form-row select { height: 32px; padding: 0 10px; border: 1px solid #cdd4dc; border-radius: 4px; font-size: 13px; }
+        .icon-row .icon-item > input[name^="icons."],
+        .icon-item-controls input[type="text"],
+        .icon-item-controls input[type="number"],
+        .icon-item-controls select {
+            width: 100% !important;
+            min-width: 0;
+            min-height: 42px;
+            padding: 10px 12px;
+            border: 1px solid #c9d6e2;
+            border-radius: 12px;
+            background: #fff;
+            color: #17354a;
+            font: inherit;
+            line-height: 1.2;
+            box-sizing: border-box;
+        }
+        .icon-row .icon-item > input[name^="icons."] {
+            max-width: 112px;
+            text-align: center;
+            justify-self: start;
+        }
+        .icon-row .icon-item > input[name^="icons."]::placeholder,
+        .icon-item-controls input::placeholder { color: #7890a5; }
+        .icon-row .icon-item > input[name^="icons."]:focus,
+        .icon-item-controls input[type="text"]:focus,
+        .icon-item-controls input[type="number"]:focus,
+        .icon-item-controls select:focus {
+            outline: none;
+            border-color: #23a2cb;
+            box-shadow: 0 0 0 3px rgba(35,162,203,.12);
+        }
         
         .color-field {
             position: absolute;
@@ -2105,12 +2136,14 @@
             background: #eef4f8;
             color: #5f7080;
             font-size: 11px;
-            font-family: Consolas, "Courier New", monospace;
+            font-family: inherit;
+            font-weight: 600;
         }
         .icon-item-controls label {
             display: flex;
             flex-direction: column;
             gap: 4px;
+            min-width: 0;
         }
         .icon-item-controls label span {
             display: block;
@@ -2118,6 +2151,37 @@
             color: #68727c;
             font-weight: 500;
         }
+        .icon-row .icon-item {
+            grid-template-columns: auto minmax(0, 1fr);
+            grid-template-areas:
+                "preview meta"
+                "preview controls";
+            gap: 10px 14px;
+            align-items: start;
+        }
+        .icon-row .icon-preview {
+            justify-self: start;
+            align-self: start;
+            grid-area: preview;
+            margin-left: 2px;
+        }
+        .icon-item-meta {
+            grid-area: meta;
+        }
+        .icon-item-controls {
+            grid-area: controls;
+            align-items: start;
+        }
+        html[data-theme="dark"] .icon-row .icon-item > input[name^="icons."],
+        html[data-theme="dark"] .icon-item-controls input[type="text"],
+        html[data-theme="dark"] .icon-item-controls input[type="number"],
+        html[data-theme="dark"] .icon-item-controls select {
+            background: var(--app-surface, #162032);
+            color: var(--app-text, #e7eef7);
+            border-color: var(--app-border, #2a3a4f);
+        }
+        html[data-theme="dark"] .icon-row .icon-item > input[name^="icons."]::placeholder,
+        html[data-theme="dark"] .icon-item-controls input::placeholder { color: var(--app-text-muted, #91a2b5); }
         .die-shape-config-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(124px, 1fr));
@@ -7611,6 +7675,7 @@
             { key: 'tableActions', label: 'Acciones Fila', group: 'Tablas y Listados', placeholder: '\u22EF', color: '#9ba2ab', size: 20 },
             { key: 'lineDuplicate', label: 'Duplicar Linea', group: 'Acciones Documento', placeholder: '\u2398', color: '#46515d', size: 18 },
             { key: 'lineCopy', label: 'Copiar Linea', group: 'Acciones Documento', placeholder: '\u2398', color: '#46515d', size: 18 },
+            { key: 'lineCreateProduct', label: 'Crear Producto', group: 'Acciones Documento', placeholder: '\u25A3', color: '#46515d', size: 18 },
             { key: 'lineCreateQuote', label: 'Nueva Cotizacion', group: 'Acciones Documento', placeholder: '\u25A3', color: '#46515d', size: 18 },
             { key: 'lineExport', label: 'Exportar Linea', group: 'Acciones Documento', placeholder: '\u2B73', color: '#46515d', size: 18 },
             { key: 'lineAttachments', label: 'Adjuntos Linea', group: 'Acciones Documento', placeholder: '\uD83D\uDCCE', color: '#46515d', size: 18 },
@@ -7675,6 +7740,66 @@
             { key: 'dashboardFabPlanning', label: 'Ir a Planificación', group: 'Calculo y Procesos', tab: 'Botón flotante', section: 'Planificación', placeholder: '\u25F3', color: '#0b81b8', size: 20 },
             { key: 'dashboardFabCosts', label: 'Ir a Costos', group: 'Calculo y Procesos', tab: 'Botón flotante', section: 'Costos', placeholder: '\u25A7', color: '#0b81b8', size: 20 }
         ];
+
+        const ICON_UNUSED_KEYS = new Set([
+            'orderPlanning',
+            'orderPlanningRoute',
+            'dashboardFabReload'
+        ]);
+
+        const ICON_TAB_ORDER = [
+            'Dashboard',
+            'Botón flotante',
+            'Modulo Movil',
+            'General',
+            'Cotizaciones',
+            'Órdenes',
+            'Proforma',
+            'Configuración',
+            'Cálculo'
+        ];
+
+        function resolveIconRuntimeMeta(icon) {
+            const key = String(icon?.key || '').trim();
+            if (key.startsWith('dashboardFab')) return { tab: 'Botón flotante', section: icon.section || 'Dashboard' };
+            if (key === 'floatingSave' || key === 'processLauncher' || key === 'timelineLauncher') return { tab: 'Botón flotante', section: 'Cálculo' };
+            if (key.startsWith('dashboard') || key === 'dashboardTabClose') return { tab: 'Dashboard', section: 'Principal' };
+            if (key.startsWith('mobile')) return { tab: 'Modulo Movil', section: 'Principal' };
+            if (['topUser', 'quotePrev', 'quoteNext', 'quoteLookup', 'quoteNumberBoldOn', 'quoteNumberBoldOff', 'popoverClose'].includes(key)) return { tab: 'General', section: 'Navegación' };
+            if (['browserOpen', 'tableMove', 'tableOpen', 'tableAdd', 'tableActions'].includes(key)) return { tab: 'General', section: 'Tablas' };
+            if (['attachmentUpload', 'attachmentDownload', 'attachmentReplace', 'lineAttachments', 'proformaView'].includes(key)) return { tab: 'General', section: 'Adjuntos' };
+            if (['lineDelete', 'copyQuoteSend', 'favoriteDocumentOff', 'favoriteDocumentOn', 'refreshCosts'].includes(key)) return { tab: 'General', section: 'Compartido' };
+            if (['quoteRequestSubmit', 'quoteRequestAdvanced', 'quoteRequestAttachment', 'quoteRequestRecord', 'quoteRequestRecordStop', 'quoteRequestAttachmentDelete', 'quantity.add', 'quantity.delete'].includes(key)) return { tab: 'Cotizaciones', section: 'Solicitud' };
+            if (['lineDuplicate', 'lineCopy', 'lineCreateProduct', 'lineCreateQuote', 'lineExport', 'lineCreateOrder', 'lineCreateProductionOrder'].includes(key)) return { tab: 'Cotizaciones', section: 'Líneas' };
+            if (key === 'fieldInfo') return { tab: 'Cálculo', section: 'Campos' };
+            if (key.startsWith('order')) return { tab: 'Órdenes', section: 'Detalle' };
+            if (key === 'proformaClose') return { tab: 'Proforma', section: 'Documento' };
+            if (key.startsWith('adminUser') || key.startsWith('adminPermission')) return { tab: 'Configuración', section: 'Usuarios y permisos' };
+            if (key.startsWith('loginRepository')) return { tab: 'Configuración', section: 'Repositorio de acceso' };
+            if (key.startsWith('proformaCurrency')) return { tab: 'Configuración', section: 'Proforma' };
+            return { tab: icon.tab || icon.group || 'General', section: icon.section || '' };
+        }
+
+        const ACTIVE_ICON_LIBRARY = ICON_LIBRARY
+            .filter((icon, index, source) => !ICON_UNUSED_KEYS.has(icon.key) && source.findIndex((entry) => entry.key === icon.key) === index)
+            .map((icon) => {
+                const runtimeMeta = resolveIconRuntimeMeta(icon);
+                return {
+                    ...icon,
+                    tab: runtimeMeta.tab,
+                    section: runtimeMeta.section,
+                    usage: [runtimeMeta.tab, runtimeMeta.section].filter(Boolean).join(' · ')
+                };
+            })
+            .sort((left, right) => {
+                const leftTabIndex = ICON_TAB_ORDER.indexOf(left.tab);
+                const rightTabIndex = ICON_TAB_ORDER.indexOf(right.tab);
+                const tabDiff = (leftTabIndex === -1 ? 999 : leftTabIndex) - (rightTabIndex === -1 ? 999 : rightTabIndex);
+                if (tabDiff) return tabDiff;
+                const sectionDiff = String(left.section || '').localeCompare(String(right.section || ''), 'es');
+                if (sectionDiff) return sectionDiff;
+                return String(left.label || '').localeCompare(String(right.label || ''), 'es');
+            });
 
         function firstFilled(...values) {
             for (const value of values) {
@@ -7930,8 +8055,15 @@
                 iconsTabMount.appendChild(document.getElementById('generalIconsSection'));
             }
             ensureIconLibraryShell(row);
+            const activeIconKeys = new Set(ACTIVE_ICON_LIBRARY.map((icon) => icon.key));
+            row.querySelectorAll('.icon-item').forEach((item) => {
+                const directKey = String(item.dataset.iconKey || '').trim();
+                const inputName = item.querySelector('input[name^="icons."]')?.name || '';
+                const derivedKey = directKey || inputName.replace(/^icons\./, '');
+                if (!activeIconKeys.has(derivedKey)) item.remove();
+            });
 
-            ICON_LIBRARY.forEach((icon) => {
+            ACTIVE_ICON_LIBRARY.forEach((icon) => {
                 const groupGrid = getOrCreateIconSection(row, icon.tab || icon.group || 'Otros', icon.section || '');
                 const suffix = toIconSuffix(icon.key);
                 let item = row.querySelector(`input[name="icons.${icon.key}"]`)?.closest('.icon-item');
@@ -7958,9 +8090,16 @@
                 const labelEl = item.querySelector('.icon-item-name');
                 if (labelEl) labelEl.textContent = icon.label;
                 const keyEl = item.querySelector('.icon-item-key');
-                if (keyEl) keyEl.textContent = `icons.${icon.key}`;
+                if (keyEl) {
+                    keyEl.textContent = icon.usage || `icons.${icon.key}`;
+                    keyEl.title = `icons.${icon.key}`;
+                }
                 const textInput = item.querySelector(`input[name="icons.${icon.key}"]`);
-                if (textInput) textInput.placeholder = icon.placeholder;
+                if (textInput) {
+                    textInput.placeholder = icon.placeholder;
+                    const savedIconValue = loadedConfig.icons?.[icon.key] || icon.placeholder || '';
+                    if (!String(textInput.value || '').trim()) textInput.value = savedIconValue;
+                }
                 const previewEl = item.querySelector('.icon-preview');
                 if (previewEl && !previewEl.textContent.trim()) previewEl.textContent = icon.placeholder;
                 const controls = item.querySelector('.icon-item-controls');
@@ -7985,6 +8124,17 @@
                     label.innerHTML = `<span>${field.label}</span><input name="${field.name}" type="${field.type}" value="${field.value}" ${field.className ? `class="${field.className}"` : ''} ${field.style ? `style="${field.style}"` : ''}>`;
                     controls.appendChild(label);
                 });
+            });
+
+            row.querySelectorAll('.icon-subgroup').forEach((section) => {
+                if (!section.querySelector('.icon-item')) section.remove();
+            });
+            row.querySelectorAll('.icon-group').forEach((group) => {
+                if (!group.querySelector('.icon-item')) group.remove();
+            });
+            ICON_TAB_ORDER.forEach((groupName) => {
+                const group = row.querySelector(`.icon-group[data-icon-group="${groupName}"]`);
+                if (group) row.appendChild(group);
             });
 
             syncIconLibraryTabs(row);
@@ -8585,7 +8735,7 @@
             previewEl.style.color = color || '#9ba2ab';
             previewEl.style.background = getContrastingPreviewBackground(color);
             const resolvedSize = Number(size) || 20;
-            const tileSize = Math.min(96, Math.max(56, resolvedSize + 20));
+            const tileSize = Math.min(128, Math.max(56, resolvedSize + 20));
             const previewSize = Math.min(resolvedSize, tileSize - 12);
             previewEl.style.width = `${tileSize}px`;
             previewEl.style.height = `${tileSize}px`;
@@ -13198,11 +13348,33 @@
             presentationsData[key] = currentData;
         }
 
+        function buildIconPayload(iconValues) {
+            const icons = { ...(loadedConfig.icons || {}) };
+
+            ACTIVE_ICON_LIBRARY.forEach((icon) => {
+                const input = document.querySelector(`input[name="icons.${icon.key}"]`);
+                const value = String(iconValues?.[icon.key] ?? input?.value ?? icons[icon.key] ?? icon.placeholder ?? '').trim();
+                icons[icon.key] = value || icon.placeholder || '';
+            });
+
+            Object.entries(iconValues || {}).forEach(([key, value]) => {
+                const cleanValue = String(value || '').trim();
+                if (cleanValue) icons[key] = cleanValue;
+            });
+
+            return icons;
+        }
+
         function buildGeneralPayload() {
             const formData = new FormData(document.getElementById('generalConfigForm'));
             const payload = {};
+            const iconValues = {};
 
             for (let [key, value] of formData.entries()) {
+                if (key.startsWith('icons.')) {
+                    iconValues[key.slice(6)] = value;
+                    continue;
+                }
                 const parts = key.split('.');
                 let obj = payload;
                 for (let i = 0; i < parts.length - 1; i++) {
@@ -13212,8 +13384,7 @@
                 obj[parts[parts.length - 1]] = value;
             }
 
-            // Ensure all loaded icons are preserved even if they aren't in the form (safety)
-            payload.icons = { ...(loadedConfig.icons || {}), ...(payload.icons || {}) };
+            payload.icons = buildIconPayload(iconValues);
 
             payload.presentations = presentationsData;
             payload.general = payload.general || {};
@@ -13700,7 +13871,7 @@
             const fieldFontFamily = document.querySelector('select[name="general.fieldFontFamily"]')?.value || 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif';
             const fieldFontSize = Number(document.querySelector('input[name="layout.fieldFontSize"]')?.value) || 12;
             const fieldHeight = Number(document.querySelector('input[name="layout.fieldHeight"]')?.value) || 18;
-            const iconSettings = Object.fromEntries(ICON_LIBRARY.map((icon) => {
+            const iconSettings = Object.fromEntries(ACTIVE_ICON_LIBRARY.map((icon) => {
                 const suffix = toIconSuffix(icon.key);
                 return [icon.key, {
                     color: document.querySelector(`input[name="general.iconColor${suffix}"]`)?.value || icon.color,
@@ -14079,9 +14250,11 @@
         }
         
         function applyIconPreviews() {
-            ICON_LIBRARY.forEach((icon) => {
+            ACTIVE_ICON_LIBRARY.forEach((icon) => {
                 const key = icon.key;
-                const iconValue = loadedConfig.icons?.[key];
+                const input = document.querySelector(`input[name="icons.${key}"]`);
+                const iconValue = loadedConfig.icons?.[key] || input?.value || icon.placeholder || '';
+                if (input && !String(input.value || '').trim()) input.value = iconValue;
                 const previewEl = document.getElementById('preview-icons.' + key);
                 const suffix = toIconSuffix(key);
                 const colorValue = loadedConfig.general?.[`iconColor${suffix}`] || icon.color;
@@ -14304,6 +14477,9 @@
                 if (quoteProductTypesJsonField) {
                     quoteProductTypesJsonField.value = loadedConfig?.general?.quoteProductTypesJson || quoteProductTypesJsonField.value || '[]';
                 }
+                ensureIconLibraryFields();
+                applyIconPreviews();
+                bindIconUploadHandlers();
                 renderQuoteProductTypesTable();
                 setInventoryClassificationStatus('Configura el campo SAP y luego mapea sus valores a categorías flexográficas.', false);
                 populateProformaConfigFields();

@@ -1454,6 +1454,32 @@ async function loadConfig() {
     }
 }
 
+function applyExternalConfigUpdate(config) {
+    if (config && typeof config === 'object') {
+        loadedConfig = config;
+        applyConfiguredIcons();
+        renderRequestQuantityRepeater();
+        renderRequestProductTypeOptions();
+        renderShapePicker();
+        if (quoteCatalog.length) renderQuotesTable(getFilteredQuotes());
+        return;
+    }
+    loadConfig().catch(console.error);
+}
+
+window.addEventListener('message', (event) => {
+    if (event.origin !== window.location.origin) return;
+    if (event.data?.type === 'erp-general-config-updated') applyExternalConfigUpdate(event.data.config);
+});
+
+window.addEventListener('storage', (event) => {
+    if (event.key === 'erp-general-config-updated') applyExternalConfigUpdate();
+});
+
+window.addEventListener('erp-general-config-updated', (event) => {
+    applyExternalConfigUpdate(event.detail);
+});
+
 async function loadSmartCatalogs() {
     try {
         const payload = await fetchJson(SMART_CATALOGS_ENDPOINT);

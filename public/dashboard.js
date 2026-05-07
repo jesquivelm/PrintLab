@@ -783,9 +783,11 @@ function renderCards() {
         color = color || '#0b81b8';
 
         const hover = loadedConfig?.general?.[`iconColorHover${suffix}`] || color || '#17abdf';
-        const size = Number(loadedConfig?.general?.[`iconSize${suffix}`]) || 38;
+        const configuredSize = Number(loadedConfig?.general?.[`iconSize${suffix}`]) || 38;
         if (iconTarget) {
-            const tileSize = Math.max(54, size + 16);
+            const cardWidth = button.clientWidth || 190;
+            const size = Math.max(24, Math.min(configuredSize, Math.max(42, Math.min(84, Math.floor(cardWidth * 0.42)))));
+            const tileSize = Math.max(56, Math.min(cardWidth - 28, size + 18));
             iconTarget.innerHTML = iconMarkup(iconValue, card.label, 'table-icon-media');
             iconTarget.style.setProperty('--icon-base-color', color);
             iconTarget.style.setProperty('--icon-hover-color', hover);
@@ -2338,6 +2340,14 @@ tabsContainer.addEventListener('dragstart', (event) => {
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('text/plain', draggedTabId);
     tabButton.classList.add('is-dragging');
+});
+
+let dashboardResizeRenderTimer = 0;
+window.addEventListener('resize', () => {
+    window.clearTimeout(dashboardResizeRenderTimer);
+    dashboardResizeRenderTimer = window.setTimeout(() => {
+        renderCards();
+    }, 120);
 });
 
 tabsContainer.addEventListener('dragover', (event) => {

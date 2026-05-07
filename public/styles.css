@@ -2772,7 +2772,7 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
 }
 .quote-browser-table th:last-child,
 .quote-browser-table td:last-child {
-    width: 92px;
+    width: 110px;
     text-align: center;
 }
 .quote-browser-table thead th {
@@ -4837,6 +4837,10 @@ body.shell-embedded .summary-footer {
     width: 100%;
     min-width: 0;
     max-width: 100%;
+}
+#sociosSearchInput {
+    width: min(320px, 100%) !important;
+    max-width: min(320px, 100%) !important;
 }
 .copy-popover-table-wrap {
     overflow: auto;
@@ -8257,7 +8261,6 @@ html[data-theme="dark"] .preview-block {
 }
 
 html[data-theme="dark"] .quote-browser-search-row,
-html[data-theme="dark"] .products-bar,
 html[data-theme="dark"] .copy-popover-table-wrap,
 html[data-theme="dark"] .quote-browser-table-wrap,
 html[data-theme="dark"] .socios-table-wrap,
@@ -8270,6 +8273,11 @@ html[data-theme="dark"] .costs-core-options-table-wrap {
 }
 
 html[data-theme="dark"] .products-area {
+    background: transparent;
+    border-color: transparent;
+}
+
+html[data-theme="dark"] .products-bar {
     background: transparent;
     border-color: transparent;
 }
@@ -10094,7 +10102,7 @@ html[data-theme="dark"] .quote-line-icon-btn:hover,
 html[data-theme="dark"] .quote-line-icon-btn:focus-visible,
 html[data-theme="dark"] .quote-line-action-btn:hover,
 html[data-theme="dark"] .quote-line-action-btn:focus-visible {
-    color: var(--app-primary);
+    color: var(--icon-hover-color, var(--app-primary));
     border-color: var(--app-primary);
     background: var(--app-primary-soft);
 }
@@ -10467,7 +10475,7 @@ html[data-theme="dark"] .quote-master-tree-table thead th {
     --quote-created-col: 112px;
     --quote-due-col: 112px;
     --quote-total-col: 124px;
-    --quote-actions-col: 106px;
+    --quote-actions-col: 120px;
     table-layout: fixed !important;
 }
 
@@ -10520,6 +10528,7 @@ html[data-theme="dark"] .quote-master-tree-table thead th {
 
 .quote-master-td-actions {
     text-align: right !important;
+    padding-right: 6px !important;
 }
 
 .quote-master-toggle {
@@ -10560,10 +10569,15 @@ html[data-theme="dark"] .quote-master-tree-table thead th {
 }
 
 .quote-browser-actions {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     gap: 4px;
     justify-content: flex-end;
+    width: 100%;
+}
+
+.quote-master-td-actions .row-action-divider-hidden {
+    display: none !important;
 }
 
 .quote-browser-actions .browser-open-link,
@@ -10748,17 +10762,21 @@ html[data-theme="dark"] .quote-browser-actions .browser-open-link-danger:focus-v
     grid-template-columns: var(--quote-total-col) var(--quote-actions-col);
     align-items: center;
     min-width: 0;
+    width: var(--quote-actions-col);
+    flex-shrink: 0;
+    justify-content: flex-end;
 }
 
 .quote-line-actions {
     grid-column: 2;
     grid-row: 1;
     justify-self: end;
-    display: inline-flex !important;
+    display: flex !important;
     align-items: center;
     justify-content: flex-end;
     gap: 4px;
-    padding-right: 2px;
+    width: 100%;
+    padding-right: 0;
 }
 
 .quote-master-line-state {
@@ -10783,10 +10801,24 @@ html[data-theme="dark"] .quote-browser-actions .browser-open-link-danger:focus-v
 
 .quote-line-menu-wrap {
     position: relative;
+    display: flex;
+    align-items: center;
 }
 
 .quote-line-menu-trigger {
     margin-left: 0;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 30px !important;
+    height: 30px !important;
+    padding: 0 !important;
+    line-height: 1 !important;
+}
+
+.quote-line-actions .row-action-divider {
+    align-self: center;
+    min-height: 20px;
 }
 
 .quote-line-action-btn,
@@ -10865,7 +10897,7 @@ html[data-theme="dark"] .quote-browser-search-row {
 html[data-theme="dark"] .quote-browser-actions .browser-open-link,
 html[data-theme="dark"] .quote-line-icon-btn {
     background: transparent !important;
-    color: var(--app-text-muted, #9fb0c4);
+    color: var(--icon-color, var(--app-text-muted, #9fb0c4)) !important;
 }
 
 html[data-theme="dark"] .quote-line-menu-panel {
@@ -10882,7 +10914,7 @@ html[data-theme="dark"] .quote-line-menu-panel .row-action-menu-item {
 
 html[data-theme="dark"] .quote-line-menu-panel .row-action-menu-item.is-danger,
 html[data-theme="dark"] .quote-line-menu-panel .row-action-menu-item.is-danger .row-action-menu-icon {
-    color: #f87171 !important;
+    color: var(--menu-icon-color, #f87171) !important;
 }
 
 html[data-theme="dark"] .quote-master-line {
@@ -10915,6 +10947,13 @@ html[data-theme="dark"] .quote-line-menu-panel .row-action-menu-item:focus-visib
     color: var(--app-primary) !important;
 }
 
+html[data-theme="dark"] .quote-line-menu-panel .row-action-menu-item:hover .row-action-menu-icon,
+html[data-theme="dark"] .quote-line-menu-panel .row-action-menu-item:focus-visible .row-action-menu-icon,
+html[data-theme="dark"] .quote-line-menu-panel .row-action-menu-item.is-danger:hover .row-action-menu-icon,
+html[data-theme="dark"] .quote-line-menu-panel .row-action-menu-item.is-danger:focus-visible .row-action-menu-icon {
+    color: var(--menu-icon-hover-color, var(--app-primary)) !important;
+}
+
 .quote-master-tree-table .quote-master-td-date {
     text-align: center !important;
 }
@@ -10926,7 +10965,7 @@ html[data-theme="dark"] .quote-line-menu-panel .row-action-menu-item:focus-visib
 
 .quote-master-line {
     padding-left: 12px !important;
-    padding-right: 0 !important;
+    padding-right: 8px !important;
 }
 
 .quote-master-lines .quote-master-line:last-child {
@@ -10938,7 +10977,7 @@ html[data-theme="dark"] .quote-line-menu-panel .row-action-menu-item:focus-visib
         --quote-created-col: 96px;
         --quote-due-col: 96px;
         --quote-total-col: 108px;
-        --quote-actions-col: 92px;
+        --quote-actions-col: 120px;
     }
     .quote-master-line-body {
         grid-column: 3 / 5;
@@ -11538,8 +11577,8 @@ html[data-theme="dark"] .quote-request-wizard-btn.is-secondary:focus-visible {
 body.inventory-route-tipos-salida .inventory-panel-main,
 body.inventory-route-tipos-salida .inventory-toolbar-shell,
 body.inventory-route-troqueles.inventory-view-detail .inventory-editor-panel {
-    width: min(100%, 1520px);
-    max-width: 1520px;
+    width: min(100%, 1660px);
+    max-width: 1660px;
 }
 
 .quote-browser-search-wrap,
@@ -11579,8 +11618,7 @@ body.inventory-route-troqueles.inventory-view-detail .inventory-editor-panel {
 
     .inventory-toolbar-shell,
     .inventory-panel-head,
-    .inventory-browser-head,
-    .quote-browser-search-row {
+    .inventory-browser-head {
         flex-direction: column;
         align-items: stretch;
     }
@@ -11598,10 +11636,11 @@ body.inventory-route-troqueles.inventory-view-detail .inventory-editor-panel {
         min-width: 0;
         margin-left: 0;
     }
+
 }
 
 .quote-master-lines-row > td {
-    padding: 0 12px 12px !important;
+    padding: 0 0 12px 12px !important;
 }
 
 .quote-master-lines {
@@ -11667,5 +11706,66 @@ body.inventory-route-troqueles.inventory-view-detail .inventory-editor-panel {
     display: inline-flex !important;
     align-items: center !important;
     justify-content: flex-end !important;
-    min-width: 72px !important;
+    width: 84px !important;
+    min-width: 84px !important;
+    margin: 0 !important;
+    text-align: right !important;
+}
+
+.dashboard-home {
+    padding: clamp(24px, 3vw, 36px) clamp(14px, 2.4vw, 28px) 40px;
+}
+
+.dashboard-grid,
+.dashboard-favorites {
+    width: min(100%, 1380px);
+}
+
+.dashboard-grid {
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    justify-content: stretch;
+}
+
+.dashboard-card {
+    align-content: stretch;
+    align-items: start;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 14px;
+    min-height: 184px;
+}
+
+.dashboard-card-icon {
+    align-self: end;
+    justify-self: center;
+    max-width: 100%;
+}
+
+.dashboard-card-title,
+.dashboard-card .dashboard-card-title {
+    align-self: start;
+    justify-self: stretch;
+}
+
+.quote-browser-main.workspace-quote {
+    padding-right: clamp(12px, 2.2vw, 26px) !important;
+    padding-left: clamp(12px, 2.2vw, 26px) !important;
+}
+
+.quote-browser-main.workspace-quote > .quote-browser-card.quote-card.quote-card-clean {
+    width: min(100%, 1660px) !important;
+    max-width: min(100%, 1660px) !important;
+    margin-inline: auto !important;
+}
+
+.quote-browser-main .scroll-bottom-indicator-host,
+.quote-browser-main .quote-browser-table-wrap,
+.quote-browser-main .quote-browser-table {
+    width: 100%;
+    max-width: none;
+}
+
+.quote-browser-main .quote-browser-search-wrap {
+    flex: 0 0 auto;
+    width: min(320px, 100%);
+    min-width: 0;
 }

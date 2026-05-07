@@ -770,9 +770,19 @@ function isShellEmbedded() {
     return params.get('shell') === '1' || window !== window.parent;
 }
 
+function withShellParam(route) {
+    try {
+        const url = new URL(route, window.location.origin);
+        url.searchParams.set('shell', '1');
+        return `${url.pathname}${url.search}${url.hash}`;
+    } catch (error) {
+        return route.includes('?') ? `${route}&shell=1` : `${route}?shell=1`;
+    }
+}
+
 function openRouteInShell(route, label) {
     if (!isShellEmbedded()) return false;
-    window.parent.postMessage({ type: 'erp-open-tab', route, label }, window.location.origin);
+    window.parent.postMessage({ type: 'erp-open-tab', route: withShellParam(route), label }, window.location.origin);
     return true;
 }
 
@@ -1291,7 +1301,6 @@ function renderQuoteLineCard(row, index, totalLines) {
                 <div class="quote-line-actions row-tools row-tools-row-end">
                     <span class="row-action-divider" aria-hidden="true"></span>
                     <button type="button" class="quote-line-icon-btn quote-line-edit-btn" data-line-action="edit" data-line-id="${row.id}" title="Editar cálculo" aria-label="Editar" style="--icon-color:${escapeHtml(openColor)};--icon-hover-color:${escapeHtml(openHover)};--config-icon-size:${escapeHtml(String(openSize))}px;">${iconMarkup(openConf.value, 'Editar cálculo', 'table-icon-media')}</button>
-                    <span class="row-action-divider" aria-hidden="true"></span>
                     <div class="quote-line-menu-wrap" data-line-menu-id="${row.id}">
                         <button type="button" class="quote-line-icon-btn quote-line-menu-trigger" data-line-menu-toggle="${row.id}" title="Más opciones" aria-label="Más opciones" aria-haspopup="true" aria-expanded="false">&#8942;</button>
                         <div class="quote-line-menu-panel" data-line-menu-panel="${row.id}" hidden>
@@ -1387,7 +1396,7 @@ function renderQuoteParentRow(item) {
                 <div class="quote-browser-actions row-tools row-tools-row-end">
                     <span class="row-action-divider" aria-hidden="true"></span>
                     <button type="button" class="browser-open-link" data-open-quote="${escapeHtml(quoteCode)}" aria-label="Abrir cotizacion" title="Abrir cotización" style="--icon-color:${escapeHtml(openColor)};--icon-hover-color:${escapeHtml(openHover)};--config-icon-size:${escapeHtml(String(openSize))}px;">${iconMarkup(openConf.value, 'Abrir cotizacion', 'table-icon-media')}</button>
-                    <span class="row-action-divider" aria-hidden="true"></span>
+                    <span class="row-action-divider row-action-divider-hidden" aria-hidden="true"></span>
                     <button type="button" class="browser-open-link browser-open-link-danger" data-delete-quote="${escapeHtml(quoteCode)}" aria-label="Eliminar cotizacion" title="Eliminar cotización" style="--icon-color:${escapeHtml(deleteColor)};--icon-hover-color:${escapeHtml(deleteHover)};--config-icon-size:${escapeHtml(String(deleteSize))}px;">${iconMarkup(deleteConf.value, 'Eliminar cotizacion', 'table-icon-media')}</button>
                 </div>
             </td>
@@ -1420,6 +1429,24 @@ function openLineCalculation(row) {
     if (!openRouteInShell(route, `Cálculo ${row.linea}`)) {
         window.location.href = route;
     }
+}
+
+async function createQuoteLineAndOpenCalculation(quoteCode) {
+    const payload = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(quoteCode)}/lineas`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            ...sessionHeader()
+        },
+        body: JSON.stringify({})
+    });
+    const line = payload?.linea || null;
+    if (!line?.quoteId || !line?.linea) {
+        throw new Error('No fue posible crear la nueva línea de cálculo.');
+    }
+    quoteLineCache.clear();
+    await loadQuotes();
+    openLineCalculation(line);
 }
 
 async function persistQuoteLineOrder(quoteCode, lines) {
@@ -1586,6 +1613,32 @@ async function loadConfig() {
         renderQuotesTable(getFilteredQuotes());
     }
 }
+
+function applyExternalConfigUpdate(config) {
+    if (config && typeof config === 'object') {
+        loadedConfig = config;
+        applyConfiguredIcons();
+        renderRequestQuantityRepeater();
+        renderRequestProductTypeOptions();
+        renderShapePicker();
+        if (quoteCatalog.length) renderQuotesTable(getFilteredQuotes());
+        return;
+    }
+    loadConfig().catch(console.error);
+}
+
+window.addEventListener('message', (event) => {
+    if (event.origin !== window.location.origin) return;
+    if (event.data?.type === 'erp-general-config-updated') applyExternalConfigUpdate(event.data.config);
+});
+
+window.addEventListener('storage', (event) => {
+    if (event.key === 'erp-general-config-updated') applyExternalConfigUpdate();
+});
+
+window.addEventListener('erp-general-config-updated', (event) => {
+    applyExternalConfigUpdate(event.detail);
+});
 
 async function loadSmartCatalogs() {
     try {
@@ -2942,7 +2995,7 @@ function bindEvents() {
                 return;
             }
             const route = `/proforma?codigo=${encodeURIComponent(code)}`;
-            if (!openRouteInShell(route, `Proforma ${code}`)) window.open(route, '_blank', 'noopener');
+            if (!openRouteInShell(route, `Proforma ${code}`)) window.location.href = route;
             return;
         }
         // Add line button
@@ -2950,8 +3003,7 @@ function bindEvents() {
         if (addLineButton) {
             const code = addLineButton.dataset.addLine;
             if (!code) return;
-            const route = `/calculo-flexografia?${new URLSearchParams({ quoteId: code, lineId: '', productId: '', department: 'Flexografia' }).toString()}`;
-            if (!openRouteInShell(route, `Nueva línea - ${code}`)) window.location.href = route;
+            createQuoteLineAndOpenCalculation(code).catch((error) => setStatus(error.message, 'error'));
             return;
         }
         const lineActionButton = e.target.closest('[data-line-action]');
