@@ -21,9 +21,8 @@ const PLATE_KEYS = [
   { key: "dry", label: "Secado / Curado", machine: "Secado / Curado", keywords: ["secado", "curado"] }
 ];
 const PLATE_MODE_OPTIONS = [
-  { key: "virgin", label: "Plancha Virgen" },
-  { key: "external", label: "Costo Externo" },
-  { key: "inventory", label: "De Inventario" }
+  { key: "inventory", label: "Planchas en Inventario" },
+  { key: "external", label: "Costo Externo" }
 ];
 const INLINE_PRINT_SLOTS = [
   { key: "barniz", label: "Barniz", keywords: ["barniz"], materialFamily: "barniz", materialKeywords: ["barniz"] },
@@ -3341,31 +3340,13 @@ function buildCalculationValidationState(result = totals()) {
   }
 
   if (hasActiveProcess("planchas")) {
-    const laser = laserPlateMetrics(form);
     const chargePlates = form.plates?.chargePlates !== false;
-    const chargeVirginPlate = form.plates?.chargeVirginPlate !== false;
     const plateMode = normalizePlateMode(form.plates?.plateMode);
     if (chargePlates && plateMode === "external") {
       const rows = normalizePlateExternalRows(form.plates.external);
       addWhen("planchas", rows.every((row) => n(row.cost, 0) <= 0), "Falta costo externo de planchas.");
-    } else if (chargePlates && plateMode === "inventory") {
-      addWhen("planchas", !String(form.plates?.inventory?.materialId || "").trim(), "Falta plancha de inventario.");
-    } else {
-      addWhen("planchas", chargePlates && chargeVirginPlate && laser.missing.material, "Falta material de plancha virgen.");
-    }
-    if (chargePlates && chargeVirginPlate && (!plateMode || plateMode === "virgin")) {
-      addWhen("planchas", laser.missing.machine, "Falta máquina de grabado láser.");
-      addWhen("planchas", laser.missing.costHourMachine, "Falta costo hora máquina en planchas.");
-      addWhen("planchas", laser.missing.costHourOperator, "Falta costo hora operario en planchas.");
-      addWhen("planchas", laser.missing.speed, "Falta velocidad de planchas.");
-      PLATE_KEYS.filter((entry) => entry.key !== "laser" && !entry.materialOnly).forEach((entry) => {
-        const step = form.plates?.[entry.key] || {};
-        const label = entry.label || entry.title || entry.nombre || entry.key;
-        addWhen("planchas", !String(step.processId || "").trim(), `Falta proceso de ${label}.`);
-        addWhen("planchas", n(step.fixedMinutes, 0) <= 0, `Falta tiempo fijo de ${label}.`);
-        addWhen("planchas", n(step.costHourMachine, 0) <= 0, `Falta costo máquina de ${label}.`);
-        addWhen("planchas", n(step.costHourOperator, 0) <= 0, `Falta costo operario de ${label}.`);
-      });
+    } else if (chargePlates && plateMode !== "inventory") {
+      addWhen("planchas", true, "Define planchas en inventario o costo externo de planchas.");
     }
   }
 
@@ -3525,29 +3506,13 @@ function applyRequiredHighlights(result = null) {
   }
 
   if (hasActiveProcess("planchas")) {
-    const laser = laserPlateMetrics(form);
     const chargePlates = form.plates?.chargePlates !== false;
-    const chargeVirginPlate = form.plates?.chargeVirginPlate !== false;
     const plateMode = normalizePlateMode(form.plates?.plateMode);
-    const restrictPlates = chargePlates && chargeVirginPlate && (!plateMode || plateMode === "virgin");
-    markRequiredScoped("plates.inventory", "materialId", chargePlates && plateMode === "inventory" && !String(form.plates?.inventory?.materialId || "").trim());
     if (chargePlates && plateMode === "external") {
       normalizePlateExternalRows(form.plates.external).forEach((row, index) => {
         markRequiredScoped(`plates.external.${index}`, "cost", n(row.cost, 0) <= 0);
       });
     }
-    markRequiredScoped("plates.virgin", "materialId", restrictPlates && laser.missing.material);
-    markRequiredScoped("plates.laser", "processId", restrictPlates && laser.missing.machine);
-    markRequiredScoped("plates.laser", "costHourMachine", restrictPlates && laser.missing.costHourMachine);
-    markRequiredScoped("plates.laser", "costHourOperator", restrictPlates && laser.missing.costHourOperator);
-    markRequiredScoped("plates.laser", "speed", restrictPlates && laser.missing.speed);
-    PLATE_KEYS.filter((entry) => entry.key !== "laser" && !entry.materialOnly).forEach((entry) => {
-      const step = form.plates?.[entry.key] || {};
-      markRequiredScoped(`plates.${entry.key}`, "processId", restrictPlates && !String(step.processId || "").trim());
-      markRequiredScoped(`plates.${entry.key}`, "fixedMinutes", restrictPlates && n(step.fixedMinutes, 0) <= 0);
-      markRequiredScoped(`plates.${entry.key}`, "costHourMachine", restrictPlates && n(step.costHourMachine, 0) <= 0);
-      markRequiredScoped(`plates.${entry.key}`, "costHourOperator", restrictPlates && n(step.costHourOperator, 0) <= 0);
-    });
   }
 
   if (hasActiveProcess("impresion")) {
@@ -3884,7 +3849,7 @@ function buildForm() {
     },
     design: { artCount: Math.max(1, n(context?.quantityTypes, n(raw["CANTIDAD TIPOS"], n(raw["CANTIDAD ARTES"], 1)))), timePerArt: 0.75, changeFactor: 0.5, hourCost: n(findProcessByKeywords(["diseno"])?.costo_hora_operario, 15) },
     prepress: { artCount: Math.max(1, n(context?.quantityTypes, n(raw["CANTIDAD TIPOS"], n(raw["CANTIDAD ARTES"], 1)))), artsPerHour: 2, hourCost: n(findProcessByKeywords(["preprensa"])?.costo_hora_operario, 15) },
-    plates: { chargePlates: true, chargeVirginPlate: true, plateMode: "", external: [{ description: "", cost: 0, comments: "", attachmentName: "" }], inventory: { materialId: "" } },
+    plates: { chargePlates: true, chargeVirginPlate: false, plateMode: "", external: [{ description: "", cost: 0, comments: "", attachmentName: "" }], inventory: { materialId: "" } },
     print: (() => {
       const selectedPrintMachine = selectedQuotedMachine;
       const selectedPrintCapacity = selectedPrintMachine
@@ -3991,7 +3956,7 @@ function buildForm() {
   form.header.customerName = first(quote?.customer_name, context?.customerName, raw.CLIENTE, form.header.customerName);
   form.header.salespersonName = first(quote?.salesperson_name, context?.salespersonName, raw.VENDEDOR, form.header.salespersonName);
   form.plates.chargePlates = form.plates.chargePlates !== false;
-  form.plates.chargeVirginPlate = form.plates.chargeVirginPlate !== false;
+  form.plates.chargeVirginPlate = false;
   form.plates.plateMode = normalizePlateMode(form.plates.plateMode);
   form.plates.external = normalizePlateExternalRows(form.plates.external);
   form.plates.inventory = form.plates.inventory && typeof form.plates.inventory === "object" ? form.plates.inventory : { materialId: "" };
@@ -4329,24 +4294,20 @@ function calcPlates() {
     };
   }
   if (plateMode === "inventory") {
-    const laser = laserPlateMetrics();
-    const material = findMaterial(state.form.plates?.inventory?.materialId);
-    const costPerIn2 = materialCostPerIn2(material);
-    const rawSubtotal = costPerIn2 > 0 && laser.totalArea > 0 ? r(laser.totalArea * costPerIn2) : 0;
     state.form.plates.inventory = {
       ...(state.form.plates.inventory || {}),
-      area: laser.totalArea,
-      costPerIn2
+      inInventory: true
     };
     return {
-      ...applyProcessMinimum("planchas", rawSubtotal),
-      breakdown: emptyPlateBreakdown("Plancha cargada desde inventario."),
+      ...applyProcessMinimum("planchas", 0),
+      breakdown: emptyPlateBreakdown("Planchas marcadas como inventario."),
       inventory: state.form.plates.inventory,
-      inventoryMaterial: material,
-      inventoryMetrics: laser,
-      formulaText: "Costo de inventario = Área Total Requerida x Costo por in².",
-      explanation: "De Inventario usa el material seleccionado y calcula el costo con el área total requerida."
+      formulaText: "Costo de planchas = 0.",
+      explanation: "Las planchas se tomarán de inventario y no requieren costo externo en este cálculo."
     };
+  }
+  if (plateMode !== "external") {
+    return { ...applyProcessMinimum("planchas", 0), breakdown: emptyPlateBreakdown("Pendiente definir inventario o costo externo."), explanation: "Selecciona planchas en inventario o registra un costo externo para continuar." };
   }
   if (state.form.plates?.chargeVirginPlate === false) {
     const breakdown = {};
@@ -6408,6 +6369,10 @@ function renderPlateModeSelector() {
   return `<div class="front-back-element-tabs plate-mode-tabs" role="tablist" aria-label="Tipo de plancha">${PLATE_MODE_OPTIONS.map((option) => `<button type="button" class="front-back-element-tab plate-mode-tab${current === option.key ? " is-active" : ""}" data-action="set-plate-mode" data-plate-mode="${esc(option.key)}" role="tab" aria-selected="${current === option.key ? "true" : "false"}"><strong>${esc(option.label)}</strong></button>`).join("")}</div>`;
 }
 
+function renderPlateVirginDisabledPanel() {
+  return `<div class="plate-disabled-panel"><label class="inline-process-check plate-virgin-check"><input type="checkbox" disabled><span>Plancha Virgen</span></label></div>`;
+}
+
 function renderPlateExternalAttachmentTable(item = {}, index = 0) {
   const fileName = String(item.attachmentName || "").trim();
   const attachIcon = iconPresentation("quoteRequestAttachment", "📎", "#1e516d", 18);
@@ -6417,7 +6382,8 @@ function renderPlateExternalAttachmentTable(item = {}, index = 0) {
 }
 
 function renderPlateExternalRow(item = {}, index = 0) {
-  return `<div class="additional-item"><div class="additional-row"><input data-scope="plates.external.${index}" data-field="description" type="text" value="${esc(item.description || "")}" placeholder="Descripción">${displayInput(`plates.external.${index}`, "cost", item.cost || 0, { prefix: "$", maximumFractionDigits: 2, step: "0.01" })}<input data-scope="plates.external.${index}" data-field="comments" type="text" value="${esc(item.comments || "")}" placeholder="Comentarios"><button type="button" class="process-trash-button" data-action="remove-plate-external" data-index="${index}" aria-label="Eliminar fila" title="Eliminar fila"><span class="process-delete-icon" aria-hidden="true">&#128465;</span></button></div>${renderPlateExternalAttachmentTable(item, index)}</div>`;
+  const deleteIcon = getProcessDeleteIconConfig();
+  return `<div class="additional-item"><div class="additional-row"><input data-scope="plates.external.${index}" data-field="description" type="text" value="${esc(item.description || "")}" placeholder="Descripción">${displayInput(`plates.external.${index}`, "cost", item.cost || 0, { prefix: "$", maximumFractionDigits: 2, step: "0.01" })}<input data-scope="plates.external.${index}" data-field="comments" type="text" value="${esc(item.comments || "")}" placeholder="Comentarios"><button type="button" class="process-trash-button" data-action="remove-plate-external" data-index="${index}" aria-label="Eliminar fila" title="Eliminar fila" style="--process-delete-icon-color:${esc(deleteIcon.primary)};--process-delete-icon-hover:${esc(deleteIcon.hover)};--process-delete-icon-size:${deleteIcon.size}px;">${renderIconMarkup(deleteIcon.value, "Eliminar fila", "process-delete-icon")}</button></div>${renderPlateExternalAttachmentTable(item, index)}</div>`;
 }
 
 function renderPlateExternalPanel(plates) {
@@ -6430,13 +6396,9 @@ function renderPlateExternalPanel(plates) {
 }
 
 function renderPlateInventoryPanel(plates) {
-  const inventory = state.form.plates.inventory || {};
-  const laser = plates.inventoryMetrics || laserPlateMetrics();
-  const material = plates.inventoryMaterial || findMaterial(inventory.materialId);
-  const stockOptions = plateStockMaterials(state.form.plates?.laser?.processId).map((item) => ({ id: item.id, nombre: item.descripcion || item.nombre || item.codigo || item.id }));
-  return `<div class="editable-grid plate-grid plate-grid-virgin"><label class="span-2"><span>Plancha de Inventario</span><select data-scope="plates.inventory" data-field="materialId">${processOptions(stockOptions, inventory.materialId)}</select></label><label><span>Costo por in²</span><input type="text" value="${plates.inventory?.costPerIn2 > 0 ? `$${num(plates.inventory.costPerIn2, 4)}` : ""}" readonly></label><label><span>Subtotal Inventario</span><input type="text" value="${esc(money(plates.rawSubtotal || 0))}" readonly></label></div><div class="readonly-grid compact-top plate-metrics-grid plate-metrics-grid-focus">${metricBox("Material", material ? esc(material.descripcion || material.nombre || material.id) : "Pendiente", !material, false)}${metricBox("Cantidad Planchas", laser.totalColors > 0 ? num(laser.totalColors, 0) : "Pendiente", laser.missing.totalColors, laser.hasAbsurdData)}${metricBox("Área Total", laser.totalArea > 0 ? `${num(laser.totalArea, 4)} in²` : "Pendiente", laser.missing.totalColors || laser.missing.mountWidthIn || laser.missing.mountLengthIn || laser.missing.elongationPct, laser.hasAbsurdData)}${metricBox("Costo por in²", plates.inventory?.costPerIn2 > 0 ? `$${num(plates.inventory.costPerIn2, 4)}` : "Pendiente", !plates.inventory?.costPerIn2, laser.hasAbsurdData)}${metricBox("Subtotal", money(plates.rawSubtotal || 0), false, false)}</div><div class="readonly-grid compact-top subtotal-right">${metric("Subtotal Planchas", money(plates.subtotal))}</div>${formula("De Inventario", "Costo de inventario = Área Total Requerida x Costo por in².", plates.explanation, {
-    exampleLines: [`${formulaValue(laser.totalArea, 2)} x ${formulaValue(plates.inventory?.costPerIn2 || 0, 4)} = ${formulaValue(plates.rawSubtotal || 0, 2)}`],
-    answer: `R/ El total a cobrar por planchas es ${money(plates.subtotal || 0)}`
+  return `<div class="plate-disabled-panel"><label class="inline-process-check plate-virgin-check"><input type="checkbox" checked disabled><span>Planchas en Inventario</span></label></div><div class="readonly-grid compact-top subtotal-right">${metric("Subtotal Planchas", money(plates.subtotal))}</div>${formula("De Inventario", "Costo de planchas = 0 porque las planchas se tomarán de inventario.", plates.explanation, {
+    exampleLines: ["Planchas en inventario: no se solicita costo externo."],
+    answer: `R/ Las planchas se registran como inventario y no bloquean la proforma.`
   })}`;
 }
 
@@ -6986,12 +6948,9 @@ function renderProcesses() {
         ? `${selector}${renderPlateExternalPanel(plates)}`
         : (plateMode === "inventory"
           ? `${selector}${renderPlateInventoryPanel(plates)}`
-          : `${selector}<div class="subprocess-stack">${PLATE_KEYS.map((entry) => renderPlateStep(entry, plates)).join("")}</div><div class="readonly-grid compact-top subtotal-right">${metric("Subtotal Planchas", money(plates.subtotal))}</div>${formula("Total Planchas", "Total Planchas = Plancha Virgen + Grabado Láser + Revelado + Limpieza + Secado / Curado", plates.explanation, {
-            exampleLines: [
-              `Total Planchas: ${PLATE_KEYS.map((entry) => formulaValue(plates.breakdown?.[entry.key]?.subtotal || 0, 2)).join(" + ")} = ${formulaValue(plates.rawSubtotal ?? plates.subtotal ?? 0, 2)}`,
-              ...minimumCostExampleLines(plates, "Planchas")
-            ],
-            answer: `R/ El total a cobrar por planchas es ${money(plates.subtotal || 0)}`
+          : `${selector}${renderPlateVirginDisabledPanel()}${formula("Planchas", "Selecciona planchas en inventario o costo externo.", plates.explanation, {
+            exampleLines: ["Plancha Virgen desactivada."],
+            answer: "R/ Falta definir inventario o costo externo de planchas."
           })}`);
       return card("planchas", `${nextTitle("Planchas")}${digitalProcessNote ? ` <span style="color:#c62828;font-size:12px;font-weight:400;">${esc(digitalProcessNote)}</span>` : ""}`, "", plates.subtotal, body);
     },

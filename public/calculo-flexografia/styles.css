@@ -219,7 +219,7 @@ html[data-theme="dark"] body {
 }
 
 .plate-mode-tabs {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-bottom: 12px;
 }
 
@@ -4070,6 +4070,12 @@ html[data-theme="dark"] .floating-action-icon-button:hover {
   min-width: 18px;
   height: 18px;
   min-height: 18px;
+}
+
+.plate-disabled-panel {
+  display: flex;
+  align-items: center;
+  min-height: 46px;
 }
 
 html[data-theme="dark"] .inline-process-check input:checked,
