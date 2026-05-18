@@ -243,6 +243,7 @@ html[data-theme="dark"] .proforma-preview-area {
   background: #111c30 !important;
 }
 
+html[data-theme="dark"] .proforma-mobile-toolbar,
 html[data-theme="dark"] .proforma-sidebar,
 html[data-theme="dark"] .proforma-card,
 html[data-theme="dark"] .proforma-panel {

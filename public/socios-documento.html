@@ -14,9 +14,9 @@
                 <div class="socios-code-main">
                     <span>Código Cliente</span>
                     <div class="socios-code-value-row">
-                        <button id="prevSocioButton" type="button" class="plain-icon socios-nav-btn" aria-label="Socio anterior"></button>
+                        <button id="prevSocioButton" type="button" class="plain-icon socios-nav-btn" aria-label="Socio anterior" hidden></button>
                         <strong id="partnerCode">-</strong>
-                        <button id="nextSocioButton" type="button" class="plain-icon socios-nav-btn" aria-label="Siguiente socio"></button>
+                        <button id="nextSocioButton" type="button" class="plain-icon socios-nav-btn" aria-label="Siguiente socio" hidden></button>
                     </div>
                 </div>
             </div>
@@ -26,7 +26,14 @@
             </div>
         </section>
 
+        <nav class="socios-detail-tabs standard-module-tabs" aria-label="Detalle del socio">
+            <button type="button" class="standard-module-tab is-active" data-socio-tab="cliente">Datos del Cliente</button>
+            <button type="button" class="standard-module-tab" data-socio-tab="manejo">Manejo</button>
+            <button type="button" class="standard-module-tab" data-socio-tab="entrega">Entrega</button>
+        </nav>
+
         <section class="socios-content">
+            <div id="socio-tab-cliente" class="socios-tab-panel is-active" data-socio-panel="cliente">
             <div class="socios-overview-layout">
                 <div class="socios-section">
                     <div class="section-caption">Información General</div>
@@ -52,6 +59,25 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="socios-section socios-quality-section">
+                    <div class="section-caption">Información de Calidad</div>
+                    <div class="socios-grid socios-grid-quality">
+                        <div class="field field-checkbox-inline">
+                            <label for="requiereCartilla">Cartilla</label>
+                            <input id="requiereCartilla" type="checkbox" disabled>
+                        </div>
+                        <div class="field field-checkbox-inline">
+                            <label for="requiereCertificado">Certificado</label>
+                            <input id="requiereCertificado" type="checkbox" disabled>
+                        </div>
+                        <div class="field field-checkbox-inline">
+                            <label for="usarCartilla">Usar Cartilla</label>
+                            <input id="usarCartilla" type="checkbox" disabled>
+                        </div>
+                        <div class="field"><label>Unidad</label><input id="unidadDefecto" type="text" readonly></div>
+                    </div>
+                </div>
             </div>
 
             <div class="socios-section">
@@ -65,6 +91,10 @@
                         <div class="field"><label>Correo</label><input id="contactEmail" type="text" readonly></div>
                         <div class="field"><label>Fax</label><input id="contactFax" type="text" readonly></div>
                         <div class="field"><label>Teléfono</label><input id="contactPhone" type="text" readonly></div>
+                        <div class="field field-checkbox-inline">
+                            <label for="contactLegalRepresentative">Rep. Legal</label>
+                            <input id="contactLegalRepresentative" type="checkbox" disabled>
+                        </div>
                         <div class="field"><label>País</label><input id="contactCountry" type="text" readonly></div>
                         <div class="field"><label>Estado o Provincia</label><input id="contactState" type="text" readonly></div>
                         <div class="field"><label>Cantón</label><input id="contactCounty" type="text" readonly></div>
@@ -93,6 +123,7 @@
                                     <th>Email</th>
                                     <th>Teléfono</th>
                                     <th>Celular</th>
+                                    <th>Rep. Legal</th>
                                     <th>Provincia</th>
                                 </tr>
                             </thead>
@@ -120,33 +151,50 @@
                     </div>
                 </div>
             </div>
-
-            <div class="socios-section">
-                <div class="section-caption">Manejo y Entrega</div>
-                <div class="socios-grid socios-grid-delivery">
-                    <div class="field"><label>Excedentes</label><input id="manejoExcedentes" type="text" readonly></div>
-                    <div class="field"><label>Porcentaje Permitido</label><input id="allowedPercentage" type="text" readonly></div>
-                    <div class="field"><label>Adelantos</label><input id="manejoAdelantos" type="text" readonly></div>
-                    <div class="field"><label>Faltantes</label><input id="manejoFaltantes" type="text" readonly></div>
-                    <div class="field"><label>Porcentaje de Faltantes</label><input id="faltantesPorcentaje" type="text" readonly></div>
-                    <div class="field"><label>Entrega de Muestras</label><input id="entregaMuestras" type="text" readonly></div>
-                    <div class="field"><label>Forma de Entrega VB</label><input id="entregaVB" type="text" readonly></div>
-                    <div class="field"><label>Contacto VB</label><input id="contactoVB" type="text" readonly></div>
-                    <div class="field"><label>Forma de Entrega del Producto</label><input id="entregaProducto" type="text" readonly></div>
-                    <div class="field"><label>Contacto del Producto</label><input id="contactoProducto" type="text" readonly></div>
-                    <div class="field field-full"><label>Indicaciones</label><input id="indicacionesEntrega" type="text" readonly></div>
-                </div>
             </div>
 
+            <div id="socio-tab-manejo" class="socios-tab-panel" data-socio-panel="manejo" hidden>
             <div class="socios-section">
-                <div class="section-caption">Calidad</div>
-                <div class="socios-grid socios-grid-quality">
-                    <div class="field"><label>Requiere Cartilla</label><input id="requiereCartilla" type="text" readonly></div>
-                    <div class="field"><label>Requiere Certificado</label><input id="requiereCertificado" type="text" readonly></div>
-                    <div class="field"><label>Usar Cartilla</label><input id="usarCartilla" type="text" readonly></div>
-                    <div class="field"><label>Unidad por Defecto</label><input id="unidadDefecto" type="text" readonly></div>
-                    <div class="field field-full"><label>Notificación al Vendedor y Enlace</label><input id="correoNotificacion" type="text" readonly></div>
+                <div class="section-caption">Manejo</div>
+                <div class="socios-handling-layout">
+                    <div class="socios-grid socios-grid-handling-main">
+                        <div class="field"><label>Excedentes</label><input id="manejoExcedentes" type="text" readonly></div>
+                        <div class="field"><label>Adelantos</label><input id="manejoAdelantos" type="text" readonly></div>
+                        <div class="field"><label>Faltantes</label><input id="manejoFaltantes" type="text" readonly></div>
+                    </div>
+                    <div class="socios-grid socios-grid-handling-pct">
+                        <div class="field"><label>% Excedentes</label><input id="allowedPercentage" type="text" readonly></div>
+                        <div class="socios-empty-slot" aria-hidden="true"></div>
+                        <div class="field"><label>% Faltantes</label><input id="faltantesPorcentaje" type="text" readonly></div>
+                    </div>
                 </div>
+            </div>
+            </div>
+
+            <div id="socio-tab-entrega" class="socios-tab-panel" data-socio-panel="entrega" hidden>
+            <div class="socios-section">
+                <div class="section-caption">Entrega</div>
+                <div class="socios-delivery-layout">
+                    <div class="socios-grid socios-grid-delivery">
+                        <div class="field"><label>Entrega Muestras</label><input id="entregaMuestras" type="text" readonly></div>
+                        <div class="field"><label>Entrega VB</label><input id="entregaVB" type="text" readonly></div>
+                        <div class="field"><label>Entrega Producto</label><input id="entregaProducto" type="text" readonly></div>
+                    </div>
+                    <div class="socios-grid socios-grid-delivery">
+                        <div class="field"><label>Contacto VB</label><input id="contactoVB" type="text" readonly></div>
+                        <div class="field"><label>Teléfono VB</label><input id="contactoVBTelefono" type="text" readonly></div>
+                        <div class="field"><label>Correo VB</label><input id="contactoVBCorreo" type="text" readonly></div>
+                        <div class="field"><label>Contacto Producto</label><input id="contactoProducto" type="text" readonly></div>
+                        <div class="field"><label>Teléfono Producto</label><input id="contactoProductoTelefono" type="text" readonly></div>
+                        <div class="field"><label>Correo Producto</label><input id="contactoProductoCorreo" type="text" readonly></div>
+                    </div>
+                    <div class="socios-grid socios-grid-delivery">
+                        <div class="field field-full"><label>Indicaciones VB</label><input id="indicacionesVB" type="text" readonly></div>
+                        <div class="field field-full"><label>Indicaciones Producto</label><input id="indicacionesProducto" type="text" readonly></div>
+                        <div class="field field-full"><label>Indicaciones</label><input id="indicacionesEntrega" type="text" readonly></div>
+                    </div>
+                </div>
+            </div>
             </div>
         </section>
     </main>

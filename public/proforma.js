@@ -45,12 +45,15 @@ const fields = {
     deliveryTime: document.getElementById('proformaDeliveryTime')
 };
 const printButton = document.getElementById('proformaPrintButton');
+const mobilePrintButton = document.getElementById('proformaMobilePrintButton');
+const configToggleButton = document.getElementById('proformaConfigToggleButton');
 const previewFrame = document.getElementById('proformaPreviewFrame');
 
 let proformaState = null;
 let saveTimer = null;
 let saveInFlight = false;
 let saveQueued = false;
+const PROFORMA_LOCKED_MESSAGE = 'Proforma cerrada. Para editarla, primero libera el check de envío de proforma en el seguimiento.';
 
 function getQuoteCode() {
     return new URLSearchParams(window.location.search).get('codigo') || '';
@@ -80,8 +83,27 @@ function openRouteInShell(route, label) {
     return true;
 }
 
+function repairTextEncoding(value) {
+    const text = String(value ?? '');
+    if (!/[ÃÂâ�]/.test(text)) return text;
+    try {
+        const bytes = Uint8Array.from([...text].map((char) => char.charCodeAt(0) & 255));
+        const decoded = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+        const badBefore = (text.match(/[ÃÂâ�]/g) || []).length;
+        const badAfter = (decoded.match(/[ÃÂâ�]/g) || []).length;
+        if (decoded && badAfter < badBefore) return decoded;
+    } catch (error) {
+        // Keep the original text when it is not a latin1/utf8 mojibake case.
+    }
+    return text
+        .replace(/Ã¡/g, 'á').replace(/Ã©/g, 'é').replace(/Ã­/g, 'í').replace(/Ã³/g, 'ó').replace(/Ãº/g, 'ú')
+        .replace(/Ã/g, 'Á').replace(/Ã‰/g, 'É').replace(/Ã/g, 'Í').replace(/Ã“/g, 'Ó').replace(/Ãš/g, 'Ú')
+        .replace(/Ã±/g, 'ñ').replace(/Ã‘/g, 'Ñ').replace(/Â¿/g, '¿').replace(/Â¡/g, '¡').replace(/Âº/g, 'º')
+        .replace(/Â/g, '');
+}
+
 function escapeHtml(value) {
-    return String(value ?? '')
+    return repairTextEncoding(value)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
@@ -372,15 +394,15 @@ function applyFormState(readOnly) {
 }
 
 function fillForm(data) {
-    if (fields.clientCompany) fields.clientCompany.value = data.client?.company || '';
-    if (fields.clientContactName) fields.clientContactName.value = data.client?.contactName || '';
-    if (fields.clientPhone) fields.clientPhone.value = data.client?.phone || '';
-    if (fields.clientEmail) fields.clientEmail.value = data.client?.email || '';
+    if (fields.clientCompany) fields.clientCompany.value = repairTextEncoding(data.client?.company || '');
+    if (fields.clientContactName) fields.clientContactName.value = repairTextEncoding(data.client?.contactName || '');
+    if (fields.clientPhone) fields.clientPhone.value = repairTextEncoding(data.client?.phone || '');
+    if (fields.clientEmail) fields.clientEmail.value = repairTextEncoding(data.client?.email || '');
     fields.currencyCode.innerHTML = (data.currencies || []).map((currency) => `
         <option value="${escapeHtml(currency.code)}">${escapeHtml(`${currency.code} · ${currency.label}`)}</option>
     `).join('');
     fields.currencyCode.value = data.currency?.code || data.currencies?.[0]?.code || 'CRC';
-    fields.validity.value = data.validity || '';
+    fields.validity.value = repairTextEncoding(data.validity || '');
     if (fields.sellerSignatureEnabled) fields.sellerSignatureEnabled.checked = data.sellerSignatureEnabled !== false;
     if (fields.pricePresentation) {
         fields.pricePresentation.innerHTML = `
@@ -390,9 +412,9 @@ function fillForm(data) {
         fields.pricePresentation.value = data.pricePresentation || getPricePresentation(data.priceDisplayMode);
     }
     syncPriceModeOptions(data.priceDisplayMode || 'regular_unit');
-    fields.intro.value = data.intro || '';
-    fillSelectOptions(fields.paymentTerms, PAYMENT_TERM_OPTIONS, data.paymentTerms || '');
-    fillSelectOptions(fields.deliveryTime, DELIVERY_TIME_OPTIONS, data.deliveryTime || '');
+    fields.intro.value = repairTextEncoding(data.intro || '');
+    fillSelectOptions(fields.paymentTerms, PAYMENT_TERM_OPTIONS, repairTextEncoding(data.paymentTerms || ''));
+    fillSelectOptions(fields.deliveryTime, DELIVERY_TIME_OPTIONS, repairTextEncoding(data.deliveryTime || ''));
 }
 
 function renderDocument(data) {
@@ -405,23 +427,23 @@ function renderDocument(data) {
     docNodes.logo.innerHTML = data.company?.logoUrl
         ? `<img src="${escapeHtml(data.company.logoUrl)}" alt="${escapeHtml(data.company?.name || 'Logo')}">`
         : 'Logo';
-    docNodes.companyName.textContent = data.company?.name || 'Empresa';
-    docNodes.slogan.textContent = data.company?.slogan || '';
+    docNodes.companyName.textContent = repairTextEncoding(data.company?.name || 'Empresa');
+    docNodes.slogan.textContent = repairTextEncoding(data.company?.slogan || '');
     applyCompanyFont(data.company || {});
     applyLogoLayout(data.company || {});
-    docNodes.quoteCode.textContent = `Cotización ${data.quoteCode || ''}`;
+    docNodes.quoteCode.textContent = `Cotización ${repairTextEncoding(data.quoteCode || '')}`;
     docNodes.issueDate.textContent = `Fecha de emisión: ${formatDateOnly(data.issueDate)}`;
     if (docNodes.validity) {
-        docNodes.validity.textContent = `Validez: ${data.validity || ''}`;
+        docNodes.validity.textContent = `Validez: ${repairTextEncoding(data.validity || '')}`;
     }
     docNodes.clientBlock.innerHTML = buildClientBlock(data.client);
-    docNodes.intro.textContent = data.intro || ' ';
-    setDocumentSection(docNodes.paymentTerms, data.paymentTerms || '');
-    setDocumentSection(docNodes.deliveryTime, data.deliveryTime || '');
-    setDocumentSection(docNodes.technicalSpecs, data.technicalSpecs || '');
-    setDocumentSection(docNodes.qualityPolicies, data.qualityPolicies || '');
+    docNodes.intro.textContent = repairTextEncoding(data.intro || ' ');
+    setDocumentSection(docNodes.paymentTerms, repairTextEncoding(data.paymentTerms || ''));
+    setDocumentSection(docNodes.deliveryTime, repairTextEncoding(data.deliveryTime || ''));
+    setDocumentSection(docNodes.technicalSpecs, repairTextEncoding(data.technicalSpecs || ''));
+    setDocumentSection(docNodes.qualityPolicies, repairTextEncoding(data.qualityPolicies || ''));
     refreshTermsGridVisibility();
-    docNodes.sellerName.textContent = data.seller?.name || '';
+    docNodes.sellerName.textContent = repairTextEncoding(data.seller?.name || '');
     if (docNodes.sellerName) {
         docNodes.sellerName.style.color = '#111111';
         docNodes.sellerName.style.fontWeight = '500';
@@ -523,7 +545,7 @@ async function loadProforma() {
     applyFormState(payload.status === 'closed');
     if (loadingEl) loadingEl.hidden = true;
     if (shellEl) shellEl.hidden = false;
-    setSaveStatus(payload.status === 'closed' ? 'Proforma cerrada' : 'Cambios listos');
+    setSaveStatus(payload.status === 'closed' ? PROFORMA_LOCKED_MESSAGE : 'Cambios listos');
 }
 
 async function persistProforma() {
@@ -581,7 +603,7 @@ async function closeProforma() {
     fillForm(payload);
     reloadPreview();
     applyFormState(true);
-    setSaveStatus('Proforma cerrada');
+    setSaveStatus(PROFORMA_LOCKED_MESSAGE);
 }
 
 function refreshPreviewFromForm() {
@@ -612,12 +634,24 @@ function refreshPreviewFromForm() {
 }
 
 function bindEvents() {
-    printButton?.addEventListener('click', () => {
+    const printProforma = () => {
         if (previewFrame?.contentWindow) {
             previewFrame.contentWindow.print();
         } else {
             const code = getQuoteCode();
             if (code) window.open(`/proforma-print.html?codigo=${encodeURIComponent(code)}`, '_blank');
+        }
+    };
+    printButton?.addEventListener('click', printProforma);
+    mobilePrintButton?.addEventListener('click', printProforma);
+    configToggleButton?.addEventListener('click', () => {
+        const isOpen = shellEl?.classList.toggle('is-config-open');
+        configToggleButton.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            shellEl?.classList.remove('is-config-open');
+            configToggleButton?.setAttribute('aria-expanded', 'false');
         }
     });
     Object.entries(fields).forEach(([key, field]) => {

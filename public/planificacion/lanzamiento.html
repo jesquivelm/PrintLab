@@ -26,15 +26,25 @@ body{background:#f6f8fb}
 .planning-queue-customer{font-size:13px;color:#70808d;margin-top:4px}
 .planning-queue-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .planning-queue-pill{display:inline-flex;align-items:center;min-height:30px;padding:0 10px;border-radius:999px;background:#eef4f8;color:#577086;font-size:12px}
-.planning-queue-body{display:grid;grid-template-columns:minmax(320px,1.2fr) minmax(260px,.8fr) minmax(260px,.9fr);gap:16px}
+.planning-queue-body{display:grid;grid-template-columns:minmax(420px,1.18fr) minmax(320px,.9fr) minmax(240px,.7fr);gap:16px}
 .planning-queue-panel{padding:14px;border:1px solid #e3ebf1;border-radius:14px;background:#fbfdff}
+.planning-queue-panel-compact{padding:12px 14px}
 .planning-queue-panel h3{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#70808d;margin-bottom:10px}
 .planning-queue-grid{display:grid;gap:8px}
+.planning-queue-grid-compact{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:16px;row-gap:7px}
 .planning-queue-row{display:flex;justify-content:space-between;gap:12px;font-size:12px}
-.planning-queue-row span:first-child{color:#70808d}
-.planning-queue-row strong{font-weight:600;color:#203746;text-align:right}
+.planning-queue-row span:first-child{color:#70808d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:96px;flex:0 0 auto}
+.planning-queue-row strong{font-weight:600;color:#203746;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .planning-queue-processes,.planning-queue-badges{display:flex;gap:8px;flex-wrap:wrap}
 .planning-queue-process{padding:6px 10px;border-radius:999px;background:#edf5fb;color:#215a82;font-size:11px;font-weight:600}
+.planning-queue-process-selector{align-items:center}
+.planning-queue-process-toggle{display:inline-flex;align-items:center;gap:7px;min-height:30px;padding:5px 9px;border:1px solid #dbe5ec;border-radius:999px;background:#fff;color:#304453;font-size:11px;font-weight:700;white-space:nowrap;cursor:pointer}
+.planning-queue-process-toggle input{width:14px;height:14px;accent-color:#1D9E75}
+.planning-queue-process-toggle em{font-style:normal;font-size:10px;color:#9a640f;font-weight:700}
+.planning-queue-process-toggle.was-quoted{border-color:#f3d39b;background:#fffaf0}
+.planning-queue-process-warning{margin-top:10px;padding:9px 11px;border-radius:10px;background:#fbf0dd;color:#8a5b11;font-size:12px;line-height:1.35}
+.planning-queue-art-slot{min-height:146px;display:flex;align-items:center;justify-content:center;color:#9aa7b2}
+.planning-queue-art-placeholder{font-size:12px;color:#9aa7b2}
 .planning-queue-badge-ok,.planning-queue-badge-miss{padding:6px 10px;border-radius:999px;font-size:11px;font-weight:700}
 .planning-queue-badge-ok{background:#e9f7f1;color:#11734c}
 .planning-queue-badge-miss{background:#fdecec;color:#b53b3b}
@@ -92,7 +102,6 @@ body{background:#f6f8fb}
     </div>
     <div class="planning-queue-actions">
       <button type="button" class="action-btn" id="planningQueueOpenGanttButton">Ir al Gantt</button>
-      <button type="button" class="action-btn" id="planningQueueOpenPreturnoButton">Ver Preturno</button>
     </div>
   </section>
 

@@ -109,6 +109,20 @@
                                             <span id="orderDimensionsText" class="production-product-dimensions"></span>
                                         </div>
                                     </div>
+                                    <div class="production-summary-grid production-summary-grid-three production-product-key-grid">
+                                        <div class="production-summary-item">
+                                            <span class="production-summary-label">Cantidad</span>
+                                            <span id="orderQuantityInlineText" class="production-summary-value"></span>
+                                        </div>
+                                        <div class="production-summary-item">
+                                            <span class="production-summary-label">Arte</span>
+                                            <span id="orderArtworkInlineText" class="production-summary-value"></span>
+                                        </div>
+                                        <div class="production-summary-item">
+                                            <span class="production-summary-label">Troquel</span>
+                                            <span id="orderDieReferenceText" class="production-summary-value"></span>
+                                        </div>
+                                    </div>
 
                                     <div id="orderPrintingBlock" class="production-subgroup">
                                         <div class="production-subgroup-title">Impresión</div>
@@ -223,7 +237,7 @@
 
                         <div class="production-order-column production-order-column-secondary">
                             <section class="socios-section production-tracking-card">
-                                <div class="section-caption">Seguimiento de la Orden</div>
+                                <button type="button" id="orderFlowToggleButton" class="section-caption production-tracking-title">Seguimiento de la Orden</button>
                                 <button type="button" id="orderAttachmentsButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small production-section-corner-toggle" aria-label="Ver adjuntos"></button>
                                 <div class="production-order-spotlight">
                                     <div class="production-order-spotlight-item production-order-spotlight-right">
@@ -248,9 +262,17 @@
                                         <span id="orderCreatedText" class="production-summary-value"></span>
                                     </div>
                                     <div class="production-summary-item">
-                                        <span class="production-summary-label">Fecha Programada</span>
+                                        <span class="production-summary-label">Est. Vendedor</span>
+                                        <span id="orderPromisedDateText" class="production-summary-value production-schedule-pill"></span>
+                                    </div>
+                                    <div class="production-summary-item">
+                                        <span class="production-summary-label">Fecha Producción</span>
                                         <span id="orderScheduledDateText" class="production-summary-value production-schedule-pill"></span>
                                     </div>
+                                    <label class="production-summary-item production-date-field">
+                                        <span class="production-summary-label">Entrega Cliente</span>
+                                        <input id="orderScheduledDateInput" type="date">
+                                    </label>
                                 </div>
                             </section>
 
@@ -407,6 +429,19 @@
                     <h2>Cálculo Relacionado</h2>
                 </div>
                 <div id="orderSourceQuotePopoverBody" class="attachments-popover-body"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="orderFlowPopover" class="calc-popover" hidden>
+        <div class="calc-popover-backdrop" data-close-popover="orderFlowPopover"></div>
+        <div class="calc-popover-panel calc-popover-panel-narrow production-flow-popover-panel">
+            <button type="button" class="calc-popover-close" data-close-popover="orderFlowPopover" aria-label="Cerrar">×</button>
+            <div class="calc-popover-body">
+                <div class="copy-popover-header">
+                    <h2>Flujo de producción</h2>
+                </div>
+                <div id="orderFlowBody" class="production-flow-body"></div>
             </div>
         </div>
     </div>

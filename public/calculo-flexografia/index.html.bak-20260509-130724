@@ -1,0 +1,355 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="/theme.js"></script>
+  <title>Cálculo de Flexografía</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/calculo-flexografia/styles.css">
+</head>
+<body>
+  <main class="calc-shell">
+    <section class="calc-toolbar">
+        <div class="calc-toolbar-brand">
+          <div class="toolbar-brand-copy">
+            <h1 id="pageTitle">Cálculo de Flexografía</h1>
+          <div id="customerNameDisplay" class="toolbar-customer-name" hidden></div>
+          <div id="salespersonDisplay" class="toolbar-salesperson-name"></div>
+          </div>
+        </div>
+    </section>
+
+    <div class="calc-layout">
+      <section class="calc-main">
+        <article class="calc-card">
+          <div class="card-head">
+            <div><h2>Información General</h2></div>
+          </div>
+
+          <div class="header-grid">
+            <input id="customerCode" class="hidden-input" type="hidden">
+            <input id="customerName" class="hidden-input" type="hidden">
+            <input id="salespersonName" class="hidden-input" type="hidden">
+
+            <label class="header-field-job">
+              <span>Nombre del Trabajo</span>
+              <input id="jobName" type="text">
+            </label>
+
+            <div class="header-field-meta">
+              <label class="header-field-work">
+                <span>Tipo de Trabajo</span>
+                <select id="workType"></select>
+              </label>
+
+              <label class="header-field-product">
+                <span>Tipo de Producto</span>
+                <select id="productType"></select>
+              </label>
+            </div>
+          </div>
+        </article>
+
+        <article id="technicalDataCard" class="calc-card">
+          <div class="card-head">
+            <div><h2>Datos Técnicos</h2></div>
+          </div>
+
+          <div class="technical-grid">
+            <div class="technical-column technical-column-left">
+              <section class="technical-panel">
+                <div class="technical-panel-head">
+                  <h3>Información de Producto</h3>
+                </div>
+                <div class="panel-grid two-up">
+                  <label>
+                    <span>Alto</span>
+                    <span class="display-input-wrap has-suffix">
+                      <input id="labelWidthIn" class="display-input" type="number" min="0" step="0.001">
+                      <span id="labelWidthInDisplay" class="display-input-mask"></span>
+                    </span>
+                  </label>
+                  <label>
+                    <span>Largo</span>
+                    <span class="display-input-wrap has-suffix">
+                      <input id="labelHeightIn" class="display-input" type="number" min="0" step="0.001">
+                      <span id="labelHeightInDisplay" class="display-input-mask"></span>
+                    </span>
+                  </label>
+                </div>
+              </section>
+
+              <section class="technical-panel">
+                <div class="technical-panel-head">
+                  <h3>Datos de Etiquetado</h3>
+                </div>
+                <div class="output-layout">
+                  <div class="output-core-grid">
+                    <label>
+                      <span>Ancho de Core</span>
+                      <span class="display-input-wrap has-suffix">
+                        <input id="rollWidthIn" class="display-input" type="number" min="0" step="0.001">
+                        <span id="rollWidthInDisplay" class="display-input-mask"></span>
+                      </span>
+                    </label>
+                    <label>
+                      <span>Diámetro de Core</span>
+                      <span class="display-input-wrap has-suffix">
+                        <select id="coreDiameter" class="display-input"></select>
+                        <span id="coreDiameterDisplay" class="display-input-mask"></span>
+                      </span>
+                    </label>
+                  </div>
+                  <label class="output-type-select-field output-layout-output">
+                    <span>Tipo de Salida</span>
+                    <select id="outputType"></select>
+                  </label>
+                  <label class="output-layout-roll">
+                    <span>Cantidad de Etiquetas por Rollo</span>
+                    <input id="labelsPerRoll" type="number" min="0" step="1">
+                  </label>
+                  <label class="output-layout-application">
+                    <span>Tipo de Etiquetado</span>
+                    <select id="applicationType">
+                      <option value="">Seleccionar...</option>
+                      <option value="Manual">Manual</option>
+                      <option value="Automatico">Automático</option>
+                    </select>
+                  </label>
+                  <div id="outputTypePreview" class="output-type-preview output-layout-preview"></div>
+                </div>
+              </section>
+            </div>
+
+            <div class="technical-column technical-column-right">
+              <section class="technical-panel technical-panel-notes">
+                <div class="technical-panel-head">
+                  <h3>Aplicación y Superficie</h3>
+                </div>
+                <div class="panel-grid one-up">
+                  <label>
+                    <span>Aplicación</span>
+                    <textarea id="applicationEnvironment" rows="4"></textarea>
+                  </label>
+                  <label>
+                    <span>Tipo de Superficie</span>
+                    <textarea id="surfaceType" rows="4"></textarea>
+                  </label>
+                </div>
+              </section>
+            </div>
+          </div>
+        </article>
+
+        <article id="printConfigCard" class="calc-card">
+          <div class="card-head">
+            <div><h2>Configuración de Impresión</h2></div>
+          </div>
+
+          <div class="impression-grid impression-grid-compact">
+            <label class="impression-compact-field">
+              <span>Tipos</span>
+              <input id="quantityTypes" type="number" min="1" step="1">
+            </label>
+            <label class="impression-compact-field">
+              <span>Cambios</span>
+              <input id="quantityChanges" type="number" min="0" step="1">
+            </label>
+            <label class="impression-compact-field">
+              <span>Pantones</span>
+              <input id="pantoneCount" type="number" min="0" step="1">
+            </label>
+            <div class="impression-check-row">
+              <label class="impression-check-card">
+                <input id="useCmyk" type="checkbox">
+                <span class="toggle-label">CMYK</span>
+              </label>
+              <label class="impression-check-card">
+                <input id="useWhiteInk" type="checkbox">
+                <span class="toggle-label">Tinta Blanca</span>
+              </label>
+              <label class="impression-check-card">
+                <input id="doubleWhitePass" type="checkbox">
+                <span class="toggle-label">Doble Blanca</span>
+              </label>
+              <label class="impression-check-card">
+                <input id="noPrint" type="checkbox">
+                <span class="toggle-label">Sin Impresión</span>
+              </label>
+            </div>
+          </div>
+        </article>
+
+        <article id="quantityCard" class="calc-card">
+          <div class="card-head">
+            <div><h2>Cantidad de Productos</h2></div>
+          </div>
+          <div id="quantityRepeater" class="quantity-repeater"></div>
+        </article>
+
+        <section class="process-workspace">
+          <section id="processSections" class="process-sections"></section>
+        </section>
+      </section>
+
+      <aside class="calc-sidebar">
+        <section class="calc-card details-demo-card" aria-label="Detalles">
+          <div class="card-head details-demo-head">
+            <div>
+              <h2>Detalles</h2>
+              <p id="detailsQuoteMeta" class="details-demo-meta"></p>
+            </div>
+            <div id="detailsLineBadge" class="details-line-badge"></div>
+          </div>
+          <div id="detailsStatusRows" class="details-status-rows"></div>
+          <div class="details-cost-shell">
+            <div id="detailsCostTable" class="details-cost-table"></div>
+          </div>
+          <div class="details-demo-actions">
+            <button type="button" id="detailsProformaButton" class="inline-button details-proforma-button">Ver Proforma</button>
+          </div>
+        </section>
+
+        <details class="calc-card calc-card-collapsible" open>
+          <summary class="calc-card-summary">
+            <div class="card-head">
+              <div><h2>Contexto base</h2><p id="calcStatus" class="sr-only">Cargando contexto del calculo.</p></div>
+            </div>
+          </summary>
+          <div class="calc-card-body">
+            <div id="contextRows" class="summary-rows"></div>
+          </div>
+        </details>
+
+        <details class="calc-card calc-card-collapsible">
+          <summary class="calc-card-summary">
+            <div class="card-head">
+              <div><h2>Decisión automática</h2></div>
+            </div>
+          </summary>
+          <div class="calc-card-body">
+            <div id="automaticSummaryRows" class="summary-rows"></div>
+          </div>
+        </details>
+
+        <details class="calc-card calc-card-collapsible" open>
+          <summary class="calc-card-summary">
+            <div class="card-head">
+              <div><h2>Ajustes comerciales</h2></div>
+            </div>
+          </summary>
+          <div class="calc-card-body">
+            <div class="commercial-grid">
+            <label>
+              <span>Overhead (%)</span>
+              <input id="overheadPct" type="number" min="0" step="0.01" value="0">
+            </label>
+            <label>
+              <span>Margen (%)</span>
+              <input id="marginPct" type="number" min="0" step="0.01" value="35">
+            </label>
+            <label>
+              <span>Descuento (%)</span>
+              <input id="discountPct" type="number" min="0" max="100" step="0.01" value="0">
+            </label>
+            <label>
+              <span>IVA (%)</span>
+              <input id="taxPct" type="number" min="0" step="0.01" value="13">
+            </label>
+          </div>
+          <button type="button" id="viewProformaButton" class="inline-button commercial-proforma-button">Ver Proforma</button>
+          </div>
+        </details>
+
+        <details class="calc-card calc-card-collapsible" open>
+          <summary class="calc-card-summary">
+            <div class="card-head">
+              <div><h2>Resultado final</h2></div>
+            </div>
+          </summary>
+          <div class="calc-card-body">
+            <div id="summaryRows" class="summary-rows"></div>
+          </div>
+        </details>
+
+        <details class="calc-card calc-card-collapsible">
+          <summary class="calc-card-summary">
+            <div class="card-head">
+              <div><h2>Previsualización SAP</h2></div>
+              <div class="card-head-actions">
+                <button type="button" id="sapPreviewOpenOutputButton" class="inline-button">Ver salida</button>
+                <button type="button" id="sapPreviewSendButton" class="inline-button">Enviar</button>
+              </div>
+            </div>
+          </summary>
+          <div class="calc-card-body">
+            <div id="sapPreviewSummary" class="summary-rows"></div>
+          <details class="subprocess-card" open>
+            <summary class="inline-process-summary">
+              <div class="inline-process-heading"><strong>Orden de Venta</strong></div>
+            </summary>
+            <div class="process-body">
+              <pre id="sapPreviewOrder" class="formula-pre"></pre>
+            </div>
+          </details>
+          <details class="subprocess-card">
+            <summary class="inline-process-summary">
+              <div class="inline-process-heading"><strong>BOM / Producción</strong></div>
+            </summary>
+            <div class="process-body">
+              <pre id="sapPreviewBom" class="formula-pre"></pre>
+            </div>
+          </details>
+          </div>
+        </details>
+      </aside>
+    </div>
+  </main>
+
+  <dialog id="timelineReportDialog" class="timeline-report-dialog">
+    <form method="dialog" class="timeline-report-form">
+      <div class="timeline-report-head">
+        <div>
+          <h3>Notificar Problema</h3>
+          <p>Envía la observación al vendedor para que pueda corregir la información.</p>
+        </div>
+        <button type="button" id="timelineReportClose" class="timeline-report-close" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="timeline-report-grid">
+        <label>
+          <span>Vendedor</span>
+          <input id="timelineReportSeller" type="text" readonly>
+        </label>
+        <label>
+          <span>Cliente</span>
+          <input id="timelineReportCustomer" type="text" readonly>
+        </label>
+        <label>
+          <span>Cotización</span>
+          <input id="timelineReportQuote" type="text" readonly>
+        </label>
+        <label>
+          <span>Línea</span>
+          <input id="timelineReportLine" type="text" readonly>
+        </label>
+        <label class="span-2">
+          <span>Trabajo</span>
+          <input id="timelineReportJob" type="text" readonly>
+        </label>
+        <label class="span-2">
+          <span>Problema detectado</span>
+          <textarea id="timelineReportIssue" rows="5"></textarea>
+        </label>
+      </div>
+      <div class="timeline-report-actions">
+        <button type="button" id="timelineReportCancel" class="timeline-report-secondary">Cancelar</button>
+        <button type="button" id="timelineReportSubmit" class="timeline-report-primary">Enviar Notificación</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="/calculo-flexografia/app.js"></script>
+</body>
+</html>
+

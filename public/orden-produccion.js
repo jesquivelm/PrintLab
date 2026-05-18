@@ -14,6 +14,9 @@ const deliveriesButton = document.getElementById('orderDeliveriesButton');
 const numberingButton = document.getElementById('orderNumberingButton');
 const stateButton = document.getElementById('orderStateButton');
 const artworkLookupButton = document.getElementById('orderArtworkLookupButton');
+const orderFlowToggleButton = document.getElementById('orderFlowToggleButton');
+const orderFlowBody = document.getElementById('orderFlowBody');
+const scheduledDateInput = document.getElementById('orderScheduledDateInput');
 
 const planningStatusText = document.getElementById('orderPlanningStatusText');
 const planningMetaText = document.getElementById('orderPlanningMetaText');
@@ -65,6 +68,7 @@ let currentOutputTypes = [];
 let currentOrderAttachments = [];
 let artworkSectionBaseHeight = 0;
 let artworkSectionMaxHeight = 0;
+const SESSION_STORAGE_KEY = 'erp-user-session';
 
 const DEFAULT_ICONS = {
     browserOpen: '↗',
@@ -110,6 +114,31 @@ function pickFirst(...values) {
         if (value !== undefined && value !== null && String(value).trim() !== '') return value;
     }
     return '';
+}
+
+function readUserSession() {
+    try {
+        return JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || 'null');
+    } catch (error) {
+        return null;
+    }
+}
+
+function sessionHeader() {
+    const session = readUserSession();
+    if (!session) return {};
+    return {
+        'x-erp-session': JSON.stringify({
+            id: session.id || session.userId || session.sessionId || '',
+            userId: session.userId || session.id || '',
+            username: session.username || session.user || '',
+            user: session.user || session.username || '',
+            name: session.name || session.fullName || session.user || session.username || '',
+            fullName: session.fullName || session.name || '',
+            permissionName: session.permissionName || '',
+            modules: session.modules || {}
+        })
+    };
 }
 
 function setText(id, value, fallback = 'Sin definir') {
@@ -224,7 +253,7 @@ async function updatePlanningControl(action) {
     try {
         const response = await fetch(`/api/ordenes-produccion/${encodeURIComponent(currentOrderCode)}/planning-control`, {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...sessionHeader() },
             body: JSON.stringify({ action })
         });
         const payload = await response.json();
@@ -263,6 +292,54 @@ function renderPlanningSnapshot(raw = {}) {
             </div>
         </article>
     `).join('');
+}
+
+function renderOrderFlowSteps(steps = []) {
+    if (!orderFlowBody) return;
+    if (!steps.length) {
+        orderFlowBody.innerHTML = '<div class="production-summary-empty">Sin marcas de seguimiento registradas.</div>';
+        return;
+    }
+    const doneCount = steps.filter((step) => String(step.routeStatus || '').toUpperCase() === 'COMPLETADO').length;
+    orderFlowBody.innerHTML = `
+        <div class="production-flow-head">
+            <strong>${escapeHtml(doneCount)} de ${escapeHtml(steps.length)} completados</strong>
+            <span>${escapeHtml(currentOrderCode || '')}</span>
+        </div>
+        <div class="production-flow-list">
+            ${steps.map((step) => {
+                const status = String(step.routeStatus || 'PENDIENTE').toUpperCase();
+                const isDone = status === 'COMPLETADO';
+                const isActive = ['RUN', 'SETUP', 'PARO'].includes(status);
+                return `
+                    <article class="production-flow-step${isDone ? ' is-done' : ''}${isActive ? ' is-active' : ''}">
+                        <div class="production-flow-marker">${isDone ? '✓' : step.sequenceOrder}</div>
+                        <div class="production-flow-copy">
+                            <strong>${escapeHtml(step.processName || 'Proceso')}</strong>
+                            <span>${escapeHtml(isDone ? `Completado por ${step.completedBy || 'usuario activo'}` : status.toLowerCase())}</span>
+                            <small>${escapeHtml(formatDate(step.completedAt || step.startedAt, true) || 'Pendiente')}</small>
+                        </div>
+                    </article>
+                `;
+            }).join('')}
+        </div>
+    `;
+}
+
+async function openOrderFlowPopover() {
+    if (!currentOrderCode) return;
+    openPopover('orderFlowPopover');
+    if (orderFlowBody) orderFlowBody.innerHTML = '<div class="production-summary-empty">Cargando seguimiento...</div>';
+    try {
+        const response = await fetch(`/api/ordenes-produccion/${encodeURIComponent(currentOrderCode)}/seguimiento`, {
+            headers: sessionHeader()
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || 'No se pudo cargar el seguimiento.');
+        renderOrderFlowSteps(Array.isArray(payload.steps) ? payload.steps : []);
+    } catch (error) {
+        if (orderFlowBody) orderFlowBody.innerHTML = `<div class="production-summary-empty">${escapeHtml(error.message)}</div>`;
+    }
 }
 
 function openRoute(route, label) {
@@ -633,7 +710,7 @@ function toggleSection(summaryNode, formNode, button, editing) {
 async function saveOrderDetails(payload) {
     const response = await fetch(`/api/ordenes-produccion/${encodeURIComponent(currentOrderCode)}/details`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...sessionHeader() },
         body: JSON.stringify(payload)
     });
     const data = await response.json();
@@ -668,7 +745,8 @@ function renderOrder(order) {
     const productCodes = [clientProductCode ? `(${clientProductCode})` : '', showProductId ? `(${localProductCode})` : ''].filter(Boolean).join(' ');
     const outputType = pickFirst(detail.outputType, lineRaw['TIPO SALIDA']);
     const stateText = pickFirst(raw.status, 'Pendiente');
-    const scheduledDateRaw = raw.planning_control?.scheduledDeliveryDate || raw.scheduled_on || quote.due_on;
+    const promisedDateRaw = raw.planning_control?.promisedDeliveryDate || quote.due_on;
+    const scheduledDateRaw = raw.planning_control?.scheduledDeliveryDate || raw.scheduled_on;
     const numberingValue = pickFirst(lineRaw['ACABADOS | NUMERADO'], lineRaw.NUMERADO);
     const customerId = pickFirst(raw.customer_code, quote.customer_code);
     const customerName = pickFirst(raw.customer_name, quote.customer_name);
@@ -707,6 +785,9 @@ function renderOrder(order) {
     setOptionalText('orderProductCodesText', productCodes);
     setText('orderJobText', [pickFirst(line.job_name, detail.jobName), dimensions ? `(${dimensions})` : ''].filter(Boolean).join(' '), 'Trabajo sin nombre');
     setOptionalText('orderDimensionsText', '');
+    setText('orderQuantityInlineText', quantity, 'Sin cantidad');
+    setText('orderArtworkInlineText', pickFirst(lineRaw['ORDEN DE ARTE'], lineRaw['ARTE EN PODER DE'], 'Pendiente'), 'Pendiente');
+    setText('orderDieReferenceText', dieCode || 'Sin troquel', 'Sin troquel');
 
     const printingAlert = document.getElementById('orderPrintingAlert');
     const printingGrid = document.getElementById('orderPrintingGrid');
@@ -760,8 +841,11 @@ function renderOrder(order) {
     setText('orderStateText', stateText, 'Pendiente');
     applyOrderState(document.getElementById('orderStateText'), stateText);
     setText('orderCreatedText', formatDate(order.created_at || raw.created_on, true), 'Sin fecha');
+    setText('orderPromisedDateText', formatDate(promisedDateRaw), 'Pendiente');
+    applyScheduleState(document.getElementById('orderPromisedDateText'), promisedDateRaw);
     setText('orderScheduledDateText', formatDate(scheduledDateRaw), 'Pendiente');
     applyScheduleState(document.getElementById('orderScheduledDateText'), scheduledDateRaw);
+    if (scheduledDateInput) scheduledDateInput.value = scheduledDateRaw ? String(scheduledDateRaw).slice(0, 10) : '';
 
     setText('orderQuantityText', quantity, 'Sin cantidad');
     artSummary.innerHTML = buildSummaryLinesOptional([
@@ -941,6 +1025,17 @@ pantonesButton?.addEventListener('click', () => openPopover('orderPantonesPopove
     }
 numberingButton?.addEventListener('click', () => openPopover('orderNumberingPopover'));
 attachmentsButton?.addEventListener('click', () => openPopover('orderAttachmentsPopover'));
+orderFlowToggleButton?.addEventListener('click', openOrderFlowPopover);
+scheduledDateInput?.addEventListener('change', () => {
+    saveOrderDetails({
+        planningControl: {
+            scheduledDeliveryDate: scheduledDateInput.value || null
+        }
+    }).catch((error) => {
+        statusBox.hidden = false;
+        statusBox.textContent = error.message;
+    });
+});
 artworkPreview?.addEventListener('click', () => artworkFileInput?.click());
 artworkLookupButton?.addEventListener('click', () => artworkNumberInput?.focus());
 artworkFileInput?.addEventListener('change', async (event) => {

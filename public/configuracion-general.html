@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/styles.css">
     <script src="/access-control.js"></script>
     <style>
-        .config-tabs { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; width: 100%; min-width: 0; margin-bottom: 20px; padding: 4px; border: 1px solid #d8e2ea; border-radius: 14px; background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.75); }
+        .config-tabs { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; width: 100%; min-width: 0; margin-bottom: 20px; padding: 4px; border: 1px solid #d8e2ea; border-radius: 14px; background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.75); }
         .topbar.topbar-quote {
             display: flex;
             align-items: center;
@@ -20,6 +20,7 @@
         .config-tab.active:focus-visible { background: linear-gradient(180deg, #24a8df 0%, #118fc6 100%); color: #eaf8ff; }
         .config-tab-content { display: none; min-height: var(--config-tabs-min-height, auto); width: 100%; min-width: 0; max-width: 100%; }
         .config-tab-content.active { display: block; }
+        .config-tab-content.sap-main-mode .security-subtabs { display: none; }
         #generalConfigForm { width: 100%; min-width: 0; }
         
         .config-section-title { font-size: 14px; font-weight: 600; margin: 20px 0 10px; padding-bottom: 5px; border-bottom: 1px solid #ddd; }
@@ -446,7 +447,6 @@
             color: #60707f;
             font-size: 11px;
             font-weight: 700;
-            text-transform: uppercase;
             letter-spacing: 0.04em;
             text-align: left;
         }
@@ -459,6 +459,55 @@
             padding: 10px 12px;
             border-top: 1px solid #e7eef3;
             background: #ffffff;
+        }
+        .quote-product-types-table tbody input[type="text"],
+        .die-shape-config-item input[type="text"],
+        .quote-output-types-table tbody input[type="text"],
+        .inventory-classification-table tbody input[type="text"],
+        .inventory-classification-table tbody select {
+            width: 100%;
+            min-height: 42px;
+            padding: 10px 12px;
+            border: 1px solid #c9d6e2;
+            border-radius: 12px;
+            background: #fff;
+            color: #17354a;
+            font: inherit;
+            box-sizing: border-box;
+        }
+        .quote-product-types-table tbody input[type="text"]:focus,
+        .die-shape-config-item input[type="text"]:focus,
+        .quote-output-types-table tbody input[type="text"]:focus,
+        .inventory-classification-table tbody input[type="text"]:focus,
+        .inventory-classification-table tbody select:focus {
+            outline: none;
+            border-color: #23a2cb;
+            box-shadow: 0 0 0 3px rgba(35,162,203,.12);
+        }
+        .icon-only-btn {
+            background: transparent !important;
+            border: none !important;
+            padding: 4px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: background-color 0.15s, opacity 0.15s;
+            box-shadow: none !important;
+            color: inherit;
+        }
+        .icon-only-btn:hover {
+            background-color: rgba(0,0,0,0.05) !important;
+            opacity: 0.8;
+        }
+        .inventory-output-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 12px;
+            padding: 8px;
+            box-sizing: border-box;
         }
         .quote-product-types-table tbody input {
             width: 100%;
@@ -499,7 +548,7 @@
             background: linear-gradient(180deg, #ffffff 0%, #f4f8fb 100%);
             color: #5f7283;
             font-size: 12px;
-            font-weight: 700;
+            font-weight: 600;
             cursor: pointer;
         }
         .exchange-rate-subtab.active {
@@ -536,6 +585,7 @@
         .exchange-rate-card strong {
             display: block;
             color: #17354a;
+            font-weight: 400;
         }
         .exchange-rate-summary-card span,
         .exchange-rate-card span {
@@ -546,7 +596,7 @@
         .exchange-rate-card-value {
             margin-top: 8px;
             font-size: 20px;
-            font-weight: 800;
+            font-weight: 400;
             color: #17354a;
         }
         .exchange-rate-status-row,
@@ -570,7 +620,7 @@
             background: #eef7fd;
             color: #23516a;
             font-size: 12px;
-            font-weight: 700;
+            font-weight: 600;
         }
         .exchange-rate-status-pill.is-error {
             background: #fff1f1;
@@ -607,7 +657,7 @@
         .exchange-rate-config-grid label span,
         .exchange-rate-calc-grid label span {
             font-size: 12px;
-            font-weight: 700;
+            font-weight: 600;
             color: #28465c;
         }
         .exchange-rate-config-grid input,
@@ -1021,6 +1071,8 @@
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
+            margin-top: 24px;
+            margin-bottom: 24px;
         }
         .sap-security-actions .action-btn,
         .sap-security-actions .action-btn-primary {
@@ -1652,13 +1704,30 @@
         html[data-theme="dark"] textarea::placeholder {
             color: var(--app-text-muted) !important;
         }
+        .sap-import-job-input {
+            width: 100%;
+            min-height: 38px;
+            border: 1px solid #cdd4dc;
+            border-radius: 10px;
+            padding: 8px 10px;
+            background: #fff;
+            color: #17354a;
+            font: inherit;
+            font-size: 12px;
+        }
+        .sap-import-job-input:focus {
+            outline: none;
+            border-color: #8fc8e8;
+            box-shadow: 0 0 0 3px rgba(11,129,184,.12);
+        }
+        html[data-theme="dark"] .sap-import-job-input {
+            border-color: var(--app-border-strong) !important;
+            background: var(--app-surface-soft) !important;
+            color: var(--app-text) !important;
+        }
         html[data-theme="dark"] .toggle-btn,
         html[data-theme="dark"] .sap-security-actions .action-btn,
-        html[data-theme="dark"] .sap-security-actions .action-btn-primary,
-        html[data-theme="dark"] .user-admin-create-button,
-        html[data-theme="dark"] .permission-admin-create-button,
-        html[data-theme="dark"] .permission-admin-delete-button,
-        html[data-theme="dark"] .user-admin-delete-button {
+        html[data-theme="dark"] .sap-security-actions .action-btn-primary {
             border-color: var(--app-border-strong) !important;
             background: linear-gradient(180deg, var(--app-surface-soft) 0%, var(--app-surface) 100%) !important;
             color: var(--app-text-soft) !important;
@@ -1680,9 +1749,7 @@
         }
         html[data-theme="dark"] .toggle-btn:hover,
         html[data-theme="dark"] .sap-security-actions .action-btn:hover,
-        html[data-theme="dark"] .sap-security-actions .action-btn-primary:hover,
-        html[data-theme="dark"] .user-admin-create-button:hover,
-        html[data-theme="dark"] .permission-admin-create-button:hover {
+        html[data-theme="dark"] .sap-security-actions .action-btn-primary:hover {
             border-color: var(--app-primary) !important;
             background: var(--app-primary-soft) !important;
             color: var(--app-primary-strong) !important;
@@ -2481,22 +2548,42 @@
             font-size: 18px;
             color: #223140;
         }
-        .user-admin-create-button {
-            width: 44px;
-            height: 44px;
-            border: 1px solid #cae2f1;
-            border-radius: 16px;
-            background: linear-gradient(180deg, #ffffff 0%, #eef7fd 100%);
-            box-shadow: 0 12px 28px rgba(11, 129, 184, 0.12);
-            color: #118fc6;
+        .user-admin-create-button,
+        .user-admin-delete-button,
+        .permission-admin-create-button,
+        .permission-admin-delete-button {
+            border: 0 !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            cursor: pointer;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            cursor: pointer;
+            transition: transform .16s ease, color .16s ease;
         }
-        .user-admin-create-button:hover {
+        .user-admin-create-button,
+        .permission-admin-create-button {
+            width: 32px;
+            height: 32px;
+            color: #118fc6;
+        }
+        .user-admin-create-button:hover,
+        .permission-admin-create-button:hover {
             transform: translateY(-1px);
-            box-shadow: 0 14px 30px rgba(11, 129, 184, 0.18);
+            color: #0b81b8;
+            background: transparent !important;
+        }
+        .user-admin-delete-button,
+        .permission-admin-delete-button {
+            width: 32px;
+            height: 32px;
+            color: #b94848;
+        }
+        .user-admin-delete-button:hover,
+        .permission-admin-delete-button:hover {
+            transform: translateY(-1px);
+            color: #d03535;
+            background: transparent !important;
         }
         .user-admin-table-wrap {
             border: 1px solid #d8dde3;
@@ -2508,9 +2595,15 @@
             width: 100%;
             border-collapse: collapse;
         }
+        .user-admin-table td {
+            padding: 0;
+            border-bottom: 1px solid #ebf0f4;
+        }
+        .user-admin-table tbody tr:last-child td {
+            border-bottom: 0;
+        }
         .user-admin-table tbody tr {
             cursor: pointer;
-            transition: background-color 0.18s ease;
         }
         .user-admin-table tbody tr:hover {
             background: #f3f9fd;
@@ -2518,84 +2611,21 @@
         .user-admin-table tbody tr.is-selected {
             background: linear-gradient(180deg, #eef8fe 0%, #e2f3fc 100%);
         }
-        .user-admin-table td {
-            padding: 12px 14px;
-            border-bottom: 1px solid #ebf0f4;
-            vertical-align: middle;
-        }
-        .user-admin-table tbody tr:last-child td {
-            border-bottom: 0;
-        }
-        .user-admin-row-main {
+        .user-admin-row-shell {
             display: flex;
             align-items: center;
+            justify-content: space-between;
             gap: 12px;
-        }
-        .user-admin-avatar,
-        .user-admin-detail-avatar {
-            border-radius: 999px;
-            background: linear-gradient(180deg, #24a8df 0%, #118fc6 100%);
-            color: #fff;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            flex-shrink: 0;
-            text-transform: uppercase;
-            font-weight: 700;
-        }
-        .user-admin-avatar {
-            width: 46px;
-            height: 46px;
-            font-size: 15px;
-            box-shadow: 0 8px 18px rgba(17,143,198,0.18);
-        }
-        .user-admin-avatar img,
-        .user-admin-detail-avatar img {
             width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .user-admin-row-text {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
             min-width: 0;
+            box-sizing: border-box;
+            padding: 10px 8px 10px 12px;
         }
-        .user-admin-row-name {
-            font-size: 13px;
-            font-weight: 700;
-            color: #223140;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .user-admin-row-department {
-            font-size: 11px;
-            color: #71808d;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .user-admin-row-permission {
-            font-size: 11px;
-            color: #4f6b80;
-            line-height: 1.35;
-        }
-        .user-admin-delete-button {
-            width: 34px;
-            height: 34px;
-            border: 1px solid #f0d4d4;
-            border-radius: 12px;
-            background: linear-gradient(180deg, #ffffff 0%, #fff6f6 100%);
-            color: #b94848;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-        }
-        .user-admin-delete-button:hover {
-            background: #fff0f0;
+        .user-admin-row-actions {
+            display: grid;
+            gap: 8px;
+            justify-items: end;
+            flex: 0 0 auto;
         }
         .user-admin-empty {
             padding: 24px 18px;
@@ -2636,12 +2666,67 @@
             align-items: center;
             gap: 16px;
         }
+        .user-admin-avatar,
+        .user-admin-detail-avatar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            overflow: hidden;
+            background: #eef4f8;
+            color: #118fc6;
+            font-weight: 700;
+            flex-shrink: 0;
+            border: 2px solid #fff;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        .user-admin-avatar {
+            width: 42px;
+            height: 42px;
+            font-size: 15px;
+        }
         .user-admin-detail-avatar {
             width: 88px;
             height: 88px;
             font-size: 28px;
             cursor: pointer;
             box-shadow: 0 14px 30px rgba(17,143,198,0.18);
+        }
+        .user-admin-avatar img,
+        .user-admin-detail-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .user-admin-row-main {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+            flex: 1 1 auto;
+        }
+        .user-admin-row-text {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+        .user-admin-row-name {
+            font-size: 14px;
+            font-weight: 700;
+            color: #223140;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .user-admin-row-department,
+        .user-admin-row-permission {
+            font-size: 11px;
+            color: #6a7b88;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .user-admin-detail-meta {
             display: grid;
@@ -3352,6 +3437,14 @@
             background: rgba(136, 35, 35, 0.22) !important;
             color: #ffd3d3 !important;
         }
+        html[data-theme="dark"] .user-admin-delete-button,
+        html[data-theme="dark"] .permission-admin-delete-button,
+        html[data-theme="dark"] .user-admin-delete-button:hover,
+        html[data-theme="dark"] .permission-admin-delete-button:hover {
+            border-color: transparent !important;
+            background: transparent !important;
+            box-shadow: none !important;
+        }
         html[data-theme="dark"] .user-admin-notifications-panel,
         html[data-theme="dark"] .user-admin-notification-check {
             background: var(--app-surface);
@@ -3407,29 +3500,6 @@
             margin: 0;
             font-size: 18px;
             color: #223140;
-        }
-        .permission-admin-create-button,
-        .permission-admin-delete-button {
-            border: 1px solid #cae2f1;
-            border-radius: 16px;
-            background: linear-gradient(180deg, #ffffff 0%, #eef7fd 100%);
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-        }
-        .permission-admin-create-button {
-            width: 44px;
-            height: 44px;
-            box-shadow: 0 12px 28px rgba(11, 129, 184, 0.12);
-            color: #118fc6;
-        }
-        .permission-admin-delete-button {
-            width: 36px;
-            height: 36px;
-            color: #b94848;
-            border-color: #f0d4d4;
-            background: linear-gradient(180deg, #ffffff 0%, #fff6f6 100%);
         }
         .permission-admin-table-wrap {
             border: 1px solid #d8dde3;
@@ -3524,7 +3594,7 @@
         .permission-admin-header-row {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            justify-content: flex-start;
             gap: 14px;
             margin-bottom: 18px;
         }
@@ -4477,6 +4547,7 @@
                         <button type="button" class="config-tab active" data-tab="diseno">Diseño</button>
                         <button type="button" class="config-tab" data-tab="cotizaciones">Cotizaciones</button>
                         <button type="button" class="config-tab" data-tab="seguridad">Seguridad</button>
+                        <button type="button" id="configTabSap" class="config-tab" data-tab="sap">SAP</button>
                         <button type="button" id="configTabNotificaciones" class="config-tab" data-tab="notificaciones">Notificaciones</button>
                         <button type="button" class="config-tab" data-tab="nomenclaturas">Nomenclaturas</button>
                         <button type="button" class="config-tab" data-tab="auditoria">Auditoría</button>
@@ -4489,8 +4560,8 @@
                             <button type="button" class="design-subtab" data-design-tab="repositorio">Repositorio</button>
                             <button type="button" class="design-subtab" data-design-tab="iconos">Iconos</button>
                             <button type="button" class="design-subtab" data-design-tab="colores-tabs">Colores de Tabs</button>
-                            <button type="button" class="design-subtab" data-design-tab="presentaciones">Presentaciones</button>
-                            <button type="button" class="design-subtab" data-design-tab="favoritos">Control de Favoritos</button>
+                            <button type="button" class="design-subtab" data-design-tab="favoritos">Botón flotante</button>
+                            <button type="button" class="design-subtab" data-design-tab="vista-movil">Vista móvil</button>
                         </div>
 
                         <div id="tab-datos-generales" class="design-subpanel">
@@ -5112,278 +5183,9 @@
                         </section>
                     </div>
 
-                    <!-- PRESENTACIONES -->
-                        <div id="tab-presentaciones" class="design-subpanel" hidden>
-                        
-                        <section class="config-card">
-                            <h2>Seleccionar Presentación</h2>
-                            <div class="config-form-row">
-                                <label>
-                                    <span>Presentación</span>
-                                    <select id="presentationKey" style="width:200px;">
-                                        <option value="cotizaciones">Cotizaciones</option>
-                                        <option value="solicitudes">Solicitudes</option>
-                                        <option value="calculos">Cálculos</option>
-                                        <option value="socios">Socios</option>
-                                        <option value="inventario-mp">Inventario Materia Prima</option>
-                                        <option value="inventario-troqueles">Inventario Troqueles</option>
-                                        <option value="inventario-maquinaria">Inventario Maquinaria</option>
-                                        <option value="costos">Costos</option>
-                                        <option value="vendedores">Vendedores</option>
-                                        <option value="ordenes">Ordenes</option>
-                                        <option value="seguimiento">Seguimiento</option>
-                                    </select>
-                                </label>
-                            </div>
-                        </section>
-
-                        <!-- Nombre -->
-                        <section class="config-card">
-                            <h2 class="config-section-title">Nombre</h2>
-                            <div class="config-form-row">
-                                <label><span>Nombre Presentación</span><input id="presentationModuleTitle" type="text" style="width:150px;"></label>
-                            </div>
-                        </section>
-
-                        <!-- Encabezado -->
-                        <section class="section-with-preview" hidden>
-                            <div>
-                                <h2 class="config-section-title">Encabezado</h2>
-                                <div class="config-form-row">
-                                    <label><span>Fuente</span>
-                                        <select id="presentationTitleFontFamily" style="width:180px;">
-                                            <option value="">Heredada</option>
-                                            <option value="Segoe UI, Tahoma, Geneva, Verdana, sans-serif">Segoe UI</option>
-                                            <option value="Arial, Helvetica, sans-serif">Arial</option>
-                                            <option value="Georgia, Times New Roman, serif">Georgia</option>
-                                        </select>
-                                    </label>
-                                    <label><span>Tamaño</span><input id="presentationTitleFontSize" type="number" value="16" style="width:65px;"></label>
-                                    <label><span>Ancho</span><input id="presentationTitleWidth" type="number" value="0" style="width:65px;"></label>
-                                    <label><span>Color</span><input id="presentationTitleColor" type="color" value="#ffffff" class="color-field"></label>
-                                </div>
-                                <div class="config-form-row">
-                                    <label><span>Alineación Vertical</span>
-                                        <button type="button" class="toggle-btn" data-field="presentation.titleVerticalAlign" data-values="flex-start,center,flex-end" data-icons="↑,↔,↓">↔</button>
-                                        <input type="hidden" id="presentationTitleVerticalAlign" value="">
-                                    </label>
-                                    <label><span>Alineación Horizontal</span>
-                                        <button type="button" class="toggle-btn" data-field="presentation.titleHorizontalAlign" data-values="left,center,right" data-icons="←,↔,→">←</button>
-                                        <input type="hidden" id="presentationTitleHorizontalAlign" value="">
-                                    </label>
-                                    <label><span>Fondo Color Inicial</span><input id="presentationHeaderBgStart" type="color" value="#0b81b8" class="color-field"></label>
-                                    <label><span>Fondo Color Final</span><input id="presentationHeaderBgEnd" type="color" value="#17abdf" class="color-field"></label>
-                                    <label><span>Color Línea Pie</span><input id="presentationFooterBorderColor" type="color" value="#11a3dd" class="color-field"></label>
-                                </div>
-                            </div>
-                            <div class="preview-panel">
-                                <div class="preview-title">Prevista</div>
-                                <div class="preview-header">
-                                    <span style="color:#fff; font-size:14px;" id="previewPresTitle">Título</span>
-                                </div>
-                            </div>
-                        </section>
-
-                        <!-- Título -->
-                        <section class="config-card">
-                            <h2 class="config-section-title">Título</h2>
-                            <div class="config-form-row">
-                                <label><span>Fuente</span>
-                                    <select id="presentationBrandFontFamily" style="width:200px;">
-                                        <option value="">Heredada</option>
-                                        <option value="Georgia, Times New Roman, serif">Georgia</option>
-                                        <option value="Segoe UI, Tahoma, Geneva, Verdana, sans-serif">Segoe UI</option>
-                                        <option value="Arial, Helvetica, sans-serif">Arial</option>
-                                    </select>
-                                </label>
-                                <label><span>Tamaño</span><input id="presentationBrandFontSize" type="number" value="22" style="width:65px;"></label>
-                                <label><span>Margen</span><input id="presentationTitleMarginLeft" type="number" value="30" style="width:65px;"></label>
-                                <label><span>Alineación Vertical</span>
-                                    <button type="button" class="toggle-btn" data-field="presentation.brandVerticalAlign" data-values="flex-start,center,flex-end" data-icons="↑,↔,↓">↔</button>
-                                    <input type="hidden" id="presentationBrandVerticalAlign" value="">
-                                </label>
-                                <label><span>Posición Logo</span>
-                                    <select id="presentationLogoPosition" style="width:150px;">
-                                        <option value="">Heredada</option>
-                                        <option value="left">Izquierda del Texto</option>
-                                        <option value="right">Derecha del Texto</option>
-                                        <option value="hide_text">Ocultar Texto</option>
-                                    </select>
-                                </label>
-                                <label><span>Ancho Bloque Empresa</span><input id="presentationBrandWidth" type="number" value="116" style="width:65px;"></label>
-                            </div>
-                        </section>
-
-                        <!-- Pie -->
-                        <section class="section-with-preview">
-                            <div>
-                                <h2 class="config-section-title">Pie</h2>
-                                <div class="config-form-row">
-                                    <label><span>Fuente</span>
-                                        <select id="presentationFooterFontFamily" style="width:200px;">
-                                            <option value="">Heredada</option>
-                                            <option value="Segoe UI, Tahoma, Geneva, Verdana, sans-serif">Segoe UI</option>
-                                            <option value="Arial, Helvetica, sans-serif">Arial</option>
-                                        </select>
-                                    </label>
-                                    <label><span>Tamaño</span><input id="presentationFooterFontSize" type="number" value="12" style="width:65px;"></label>
-                                    <label><span>Color</span><input id="presentationFooterColor" type="color" value="#2f3740" class="color-field"></label>
-                                    <label><span>Margen Superior</span><input id="presentationFooterMarginTop" type="number" value="0" style="width:65px;"></label>
-                                    <label><span>Margen Inferior</span><input id="presentationFooterMarginBottom" type="number" value="0" style="width:65px;"></label>
-                                </div>
-                            </div>
-                            <div class="preview-panel">
-                                <div class="preview-title">Prevista</div>
-                                <div style="padding:12px; border-top:2px solid #11a3df; font-size:12px;">Pie de página</div>
-                            </div>
-                        </section>
-
-                        <!-- Campos -->
-                        <section class="config-card">
-                            <h2 class="config-section-title">Campos</h2>
-                            <div class="config-form-row">
-                                <label><span>Alto</span><input id="presentationFieldHeight" type="number" value="18" style="width:65px;"></label>
-                                <label><span>Tamaño Fuente</span><input id="presentationFieldFontSize" type="number" value="12" style="width:65px;"></label>
-                                <label><span>Alineación Etiquetas</span>
-                                    <select id="presentationLabelAlign" style="width:100px;">
-                                        <option value="">Heredada</option>
-                                        <option value="left">Izquierda</option>
-                                        <option value="center">Centro</option>
-                                        <option value="right">Derecha</option>
-                                    </select>
-                                </label>
-                                <label><span>Límite Ancho Medio</span><input id="presentationMediumInputWidth" type="number" value="0" style="width:65px;"></label>
-                                <label><span>Límite Ancho Grande</span><input id="presentationLargeInputWidth" type="number" value="0" style="width:65px;"></label>
-                            </div>
-                        </section>
-
-                        <!-- Tabla -->
-                        <section class="config-card">
-                            <h2 class="config-section-title">Tabla</h2>
-                            <div class="config-form-row">
-                                <label><span>Fuente Encabezado</span>
-                                    <select id="presentationTableHeaderFontFamily" style="width:200px;">
-                                        <option value="">Heredada</option>
-                                        <option value="Segoe UI, Tahoma, Geneva, Verdana, sans-serif">Segoe UI</option>
-                                        <option value="Arial, Helvetica, sans-serif">Arial</option>
-                                    </select>
-                                </label>
-                                <label><span>Tamaño</span><input id="presentationTableHeaderFontSize" type="number" value="11" style="width:65px;"></label>
-                                <label><span>Alto Pestaña</span><input id="presentationTabHeight" type="number" value="18" style="width:65px;"></label>
-                                <label><span>Ancho Pestaña</span><input id="presentationTabWidth" type="number" value="88" style="width:65px;"></label>
-                                <label><span>Alto Fila</span><input id="presentationTableRowHeight" type="number" value="22" style="width:65px;"></label>
-                            </div>
-                        </section>
-
-                        <!-- Iconos -->
-                        <section class="config-card">
-                            <h2 class="config-section-title">Iconos</h2>
-                            <div class="config-form-row">
-                                <label><span>Tamaño</span><input id="presentationIconSize" type="number" value="20" style="width:65px;"></label>
-                            </div>
-                        </section>
-
-                        <!-- Detalles Layout -->
-                        <section class="config-card">
-                            <h2 class="config-section-title">Detalles Layout</h2>
-                            <div class="config-form-row">
-                                <label><span>Margen Superior</span><input id="presentationPageMarginTop" type="number" value="14" style="width:65px;"></label>
-                                <label><span>Margen Inferior</span><input id="presentationPageMarginBottom" type="number" value="8" style="width:65px;"></label>
-                                <label><span>Margen Derecho</span><input id="presentationPageMarginRight" type="number" value="16" style="width:65px;"></label>
-                                <label><span>Margen Izquierdo</span><input id="presentationPageMarginLeft" type="number" value="16" style="width:65px;"></label>
-                            </div>
-                        </section>
-                    </div>
-
                         <div id="tab-favoritos" class="design-subpanel" hidden>
                         <section class="config-card">
-                            <h2>Control de Favoritos</h2>
-                            <div class="favorites-config-grid">
-                                <div class="favorites-controls-grid">
-                                    <label class="favorites-slider-group">
-                                        <span class="favorites-slider-label">Espaciado</span>
-                                        <div class="favorites-slider-row">
-                                            <input type="range" min="5" max="60" step="1" value="19" name="general.favoriteDrumSpacing" id="favoriteDrumSpacing">
-                                            <span class="favorites-slider-value" id="favoriteDrumSpacingValue">19</span>
-                                        </div>
-                                    </label>
-                                    <label class="favorites-slider-group">
-                                        <span class="favorites-slider-label">Diámetro</span>
-                                        <div class="favorites-slider-row">
-                                            <input type="range" min="40" max="240" step="1" value="88" name="general.favoriteDrumRadius" id="favoriteDrumRadius">
-                                            <span class="favorites-slider-value" id="favoriteDrumRadiusValue">88</span>
-                                        </div>
-                                    </label>
-                                    <label class="favorites-slider-group">
-                                        <span class="favorites-slider-label">Dispersión</span>
-                                        <div class="favorites-slider-row">
-                                            <input type="range" min="0" max="10" step="0.5" value="2.5" name="general.favoriteDrumBlur" id="favoriteDrumBlur">
-                                            <span class="favorites-slider-value" id="favoriteDrumBlurValue">2.5</span>
-                                        </div>
-                                    </label>
-                                    <label class="favorites-slider-group">
-                                        <span class="favorites-slider-label">Contraste secundarios</span>
-                                        <div class="favorites-slider-row">
-                                            <input type="range" min="1" max="12" step="1" value="8" name="general.favoriteDrumContrast" id="favoriteDrumContrast">
-                                            <span class="favorites-slider-value" id="favoriteDrumContrastValue">8</span>
-                                        </div>
-                                    </label>
-                                    <label class="favorites-slider-group">
-                                        <span class="favorites-slider-label">Tamaño fuente activo</span>
-                                        <div class="favorites-slider-row">
-                                            <input type="range" min="0" max="8" step="0.5" value="3" name="general.favoriteDrumFontBoost" id="favoriteDrumFontBoost">
-                                            <span class="favorites-slider-value" id="favoriteDrumFontBoostValue">3</span>
-                                        </div>
-                                    </label>
-                                    <label class="favorites-slider-group">
-                                        <span class="favorites-slider-label">Altura visor</span>
-                                        <div class="favorites-slider-row">
-                                            <input type="range" min="180" max="320" step="5" value="220" name="general.favoriteDrumHeight" id="favoriteDrumHeight">
-                                            <span class="favorites-slider-value" id="favoriteDrumHeightValue">220</span>
-                                        </div>
-                                    </label>
-                                    <label class="favorites-slider-group">
-                                        <span class="favorites-slider-label">Intensidad sombra</span>
-                                        <div class="favorites-slider-row">
-                                            <input type="range" min="0" max="80" step="1" value="45" name="general.favoriteDrumShadowOpacity" id="favoriteDrumShadowOpacity">
-                                            <span class="favorites-slider-value" id="favoriteDrumShadowOpacityValue">45</span>
-                                        </div>
-                                    </label>
-                                    <label class="favorites-slider-group">
-                                        <span class="favorites-slider-label">Difusión sombra</span>
-                                        <div class="favorites-slider-row">
-                                            <input type="range" min="1" max="20" step="1" value="5" name="general.favoriteDrumShadowBlur" id="favoriteDrumShadowBlur">
-                                            <span class="favorites-slider-value" id="favoriteDrumShadowBlurValue">5</span>
-                                        </div>
-                                    </label>
-                                    <label class="favorites-slider-group">
-                                        <span class="favorites-slider-label">Desplazamiento Y</span>
-                                        <div class="favorites-slider-row">
-                                            <input type="range" min="-8" max="8" step="1" value="2" name="general.favoriteDrumShadowOffsetY" id="favoriteDrumShadowOffsetY">
-                                            <span class="favorites-slider-value" id="favoriteDrumShadowOffsetYValue">2</span>
-                                        </div>
-                                    </label>
-                                    <label class="favorites-slider-group">
-                                        <span class="favorites-slider-label">Color sombra</span>
-                                        <div class="favorites-slider-row">
-                                            <input type="color" value="#000000" name="general.favoriteDrumShadowColor" id="favoriteDrumShadowColor" class="color-field">
-                                            <span class="favorites-slider-value" id="favoriteDrumShadowColorValue">#000000</span>
-                                        </div>
-                                    </label>
-                                </div>
-                                <div class="favorites-preview-shell">
-                                    <div class="preview-panel">
-                                        <div class="preview-title">Vista previa</div>
-                                        <div class="favorites-preview-viewport" id="favoriteDrumPreviewViewport">
-                                            <canvas id="favoriteDrumPreviewCanvas" class="favorites-preview-canvas" width="360" height="220"></canvas>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-
-                        <section class="config-card">
-                            <h2>Botón Flotante General</h2>
+                            <h2>Botón flotante</h2>
                             <div class="config-form-row">
                                 <label>
                                     <span>Tema</span>
@@ -5441,7 +5243,9 @@
                                 <label><span>Color íconos secundarios</span><input name="general.bdfgMiniColor" id="bdfgMiniColor" type="color" value="#1f2937" class="color-field"></label>
                             </div>
                         </section>
+                        </div>
 
+                        <div id="tab-vista-movil" class="design-subpanel" hidden>
                         <section class="config-card">
                             <h2>Vista móvil vendedores</h2>
                             <div class="config-form-row">
@@ -5485,11 +5289,31 @@
                             <h2>Nomenclaturas</h2>
                             <div class="config-form-row">
                                 <label>
-                                    <span>Nomenclatura de socio</span>
+                                    <span>Socio</span>
                                     <input name="general.partnerCodePrefix" type="text" maxlength="10" style="width:180px;" placeholder="CL">
                                 </label>
+                                <label>
+                                    <span>Cotización</span>
+                                    <input name="general.quoteCodePrefix" type="text" maxlength="10" style="width:180px;" placeholder="C-">
+                                </label>
+                                <label>
+                                    <span>Línea cot.</span>
+                                    <input name="general.quoteLineCodePrefix" type="text" maxlength="10" style="width:180px;" placeholder="LC">
+                                </label>
+                                <label>
+                                    <span>Producto</span>
+                                    <input name="general.productCodePrefix" type="text" maxlength="10" style="width:180px;" placeholder="P-">
+                                </label>
+                                <label>
+                                    <span>Orden</span>
+                                    <input name="general.orderCodePrefix" type="text" maxlength="10" style="width:180px;" placeholder="OP-">
+                                </label>
+                                <label>
+                                    <span>Plancha</span>
+                                    <input name="general.plateInventoryCodePrefix" type="text" maxlength="10" style="width:180px;" placeholder="PL-">
+                                </label>
                             </div>
-                            <p class="config-status" style="margin-top:4px;">Este prefijo se usará para generar el código del socio con su consecutivo.</p>
+                            <p class="config-status" style="margin-top:4px;">Estos prefijos se usarán para generar consecutivos de socios, cotizaciones, líneas, productos, órdenes y planchas.</p>
                         </section>
                     </div>
 
@@ -5508,7 +5332,7 @@
                                         <h2 class="config-section-title">Tipos de Producto</h2>
                                         <div class="quote-product-types-toolbar">
                                             <p>Esta lista alimenta Nueva Cotización y el cálculo general.</p>
-                                            <button id="quoteProductTypeAddButton" type="button" class="quote-product-types-add">Agregar</button>
+                                            <button id="quoteProductTypeAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
                                         </div>
                                         <div class="quote-product-types-table-wrap">
                                             <table class="quote-product-types-table">
@@ -5966,7 +5790,7 @@
                                             <h2>Tipos de Salida</h2>
                                         </div>
                                         <div class="quote-output-types-actions">
-                                            <button type="button" id="quoteOutputTypesAddButton" class="action-btn">Agregar Línea</button>
+                                            <button type="button" id="quoteOutputTypesAddButton" class="icon-only-btn" aria-label="Agregar línea" title="Agregar línea"></button>
                                             <p id="quoteOutputTypesStatus" class="quote-output-types-status">Listo para editar.</p>
                                         </div>
                                     </div>
@@ -6084,11 +5908,11 @@
                                                 <input id="exchangeRateUpdateTime" type="time" value="00:00">
                                             </label>
                                             <div class="exchange-rate-config-span">
-                                                <span style="display:block; margin-bottom:6px; font-size:12px; font-weight:700; color:#28465c;">Días de actualización</span>
+                                                <span style="display:block; margin-bottom:6px; font-size:12px; font-weight:600; color:#28465c;">Días de actualización</span>
                                                 <div id="exchangeRateDays" class="exchange-rate-chip-grid"></div>
                                             </div>
                                             <div class="exchange-rate-config-span">
-                                                <span style="display:block; margin-bottom:6px; font-size:12px; font-weight:700; color:#28465c;">Monedas habilitadas para proforma</span>
+                                                <span style="display:block; margin-bottom:6px; font-size:12px; font-weight:600; color:#28465c;">Monedas habilitadas para proforma</span>
                                                 <div id="exchangeRateCurrencies" class="exchange-rate-chip-grid"></div>
                                             </div>
                                         </div>
@@ -6123,7 +5947,7 @@
                             <div class="security-subtabs">
                                 <button type="button" class="security-subtab active" data-security-tab="usuarios">Usuarios</button>
                                 <button type="button" class="security-subtab" data-security-tab="permisos">Permisos</button>
-                                <button type="button" class="security-subtab" data-security-tab="sap">SAP</button>
+                                <button type="button" class="security-subtab" data-security-tab="sap" hidden>SAP</button>
                                 <button type="button" id="securityTabLlaves" class="security-subtab" data-security-tab="llaves">Llaves</button>
                             </div>
 
@@ -6191,6 +6015,10 @@
                                                 <label>
                                                     <span>Permiso</span>
                                                     <select id="userAdminFieldPermission"></select>
+                                                </label>
+                                                <label>
+                                                    <span>Entrada</span>
+                                                    <select id="userAdminFieldLanding"></select>
                                                 </label>
                                                 <label id="userAdminFieldSapSalespersonWrapper" class="user-admin-sap-salesperson" hidden>
                                                     <span>Vendedor SAP</span>
@@ -6262,7 +6090,6 @@
                                                     <h2 id="permissionAdminDetailName">Permiso</h2>
                                                     <span id="permissionAdminDetailSubline">Sin configuración</span>
                                                 </div>
-                                                <button type="button" id="permissionAdminDeleteButton" class="permission-admin-delete-button" aria-label="Eliminar permiso" title="Eliminar permiso"></button>
                                             </div>
                                             <div class="permission-admin-summary-strip">
                                                 <div class="permission-admin-summary-chip">
@@ -6316,12 +6143,46 @@
 
                             <div id="security-panel-sap" class="security-subpanel" hidden>
                                 <div class="sap-security-subtabs">
-                                    <button type="button" class="sap-security-subtab active" data-sap-tab="config">Configuración</button>
+                                    <button type="button" class="sap-security-subtab active" data-sap-tab="envios">Envíos</button>
+                                    <button type="button" class="sap-security-subtab" data-sap-tab="registros">Importación</button>
+                                    <button type="button" class="sap-security-subtab" data-sap-tab="automatizacion">Automatización</button>
                                     <button type="button" class="sap-security-subtab" data-sap-tab="tablas">Tablas</button>
-                                    <button type="button" class="sap-security-subtab" data-sap-tab="registros">Registros</button>
+                                    <button type="button" class="sap-security-subtab" data-sap-tab="config">Configuración</button>
                                 </div>
 
-                                <div id="sap-tab-config" class="sap-security-tabpanel">
+                                <div id="sap-tab-envios" class="sap-security-tabpanel">
+                                    <section class="sap-security-card">
+                                        <div class="sap-records-toolbar">
+                                            <div>
+                                                <h3>Envíos SAP</h3>
+                                                <p class="section-caption">Historial de documentos enviados desde el ERP hacia SAP, ordenado del más nuevo al más viejo.</p>
+                                            </div>
+                                            <div class="sap-security-actions">
+                                                <button type="button" id="sapShipmentsRefreshButton" class="action-btn">Actualizar</button>
+                                            </div>
+                                        </div>
+                                        <div id="sapShipmentsStatus" class="sap-security-empty">Cargando envíos SAP...</div>
+                                        <div class="audit-table-wrap sap-records-table-wrap">
+                                            <table class="audit-table sap-records-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Cuándo</th>
+                                                        <th>Documento</th>
+                                                        <th>Referencia</th>
+                                                        <th>Destino</th>
+                                                        <th>Estado</th>
+                                                        <th>Resultado</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="sapShipmentsTableBody">
+                                                    <tr><td colspan="6" class="audit-empty">Sin envíos todavía.</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </section>
+                                </div>
+
+                                <div id="sap-tab-config" class="sap-security-tabpanel" hidden>
                                 <div class="sap-security-shell">
                                     <div class="sap-security-main">
                                         <section class="sap-security-card">
@@ -6609,12 +6470,12 @@
                                     </section>
                                 </div>
 
-                                <div id="sap-tab-registros" class="sap-security-tabpanel" hidden>
+                                <div id="sap-tab-automatizacion" class="sap-security-tabpanel" hidden>
                                     <section class="sap-security-card">
                                         <div class="sap-records-toolbar">
                                             <div>
                                                 <h3>Automatización de Cargas SAP</h3>
-                                                <p class="section-caption">Activa cargas automáticas para socios e inventario. Cada ejecución quedará visible en el historial inferior.</p>
+                                                <p class="section-caption">Activa cargas automáticas para socios e inventario. Si una ejecución falla, el trabajo queda activo y se reintenta en el siguiente intervalo.</p>
                                             </div>
                                             <div class="sap-security-actions">
                                                 <button type="button" id="sapImportJobsRefreshButton" class="action-btn">Actualizar</button>
@@ -6642,12 +6503,14 @@
                                             </table>
                                         </div>
                                     </section>
+                                </div>
 
+                                <div id="sap-tab-registros" class="sap-security-tabpanel" hidden>
                                     <section class="sap-security-card">
                                         <div class="sap-records-toolbar">
                                             <div>
-                                                <h3>Registros SAP</h3>
-                                                <p class="section-caption">Historial técnico. Import = carga desde SAP, Query = consulta puntual, Sync = sincronización, Test = prueba técnica.</p>
+                                                <h3>Importación SAP</h3>
+                                                <p class="section-caption">Consultas, importaciones y sincronización recibida desde SAP hacia el ERP.</p>
                                             </div>
                                             <div class="sap-security-actions">
                                                 <button type="button" id="sapActivityApplyButton" class="action-btn action-btn-primary">Filtrar</button>
@@ -7177,6 +7040,31 @@
         let notificationCenterAttachmentDraft = null;
         let proformaCurrencyRows = [];
 
+        function getIconHtml(key, fallbackText, fallbackColor, fallbackSize) {
+            const suffix = String(key || '').split(/[.\s_-]+/).filter(Boolean).map(part => part.charAt(0).toUpperCase() + part.slice(1)).join('');
+            const input = document.querySelector(`input[name="icons.${key}"]`);
+            const value = loadedConfig?.icons?.[key] || input?.value || fallbackText;
+            const color = loadedConfig?.general?.[`iconColor${suffix}`] || fallbackColor;
+            const size = Number(loadedConfig?.general?.[`iconSize${suffix}`]) || fallbackSize;
+            
+            if (value && String(value).startsWith('data:image/svg')) {
+                return `<span class="icon-svg-mask" style="-webkit-mask-image:url('${value}');mask-image:url('${value}');width:${size}px;height:${size}px;background-color:${color};display:inline-block;vertical-align:middle;"></span>`;
+            }
+            if (value && String(value).startsWith('data:image')) {
+                return `<img src="${value}" style="width:${size}px;height:${size}px;vertical-align:middle;object-fit:contain;">`;
+            }
+            // Forzar Segoe UI Emoji para evitar versiones wireframe en Windows
+            return `<span style="color:${color};font-size:${size}px;vertical-align:middle;display:inline-block;line-height:1;font-family:'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;">${value}&#xFE0F;</span>`;
+        }
+
+        function renderConfigButtonsIcons() {
+            const productTypeAddBtn = document.getElementById('quoteProductTypeAddButton');
+            if (productTypeAddBtn) productTypeAddBtn.innerHTML = getIconHtml('quantity.add', '+', '#738196', 20);
+
+            const outputTypeAddBtn = document.getElementById('quoteOutputTypesAddButton');
+            if (outputTypeAddBtn) outputTypeAddBtn.innerHTML = getIconHtml('quantity.add', '+', '#738196', 20);
+        }
+
         function readStoredErpSession() {
             try {
                 return JSON.parse(localStorage.getItem(ERP_SESSION_STORAGE_KEY) || sessionStorage.getItem(ERP_SESSION_STORAGE_KEY) || 'null');
@@ -7235,7 +7123,8 @@
             session.permissionName = permission?.name || user?.permissionName || '';
             session.sapSalespersonCode = user?.sapSalespersonCode == null ? null : Number(user.sapSalespersonCode);
             session.sapSalespersonName = user?.sapSalespersonName || '';
-            session.defaultLanding = permission?.defaultLanding || 'dashboard';
+            session.userDefaultLanding = normalizeOptionalPresentationKey(user?.defaultLanding);
+            session.defaultLanding = resolveAdminUserDefaultLanding(user);
             session.modules = createEmptyPermissionModules(permission?.modules || {});
             writeStoredErpSession(session);
             currentAdminProfile = {
@@ -7244,7 +7133,8 @@
                 name: user?.name || currentAdminProfile?.name || session.name || '',
                 username: user?.username || currentAdminProfile?.username || session.username || '',
                 permissionId: session.permissionId,
-                permissionName: session.permissionName
+                permissionName: session.permissionName,
+                defaultLanding: session.userDefaultLanding
             };
             applyNotificationCenterAccess();
         }
@@ -7256,13 +7146,15 @@
             if (!currentPermissionId || currentPermissionId !== Number(permission.id)) return;
             session.permissionId = Number(permission.id);
             session.permissionName = permission.name || session.permissionName || '';
-            session.defaultLanding = permission.defaultLanding || 'dashboard';
+            session.userDefaultLanding = normalizeOptionalPresentationKey(currentAdminProfile?.defaultLanding || session.userDefaultLanding);
+            session.defaultLanding = session.userDefaultLanding || normalizeOptionalPresentationKey(permission.defaultLanding) || 'dashboard';
             session.modules = createEmptyPermissionModules(permission.modules || {});
             writeStoredErpSession(session);
             currentAdminProfile = {
                 ...(currentAdminProfile || {}),
                 permissionId: session.permissionId,
-                permissionName: session.permissionName
+                permissionName: session.permissionName,
+                defaultLanding: session.userDefaultLanding
             };
             applyNotificationCenterAccess();
         }
@@ -7274,13 +7166,15 @@
             if (!currentPermissionId || currentPermissionId !== Number(permissionId)) return;
             session.permissionId = null;
             session.permissionName = '';
+            session.userDefaultLanding = '';
             session.defaultLanding = 'dashboard';
             session.modules = createEmptyPermissionModules();
             writeStoredErpSession(session);
             currentAdminProfile = {
                 ...(currentAdminProfile || {}),
                 permissionId: null,
-                permissionName: ''
+                permissionName: '',
+                defaultLanding: ''
             };
             applyNotificationCenterAccess();
         }
@@ -7332,6 +7226,7 @@
         const userAdminFieldDepartment = document.getElementById('userAdminFieldDepartment');
         const userAdminFieldProcess = document.getElementById('userAdminFieldProcess');
         const userAdminFieldPermission = document.getElementById('userAdminFieldPermission');
+        const userAdminFieldLanding = document.getElementById('userAdminFieldLanding');
         const userAdminFieldSapSalespersonWrapper = document.getElementById('userAdminFieldSapSalespersonWrapper');
         const userAdminFieldSapSalesperson = document.getElementById('userAdminFieldSapSalesperson');
         const userAdminFieldSapSalespersonCode = document.getElementById('userAdminFieldSapSalespersonCode');
@@ -7571,6 +7466,9 @@
         const sapAccountingStatus = document.getElementById('sapAccountingStatus');
         const sapSubtabs = [...document.querySelectorAll('.sap-security-subtab')];
         const sapTabPanels = [...document.querySelectorAll('.sap-security-tabpanel')];
+        const sapShipmentsRefreshButton = document.getElementById('sapShipmentsRefreshButton');
+        const sapShipmentsStatus = document.getElementById('sapShipmentsStatus');
+        const sapShipmentsTableBody = document.getElementById('sapShipmentsTableBody');
         const sapQueryEntity = document.getElementById('sapQueryEntity');
         const sapQuerySource = document.getElementById('sapQuerySource');
         const sapQueryFilterInput = document.getElementById('sapQueryFilterInput');
@@ -7629,6 +7527,7 @@
         let sapSalespersonOptionsLoadedOnce = false;
         let sapProductionCostCenterConfig = null;
         let sapActivityLoadedOnce = false;
+        let sapShipmentsLoadedOnce = false;
         let sapImportJobsLoadedOnce = false;
         let sapImportJobs = [];
         let sapMirrorLoadedOnce = false;
@@ -7649,8 +7548,13 @@
             { key: 'dashboardProducts', label: 'Dashboard Productos', group: 'Dashboard', placeholder: '\u25A3', color: '#0b81b8', size: 38 },
             { key: 'dashboardQuotes', label: 'Dashboard Cotizaciones', group: 'Dashboard', placeholder: '\u25A4', color: '#0b81b8', size: 38 },
             { key: 'dashboardNotifications', label: 'Dashboard Notificaciones', group: 'Dashboard', placeholder: '\u2709', color: '#0b81b8', size: 38 },
+            { key: 'notificationChatTitle', label: 'Título Notificaciones', group: 'Notificaciones', placeholder: '\u2709', color: '#0b81b8', size: 18 },
+            { key: 'notificationChatOpenCenter', label: 'Abrir Centro', group: 'Notificaciones', placeholder: '\u25F1', color: '#0b81b8', size: 16 },
+            { key: 'notificationChatAttach', label: 'Adjuntar Archivo', group: 'Notificaciones', placeholder: '\uD83D\uDCCE', color: '#607286', size: 16 },
+            { key: 'notificationChatSend', label: 'Enviar Mensaje', group: 'Notificaciones', placeholder: '\u27A4', color: '#0b81b8', size: 16 },
             { key: 'dashboardInventory', label: 'Dashboard Inventarios', group: 'Dashboard', placeholder: '\u25A5', color: '#0b81b8', size: 38 },
 { key: 'dashboardOrders', label: 'Dashboard Órdenes', group: 'Dashboard', placeholder: '\u2699', color: '#0b81b8', size: 38 },
+{ key: 'dashboardProduction', label: 'Dashboard Producción', group: 'Dashboard', placeholder: '\u{1F3ED}', color: '#0b81b8', size: 38 },
 { key: 'dashboardPlanning', label: 'Dashboard Planificación', group: 'Dashboard', placeholder: '\u25F3', color: '#0b81b8', size: 38 },
 { key: 'dashboardCosts', label: 'Dashboard Costos', group: 'Dashboard', placeholder: '\u25A7', color: '#0b81b8', size: 38 },
             { key: 'dashboardSettings', label: 'Dashboard Configuración', group: 'Dashboard', placeholder: '\u2692', color: '#0b81b8', size: 38 },
@@ -7682,6 +7586,12 @@
             { key: 'lineCreateOrder', label: 'Orden Produccion', group: 'Acciones Documento', placeholder: '\u2692', color: '#46515d', size: 18 },
             { key: 'lineCreateProductionOrder', label: 'Crear Orden Produccion', group: 'Acciones Documento', placeholder: '\u21E2', color: '#0b81b8', size: 18 },
             { key: 'lineDelete', label: 'Eliminar Linea', group: 'Acciones Documento', placeholder: '\u2715', color: '#a74343', size: 18 },
+            { key: 'quoteExpand', label: 'Expandir Cotizacion', group: 'Acciones Documento', placeholder: '\u25B8', color: '#607286', size: 18 },
+            { key: 'quoteCollapse', label: 'Contraer Cotizacion', group: 'Acciones Documento', placeholder: '\u25BE', color: '#607286', size: 18 },
+            { key: 'lineReorder', label: 'Ordenar Linea', group: 'Acciones Documento', placeholder: '\u22EE\u22EE', color: '#607286', size: 18 },
+            { key: 'lineMenu', label: 'Menu Linea', group: 'Acciones Documento', placeholder: '\u22EF', color: '#607286', size: 18 },
+            { key: 'lineProforma', label: 'Línea Ver Proforma', group: 'Acciones Documento', placeholder: '\uD83D\uDC41', color: '#1e516d', size: 16 },
+            { key: 'lineAdd', label: 'Línea Agregar Línea', group: 'Acciones Documento', placeholder: '+', color: '#1e516d', size: 18 },
             { key: 'copyQuoteSend', label: 'Enviar a Cotizacion', group: 'Acciones Documento', placeholder: '\u27A4', color: '#0b81b8', size: 16 },
             { key: 'attachmentUpload', label: 'Cargar Adjunto', group: 'Acciones Documento', placeholder: '\u21E7', color: '#0b81b8', size: 18 },
             { key: 'attachmentDownload', label: 'Descargar Adjunto', group: 'Acciones Documento', placeholder: '\u21E9', color: '#0b81b8', size: 18 },
@@ -7749,6 +7659,7 @@
 
         const ICON_TAB_ORDER = [
             'Dashboard',
+            'Notificaciones',
             'Botón flotante',
             'Modulo Movil',
             'General',
@@ -7762,6 +7673,7 @@
         function resolveIconRuntimeMeta(icon) {
             const key = String(icon?.key || '').trim();
             if (key.startsWith('dashboardFab')) return { tab: 'Botón flotante', section: icon.section || 'Dashboard' };
+            if (key.startsWith('notificationChat')) return { tab: 'Notificaciones', section: 'Mensajería' };
             if (key === 'floatingSave' || key === 'processLauncher' || key === 'timelineLauncher') return { tab: 'Botón flotante', section: 'Cálculo' };
             if (key.startsWith('dashboard') || key === 'dashboardTabClose') return { tab: 'Dashboard', section: 'Principal' };
             if (key.startsWith('mobile')) return { tab: 'Modulo Movil', section: 'Principal' };
@@ -7770,7 +7682,7 @@
             if (['attachmentUpload', 'attachmentDownload', 'attachmentReplace', 'lineAttachments', 'proformaView'].includes(key)) return { tab: 'General', section: 'Adjuntos' };
             if (['lineDelete', 'copyQuoteSend', 'favoriteDocumentOff', 'favoriteDocumentOn', 'refreshCosts'].includes(key)) return { tab: 'General', section: 'Compartido' };
             if (['quoteRequestSubmit', 'quoteRequestAdvanced', 'quoteRequestAttachment', 'quoteRequestRecord', 'quoteRequestRecordStop', 'quoteRequestAttachmentDelete', 'quantity.add', 'quantity.delete'].includes(key)) return { tab: 'Cotizaciones', section: 'Solicitud' };
-            if (['lineDuplicate', 'lineCopy', 'lineCreateProduct', 'lineCreateQuote', 'lineExport', 'lineCreateOrder', 'lineCreateProductionOrder'].includes(key)) return { tab: 'Cotizaciones', section: 'Líneas' };
+            if (['lineDuplicate', 'lineCopy', 'lineCreateProduct', 'lineCreateQuote', 'lineExport', 'lineCreateOrder', 'lineCreateProductionOrder', 'quoteExpand', 'quoteCollapse', 'lineReorder', 'lineMenu'].includes(key)) return { tab: 'Cotizaciones', section: 'Líneas' };
             if (key === 'fieldInfo') return { tab: 'Cálculo', section: 'Campos' };
             if (key.startsWith('order')) return { tab: 'Órdenes', section: 'Detalle' };
             if (key === 'proformaClose') return { tab: 'Proforma', section: 'Documento' };
@@ -7921,7 +7833,8 @@
 
             defaults.forEach((item) => {
                 const preview = document.getElementById(`dieShapePreview${item.index}`);
-                const imageValue = loadedConfig.general?.[`dieShapeImage${item.index}`] || document.querySelector(`[name="general.dieShapeImage${item.index}"]`)?.value || '';
+                const imageInput = document.querySelector(`[name="general.dieShapeImage${item.index}"]`);
+                const imageValue = loadedConfig.general?.[`dieShapeImage${item.index}`] || imageInput?.value || '';
                 const labelValue = loadedConfig.general?.[`dieShapeLabel${item.index}`] || document.querySelector(`[name="general.dieShapeLabel${item.index}"]`)?.value || item.label;
                 if (!preview) return;
                 if (imageValue) {
@@ -7936,24 +7849,62 @@
             document.querySelectorAll('[data-die-shape-upload]').forEach((uploadInput) => {
                 if (uploadInput.dataset.dieShapeUploadBound === 'true') return;
                 const targetName = uploadInput.dataset.dieShapeUpload;
-                const textInput = document.querySelector(`[name="${targetName}"]`);
-                const preview = uploadInput.closest('.die-shape-config-item')?.querySelector('.die-shape-preview');
-
+                
                 uploadInput.addEventListener('change', (event) => {
                     const file = event.target.files?.[0];
+                    const textInput = document.querySelector(`[name="${targetName}"]`);
+                    const preview = uploadInput.closest('.die-shape-config-item')?.querySelector('.die-shape-preview');
                     if (!file || !textInput) return;
+                    
                     const reader = new FileReader();
-                    reader.onload = (loadEvent) => {
+                    reader.onload = async (loadEvent) => {
                         const dataUrl = loadEvent.target?.result || '';
-                        textInput.value = dataUrl;
+                        let finalDataUrl = dataUrl;
+
+                        // Compresión de imagen para evitar Payload Too Large (413)
+                        try {
+                            const isSvg = file.type === 'image/svg+xml';
+                            if (!isSvg && dataUrl.startsWith('data:image/')) {
+                                finalDataUrl = await new Promise((resolve) => {
+                                    const img = new Image();
+                                    img.onload = () => {
+                                        const MAX_SIZE = 400; // Tamaño suficiente para una forma de troquel
+                                        let width = img.width;
+                                        let height = img.height;
+                                        if (width > MAX_SIZE || height > MAX_SIZE) {
+                                            if (width > height) {
+                                                height *= MAX_SIZE / width;
+                                                width = MAX_SIZE;
+                                            } else {
+                                                width *= MAX_SIZE / height;
+                                                height = MAX_SIZE;
+                                            }
+                                        }
+                                        const canvas = document.createElement('canvas');
+                                        canvas.width = width;
+                                        canvas.height = height;
+                                        const ctx = canvas.getContext('2d');
+                                        ctx.drawImage(img, 0, 0, width, height);
+                                        // WebP a 0.85 ofrece gran calidad y muy poco peso
+                                        resolve(canvas.toDataURL('image/webp', 0.85));
+                                    };
+                                    img.src = dataUrl;
+                                });
+                            }
+                        } catch (e) {
+                            console.error('Error al comprimir forma de troquel:', e);
+                        }
+
+                        textInput.value = finalDataUrl;
                         if (preview) {
-                            preview.innerHTML = `<img src="${dataUrl}" alt="Forma de troquel">`;
+                            preview.innerHTML = `<img src="${finalDataUrl}" alt="Forma de troquel" style="width:100%; height:100%; object-fit:contain; border-radius:12px; padding:4px; box-sizing:border-box;">`;
                         }
                         queueConfigSave();
                     };
                     reader.readAsDataURL(file);
                 });
 
+                const preview = uploadInput.closest('.die-shape-config-item')?.querySelector('.die-shape-preview');
                 preview?.addEventListener('click', () => uploadInput.click());
                 uploadInput.dataset.dieShapeUploadBound = 'true';
             });
@@ -8505,21 +8456,18 @@
         }
 
         function populateGeneralFields() {
-            console.log('=== POPULATE FIELDS ===');
             Object.keys(loadedConfig).forEach(key => {
                 if (typeof loadedConfig[key] === 'object' && loadedConfig[key] !== null) {
                     Object.keys(loadedConfig[key]).forEach(subKey => {
                         const input = document.querySelector(`[name="${key}.${subKey}"]`);
                         if (input) {
                             input.value = loadedConfig[key][subKey];
-                            console.log(`Set ${key}.${subKey} = ${loadedConfig[key][subKey]}`);
-                        } else {
-                            console.log(`NOT FOUND: ${key}.${subKey}`);
                         }
                     });
                 }
             });
             renderQuoteProductTypesTable();
+            renderConfigButtonsIcons();
             syncToggleButtons();
             syncTabColorSwatches();
             syncPresentationTabLayoutFields();
@@ -8575,7 +8523,7 @@
                 <tr>
                     <td>${index + 1}</td>
                     <td><input type="text" value="${escapeHtml(item)}" data-quote-product-type-index="${index}" maxlength="80"></td>
-                    <td><button type="button" class="quote-product-types-remove" data-remove-quote-product-type="${index}" aria-label="Eliminar tipo de producto" title="Eliminar tipo de producto">×</button></td>
+                    <td><button type="button" class="icon-only-btn quote-product-types-remove" data-remove-quote-product-type="${index}" aria-label="Eliminar tipo de producto" title="Eliminar tipo de producto">${getIconHtml('quantity.delete', '&#128465;', '#b94848', 18)}</button></td>
                 </tr>
             `).join('');
         }
@@ -8629,7 +8577,7 @@
                     <td>${escapeHtml(item.displayLabel || '')}</td>
                     <td>${item.isActive === false ? 'No' : 'Sí'}</td>
                     <td>${escapeHtml(item.notes || '')}</td>
-                    <td><button type="button" class="action-btn" data-delete-inventory-classification="${escapeHtml(item.id || '')}">Eliminar</button></td>
+                    <td><button type="button" class="quote-product-types-remove" data-delete-inventory-classification="${escapeHtml(item.id || '')}" aria-label="Eliminar" title="Eliminar mapeo">${getIconHtml('quantity.delete', '&#128465;', '#b94848', 18)}</button></td>
                 </tr>
             `).join('');
         }
@@ -9345,6 +9293,51 @@
             }).join('');
         }
 
+        function renderSapShipmentsTable(payload = {}) {
+            const rows = (Array.isArray(payload.rows) ? payload.rows : [])
+                .filter((entry) => {
+                    const type = String(entry.action_type || '').toLowerCase();
+                    return (type === 'write' || type === 'export') && !isLegacySapConnectionError(entry);
+                })
+                .sort((left, right) => new Date(right.started_at || right.created_at || 0) - new Date(left.started_at || left.created_at || 0));
+            if (sapShipmentsStatus) {
+                sapShipmentsStatus.className = 'sap-security-empty';
+                sapShipmentsStatus.textContent = rows.length ? `${rows.length} envío(s) cargados.` : 'No hay envíos SAP para mostrar.';
+            }
+            if (!sapShipmentsTableBody) return;
+            if (!rows.length) {
+                sapShipmentsTableBody.innerHTML = '<tr><td colspan="6" class="audit-empty">No hay envíos SAP para mostrar.</td></tr>';
+                return;
+            }
+            sapShipmentsTableBody.innerHTML = rows.map((entry) => {
+                const whenLabel = entry.started_at ? new Date(entry.started_at).toLocaleString('es-CR') : 'Sin fecha';
+                const statusTone = String(entry.status || '').toLowerCase() === 'error' ? 'error' : 'ok';
+                return `
+                    <tr>
+                        <td>${escapeHtml(whenLabel)}</td>
+                        <td>${escapeHtml(describeSapBusinessObject(entry))}</td>
+                        <td>${escapeHtml(describeSapReference(entry))}</td>
+                        <td>${escapeHtml(entry.service_url || entry.internal_url || '')}</td>
+                        <td><span class="sap-security-pill" data-tone="${escapeHtml(statusTone)}">${escapeHtml(entry.status || '')}</span></td>
+                        <td>${escapeHtml(describeSapActivityResult(entry))}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function loadSapShipments(force = false) {
+            if (!force && sapShipmentsLoadedOnce) return;
+            if (sapShipmentsStatus) {
+                sapShipmentsStatus.className = 'sap-security-empty';
+                sapShipmentsStatus.textContent = 'Cargando envíos SAP...';
+            }
+            const response = await fetch('/api/sap/activity?limit=300');
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.error || 'No fue posible cargar los envíos SAP.');
+            renderSapShipmentsTable(payload);
+            sapShipmentsLoadedOnce = true;
+        }
+
         async function loadSapActivityRecords(force = false) {
             if (!force && sapActivityLoadedOnce) return;
             const response = await fetch(buildSapActivityUrl());
@@ -9375,7 +9368,7 @@
             if (sapImportJobsStatus) {
                 sapImportJobsStatus.className = 'sap-security-empty';
                 sapImportJobsStatus.textContent = sapImportJobs.length
-                    ? 'Configura cada carga y usa Ejecutar ahora para verificarla en el historial inferior.'
+                    ? 'Configura cada carga. Si SAP no responde, el trabajo queda activo y reintenta en el siguiente intervalo.'
                     : 'No hay trabajos de importación configurados.';
             }
             if (!sapImportJobsBody) return;
@@ -9402,9 +9395,9 @@
                             </div>
                         </td>
                         <td><input type="checkbox" data-job-field="enabled" ${job.filters?.enabled ? 'checked' : ''}></td>
-                        <td><input type="number" min="5" max="1440" value="${escapeHtml(String(job.filters?.intervalMinutes || 30))}" data-job-field="intervalMinutes" style="width:90px;"></td>
-                        <td><input type="number" min="1" max="1000" value="${escapeHtml(String(job.filters?.limit || 100))}" data-job-field="limit" style="width:90px;"></td>
-                        <td><input type="text" value="${escapeHtml(String(filterValue || ''))}" placeholder="${escapeHtml(filterPlaceholder)}" data-job-field="filterValue"></td>
+                        <td><input class="sap-import-job-input" type="number" min="5" max="1440" value="${escapeHtml(String(job.filters?.intervalMinutes || 30))}" data-job-field="intervalMinutes"></td>
+                        <td><input class="sap-import-job-input" type="number" min="1" max="1000" value="${escapeHtml(String(job.filters?.limit || 100))}" data-job-field="limit"></td>
+                        <td><input class="sap-import-job-input" type="text" value="${escapeHtml(String(filterValue || ''))}" placeholder="${escapeHtml(filterPlaceholder)}" data-job-field="filterValue"></td>
                         <td>${escapeHtml(formatSapOpsDate(job.finishedAt || job.startedAt))}</td>
                         <td>${escapeHtml(formatSapOpsDate(job.nextRunAt))}</td>
                         <td>
@@ -9710,6 +9703,33 @@
             await runSapMirrorProcess(getSapMirrorExecutionRoute(processKey), getSapMirrorProcessPayload(), successMessages[processKey] || 'Proceso SAP completado.');
         }
 
+        function getSapCardByHeading(pattern) {
+            return [...document.querySelectorAll('#security-panel-sap .sap-security-card')].find((card) => {
+                const heading = card.querySelector('h2, h3')?.textContent?.trim() || '';
+                return pattern.test(heading);
+            }) || null;
+        }
+
+        function appendSapCardByHeading(pattern, targetPanelId) {
+            const target = document.getElementById(targetPanelId);
+            const card = getSapCardByHeading(pattern);
+            if (target && card && card.parentElement !== target) target.appendChild(card);
+        }
+
+        function organizeSapPanels() {
+            appendSapCardByHeading(/^Centros Contables$/i, 'sap-tab-registros');
+            appendSapCardByHeading(/^Consultas$/i, 'sap-tab-registros');
+            appendSapCardByHeading(/^Envíos$/i, 'sap-tab-envios');
+            const statusSide = sapStatusRow?.closest('.sap-security-side');
+            if (statusSide) statusSide.hidden = true;
+            const mirrorTitle = document.querySelector('#sap-tab-tablas .sap-mirror-table-card h3');
+            if (mirrorTitle) mirrorTitle.textContent = 'Tablas espejo SAP';
+            const mirrorCaption = document.querySelector('#sap-tab-tablas .sap-mirror-table-card .section-caption');
+            if (mirrorCaption) mirrorCaption.textContent = 'Son tablas espejo que existen localmente en nuestra base de datos; no son la consulta directa a SAP.';
+        }
+
+        organizeSapPanels();
+
         function activateSapTab(tabKey = 'config') {
             sapSubtabs.forEach((tab) => {
                 tab.classList.toggle('active', tab.dataset.sapTab === tabKey);
@@ -9717,13 +9737,23 @@
             sapTabPanels.forEach((panel) => {
                 panel.hidden = panel.id !== `sap-tab-${tabKey}`;
             });
-            if (tabKey === 'registros') {
+            if (tabKey === 'envios') {
+                loadSapShipments().catch((error) => {
+                    if (sapShipmentsStatus) {
+                        sapShipmentsStatus.className = 'sap-security-empty';
+                        sapShipmentsStatus.textContent = error.message || 'No fue posible cargar los envíos SAP.';
+                    }
+                });
+            }
+            if (tabKey === 'automatizacion') {
                 loadSapImportJobs().catch((error) => {
                     if (sapImportJobsStatus) {
                         sapImportJobsStatus.className = 'sap-security-empty';
                         sapImportJobsStatus.textContent = error.message || 'No fue posible cargar la automatización SAP.';
                     }
                 });
+            }
+            if (tabKey === 'registros') {
                 loadSapActivityRecords().catch((error) => {
                     if (sapActivitySummary) {
                         sapActivitySummary.className = 'sap-security-empty';
@@ -10840,7 +10870,7 @@
             const amountInBase = from === baseCurrency ? amount : (amount / fromRate);
             const result = to === baseCurrency ? amountInBase : (amountInBase * toRate);
             exchangeRateCalcResult.innerHTML = `
-                <strong style="display:block; color:#17354a; font-size:16px;">${escapeHtml(amount.toLocaleString('es-CR', { maximumFractionDigits: 4 }))} ${escapeHtml(from)} = ${escapeHtml(result.toLocaleString('es-CR', { maximumFractionDigits: 4 }))} ${escapeHtml(to)}</strong>
+                <span style="display:block; color:#17354a; font-size:16px; font-weight:400;">${escapeHtml(amount.toLocaleString('es-CR', { maximumFractionDigits: 4 }))} ${escapeHtml(from)} = ${escapeHtml(result.toLocaleString('es-CR', { maximumFractionDigits: 4 }))} ${escapeHtml(to)}</span>
                 <span style="display:block; margin-top:6px; color:#6b8192; font-size:12px;">Base usada: ${escapeHtml(baseCurrency)} · Fecha: ${escapeHtml(exchangeRateState?.today?.rateDate || 'Sin datos')}</span>
             `;
         }
@@ -11203,10 +11233,9 @@
                 userAdminFieldSapSalespersonCode.value = selectedCode;
             }
             if (!isValid && showFeedback) {
-                setConfigStatus('Debes seleccionar un vendedor SAP para este usuario o cambiar el permiso.', true);
-                userAdminFieldSapSalesperson?.focus();
+                setConfigStatus('Vendedor SAP pendiente: se mantiene marcado para completar después.', true);
             }
-            return isValid;
+            return true;
         }
 
         async function ensureSapSalespersonOptionsLoaded(force = false) {
@@ -11319,6 +11348,15 @@
             }
         }
 
+        function populateUserLandingOptions(selectedValue = null) {
+            if (!userAdminFieldLanding) return;
+            const current = normalizeOptionalPresentationKey(selectedValue === null ? userAdminFieldLanding.value : selectedValue);
+            userAdminFieldLanding.innerHTML = ['<option value="">Usar permiso</option>']
+                .concat(PERMISSION_PRESENTATION_KEYS.map((key) => `<option value="${key}">${escapeHtml(getPermissionPresentationLabel(key))}</option>`))
+                .join('');
+            userAdminFieldLanding.value = current;
+        }
+
         function renderAdminUserList() {
             if (!userAdminTableBody) return;
             const deleteIcon = getAdminUserIconConfig('adminUserDelete', '#b94848', 18, '🗑');
@@ -11329,7 +11367,7 @@
             userAdminTableBody.innerHTML = adminUsers.map((user) => `
                 <tr class="${Number(user.id) === Number(selectedAdminUserId) ? 'is-selected' : ''} ${user.active === false ? 'is-inactive' : ''}" data-user-id="${user.id}">
                     <td>
-                        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                        <div class="user-admin-row-shell">
                             <div class="user-admin-row-main">
                                 <div class="user-admin-avatar" data-user-avatar="${user.id}">${getAdminUserInitials(user.name)}</div>
                                 <div class="user-admin-row-text">
@@ -11338,7 +11376,7 @@
                                     <span class="user-admin-row-permission">${escapeHtml(formatAdminUserPermissionLine(user))}</span>
                                 </div>
                             </div>
-                            <div style="display:grid; gap:8px; justify-items:end;">
+                            <div class="user-admin-row-actions">
                                 ${renderAdminUserStatusBadge(user)}
                                 <button type="button" class="user-admin-delete-button" data-user-delete="${user.id}" aria-label="Dar de baja usuario" title="Dar de baja usuario"></button>
                             </div>
@@ -11371,6 +11409,7 @@
                 if (userAdminDetailShell) userAdminDetailShell.hidden = true;
                 if (userAdminPermissionsNote) userAdminPermissionsNote.textContent = 'Selecciona un permiso para ver los accesos disponibles.';
                 if (userAdminPermissionAccessSummary) userAdminPermissionAccessSummary.innerHTML = '';
+                populateUserLandingOptions('');
                 return;
             }
             if (userAdminDetailEmpty) userAdminDetailEmpty.hidden = true;
@@ -11396,6 +11435,7 @@
             if (userAdminFieldNotifyWhatsapp) userAdminFieldNotifyWhatsapp.checked = user.notificationWhatsapp === true;
             if (userAdminFieldNotifySms) userAdminFieldNotifySms.checked = user.notificationSms === true;
             populateUserPermissionOptions();
+            populateUserLandingOptions(user.defaultLanding || '');
             if (userAdminFieldPermission) userAdminFieldPermission.value = user.permissionId == null ? '' : String(user.permissionId);
             // Solo el implementador puede editar los permisos de cualquier usuario,
             // incluidos los administradores. El administrador puede editar permisos
@@ -11407,6 +11447,7 @@
             const targetIsSuper = /administrador(?:es)?|implementador(?:es)?/i.test(String(targetPermission?.name || user?.permissionName || '').trim());
             const canChangePermission = isImplementador || (isAdministrador && !targetIsSuper);
             if (userAdminFieldPermission) userAdminFieldPermission.disabled = !canChangePermission;
+            if (userAdminFieldLanding) userAdminFieldLanding.disabled = !canChangePermission;
 
             if (userAdminDetailName) userAdminDetailName.textContent = user.name || 'Usuario';
             if (userAdminDetailSubline) userAdminDetailSubline.textContent = formatAdminUserProcessLine(user);
@@ -11490,6 +11531,7 @@
                 notificationSms: userAdminFieldNotifySms?.checked === true,
                 active: user.active !== false,
                 permissionId: userAdminFieldPermission?.value ? Number(userAdminFieldPermission.value) : null,
+                defaultLanding: normalizeOptionalPresentationKey(userAdminFieldLanding?.value),
                 sapSalespersonCode: userAdminFieldSapSalespersonCode?.value ? Number(userAdminFieldSapSalespersonCode.value) : null,
                 sapSalespersonName: getSelectedAdminUserSapSalespersonOption()?.salespersonName || ''
             };
@@ -11509,6 +11551,7 @@
             user.notificationSms = payload.notificationSms;
             user.active = payload.active;
             user.permissionId = payload.permissionId;
+            user.defaultLanding = payload.defaultLanding;
             user.permissionName = adminPermissions.find((item) => Number(item.id) === Number(payload.permissionId))?.name || '';
             user.sapSalespersonCode = payload.sapSalespersonCode;
             user.sapSalespersonName = payload.sapSalespersonName;
@@ -11731,6 +11774,7 @@
                 userAdminFieldNotifyWhatsapp,
                 userAdminFieldNotifySms,
                 userAdminFieldPermission,
+                userAdminFieldLanding,
                 userAdminFieldSapSalesperson
             ].forEach((field) => {
                 field?.addEventListener('input', queueAdminUserSave);
@@ -11784,6 +11828,16 @@
 
         function getPermissionPresentationLabel(key) {
             return PRESENTATION_LABELS[key] || key;
+        }
+
+        function normalizeOptionalPresentationKey(value) {
+            const key = String(value || '').trim();
+            return PERMISSION_PRESENTATION_KEYS.includes(key) ? key : '';
+        }
+
+        function resolveAdminUserDefaultLanding(user) {
+            const permission = getAdminPermissionById(user?.permissionId);
+            return normalizeOptionalPresentationKey(user?.defaultLanding) || normalizeOptionalPresentationKey(permission?.defaultLanding) || 'dashboard';
         }
 
         function normalizePermissionAccessValue(value) {
@@ -12913,16 +12967,24 @@
                 return `
                     <tr class="${Number(permission.id) === Number(selectedAdminPermissionId) ? 'is-selected' : ''}" data-permission-id="${permission.id}">
                         <td>
-                            <div class="permission-admin-row-main">
-                                <div class="permission-admin-row-text">
-                                    <span class="permission-admin-row-name">${escapeHtml(permission.name || 'Sin nombre')}</span>
-                                    <span class="permission-admin-row-subtitle">${summary.edit} editar · ${summary.create} crear · ${summary.view} ver · ${escapeHtml(getPermissionPresentationLabel(permission.defaultLanding || 'dashboard'))}</span>
+                            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                                <div class="permission-admin-row-main">
+                                    <div class="permission-admin-row-text">
+                                        <span class="permission-admin-row-name">${escapeHtml(permission.name || 'Sin nombre')}</span>
+                                        <span class="permission-admin-row-subtitle">${summary.edit} editar · ${summary.create} crear · ${summary.view} ver · ${escapeHtml(getPermissionPresentationLabel(permission.defaultLanding || 'dashboard'))}</span>
+                                    </div>
                                 </div>
+                                <button type="button" class="permission-admin-delete-button" data-permission-delete="${permission.id}" aria-label="Eliminar permiso" title="Eliminar permiso"></button>
                             </div>
                         </td>
                     </tr>
                 `;
             }).join('');
+
+            permissionAdminTableBody.querySelectorAll('.permission-admin-delete-button').forEach((btn) => {
+                const deleteIcon = getPermissionIconConfig('adminPermissionDelete', '#b94848', 18, '🗑');
+                renderButtonIcon(btn, deleteIcon.value, deleteIcon.color, deleteIcon.size, '🗑');
+            });
         }
 
         function populatePermissionLandingOptions() {
@@ -13207,23 +13269,24 @@
                 if (auditPartnerPruneBusy) return;
                 closeAuditPartnerPrunePopover();
             });
-            permissionAdminTableBody?.addEventListener('click', (event) => {
+            permissionAdminTableBody?.addEventListener('click', async (event) => {
+                const deleteButton = event.target.closest('[data-permission-delete]');
+                if (deleteButton) {
+                    const id = Number(deleteButton.dataset.permissionDelete);
+                    if (!id) return;
+                    try {
+                        await deleteAdminPermission(id);
+                    } catch (error) {
+                        console.error(error);
+                        setConfigStatus(error.message || 'No fue posible eliminar el permiso.', true);
+                    }
+                    return;
+                }
                 const row = event.target.closest('[data-permission-id]');
                 if (row) {
                     selectAdminPermission(row.dataset.permissionId);
                 }
-            });
-            permissionAdminDeleteButton?.addEventListener('click', async () => {
-                const permission = getSelectedAdminPermission();
-                if (!permission) return;
-                try {
-                    await deleteAdminPermission(permission.id);
-                } catch (error) {
-                    console.error(error);
-                    setConfigStatus(error.message || 'No fue posible eliminar el permiso.', true);
-                }
-            });
-            permissionAdminFieldName?.addEventListener('input', queueAdminPermissionSave);
+            });            permissionAdminFieldName?.addEventListener('input', queueAdminPermissionSave);
             permissionAdminFieldLanding?.addEventListener('change', queueAdminPermissionSave);
             permissionAdminMatrixBody?.addEventListener('change', (event) => {
                 if (event.target.matches('input[type="checkbox"][data-permission-key]')) {
@@ -14042,7 +14105,9 @@
             tab.addEventListener('click', () => {
                 const activeMainTabKey = document.querySelector('.config-tab.active')?.dataset.tab;
                 const activeSecurityTabKey = document.querySelector('.security-subtab.active')?.dataset.securityTab || 'usuarios';
-                if (activeMainTabKey === 'seguridad' && tab.dataset.tab !== 'seguridad' && activeSecurityTabKey === 'usuarios' && !validateSelectedAdminUserSapSalesperson(true)) {
+                const requestedTabKey = tab.dataset.tab || 'diseno';
+                const targetPanelKey = requestedTabKey === 'sap' ? 'seguridad' : requestedTabKey;
+                if (activeMainTabKey === 'seguridad' && requestedTabKey !== 'seguridad' && activeSecurityTabKey === 'usuarios' && !validateSelectedAdminUserSapSalesperson(true)) {
                     return;
                 }
                 if (activeMainTabKey === 'diseno' && getActiveDesignTabKey() === 'presentaciones') {
@@ -14051,15 +14116,20 @@
                 document.querySelectorAll('.config-tab').forEach(t => t.classList.remove('active'));
                 document.querySelectorAll('.config-tab-content').forEach(c => c.classList.remove('active'));
                 tab.classList.add('active');
-                document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
-                if (tab.dataset.tab === 'auditoria') {
+                document.getElementById('tab-' + targetPanelKey)?.classList.add('active');
+                document.getElementById('tab-seguridad')?.classList.toggle('sap-main-mode', requestedTabKey === 'sap');
+                if (requestedTabKey === 'auditoria') {
                     loadAuditEntries();
                 }
-                if (tab.dataset.tab === 'seguridad') {
-                    const activeSecurityTab = document.querySelector('.security-subtab.active')?.dataset.securityTab || 'usuarios';
-                    activateSecurityTab(activeSecurityTab);
+                if (requestedTabKey === 'sap') {
+                    activateSecurityTab('sap');
+                    activateSapTab(document.querySelector('.sap-security-subtab.active')?.dataset.sapTab || 'envios');
                 }
-                if (tab.dataset.tab === 'notificaciones') {
+                if (requestedTabKey === 'seguridad') {
+                    const activeSecurityTab = document.querySelector('.security-subtab.active')?.dataset.securityTab || 'usuarios';
+                    activateSecurityTab(activeSecurityTab === 'sap' ? 'usuarios' : activeSecurityTab);
+                }
+                if (requestedTabKey === 'notificaciones') {
                     Promise.all([
                         loadNotificationCenterOverview(),
                         loadNotificationCenterThreads(),
@@ -14069,11 +14139,11 @@
                         setNotificationCenterStatus(error.message || 'No fue posible cargar el centro de notificaciones.', true);
                     });
                 }
-                if (tab.dataset.tab === 'cotizaciones') {
+                if (requestedTabKey === 'cotizaciones') {
                     const activeQuotesTab = document.querySelector('.quotes-subtab.active')?.dataset.quotesTab || 'calculo';
                     activateQuotesTab(activeQuotesTab);
                 }
-                if (tab.dataset.tab === 'diseno') {
+                if (requestedTabKey === 'diseno') {
                     activateDesignTab(getActiveDesignTabKey());
                 } else {
                     syncConfigTabHeights();
@@ -14216,10 +14286,14 @@
                             renderPermissionAdminDeleteButton();
 
                             updatePreviews();
-                            queueConfigSave();
+                            await saveConfig({ throwOnError: true });
                             uploadInput.value = '';
                         } catch (err) {
                             console.error('Error al procesar el icono:', err);
+                            const message = err?.message || 'No fue posible procesar o guardar el icono.';
+                            document.getElementById('saveStatus').textContent = 'Error al guardar: ' + message;
+                            const floatingStatus = document.getElementById('saveStatusFloating');
+                            if (floatingStatus) floatingStatus.textContent = 'Error al guardar: ' + message;
                         }
                     }
                 });
@@ -14374,7 +14448,9 @@
             if (!isColorField) field.addEventListener('input', renderPermissionAdminCreateButton);
             field.addEventListener('change', renderPermissionAdminDeleteButton);
             if (!isColorField) field.addEventListener('input', renderPermissionAdminDeleteButton);
-            field.addEventListener('change', queueConfigSave);
+            if (field.type !== 'file') {
+                field.addEventListener('change', queueConfigSave);
+            }
             if (field.type !== 'file' && !isColorField) {
                 field.addEventListener('input', queueConfigSave);
             }
@@ -14449,7 +14525,7 @@
             }
         }
 
-        async function saveConfig() {
+        async function saveConfig(options = {}) {
             captureCurrentPresentationData();
             
             const payload = buildGeneralPayload();
@@ -14480,6 +14556,7 @@
                 ensureIconLibraryFields();
                 applyIconPreviews();
                 bindIconUploadHandlers();
+                renderConfigButtonsIcons();
                 renderQuoteProductTypesTable();
                 setInventoryClassificationStatus('Configura el campo SAP y luego mapea sus valores a categorías flexográficas.', false);
                 populateProformaConfigFields();
@@ -14499,6 +14576,7 @@
                 document.getElementById('saveStatus').textContent = 'Error al guardar: ' + error.message;
                 const floatingStatus = document.getElementById('saveStatusFloating');
                 if (floatingStatus) floatingStatus.textContent = 'Error al guardar: ' + error.message;
+                if (options.throwOnError) throw error;
             }
         }
 
@@ -14811,6 +14889,14 @@
                 setSapConfigStatus(error.message || 'No fue posible actualizar la actividad SAP.', true);
             }
         });
+        sapShipmentsRefreshButton?.addEventListener('click', () => {
+            loadSapShipments(true).catch((error) => {
+                if (sapShipmentsStatus) {
+                    sapShipmentsStatus.className = 'sap-security-empty';
+                    sapShipmentsStatus.textContent = error.message || 'No fue posible actualizar los envíos SAP.';
+                }
+            });
+        });
         sapActivityApplyButton?.addEventListener('click', () => {
             loadSapActivityRecords(true).catch((error) => {
                 if (sapActivitySummary) {
@@ -14944,8 +15030,11 @@
         syncSapAdvancedToggle();
         loadSapPayloadTemplate();
         activateDesignTab('datos-generales');
-        activateSapTab('config');
+        activateSapTab('envios');
         activateSecurityTab('usuarios');
+        if (new URLSearchParams(window.location.search).get('sap') === '1') {
+            document.querySelector('.config-tab[data-tab="sap"]')?.click();
+        }
         loadConfig();
         document.getElementById('mobileSellerTheme')?.addEventListener('change', updateMobilePreviewLink);
 </script>

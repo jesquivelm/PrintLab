@@ -500,8 +500,27 @@
         'use strict';
 
         function qs(sel) { return document.querySelector(sel); }
+        function repairTextEncoding(value) {
+            const text = String(value ?? '');
+            if (!/[ÃÂâ�]/.test(text)) return text;
+            try {
+                const bytes = Uint8Array.from([...text].map((char) => char.charCodeAt(0) & 255));
+                const decoded = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+                const badBefore = (text.match(/[ÃÂâ�]/g) || []).length;
+                const badAfter = (decoded.match(/[ÃÂâ�]/g) || []).length;
+                if (decoded && badAfter < badBefore) return decoded;
+            } catch (error) {
+                // Keep the original text when it is not a latin1/utf8 mojibake case.
+            }
+            return text
+                .replace(/Ã¡/g, 'á').replace(/Ã©/g, 'é').replace(/Ã­/g, 'í').replace(/Ã³/g, 'ó').replace(/Ãº/g, 'ú')
+                .replace(/Ã/g, 'Á').replace(/Ã‰/g, 'É').replace(/Ã/g, 'Í').replace(/Ã“/g, 'Ó').replace(/Ãš/g, 'Ú')
+                .replace(/Ã±/g, 'ñ').replace(/Ã‘/g, 'Ñ').replace(/Â¿/g, '¿').replace(/Â¡/g, '¡').replace(/Âº/g, 'º')
+                .replace(/Â/g, '');
+        }
+
         function escHtml(v) {
-            return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+            return repairTextEncoding(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
         }
         function fmtDate(v) {
             const d = v ? new Date(v) : new Date();

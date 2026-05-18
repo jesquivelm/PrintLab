@@ -53,7 +53,7 @@
             colorMode: ['auto', 'day', 'night'].includes(String(input.colorMode || '').trim().toLowerCase())
                 ? String(input.colorMode || '').trim().toLowerCase()
                 : DEFAULT_CONFIG.colorMode,
-            mainSize: clampNumber(input.mainSize, DEFAULT_CONFIG.mainSize, 58, 140),
+            mainSize: clampNumber(input.mainSize, DEFAULT_CONFIG.mainSize, 25, 100),
             menuDistance: clampNumber(input.menuDistance, DEFAULT_CONFIG.menuDistance, 72, 200),
             miniShape: ['round', 'rounded', 'square'].includes(String(input.miniShape || '').trim().toLowerCase())
                 ? String(input.miniShape || '').trim().toLowerCase()
@@ -275,7 +275,8 @@
 
         renderMainIcon(options = {}) {
             if (!this.icon) return;
-            const iconSize = Number(options.size) || 34;
+            const configuredIconSize = Number(options.size) || 34;
+            const iconSize = Math.min(configuredIconSize, Math.max(12, Math.round((this.config.mainSize || DEFAULT_CONFIG.mainSize) * 0.46)));
             const iconColor = String(options.color || '').trim() || 'rgba(255,255,255,.98)';
             const hoverColor = String(options.hoverColor || '').trim() || iconColor;
             this.icon.style.setProperty('--dashboard-bdfg-icon-color', iconColor);
@@ -301,7 +302,11 @@
             const visible = Number(count || 0) > 0;
             this.badge.hidden = !visible;
             if (visible) {
-                this.badge.textContent = String(Math.min(Number(count || 0), 99));
+                const numeric = Number(count || 0);
+                this.badge.classList.toggle('is-dot', numeric > 9);
+                this.badge.textContent = numeric > 9 ? '' : String(numeric);
+            } else {
+                this.badge.classList.remove('is-dot');
             }
         }
 
@@ -432,7 +437,8 @@
                 repeatable: proc?.repeatable === true,
                 locked: proc?.locked === true,
                 added: proc?.added === true,
-                canAdd: proc?.canAdd !== false
+                canAdd: proc?.canAdd !== false,
+                lineCode: String(proc?.lineCode || options.targetLineCode || '').trim()
             })).filter((proc) => proc.id && proc.name);
             const addableProcesses = normalizedProcesses.filter((proc) => proc.canAdd);
             const existingProcesses = normalizedProcesses.filter((proc) => proc.added && !proc.repeatable);
@@ -446,6 +452,7 @@
                     data-process-mode="${mode}"
                     data-process-id="${escapeHtml(proc.id)}"
                     data-process-name="${escapeHtml(proc.name)}"
+                    data-line-code="${escapeHtml(proc.lineCode)}"
                     title="${escapeHtml(proc.name)}"
                     ${proc.color ? `style="--chip-accent:${escapeHtml(proc.color)};"` : ''}
                 >
@@ -494,37 +501,60 @@
             });
 
             this.panel.querySelectorAll('.dashboard-bdfg-process-chip[data-process-mode="add"]').forEach((chip) => {
+                let chipWasDragged = false;
                 const broadcastToFrames = (type, extra = {}) => {
+                    const sendToFrame = (frameWindow) => {
+                        if (!frameWindow) return;
+                        try { frameWindow.postMessage({ type, ...extra }, window.location.origin); } catch (_) {}
+                        try {
+                            for (let i = 0; i < frameWindow.frames.length; i += 1) {
+                                sendToFrame(frameWindow.frames[i]);
+                            }
+                        } catch (_) {}
+                    };
                     try {
                         const frames = window.frames;
                         for (let i = 0; i < frames.length; i++) {
-                            try { frames[i].postMessage({ type, ...extra }, window.location.origin); } catch (_) {}
+                            sendToFrame(frames[i]);
                         }
                     } catch (_) {}
+                };
+
+                const sendTapAdd = () => {
+                    broadcastToFrames('erp-process-tap-add', {
+                        processId: chip.dataset.processId,
+                        processName: chip.dataset.processName,
+                        lineCode: chip.dataset.lineCode || ''
+                    });
                 };
 
                 chip.addEventListener('dragstart', (e) => {
                     const processId   = chip.dataset.processId;
                     const processName = chip.dataset.processName;
+                    chipWasDragged = true;
                     e.dataTransfer.effectAllowed = 'copy';
                     e.dataTransfer.setData('text/plain', processId);
                     try { e.dataTransfer.setData('application/erp-process', JSON.stringify({ id: processId, name: processName })); } catch (_) {}
                     chip.classList.add('is-dragging');
-                    broadcastToFrames('erp-process-drag-start', { processId, processName });
+                    broadcastToFrames('erp-process-drag-start', { processId, processName, lineCode: chip.dataset.lineCode || '' });
                 });
 
                 chip.addEventListener('dragend', () => {
                     chip.classList.remove('is-dragging');
-                    broadcastToFrames('erp-process-drag-end');
+                    broadcastToFrames('erp-process-drag-end', { lineCode: chip.dataset.lineCode || '' });
+                    setTimeout(() => { chipWasDragged = false; }, 0);
+                });
+
+                chip.addEventListener('click', (e) => {
+                    if (chipWasDragged) return;
+                    e.preventDefault();
+                    sendTapAdd();
                 });
 
                 chip.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
-                        broadcastToFrames('erp-process-tap-add', {
-                            processId: chip.dataset.processId,
-                            processName: chip.dataset.processName
-                        });
+                        sendTapAdd();
                     }
                 });
             });

@@ -27,6 +27,9 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 .stat-lbl{font-size:11px;color:#888;margin-bottom:2px}
 .stat-val{font-size:22px;font-weight:500}
 .alerts{padding:8px 16px;border-bottom:1px solid #e0e0da;background:#fff;display:flex;gap:6px;flex-wrap:wrap;align-items:center;min-height:38px}
+.conflict-drawer{display:none}
+.conflict-drawer.open{display:flex}
+.conflict-toggle-btn.has-conflicts{background:#fceaea;border-color:#f0b5b5;color:#A32D2D}
 
 /* Gantt */
 .gantt-wrap{overflow-x:auto;background:#fff}
@@ -45,20 +48,34 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 /* Encabezado de proceso (agrupa máquinas) */
 .proceso-hdr{display:flex;align-items:center;border-bottom:1px solid #e0e0da;border-top:3px solid transparent;background:#f7f7f5}
 .proceso-hdr-lbl{width:176px;min-width:176px;padding:7px 12px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-right:1px solid #e0e0da;display:flex;align-items:center;gap:6px;flex-shrink:0}
-.proceso-hdr-timeline{flex:1;padding:4px 10px;font-size:10px;color:#aaa;display:flex;align-items:center}
+.proceso-hdr-timeline{flex:1;padding:4px 10px;font-size:10px;color:#aaa;display:flex;align-items:center;gap:8px;justify-content:space-between}
+.proceso-empty-note{color:#999;font-size:10px}
+.proceso-toggle{font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid #d0d0ca;background:#fff;color:#666;cursor:pointer}
 .timeline{flex:1;position:relative;display:flex;align-items:center}
 .grid-ln{position:absolute;top:0;bottom:0;width:1px;background:#e8e8e4}
 
 /* Task bars */
-.task-bar{position:absolute;height:48px;border-radius:7px;display:flex;flex-direction:column;justify-content:center;padding:0 9px;cursor:grab;border:2px solid transparent;overflow:hidden;white-space:nowrap;user-select:none;transition:box-shadow .15s,opacity .15s}
+.task-bar{position:absolute;height:48px;border-radius:7px;display:flex;flex-direction:column;justify-content:center;padding:0 26px 0 9px;cursor:grab;border:2px solid transparent;overflow:hidden;white-space:nowrap;user-select:none;transition:box-shadow .15s,opacity .15s,filter .15s}
 .task-bar:hover{filter:brightness(1.06);z-index:20}
 .task-bar.dragging{opacity:0.4;cursor:grabbing}
-.task-bar.chain-active{box-shadow:0 0 0 3px #FFD600,0 2px 12px rgba(0,0,0,0.18);z-index:30;filter:brightness(1.08)}
-.task-bar.chain-dim{opacity:0.30}
+.task-bar.chain-active{box-shadow:0 0 0 3px rgba(255,214,0,.55),0 0 20px rgba(255,214,0,.35);z-index:30;filter:brightness(1.08);border-color:#FFD600!important}
+.task-bar.chain-dim{opacity:0.18}
 .task-cliente{font-size:9px;opacity:0.88;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
 .task-lbl{font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
 .task-sub{font-size:9.5px;opacity:0.82;overflow:hidden;text-overflow:ellipsis}
 .task-mode{display:inline-flex;align-items:center;justify-content:center;min-width:42px;height:16px;padding:0 6px;border-radius:999px;font-size:9px;font-weight:700;background:rgba(255,255,255,0.22);margin-left:6px}
+.task-config-btn{position:absolute;right:5px;top:5px;width:18px;height:18px;border:0;border-radius:4px;background:rgba(255,255,255,.2);color:#fff;font-size:12px;line-height:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2}
+.task-config-btn:hover{background:rgba(255,255,255,.34)}
+.task-progress-track{position:absolute;bottom:0;left:0;right:0;height:4px;background:rgba(0,0,0,.15);border-radius:0 0 6px 6px;overflow:hidden;z-index:1}
+.task-progress-fill{height:100%;background:rgba(255,255,255,.55);border-radius:0 0 6px;transition:width .6s ease}
+.task-bar.is-running::after{content:'';position:absolute;inset:0;border-radius:7px;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.08) 50%,transparent 100%);background-size:200% 100%;animation:shine 2.2s ease-in-out infinite;pointer-events:none;z-index:0}
+@keyframes shine{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.task-late-icon{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:#E24B4A;color:#fff;font-size:11px;line-height:18px;text-align:center;z-index:5;box-shadow:0 1px 4px rgba(0,0,0,.25);animation:pulse-warn 1.5s ease-in-out infinite}
+@keyframes pulse-warn{0%,100%{box-shadow:0 0 0 0 rgba(226,75,74,0.6)}50%{box-shadow:0 0 0 6px rgba(226,75,74,0)}}
+html[data-theme="dark"] .task-progress-track{background:rgba(0,0,0,.3)}
+html[data-theme="dark"] .task-progress-fill{background:rgba(255,255,255,.35)}
+.task-color-menu{position:fixed;z-index:800;background:#fff;border:1px solid #d0d0ca;border-radius:8px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.14);display:grid;grid-template-columns:repeat(5,22px);gap:6px}
+.task-color-dot{width:22px;height:22px;border-radius:50%;border:1px solid rgba(0,0,0,.16);cursor:pointer}
 
 .maint-bar{position:absolute;height:40px;background:#f0f0ea;border:1px dashed #c0c0ba;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#888}
 .legend{display:flex;gap:14px;padding:8px 16px;border-top:1px solid #e0e0da;background:#fff;flex-wrap:wrap}
@@ -103,6 +120,11 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 .chain-item.active{background:#e8f0fb;border-color:#b5d0f0;font-weight:600}
 .chain-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
 .chain-arrow{color:#aaa;font-size:10px;margin-left:auto}
+.dp-color-row{display:flex;gap:7px;flex-wrap:wrap}
+.dp-color-row label{display:flex;align-items:center}
+.dp-color-row input{position:absolute;opacity:0;pointer-events:none}
+.dp-color-swatch{width:24px;height:24px;border-radius:50%;border:2px solid transparent;box-shadow:0 0 0 1px #d0d0ca;cursor:pointer}
+.dp-color-row input:checked + .dp-color-swatch{border-color:#1a1a1a}
 
 .save-btn{width:100%;padding:8px;background:#e8f0fb;border:1px solid #b5d0f0;color:#185FA5;border-radius:6px;cursor:pointer;font-size:12px;margin-top:10px;font-weight:500}
 .save-btn:hover{background:#d0e4f8}
@@ -118,6 +140,46 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 .conn-status{font-size:11px;padding:3px 8px;border-radius:5px;display:flex;align-items:center;gap:5px}
 .conn-status.online{background:#e8f7f1;color:#0F6E56}
 .conn-status.offline{background:#fceaea;color:#A32D2D}
+.gantt-toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:900;max-width:min(560px,calc(100vw - 32px));padding:9px 13px;border-radius:8px;background:#1f2937;color:#fff;font-size:12px;box-shadow:0 8px 28px rgba(0,0,0,.18)}
+.gantt-toast.error{background:#A32D2D}
+.gantt-toast.ok{background:#0F6E56}
+html[data-theme="dark"] body{background:var(--app-bg,#0f172a);color:var(--app-text,#e5edf6)}
+html[data-theme="dark"] .hdr,
+html[data-theme="dark"] .stats,
+html[data-theme="dark"] .alerts,
+html[data-theme="dark"] .gantt-wrap,
+html[data-theme="dark"] .legend,
+html[data-theme="dark"] .dp,
+html[data-theme="dark"] .tt{background:var(--app-surface,#111827);border-color:var(--app-border,#334155);color:var(--app-text,#e5edf6)}
+html[data-theme="dark"] .stat,
+html[data-theme="dark"] .g-row,
+html[data-theme="dark"] .proceso-hdr,
+html[data-theme="dark"] .chain-item,
+html[data-theme="dark"] .impact-box,
+html[data-theme="dark"] .conflict-panel{background:var(--app-surface-soft,#172033);border-color:var(--app-border,#334155);color:var(--app-text,#e5edf6)}
+html[data-theme="dark"] .g-header,
+html[data-theme="dark"] .btn,
+html[data-theme="dark"] .proceso-toggle,
+html[data-theme="dark"] .dp-input,
+html[data-theme="dark"] .task-color-menu{background:var(--app-surface-raised,#1f2937);border-color:var(--app-border,#334155);color:var(--app-text,#e5edf6)}
+html[data-theme="dark"] .g-row:hover{background:rgba(14,165,233,.08)}
+html[data-theme="dark"] .res-col,
+html[data-theme="dark"] .t-slot,
+html[data-theme="dark"] .res-lbl,
+html[data-theme="dark"] .proceso-hdr-lbl,
+html[data-theme="dark"] .grid-ln,
+html[data-theme="dark"] .tt-cliente,
+html[data-theme="dark"] .dp-section{border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .stat-lbl,
+html[data-theme="dark"] .res-sub,
+html[data-theme="dark"] .t-slot,
+html[data-theme="dark"] .proceso-hdr-timeline,
+html[data-theme="dark"] .leg-item,
+html[data-theme="dark"] .dp-lbl,
+html[data-theme="dark"] .tt-row{color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .tt-val,
+html[data-theme="dark"] .res-name,
+html[data-theme="dark"] .dp-val{color:var(--app-text,#e5edf6)}
 </style>
 <link rel="stylesheet" href="/theme-extensions.css">
 </head>
@@ -161,14 +223,52 @@ let currentDP = null;
 let activeChainIds = null;
 let isOnline  = false;
 let hasAutoPlanned = false;
+let conflictDrawerOpen = false;
+const expandedProcessIds = new Set();
+const ROUTE_COLORS = ['#378ADD', '#1D9E75', '#BA7517', '#E24B4A', '#639922', '#8B5CF6', '#0EA5E9', '#F59E0B', '#64748B', ''];
+
+function displayProcessName(value) {
+  const raw = String(value || '').trim();
+  const key = raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const labels = {
+    diseno: 'Diseño',
+    preprensa: 'Preprensa',
+    impresion: 'Impresión',
+    'impresion convencional': 'Impresión Convencional',
+    'impresion digital': 'Impresión Digital',
+    barnizado: 'Barniz',
+    barniz: 'Barniz',
+    numeracion: 'Numeración',
+    rebobinado: 'Rebobinado',
+    empaque: 'Empaque'
+  };
+  return labels[key] || raw || 'Sin proceso';
+}
 
 // ── API ────────────────────────────────────────────────────
 async function loadFromAPI() {
   try {
-    const res = await fetch(`${API}/gantt-agrupado`);
+    const [res, costsRes] = await Promise.all([
+      fetch(`${API}/gantt-agrupado`),
+      fetch('/api/costos-config').catch(() => null)
+    ]);
     if (!res.ok) throw new Error('Error HTTP ' + res.status);
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || 'Error en respuesta');
+
+    let costsProcessOrder = {};
+    if (costsRes && costsRes.ok) {
+      const costsData = await costsRes.json();
+      const defaults = costsData?.general?.processDefaults || [];
+      defaults.forEach((p, idx) => {
+        const key = (p.key || '').toLowerCase().trim();
+        costsProcessOrder[key] = {
+          order: p.order != null ? p.order : (idx + 1) * 10,
+          ganttEnabled: p.ganttEnabled !== false,
+          label: p.label || key
+        };
+      });
+    }
 
     // data.maquinas = máquinas con proceso_nombre, color_hex, orden_secuencia
     // data.rutas    = órdenes con sus datos completos
@@ -181,7 +281,7 @@ async function loadFromAPI() {
       saidel:      r.saidel || '—',
       colores:     r.colores,
       pies:        r.pies,
-      proceso:     r.proceso,
+      proceso:     displayProcessName(r.proceso),
       maquina:     r.maquina,
       inicio:      parseFloat(r.inicio),
       dur:         parseFloat(r.dur),
@@ -195,18 +295,25 @@ async function loadFromAPI() {
       route_payload: r.route_payload || {},
       planning_snapshot: r.planning_snapshot || null,
       manual_lock: Boolean(r.route_payload?.manualLock),
+      schedule_mode: r.route_payload?.scheduleMode || r.route_payload?.schedule_mode || '',
     }));
 
     // Agrupar máquinas por proceso para el render
+    // Usar el orden del cálculo de costos si está disponible, filtrar por ganttEnabled
     const grupos = {};
     machines.forEach(m => {
-      const key = m.id_proceso || 0;
+      const processKey = (m.process_key || '').toLowerCase().trim();
+      const costCfg = costsProcessOrder[processKey];
+      // Si existe config de costos y ganttEnabled es false, omitir esta máquina
+      if (costCfg && !costCfg.ganttEnabled) return;
+      const key = m.id_proceso || processKey || 0;
       if (!grupos[key]) grupos[key] = {
         id_proceso:      m.id_proceso,
-        nombre:          m.proceso_nombre || 'Sin proceso',
+        process_key:     processKey,
+        nombre:          displayProcessName(m.proceso_nombre),
         color:           m.color_hex      || '#888',
         icono:           m.proceso_icono  || '⚙',
-        orden:           m.orden_secuencia || 99,
+        orden:           costCfg ? costCfg.order : (m.orden_secuencia || 99),
         maquinas:        []
       };
       grupos[key].maquinas.push(m);
@@ -249,7 +356,9 @@ async function apiPatch(url, body) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
-  return res.json();
+  const payload = await res.json();
+  if (!res.ok || payload.ok === false) throw new Error(payload.error || 'No se pudo guardar el cambio.');
+  return payload;
 }
 
 function setOnline(v) {
@@ -377,6 +486,40 @@ function detectScheduleAlerts() {
   });
 
   return alerts;
+}
+
+function orderOverlapsVisible(op) {
+  const start = Number(op?.inicio || 0);
+  const end = start + Number(op?.dur || 0);
+  return start < SLOTS && end > 0;
+}
+
+function processDomKey(proc) {
+  return String(proc?.id_proceso || proc?.nombre || 'sin-proceso');
+}
+
+function machineVisibleOps(machineId) {
+  return orders.filter(o => o.maquina === machineId && orderOverlapsVisible(o));
+}
+
+function toggleConflicts() {
+  conflictDrawerOpen = !conflictDrawerOpen;
+  render();
+}
+
+function toggleProcessMachines(key) {
+  if (expandedProcessIds.has(key)) expandedProcessIds.delete(key);
+  else expandedProcessIds.add(key);
+  render();
+}
+
+function showToast(message, type = '') {
+  document.querySelector('.gantt-toast')?.remove();
+  const toast = document.createElement('div');
+  toast.className = `gantt-toast ${type}`.trim();
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3600);
 }
 
 // Verifica si colocar id_ruta en newStart/newDur/newMaq genera conflictos
@@ -517,7 +660,10 @@ function getChain(id_ruta) {
 
 // ── HELPER: genera HTML de una barra de tarea ─────────────
 function taskBar(op, machineConflictRutas, sequenceConflictRutas) {
-  const c = op.alerta ? COLORS.PARO : (COLORS[op.estado] || COLORS.PENDIENTE);
+  const baseColor = op.alerta ? COLORS.PARO : (COLORS[op.estado] || COLORS.PENDIENTE);
+  const customColor = String(op.route_payload?.colorHex || '').trim();
+  const c = customColor ? { bg: customColor, bd: customColor, tx: '#fff' } : baseColor;
+  const routeArg = String(op.id_ruta).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   let chainClass = '';
   if (activeChainIds) {
     chainClass = activeChainIds.has(op.id_ruta) ? ' chain-active' : ' chain-dim';
@@ -532,18 +678,31 @@ function taskBar(op, machineConflictRutas, sequenceConflictRutas) {
     ? (scheduleAlert.type === 'late' ? ' conflict-machine' : ' conflict-sequence')
     : '';
   const modeLabel = op.manual_lock ? 'Fijo' : op.schedule_mode === 'backward' ? 'Atrás' : op.schedule_mode === 'forward' ? 'Adelante' : '';
-  return `<div class="task-bar${chainClass}${conflictClass}${scheduleClass}"
+
+  // Production progress indicators
+  const isRunning = op.estado === 'RUN' || op.estado === 'SETUP';
+  const isLate = scheduleAlert?.type === 'late';
+  const planningSnapshot = op.planning_snapshot || op.route_payload;
+  const progressPct = isRunning ? Math.min(100, Math.round((Number(planningSnapshot?.progressPct || 0)))) : 0;
+  const hasProgress = progressPct > 0;
+
+  const runningClass = isRunning ? ' is-running' : '';
+  return `<div class="task-bar${chainClass}${conflictClass}${scheduleClass}${runningClass}"
     id="bar-${op.id_ruta}"
     data-id="${op.id}"
     data-ruta="${op.id_ruta}"
     style="left:${pct(op.inicio)};width:${pct(op.dur)};background:${c.bg};border-color:${c.bd}"
     draggable="true"
-    onmouseenter="showTT(event,${op.id_ruta})"
+    onmouseenter="showTT(event,'${routeArg}')"
     onmouseleave="hideTT()"
-    ondragstart="dragStart(event,${op.id_ruta})"
+    oncontextmenu="openColorMenu(event,'${routeArg}')"
+    ondragstart="dragStart(event,'${routeArg}')"
     ondragend="dragEnd(event)"
-    onclick="openDP(${op.id_ruta})"
+    onclick="openDP('${routeArg}')"
   >
+    ${isLate ? '<div class="task-late-icon" title="Fuera de fecha prometida">⚠</div>' : ''}
+    ${hasProgress ? `<div class="task-progress-track"><div class="task-progress-fill" style="width:${progressPct}%"></div></div>` : ''}
+    <button type="button" class="task-config-btn" onclick="event.stopPropagation();openDP('${routeArg}')" title="Configurar">⋯</button>
     <div class="task-cliente" style="color:${c.tx}">${op.cliente}</div>
     <div class="task-lbl"    style="color:${c.tx}">${op.id} · ${op.articulo}${op.manual_lock ? ' [Fijo]' : ''}</div>
     <div class="task-sub"    style="color:${c.tx}">${op.proceso}${op.colores > 0 ? ' · ' + op.colores + 'C' : ''}${modeLabel ? `<span class="task-mode">${modeLabel}</span>` : ''}</div>
@@ -570,16 +729,17 @@ function render() {
       Consola APS — Flexografía
     </span>
     <div class="toolbar">
+      <span class="badge info" id="gantt-user-badge" style="font-weight:500">👤 <span id="ganttUserName">Cargando...</span></span>
       <span class="badge ok">● ${enRun} en ejecución</span>
       ${criticas > 0 ? `<span class="badge crit">▲ ${criticas} crítica(s)</span>` : ''}
-      ${allConflicts.length > 0 ? `<span class="badge crit">⊗ ${allConflicts.length} conflicto(s)</span>` : '<span class="badge ok">✓ Sin conflictos</span>'}
       ${lateAlerts.length > 0 ? `<span class="badge crit">⏰ ${lateAlerts.length} fuera de fecha</span>` : ''}
       ${tightAlerts.length > 0 ? `<span class="badge warn">⌛ ${tightAlerts.length} justas</span>` : ''}
       <span class="badge info">Prioridad por fecha prometida</span>
       <span class="conn-status ${isOnline?'online':'offline'}">${isOnline?'● API online':'● API offline'}</span>
       <button class="btn" onclick="window.location.href='/planificacion/lanzamiento'">Cola de planificación</button>
       <button class="btn" onclick="clearChain()">Limpiar selección</button>
-      <button class="btn" onclick="resolveAllConflicts()">Resolver conflictos ⚡</button>
+      <button class="btn conflict-toggle-btn ${allConflicts.length ? 'has-conflicts' : ''}" onclick="toggleConflicts()">Conflictos (${allConflicts.length})</button>
+      <button class="btn" onclick="resolveAllConflicts()">Resolver</button>
       <button class="btn" onclick="autoSeq()">Optimizar ↺</button>
       <button class="btn" onclick="loadFromAPI()">Actualizar ↻</button>
     </div>
@@ -592,7 +752,7 @@ function render() {
     <div class="stat"><div class="stat-lbl">Riesgo por fecha</div><div class="stat-val" style="color:${lateAlerts.length?'#E24B4A':tightAlerts.length?'#BA7517':'#1D9E75'}">${lateAlerts.length + tightAlerts.length}</div></div>
   </div>
 
-  <div class="alerts">
+  <div id="conflict-drawer" class="alerts conflict-drawer ${conflictDrawerOpen ? 'open' : ''}">
     ${allConflicts.slice(0,4).map(c =>
       `<span class="conflict-badge">${c.type==='machine'?'⊗ Máquina':'⧗ Secuencia'}: ${c.message}</span>`).join('')}
     ${allConflicts.length > 4 ? `<span class="badge warn">+${allConflicts.length-4} más…</span>` : ''}
@@ -615,30 +775,32 @@ function render() {
     </div>`;
 
   procesos.forEach(proc => {
-    // ── Encabezado del proceso ──
+    const procKey = processDomKey(proc);
+    const expanded = expandedProcessIds.has(procKey);
+    const assignedMachines = proc.maquinas.filter(m => machineVisibleOps(m.id_maquina).length > 0);
+    const visibleMachines = expanded ? proc.maquinas : assignedMachines;
+    const hiddenCount = proc.maquinas.length - visibleMachines.length;
     html += `
     <div class="proceso-hdr" style="border-top-color:${proc.color}">
       <div class="proceso-hdr-lbl" style="color:${proc.color}">
         <span style="font-size:15px">${proc.icono}</span>
-        ${proc.nombre.toUpperCase()}
-        <span style="font-weight:400;font-size:10px;color:#aaa;margin-left:4px">(${proc.maquinas.length} máq.)</span>
+        ${displayProcessName(proc.nombre).toUpperCase()}
+        <span style="font-weight:400;font-size:10px;color:#aaa;margin-left:4px">(${assignedMachines.length}/${proc.maquinas.length})</span>
       </div>
       <div class="proceso-hdr-timeline">
-        ${proc.maquinas.map(m => {
-          const cnt = orders.filter(o => o.maquina === m.id_maquina).length;
-          return `<span style="margin-right:14px;color:#999">${m.nombre_recurso}: <strong style="color:#444">${cnt}</strong> orden${cnt!==1?'es':''}</span>`;
-        }).join('')}
+        <span class="proceso-empty-note">${assignedMachines.length ? 'Mostrando recursos asignados en esta vista' : 'Sin recursos asignados en esta vista'}</span>
+        ${hiddenCount > 0 || expanded ? `<button type="button" class="proceso-toggle" onclick='toggleProcessMachines(${JSON.stringify(procKey)})'>${expanded ? 'Ocultar vacías' : `Ver todas (${proc.maquinas.length})`}</button>` : ''}
       </div>
     </div>`;
 
-    // ── Fila por máquina ──
-    proc.maquinas.forEach(m => {
-      const mOps = orders.filter(o => o.maquina === m.id_maquina);
+    visibleMachines.forEach(m => {
+      const mOps = machineVisibleOps(m.id_maquina);
+      const machineSub = [m.sub_descripcion || '', mOps.length ? `Asignadas ${mOps.length}` : ''].filter(Boolean).join(' · ');
       html += `
       <div class="g-row" data-machine="${m.id_maquina}" style="border-left:3px solid ${proc.color}">
         <div class="res-lbl">
           <span class="res-name">${m.nombre_recurso}</span>
-          <span class="res-sub">${m.sub_descripcion || ''}</span>
+          ${machineSub ? `<span class="res-sub">${machineSub}</span>` : ''}
         </div>
         <div class="timeline" data-machine="${m.id_maquina}">
           ${HOURS.map((_, i) => `<div class="grid-ln" style="left:${pct(i)}"></div>`).join('')}
@@ -663,7 +825,7 @@ function render() {
     <span class="leg-item"><span class="leg-dot" style="background:#E24B4A"></span>Alerta / Paro</span>
     <span class="leg-item"><span class="leg-dot" style="background:#639922"></span>Completado</span>
     <span class="leg-item" style="font-size:11px;color:#aaa;margin-left:auto">
-      Click para ver cadena · Drag para mover · <span style="background:#FFD600;padding:1px 5px;border-radius:3px;color:#1a1a1a">■</span> Cadena activa
+      Click para ver cadena · Drag para mover · <span style="background:#FFD600;padding:1px 5px;border-radius:3px;color:#1a1a1a">⬤</span> Cadena activa
     </span>
   </div>`;
 
@@ -695,7 +857,7 @@ function drawArrows() {
   const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
 
   [
-    { id: 'arr-normal', color: '#aaa' },
+    { id: 'arr-normal', color: '#8a97a6' },
     { id: 'arr-active', color: '#FFD600' },
     { id: 'arr-dim',    color: '#ddd' },
   ].forEach(({id, color}) => {
@@ -739,16 +901,16 @@ function drawArrows() {
 
     // Determinar estilo según cadena activa
     let markerId = 'arr-normal';
-    let strokeColor = '#bbb';
-    let strokeWidth = 1.5;
-    let strokeDash = '5,3';
+    let strokeColor = '#8a97a6';
+    let strokeWidth = 2.2;
+    let strokeDash = '';
 
     if (activeChainIds) {
       const inChain = activeChainIds.has(op.id_ruta) && activeChainIds.has(srcRutaId);
       if (inChain) {
         markerId   = 'arr-active';
         strokeColor = '#FFD600';
-        strokeWidth = 2.5;
+        strokeWidth = 3;
         strokeDash  = 'none';
       } else {
         markerId    = 'arr-dim';
@@ -780,94 +942,159 @@ function clearChain() {
 
 // ── DRAG & DROP ────────────────────────────────────────────
 function dragStart(e, id_ruta) {
+  const el = document.getElementById('bar-' + id_ruta);
+  if (!el) return;
   dragOp = orders.find(o => o.id_ruta === id_ruta);
   e.dataTransfer.effectAllowed = 'move';
-  setTimeout(() => document.getElementById('bar-' + id_ruta)?.classList.add('dragging'), 0);
+  e.dataTransfer.setData('text/plain', String(id_ruta));
+  // Store bar dimensions for visual feedback
+  if (el) {
+    el.style.opacity = '0.5';
+    el.style.transform = 'scale(0.97)';
+  }
+  requestAnimationFrame(() => {
+    document.querySelectorAll('.timeline').forEach(tl => tl.style.outline = '2px dashed transparent');
+  });
 }
 
 function dragEnd(e) {
-  if (dragOp) document.getElementById('bar-' + dragOp.id_ruta)?.classList.remove('dragging');
-  dragOp = null;
   document.querySelectorAll('.g-row').forEach(r => r.classList.remove('drag-over'));
+  if (dragOp) {
+    const el = document.getElementById('bar-' + dragOp.id_ruta);
+    if (el) {
+      el.style.opacity = '';
+      el.style.transform = '';
+    }
+  }
+  dragOp = null;
+}
+
+function getDropSlot(tl, clientX) {
+  const rect = tl.getBoundingClientRect();
+  const pctX = (clientX - rect.left) / rect.width;
+  const raw  = pctX * SLOTS;
+  return Math.round(raw * 4) / 4;
+}
+
+function getMachineFromTimeline(tl) {
+  return tl.dataset.machine || tl.closest('.g-row')?.dataset?.machine || '';
+}
+
+async function handleDrop(e, tl) {
+  e.preventDefault();
+  tl.closest('.g-row')?.classList.remove('drag-over');
+
+  const draggedId = dragOp?.id_ruta || e.dataTransfer.getData('text/plain');
+  const movedOp = dragOp || orders.find(o => String(o.id_ruta) === String(draggedId));
+  if (!movedOp) return;
+
+  const newStart = Math.max(0, Math.min(SLOTS - movedOp.dur, getDropSlot(tl, e.clientX)));
+  const newMaq   = getMachineFromTimeline(tl);
+
+  if (newStart === movedOp.inicio && newMaq === movedOp.maquina) return;
+  const before = new Map(orders.map(o => [o.id_ruta, { inicio: o.inicio, maquina: o.maquina }]));
+
+  const issues = checkMove(movedOp.id_ruta, newStart, movedOp.dur, newMaq);
+  if (issues.length > 0) {
+    const machineIssues = issues.filter(i => i.type === 'machine');
+    let msg = `Este movimiento genera ${issues.length} conflicto(s):\n\n`;
+    issues.forEach(i => { msg += `• ${i.message}\n`; });
+    if (machineIssues.length > 0) {
+      showToast(machineIssues[0].message, 'error');
+      return;
+    }
+    msg += '\n¿Deseas ajustar automáticamente los procesos afectados?';
+    if (!confirm(msg)) return;
+  }
+
+  const downstream = getDownstreamOps(movedOp.id_ruta);
+  if (downstream.length > 0 && issues.length === 0) {
+    const delta = newStart - movedOp.inicio;
+    if (Math.abs(delta) > 0.01) {
+      const nombres = downstream.slice(0,3).map(o => o.id).join(', ');
+      if (!confirm(`Mover "${movedOp.id}" ${delta>0?'+':''}${delta.toFixed(2)}h desplazará:\n${nombres}${downstream.length>3?'…':''}\n\n¿Confirmar?`)) return;
+    }
+  }
+
+  movedOp.inicio  = newStart;
+  movedOp.maquina = newMaq;
+
+  const newEnd = newStart + movedOp.dur;
+  autoFix(movedOp.id_ruta, newEnd);
+  const changedOps = orders.filter(o => {
+    const prev = before.get(o.id_ruta) || {};
+    return prev.inicio !== o.inicio || prev.maquina !== o.maquina;
+  });
+
+  render();
+
+  try {
+    await Promise.all(changedOps.map(op => apiPatch(`${API}/gantt/mover`, {
+      id_ruta: op.id_ruta,
+      inicio: op.inicio,
+      id_maquina: op.maquina
+    })));
+    showToast('Movimiento guardado.', 'ok');
+    await loadFromAPI();
+  } catch (err) {
+    showError('Error guardando movimiento: ' + err.message);
+  }
 }
 
 function setupDropZones() {
   document.querySelectorAll('.timeline').forEach(tl => {
     tl.addEventListener('dragover', e => {
       e.preventDefault();
-      tl.closest('.g-row').classList.add('drag-over');
+      tl.closest('.g-row')?.classList.add('drag-over');
     });
     tl.addEventListener('dragleave', () => {
-      tl.closest('.g-row').classList.remove('drag-over');
+      tl.closest('.g-row')?.classList.remove('drag-over');
     });
-    tl.addEventListener('drop', async e => {
-      e.preventDefault();
-      tl.closest('.g-row').classList.remove('drag-over');
-      if (!dragOp) return;
-
-      const rect     = tl.getBoundingClientRect();
-      const pctX     = (e.clientX - rect.left) / rect.width;
-      const raw      = pctX * SLOTS;
-      const snap     = Math.round(raw * 4) / 4;
-      const newStart = Math.max(0, Math.min(SLOTS - dragOp.dur, snap));
-      const newMaq   = tl.dataset.machine;
-
-      if (newStart === dragOp.inicio && newMaq === dragOp.maquina) return;
-
-      // Verificar conflictos del movimiento
-      const issues = checkMove(dragOp.id_ruta, newStart, dragOp.dur, newMaq);
-      if (issues.length > 0) {
-        const machineIssues  = issues.filter(i => i.type === 'machine');
-        const sequenceIssues = issues.filter(i => i.type === 'sequence');
-        let msg = `⚠ Este movimiento genera ${issues.length} conflicto(s):\n\n`;
-        issues.forEach(i => { msg += `• ${i.message}\n`; });
-
-        if (machineIssues.length > 0) {
-          msg += '\nNo se puede colocar: otra orden ocupa esa máquina en ese horario.';
-          alert(msg);
-          return; // Bloquear movimiento de máquina
-        }
-
-        // Conflicto de secuencia: preguntar si ajustar automáticamente
-        msg += '\n¿Deseas ajustar automáticamente los procesos afectados?';
-        const autoAdjust = confirm(msg);
-        if (!autoAdjust) return;
-      }
-
-      // Calcular impacto en dependencias aguas abajo
-      const downstream = getDownstreamOps(dragOp.id_ruta);
-      if (downstream.length > 0 && issues.length === 0) {
-        const delta = newStart - dragOp.inicio;
-        if (Math.abs(delta) > 0.01) {
-          const nombres = downstream.slice(0,3).map(o => o.id).join(', ');
-          const msg = `Mover "${dragOp.id}" ${delta>0?'+':''}${delta.toFixed(2)}h desplazará:\n${nombres}${downstream.length>3?'…':''}\n\n¿Confirmar?`;
-          if (!confirm(msg)) return;
-        }
-      }
-
-      // Aplicar movimiento
-      dragOp.inicio  = newStart;
-      dragOp.maquina = newMaq;
-
-      // Ajustar sucesores automáticamente si hubo conflicto de secuencia
-      const newEnd = newStart + dragOp.dur;
-      autoFix(dragOp.id_ruta, newEnd);
-
-      render();
-
-      try {
-        await apiPatch(`${API}/gantt/mover`, {
-          id_ruta:    dragOp.id_ruta,
-          inicio:     newStart,
-          id_maquina: newMaq
-        });
-        await loadFromAPI();
-      } catch (err) {
-        showError('Error guardando movimiento: ' + err.message);
-      }
-    });
+    tl.addEventListener('drop', e => handleDrop(e, tl));
   });
 }
+
+function closeColorMenu() {
+  document.querySelector('.task-color-menu')?.remove();
+}
+
+function openColorMenu(event, id_ruta) {
+  event.preventDefault();
+  event.stopPropagation();
+  closeColorMenu();
+  const menu = document.createElement('div');
+  menu.className = 'task-color-menu';
+  menu.style.left = `${event.clientX}px`;
+  menu.style.top = `${event.clientY}px`;
+  ROUTE_COLORS.forEach(color => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'task-color-dot';
+    button.title = color ? `Color ${color}` : 'Color por estado';
+    button.style.background = color || 'linear-gradient(135deg,#378ADD 0 50%,#1D9E75 50% 100%)';
+    button.addEventListener('click', () => {
+      closeColorMenu();
+      setRouteColor(id_ruta, color).catch(error => showToast(error.message, 'error'));
+    });
+    menu.appendChild(button);
+  });
+  document.body.appendChild(menu);
+}
+
+async function setRouteColor(id_ruta, color) {
+  const op = orders.find(o => String(o.id_ruta) === String(id_ruta));
+  if (!op) return;
+  op.route_payload = { ...(op.route_payload || {}), colorHex: color || null };
+  render();
+  await apiPatch(`${API}/gantt/mover`, {
+    id_ruta,
+    route_payload_updates: { colorHex: color || null }
+  });
+  showToast(color ? 'Color actualizado.' : 'Color por estado restaurado.', 'ok');
+  await loadFromAPI();
+}
+
+document.addEventListener('click', closeColorMenu);
 
 // Devuelve órdenes que dependen (aguas abajo) de un id_ruta
 function getDownstreamOps(id_ruta) {
@@ -897,6 +1124,9 @@ function showTT(e, id_ruta) {
   if (!op) return;
   document.getElementById('tt-t').textContent = op.id + ' — ' + op.articulo;
   document.getElementById('tt-c').textContent = '👤 ' + op.cliente;
+  const isRunning = op.estado === 'RUN' || op.estado === 'SETUP';
+  const scheduleAlert = detectScheduleAlerts().find(entry => entry.orderCode === op.id);
+  const progPct = Number(op.route_payload?.progressPct || op.planning_snapshot?.progressPct || 0);
   document.getElementById('tt-b').innerHTML = `
     <div class="tt-row"><span>Proceso</span><span class="tt-val">${op.proceso}</span></div>
     <div class="tt-row"><span>Inicio</span><span class="tt-val">${formatHora(op.inicio)}</span></div>
@@ -908,7 +1138,10 @@ function showTT(e, id_ruta) {
     <div class="tt-row"><span>Modo</span><span class="tt-val">${op.manual_lock ? 'Fijo' : op.schedule_mode === 'backward' ? 'Programada hacia atrás' : op.schedule_mode === 'forward' ? 'Programada hacia adelante' : 'Sin definir'}</span></div>
     <div class="tt-row"><span>Pies</span><span class="tt-val">${Number(op.pies).toLocaleString()}</span></div>
     <div class="tt-row"><span>Saidel</span><span class="tt-val">${op.saidel}</span></div>
-    <div class="tt-row"><span>Estado</span><span class="tt-val">${op.estado}</span></div>
+    <div class="tt-row"><span>Estado</span><span class="tt-val" style="${isRunning ? 'color:#1D9E75;font-weight:600' : scheduleAlert?.type === 'late' ? 'color:#E24B4A;font-weight:600' : ''}">${op.estado}${isRunning ? ' ▶' : ''}${scheduleAlert?.type === 'late' ? ' ⚠' : ''}</span></div>
+    ${isRunning && progPct > 0 ? `<div class="tt-row"><span>Progreso</span><span class="tt-val" style="color:#1D9E75">${progPct}%</span></div>` : ''}
+    ${scheduleAlert?.type === 'late' ? `<div class="tt-row" style="color:#E24B4A"><span>⚠ Atraso</span><span class="tt-val" style="color:#E24B4A">${Math.abs(scheduleAlert.slack).toFixed(1)}h</span></div>` : ''}
+    ${scheduleAlert?.type === 'tight' ? `<div class="tt-row" style="color:#BA7517"><span>⌛ Justo</span><span class="tt-val" style="color:#BA7517">${scheduleAlert.slack.toFixed(1)}h margen</span></div>` : ''}
     ${op.dep ? `<div class="tt-row"><span>Depende de</span><span class="tt-val">${op.dep}</span></div>` : ''}
     ${op.trans_costo ? `<div class="tt-row"><span>Lavado</span><span class="tt-val" style="color:#854F0B">${op.trans_costo} min</span></div>` : ''}
     ${op.alerta ? `<div class="tt-row"><span>Alerta</span><span class="tt-val" style="color:#A32D2D">⚠ ${op.alerta_tipo}</span></div>` : ''}
@@ -995,6 +1228,17 @@ function openDP(id_ruta) {
     <div class="dp-field"><div class="dp-lbl">Origen del tiempo</div><div class="dp-val">${op.route_payload?.source || 'Sin definir'}</div></div>
     <div class="dp-field"><div class="dp-lbl">Modo de acomodo</div><div class="dp-val">${op.manual_lock ? 'Fijo manual' : op.schedule_mode === 'backward' ? 'Programada hacia atrás' : op.schedule_mode === 'forward' ? 'Programada hacia adelante' : 'Sin definir'}</div></div>
     <div class="dp-field">
+      <div class="dp-lbl">Color</div>
+      <div class="dp-color-row">
+        ${ROUTE_COLORS.map(color => `
+          <label title="${color ? color : 'Color por estado'}">
+            <input type="radio" name="dp-color" value="${color}" ${String(op.route_payload?.colorHex || '') === color ? 'checked' : ''}>
+            <span class="dp-color-swatch" style="background:${color || 'linear-gradient(135deg,#378ADD 0 50%,#1D9E75 50% 100%)'}"></span>
+          </label>
+        `).join('')}
+      </div>
+    </div>
+    <div class="dp-field">
       <div class="dp-lbl">Bloqueo manual</div>
       <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#46515d">
         <input type="checkbox" id="dp-lock" ${op.manual_lock ? 'checked' : ''}>
@@ -1076,6 +1320,7 @@ async function saveDP() {
   const newEstado = document.getElementById('dp-estado').value;
   const newLock   = Boolean(document.getElementById('dp-lock')?.checked);
   const newOrderLock = Boolean(document.getElementById('dp-lock-order')?.checked);
+  const newColor = document.querySelector('input[name="dp-color"]:checked')?.value || '';
 
   // Advertir sobre impacto si cambió inicio
   if (newInicio !== currentDP.inicio) {
@@ -1104,6 +1349,12 @@ async function saveDP() {
       await apiPatch(`${API}/gantt/mover`, {
         id_ruta: currentDP.id_ruta,
         route_payload_updates: { manualLock: newLock }
+      });
+    }
+    if (newColor !== String(currentDP.route_payload?.colorHex || '')) {
+      await apiPatch(`${API}/gantt/mover`, {
+        id_ruta: currentDP.id_ruta,
+        route_payload_updates: { colorHex: newColor || null }
       });
     }
     const orderOps = getOrderOps(currentDP.id);
@@ -1268,6 +1519,23 @@ function autoSeq() {
     )
   ).then(() => loadFromAPI()).catch(e => showError('Error al optimizar: ' + e.message));
 }
+
+// ── USUARIO ACTIVO ─────────────────────────────────────────
+function syncGanttUserName() {
+  const el = document.getElementById('ganttUserName');
+  if (!el) return;
+  try {
+    const raw = localStorage.getItem('erp-user-session') || sessionStorage.getItem('erp-user-session');
+    if (raw) {
+      const s = JSON.parse(raw);
+      const name = s.name || s.fullName || s.user || s.username || s.currentUser || '';
+      el.textContent = name || 'Sin sesión';
+      return;
+    }
+  } catch (_) {}
+  el.textContent = 'Sin sesión';
+}
+syncGanttUserName();
 
 // ── POLLING (refresh cada 30s) ─────────────────────────────
 setInterval(() => { if (!currentDP) loadFromAPI(); }, 30000);

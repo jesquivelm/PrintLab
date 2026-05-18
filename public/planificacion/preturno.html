@@ -19,12 +19,48 @@
   --danger:#d84d4d;
   --shadow:0 18px 42px rgba(31,55,88,.08);
 }
+html[data-theme="dark"]{
+  --bg:#0d1117;
+  --surface:#161b22;
+  --border:#303a46;
+  --text:#e6edf3;
+  --muted:#8b98a8;
+  --primary:#58a6ff;
+  --primary-soft:#0d2137;
+  --success:#3fb950;
+  --warning:#d29922;
+  --danger:#f85149;
+  --shadow:none;
+}
 *{box-sizing:border-box;margin:0;padding:0}
 body{
   font-family:"Segoe UI",Tahoma,sans-serif;
   background:linear-gradient(180deg,#eef5fb 0%,#f7f9fc 220px,#f4f7fb 220px);
   color:var(--text);
 }
+html[data-theme="dark"] body{background:linear-gradient(180deg,#0b1220 0%,#0d1117 220px,#0d1117 220px)}
+html[data-theme="dark"] .hero{background:linear-gradient(135deg,#10243a,#0f3a53);box-shadow:none;border:1px solid #243244}
+html[data-theme="dark"] .btn{background:#1c2430;border-color:#3a4656;color:#dce7f3}
+html[data-theme="dark"] .btn.primary{background:#1f6feb;border-color:#58a6ff;color:#fff}
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .order-card,
+html[data-theme="dark"] .process-card,
+html[data-theme="dark"] .mini-btn,
+html[data-theme="dark"] .search,
+html[data-theme="dark"] .chip{background:var(--surface);border-color:var(--border);color:var(--text)}
+html[data-theme="dark"] .order-card{background:linear-gradient(180deg,#161b22 0%,#111820 100%)}
+html[data-theme="dark"] .process-card{background:#111820}
+html[data-theme="dark"] .meta-pill{background:#101722;border-color:var(--border);color:var(--muted)}
+html[data-theme="dark"] .chip.active{background:var(--primary-soft);border-color:#1f6feb;color:var(--primary)}
+html[data-theme="dark"] .status-pill.ok,
+html[data-theme="dark"] .process-status.running,
+html[data-theme="dark"] .process-status.done,
+html[data-theme="dark"] .flag.ok{background:#0a1f0e;color:var(--success)}
+html[data-theme="dark"] .status-pill.warn{background:#1f1800;color:var(--warning)}
+html[data-theme="dark"] .status-pill.danger,
+html[data-theme="dark"] .process-status.stop,
+html[data-theme="dark"] .flag.miss{background:#1f0c0c;color:var(--danger)}
+html[data-theme="dark"] .process-status.pending{background:var(--primary-soft);color:var(--primary)}
 .page{max-width:1440px;margin:0 auto;padding:24px}
 .hero{
   display:flex;justify-content:space-between;align-items:flex-end;gap:16px;
@@ -107,6 +143,13 @@ body{
 }
 </style>
 <link rel="stylesheet" href="/theme-extensions.css">
+<style>
+html[data-theme="dark"] .hero{background:linear-gradient(135deg,#10243a,#0f3a53)!important;box-shadow:none!important;border:1px solid #243244!important}
+html[data-theme="dark"] .btn{background:#1c2430!important;border-color:#3a4656!important;color:#dce7f3!important;box-shadow:none!important}
+html[data-theme="dark"] .btn.primary{background:#1f6feb!important;border-color:#58a6ff!important;color:#fff!important}
+html[data-theme="dark"] .order-card{background:linear-gradient(180deg,#161b22 0%,#111820 100%)!important;box-shadow:none!important}
+html[data-theme="dark"] .process-card{background:#111820!important;border-color:#303a46!important}
+</style>
 </head>
 <body>
 <div class="page">

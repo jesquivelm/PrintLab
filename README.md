@@ -1,4 +1,4 @@
-# Cotizador de Flexografía - Mayaprint
+# Cotizador de Flexografía
 
 Sistema web para cotización de productos de impresión en flexografía digital y convencional.
 

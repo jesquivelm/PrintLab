@@ -9,6 +9,8 @@ const addressesTableBody = document.getElementById('addressesTableBody');
 const contactMapFrame = document.getElementById('contactMapFrame');
 const contactMapLink = document.getElementById('contactMapLink');
 const contactMapSummary = document.getElementById('contactMapSummary');
+const socioTabButtons = [...document.querySelectorAll('[data-socio-tab]')];
+const socioTabPanels = [...document.querySelectorAll('[data-socio-panel]')];
 
 let loadedConfig = null;
 let sociosList = [];
@@ -34,6 +36,7 @@ const fields = {
   contactEmail: document.getElementById('contactEmail'),
   contactFax: document.getElementById('contactFax'),
   contactPhone: document.getElementById('contactPhone'),
+  contactLegalRepresentative: document.getElementById('contactLegalRepresentative'),
   contactCountry: document.getElementById('contactCountry'),
   contactState: document.getElementById('contactState'),
   contactCounty: document.getElementById('contactCounty'),
@@ -47,14 +50,19 @@ const fields = {
   entregaMuestras: document.getElementById('entregaMuestras'),
   entregaVB: document.getElementById('entregaVB'),
   contactoVB: document.getElementById('contactoVB'),
+  contactoVBTelefono: document.getElementById('contactoVBTelefono'),
+  contactoVBCorreo: document.getElementById('contactoVBCorreo'),
   entregaProducto: document.getElementById('entregaProducto'),
   contactoProducto: document.getElementById('contactoProducto'),
+  contactoProductoTelefono: document.getElementById('contactoProductoTelefono'),
+  contactoProductoCorreo: document.getElementById('contactoProductoCorreo'),
+  indicacionesVB: document.getElementById('indicacionesVB'),
+  indicacionesProducto: document.getElementById('indicacionesProducto'),
   indicacionesEntrega: document.getElementById('indicacionesEntrega'),
   requiereCartilla: document.getElementById('requiereCartilla'),
   requiereCertificado: document.getElementById('requiereCertificado'),
   usarCartilla: document.getElementById('usarCartilla'),
-  unidadDefecto: document.getElementById('unidadDefecto'),
-  correoNotificacion: document.getElementById('correoNotificacion')
+  unidadDefecto: document.getElementById('unidadDefecto')
 };
 
 function escapeHtml(value) {
@@ -115,6 +123,40 @@ function booleanText(value) {
   if (value === 'SI' || value === 'Sí' || value === 'Si') return 'Sí';
   if (value === 'NO' || value === 'No') return 'No';
   return value || '';
+}
+
+function firstFilled(...values) {
+  return values.find((value) => value !== undefined && value !== null && String(value).trim() !== '');
+}
+
+function isTruthyFlag(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  return value === true || ['sí', 'si', 'true', '1', 'yes', 'y'].includes(normalized);
+}
+
+function legalRepresentativeFlag(contact = {}) {
+  const raw = contact.raw_data || {};
+  return isTruthyFlag(firstFilled(
+    contact.is_legal_representative,
+    raw.is_legal_representative,
+    raw.representante_legal,
+    raw['REPRESENTANTE LEGAL'],
+    raw['Representante Legal'],
+    raw.U_RepresentanteLegal,
+    raw.U_REPRESENTANTE_LEGAL
+  ));
+}
+
+function findContactByName(contacts = [], name = '') {
+  const target = String(name || '').trim().toLowerCase();
+  if (!target) return null;
+  return contacts.find((contact) => {
+    const names = [
+      contact.contact_name,
+      [contact.first_name, contact.last_name].filter(Boolean).join(' ')
+    ].map((item) => String(item || '').trim().toLowerCase());
+    return names.includes(target);
+  }) || null;
 }
 
 function buildContactAddress(contact) {
@@ -188,7 +230,7 @@ function updateContactMap({ partnerName = '', address = '', county = '', state =
 
 function renderContacts(contacts) {
   if (!contacts.length) {
-    contactsTableBody.innerHTML = '<tr><td colspan="6">Sin contactos asociados.</td></tr>';
+    contactsTableBody.innerHTML = '<tr><td colspan="7">Sin contactos asociados.</td></tr>';
     return;
   }
   contactsTableBody.innerHTML = contacts.map((contact) => `
@@ -198,6 +240,7 @@ function renderContacts(contacts) {
       <td>${escapeHtml(contact.email)}</td>
       <td>${escapeHtml(contact.phone)}</td>
       <td>${escapeHtml(contact.mobile)}</td>
+      <td><span class="socios-table-check"><input type="checkbox" disabled${legalRepresentativeFlag(contact) ? ' checked' : ''}></span></td>
       <td>${escapeHtml(contact.state_province)}</td>
     </tr>
   `).join('');
@@ -225,9 +268,24 @@ function getCurrentIndex() {
 }
 
 function updateSocioNavigation() {
+  if (!prevSocioButton || !nextSocioButton) return;
   const index = getCurrentIndex();
   prevSocioButton.disabled = index <= 0;
   nextSocioButton.disabled = index < 0 || index >= sociosList.length - 1;
+}
+
+function activateSocioTab(tabKey = 'cliente') {
+  const key = String(tabKey || 'cliente').trim() || 'cliente';
+  socioTabButtons.forEach((button) => {
+    const active = button.dataset.socioTab === key;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+  socioTabPanels.forEach((panel) => {
+    const active = panel.dataset.socioPanel === key;
+    panel.classList.toggle('is-active', active);
+    panel.hidden = !active;
+  });
 }
 
 function styleNavButton(button, iconValue, palette) {
@@ -302,7 +360,7 @@ async function loadSocio(code, pushState = true) {
   setValue('generalEmail', socio.email || raw.EmailAddress);
   setValue('sector', socio.sector || raw['Sector Comercial']);
   setValue('subSector', socio.sub_sector || raw['Nicho Comercial']);
-  setValue('taxExempt', booleanText(raw['CLIENTE EXCENTO MOSTRAR'] || socio.is_tax_exempt));
+  setValue('taxExempt', firstFilled(raw['CLIENTE EXENTO MOSTRAR'], raw['CLIENTE EXCENTO MOSTRAR'], raw['CLIENTE EXENTO'], socio.is_tax_exempt));
   setValue('creationDate', formatDate(raw['Creacion Fecha'] || socio.creation_date));
 
   setValue('contactFirstName', mainContact.first_name || raw['CONTACTO NOMBRE']);
@@ -312,6 +370,7 @@ async function loadSocio(code, pushState = true) {
   setValue('contactEmail', mainContact.email);
   setValue('contactFax', mainContact.fax);
   setValue('contactPhone', mainContact.phone || raw.PHONE1);
+  setValue('contactLegalRepresentative', legalRepresentativeFlag(mainContact));
   setValue('contactCountry', mainContact.country || raw['Country Name']);
   setValue('contactState', mainContact.state_province || raw['STATE NAME']);
   setValue('contactCounty', mainContact.county || raw['CONTACTO CANTON']);
@@ -328,12 +387,19 @@ async function loadSocio(code, pushState = true) {
   setValue('entregaProducto', raw['FORMA ENTREGA | PRODUCTO']);
   setValue('contactoProducto', raw['FORMA ENTREGA | CONTACTO PRODUCTO']);
   setValue('indicacionesEntrega', raw['FORMA ENTREGA | INDICACIONES']);
+  const vbContact = findContactByName(contacts, raw['FORMA ENTREGA | CONTACTO VB']);
+  const productContact = findContactByName(contacts, raw['FORMA ENTREGA | CONTACTO PRODUCTO']);
+  setValue('contactoVBTelefono', firstFilled(vbContact?.phone, vbContact?.mobile));
+  setValue('contactoVBCorreo', vbContact?.email);
+  setValue('contactoProductoTelefono', firstFilled(productContact?.phone, productContact?.mobile));
+  setValue('contactoProductoCorreo', productContact?.email);
+  setValue('indicacionesVB', firstFilled(raw['FORMA ENTREGA | INDICACIONES VB'], raw['FORMA ENTREGA | INDICACIONES VISTO BUENO']));
+  setValue('indicacionesProducto', firstFilled(raw['FORMA ENTREGA | INDICACIONES PRODUCTO'], raw['FORMA ENTREGA | INDICACIONES PRODUCTO FINAL']));
 
-  setValue('requiereCartilla', booleanText(raw['CALIDAD | REQUIERE CARTILLA COLOR | CHECK']));
-  setValue('requiereCertificado', booleanText(raw['CALIDAD | REQUIERE CERTIFICADO CALIDAD | CHECK']));
-  setValue('usarCartilla', booleanText(raw['CALIDAD | USAR CARTILLA COLOR | CHECK']));
+  setValue('requiereCartilla', raw['CALIDAD | REQUIERE CARTILLA COLOR | CHECK']);
+  setValue('requiereCertificado', raw['CALIDAD | REQUIERE CERTIFICADO CALIDAD | CHECK']);
+  setValue('usarCartilla', raw['CALIDAD | USAR CARTILLA COLOR | CHECK']);
   setValue('unidadDefecto', raw['UNIDAD POR DEFECTO']);
-  setValue('correoNotificacion', raw['Correo Notificacion al Vendedor y Enlace']);
 
   renderContacts(contacts);
   renderAddresses(addresses);
@@ -364,6 +430,9 @@ function moveSocio(step) {
 
 prevSocioButton?.addEventListener('click', () => moveSocio(-1));
 nextSocioButton?.addEventListener('click', () => moveSocio(1));
+socioTabButtons.forEach((button) => {
+  button.addEventListener('click', () => activateSocioTab(button.dataset.socioTab || 'cliente'));
+});
 
 async function init() {
   const codigo = new URLSearchParams(window.location.search).get('codigo');
@@ -371,6 +440,7 @@ async function init() {
   await loadConfig();
   await loadSociosList();
   await loadSocio(codigo, false);
+  activateSocioTab('cliente');
 }
 
 init().catch((error) => {

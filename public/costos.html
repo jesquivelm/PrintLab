@@ -18,198 +18,201 @@
 
             <section class="costs-panel is-active" data-panel="general">
                 <div class="costs-panel-frame">
-                <article class="costs-section-card costs-section-card-plain costs-defaults-card-plain">
-                    <div class="costs-section-head">
-                        <h2 class="costs-section-title">Predeterminados de Cotizaci&oacute;n</h2>
-                    </div>
-                    <div class="costs-defaults-shell costs-defaults-shell-plain">
-                        <div class="costs-defaults-layout">
-                            <div class="costs-defaults-fields">
-                                <label><span>Ancho de Core</span><input id="costosDefaultRollWidth" type="number" step="0.01" min="0"></label>
-                                <label><span>Di&aacute;metro de Core</span><input id="costosDefaultCoreDiameter" type="number" step="0.01" min="0"></label>
-                                <label><span>Cantidad de Tipos</span><input id="costosDefaultQuantityTypes" type="number" step="1" min="1"></label>
-                                <label><span>CMYK por Defecto</span><select id="costosDefaultCmykEnabled"><option value="true">S&iacute;</option><option value="false">No</option></select></label>
-                            </div>
-                            <section class="costs-core-options-field costs-core-options-field-plain" aria-label="Opciones de Di&aacute;metro de Core">
-                                <div class="costs-core-options-head">
-                                    <span>Opciones de Di&aacute;metro de Core</span>
+                    <div class="costs-general-layout">
+                        <div class="costs-general-left">
+                            <article class="costs-section-card costs-section-card-plain costs-defaults-card-plain">
+                                <div class="costs-section-head">
+                                    <h2 class="costs-section-title">Predeterminados de Cotizaci&oacute;n</h2>
                                 </div>
-                                <div class="copy-popover-table-wrap costs-table-wrap costs-core-options-table-wrap costs-core-options-table-wrap-plain">
-                                    <table class="copy-popover-table costs-table costs-core-options-table">
+                                <div class="costs-defaults-shell costs-defaults-shell-plain">
+                                    <div class="costs-defaults-layout">
+                                        <div class="costs-defaults-fields">
+                                            <label><span>Ancho de Core</span><input id="costosDefaultRollWidth" type="number" step="0.01" min="0"></label>
+                                            <label><span>Di&aacute;metro de Core</span><input id="costosDefaultCoreDiameter" type="number" step="0.01" min="0"></label>
+                                            <label><span>Cantidad de Tipos</span><input id="costosDefaultQuantityTypes" type="number" step="1" min="1"></label>
+                                            <label class="costs-default-check-field"><span>CMYK por Defecto</span><span class="costs-process-default-check"><input id="costosDefaultCmykEnabled" type="checkbox"></span></label>
+                                        </div>
+                                        <section class="costs-core-options-field costs-core-options-field-plain" aria-label="Opciones de Di&aacute;metro de Core">
+                                            <div class="costs-core-options-head">
+                                                <span>Opciones de Di&aacute;metro de Core</span>
+                                            </div>
+                                            <div class="copy-popover-table-wrap costs-table-wrap costs-core-options-table-wrap costs-core-options-table-wrap-plain">
+                                                <table class="copy-popover-table costs-table costs-core-options-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th class="costs-core-options-title-head"><span>Opci&oacute;n</span></th>
+                                                            <th class="costs-core-options-actions-head"><button type="button" id="costosAddCoreDiameterOption" class="costs-mini-action" aria-label="Agregar opción">+</button></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="costosCoreDiameterOptionsTableBody"></tbody>
+                                                </table>
+                                            </div>
+                                        </section>
+                                    </div>
+                                </div>
+                            </article>
+                            <article class="costs-section-card costs-section-card-plain costs-notes-card-plain">
+                                <div class="costs-section-head">
+                                    <h2 class="costs-section-title">Notas generales</h2>
+                                </div>
+                                <label class="costs-notes-field costs-notes-field-plain">
+                                    <textarea id="costosGeneralNotes" rows="5" placeholder="Aqu&iacute; puedes dejar observaciones sobre criterios de c&aacute;lculo o acuerdos de costos." aria-label="Notas generales"></textarea>
+                                </label>
+                            </article>
+                        </div>
+                        <div class="costs-general-right">
+                            <article class="costs-section-card costs-section-card-plain costs-processes-card-plain">
+                                <div class="costs-section-head">
+                                    <h2 class="costs-section-title">Procesos del C&aacute;lculo</h2>
+                                </div>
+                                <div class="copy-popover-table-wrap costs-table-wrap costs-process-table-wrap costs-process-table-wrap-plain" aria-label="Orden y costos m&iacute;nimos por proceso">
+                                    <table class="copy-popover-table costs-table costs-process-table">
+                                        <colgroup>
+                                            <col class="costs-process-col-number">
+                                            <col class="costs-process-col-process">
+                                            <col class="costs-process-col-check">
+                                            <col class="costs-process-col-check">
+                                            <col class="costs-process-col-check">
+                                            <col class="costs-process-col-check">
+                                            <col class="costs-process-col-cost">
+                                        </colgroup>
                                         <thead>
                                             <tr>
-                                                <th class="costs-core-options-title-head"><span>Opci&oacute;n</span></th>
-                                                <th class="costs-core-options-actions-head"><button type="button" id="costosAddCoreDiameterOption" class="costs-mini-action" aria-label="Agregar opción">+</button></th>
+                                                <th>N&deg;</th>
+                                                <th>Proceso</th>
+                                                <th>Activo</th>
+                                                <th>Gantt</th>
+                                                <th>No Eliminar</th>
+                                                <th>Repetir</th>
+                                                <th>Costo M&iacute;nimo</th>
                                             </tr>
                                         </thead>
-                                        <tbody id="costosCoreDiameterOptionsTableBody"></tbody>
+                                        <tbody id="costosProcessDefaultsList"></tbody>
                                     </table>
                                 </div>
-                            </section>
+                            </article>
                         </div>
                     </div>
-                </article>
-                <article class="costs-section-card costs-section-card-plain costs-processes-card-plain">
-                    <div class="costs-section-head">
-                        <h2 class="costs-section-title">Procesos del C&aacute;lculo</h2>
-                    </div>
-                    <div class="copy-popover-table-wrap costs-table-wrap costs-process-table-wrap costs-process-table-wrap-plain" aria-label="Orden y costos m&iacute;nimos por proceso">
-                        <table class="copy-popover-table costs-table costs-process-table">
-                            <colgroup>
-                                <col class="costs-process-col-process">
-                                <col class="costs-process-col-check">
-                                <col class="costs-process-col-check">
-                                <col class="costs-process-col-check">
-                                <col class="costs-process-col-cost">
-                            </colgroup>
-                            <thead>
-                                <tr>
-                                    <th>Proceso</th>
-                                    <th>Activo</th>
-                                    <th>No Eliminar</th>
-                                    <th>Repetir</th>
-                                    <th>Costo M&iacute;nimo</th>
-                                </tr>
-                            </thead>
-                            <tbody id="costosProcessDefaultsList"></tbody>
-                        </table>
-                    </div>
-                </article>
-                <article class="costs-section-card costs-section-card-plain costs-notes-card-plain">
-                    <div class="costs-section-head">
-                        <h2 class="costs-section-title">Notas generales</h2>
-                    </div>
-                    <label class="costs-notes-field costs-notes-field-plain">
-                        <textarea id="costosGeneralNotes" rows="5" placeholder="Aqu&iacute; puedes dejar observaciones sobre criterios de c&aacute;lculo o acuerdos de costos." aria-label="Notas generales"></textarea>
-                    </label>
-                </article>
                 </div>
             </section>
 
             <section class="costs-panel" data-panel="convencional">
                 <div class="costs-panel-frame">
-                <article class="costs-section-card">
-                    <div class="costs-section-head">
-                        <h2>Tintas y Dep&oacute;sito</h2>
-                    </div>
-                    <div class="costs-ink-grid">
-                        <label><span>BCM Gen&eacute;rico</span><input id="costosBcmGenerico" type="number" step="0.01"></label>
-                        <label><span>Cobertura Tinta</span><input id="costosCoberturaTinta" type="number" step="0.01"></label>
-                        <label><span>Cobertura Dise&ntilde;o</span><input id="costosCoberturaDiseno" type="number" step="0.01"></label>
-                        <label><span>Densidad UV</span><input id="costosDensidadUv" type="number" step="0.01"></label>
-                        <label><span>Costo Lb CMYK</span><input id="costosCostoLbCmyk" type="number" step="0.01"></label>
-                        <label><span>Costo Lb Blanco</span><input id="costosCostoLbBlanco" type="number" step="0.01"></label>
-                        <label><span>Costo Lb Pantone</span><input id="costosCostoLbPantone" type="number" step="0.01"></label>
-                    </div>
-                    <div class="costs-table-title">Perfil de aplicaci&oacute;n de tinta</div>
-                    <div class="copy-popover-table-wrap costs-table-wrap">
-                        <table class="copy-popover-table costs-table">
-                            <colgroup>
-                                <col>
-                                <col>
-                                <col>
-                                <col>
-                            </colgroup>
-                            <thead>
-                                <tr>
-                                    <th>Tipo de Trabajo</th>
-                                    <th>BCM Anilox</th>
-                                    <th>Cobertura %</th>
-                                    <th><span title="Cantidad de peso real transferido al sustrato. En Barniz UV corresponde al GSM barniz.">GSM / GSM Barniz</span></th>
-                                </tr>
-                            </thead>
-                            <tbody id="costosDepositosTableBody"></tbody>
-                        </table>
-                    </div>
-                </article>
-
-                <article class="costs-section-card">
-                    <div class="costs-section-head">
-                        <h2>Subprocesos Acabados Impresi&oacute;n</h2>
-                    </div>
-                    <div class="copy-popover-table-wrap costs-table-wrap">
-                        <table class="copy-popover-table costs-table">
-                            <thead>
-                                <tr>
-                                    <th>Proceso</th>
-                                    <th>Minutos de Montaje</th>
-                                </tr>
-                            </thead>
-                            <tbody id="inlineFinishSetupTableBody"></tbody>
-                        </table>
-                    </div>
-                </article>
-
-                <article class="costs-section-card">
-                    <div class="costs-section-head">
-                        <h2>M&aacute;cula Montaje</h2>
-                    </div>
-                    <div class="copy-popover-table-wrap costs-table-wrap">
-                        <table class="copy-popover-table costs-table">
-                            <thead>
-                                <tr>
-                                    <th>Detalle</th>
-                                    <th>Por Estaci&oacute;n</th>
-                                    <th>Cantidad Tintas</th>
-                                    <th>Total Pies</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody id="maculaMontajeTableBody"></tbody>
-                        </table>
-                    </div>
-                </article>
-
-                <article class="costs-section-card">
-                    <div class="costs-section-head">
-                        <h2>M&aacute;cula Tiraje</h2>
-                    </div>
-                    <div class="copy-popover-table-wrap costs-table-wrap">
-                        <table class="copy-popover-table costs-table">
-                            <thead>
-                                <tr>
-                                    <th>Detalle</th>
-                                    <th>Porcentaje</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody id="maculaTirajeTableBody"></tbody>
-                        </table>
-                    </div>
-                </article>
-
-                <article class="costs-section-card">
-                    <div class="costs-section-head">
-                        <h2>Mermas de Acabados</h2>
-                    </div>
-                    <div class="copy-popover-table-wrap costs-table-wrap">
-                        <table class="copy-popover-table costs-table">
-                            <thead>
-                                <tr>
-                                    <th>Proceso</th>
-                                    <th>Merma Ajuste (ft)</th>
-                                    <th>Merma Operaci&oacute;n (%)</th>
-                                </tr>
-                            </thead>
-                            <tbody id="costosFinishWasteTableBody"></tbody>
-                        </table>
-                    </div>
-                </article>
-                <article class="costs-section-card">
-                    <div class="costs-section-head">
-                        <h2>Referencia Convencional</h2>
-                    </div>
-                    <div class="costs-info-stack">
-                        <div class="costs-formula-card">
-                            <strong>F&oacute;rmula Base</strong>
-                            <p>Consumo tinta = &Aacute;rea impresa x Cobertura x BCM anilox x Factor transferencia x Densidad tinta x Tintas requeridas.</p>
+                    <div class="costs-conventional-layout">
+                        <div class="costs-conventional-left">
+                            <article class="costs-section-card">
+                                <div class="costs-section-head">
+                                    <h2>Tintas y Dep&oacute;sito</h2>
+                                </div>
+                                <div class="costs-ink-grid">
+                                    <label><span>BCM Gen&eacute;rico</span><span class="costs-input-overlay has-suffix"><input id="costosBcmGenerico" type="number" step="0.01"><em class="suffix">BCM</em></span></label>
+                                    <label><span>Cobertura Tinta</span><span class="costs-input-overlay has-suffix"><input id="costosCoberturaTinta" type="number" step="0.01"><em class="suffix">%</em></span></label>
+                                    <label><span>Cobertura Dise&ntilde;o</span><span class="costs-input-overlay has-suffix"><input id="costosCoberturaDiseno" type="number" step="0.01"><em class="suffix">%</em></span></label>
+                                    <div class="costs-conv-reference-note">
+                                        <strong>Referencia</strong>
+                                        <p>Consumo tinta = &Aacute;rea impresa x Cobertura x BCM anilox x Factor transferencia x Densidad tinta x Tintas requeridas.</p>
+                                        <p>Estos valores alimentan la cotizaci&oacute;n convencional, el barniz inline y la reposici&oacute;n autom&aacute;tica.</p>
+                                    </div>
+                                    <label><span>Densidad UV</span><span class="costs-input-overlay"><input id="costosDensidadUv" type="number" step="0.01"></span></label>
+                                    <label><span>Costo de libra de CMYK</span><span class="costs-input-overlay has-prefix has-suffix"><em class="prefix">$</em><input id="costosCostoLbCmyk" type="number" step="0.01"><em class="suffix">lb</em></span></label>
+                                    <label><span>Costo de libra de Blanco</span><span class="costs-input-overlay has-prefix has-suffix"><em class="prefix">$</em><input id="costosCostoLbBlanco" type="number" step="0.01"><em class="suffix">lb</em></span></label>
+                                    <label><span>Costo de libra de Pantone</span><span class="costs-input-overlay has-prefix has-suffix"><em class="prefix">$</em><input id="costosCostoLbPantone" type="number" step="0.01"><em class="suffix">lb</em></span></label>
+                                </div>
+                                <div class="costs-table-title">Perfil de aplicaci&oacute;n de tinta</div>
+                                <div class="copy-popover-table-wrap costs-table-wrap">
+                                    <table class="copy-popover-table costs-table">
+                                        <colgroup>
+                                            <col>
+                                            <col>
+                                            <col>
+                                            <col>
+                                        </colgroup>
+                                        <thead>
+                                            <tr>
+                                                <th>Tipo de Trabajo</th>
+                                                <th>BCM Anilox</th>
+                                                <th>Cobertura %</th>
+                                                <th><span title="Cantidad de peso real transferido al sustrato. En Barniz UV corresponde al GSM barniz.">GSM / GSM Barniz</span></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="costosDepositosTableBody"></tbody>
+                                    </table>
+                                </div>
+                            </article>
+                            <article class="costs-section-card">
+                                <div class="costs-section-head">
+                                    <h2>Merma Montaje</h2>
+                                </div>
+                                <div class="copy-popover-table-wrap costs-table-wrap">
+                                    <table class="copy-popover-table costs-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Detalle</th>
+                                                <th>Por Estaci&oacute;n</th>
+                                                <th>Cantidad Tintas</th>
+                                                <th>Total Pies</th>
+                                                <th></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="maculaMontajeTableBody"></tbody>
+                                    </table>
+                                </div>
+                            </article>
+                            <article class="costs-section-card">
+                                <div class="costs-section-head">
+                                    <h2>Merma Tiraje</h2>
+                                </div>
+                                <div class="copy-popover-table-wrap costs-table-wrap">
+                                    <table class="copy-popover-table costs-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Detalle</th>
+                                                <th>Porcentaje</th>
+                                                <th></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="maculaTirajeTableBody"></tbody>
+                                    </table>
+                                </div>
+                            </article>
+                            <article class="costs-section-card">
+                                <div class="costs-section-head">
+                                    <h2>Mermas de Acabados</h2>
+                                </div>
+                                <div class="copy-popover-table-wrap costs-table-wrap">
+                                    <table class="copy-popover-table costs-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Proceso</th>
+                                                <th>Merma Ajuste (ft)</th>
+                                                <th>Merma Operaci&oacute;n (%)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="costosFinishWasteTableBody"></tbody>
+                                    </table>
+                                </div>
+                            </article>
                         </div>
-                        <div class="costs-formula-card">
-                            <strong>Explicaci&oacute;n</strong>
-                            <p>Estos valores alimentan la cotizaci&oacute;n convencional, el barniz inline y la reposici&oacute;n autom&aacute;tica cuando el cotizador presiona actualizar costos en la proforma.</p>
+                        <div class="costs-conventional-right">
+                            <article class="costs-section-card">
+                                <div class="costs-section-head">
+                                    <h2>Subprocesos Acabados Impresi&oacute;n</h2>
+                                </div>
+                                <div class="copy-popover-table-wrap costs-table-wrap">
+                                    <table class="copy-popover-table costs-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Proceso</th>
+                                                <th>Minutos de Montaje</th>
+                                                <th>Merma Ajuste</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="inlineFinishSetupTableBody"></tbody>
+                                    </table>
+                                </div>
+                            </article>
                         </div>
                     </div>
-                </article>
                 </div>
             </section>
 

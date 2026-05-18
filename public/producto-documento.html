@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/theme.js"></script>
     <title>Producto</title>
-    <link rel="stylesheet" href="/styles.css?v=20260424g">
+    <link rel="stylesheet" href="/styles.css?v=20260511a">
 </head>
 <body>
     <script>
@@ -24,7 +24,7 @@
             </div>
         </header>
         <main class="workspace workspace-quote">
-            <section class="quote-card quote-card-clean production-order-card">
+            <section class="quote-card quote-card-clean production-order-card product-document-card">
                 <div id="productDocStatus" class="calc-popover-notice production-order-status" hidden>Cargando producto...</div>
                 <section id="productDocContent" hidden>
                     <div class="production-order-layout production-order-layout-refined">
@@ -89,6 +89,7 @@
                                 <div class="section-caption">Detalle</div>
                                 <div class="standard-module-tabs product-doc-tabs" role="tablist" aria-label="Detalle del producto">
                                     <button type="button" class="standard-module-tab is-active" data-product-doc-tab="cotizaciones">Cotizaciones</button>
+                                    <button type="button" class="standard-module-tab" data-product-doc-tab="ordenes">Órdenes</button>
                                     <button type="button" class="standard-module-tab" data-product-doc-tab="adjuntos">Adjuntos</button>
                                     <button type="button" class="standard-module-tab" data-product-doc-tab="origen">Datos originales</button>
                                 </div>
@@ -106,6 +107,23 @@
                                                 </tr>
                                             </thead>
                                             <tbody id="productDocHistoryTableBody"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div class="product-doc-panel" data-product-doc-panel="ordenes" hidden>
+                                    <div class="copy-popover-table-wrap quote-browser-table-wrap">
+                                        <table class="copy-popover-table quote-browser-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Orden</th>
+                                                    <th>Cotización</th>
+                                                    <th>Línea</th>
+                                                    <th>Máquina</th>
+                                                    <th>Fecha</th>
+                                                    <th></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="productDocOrdersTableBody"></tbody>
                                         </table>
                                     </div>
                                 </div>
@@ -144,6 +162,6 @@
         </main>
     </div>
     <script src="/access-control.js?v=20260424g"></script>
-    <script src="/producto-documento.js?v=20260424g"></script>
+    <script src="/producto-documento.js?v=20260511a"></script>
 </body>
 </html>

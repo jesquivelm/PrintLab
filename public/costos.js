@@ -4,7 +4,7 @@ const PRESENTATION_KEY = "costos";
 const COSTS_FALLBACK_STORAGE_KEY = "erp-costos-config";
 const DEFAULT_FLOATING_SAVE_ICON = "\u{1F4BE}";
 const PROCESS_DEFAULTS = [
-    { key: "macula", label: "M\u00e1cula", active: true, locked: true, repeatable: false, order: 5 },
+    { key: "macula", label: "Merma", active: true, locked: true, repeatable: false, order: 5 },
     { key: "troquel", label: "Troquel", active: true, locked: true, repeatable: false, order: 10 },
     { key: "sustrato", label: "Sustrato", active: true, locked: true, repeatable: false, order: 20 },
     { key: "diseno", label: "Dise\u00f1o", active: false, locked: false, repeatable: false, order: 30 },
@@ -49,13 +49,13 @@ const DEFAULT_COSTS_CONFIG = {
             ]
         },
         inlineFinishSetup: [
-            { id: "conv-inline-impresion", proceso: "Impresión", minutosPorEstacion: 5 },
-            { id: "conv-inline-troquelado", proceso: "Troquelado", minutosPorEstacion: 5 },
-            { id: "conv-inline-laminado", proceso: "Laminado", minutosPorEstacion: 5 },
-            { id: "conv-inline-barniz", proceso: "Barniz", minutosPorEstacion: 5 },
-            { id: "conv-inline-embosado", proceso: "Embosado", minutosPorEstacion: 5 },
-            { id: "conv-inline-estampado", proceso: "Estampado", minutosPorEstacion: 5 },
-            { id: "conv-inline-numerado", proceso: "Numerado", minutosPorEstacion: 5 }
+            { id: "conv-inline-impresion", proceso: "Impresión", minutosPorEstacion: 5, setupWasteFeet: 0 },
+            { id: "conv-inline-troquelado", proceso: "Troquelado", minutosPorEstacion: 5, setupWasteFeet: 0 },
+            { id: "conv-inline-laminado", proceso: "Laminado", minutosPorEstacion: 5, setupWasteFeet: 0 },
+            { id: "conv-inline-barniz", proceso: "Barniz", minutosPorEstacion: 5, setupWasteFeet: 0 },
+            { id: "conv-inline-embosado", proceso: "Embosado", minutosPorEstacion: 5, setupWasteFeet: 0 },
+            { id: "conv-inline-estampado", proceso: "Estampado", minutosPorEstacion: 5, setupWasteFeet: 0 },
+            { id: "conv-inline-numerado", proceso: "Numerado", minutosPorEstacion: 5, setupWasteFeet: 0 }
         ],
         maculaMontaje: [
             { id: "conv-montaje-impresion", detalle: "Impresión", porEstacion: 65, cantidadTintas: 4, totalPies: 260 },
@@ -266,6 +266,7 @@ function normalizeProcessDefaults(value) {
             active,
             locked,
             repeatable,
+            ganttEnabled: booleanValue(row?.ganttEnabled, row?.ganttEnabled == null ? active : false),
             order: numberValue(row?.order, fallback.order ?? ((index + 1) * 10)),
             minimumCost: Math.max(0, numberValue(row?.minimumCost, 0))
         };
@@ -278,6 +279,7 @@ function normalizeProcessDefaults(value) {
             active: item.locked ? true : item.active,
             locked: item.locked,
             repeatable: item.repeatable,
+            ganttEnabled: Boolean(item.active),
             order: item.order ?? ((index + 1) * 10),
             minimumCost: 0
         });
@@ -404,7 +406,8 @@ function normalizeCostsConfig(config) {
     const normalizeInlineFinishSetup = (rows) => (Array.isArray(rows) ? rows : []).map((row, index) => ({
         id: normalizeText(row?.id) || `conv-inline-${index + 1}`,
         proceso: normalizeText(row?.proceso),
-        minutosPorEstacion: numberValue(row?.minutosPorEstacion, 5)
+        minutosPorEstacion: numberValue(row?.minutosPorEstacion, 5),
+        setupWasteFeet: numberValue(row?.setupWasteFeet, 0)
     }));
     const normalizeDigitalCoverageProfiles = (rows) => (Array.isArray(rows) ? rows : []).map((row, index) => ({
         id: normalizeText(row?.id) || `digital-profile-${index + 1}`,
@@ -556,8 +559,9 @@ function renderInlineFinishSetupRows() {
         <tr>
             <td><input type="text" data-section="convencional.inlineFinishSetup" data-index="${index}" data-field="proceso" value="${escapeHtml(row.proceso)}"></td>
             <td><input type="number" min="0" step="0.01" data-section="convencional.inlineFinishSetup" data-index="${index}" data-field="minutosPorEstacion" value="${escapeHtml(row.minutosPorEstacion)}"></td>
+            <td><input type="number" min="0" step="0.01" data-section="convencional.inlineFinishSetup" data-index="${index}" data-field="setupWasteFeet" value="${escapeHtml(row.setupWasteFeet)}"></td>
         </tr>
-    `).join("") : '<tr><td colspan="2">No hay filas configuradas.</td></tr>';
+    `).join("") : '<tr><td colspan="3">No hay filas configuradas.</td></tr>';
 }
 
 function renderTirajeRows() {
@@ -626,6 +630,10 @@ function renderCosts() {
     generalNotes.value = costsState?.general?.notes || "";
     Object.entries(generalDefaultFields).forEach(([key, node]) => {
         if (!node) return;
+        if (key === "defaultCmykEnabled") {
+            node.checked = String(costsState?.general?.[key] ?? DEFAULT_COSTS_CONFIG.general[key]).trim().toLowerCase() !== "false";
+            return;
+        }
         node.value = costsState?.general?.[key] ?? DEFAULT_COSTS_CONFIG.general[key] ?? "";
     });
     renderCoreDiameterOptionsRows();
@@ -647,6 +655,7 @@ function renderProcessDefaultRows() {
     const rows = costsState?.general?.processDefaults || [];
     processDefaultsList.innerHTML = rows.map((row, index) => `
         <tr class="costs-process-default-row" data-process-default-row="${index}" data-process-key="${escapeHtml(row.key)}">
+            <td class="costs-process-default-number">${index + 1}</td>
             <td>
                 <div class="costs-process-default-main">
                     <button type="button" class="costs-process-default-handle" data-action="drag-process" data-index="${index}" draggable="true" aria-label="Mover proceso">⋮⋮</button>
@@ -656,6 +665,11 @@ function renderProcessDefaultRows() {
             <td class="costs-process-default-cell-check">
                 <label class="costs-process-default-check" aria-label="Activo">
                     <input type="checkbox" data-process-field="active" data-index="${index}"${row.active ? " checked" : ""}>
+                </label>
+            </td>
+            <td class="costs-process-default-cell-check">
+                <label class="costs-process-default-check" aria-label="Mostrar en Gantt">
+                    <input type="checkbox" data-process-field="ganttEnabled" data-index="${index}"${row.ganttEnabled ? " checked" : ""}>
                 </label>
             </td>
             <td class="costs-process-default-cell-check">
@@ -755,17 +769,19 @@ generalNotes?.addEventListener("input", () => {
 });
 
 Object.entries(generalDefaultFields).forEach(([key, node]) => {
-    node?.addEventListener("input", () => {
+    const updateGeneralDefault = () => {
         if (!costsState) return;
         if (key === "defaultCmykEnabled") {
-            costsState.general[key] = node.value === "false" ? "false" : "true";
+            costsState.general[key] = node.checked ? "true" : "false";
         } else if (key === "defaultQuantityTypes") {
             costsState.general[key] = Math.max(1, numberValue(node.value, DEFAULT_COSTS_CONFIG.general[key]));
         } else {
             costsState.general[key] = numberValue(node.value, DEFAULT_COSTS_CONFIG.general[key]);
         }
         queueCostsSave();
-    });
+    };
+    node?.addEventListener("input", updateGeneralDefault);
+    if (key === "defaultCmykEnabled") node?.addEventListener("change", updateGeneralDefault);
 });
 
 coreDiameterOptionsTableBody?.addEventListener("input", (event) => {
@@ -807,6 +823,9 @@ processDefaultsList?.addEventListener("change", (event) => {
     if (target.dataset.processField === "active") {
         row.active = target.checked;
         if (!row.active) row.locked = false;
+    }
+    if (target.dataset.processField === "ganttEnabled") {
+        row.ganttEnabled = target.checked;
     }
     if (target.dataset.processField === "locked") {
         row.locked = target.checked;

@@ -17,6 +17,7 @@ const priceEl = document.getElementById('productDocPrice');
 const finishesSectionEl = document.getElementById('productDocFinishesSection');
 const finishesEl = document.getElementById('productDocFinishes');
 const historyTableBodyEl = document.getElementById('productDocHistoryTableBody');
+const ordersTableBodyEl = document.getElementById('productDocOrdersTableBody');
 const attachmentsTableBodyEl = document.getElementById('productDocAttachmentsTableBody');
 const attachmentInputEl = document.getElementById('productDocAttachmentInput');
 const attachmentAddButtonEl = document.getElementById('productDocAttachmentAddButton');
@@ -93,13 +94,27 @@ const RAW_FIELDS_BY_GROUP = {
 function buildAsciiSafeSessionHeader(session) {
     if (!session || typeof session !== 'object') return null;
     const username = String(session.username || '').trim();
+    const permissionName = String(session.permissionName || '').trim();
     const modules = session.modules && typeof session.modules === 'object' ? session.modules : {};
     const safeModules = {};
     Object.keys(modules).forEach((key) => {
-        safeModules[String(key)] = String(modules[key] || '');
+        const value = modules[key];
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+            safeModules[String(key)] = {
+                view: Boolean(value.view || value.create || value.edit),
+                create: Boolean(value.create),
+                edit: Boolean(value.edit)
+            };
+            return;
+        }
+        if (Array.isArray(value)) {
+            safeModules[String(key)] = value.map((item) => String(item || '').trim()).filter(Boolean);
+            return;
+        }
+        safeModules[String(key)] = String(value || '').trim();
     });
-    if (!username && !Object.keys(safeModules).length) return null;
-    return JSON.stringify({ username, modules: safeModules });
+    if (!username && !permissionName && !Object.keys(safeModules).length) return null;
+    return JSON.stringify({ username, permissionName, modules: safeModules });
 }
 
 function sessionHeaders() {
@@ -332,6 +347,29 @@ function renderHistoryTable(items = []) {
     }).join('');
 }
 
+function renderOrdersTable(items = []) {
+    if (!ordersTableBodyEl) return;
+    if (!items.length) {
+        ordersTableBodyEl.innerHTML = renderEmptyTableRow(6, 'Todavía no hay órdenes registradas para este producto.');
+        return;
+    }
+    const openIcon = getOpenIconConfig();
+    ordersTableBodyEl.innerHTML = items.map((item) => {
+        const orderCode = item.order_code || '';
+        const route = `/orden-produccion/${encodeURIComponent(orderCode)}`;
+        return `
+            <tr>
+                <td>${escapeHtml(orderCode)}</td>
+                <td>${escapeHtml(item.quote_code || '')}</td>
+                <td>${escapeHtml(item.line_code || '')}</td>
+                <td>${escapeHtml(item.machine_name || '')}</td>
+                <td>${escapeHtml(formatDate(item.created_at || item.delivered_on))}</td>
+                <td><a class="browser-open-link" href="${escapeHtml(route)}" data-route="${escapeHtml(route)}" data-label="Orden ${escapeHtml(orderCode)}" aria-label="Abrir orden ${escapeHtml(orderCode)}" style="--icon-color:${escapeHtml(openIcon.color)};--icon-hover-color:${escapeHtml(openIcon.hover)};--config-icon-size:${escapeHtml(String(openIcon.size))}px;">${iconMarkup(openIcon.value, 'Abrir orden', 'table-icon-media')}</a></td>
+            </tr>
+        `;
+    }).join('');
+}
+
 function renderAttachmentsTable(items = []) {
     if (!items.length) {
         attachmentsTableBodyEl.innerHTML = renderEmptyTableRow(6, 'Todavía no hay adjuntos registrados para este producto.');
@@ -497,6 +535,7 @@ function renderProduct() {
     finishesEl.innerHTML = finishItems.map((item) => `<span class="production-chip">${escapeHtml(item)}</span>`).join('');
 
     renderHistoryTable(productDetail.historial || []);
+    renderOrdersTable(productDetail.ordenes || []);
     renderAttachmentsTable(productDetail.attachments || []);
     renderRawData(raw);
     contentEl.hidden = false;
@@ -506,18 +545,26 @@ function renderProduct() {
 
 async function quoteProduct() {
     if (!productCode) return;
-    setStatus('Creando cotización desde producto...');
-    const payload = await fetchJson(`/api/productos/${encodeURIComponent(productCode)}/cotizar`, {
-        method: 'POST',
-        headers: sessionHeaders()
-    });
-    const quoteCode = payload?.cotizacion?.quote_code;
-    if (quoteCode) {
-        const route = `/cotizaciones/documento?codigo=${encodeURIComponent(quoteCode)}`;
-        if (!openRouteInShell(route, `Cotización ${quoteCode}`)) window.location.href = route;
-        return;
+    if (quoteButtonEl) quoteButtonEl.disabled = true;
+    try {
+        setStatus('Creando cotización desde producto...');
+        const payload = await fetchJson(`/api/productos/${encodeURIComponent(productCode)}/cotizar`, {
+            method: 'POST',
+            headers: sessionHeaders()
+        });
+        const quoteCode = payload?.cotizacion?.quote_code;
+        const lineCode = payload?.linea?.line_code || payload?.calculo?.line_code || '';
+        if (quoteCode) {
+            const calcRoute = lineCode
+                ? `/calculo-flexografia?quoteId=${encodeURIComponent(quoteCode)}&lineId=${encodeURIComponent(lineCode)}`
+                : `/cotizaciones/documento?codigo=${encodeURIComponent(quoteCode)}`;
+            if (!openRouteInShell(calcRoute, `Cálculo ${quoteCode}`)) window.location.href = calcRoute;
+            return;
+        }
+        setStatus('No fue posible crear la cotización.', 'error');
+    } finally {
+        if (quoteButtonEl) quoteButtonEl.disabled = false;
     }
-    setStatus('No fue posible crear la cotización.', 'error');
 }
 
 async function init() {

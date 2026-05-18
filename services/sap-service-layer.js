@@ -137,7 +137,7 @@ const DEMO_DATA_SEED = Object.freeze({
 const SYNC_ENTITY_DEFS = Object.freeze({
     BusinessPartners: {
         pageSize: 200,
-        query: '$select=CardCode,CardName,CardType,Balance,Currency,Phone1,Email,ContactPerson,PriceListNum,FederalTaxID,LicTradNum,BPAddresses&$expand=BPAddresses'
+        query: '$select=CardCode,CardName,CardType,Balance,Currency,Phone1,Phone2,Email,EmailAddress,ContactPerson,PriceListNum,FederalTaxID,LicTradNum,Cellular,BPAddresses,ContactEmployees&$expand=BPAddresses,ContactEmployees'
     },
     Items: {
         pageSize: 500,
@@ -444,6 +444,100 @@ function extractSapAddresses(row = {}) {
             payload: address || {}
         }))
         .filter((address) => address.addressName || address.addressLine);
+}
+
+function pickSapPartnerField(source = {}, keys = [], fallback = '') {
+    for (const key of keys) {
+        const value = source?.[key];
+        if (value != null && String(value).trim() !== '') return String(value).trim();
+    }
+    return fallback;
+}
+
+function pickSapPartnerTaxId(row = {}) {
+    return pickSapPartnerField(row, [
+        'FederalTaxID',
+        'FederalTaxId',
+        'FEDERALTAXID',
+        'LicTradNum',
+        'TaxId',
+        'TaxID',
+        'VatId',
+        'VATRegNum',
+        'U_IDFiscal',
+        'U_Identificacion',
+        'U_Cedula',
+        'U_Nit'
+    ]);
+}
+
+function pickSapPartnerEmail(row = {}) {
+    return pickSapPartnerField(row, ['Email', 'EmailAddress', 'E_Mail', 'E_MailL', 'MailAddress', 'U_Email']);
+}
+
+function pickSapPartnerPhone(row = {}) {
+    return pickSapPartnerField(row, ['Phone1', 'Phone2', 'Tel1', 'Telephone1', 'U_Telefono']);
+}
+
+function pickSapPartnerMobile(row = {}) {
+    return pickSapPartnerField(row, ['Cellular', 'CellularPhone', 'Cellolar', 'MobilePhone', 'Mobile', 'U_Celular']);
+}
+
+function splitSapContactName(value = '') {
+    const parts = String(value || '').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return { firstName: '', lastName: '' };
+    return {
+        firstName: parts[0],
+        lastName: parts.slice(1).join(' ')
+    };
+}
+
+function pickSapContactIdentification(contact = {}, fallback = '') {
+    return pickSapPartnerField(contact, [
+        'FederalTaxID',
+        'LicTradNum',
+        'TaxId',
+        'TaxID',
+        'U_IDFiscal',
+        'U_Identificacion',
+        'U_Cedula',
+        'Identification'
+    ], fallback);
+}
+
+function extractSapContacts(row = {}, primaryAddress = {}) {
+    const contacts = Array.isArray(row.ContactEmployees)
+        ? row.ContactEmployees
+        : (Array.isArray(row.Contacts) ? row.Contacts : []);
+    const fallbackName = pickSapPartnerField(row, ['ContactPerson', 'CntctPrsn']);
+    const sourceRows = contacts.length ? contacts : (fallbackName ? [{
+        Name: fallbackName,
+        FirstName: fallbackName,
+        E_MailL: pickSapPartnerEmail(row),
+        Tel1: pickSapPartnerPhone(row),
+        Cellolar: pickSapPartnerMobile(row),
+        Position: 'Principal'
+    }] : []);
+    return sourceRows.map((contact) => {
+        const name = pickSapPartnerField(contact, ['Name', 'ContactName', 'FirstName'], fallbackName);
+        const parts = splitSapContactName(name);
+        return {
+            contactName: name,
+            firstName: pickSapPartnerField(contact, ['FirstName'], parts.firstName),
+            lastName: pickSapPartnerField(contact, ['LastName'], parts.lastName),
+            email: pickSapPartnerField(contact, ['E_MailL', 'Email', 'EmailAddress'], pickSapPartnerEmail(row)),
+            phone: pickSapPartnerField(contact, ['Tel1', 'Phone1', 'Telephone1'], pickSapPartnerPhone(row)),
+            mobile: pickSapPartnerField(contact, ['Cellolar', 'Cellular', 'MobilePhone', 'Mobile'], pickSapPartnerMobile(row)),
+            fax: pickSapPartnerField(contact, ['Fax', 'Fax1']),
+            position: pickSapPartnerField(contact, ['Position', 'Title'], 'Principal'),
+            country: pickSapPartnerField(contact, ['Country'], primaryAddress.country || ''),
+            stateProvince: pickSapPartnerField(contact, ['State', 'StateProvince'], primaryAddress.stateProvince || ''),
+            county: pickSapPartnerField(contact, ['County'], primaryAddress.county || ''),
+            addressLine: pickSapPartnerField(contact, ['Address'], primaryAddress.addressLine || ''),
+            identification: pickSapContactIdentification(contact, pickSapPartnerTaxId(row)),
+            payload: contact || {}
+        };
+    }).filter((contact) => contact.contactName || contact.email || contact.phone || contact.mobile);
 }
 
 function normalizeTimestamp(value) {
@@ -1726,11 +1820,16 @@ async function upsertBusinessPartners(client, records) {
         const cardType = normalizeText(row.CardType);
         const balance = row.Balance == null ? null : Number(row.Balance);
         const currency = normalizeText(row.Currency);
-        const phone = normalizeText(row.Phone1);
-        const email = normalizeText(row.Email || row.EmailAddress);
-        const contactPerson = normalizeText(row.ContactPerson);
-        const taxId = normalizeText(row.FederalTaxID || row.LicTradNum || row.FEDERALTAXID);
+        const phone = normalizeText(pickSapPartnerPhone(row));
+        const email = normalizeText(pickSapPartnerEmail(row));
+        const contactPerson = normalizeText(pickSapPartnerField(row, ['ContactPerson', 'CntctPrsn']));
+        const taxId = normalizeText(pickSapPartnerTaxId(row));
         const clientType = cardType === 'C' ? 'CL' : (cardType === 'S' ? 'PR' : '');
+        const sapAddresses = extractSapAddresses(row);
+        const primaryAddress = sapAddresses.find((address) => String(address.addressTypeLabel || '').toLowerCase() === 'facturación')
+            || sapAddresses[0]
+            || {};
+        const sapContacts = extractSapContacts(row, primaryAddress);
         const syncSnapshot = {
             synced_at: new Date().toISOString(),
             source: 'sap',
@@ -1746,7 +1845,6 @@ async function upsertBusinessPartners(client, records) {
         if (taxId) {
             syncSnapshot.tax_id = taxId;
         }
-        const sapAddresses = extractSapAddresses(row);
 
         if (partnerCode) {
             await client.query(`
@@ -1822,7 +1920,7 @@ async function upsertBusinessPartners(client, records) {
                 ]);
             }
             const contacts = Array.isArray(row.ContactEmployees) ? row.ContactEmployees : [];
-            const contactRows = contacts.length ? contacts : (contactPerson ? [{ Name: contactPerson, FirstName: contactPerson, E_MailL: email, Tel1: phone, Position: 'Principal' }] : []);
+            const contactRows = contacts.length ? contacts : (contactPerson ? [{ Name: contactPerson, FirstName: contactPerson, E_MailL: email, Tel1: phone, Cellolar: pickSapPartnerMobile(row), Position: 'Principal' }] : []);
             for (const contact of contactRows) {
                 const name = sapText(contact.Name || contact.ContactName || contactPerson);
                 if (!name) continue;
@@ -1849,7 +1947,7 @@ async function upsertBusinessPartners(client, records) {
                     sapText(contact.LastName),
                     sapText(contact.E_MailL || contact.Email || email),
                     sapText(contact.Tel1 || contact.Phone1 || phone),
-                    sapText(contact.Cellolar || contact.MobilePhone),
+                    sapText(contact.Cellolar || contact.MobilePhone || contact.Mobile || pickSapPartnerMobile(row)),
                     sapText(contact.Position),
                     JSON.stringify(contact || {})
                 ]);
@@ -1952,8 +2050,13 @@ async function upsertBusinessPartners(client, records) {
             })
         ]);
 
-        if (contactPerson) {
-            const [firstName, ...lastNameParts] = contactPerson.split(/\s+/).filter(Boolean);
+        await client.query(`
+            DELETE FROM business_partner_contacts
+             WHERE partner_code = $1
+               AND raw_data ? 'SAP_SERVICE_LAYER'
+        `, [partnerCode]);
+
+        for (const contact of sapContacts) {
             await client.query(`
                 INSERT INTO business_partner_contacts (
                     partner_code,
@@ -1970,24 +2073,31 @@ async function upsertBusinessPartners(client, records) {
                     state_province,
                     county,
                     raw_data
-                )
-                SELECT
-                    $1, $2, $3, $4, $5, $6, '', '', 'Principal', false, '', '', '', $7::jsonb
-                WHERE NOT EXISTS (
-                    SELECT 1
-                      FROM business_partner_contacts
-                     WHERE partner_code = $1
-                       AND LOWER(TRIM(COALESCE(contact_name, ''))) = LOWER(TRIM($2))
+                ) VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8, $9, false, $10, $11, $12, $13::jsonb
                 )
             `, [
                 partnerCode,
-                contactPerson,
-                firstName || contactPerson,
-                lastNameParts.join(' '),
-                email || null,
-                phone || null,
+                contact.contactName,
+                contact.firstName || splitSapContactName(contact.contactName).firstName,
+                contact.lastName || splitSapContactName(contact.contactName).lastName,
+                contact.email || null,
+                contact.phone || null,
+                contact.mobile || null,
+                contact.fax || '',
+                contact.position || 'Principal',
+                contact.country || '',
+                contact.stateProvince || '',
+                contact.county || '',
                 JSON.stringify({
-                    SAP_SERVICE_LAYER: syncSnapshot
+                    SAP_SERVICE_LAYER: {
+                        ...syncSnapshot,
+                        contact_identification: contact.identification || '',
+                        contact_address: contact.addressLine || ''
+                    },
+                    IDENTIFICACION: contact.identification || '',
+                    ADDRESS: contact.addressLine || '',
+                    sap_contact: contact.payload || {}
                 })
             ]);
         }
@@ -3178,10 +3288,10 @@ async function executeSapImportJob({ pgQuery, withTransaction, jobCode, actor = 
                    finished_at = NOW(),
                    updated_at = NOW()
              WHERE job_code = $1
-        `, [
-            definition.jobCode,
-            error.message || 'No fue posible ejecutar la carga SAP.'
-        ]);
+	        `, [
+	            definition.jobCode,
+	            `Reintento automático activo: ${error.message || 'No fue posible ejecutar la carga SAP.'}`
+	        ]);
         await logSapRouteFailure(pgQuery, {
             actionType: 'import',
             entityName: definition.entityLabel,
@@ -3203,6 +3313,8 @@ async function executeSapImportJob({ pgQuery, withTransaction, jobCode, actor = 
 }
 
 async function stageSapMirrorOrder(pgQuery, input = {}) {
+    const startedAt = new Date().toISOString();
+    try {
     const payload = await enrichOrderPayloadWithProfitCenter(pgQuery, input || {}, buildOrderPayload(input || {}));
     const docEntry = sapNumber(input.DocEntry || input.docEntry, Date.now());
     const docNum = sapText(input.DocNum || input.docNum || docEntry);
@@ -3280,6 +3392,27 @@ async function stageSapMirrorOrder(pgQuery, input = {}) {
         ]);
     }
     return { ok: true, DocEntry: docEntry, DocNum: docNum, lines: lines.length, tables: ['ORDR', 'RDR1'] };
+    } catch (error) {
+        await logSapRouteFailure(pgQuery, {
+            actionType: 'export',
+            entityName: 'ORDR / RDR1',
+            actor: await getSapActor(pgQuery),
+            mode: 'mirror',
+            internalMethod: 'POST',
+            internalUrl: '/api/sap/mirror/export-order',
+            serviceMethod: 'STAGE',
+            serviceUrl: 'sap-mirror://ORDR/RDR1',
+            requestVars: {
+                DocNum: input.DocNum || input.docNum || '',
+                CardCode: input.CardCode || input.cardCode || '',
+                SalesPersonCode: input.SalesPersonCode ?? input.salesPersonCode ?? '',
+                salespersonName: input.salespersonName || input.salesperson_name || input.SalesPersonName || ''
+            },
+            errorMessage: error.message,
+            startedAt
+        });
+        throw error;
+    }
 }
 
 async function stageSapMirrorBom(pgQuery, input = {}) {

@@ -4,6 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="/theme.js"></script>
+  <script>
+    (function () {
+      try {
+        if (new URLSearchParams(window.location.search).get("embedded") === "1") {
+          document.documentElement.classList.add("is-front-back-embedded-early");
+        }
+      } catch (_) {}
+    })();
+  </script>
   <title>Cálculo de Flexografía</title>
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/calculo-flexografia/styles.css">
@@ -49,6 +58,13 @@
               </label>
             </div>
           </div>
+        </article>
+
+        <article id="frontBackElementsCard" class="calc-card front-back-elements-card" hidden>
+          <div class="card-head">
+            <div><h2>Elementos Frente/Dorso</h2></div>
+          </div>
+          <div id="frontBackElementsBody" class="front-back-elements-body"></div>
         </article>
 
         <article id="technicalDataCard" class="calc-card">
@@ -194,7 +210,23 @@
       </section>
 
       <aside class="calc-sidebar">
-        <details class="calc-card calc-card-collapsible" open>
+        <section class="calc-card details-demo-card" aria-label="Detalles">
+          <div class="card-head details-demo-head">
+            <div>
+              <h2>Detalles</h2>
+            </div>
+            <div id="detailsLineBadge" class="details-line-badge"></div>
+          </div>
+          <div id="quoteTrackingMount" class="quote-tracking-mount" aria-label="Seguimiento de cotización"></div>
+          <div class="details-cost-shell">
+            <div id="detailsCostTable" class="details-cost-table"></div>
+          </div>
+          <div class="details-demo-actions">
+            <button type="button" id="detailsProformaButton" class="inline-button details-proforma-button">Ver Proforma</button>
+          </div>
+        </section>
+
+        <details class="calc-card calc-card-collapsible" open hidden>
           <summary class="calc-card-summary">
             <div class="card-head">
               <div><h2>Contexto base</h2><p id="calcStatus" class="sr-only">Cargando contexto del calculo.</p></div>
@@ -205,7 +237,7 @@
           </div>
         </details>
 
-        <details class="calc-card calc-card-collapsible" open>
+        <details class="calc-card calc-card-collapsible" hidden>
           <summary class="calc-card-summary">
             <div class="card-head">
               <div><h2>Decisión automática</h2></div>
@@ -216,7 +248,7 @@
           </div>
         </details>
 
-        <details class="calc-card calc-card-collapsible" open>
+        <details class="calc-card calc-card-collapsible" open hidden>
           <summary class="calc-card-summary">
             <div class="card-head">
               <div><h2>Ajustes comerciales</h2></div>
@@ -241,10 +273,11 @@
               <input id="taxPct" type="number" min="0" step="0.01" value="13">
             </label>
           </div>
+          <button type="button" id="viewProformaButton" class="inline-button commercial-proforma-button">Ver Proforma</button>
           </div>
         </details>
 
-        <details class="calc-card calc-card-collapsible" open>
+        <details class="calc-card calc-card-collapsible" open hidden>
           <summary class="calc-card-summary">
             <div class="card-head">
               <div><h2>Resultado final</h2></div>
@@ -255,9 +288,9 @@
           </div>
         </details>
 
-        <details class="calc-card calc-card-collapsible" open>
+        <details class="calc-card calc-card-collapsible">
           <summary class="calc-card-summary">
-            <div class="card-head">
+            <div class="card-head sap-preview-head">
               <div><h2>Previsualización SAP</h2></div>
               <div class="card-head-actions">
                 <button type="button" id="sapPreviewOpenOutputButton" class="inline-button">Ver salida</button>
@@ -268,6 +301,14 @@
           <div class="calc-card-body">
             <div id="sapPreviewSummary" class="summary-rows"></div>
           <details class="subprocess-card" open>
+            <summary class="inline-process-summary">
+              <div class="inline-process-heading"><strong>Envíos</strong></div>
+            </summary>
+            <div class="process-body">
+              <pre id="sapPreviewShipments" class="formula-pre"></pre>
+            </div>
+          </details>
+          <details class="subprocess-card">
             <summary class="inline-process-summary">
               <div class="inline-process-heading"><strong>Orden de Venta</strong></div>
             </summary>

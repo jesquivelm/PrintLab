@@ -6,17 +6,17 @@ const SESSION_STORAGE_KEY = 'erp-user-session';
 const LAUNCHER_POSITION_KEY = 'quote-request-launcher-position-v2';
 const DEFAULT_ICON_MAP = {
     processLauncher: { value: '/assets/icons/exclusive-launcher.png', color: '#1e516d', size: 48 },
-    quoteRequestSubmit: { value: 'âž¤', color: '#ffffff', size: 18 },
-    quoteRequestAdvanced: { value: 'âš™', color: '#5f7288', size: 18 },
-    quoteRequestAttachment: { value: 'â—‰', color: '#1e516d', size: 18 },
-    quoteRequestRecord: { value: 'â—', color: '#1e516d', size: 18 },
+    quoteRequestSubmit: { value: '\u27a4', color: '#ffffff', size: 18 },
+    quoteRequestAdvanced: { value: '\u2699', color: '#5f7288', size: 18 },
+    quoteRequestAttachment: { value: '\u25c9', color: '#1e516d', size: 18 },
+    quoteRequestRecord: { value: '\u25cf', color: '#1e516d', size: 18 },
     quoteRequestRecordStop: { value: 'â– ', color: '#ef4444', size: 18 },
     quoteRequestAttachmentDelete: { value: 'X', color: '#b94848', size: 18 },
     // New keys for premium sync
-    crearCotizacion: { value: 'âž¤', color: '#1e516d', size: 24 },
-    procesoAvanzadoFlotante: { value: 'âš™', color: '#5f7288', size: 20 },
-    proformaView: { value: 'ðŸ‘', color: '#1e516d', size: 18 },
-    proformaClose: { value: 'âœ“', color: '#1e516d', size: 18 }
+    crearCotizacion: { value: '\u27a4', color: '#1e516d', size: 24 },
+    procesoAvanzadoFlotante: { value: '\u2699', color: '#5f7288', size: 20 },
+    proformaView: { value: '\ud83d\udc41', color: '#1e516d', size: 18 },
+    proformaClose: { value: '\u2713', color: '#1e516d', size: 18 }
 };
 const STATIC_MATERIALS = [
     'OPP Blanco',
@@ -831,7 +831,7 @@ function iconConfigFor(key, canonicalKey = null) {
     const general = loadedConfig?.general || {};
     const propKey = canonicalKey || key;
     
-    const internalKey = key.replace(/\s+/g, '').replace(/[Ã¡Ã©Ã­Ã³Ãº]/g, (m) => ({ 'Ã¡': 'a', 'Ã©': 'e', 'Ã­': 'i', 'Ã³': 'o', 'Ãº': 'u' }[m]));
+    const internalKey = key.replace(/\s+/g, '').replace(/[áéíóú]/g, (m) => ({ 'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u' }[m]));
     const fallback = DEFAULT_ICON_MAP[key] || DEFAULT_ICON_MAP[internalKey] || DEFAULT_ICON_MAP[propKey] || { value: '', color: '#6b7580', size: 24 };
     
     const value = normalizeText(icons[key]) || fallback.value;
@@ -853,7 +853,7 @@ function applyConfiguredIcons() {
     const primaryConf = iconConfigFor('processLauncher');
     
     // Check multiple potential keys for each action, using a canonical key for properties
-    const submitConf = getResolvedIcon(['crear cotizaciÃ³n', 'crear cotizacion', 'solicitud de cotizaciÃ³n', 'solicitud de cotizacion', 'quoteRequestSubmit'], 'quoteRequestSubmit');
+    const submitConf = getResolvedIcon(['crear cotización', 'crear cotizacion', 'solicitud de cotización', 'solicitud de cotizacion', 'quoteRequestSubmit'], 'quoteRequestSubmit');
     const advancedConf = getResolvedIcon(['cotizaciones', 'proceso avanzado flotante', 'proceso avanzado', 'quoteRequestAdvanced'], 'quoteRequestAdvanced');
     const proformaConf = getResolvedIcon(['ver proforma', 'proformaView'], 'proformaView');
 
@@ -975,12 +975,7 @@ function normalizeQuoteLine(line, quoteCode, index = 0) {
     quoteTreeLineSequence += 1;
     const raw = line.raw_data || {};
     const autoSelection = raw.CODEX_AUTO_SELECTION || {};
-    const autoWarnings = Array.isArray(autoSelection.warnings)
-        ? autoSelection.warnings.filter(Boolean)
-        : String(raw['REQ | Advertencias Automáticas'] || '')
-            .split('|')
-            .map((item) => normalizeText(item))
-            .filter(Boolean);
+    const autoWarnings = [];
     const fallbackTotal = pickFirstMeaningfulNumber(
         line.subtotal_1,
         line.total_cost,
@@ -1084,15 +1079,11 @@ function renderAutoSelectionSummary(row) {
         row.autoDieCode ? `Troquel ${row.autoDieCode}` : (row.autoRoute ? 'Troquel estimado/no requerido' : ''),
         row.autoLabelsPerRoll ? `${formatNumber(row.autoLabelsPerRoll)} etiq./rollo` : ''
     ].filter(Boolean);
-    const warningMarkup = (row.autoWarnings || []).slice(0, 3).map((warning) => `
-        <div class="quote-line-auto-warning">${escapeHtml(warning)}</div>
-    `).join('');
     return `
         <div class="quote-line-auto-block">
             ${summaryItems.length ? `<div class="quote-line-auto-summary">${summaryItems.map((item) => `<span class="quote-line-auto-chip">${escapeHtml(item)}</span>`).join('')}</div>` : ''}
             ${row.autoMountingSummary ? `<div class="quote-line-auto-mounting">${escapeHtml(row.autoMountingSummary)}</div>` : ''}
             ${row.autoTechnicalComment ? `<div class="quote-line-auto-comment">${escapeHtml(row.autoTechnicalComment)}</div>` : ''}
-            ${warningMarkup ? `<div class="quote-line-auto-warnings">${warningMarkup}</div>` : ''}
         </div>
     `;
 }
@@ -2068,7 +2059,7 @@ function validateQuickRequest(forAdvanced) {
 
     if (!forAdvanced) {
         check(payload.material_name, materialInput, 'Material');
-        check(payload.applicationType, surfaceInput, 'Superficie de aplicaciÃ³n');
+        check(payload.applicationType, surfaceInput, 'Superficie de aplicación');
         check(fixedSizeSelect?.value, fixedSizeSelect, 'Medida');
     }
 
@@ -2588,8 +2579,7 @@ function bindEvents() {
         }
         // Close any open line submenus when clicking outside
         if (!event.target.closest('[data-line-menu-id]')) {
-            rowsBody?.querySelectorAll('[data-line-menu-panel]').forEach((p) => { p.hidden = true; });
-            rowsBody?.querySelectorAll('[data-line-menu-toggle]').forEach((t) => { t.setAttribute('aria-expanded', 'false'); });
+            closeQuoteLineMenus();
         }
     });
     
@@ -2650,6 +2640,50 @@ function bindEvents() {
             invalidateQuickRequestPreview();
         }
     });
+
+    function closeQuoteLineMenus() {
+        rowsBody?.querySelectorAll('[data-line-menu-panel]').forEach((panel) => {
+            panel.hidden = true;
+            panel.style.removeProperty('--line-menu-top');
+            panel.style.removeProperty('--line-menu-left');
+            panel.style.removeProperty('--line-menu-max-height');
+        });
+        rowsBody?.querySelectorAll('[data-line-menu-toggle]').forEach((toggle) => {
+            toggle.setAttribute('aria-expanded', 'false');
+        });
+    }
+
+    function positionQuoteLineMenu(trigger, panel) {
+        const gap = 8;
+        const viewportPad = 10;
+        const triggerRect = trigger.getBoundingClientRect();
+        panel.style.setProperty('--line-menu-top', '0px');
+        panel.style.setProperty('--line-menu-left', '0px');
+        panel.style.setProperty('--line-menu-max-height', `${Math.max(180, window.innerHeight - viewportPad * 2)}px`);
+        const panelRect = panel.getBoundingClientRect();
+        const availableBelow = window.innerHeight - triggerRect.bottom - viewportPad;
+        const openBelow = availableBelow >= Math.min(panelRect.height, 220) || triggerRect.top < window.innerHeight / 2;
+        const top = openBelow
+            ? Math.min(triggerRect.bottom + gap, window.innerHeight - panelRect.height - viewportPad)
+            : Math.max(viewportPad, triggerRect.top - panelRect.height - gap);
+        const left = Math.min(
+            Math.max(viewportPad, triggerRect.right - panelRect.width - 60),
+            window.innerWidth - panelRect.width - viewportPad
+        );
+        panel.style.setProperty('--line-menu-top', `${Math.max(viewportPad, top - 15)}px`);
+        panel.style.setProperty('--line-menu-left', `${Math.max(viewportPad, left)}px`);
+    }
+
+    function repositionOpenQuoteLineMenu() {
+        const panel = rowsBody?.querySelector('[data-line-menu-panel]:not([hidden])');
+        if (!panel) return;
+        const trigger = rowsBody.querySelector(`[data-line-menu-toggle="${panel.dataset.lineMenuPanel}"]`);
+        if (trigger) positionQuoteLineMenu(trigger, panel);
+    }
+
+    window.addEventListener('resize', repositionOpenQuoteLineMenu);
+    window.addEventListener('scroll', repositionOpenQuoteLineMenu, true);
+
     form?.addEventListener('input', (event) => {
         if (event.target.classList.contains('is-invalid')) {
             event.target.classList.remove('is-invalid');
@@ -2712,12 +2746,11 @@ function bindEvents() {
             const panel = rowsBody.querySelector(`[data-line-menu-panel="${lineId}"]`);
             if (!panel) return;
             const isOpen = !panel.hidden;
-            // Close all open menus first
-            rowsBody.querySelectorAll('[data-line-menu-panel]').forEach((p) => { p.hidden = true; });
-            rowsBody.querySelectorAll('[data-line-menu-toggle]').forEach((t) => { t.setAttribute('aria-expanded', 'false'); });
+            closeQuoteLineMenus();
             if (!isOpen) {
                 panel.hidden = false;
                 menuToggle.setAttribute('aria-expanded', 'true');
+                positionQuoteLineMenu(menuToggle, panel);
             }
             return;
         }
@@ -2765,8 +2798,7 @@ function bindEvents() {
                 selectedQuoteContextLineId = Number(lineActionButton.dataset.lineId) || 0;
             }
             // Close any open menu panel
-            rowsBody.querySelectorAll('[data-line-menu-panel]').forEach((p) => { p.hidden = true; });
-            rowsBody.querySelectorAll('[data-line-menu-toggle]').forEach((t) => { t.setAttribute('aria-expanded', 'false'); });
+            closeQuoteLineMenus();
             handleQuoteLineAction(lineActionButton.dataset.lineAction, row).catch((error) => setStatus(error.message, 'error'));
             return;
         }
@@ -2782,8 +2814,7 @@ function bindEvents() {
             return;
         }
         // Close open menus on outside click
-        rowsBody.querySelectorAll('[data-line-menu-panel]').forEach((p) => { p.hidden = true; });
-        rowsBody.querySelectorAll('[data-line-menu-toggle]').forEach((t) => { t.setAttribute('aria-expanded', 'false'); });
+        closeQuoteLineMenus();
         const button = e.target.closest('[data-open-quote]');
         if (!button) return;
         const code = button.dataset.openQuote;

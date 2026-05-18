@@ -408,10 +408,129 @@ function publishBdfgContext() {
     window.parent.postMessage({ type: 'erp-bdfg-context', context: buildBdfgContext() }, window.location.origin);
 }
 
-function openProformaForCurrentQuote() {
+function buildLineCalculationRoute({ lineCode, quoteCode, productId = '', department = 'Flexografia', processKey = '' } = {}) {
+    if (!lineCode || !quoteCode) return '';
+    const query = {
+        lineId: lineCode,
+        quoteId: quoteCode,
+        productId,
+        department
+    };
+    if (processKey) query.jumpProcess = processKey;
+    return `/calculo-flexografia?${new URLSearchParams(query).toString()}`;
+}
+
+function showCenterMessage(message, options = {}) {
+    const text = String(message || '').trim();
+    if (!text) return;
+    let node = document.getElementById('calcCenterMessage');
+    if (!node) {
+        node = document.createElement('div');
+        node.id = 'calcCenterMessage';
+        node.className = 'calc-center-message';
+        document.body.appendChild(node);
+    }
+    const closeButton = '<button type="button" class="calc-center-message-close" data-close-calc-message aria-label="Cerrar">&times;</button>';
+    if (options.html) node.innerHTML = `${closeButton}<div class="calc-center-message-content">${text}</div>`;
+    else node.innerHTML = `${closeButton}<div class="calc-center-message-content">${escapeHtml(text)}</div>`;
+    node.hidden = false;
+    clearTimeout(showCenterMessage.timer);
+    showCenterMessage.timer = setTimeout(() => { node.hidden = true; }, options.duration || 5200);
+}
+
+const PROFORMA_BLOCK_PROCESS_LABELS = [
+    { key: 'barnizado', label: 'Barnizado' },
+    { key: 'laminado', label: 'Laminado' },
+    { key: 'estampado', label: 'Estampado' },
+    { key: 'embosado', label: 'Embosado' },
+    { key: 'troquelado', label: 'Troquelado' },
+    { key: 'rebobinado', label: 'Rebobinado' },
+    { key: 'troquel', label: 'Troquel' },
+    { key: 'sustrato', label: 'Sustrato' },
+    { key: 'diseno', label: 'Diseño' },
+    { key: 'preprensa', label: 'Preprensa' },
+    { key: 'planchas', label: 'Planchas' },
+    { key: 'impresion', label: 'Impresión' },
+    { key: 'empaque', label: 'Empaque' },
+    { key: 'adicionales', label: 'Procesos adicionales' }
+];
+
+function normalizeProformaIssueText(value = '') {
+    return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+function processKeyFromIssueText(message = '') {
+    const text = normalizeProformaIssueText(message);
+    if (!text) return '';
+    const match = PROFORMA_BLOCK_PROCESS_LABELS.find((item) => {
+        const label = normalizeProformaIssueText(item.label);
+        return label && text.includes(label);
+    });
+    return match?.key || '';
+}
+
+function processLabelFromKey(processKey = '') {
+    const baseKey = String(processKey || '').split('-')[0];
+    return PROFORMA_BLOCK_PROCESS_LABELS.find((item) => item.key === baseKey)?.label || baseKey || 'Faltante';
+}
+
+function proformaBlockIssuesFromLine(line = {}) {
+    const raw = line.raw_data || {};
+    const messages = Array.isArray(raw.CODEX_VALIDATION_MESSAGES)
+        ? raw.CODEX_VALIDATION_MESSAGES.map((item) => String(item || '').trim()).filter(Boolean)
+        : [];
+    const fallback = String(raw['ANALISIS CAMPOS PDF'] || raw['ANALISIS CAMPOS CREAR ORDEN'] || raw['ANALISIS CAMPOS FINALIZAR'] || '').trim();
+    return [...new Set(messages.length ? messages : (fallback ? [fallback] : []))]
+        .map((message) => ({ message, processKey: processKeyFromIssueText(message) }));
+}
+
+async function getProformaBlockMessage(quoteCode) {
+    const detail = await fetchQuoteDetail(quoteCode);
+    const lines = Array.isArray(detail?.lineas) ? detail.lineas : [];
+    const blocked = lines
+        .map((line) => ({
+            lineCode: String(line.line_code || line.linea || line.raw_data?.['ID LINEA'] || '').trim(),
+            quoteCode,
+            productId: line.product_code || '',
+            department: line.department || line.raw_data?.DEPARTAMENTO || 'Flexografia',
+            issues: proformaBlockIssuesFromLine(line)
+        }))
+        .filter((item) => item.issues.length);
+    if (!blocked.length) return '';
+    const rows = blocked.map((item) => {
+        const route = buildLineCalculationRoute(item);
+        const lineLabel = route
+            ? `<a class="summary-row-link" href="${escapeHtml(route)}" data-route="${escapeHtml(route)}" data-label="Cálculo ${escapeHtml(item.lineCode)}">${escapeHtml(item.lineCode || 'sin código')}</a>`
+            : escapeHtml(item.lineCode || 'sin código');
+        const issues = item.issues.map((issue) => {
+            const issueRoute = buildLineCalculationRoute({ ...item, processKey: issue.processKey });
+            const label = processLabelFromKey(issue.processKey);
+            const problem = issueRoute
+                ? `<a class="summary-row-link" href="${escapeHtml(issueRoute)}" data-route="${escapeHtml(issueRoute)}" data-label="Cálculo ${escapeHtml(item.lineCode)}">${escapeHtml(label)}</a>`
+                : escapeHtml(label);
+            return `<li>${problem}: ${escapeHtml(issue.message)}</li>`;
+        }).join('');
+        return `<section class="calc-message-line"><div class="calc-message-line-head">Línea ${lineLabel}</div><ul>${issues}</ul></section>`;
+    }).join('');
+    const count = blocked.length;
+    return `<div class="calc-message-title">Faltantes en líneas de cálculo de esta proforma</div><div class="calc-message-intro">Esta proforma toma datos de ${count} línea${count === 1 ? '' : 's'} de cálculo. Completa o justifica cada faltante antes de continuar.</div><div class="calc-message-list">${rows}</div>`;
+}
+
+async function openProformaForCurrentQuote() {
     const code = currentQuote?.quote_code || document.getElementById('numeroCotizacion')?.value?.trim();
     if (!code) {
         setStatus('Debes abrir una cotización antes de ver la proforma.', 'error');
+        return;
+    }
+    try {
+        const blockMessage = await getProformaBlockMessage(code);
+        if (blockMessage) {
+            showCenterMessage(blockMessage, { html: true, duration: 18000 });
+            setStatus('No se puede abrir la proforma: faltan datos en una o más líneas.', 'error');
+            return;
+        }
+    } catch (error) {
+        setStatus(error.message, 'error');
         return;
     }
     const route = `/proforma?codigo=${encodeURIComponent(code)}`;
@@ -419,6 +538,22 @@ function openProformaForCurrentQuote() {
         window.open(route, '_blank', 'noopener');
     }
 }
+
+document.addEventListener('click', (event) => {
+    const closeMessage = event.target.closest?.('.calc-center-message [data-close-calc-message]');
+    if (closeMessage) {
+        event.preventDefault();
+        clearTimeout(showCenterMessage.timer);
+        document.getElementById('calcCenterMessage')?.setAttribute('hidden', '');
+        return;
+    }
+    const routeLink = event.target.closest?.('.calc-center-message [data-route]');
+    if (!routeLink) return;
+    event.preventDefault();
+    const route = routeLink.dataset.route || routeLink.getAttribute('href') || '';
+    const label = routeLink.dataset.label || routeLink.textContent || 'Cálculo';
+    if (!openRouteInShell(route, label)) window.location.href = route;
+});
 
 async function syncProformaButtonState(code) {
     if (!viewProformaButton) return;
@@ -603,7 +738,7 @@ function createRowSkeleton() {
         linea: '',
         originalLinea: '',
         departamento: 'Flexografia',
-        nombreTrabajo: 'Nuevo cálculo',
+        nombreTrabajo: '',
         material: '',
         materialCode: '',
         estado: 'Borrador',
@@ -660,26 +795,25 @@ function uniqueSummaryParts(parts) {
     });
 }
 
+function isQuoteSummaryNoPrint(row) {
+    const values = [row.noPrint, row.sinImpresion, row.processType, row.routeLabel];
+    return values.some((value) => {
+        if (value === true) return true;
+        const normalized = normalizeSummaryValue(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        return ['si', 'yes', 'true', '1'].includes(normalized) || normalized === 'sin impresion';
+    });
+}
+
 function renderLineSummary(row) {
     const titleExtras = uniqueSummaryParts([
         row.medidaFija,
         row.medida
     ]);
-    const title = [row.nombreTrabajo || 'Nuevo cálculo', titleExtras[0] ? `(${titleExtras[0]})` : '']
+    const title = [row.nombreTrabajo || 'Sin nombre', titleExtras[0] ? `(${titleExtras[0]})` : '']
         .filter(Boolean)
         .join(' ');
 
     const machineDefined = normalizeSummaryValue(row.machineName);
-    const secondaryParts = uniqueSummaryParts([
-        row.material
-    ]);
-    const secondaryMarkup = [
-        ...secondaryParts.map((part) => `<span>${escapeHtml(part)}</span>`),
-        machineDefined
-            ? `<span>${escapeHtml(machineDefined)}</span>`
-            : '<span class="is-warning">Sin máquina</span>'
-    ].join(' - ');
-
     const finishes = uniqueSummaryParts([
         isMeaningfulSummaryValue(row.barniz) ? row.barniz : '',
         isMeaningfulSummaryValue(row.laminado) ? row.laminado : '',
@@ -688,26 +822,41 @@ function renderLineSummary(row) {
         isMeaningfulSummaryValue(row.troquelado) ? row.troquelado : '',
         isMeaningfulSummaryValue(row.numeracion) ? row.numeracion : ''
     ]);
-    const finishesMarkup = finishes.length
-        ? finishes.map((part) => `<span>${escapeHtml(part)}</span>`).join(' - ')
-        : '<span class="is-warning">Sin acabados</span>';
 
     const pType = row.processType || row.routeLabel;
     const pSeq = row.processSequenceText || row.mountingSummary;
+    const noPrint = isQuoteSummaryNoPrint(row);
+    const lineCode = normalizeSummaryValue(row.linea || row.originalLinea);
+    const productId = normalizeSummaryValue(row.productId);
+    const measure = titleExtras[0] || '';
+    const secondLine = uniqueSummaryParts([row.material]).join(' | ');
+    const thirdLine = [
+        machineDefined ? escapeHtml(machineDefined) : (noPrint ? '' : '<span class="is-warning">Sin máquina</span>'),
+        pType ? escapeHtml(pType) : '',
+        pSeq ? escapeHtml(pSeq) : ''
+    ].filter(Boolean).join(' - ');
+    const fourthLine = finishes.length
+        ? finishes.map((part) => escapeHtml(part)).join(' - ')
+        : '<span class="is-warning">Sin acabados</span>';
 
     const summaryTitle = [
         title,
-        [...secondaryParts, machineDefined || 'Sin máquina'].join(' - '),
+        [row.material, machineDefined || (noPrint ? '' : 'Sin máquina')].filter(Boolean).join(' - '),
         [pType, pSeq].filter(Boolean).join(' - '),
         finishes.length ? finishes.join(' - ') : 'Sin acabados'
     ].filter(Boolean).join(' | ');
 
     return `
-        <div class="quote-line-summary" title="${escapeHtml(summaryTitle)}">
-            <div class="quote-line-summary-title">${escapeHtml(title)}</div>
-            <div class="quote-line-summary-meta">${secondaryMarkup}</div>
-            <div class="quote-line-summary-meta">${pType ? `<span>${escapeHtml(pType)}</span>` : '<span class="is-warning">Sin tipo de proceso</span>'}${pSeq ? ` - <span>${escapeHtml(pSeq)}</span>` : ''}</div>
-            <div class="quote-line-summary-meta">${finishesMarkup}</div>
+        <div class="quote-master-line-detail" title="${escapeHtml(summaryTitle)}">
+            <div class="quote-master-line-detail-main">
+                ${lineCode ? `<span class="quote-master-line-ref">(${escapeHtml(lineCode)})</span>` : ''}
+                <span class="quote-master-line-product">${escapeHtml(row.nombreTrabajo || 'Sin nombre')}</span>
+                ${measure ? `<span class="quote-master-line-measure">(${escapeHtml(measure)})</span>` : ''}
+            </div>
+            ${productId && productId !== lineCode ? `<div class="quote-master-line-detail-row">Producto: ${escapeHtml(productId)}</div>` : ''}
+            ${secondLine ? `<div class="quote-master-line-detail-row">${escapeHtml(secondLine)}</div>` : ''}
+            ${thirdLine ? `<div class="quote-master-line-detail-row">${thirdLine}</div>` : ''}
+            <div class="quote-master-line-detail-row">${fourthLine}</div>
         </div>
     `;
 }
@@ -750,7 +899,6 @@ function renderDataRow(row, index, subtotalKeys) {
                 <div class="row-tools row-tools-compact row-tools-leading">
                     <span class="row-action-divider" aria-hidden="true"></span>
                     <button type="button" class="row-tool-btn row-tool-grip" data-action="drag-handle" data-id="${row.id}" aria-label="Mover línea" style="${iconButtonStyle('move', 16)}">${iconMarkup(rowIcons.move, 'Mover fila', 'table-icon-media')}</button>
-                    ${canOpenCalc ? `<button type="button" class="row-tool-btn row-tool-detail" data-action="open-calc" data-id="${row.id}" aria-label="Abrir cálculo" style="${iconButtonStyle('open', 16)}">${iconMarkup(rowIcons.open, 'Abrir cálculo', 'table-icon-media')}</button>` : '<span class="row-tool-spacer"></span>'}
                     <span class="row-action-divider" aria-hidden="true"></span>
                 </div>
             </td>
@@ -760,6 +908,7 @@ function renderDataRow(row, index, subtotalKeys) {
             <td>
                 <div class="row-tools row-tools-row-end">
                     <span class="row-action-divider" aria-hidden="true"></span>
+                    ${canOpenCalc ? `<button type="button" class="row-tool-btn row-tool-detail" data-action="open-calc" data-id="${row.id}" aria-label="Abrir cálculo" style="${iconButtonStyle('open', 16)}">${iconMarkup(rowIcons.open, 'Abrir cálculo', 'table-icon-media')}</button>` : '<span class="row-tool-spacer"></span>'}
                     <button type="button" class="row-tool-btn row-tool-actions" data-action="toggle-row-menu" data-id="${row.id}" aria-label="Acciones de línea" style="${iconButtonStyle('actions', 18)}">${iconMarkup(rowIcons.actions, 'Acciones de línea', 'table-icon-media')}</button>
                 </div>
             </td>
@@ -912,10 +1061,67 @@ function openRowMenu(rowId, anchorButton) {
     if (!row) return;
     actionMenuRowId = rowId;
     rowActionMenu.innerHTML = `<div class="row-action-menu-list">${getRowActionDefinitionsForRow(row).map((item) => buildMenuItemMarkup(item, rowId)).join('')}</div>`;
+
+    // Posicionamiento inteligente: igual que positionQuoteLineMenu en cotizaciones.js
+    const GAP = 6;
+    const PAD = 10;
+    const win = window;
     const rect = anchorButton.getBoundingClientRect();
-    rowActionMenu.style.top = `${Math.min(rect.bottom + 8, window.innerHeight - 320)}px`;
-    rowActionMenu.style.left = `${Math.max(rect.right - 270, 16)}px`;
+
+    let frameOffsetTop = 0, frameOffsetLeft = 0;
+    try {
+        const frameEl = win.frameElement;
+        if (frameEl) {
+            const frameRect = frameEl.getBoundingClientRect();
+            frameOffsetTop  = frameRect.top;
+            frameOffsetLeft = frameRect.left;
+        }
+    } catch(e) {}
+
+    const vh = (win.parent || win).innerHeight;
+    const vw = (win.parent || win).innerWidth;
+
+    // Mostrar temporalmente fuera de la vista para poder medir dimensiones reales
+    rowActionMenu.style.visibility = 'hidden';
     rowActionMenu.hidden = false;
+    const naturalHeight = rowActionMenu.scrollHeight;
+    const naturalWidth  = rowActionMenu.offsetWidth || 260;
+    rowActionMenu.style.visibility = '';
+
+    const spaceBelow = vh - (rect.bottom + frameOffsetTop) - PAD;
+    const spaceAbove = (rect.top  + frameOffsetTop) - PAD;
+
+    let top;
+    if (naturalHeight <= spaceBelow) {
+        // Cabe completo abajo → abrir abajo
+        top = rect.bottom + GAP;
+    } else if (naturalHeight <= spaceAbove && (rect.top - naturalHeight - GAP) >= PAD) {
+        // Cabe completo arriba → abrir arriba (y no se corta en el tope del frame)
+        top = rect.top - naturalHeight - GAP;
+    } else {
+        // No cabe ni arriba ni abajo → centrar en la ventana/frame
+        const centroVentana = (vh - naturalHeight) / 2;
+        let topEnFrame = centroVentana - frameOffsetTop;
+        const frameHeight = win.innerHeight;
+        topEnFrame = Math.max(PAD, topEnFrame);
+        topEnFrame = Math.min(frameHeight - naturalHeight - PAD, topEnFrame);
+        top = topEnFrame;
+    }
+
+    // Horizontal: intentar a la izquierda del trigger → derecha → pegado al borde
+    const realLeft  = rect.left  + frameOffsetLeft;
+    const realRight = rect.right + frameOffsetLeft;
+    let left;
+    if (realLeft - naturalWidth - GAP >= PAD) {
+        left = rect.left - naturalWidth - GAP;
+    } else if (realRight + GAP + naturalWidth <= vw - PAD) {
+        left = rect.right + GAP;
+    } else {
+        left = Math.max(PAD - frameOffsetLeft, vw - naturalWidth - PAD - frameOffsetLeft);
+    }
+
+    rowActionMenu.style.top  = `${Math.round(top)}px`;
+    rowActionMenu.style.left = `${Math.round(left)}px`;
 }
 
 async function reloadCurrentQuote(preferredLineCode = '') {
@@ -1301,11 +1507,12 @@ function applyQuotePayload(payload) {
         originalLinea: line.line_code || '',
         lineOrder: Number(line.line_order) || index + 1,
         departamento: line.department || 'Flexografia',
-        nombreTrabajo: line.job_name || 'Nuevo cálculo',
+        nombreTrabajo: line.job_name || '',
         material: line.material_name || '',
       medidaFija: line.raw_data?.['REQ | Medida Fija'] || '',
       medida: [line.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'], line.raw_data?.['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join('x'),
       machineName: line.machine_name || line.raw_data?.['CONV | MAQUINA'] || line.raw_data?.['DIGITAL | MAQUINA'] || '',
+      noPrint: ['si', 'sí', 'yes', 'true', '1'].includes(normalizeSummaryValue(line.raw_data?.['SIN IMPRESION'] || line.raw_data?.['SIN IMPRESIÓN']).toLowerCase()),
       barniz: line.raw_data?.['REQ | Barniz'] || '',
       laminado: line.raw_data?.['REQ | Laminado'] || '',
       estampado: line.raw_data?.['REQ | Estampado'] || '',
@@ -1314,7 +1521,7 @@ function applyQuotePayload(payload) {
       numeracion: line.raw_data?.['REQ | Numeracion'] || line.raw_data?.['REQ | Numeracion Aviso'] || '',
       routeLabel: line.raw_data?.['REQ | Ruta Automática'] || line.process_type || '',
       mountingSummary: line.raw_data?.['REQ | Montaje Automático'] || line.raw_data?.['CODEX_PROCESS_SEQUENCE_TEXT'] || '',
-      autoWarningsText: String(line.raw_data?.['REQ | Advertencias Automáticas'] || '').trim(),
+      autoWarningsText: '',
       materialCode: line.raw_data?.['Material Convencional | Id Material'] || line.raw_data?.['Material Digital | Id Material'] || '',
       finalizadaOrden: Boolean(line.finalized_for_order || line.raw_data?.['CODEX_FINALIZED_FOR_ORDER']),
       estado: line.status || 'Cotizada',
@@ -1596,7 +1803,6 @@ async function persistNewRow() {
         body: JSON.stringify({
             line_order: quoteRows.length + 1,
             department: newRow.departamento,
-            job_name: newRow.nombreTrabajo,
             status: newRow.estado
         })
     });
@@ -1609,11 +1815,12 @@ async function persistNewRow() {
         linea: linea.line_code,
         originalLinea: linea.line_code,
         lineOrder: Number(linea.line_order) || (quoteRows.length + 1),
-        nombreTrabajo: linea.job_name || newRow.nombreTrabajo,
+        nombreTrabajo: linea.job_name || '',
         material: linea.material_name || '',
         medidaFija: linea.raw_data?.['REQ | Medida Fija'] || '',
         medida: [linea.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'], linea.raw_data?.['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join('x'),
         machineName: linea.machine_name || linea.raw_data?.['CONV | MAQUINA'] || linea.raw_data?.['DIGITAL | MAQUINA'] || '',
+        noPrint: ['si', 'sí', 'yes', 'true', '1'].includes(normalizeSummaryValue(linea.raw_data?.['SIN IMPRESION'] || linea.raw_data?.['SIN IMPRESIÓN']).toLowerCase()),
         barniz: linea.raw_data?.['REQ | Barniz'] || '',
         laminado: linea.raw_data?.['REQ | Laminado'] || '',
         estampado: linea.raw_data?.['REQ | Estampado'] || '',
@@ -1622,7 +1829,7 @@ async function persistNewRow() {
         numeracion: linea.raw_data?.['REQ | Numeracion'] || linea.raw_data?.['REQ | Numeracion Aviso'] || '',
         routeLabel: linea.raw_data?.['REQ | Ruta Automática'] || linea.process_type || '',
         mountingSummary: linea.raw_data?.['REQ | Montaje Automático'] || linea.raw_data?.['CODEX_PROCESS_SEQUENCE_TEXT'] || '',
-        autoWarningsText: String(linea.raw_data?.['REQ | Advertencias Automáticas'] || '').trim(),
+        autoWarningsText: '',
         estado: linea.status || newRow.estado,
         subtotal1: linea.subtotal_1 ?? '',
         quoteId: currentQuote.quote_code,
@@ -1658,6 +1865,7 @@ async function saveRow(row) {
             medidaFija: saved.raw_data?.['REQ | Medida Fija'] || item.medidaFija,
             medida: [saved.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'], saved.raw_data?.['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join('x') || item.medida,
             machineName: saved.machine_name || saved.raw_data?.['CONV | MAQUINA'] || saved.raw_data?.['DIGITAL | MAQUINA'] || item.machineName,
+            noPrint: ['si', 'sí', 'yes', 'true', '1'].includes(normalizeSummaryValue(saved.raw_data?.['SIN IMPRESION'] || saved.raw_data?.['SIN IMPRESIÓN']).toLowerCase()) || item.noPrint,
             barniz: saved.raw_data?.['REQ | Barniz'] || item.barniz,
             laminado: saved.raw_data?.['REQ | Laminado'] || item.laminado,
             estampado: saved.raw_data?.['REQ | Estampado'] || item.estampado,
@@ -1666,7 +1874,7 @@ async function saveRow(row) {
             numeracion: saved.raw_data?.['REQ | Numeracion'] || saved.raw_data?.['REQ | Numeracion Aviso'] || item.numeracion,
             routeLabel: saved.raw_data?.['REQ | Ruta Automática'] || saved.process_type || item.routeLabel,
             mountingSummary: saved.raw_data?.['REQ | Montaje Automático'] || saved.raw_data?.['CODEX_PROCESS_SEQUENCE_TEXT'] || item.mountingSummary,
-            autoWarningsText: String(saved.raw_data?.['REQ | Advertencias Automáticas'] || item.autoWarningsText || '').trim(),
+            autoWarningsText: '',
             materialCode: saved.raw_data?.['Material Convencional | Id Material'] || saved.raw_data?.['Material Digital | Id Material'] || item.materialCode,
             finalizadaOrden: Boolean(saved.finalized_for_order || saved.raw_data?.['CODEX_FINALIZED_FOR_ORDER'] || item.finalizadaOrden),
             estado: saved.status || item.estado,
@@ -1745,7 +1953,10 @@ function applyConfig(config) {
     const presentation = getPresentationConfig(config, PRESENTATION_KEY);
     appTitle.textContent = presentation.moduleTitle;
     if (currentUserName) {
-        currentUserName.textContent = config.session?.currentUser || 'admin';
+        const session = config.session || {};
+        const name = session.name || session.fullName || session.currentUser || session.user || session.username || '';
+        currentUserName.textContent = name || 'Usuario';
+        currentUserName.title = name ? `Sesión: ${name}` : 'Sin sesión activa';
     }
 
     const globalLogoUrl = (config.branding?.logoUrl || '').trim();

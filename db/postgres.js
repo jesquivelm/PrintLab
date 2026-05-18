@@ -1,19 +1,55 @@
 require('dotenv').config();
 const { Pool } = require('pg');
 
-// En Render, DATABASE_URL se configura en la pestaña Environment
 const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
-    throw new Error('DATABASE_URL no está definido. Configura la variable de entorno en el panel de Render o en tu archivo .env local.');
+    throw new Error('DATABASE_URL no está definido. Configura la variable de entorno en el panel del servicio o en tu archivo .env local.');
 }
 
-// Configuración de SSL optimizada para Render
-const isProduction = process.env.NODE_ENV === 'production' || connectionString.includes('render.com');
+function readDatabaseUrl(value) {
+    try {
+        return new URL(value);
+    } catch (error) {
+        return null;
+    }
+}
+
+function normalizeConnectionStringForPg(value) {
+    const parsed = readDatabaseUrl(value);
+    if (!parsed) return value;
+    if (parsed.searchParams.has('sslmode') && !parsed.searchParams.has('uselibpqcompat')) {
+        parsed.searchParams.set('uselibpqcompat', 'true');
+    }
+    return parsed.toString();
+}
+
+function resolveSslConfig(value) {
+    const parsed = readDatabaseUrl(value);
+    const host = String(parsed?.hostname || '').toLowerCase();
+    const sslMode = String(process.env.PGSSLMODE || parsed?.searchParams.get('sslmode') || '').toLowerCase();
+
+    if (['disable', 'false', '0'].includes(sslMode)) return false;
+    if (['require', 'prefer', 'no-verify'].includes(sslMode)) return { rejectUnauthorized: false };
+    if (['verify-ca', 'verify-full'].includes(sslMode)) return true;
+    if (process.env.NODE_ENV === 'production' || host.includes('render.com') || host.includes('neon.tech')) {
+        return { rejectUnauthorized: false };
+    }
+    return false;
+}
+
+function shouldEnableChannelBinding(value) {
+    const parsed = readDatabaseUrl(value);
+    const setting = String(process.env.PGCHANNELBINDING || parsed?.searchParams.get('channel_binding') || '').toLowerCase();
+    return ['require', 'prefer', 'true', '1'].includes(setting);
+}
+
+const poolConnectionString = normalizeConnectionStringForPg(connectionString);
 
 const pool = new Pool({
-    connectionString,
-    ssl: isProduction ? { rejectUnauthorized: false } : false
+    connectionString: poolConnectionString,
+    ssl: resolveSslConfig(connectionString),
+    enableChannelBinding: shouldEnableChannelBinding(connectionString)
 });
 
 /**

@@ -7,6 +7,14 @@ const LOGIN_CONFIG_CACHE_KEY = 'erp-login-config-cache';
 const LOGIN_REPOSITORY_CACHE_KEY = 'erp-login-repository-cache';
 const LOGIN_CONFIG_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 const LOGIN_REPOSITORY_CACHE_TTL_MS = 30 * 60 * 1000;
+const LOGIN_CONFIG_CACHE_TEXT_LIMIT = 24000;
+const LOGIN_IMAGE_CACHE_NAME = 'erp-login-images-v1';
+const LOGIN_IMAGE_CACHE_META_KEY = 'erp-login-images-cache-meta';
+const LOGIN_LOGO_CACHE_NAME = 'erp-login-logo-v1';
+const LOGIN_LOGO_CACHE_META_KEY = 'erp-login-logo-cache-meta';
+const LOGIN_LOGO_CACHE_REQUEST_PATH = '/__erp-login-cache/logo';
+const LOGIN_IMAGE_CACHE_LIMIT = 3;
+const LOGIN_IMAGE_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const LOGIN_ANIM_VARIANTS = ['anim-0', 'anim-1', 'anim-2'];
 
 const loginForm = document.getElementById('loginForm');
@@ -29,6 +37,9 @@ let loginCurrentSlide = null;
 let loginPrevSlide = null;
 let loginConfig = null;
 let loginPasswordVisible = false;
+let loginCachedObjectUrls = [];
+let loginCachedLogoObjectUrl = '';
+let loginCachedLogoSourceKey = '';
 
 function escapeHtml(value) {
     return String(value || '')
@@ -80,6 +91,164 @@ function writeCache(key, data) {
     } catch (error) {
         console.warn('No fue posible actualizar el caché local.', error);
     }
+}
+
+function compactConfigForLocalCache(value, key = '') {
+    if (typeof value === 'string') {
+        const text = value.trim();
+        const keyText = String(key || '').toLowerCase();
+        const assetLike = /(image|imagen|logo|icon|foto|photo|font|background|screensaver|repositorio|repository)/.test(keyText);
+        if ((assetLike && text.length > LOGIN_CONFIG_CACHE_TEXT_LIMIT) || text.length > LOGIN_CONFIG_CACHE_TEXT_LIMIT * 4) {
+            return '';
+        }
+        return value;
+    }
+    if (Array.isArray(value)) {
+        return value.map((item) => compactConfigForLocalCache(item, key)).filter((item) => item !== '');
+    }
+    if (value && typeof value === 'object') {
+        return Object.fromEntries(
+            Object.entries(value)
+                .map(([childKey, childValue]) => [childKey, compactConfigForLocalCache(childValue, childKey)])
+                .filter(([, childValue]) => childValue !== '')
+        );
+    }
+    return value;
+}
+
+function compactLoginRepositoryForCache(repository) {
+    if (!repository || typeof repository !== 'object') return repository;
+    const images = Array.isArray(repository.images)
+        ? repository.images
+            .map((item) => ({
+                url: String(item?.url || '').trim(),
+                label: String(item?.label || item?.name || '').trim(),
+                updatedAt: item?.updatedAt || item?.updated_at || ''
+            }))
+            .filter((item) => item.url && item.url.length <= LOGIN_CONFIG_CACHE_TEXT_LIMIT)
+            .slice(0, 30)
+        : [];
+    return { ...repository, images };
+}
+
+function getRepositoryImageUrls(repository) {
+    return Array.isArray(repository?.images)
+        ? repository.images.map((item) => item?.url).filter(Boolean)
+        : [];
+}
+
+function normalizeLoginImageUrl(url) {
+    try {
+        return new URL(String(url || '').trim(), window.location.origin).href;
+    } catch (error) {
+        return '';
+    }
+}
+
+function getLoginLogoCacheRequestUrl() {
+    return new URL(LOGIN_LOGO_CACHE_REQUEST_PATH, window.location.origin).href;
+}
+
+function getLoginLogoSourceKey(logoUrl) {
+    const text = String(logoUrl || '').trim();
+    if (!text) return '';
+    if (text.startsWith('data:image')) {
+        return `data:${text.length}:${text.slice(0, 80)}:${text.slice(-80)}`;
+    }
+    return normalizeLoginImageUrl(text);
+}
+
+async function getCachedLoginImageUrls(limit = LOGIN_IMAGE_CACHE_LIMIT) {
+    if (!('caches' in window)) return [];
+    const records = readCache(LOGIN_IMAGE_CACHE_META_KEY, LOGIN_IMAGE_CACHE_TTL_MS);
+    if (!Array.isArray(records) || !records.length) return [];
+    const cache = await caches.open(LOGIN_IMAGE_CACHE_NAME);
+    const urls = [];
+    for (const record of records.slice(0, Math.max(1, limit))) {
+        const cacheUrl = normalizeLoginImageUrl(record?.url || record);
+        if (!cacheUrl) continue;
+        const response = await cache.match(cacheUrl);
+        if (!response) continue;
+        const blob = await response.blob();
+        if (!blob.size || !String(blob.type || '').startsWith('image/')) continue;
+        const objectUrl = URL.createObjectURL(blob);
+        loginCachedObjectUrls.push(objectUrl);
+        urls.push(objectUrl);
+    }
+    return urls;
+}
+
+async function cacheLoginImagesLocally(images, limit = LOGIN_IMAGE_CACHE_LIMIT) {
+    if (!('caches' in window)) return;
+    const urls = (Array.isArray(images) ? images : [])
+        .map(normalizeLoginImageUrl)
+        .filter(Boolean)
+        .slice(0, Math.max(1, limit));
+    if (!urls.length) return;
+    const cache = await caches.open(LOGIN_IMAGE_CACHE_NAME);
+    const stored = [];
+    for (const url of urls) {
+        try {
+            const response = await fetch(url, { cache: 'force-cache' });
+            if (!response.ok || !String(response.headers.get('content-type') || '').startsWith('image/')) continue;
+            await cache.put(url, response.clone());
+            stored.push({ url, storedAt: Date.now() });
+        } catch (error) {
+        }
+    }
+    if (!stored.length) return;
+    const keep = new Set(stored.map((item) => item.url));
+    const keys = await cache.keys();
+    await Promise.all(keys.map((request) => keep.has(request.url) ? null : cache.delete(request)));
+    writeCache(LOGIN_IMAGE_CACHE_META_KEY, stored);
+}
+
+async function showCachedLoginImages() {
+    const images = await getCachedLoginImageUrls(LOGIN_IMAGE_CACHE_LIMIT);
+    if (images.length) {
+        startLoginScreensaver(images);
+    }
+}
+
+async function showCachedLoginLogo() {
+    if (!('caches' in window) || !loginBrandLogo) return;
+    const record = readCache(LOGIN_LOGO_CACHE_META_KEY, LOGIN_IMAGE_CACHE_TTL_MS);
+    const sourceKey = String(record?.sourceKey || '').trim();
+    if (!sourceKey) return;
+    const cache = await caches.open(LOGIN_LOGO_CACHE_NAME);
+    const response = await cache.match(getLoginLogoCacheRequestUrl());
+    if (!response) return;
+    const blob = await response.blob();
+    if (!blob.size || !String(blob.type || '').startsWith('image/')) return;
+    if (loginCachedLogoObjectUrl) URL.revokeObjectURL(loginCachedLogoObjectUrl);
+    loginCachedLogoObjectUrl = URL.createObjectURL(blob);
+    loginCachedLogoSourceKey = sourceKey;
+    loginBrandLogo.innerHTML = `<img src="${escapeHtml(loginCachedLogoObjectUrl)}" alt="PrintLab">`;
+}
+
+function scheduleLoginImageCache(images) {
+    if (!Array.isArray(images) || !images.length) return;
+    cacheLoginImagesLocally(images, LOGIN_IMAGE_CACHE_LIMIT).catch((error) => {
+        console.warn('No fue posible guardar imágenes locales del login.', error);
+    });
+}
+
+function scheduleLoginLogoCache(logoUrl) {
+    const sourceKey = getLoginLogoSourceKey(logoUrl);
+    if (!sourceKey || !('caches' in window)) return;
+    (async () => {
+        const sourceText = String(logoUrl || '').trim();
+        const response = sourceText.startsWith('data:image')
+            ? await fetch(sourceText)
+            : await fetch(normalizeLoginImageUrl(sourceText), { cache: 'force-cache' });
+        if (!response.ok && response.status !== 0) return;
+        if (!String(response.headers.get('content-type') || '').startsWith('image/')) return;
+        const cache = await caches.open(LOGIN_LOGO_CACHE_NAME);
+        await cache.put(getLoginLogoCacheRequestUrl(), response.clone());
+        writeCache(LOGIN_LOGO_CACHE_META_KEY, { sourceKey, storedAt: Date.now() });
+    })().catch((error) => {
+        console.warn('No fue posible guardar el logo local del login.', error);
+    });
 }
 
 function areJsonEqual(left, right) {
@@ -320,7 +489,7 @@ function startLoginScreensaver(images) {
 
     if (!loginRepositoryImages.length) {
         if (loginHeroPlaceholder) {
-            loginHeroPlaceholder.hidden = false;
+            loginHeroPlaceholder.hidden = true;
         }
         return;
     }
@@ -350,25 +519,22 @@ function applyLoginBranding(config, repositoryImages = []) {
     if (loginHeroText) loginHeroText.textContent = 'Ingresa para continuar con tus módulos asignados y entrar directamente a tu flujo de trabajo.';
 
     if (loginBrandLogo) {
-        loginBrandLogo.innerHTML = logoUrl
-            ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(companyName)}">`
+        const logoSourceKey = getLoginLogoSourceKey(logoUrl);
+        const displayLogoUrl = logoUrl
+            ? (logoSourceKey && logoSourceKey === loginCachedLogoSourceKey && loginCachedLogoObjectUrl
+                ? loginCachedLogoObjectUrl
+                : logoUrl)
+            : loginCachedLogoObjectUrl;
+        loginBrandLogo.innerHTML = displayLogoUrl
+            ? `<img src="${escapeHtml(displayLogoUrl)}" alt="${escapeHtml(companyName)}">`
             : `<span style="font-weight:700;color:${accentStrong};">${escapeHtml(companyName.slice(0, 2).toUpperCase())}</span>`;
     }
+    scheduleLoginLogoCache(logoUrl);
 
     startLoginScreensaver(repositoryImages);
 }
 
-async function loadConfig() {
-    const cachedConfig = readCache(LOGIN_CONFIG_CACHE_KEY, LOGIN_CONFIG_CACHE_TTL_MS);
-    const cachedRepository = readCache(LOGIN_REPOSITORY_CACHE_KEY, LOGIN_REPOSITORY_CACHE_TTL_MS);
-    const cachedImages = Array.isArray(cachedRepository?.images)
-        ? cachedRepository.images.map((item) => item?.url).filter(Boolean)
-        : [];
-
-    if (cachedConfig) {
-        applyLoginBranding(cachedConfig, cachedImages);
-    }
-
+async function refreshLoginConfig(cachedConfig, cachedRepository) {
     const [configResponse, repositoryResponse] = await Promise.allSettled([
         fetch(LOGIN_CONFIG_ENDPOINT, { cache: 'no-cache' }),
         fetch(LOGIN_REPOSITORY_ENDPOINT, { cache: 'no-cache' })
@@ -385,20 +551,38 @@ async function loadConfig() {
         repository = await repositoryResponse.value.json();
     }
 
-    const repositoryImages = Array.isArray(repository?.images)
-        ? repository.images.map((item) => item?.url).filter(Boolean)
-        : [];
+    const repositoryImages = getRepositoryImageUrls(repository);
+    const cacheableConfig = compactConfigForLocalCache(config);
+    const cacheableRepository = compactLoginRepositoryForCache(repository);
+    scheduleLoginImageCache(repositoryImages);
 
-    if (!areJsonEqual(config, cachedConfig)) {
-        writeCache(LOGIN_CONFIG_CACHE_KEY, config);
+    if (!areJsonEqual(cacheableConfig, cachedConfig)) {
+        writeCache(LOGIN_CONFIG_CACHE_KEY, cacheableConfig);
     }
-    if (!areJsonEqual(repository, cachedRepository)) {
-        writeCache(LOGIN_REPOSITORY_CACHE_KEY, repository);
+    if (!areJsonEqual(cacheableRepository, cachedRepository)) {
+        writeCache(LOGIN_REPOSITORY_CACHE_KEY, cacheableRepository);
     }
 
-    if (!cachedConfig || !areJsonEqual(config, cachedConfig) || !areJsonEqual(repository, cachedRepository)) {
-        applyLoginBranding(config, repositoryImages);
+    const displayImages = loginRepositoryImages.some((url) => String(url || '').startsWith('blob:'))
+        ? loginRepositoryImages
+        : repositoryImages;
+    applyLoginBranding(config, displayImages);
+}
+
+async function loadConfig() {
+    const cachedConfig = readCache(LOGIN_CONFIG_CACHE_KEY, LOGIN_CONFIG_CACHE_TTL_MS);
+    const cachedRepository = readCache(LOGIN_REPOSITORY_CACHE_KEY, LOGIN_REPOSITORY_CACHE_TTL_MS);
+    const cachedImages = loginRepositoryImages.length ? loginRepositoryImages : getRepositoryImageUrls(cachedRepository);
+
+    if (cachedConfig) {
+        applyLoginBranding(cachedConfig, cachedImages);
+        refreshLoginConfig(cachedConfig, cachedRepository).catch((error) => {
+            console.warn('No fue posible refrescar la configuración del login.', error);
+        });
+        return;
     }
+
+    await refreshLoginConfig(cachedConfig, cachedRepository);
 }
 
 async function handleLogin(event) {
@@ -448,11 +632,21 @@ async function bootLogin() {
         return;
     }
     try {
+        await showCachedLoginLogo();
+        await showCachedLoginImages();
         await loadConfig();
     } catch (error) {
         loginStatus.textContent = error.message || 'No fue posible preparar la pantalla de acceso.';
     }
 }
+
+window.addEventListener('beforeunload', () => {
+    loginCachedObjectUrls.forEach((url) => URL.revokeObjectURL(url));
+    loginCachedObjectUrls = [];
+    if (loginCachedLogoObjectUrl) URL.revokeObjectURL(loginCachedLogoObjectUrl);
+    loginCachedLogoObjectUrl = '';
+    loginCachedLogoSourceKey = '';
+});
 
 loginForm?.addEventListener('submit', handleLogin);
 

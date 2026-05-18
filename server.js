@@ -31,6 +31,8 @@ const GENERAL_CONFIG_PATH = path.join(CONFIG_DIR, 'general-config.json');
 const PUBLIC_UPLOADS_DIR = path.join(APP_ROOT, 'public', 'uploads');
 const LOGIN_REPOSITORY_DIR = path.join(PUBLIC_UPLOADS_DIR, 'login-repository');
 const LOGIN_REPOSITORY_URL_BASE = '/uploads/login-repository';
+const QUOTE_ATTACHMENT_STORAGE_DIR = path.join(APP_ROOT, 'storage', 'quote-line-attachments');
+const NOTIFICATION_ATTACHMENT_STORAGE_DIR = path.join(APP_ROOT, 'storage', 'notification-center-attachments');
 const FLEXO_ENGINE_DIR = path.join(APP_ROOT, 'services', 'flexo-engine');
 const FLEXO_ENGINE_HELPERS_PATH = path.join(FLEXO_ENGINE_DIR, 'dist', 'web', 'server-helpers.js');
 const FLEXO_CALCULATOR_PUBLIC_DIR = path.join(APP_ROOT, 'public', 'calculo-flexografia');
@@ -211,8 +213,12 @@ function resolveCommercialMaterialFamily(material = {}) {
 
 function isQuotableSubstrateMaterial(material = {}) {
     if (!material || material.active === false) return false;
-    const family = normalizeText(material.familiaProceso || '').toLowerCase();
-    if (family && !family.includes('sustrato')) return false;
+    const family = normalizeText(material.familiaProceso || material.classification || material.tipo || '').toLowerCase();
+    if (family && !family.includes('sustrato')) {
+        const keywords = ['sustrato', 'papel', 'film', 'bopp', 'opp', 'pet', 'vinil', 'poliestireno', 'polietileno', 'polipropileno', 'acetato'];
+        const hasKeyword = keywords.some((kw) => family.includes(kw));
+        if (!hasKeyword) return false;
+    }
     return parsePositiveNumber(material.widthInches, 0) > 0;
 }
 
@@ -228,6 +234,25 @@ function getCommercialMaterialFamilies(materials = []) {
         .filter((item) => {
             if (!item.name || seen.has(item.name)) return false;
             seen.add(item.name);
+            return true;
+        })
+        .sort((left, right) => left.name.localeCompare(right.name, 'es'));
+}
+
+function getQuotableSubstrateMaterials(materials = []) {
+    const seen = new Set();
+    return (Array.isArray(materials) ? materials : [])
+        .filter((item) => isQuotableSubstrateMaterial(item))
+        .filter((item) => item.conventionalEnabled !== false || item.digitalEnabled !== false)
+        .map((item) => ({
+            code: pickFirstValue(item.code, item.codigo, item.id, item.name),
+            name: pickFirstValue(item.name, item.nombre, item.displayName, item.code),
+            widthInches: parsePositiveNumber(item.widthInches, 0)
+        }))
+        .filter((item) => {
+            const key = `${String(item.code || '').trim().toLowerCase()}|${String(item.name || '').trim().toLowerCase()}`;
+            if (!item.name || seen.has(key)) return false;
+            seen.add(key);
             return true;
         })
         .sort((left, right) => left.name.localeCompare(right.name, 'es'));
@@ -654,27 +679,6 @@ async function resolveSmartQuoteLineSelection(payload = {}) {
         const machine = selectedCombo?.machine || null;
         const mounting = selectedCombo?.layout || null;
         const warnings = [];
-        if (!die) {
-            if (dieOptional && processType === 'digital') {
-                warnings.push('No se encontró troquel oficial compatible; se usó un montaje estimado por ancho de máquina y material.');
-            } else {
-                warnings.push('No se encontró un troquel oficial compatible para la forma y medida solicitadas.');
-            }
-        }
-        if (!material) warnings.push(`No se encontró material activo compatible de la familia ${requestedFamily || 'solicitada'} con el ancho requerido.`);
-        if (!machine) warnings.push(`No se encontró máquina ${processType === 'digital' ? 'digital' : 'convencional'} activa compatible con el ancho requerido.`);
-        if (!mounting && material && machine) warnings.push('No se pudo estimar el montaje automático con la combinación de material y máquina seleccionada.');
-        if (material && machine && mounting && !die && (dieOptional || processType === 'digital')) {
-            warnings.push('La selección quedó basada en ancho útil y costo estimado; requiere validación técnica si la salida del rollo debe ser específica.');
-        }
-        if (machine && !hasConfiguredMachineWidth(machine)) {
-            if (inferMachineModelWidthInches(machine) > 0) {
-                warnings.push('La máquina seleccionada no tiene ancho máximo configurado; se estimó el montaje con un ancho de referencia del modelo y del material disponible.');
-            } else {
-                warnings.push('La máquina seleccionada no tiene ancho máximo configurado; se estimó el montaje usando el ancho del material disponible.');
-            }
-        }
-
         attempts.push({
             processType,
             die,
@@ -697,7 +701,7 @@ async function resolveSmartQuoteLineSelection(payload = {}) {
         selectedMachine: selected.machine,
         selectedMounting: selected.mounting,
         labelsPerRoll,
-        warnings: selected.warnings,
+        warnings: [],
         automaticComment: buildAutomaticRouteComment({
             selectedProcessType: selected.processType,
             threshold,
@@ -880,8 +884,13 @@ const DEFAULT_GENERAL_CONFIG = {
         dashboardProducts: '\u25A7',
         dashboardQuotes: '\u25A4',
         dashboardNotifications: '\u2709',
+        notificationChatTitle: '\u2709',
+        notificationChatOpenCenter: '\u25F1',
+        notificationChatAttach: '📎',
+        notificationChatSend: '\u27A4',
         dashboardInventory: '\u25A5',
         dashboardOrders: '\u2699',
+        dashboardProduction: '\u{1F3ED}',
         dashboardCosts: '\u25A7',
         dashboardSettings: '\u2692',
         mobileQuotes: '\u25A4',
@@ -916,6 +925,7 @@ const DEFAULT_GENERAL_CONFIG = {
         timelineLauncher: '\u25F4',
         floatingSave: '💾',
         tableActions: '\u22EF',
+        lineMenu: '\u22EF',
         lineDuplicate: '\u2398',
         lineCopy: '\u2398',
         lineCreateProduct: '\u25A3',
@@ -924,6 +934,8 @@ const DEFAULT_GENERAL_CONFIG = {
         lineAttachments: '📎',
         lineCreateOrder: '\u2692',
         lineDelete: '\u2715',
+        lineProforma: '\u{1F441}',
+        lineAdd: '+',
         copyQuoteSend: '\u27A4',
         attachmentUpload: '\u21E7',
         attachmentDownload: '\u21E9',
@@ -1036,6 +1048,11 @@ const DEFAULT_GENERAL_CONFIG = {
         dieShapeImage4: '',
         dieShapeImage5: '',
         partnerCodePrefix: 'CL',
+        quoteCodePrefix: 'C-',
+        quoteLineCodePrefix: 'LC',
+        productCodePrefix: 'P-',
+        orderCodePrefix: 'OP-',
+        plateInventoryCodePrefix: 'PL-',
         brandFontFamily: 'Georgia, Times New Roman, serif',
         brandFontSize: 22,
         brandWidth: 116,
@@ -1111,6 +1128,9 @@ const DEFAULT_GENERAL_CONFIG = {
         iconColorDashboardOrders: '#0b81b8',
         iconColor2DashboardOrders: '#ffffff',
         iconColorHoverDashboardOrders: '#17abdf',
+        iconColorDashboardProduction: '#0b81b8',
+        iconColor2DashboardProduction: '#ffffff',
+        iconColorHoverDashboardProduction: '#17abdf',
         iconColorDashboardCosts: '#0b81b8',
         iconColor2DashboardCosts: '#ffffff',
         iconColorHoverDashboardCosts: '#17abdf',
@@ -1180,6 +1200,9 @@ const DEFAULT_GENERAL_CONFIG = {
         iconColorTableActions: '#9ba2ab',
         iconColor2TableActions: '#ffffff',
         iconColorHoverTableActions: '#0b81b8',
+        iconColorLineMenu: '#607286',
+        iconColor2LineMenu: '#ffffff',
+        iconColorHoverLineMenu: '#0b81b8',
         iconColorLineDuplicate: '#46515d',
         iconColor2LineDuplicate: '#ffffff',
         iconColorHoverLineDuplicate: '#0b81b8',
@@ -1204,6 +1227,12 @@ const DEFAULT_GENERAL_CONFIG = {
         iconColorLineDelete: '#a74343',
         iconColor2LineDelete: '#ffffff',
         iconColorHoverLineDelete: '#d03535',
+        iconColorLineProforma: '#1e516d',
+        iconColor2LineProforma: '#ffffff',
+        iconColorHoverLineProforma: '#0b81b8',
+        iconColorLineAdd: '#1e516d',
+        iconColor2LineAdd: '#ffffff',
+        iconColorHoverLineAdd: '#0b81b8',
         iconColorCopyQuoteSend: '#0b81b8',
         iconColor2CopyQuoteSend: '#ffffff',
         iconColorHoverCopyQuoteSend: '#07638c',
@@ -1261,6 +1290,7 @@ const DEFAULT_GENERAL_CONFIG = {
         iconSizeDashboardNotifications: 38,
         iconSizeDashboardInventory: 38,
         iconSizeDashboardOrders: 38,
+        iconSizeDashboardProduction: 38,
         iconSizeDashboardCosts: 38,
         iconSizeDashboardSettings: 38,
         iconSizeDashboardTabClose: 14,
@@ -1284,6 +1314,7 @@ const DEFAULT_GENERAL_CONFIG = {
         iconSizeTimelineLauncher: 20,
         iconSizeFloatingSave: 20,
         iconSizeTableActions: 20,
+        iconSizeLineMenu: 18,
         iconSizeLineDuplicate: 18,
         iconSizeLineCopy: 18,
         iconSizeLineCreateProduct: 18,
@@ -1292,6 +1323,8 @@ const DEFAULT_GENERAL_CONFIG = {
         iconSizeLineAttachments: 18,
         iconSizeLineCreateOrder: 18,
         iconSizeLineDelete: 18,
+        iconSizeLineProforma: 16,
+        iconSizeLineAdd: 18,
         iconSizeCopyQuoteSend: 16,
         iconSizeAttachmentUpload: 18,
         iconSizeAttachmentDownload: 18,
@@ -1335,7 +1368,7 @@ const DEFAULT_COSTS_CONFIG = {
         defaultQuantityTypes: 1,
         defaultCmykEnabled: 'true',
         processDefaults: [
-            { key: 'macula', label: 'Mácula', active: true, locked: true, repeatable: false, order: 5, minimumCost: 0 },
+            { key: 'macula', label: 'Merma', active: true, locked: true, repeatable: false, order: 5, minimumCost: 0 },
             { key: 'troquel', label: 'Troquel', active: true, locked: true, repeatable: false, order: 10, minimumCost: 0 },
             { key: 'sustrato', label: 'Sustrato', active: true, locked: true, repeatable: false, order: 20, minimumCost: 0 },
             { key: 'diseno', label: 'Diseño', active: false, locked: false, repeatable: false, order: 30, minimumCost: 0 },
@@ -1369,13 +1402,13 @@ const DEFAULT_COSTS_CONFIG = {
             ]
         },
         inlineFinishSetup: [
-            { id: 'conv-inline-impresion', proceso: 'Impresion', minutosPorEstacion: 5 },
-            { id: 'conv-inline-troquelado', proceso: 'Troquelado', minutosPorEstacion: 5 },
-            { id: 'conv-inline-laminado', proceso: 'Laminado', minutosPorEstacion: 5 },
-            { id: 'conv-inline-barniz', proceso: 'Barniz', minutosPorEstacion: 5 },
-            { id: 'conv-inline-embosado', proceso: 'Embosado', minutosPorEstacion: 5 },
-            { id: 'conv-inline-estampado', proceso: 'Estampado', minutosPorEstacion: 5 },
-            { id: 'conv-inline-numerado', proceso: 'Numerado', minutosPorEstacion: 5 }
+            { id: 'conv-inline-impresion', proceso: 'Impresion', minutosPorEstacion: 5, setupWasteFeet: 0 },
+            { id: 'conv-inline-troquelado', proceso: 'Troquelado', minutosPorEstacion: 5, setupWasteFeet: 0 },
+            { id: 'conv-inline-laminado', proceso: 'Laminado', minutosPorEstacion: 5, setupWasteFeet: 0 },
+            { id: 'conv-inline-barniz', proceso: 'Barniz', minutosPorEstacion: 5, setupWasteFeet: 0 },
+            { id: 'conv-inline-embosado', proceso: 'Embosado', minutosPorEstacion: 5, setupWasteFeet: 0 },
+            { id: 'conv-inline-estampado', proceso: 'Estampado', minutosPorEstacion: 5, setupWasteFeet: 0 },
+            { id: 'conv-inline-numerado', proceso: 'Numerado', minutosPorEstacion: 5, setupWasteFeet: 0 }
         ],
         maculaMontaje: [
             { id: 'conv-montaje-impresion', detalle: 'Impresion', porEstacion: 65, cantidadTintas: 4, totalPies: 260 },
@@ -1936,20 +1969,130 @@ function normalizeInventoryCode(value) {
     return String(value || '').trim().toUpperCase();
 }
 
+function pickFirstSapValue(source = {}, keys = []) {
+    for (const key of keys) {
+        const value = source?.[key];
+        if (value != null && String(value).trim() !== '') return String(value).trim();
+    }
+    return '';
+}
+
 function pickSapFiscalId(row = {}) {
-    return String(
-        row.FederalTaxID != null && String(row.FederalTaxID).trim() !== ''
-            ? row.FederalTaxID
-            : (row.LicTradNum != null ? row.LicTradNum : '')
-    ).trim();
+    return pickFirstSapValue(row, [
+        'FederalTaxID',
+        'FederalTaxId',
+        'FEDERALTAXID',
+        'LicTradNum',
+        'TaxId',
+        'TaxID',
+        'VatId',
+        'VATRegNum',
+        'U_IDFiscal',
+        'U_Identificacion',
+        'U_Cedula',
+        'U_Nit'
+    ]);
+}
+
+function pickSapEmail(row = {}) {
+    return pickFirstSapValue(row, ['Email', 'EmailAddress', 'E_Mail', 'E_MailL', 'MailAddress', 'U_Email']);
+}
+
+function pickSapPhone(row = {}) {
+    return pickFirstSapValue(row, ['Phone1', 'Phone2', 'Tel1', 'Telephone1', 'U_Telefono']);
+}
+
+function pickSapMobile(row = {}) {
+    return pickFirstSapValue(row, ['Cellular', 'CellularPhone', 'Cellolar', 'MobilePhone', 'Mobile', 'U_Celular']);
 }
 
 function pickSapPrimaryAddress(row = {}) {
-    const addresses = Array.isArray(row.BPAddresses) ? row.BPAddresses : [];
+    const addresses = Array.isArray(row.BPAddresses) ? row.BPAddresses : (Array.isArray(row.Addresses) ? row.Addresses : []);
     if (!addresses.length) return null;
     return addresses.find((address) => String(address?.AddressType || '').trim().toLowerCase() === 'bo_billto')
         || addresses[0]
         || null;
+}
+
+function mapSapPartnerAddressType(value = '') {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (['s', 'bo_shipto', 'shipto', 'ship to', 'envio', 'envío'].includes(normalized)) return 'Envío';
+    return 'Facturación';
+}
+
+function buildSapPartnerAddressLine(address = {}) {
+    return [
+        pickFirstSapValue(address, ['Street', 'AddressLine1']),
+        pickFirstSapValue(address, ['Block', 'District', 'County']),
+        pickFirstSapValue(address, ['City'])
+    ].filter(Boolean).join(', ');
+}
+
+function normalizeSapPartnerAddress(address = {}, index = 0) {
+    const addressName = pickFirstSapValue(address, ['AddressName', 'Address']) || `SAP-${index + 1}`;
+    const addressType = pickFirstSapValue(address, ['AddressType', 'AdresType']);
+    return {
+        addressName,
+        addressType: mapSapPartnerAddressType(addressType),
+        addressTypeCode: addressType,
+        country: pickFirstSapValue(address, ['Country']),
+        stateProvince: pickFirstSapValue(address, ['State', 'StateProvince']),
+        county: pickFirstSapValue(address, ['County']),
+        district: pickFirstSapValue(address, ['Block', 'District']),
+        addressLine: buildSapPartnerAddressLine(address),
+        zipCode: pickFirstSapValue(address, ['ZipCode', 'Zip']),
+        rawData: address || {}
+    };
+}
+
+function pickSapContactIdentification(contact = {}, fallback = '') {
+    return pickFirstSapValue(contact, [
+        'FederalTaxID',
+        'LicTradNum',
+        'TaxId',
+        'TaxID',
+        'U_IDFiscal',
+        'U_Identificacion',
+        'U_Cedula',
+        'Identification'
+    ]) || fallback;
+}
+
+function pickSapContactRows(row = {}) {
+    const contacts = Array.isArray(row.ContactEmployees)
+        ? row.ContactEmployees
+        : (Array.isArray(row.Contacts) ? row.Contacts : []);
+    if (contacts.length) return contacts;
+    const name = pickFirstSapValue(row, ['ContactPerson', 'CntctPrsn']);
+    return name ? [{
+        Name: name,
+        FirstName: name,
+        E_MailL: pickSapEmail(row),
+        Tel1: pickSapPhone(row),
+        Cellolar: pickSapMobile(row),
+        Position: 'Principal'
+    }] : [];
+}
+
+function normalizeSapPartnerContact(contact = {}, row = {}, primaryAddress = {}) {
+    const name = pickFirstSapValue(contact, ['Name', 'ContactName', 'FirstName']) || pickFirstSapValue(row, ['ContactPerson', 'CardName']);
+    const parts = splitContactName(name);
+    return {
+        contactName: name,
+        firstName: pickFirstSapValue(contact, ['FirstName']) || parts.firstName,
+        lastName: pickFirstSapValue(contact, ['LastName']) || parts.lastName,
+        email: pickFirstSapValue(contact, ['E_MailL', 'Email', 'EmailAddress']) || pickSapEmail(row),
+        phone: pickFirstSapValue(contact, ['Tel1', 'Phone1', 'Telephone1']) || pickSapPhone(row),
+        mobile: pickFirstSapValue(contact, ['Cellolar', 'Cellular', 'MobilePhone', 'Mobile']) || pickSapMobile(row),
+        fax: pickFirstSapValue(contact, ['Fax', 'Fax1']),
+        position: pickFirstSapValue(contact, ['Position', 'Title']) || 'Principal',
+        country: pickFirstSapValue(contact, ['Country']) || primaryAddress.country || '',
+        stateProvince: pickFirstSapValue(contact, ['State', 'StateProvince']) || primaryAddress.stateProvince || '',
+        county: pickFirstSapValue(contact, ['County']) || primaryAddress.county || '',
+        addressLine: pickFirstSapValue(contact, ['Address']) || primaryAddress.addressLine || '',
+        identification: pickSapContactIdentification(contact, pickSapFiscalId(row)),
+        rawData: contact || {}
+    };
 }
 
 function normalizeSapMaterialFamily(value) {
@@ -2020,14 +2163,26 @@ function buildSapPartnerImportPayload(row = {}) {
     const partnerCode = normalizePartnerCode(row.CardCode);
     const partnerName = String(row.CardName || '').trim();
     const taxId = pickSapFiscalId(row);
-    const email = String(row.Email || row.EmailAddress || '').trim();
-    const contactName = String(row.ContactPerson || row.CardName || '').trim();
-    const primaryAddress = pickSapPrimaryAddress(row) || {};
-    const addressLine = [
-        String(primaryAddress.Street || '').trim(),
-        String(primaryAddress.Block || '').trim(),
-        String(primaryAddress.City || '').trim()
-    ].filter(Boolean).join(', ');
+    const email = pickSapEmail(row);
+    const addresses = (Array.isArray(row.BPAddresses) ? row.BPAddresses : (Array.isArray(row.Addresses) ? row.Addresses : []))
+        .map((address, index) => normalizeSapPartnerAddress(address, index))
+        .filter((address) => address.addressName || address.addressLine || address.country || address.stateProvince || address.county);
+    const primaryAddress = addresses.find((address) => String(address.addressTypeCode || '').trim().toLowerCase() === 'bo_billto')
+        || addresses[0]
+        || normalizeSapPartnerAddress(pickSapPrimaryAddress(row) || {}, 0);
+    const contacts = pickSapContactRows(row)
+        .map((contact) => normalizeSapPartnerContact(contact, row, primaryAddress))
+        .filter((contact) => contact.contactName || contact.email || contact.phone || contact.mobile);
+    if (!contacts.length && (partnerName || email)) {
+        contacts.push(normalizeSapPartnerContact({
+            Name: pickFirstSapValue(row, ['ContactPerson']) || partnerName,
+            E_MailL: email,
+            Tel1: pickSapPhone(row),
+            Cellolar: pickSapMobile(row),
+            Position: 'Principal'
+        }, row, primaryAddress));
+    }
+    const mainContact = contacts[0] || {};
 
     const provider = String(row.__sapProvider || row.provider || '').trim() || 'service-layer';
     return {
@@ -2037,15 +2192,17 @@ function buildSapPartnerImportPayload(row = {}) {
         email,
         currencyCode: String(row.Currency || 'USD').trim() || 'USD',
         paymentTerms: 'Contado',
-        contactName,
-        contactIdentification: taxId,
-        contactMobile: String(row.Phone1 || row.Cellular || '').trim(),
-        contactEmail: email,
-        contactPhone: String(row.Phone1 || '').trim(),
-        addressCountry: String(primaryAddress.Country || '').trim(),
-        addressStateProvince: String(primaryAddress.State || primaryAddress.StateProvince || '').trim(),
-        addressCounty: String(primaryAddress.County || '').trim(),
-        addressLine,
+        contacts,
+        addresses,
+        contactName: mainContact.contactName || pickFirstSapValue(row, ['ContactPerson']) || partnerName,
+        contactIdentification: mainContact.identification || taxId,
+        contactMobile: mainContact.mobile || pickSapMobile(row),
+        contactEmail: mainContact.email || email,
+        contactPhone: mainContact.phone || pickSapPhone(row),
+        addressCountry: primaryAddress.country || '',
+        addressStateProvince: primaryAddress.stateProvince || '',
+        addressCounty: primaryAddress.county || '',
+        addressLine: primaryAddress.addressLine || '',
         rawData: {
             source: 'sap',
             sapProvider: provider,
@@ -2148,8 +2305,6 @@ async function importSociosFromSap(options = {}) {
         };
 
         for (const partner of importablePartners) {
-            const contactNameParts = splitContactName(partner.contactName || partner.partnerName);
-
             await client.query(
                 `INSERT INTO business_partners (
                     partner_code,
@@ -2184,46 +2339,86 @@ async function importSociosFromSap(options = {}) {
                 ]
             );
 
-            await client.query(
-                `INSERT INTO business_partner_contacts (
-                    partner_code,
-                    contact_name,
-                    first_name,
-                    last_name,
-                    email,
-                    phone,
-                    mobile,
-                    fax,
-                    position,
-                    is_legal_representative,
-                    country,
-                    state_province,
-                    county,
-                    raw_data
-                ) VALUES (
-                    $1, $2, $3, $4, $5, $6, $7, '', 'Principal', false, $8, $9, $10, $11::jsonb
-                )`,
-                [
-                    partner.partnerCode,
-                    partner.contactName || partner.partnerName,
-                    contactNameParts.firstName,
-                    contactNameParts.lastName,
-                    partner.contactEmail,
-                    partner.contactPhone,
-                    partner.contactMobile,
-                    partner.addressCountry,
-                    partner.addressStateProvince,
-                    partner.addressCounty,
-                    JSON.stringify({
-                        IDENTIFICACION: partner.contactIdentification,
-                        ADDRESS: partner.addressLine,
-                        source: 'sap',
-                        sapProvider: partner.rawData?.sapProvider || 'service-layer'
-                    })
-                ]
-            );
+            const partnerContacts = Array.isArray(partner.contacts) && partner.contacts.length
+                ? partner.contacts
+                : [{
+                    contactName: partner.contactName || partner.partnerName,
+                    firstName: splitContactName(partner.contactName || partner.partnerName).firstName,
+                    lastName: splitContactName(partner.contactName || partner.partnerName).lastName,
+                    email: partner.contactEmail,
+                    phone: partner.contactPhone,
+                    mobile: partner.contactMobile,
+                    fax: '',
+                    position: 'Principal',
+                    country: partner.addressCountry,
+                    stateProvince: partner.addressStateProvince,
+                    county: partner.addressCounty,
+                    addressLine: partner.addressLine,
+                    identification: partner.contactIdentification,
+                    rawData: {}
+                }];
 
-            if (partner.addressLine || partner.addressCountry || partner.addressStateProvince || partner.addressCounty) {
+            for (const contact of partnerContacts) {
+                if (!contact.contactName && !contact.email && !contact.phone && !contact.mobile) continue;
+                await client.query(
+                    `INSERT INTO business_partner_contacts (
+                        partner_code,
+                        contact_name,
+                        first_name,
+                        last_name,
+                        email,
+                        phone,
+                        mobile,
+                        fax,
+                        position,
+                        is_legal_representative,
+                        country,
+                        state_province,
+                        county,
+                        raw_data
+                    ) VALUES (
+                        $1, $2, $3, $4, $5, $6, $7, $8, $9, false, $10, $11, $12, $13::jsonb
+                    )`,
+                    [
+                        partner.partnerCode,
+                        contact.contactName || partner.partnerName,
+                        contact.firstName || splitContactName(contact.contactName).firstName,
+                        contact.lastName || splitContactName(contact.contactName).lastName,
+                        contact.email || null,
+                        contact.phone || null,
+                        contact.mobile || null,
+                        contact.fax || '',
+                        contact.position || 'Principal',
+                        contact.country || '',
+                        contact.stateProvince || '',
+                        contact.county || '',
+                        JSON.stringify({
+                            IDENTIFICACION: contact.identification || partner.contactIdentification,
+                            ADDRESS: contact.addressLine || partner.addressLine,
+                            source: 'sap',
+                            sapProvider: partner.rawData?.sapProvider || 'service-layer',
+                            sap_contact: contact.rawData || {}
+                        })
+                    ]
+                );
+            }
+
+            const partnerAddresses = Array.isArray(partner.addresses) && partner.addresses.length
+                ? partner.addresses
+                : (partner.addressLine || partner.addressCountry || partner.addressStateProvince || partner.addressCounty ? [{
+                    addressName: 'Principal',
+                    addressType: 'Facturación',
+                    country: partner.addressCountry,
+                    stateProvince: partner.addressStateProvince,
+                    county: partner.addressCounty,
+                    district: '',
+                    addressLine: partner.addressLine,
+                    zipCode: '',
+                    rawData: {}
+                }] : []);
+
+            for (const address of partnerAddresses) {
+                if (address.addressLine || address.country || address.stateProvince || address.county) {
                 await client.query(
                     `INSERT INTO business_partner_addresses (
                         partner_code,
@@ -2237,21 +2432,27 @@ async function importSociosFromSap(options = {}) {
                         zip_code,
                         raw_data
                     ) VALUES (
-                        $1, 'Principal', 'Facturación', $2, $3, $4, '', $5, '', $6::jsonb
+                        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb
                     )`,
                     [
                         partner.partnerCode,
-                        partner.addressCountry,
-                        partner.addressStateProvince,
-                        partner.addressCounty,
-                        partner.addressLine,
+                        address.addressName || 'Principal',
+                        address.addressType || 'Facturación',
+                        address.country || '',
+                        address.stateProvince || '',
+                        address.county || '',
+                        address.district || '',
+                        address.addressLine || '',
+                        address.zipCode || '',
                         JSON.stringify({
-                            ADDRESS: partner.addressLine,
+                            ADDRESS: address.addressLine || partner.addressLine,
                             source: 'sap',
-                            sapProvider: partner.rawData?.sapProvider || 'service-layer'
+                            sapProvider: partner.rawData?.sapProvider || 'service-layer',
+                            sap_address: address.rawData || {}
                         })
                     ]
                 );
+                }
             }
             summary.inserted += 1;
         }
@@ -2548,7 +2749,7 @@ async function saveGeneralConfig(config) {
             ['general', JSON.stringify(normalized)]
         );
     } catch (error) {
-        return normalized;
+        throw new Error(`No fue posible guardar la configuración general en base de datos: ${error.message || error}`);
     }
     await recordAuditDiff({
         moduleKey: 'configuracion',
@@ -2618,7 +2819,8 @@ function normalizeCostsConfigRecord(config) {
     const normalizeInlineFinishSetup = (rows = [], prefix) => (Array.isArray(rows) ? rows : []).map((row, index) => ({
         id: normalizeCostsRowId(row?.id, `${prefix}-inline-finish-${index + 1}`),
         proceso: String(row?.proceso || '').trim(),
-        minutosPorEstacion: Number(row?.minutosPorEstacion || 0)
+        minutosPorEstacion: Number(row?.minutosPorEstacion || 0),
+        setupWasteFeet: Number(row?.setupWasteFeet || 0)
     }));
     const normalizeDigitalCoverageProfiles = (rows = [], prefix) => (Array.isArray(rows) ? rows : []).map((row, index) => ({
         id: normalizeCostsRowId(row?.id, `${prefix}-profile-${index + 1}`),
@@ -2638,12 +2840,17 @@ function normalizeCostsConfigRecord(config) {
             const locked = row?.locked === true || String(row?.locked || '').trim().toLowerCase() === 'true';
             const active = locked ? true : (row?.active === true || String(row?.active || '').trim().toLowerCase() === 'true');
             const repeatable = row?.repeatable === true || String(row?.repeatable || '').trim().toLowerCase() === 'true';
+            const hasGanttEnabled = row?.ganttEnabled !== undefined && row?.ganttEnabled !== null;
+            const ganttEnabled = hasGanttEnabled
+                ? (row?.ganttEnabled === true || String(row?.ganttEnabled || '').trim().toLowerCase() === 'true')
+                : active;
             return {
                 key,
                 label: String(row?.label || fallback.label || '').trim(),
                 active,
                 locked,
                 repeatable,
+                ganttEnabled,
                 order: Number(row?.order || fallback.order || ((index + 1) * 10)),
                 minimumCost: Math.max(0, Number(row?.minimumCost || 0))
             };
@@ -2657,6 +2864,7 @@ function normalizeCostsConfigRecord(config) {
                 active: item.locked ? true : Boolean(item.active),
                 locked: Boolean(item.locked),
                 repeatable: Boolean(item.repeatable),
+                ganttEnabled: item.ganttEnabled === undefined ? Boolean(item.active) : Boolean(item.ganttEnabled),
                 order: Number(item.order || ((index + 1) * 10)),
                 minimumCost: Math.max(0, Number(item.minimumCost || 0))
             });
@@ -2795,7 +3003,8 @@ function prettifyAuditToken(value) {
 const AUDIT_PRESENTATION_LABELS = {
     ...PRESENTATION_NAMES,
     general: 'General',
-    costos: 'Costos'
+    costos: 'Costos',
+    seguridad: 'Seguridad'
 };
 
 const AUDIT_FIELD_LABELS = {
@@ -2815,8 +3024,8 @@ const AUDIT_FIELD_LABELS = {
     costoLbBlanco: 'Costo Lb Blanco',
     costoLbPantone: 'Costo Lb Pantone',
     depositos: 'Depósitos',
-    maculaMontaje: 'Mácula Montaje',
-    maculaTiraje: 'Mácula Tiraje',
+    maculaMontaje: 'Merma Montaje',
+    maculaTiraje: 'Merma Tiraje',
     tipo: 'Tipo',
     bcm: 'BCM',
     coveragePct: 'Cobertura %',
@@ -2825,11 +3034,94 @@ const AUDIT_FIELD_LABELS = {
     porEstacion: 'Por Estación',
     cantidadTintas: 'Cantidad Tintas',
     totalPies: 'Total Pies',
-    porcentaje: 'Porcentaje'
+    porcentaje: 'Porcentaje',
+    fullName: 'Nombre',
+    username: 'Usuario',
+    department: 'Departamento',
+    process: 'Proceso',
+    email: 'Correo',
+    phone: 'Teléfono',
+    phoneSecondary: 'Teléfono Secundario',
+    active: 'Activo',
+    permissionId: 'Permiso',
+    sapSalespersonCode: 'Vendedor SAP',
+    sapSalespersonName: 'Nombre Vendedor SAP',
+    name: 'Nombre',
+    defaultLanding: 'Entrada Predeterminada',
+    modules: 'Permisos'
 };
 
 function getAuditFieldLabel(token) {
     return AUDIT_FIELD_LABELS[token] || prettifyAuditToken(token);
+}
+
+const AUDIT_MAX_VALUE_BYTES = 12000;
+const AUDIT_SKIPPED_CONFIG_ROOTS = new Set(['icons']);
+const AUDIT_SKIPPED_PRESENTATIONS = new Set(['notificaciones']);
+const AUDIT_SKIPPED_TOKENS = new Set([
+    'audit', 'auditoria',
+    'notification', 'notifications', 'notificacion', 'notificaciones', 'notify',
+    'floatingbutton', 'floatingbuttonconfig', 'floating_button', 'floating_button_config',
+    'theme', 'tema',
+    'history', 'historial',
+    'calculator', 'calculadora',
+    'exchange', 'exchangerate', 'tipocambio',
+    'repository', 'repositorio', 'upload', 'uploads', 'attachment', 'attachments', 'archivo', 'file', 'files',
+    'signature', 'firma',
+    'outputtype', 'outputtypes', 'tiposalida', 'tipossalidas',
+    'password', 'contrasena'
+]);
+const AUDIT_SKIPPED_EXACT_TOKENS = new Set([
+    'logourl',
+    'companylogourl',
+    'loginbackgroundurl',
+    'proformalogourl',
+    'proformacompanyfonturl'
+]);
+
+function normalizeAuditMatchToken(value) {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9_]+/g, '')
+        .toLowerCase();
+}
+
+function auditValueSize(value) {
+    if (value === undefined || value === null) return 0;
+    return Buffer.byteLength(JSON.stringify(value), 'utf8');
+}
+
+function isAuditAssetString(value) {
+    if (typeof value !== 'string') return false;
+    const text = value.trim();
+    if (!text) return false;
+    if (/^(data|blob):/i.test(text)) return true;
+    if (/^\/?uploads\//i.test(text)) return true;
+    if (/\.(png|jpe?g|gif|webp|svg|bmp|ico|pdf|docx?|xlsx?|zip)(\?|#|$)/i.test(text)) return true;
+    return text.length > AUDIT_MAX_VALUE_BYTES && /base64/i.test(text);
+}
+
+function shouldSkipAuditPath(moduleKey, pathKey) {
+    const parts = String(pathKey || '').split('.').filter(Boolean);
+    const tokens = parts.map(normalizeAuditMatchToken);
+    if (!tokens.length) return false;
+
+    if (moduleKey === 'configuracion') {
+        if (AUDIT_SKIPPED_CONFIG_ROOTS.has(tokens[0])) return true;
+        if (tokens[0] === 'presentations' && AUDIT_SKIPPED_PRESENTATIONS.has(tokens[1])) return true;
+    }
+
+    return tokens.some((token) => {
+        if (AUDIT_SKIPPED_TOKENS.has(token) || AUDIT_SKIPPED_EXACT_TOKENS.has(token)) return true;
+        if (token.startsWith('dieshape') || token.includes('troquelforma') || token.includes('formatroquel')) return true;
+        if (token.includes('image') || token.includes('imagen') || token.includes('photo') || token.includes('avatar')) return true;
+        return false;
+    });
+}
+
+function shouldSkipAuditValue(value) {
+    return isAuditAssetString(value) || auditValueSize(value) > AUDIT_MAX_VALUE_BYTES;
 }
 
 function normalizeAuditPrimitive(value) {
@@ -2841,23 +3133,25 @@ function normalizeAuditPrimitive(value) {
     return String(value);
 }
 
-function flattenAuditObject(value, path = [], rows = {}) {
+function flattenAuditObject(value, path = [], rows = {}, options = {}) {
+    const pathKey = path.join('.');
+    if (pathKey && shouldSkipAuditPath(options.moduleKey, pathKey)) return rows;
     if (Array.isArray(value)) {
         value.forEach((item, index) => {
             const rowKey = item && typeof item === 'object'
                 ? String(item.id || item.key || item.tipo || item.detalle || index + 1).trim()
                 : String(index + 1);
-            flattenAuditObject(item, [...path, rowKey], rows);
+            flattenAuditObject(item, [...path, rowKey], rows, options);
         });
         return rows;
     }
     if (value && typeof value === 'object') {
         Object.entries(value).forEach(([key, nested]) => {
-            flattenAuditObject(nested, [...path, key], rows);
+            flattenAuditObject(nested, [...path, key], rows, options);
         });
         return rows;
     }
-    rows[path.join('.')] = normalizeAuditPrimitive(value);
+    rows[pathKey] = normalizeAuditPrimitive(value);
     return rows;
 }
 
@@ -2973,16 +3267,18 @@ async function insertAuditEntries(entries = []) {
 }
 
 async function recordAuditDiff({ moduleKey, entityType, entityKey, beforeValue, afterValue, changedBy, route }) {
-    const beforeFlat = flattenAuditObject(beforeValue || {});
-    const afterFlat = flattenAuditObject(afterValue || {});
+    const beforeFlat = flattenAuditObject(beforeValue || {}, [], {}, { moduleKey });
+    const afterFlat = flattenAuditObject(afterValue || {}, [], {}, { moduleKey });
     const ignoredFields = new Set(['general.updatedAt']);
     const keys = new Set([...Object.keys(beforeFlat), ...Object.keys(afterFlat)]);
     const entries = [];
 
     keys.forEach((pathKey) => {
         if (ignoredFields.has(pathKey)) return;
+        if (shouldSkipAuditPath(moduleKey, pathKey)) return;
         const previous = beforeFlat[pathKey];
         const next = afterFlat[pathKey];
+        if (shouldSkipAuditValue(previous) || shouldSkipAuditValue(next)) return;
         if (JSON.stringify(previous) === JSON.stringify(next)) return;
         const meta = buildAuditMetadata(moduleKey, pathKey);
         entries.push({
@@ -3009,8 +3305,26 @@ function normalizeText(value) {
         .toLowerCase();
 }
 
+function repairMojibakeText(value) {
+    const text = String(value ?? '');
+    if (!/[ÃÂâ�]/.test(text)) return text;
+    try {
+        const decoded = Buffer.from(text, 'latin1').toString('utf8');
+        const badBefore = (text.match(/[ÃÂâ�]/g) || []).length;
+        const badAfter = (decoded.match(/[ÃÂâ�]/g) || []).length;
+        if (decoded && badAfter < badBefore) return decoded;
+    } catch (error) {
+        // Keep the original text when it is not a latin1/utf8 mojibake case.
+    }
+    return text
+        .replace(/Ã¡/g, 'á').replace(/Ã©/g, 'é').replace(/Ã­/g, 'í').replace(/Ã³/g, 'ó').replace(/Ãº/g, 'ú')
+        .replace(/Ã/g, 'Á').replace(/Ã‰/g, 'É').replace(/Ã/g, 'Í').replace(/Ã“/g, 'Ó').replace(/Ãš/g, 'Ú')
+        .replace(/Ã±/g, 'ñ').replace(/Ã‘/g, 'Ñ').replace(/Â¿/g, '¿').replace(/Â¡/g, '¡').replace(/Âº/g, 'º')
+        .replace(/Â/g, '');
+}
+
 function sanitizeAdminUserText(value, fallback = '') {
-    return String(value ?? fallback).trim();
+    return repairMojibakeText(value ?? fallback).trim();
 }
 
 function normalizeProformaCurrencyList(value, fallbackJson = DEFAULT_GENERAL_CONFIG.general.proformaCurrenciesJson) {
@@ -3068,10 +3382,43 @@ function normalizeAdminUserRecord(row = {}) {
         active: row.is_active !== false,
         permissionId: row.permission_id == null ? null : Number(row.permission_id),
         permissionName: sanitizeAdminUserText(row.permission_name),
+        defaultLanding: sanitizeOptionalPresentationKey(row.default_landing),
         sapSalespersonCode: Number.isFinite(Number(row.sap_salesperson_code)) && Number(row.sap_salesperson_code) > 0 ? Number(row.sap_salesperson_code) : null,
         sapSalespersonName: Number.isFinite(Number(row.sap_salesperson_code)) && Number(row.sap_salesperson_code) > 0 ? sanitizeAdminUserText(row.sap_salesperson_name) : '',
         floatingButtonConfig: floatingButtonConfig && typeof floatingButtonConfig === 'object' && !Array.isArray(floatingButtonConfig) ? floatingButtonConfig : {}
     };
+}
+
+function buildAdminUserAuditRecord(row = {}) {
+    const user = normalizeAdminUserRecord(row);
+    return {
+        fullName: user.name,
+        username: user.username,
+        department: user.department,
+        process: user.process,
+        email: user.email,
+        phone: user.phone,
+        phoneSecondary: user.phoneSecondary,
+        active: user.active,
+        permissionId: user.permissionId,
+        defaultLanding: user.defaultLanding,
+        sapSalespersonCode: user.sapSalespersonCode,
+        sapSalespersonName: user.sapSalespersonName
+    };
+}
+
+function buildAdminPermissionAuditRecord(row = {}) {
+    const permission = normalizeAdminPermissionRecord(row);
+    return {
+        name: permission.name,
+        defaultLanding: permission.defaultLanding,
+        modules: permission.modules
+    };
+}
+
+function getAuditActorFromRequest(req) {
+    const session = readErpSessionFromRequest(req);
+    return pickFirstValue(session?.name, session?.username, getConfiguredCurrentUser());
 }
 
 async function ensureAdminUsersSchema() {
@@ -3093,6 +3440,7 @@ async function ensureAdminUsersSchema() {
             notify_sms BOOLEAN NOT NULL DEFAULT FALSE,
             is_active BOOLEAN NOT NULL DEFAULT TRUE,
             permission_id BIGINT REFERENCES admin_permissions(id) ON DELETE SET NULL,
+            default_landing TEXT NOT NULL DEFAULT '',
             floating_button_config JSONB NOT NULL DEFAULT '{}'::jsonb,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -3108,6 +3456,7 @@ async function ensureAdminUsersSchema() {
     await pgQuery(`ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS notify_sms BOOLEAN NOT NULL DEFAULT FALSE`);
     await pgQuery(`ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE`);
     await pgQuery(`ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS floating_button_config JSONB NOT NULL DEFAULT '{}'::jsonb`);
+    await pgQuery(`ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS default_landing TEXT NOT NULL DEFAULT ''`);
     await pgQuery(`ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS sap_salesperson_code BIGINT`);
     await pgQuery(`ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS sap_salesperson_name TEXT NOT NULL DEFAULT ''`);
     await pgQuery(`CREATE INDEX IF NOT EXISTS admin_users_name_idx ON admin_users (full_name)`);
@@ -3179,8 +3528,11 @@ async function resolveAdminUserSapSalespersonAssignment({ permissionId, rawCode,
         };
     }
 
-    if (!Number.isFinite(normalizedCode)) {
-        throw new Error('Debes seleccionar un vendedor SAP para este permiso.');
+    if (!Number.isFinite(normalizedCode) || normalizedCode <= 0) {
+        return {
+            sapSalespersonCode: null,
+            sapSalespersonName: ''
+        };
     }
     const salesperson = await findSapSalespersonConfigByCode(normalizedCode);
     if (!salesperson) {
@@ -3258,6 +3610,11 @@ function sanitizePresentationKey(value) {
     return PRESENTATION_NAMES[normalized] ? normalized : 'dashboard';
 }
 
+function sanitizeOptionalPresentationKey(value) {
+    const normalized = String(value || '').trim();
+    return PRESENTATION_NAMES[normalized] ? normalized : '';
+}
+
 function normalizePermissionMatrix(input = {}) {
     const output = {};
     Object.keys(PRESENTATION_NAMES).forEach((key) => {
@@ -3269,6 +3626,15 @@ function normalizePermissionMatrix(input = {}) {
 function isSuperAdminPermissionName(value) {
     const name = sanitizeAdminUserText(value);
     return /administrador(?:es)?|implementador(?:es)?|emergencia/i.test(name);
+}
+
+function permissionCanViewAllQuotes(name = '') {
+    const normalized = normalizeAdminPermissionNameForSalesperson(name);
+    if (!normalized) return true;
+    if (isSuperAdminPermissionName(normalized)) return true;
+    // Coincidencia flexible: si el permiso contiene "vendedor" (sin ser admin/gerente), se filtra
+    if (normalized.includes('vendedor')) return false;
+    return true;
 }
 
 function buildFullPermissionMatrix() {
@@ -3299,6 +3665,19 @@ function readErpSessionFromRequest(req) {
     } catch (error) {
         return null;
     }
+}
+
+function getRequestUserName(req, fallback = '') {
+    const session = readErpSessionFromRequest(req);
+    return pickFirstValue(
+        sanitizeAdminUserText(session?.name),
+        sanitizeAdminUserText(session?.fullName),
+        sanitizeAdminUserText(session?.user),
+        sanitizeAdminUserText(session?.username),
+        sanitizeAdminUserText(session?.email),
+        sanitizeAdminUserText(fallback),
+        getConfiguredCurrentUser()
+    );
 }
 
 function canRequestCreateModule(req, moduleKey) {
@@ -3985,6 +4364,71 @@ function pickFirstMeaningfulNumber(...values) {
     return firstNumeric;
 }
 
+function buildCalculationLineSummary(row = {}) {
+    const raw = row.raw_data || {};
+    const processType = pickFirstValue(row.process_type, raw['Proceso Productivo'], 'Convencional');
+    const isDigital = String(processType || '').toLowerCase().includes('digit');
+    const activePrefix = isDigital ? 'DIGITAL' : 'CONV';
+    const subtotal1 = pickFirstValue(
+        parseLegacyNumber(raw['GENERAL | 9 | TOTAL | COL EXPORTAR REPORTE VENTAS']),
+        parseLegacyNumber(raw['GENERAL | 7 | SUBTOTAL CALC ANTES IV | COL']),
+        parseLegacyNumber(raw['GENERAL | 7 | TOTAL | COL']),
+        parseLegacyNumber(raw['GENERAL | 7 | TOTAL | DOL']),
+        parseLegacyNumber(raw['PRECIO TOTAL AL FINALIZAR']),
+        parseLegacyNumber(row.total_cost),
+        (parseLegacyNumber(row.unit_price) !== null && parseLegacyNumber(row.quantity) !== null)
+            ? parseLegacyNumber(row.unit_price) * parseLegacyNumber(row.quantity)
+            : null
+    );
+    const width = parseLegacyNumber(raw['DIMENSIONES ETIQUETA | ANCHO']);
+    const length = parseLegacyNumber(raw['DIMENSIONES ETIQUETA | LARGO']);
+    const measure = width !== null && length !== null
+        ? `${width} x ${length}`
+        : pickFirstValue(raw['REQ | Medida Fija']);
+    const frontBackGroup = normalizeFrontBackGroup(raw);
+    const processSnapshot = Array.isArray(raw['CODEX_PROCESS_SNAPSHOT']) ? raw['CODEX_PROCESS_SNAPSHOT'] : [];
+    return {
+        version: 1,
+        quote_code: pickFirstValue(row.quote_code, raw['ID COTIZACION']),
+        line_code: pickFirstValue(row.line_code, raw['ID LINEA']),
+        line_order: normalizeLineOrder(raw['CODEX_LINE_ORDER']),
+        customer_code: pickFirstValue(row.customer_code, raw['ID CLIENTE']),
+        customer_name: pickFirstValue(raw.CLIENTE, raw['CLIENTE NOMBRE']),
+        salesperson_name: pickFirstValue(raw.VENDEDOR, raw['VENDEDOR | USUARIO']),
+        department: pickFirstValue(raw.DEPARTAMENTO, 'Flexografia'),
+        job_name: pickFirstValue(raw['NOMBRE TRABAJO'], raw['Nombre Trabajo'], raw['TIPO TRABAJO | ORDEN REFERENCIA 1']),
+        product_code: pickFirstValue(row.product_code, raw['CODIGO PRODUCTO'], raw['ID LINEA']),
+        material_code: pickFirstValue(row.material_code, raw['Material Digital | Id Material'], raw['Material Convencional | Id Material']),
+        material_name: pickFirstValue(raw['GENERAL | MATERIAL'], raw.Material, row.material_code),
+        die_code: pickFirstValue(row.die_code, raw['GENERAL | TROQUEL | ID'], raw[`${activePrefix} | TROQUEL | ID`]),
+        machine_name: pickFirstValue(row.machine_name, raw['DIGITAL | MAQUINA'], raw['CONV | MAQUINA']),
+        process_type: processType,
+        status: pickFirstValue(raw['SOLICITUD ESTADO'], raw['ESTADO LINEA'], 'Cotizada'),
+        finalized_for_order: Boolean(row.finalized_for_order ?? raw['CODEX_FINALIZED_FOR_ORDER']),
+        quantity: pickFirstValue(parseLegacyNumber(row.quantity), parseLegacyNumber(raw['Cantidad Productos']), parseLegacyNumber(raw['CANTIDAD PRODUCTOS 1'])),
+        subtotal_1: subtotal1,
+        total_cost: pickFirstValue(parseLegacyNumber(row.total_cost), parseLegacyNumber(raw['PRECIO TOTAL AL FINALIZAR'])),
+        unit_price: pickFirstValue(parseLegacyNumber(row.unit_price), parseLegacyNumber(raw['GENERAL | 9 | UNITARIO | DOL'])),
+        measure,
+        width_in: width,
+        length_in: length,
+        process_sequence_text: pickFirstValue(raw['CODEX_PROCESS_SEQUENCE_TEXT'], raw['BOT | Process Sequence']),
+        processes: processSnapshot
+            .map((item) => pickFirstValue(item?.processName, item?.name, item?.label))
+            .filter(Boolean),
+        front_back_group: frontBackGroup,
+        grupo_frente_dorso: frontBackGroup
+    };
+}
+
+function applyCalculationLineSummary(rawData = {}, row = {}) {
+    rawData.line_summary = buildCalculationLineSummary({
+        ...row,
+        raw_data: rawData
+    });
+    return rawData;
+}
+
 function buildSyntheticAddressFromPartner(partner) {
     const raw = partner?.raw_data?.socio || {};
     const line = pickFirstValue(raw.STREET, raw['Cliente | Direccion']);
@@ -4031,45 +4475,254 @@ function mapQuoteHeader(row) {
 
 function mapCalculationLine(row) {
     const raw = row.raw_data || {};
-    const subtotal1 = pickFirstValue(
-        parseLegacyNumber(raw['GENERAL | 9 | TOTAL | COL EXPORTAR REPORTE VENTAS']),
-        parseLegacyNumber(raw['GENERAL | 7 | SUBTOTAL CALC ANTES IV | COL']),
-        parseLegacyNumber(raw['GENERAL | 7 | TOTAL | COL']),
-        parseLegacyNumber(raw['GENERAL | 7 | TOTAL | DOL']),
-        parseLegacyNumber(raw['PRECIO TOTAL AL FINALIZAR']),
-        parseLegacyNumber(row.total_cost),
-        (parseLegacyNumber(row.unit_price) !== null && parseLegacyNumber(row.quantity) !== null)
-            ? parseLegacyNumber(row.unit_price) * parseLegacyNumber(row.quantity)
-            : null
-    );
-    const lineOrderRaw = pickFirstValue(raw['CODEX_LINE_ORDER']);
-    const lineOrder = Number.isFinite(Number(lineOrderRaw)) && Number(lineOrderRaw) > 0
-        ? Number(lineOrderRaw)
-        : null;
+    const lineSummary = buildCalculationLineSummary(row);
 
       return {
-          line_code: pickFirstValue(row.line_code, raw['ID LINEA']),
-          line_order: lineOrder,
-          department: pickFirstValue(raw.DEPARTAMENTO, 'Flexografia'),
-          job_name: pickFirstValue(raw['NOMBRE TRABAJO'], raw['Nombre Trabajo'], raw['TIPO TRABAJO | ORDEN REFERENCIA 1'], row.line_code),
-          material_code: pickFirstValue(row.material_code, raw['Material Digital | Id Material'], raw['Material Convencional | Id Material']),
-          material_name: pickFirstValue(raw['GENERAL | MATERIAL'], raw.Material, row.material_code),
-          die_code: pickFirstValue(row.die_code, raw['GENERAL | TROQUEL | ID']),
-          finalized_for_order: Boolean(row.finalized_for_order ?? raw['CODEX_FINALIZED_FOR_ORDER']),
-          status: pickFirstValue(raw['SOLICITUD ESTADO'], raw['ESTADO LINEA'], 'Cotizada'),
-        quantity: parseLegacyNumber(row.quantity),
-        subtotal_1: subtotal1,
+          line_code: lineSummary.line_code,
+          line_order: lineSummary.line_order,
+          department: lineSummary.department,
+          job_name: lineSummary.job_name,
+          material_code: lineSummary.material_code,
+          material_name: lineSummary.material_name,
+          die_code: lineSummary.die_code,
+          finalized_for_order: lineSummary.finalized_for_order,
+          status: lineSummary.status,
+        quantity: lineSummary.quantity,
+        subtotal_1: lineSummary.subtotal_1,
         subtotal_2: null,
         subtotal_3: null,
         subtotal_4: null,
         hidden_flag: false,
         optional_flag: false,
         proof_flag: true,
-        process_type: row.process_type || pickFirstValue(raw['Proceso Productivo']),
-        product_code: row.product_code,
-        machine_name: pickFirstValue(row.machine_name, raw['DIGITAL | MAQUINA'], raw['CONV | MAQUINA']),
-        unit_price: parseLegacyNumber(row.unit_price),
+        process_type: lineSummary.process_type,
+        product_code: lineSummary.product_code,
+        machine_name: lineSummary.machine_name,
+        unit_price: lineSummary.unit_price,
+        front_back_group: lineSummary.front_back_group,
+        grupo_frente_dorso: lineSummary.grupo_frente_dorso,
+        line_summary: lineSummary,
         raw_data: raw
+    };
+}
+
+function normalizeFrontBackLineCode(value) {
+    return String(value || '').trim();
+}
+
+function normalizeFrontBackGroup(rawOrGroup = {}) {
+    const group = rawOrGroup?.grupoFrenteDorso || rawOrGroup?.grupo_frente_dorso || rawOrGroup?.CODEX_FD_GROUP || rawOrGroup?.frontBackGroup || rawOrGroup;
+    if (!group || typeof group !== 'object' || Array.isArray(group)) return null;
+    const groupLineCode = normalizeFrontBackLineCode(group.groupLineCode || group.lineaGrupo || group.primaryLineCode);
+    const explicitElements = Array.isArray(group.elementLineCodes)
+        ? group.elementLineCodes.map(normalizeFrontBackLineCode).filter(Boolean)
+        : Array.isArray(group.elementos)
+            ? group.elementos.map((item) => normalizeFrontBackLineCode(item?.lineCode || item?.linea || item)).filter(Boolean)
+            : [];
+    const legacyMembers = Array.isArray(group.memberLineCodes)
+        ? group.memberLineCodes.map(normalizeFrontBackLineCode).filter(Boolean)
+        : [group.primaryLineCode, group.partnerLineCode].map(normalizeFrontBackLineCode).filter(Boolean);
+    const memberLineCodes = Array.from(new Set((explicitElements.length ? explicitElements : legacyMembers).filter(Boolean)));
+    const primaryLineCode = normalizeFrontBackLineCode(groupLineCode || group.primaryLineCode || legacyMembers[0] || memberLineCodes[0]);
+    const partnerLineCode = normalizeFrontBackLineCode(group.partnerLineCode || group.backLineCode || memberLineCodes.find((code) => code !== primaryLineCode));
+    const groupId = normalizeFrontBackLineCode(group.groupId);
+    if (!groupId || !primaryLineCode || memberLineCodes.length < 1) return null;
+    const normalizedRole = String(group.role || group.rol || '').trim().toLowerCase();
+    const role = ['elemento', 'componente', 'frente', 'dorso'].includes(normalizedRole) ? 'elemento' : 'grupo';
+    const elementRoles = group.elementRoles && typeof group.elementRoles === 'object' && !Array.isArray(group.elementRoles)
+        ? { ...group.elementRoles }
+        : {};
+    const dedicatedGroupLine = !memberLineCodes.includes(primaryLineCode);
+    return {
+        groupId,
+        mode: 'frente_dorso',
+        label: sanitizeAdminUserText(group.label, 'Grupo Frente/Dorso'),
+        displayMode: String(group.displayMode || 'single').trim() || 'single',
+        role,
+        groupLineCode: primaryLineCode,
+        lineaGrupo: primaryLineCode,
+        primaryLineCode,
+        partnerLineCode,
+        frontLineCode: normalizeFrontBackLineCode(group.frontLineCode || memberLineCodes[0]),
+        backLineCode: normalizeFrontBackLineCode(group.backLineCode || memberLineCodes[1] || partnerLineCode),
+        elementLineCodes: memberLineCodes,
+        memberLineCodes,
+        allLineCodes: Array.from(new Set([primaryLineCode, ...memberLineCodes].filter(Boolean))),
+        dedicatedGroupLine,
+        elementRole: sanitizeAdminUserText(group.elementRole || group.ladoElemento || ''),
+        elementRoles,
+        warnings: Array.isArray(group.warnings) ? group.warnings.map((item) => sanitizeAdminUserText(item)).filter(Boolean) : [],
+        createdAt: group.createdAt || null,
+        updatedAt: group.updatedAt || null
+    };
+}
+
+function getFrontBackGroupFromLine(lineRow = {}) {
+    return normalizeFrontBackGroup(lineRow?.raw_data || {});
+}
+
+function isFrontBackComponentLine(lineRow = {}) {
+    const group = getFrontBackGroupFromLine(lineRow);
+    if (!group) return false;
+    return group.role === 'elemento' || normalizeFrontBackLineCode(lineRow.line_code) !== group.groupLineCode;
+}
+
+function isFrontBackGroupLine(lineRow = {}) {
+    const group = getFrontBackGroupFromLine(lineRow);
+    if (!group) return false;
+    return normalizeFrontBackLineCode(lineRow.line_code) === group.groupLineCode && group.role !== 'elemento';
+}
+
+function buildFrontBackGroupId(quoteCode, groupLineCode, elementLineCodes = []) {
+    return `grupo-frente-dorso-${[quoteCode, groupLineCode, ...elementLineCodes]
+        .map((item) => String(item || '').trim().replace(/[^a-z0-9_-]+/gi, '-'))
+        .filter(Boolean)
+        .join('-')}`;
+}
+
+function buildFrontBackCompatibilityWarnings(primaryLine = {}, partnerLine = {}) {
+    const warnings = [];
+    const compare = (label, primaryValue, partnerValue) => {
+        const left = String(primaryValue || '').trim();
+        const right = String(partnerValue || '').trim();
+        if (left && right && left.toLowerCase() !== right.toLowerCase()) {
+            warnings.push(`${label}: ${left} / ${right}`);
+        }
+    };
+    compare('Proceso', primaryLine.process_type, partnerLine.process_type);
+    compare('Máquina', primaryLine.machine_name, partnerLine.machine_name);
+    compare('Material', primaryLine.material_code, partnerLine.material_code);
+    compare('Troquel', primaryLine.die_code, partnerLine.die_code);
+    return warnings;
+}
+
+async function getLatestQuoteCalculationRows(quoteCode, client = null) {
+    const executor = client || { query: pgQuery };
+    const result = await executor.query(
+        `SELECT calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name, die_code, material_code,
+                quantity, subtotal_cost, total_cost, unit_price, raw_data, created_at
+           FROM (
+                SELECT DISTINCT ON (line_code)
+                       calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name, die_code, material_code,
+                       quantity, subtotal_cost, total_cost, unit_price, raw_data, created_at
+                  FROM flexo_calculations
+                 WHERE quote_code = $1
+                 ORDER BY line_code NULLS LAST, created_at DESC NULLS LAST, calculation_code DESC NULLS LAST
+           ) latest_lines
+          ORDER BY line_code NULLS LAST`,
+        [quoteCode]
+    );
+    return result.rows;
+}
+
+async function loadFrontBackGroupMembers(quoteCode, lineRow = {}, client = null) {
+    const group = getFrontBackGroupFromLine(lineRow);
+    if (!group) return [lineRow].filter(Boolean);
+    const rows = await getLatestQuoteCalculationRows(quoteCode || lineRow.quote_code, client);
+    const byCode = new Map(rows.map((row) => [normalizeFrontBackLineCode(row.line_code), row]));
+    return group.memberLineCodes
+        .map((lineCode) => byCode.get(lineCode))
+        .filter(Boolean);
+}
+
+async function loadFrontBackGroupContext(quoteCode, lineRow = {}, client = null) {
+    const group = getFrontBackGroupFromLine(lineRow);
+    if (!group) return { group: null, groupLine: lineRow || null, members: [lineRow].filter(Boolean), rows: [lineRow].filter(Boolean) };
+    const rows = await getLatestQuoteCalculationRows(quoteCode || lineRow.quote_code, client);
+    const byCode = new Map(rows.map((row) => [normalizeFrontBackLineCode(row.line_code), row]));
+    const groupLine = byCode.get(group.groupLineCode) || (normalizeFrontBackLineCode(lineRow.line_code) === group.groupLineCode ? lineRow : null);
+    const members = group.memberLineCodes.map((lineCode) => byCode.get(lineCode)).filter(Boolean);
+    return { group, groupLine, members, rows };
+}
+
+function frontBackLineQuantity(lineRow = {}) {
+    const raw = lineRow?.raw_data || {};
+    return parseLegacyNumber(lineRow?.quantity) ?? parseLegacyNumber(raw['Cantidad Productos']) ?? parseLegacyNumber(raw['CANTIDAD PRODUCTOS 1']) ?? 0;
+}
+
+function applyFrontBackQuantityToRawData(rawData = {}, quantity = 0) {
+    const normalizedQuantity = parseLegacyNumber(quantity) ?? 0;
+    rawData['Cantidad Productos'] = normalizedQuantity;
+    rawData['CANTIDAD PRODUCTOS 1'] = normalizedQuantity;
+    const uiState = rawData.CODEX_UI_STATE;
+    if (uiState && typeof uiState === 'object' && !Array.isArray(uiState)) {
+        const header = uiState.header && typeof uiState.header === 'object' && !Array.isArray(uiState.header)
+            ? uiState.header
+            : {};
+        rawData.CODEX_UI_STATE = {
+            ...uiState,
+            header: {
+                ...header,
+                quantity: normalizedQuantity,
+                quantities: [{ id: 'qty-1', value: normalizedQuantity }]
+            }
+        };
+    }
+    return rawData;
+}
+
+async function syncFrontBackGroupQuantity({ quoteCode, group, quantity, excludeCalculationCode = '', client = null }) {
+    if (!group || !Array.isArray(group.memberLineCodes) || !group.memberLineCodes.length) return;
+    const executor = client || { query: pgQuery };
+    const rows = await getLatestQuoteCalculationRows(quoteCode, client);
+    const targetCodes = new Set(group.memberLineCodes.map(normalizeFrontBackLineCode));
+    for (const row of rows) {
+        if (!targetCodes.has(normalizeFrontBackLineCode(row.line_code))) continue;
+        if (excludeCalculationCode && String(row.calculation_code || '') === String(excludeCalculationCode)) continue;
+        const rawData = applyFrontBackQuantityToRawData({ ...(row.raw_data || {}) }, quantity);
+        applyCalculationLineSummary(rawData, { ...row, quantity });
+        await executor.query(
+            `UPDATE flexo_calculations
+                SET quantity = $2,
+                    raw_data = $3::jsonb
+              WHERE calculation_code = $1`,
+            [row.calculation_code, parseLegacyNumber(quantity) ?? 0, JSON.stringify(rawData)]
+        );
+    }
+}
+
+function summarizeFrontBackOutputLine(lineRow = {}) {
+    const raw = lineRow.raw_data || {};
+    const quantity = parseLegacyNumber(lineRow.quantity) ?? parseLegacyNumber(raw['Cantidad Productos']) ?? 0;
+    const totalCost = parseLegacyNumber(lineRow.total_cost) ?? parseLegacyNumber(raw['PRECIO TOTAL AL FINALIZAR']) ?? 0;
+    return {
+        lineCode: lineRow.line_code || '',
+        itemCode: pickFirstValue(lineRow.product_code, raw['CODIGO PRODUCTO'], lineRow.line_code),
+        itemName: getProductNameFromRaw(raw, lineRow.product_code || lineRow.line_code || ''),
+        quantity,
+        totalCost,
+        unitCost: quantity > 0 ? roundCurrency(totalCost / quantity) : totalCost,
+        materialCode: pickFirstValue(lineRow.material_code, raw['Material Convencional | Id Material'], raw['Material Digital | Id Material']),
+        machineName: pickFirstValue(lineRow.machine_name, raw['CONV | MAQUINA'], raw['DIGITAL | MAQUINA']),
+        dieCode: pickFirstValue(lineRow.die_code, raw['GENERAL | TROQUEL | ID'])
+    };
+}
+
+function buildFrontBackProductionRun(lineRow = {}, members = []) {
+    const group = getFrontBackGroupFromLine(lineRow);
+    if (!group) return null;
+    const outputs = members.map(summarizeFrontBackOutputLine);
+    const totalCost = roundCurrency(outputs.reduce((sum, item) => sum + Number(item.totalCost || 0), 0));
+    const primaryOutput = outputs.find((item) => item.lineCode === group.primaryLineCode) || outputs[0] || {};
+    const groupLineQuantity = normalizeFrontBackLineCode(lineRow.line_code) === group.groupLineCode
+        ? frontBackLineQuantity(lineRow)
+        : null;
+    const quantity = Number(groupLineQuantity || primaryOutput.quantity || 0);
+    return {
+        mode: 'frente_dorso',
+        groupId: group.groupId,
+        label: group.label,
+        displayMode: group.displayMode,
+        commercialLineCode: group.groupLineCode,
+        memberLineCodes: group.memberLineCodes,
+        elementLineCodes: group.elementLineCodes,
+        warnings: group.warnings,
+        outputs,
+        totals: {
+            quantity,
+            totalCost,
+            unitCost: quantity > 0 ? roundCurrency(totalCost / quantity) : totalCost
+        }
     };
 }
 
@@ -4135,6 +4788,9 @@ function mapFlexoCalculationDetail(row) {
         jobName: pickFirstValue(raw['NOMBRE TRABAJO'], raw['TIPO TRABAJO | ORDEN REFERENCIA 1']),
         department: pickFirstValue(raw.DEPARTAMENTO, 'Flexografia'),
         processType,
+        productCode: row.product_code || raw['CODIGO PRODUCTO'] || '',
+        frontBackGroup: normalizeFrontBackGroup(raw),
+        grupoFrenteDorso: normalizeFrontBackGroup(raw),
           orderType: pickFirstValue(raw['TIPO ORDEN']),
           finalizedForOrder: Boolean(row.finalized_for_order ?? raw['CODEX_FINALIZED_FOR_ORDER']),
           lineStatus: pickFirstValue(raw['SOLICITUD ESTADO'], raw['ESTADO LINEA'], raw['FIN COTIZACION | ESTADO']),
@@ -4155,7 +4811,7 @@ function mapFlexoCalculationDetail(row) {
         materialWidth: parseLegacyNumber(raw['GENERAL | MATERIAL | ANCHO']),
         materialM2: pickFirstValue(parseLegacyNumber(raw['Material | m2 Segun Proceso Productivo']), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | AREA MTS`])),
         materialMsi: pickFirstValue(parseLegacyNumber(raw['Material | MSI Segun Proceso Productivo']), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | CANTIDAD MSI INCLUYE MACULA`]), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | CANTIDAD MSI`])),
-        materialFeet: pickFirstValue(parseLegacyNumber(raw['Material | Pies Segun Proceso Productivo']), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | CANTIDAD PIES LINEALES INCLUYE MACULA`]), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | CANTIDAD PIES LINEALES`])),
+        materialFeet: pickFirstValue(parseLegacyNumber(raw['Material | Pies Segun Proceso Productivo']), parseLegacyNumber(raw['GENERAL | SUSTRATO | CONSUMO PIES']), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | CANTIDAD PIES LINEALES INCLUYE MACULA`]), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | CANTIDAD PIES LINEALES`])),
         materialFeetWaste: pickFirstValue(parseLegacyNumber(raw['Material | Pies Macula Segun Proceso Productivo']), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | CANTIDAD PIES MACULA | CALCULO`])),
         dieCode: pickFirstValue(raw['GENERAL | TROQUEL | ID'], raw[`${activePrefix} | TROQUEL | ID`], row.die_code),
         dieTeeth: pickFirstValue(parseLegacyNumber(raw['GENERAL | TROQUEL | DIENTES']), parseLegacyNumber(raw[`${activePrefix} | TROQUEL | DIENTES`])),
@@ -4276,8 +4932,8 @@ async function getProformaConfigSnapshot(config = {}) {
     const selectedCurrency = currencies.find((item) => item.code === defaultCurrency) || exchangeContext.defaultCurrencyMeta || currencies[0] || { code: 'CRC', label: 'Colones', symbol: '₡', exchangeRate: 1 };
     return {
         logoUrl: String(general.proformaLogoUrl || '').trim(),
-        companyName: String(general.proformaCompanyName || '').trim(),
-        slogan: String(general.proformaSlogan || '').trim(),
+        companyName: sanitizeAdminUserText(general.proformaCompanyName),
+        slogan: sanitizeAdminUserText(general.proformaSlogan),
         headerColor: normalizeProformaHeaderColor(general.proformaHeaderColor, DEFAULT_GENERAL_CONFIG.general.proformaHeaderColor),
         companyNameColor: normalizeProformaHeaderColor(general.proformaCompanyNameColor, DEFAULT_GENERAL_CONFIG.general.proformaCompanyNameColor),
         fontFamilySource: String(general.proformaCompanyFontFamily || 'Cormorant Garamond').trim() || 'Cormorant Garamond',
@@ -4292,26 +4948,26 @@ async function getProformaConfigSnapshot(config = {}) {
         logoHeight: Number(general.proformaLogoHeight || DEFAULT_GENERAL_CONFIG.general.proformaLogoHeight) || DEFAULT_GENERAL_CONFIG.general.proformaLogoHeight,
         logoMarginTop: Number(general.proformaLogoMarginTop || 0) || 0,
         logoMarginLeft: Number(general.proformaLogoMarginLeft || 0) || 0,
-        phone: String(general.proformaPhone || '').trim(),
+        phone: sanitizeAdminUserText(general.proformaPhone),
         website: String(general.proformaWebsite || '').trim(),
-        email: String(general.proformaEmail || '').trim(),
+        email: sanitizeAdminUserText(general.proformaEmail),
         currencies,
         defaultCurrency: defaultCurrency || selectedCurrency.code,
         defaultCurrencyMeta: selectedCurrency,
         baseCurrency: exchangeContext.baseCurrency || 'USD',
         exchangeRateDate: exchangeContext.rateDate || null,
-        defaultValidity: String(general.proformaDefaultValidity || '').trim(),
-        intro: String(general.proformaIntro || '').trim(),
+        defaultValidity: sanitizeAdminUserText(general.proformaDefaultValidity),
+        intro: sanitizeAdminUserText(general.proformaIntro),
         introStyle: {
             fontFamily: String(general.proformaIntroFontFamily || 'inherit').trim() || 'inherit',
             fontSize: Number(general.proformaIntroFontSize || 15) || 15,
             color: normalizeProformaHeaderColor(general.proformaIntroColor, '#2f3c46')
         },
-        termsConditions: String(general.proformaTermsConditions || '').trim(),
-        paymentTerms: String(general.proformaPaymentTerms || '').trim(),
-        deliveryTime: String(general.proformaDeliveryTime || '').trim(),
-        technicalSpecs: String(general.proformaTechnicalSpecs || '').trim(),
-        qualityPolicies: String(general.proformaQualityPolicies || '').trim(),
+        termsConditions: sanitizeAdminUserText(general.proformaTermsConditions),
+        paymentTerms: sanitizeAdminUserText(general.proformaPaymentTerms),
+        deliveryTime: sanitizeAdminUserText(general.proformaDeliveryTime),
+        technicalSpecs: sanitizeAdminUserText(general.proformaTechnicalSpecs),
+        qualityPolicies: sanitizeAdminUserText(general.proformaQualityPolicies),
         priceDisplayMode: normalizeProformaPriceDisplayMode(general.proformaPriceDisplayMode),
         sellerSignatureEnabled: String(general.proformaSellerSignatureEnabled || 'true').trim().toLowerCase() !== 'false'
     };
@@ -4406,12 +5062,7 @@ function buildProformaProductSummary(line = {}, currency = {}, displayMode = 'bo
     const dieCode = pickFirstValue(raw['REQ | Troquel Automático'], autoSelection.dieCode, line.die_code);
     const mountingSummary = pickFirstValue(raw['REQ | Montaje Automático']);
     const technicalComment = pickFirstValue(raw['REQ | Comentario Técnico Automático']);
-    const warnings = Array.isArray(autoSelection.warnings)
-        ? autoSelection.warnings.filter(Boolean)
-        : String(raw['REQ | Advertencias Automáticas'] || '')
-            .split('|')
-            .map((item) => String(item || '').trim())
-            .filter(Boolean);
+    const warnings = [];
     const descriptionText = [
         line.material_name || '',
         machineSummary || '',
@@ -4444,6 +5095,68 @@ function buildProformaProductSummary(line = {}, currency = {}, displayMode = 'bo
         currencySymbol: currency?.symbol || '',
         displayMode
     };
+}
+
+function buildFrontBackProformaProductSummary(primaryLine = {}, memberLines = [], currency = {}, displayMode = 'both') {
+    const group = getFrontBackGroupFromLine(primaryLine);
+    const groupSummary = buildProformaProductSummary(primaryLine, currency, displayMode);
+    const summaries = memberLines.map((line) => buildProformaProductSummary(line, currency, displayMode));
+    const primarySummary = group?.dedicatedGroupLine
+        ? groupSummary
+        : (summaries.find((item) => item.lineCode === group?.primaryLineCode) || summaries[0] || groupSummary);
+    const elementSubtotal = roundCurrency(summaries.reduce((sum, item) => sum + Number(item.subtotal || 0), 0));
+    const elementTaxAmount = roundCurrency(summaries.reduce((sum, item) => sum + Number(item.taxAmount || 0), 0));
+    const elementTotalPrice = roundCurrency(summaries.reduce((sum, item) => sum + Number(item.totalPrice || 0), 0));
+    const groupHasCommercialValues = group?.dedicatedGroupLine && (
+        Number(groupSummary.subtotal || 0) > 0
+        || Number(groupSummary.taxAmount || 0) > 0
+        || Number(groupSummary.totalPrice || 0) > 0
+    );
+    const subtotal = groupHasCommercialValues ? groupSummary.subtotal : elementSubtotal;
+    const taxAmount = groupHasCommercialValues ? groupSummary.taxAmount : elementTaxAmount;
+    const totalPrice = groupHasCommercialValues ? groupSummary.totalPrice : elementTotalPrice;
+    const quantity = Number(groupSummary.quantity || primarySummary.quantity || 0) || null;
+    const unitPrice = quantity ? roundCurrency(subtotal / quantity) : primarySummary.unitPrice;
+    const names = summaries.map((item) => item.name).filter(Boolean);
+    const materials = Array.from(new Set(summaries.map((item) => item.material || item.materialCode).filter(Boolean)));
+    const machines = Array.from(new Set(summaries.map((item) => item.machineSummary).filter(Boolean)));
+    const lineCodes = summaries.map((item) => item.lineCode).filter(Boolean).join(' + ');
+    return {
+        ...primarySummary,
+        name: groupSummary.name || `${group?.label || 'Grupo Frente/Dorso'}: ${names.join(' + ') || primarySummary.name || 'Producto'}`,
+        descriptionText: [
+            'Corrida combinada',
+            lineCodes ? `Líneas ${lineCodes}` : '',
+            materials.join(' · '),
+            machines.join(' · ')
+        ].filter(Boolean).join(' · '),
+        subtotal,
+        taxAmount,
+        totalPrice,
+        unitPrice,
+        thousandPrice: unitPrice != null ? roundCurrency(unitPrice * 1000) : primarySummary.thousandPrice,
+        frontBackGroup: group
+    };
+}
+
+function buildProformaProducts(lines = [], currency = {}, displayMode = 'both') {
+    const rows = Array.isArray(lines) ? lines : [];
+    const byLineCode = new Map(rows.map((line) => [normalizeFrontBackLineCode(line.line_code), line]));
+    const handledGroups = new Set();
+    const products = [];
+    for (const line of rows) {
+        const group = getFrontBackGroupFromLine(line);
+        if (!group || group.displayMode !== 'single') {
+            products.push(buildProformaProductSummary(line, currency, displayMode));
+            continue;
+        }
+        if (isFrontBackComponentLine(line)) continue;
+        if (handledGroups.has(group.groupId)) continue;
+        handledGroups.add(group.groupId);
+        const memberLines = group.memberLineCodes.map((lineCode) => byLineCode.get(lineCode)).filter(Boolean);
+        products.push(buildFrontBackProformaProductSummary(line, memberLines.length ? memberLines : [line], currency, displayMode));
+    }
+    return products;
 }
 
 function buildQuoteProformaTechnicalSummary(lines = []) {
@@ -4513,6 +5226,7 @@ function buildQuoteProformaTechnicalSummary(lines = []) {
 async function closeQuoteProforma(quoteCode, reason = 'manual', client = null) {
     if (!quoteCode) return null;
     const executor = client || { query: pgQuery };
+    await assertQuoteReadyForProforma(quoteCode, executor);
     const existing = await executor.query(
         `SELECT id, quote_code, status, issue_date_fixed, closed_at, closed_reason, raw_data
            FROM quote_proformas
@@ -4539,6 +5253,68 @@ async function closeQuoteProforma(quoteCode, reason = 'manual', client = null) {
     return result.rows[0] || null;
 }
 
+async function reopenQuoteProforma(quoteCode, reason = 'tracking_reopened', client = null) {
+    if (!quoteCode) return null;
+    const executor = client || { query: pgQuery };
+    const result = await executor.query(
+        `INSERT INTO quote_proformas (quote_code, status, raw_data, closed_reason)
+         VALUES ($1, 'open', '{}'::jsonb, $2)
+         ON CONFLICT (quote_code)
+         DO UPDATE SET
+            status = 'open',
+            closed_at = NULL,
+            closed_reason = EXCLUDED.closed_reason,
+            updated_at = NOW()
+         RETURNING id, quote_code, status, issue_date_fixed, closed_at, closed_reason, raw_data`,
+        [quoteCode, String(reason || 'tracking_reopened').trim() || 'tracking_reopened']
+    );
+    return result.rows[0] || null;
+}
+
+function proformaBlockingMessagesFromRaw(raw = {}) {
+    const messages = Array.isArray(raw.CODEX_VALIDATION_MESSAGES)
+        ? raw.CODEX_VALIDATION_MESSAGES.map((item) => stripNonBlockingSapAccountingWarnings(item)).filter(Boolean)
+        : [];
+    const fallback = stripNonBlockingSapAccountingWarnings(sanitizeAdminUserText(
+        raw['ANALISIS CAMPOS PDF'],
+        raw['ANALISIS CAMPOS CREAR ORDEN'],
+        raw['ANALISIS CAMPOS FINALIZAR']
+    ));
+    return [...new Set([...messages, fallback].filter(Boolean))];
+}
+
+function findQuoteProformaBlockingLine(rows = []) {
+    return rows.find((row) => proformaBlockingMessagesFromRaw(row?.raw_data || {}).length);
+}
+
+function formatQuoteProformaBlockError(row = {}) {
+    const raw = row.raw_data || {};
+    const messages = proformaBlockingMessagesFromRaw(raw);
+    const lineCode = pickFirstValue(row.line_code, raw['ID LINEA'], '');
+    const detail = messages.join(' ');
+    return `La proforma incluye varias líneas de cálculo. La línea ${lineCode || 'sin código'} requiere completar faltantes antes de continuar. ${detail}`.trim();
+}
+
+async function assertQuoteReadyForProforma(quoteCode, client = null) {
+    const executor = client || { query: pgQuery };
+    const result = await executor.query(
+        `SELECT line_code, raw_data
+           FROM (
+                SELECT DISTINCT ON (line_code)
+                       line_code, raw_data, created_at, calculation_code
+                  FROM flexo_calculations
+                 WHERE quote_code = $1
+                 ORDER BY line_code NULLS LAST, created_at DESC NULLS LAST, calculation_code DESC NULLS LAST
+           ) latest_lines
+          ORDER BY line_code NULLS LAST`,
+        [quoteCode]
+    );
+    const blockingLine = findQuoteProformaBlockingLine(result.rows);
+    if (blockingLine) {
+        throw new Error(formatQuoteProformaBlockError(blockingLine));
+    }
+}
+
 async function buildQuoteProformaPayload(quoteCode, client = null) {
     const executor = client || { query: pgQuery };
     const config = await loadGeneralConfig();
@@ -4563,15 +5339,9 @@ async function buildQuoteProformaPayload(quoteCode, client = null) {
           ORDER BY line_code NULLS LAST`,
         [quoteCode]
     );
-    const blockingLine = linesResult.rows.find((row) => {
-        const raw = row?.raw_data || {};
-        return sanitizeAdminUserText(raw['ANALISIS CAMPOS PDF'], raw['ANALISIS CAMPOS CREAR ORDEN'], raw['ANALISIS CAMPOS FINALIZAR']);
-    });
+    const blockingLine = findQuoteProformaBlockingLine(linesResult.rows);
     if (blockingLine) {
-        const raw = blockingLine.raw_data || {};
-        const message = sanitizeAdminUserText(raw['ANALISIS CAMPOS PDF'], raw['ANALISIS CAMPOS CREAR ORDEN'], raw['ANALISIS CAMPOS FINALIZAR']);
-        const lineCode = pickFirstValue(blockingLine.line_code, raw['ID LINEA'], '');
-        throw new Error(`La línea ${lineCode || 'sin código'} requiere completar el cálculo antes de ver la proforma. ${message}`.trim());
+        throw new Error(formatQuoteProformaBlockError(blockingLine));
     }
     const lines = linesResult.rows.map(mapCalculationLine);
     const proformaResult = await executor.query(
@@ -4602,7 +5372,7 @@ async function buildQuoteProformaPayload(quoteCode, client = null) {
     }
     const issueDate = existing?.issue_date_fixed ? new Date(existing.issue_date_fixed) : new Date();
     const selectedPriceDisplayMode = normalizeProformaPriceDisplayMode(rawData.priceDisplayMode || configSnapshot.priceDisplayMode);
-    const products = lines.map((line) => buildProformaProductSummary(line, currency, selectedPriceDisplayMode));
+    const products = buildProformaProducts(lines, currency, selectedPriceDisplayMode);
     const technicalSummary = buildQuoteProformaTechnicalSummary(lines);
     const subtotalSummary = roundCurrency(products.reduce((acc, item) => acc + Number(item.subtotal || 0), 0));
     const taxSummary = roundCurrency(products.reduce((acc, item) => acc + Number(item.taxAmount || 0), 0));
@@ -4684,30 +5454,61 @@ async function getActiveTenantId(client = null) {
     return result.rows[0]?.id || null;
 }
 
-async function generateNextQuoteCode(client = null) {
+function escapeRegexLiteral(value = '') {
+    return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+async function loadGeneralNomenclature() {
+    const config = await loadGeneralConfig();
+    return config?.general || {};
+}
+
+async function generateNextConfiguredCode({ client = null, tableName, columnName, prefix, fallbackPrefix, padLength = 6 }) {
     const executor = client || { query: pgQuery };
+    const safePrefix = String(prefix || fallbackPrefix || '').trim() || String(fallbackPrefix || '').trim();
+    const regex = `^${escapeRegexLiteral(safePrefix)}[0-9]+$`;
     const result = await executor.query(
-        `SELECT quote_code
-           FROM quotes
-          WHERE quote_code ~ '^C-[0-9]+$'
-          ORDER BY CAST(REPLACE(quote_code, 'C-', '') AS INTEGER) DESC
-          LIMIT 1`
+        `SELECT ${columnName} AS code FROM ${tableName} WHERE ${columnName} ~* $1`,
+        [regex]
     );
-    const current = Number(String(result.rows[0]?.quote_code || 'C-0').replace('C-', '')) || 0;
-    return `C-${String(current + 1).padStart(6, '0')}`;
+    let maxValue = 0;
+    let resolvedPad = Math.max(0, Number(padLength || 0));
+    const matcher = new RegExp(`^${escapeRegexLiteral(safePrefix)}(\\d+)$`, 'i');
+    for (const row of result.rows || []) {
+        const match = String(row.code || '').trim().match(matcher);
+        if (!match) continue;
+        const numeric = Number(match[1]);
+        if (Number.isFinite(numeric)) {
+            maxValue = Math.max(maxValue, numeric);
+            resolvedPad = Math.max(resolvedPad, match[1].length);
+        }
+    }
+    const suffix = String(maxValue + 1).padStart(resolvedPad, '0');
+    return `${safePrefix}${suffix}`;
+}
+
+async function generateNextQuoteCode(client = null) {
+    const general = await loadGeneralNomenclature();
+    return generateNextConfiguredCode({
+        client,
+        tableName: 'quotes',
+        columnName: 'quote_code',
+        prefix: general.quoteCodePrefix,
+        fallbackPrefix: 'C-',
+        padLength: 6
+    });
 }
 
 async function generateNextLineCode(client = null) {
-    const executor = client || { query: pgQuery };
-    const result = await executor.query(
-        `SELECT line_code
-           FROM flexo_calculations
-          WHERE line_code ~ '^LC[0-9]+$'
-          ORDER BY CAST(REPLACE(line_code, 'LC', '') AS INTEGER) DESC
-          LIMIT 1`
-    );
-    const current = Number(String(result.rows[0]?.line_code || 'LC0').replace('LC', '')) || 0;
-    return `LC${current + 1}`;
+    const general = await loadGeneralNomenclature();
+    return generateNextConfiguredCode({
+        client,
+        tableName: 'flexo_calculations',
+        columnName: 'line_code',
+        prefix: general.quoteLineCodePrefix,
+        fallbackPrefix: 'LC',
+        padLength: 0
+    });
 }
 
 async function generateNextCalculationCode(client = null) {
@@ -4724,29 +5525,27 @@ async function generateNextCalculationCode(client = null) {
 }
 
 async function generateNextProductCode(client = null) {
-    const executor = client || { query: pgQuery };
-    const result = await executor.query(
-        `SELECT product_code
-           FROM flexo_products
-          WHERE product_code ~ '^P-[0-9]+$'
-          ORDER BY CAST(REPLACE(product_code, 'P-', '') AS INTEGER) DESC
-          LIMIT 1`
-    );
-    const current = Number(String(result.rows[0]?.product_code || 'P-0').replace('P-', '')) || 0;
-    return `P-${String(current + 1).padStart(6, '0')}`;
+    const general = await loadGeneralNomenclature();
+    return generateNextConfiguredCode({
+        client,
+        tableName: 'flexo_products',
+        columnName: 'product_code',
+        prefix: general.productCodePrefix,
+        fallbackPrefix: 'P-',
+        padLength: 6
+    });
 }
 
 async function generateNextOrderCode(client = null) {
-    const executor = client || { query: pgQuery };
-    const result = await executor.query(
-        `SELECT order_code
-           FROM flexo_orders
-          WHERE order_code ~ '^OP-[0-9]+$'
-          ORDER BY CAST(REPLACE(order_code, 'OP-', '') AS INTEGER) DESC
-          LIMIT 1`
-    );
-    const current = Number(String(result.rows[0]?.order_code || 'OP-0').replace('OP-', '')) || 0;
-    return `OP-${String(current + 1).padStart(6, '0')}`;
+    const general = await loadGeneralNomenclature();
+    return generateNextConfiguredCode({
+        client,
+        tableName: 'flexo_orders',
+        columnName: 'order_code',
+        prefix: general.orderCodePrefix,
+        fallbackPrefix: 'OP-',
+        padLength: 6
+    });
 }
 
 async function ensureProductCatalogSchema() {
@@ -4813,6 +5612,164 @@ async function ensureProductionSchema() {
     `);
 }
 
+function normalizeAttachmentBase64(value) {
+    return String(value || '')
+        .trim()
+        .replace(/^data:[^;]+;base64,/i, '')
+        .replace(/\s/g, '');
+}
+
+function sanitizeStorageSegment(value, fallback) {
+    const clean = String(value || '')
+        .trim()
+        .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+        .replace(/\s+/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 80);
+    return clean || fallback;
+}
+
+function sanitizeAttachmentFileName(fileName) {
+    const clean = path.basename(String(fileName || 'archivo'))
+        .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+        .trim()
+        .slice(0, 180);
+    return clean || 'archivo';
+}
+
+function ensureQuoteAttachmentStorageDir(quoteCode, lineCode) {
+    const dir = path.join(
+        QUOTE_ATTACHMENT_STORAGE_DIR,
+        sanitizeStorageSegment(quoteCode, 'cotizacion'),
+        sanitizeStorageSegment(lineCode, 'linea')
+    );
+    fs.mkdirSync(dir, { recursive: true });
+    return dir;
+}
+
+function resolveQuoteAttachmentStoragePath(storagePath) {
+    if (!storagePath) return '';
+    const root = path.resolve(QUOTE_ATTACHMENT_STORAGE_DIR);
+    const absolute = path.resolve(APP_ROOT, String(storagePath));
+    if (absolute !== root && !absolute.startsWith(root + path.sep)) return '';
+    return absolute;
+}
+
+function writeQuoteLineAttachmentFile({ id, quoteCode, lineCode, fileName, contentBase64 }) {
+    const normalizedBase64 = normalizeAttachmentBase64(contentBase64);
+    const buffer = Buffer.from(normalizedBase64, 'base64');
+    if (!normalizedBase64 || !buffer.length) {
+        throw new Error('Contenido del adjunto inválido.');
+    }
+    const safeFileName = sanitizeAttachmentFileName(fileName);
+    const extension = path.extname(safeFileName);
+    const storageDir = ensureQuoteAttachmentStorageDir(quoteCode, lineCode);
+    const absolutePath = path.join(storageDir, `${id}${extension || ''}`);
+    fs.writeFileSync(absolutePath, buffer);
+    return {
+        storagePath: path.relative(APP_ROOT, absolutePath).split(path.sep).join('/'),
+        sizeBytes: buffer.length,
+        contentSha256: crypto.createHash('sha256').update(buffer).digest('hex')
+    };
+}
+
+function deleteQuoteAttachmentFile(storagePath) {
+    const absolutePath = resolveQuoteAttachmentStoragePath(storagePath);
+    if (!absolutePath) return;
+    try {
+        if (fs.existsSync(absolutePath) && fs.statSync(absolutePath).isFile()) {
+            fs.unlinkSync(absolutePath);
+        }
+    } catch (error) {
+        console.error('No fue posible eliminar el archivo adjunto local:', error.message);
+    }
+}
+
+function deleteQuoteAttachmentFiles(rows) {
+    (rows || []).forEach((row) => deleteQuoteAttachmentFile(row?.storage_path || row?.storagePath || row));
+}
+
+function ensureNotificationAttachmentStorageDir(threadCode) {
+    const dir = path.join(NOTIFICATION_ATTACHMENT_STORAGE_DIR, sanitizeStorageSegment(threadCode, 'hilo'));
+    fs.mkdirSync(dir, { recursive: true });
+    return dir;
+}
+
+function resolveNotificationAttachmentStoragePath(storagePath) {
+    if (!storagePath) return '';
+    const root = path.resolve(NOTIFICATION_ATTACHMENT_STORAGE_DIR);
+    const absolute = path.resolve(APP_ROOT, String(storagePath));
+    if (absolute !== root && !absolute.startsWith(root + path.sep)) return '';
+    return absolute;
+}
+
+function deleteNotificationAttachmentFile(storagePath) {
+    const absolutePath = resolveNotificationAttachmentStoragePath(storagePath);
+    if (!absolutePath) return;
+    try {
+        if (fs.existsSync(absolutePath) && fs.statSync(absolutePath).isFile()) {
+            fs.unlinkSync(absolutePath);
+        }
+    } catch (error) {
+        console.error('No fue posible eliminar el adjunto de notificación:', error.message);
+    }
+}
+
+function deleteNotificationAttachmentFiles(rows) {
+    (rows || []).forEach((row) => deleteNotificationAttachmentFile(row?.storage_path || row?.storagePath || row));
+}
+
+function writeNotificationAttachmentFile({ id, threadCode, fileName, contentBase64 }) {
+    const normalizedBase64 = normalizeAttachmentBase64(contentBase64);
+    const buffer = Buffer.from(normalizedBase64, 'base64');
+    if (!normalizedBase64 || !buffer.length) {
+        throw new Error('Contenido del adjunto inválido.');
+    }
+    const safeFileName = sanitizeAttachmentFileName(fileName);
+    const extension = path.extname(safeFileName);
+    const storageDir = ensureNotificationAttachmentStorageDir(threadCode);
+    const absolutePath = path.join(storageDir, `${id}${extension || ''}`);
+    fs.writeFileSync(absolutePath, buffer);
+    return {
+        storagePath: path.relative(APP_ROOT, absolutePath).split(path.sep).join('/'),
+        sizeBytes: buffer.length,
+        contentSha256: crypto.createHash('sha256').update(buffer).digest('hex')
+    };
+}
+
+async function migrateExistingQuoteLineAttachmentsToDisk() {
+    const result = await pgQuery(`
+        SELECT id, quote_code, line_code, file_name, content_base64
+          FROM quote_line_attachments
+         WHERE (storage_path IS NULL OR storage_path = '')
+           AND content_base64 IS NOT NULL
+           AND content_base64 <> ''
+    `);
+    for (const row of result.rows) {
+        try {
+            const stored = writeQuoteLineAttachmentFile({
+                id: row.id,
+                quoteCode: row.quote_code,
+                lineCode: row.line_code,
+                fileName: row.file_name,
+                contentBase64: row.content_base64
+            });
+            await pgQuery(
+                `UPDATE quote_line_attachments
+                    SET storage_path = $2,
+                        size_bytes = $3,
+                        content_sha256 = $4,
+                        content_base64 = NULL
+                  WHERE id = $1`,
+                [row.id, stored.storagePath, stored.sizeBytes, stored.contentSha256]
+            );
+        } catch (error) {
+            console.error(`No fue posible migrar el adjunto ${row.id} a disco:`, error.message);
+        }
+    }
+}
+
 async function ensureAttachmentsSchema() {
     await pgQuery(`
         CREATE TABLE IF NOT EXISTS quote_line_attachments (
@@ -4822,13 +5779,21 @@ async function ensureAttachmentsSchema() {
             file_name TEXT NOT NULL,
             mime_type TEXT,
             file_ext TEXT,
-            content_base64 TEXT NOT NULL,
+            content_base64 TEXT,
+            storage_path TEXT,
+            size_bytes BIGINT,
+            content_sha256 TEXT,
             notes TEXT,
             uploaded_by TEXT,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
     `);
+    await pgQuery(`ALTER TABLE quote_line_attachments ALTER COLUMN content_base64 DROP NOT NULL`);
+    await pgQuery(`ALTER TABLE quote_line_attachments ADD COLUMN IF NOT EXISTS storage_path TEXT`);
+    await pgQuery(`ALTER TABLE quote_line_attachments ADD COLUMN IF NOT EXISTS size_bytes BIGINT`);
+    await pgQuery(`ALTER TABLE quote_line_attachments ADD COLUMN IF NOT EXISTS content_sha256 TEXT`);
     await pgQuery(`CREATE INDEX IF NOT EXISTS idx_quote_line_attachments_line ON quote_line_attachments(quote_code, line_code)`);
+    await migrateExistingQuoteLineAttachmentsToDisk();
 }
 
 async function ensureNotificationsSchema() {
@@ -4953,12 +5918,16 @@ async function ensureNotificationCenterSchema() {
             mime_type TEXT NOT NULL DEFAULT 'application/octet-stream',
             file_ext TEXT NOT NULL DEFAULT '',
             content_base64 TEXT NOT NULL DEFAULT '',
+            storage_path TEXT NOT NULL DEFAULT '',
+            content_sha256 TEXT NOT NULL DEFAULT '',
             size_bytes BIGINT NOT NULL DEFAULT 0,
             notes TEXT NOT NULL DEFAULT '',
             uploaded_by TEXT NOT NULL DEFAULT '',
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
     `);
+    await pgQuery(`ALTER TABLE notification_center_message_attachments ADD COLUMN IF NOT EXISTS storage_path TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE notification_center_message_attachments ADD COLUMN IF NOT EXISTS content_sha256 TEXT NOT NULL DEFAULT ''`);
     await pgQuery(`CREATE INDEX IF NOT EXISTS notification_center_message_attachments_message_idx ON notification_center_message_attachments(message_id, created_at DESC)`);
     await pgQuery(`
         CREATE TABLE IF NOT EXISTS notification_channel_keys (
@@ -5091,14 +6060,14 @@ function normalizeNotificationCenterThreadRow(row = {}) {
         productName: String(row.product_name || '').trim(),
         productSummary: String(row.product_summary || '').trim(),
         sellerUserId: row.seller_user_id != null ? Number(row.seller_user_id) : null,
-        sellerName: String(row.seller_name || '').trim(),
+        sellerName: String(row.seller_display_name || row.seller_name || '').trim(),
         sellerEmail: String(row.seller_email || '').trim(),
         sellerWhatsapp: String(row.seller_whatsapp || '').trim(),
         sellerSms: String(row.seller_sms || '').trim(),
         createdByUserId: row.created_by_user_id != null ? Number(row.created_by_user_id) : null,
-        createdByName: String(row.created_by_name || '').trim(),
+        createdByName: String(row.created_by_display_name || row.created_by_name || '').trim(),
         targetUserId: row.target_user_id != null ? Number(row.target_user_id) : null,
-        targetUserName: String(row.target_user_name || '').trim(),
+        targetUserName: String(row.target_display_name || row.target_user_name || '').trim(),
         status: String(row.status || '').trim() || 'abierta',
         lastMessageAt: row.last_message_at || null,
         createdAt: row.created_at || null,
@@ -5341,7 +6310,7 @@ async function ensureNotificationCenterThreadForQuoteLine({ quoteCode, lineCode,
     const threadCode = buildNotificationCenterThreadCode(quoteCode, lineCode);
     const sellerName = sanitizeAdminUserText(payload.sellerName, payload.seller_name, quote.salesperson_name);
     const targetName = sanitizeAdminUserText(payload.targetUser, payload.target_user, sellerName);
-    const actorIdentity = sanitizeAdminUserText(actor?.user?.name, actor?.identity, payload.actor);
+    const actorIdentity = sanitizeAdminUserText(actor?.user?.username, actor?.user?.name, actor?.identity, payload.actor);
     const [sellerUser, targetUser, actorUser] = await Promise.all([
         findAdminUserByIdentity(sellerName, client),
         findAdminUserByIdentity(targetName, client),
@@ -5491,23 +6460,32 @@ async function createNotificationCenterMessage({ thread, payload = {}, sender = 
     );
     const message = result.rows[0];
     const insertedAttachments = [];
-    for (const attachment of attachments) {
+    for (const attachment of attachments.slice(0, 10)) {
         const contentBase64 = String(attachment?.contentBase64 || '').trim();
         const fileName = sanitizeAdminUserText(attachment?.fileName, attachment?.name);
         if (!contentBase64 || !fileName) continue;
+        const attachmentId = crypto.randomUUID();
+        const stored = writeNotificationAttachmentFile({
+            id: attachmentId,
+            threadCode: thread.thread_code,
+            fileName,
+            contentBase64
+        });
         const attachmentResult = await executor.query(
             `INSERT INTO notification_center_message_attachments (
-                message_id, attachment_kind, file_name, mime_type, file_ext, content_base64, size_bytes, notes, uploaded_by
-             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-             RETURNING id, attachment_kind, file_name, mime_type, file_ext, size_bytes, notes, uploaded_by, created_at`,
+                id, message_id, attachment_kind, file_name, mime_type, file_ext, content_base64, storage_path, content_sha256, size_bytes, notes, uploaded_by
+             ) VALUES ($1,$2,$3,$4,$5,$6,'',$7,$8,$9,$10,$11)
+             RETURNING id, attachment_kind, file_name, mime_type, file_ext, storage_path, size_bytes, notes, uploaded_by, created_at`,
             [
+                attachmentId,
                 message.id,
                 sanitizeAdminUserText(attachment?.attachmentKind, attachment?.kind, 'archivo'),
                 fileName,
                 sanitizeAdminUserText(attachment?.mimeType, 'application/octet-stream') || 'application/octet-stream',
-                sanitizeAdminUserText(attachment?.fileExt),
-                contentBase64,
-                Number(attachment?.sizeBytes || 0) || 0,
+                sanitizeAdminUserText(attachment?.fileExt, path.extname(fileName).replace('.', '')),
+                stored.storagePath,
+                stored.contentSha256,
+                stored.sizeBytes,
                 sanitizeAdminUserText(attachment?.notes),
                 sanitizeAdminUserText(sender?.name, payload.actor, getConfiguredCurrentUser())
             ]
@@ -5518,6 +6496,7 @@ async function createNotificationCenterMessage({ thread, payload = {}, sender = 
             fileName: String(attachmentResult.rows[0]?.file_name || '').trim(),
             mimeType: String(attachmentResult.rows[0]?.mime_type || '').trim(),
             fileExt: String(attachmentResult.rows[0]?.file_ext || '').trim(),
+            downloadUrl: `/api/notification-center/attachments/${attachmentResult.rows[0]?.id}/download`,
             sizeBytes: Number(attachmentResult.rows[0]?.size_bytes || 0),
             notes: String(attachmentResult.rows[0]?.notes || '').trim(),
             uploadedBy: String(attachmentResult.rows[0]?.uploaded_by || '').trim(),
@@ -5640,18 +6619,231 @@ function hasDeclaredProcessDetail(value) {
     ].includes(normalized);
 }
 
+const PLANNING_CLASSIFICATION_PROCESS_KEYS = Object.freeze([
+    'diseno',
+    'preprensa',
+    'visto_bueno',
+    'planchas',
+    'tintas',
+    'impresion',
+    'acabados',
+    'laminado',
+    'troquelado',
+    'estampado',
+    'barnizado',
+    'embosado',
+    'numeracion',
+    'rebobinado',
+    'empaque'
+]);
+
+const PLANNING_BASE_PROCESS_KEYS = Object.freeze(['rebobinado', 'empaque']);
+
+const PLANNING_PROCESS_LABELS = Object.freeze({
+    diseno: 'Diseño',
+    preprensa: 'Preprensa',
+    visto_bueno: 'Visto bueno',
+    planchas: 'Planchas',
+    tintas: 'Tintas',
+    impresion: 'Impresión',
+    acabados: 'Acabados',
+    laminado: 'Laminado',
+    troquelado: 'Troquelado',
+    estampado: 'Estampado',
+    barnizado: 'Barniz',
+    embosado: 'Embosado',
+    numeracion: 'Numeración',
+    rebobinado: 'Rebobinado',
+    empaque: 'Empaque'
+});
+
+const PRODUCTION_FLOW_SEQUENCE = Object.freeze([
+    'diseno',
+    'preprensa',
+    'visto_bueno',
+    'planchas',
+    'tintas',
+    'impresion',
+    'acabados',
+    'rebobinado',
+    'empaque'
+]);
+
+const PRODUCTION_FLOW_LABELS = Object.freeze({
+    diseno: 'Diseño',
+    preprensa: 'Preprensa',
+    visto_bueno: 'Visto bueno',
+    planchas: 'Planchas',
+    tintas: 'Tintas',
+    impresion: 'Impresión',
+    acabados: 'Acabados',
+    rebobinado: 'Rebobinado',
+    empaque: 'Empaque'
+});
+
+function canonicalProductionFlowKey(value) {
+    const key = canonicalPlanningProcessKey(value);
+    if (['laminado', 'troquelado', 'estampado', 'barnizado', 'embosado', 'numeracion'].includes(key)) return 'acabados';
+    if (key === 'visto' || key === 'visto-bueno') return 'visto_bueno';
+    return key;
+}
+
+function canonicalPlanningProcessKey(value) {
+    const key = normalizePlanningKey(value);
+    if (!key) return '';
+    if (key.includes('disen')) return 'diseno';
+    if (key.includes('preprensa')) return 'preprensa';
+    if (key.includes('visto') || key.includes('aprobacion') || key.includes('aprobacion')) return 'visto_bueno';
+    if (key.includes('plancha')) return 'planchas';
+    if (key.includes('tinta')) return 'tintas';
+    if (key.includes('acabado')) return 'acabados';
+    if (key.includes('impres')) return 'impresion';
+    if (key.includes('laminad')) return 'laminado';
+    if (key.includes('troquel')) return 'troquelado';
+    if (key.includes('estamp')) return 'estampado';
+    if (key.includes('barniz') || key.includes('barnizad')) return 'barnizado';
+    if (key.includes('embos') || key.includes('relieve')) return 'embosado';
+    if (key.includes('numer')) return 'numeracion';
+    if (key.includes('rebobin')) return 'rebobinado';
+    if (key.includes('empaque') || key.includes('packing')) return 'empaque';
+    return key;
+}
+
+function normalizePlanningProcessKeys(list = []) {
+    const source = Array.isArray(list) ? list : String(list || '').split(',');
+    const allowed = new Set(PLANNING_CLASSIFICATION_PROCESS_KEYS);
+    const order = new Map(PLANNING_CLASSIFICATION_PROCESS_KEYS.map((key, index) => [key, index]));
+    return Array.from(new Set(source
+        .map((item) => canonicalPlanningProcessKey(item?.processKey || item?.key || item?.process_name || item?.processName || item))
+        .filter((key) => key && allowed.has(key))))
+        .sort((left, right) => (order.get(left) ?? 999) - (order.get(right) ?? 999));
+}
+
+function positivePlanningAmount(...values) {
+    return values.some((value) => {
+        const parsed = parseLegacyNumber(value);
+        const numeric = Number(parsed);
+        return Number.isFinite(numeric) && numeric > 0;
+    });
+}
+
+function processObjectLooksActive(item = {}) {
+    return Boolean(item?.active || item?.enabled || item?.selected)
+        || positivePlanningAmount(item?.subtotal, item?.rawSubtotal, item?.materialSubtotal, item?.machineSubtotal, item?.operatorSubtotal, item?.linearSubtotal, item?.plateCost);
+}
+
+function addPlanningProcessKey(target, key) {
+    const canonical = canonicalPlanningProcessKey(key);
+    if (PLANNING_CLASSIFICATION_PROCESS_KEYS.includes(canonical)) target.add(canonical);
+}
+
 function getUiStateProcessMeta(raw = {}) {
     const uiState = raw?.['CODEX_UI_STATE'];
     if (!uiState || typeof uiState !== 'object') {
         return {
             finishes: {},
-            numbering: {}
+            numbering: {},
+            activeProcessKeys: []
         };
     }
+    const finishes = {};
+    if (uiState.finishes && typeof uiState.finishes === 'object' && !Array.isArray(uiState.finishes)) {
+        Object.assign(finishes, uiState.finishes);
+    }
+    (Array.isArray(uiState.printStages) ? uiState.printStages : []).forEach((stage) => {
+        const inlineFinishes = stage?.inlineFinishes && typeof stage.inlineFinishes === 'object' ? stage.inlineFinishes : {};
+        Object.entries(inlineFinishes).forEach(([key, value]) => {
+            finishes[key] = value;
+            if (key === 'barniz') finishes.varnish = value;
+            if (key === 'numerado') finishes.numerado = value;
+        });
+    });
     return {
-        finishes: uiState.finishes && typeof uiState.finishes === 'object' ? uiState.finishes : {},
-        numbering: uiState.numbering && typeof uiState.numbering === 'object' ? uiState.numbering : {}
+        finishes,
+        externalFinishes: Array.isArray(uiState.finishes) ? uiState.finishes : [],
+        numbering: uiState.numbering && typeof uiState.numbering === 'object' ? uiState.numbering : {},
+        activeProcessKeys: normalizePlanningProcessKeys(uiState.activeProcessKeys || [])
     };
+}
+
+function getQuotedPlanningProcessKeys(orderRow = {}) {
+    const snapshot = inferPlanningOrderSnapshot(orderRow);
+    const orderRaw = snapshot.raw || {};
+    const lineSnapshot = orderRaw.line_snapshot || {};
+    const raw = lineSnapshot.raw_data || orderRaw || {};
+    const result = raw['CODEX_PROCESS_RESULT'] || {};
+    const uiProcessMeta = getUiStateProcessMeta(raw);
+    const keys = new Set();
+    const noPrint = String(snapshot.processType || raw['Proceso Productivo'] || '').toLowerCase().includes('sin impresion')
+        || Boolean(raw['NO IMPRESION']);
+
+    if (positivePlanningAmount(result?.design?.subtotal, result?.design?.rawSubtotal)) addPlanningProcessKey(keys, 'diseno');
+    if (positivePlanningAmount(result?.prepress?.subtotal, result?.prepress?.rawSubtotal, lineSnapshot?.components?.prepress)) addPlanningProcessKey(keys, 'preprensa');
+    if (!noPrint && (
+        positivePlanningAmount(result?.print?.subtotal, result?.print?.rawSubtotal, lineSnapshot?.components?.print, lineSnapshot?.components?.runCost)
+        || Boolean(snapshot.machineName)
+    )) addPlanningProcessKey(keys, 'impresion');
+
+    (Array.isArray(result?.print?.items) ? result.print.items : []).forEach((printItem) => {
+        (Array.isArray(printItem?.inlineItems) ? printItem.inlineItems : []).forEach((inline) => {
+            if (!processObjectLooksActive(inline)) return;
+            addPlanningProcessKey(keys, inline.processKey || inline.key || inline.label);
+        });
+    });
+
+    (Array.isArray(result?.finishes?.items) ? result.finishes.items : []).forEach((finish) => {
+        if (!processObjectLooksActive(finish)) return;
+        addPlanningProcessKey(keys, finish.processKey || finish.key || finish.label || finish.description);
+    });
+
+    Object.entries(uiProcessMeta.finishes || {}).forEach(([key, value]) => {
+        if (processObjectLooksActive(value)) addPlanningProcessKey(keys, key);
+    });
+
+    (uiProcessMeta.externalFinishes || []).forEach((finish) => {
+        if (processObjectLooksActive(finish)) addPlanningProcessKey(keys, finish.processKey || finish.key || finish.slotKey || finish.label);
+    });
+
+    if (
+        isTruthyProcessFlag(raw['ACABADOS | BARNIZ'])
+        || isTruthyProcessFlag(raw['BARNIZ'])
+        || isTruthyProcessFlag(raw['BARNIZ UV'])
+        || hasDeclaredProcessDetail(raw['REQ | Barniz'])
+    ) addPlanningProcessKey(keys, 'barnizado');
+    if (
+        isTruthyProcessFlag(raw['ACABADOS | LAMINADO'])
+        || isTruthyProcessFlag(raw['LAMINADO'])
+        || hasDeclaredProcessDetail(raw['REQ | Laminado'])
+    ) addPlanningProcessKey(keys, 'laminado');
+    if (
+        isTruthyProcessFlag(raw['ACABADOS | FOIL'])
+        || isTruthyProcessFlag(raw['FOIL'])
+        || isTruthyProcessFlag(raw['ESTAMPADO'])
+        || hasDeclaredProcessDetail(raw['REQ | Estampado'])
+    ) addPlanningProcessKey(keys, 'estampado');
+    if (
+        isTruthyProcessFlag(raw['ACABADOS | EMBOSADO'])
+        || isTruthyProcessFlag(raw['EMBOSADO'])
+        || isTruthyProcessFlag(raw['REQ | Embosado'])
+    ) addPlanningProcessKey(keys, 'embosado');
+
+    if (
+        snapshot.dieCode
+        || raw['GENERAL | TROQUEL | ID']
+        || isTruthyProcessFlag(raw['TROQUELADO'])
+        || isTruthyProcessFlag(raw['REQ | Troquelado'])
+    ) addPlanningProcessKey(keys, 'troquelado');
+
+    if (
+        hasDeclaredProcessDetail(raw['REQ | Numeracion'])
+        || hasDeclaredProcessDetail(raw['ACABADOS | NUMERADO DETALLE'])
+        || isTruthyProcessFlag(raw['ACABADOS | NUMERADO'])
+        || hasDeclaredProcessDetail(raw['NUMERADO'])
+        || processObjectLooksActive(uiProcessMeta.finishes?.numerado)
+        || hasDeclaredProcessDetail(uiProcessMeta.numbering?.type)
+    ) addPlanningProcessKey(keys, 'numeracion');
+
+    return normalizePlanningProcessKeys([...keys]);
 }
 
 function normalizeProcessDisplayList(list = []) {
@@ -5745,11 +6937,20 @@ function buildCalculationProcessSnapshot({ raw = {}, processType = '', machineNa
         case 'preprensa':
             processName = 'Preprensa';
             break;
+        case 'visto_bueno':
+            processName = 'Visto bueno';
+            break;
         case 'planchas':
             processName = 'Planchas';
             break;
+        case 'tintas':
+            processName = 'Tintas';
+            break;
         case 'impresion':
             processName = isDigital ? 'Impresión Digital' : 'Impresión Convencional';
+            break;
+        case 'acabados':
+            processName = 'Acabados';
             break;
         case 'barnizado':
             processName = `Barniz ${varnishDetail}`.trim();
@@ -5789,75 +6990,19 @@ function buildCalculationProcessSnapshot({ raw = {}, processType = '', machineNa
 }
 
 function inferRouteProcessKeys(orderRow = {}) {
-    const snapshot = inferPlanningOrderSnapshot(orderRow);
-    const raw = snapshot.raw?.line_snapshot?.raw_data || snapshot.raw || {};
-    const uiProcessMeta = getUiStateProcessMeta(raw);
-    const isDigital = hasDigitalPrintingContext({
-        processType: snapshot.processType,
-        machineName: snapshot.machineName,
-        raw
-    });
-    const processKeys = ['preprensa'];
-
-    if (!isDigital) {
-        processKeys.push('planchas');
+    const controlSelection = normalizePlanningProcessKeys(orderRow?.raw_data?.planning_control?.selectedProcessKeys || orderRow?.raw_data?.planningControl?.selectedProcessKeys || []);
+    if (controlSelection.length) return controlSelection;
+    const quotedKeys = getQuotedPlanningProcessKeys(orderRow);
+    const finishKeys = new Set(['laminado', 'troquelado', 'estampado', 'barnizado', 'embosado', 'numeracion', 'acabados']);
+    const keys = new Set([
+        ...quotedKeys.map((key) => finishKeys.has(key) ? 'acabados' : key),
+        ...PLANNING_BASE_PROCESS_KEYS
+    ]);
+    if (keys.has('impresion')) {
+        ['diseno', 'preprensa', 'visto_bueno', 'planchas', 'tintas', 'impresion'].forEach((key) => keys.add(key));
     }
-
-    processKeys.push('impresion');
-
-    if (
-        isTruthyProcessFlag(raw['ACABADOS | BARNIZ'])
-        || isTruthyProcessFlag(raw['BARNIZ'])
-        || isTruthyProcessFlag(raw['BARNIZ UV'])
-        || hasDeclaredProcessDetail(raw['REQ | Barniz'])
-        || hasDeclaredProcessDetail(uiProcessMeta.finishes.varnish)
-    ) {
-        processKeys.push('barnizado');
-    }
-    if (
-        isTruthyProcessFlag(raw['ACABADOS | LAMINADO'])
-        || isTruthyProcessFlag(raw['LAMINADO'])
-        || hasDeclaredProcessDetail(raw['REQ | Laminado'])
-        || hasDeclaredProcessDetail(uiProcessMeta.finishes.laminado)
-    ) {
-        processKeys.push('laminado');
-    }
-    if (
-        isTruthyProcessFlag(raw['ACABADOS | FOIL'])
-        || isTruthyProcessFlag(raw['FOIL'])
-        || isTruthyProcessFlag(raw['ESTAMPADO'])
-        || hasDeclaredProcessDetail(raw['REQ | Estampado'])
-        || hasDeclaredProcessDetail(uiProcessMeta.finishes.stamping)
-    ) {
-        processKeys.push('estampado');
-    }
-    if (
-        hasDeclaredProcessDetail(raw['REQ | Numeracion'])
-        || hasDeclaredProcessDetail(raw['ACABADOS | NUMERADO DETALLE'])
-        || isTruthyProcessFlag(raw['ACABADOS | NUMERADO'])
-        || hasDeclaredProcessDetail(raw['NUMERADO'])
-        || hasDeclaredProcessDetail(uiProcessMeta.numbering.type)
-    ) {
-        processKeys.push('numeracion');
-    }
-    if (
-        isTruthyProcessFlag(raw['ACABADOS | EMBOSADO'])
-        || isTruthyProcessFlag(raw['EMBOSADO'])
-        || isTruthyProcessFlag(raw['REQ | Embosado'])
-    ) {
-        processKeys.push('embosado');
-    }
-    if (
-        snapshot.dieCode
-        || raw['GENERAL | TROQUEL | ID']
-        || isTruthyProcessFlag(raw['TROQUELADO'])
-        || isTruthyProcessFlag(raw['REQ | Troquelado'])
-    ) {
-        processKeys.push('troquelado');
-    }
-    processKeys.push('rebobinado', 'empaque');
-
-    return Array.from(new Set(processKeys));
+    if (quotedKeys.some((key) => finishKeys.has(key))) keys.add('acabados');
+    return normalizePlanningProcessKeys([...keys]);
 }
 
 async function listLiveOrders() {
@@ -6223,16 +7368,19 @@ async function ensurePlanningSchema() {
     const seededProcesses = [
         { processKey: 'diseno', processName: 'Diseño', sequenceOrder: 1, colorHex: '#8B5CF6', iconKey: '[D]', isParallel: false },
         { processKey: 'preprensa', processName: 'Preprensa', sequenceOrder: 2, colorHex: '#6366F1', iconKey: '[PP]', isParallel: false },
-        { processKey: 'planchas', processName: 'Planchas', sequenceOrder: 3, colorHex: '#4F46E5', iconKey: '[PL]', isParallel: false },
-        { processKey: 'impresion', processName: 'Impresión', sequenceOrder: 4, colorHex: '#1D9E75', iconKey: '[IMP]', isParallel: false },
-        { processKey: 'barnizado', processName: 'Barnizado', sequenceOrder: 5, colorHex: '#BA7517', iconKey: '[B]', isParallel: true },
-        { processKey: 'laminado', processName: 'Laminado', sequenceOrder: 6, colorHex: '#0EA5E9', iconKey: '[L]', isParallel: false },
-        { processKey: 'estampado', processName: 'Estampado', sequenceOrder: 7, colorHex: '#F59E0B', iconKey: '[E]', isParallel: false },
-        { processKey: 'numeracion', processName: 'Numeración', sequenceOrder: 8, colorHex: '#D97706', iconKey: '[NUM]', isParallel: false },
-        { processKey: 'embosado', processName: 'Embosado', sequenceOrder: 9, colorHex: '#A855F7', iconKey: '[EMB]', isParallel: false },
-        { processKey: 'troquelado', processName: 'Troquelado', sequenceOrder: 10, colorHex: '#06B6D4', iconKey: '[T]', isParallel: false },
-        { processKey: 'rebobinado', processName: 'Rebobinado', sequenceOrder: 11, colorHex: '#F97316', iconKey: '[R]', isParallel: false },
-        { processKey: 'empaque', processName: 'Empaque', sequenceOrder: 12, colorHex: '#10B981', iconKey: '[EMP]', isParallel: false }
+        { processKey: 'visto_bueno', processName: 'Visto bueno', sequenceOrder: 3, colorHex: '#22C55E', iconKey: '[VB]', isParallel: false },
+        { processKey: 'planchas', processName: 'Planchas', sequenceOrder: 4, colorHex: '#64748B', iconKey: '[PL]', isParallel: false },
+        { processKey: 'tintas', processName: 'Tintas', sequenceOrder: 5, colorHex: '#0EA5E9', iconKey: '[TIN]', isParallel: false },
+        { processKey: 'impresion', processName: 'Impresión', sequenceOrder: 6, colorHex: '#1D9E75', iconKey: '[IMP]', isParallel: false },
+        { processKey: 'acabados', processName: 'Acabados', sequenceOrder: 7, colorHex: '#F59E0B', iconKey: '[AC]', isParallel: false },
+        { processKey: 'laminado', processName: 'Laminado', sequenceOrder: 8, colorHex: '#0EA5E9', iconKey: '[L]', isParallel: false },
+        { processKey: 'troquelado', processName: 'Troquelado', sequenceOrder: 9, colorHex: '#06B6D4', iconKey: '[T]', isParallel: false },
+        { processKey: 'estampado', processName: 'Estampado', sequenceOrder: 10, colorHex: '#F59E0B', iconKey: '[E]', isParallel: false },
+        { processKey: 'barnizado', processName: 'Barniz', sequenceOrder: 11, colorHex: '#BA7517', iconKey: '[B]', isParallel: true },
+        { processKey: 'embosado', processName: 'Embosado', sequenceOrder: 12, colorHex: '#A855F7', iconKey: '[EMB]', isParallel: false },
+        { processKey: 'numeracion', processName: 'Numeración', sequenceOrder: 13, colorHex: '#D97706', iconKey: '[NUM]', isParallel: false },
+        { processKey: 'rebobinado', processName: 'Rebobinado', sequenceOrder: 14, colorHex: '#F97316', iconKey: '[R]', isParallel: false },
+        { processKey: 'empaque', processName: 'Empaque', sequenceOrder: 15, colorHex: '#10B981', iconKey: '[EMP]', isParallel: false }
     ];
     seededProcesses.forEach((row) => {
         if (!processRegistry.has(row.processKey)) {
@@ -6324,9 +7472,9 @@ async function getLatestCalculationRow(quoteCode, lineCode) {
 function getConfiguredCurrentUser() {
     try {
         const config = loadGeneralConfigFromFile();
-        return pickFirstValue(config?.session?.currentUser, config?.general?.currentUser, 'admin');
+        return pickFirstValue(config?.session?.currentUser, config?.general?.currentUser, '');
     } catch (error) {
-        return 'admin';
+        return '';
     }
 }
 
@@ -6355,7 +7503,7 @@ function summarizeLineForDestination(row) {
     return {
         customer_code: pickFirstValue(row?.customer_code, raw['ID CLIENTE']),
         customer_name: pickFirstValue(raw.CLIENTE, raw['CLIENTE NOMBRE']),
-        job_name: pickFirstValue(raw['NOMBRE TRABAJO'], raw['Nombre Trabajo'], row?.line_code),
+        job_name: pickFirstValue(raw['NOMBRE TRABAJO'], raw['Nombre Trabajo']),
         created_on: pickFirstValue(raw['FECHA CREACION'], raw['FECHA CREACION DATE']),
         status: pickFirstValue(raw['SOLICITUD ESTADO'], raw['ESTADO LINEA'], 'Borrador')
     };
@@ -6525,86 +7673,251 @@ async function loadSapSalesOrderAccountingContext(executor, { quoteRow, lineRow 
     };
 }
 
-function buildSapExportPayloadsFromQuoteLine({ quoteRow, lineRow, accountingContext = {} }) {
+function isNonBlockingSapAccountingWarning(message = '') {
+    const text = sanitizeAdminUserText(message);
+    return /No existe configuración de centro de beneficio para el ejecutivo de ventas indicado/i.test(text)
+        || /El ejecutivo de ventas indicado no tiene centro de beneficio configurado/i.test(text);
+}
+
+function stripNonBlockingSapAccountingWarnings(message = '') {
+    const text = sanitizeAdminUserText(message);
+    if (!text) return '';
+    const parts = text.split(/(?<=[.!?])\s+/).map((part) => part.trim()).filter(Boolean);
+    const filtered = parts.filter((part) => !isNonBlockingSapAccountingWarning(part));
+    return filtered.join(' ').trim();
+}
+
+async function tryStageSapExportsForQuoteLine(options = {}) {
+    try {
+        return await stageSapExportsForQuoteLine(options);
+    } catch (error) {
+        return {
+            ok: false,
+            error: error.message || 'No fue posible preparar la salida SAP.',
+            nonBlocking: true
+        };
+    }
+}
+
+function pushSapComponent(components = [], component = {}) {
+    const itemCode = pickFirstValue(component.ItemCode);
+    const quantity = parseLegacyNumber(component.Quantity);
+    if (!itemCode || !quantity || quantity <= 0) return;
+    const warehouse = pickFirstValue(component.WarehouseCode, '01');
+    const source = pickFirstValue(component.Source, 'Componente');
+    const existing = components.find((item) => item.ItemCode === itemCode && item.WarehouseCode === warehouse && item.Source === source);
+    if (existing) {
+        existing.Quantity = roundCurrency(Number(existing.Quantity || 0) + quantity);
+        return;
+    }
+    components.push({
+        LineNum: components.length,
+        ItemCode: itemCode,
+        ItemName: pickFirstValue(component.ItemName, itemCode),
+        Quantity: roundCurrency(quantity),
+        WarehouseCode: warehouse,
+        Source: source,
+        ...(component.UnitHint ? { UnitHint: component.UnitHint } : {}),
+        ...(component.SourceLineCode ? { SourceLineCode: component.SourceLineCode } : {})
+    });
+}
+
+function appendSapComponentsFromLine(components = [], lineRow = {}, warehouse = '01') {
     const raw = lineRow?.raw_data || {};
-    const quoteCode = lineRow?.quote_code || quoteRow?.quote_code || '';
-    const lineCode = lineRow?.line_code || '';
-    const quantity = parseLegacyNumber(lineRow?.quantity) ?? parseLegacyNumber(raw['Cantidad Productos']) ?? 1;
-    const total = parseLegacyNumber(lineRow?.total_cost) ?? parseLegacyNumber(raw['PRECIO TOTAL AL FINALIZAR']) ?? 0;
-    const unitPrice = parseLegacyNumber(lineRow?.unit_price) ?? parseLegacyNumber(raw['GENERAL | 9 | UNITARIO | DOL']) ?? (quantity ? total / quantity : total);
-    const itemCode = pickFirstValue(lineRow?.product_code, raw['CODIGO PRODUCTO'], lineCode, `PROD-${quoteCode}-${lineCode}`);
-    const itemName = getProductNameFromRaw(raw, itemCode);
-    const cardCode = pickFirstValue(quoteRow?.customer_code, lineRow?.customer_code, raw['ID CLIENTE']);
-    const cardName = pickFirstValue(quoteRow?.customer_name, raw.CLIENTE, raw['CLIENTE NOMBRE']);
-    const docDate = getLocalSapDate();
-    const dueDate = normalizeSapDate(pickFirstValue(quoteRow?.due_on, raw['FECHA VENCIMIENTO']), docDate);
-    const warehouse = pickFirstValue(raw.BODEGA, raw.WhsCode, '01');
+    const result = raw['CODEX_PROCESS_RESULT'] || {};
+    const uiState = raw['CODEX_UI_STATE'] || {};
+    const sourceLineCode = lineRow?.line_code || raw['ID LINEA'] || '';
     const materialCode = pickFirstValue(
         lineRow?.material_code,
         raw['Material Convencional | Id Material'],
         raw['Material Digital | Id Material'],
         raw['GENERAL | MATERIAL']
     );
-    const components = [];
-
+    const substrateQty = pickFirstMeaningfulNumber(
+        result?.sustrato?.totalLengthFeet,
+        result?.sustrato?.linealFeet,
+        raw['SUSTRATO | PIES LINEALES CON MERMA'],
+        raw['GENERAL | SUSTRATO | CONSUMO PIES'],
+        raw['Material | Pies Segun Proceso Productivo'],
+        raw['CONV | MATERIAL | CANTIDAD PIES LINEALES INCLUYE MACULA'],
+        raw['DIGITAL | MATERIAL | CANTIDAD PIES LINEALES INCLUYE MACULA']
+    );
     if (materialCode) {
-        components.push({
-            LineNum: 0,
+        pushSapComponent(components, {
             ItemCode: materialCode,
             ItemName: pickFirstValue(raw['GENERAL | MATERIAL'], materialCode),
-            Quantity: parseLegacyNumber(raw['SUSTRATO | PIES LINEALES CON MERMA']) ?? parseLegacyNumber(raw['GENERAL | MSI MERMADO']) ?? quantity,
+            Quantity: substrateQty || parseLegacyNumber(lineRow?.quantity) || 0,
             WarehouseCode: warehouse,
-            Source: 'Sustrato'
+            Source: 'Sustrato',
+            UnitHint: 'ft',
+            SourceLineCode: sourceLineCode
         });
     }
 
-    const tintCount = parseLegacyNumber(raw['CANTIDAD TINTAS']);
-    if (tintCount && tintCount > 0) {
-        components.push({
-            LineNum: components.length,
-            ItemCode: pickFirstValue(raw['TINTA | CODIGO'], raw['CONV | TINTA | CODIGO'], 'TINTAS'),
-            ItemName: 'Tintas',
-            Quantity: tintCount,
+    const printItems = Array.isArray(result?.print?.items) ? result.print.items : [];
+    const printStages = Array.isArray(uiState?.printStages) ? uiState.printStages : [];
+    printItems.forEach((printItem, index) => {
+        const stage = printStages[index] || uiState?.print || {};
+        const cmykQty = pickFirstMeaningfulNumber(
+            printItem?.inkConsumption,
+            Math.max(0, Number(printItem?.digitalInkKg || 0) - Number(printItem?.digitalWhiteKg || 0) - Number(printItem?.digitalSpecialInkKg || 0))
+        );
+        if (stage?.inkMaterialId && cmykQty) {
+            pushSapComponent(components, {
+                ItemCode: stage.inkMaterialId,
+                ItemName: pickFirstValue(stage.inkMaterialName, stage.inkMaterialId),
+                Quantity: cmykQty,
+                WarehouseCode: warehouse,
+                Source: 'Tintas',
+                UnitHint: printItem?.digitalInkKg ? 'kg' : 'lb',
+                SourceLineCode: sourceLineCode
+            });
+        }
+        const whiteQty = pickFirstMeaningfulNumber(printItem?.digitalWhiteKg, printItem?.inkConsumptionPerColorLb);
+        if (stage?.whiteInkMaterialId && whiteQty) {
+            pushSapComponent(components, {
+                ItemCode: stage.whiteInkMaterialId,
+                ItemName: pickFirstValue(stage.whiteInkMaterialName, stage.whiteInkMaterialId),
+                Quantity: whiteQty,
+                WarehouseCode: warehouse,
+                Source: 'Tinta Blanca',
+                UnitHint: printItem?.digitalWhiteKg ? 'kg' : 'lb',
+                SourceLineCode: sourceLineCode
+            });
+        }
+        (Array.isArray(printItem?.inlineItems) ? printItem.inlineItems : []).forEach((inlineItem) => {
+            if (!inlineItem?.active || !inlineItem?.materialId) return;
+            pushSapComponent(components, {
+                ItemCode: inlineItem.materialId,
+                ItemName: pickFirstValue(inlineItem.materialName, inlineItem.label, inlineItem.materialId),
+                Quantity: pickFirstMeaningfulNumber(inlineItem.materialConsumptionLb, inlineItem.materialBase, 0),
+                WarehouseCode: warehouse,
+                Source: pickFirstValue(inlineItem.label, 'Acabado Inline'),
+                UnitHint: inlineItem.key === 'barniz' ? 'lb' : '',
+                SourceLineCode: sourceLineCode
+            });
+        });
+    });
+
+    const plateMaterialId = pickFirstValue(uiState?.plates?.virgin?.materialId, uiState?.plates?.laser?.materialId);
+    const plateQty = pickFirstMeaningfulNumber(
+        result?.plates?.breakdown?.virgin?.laserMetrics?.totalArea,
+        result?.plates?.breakdown?.laser?.laserMetrics?.totalArea,
+        uiState?.plates?.virgin?.area,
+        uiState?.plates?.laser?.area
+    );
+    if (plateMaterialId && plateQty) {
+        pushSapComponent(components, {
+            ItemCode: plateMaterialId,
+            ItemName: plateMaterialId,
+            Quantity: plateQty,
             WarehouseCode: warehouse,
-            Source: 'Tintas'
+            Source: 'Planchas',
+            UnitHint: 'in2',
+            SourceLineCode: sourceLineCode
         });
     }
+
+    (Array.isArray(result?.finishes?.items) ? result.finishes.items : []).forEach((finish) => {
+        if (!finish?.active || !finish?.materialId) return;
+        pushSapComponent(components, {
+            ItemCode: finish.materialId,
+            ItemName: pickFirstValue(finish.materialName, finish.processLabel, finish.materialId),
+            Quantity: pickFirstMeaningfulNumber(finish.materialConsumptionKg, finish.materialBase, 0),
+            WarehouseCode: warehouse,
+            Source: pickFirstValue(finish.processLabel, finish.processKey, 'Acabado'),
+            UnitHint: finish.materialConsumptionKg ? 'kg' : '',
+            SourceLineCode: sourceLineCode
+        });
+    });
+
+    if (!printItems.length) {
+        const tintCount = parseLegacyNumber(raw['CANTIDAD TINTAS']);
+        if (tintCount && tintCount > 0) {
+            pushSapComponent(components, {
+                ItemCode: pickFirstValue(raw['TINTA | CODIGO'], raw['CONV | TINTA | CODIGO'], 'TINTAS'),
+                ItemName: 'Tintas',
+                Quantity: tintCount,
+                WarehouseCode: warehouse,
+                Source: 'Tintas',
+                SourceLineCode: sourceLineCode
+            });
+        }
+    }
+}
+
+function buildSapExportPayloadsFromQuoteLine({ quoteRow, lineRow, accountingContext = {}, groupMembers = [], groupLine = null }) {
+    const raw = lineRow?.raw_data || {};
+    const quoteCode = lineRow?.quote_code || quoteRow?.quote_code || '';
+    const lineCode = lineRow?.line_code || '';
+    const frontBackGroup = getFrontBackGroupFromLine(lineRow);
+    const members = frontBackGroup && Array.isArray(groupMembers) && groupMembers.length ? groupMembers : [lineRow].filter(Boolean);
+    const commercialLine = frontBackGroup
+        ? (groupLine || (normalizeFrontBackLineCode(lineRow?.line_code) === frontBackGroup.groupLineCode ? lineRow : null) || members.find((row) => normalizeFrontBackLineCode(row.line_code) === frontBackGroup.groupLineCode) || lineRow)
+        : lineRow;
+    const primaryRaw = commercialLine?.raw_data || raw;
+    const sapLineCode = frontBackGroup ? frontBackGroup.groupLineCode : lineCode;
+    const quantity = parseLegacyNumber(commercialLine?.quantity) ?? parseLegacyNumber(primaryRaw['Cantidad Productos']) ?? 1;
+    const memberTotal = members.reduce((sum, row) => sum + (parseLegacyNumber(row?.total_cost) ?? parseLegacyNumber(row?.raw_data?.['PRECIO TOTAL AL FINALIZAR']) ?? 0), 0);
+    const commercialTotal = parseLegacyNumber(commercialLine?.total_cost) ?? parseLegacyNumber(primaryRaw['PRECIO TOTAL AL FINALIZAR']) ?? 0;
+    const total = frontBackGroup
+        ? (frontBackGroup.dedicatedGroupLine && commercialTotal > 0 ? commercialTotal : memberTotal)
+        : (parseLegacyNumber(lineRow?.total_cost) ?? parseLegacyNumber(raw['PRECIO TOTAL AL FINALIZAR']) ?? 0);
+    const unitPrice = quantity ? total / quantity : total;
+    const itemCode = pickFirstValue(commercialLine?.product_code, primaryRaw['CODIGO PRODUCTO'], commercialLine?.line_code, `PROD-${quoteCode}-${lineCode}`);
+    const itemName = frontBackGroup
+        ? pickFirstValue(getProductNameFromRaw(primaryRaw, itemCode), `${frontBackGroup.label}: ${members.map((row) => getProductNameFromRaw(row.raw_data || {}, row.product_code || row.line_code || '')).filter(Boolean).join(' + ')}`)
+        : getProductNameFromRaw(raw, itemCode);
+    const cardCode = pickFirstValue(quoteRow?.customer_code, commercialLine?.customer_code, lineRow?.customer_code, raw['ID CLIENTE']);
+    const cardName = pickFirstValue(quoteRow?.customer_name, raw.CLIENTE, raw['CLIENTE NOMBRE']);
+    const docDate = getLocalSapDate();
+    const dueDate = normalizeSapDate(pickFirstValue(quoteRow?.due_on, raw['FECHA VENCIMIENTO']), docDate);
+    const warehouse = pickFirstValue(primaryRaw.BODEGA, primaryRaw.WhsCode, raw.BODEGA, raw.WhsCode, '01');
+    const components = [];
+    members.forEach((member) => appendSapComponentsFromLine(components, member, warehouse));
+    components.forEach((component, index) => {
+        component.LineNum = index;
+    });
+    const productionRun = frontBackGroup ? buildFrontBackProductionRun(lineRow, members) : null;
 
     return {
         order: {
-            DocEntry: buildStableSapDocEntry('ORDR', quoteCode, lineCode),
-            DocNum: `${quoteCode}-${lineCode}`,
+            DocEntry: buildStableSapDocEntry('ORDR', quoteCode, sapLineCode),
+            DocNum: `${quoteCode}-${sapLineCode}`,
             CardCode: cardCode,
             CardName: cardName,
             DocDate: docDate,
             DocDueDate: dueDate,
             Currency: pickFirstValue(raw.MONEDA, raw.Currency, 'CRC'),
             DocStatus: 'Pendiente',
-            Comments: `Preparado desde cotización ${quoteCode}, línea ${lineCode}`,
+            Comments: frontBackGroup
+                ? `Preparado desde cotización ${quoteCode}, corrida ${frontBackGroup.groupId}`
+                : `Preparado desde cotización ${quoteCode}, línea ${lineCode}`,
             SalesPersonCode: Number.isFinite(Number(accountingContext.salesPersonCode)) ? Number(accountingContext.salesPersonCode) : undefined,
             DocumentLines: [{
                 LineNum: 0,
                 ItemCode: itemCode,
                 ItemDescription: itemName,
                 Quantity: quantity,
-                Price: unitPrice,
+                Price: roundCurrency(unitPrice),
                 LineTotal: total || (quantity * unitPrice),
                 WarehouseCode: warehouse,
                 CostingCode: accountingContext.profitCenterCode || undefined
             }],
             source: {
                 quoteCode,
-                lineCode,
-                calculationCode: lineRow?.calculation_code || '',
+                lineCode: sapLineCode,
+                calculationCode: commercialLine?.calculation_code || lineRow?.calculation_code || '',
                 stagedFrom: 'quote-finalization',
                 salespersonName: accountingContext.salespersonName || '',
                 salesPersonCode: Number.isFinite(Number(accountingContext.salesPersonCode)) ? Number(accountingContext.salesPersonCode) : null,
-                profitCenterCode: accountingContext.profitCenterCode || ''
+                profitCenterCode: accountingContext.profitCenterCode || '',
+                productionRun
             }
         },
         bom: {
-            DocEntry: buildStableSapDocEntry('OWOR', quoteCode, lineCode),
-            DocNum: `${quoteCode}-${lineCode}-BOM`,
+            DocEntry: buildStableSapDocEntry('OWOR', quoteCode, sapLineCode),
+            DocNum: `${quoteCode}-${sapLineCode}-BOM`,
             ItemCode: itemCode,
             ProdName: itemName,
             PlannedQty: quantity,
@@ -6612,13 +7925,17 @@ function buildSapExportPayloadsFromQuoteLine({ quoteRow, lineRow, accountingCont
             DueDate: dueDate,
             Status: 'P',
             OriginNum: quoteCode,
-            Comments: `BOM preparado desde cotización ${quoteCode}, línea ${lineCode}`,
+            Comments: frontBackGroup
+                ? `BOM preparado desde cotización ${quoteCode}, corrida ${frontBackGroup.groupId}`
+                : `BOM preparado desde cotización ${quoteCode}, línea ${lineCode}`,
             components,
+            ProductionOutputs: productionRun?.outputs || undefined,
             source: {
                 quoteCode,
                 lineCode,
                 calculationCode: lineRow?.calculation_code || '',
-                stagedFrom: 'quote-finalization'
+                stagedFrom: 'quote-finalization',
+                productionRun
             }
         }
     };
@@ -6626,8 +7943,15 @@ function buildSapExportPayloadsFromQuoteLine({ quoteRow, lineRow, accountingCont
 
 async function stageSapExportsForQuoteLine({ quoteRow, lineRow, client }) {
     const executor = client ? (sql, params) => client.query(sql, params) : pgQuery;
-    const accountingContext = await loadSapSalesOrderAccountingContext(executor, { quoteRow, lineRow });
-    const payloads = buildSapExportPayloadsFromQuoteLine({ quoteRow, lineRow, accountingContext });
+    const groupContext = await loadFrontBackGroupContext(lineRow?.quote_code || quoteRow?.quote_code, lineRow, client);
+    const accountingContext = await loadSapSalesOrderAccountingContext(executor, { quoteRow, lineRow: groupContext.groupLine || lineRow });
+    const payloads = buildSapExportPayloadsFromQuoteLine({
+        quoteRow,
+        lineRow: groupContext.groupLine || lineRow,
+        accountingContext,
+        groupMembers: groupContext.members,
+        groupLine: groupContext.groupLine
+    });
     const order = await stageSapMirrorOrder(executor, payloads.order);
     const bom = await stageSapMirrorBom(executor, payloads.bom);
     return { order, bom };
@@ -6636,7 +7960,7 @@ async function stageSapExportsForQuoteLine({ quoteRow, lineRow, client }) {
 async function getStoredAttachments(quoteCode, lineCode) {
     const result = await pgQuery(
         `SELECT id, quote_code, line_code, file_name, mime_type, file_ext, notes, uploaded_by, created_at,
-                OCTET_LENGTH(DECODE(content_base64, 'base64')) AS size_bytes
+                COALESCE(size_bytes, OCTET_LENGTH(DECODE(content_base64, 'base64')), 0) AS size_bytes
            FROM quote_line_attachments
           WHERE quote_code = $1 AND line_code = $2
           ORDER BY created_at DESC`,
@@ -6657,6 +7981,49 @@ function buildTraceabilityMetadata({ action, sourceQuoteCode, sourceLineCode, ac
     };
 }
 
+function buildDuplicatedLineRawData(sourceRawData = {}) {
+    const raw = { ...(sourceRawData || {}) };
+    [
+        'FIN COTIZACION | FECHA',
+        'FIN COTIZACION | USUARIO',
+        'FIN COTIZACION | ESTADO',
+        'RESPUESTA COTIZADOR | FECHA',
+        'RESPUESTA COTIZADOR | USUARIO',
+        'CODEX_FINALIZED_FOR_ORDER'
+    ].forEach((key) => delete raw[key]);
+    delete raw.grupoFrenteDorso;
+    delete raw.grupo_frente_dorso;
+    delete raw.CODEX_FD_GROUP;
+    raw['SOLICITUD ESTADO'] = 'Borrador';
+    raw['ESTADO LINEA'] = 'Borrador';
+    return raw;
+}
+
+function resetDuplicatedLineUiState(rawData = {}, { targetQuote = {}, lineCode = '' } = {}) {
+    const uiState = rawData.CODEX_UI_STATE;
+    if (!uiState || typeof uiState !== 'object' || Array.isArray(uiState)) return;
+    const header = uiState.header && typeof uiState.header === 'object' && !Array.isArray(uiState.header)
+        ? uiState.header
+        : {};
+    rawData.CODEX_UI_STATE = {
+        ...uiState,
+        header: {
+            ...header,
+            quoteCode: targetQuote.quote_code || header.quoteCode || '',
+            lineCode: lineCode || header.lineCode || '',
+            customerCode: targetQuote.customer_code || header.customerCode || '',
+            customerName: targetQuote.customer_name || header.customerName || '',
+            salespersonName: targetQuote.salesperson_name || header.salespersonName || '',
+            lineStatus: 'Borrador',
+            finalizedForOrder: false
+        }
+    };
+    delete rawData.CODEX_UI_STATE.quoteTracking;
+    delete rawData.CODEX_UI_STATE.tracking;
+    delete rawData.CODEX_UI_STATE.timeline;
+    delete rawData.CODEX_UI_STATE.milestones;
+}
+
 async function cloneCalculationToQuote({ sourceRow, targetQuote, traceability = {} }) {
     const lineCode = await generateNextLineCode();
     const calculationCode = await generateNextCalculationCode();
@@ -6668,29 +8035,35 @@ async function cloneCalculationToQuote({ sourceRow, targetQuote, traceability = 
         actor: traceability.actor,
         timestamp: traceability.timestamp
     });
+    const isDuplicateLine = metadata.action === 'duplicate-line';
+    const sourceRawData = isDuplicateLine
+        ? buildDuplicatedLineRawData(sourceRow.raw_data)
+        : { ...(sourceRow.raw_data || {}) };
+    const rawPayload = {
+        quote_code: targetQuote.quote_code,
+        line_code: lineCode,
+        product_code: sourceRow.product_code,
+        customer_code: targetQuote.customer_code,
+        customer_name: targetQuote.customer_name,
+        salesperson_name: targetQuote.salesperson_name,
+        department: pickFirstValue(sourceRow.raw_data?.DEPARTAMENTO, 'Flexografia'),
+        job_name: pickFirstValue(sourceRow.raw_data?.['NOMBRE TRABAJO'], sourceRow.raw_data?.['Nombre Trabajo'], lineCode),
+        material_name: pickFirstValue(sourceRow.raw_data?.['GENERAL | MATERIAL'], sourceRow.material_code),
+        material_code: sourceRow.material_code,
+        status: isDuplicateLine ? 'Borrador' : pickFirstValue(sourceRow.raw_data?.['SOLICITUD ESTADO'], sourceRow.raw_data?.['ESTADO LINEA'], 'Borrador'),
+        process_type: sourceRow.process_type,
+        machine_name: sourceRow.machine_name,
+        die_code: sourceRow.die_code,
+        quantity: sourceRow.quantity,
+        quantityProducts: sourceRow.quantity,
+        total_cost: sourceRow.total_cost,
+        unit_price: sourceRow.unit_price
+    };
+    if (isDuplicateLine) rawPayload.finalized_for_order = false;
     const rawData = buildCalculationRawData(
+        rawPayload,
         {
-            quote_code: targetQuote.quote_code,
-            line_code: lineCode,
-            product_code: sourceRow.product_code,
-            customer_code: targetQuote.customer_code,
-            customer_name: targetQuote.customer_name,
-            salesperson_name: targetQuote.salesperson_name,
-            department: pickFirstValue(sourceRow.raw_data?.DEPARTAMENTO, 'Flexografia'),
-            job_name: pickFirstValue(sourceRow.raw_data?.['NOMBRE TRABAJO'], sourceRow.raw_data?.['Nombre Trabajo'], lineCode),
-            material_name: pickFirstValue(sourceRow.raw_data?.['GENERAL | MATERIAL'], sourceRow.material_code),
-            material_code: sourceRow.material_code,
-            status: pickFirstValue(sourceRow.raw_data?.['SOLICITUD ESTADO'], sourceRow.raw_data?.['ESTADO LINEA'], 'Borrador'),
-            process_type: sourceRow.process_type,
-            machine_name: sourceRow.machine_name,
-            die_code: sourceRow.die_code,
-            quantity: sourceRow.quantity,
-            quantityProducts: sourceRow.quantity,
-            total_cost: sourceRow.total_cost,
-            unit_price: sourceRow.unit_price
-        },
-        {
-            ...(sourceRow.raw_data || {}),
+            ...sourceRawData,
             'ID COTIZACION': targetQuote.quote_code,
             'ID LINEA': lineCode,
             'ID CLIENTE': targetQuote.customer_code || baseSummary.customer_code,
@@ -6706,6 +8079,7 @@ async function cloneCalculationToQuote({ sourceRow, targetQuote, traceability = 
             traceability: metadata
         }
     );
+    if (isDuplicateLine) resetDuplicatedLineUiState(rawData, { targetQuote, lineCode });
 
     await pgQuery(
         `INSERT INTO flexo_calculations (
@@ -6733,14 +8107,28 @@ async function cloneCalculationToQuote({ sourceRow, targetQuote, traceability = 
     return await getLatestCalculationRow(targetQuote.quote_code, lineCode);
 }
 
-function buildProductionOrderRawData({ orderCode, quoteRow, lineRow, attachments = [] }) {
+function buildProductionOrderRawData({ orderCode, quoteRow, lineRow, attachments = [], groupMembers = [], actor = getConfiguredCurrentUser() }) {
     const raw = lineRow?.raw_data || {};
+    const frontBackGroup = getFrontBackGroupFromLine(lineRow);
+    const members = frontBackGroup && Array.isArray(groupMembers) && groupMembers.length ? groupMembers : [lineRow].filter(Boolean);
+    const productionRun = frontBackGroup ? buildFrontBackProductionRun(lineRow, members) : null;
     const metadata = buildTraceabilityMetadata({
         action: 'create-order',
         sourceQuoteCode: quoteRow?.quote_code || lineRow?.quote_code,
         sourceLineCode: lineRow?.line_code,
-        actor: getConfiguredCurrentUser()
+        actor
     });
+    const lineSnapshot = mapFlexoCalculationDetail(lineRow);
+    const totalFeet = Number(pickFirstValue(
+        lineSnapshot.materialFeet,
+        raw['GENERAL | SUSTRATO | CONSUMO PIES'],
+        raw['Material | Pies Segun Proceso Productivo'],
+        raw['CONV | MATERIAL | CANTIDAD PIES LINEALES INCLUYE MACULA'],
+        raw['DIGITAL | MATERIAL | CANTIDAD PIES LINEALES INCLUYE MACULA']
+    )) || 0;
+    if (totalFeet > 0 && !Number(lineSnapshot.materialFeet || 0)) {
+        lineSnapshot.materialFeet = totalFeet;
+    }
     return {
         order_code: orderCode,
         source_quote_code: quoteRow?.quote_code || lineRow?.quote_code || '',
@@ -6768,15 +8156,23 @@ function buildProductionOrderRawData({ orderCode, quoteRow, lineRow, attachments
             scheduledDeliveryDate: null
         },
         quote_snapshot: mapQuoteHeader(quoteRow || { quote_code: lineRow?.quote_code, raw_data: {} }),
-        line_snapshot: mapFlexoCalculationDetail(lineRow),
+        line_snapshot: lineSnapshot,
         line_summary: mapCalculationLine(lineRow),
+        front_back_group: frontBackGroup,
+        grupo_frente_dorso: frontBackGroup,
+        production_run: productionRun,
+        related_lines: members.map((row) => ({
+            summary: mapCalculationLine(row),
+            detail: mapFlexoCalculationDetail(row)
+        })),
         attachments,
         traceability: metadata,
         totals: {
-            quantity: parseLegacyNumber(lineRow?.quantity),
+            quantity: productionRun?.totals?.quantity ?? parseLegacyNumber(lineRow?.quantity),
+            total_feet: totalFeet,
             subtotal_cost: parseLegacyNumber(lineRow?.subtotal_cost),
-            total_cost: parseLegacyNumber(lineRow?.total_cost),
-            unit_price: parseLegacyNumber(lineRow?.unit_price)
+            total_cost: productionRun?.totals?.totalCost ?? parseLegacyNumber(lineRow?.total_cost),
+            unit_price: productionRun?.totals?.unitCost ?? parseLegacyNumber(lineRow?.unit_price)
         }
     };
 }
@@ -6802,7 +8198,10 @@ function getOrderPlanningControl(rawData = {}, quoteRow = null) {
         returnedBy: existing.returnedBy || '',
         returnReason: existing.returnReason || '',
         promisedDeliveryDate,
-        scheduledDeliveryDate: existing.scheduledDeliveryDate || null
+        scheduledDeliveryDate: existing.scheduledDeliveryDate || null,
+        selectedProcessKeys: normalizePlanningProcessKeys(existing.selectedProcessKeys || existing.selectedProcesses || []),
+        processSelectionUpdatedAt: existing.processSelectionUpdatedAt || null,
+        processSelectionUpdatedBy: existing.processSelectionUpdatedBy || ''
     };
 }
 
@@ -6900,6 +8299,15 @@ function buildCalculationRawData(payload = {}, existingRawData = {}) {
     const unitPrice = hasOwn('unit_price') || hasOwn('unitPrice')
         ? (parseLegacyNumber(payload.unit_price) ?? parseLegacyNumber(payload.unitPrice))
         : parseLegacyNumber(existingRawData['GENERAL | 9 | UNITARIO | DOL']);
+    const processResult = hasOwn('processResult') && payload.processResult && typeof payload.processResult === 'object'
+        ? payload.processResult
+        : null;
+    const industrialSubtotal = processResult ? parseLegacyNumber(processResult.industrial) : null;
+    const subtotalBeforeTax = processResult ? parseLegacyNumber(processResult.afterDiscount) : null;
+    const taxAmount = processResult ? parseLegacyNumber(processResult.tax) : null;
+    const taxPercent = processResult
+        ? (parseLegacyNumber(processResult.taxPct) ?? parseLegacyNumber(payload.uiState?.commercial?.taxPct))
+        : null;
 
     const rawData = {
         ...existingRawData,
@@ -6909,7 +8317,7 @@ function buildCalculationRawData(payload = {}, existingRawData = {}) {
         CLIENTE: pickFirstValue(payload.customer_name, existingRawData.CLIENTE),
         VENDEDOR: pickFirstValue(payload.salesperson_name, existingRawData.VENDEDOR),
         DEPARTAMENTO: pickFirstValue(payload.department, existingRawData.DEPARTAMENTO, 'Flexografia'),
-        'NOMBRE TRABAJO': pickFirstValue(payload.job_name, existingRawData['NOMBRE TRABAJO'], 'Nuevo cálculo'),
+        'NOMBRE TRABAJO': pickFirstValue(payload.job_name, existingRawData['NOMBRE TRABAJO']),
         'TIPO ORDEN': hasOwn('orderType') ? payload.orderType : pickFirstValue(existingRawData['TIPO ORDEN']),
         'GENERAL | MATERIAL': hasOwn('material_name')
             ? payload.material_name
@@ -6942,9 +8350,14 @@ function buildCalculationRawData(payload = {}, existingRawData = {}) {
         'DIAMETRO CORE': coreDiameter,
         'GENERAL | CMYK': cmykEnabled,
         'CMYK': cmykEnabled ? 'Si' : 'No',
+        'GENERAL | 5 | SUBTOTAL': industrialSubtotal ?? existingRawData['GENERAL | 5 | SUBTOTAL'],
+        'GENERAL | 7 | SUBTOTAL CALC ANTES IV | DOL': subtotalBeforeTax ?? existingRawData['GENERAL | 7 | SUBTOTAL CALC ANTES IV | DOL'],
+        'GENERAL | 8 | PORCENTAJE IVA': taxPercent ?? existingRawData['GENERAL | 8 | PORCENTAJE IVA'],
+        'GENERAL | 9 | Impuestos': taxAmount ?? existingRawData['GENERAL | 9 | Impuestos'],
         'PRECIO TOTAL AL FINALIZAR': total,
         'GENERAL | 9 | UNITARIO | DOL': unitPrice,
-        'CODEX_UI_STATE': hasOwn('uiState') ? payload.uiState : (existingRawData['CODEX_UI_STATE'] || null)
+        'CODEX_UI_STATE': hasOwn('uiState') ? payload.uiState : (existingRawData['CODEX_UI_STATE'] || null),
+        'CODEX_PROCESS_RESULT': hasOwn('processResult') ? payload.processResult : (existingRawData['CODEX_PROCESS_RESULT'] || null)
     };
 
     const uiPrintState = rawData['CODEX_UI_STATE']?.print || rawData['CODEX_UI_STATE']?.printStages?.[0] || null;
@@ -6954,6 +8367,7 @@ function buildCalculationRawData(payload = {}, existingRawData = {}) {
         rawData['CONV | PERFIL TINTA | BCM ANILOX'] = parseLegacyNumber(uiPrintState.aniloxBcm);
         rawData['CONV | PERFIL TINTA | GSM'] = parseLegacyNumber(uiPrintState.inkGsm);
         rawData['CONV | BARNIZ | ACTIVO'] = Boolean(uiPrintState.inlineFinishes?.barniz?.active);
+        rawData['CONV | BARNIZ | ZONIFICADO'] = Boolean(uiPrintState.inlineFinishes?.barniz?.sonified);
         rawData['CONV | BARNIZ | COBERTURA %'] = parseLegacyNumber(uiPrintState.inlineFinishes?.barniz?.coveragePct);
         rawData['CONV | BARNIZ | GSM'] = parseLegacyNumber(uiPrintState.inlineFinishes?.barniz?.layerGsm);
     }
@@ -6981,6 +8395,19 @@ function buildCalculationRawData(payload = {}, existingRawData = {}) {
     });
     rawData['CODEX_PROCESS_SNAPSHOT'] = processSnapshot;
     rawData['CODEX_PROCESS_SEQUENCE_TEXT'] = processSnapshot.map((item) => item.processName).join(' -> ');
+    applyCalculationLineSummary(rawData, {
+        quote_code: rawData['ID COTIZACION'],
+        line_code: rawData['ID LINEA'],
+        product_code: payload.product_code,
+        customer_code: rawData['ID CLIENTE'],
+        process_type: processType,
+        machine_name: rawData[`${activePrefix} | MAQUINA`],
+        die_code: rawData['GENERAL | TROQUEL | ID'],
+        material_code: activePrefix === 'DIGITAL' ? rawData['Material Digital | Id Material'] : rawData['Material Convencional | Id Material'],
+        quantity: quantityProducts,
+        total_cost: total,
+        unit_price: unitPrice
+    });
 
     return rawData;
 }
@@ -7020,10 +8447,7 @@ function applyCurrencyFieldsToRawData(rawData = {}, exchangeRateInput = null) {
 async function resolveSingleInventoryMachineName(preferredMachineName = '') {
     const preferred = String(preferredMachineName || '').trim();
     if (preferred) return preferred;
-    const machines = await listInventory('maquinas', { limit: 5000 });
-    const activeMachines = (Array.isArray(machines) ? machines : []).filter((machine) => machine && machine.activa !== false);
-    if (activeMachines.length !== 1) return '';
-    return String(activeMachines[0].nombre || '').trim();
+    return '';
 }
 
 function normalizeFlexoMaterialFamily(value) {
@@ -7303,6 +8727,7 @@ async function loadFlexoCatalogsFromDb() {
                 legacySetupPerStationMinutes: Number(row.factor_montaje_estacion || 0),
                 legacySetupBaseMinutes: Number(row.factor_preparacion || 0),
                 legacySetupExtraMinutes: Number(row.macula_default_pies || 0),
+                maculaDefaultFeet: Number(row.macula_default_pies || 0),
                 digitalBillingType: row.digital_tipo_cobro || 'consumo',
                 digitalInkCostPerKg: Number(row.digital_costo_kg_tinta || 0),
                 digitalWhiteInkCostPerKg: Number(row.digital_costo_kg_tinta_blanco || 0),
@@ -7370,6 +8795,7 @@ async function loadFlexoCatalogsFromDb() {
             setupPerStationMinutes: primary?.setupPerStationMinutes ?? machine.legacySetupPerStationMinutes,
             setupBaseMinutes: primary?.setupBaseMinutes ?? machine.legacySetupBaseMinutes,
             setupExtraMinutes: primary?.setupExtraMinutes ?? machine.legacySetupExtraMinutes,
+            maculaDefaultFeet: machine.maculaDefaultFeet,
             digitalBillingType: machine.digitalBillingType,
             digitalInkCostPerKg: machine.digitalInkCostPerKg,
             digitalWhiteInkCostPerKg: machine.digitalWhiteInkCostPerKg,
@@ -8241,19 +9667,47 @@ app.get('/api/cotizaciones', async (req, res) => {
     try {
         const search = String(req.query.q || '').trim();
         const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
-        const values = [];
-        let whereClause = '';
+        const session = readErpSessionFromRequest(req);
+        const permissionName = sanitizeAdminUserText(session?.permissionName);
+        const canViewAll = permissionCanViewAllQuotes(permissionName);
 
-        if (search) {
-            values.push(`%${search}%`);
-            values.push(`%${search}%`);
-            values.push(`%${search}%`);
-            values.push(`%${search}%`);
-            values.push(`%${search}%`);
-            whereClause = "WHERE q.quote_code ILIKE $1 OR COALESCE(q.customer_name, '') ILIKE $2 OR COALESCE(q.salesperson_name, '') ILIKE $3 OR COALESCE(q.customer_code, '') ILIKE $4 OR COALESCE(q.contact_name, '') ILIKE $5";
+        let salespersonName = '';
+        if (!canViewAll) {
+            salespersonName = sanitizeAdminUserText(
+                session?.name || session?.fullName || session?.user || session?.username
+            );
+            // Si el nombre parece un username (sin espacios), buscar el full_name
+            if (salespersonName && !salespersonName.includes(' ')) {
+                try {
+                    const userLookup = await pgQuery(
+                        `SELECT full_name FROM admin_users WHERE LOWER(TRIM(username)) = $1 LIMIT 1`,
+                        [salespersonName.toLowerCase()]
+                    );
+                    if (userLookup.rows.length && sanitizeAdminUserText(userLookup.rows[0].full_name)) {
+                        salespersonName = sanitizeAdminUserText(userLookup.rows[0].full_name);
+                    }
+                } catch (_) {}
+            }
         }
 
-        values.push(limit);
+        const values = [];
+        const conditions = [];
+
+        if (search) {
+            const idx = values.length + 1;
+            values.push(`%${search}%`);
+            conditions.push(`(q.quote_code ILIKE $${idx} OR COALESCE(q.customer_name, '') ILIKE $${idx} OR COALESCE(q.salesperson_name, '') ILIKE $${idx} OR COALESCE(q.customer_code, '') ILIKE $${idx} OR COALESCE(q.contact_name, '') ILIKE $${idx})`);
+        }
+
+        if (salespersonName) {
+            const idx = values.length + 1;
+            values.push(salespersonName);
+            conditions.push(`q.salesperson_name = $${idx}`);
+        }
+
+        const whereClause = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+
+        const qIndex = values.push(limit);
 
         const quoteResult = await pgQuery(
             `SELECT
@@ -8268,7 +9722,8 @@ app.get('/api/cotizaciones', async (req, res) => {
                 q.created_on,
                 q.due_on,
                 COALESCE(calc.line_count, 0) AS line_count,
-                COALESCE(calc.quote_total, 0) AS quote_total
+                COALESCE(calc.quote_total, 0) AS quote_total,
+                COALESCE(calc.line_statuses, '') AS line_statuses
              FROM quotes q
              LEFT JOIN (
                 SELECT
@@ -8284,7 +9739,12 @@ app.get('/api/cotizaciones', async (req, res) => {
                             END,
                             0
                         )
-                    ), 0) AS quote_total
+                    ), 0) AS quote_total,
+                    STRING_AGG(DISTINCT NULLIF(COALESCE(
+                        latest.raw_data->>'SOLICITUD ESTADO',
+                        latest.raw_data->>'ESTADO LINEA',
+                        latest.raw_data->>'Estado Cotizacion'
+                    ), ''), ' | ') AS line_statuses
                 FROM (
                     SELECT DISTINCT ON (quote_code, line_code)
                         quote_code,
@@ -8307,7 +9767,7 @@ app.get('/api/cotizaciones', async (req, res) => {
                ON calc.quote_code = q.quote_code
              ${whereClause}
              ORDER BY q.quote_code DESC
-             LIMIT $${values.length}`,
+             LIMIT $${qIndex}`,
             values
         );
 
@@ -8326,6 +9786,7 @@ app.get('/api/cotizaciones', async (req, res) => {
                 due_on: row.due_on || '',
                 line_count: Number(row.line_count || 0),
                 quote_total: Number(row.quote_total || 0),
+                line_statuses: row.line_statuses || '',
                 exchange_sale: null,
                 exchange_buy: null,
                 footer_dates: '',
@@ -8443,7 +9904,7 @@ app.delete('/api/cotizaciones/:codigo', async (req, res) => {
         }
         const deleted = await withTransaction(async (client) => {
             const orderResult = await client.query(`DELETE FROM flexo_orders WHERE quote_code = $1`, [codigo]);
-            await client.query(`DELETE FROM quote_line_attachments WHERE quote_code = $1`, [codigo]);
+            const attachmentResult = await client.query(`DELETE FROM quote_line_attachments WHERE quote_code = $1 RETURNING storage_path`, [codigo]);
             await client.query(`DELETE FROM quote_line_notifications WHERE quote_code = $1`, [codigo]);
             const calcResult = await client.query(`DELETE FROM flexo_calculations WHERE quote_code = $1`, [codigo]);
             const proformaResult = await client.query(`DELETE FROM quote_proformas WHERE quote_code = $1`, [codigo]);
@@ -8460,9 +9921,12 @@ app.delete('/api/cotizaciones/:codigo', async (req, res) => {
                 deletedOrders: orderResult.rowCount,
                 deletedQuote: quoteResult.rowCount,
                 deletedLines: calcResult.rowCount,
-                deletedProformas: proformaResult.rowCount
+                deletedProformas: proformaResult.rowCount,
+                deletedAttachmentFiles: attachmentResult.rows
             };
         });
+        deleteQuoteAttachmentFiles(deleted.deletedAttachmentFiles);
+        delete deleted.deletedAttachmentFiles;
         res.json({ ok: true, ...deleted });
     } catch (error) {
         const status = Number(error.statusCode) || (/no se puede eliminar/i.test(error.message || '') ? 409 : /no encontrada/i.test(error.message || '') ? 404 : 400);
@@ -8559,7 +10023,7 @@ app.get('/api/productos/:codigo', async (req, res) => {
         const storedAttachmentsResult = await pgQuery(
             `SELECT a.id, a.quote_code, a.line_code, a.file_name, a.mime_type, a.file_ext, a.notes, a.uploaded_by, a.created_at,
                     q.customer_name,
-                    OCTET_LENGTH(DECODE(a.content_base64, 'base64')) AS size_bytes
+                    COALESCE(a.size_bytes, OCTET_LENGTH(DECODE(a.content_base64, 'base64')), 0) AS size_bytes
                FROM quote_line_attachments a
                JOIN flexo_product_quote_history h
                  ON h.quote_code = a.quote_code
@@ -8568,6 +10032,20 @@ app.get('/api/productos/:codigo', async (req, res) => {
                  ON q.quote_code = a.quote_code
               WHERE h.product_code = $1
               ORDER BY a.created_at DESC NULLS LAST, a.id DESC`,
+            [code]
+        );
+        const ordersResult = await pgQuery(
+            `SELECT DISTINCT ON (o.order_code)
+                    o.order_code, o.quote_code, o.line_code, o.product_code, o.machine_name, o.material_code,
+                    o.die_code, o.ordered_quantity, o.delivered_on, o.created_at, o.raw_data
+               FROM flexo_orders o
+          LEFT JOIN flexo_product_quote_history h
+                 ON h.quote_code = o.quote_code
+                AND h.line_code = o.line_code
+              WHERE o.product_code = $1
+                 OR h.product_code = $1
+                 OR COALESCE(o.raw_data->'line_summary'->>'product_code', '') = $1
+              ORDER BY o.order_code, o.created_at DESC NULLS LAST`,
             [code]
         );
         const inlineAttachments = [];
@@ -8629,6 +10107,27 @@ app.get('/api/productos/:codigo', async (req, res) => {
                 const leftTime = new Date(left.created_at || 0).getTime();
                 const rightTime = new Date(right.created_at || 0).getTime();
                 return rightTime - leftTime;
+            }),
+            ordenes: ordersResult.rows.map((row) => {
+                const raw = row.raw_data || {};
+                return {
+                    order_code: row.order_code || '',
+                    quote_code: row.quote_code || '',
+                    line_code: row.line_code || '',
+                    product_code: row.product_code || '',
+                    machine_name: row.machine_name || '',
+                    material_code: row.material_code || '',
+                    die_code: row.die_code || '',
+                    ordered_quantity: parseLegacyNumber(row.ordered_quantity),
+                    delivered_on: row.delivered_on || '',
+                    created_at: row.created_at || '',
+                    job_name: pickFirstValue(
+                        raw.line_summary?.job_name,
+                        raw.line_snapshot?.job_name,
+                        raw.line_snapshot?.productName,
+                        row.product_code
+                    )
+                };
             })
         });
     } catch (error) {
@@ -8715,6 +10214,30 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/producto', async (req, res) =>
                     product.sourceCalculationCode,
                     JSON.stringify(product.rawData)
                 ]
+            );
+            await client.query(
+                `UPDATE flexo_calculations
+                    SET product_code = $3,
+                        raw_data = jsonb_set(
+                            jsonb_set(
+                                COALESCE(raw_data, '{}'::jsonb),
+                                '{CODIGO PRODUCTO}',
+                                to_jsonb($3::text),
+                                true
+                            ),
+                            '{line_summary}',
+                            (
+                                CASE
+                                    WHEN jsonb_typeof(COALESCE(raw_data, '{}'::jsonb)->'line_summary') = 'object'
+                                    THEN COALESCE(raw_data, '{}'::jsonb)->'line_summary'
+                                    ELSE '{}'::jsonb
+                                END
+                            ) || jsonb_build_object('product_code', $3::text),
+                            true
+                        )
+                  WHERE quote_code = $1
+                    AND line_code = $2`,
+                [codigo, linea, product.productCode]
             );
             await client.query(
                 `INSERT INTO flexo_product_quote_history (product_code, quote_code, line_code, action, raw_data, created_by)
@@ -8813,10 +10336,14 @@ app.post('/api/productos/:codigo/cotizar', async (req, res) => {
                     department: product.department,
                     job_name: product.product_name,
                     material_name: product.material_name,
+                    material_code: product.material_name,
                     status: 'Borrador',
                     process_type: productRaw['Proceso Productivo'],
                     machine_name: product.quoted_machine,
                     die_code: product.die_code,
+                    widthInches: product.widthInches,
+                    lengthInches: product.lengthInches,
+                    stationCount: product.tintCount,
                     quantity: product.quantity_products,
                     quantityProducts: product.quantity_products,
                     total_cost: product.total_price,
@@ -8855,7 +10382,7 @@ app.post('/api/productos/:codigo/cotizar', async (req, res) => {
                     pickFirstValue(productRaw['Proceso Productivo'], 'Convencional'),
                     product.quoted_machine,
                     product.die_code,
-                    pickFirstValue(productRaw['Material Convencional | Id Material'], productRaw['Material Digital | Id Material']),
+                    pickFirstValue(productRaw['Material Convencional | Id Material'], productRaw['Material Digital | Id Material'], product.material_name),
                     parseLegacyNumber(product.quantity_products),
                     parseLegacyNumber(product.total_price),
                     parseLegacyNumber(product.price_unit),
@@ -8892,7 +10419,7 @@ app.post('/api/productos/:codigo/cotizar', async (req, res) => {
 
 app.get('/api/config/general', async (req, res) => {
     try {
-        res.setHeader('Cache-Control', 'private, max-age=30, must-revalidate');
+        res.setHeader('Cache-Control', 'no-store');
         res.json(await loadGeneralConfig());
     } catch (error) {
         res.status(500).json({ error: 'No fue posible cargar la configuración general.' });
@@ -8904,7 +10431,7 @@ app.post('/api/config/general', async (req, res) => {
         const saved = await saveGeneralConfig(req.body || {});
         res.json(saved);
     } catch (error) {
-        res.status(400).json({ error: 'No fue posible guardar la configuración general.' });
+        res.status(400).json({ error: error.message || 'No fue posible guardar la configuración general.' });
     }
 });
 
@@ -8981,6 +10508,19 @@ app.post('/api/proformas/:codigo/close', async (req, res) => {
     }
 });
 
+app.post('/api/proformas/:codigo/reopen', async (req, res) => {
+    try {
+        const quoteCode = String(req.params.codigo || '').trim();
+        if (!quoteCode) {
+            return res.status(400).json({ error: 'Código de cotización inválido.' });
+        }
+        const row = await reopenQuoteProforma(quoteCode, sanitizeAdminUserText(req.body?.reason, 'tracking_reopened'));
+        res.json({ ok: true, proforma: row });
+    } catch (error) {
+        res.status(400).json({ error: error.message || 'No fue posible reabrir la proforma.' });
+    }
+});
+
 app.get('/api/login-repository', async (req, res) => {
     try {
         res.setHeader('Cache-Control', 'private, max-age=60, must-revalidate');
@@ -9013,7 +10553,7 @@ app.get('/api/admin-users', async (req, res) => {
     try {
         const result = await pgQuery(
             `SELECT u.id, u.full_name, u.username, u.password, u.department, u.process, u.photo_url, u.signature_url, u.email, u.phone, u.phone_secondary,
-                    u.sap_salesperson_code, u.sap_salesperson_name,
+                    u.sap_salesperson_code, u.sap_salesperson_name, u.default_landing,
                     u.notify_email, u.notify_whatsapp, u.notify_sms, u.is_active, u.permission_id, u.floating_button_config,
                     p.permission_name
                FROM admin_users u
@@ -9056,11 +10596,11 @@ app.post('/api/admin-users', async (req, res) => {
         const result = await pgQuery(
             `INSERT INTO admin_users (
                 full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary,
-                notify_email, notify_whatsapp, notify_sms, is_active, permission_id, sap_salesperson_code, sap_salesperson_name
+                notify_email, notify_whatsapp, notify_sms, is_active, permission_id, default_landing, sap_salesperson_code, sap_salesperson_name
              )
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, TRUE, $14, $15, $16)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, TRUE, $14, $15, $16, $17)
              RETURNING id, full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary,
-                       notify_email, notify_whatsapp, notify_sms, is_active, permission_id, sap_salesperson_code, sap_salesperson_name`,
+                       notify_email, notify_whatsapp, notify_sms, is_active, permission_id, default_landing, sap_salesperson_code, sap_salesperson_name`,
             [
                 name,
                 username,
@@ -9076,6 +10616,7 @@ app.post('/api/admin-users', async (req, res) => {
                 req.body?.notificationWhatsapp === true,
                 req.body?.notificationSms === true,
                 permissionId,
+                sanitizeOptionalPresentationKey(req.body?.defaultLanding),
                 persistedSalespersonAssignment.sapSalespersonCode,
                 persistedSalespersonAssignment.sapSalespersonName
             ]
@@ -9085,6 +10626,15 @@ app.post('/api/admin-users', async (req, res) => {
             const permission = await pgQuery(`SELECT permission_name FROM admin_permissions WHERE id = $1 LIMIT 1`, [created.permission_id]);
             created.permission_name = permission.rows[0]?.permission_name || '';
         }
+        await recordAuditDiff({
+            moduleKey: 'seguridad',
+            entityType: 'admin_users',
+            entityKey: String(created.id),
+            beforeValue: {},
+            afterValue: buildAdminUserAuditRecord(created),
+            changedBy: getAuditActorFromRequest(req),
+            route: req.path
+        });
         res.status(201).json(normalizeAdminUserRecord(created));
     } catch (error) {
         res.status(400).json({ error: error.message || 'No fue posible crear el usuario.' });
@@ -9099,7 +10649,7 @@ app.patch('/api/admin-users/:id', async (req, res) => {
         }
         const existing = await pgQuery(
             `SELECT id, full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary,
-                    notify_email, notify_whatsapp, notify_sms, is_active, permission_id, sap_salesperson_code, sap_salesperson_name
+                    notify_email, notify_whatsapp, notify_sms, is_active, permission_id, default_landing, sap_salesperson_code, sap_salesperson_name
                FROM admin_users
               WHERE id = $1
               LIMIT 1`,
@@ -9110,6 +10660,9 @@ app.patch('/api/admin-users/:id', async (req, res) => {
         }
         const row = existing.rows[0];
         const permissionId = req.body?.permissionId ? Number(req.body.permissionId) : null;
+        const defaultLanding = req.body?.defaultLanding === undefined
+            ? sanitizeOptionalPresentationKey(row.default_landing)
+            : sanitizeOptionalPresentationKey(req.body?.defaultLanding);
         const salespersonAssignment = await resolveAdminUserSapSalespersonAssignment({
             permissionId,
             rawCode: req.body?.sapSalespersonCode,
@@ -9134,12 +10687,13 @@ app.patch('/api/admin-users/:id', async (req, res) => {
                     notify_sms = $14,
                     is_active = $15,
                     permission_id = $16,
-                    sap_salesperson_code = $17,
-                    sap_salesperson_name = $18,
+                    default_landing = $17,
+                    sap_salesperson_code = $18,
+                    sap_salesperson_name = $19,
                     updated_at = NOW()
               WHERE id = $1
           RETURNING id, full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary,
-                    notify_email, notify_whatsapp, notify_sms, is_active, permission_id, sap_salesperson_code, sap_salesperson_name`,
+                    notify_email, notify_whatsapp, notify_sms, is_active, permission_id, default_landing, sap_salesperson_code, sap_salesperson_name`,
             [
                 id,
                 sanitizeAdminUserText(row.full_name),
@@ -9157,6 +10711,7 @@ app.patch('/api/admin-users/:id', async (req, res) => {
                 req.body?.notificationSms === undefined ? Boolean(row.notify_sms) : req.body?.notificationSms === true,
                 req.body?.active === undefined ? row.is_active !== false : req.body?.active === true,
                 permissionId,
+                defaultLanding,
                 persistedSalespersonAssignment.sapSalespersonCode,
                 persistedSalespersonAssignment.sapSalespersonName
             ]
@@ -9166,6 +10721,15 @@ app.patch('/api/admin-users/:id', async (req, res) => {
             const permission = await pgQuery(`SELECT permission_name FROM admin_permissions WHERE id = $1 LIMIT 1`, [updated.permission_id]);
             updated.permission_name = permission.rows[0]?.permission_name || '';
         }
+        await recordAuditDiff({
+            moduleKey: 'seguridad',
+            entityType: 'admin_users',
+            entityKey: String(updated.id),
+            beforeValue: buildAdminUserAuditRecord(row),
+            afterValue: buildAdminUserAuditRecord(updated),
+            changedBy: getAuditActorFromRequest(req),
+            route: req.path
+        });
         res.json(normalizeAdminUserRecord(updated));
     } catch (error) {
         res.status(400).json({ error: error.message || 'No fue posible actualizar el usuario.' });
@@ -9181,7 +10745,7 @@ app.get('/api/admin-profile', async (req, res) => {
         }
         const result = await pgQuery(
             `SELECT u.id, u.full_name, u.username, u.password, u.department, u.process, u.photo_url, u.signature_url, u.email, u.phone, u.phone_secondary,
-                    u.sap_salesperson_code, u.sap_salesperson_name,
+                    u.sap_salesperson_code, u.sap_salesperson_name, u.default_landing,
                     u.notify_email, u.notify_whatsapp, u.notify_sms, u.is_active, u.permission_id, u.floating_button_config,
                     p.permission_name
                FROM admin_users u
@@ -9212,6 +10776,7 @@ app.get('/api/admin-profile', async (req, res) => {
                 active: true,
                 permissionId: null,
                 permissionName: sanitizeAdminUserText(session?.permissionName),
+                defaultLanding: sanitizeOptionalPresentationKey(session?.userDefaultLanding),
                 sapSalespersonCode: null,
                 sapSalespersonName: '',
                 floatingButtonConfig: {}
@@ -9232,7 +10797,7 @@ app.patch('/api/admin-profile', async (req, res) => {
         }
         const existing = await pgQuery(
             `SELECT id, full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary,
-                    notify_email, notify_whatsapp, notify_sms, is_active, permission_id, floating_button_config
+                    notify_email, notify_whatsapp, notify_sms, is_active, permission_id, default_landing, floating_button_config
                FROM admin_users
               WHERE LOWER(TRIM(username)) = LOWER(TRIM($1))
                  OR LOWER(TRIM(full_name)) = LOWER(TRIM($1))
@@ -9247,7 +10812,7 @@ app.patch('/api/admin-profile', async (req, res) => {
                     notify_email, notify_whatsapp, notify_sms, is_active, permission_id, floating_button_config
                  ) VALUES ($1,$2,$3,$4,$5,$6,'',$7,$8,$9,FALSE,FALSE,FALSE,TRUE,NULL,$10::jsonb)
                  RETURNING id, full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary,
-                           notify_email, notify_whatsapp, notify_sms, is_active, permission_id, floating_button_config`,
+                           notify_email, notify_whatsapp, notify_sms, is_active, permission_id, default_landing, floating_button_config`,
                 [
                     sanitizeAdminUserText(session?.name, sessionUser),
                     sessionUser,
@@ -9261,6 +10826,15 @@ app.patch('/api/admin-profile', async (req, res) => {
                     JSON.stringify(req.body?.floatingButtonConfig && typeof req.body.floatingButtonConfig === 'object' ? req.body.floatingButtonConfig : {})
                 ]
             );
+            await recordAuditDiff({
+                moduleKey: 'seguridad',
+                entityType: 'admin_users',
+                entityKey: String(inserted.rows[0].id),
+                beforeValue: {},
+                afterValue: buildAdminUserAuditRecord(inserted.rows[0]),
+                changedBy: getAuditActorFromRequest(req),
+                route: req.path
+            });
             return res.json(normalizeAdminUserRecord(inserted.rows[0]));
         }
         const row = existing.rows[0];
@@ -9275,7 +10849,7 @@ app.patch('/api/admin-profile', async (req, res) => {
                     updated_at = NOW()
               WHERE id = $1
           RETURNING id, full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary,
-                    notify_email, notify_whatsapp, notify_sms, is_active, permission_id, floating_button_config`,
+                    notify_email, notify_whatsapp, notify_sms, is_active, permission_id, default_landing, floating_button_config`,
             [
                 Number(row.id),
                 sanitizeAdminUserText(req.body?.password, row.password),
@@ -9288,6 +10862,15 @@ app.patch('/api/admin-profile', async (req, res) => {
                     : (row.floating_button_config && typeof row.floating_button_config === 'object' ? row.floating_button_config : {}))
             ]
         );
+        await recordAuditDiff({
+            moduleKey: 'seguridad',
+            entityType: 'admin_users',
+            entityKey: String(result.rows[0].id),
+            beforeValue: buildAdminUserAuditRecord(row),
+            afterValue: buildAdminUserAuditRecord(result.rows[0]),
+            changedBy: getAuditActorFromRequest(req),
+            route: req.path
+        });
         res.json(normalizeAdminUserRecord(result.rows[0]));
     } catch (error) {
         res.status(400).json({ error: error.message || 'No fue posible actualizar el perfil.' });
@@ -9300,18 +10883,35 @@ app.delete('/api/admin-users/:id', async (req, res) => {
         if (!Number.isFinite(id) || id <= 0) {
             return res.status(400).json({ error: 'Identificador no válido.' });
         }
+        const beforeResult = await pgQuery(
+            `SELECT id, full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary,
+                    notify_email, notify_whatsapp, notify_sms, is_active, permission_id, default_landing, sap_salesperson_code, sap_salesperson_name
+               FROM admin_users
+              WHERE id = $1
+              LIMIT 1`,
+            [id]
+        );
+        if (!beforeResult.rows.length) {
+            return res.status(404).json({ error: 'Usuario no encontrado.' });
+        }
         const result = await pgQuery(
             `UPDATE admin_users
                 SET is_active = FALSE,
                     updated_at = NOW()
               WHERE id = $1
           RETURNING id, full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary,
-                    notify_email, notify_whatsapp, notify_sms, is_active, permission_id`,
+                    notify_email, notify_whatsapp, notify_sms, is_active, permission_id, default_landing, sap_salesperson_code, sap_salesperson_name`,
             [id]
         );
-        if (!result.rows.length) {
-            return res.status(404).json({ error: 'Usuario no encontrado.' });
-        }
+        await recordAuditDiff({
+            moduleKey: 'seguridad',
+            entityType: 'admin_users',
+            entityKey: String(id),
+            beforeValue: buildAdminUserAuditRecord(beforeResult.rows[0]),
+            afterValue: buildAdminUserAuditRecord(result.rows[0]),
+            changedBy: getAuditActorFromRequest(req),
+            route: req.path
+        });
         res.json(normalizeAdminUserRecord(result.rows[0]));
     } catch (error) {
         res.status(400).json({ error: error.message || 'No fue posible eliminar el usuario.' });
@@ -9355,6 +10955,15 @@ app.post('/api/admin-permissions', async (req, res) => {
                 JSON.stringify(normalizePermissionMatrix(req.body?.modules || {}))
             ]
         );
+        await recordAuditDiff({
+            moduleKey: 'seguridad',
+            entityType: 'admin_permissions',
+            entityKey: String(result.rows[0].id),
+            beforeValue: {},
+            afterValue: buildAdminPermissionAuditRecord(result.rows[0]),
+            changedBy: getAuditActorFromRequest(req),
+            route: req.path
+        });
         res.status(201).json(normalizeAdminPermissionRecord(result.rows[0]));
     } catch (error) {
         res.status(400).json({ error: error.message || 'No fue posible crear el permiso.' });
@@ -9372,7 +10981,7 @@ app.patch('/api/admin-permissions/:id', async (req, res) => {
             return res.status(400).json({ error: 'El nombre del permiso es obligatorio.' });
         }
         const existingResult = await pgQuery(
-            `SELECT module_permissions
+            `SELECT id, permission_name, default_landing, module_permissions
                FROM admin_permissions
               WHERE id = $1
               LIMIT 1`,
@@ -9401,6 +11010,15 @@ app.patch('/api/admin-permissions/:id', async (req, res) => {
                 JSON.stringify(normalizePermissionMatrix(mergedModules))
             ]
         );
+        await recordAuditDiff({
+            moduleKey: 'seguridad',
+            entityType: 'admin_permissions',
+            entityKey: String(id),
+            beforeValue: buildAdminPermissionAuditRecord(existingResult.rows[0]),
+            afterValue: buildAdminPermissionAuditRecord(result.rows[0]),
+            changedBy: getAuditActorFromRequest(req),
+            route: req.path
+        });
         res.json(normalizeAdminPermissionRecord(result.rows[0]));
     } catch (error) {
         res.status(400).json({ error: error.message || 'No fue posible actualizar el permiso.' });
@@ -9413,10 +11031,19 @@ app.delete('/api/admin-permissions/:id', async (req, res) => {
         if (!Number.isFinite(id) || id <= 0) {
             return res.status(400).json({ error: 'Identificador no válido.' });
         }
-        const result = await pgQuery(`DELETE FROM admin_permissions WHERE id = $1 RETURNING id`, [id]);
+        const result = await pgQuery(`DELETE FROM admin_permissions WHERE id = $1 RETURNING id, permission_name, default_landing, module_permissions`, [id]);
         if (!result.rows.length) {
             return res.status(404).json({ error: 'Permiso no encontrado.' });
         }
+        await recordAuditDiff({
+            moduleKey: 'seguridad',
+            entityType: 'admin_permissions',
+            entityKey: String(id),
+            beforeValue: buildAdminPermissionAuditRecord(result.rows[0]),
+            afterValue: {},
+            changedBy: getAuditActorFromRequest(req),
+            route: req.path
+        });
         res.json({ ok: true, id });
     } catch (error) {
         res.status(400).json({ error: error.message || 'No fue posible eliminar el permiso.' });
@@ -9455,7 +11082,8 @@ app.post('/api/auth/login', async (req, res) => {
 
         const result = await pgQuery(
             `SELECT u.id, u.full_name, u.username, u.department, u.process, u.photo_url, u.is_active,
-                    u.permission_id, p.permission_name, p.default_landing, p.module_permissions
+                    u.permission_id, u.default_landing AS user_default_landing, p.permission_name,
+                    p.default_landing AS permission_default_landing, p.module_permissions
                FROM admin_users u
           LEFT JOIN admin_permissions p
                  ON p.id = u.permission_id
@@ -9493,7 +11121,7 @@ app.post('/api/auth/login', async (req, res) => {
                 photoUrl: sanitizeAdminUserText(row.photo_url),
                 permissionId: row.permission_id == null ? null : Number(row.permission_id),
                 permissionName,
-                defaultLanding: sanitizePresentationKey(row.default_landing),
+                defaultLanding: sanitizeOptionalPresentationKey(row.user_default_landing) || sanitizePresentationKey(row.permission_default_landing),
                 modules: isSuperAdminPermissionName(permissionName)
                     ? buildFullPermissionMatrix()
                     : normalizePermissionMatrix(row.module_permissions || {})
@@ -9673,6 +11301,7 @@ app.get('/api/cotizaciones-inteligentes/catalogos', async (req, res) => {
             loadGeneralConfig()
         ]);
         res.json({
+            substrateMaterials: getQuotableSubstrateMaterials(catalogs.materials),
             materialFamilies: getCommercialMaterialFamilies(catalogs.materials),
             digitalThreshold: Math.max(0, Number(generalConfig?.general?.quoteAutomaticDigitalMaxQuantity || 0)) || 100000,
             labelsPerRollDefault: Math.max(1, Number(generalConfig?.general?.quoteAutomaticLabelsPerRoll || 0)) || 1000
@@ -9684,7 +11313,9 @@ app.get('/api/cotizaciones-inteligentes/catalogos', async (req, res) => {
 
 app.post('/api/cotizaciones', async (req, res) => {
     try {
-        const payload = req.body || {};
+        const payload = { ...(req.body || {}) };
+        const activeUser = getRequestUserName(req, payload.salesperson_name);
+        payload.salesperson_name = activeUser;
         const quoteCode = pickFirstValue(payload.quote_code) || await generateNextQuoteCode();
         const createdOn = pickFirstValue(payload.created_on, new Date().toISOString().slice(0, 10));
         const dueOn = pickFirstValue(payload.due_on, createdOn);
@@ -9700,7 +11331,7 @@ app.post('/api/cotizaciones', async (req, res) => {
                 pickFirstValue(payload.customer_name),
                 pickFirstValue(payload.contact_name),
                 pickFirstValue(payload.email),
-                pickFirstValue(payload.salesperson_name, 'admin'),
+                activeUser,
                 pickFirstValue(payload.phone),
                 pickFirstValue(payload.status, 'Borrador'),
                 createdOn,
@@ -9818,34 +11449,34 @@ app.post('/api/cotizaciones/:codigo/lineas', async (req, res) => {
         payload.process_type = autoSelection.selectedProcessType === 'digital' ? 'Digital' : 'Convencional';
         payload.material_code = autoSelection.selectedMaterial?.code || pickFirstValue(payload.material_code, payload.material_name);
         payload.material_name = autoSelection.selectedMaterial?.name || payload.material_name;
-        payload.die_code = autoSelection.selectedDie?.code || pickFirstValue(payload.die_code);
-        payload.machine_name = autoSelection.selectedMachine?.machineName || payload.machine_name;
+        payload.die_code = pickFirstValue(payload.die_code);
+        payload.machine_name = pickFirstValue(payload.machine_name);
         payload.request_meta = {
             ...(payload.request_meta || {}),
             'REQ | Material Comercial': autoSelection.requestedFamily || normalizeCommercialMaterialFamily(payload.material_name || ''),
             'REQ | Ruta Automática': payload.process_type,
-            'REQ | Troquel Automático': autoSelection.selectedDie?.code || '',
+            'REQ | Troquel Automático': '',
             'REQ | Material Automático': autoSelection.selectedMaterial?.code || '',
-            'REQ | Máquina Automática': autoSelection.selectedMachine?.machineName || '',
+            'REQ | Máquina Automática': '',
             'REQ | Etiquetas x Rollo Automática': payload.labelsPerRoll,
             'REQ | Montaje Automático': autoSelection.selectedMounting
                 ? `${autoSelection.selectedMounting.columns} columnas | ancho útil ${roundCurrency(autoSelection.selectedMounting.usableWidth)}" | largo estimado ${roundCurrency(autoSelection.selectedMounting.linearFeet)} pies`
                 : '',
             'REQ | Comentario Técnico Automático': autoSelection.automaticComment,
-            'REQ | Advertencias Automáticas': autoSelection.warnings.join(' | '),
+            'REQ | Advertencias Automáticas': '',
             'REQ | Fallback de Ruta': autoSelection.fallbackApplied ? 'Sí' : 'No'
         };
         if (payload.request_meta?.CODEX_UI_STATE && typeof payload.request_meta.CODEX_UI_STATE === 'object') {
             payload.request_meta.CODEX_UI_STATE.smartSelection = {
                 digitalThreshold: autoSelection.digitalThreshold,
                 processType: payload.process_type,
-                dieCode: autoSelection.selectedDie?.code || '',
+                dieCode: '',
                 materialCode: autoSelection.selectedMaterial?.code || '',
                 materialFamily: autoSelection.requestedFamily || '',
-                machineName: autoSelection.selectedMachine?.machineName || '',
+                machineName: '',
                 labelsPerRoll: payload.labelsPerRoll,
                 mounting: autoSelection.selectedMounting,
-                warnings: autoSelection.warnings
+                warnings: []
             };
         }
         const machineName = await resolveSingleInventoryMachineName(payload.machine_name);
@@ -9868,23 +11499,23 @@ app.post('/api/cotizaciones/:codigo/lineas', async (req, res) => {
         rawData['CODEX_AUTO_SELECTION'] = {
             digitalThreshold: autoSelection.digitalThreshold,
             processType: payload.process_type,
-            dieCode: autoSelection.selectedDie?.code || '',
+            dieCode: '',
             materialCode: autoSelection.selectedMaterial?.code || '',
             materialFamily: autoSelection.requestedFamily || '',
-            machineName: autoSelection.selectedMachine?.machineName || '',
+            machineName: '',
             labelsPerRoll: payload.labelsPerRoll,
             mounting: autoSelection.selectedMounting,
             fallbackApplied: autoSelection.fallbackApplied,
-            warnings: autoSelection.warnings
+            warnings: []
         };
         rawData['CODEX_LINE_ORDER'] = lineOrder;
         const automaticPricing = await estimateAutomaticQuotePricing({
             rawData,
             processType: payload.process_type,
             quantity: parseLegacyNumber(payload.quantity) ?? parseLegacyNumber(payload.quantityProducts) ?? 0,
-            selectedMachine: autoSelection.selectedMachine,
+            selectedMachine: null,
             selectedMaterial: autoSelection.selectedMaterial,
-            selectedDie: autoSelection.selectedDie,
+            selectedDie: null,
             selectedMounting: autoSelection.selectedMounting,
             costsConfig,
             exchangeRate: payload.exchange_rate ?? payload.exchangeRate ?? 1
@@ -9913,6 +11544,19 @@ app.post('/api/cotizaciones/:codigo/lineas', async (req, res) => {
         };
         rawData['CODEX_PLANNING_SNAPSHOT'] = automaticPricing.planningSnapshot;
         applyCurrencyFieldsToRawData(rawData, payload.exchange_rate ?? payload.exchangeRate);
+        applyCalculationLineSummary(rawData, {
+            quote_code: codigo,
+            line_code: lineCode,
+            product_code: pickFirstValue(payload.product_code, lineCode),
+            customer_code: quote.customer_code,
+            process_type: payload.process_type,
+            machine_name: machineName,
+            die_code: payload.die_code,
+            material_code: payload.material_code,
+            quantity: parseLegacyNumber(payload.quantity) ?? parseLegacyNumber(payload.quantityProducts),
+            total_cost: automaticPricing.totalAmount,
+            unit_price: automaticPricing.unitPrice
+        });
 
         await pgQuery(
             `INSERT INTO flexo_calculations (
@@ -9975,6 +11619,7 @@ app.patch('/api/cotizaciones/:codigo/lineas/orden', async (req, res) => {
             if (!current) continue;
             const rawData = { ...(current.raw_data || {}) };
             rawData['CODEX_LINE_ORDER'] = lineOrder;
+            applyCalculationLineSummary(rawData, current);
             await pgQuery(
                 `UPDATE flexo_calculations
                     SET raw_data = $2::jsonb
@@ -10006,14 +11651,144 @@ app.patch('/api/cotizaciones/:codigo/lineas/orden', async (req, res) => {
 
         res.json({ ok: true, lineas: orderedResult.rows.map(mapCalculationLine) });
     } catch (error) {
-        res.status(500).json({ error: error.message || 'No fue posible guardar el orden de las lÃ­neas.' });
+        res.status(500).json({ error: error.message || 'No fue posible guardar el orden de las líneas.' });
+    }
+});
+
+app.post('/api/cotizaciones/:codigo/frente-dorso', async (req, res) => {
+    try {
+        const { codigo } = req.params;
+        const groupLineCode = normalizeFrontBackLineCode(req.body?.groupLineCode || req.body?.lineaGrupo || req.body?.primaryLineCode || req.body?.primary_line_code);
+        const elementLineCodes = Array.from(new Set(
+            (Array.isArray(req.body?.elementLineCodes)
+                ? req.body.elementLineCodes
+                : [req.body?.frontLineCode, req.body?.backLineCode, req.body?.partnerLineCode, req.body?.secondaryLineCode, req.body?.partner_line_code]
+            ).map(normalizeFrontBackLineCode).filter(Boolean)
+        ));
+        if (!groupLineCode || elementLineCodes.length !== 2 || elementLineCodes.includes(groupLineCode)) {
+            return res.status(400).json({ error: 'Debes seleccionar una línea grupo y exactamente dos elementos diferentes.' });
+        }
+        const result = await withTransaction(async (client) => {
+            const lines = await getLatestQuoteCalculationRows(codigo, client);
+            const byCode = new Map(lines.map((row) => [normalizeFrontBackLineCode(row.line_code), row]));
+            const groupLine = byCode.get(groupLineCode);
+            const elementLines = elementLineCodes.map((lineCode) => byCode.get(lineCode)).filter(Boolean);
+            if (!groupLine || elementLines.length !== 2) {
+                throw new Error('No se encontraron la línea grupo y sus dos elementos frente/dorso.');
+            }
+            const now = new Date().toISOString();
+            const groupId = buildFrontBackGroupId(codigo, groupLineCode, elementLineCodes);
+            const warnings = buildFrontBackCompatibilityWarnings(elementLines[0], elementLines[1]);
+            const groupQuantity = frontBackLineQuantity(groupLine) || frontBackLineQuantity(elementLines[0]) || frontBackLineQuantity(elementLines[1]) || 0;
+            const elementRoles = {
+                [elementLineCodes[0]]: 'frente',
+                [elementLineCodes[1]]: 'dorso'
+            };
+            const baseGroup = {
+                groupId,
+                mode: 'frente_dorso',
+                label: sanitizeAdminUserText(req.body?.label, 'Grupo Frente/Dorso'),
+                displayMode: 'single',
+                groupLineCode,
+                lineaGrupo: groupLineCode,
+                primaryLineCode: groupLineCode,
+                frontLineCode: elementLineCodes[0],
+                backLineCode: elementLineCodes[1],
+                partnerLineCode: elementLineCodes[1],
+                elementLineCodes,
+                memberLineCodes: elementLineCodes,
+                allLineCodes: [groupLineCode, ...elementLineCodes],
+                elementRoles,
+                warnings,
+                createdAt: now,
+                updatedAt: now
+            };
+            const previousGroupIds = new Set(
+                [groupLine, ...elementLines]
+                    .map((row) => getFrontBackGroupFromLine(row)?.groupId)
+                    .filter(Boolean)
+            );
+            for (const row of lines) {
+                const currentGroup = getFrontBackGroupFromLine(row);
+                if (!currentGroup || !previousGroupIds.has(currentGroup.groupId)) continue;
+                const rawData = { ...(row.raw_data || {}) };
+                delete rawData.grupoFrenteDorso;
+                delete rawData.grupo_frente_dorso;
+                delete rawData['CODEX_FD_GROUP'];
+                applyCalculationLineSummary(rawData, row);
+                await client.query(
+                    `UPDATE flexo_calculations
+                        SET raw_data = $2::jsonb
+                      WHERE calculation_code = $1`,
+                    [row.calculation_code, JSON.stringify(rawData)]
+                );
+            }
+            for (const row of [groupLine, ...elementLines]) {
+                const lineCode = normalizeFrontBackLineCode(row.line_code);
+                const isGroupLine = lineCode === groupLineCode;
+                const rawData = applyFrontBackQuantityToRawData({ ...(row.raw_data || {}) }, groupQuantity);
+                delete rawData['CODEX_FD_GROUP'];
+                delete rawData.grupo_frente_dorso;
+                rawData.grupoFrenteDorso = {
+                    ...baseGroup,
+                    role: isGroupLine ? 'grupo' : 'elemento',
+                    elementRole: isGroupLine ? '' : elementRoles[lineCode]
+                };
+                applyCalculationLineSummary(rawData, { ...row, quantity: groupQuantity });
+                await client.query(
+                    `UPDATE flexo_calculations
+                        SET quantity = $2,
+                            raw_data = $3::jsonb
+                      WHERE calculation_code = $1`,
+                    [row.calculation_code, groupQuantity, JSON.stringify(rawData)]
+                );
+            }
+            return {
+                group: baseGroup,
+                lines: await getLatestQuoteCalculationRows(codigo, client)
+            };
+        });
+        res.json({ ok: true, group: result.group, lineas: result.lines.map(mapCalculationLine) });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible guardar frente/dorso.' });
+    }
+});
+
+app.delete('/api/cotizaciones/:codigo/frente-dorso/:grupo', async (req, res) => {
+    try {
+        const { codigo, grupo } = req.params;
+        const groupId = normalizeFrontBackLineCode(grupo);
+        if (!groupId) return res.status(400).json({ error: 'Grupo frente/dorso inválido.' });
+        const result = await withTransaction(async (client) => {
+            const lines = await getLatestQuoteCalculationRows(codigo, client);
+            for (const row of lines) {
+                const rawData = { ...(row.raw_data || {}) };
+                const group = normalizeFrontBackGroup(rawData);
+                if (!group || group.groupId !== groupId) continue;
+                delete rawData.grupoFrenteDorso;
+                delete rawData.grupo_frente_dorso;
+                delete rawData['CODEX_FD_GROUP'];
+                applyCalculationLineSummary(rawData, row);
+                await client.query(
+                    `UPDATE flexo_calculations
+                        SET raw_data = $2::jsonb
+                      WHERE calculation_code = $1`,
+                    [row.calculation_code, JSON.stringify(rawData)]
+                );
+            }
+            return await getLatestQuoteCalculationRows(codigo, client);
+        });
+        res.json({ ok: true, lineas: result.map(mapCalculationLine) });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible quitar frente/dorso.' });
     }
 });
 
 app.patch('/api/cotizaciones/:codigo/lineas/:linea', async (req, res) => {
     try {
         const { codigo, linea } = req.params;
-        const payload = req.body || {};
+        const incomingPayload = req.body || {};
+        const payload = { ...incomingPayload };
         const existing = await pgQuery(
             `SELECT calculation_code, raw_data
                FROM flexo_calculations
@@ -10026,10 +11801,20 @@ app.patch('/api/cotizaciones/:codigo/lineas/:linea', async (req, res) => {
         if (!existing.rows.length) {
             return res.status(404).json({ error: 'Línea no encontrada.' });
         }
+        const existingGroup = normalizeFrontBackGroup(existing.rows[0].raw_data || {});
+        if (existingGroup && existingGroup.role === 'elemento') {
+            const groupContext = await loadFrontBackGroupContext(codigo, { quote_code: codigo, line_code: linea, raw_data: existing.rows[0].raw_data });
+            const groupQuantity = frontBackLineQuantity(groupContext.groupLine);
+            payload.quantity = groupQuantity;
+            payload.quantityProducts = groupQuantity;
+        }
 
-        const machineName = await resolveSingleInventoryMachineName(payload.machine_name);
+        const hasMachinePayload = Object.prototype.hasOwnProperty.call(payload, 'machine_name');
+        const machineName = hasMachinePayload ? await resolveSingleInventoryMachineName(payload.machine_name) : '';
+        const rawPayload = { ...payload, quote_code: codigo, line_code: pickFirstValue(payload.line_code, linea) };
+        if (hasMachinePayload) rawPayload.machine_name = machineName;
         const rawData = buildCalculationRawData(
-            { ...payload, quote_code: codigo, line_code: pickFirstValue(payload.line_code, linea), machine_name: machineName },
+            rawPayload,
             existing.rows[0].raw_data || {}
         );
         rawData['CODEX_LINE_ORDER'] = normalizeLineOrder(payload.line_order, normalizeLineOrder(existing.rows[0].raw_data?.['CODEX_LINE_ORDER']));
@@ -10083,10 +11868,27 @@ app.patch('/api/cotizaciones/:codigo/lineas/:linea', async (req, res) => {
                 ? payload.finalized_for_order
                 : payload.finalizedForOrder);
         }
-        const finalizeValidation = sanitizeAdminUserText(rawData['ANALISIS CAMPOS FINALIZAR']);
+        const finalizeValidation = stripNonBlockingSapAccountingWarnings(rawData['ANALISIS CAMPOS FINALIZAR']);
         if (Boolean(rawData['CODEX_FINALIZED_FOR_ORDER']) && finalizeValidation) {
             throw new Error(finalizeValidation);
         }
+        const normalizedGroup = normalizeFrontBackGroup(rawData);
+        if (normalizedGroup) {
+            applyFrontBackQuantityToRawData(rawData, parseLegacyNumber(payload.quantity) ?? parseLegacyNumber(payload.quantityProducts) ?? parseLegacyNumber(rawData['Cantidad Productos']) ?? 0);
+        }
+        applyCalculationLineSummary(rawData, {
+            quote_code: codigo,
+            line_code: pickFirstValue(payload.line_code, linea),
+            product_code: pickFirstValue(payload.product_code, payload.line_code, linea),
+            customer_code: rawData['ID CLIENTE'],
+            process_type: payload.process_type,
+            machine_name: machineName,
+            die_code: payload.die_code,
+            material_code: payload.material_code,
+            quantity: parseLegacyNumber(payload.quantity) ?? parseLegacyNumber(payload.quantityProducts),
+            total_cost: parseLegacyNumber(rawData['PRECIO TOTAL AL FINALIZAR']),
+            unit_price: parseLegacyNumber(rawData['GENERAL | 9 | UNITARIO | DOL'])
+        });
 
         await pgQuery(
             `UPDATE flexo_calculations
@@ -10117,6 +11919,14 @@ app.patch('/api/cotizaciones/:codigo/lineas/:linea', async (req, res) => {
             ]
         );
 
+        if (normalizedGroup && normalizedGroup.role === 'grupo') {
+            await syncFrontBackGroupQuantity({
+                quoteCode: codigo,
+                group: normalizedGroup,
+                quantity: parseLegacyNumber(payload.quantity) ?? parseLegacyNumber(payload.quantityProducts) ?? parseLegacyNumber(rawData['Cantidad Productos']) ?? 0
+            });
+        }
+
         const detail = await pgQuery(
             `SELECT calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name, die_code, material_code,
                     quantity, subtotal_cost, total_cost, unit_price, raw_data
@@ -10125,9 +11935,10 @@ app.patch('/api/cotizaciones/:codigo/lineas/:linea', async (req, res) => {
             [existing.rows[0].calculation_code]
         );
         let sapExport = null;
-        if (Boolean(detail.rows[0]?.raw_data?.['CODEX_FINALIZED_FOR_ORDER'])) {
+        const detailGroup = getFrontBackGroupFromLine(detail.rows[0]);
+        if (!Boolean(payload.skipSapExportStage) && Boolean(detail.rows[0]?.raw_data?.['CODEX_FINALIZED_FOR_ORDER']) && (!detailGroup || detailGroup.role === 'grupo')) {
             const quoteResult = await pgQuery(`SELECT * FROM quotes WHERE quote_code = $1 LIMIT 1`, [codigo]);
-            sapExport = await stageSapExportsForQuoteLine({
+            sapExport = await tryStageSapExportsForQuoteLine({
                 quoteRow: quoteResult.rows[0] || null,
                 lineRow: detail.rows[0]
             });
@@ -10425,7 +12236,7 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/adjuntos', async (req, res) =>
         const { codigo, linea } = req.params;
         const payload = req.body || {};
         const fileName = String(payload.fileName || '').trim();
-        const contentBase64 = String(payload.contentBase64 || '').trim();
+        const contentBase64 = normalizeAttachmentBase64(payload.contentBase64);
         if (!fileName || !contentBase64) {
             return res.status(400).json({ error: 'Debes indicar el nombre y contenido del archivo.' });
         }
@@ -10434,23 +12245,35 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/adjuntos', async (req, res) =>
             return res.status(404).json({ error: 'No se encontró la línea para adjuntar archivos.' });
         }
 
-        const insert = await pgQuery(
-            `INSERT INTO quote_line_attachments (
-                quote_code, line_code, file_name, mime_type, file_ext, content_base64, notes, uploaded_by
-             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-             RETURNING id, quote_code, line_code, file_name, mime_type, file_ext, notes, uploaded_by, created_at,
-                       OCTET_LENGTH(DECODE(content_base64, 'base64')) AS size_bytes`,
-            [
-                codigo,
-                linea,
-                fileName,
-                pickFirstValue(payload.mimeType, 'application/octet-stream'),
-                pickFirstValue(payload.fileExt, path.extname(fileName).replace('.', '')),
-                contentBase64,
-                pickFirstValue(payload.notes),
-                pickFirstValue(payload.uploadedBy, 'admin')
-            ]
-        );
+        const attachmentId = crypto.randomUUID();
+        let stored = null;
+        let insert = null;
+        try {
+            stored = writeQuoteLineAttachmentFile({ id: attachmentId, quoteCode: codigo, lineCode: linea, fileName, contentBase64 });
+            insert = await pgQuery(
+                `INSERT INTO quote_line_attachments (
+                    id, quote_code, line_code, file_name, mime_type, file_ext, content_base64, storage_path, size_bytes, content_sha256, notes, uploaded_by
+                 ) VALUES ($1,$2,$3,$4,$5,$6,NULL,$7,$8,$9,$10,$11)
+                 RETURNING id, quote_code, line_code, file_name, mime_type, file_ext, notes, uploaded_by, created_at,
+                           COALESCE(size_bytes, 0) AS size_bytes`,
+                [
+                    attachmentId,
+                    codigo,
+                    linea,
+                    fileName,
+                    pickFirstValue(payload.mimeType, 'application/octet-stream'),
+                    pickFirstValue(payload.fileExt, path.extname(fileName).replace('.', '')),
+                    stored.storagePath,
+                    stored.sizeBytes,
+                    stored.contentSha256,
+                    pickFirstValue(payload.notes),
+                    pickFirstValue(payload.uploadedBy, 'admin')
+                ]
+            );
+        } catch (error) {
+            if (stored?.storagePath) deleteQuoteAttachmentFile(stored.storagePath);
+            throw error;
+        }
 
         res.json({ ok: true, adjunto: insert.rows[0] });
     } catch (error) {
@@ -10461,7 +12284,7 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/adjuntos', async (req, res) =>
 app.get('/api/adjuntos/:id/download', async (req, res) => {
     try {
         const result = await pgQuery(
-            `SELECT file_name, mime_type, content_base64
+            `SELECT file_name, mime_type, content_base64, storage_path
                FROM quote_line_attachments
               WHERE id = $1
               LIMIT 1`,
@@ -10471,9 +12294,16 @@ app.get('/api/adjuntos/:id/download', async (req, res) => {
             return res.status(404).send('Adjunto no encontrado.');
         }
         const attachment = result.rows[0];
-        const buffer = Buffer.from(String(attachment.content_base64 || ''), 'base64');
         res.setHeader('Content-Type', attachment.mime_type || 'application/octet-stream');
         res.setHeader('Content-Disposition', `attachment; filename="${attachment.file_name}"`);
+        const absolutePath = resolveQuoteAttachmentStoragePath(attachment.storage_path);
+        if (absolutePath && fs.existsSync(absolutePath)) {
+            return res.sendFile(absolutePath);
+        }
+        const buffer = Buffer.from(String(attachment.content_base64 || ''), 'base64');
+        if (!buffer.length) {
+            return res.status(404).send('Archivo adjunto no encontrado en disco.');
+        }
         res.send(buffer);
     } catch (error) {
         res.status(500).send(error.message || 'No fue posible descargar el adjunto.');
@@ -10482,7 +12312,8 @@ app.get('/api/adjuntos/:id/download', async (req, res) => {
 
 app.delete('/api/adjuntos/:id', async (req, res) => {
     try {
-        const result = await pgQuery(`DELETE FROM quote_line_attachments WHERE id = $1`, [req.params.id]);
+        const result = await pgQuery(`DELETE FROM quote_line_attachments WHERE id = $1 RETURNING storage_path`, [req.params.id]);
+        deleteQuoteAttachmentFiles(result.rows);
         res.json({ ok: true, deleted: result.rowCount || 0 });
     } catch (error) {
         res.status(500).json({ error: error.message || 'No fue posible eliminar el adjunto.' });
@@ -10493,34 +12324,68 @@ app.put('/api/adjuntos/:id', async (req, res) => {
     try {
         const payload = req.body || {};
         const fileName = String(payload.fileName || '').trim();
-        const contentBase64 = String(payload.contentBase64 || '').trim();
+        const contentBase64 = normalizeAttachmentBase64(payload.contentBase64);
         if (!fileName || !contentBase64) {
             return res.status(400).json({ error: 'Debes indicar el nombre y contenido del archivo.' });
         }
-        const result = await pgQuery(
-            `UPDATE quote_line_attachments
-                SET file_name = $2,
-                    mime_type = $3,
-                    file_ext = $4,
-                    content_base64 = $5,
-                    notes = COALESCE($6, notes),
-                    uploaded_by = COALESCE($7, uploaded_by),
-                    created_at = NOW()
+        const current = await pgQuery(
+            `SELECT id, quote_code, line_code, storage_path
+               FROM quote_line_attachments
               WHERE id = $1
-              RETURNING id, quote_code, line_code, file_name, mime_type, file_ext, notes, uploaded_by, created_at,
-                        OCTET_LENGTH(DECODE(content_base64, 'base64')) AS size_bytes`,
-            [
-                req.params.id,
-                fileName,
-                pickFirstValue(payload.mimeType, 'application/octet-stream'),
-                pickFirstValue(payload.fileExt, path.extname(fileName).replace('.', '')),
-                contentBase64,
-                payload.notes ?? null,
-                payload.uploadedBy ?? 'admin'
-            ]
+              LIMIT 1`,
+            [req.params.id]
         );
-        if (!result.rows.length) {
+        if (!current.rows.length) {
             return res.status(404).json({ error: 'Adjunto no encontrado.' });
+        }
+        const previous = current.rows[0];
+        let stored = null;
+        let result = null;
+        try {
+            stored = writeQuoteLineAttachmentFile({
+                id: `${previous.id}-${Date.now()}`,
+                quoteCode: previous.quote_code,
+                lineCode: previous.line_code,
+                fileName,
+                contentBase64
+            });
+            result = await pgQuery(
+                `UPDATE quote_line_attachments
+                    SET file_name = $2,
+                        mime_type = $3,
+                        file_ext = $4,
+                        content_base64 = NULL,
+                        storage_path = $5,
+                        size_bytes = $6,
+                        content_sha256 = $7,
+                        notes = COALESCE($8, notes),
+                        uploaded_by = COALESCE($9, uploaded_by),
+                        created_at = NOW()
+                  WHERE id = $1
+                  RETURNING id, quote_code, line_code, file_name, mime_type, file_ext, notes, uploaded_by, created_at,
+                            COALESCE(size_bytes, 0) AS size_bytes`,
+                [
+                    req.params.id,
+                    fileName,
+                    pickFirstValue(payload.mimeType, 'application/octet-stream'),
+                    pickFirstValue(payload.fileExt, path.extname(fileName).replace('.', '')),
+                    stored.storagePath,
+                    stored.sizeBytes,
+                    stored.contentSha256,
+                    payload.notes ?? null,
+                    payload.uploadedBy ?? 'admin'
+                ]
+            );
+        } catch (error) {
+            if (stored?.storagePath) deleteQuoteAttachmentFile(stored.storagePath);
+            throw error;
+        }
+        if (!result.rows.length) {
+            if (stored?.storagePath) deleteQuoteAttachmentFile(stored.storagePath);
+            return res.status(404).json({ error: 'Adjunto no encontrado.' });
+        }
+        if (previous.storage_path && previous.storage_path !== stored.storagePath) {
+            deleteQuoteAttachmentFile(previous.storage_path);
         }
         res.json({ ok: true, adjunto: result.rows[0] });
     } catch (error) {
@@ -10531,7 +12396,36 @@ app.put('/api/adjuntos/:id', async (req, res) => {
 app.delete('/api/cotizaciones/:codigo/lineas/:linea', async (req, res) => {
     try {
         const { codigo, linea } = req.params;
-        const result = await pgQuery(`DELETE FROM flexo_calculations WHERE quote_code = $1 AND line_code = $2`, [codigo, linea]);
+        const result = await withTransaction(async (client) => {
+            const current = await client.query(
+                `SELECT calculation_code, quote_code, line_code, raw_data
+                   FROM flexo_calculations
+                  WHERE quote_code = $1 AND line_code = $2
+                  ORDER BY created_at DESC NULLS LAST
+                  LIMIT 1`,
+                [codigo, linea]
+            );
+            const group = current.rows.length ? getFrontBackGroupFromLine(current.rows[0]) : null;
+            const deleted = await client.query(`DELETE FROM flexo_calculations WHERE quote_code = $1 AND line_code = $2`, [codigo, linea]);
+            if (group) {
+                const rows = await getLatestQuoteCalculationRows(codigo, client);
+                for (const row of rows) {
+                    const currentGroup = getFrontBackGroupFromLine(row);
+                    if (!currentGroup || currentGroup.groupId !== group.groupId) continue;
+                    const rawData = { ...(row.raw_data || {}) };
+                    delete rawData.grupoFrenteDorso;
+                    delete rawData.grupo_frente_dorso;
+                    delete rawData['CODEX_FD_GROUP'];
+                    await client.query(
+                        `UPDATE flexo_calculations
+                            SET raw_data = $2::jsonb
+                          WHERE calculation_code = $1`,
+                        [row.calculation_code, JSON.stringify(rawData)]
+                    );
+                }
+            }
+            return deleted;
+        });
         res.json({ ok: true, deleted: result.rowCount || 0 });
     } catch (error) {
         res.status(500).json({ error: error.message || 'No fue posible eliminar la línea.' });
@@ -10603,10 +12497,10 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/orden-produccion', async (req,
             if (!context.line) {
                 throw new Error('No se encontró la línea origen.');
             }
-            const createOrderValidation = sanitizeAdminUserText(
+            const createOrderValidation = stripNonBlockingSapAccountingWarnings(sanitizeAdminUserText(
                 context.line.raw_data?.['ANALISIS CAMPOS CREAR ORDEN'],
                 context.line.raw_data?.['ANALISIS CAMPOS FINALIZAR']
-            );
+            ));
             if (createOrderValidation) {
                 throw new Error(createOrderValidation);
             }
@@ -10614,13 +12508,32 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/orden-produccion', async (req,
                 throw new Error('La línea debe estar finalizada antes de crear una orden de producción.');
             }
 
+            const groupContext = await loadFrontBackGroupContext(codigo, context.line, client);
+            const groupMembers = groupContext.members;
+            const frontBackGroup = groupContext.group;
+            if (frontBackGroup) {
+                const existingOrder = await client.query(
+                    `SELECT * FROM flexo_orders
+                      WHERE quote_code = $1
+                        AND COALESCE(raw_data->'grupo_frente_dorso'->>'groupId', raw_data->'front_back_group'->>'groupId') = $2
+                      ORDER BY created_at DESC NULLS LAST
+                      LIMIT 1`,
+                    [codigo, frontBackGroup.groupId]
+                );
+                if (existingOrder.rows.length) {
+                    return existingOrder.rows[0];
+                }
+            }
+            const orderLine = frontBackGroup ? (groupContext.groupLine || context.line) : context.line;
             const orderCode = await generateNextOrderCode(client);
-            const attachments = extractLineAttachments(context.line);
+            const attachments = groupMembers.flatMap((row) => extractLineAttachments(row));
             let rawData = buildProductionOrderRawData({
                 orderCode,
                 quoteRow: context.quote,
-                lineRow: context.line,
-                attachments
+                lineRow: orderLine,
+                attachments,
+                groupMembers,
+                actor: getRequestUserName(req, context.quote?.salesperson_name)
             });
             rawData = await enrichOrderRawDataWithPlanningSnapshot(rawData, client);
 
@@ -10631,12 +12544,12 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/orden-produccion', async (req,
                 [
                     orderCode,
                     codigo,
-                    linea,
-                    context.line.product_code,
-                    context.line.machine_name,
-                    context.line.material_code,
-                    context.line.die_code,
-                    parseLegacyNumber(context.line.quantity),
+                    orderLine.line_code,
+                    orderLine.product_code,
+                    orderLine.machine_name,
+                    orderLine.material_code,
+                    orderLine.die_code,
+                    rawData.totals?.quantity ?? parseLegacyNumber(orderLine.quantity),
                     JSON.stringify(rawData)
                 ]
             );
@@ -10694,6 +12607,24 @@ app.patch('/api/ordenes-produccion/:codigo/details', async (req, res) => {
             lineRaw['ENTREGA | TIPO'] = pickFirstValue(payload.delivery.mode);
             lineRaw['ENTREGA | CONTACTO'] = pickFirstValue(payload.delivery.contact);
             lineRaw['ENTREGA | DETALLE'] = pickFirstValue(payload.delivery.detail);
+        }
+
+        if (payload.planningControl && typeof payload.planningControl === 'object') {
+            const controlUpdates = {};
+            if (Object.prototype.hasOwnProperty.call(payload.planningControl, 'scheduledDeliveryDate')) {
+                controlUpdates.scheduledDeliveryDate = payload.planningControl.scheduledDeliveryDate || null;
+            }
+            if (Object.prototype.hasOwnProperty.call(payload.planningControl, 'promisedDeliveryDate')) {
+                controlUpdates.promisedDeliveryDate = payload.planningControl.promisedDeliveryDate || null;
+            }
+            if (Object.keys(controlUpdates).length) {
+                rawData.planning_control = {
+                    ...getOrderPlanningControl(rawData),
+                    ...controlUpdates,
+                    scheduleUpdatedAt: new Date().toISOString(),
+                    scheduleUpdatedBy: getRequestUserName(req)
+                };
+            }
         }
 
         if (payload.art && typeof payload.art === 'object') {
@@ -10812,7 +12743,7 @@ app.patch('/api/ordenes-produccion/:codigo/planning-control', async (req, res) =
         const orderRow = orderResult.rows[0];
         const rawData = orderRow.raw_data || {};
         const control = getOrderPlanningControl(rawData);
-        const actor = getConfiguredCurrentUser();
+        const actor = getRequestUserName(req);
         const nowIso = new Date().toISOString();
         let nextRawData = rawData;
 
@@ -10852,6 +12783,16 @@ app.patch('/api/ordenes-produccion/:codigo/planning-control', async (req, res) =
                 returnedBy: actor,
                 returnReason: String(req.body?.reason || '').trim()
             });
+        } else if (action === 'update-processes') {
+            const selectedProcessKeys = normalizePlanningProcessKeys(req.body?.selectedProcessKeys || []);
+            if (!selectedProcessKeys.length) {
+                return res.status(400).json({ ok: false, error: 'Debes dejar al menos un proceso de planificación seleccionado.' });
+            }
+            nextRawData = withUpdatedOrderPlanningControl(rawData, {
+                selectedProcessKeys,
+                processSelectionUpdatedAt: nowIso,
+                processSelectionUpdatedBy: actor
+            });
         } else {
             return res.status(400).json({ ok: false, error: 'Acción de planificación no reconocida.' });
         }
@@ -10863,7 +12804,7 @@ app.patch('/api/ordenes-produccion/:codigo/planning-control', async (req, res) =
             [req.params.codigo, JSON.stringify(nextRawData)]
         );
 
-        if (action === 'launch-gantt') {
+        if (action === 'launch-gantt' || (action === 'update-processes' && control.planningStatus === 'EN_GANTT')) {
             const refreshedOrder = { ...orderRow, raw_data: nextRawData };
             await ensurePlanningRoutesForOrder(refreshedOrder, null, { replaceExisting: true });
         }
@@ -10881,12 +12822,41 @@ app.patch('/api/ordenes-produccion/:codigo/planning-control', async (req, res) =
 
 app.get('/api/planificacion/lanzamiento', async (req, res) => {
     try {
-        const result = await pgQuery(`
-            SELECT order_code, quote_code, line_code, product_code, machine_name, material_code, die_code,
-                   ordered_quantity, delivered_on, raw_data, created_at
-              FROM flexo_orders
-             ORDER BY created_at DESC
-        `);
+        const [result, processResult] = await Promise.all([
+            pgQuery(`
+                SELECT order_code, quote_code, line_code, product_code, machine_name, material_code, die_code,
+                       ordered_quantity, delivered_on, raw_data, created_at
+                  FROM flexo_orders
+                 ORDER BY created_at DESC
+            `),
+            pgQuery(`
+                SELECT process_key, process_name, sequence_order, color_hex, icon_key, is_active
+                  FROM production_process_definitions
+                 WHERE is_active = TRUE
+                 ORDER BY sequence_order, process_name
+            `)
+        ]);
+
+        const configuredProcesses = processResult.rows
+            .map((row) => ({
+                key: canonicalPlanningProcessKey(row.process_key || row.process_name),
+                label: PLANNING_PROCESS_LABELS[canonicalPlanningProcessKey(row.process_key || row.process_name)] || row.process_name,
+                colorHex: row.color_hex || '#378ADD',
+                iconKey: row.icon_key || '',
+                order: Number(row.sequence_order || 999)
+            }))
+            .filter((row, index, rows) => row.key
+                && PLANNING_CLASSIFICATION_PROCESS_KEYS.includes(row.key)
+                && rows.findIndex((item) => item.key === row.key) === index);
+        const planningProcesses = configuredProcesses.length
+            ? configuredProcesses
+            : PLANNING_CLASSIFICATION_PROCESS_KEYS.map((key, index) => ({
+                key,
+                label: PLANNING_PROCESS_LABELS[key] || key,
+                colorHex: '#378ADD',
+                iconKey: '',
+                order: index + 1
+            }));
 
         const items = result.rows
             .filter((row) => !isCompletedOrderRecord(row))
@@ -10896,9 +12866,36 @@ app.get('/api/planificacion/lanzamiento', async (req, res) => {
                 const snapshot = inferPlanningOrderSnapshot(row);
                 const lineSnapshot = raw.line_snapshot || {};
                 const lineRaw = lineSnapshot.raw_data || {};
+                const quotedProcessKeys = getQuotedPlanningProcessKeys(row);
                 const processKeys = inferRouteProcessKeys(row);
+                const selectedSet = new Set(processKeys);
+                const quotedSet = new Set(quotedProcessKeys);
                 const tintCount = Number(lineSnapshot.tintCount || lineSnapshot.pantoneCount || lineRaw['CANTIDAD TINTAS'] || 0);
-                const plannedFeet = Number(lineSnapshot.materialFeet || lineRaw['GENERAL | SUSTRATO | CONSUMO PIES'] || 0);
+                const processResultRaw = lineRaw['CODEX_PROCESS_RESULT'] || {};
+                const plannedFeet = Number(
+                    processResultRaw?.sustrato?.totalLengthFeet
+                    || processResultRaw?.sustrato?.linealFeet
+                    || lineSnapshot.materialFeet
+                    || lineRaw['GENERAL | SUSTRATO | CONSUMO PIES']
+                    || 0
+                );
+                const widthInches = Number(lineSnapshot.widthInches || lineRaw['DIMENSIONES ETIQUETA | ANCHO'] || 0);
+                const lengthInches = Number(lineSnapshot.lengthInches || lineRaw['DIMENSIONES ETIQUETA | LARGO'] || 0);
+                const finishLabels = [];
+                (Array.isArray(processResultRaw?.print?.items) ? processResultRaw.print.items : []).forEach((printItem) => {
+                    (Array.isArray(printItem?.inlineItems) ? printItem.inlineItems : []).forEach((inline) => {
+                        if (!processObjectLooksActive(inline)) return;
+                        const key = canonicalPlanningProcessKey(inline.processKey || inline.key || inline.label);
+                        const label = PLANNING_PROCESS_LABELS[key] || inline.label || key;
+                        if (label && !finishLabels.includes(label)) finishLabels.push(label);
+                    });
+                });
+                (Array.isArray(processResultRaw?.finishes?.items) ? processResultRaw.finishes.items : []).forEach((finish) => {
+                    if (!processObjectLooksActive(finish)) return;
+                    const key = canonicalPlanningProcessKey(finish.processKey || finish.key || finish.label);
+                    const label = PLANNING_PROCESS_LABELS[key] || finish.label || finish.description || key;
+                    if (label && !finishLabels.includes(label)) finishLabels.push(label);
+                });
                 const missing = [];
                 if (!snapshot.machineName && processKeys.some((key) => !['preprensa', 'planchas', 'diseno'].includes(key))) missing.push('Máquina');
                 if (!snapshot.materialName && processKeys.some((key) => ['impresion', 'barnizado', 'laminado', 'rebobinado', 'empaque'].includes(key))) missing.push('Sustrato');
@@ -10912,8 +12909,11 @@ app.get('/api/planificacion/lanzamiento', async (req, res) => {
                     customerName: snapshot.customerName || '',
                     salespersonName: raw.salesperson_name || lineSnapshot.salespersonName || '',
                     jobName: snapshot.jobName || snapshot.productName || row.product_code || '',
+                    productName: snapshot.productName || row.product_code || '',
+                    dimensionsText: widthInches && lengthInches ? `${widthInches} x ${lengthInches} in` : '',
                     machineName: snapshot.machineName || '',
                     materialName: snapshot.materialName || '',
+                    materialQuantity: plannedFeet,
                     dieCode: snapshot.dieCode || '',
                     orderedQuantity: Number(row.ordered_quantity || 0),
                     plannedFeet,
@@ -10923,10 +12923,19 @@ app.get('/api/planificacion/lanzamiento', async (req, res) => {
                     salesReleasedBy: planning.salesReleasedBy,
                     planningStatus: planning.planningStatus,
                     processList: processKeys,
+                    quotedProcessList: quotedProcessKeys,
+                    processChecklist: planningProcesses.map((process) => ({
+                        ...process,
+                        selected: selectedSet.has(process.key),
+                        quoted: quotedSet.has(process.key),
+                        base: PLANNING_BASE_PROCESS_KEYS.includes(process.key)
+                    })),
+                    finishSummary: finishLabels.join(' · '),
                     sellerComments: pickFirstValue(lineRaw['COMENTARIOS VENDEDOR'], lineRaw['OBSERVACIONES VENTAS']),
                     printSummary: pickFirstValue(lineSnapshot.notes?.printSummary, lineRaw['INFORMACION IMPRESION COTIZACION | MOSTRAR'], lineRaw['INFORMACION IMPRESION COTIZACION | CALCULO']),
                     createOrderValidation: pickFirstValue(lineSnapshot.validations?.crearOrden, lineRaw['ANALISIS CAMPOS CREAR ORDEN']),
                     observations: pickFirstValue(lineSnapshot.notes?.observations, lineRaw['OBSERVACIONES SOLICITUD']),
+                    attachmentCount: Array.isArray(raw.attachments) ? raw.attachments.length : 0,
                     returnReason: planning.returnReason || '',
                     missingItems: missing
                 };
@@ -11534,16 +13543,186 @@ app.get('/api/mes/motivos-paro', async (req, res) => {
     }
 });
 
+app.get('/api/produccion/flujo', async (req, res) => {
+    try {
+        await ensurePlanningRoutesForLiveOrders();
+        const result = await pgQuery(`
+            SELECT
+                r.id::text AS route_id,
+                r.order_code,
+                r.quote_code,
+                r.line_code,
+                r.process_key,
+                r.process_name,
+                r.route_status,
+                r.sequence_order,
+                r.planned_start_at,
+                r.duration_hours,
+                r.actual_start_at,
+                r.actual_end_at,
+                dep.route_status AS dependency_status,
+                mp.id::text AS machine_profile_id,
+                COALESCE(mp.machine_name, o.machine_name, '') AS machine_name,
+                o.product_code,
+                o.material_code,
+                o.die_code,
+                o.ordered_quantity,
+                o.raw_data,
+                o.created_at AS order_created_at
+            FROM production_order_routes r
+            JOIN flexo_orders o ON o.order_code = r.order_code
+            LEFT JOIN production_order_routes dep ON dep.id = r.dependency_route_id
+            LEFT JOIN production_machine_profiles mp ON mp.id = r.machine_profile_id
+            WHERE r.route_status <> 'COMPLETADO'
+              AND (r.dependency_route_id IS NULL OR dep.route_status = 'COMPLETADO')
+              AND NOT (
+                o.delivered_on IS NOT NULL
+                OR lower(COALESCE(o.raw_data->>'status','')) IN ('entregada','completada','cerrada','cancelada')
+              )
+            ORDER BY r.sequence_order, r.updated_at, r.order_code
+        `);
+
+        const processOrder = new Map(PRODUCTION_FLOW_SEQUENCE.map((key, index) => [key, index + 1]));
+        const routes = [];
+        const machinesByProcess = {};
+        result.rows.forEach((row) => {
+            const processKey = canonicalProductionFlowKey(row.process_key || row.process_name);
+            if (!PRODUCTION_FLOW_SEQUENCE.includes(processKey)) return;
+            const raw = row.raw_data || {};
+            const lineSummary = raw.line_summary || {};
+            const lineSnapshot = raw.line_snapshot || {};
+            const route = {
+                routeId: row.route_id,
+                orderCode: row.order_code,
+                quoteCode: row.quote_code || '',
+                lineCode: row.line_code || '',
+                processKey,
+                processName: PRODUCTION_FLOW_LABELS[processKey] || row.process_name || processKey,
+                routeStatus: row.route_status || 'PENDIENTE',
+                sequenceOrder: Number(row.sequence_order || processOrder.get(processKey) || 999),
+                plannedStartAt: row.planned_start_at || null,
+                durationHours: Number(row.duration_hours || 0),
+                machineName: row.machine_name || '',
+                customerName: raw.customer_name || raw.quote_snapshot?.customer_name || '',
+                productName: lineSummary.job_name || lineSummary.product_name || lineSnapshot.jobName || row.product_code || row.order_code,
+                materialCode: row.material_code || lineSnapshot.materialCode || '',
+                dieCode: row.die_code || lineSnapshot.dieCode || '',
+                quantity: Number(row.ordered_quantity || raw.totals?.quantity || lineSnapshot.quantityProducts || 0),
+                plannedFeet: Number(lineSnapshot.materialFeet || raw.totals?.total_feet || 0),
+                createdAt: row.order_created_at
+            };
+            routes.push(route);
+            if (route.machineName) {
+                if (!machinesByProcess[processKey]) machinesByProcess[processKey] = new Set();
+                machinesByProcess[processKey].add(route.machineName);
+            }
+        });
+
+        const counts = {};
+        routes.forEach((route) => {
+            counts[route.processKey] = (counts[route.processKey] || 0) + 1;
+        });
+
+        res.json({
+            ok: true,
+            user: getRequestUserName(req),
+            processes: PRODUCTION_FLOW_SEQUENCE.map((key, index) => ({
+                key,
+                label: PRODUCTION_FLOW_LABELS[key],
+                order: index + 1,
+                activeCount: counts[key] || 0,
+                machines: Array.from(machinesByProcess[key] || [])
+            })),
+            routes
+        });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible cargar el flujo de producción.' });
+    }
+});
+
+app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
+    try {
+        await ensurePlanningRoutesForLiveOrders();
+        const orderResult = await pgQuery(`SELECT * FROM flexo_orders WHERE order_code = $1 LIMIT 1`, [req.params.codigo]);
+        if (!orderResult.rows.length) {
+            return res.status(404).json({ ok: false, error: 'Orden de producción no encontrada.' });
+        }
+        const routeResult = await pgQuery(`
+            SELECT
+                r.id::text AS route_id,
+                r.process_key,
+                r.process_name,
+                r.route_status,
+                r.sequence_order,
+                r.actual_start_at,
+                r.actual_end_at,
+                e.operator_name,
+                e.event_type,
+                e.notes,
+                e.created_at AS event_created_at
+            FROM production_order_routes r
+            LEFT JOIN LATERAL (
+                SELECT *
+                FROM production_route_events ev
+                WHERE ev.route_id = r.id
+                ORDER BY ev.created_at DESC
+                LIMIT 1
+            ) e ON TRUE
+            WHERE r.order_code = $1
+            ORDER BY r.sequence_order, r.created_at
+        `, [req.params.codigo]);
+        const grouped = new Map();
+        routeResult.rows.forEach((row) => {
+            const key = canonicalProductionFlowKey(row.process_key || row.process_name);
+            if (!PRODUCTION_FLOW_SEQUENCE.includes(key)) return;
+            const current = grouped.get(key) || {
+                processKey: key,
+                processName: PRODUCTION_FLOW_LABELS[key],
+                routeStatus: 'PENDIENTE',
+                completedBy: '',
+                completedAt: null,
+                startedAt: null,
+                notes: ''
+            };
+            if (row.route_status === 'COMPLETADO' || current.routeStatus !== 'COMPLETADO') {
+                current.routeStatus = row.route_status || current.routeStatus;
+                current.completedBy = row.route_status === 'COMPLETADO' ? (row.operator_name || current.completedBy) : current.completedBy;
+                current.completedAt = row.actual_end_at || (row.event_type === 'completado' ? row.event_created_at : current.completedAt);
+                current.startedAt = row.actual_start_at || current.startedAt;
+                current.notes = row.notes || current.notes;
+            }
+            grouped.set(key, current);
+        });
+        const steps = PRODUCTION_FLOW_SEQUENCE.map((key, index) => {
+            const item = grouped.get(key) || {};
+            return {
+                processKey: key,
+                processName: PRODUCTION_FLOW_LABELS[key],
+                sequenceOrder: index + 1,
+                routeStatus: item.routeStatus || 'PENDIENTE',
+                completedBy: item.completedBy || '',
+                completedAt: item.completedAt || null,
+                startedAt: item.startedAt || null,
+                notes: item.notes || ''
+            };
+        });
+        res.json({ ok: true, order: orderResult.rows[0], steps });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible cargar el seguimiento de la orden.' });
+    }
+});
+
 app.get('/api/mes/contexto', async (req, res) => {
     try {
         await ensurePlanningRoutesForLiveOrders();
         const area = String(req.query.area || 'operario').trim().toLowerCase();
         const routeId = String(req.query.routeId || '').trim();
         const orderCode = String(req.query.orderCode || '').trim();
-        const plateKeys = ['planchas', 'preprensa', 'diseno'];
+        const processFilter = canonicalProductionFlowKey(req.query.process || '');
+        const plateKeys = ['planchas', 'preprensa', 'diseno', 'visto_bueno'];
         const targetPlateArea = area === 'planchas';
-        const productionPriority = ['impresion', 'barnizado', 'laminado', 'estampado', 'embosado', 'troquelado', 'rebobinado', 'empaque'];
-        const platePriority = ['preprensa', 'planchas', 'diseno'];
+        const productionPriority = ['tintas', 'impresion', 'acabados', 'rebobinado', 'empaque'];
+        const platePriority = ['diseno', 'preprensa', 'visto_bueno', 'planchas'];
         const filters = [];
         const values = [];
 
@@ -11562,6 +13741,15 @@ app.get('/api/mes/contexto', async (req, res) => {
             values.push(plateKeys);
             filters.push(`NOT (r.process_key = ANY($${values.length}::text[]))`);
         }
+        if (processFilter) {
+            const aliases = processFilter === 'acabados'
+                ? ['acabados', 'barnizado', 'laminado', 'estampado', 'embosado', 'troquelado', 'numeracion']
+                : [processFilter];
+            values.push(aliases);
+            filters.push(`r.process_key = ANY($${values.length}::text[])`);
+        }
+        filters.push(`r.route_status <> 'COMPLETADO'`);
+        filters.push(`(r.dependency_route_id IS NULL OR dep.route_status = 'COMPLETADO')`);
 
         const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
         const priorityList = targetPlateArea ? platePriority : productionPriority;
@@ -11598,6 +13786,7 @@ app.get('/api/mes/contexto', async (req, res) => {
                 o.created_at AS order_created_at
             FROM production_order_routes r
             JOIN flexo_orders o ON o.order_code = r.order_code
+            LEFT JOIN production_order_routes dep ON dep.id = r.dependency_route_id
             LEFT JOIN production_machine_profiles mp ON mp.id = r.machine_profile_id
             ${whereClause}
             ORDER BY
@@ -11921,11 +14110,13 @@ app.post('/api/mes/evento', async (req, res) => {
             return res.status(400).json({ ok: false, error: 'Debes indicar routeId y eventType.' });
         }
 
+        const activeOperator = pickFirstValue(sanitizeAdminUserText(operatorName), getRequestUserName(req));
+
         await pgQuery(`
             INSERT INTO production_route_events (
                 route_id, operator_name, event_type, stop_reason_id, notes
             ) VALUES ($1,$2,$3,$4,$5)
-        `, [routeId, operatorName || null, eventType, stopReasonId || null, notes || null]);
+        `, [routeId, activeOperator || null, eventType, stopReasonId || null, notes || null]);
 
         const statusMap = {
             setup: 'SETUP',
@@ -11958,7 +14149,7 @@ app.post('/api/mes/evento', async (req, res) => {
             }
         }
 
-        res.json({ ok: true });
+        res.json({ ok: true, event: { routeId, eventType, operatorName: activeOperator, createdAt: new Date().toISOString() } });
     } catch (error) {
         res.status(500).json({ ok: false, error: error.message || 'No fue posible guardar el evento MES.' });
     }
@@ -12104,10 +14295,13 @@ app.post('/api/flexo/sap-export/:quoteCode/:lineCode', async (req, res) => {
             quoteRow: context.quote,
             lineRow: context.line
         });
+        const groupContext = await loadFrontBackGroupContext(quoteCode, context.line);
         const payloads = buildSapExportPayloadsFromQuoteLine({
             quoteRow: context.quote,
-            lineRow: context.line,
-            accountingContext
+            lineRow: groupContext.groupLine || context.line,
+            accountingContext,
+            groupMembers: groupContext.members,
+            groupLine: groupContext.groupLine
         });
         const staged = await stageSapExportsForQuoteLine({
             quoteRow: context.quote,
@@ -12207,7 +14401,7 @@ app.post('/api/flexo/notificaciones', async (req, res) => {
                     pickFirstValue(payload.jobName, payload.job_name),
                     issueText,
                     pickFirstValue(payload.targetUser, payload.target_user),
-                    pickFirstValue(payload.actor, actor?.user?.name, actor?.identity, getConfiguredCurrentUser()),
+                    pickFirstValue(actor?.user?.username, actor?.user?.name, actor?.identity, payload.actor, getConfiguredCurrentUser()),
                     JSON.stringify(payload.snapshot || {})
                 ]
             );
@@ -12220,14 +14414,19 @@ app.post('/api/flexo/notificaciones', async (req, res) => {
             });
             const sender = actor?.user || {
                 id: null,
-                name: sanitizeAdminUserText(payload.actor, actor?.identity, getConfiguredCurrentUser()),
+                name: sanitizeAdminUserText(actor?.identity, payload.actor, getConfiguredCurrentUser()),
                 email: '',
                 phone: '',
                 phoneSecondary: ''
             };
-            const recipient = thread.seller_user_id && sender.id === thread.seller_user_id
-                ? await findAdminUserByIdentity(thread.created_by_name || thread.target_user_name, client)
-                : await findAdminUserByIdentity(thread.seller_name || payload.targetUser || payload.sellerName, client);
+            const explicitTarget = pickFirstValue(payload.targetUser, payload.target_user);
+            let recipient = explicitTarget ? await findAdminUserByIdentity(explicitTarget, client) : null;
+            if (!recipient && thread.seller_user_id && sender.id === thread.seller_user_id) {
+                recipient = await findAdminUserByIdentity(thread.created_by_name || thread.target_user_name, client);
+            }
+            if (!recipient) {
+                recipient = await findAdminUserByIdentity(thread.seller_name || payload.sellerName, client);
+            }
             const message = await createNotificationCenterMessage({
                 thread,
                 payload: {
@@ -12236,7 +14435,8 @@ app.post('/api/flexo/notificaciones', async (req, res) => {
                     metadata: {
                         source: 'flexo-notificacion',
                         quoteCode,
-                        lineCode
+                        lineCode,
+                        eventType: String(payload.eventType || '').trim()
                     }
                 },
                 sender,
@@ -12328,11 +14528,20 @@ app.get('/api/notification-center/threads', async (req, res) => {
         const limit = Math.min(Math.max(Number(req.query.limit || 24) || 24, 1), 80);
         const result = await pgQuery(
             `SELECT t.*,
+                    COALESCE(NULLIF(seller.full_name, ''), NULLIF(t.seller_name, '')) AS seller_display_name,
+                    COALESCE(NULLIF(created_by.full_name, ''), NULLIF(t.created_by_name, '')) AS created_by_display_name,
+                    COALESCE(NULLIF(target_user.full_name, ''), NULLIF(t.target_user_name, '')) AS target_display_name,
                     COALESCE(last_message.body_text, '') AS last_message_preview,
                     COALESCE(stats.message_count, 0) AS message_count,
                     COALESCE(stats.attachment_count, 0) AS attachment_count,
                     COALESCE(stats.unread_count, 0) AS unread_count
                FROM notification_center_threads t
+          LEFT JOIN admin_users seller
+                 ON seller.id = t.seller_user_id
+          LEFT JOIN admin_users created_by
+                 ON created_by.id = t.created_by_user_id
+          LEFT JOIN admin_users target_user
+                 ON target_user.id = t.target_user_id
           LEFT JOIN LATERAL (
                     SELECT m.body_text
                       FROM notification_center_messages m
@@ -12375,6 +14584,87 @@ app.get('/api/notification-center/threads', async (req, res) => {
     }
 });
 
+app.get('/api/notification-center/unread-count', async (req, res) => {
+    try {
+        const actor = await resolveNotificationRequestActor(req);
+        if (!actor?.user?.id) {
+            return res.json({ unreadCount: 0 });
+        }
+        const result = await pgQuery(
+            `SELECT COUNT(*)::int AS unread_count
+               FROM notification_center_messages m
+               JOIN notification_center_threads t
+                 ON t.id = m.thread_id
+              WHERE m.read_at IS NULL
+                AND m.recipient_user_id = $1
+                AND (
+                    $2::boolean = TRUE
+                    OR t.seller_user_id = $1
+                    OR t.created_by_user_id = $1
+                    OR t.target_user_id = $1
+                    OR EXISTS (
+                        SELECT 1
+                          FROM notification_center_participants p
+                         WHERE p.thread_id = t.id
+                           AND p.user_id = $1
+                    )
+                )`,
+            [actor.user.id, actor.canManageAll === true]
+        );
+        res.json({ unreadCount: Number(result.rows[0]?.unread_count || 0) });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible cargar el contador de notificaciones.' });
+    }
+});
+
+app.post('/api/notification-center/direct-thread', async (req, res) => {
+    try {
+        const actor = await resolveNotificationRequestActor(req);
+        if (!actor?.user?.id) return res.status(401).json({ error: 'Sesión no válida para iniciar conversación.' });
+        const targetName = sanitizeAdminUserText(req.body?.targetName, req.body?.targetUser, req.body?.name);
+        const target = targetName ? await findAdminUserByIdentity(targetName) : null;
+        if (!target?.id) return res.status(400).json({ error: 'No fue posible localizar el usuario destino.' });
+        const leftId = Math.min(Number(actor.user.id), Number(target.id));
+        const rightId = Math.max(Number(actor.user.id), Number(target.id));
+        const threadCode = `NT-DIRECT-${leftId}-${rightId}`;
+        const result = await pgQuery(
+            `INSERT INTO notification_center_threads (
+                thread_code, conversation_type, source_module, document_type, document_code,
+                seller_user_id, seller_name, seller_email, seller_whatsapp, seller_sms,
+                created_by_user_id, created_by_name, target_user_id, target_user_name, snapshot
+             ) VALUES ($1,'directa','notificaciones','general',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb)
+             ON CONFLICT (thread_code) DO UPDATE
+                SET updated_at = NOW()
+             RETURNING *`,
+            [
+                threadCode,
+                `DIRECT-${leftId}-${rightId}`,
+                target.id,
+                target.name,
+                target.email,
+                target.phone,
+                target.phoneSecondary || target.phone,
+                actor.user.id,
+                actor.user.name || actor.identity,
+                target.id,
+                target.name,
+                JSON.stringify({ conversationType: 'directa' })
+            ]
+        );
+        const thread = result.rows[0];
+        await upsertNotificationCenterParticipant(null, thread.id, { userId: actor.user.id, displayName: actor.user.name || actor.identity, roleKey: 'creador' });
+        await upsertNotificationCenterParticipant(null, thread.id, { userId: target.id, displayName: target.name, roleKey: 'destino' });
+        res.json(normalizeNotificationCenterThreadRow({
+            ...thread,
+            seller_display_name: target.name,
+            created_by_display_name: actor.user.name || actor.identity,
+            target_display_name: target.name
+        }));
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible iniciar la conversación.' });
+    }
+});
+
 app.get('/api/notification-center/threads/:threadCode', async (req, res) => {
     try {
         const actor = await resolveNotificationRequestActor(req);
@@ -12409,8 +14699,21 @@ app.get('/api/notification-center/threads/:threadCode', async (req, res) => {
                 [thread.id, actor.user?.id ?? null]
             )
         ]);
+        const displayResult = await pgQuery(
+            `SELECT COALESCE(NULLIF(seller.full_name, ''), NULLIF($2, '')) AS seller_display_name,
+                    COALESCE(NULLIF(created_by.full_name, ''), NULLIF($3, '')) AS created_by_display_name,
+                    COALESCE(NULLIF(target_user.full_name, ''), NULLIF($4, '')) AS target_display_name
+               FROM notification_center_threads t
+          LEFT JOIN admin_users seller ON seller.id = t.seller_user_id
+          LEFT JOIN admin_users created_by ON created_by.id = t.created_by_user_id
+          LEFT JOIN admin_users target_user ON target_user.id = t.target_user_id
+              WHERE t.id = $1
+              LIMIT 1`,
+            [thread.id, thread.seller_name || '', thread.created_by_name || '', thread.target_user_name || '']
+        );
         const normalizedThread = normalizeNotificationCenterThreadRow({
             ...thread,
+            ...(displayResult.rows[0] || {}),
             message_count: statsResult.rows[0]?.message_count || 0,
             attachment_count: statsResult.rows[0]?.attachment_count || 0,
             unread_count: statsResult.rows[0]?.unread_count || 0
@@ -12422,6 +14725,82 @@ app.get('/api/notification-center/threads/:threadCode', async (req, res) => {
     } catch (error) {
         const status = /identificar al usuario/i.test(error.message || '') ? 401 : /localizar la conversación/i.test(error.message || '') ? 404 : 500;
         res.status(status).json({ error: error.message || 'No fue posible cargar el detalle de la conversación.' });
+    }
+});
+
+app.patch('/api/notification-center/threads/:threadCode/read', async (req, res) => {
+    try {
+        const actor = await resolveNotificationRequestActor(req);
+        const threadCode = String(req.params.threadCode || '').trim();
+        if (!threadCode) {
+            return res.status(400).json({ error: 'Debes indicar el código del hilo.' });
+        }
+        const thread = await getAccessibleNotificationThreadByCode(threadCode, actor);
+        if (!thread) {
+            return res.status(404).json({ error: 'No fue posible localizar la conversación.' });
+        }
+        if (!actor.user?.id) {
+            return res.status(401).json({ error: 'Sesión no válida para marcar la conversación.' });
+        }
+        const result = await pgQuery(
+            `UPDATE notification_center_messages
+                SET delivered_at = COALESCE(delivered_at, NOW()),
+                    received_at = COALESCE(received_at, NOW()),
+                    read_at = COALESCE(read_at, NOW()),
+                    external_status = CASE WHEN channel_key = 'interno' THEN 'leido' ELSE external_status END
+              WHERE thread_id = $1
+                AND recipient_user_id = $2
+                AND read_at IS NULL`,
+            [thread.id, actor.user.id]
+        );
+        res.json({ ok: true, marked: Number(result.rowCount || 0) });
+    } catch (error) {
+        const status = /identificar al usuario|sesión no válida/i.test(error.message || '') ? 401 : /localizar la conversación/i.test(error.message || '') ? 404 : 500;
+        res.status(status).json({ error: error.message || 'No fue posible marcar la conversación como vista.' });
+    }
+});
+
+app.delete('/api/notification-center/threads/:threadCode', async (req, res) => {
+    try {
+        const actor = await resolveNotificationRequestActor(req);
+        const threadCode = String(req.params.threadCode || '').trim();
+        if (!threadCode) {
+            return res.status(400).json({ error: 'Debes indicar el código del hilo.' });
+        }
+        const deleted = await withTransaction(async (client) => {
+            const thread = await getAccessibleNotificationThreadByCode(threadCode, actor, client);
+            if (!thread) {
+                const error = new Error('No fue posible localizar la conversación.');
+                error.statusCode = 404;
+                throw error;
+            }
+            const filesResult = await client.query(
+                `SELECT a.storage_path
+                   FROM notification_center_message_attachments a
+                   JOIN notification_center_messages m
+                     ON m.id = a.message_id
+                  WHERE m.thread_id = $1
+                    AND COALESCE(a.storage_path, '') <> ''`,
+                [thread.id]
+            );
+            const deleteResult = await client.query(
+                `DELETE FROM notification_center_threads
+                  WHERE id = $1
+                  RETURNING thread_code`,
+                [thread.id]
+            );
+            return {
+                threadCode: deleteResult.rows[0]?.thread_code || threadCode,
+                deletedThreads: Number(deleteResult.rowCount || 0),
+                deletedAttachmentFiles: filesResult.rows
+            };
+        });
+        deleteNotificationAttachmentFiles(deleted.deletedAttachmentFiles);
+        delete deleted.deletedAttachmentFiles;
+        res.json({ ok: true, ...deleted });
+    } catch (error) {
+        const status = Number(error.statusCode) || (/identificar al usuario/i.test(error.message || '') ? 401 : /localizar la conversación/i.test(error.message || '') ? 404 : 500);
+        res.status(status).json({ error: error.message || 'No fue posible eliminar la conversación.' });
     }
 });
 
@@ -12461,7 +14840,7 @@ app.get('/api/notification-center/threads/:threadCode/messages', async (req, res
                 [thread.id]
             ),
             pgQuery(
-                `SELECT a.id, a.message_id, a.attachment_kind, a.file_name, a.mime_type, a.file_ext, a.size_bytes, a.notes, a.uploaded_by, a.created_at
+                `SELECT a.id, a.message_id, a.attachment_kind, a.file_name, a.mime_type, a.file_ext, a.content_base64, a.size_bytes, a.notes, a.uploaded_by, a.created_at
                    FROM notification_center_message_attachments a
                    JOIN notification_center_messages m
                      ON m.id = a.message_id
@@ -12480,9 +14859,11 @@ app.get('/api/notification-center/threads/:threadCode/messages', async (req, res
                 fileName: String(row.file_name || '').trim(),
                 mimeType: String(row.mime_type || '').trim(),
                 fileExt: String(row.file_ext || '').trim(),
+                contentBase64: String(row.content_base64 || '').trim(),
                 sizeBytes: Number(row.size_bytes || 0),
                 notes: String(row.notes || '').trim(),
                 uploadedBy: String(row.uploaded_by || '').trim(),
+                downloadUrl: `/api/notification-center/attachments/${row.id}/download`,
                 createdAt: row.created_at || null
             });
         }
@@ -12538,6 +14919,53 @@ app.post('/api/notification-center/threads/:threadCode/messages', async (req, re
     } catch (error) {
         const status = /indicar un mensaje/i.test(error.message || '') ? 400 : /identificar al usuario/i.test(error.message || '') ? 401 : /localizar la conversación/i.test(error.message || '') ? 404 : 500;
         res.status(status).json({ error: error.message || 'No fue posible enviar el mensaje.' });
+    }
+});
+
+app.get('/api/notification-center/attachments/:id/download', async (req, res) => {
+    try {
+        const actor = await resolveNotificationRequestActor(req);
+        const result = await pgQuery(
+            `SELECT a.file_name, a.mime_type, a.content_base64, a.storage_path, m.thread_id
+               FROM notification_center_message_attachments a
+               JOIN notification_center_messages m
+                 ON m.id = a.message_id
+              WHERE a.id = $1
+              LIMIT 1`,
+            [req.params.id]
+        );
+        if (!result.rows.length) return res.status(404).send('Adjunto no encontrado.');
+        const attachment = result.rows[0];
+        const access = await pgQuery(
+            `SELECT 1
+               FROM notification_center_threads t
+              WHERE t.id = $1
+                AND (
+                    $3::boolean = TRUE
+                    OR t.seller_user_id = $2
+                    OR t.created_by_user_id = $2
+                    OR t.target_user_id = $2
+                    OR EXISTS (
+                        SELECT 1
+                          FROM notification_center_participants p
+                         WHERE p.thread_id = t.id
+                           AND p.user_id = $2
+                    )
+                )
+              LIMIT 1`,
+            [attachment.thread_id, actor.user?.id ?? null, actor.canManageAll === true]
+        );
+        if (!access.rows.length) return res.status(404).send('Adjunto no encontrado.');
+        res.setHeader('Content-Type', attachment.mime_type || 'application/octet-stream');
+        res.setHeader('Content-Disposition', `attachment; filename="${attachment.file_name}"`);
+        const absolutePath = resolveNotificationAttachmentStoragePath(attachment.storage_path);
+        if (absolutePath && fs.existsSync(absolutePath)) return res.sendFile(absolutePath);
+        const buffer = Buffer.from(String(attachment.content_base64 || ''), 'base64');
+        if (!buffer.length) return res.status(404).send('Archivo adjunto no encontrado en disco.');
+        res.send(buffer);
+    } catch (error) {
+        const status = /identificar al usuario/i.test(error.message || '') ? 401 : 500;
+        res.status(status).send(error.message || 'No fue posible descargar el adjunto.');
     }
 });
 
@@ -12831,7 +15259,8 @@ app.delete('/api/inventory-classification-mappings/:id', async (req, res) => {
 
 app.post('/api/flexo/calculo/guardar', async (req, res) => {
     try {
-        const payload = req.body || {};
+        const incomingPayload = req.body || {};
+        const payload = { ...incomingPayload };
         const quoteCode = pickFirstValue(payload.quoteCode, payload.quote_code);
         const currentLineCode = pickFirstValue(payload.originalLineCode, payload.lineCode, payload.line_code);
         if (!quoteCode || !currentLineCode) {
@@ -12849,6 +15278,12 @@ app.post('/api/flexo/calculo/guardar', async (req, res) => {
 
         if (!existing.rows.length) {
             return res.status(404).json({ error: 'No se encontró la línea a guardar.' });
+        }
+        const existingGroup = normalizeFrontBackGroup(existing.rows[0].raw_data || {});
+        if (existingGroup && existingGroup.role === 'elemento') {
+            const groupContext = await loadFrontBackGroupContext(quoteCode, { quote_code: quoteCode, line_code: currentLineCode, raw_data: existing.rows[0].raw_data });
+            const groupQuantity = frontBackLineQuantity(groupContext.groupLine);
+            payload.quantityProducts = groupQuantity;
         }
 
         const lineCode = pickFirstValue(payload.lineCode, payload.line_code, currentLineCode);
@@ -12881,7 +15316,8 @@ app.post('/api/flexo/calculo/guardar', async (req, res) => {
             unit_price: payload.unitPrice,
             status: payload.lineStatus,
             job_name: payload.jobName,
-            department: payload.department
+            department: payload.department,
+            processResult: payload.processResult
         }, existing.rows[0].raw_data || {});
         const validationMessages = Array.isArray(payload.validationMessages)
             ? payload.validationMessages.map((item) => sanitizeAdminUserText(item)).filter(Boolean)
@@ -12894,16 +15330,36 @@ app.post('/api/flexo/calculo/guardar', async (req, res) => {
         rawData['ANALISIS CAMPOS PDF'] = validationBlocked ? validationSummary : '';
         rawData['CODEX_VALIDATION_MESSAGES'] = validationMessages;
         rawData['CODEX_VALIDATION_BLOCKED'] = validationBlocked;
+        if (Object.prototype.hasOwnProperty.call(payload, 'trackingClosure')) {
+            rawData['CODEX_QUOTE_CLOSURE'] = payload.trackingClosure || null;
+        }
         applyCurrencyFieldsToRawData(rawData, payload.exchangeRate ?? payload.exchange_rate);
         if (Object.prototype.hasOwnProperty.call(payload, 'finalized_for_order') || Object.prototype.hasOwnProperty.call(payload, 'finalizedForOrder')) {
             rawData['CODEX_FINALIZED_FOR_ORDER'] = Boolean(Object.prototype.hasOwnProperty.call(payload, 'finalized_for_order')
                 ? payload.finalized_for_order
                 : payload.finalizedForOrder);
         }
-        const finalizeValidation = sanitizeAdminUserText(rawData['ANALISIS CAMPOS FINALIZAR']);
+        const finalizeValidation = stripNonBlockingSapAccountingWarnings(rawData['ANALISIS CAMPOS FINALIZAR']);
         if (Boolean(rawData['CODEX_FINALIZED_FOR_ORDER']) && finalizeValidation) {
             throw new Error(finalizeValidation);
         }
+        const normalizedGroup = normalizeFrontBackGroup(rawData);
+        if (normalizedGroup) {
+            applyFrontBackQuantityToRawData(rawData, parseLegacyNumber(payload.quantityProducts) ?? 0);
+        }
+        applyCalculationLineSummary(rawData, {
+            quote_code: quoteCode,
+            line_code: lineCode,
+            product_code: payload.productCode,
+            customer_code: payload.customerCode,
+            process_type: payload.processType,
+            machine_name: machineName,
+            die_code: payload.dieId,
+            material_code: payload.materialId,
+            quantity: parseLegacyNumber(payload.quantityProducts),
+            total_cost: parseLegacyNumber(payload.finalTotal),
+            unit_price: parseLegacyNumber(payload.unitPrice)
+        });
 
         await pgQuery(
             `UPDATE flexo_calculations
@@ -12931,6 +15387,15 @@ app.post('/api/flexo/calculo/guardar', async (req, res) => {
                 JSON.stringify(rawData)
             ]
         );
+
+        if (normalizedGroup && normalizedGroup.role === 'grupo') {
+            await syncFrontBackGroupQuantity({
+                quoteCode,
+                group: normalizedGroup,
+                quantity: parseLegacyNumber(payload.quantityProducts) ?? 0,
+                excludeCalculationCode: existing.rows[0].calculation_code
+            });
+        }
 
         const detail = await pgQuery(
             `SELECT calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name, die_code, material_code,
@@ -13330,8 +15795,38 @@ registerExchangeRateRoutes({ app, pgQuery });
 ensureExchangeRateSchema(pgQuery).catch(() => {});
 startExchangeRateScheduler({ pgQuery });
 
-app.listen(PORT, () => {
+function writeStartupErrorLog(message, error) {
+    try {
+        const logPath = path.join(APP_ROOT, 'logs', 'server-startup.err.log');
+        const detail = error?.stack || error?.message || String(error || '');
+        fs.mkdirSync(path.dirname(logPath), { recursive: true });
+        fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${message}\n${detail}\n\n`, 'utf8');
+        console.error(`Detalle guardado en ${logPath}`);
+    } catch (logError) {
+        console.error('No fue posible escribir el log de arranque:', logError.message);
+    }
+}
+
+function handleServerStartupError(error) {
+    if (error?.code === 'EADDRINUSE') {
+        const message = `No se pudo iniciar el servidor: el puerto ${PORT} ya está en uso.`;
+        console.error(message);
+        console.error('Cierra la otra instancia de Node o define PORT con otro valor antes de iniciar.');
+        writeStartupErrorLog(message, error);
+        process.exitCode = 1;
+        return;
+    }
+
+    const message = 'No se pudo iniciar el servidor.';
+    console.error(message, error?.message || error);
+    writeStartupErrorLog(message, error);
+    process.exitCode = 1;
+}
+
+const server = app.listen(PORT, () => {
     console.log(`Servidor corriendo en http://localhost:${PORT}`);
 });
+
+server.on('error', handleServerStartupError);
 
 module.exports = app;

@@ -1,5 +1,8 @@
 const CONFIG_ENDPOINT = '/api/config/general';
 const SESSION_STORAGE_KEY = 'erp-user-session';
+const DASHBOARD_CONFIG_CACHE_KEY = 'erp-dashboard-config-cache';
+const DASHBOARD_CONFIG_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+const DASHBOARD_CONFIG_CACHE_TEXT_LIMIT = 24000;
 const tabsContainer = document.getElementById('dashboardTabs');
 const tabsBar = document.querySelector('.dashboard-tabs-bar');
 const homePanel = document.getElementById('dashboardHome');
@@ -24,7 +27,10 @@ const bdfgRadialBridge = document.getElementById('dashboardBdfgRadialBridge');
 
 const HOME_TAB_ID = 'home';
 const FAVORITE_DOCUMENTS_STORAGE_KEY = 'erp-favorite-documents';
+const BDFG_FAVORITES_PANEL_POSITION_STORAGE_KEY = 'erp-bdfg-favorites-panel-position';
 const NOTIFICATION_THREADS_ENDPOINT = '/api/notification-center/threads?limit=24';
+const NOTIFICATION_UNREAD_ENDPOINT = '/api/notification-center/unread-count';
+const NOTIFICATION_THREAD_ENDPOINT = '/api/notification-center/threads';
 const DASHBOARD_CARDS = [
 { route: '/socios', label: 'Socios', iconKey: 'dashboardBusinessPartners', modules: ['socios'] },
 { route: '/productos', label: 'Productos', iconKey: 'dashboardProducts', modules: ['productos'] },
@@ -34,6 +40,7 @@ const DASHBOARD_CARDS = [
 { route: '/configuracion-general', label: 'Configuraci\u00f3n', iconKey: 'dashboardSettings', modules: ['configuracion-general'] },
 { route: '/ordenes-produccion', label: '\u00d3rdenes', iconKey: 'dashboardOrders', modules: ['ordenes'] },
 { route: '/planificacion/lanzamiento', label: 'Planificaci\u00f3n', iconKey: 'dashboardPlanning', modules: ['planificacion'] },
+{ route: '/produccion.html', label: 'Producci\u00f3n', iconKey: 'dashboardProduction', modules: ['dashboard'], fallbackIcon: '\u{1F3ED}' },
 { route: '/notificaciones.html', label: 'Notificaciones', iconKey: 'dashboardNotifications', modules: ['dashboard'] }
 ];
 const INVENTORY_CARD_ROUTE = '/inventario-materiales';
@@ -61,8 +68,11 @@ let bdfgFavoriteFilter = '';
 let bdfgSearchTerm = '';
 let bdfgNotificationThreads = [];
 let bdfgUnreadCount = 0;
+let bdfgNotificationSelectedThreadCode = '';
+let bdfgNotificationMessages = [];
 let bdfgDragState = null;
 let bdfgComponent = null;
+let notificationChatWidget = null;
 let bdfgUserProfile = null;
 let bdfgPreviewGlobal = null;
 let bdfgPreviewProfile = null;
@@ -216,6 +226,12 @@ function sanitizeBdfgAlpha(value, fallback = 100) {
     return Math.min(100, Math.max(0, numeric));
 }
 
+function sanitizeBdfgNumber(value, fallback, min, max) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return fallback;
+    return Math.min(max, Math.max(min, numeric));
+}
+
 function bdfgColorWithAlpha(value, alpha, fallback = '#ffffff') {
     const normalized = sanitizeBdfgColor(value, fallback);
     const match = normalized.match(/^#([0-9a-f]{6})$/i);
@@ -264,8 +280,8 @@ function getEffectiveBdfgConfig() {
         ...buildBdfgThemeConfig(globalTheme, defaults.theme),
         theme: globalTheme,
         colorMode: String(globalSource?.bdfgColorMode || defaults.colorMode).trim().toLowerCase() || defaults.colorMode,
-        mainSize: Number(globalSource?.bdfgMainSize) || defaults.mainSize,
-        menuDistance: Number(globalSource?.bdfgMenuDistance) || defaults.menuDistance,
+        mainSize: sanitizeBdfgNumber(globalSource?.bdfgMainSize, defaults.mainSize, 58, 140),
+        menuDistance: sanitizeBdfgNumber(globalSource?.bdfgMenuDistance, defaults.menuDistance, 72, 200),
         miniShape: String(globalSource?.bdfgMiniShape || defaults.miniShape).trim().toLowerCase() || defaults.miniShape,
         layout: String(globalSource?.bdfgLayout || defaults.layout).trim().toLowerCase() || defaults.layout,
         mainDay: sanitizeBdfgColor(globalSource?.bdfgMainDay, buildBdfgThemeConfig(globalTheme, defaults.theme).mainDay),
@@ -288,8 +304,8 @@ function getEffectiveBdfgConfig() {
         ...userThemeBase,
         theme: userTheme,
         colorMode: String(userConfig.colorMode || globalBase.colorMode).trim().toLowerCase() || globalBase.colorMode,
-        mainSize: Number(userConfig.mainSize) || globalBase.mainSize,
-        menuDistance: Number(userConfig.menuDistance) || globalBase.menuDistance,
+        mainSize: sanitizeBdfgNumber(userConfig.mainSize, globalBase.mainSize, 58, 140),
+        menuDistance: sanitizeBdfgNumber(userConfig.menuDistance, globalBase.menuDistance, 72, 200),
         miniShape: String(userConfig.miniShape || globalBase.miniShape).trim().toLowerCase() || globalBase.miniShape,
         layout: String(userConfig.layout || globalBase.layout).trim().toLowerCase() || globalBase.layout,
         mainDay: sanitizeBdfgColor(userConfig.mainDay, userThemeBase.mainDay),
@@ -313,6 +329,57 @@ function escapeHtml(value) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+}
+
+function readDashboardConfigCache() {
+    try {
+        const raw = localStorage.getItem(DASHBOARD_CONFIG_CACHE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        const storedAt = Number(parsed?.storedAt || 0);
+        if (!storedAt || Date.now() - storedAt > DASHBOARD_CONFIG_CACHE_TTL_MS) return null;
+        return parsed.data || null;
+    } catch (error) {
+        return null;
+    }
+}
+
+function writeDashboardConfigCache(config) {
+    try {
+        localStorage.setItem(DASHBOARD_CONFIG_CACHE_KEY, JSON.stringify({
+            storedAt: Date.now(),
+            data: config
+        }));
+    } catch (error) {
+        console.warn('No fue posible actualizar el caché local del dashboard.', error);
+    }
+}
+
+function compactDashboardConfigForCache(value, key = '') {
+    if (typeof value === 'string') {
+        const text = value.trim();
+        const keyText = String(key || '').toLowerCase();
+        const assetLike = /(image|imagen|logo|icon|foto|photo|font|background|screensaver|repositorio|repository)/.test(keyText);
+        if ((assetLike && text.length > DASHBOARD_CONFIG_CACHE_TEXT_LIMIT) || text.length > DASHBOARD_CONFIG_CACHE_TEXT_LIMIT * 4) {
+            return '';
+        }
+        return value;
+    }
+    if (Array.isArray(value)) {
+        return value.map((item) => compactDashboardConfigForCache(item, key)).filter((item) => item !== '');
+    }
+    if (value && typeof value === 'object') {
+        return Object.fromEntries(
+            Object.entries(value)
+                .map(([childKey, childValue]) => [childKey, compactDashboardConfigForCache(childValue, childKey)])
+                .filter(([, childValue]) => childValue !== '')
+        );
+    }
+    return value;
+}
+
+function areDashboardConfigsEqual(left, right) {
+    return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
 }
 
 function iconMarkup(value, altText, extraClass = '') {
@@ -366,6 +433,12 @@ function stripShellRoute(route) {
     const url = new URL(route, window.location.origin);
     url.searchParams.delete('shell');
     return `${url.pathname}${url.search}${url.hash}`;
+}
+
+function isCurrentTabRoute(route) {
+    const tab = getActiveTab();
+    if (!tab?.route || !route) return false;
+    return stripShellRoute(tab.route) === stripShellRoute(route);
 }
 
 function sessionHeaders() {
@@ -519,6 +592,7 @@ function getRenderTabLabel(tab, tabWidth) {
 }
 
 function renderTabs() {
+    if (!tabsContainer) return;
     const closeIcon = loadedConfig?.icons?.dashboardTabClose || loadedConfig?.icons?.popoverClose || '×';
     const closePalette = {
         primary: loadedConfig?.general?.iconColorDashboardTabClose || loadedConfig?.general?.iconColorPopoverClose || '#8c97a2',
@@ -759,7 +833,7 @@ function renderCards() {
         if (!isAllowed) return;
         visibleCount += 1;
         const iconTarget = button.querySelector(`[data-icon-target="${card.iconKey}"]`);
-        const iconValue = loadedConfig?.icons?.[card.iconKey] || '□';
+        const iconValue = loadedConfig?.icons?.[card.iconKey] || card.fallbackIcon || '□';
         const suffix = card.iconKey.charAt(0).toUpperCase() + card.iconKey.slice(1);
         
         // Try to get color from tab colors first if it matches
@@ -820,10 +894,21 @@ function getActiveTab() {
     return tabs.find((item) => item.id === activeTabId) || null;
 }
 
+function frameWindowContains(frameWindow, targetWindow) {
+    if (!frameWindow || !targetWindow) return false;
+    if (frameWindow === targetWindow) return true;
+    try {
+        for (let i = 0; i < frameWindow.frames.length; i += 1) {
+            if (frameWindowContains(frameWindow.frames[i], targetWindow)) return true;
+        }
+    } catch (_) {}
+    return false;
+}
+
 function getTabIdByFrameWindow(targetWindow) {
     if (!targetWindow) return '';
     for (const [tabId, frame] of tabFrames.entries()) {
-        if (frame?.contentWindow === targetWindow) {
+        if (frameWindowContains(frame?.contentWindow, targetWindow)) {
             return tabId;
         }
     }
@@ -875,10 +960,30 @@ function normalizeFavoriteRouteKey(route) {
 function getActiveFavoritePayload() {
     const tab = getActiveTab();
     if (!tab || tab.id === HOME_TAB_ID || !tab.route) return null;
+    const context = getActiveBdfgContext();
+    const subtitleParts = String(context?.subtitle || '').split('·').map((part) => part.trim()).filter(Boolean);
+    const customerName = firstFilled(
+        context?.customerName,
+        context?.customer_name,
+        context?.clientName,
+        context?.client_name,
+        subtitleParts[0]
+    );
+    const productName = firstFilled(
+        context?.productName,
+        context?.product_name,
+        context?.jobName,
+        context?.job_name,
+        context?.kind === 'product-document' ? context?.title : '',
+        subtitleParts[1]
+    );
     return {
         route: normalizeFavoriteRouteKey(tab.route),
         label: String(tab.label || 'Documento').trim() || 'Documento',
         code: String(tab.label || 'Documento').trim() || 'Documento',
+        customerName: String(customerName || '').trim(),
+        productName: String(productName || '').trim(),
+        jobName: String(productName || '').trim(),
         updatedAt: Date.now()
     };
 }
@@ -886,6 +991,37 @@ function getActiveFavoritePayload() {
 function isFavoriteRoute(route) {
     const key = normalizeFavoriteRouteKey(route);
     return readFavoriteDocuments().some((item) => normalizeFavoriteRouteKey(item.route) === key);
+}
+
+function openNotificationChatWidget() {
+    if (!window.NotificationChatWidget) {
+        openTab('/notificaciones.html', 'Notificaciones');
+        return;
+    }
+    if (!notificationChatWidget) {
+        notificationChatWidget = new window.NotificationChatWidget({
+            session: activeUserSession,
+            headers: sessionHeaders,
+            icons: {
+                title: getBdfgIconConfig('notificationChatTitle', 'dashboardNotifications', '✉', '#0b81b8', 18),
+                openCenter: getBdfgIconConfig('notificationChatOpenCenter', '', '◱', '#0b81b8', 16),
+                attach: getBdfgIconConfig('notificationChatAttach', '', '📎', '#607286', 16),
+                send: getBdfgIconConfig('notificationChatSend', '', '➤', '#0b81b8', 16),
+                delete: { ...getBdfgIconConfig('lineDelete', '', '🗑', '#607286', 16), color: '#607286', hoverColor: '#344054', size: 16 }
+            },
+            openRoute: (route, label) => openTab(route, label || 'Documento'),
+            openCenter: () => openTab('/notificaciones.html', 'Notificaciones'),
+            onUnreadChange: (count) => {
+                bdfgUnreadCount = Number(count || 0);
+                renderBdfg();
+            },
+            onChanged: () => loadBdfgNotifications().catch(() => {})
+        });
+    }
+    notificationChatWidget.open().catch(() => {
+        openTab('/notificaciones.html', 'Notificaciones');
+    });
+    setBdfgOpen(false, 'actions');
 }
 
 function toggleFavoriteRoute(payload) {
@@ -901,11 +1037,19 @@ function toggleFavoriteRoute(payload) {
 }
 
 function getFavoriteDisplayTitle(item) {
-    return String(item?.label || item?.code || item?.quoteCode || item?.id || 'Documento').trim() || 'Documento';
+    const customerName = firstFilled(item?.customerName, item?.customer_name, item?.clientName, item?.client_name);
+    const productName = firstFilled(item?.productName, item?.product_name, item?.jobName, item?.job_name, item?.productCode, item?.product_code);
+    return String(customerName || productName || 'Documento favorito').trim();
 }
 
 function getFavoriteDisplaySubtitle(item) {
-    return [item?.customerName, item?.jobName, item?.productName].filter(Boolean).join(' · ');
+    const customerName = firstFilled(item?.customerName, item?.customer_name, item?.clientName, item?.client_name);
+    const productName = firstFilled(item?.productName, item?.product_name, item?.jobName, item?.job_name, item?.productCode, item?.product_code);
+    return String(customerName && productName ? productName : '').trim();
+}
+
+function getFavoriteOpenLabel(item) {
+    return String(item?.label || item?.code || item?.quoteCode || getFavoriteDisplayTitle(item) || 'Documento').trim() || 'Documento';
 }
 
 function getActiveRouteModuleKey() {
@@ -1003,8 +1147,8 @@ function getBdfgActions() {
             id: 'notifications',
             label: 'Notificaciones',
             description: 'Abrir el centro de conversaciones y alertas',
-            mode: 'notifications',
-            badge: bdfgUnreadCount > 0 ? String(Math.min(bdfgUnreadCount, 99)) : ''
+            callback: openNotificationChatWidget,
+            badge: bdfgUnreadCount > 0 ? (bdfgUnreadCount > 99 ? '99+' : String(bdfgUnreadCount)) : ''
         },
         {
             id: 'search',
@@ -1079,7 +1223,7 @@ function getBdfgActions() {
 
     switch (tab?.family) {
         case 'quotes':
-            if (canViewRoute('/cotizaciones')) {
+            if (canViewRoute('/cotizaciones') && !isCurrentTabRoute('/cotizaciones')) {
                 contextualActions.push({
                     id: 'open-quotes',
                     label: 'Ir a Cotizaciones',
@@ -1090,7 +1234,7 @@ function getBdfgActions() {
             }
             break;
         case 'products':
-            if (canViewRoute('/productos')) {
+            if (canViewRoute('/productos') && !isCurrentTabRoute('/productos')) {
                 contextualActions.push({
                     id: 'open-products',
                     label: 'Ir a Productos',
@@ -1101,7 +1245,7 @@ function getBdfgActions() {
             }
             break;
         case 'orders':
-            if (canViewRoute('/ordenes-produccion')) {
+            if (canViewRoute('/ordenes-produccion') && !isCurrentTabRoute('/ordenes-produccion')) {
                 contextualActions.push({
                     id: 'open-orders',
                     label: 'Ir a Órdenes',
@@ -1126,7 +1270,7 @@ function getBdfgActions() {
             }
             break;
         case 'settings':
-            if (canViewRoute('/configuracion-general')) {
+            if (canViewRoute('/configuracion-general') && !isCurrentTabRoute('/configuracion-general')) {
                 contextualActions.push({
                     id: 'open-settings',
                     label: 'Ir a Configuración',
@@ -1137,7 +1281,7 @@ function getBdfgActions() {
             }
             break;
         case 'planning':
-            if (canViewRoute('/planificacion/lanzamiento')) {
+            if (canViewRoute('/planificacion/lanzamiento') && !isCurrentTabRoute('/planificacion/lanzamiento')) {
                 contextualActions.push({
                     id: 'open-planning',
                     label: 'Ir a Planificación',
@@ -1148,7 +1292,7 @@ function getBdfgActions() {
             }
             break;
         case 'costs':
-            if (canViewRoute('/costos.html')) {
+            if (canViewRoute('/costos.html') && !isCurrentTabRoute('/costos.html')) {
                 contextualActions.push({
                     id: 'open-costs',
                     label: 'Ir a Costos',
@@ -1203,6 +1347,7 @@ function renderBdfgActionsPanel() {
 
 function renderBdfgFavoritesPanel() {
     if (!bdfgPanel) return;
+    enableBdfgFavoritesFloatingPanel();
     const favorites = readFavoriteDocuments()
         .filter((item) => canViewRoute(item.route))
         .filter((item) => {
@@ -1210,6 +1355,8 @@ function renderBdfgFavoritesPanel() {
             if (!query) return true;
             return [
                 item.route,
+                item.label,
+                item.code,
                 getFavoriteDisplayTitle(item),
                 getFavoriteDisplaySubtitle(item)
             ].filter(Boolean).join(' ').toLowerCase().includes(query);
@@ -1227,9 +1374,9 @@ function renderBdfgFavoritesPanel() {
                         <div class="dashboard-bdfg-item-head">
                             <strong>${escapeHtml(getFavoriteDisplayTitle(item))}</strong>
                         </div>
-                        <span>${escapeHtml(getFavoriteDisplaySubtitle(item) || stripShellRoute(item.route))}</span>
+                        ${getFavoriteDisplaySubtitle(item) ? `<span>${escapeHtml(getFavoriteDisplaySubtitle(item))}</span>` : ''}
                         <div class="dashboard-bdfg-item-actions">
-                            <button type="button" class="dashboard-bdfg-inline-btn" data-bdfg-open-favorite="${escapeHtml(item.route)}" data-bdfg-open-label="${escapeHtml(getFavoriteDisplayTitle(item))}">Abrir</button>
+                            <button type="button" class="dashboard-bdfg-inline-btn" data-bdfg-open-favorite="${escapeHtml(item.route)}" data-bdfg-open-label="${escapeHtml(getFavoriteOpenLabel(item))}">Abrir</button>
                             <button type="button" class="dashboard-bdfg-inline-btn dashboard-bdfg-item-remove" data-bdfg-remove-favorite="${escapeHtml(item.route)}">Quitar</button>
                         </div>
                     </article>
@@ -1253,27 +1400,113 @@ function renderBdfgNotificationsPanel() {
     bdfgTitle.textContent = 'Notificaciones';
     bdfgSubtitle.textContent = '';
     bdfgSubtitle.hidden = true;
-    const threads = bdfgNotificationThreads.slice(0, 8);
+    const threads = bdfgNotificationThreads.slice(0, 12);
+    const selectedThread = threads.find((thread) => thread.threadCode === bdfgNotificationSelectedThreadCode) || threads[0] || null;
+    if (selectedThread && selectedThread.threadCode !== bdfgNotificationSelectedThreadCode) {
+        bdfgNotificationSelectedThreadCode = selectedThread.threadCode;
+    }
     bdfgPanel.innerHTML = `
-        <section class="dashboard-bdfg-section">
-            <div class="dashboard-bdfg-list">
+        <section class="dashboard-bdfg-chat">
+            <div class="dashboard-bdfg-chat-list">
                 ${threads.length ? threads.map((thread) => `
-                    <article class="dashboard-bdfg-thread">
-                        <div class="dashboard-bdfg-thread-head">
-                            <strong>${escapeHtml(thread.customerName || thread.productName || thread.documentCode || 'Notificación')}</strong>
-                            ${thread.unreadCount ? `<span class="dashboard-bdfg-action-badge">${escapeHtml(String(Math.min(thread.unreadCount, 99)))}</span>` : ''}
-                        </div>
-                        <span>${escapeHtml([thread.documentCode, thread.lineCode, thread.productName].filter(Boolean).join(' · ') || 'Sin detalle')}</span>
-                        <em>${escapeHtml(thread.lastMessagePreview || 'Sin mensajes recientes')}</em>
-                    </article>
-                `).join('') : '<div class="dashboard-bdfg-empty">No se pudieron cargar notificaciones recientes.</div>'}
+                    <button type="button" class="dashboard-bdfg-chat-thread${thread.threadCode === bdfgNotificationSelectedThreadCode ? ' is-selected' : ''}" data-bdfg-thread-code="${escapeHtml(thread.threadCode || '')}">
+                        <span class="dashboard-bdfg-chat-avatar">${escapeHtml((thread.sellerName || thread.targetUserName || thread.customerName || 'N').trim().slice(0, 1).toUpperCase())}</span>
+                        <span class="dashboard-bdfg-chat-thread-copy">
+                            <strong>${escapeHtml(thread.sellerName || thread.targetUserName || thread.customerName || 'Notificación')}</strong>
+                            <em>${escapeHtml(thread.lastMessagePreview || [thread.documentCode, thread.lineCode].filter(Boolean).join(' · ') || 'Sin mensajes')}</em>
+                        </span>
+                        ${thread.unreadCount ? `<span class="dashboard-bdfg-action-badge">${escapeHtml(String(Math.min(thread.unreadCount, 99)))}</span>` : ''}
+                    </button>
+                `).join('') : '<div class="dashboard-bdfg-empty">No hay conversaciones.</div>'}
             </div>
-            <div class="dashboard-bdfg-item-actions">
-                <button type="button" class="dashboard-bdfg-inline-btn" data-bdfg-open-notifications="true">Abrir centro de notificaciones</button>
-                <button type="button" class="dashboard-bdfg-inline-btn" data-bdfg-refresh-notifications="true">Actualizar</button>
+            <div class="dashboard-bdfg-chat-room">
+                ${selectedThread ? `
+                    <div class="dashboard-bdfg-chat-room-head">
+                        <span class="dashboard-bdfg-chat-avatar">${escapeHtml((selectedThread.sellerName || selectedThread.targetUserName || selectedThread.customerName || 'N').trim().slice(0, 1).toUpperCase())}</span>
+                        <span>
+                            <strong>${escapeHtml(selectedThread.sellerName || selectedThread.targetUserName || selectedThread.customerName || 'Notificación')}</strong>
+                            <em>${escapeHtml([selectedThread.documentCode, selectedThread.lineCode, selectedThread.customerName].filter(Boolean).join(' · ') || 'Conversación interna')}</em>
+                        </span>
+                    </div>
+                    <div class="dashboard-bdfg-chat-messages">
+                        ${bdfgNotificationMessages.length ? bdfgNotificationMessages.map((message) => {
+                            const own = isOwnBdfgMessage(message);
+                            return `
+                                <article class="dashboard-bdfg-chat-message${own ? ' is-own' : ''}">
+                                    <strong>${escapeHtml(message.senderName || 'Usuario')}</strong>
+                                    <span>${escapeHtml(message.bodyText || '')}</span>
+                                    <em>${escapeHtml([formatBdfgDate(message.sentAt), own && message.readAt ? `Leído ${formatBdfgDate(message.readAt)}` : ''].filter(Boolean).join(' · '))}</em>
+                                </article>
+                            `;
+                        }).join('') : '<div class="dashboard-bdfg-empty">Selecciona una conversación para ver el historial.</div>'}
+                    </div>
+                    <form class="dashboard-bdfg-chat-compose" data-bdfg-chat-form>
+                        <input type="text" class="dashboard-bdfg-chat-input" data-bdfg-chat-input placeholder="Mensaje">
+                        <button type="submit" class="dashboard-bdfg-chat-send" aria-label="Enviar">Enviar</button>
+                    </form>
+                    <div class="dashboard-bdfg-item-actions">
+                        <button type="button" class="dashboard-bdfg-inline-btn" data-bdfg-open-notifications="true">Abrir centro</button>
+                        <button type="button" class="dashboard-bdfg-inline-btn" data-bdfg-refresh-notifications="true">Actualizar</button>
+                    </div>
+                ` : `
+                    <div class="dashboard-bdfg-empty">No hay conversaciones para mostrar.</div>
+                    <div class="dashboard-bdfg-item-actions">
+                        <button type="button" class="dashboard-bdfg-inline-btn" data-bdfg-open-notifications="true">Abrir centro</button>
+                        <button type="button" class="dashboard-bdfg-inline-btn" data-bdfg-refresh-notifications="true">Actualizar</button>
+                    </div>
+                `}
             </div>
         </section>
     `;
+}
+
+function isOwnBdfgMessage(message = {}) {
+    const sender = String(message.senderName || '').trim().toLowerCase();
+    const current = [activeUserSession?.name, activeUserSession?.username]
+        .map((item) => String(item || '').trim().toLowerCase())
+        .filter(Boolean);
+    return Boolean(sender && current.includes(sender));
+}
+
+function focusBdfgChatInput() {
+    const input = bdfgPanel?.querySelector('[data-bdfg-chat-input]');
+    if (input) requestAnimationFrame(() => input.focus());
+}
+
+async function loadBdfgNotificationThread(threadCode = '') {
+    const code = String(threadCode || '').trim();
+    if (!code) return;
+    bdfgNotificationSelectedThreadCode = code;
+    const response = await fetch(`${NOTIFICATION_THREAD_ENDPOINT}/${encodeURIComponent(code)}/messages`, { headers: sessionHeaders() });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || 'No fue posible cargar la conversación.');
+    bdfgNotificationMessages = Array.isArray(payload.items) ? payload.items : [];
+    bdfgNotificationThreads = bdfgNotificationThreads.map((thread) => (
+        thread.threadCode === code ? { ...thread, unreadCount: 0 } : thread
+    ));
+    bdfgUnreadCount = Math.max(0, bdfgNotificationThreads.reduce((total, item) => total + Number(item?.unreadCount || 0), 0));
+    renderBdfg();
+    focusBdfgChatInput();
+}
+
+async function sendBdfgChatMessage() {
+    const input = bdfgPanel?.querySelector('[data-bdfg-chat-input]');
+    const bodyText = String(input?.value || '').trim();
+    const code = String(bdfgNotificationSelectedThreadCode || '').trim();
+    if (!bodyText || !code) return;
+    const response = await fetch(`${NOTIFICATION_THREAD_ENDPOINT}/${encodeURIComponent(code)}/messages`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            ...sessionHeaders()
+        },
+        body: JSON.stringify({ bodyText })
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || 'No fue posible enviar el mensaje.');
+    if (input) input.value = '';
+    await loadBdfgNotificationThread(code);
+    await loadBdfgNotifications();
 }
 
 function renderBdfgSearchResults(items, term = '') {
@@ -1348,14 +1581,119 @@ function renderBdfgStatusPanel() {
     `;
 }
 
+function readBdfgFavoritesPanelPosition() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(BDFG_FAVORITES_PANEL_POSITION_STORAGE_KEY) || 'null');
+        if (saved && Number.isFinite(Number(saved.x)) && Number.isFinite(Number(saved.y))) {
+            return { x: Number(saved.x), y: Number(saved.y) };
+        }
+    } catch (error) {
+        return null;
+    }
+    return null;
+}
+
+function clampBdfgFavoritesPanelPosition(left, top) {
+    const width = window.innerWidth || document.documentElement.clientWidth || 1280;
+    const height = window.innerHeight || document.documentElement.clientHeight || 720;
+    const panelWidth = bdfgBridge?.offsetWidth || 400;
+    const panelHeight = bdfgBridge?.offsetHeight || 320;
+    return {
+        x: Math.min(Math.max(8, Number(left) || 8), Math.max(8, width - panelWidth - 8)),
+        y: Math.min(Math.max(8, Number(top) || 8), Math.max(8, height - panelHeight - 8))
+    };
+}
+
+function applyBdfgFavoritesPanelPosition(position) {
+    if (!bdfgBridge) return null;
+    const next = clampBdfgFavoritesPanelPosition(position?.x, position?.y);
+    bdfgBridge.style.left = `${next.x}px`;
+    bdfgBridge.style.top = `${next.y}px`;
+    bdfgBridge.style.right = 'auto';
+    bdfgBridge.style.bottom = 'auto';
+    return next;
+}
+
+function enableBdfgFavoritesFloatingPanel() {
+    if (!bdfgBridge) return;
+    const currentRect = bdfgBridge.getBoundingClientRect();
+    bdfgBridge.classList.add('is-favorites-floating');
+    applyBdfgFavoritesPanelPosition(readBdfgFavoritesPanelPosition() || { x: currentRect.left, y: currentRect.top });
+}
+
+function disableBdfgFavoritesFloatingPanel() {
+    if (!bdfgBridge || !bdfgBridge.classList.contains('is-favorites-floating')) return;
+    bdfgBridge.classList.remove('is-favorites-floating', 'is-dragging');
+    bdfgBridge.style.left = '';
+    bdfgBridge.style.top = '';
+    bdfgBridge.style.right = '';
+    bdfgBridge.style.bottom = '';
+    bdfgDragState = null;
+}
+
+function startBdfgFavoritesPanelDrag(event) {
+    if (!['favorites', 'calc-processes'].includes(bdfgMode) || !bdfgBridge || event.button !== 0) return;
+    const head = event.target.closest('.dashboard-bdfg-head');
+    if (!head || event.target.closest('button, input, select, textarea, a')) return;
+    const rect = bdfgBridge.getBoundingClientRect();
+    bdfgDragState = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        originX: rect.left,
+        originY: rect.top,
+        mode: bdfgMode,
+        moved: false
+    };
+    bdfgBridge.setPointerCapture?.(event.pointerId);
+    bdfgBridge.classList.add('is-dragging');
+    event.preventDefault();
+}
+
+function moveBdfgFavoritesPanelDrag(event) {
+    if (!bdfgDragState || bdfgDragState.pointerId !== event.pointerId) return;
+    const dx = event.clientX - bdfgDragState.startX;
+    const dy = event.clientY - bdfgDragState.startY;
+    if (!bdfgDragState.moved && (Math.abs(dx) + Math.abs(dy) > 6)) {
+        bdfgDragState.moved = true;
+    }
+    if (!bdfgDragState.moved) return;
+    applyBdfgFavoritesPanelPosition({ x: bdfgDragState.originX + dx, y: bdfgDragState.originY + dy });
+}
+
+function finishBdfgFavoritesPanelDrag(event) {
+    if (!bdfgDragState || bdfgDragState.pointerId !== event.pointerId) return;
+    const moved = bdfgDragState.moved;
+    const dragMode = bdfgDragState.mode;
+    bdfgDragState = null;
+    bdfgBridge?.classList.remove('is-dragging');
+    if (bdfgBridge?.releasePointerCapture && bdfgBridge.hasPointerCapture?.(event.pointerId)) {
+        bdfgBridge.releasePointerCapture(event.pointerId);
+    }
+    if (!moved || !bdfgBridge) return;
+    const rect = bdfgBridge.getBoundingClientRect();
+    const next = applyBdfgFavoritesPanelPosition({ x: rect.left, y: rect.top });
+    if (next && dragMode === 'favorites') {
+        try {
+            localStorage.setItem(BDFG_FAVORITES_PANEL_POSITION_STORAGE_KEY, JSON.stringify(next));
+        } catch (error) {}
+    }
+}
+
 function renderBdfgPanel() {
     if (!bdfgBridge || bdfgBridge.hidden) return;
+    bdfgBridge.classList.toggle('dashboard-bdfg-bridge-chat', bdfgMode === 'notifications');
+    if (!['favorites', 'calc-processes'].includes(bdfgMode)) disableBdfgFavoritesFloatingPanel();
     if (bdfgMode === 'calc-processes') {
+        const currentRect = bdfgBridge.getBoundingClientRect();
+        bdfgBridge.classList.add('is-favorites-floating');
+        applyBdfgFavoritesPanelPosition({ x: currentRect.left, y: currentRect.top });
         const context = getActiveBdfgContext();
         bdfgComponent?.renderProcessTray(context?.processes || [], {
             canEdit: context?.canEdit !== false,
             title: 'Procesos',
-            subtitle: ''
+            subtitle: '',
+            targetLineCode: context?.lineCode || ''
         });
         return;
     }
@@ -1384,7 +1722,7 @@ function renderBdfgBadge() {
     const visible = bdfgUnreadCount > 0;
     bdfgBadge.hidden = !visible;
     if (visible) {
-        bdfgBadge.textContent = String(Math.min(bdfgUnreadCount, 99));
+        bdfgBadge.textContent = bdfgUnreadCount > 99 ? '99+' : String(bdfgUnreadCount);
     }
     bdfgComponent?.renderBadge(bdfgUnreadCount);
 }
@@ -1529,10 +1867,15 @@ function toIconSuffix(key) {
 
 async function loadBdfgNotifications() {
     try {
-        const response = await fetch(NOTIFICATION_THREADS_ENDPOINT, { headers: sessionHeaders() });
+        const headers = sessionHeaders();
+        const response = await fetch(NOTIFICATION_THREADS_ENDPOINT, { headers });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(payload.error || 'No fue posible cargar notificaciones.');
         bdfgNotificationThreads = Array.isArray(payload.items) ? payload.items : [];
+        if (!bdfgNotificationThreads.some((thread) => thread.threadCode === bdfgNotificationSelectedThreadCode)) {
+            bdfgNotificationSelectedThreadCode = bdfgNotificationThreads[0]?.threadCode || '';
+            bdfgNotificationMessages = [];
+        }
         bdfgUnreadCount = bdfgNotificationThreads.reduce((total, item) => total + Number(item?.unreadCount || 0), 0);
     } catch (error) {
         bdfgNotificationThreads = [];
@@ -1572,6 +1915,14 @@ function setBdfgOpen(open, nextMode = bdfgMode, triggerEl = null) {
 
     if (open) {
         updateBdfgPlacement(triggerEl);
+        loadBdfgNotifications()
+            .then(() => {
+                if (nextMode === 'notifications' && bdfgNotificationSelectedThreadCode) {
+                    return loadBdfgNotificationThread(bdfgNotificationSelectedThreadCode);
+                }
+                return null;
+            })
+            .catch(() => {});
         if (willShowPanel) renderBdfgPanel();
     }
 }
@@ -1680,6 +2031,11 @@ function bindBdfg() {
         bdfgComponent.onPosition((position) => saveBdfgPosition(position));
     }
 
+    bdfgBridge.addEventListener('pointerdown', startBdfgFavoritesPanelDrag);
+    bdfgBridge.addEventListener('pointermove', moveBdfgFavoritesPanelDrag);
+    bdfgBridge.addEventListener('pointerup', finishBdfgFavoritesPanelDrag);
+    bdfgBridge.addEventListener('pointercancel', finishBdfgFavoritesPanelDrag);
+
     bdfgPanel.addEventListener('click', (event) => {
         const actionButton = event.target.closest('[data-bdfg-action]');
         if (actionButton) {
@@ -1721,11 +2077,32 @@ function bindBdfg() {
             setBdfgOpen(false, 'actions');
             return;
         }
+        const threadButton = event.target.closest('[data-bdfg-thread-code]');
+        if (threadButton) {
+            event.preventDefault();
+            event.stopPropagation();
+            loadBdfgNotificationThread(threadButton.dataset.bdfgThreadCode || '').catch(() => {});
+            return;
+        }
+        const chatForm = event.target.closest('[data-bdfg-chat-form]');
+        if (chatForm) {
+            event.preventDefault();
+            event.stopPropagation();
+            sendBdfgChatMessage().catch(() => {});
+            return;
+        }
         if (event.target.closest('[data-bdfg-refresh-notifications]')) {
             event.preventDefault();
             event.stopPropagation();
             loadBdfgNotifications().catch(() => {});
         }
+    });
+    bdfgPanel.addEventListener('submit', (event) => {
+        const chatForm = event.target.closest('[data-bdfg-chat-form]');
+        if (!chatForm) return;
+        event.preventDefault();
+        event.stopPropagation();
+        sendBdfgChatMessage().catch(() => {});
     });
 }
 
@@ -2255,10 +2632,30 @@ async function runDashboardSearch(term) {
     }
 }
 
-async function applyDashboardConfig() {
-    const response = await fetch(CONFIG_ENDPOINT);
-    if (!response.ok) return;
-    loadedConfig = await response.json();
+async function applyDashboardConfig(configOverride = null) {
+    const hasOverride = configOverride && typeof configOverride === 'object';
+    let cachedConfig = null;
+    if (!hasOverride) {
+        cachedConfig = readDashboardConfigCache();
+        if (cachedConfig) {
+            applyDashboardConfigPayload(cachedConfig);
+        }
+    }
+    let nextConfig = hasOverride ? configOverride : null;
+    if (!hasOverride) {
+        const response = await fetch(CONFIG_ENDPOINT, { cache: 'no-cache' });
+        if (!response.ok) return;
+        nextConfig = await response.json();
+    }
+    const cacheableConfig = compactDashboardConfigForCache(nextConfig);
+    if (!areDashboardConfigsEqual(cacheableConfig, cachedConfig)) {
+        writeDashboardConfigCache(cacheableConfig);
+    }
+    applyDashboardConfigPayload(nextConfig);
+}
+
+function applyDashboardConfigPayload(config) {
+    loadedConfig = config || {};
     const presentation = getPresentationConfig(loadedConfig, 'dashboard');
     const general = loadedConfig.general || {};
     const layout = loadedConfig.layout || {};
@@ -2321,7 +2718,7 @@ async function applyDashboardConfig() {
     }
 }
 
-tabsContainer.addEventListener('click', (event) => {
+tabsContainer?.addEventListener('click', (event) => {
     const closeTarget = event.target.closest('[data-action="close-tab"]');
     if (closeTarget) {
         closeTab(closeTarget.dataset.tabId);
@@ -2333,7 +2730,7 @@ tabsContainer.addEventListener('click', (event) => {
     }
 });
 
-tabsContainer.addEventListener('dragstart', (event) => {
+tabsContainer?.addEventListener('dragstart', (event) => {
     const tabButton = event.target.closest('.dashboard-tab[data-tab-id]');
     if (!tabButton || tabButton.dataset.tabId === HOME_TAB_ID) return;
     draggedTabId = tabButton.dataset.tabId;
@@ -2350,14 +2747,14 @@ window.addEventListener('resize', () => {
     }, 120);
 });
 
-tabsContainer.addEventListener('dragover', (event) => {
+tabsContainer?.addEventListener('dragover', (event) => {
     const tabButton = event.target.closest('.dashboard-tab[data-tab-id]');
     if (!draggedTabId || !tabButton || tabButton.dataset.tabId === HOME_TAB_ID) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
 });
 
-tabsContainer.addEventListener('drop', (event) => {
+tabsContainer?.addEventListener('drop', (event) => {
     const tabButton = event.target.closest('.dashboard-tab[data-tab-id]');
     if (!draggedTabId || !tabButton) return;
     event.preventDefault();
@@ -2367,7 +2764,7 @@ tabsContainer.addEventListener('drop', (event) => {
     renderBdfg();
 });
 
-tabsContainer.addEventListener('dragend', () => {
+tabsContainer?.addEventListener('dragend', () => {
     draggedTabId = null;
     renderTabs();
     renderBdfg();
@@ -2392,6 +2789,11 @@ document.querySelectorAll('.dashboard-card').forEach((card) => {
             inventoryPopover.hidden = false;
             return;
         }
+        if (card.dataset.openMode === 'window') {
+            const opened = window.open(stripShellRoute(card.dataset.route), '_blank', 'noopener');
+            if (opened) opened.opener = null;
+            return;
+        }
         openTab(card.dataset.route, card.dataset.label);
     });
 });
@@ -2408,11 +2810,15 @@ window.addEventListener('message', (event) => {
         renderBdfg();
         return;
     }
+    if (data.type === 'erp-notifications-updated') {
+        loadBdfgNotifications().catch(() => {});
+        return;
+    }
     if (data.type === 'erp-general-config-updated') {
         bdfgPreviewGlobal = null;
         if (data.config && typeof data.config === 'object') {
             loadedConfig = data.config;
-            applyDashboardConfig().catch(console.error);
+            applyDashboardConfig(data.config).catch(console.error);
             return;
         }
         applyDashboardConfig().catch(console.error);
@@ -2469,6 +2875,8 @@ window.addEventListener('erp-general-config-updated', (event) => {
     bdfgPreviewGlobal = null;
     if (event.detail && typeof event.detail === 'object') {
         loadedConfig = event.detail;
+        applyDashboardConfig(event.detail).catch(console.error);
+        return;
     }
     applyDashboardConfig().catch(console.error);
 });
@@ -2490,6 +2898,10 @@ window.addEventListener('erp-bdfg-preview-profile', (event) => {
 window.addEventListener('resize', () => {
     if (favoriteDrumState) drawFavoriteDrum(favoriteDrumState);
     loadBdfgPosition();
+    if (bdfgMode === 'favorites' && bdfgBridge?.classList.contains('is-favorites-floating')) {
+        const rect = bdfgBridge.getBoundingClientRect();
+        applyBdfgFavoritesPanelPosition({ x: rect.left, y: rect.top });
+    }
     if (searchPopover && !searchPopover.hidden) {
         requestAnimationFrame(() => positionSearchPopover());
     }
@@ -2529,6 +2941,7 @@ document.addEventListener('keydown', (event) => {
 bindBdfg();
 loadBdfgPosition();
 loadBdfgNotifications().catch(() => {});
+setInterval(() => loadBdfgNotifications().catch(() => {}), 45000);
 loadBdfgUserProfile().catch(() => {});
 applyDashboardConfig().catch(console.error);
 renderTabs();

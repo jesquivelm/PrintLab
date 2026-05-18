@@ -15,6 +15,23 @@
             padding: 0;
             overflow: hidden;
         }
+        .notifications-chat-mount {
+            height: calc(100vh - 132px);
+            min-height: 520px;
+        }
+        body.shell-embedded .topbar {
+            display: none;
+        }
+        body.shell-embedded .notifications-workspace {
+            min-height: 100vh;
+        }
+        body.shell-embedded .notifications-card {
+            min-height: calc(100vh - 12px);
+        }
+        body.shell-embedded .notifications-chat-mount {
+            height: calc(100vh - 12px);
+            min-height: 0;
+        }
         .notifications-shell {
             display: grid;
             grid-template-columns: 360px minmax(0, 1fr);
@@ -341,60 +358,13 @@
 
         <main class="workspace workspace-quote notifications-workspace">
             <section class="quote-card quote-card-clean notifications-card">
-                <div class="notifications-shell">
-                    <aside class="notifications-sidebar">
-                        <div class="notifications-toolbar">
-                            <div class="notifications-toolbar-copy">
-                                <h2>Conversaciones</h2>
-                                <span class="notifications-toolbar-note">Centro interno de seguimiento y respuesta.</span>
-                            </div>
-                            <button type="button" id="notificationsRefreshButton" class="action-btn quote-browser-action-btn">Refrescar</button>
-                        </div>
-                        <div class="notifications-search">
-                            <input id="notificationsSearchInput" type="search" placeholder="Buscar por documento, cliente o producto">
-                        </div>
-                        <div id="notificationsThreadList" class="notifications-thread-list"></div>
-                    </aside>
-
-                    <section class="notifications-detail">
-                        <div class="notifications-detail-head">
-                            <div class="notifications-detail-copy">
-                                <h2 id="notificationsDetailTitle" class="notifications-detail-title">Selecciona una conversación</h2>
-                                <span id="notificationsDetailSubtitle" class="notifications-detail-subtitle">Aquí verás el contexto completo del documento y los mensajes intercambiados.</span>
-                            </div>
-                            <div class="notifications-detail-actions">
-                                <button type="button" id="notificationsOpenDocumentButton" class="action-btn quote-browser-action-btn" hidden>Abrir Documento</button>
-                            </div>
-                        </div>
-                        <div id="notificationsDetailMeta" class="notifications-detail-meta"></div>
-                        <div id="notificationsStatus" class="notifications-status"></div>
-                        <div id="notificationsMessageList" class="notifications-message-list">
-                            <div class="notifications-empty">
-                                <strong class="notifications-empty-strong">Todavía no hay una conversación seleccionada.</strong>
-                                <span>Selecciona un hilo del listado para ver sus mensajes y responder.</span>
-                            </div>
-                        </div>
-                        <div class="notifications-compose">
-                            <textarea id="notificationsComposeBody" placeholder="Escribe una respuesta..."></textarea>
-                            <div class="notifications-compose-actions">
-                                <div class="notifications-compose-left">
-                                    <input id="notificationsAttachmentInput" type="file" hidden>
-                                    <button type="button" id="notificationsAttachmentButton" class="action-btn">Adjuntar Archivo</button>
-                                    <span id="notificationsAttachmentName" class="notifications-attachment-name" hidden></span>
-                                </div>
-                                <div class="notifications-compose-right">
-                                    <span class="notifications-compose-note">Solo se enviará dentro del sistema en esta fase.</span>
-                                    <button type="button" id="notificationsSendButton" class="action-btn action-btn-primary">Enviar</button>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-                </div>
+                <div id="notificationsChatMount" class="notifications-chat-mount"></div>
             </section>
         </main>
     </div>
 
     <script src="/access-control.js"></script>
+    <script src="/notification-chat-widget.js"></script>
     <script src="/notificaciones.js"></script>
     <script src="/topbar-tools.js"></script>
 </body>

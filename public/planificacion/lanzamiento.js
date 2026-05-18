@@ -3,7 +3,6 @@ const listBox = document.getElementById('planningQueueList');
 const subtitleBox = document.getElementById('planningQueueSubtitle');
 const searchInput = document.getElementById('planningQueueSearchInput');
 const openGanttButton = document.getElementById('planningQueueOpenGanttButton');
-const openPreturnoButton = document.getElementById('planningQueueOpenPreturnoButton');
 const RETURN_REASONS = [
     'Falta definir recursos',
     'Faltan tiempos de proceso',
@@ -13,6 +12,20 @@ const RETURN_REASONS = [
     'Tintas por confirmar',
     'Fecha prometida requiere revisión'
 ];
+
+const PROCESS_LABELS = {
+    diseno: 'Diseño',
+    preprensa: 'Preprensa',
+    impresion: 'Impresión',
+    laminado: 'Laminado',
+    troquelado: 'Troquelado',
+    estampado: 'Estampado',
+    barnizado: 'Barniz',
+    embosado: 'Embosado',
+    numeracion: 'Numeración',
+    rebobinado: 'Rebobinado',
+    empaque: 'Empaque'
+};
 
 let planningItems = [];
 
@@ -34,6 +47,15 @@ function formatDate(value, withTime = false) {
         : { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+function formatNumber(value, decimals = 0) {
+    const numeric = Number(value || 0);
+    if (!Number.isFinite(numeric)) return '0';
+    const fixed = numeric.toFixed(decimals);
+    const [intPart, decimalPart] = fixed.split('.');
+    const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    return decimalPart && Number(decimalPart) ? `${grouped}.${decimalPart}` : grouped;
+}
+
 function normalizeKey(value) {
     return String(value || '')
         .normalize('NFD')
@@ -50,163 +72,127 @@ function shellOpen(route, label) {
     window.parent.postMessage({ type: 'erp-open-tab', route, label }, window.location.origin);
 }
 
-function processStateClass(status) {
-    const key = String(status || '').toUpperCase();
-    if (key === 'RUN' || key === 'SETUP') return 'running';
-    if (key === 'PARO') return 'stop';
-    if (key === 'COMPLETADO') return 'done';
-    return 'pending';
+function processLabel(key, fallback = '') {
+    return PROCESS_LABELS[key] || fallback || key || 'Proceso';
 }
 
 function getOrderHealth(item) {
-    const processes = Array.isArray(item.preturnoProcesses) ? item.preturnoProcesses : [];
-    const hasStop = processes.some((process) => String(process.routeStatus || '').toUpperCase() === 'PARO');
-    const hasMissing = processes.some((process) => Array.isArray(process.missingItems) && process.missingItems.length);
-    if (hasStop) return { key: 'danger', label: 'Atencion inmediata' };
-    if (hasMissing) return { key: 'warn', label: 'Requiere revision' };
-    return { key: 'ok', label: 'Lista para lanzar' };
-}
-
-function mergePlanningWithPreturno(queueItems, preturnoItems) {
-    const preturnoMap = new Map((preturnoItems || []).map((item) => [normalizeKey(item.orderCode), item]));
-    return (queueItems || []).map((item) => {
-        const preturno = preturnoMap.get(normalizeKey(item.orderCode)) || null;
-        const preturnoProcesses = Array.isArray(preturno?.processes) ? preturno.processes : [];
-        const missingFromPreturno = Array.from(new Set(preturnoProcesses.flatMap((process) => process.missingItems || [])));
-        const readyFromPreturno = Array.from(new Set(preturnoProcesses.flatMap((process) => process.readyItems || [])));
-        return {
-            ...item,
-            preturno,
-            preturnoProcesses,
-            missingItems: Array.from(new Set([...(item.missingItems || []), ...missingFromPreturno])),
-            readyItems: readyFromPreturno,
-            attachmentCount: preturnoProcesses.reduce((sum, process) => sum + Number(process.attachmentCount || 0), 0),
-            additionalCount: preturnoProcesses.reduce((sum, process) => sum + Number(process.additionalCount || 0), 0)
-        };
-    });
+    const missing = Array.isArray(item.missingItems) ? item.missingItems : [];
+    if (missing.length) return { key: 'warn', label: 'Revisar' };
+    return { key: 'ok', label: 'Lista' };
 }
 
 function renderSummary(items) {
     const urgent = items.filter((item) => item.promisedDeliveryDate).length;
     const blocked = items.filter((item) => getOrderHealth(item).key !== 'ok').length;
-    const ready = items.filter((item) => getOrderHealth(item).key === 'ok').length;
-    const attention = items.filter((item) => getOrderHealth(item).key === 'danger').length;
+    const quoted = items.reduce((sum, item) => sum + (Array.isArray(item.quotedProcessList) ? item.quotedProcessList.length : 0), 0);
     summaryBox.innerHTML = `
         <article class="planning-queue-metric">
             <div class="planning-queue-metric-label">Pendientes</div>
             <div class="planning-queue-metric-value">${items.length}</div>
         </article>
         <article class="planning-queue-metric">
-            <div class="planning-queue-metric-label">Con fecha prometida</div>
+            <div class="planning-queue-metric-label">Con entrega</div>
             <div class="planning-queue-metric-value">${urgent}</div>
         </article>
         <article class="planning-queue-metric">
-            <div class="planning-queue-metric-label">Listas para lanzar</div>
-            <div class="planning-queue-metric-value">${ready}</div>
-        </article>
-        <article class="planning-queue-metric">
-            <div class="planning-queue-metric-label">Con observaciones</div>
+            <div class="planning-queue-metric-label">Con alerta</div>
             <div class="planning-queue-metric-value">${blocked}</div>
         </article>
         <article class="planning-queue-metric">
-            <div class="planning-queue-metric-label">Atencion inmediata</div>
-            <div class="planning-queue-metric-value">${attention}</div>
+            <div class="planning-queue-metric-label">Procesos cobrados</div>
+            <div class="planning-queue-metric-value">${quoted}</div>
         </article>
     `;
 }
 
-function processCard(process) {
-    const missing = Array.isArray(process.missingItems) ? process.missingItems : [];
-    const ready = Array.isArray(process.readyItems) ? process.readyItems : [];
-    return `
-        <div class="planning-queue-process-card">
-            <div class="planning-queue-process-head">
-                <span class="planning-queue-process-name">${escapeHtml(process.processName || 'Proceso')}</span>
-                <span class="planning-queue-process-status ${processStateClass(process.routeStatus)}">${escapeHtml(process.routeStatus || 'PENDIENTE')}</span>
-            </div>
-            <div class="planning-queue-process-lines">
-                <div class="planning-queue-process-line"><span>Maquina</span><strong>${escapeHtml(process.machineLabel || 'Sin definir')}</strong></div>
-                <div class="planning-queue-process-line"><span>Sustrato</span><strong>${escapeHtml(process.materialLabel || 'Sin definir')}</strong></div>
-                <div class="planning-queue-process-line"><span>Troquel / plancha</span><strong>${escapeHtml(process.dieLabel || 'Sin definir')}</strong></div>
-                <div class="planning-queue-process-line"><span>Tintas</span><strong>${escapeHtml(String(process.tintCount || 0))}</strong></div>
-            </div>
-            <div class="planning-queue-process-flags">
-                ${ready.length
-                    ? ready.map((entry) => `<span class="planning-queue-flag ok">${escapeHtml(entry)} listo</span>`).join('')
-                    : '<span class="planning-queue-flag ok">Sin bloqueos criticos</span>'}
-                ${missing.map((entry) => `<span class="planning-queue-flag miss">Falta ${escapeHtml(entry)}</span>`).join('')}
-            </div>
+function operationalRows(item) {
+    const product = [item.productName || item.jobName || 'Sin producto', item.dimensionsText].filter(Boolean).join(' · ');
+    const finishSummary = item.finishSummary || 'Sin acabados declarados';
+    return [
+        ['Cotización', item.quoteCode || ''],
+        ['Línea', item.lineCode || ''],
+        ['Producto', product],
+        ['Cantidad', formatNumber(item.orderedQuantity || 0)],
+        ['Pies estim.', `${formatNumber(item.plannedFeet || 0, 2)} ft`],
+        ['Sustrato', item.materialName || 'Sin definir'],
+        ['Sustrato qty.', `${formatNumber(item.materialQuantity || item.plannedFeet || 0, 2)} ft`],
+        ['Tintas', formatNumber(item.tintCount || 0)],
+        ['Máquina', item.machineName || 'Sin definir'],
+        ['Acabados', finishSummary]
+    ].map(([label, value]) => `
+        <div class="planning-queue-row">
+            <span>${escapeHtml(label)}</span>
+            <strong>${escapeHtml(value)}</strong>
         </div>
-    `;
+    `).join('');
+}
+
+function processChecklist(item) {
+    const processes = Array.isArray(item.processChecklist) ? item.processChecklist : [];
+    if (!processes.length) {
+        return '<div class="planning-queue-text">No hay procesos configurados para planificación.</div>';
+    }
+    return processes.map((process) => {
+        const key = process.key || '';
+        const label = processLabel(key, process.label);
+        return `
+            <label class="planning-queue-process-toggle${process.quoted ? ' was-quoted' : ''}">
+                <input type="checkbox" data-process-toggle data-order="${escapeHtml(item.orderCode)}" data-process="${escapeHtml(key)}"${process.selected ? ' checked' : ''}>
+                <span>${escapeHtml(label.toUpperCase())}</span>
+                ${process.quoted ? '<em>Cobrado</em>' : ''}
+            </label>
+        `;
+    }).join('');
+}
+
+function processWarnings(item) {
+    const processes = Array.isArray(item.processChecklist) ? item.processChecklist : [];
+    const disabledQuoted = processes
+        .filter((process) => process.quoted && !process.selected)
+        .map((process) => processLabel(process.key, process.label));
+    if (!disabledQuoted.length) return '';
+    return `<div class="planning-queue-process-warning">El proceso fue cobrado y quedó desactivado: ${escapeHtml(disabledQuoted.join(', '))}.</div>`;
 }
 
 function queueCard(item) {
     const missing = Array.isArray(item.missingItems) ? item.missingItems : [];
-    const processList = Array.isArray(item.processList) ? item.processList : [];
-    const preturnoProcesses = Array.isArray(item.preturnoProcesses) ? item.preturnoProcesses : [];
     const health = getOrderHealth(item);
     return `
-        <article class="planning-queue-card">
+        <article class="planning-queue-card" data-order-card="${escapeHtml(item.orderCode)}">
             <div class="planning-queue-head">
                 <div>
                     <div class="planning-queue-code">${escapeHtml(item.orderCode)}</div>
                     <div class="planning-queue-customer">${escapeHtml(item.customerName || 'Sin cliente')}</div>
                     <div class="planning-queue-meta">
-                        <span class="planning-queue-pill">Entrega prometida: ${escapeHtml(formatDate(item.promisedDeliveryDate))}</span>
+                        <span class="planning-queue-pill">Entrega: ${escapeHtml(formatDate(item.promisedDeliveryDate))}</span>
                         <span class="planning-queue-pill">Trabajo: ${escapeHtml(item.jobName || 'Sin nombre')}</span>
                         <span class="planning-queue-pill">Vendedor: ${escapeHtml(item.salespersonName || 'Sin asignar')}</span>
-                        <span class="planning-queue-pill">Adjuntos: ${escapeHtml(String(item.attachmentCount || 0))}</span>
-                        <span class="planning-queue-pill">Adicionales: ${escapeHtml(String(item.additionalCount || 0))}</span>
+                        <span class="planning-queue-pill">Adjuntos: ${escapeHtml(formatNumber(item.attachmentCount || 0))}</span>
                     </div>
                 </div>
-                <div class="planning-queue-meta">
-                    <span class="planning-queue-health-badge ${health.key}">${escapeHtml(health.label)}</span>
-                    ${missing.length
-                        ? missing.map((entry) => `<span class="planning-queue-badge-miss">${escapeHtml(entry)}</span>`).join('')
-                        : '<span class="planning-queue-badge-ok">Lista para lanzar</span>'}
-                </div>
+                <span class="planning-queue-health-badge ${health.key}">${escapeHtml(health.label)}</span>
             </div>
 
             <div class="planning-queue-body">
-                <section class="planning-queue-panel">
+                <section class="planning-queue-panel planning-queue-panel-compact">
                     <h3>Base Operativa</h3>
-                    <div class="planning-queue-grid">
-                        <div class="planning-queue-row"><span>Cotizacion</span><strong>${escapeHtml(item.quoteCode || '')}</strong></div>
-                        <div class="planning-queue-row"><span>Linea</span><strong>${escapeHtml(item.lineCode || '')}</strong></div>
-                        <div class="planning-queue-row"><span>Cantidad</span><strong>${escapeHtml(String(item.orderedQuantity || 0))}</strong></div>
-                        <div class="planning-queue-row"><span>Pies estimados</span><strong>${escapeHtml(String(item.plannedFeet || 0))}</strong></div>
-                        <div class="planning-queue-row"><span>Tintas</span><strong>${escapeHtml(String(item.tintCount || 0))}</strong></div>
-                        <div class="planning-queue-row"><span>Maquina cotizada</span><strong>${escapeHtml(item.machineName || 'Sin definir')}</strong></div>
-                        <div class="planning-queue-row"><span>Sustrato</span><strong>${escapeHtml(item.materialName || 'Sin definir')}</strong></div>
-                        <div class="planning-queue-row"><span>Troquel / plancha</span><strong>${escapeHtml(item.dieCode || 'Sin definir')}</strong></div>
+                    <div class="planning-queue-grid planning-queue-grid-compact">
+                        ${operationalRows(item)}
                     </div>
                 </section>
 
                 <section class="planning-queue-panel">
-                    <h3>Procesos y Preturno</h3>
-                    <div class="planning-queue-processes">
-                        ${processList.length
-                            ? processList.map((processKey) => `<span class="planning-queue-process">${escapeHtml(processKey)}</span>`).join('')
-                            : '<span class="planning-queue-process">Sin procesos</span>'}
+                    <h3>Procesos</h3>
+                    <div class="planning-queue-processes planning-queue-process-selector">
+                        ${processChecklist(item)}
                     </div>
-                    <div class="planning-queue-process-grid" style="margin-top:14px">
-                        ${preturnoProcesses.length
-                            ? preturnoProcesses.map(processCard).join('')
-                            : '<div class="planning-queue-text">Todavia no hay detalle de preturno para esta orden.</div>'}
-                    </div>
+                    ${processWarnings(item)}
+                    ${missing.length ? `<div class="planning-queue-process-warning">Pendiente de revisar: ${escapeHtml(missing.join(', '))}.</div>` : ''}
                 </section>
 
-                <section class="planning-queue-panel">
-                    <h3>Checklist para Planning</h3>
-                    <div class="planning-queue-text">${missing.length
-                        ? `Pendientes detectados: ${escapeHtml(missing.join(', '))}.`
-                        : 'La orden no muestra faltantes criticos para lanzamiento inicial.'}</div>
-                    <h3 style="margin-top:14px">Validacion</h3>
-                    <div class="planning-queue-text">${escapeHtml(item.createOrderValidation || 'Sin observaciones de creacion.')}</div>
-                    <h3 style="margin-top:14px">Comentarios para Planning</h3>
-                    <div class="planning-queue-text">${escapeHtml(item.sellerComments || 'Sin comentarios del vendedor.')}</div>
-                    <h3 style="margin-top:14px">Resumen de impresion</h3>
-                    <div class="planning-queue-text">${escapeHtml(item.printSummary || item.observations || 'Sin notas adicionales.')}</div>
+                <section class="planning-queue-art-slot" aria-label="Espacio pendiente para arte">
+                    <div class="planning-queue-art-placeholder">Arte pendiente</div>
                 </section>
             </div>
 
@@ -221,20 +207,20 @@ function queueCard(item) {
 
 function renderList() {
     const term = String(searchInput.value || '').trim().toLowerCase();
-    const visible = planningItems.filter((item) => [item.orderCode, item.customerName, item.jobName].join(' ').toLowerCase().includes(term));
+    const visible = planningItems.filter((item) => [item.orderCode, item.customerName, item.jobName, item.productName].join(' ').toLowerCase().includes(term));
     const ready = visible.filter((item) => getOrderHealth(item).key === 'ok').length;
     renderSummary(visible);
-    subtitleBox.textContent = `Ordenes liberadas por ventas y pendientes de programacion: ${visible.length}. Listas para lanzar: ${ready}.`;
+    subtitleBox.textContent = `Órdenes liberadas por ventas: ${visible.length}. Listas para lanzar: ${ready}.`;
     listBox.innerHTML = visible.length
         ? visible
             .sort((a, b) => {
-                const healthRank = { danger: 0, warn: 1, ok: 2 };
+                const healthRank = { warn: 0, ok: 1 };
                 const healthDiff = (healthRank[getOrderHealth(a).key] ?? 9) - (healthRank[getOrderHealth(b).key] ?? 9);
                 if (healthDiff !== 0) return healthDiff;
                 return String(a.promisedDeliveryDate || '').localeCompare(String(b.promisedDeliveryDate || ''));
             })
             .map(queueCard).join('')
-        : '<div class="planning-queue-empty">No hay ordenes pendientes en la cola de planificacion.</div>';
+        : '<div class="planning-queue-empty">No hay órdenes pendientes en la cola de planificación.</div>';
 }
 
 function askReturnReason(orderCode) {
@@ -295,21 +281,12 @@ function askReturnReason(orderCode) {
 }
 
 async function refreshQueue() {
-    const [queueResponse, preturnoResponse] = await Promise.all([
-        fetch('/api/planificacion/lanzamiento'),
-        fetch('/api/planificacion/preturno')
-    ]);
-    const [queuePayload, preturnoPayload] = await Promise.all([
-        queueResponse.json(),
-        preturnoResponse.json()
-    ]);
+    const queueResponse = await fetch('/api/planificacion/lanzamiento');
+    const queuePayload = await queueResponse.json();
     if (!queueResponse.ok || !queuePayload.ok) {
-        throw new Error(queuePayload.error || 'No se pudo cargar la cola de planificacion.');
+        throw new Error(queuePayload.error || 'No se pudo cargar la cola de planificación.');
     }
-    if (!preturnoResponse.ok || !preturnoPayload.ok) {
-        throw new Error(preturnoPayload.error || 'No se pudo cargar el detalle de preturno.');
-    }
-    planningItems = mergePlanningWithPreturno(queuePayload.items || [], preturnoPayload.items || []);
+    planningItems = queuePayload.items || [];
     renderList();
 }
 
@@ -328,6 +305,39 @@ async function updatePlanning(orderCode, action, reason = '') {
         shellOpen(`/planificacion/gantt?orderCode=${encodeURIComponent(orderCode)}&autoplan=1`, `Gantt ${orderCode}`);
     }
 }
+
+async function updatePlanningProcesses(orderCode, selectedProcessKeys) {
+    const response = await fetch(`/api/ordenes-produccion/${encodeURIComponent(orderCode)}/planning-control`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update-processes', selectedProcessKeys })
+    });
+    const payload = await response.json();
+    if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || 'No se pudo actualizar procesos.');
+    }
+    await refreshQueue();
+}
+
+function selectedProcessesForCard(card) {
+    return Array.from(card.querySelectorAll('[data-process-toggle]:checked'))
+        .map((input) => input.dataset.process)
+        .filter(Boolean);
+}
+
+listBox?.addEventListener('change', async (event) => {
+    const input = event.target.closest('[data-process-toggle]');
+    if (!input) return;
+    const card = input.closest('[data-order-card]');
+    const orderCode = input.dataset.order || card?.dataset.orderCard;
+    if (!card || !orderCode) return;
+    try {
+        await updatePlanningProcesses(orderCode, selectedProcessesForCard(card));
+    } catch (error) {
+        subtitleBox.textContent = error.message;
+        await refreshQueue().catch(() => {});
+    }
+});
 
 listBox?.addEventListener('click', async (event) => {
     const button = event.target.closest('[data-action]');
@@ -356,7 +366,6 @@ listBox?.addEventListener('click', async (event) => {
 
 searchInput?.addEventListener('input', renderList);
 openGanttButton?.addEventListener('click', () => shellOpen('/planificacion/gantt', 'Gantt'));
-openPreturnoButton?.addEventListener('click', () => shellOpen('/planificacion/preturno', 'Preturno'));
 
 refreshQueue().catch((error) => {
     summaryBox.innerHTML = '';

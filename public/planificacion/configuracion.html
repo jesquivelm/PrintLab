@@ -34,11 +34,17 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 .card-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e8e8e4}
 .card-title{font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
 .card-body{padding:0}
+.planning-primary-strip{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;background:#fff;border:1px solid #e0e0da;border-radius:10px;padding:12px 14px;margin-bottom:16px}
+.planning-primary-field{display:flex;flex-direction:column;gap:5px;min-width:280px}
+.planning-primary-field span{font-size:11px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.planning-primary-field select{font-size:12px;padding:7px 10px;border:1px solid #d0d0ca;border-radius:7px;background:#fafaf8;color:#1a1a1a}
+.planning-primary-summary{font-size:12px;color:#666;text-align:right}
 
 /* Proceso row */
 .proceso-row{display:grid;grid-template-columns:36px 36px 1fr 80px 80px 100px;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid #f0f0ea;cursor:grab}
 .proceso-row:last-child{border-bottom:none}
 .proceso-row:hover{background:#fafaf8}
+.proceso-row.is-selected{background:#eef8f4}
 .drag-handle{color:#ccc;cursor:grab;font-size:16px;text-align:center}
 .proceso-orden{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0}
 .proceso-nombre{font-weight:500;font-size:13px}
@@ -139,6 +145,14 @@ input[type="checkbox"]{width:16px;height:16px;accent-color:#1D9E75;cursor:pointe
       <div style="font-size:12px;color:#888;margin-top:2px">Define el orden y los atributos de cada etapa productiva</div>
     </div>
     <button class="btn primary" onclick="openModalProceso()">+ Agregar proceso</button>
+  </div>
+
+  <div class="planning-primary-strip">
+    <label class="planning-primary-field">
+      <span>Planificación principal</span>
+      <select id="planning-primary-select"></select>
+    </label>
+    <div id="planning-primary-summary" class="planning-primary-summary">Procesos activos de clasificación</div>
   </div>
 
   <div class="card">
@@ -319,6 +333,24 @@ const API = '/api/planificacion';
 let procesos = [];
 let maquinas = [];
 
+function displayProcessName(value) {
+  const raw = String(value || '').trim();
+  const key = raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const labels = {
+    diseno: 'Diseño',
+    preprensa: 'Preprensa',
+    impresion: 'Impresión',
+    'impresion convencional': 'Impresión Convencional',
+    'impresion digital': 'Impresión Digital',
+    barnizado: 'Barniz',
+    barniz: 'Barniz',
+    numeracion: 'Numeración',
+    rebobinado: 'Rebobinado',
+    empaque: 'Empaque'
+  };
+  return labels[key] || raw || 'Sin proceso';
+}
+
 // ── TABS ─────────────────────────────────────────────────────
 function showTab(tab) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -365,18 +397,20 @@ async function loadAll() {
 // ── RENDER PROCESOS ───────────────────────────────────────────
 function renderProcesos() {
   const list = document.getElementById('procesos-list');
+  renderPlanningPrimarySelect();
   if (!procesos.length) {
     list.innerHTML = `<div class="empty"><div class="empty-icon">📋</div>No hay procesos configurados aún.<br>Agrega el primero con el botón superior.</div>`;
     return;
   }
+  const selectedPrimary = document.getElementById('planning-primary-select')?.value || '';
   list.innerHTML = procesos.map(p => `
-    <div class="proceso-row" draggable="true" data-id="${p.id_proceso}">
+    <div class="proceso-row ${String(p.id_proceso) === String(selectedPrimary) ? 'is-selected' : ''}" draggable="true" data-id="${p.id_proceso}">
       <span class="drag-handle">⋮⋮</span>
       <span class="proceso-orden" style="background:${p.color_hex}">${p.orden_secuencia}</span>
       <div>
         <div style="display:flex;align-items:center;gap:7px">
           <span style="font-size:16px">${p.icono || '⚙'}</span>
-          <span class="proceso-nombre">${p.nombre}</span>
+          <span class="proceso-nombre">${displayProcessName(p.nombre)}</span>
           <span class="badge-paralelo ${p.es_paralelo?'si':'no'}">${p.es_paralelo?'Paralelo':'Secuencial'}</span>
           ${!p.activo ? '<span style="font-size:10px;color:#aaa;background:#f5f5f3;padding:1px 6px;border-radius:4px">Inactivo</span>' : ''}
         </div>
@@ -396,6 +430,23 @@ function renderProcesos() {
   `).join('');
 }
 
+function renderPlanningPrimarySelect() {
+  const select = document.getElementById('planning-primary-select');
+  const summary = document.getElementById('planning-primary-summary');
+  if (!select) return;
+  const previous = select.value;
+  const active = procesos.filter(p => p.activo !== false);
+  select.innerHTML = active.map(p => `<option value="${p.id_proceso}">${p.icono || '⚙'} ${displayProcessName(p.nombre)}</option>`).join('');
+  if (previous && active.some(p => String(p.id_proceso) === String(previous))) select.value = previous;
+  if (!select.value && active[0]) select.value = active[0].id_proceso;
+  const selected = active.find(p => String(p.id_proceso) === String(select.value));
+  if (summary) {
+    summary.textContent = selected
+      ? `${active.length} procesos activos · ${Number(selected.total_maquinas || 0)} máquina(s) en ${displayProcessName(selected.nombre)}`
+      : 'Sin procesos activos de clasificación';
+  }
+}
+
 // ── RENDER MÁQUINAS (agrupadas por proceso) ───────────────────
 function renderMaquinas() {
   const list = document.getElementById('maquinas-list');
@@ -410,7 +461,7 @@ function renderMaquinas() {
   maquinas.forEach(m => {
     if (!m.id_proceso) { sinProceso.push(m); return; }
     const key = m.id_proceso;
-    if (!grupos[key]) grupos[key] = { proceso: { nombre: m.proceso_nombre, color: m.color_hex, icono: m.proceso_icono, orden: m.orden_secuencia }, maquinas: [] };
+    if (!grupos[key]) grupos[key] = { proceso: { nombre: displayProcessName(m.proceso_nombre), color: m.color_hex, icono: m.proceso_icono, orden: m.orden_secuencia }, maquinas: [] };
     grupos[key].maquinas.push(m);
   });
 
@@ -671,6 +722,11 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
   overlay.addEventListener('click', e => {
     if (e.target === overlay) overlay.classList.remove('open');
   });
+});
+
+document.getElementById('planning-primary-select')?.addEventListener('change', (event) => {
+  renderProcesos();
+  document.querySelector(`.proceso-row[data-id="${event.target.value}"]`)?.scrollIntoView({ block: 'nearest' });
 });
 
 // ── INICIO ────────────────────────────────────────────────────

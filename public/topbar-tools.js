@@ -2,6 +2,7 @@
     const SESSION_STORAGE_KEY = 'erp-user-session';
     const PROFILE_ENDPOINT = '/api/admin-profile';
     const FAVORITES_STORAGE_KEY = 'erp-favorite-documents';
+    let profileAutosaveTimer = null;
     const FLOATING_BUTTON_THEMES = window.DashboardFloatingButtonThemes || {
         ocean: { day: '#60a5fa', night: '#1e3a8a', miniBg: '#ffffff', miniBgAlpha: 100, miniBgNight: '#ffffff', miniBgNightAlpha: 100, miniColor: '#334155' },
         executive: { day: '#cbd5e1', night: '#334155', miniBg: '#ffffff', miniBgAlpha: 100, miniBgNight: '#ffffff', miniBgNightAlpha: 100, miniColor: '#1f2937' },
@@ -21,6 +22,12 @@
         const numeric = Number(value);
         if (!Number.isFinite(numeric)) return fallback;
         return Math.min(100, Math.max(0, Math.round(numeric)));
+    }
+
+    function clampNumber(value, fallback, min, max) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return fallback;
+        return Math.min(max, Math.max(min, numeric));
     }
 
     function readSession() {
@@ -49,6 +56,33 @@
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
+    }
+
+    function profileInitials(payload = {}) {
+        const source = String(payload.name || payload.username || 'Usuario').trim();
+        const parts = source.split(/\s+/).filter(Boolean);
+        return (parts.length ? parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join('') : 'U');
+    }
+
+    function updateProfileAvatar(popover, payload = {}) {
+        const photo = String(payload.photoUrl || '').trim();
+        const image = popover?.querySelector('#globalUserProfilePhoto');
+        const initialsNode = popover?.querySelector('#globalUserProfileInitials');
+        if (initialsNode) initialsNode.textContent = profileInitials(payload);
+        if (!image) return;
+        image.onerror = () => {
+            image.hidden = true;
+            if (initialsNode) initialsNode.hidden = false;
+        };
+        if (photo) {
+            image.src = photo;
+            image.hidden = false;
+            if (initialsNode) initialsNode.hidden = true;
+        } else {
+            image.removeAttribute('src');
+            image.hidden = true;
+            if (initialsNode) initialsNode.hidden = false;
+        }
     }
 
     function iconMarkup(value, altText, extraClass = '') {
@@ -95,8 +129,8 @@
             colorMode: ['auto', 'day', 'night'].includes(String(config.colorMode || '').trim().toLowerCase())
                 ? String(config.colorMode || '').trim().toLowerCase()
                 : 'auto',
-            mainSize: Number(config.mainSize) || 86,
-            menuDistance: Number(config.menuDistance) || 108,
+            mainSize: clampNumber(config.mainSize, 86, 25, 100),
+            menuDistance: clampNumber(config.menuDistance, 108, 72, 200),
             mainDay: String(config.mainDay || '').trim(),
             mainNight: String(config.mainNight || '').trim(),
             miniBg: String(config.miniBg || '').trim(),
@@ -174,17 +208,58 @@
         });
         form.elements.bdfgTheme?.addEventListener('change', () => {
             applyFloatingButtonThemeToForm(form, true);
+            syncProfileRangeValues(form);
             emitFloatingButtonProfilePreview(form);
+            scheduleProfileAutosave(form);
+        });
+        popover.querySelectorAll('[data-profile-range-target]').forEach((range) => {
+            range.addEventListener('input', () => {
+                const target = form.elements[range.dataset.profileRangeTarget];
+                if (target) target.value = range.value;
+                emitFloatingButtonProfilePreview(form);
+                scheduleProfileAutosave(form);
+            });
         });
         ['bdfgEnabled', 'bdfgColorMode', 'bdfgMainSize', 'bdfgMenuDistance', 'bdfgMainDay', 'bdfgMainNight', 'bdfgMiniBg', 'bdfgMiniBgAlpha', 'bdfgMiniBgNight', 'bdfgMiniBgNightAlpha', 'bdfgMiniColor', 'bdfgMiniShape', 'bdfgLayout'].forEach((fieldName) => {
             const field = form.elements[fieldName];
             if (!field) return;
-            field.addEventListener('change', () => emitFloatingButtonProfilePreview(form));
+            field.addEventListener('change', () => {
+                syncProfileRangeValues(form);
+                emitFloatingButtonProfilePreview(form);
+                scheduleProfileAutosave(form);
+            });
             if (field instanceof HTMLInputElement && field.type !== 'color' && field.type !== 'checkbox') {
-                field.addEventListener('input', () => emitFloatingButtonProfilePreview(form));
+                field.addEventListener('input', () => {
+                    syncProfileRangeValues(form);
+                    emitFloatingButtonProfilePreview(form);
+                    scheduleProfileAutosave(form);
+                });
             }
         });
+        ['email', 'phone', 'phoneSecondary'].forEach((fieldName) => {
+            const field = form.elements[fieldName];
+            if (!field) return;
+            field.addEventListener('change', () => scheduleProfileAutosave(form));
+            field.addEventListener('input', () => scheduleProfileAutosave(form));
+        });
         form.dataset.bdfgBound = 'true';
+    }
+
+    function syncProfileRangeValues(form) {
+        form?.querySelectorAll('[data-profile-range-target]').forEach((range) => {
+            const target = form.elements[range.dataset.profileRangeTarget];
+            if (target) range.value = target.value || range.value;
+        });
+    }
+
+    function scheduleProfileAutosave(form) {
+        clearTimeout(profileAutosaveTimer);
+        profileAutosaveTimer = setTimeout(() => {
+            saveProfile(form, { auto: true }).catch((error) => {
+                const status = document.getElementById('globalUserProfileStatus');
+                if (status) status.textContent = error.message || 'No fue posible guardar el perfil.';
+            });
+        }, 750);
     }
 
     function readFavoriteDocuments() {
@@ -235,9 +310,15 @@
         popover.innerHTML = `
             <div class="topbar-profile-card">
                 <div class="topbar-profile-head">
-                    <div>
-                        <strong id="globalUserPopoverName">Mi perfil</strong>
-                        <span id="globalUserPopoverMeta">Actualiza tus datos de acceso.</span>
+                    <div class="topbar-profile-identity">
+                        <div class="topbar-profile-avatar-shell">
+                            <img id="globalUserProfilePhoto" class="topbar-profile-avatar" alt="" hidden>
+                            <span id="globalUserProfileInitials" class="topbar-profile-initials">U</span>
+                        </div>
+                        <div class="topbar-profile-title">
+                            <strong id="globalUserPopoverName">Mi perfil</strong>
+                            <span id="globalUserPopoverMeta">Información de contacto.</span>
+                        </div>
                     </div>
                     <button type="button" class="topbar-profile-close" aria-label="Cerrar">×</button>
                 </div>
@@ -248,24 +329,16 @@
                 <form id="globalUserProfileForm" class="topbar-profile-form">
                     <div class="topbar-profile-panel" data-profile-panel="perfil">
                         <div class="topbar-profile-grid">
-                            <label>
-                                <span>Cambiar contraseña</span>
-                                <input name="password" type="text" autocomplete="new-password">
-                            </label>
-                            <label>
-                                <span>Cambiar foto</span>
-                                <input name="photoUrl" type="text" placeholder="URL de la foto">
-                            </label>
-                            <label>
-                                <span>Editar correo</span>
+                            <label class="topbar-profile-field">
+                                <span>Correo</span>
                                 <input name="email" type="email" autocomplete="email">
                             </label>
-                            <label>
-                                <span>Editar teléfonos</span>
+                            <label class="topbar-profile-field">
+                                <span>Teléfono</span>
                                 <input name="phone" type="text" placeholder="Principal">
                             </label>
-                            <label>
-                                <span>Teléfono adicional</span>
+                            <label class="topbar-profile-field">
+                                <span>Tel. adicional</span>
                                 <input name="phoneSecondary" type="text" placeholder="Secundario">
                             </label>
                         </div>
@@ -293,38 +366,46 @@
                             </label>
                             <label>
                                 <span>Diámetro</span>
-                                <input name="bdfgMainSize" type="number" min="58" max="140" step="1">
+                                <div class="topbar-profile-range-row">
+                                    <input type="range" min="25" max="100" step="1" data-profile-range-target="bdfgMainSize" aria-label="Diámetro">
+                                    <input name="bdfgMainSize" type="number" min="25" max="100" step="1">
+                                </div>
                             </label>
                             <label>
-                                <span>Distancia de botones secundarios</span>
-                                <input name="bdfgMenuDistance" type="number" min="72" max="200" step="1">
+                                <span>Distancia</span>
+                                <div class="topbar-profile-range-row">
+                                    <input type="range" min="72" max="200" step="1" data-profile-range-target="bdfgMenuDistance" aria-label="Distancia">
+                                    <input name="bdfgMenuDistance" type="number" min="72" max="200" step="1">
+                                </div>
                             </label>
-                            <label>
+                            <div class="topbar-profile-field">
                                 <span>Color día</span>
                                 <input name="bdfgMainDay" type="color">
-                            </label>
-                            <label>
+                            </div>
+                            <div class="topbar-profile-field">
                                 <span>Color noche</span>
                                 <input name="bdfgMainNight" type="color">
-                            </label>
-                            <label>
+                            </div>
+                            <div class="topbar-profile-field">
                                 <span>Color botones secundarios día</span>
                                 <div class="topbar-profile-color-alpha-row">
                                     <input name="bdfgMiniBg" type="color">
+                                    <em class="topbar-profile-alpha-label">Transp.</em>
                                     <input name="bdfgMiniBgAlpha" type="number" min="0" max="100" step="1" value="100" class="topbar-profile-alpha-input">
                                 </div>
-                            </label>
-                            <label>
+                            </div>
+                            <div class="topbar-profile-field">
                                 <span>Color botones secundarios noche</span>
                                 <div class="topbar-profile-color-alpha-row">
                                     <input name="bdfgMiniBgNight" type="color">
+                                    <em class="topbar-profile-alpha-label">Transp.</em>
                                     <input name="bdfgMiniBgNightAlpha" type="number" min="0" max="100" step="1" value="100" class="topbar-profile-alpha-input">
                                 </div>
-                            </label>
-                            <label>
+                            </div>
+                            <div class="topbar-profile-field">
                                 <span>Color íconos secundarios</span>
                                 <input name="bdfgMiniColor" type="color">
-                            </label>
+                            </div>
                             <label>
                                 <span>Forma de botones secundarios</span>
                                 <select name="bdfgMiniShape">
@@ -370,10 +451,9 @@
         const nameNode = popover.querySelector('#globalUserPopoverName');
         const metaNode = popover.querySelector('#globalUserPopoverMeta');
         if (nameNode) nameNode.textContent = payload.name || payload.username || 'Mi perfil';
-        if (metaNode) metaNode.textContent = payload.department || payload.process || 'Actualiza tus datos de acceso.';
+        if (metaNode) metaNode.textContent = payload.department || payload.process || 'Información de contacto.';
+        updateProfileAvatar(popover, payload);
         if (form) {
-            form.elements.password.value = payload.password || '';
-            form.elements.photoUrl.value = payload.photoUrl || '';
             form.elements.email.value = payload.email || '';
             form.elements.phone.value = payload.phone || '';
             form.elements.phoneSecondary.value = payload.phoneSecondary || '';
@@ -393,6 +473,7 @@
             if (floatingConfig.miniBgNight) form.elements.bdfgMiniBgNight.value = floatingConfig.miniBgNight;
             form.elements.bdfgMiniBgNightAlpha.value = String(clampAlpha(floatingConfig.miniBgNightAlpha, 100));
             if (floatingConfig.miniColor) form.elements.bdfgMiniColor.value = floatingConfig.miniColor;
+            syncProfileRangeValues(form);
         }
         if (status) status.textContent = '';
         bindFloatingButtonProfileEvents(popover);
@@ -434,15 +515,15 @@
         window.location.href = '/login';
     }
 
-    async function saveProfile(form) {
+    async function saveProfile(form, options = {}) {
         const status = document.getElementById('globalUserProfileStatus');
-        if (status) status.textContent = 'Guardando...';
+        if (status) status.textContent = options.auto ? 'Guardando automático...' : 'Guardando...';
         const floatingButtonConfig = {
             enabled: form.elements.bdfgEnabled.checked,
             theme: form.elements.bdfgTheme.value,
             colorMode: form.elements.bdfgColorMode.value,
-            mainSize: Number(form.elements.bdfgMainSize.value || 86) || 86,
-            menuDistance: Number(form.elements.bdfgMenuDistance.value || 108) || 108,
+            mainSize: clampNumber(form.elements.bdfgMainSize.value, 86, 25, 100),
+            menuDistance: clampNumber(form.elements.bdfgMenuDistance.value, 108, 72, 200),
             mainDay: form.elements.bdfgMainDay.value,
             mainNight: form.elements.bdfgMainNight.value,
             miniBg: form.elements.bdfgMiniBg.value,
@@ -454,8 +535,6 @@
             layout: form.elements.bdfgLayout.value
         };
         const payload = {
-            password: form.elements.password.value,
-            photoUrl: form.elements.photoUrl.value,
             email: form.elements.email.value,
             phone: form.elements.phone.value,
             phoneSecondary: form.elements.phoneSecondary.value,
@@ -471,7 +550,8 @@
         });
         const result = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(result.error || 'No fue posible guardar el perfil.');
-        if (status) status.textContent = 'Perfil actualizado.';
+        if (status) status.textContent = options.auto ? 'Cambios guardados.' : 'Perfil actualizado.';
+        updateProfileAvatar(document.getElementById('globalUserPopover'), result || payload);
         const session = readSession();
         if (session) {
             session.photoUrl = result.photoUrl || session.photoUrl || '';

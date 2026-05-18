@@ -62,6 +62,9 @@
             display: grid;
             grid-template-columns: 360px minmax(0, 1fr);
         }
+        .proforma-mobile-toolbar {
+            display: none;
+        }
         .proforma-sidebar {
             border-right: 1px solid var(--line);
             background: rgba(255,255,255,0.94);
@@ -591,14 +594,61 @@
             font-size: 15px;
         }
         @media (max-width: 1120px) {
+            body {
+                overflow: hidden;
+            }
             .proforma-shell {
-                grid-template-columns: 1fr;
+                display: block;
+                min-height: 100vh;
+            }
+            .proforma-mobile-toolbar {
+                display: flex;
+                align-items: center;
+                justify-content: flex-end;
+                gap: 10px;
+                height: 56px;
+                padding: 8px 14px;
+                border-bottom: 1px solid var(--line);
+                background: rgba(255,255,255,0.96);
+                position: sticky;
+                top: 0;
+                z-index: 40;
             }
             .proforma-sidebar {
-                position: relative;
+                position: fixed;
+                top: 68px;
+                right: 14px;
+                width: min(700px, calc(100vw - 28px));
+                max-height: calc(100vh - 82px);
                 height: auto;
-                border-right: none;
-                border-bottom: 1px solid var(--line);
+                border: 1px solid var(--line);
+                border-radius: 18px;
+                padding: 14px;
+                z-index: 50;
+                display: none;
+                box-shadow: 0 22px 48px rgba(12, 31, 56, 0.2);
+            }
+            .proforma-shell.is-config-open .proforma-sidebar {
+                display: flex;
+            }
+            .proforma-preview-area {
+                height: calc(100vh - 56px);
+            }
+            .proforma-panel {
+                border-radius: 16px;
+                padding: 14px;
+            }
+            .proforma-panel + .proforma-panel {
+                margin-top: 12px;
+            }
+            .proforma-sidebar .proforma-panel:first-child .proforma-fields {
+                grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+            }
+            .proforma-sidebar .proforma-panel:first-child .proforma-field:nth-child(-n + 4) {
+                grid-column: auto;
+            }
+            .proforma-field textarea {
+                min-height: 86px;
             }
         }
         @media (max-width: 760px) {
@@ -756,9 +806,13 @@
         }
     </style>
 </head>
-<body>
-    <div id="proformaShell" class="proforma-shell">
-        <aside class="proforma-sidebar">
+	<body>
+	    <div id="proformaShell" class="proforma-shell">
+	        <div class="proforma-mobile-toolbar">
+	            <button id="proformaMobilePrintButton" type="button" class="action-btn quote-browser-action-btn">Imprimir</button>
+	            <button id="proformaConfigToggleButton" type="button" class="action-btn quote-browser-action-btn" aria-expanded="false">Configuración</button>
+	        </div>
+	        <aside class="proforma-sidebar">
             <section class="proforma-panel">
                 <div class="proforma-panel-head">
                     <h2>Comercial</h2>
@@ -766,12 +820,12 @@
                 </div>
                 <div class="proforma-fields">
                     <div class="proforma-field is-full">
-                        <label for="proformaCurrency">Moneda</label>
-                        <select id="proformaCurrency"></select>
-                    </div>
-                    <div class="proforma-field is-full">
                         <label for="proformaValidity">Validez</label>
                         <input id="proformaValidity" type="text">
+                    </div>
+                    <div class="proforma-field is-full">
+                        <label for="proformaCurrency">Moneda</label>
+                        <select id="proformaCurrency"></select>
                     </div>
                     <div class="proforma-field is-full">
                         <label for="proformaPricePresentation">Tipo de Visualización</label>

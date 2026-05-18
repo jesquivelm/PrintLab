@@ -20,10 +20,15 @@ const PLATE_KEYS = [
   { key: "clean", label: "Limpieza", machine: "Limpieza", keywords: ["limpieza"] },
   { key: "dry", label: "Secado / Curado", machine: "Secado / Curado", keywords: ["secado", "curado"] }
 ];
+const PLATE_MODE_OPTIONS = [
+  { key: "virgin", label: "Plancha Virgen" },
+  { key: "external", label: "Costo Externo" },
+  { key: "inventory", label: "De Inventario" }
+];
 const INLINE_PRINT_SLOTS = [
   { key: "barniz", label: "Barniz", keywords: ["barniz"], materialFamily: "barniz", materialKeywords: ["barniz"] },
   { key: "laminado", label: "Laminado", keywords: ["laminado"], materialFamily: "laminado", materialKeywords: ["laminado", "laminante", "overtape", "arclad", "graf depot"], usesMaterial: true },
-  { key: "estampado", label: "Estampado", keywords: ["estampado", "foil"], materialFamily: "foil", materialKeywords: ["foil", "stamp", "estamp"], usesMaterial: true, usesPlateCost: true },
+  { key: "estampado", label: "Estampado", keywords: ["estampado", "foil"], materialFamily: "foil", materialKeywords: ["foil", "stamp", "estamp"], usesMaterial: true },
   { key: "embosado", label: "Embosado", keywords: ["embosado", "relieve", "emboss"], usesPlateCost: true },
   { key: "troquelado", label: "Troquelado", keywords: ["troquel"] },
   { key: "numerado", label: "Numerado", keywords: ["numerado", "numero"] }
@@ -31,13 +36,20 @@ const INLINE_PRINT_SLOTS = [
 const EXTERNAL_FINISH_SLOTS = [
   { key: "barnizado", label: "Barnizado", keywords: ["barnizado", "barniz"], materialFamily: "barniz", materialKeywords: ["barniz"], usesMaterial: true, usesWeightMaterial: true },
   { key: "laminado", label: "Laminado", keywords: ["laminado"], materialFamily: "laminado", materialKeywords: ["laminado", "laminante", "overtape", "arclad", "graf depot"], usesMaterial: true },
-  { key: "estampado", label: "Estampado", keywords: ["estampado", "foil"], materialFamily: "foil", materialKeywords: ["foil", "stamp", "estamp"], usesMaterial: true, usesPlateCost: true },
+  { key: "estampado", label: "Estampado", keywords: ["estampado", "foil"], materialFamily: "foil", materialKeywords: ["foil", "stamp", "estamp"], usesMaterial: true },
   { key: "embosado", label: "Embosado", keywords: ["embosado", "relieve", "emboss"], usesPlateCost: true },
   { key: "troquelado", label: "Troquelado", keywords: ["troquel"] },
   { key: "rebobinado", label: "Rebobinado", keywords: ["rebob"] }
 ];
 const EXTERNAL_FINISH_BY_KEY = Object.fromEntries(EXTERNAL_FINISH_SLOTS.map((item) => [item.key, item]));
 const INLINE_PRINT_BY_KEY = Object.fromEntries(INLINE_PRINT_SLOTS.map((item) => [item.key, item]));
+const INLINE_EXTERNAL_FINISH_KEY = {
+  barniz: "barnizado",
+  laminado: "laminado",
+  estampado: "estampado",
+  embosado: "embosado",
+  troquelado: "troquelado"
+};
 const PROCESS_MENU = [
   { key: "troquel", label: "Troquel", locked: true, repeatable: false, helper: "Base tecnica obligatoria", order: 10 },
   { key: "sustrato", label: "Sustrato", locked: true, repeatable: false, helper: "Material base obligatorio", order: 20 },
@@ -67,6 +79,7 @@ const PROCESS_CONFIG_FALLBACK = PROCESS_MENU.map((item) => ({
 }));
 const PROCESS_LAUNCHER_STORAGE_KEY = "erp-flexo-process-launcher-position";
 const FAVORITE_DOCUMENTS_STORAGE_KEY = "erp-favorite-documents";
+const QUOTE_TRACKING_STORAGE_KEY = "erp-flexo-quote-tracking";
 
 let printStageCounter = 0;
 
@@ -134,16 +147,26 @@ const els = {
   useWhiteInk: document.getElementById("useWhiteInk"),
   doubleWhitePass: document.getElementById("doubleWhitePass"),
   noPrint: document.getElementById("noPrint"),
+  printConfigCard: document.getElementById("printConfigCard"),
+  quantityCard: document.getElementById("quantityCard"),
+  frontBackElementsCard: document.getElementById("frontBackElementsCard"),
+  frontBackElementsBody: document.getElementById("frontBackElementsBody"),
   processSections: document.getElementById("processSections"),
   calcStatus: document.getElementById("calcStatus"),
+  detailsLineBadge: document.getElementById("detailsLineBadge"),
+  quoteTrackingMount: document.getElementById("quoteTrackingMount"),
+  detailsCostTable: document.getElementById("detailsCostTable"),
+  detailsProformaButton: document.getElementById("detailsProformaButton"),
   contextRows: document.getElementById("contextRows"),
   automaticSummaryRows: document.getElementById("automaticSummaryRows"),
   overheadPct: document.getElementById("overheadPct"),
   marginPct: document.getElementById("marginPct"),
   discountPct: document.getElementById("discountPct"),
   taxPct: document.getElementById("taxPct"),
+  viewProformaButton: document.getElementById("viewProformaButton"),
   summaryRows: document.getElementById("summaryRows"),
   sapPreviewSummary: document.getElementById("sapPreviewSummary"),
+  sapPreviewShipments: document.getElementById("sapPreviewShipments"),
   sapPreviewOrder: document.getElementById("sapPreviewOrder"),
   sapPreviewBom: document.getElementById("sapPreviewBom"),
   sapPreviewSendButton: document.getElementById("sapPreviewSendButton"),
@@ -163,6 +186,9 @@ const state = {
   saveTimer: null,
   saving: false,
   processOpen: {},
+  detailsOpen: { sustrato: false },
+  quoteTracking: { id: "", panelOpen: false, formOpenKey: "", milestones: [], closure: null },
+  frontBackActiveElementLineCode: "",
   infoPopover: {
     trigger: null,
     panel: null,
@@ -193,6 +219,7 @@ const QUANTITY_LAYOUT = {
 const MM_PER_INCH = 25.4;
 
 function n(value, fallback = 0) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : fallback;
   const normalized = String(value ?? "").replace(/[^\d.,-]/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(/,/g, ".");
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -229,6 +256,38 @@ function iconPresentation(key, fallbackValue, fallbackColor, fallbackSize) {
   };
 }
 
+function normalizePlateMode(value) {
+  const key = String(value || "").trim().toLowerCase();
+  return PLATE_MODE_OPTIONS.some((item) => item.key === key) ? key : "";
+}
+
+function emptyPlateBreakdown(reason = "Costo = 0.") {
+  const breakdown = {};
+  PLATE_KEYS.forEach((entry) => {
+    breakdown[entry.key] = {
+      hours: 0,
+      materialSubtotal: 0,
+      machineSubtotal: 0,
+      operatorSubtotal: 0,
+      subtotal: 0,
+      formulaText: "Costo = 0.",
+      explanation: reason,
+      laserMetrics: ["virgin", "laser"].includes(entry.key) ? laserPlateMetrics() : null
+    };
+  });
+  return breakdown;
+}
+
+function normalizePlateExternalRows(rows = []) {
+  const normalized = (Array.isArray(rows) ? rows : []).map((row) => ({
+    description: String(row?.description || "").trim(),
+    cost: n(row?.cost, 0),
+    comments: String(row?.comments || "").trim(),
+    attachmentName: String(row?.attachmentName || "").trim()
+  }));
+  return normalized.length ? normalized : [{ description: "", cost: 0, comments: "", attachmentName: "" }];
+}
+
 function applyIconToContainer(container, iconValue, label, className = "floating-action-icon-markup") {
   if (!container) return;
   container.innerHTML = renderIconMarkup(iconValue, label, className);
@@ -248,7 +307,7 @@ function buildTimelineEntries() {
   const context = state.context?.calculo || null;
   const quote = state.context?.cotizacion || null;
   const raw = context?.raw_data || {};
-  const currentUser = first(state.config?.session?.currentUser, state.config?.general?.currentUser, "admin");
+  const currentUser = currentTrackingUser();
   const latestNotification = Array.isArray(state.notifications) && state.notifications.length ? state.notifications[0] : null;
   const sellerName = first(quote?.salesperson_name, context?.salespersonName, "Jorge Esquivel");
   return [
@@ -288,6 +347,450 @@ function initialsFromName(name) {
   return parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join("");
 }
 
+function quoteTrackingStorageId() {
+  const quoteCode = String(state.form?.header?.quoteCode || "").trim();
+  const lineCode = String(state.form?.header?.lineCode || "").trim();
+  return quoteCode || lineCode ? `${quoteCode || "cotizacion"}::${lineCode || "linea"}` : "sin-base";
+}
+
+function readQuoteTrackingStore() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(QUOTE_TRACKING_STORAGE_KEY) || "{}");
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function writeQuoteTrackingStore(items) {
+  localStorage.setItem(QUOTE_TRACKING_STORAGE_KEY, JSON.stringify(items || {}));
+}
+
+function currentTrackingUser() {
+  const session = readUserSession();
+  return first(session?.name, session?.fullName, session?.username, session?.user, state.config?.session?.currentUser, state.config?.general?.currentUser, state.form?.header?.salespersonName, "Usuario");
+}
+
+function trackingColorForName(name) {
+  const palette = ["#2B7FC7", "#1A9E75", "#7C5CBF", "#C0761F", "#4B6F8F"];
+  const text = String(name || "");
+  const total = Array.from(text).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  return palette[total % palette.length];
+}
+
+function trackingStampNow() {
+  const d = new Date();
+  const months = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()} · ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function quoteCreationTrackingDate() {
+  const context = state.context?.calculo || {};
+  const quote = state.context?.cotizacion || {};
+  const raw = context?.raw_data || {};
+  const value = first(quote?.created_on, context?.created_on, raw["FECHA CREACION DATE"], raw["FECHA CREACION"], raw["TRAZABILIDAD | FECHA"]);
+  return value ? formatTimelineStamp(value) : "Pendiente";
+}
+
+function isDuplicatedDraftTracking() {
+  const raw = state.context?.calculo?.raw_data || {};
+  const quoteStatus = String(state.form?.header?.lineStatus || "").trim().toLowerCase();
+  const quoteDone = ["cotizada", "finalizada", "proforma", "enviada", "cerrada", "produccion", "producción"].some((item) => quoteStatus.includes(item));
+  return raw["TRAZABILIDAD | ACCION"] === "duplicate-line" && !quoteDone;
+}
+
+const QUOTE_CLOSE_REASON_OPTIONS = [
+  "Precio alto",
+  "Tiempo de entrega",
+  "Cliente eligió otro proveedor",
+  "Condiciones comerciales",
+  "Cambios en especificación",
+  "Proyecto cancelado",
+  "Sin respuesta del cliente",
+  "Otro"
+];
+
+function quoteTrackingDefaults() {
+  const currentUser = currentTrackingUser();
+  const sellerName = first(state.form?.header?.salespersonName, "Vendedor");
+  const raw = state.context?.calculo?.raw_data || {};
+  const quoteStatus = String(state.form?.header?.lineStatus || "").trim().toLowerCase();
+  const quoteDone = ["cotizada", "finalizada", "proforma", "enviada", "cerrada", "produccion", "producción"].some((item) => quoteStatus.includes(item));
+  const requestStatus = norm(first(raw["SOLICITUD ESTADO"], raw["ESTADO LINEA"], state.form?.header?.lineStatus, raw["Estado Cotizacion"]));
+  const requestDone = ["pendiente", "solicitud", "vendedor", "cotiz", "finaliz", "proforma", "enviad", "cerrad"].some((item) => requestStatus.includes(item))
+    || norm(raw["TRAZABILIDAD | SOLICITUD VENDEDOR"]) === "si";
+  const requestUser = requestDone ? first(raw["TRAZABILIDAD | USUARIO SOLICITUD VENDEDOR"], sellerName) : null;
+  const requestDate = requestDone ? first(raw["TRAZABILIDAD | FECHA SOLICITUD VENDEDOR"], raw["TRAZABILIDAD | FECHA"], quoteCreationTrackingDate()) : null;
+  return [
+    { key: "creacion", label: "Creación", icon: "ti-file-plus", user: sellerName, initials: initialsFromName(sellerName), color: trackingColorForName(sellerName), date: quoteCreationTrackingDate(), done: true, fixed: true, canCR: false, cr: null, formOpen: false },
+    { key: "solicitud", label: "Solicitud del vendedor", icon: "ti-send", user: requestUser, initials: initialsFromName(requestUser || sellerName), color: trackingColorForName(requestUser || sellerName), date: requestDate, done: requestDone, fixed: false, canCR: true, cr: null, formOpen: false, crLabel: "Solicitar cambios al vendedor", crWho: "Cotizador", crPH: "¿Qué información falta o cuál es la duda con la solicitud?" },
+    { key: "finalizacion", label: "Finalización de cotización", icon: "ti-list-check", user: quoteDone ? currentUser : null, initials: initialsFromName(currentUser), color: trackingColorForName(currentUser), date: quoteDone ? trackingStampNow() : null, done: quoteDone, fixed: false, canCR: true, cr: null, formOpen: false, crLabel: "Requerir cambios en la cotización", crWho: "Vendedor", crPH: "¿Qué necesita ajustarse antes de continuar?" },
+    { key: "envio", label: "Envío de proforma", icon: "ti-file-invoice", hint: "Requiere finalizar cotización primero", done: false, fixed: false, canCR: false, cr: null, formOpen: false, user: null, initials: initialsFromName(currentUser), color: trackingColorForName(currentUser) },
+    { key: "cierre", label: "Finalización comercial", icon: "ti-flag", hint: "Requiere enviar proforma primero", done: false, fixed: false, canCR: false, cr: null, formOpen: false, user: null, initials: initialsFromName(currentUser), color: trackingColorForName(currentUser) }
+  ];
+}
+
+function loadQuoteTrackingMilestones() {
+  const store = readQuoteTrackingStore();
+  const id = quoteTrackingStorageId();
+  const storedState = store[id] || {};
+  state.quoteTracking.closure = storedState.closure || state.context?.calculo?.raw_data?.CODEX_QUOTE_CLOSURE || state.form?.quoteTrackingClosure || null;
+  const saved = Array.isArray(storedState.milestones) ? storedState.milestones : [];
+  const defaults = quoteTrackingDefaults();
+  const milestones = defaults.map((item) => {
+    const stored = saved.find((entry) => entry?.key === item.key);
+    return stored ? { ...item, ...stored, label: item.label, icon: item.icon, hint: item.hint, formOpen: false } : item;
+  });
+  const creation = milestones.find((item) => item.key === "creacion");
+  if (creation && !String(creation.date || "").trim()) creation.date = quoteCreationTrackingDate();
+  const request = milestones.find((item) => item.key === "solicitud");
+  if (request && request.done && !String(request.date || "").trim()) {
+    request.done = false;
+    request.user = null;
+    request.date = null;
+    request.cr = null;
+    request.formOpen = false;
+  }
+  if (isDuplicatedDraftTracking() && !storedState.duplicateTrackingResetAt) {
+    milestones.forEach((item, index) => {
+      if (index === 0) return;
+      item.done = false;
+      item.user = null;
+      item.date = null;
+      item.cr = null;
+      item.formOpen = false;
+    });
+    store[id] = {
+      ...storedState,
+      duplicateTrackingResetAt: Date.now(),
+      updatedAt: Date.now(),
+      milestones: milestones.map((item) => ({ ...item, formOpen: false }))
+    };
+    writeQuoteTrackingStore(store);
+  }
+  return milestones;
+}
+
+function saveQuoteTrackingMilestones() {
+  const id = quoteTrackingStorageId();
+  const store = readQuoteTrackingStore();
+  const storedState = store[id] || {};
+  store[id] = {
+    ...storedState,
+    updatedAt: Date.now(),
+    closure: state.quoteTracking.closure || null,
+    milestones: (state.quoteTracking.milestones || []).map((item) => ({ ...item, formOpen: false }))
+  };
+  writeQuoteTrackingStore(store);
+}
+
+function quoteTrackingDoneCount() {
+  return (state.quoteTracking.milestones || []).filter((item) => item.done).length;
+}
+
+function quoteTrackingAvailable(index) {
+  return index === 0 || Boolean(state.quoteTracking.milestones?.[index - 1]?.done);
+}
+
+function syncLineStatusFromTracking() {
+  if (!state.form?.header) return;
+  const milestones = state.quoteTracking.milestones || [];
+  const done = quoteTrackingDoneCount();
+  const labels = ["En proceso", "En proceso", "En proceso", "Cotización finalizada", "Proforma enviada", "Cerrada"];
+  state.form.header.lineStatus = labels[Math.min(done, labels.length - 1)] || "En proceso";
+  if (milestones.find((item) => item.key === "cierre")?.done) state.form.header.lineStatus = "Cerrada";
+}
+
+function markQuoteTrackingItemDone(item) {
+  if (!item) return;
+  const user = currentTrackingUser();
+  item.done = true;
+  item.user = user;
+  item.initials = initialsFromName(user);
+  item.color = trackingColorForName(user);
+  item.date = trackingStampNow();
+  item.cr = null;
+  item.formOpen = false;
+}
+
+function currentQuoteLineIdentity() {
+  return {
+    quoteCode: String(state.form?.header?.quoteCode || "").trim(),
+    lineCode: String(state.form?.header?.lineCode || "").trim()
+  };
+}
+
+function refreshNotificationBadges() {
+  if (window.parent === window) return;
+  window.parent.postMessage({ type: "erp-notifications-updated" }, window.location.origin);
+}
+
+function trackingRecipientForEvent(item = {}, eventType = "") {
+  const sellerName = state.form?.header?.salespersonName || "Vendedor";
+  if (eventType === "reversion") return item.user || (item.key === "finalizacion" ? "Cotizador" : sellerName);
+  if (item.key === "finalizacion" || item.key === "envio" || item.key === "cierre") return sellerName;
+  return item.crWho === "Vendedor" ? sellerName : "Cotizador";
+}
+
+function trackingMessageForEvent(item = {}, eventType = "", detail = "") {
+  const label = item.label || "Seguimiento";
+  if (eventType === "reversion") return `Se revirtió la marca "${label}". ${detail || "Revisión pendiente."}`.trim();
+  if (eventType === "solicitud-cambios") return detail || `Se solicitaron cambios en "${label}".`;
+  if (eventType === "orden-produccion") return detail || "La venta fue aceptada y se creó la orden de producción.";
+  if (eventType === "cierre-descartado") return `La cotización fue cerrada sin venta. ${detail || ""}`.trim();
+  if (item.key === "finalizacion") return "La línea de cálculo fue marcada como Finalización de cotización.";
+  if (item.key === "envio") return "La proforma fue marcada como enviada.";
+  if (item.key === "cierre") return "La cotización fue marcada como cerrada.";
+  return `Se actualizó el seguimiento: ${label}.`;
+}
+
+async function notifyQuoteTrackingEvent(item = {}, eventType = "", detail = "") {
+  const quoteCode = String(state.form?.header?.quoteCode || "").trim();
+  const lineCode = String(state.form?.header?.lineCode || "").trim();
+  if (!quoteCode || !lineCode) return null;
+  const payload = {
+    quoteCode,
+    lineCode,
+    sellerName: state.form?.header?.salespersonName || "Vendedor",
+    customerName: state.form?.header?.customerName || "",
+    jobName: state.form?.header?.jobName || "",
+    issueText: trackingMessageForEvent(item, eventType, detail),
+    targetUser: trackingRecipientForEvent(item, eventType),
+    actor: currentTrackingUser(),
+    eventType,
+    snapshot: {
+      quoteCode,
+      lineCode,
+      customerName: state.form?.header?.customerName || "",
+      salespersonName: state.form?.header?.salespersonName || "",
+      jobName: state.form?.header?.jobName || "",
+      lineStatus: state.form?.header?.lineStatus || "",
+      trackingStep: item.label || "",
+      trackingKey: item.key || "",
+      eventType
+    }
+  };
+  const response = await postJson("/api/flexo/notificaciones", payload);
+  await loadLineNotifications();
+  refreshNotificationBadges();
+  return response;
+}
+
+async function completeQuoteTrackingMilestone(index) {
+  const item = state.quoteTracking.milestones?.[index];
+  if (!item || !quoteTrackingAvailable(index)) return;
+  if (["envio", "cierre"].includes(item.key) && await showQuoteProformaBlockMessageIfNeeded()) return;
+  if (item.key === "envio") {
+    await closeProformaForCurrentQuote("tracking_sent");
+  }
+  markQuoteTrackingItemDone(item);
+  state.quoteTracking.formOpenKey = "";
+  syncLineStatusFromTracking();
+  saveQuoteTrackingMilestones();
+  renderDetailsDemo(totals());
+  scheduleSave();
+  if (["finalizacion", "envio", "cierre"].includes(item.key)) {
+    notifyQuoteTrackingEvent({ ...item }, "marca").catch(() => showCenterMessage("No fue posible enviar la notificación."));
+  }
+}
+
+function undoQuoteTrackingMilestone(index) {
+  const reverted = (state.quoteTracking.milestones || [])
+    .slice(index)
+    .filter((item) => item?.done && !item.fixed)
+    .map((item) => ({ ...item }));
+  for (let i = state.quoteTracking.milestones.length - 1; i >= index; i -= 1) {
+    const item = state.quoteTracking.milestones[i];
+    if (item?.fixed) continue;
+    item.done = false;
+    item.user = null;
+    item.date = null;
+    item.formOpen = false;
+  }
+  state.quoteTracking.formOpenKey = "";
+  syncLineStatusFromTracking();
+  saveQuoteTrackingMilestones();
+  renderDetailsDemo(totals());
+  scheduleSave();
+  reverted.forEach((item) => {
+    notifyQuoteTrackingEvent(item, "reversion").catch(() => showCenterMessage("No fue posible enviar la notificación."));
+  });
+  if (reverted.some((item) => item.key === "envio")) {
+    reopenProformaForCurrentQuote().catch(() => showCenterMessage("No fue posible reabrir la proforma."));
+  }
+}
+
+function openQuoteTrackingForm(index) {
+  const item = state.quoteTracking.milestones?.[index];
+  state.quoteTracking.formOpenKey = item?.key || "";
+  renderQuoteTracking();
+  setTimeout(() => document.getElementById(`quoteTrackingText-${index}`)?.focus(), 50);
+}
+
+function closeQuoteTrackingForm() {
+  state.quoteTracking.formOpenKey = "";
+  renderQuoteTracking();
+}
+
+async function submitQuoteTrackingChange(index) {
+  const item = state.quoteTracking.milestones?.[index];
+  const textarea = document.getElementById(`quoteTrackingText-${index}`);
+  const value = String(textarea?.value || "").trim();
+  if (!item || !value) {
+    textarea?.classList.add("error");
+    textarea?.focus();
+    return;
+  }
+  item.cr = { comment: value, by: `${currentTrackingUser()} (${item.crWho})`, date: trackingStampNow() };
+  item.done = false;
+  item.user = null;
+  item.date = null;
+  item.formOpen = false;
+  for (let i = index + 1; i < state.quoteTracking.milestones.length; i += 1) {
+    if (!state.quoteTracking.milestones[i]?.fixed) {
+      state.quoteTracking.milestones[i].done = false;
+      state.quoteTracking.milestones[i].user = null;
+      state.quoteTracking.milestones[i].date = null;
+    }
+  }
+  state.quoteTracking.formOpenKey = "";
+  syncLineStatusFromTracking();
+  saveQuoteTrackingMilestones();
+  const quoteCode = state.form?.header?.quoteCode || "";
+  const lineCode = state.form?.header?.lineCode || "";
+  if (quoteCode && lineCode) {
+    await notifyQuoteTrackingEvent(item, "solicitud-cambios", value);
+  }
+  renderDetailsDemo(totals());
+  scheduleSave();
+}
+
+function quoteClosureFormMarkup(index) {
+  return `<div class="tracking-close-form tracking-close-form-dialog"><div class="tracking-close-dialog-head"><strong>Dar motivo de cierre</strong><span>Registra el motivo sin mover el panel de seguimiento.</span></div><label><span>Motivo</span><select id="quoteTrackingCloseReason" data-tracking-close-input><option value="">Selecciona un motivo</option>${QUOTE_CLOSE_REASON_OPTIONS.map((reason) => `<option value="${esc(reason)}">${esc(reason)}</option>`).join("")}</select></label><label><span>Comentario</span><textarea id="quoteTrackingCloseComments" class="cr-textarea" placeholder="Comentario para gerencia" data-tracking-close-input></textarea></label><div class="tracking-close-actions"><button type="button" class="btn-cancel" data-close-calc-message>Cancelar</button><button type="button" class="btn-submit" data-tracking-submit-close="${index}"><i class="ti ti-send" style="font-size:12px;" aria-hidden="true"></i>Guardar cierre</button></div></div>`;
+}
+
+function openQuoteClosureForm(index) {
+  state.quoteTracking.formOpenKey = "";
+  showCenterMessage(quoteClosureFormMarkup(index), { html: true, duration: 0, className: "tracking-close-dialog" });
+  setTimeout(() => document.getElementById("quoteTrackingCloseReason")?.focus(), 50);
+}
+
+async function submitQuoteClosureReason(index) {
+  const item = state.quoteTracking.milestones?.[index];
+  const reasonField = document.getElementById("quoteTrackingCloseReason");
+  const commentsField = document.getElementById("quoteTrackingCloseComments");
+  const reason = String(reasonField?.value || "").trim();
+  const comments = String(commentsField?.value || "").trim();
+  if (!item || !reason) {
+    reasonField?.classList.add("error");
+    reasonField?.focus();
+    return false;
+  }
+  if (await showQuoteProformaBlockMessageIfNeeded()) return false;
+  state.quoteTracking.closure = {
+    outcome: "lost",
+    reason,
+    comments,
+    by: currentTrackingUser(),
+    date: trackingStampNow()
+  };
+  markQuoteTrackingItemDone(item);
+  state.quoteTracking.formOpenKey = "";
+  syncLineStatusFromTracking();
+  saveQuoteTrackingMilestones();
+  await persistTrackingClosure();
+  await notifyQuoteTrackingEvent(item, "cierre-descartado", `${reason}${comments ? ` · ${comments}` : ""}`);
+  renderDetailsDemo(totals());
+  scheduleSave();
+  return true;
+}
+
+async function persistCalculationForOrder() {
+  const payload = {
+    ...buildSavePayload(),
+    finalizedForOrder: true,
+    trackingClosure: state.quoteTracking.closure || null
+  };
+  const saved = await postJson("/api/flexo/calculo/guardar", payload);
+  if (state.context?.calculo?.raw_data) state.context.calculo.raw_data.CODEX_FINALIZED_FOR_ORDER = true;
+  return saved;
+}
+
+async function persistTrackingClosure() {
+  await postJson("/api/flexo/calculo/guardar", {
+    ...buildSavePayload(),
+    trackingClosure: state.quoteTracking.closure || null
+  });
+}
+
+async function stageSapOutputForCurrentLine() {
+  const { quoteCode, lineCode } = currentQuoteLineIdentity();
+  if (!quoteCode || !lineCode) throw new Error("Debes tener una cotización y una línea activas para preparar SAP.");
+  return postJson(`/api/flexo/sap-export/${encodeURIComponent(quoteCode)}/${encodeURIComponent(lineCode)}`, {});
+}
+
+async function createProductionOrderFromTracking(index) {
+  ensureCalculationReadyForOutput();
+  const item = state.quoteTracking.milestones?.[index];
+  const { quoteCode, lineCode } = currentQuoteLineIdentity();
+  if (!item || !quoteCode || !lineCode) throw new Error("Debes tener una cotización y una línea activas para crear la orden.");
+  if (await showQuoteProformaBlockMessageIfNeeded()) return;
+  const firstSave = await persistCalculationForOrder();
+  let sapPrepared = Boolean(firstSave?.sapExport && !firstSave.sapExport.error);
+  let sapError = firstSave?.sapExport?.error || "";
+  if (!sapPrepared && !sapError) {
+    try {
+      await stageSapOutputForCurrentLine();
+      sapPrepared = true;
+    } catch (error) {
+      sapError = error.message || "No fue posible preparar la salida SAP.";
+      console.warn("Preparación SAP no bloqueante:", error);
+    }
+  }
+  const payload = await postJson(`/api/cotizaciones/${encodeURIComponent(quoteCode)}/lineas/${encodeURIComponent(lineCode)}/orden-produccion`, {});
+  const orderCode = payload?.orden?.order_code || "";
+  state.quoteTracking.closure = {
+    outcome: "accepted",
+    reason: "Orden creada",
+    comments: "",
+    by: currentTrackingUser(),
+    date: trackingStampNow(),
+    orderCode,
+    sapPrepared,
+    sapError
+  };
+  markQuoteTrackingItemDone(item);
+  state.quoteTracking.formOpenKey = "";
+  syncLineStatusFromTracking();
+  saveQuoteTrackingMilestones();
+  await persistCalculationForOrder();
+  await notifyQuoteTrackingEvent(item, "orden-produccion", orderCode ? `Orden de producción ${orderCode} creada.` : "Orden de producción creada.");
+  renderDetailsDemo(totals());
+  scheduleSave();
+  if (orderCode) {
+    const route = `/orden-produccion/${encodeURIComponent(orderCode)}`;
+    if (!openRouteInShell(route, `Orden ${orderCode}`)) window.location.href = route;
+  }
+}
+
+async function createProductFromCurrentLine() {
+  const { quoteCode, lineCode } = currentQuoteLineIdentity();
+  if (!quoteCode || !lineCode) throw new Error("Debes tener una cotización y una línea activas para crear el producto.");
+  const payload = await postJson(`/api/cotizaciones/${encodeURIComponent(quoteCode)}/lineas/${encodeURIComponent(lineCode)}/producto`, {});
+  const productCode = payload?.producto?.product_code || "";
+  if (productCode && state.context?.calculo) {
+    state.context.calculo.productCode = productCode;
+    state.context.calculo.product_code = productCode;
+    if (state.context.calculo.raw_data) {
+      state.context.calculo.raw_data["CODIGO PRODUCTO"] = productCode;
+      if (state.context.calculo.raw_data.line_summary) state.context.calculo.raw_data.line_summary.product_code = productCode;
+    }
+  }
+  els.calcStatus.textContent = productCode ? `Producto ${productCode} creado.` : "Producto creado.";
+  const route = "/productos";
+  if (!openRouteInShell(route, "Productos")) window.location.href = route;
+}
+
 function isShellEmbedded() {
   return params.get("shell") === "1" || window !== window.parent;
 }
@@ -306,6 +809,46 @@ function openRouteInShell(route, label) {
   if (!isShellEmbedded()) return false;
   window.parent.postMessage({ type: "erp-open-tab", route: withShellParam(route), label }, window.location.origin);
   return true;
+}
+
+function openAppRoute(route, label) {
+  if (!route) return;
+  if (!openRouteInShell(route, label)) {
+    window.location.href = withShellParam(route);
+  }
+}
+
+function buildLineCalculationRoute({ lineCode, quoteCode, productId = "", department = "Flexografia", processKey = "" } = {}) {
+  if (!lineCode || !quoteCode) return "";
+  const query = {
+    lineId: lineCode,
+    quoteId: quoteCode,
+    productId,
+    department
+  };
+  if (processKey) query.jumpProcess = processKey;
+  return `/calculo-flexografia?${new URLSearchParams(query).toString()}`;
+}
+
+function showCenterMessage(message, options = {}) {
+  const text = String(message || "").trim();
+  if (!text) return;
+  let node = document.getElementById("calcCenterMessage");
+  if (!node) {
+    node = document.createElement("div");
+    node.id = "calcCenterMessage";
+    node.className = "calc-center-message";
+    document.body.appendChild(node);
+  }
+  node.className = `calc-center-message${options.className ? ` ${options.className}` : ""}`;
+  const closeButton = '<button type="button" class="calc-center-message-close" data-close-calc-message aria-label="Cerrar">&times;</button>';
+  if (options.html) node.innerHTML = `${closeButton}<div class="calc-center-message-content">${text}</div>`;
+  else node.innerHTML = `${closeButton}<div class="calc-center-message-content">${esc(text)}</div>`;
+  node.hidden = false;
+  clearTimeout(showCenterMessage.timer);
+  if (options.duration !== 0) {
+    showCenterMessage.timer = setTimeout(() => { node.hidden = true; }, options.duration || 5200);
+  }
 }
 
 async function loadLineNotifications() {
@@ -350,7 +893,7 @@ async function submitTimelineNotification() {
     jobName: state.form?.header?.jobName || "",
     issueText,
     targetUser: "Jorge Esquivel",
-    actor: first(state.config?.session?.currentUser, state.config?.general?.currentUser, "Cotizador"),
+    actor: currentTrackingUser(),
     snapshot: {
       quoteCode: state.form?.header?.quoteCode || "",
       lineCode: state.form?.header?.lineCode || "",
@@ -409,6 +952,17 @@ function buildBdfgContext() {
   const quoteCode = String(state.form?.header?.quoteCode || "").trim();
   const lineCode = String(state.form?.header?.lineCode || "").trim();
   const activeKeys = new Set(state.form?.activeProcessKeys || []);
+  const processItems = configuredProcessDefinitions()
+    .filter((item) => isProcessAllowedForCurrentFrontBackContext(item.key))
+    .map((item) => ({
+      id: item.key,
+      name: item.label,
+      lineCode,
+      repeatable: item.repeatable === true,
+      locked: item.locked === true,
+      added: activeKeys.has(item.key),
+      canAdd: item.locked ? false : (item.repeatable === true || !activeKeys.has(item.key))
+    }));
   return {
     kind: "calculo-flexografia",
     title: quoteCode ? `Cálculo ${quoteCode}` : "Cálculo de Cotizaciones",
@@ -420,20 +974,17 @@ function buildBdfgContext() {
     lineCode,
     canEdit: true,
     documentDescription: "Abrir el cálculo actual",
-    processes: configuredProcessDefinitions().map((item) => ({
-      id: item.key,
-      name: item.label,
-      repeatable: item.repeatable === true,
-      locked: item.locked === true,
-      added: activeKeys.has(item.key),
-      canAdd: item.locked ? false : (item.repeatable === true || !activeKeys.has(item.key))
-    }))
+    processes: processItems
   };
 }
 
 function publishBdfgContext() {
   if (!isShellEmbedded()) return;
-  window.parent.postMessage({ type: "erp-bdfg-context", context: buildBdfgContext() }, window.location.origin);
+  const message = { type: "erp-bdfg-context", context: buildBdfgContext() };
+  window.parent.postMessage(message, window.location.origin);
+  if (window.top && window.top !== window.parent) {
+    window.top.postMessage(message, window.location.origin);
+  }
 }
 
 function isCurrentDocumentFavorite() {
@@ -498,6 +1049,7 @@ function applyCostsConfigToCurrentLine(force = false) {
     stage.whiteInkCostPerLb = force ? inkDefaults.costoLbBlanco : (n(stage.whiteInkCostPerLb, 0) > 0 ? n(stage.whiteInkCostPerLb, 0) : inkDefaults.costoLbBlanco);
     stage.pantoneInkCostPerLb = force ? inkDefaults.costoLbPantone : (n(stage.pantoneInkCostPerLb, 0) > 0 ? n(stage.pantoneInkCostPerLb, 0) : inkDefaults.costoLbPantone);
     stage.designCoveragePct = force ? inkDefaults.coberturaDisenoPct : (n(stage.designCoveragePct, 0) > 0 ? n(stage.designCoveragePct, 0) : inkDefaults.coberturaDisenoPct);
+    stage.maculaSetupFeet = force ? defaultPrintMaculaSetupFeet(stage.machineId) : (n(stage.maculaSetupFeet, 0) > 0 ? n(stage.maculaSetupFeet, 0) : defaultPrintMaculaSetupFeet(stage.machineId));
     stage.inkProfiles = inkDefaults.depositos.map((item, index) => ({
       id: first(item?.id, `deposito-${index + 1}`),
       tipo: first(item?.tipo, ""),
@@ -509,6 +1061,7 @@ function applyCostsConfigToCurrentLine(force = false) {
       const inline = stage.inlineFinishes?.[slot.key];
       if (!inline) return;
       inline.setupMinutes = force ? inlineFinishSetupMinutes(slot.key) : (n(inline.setupMinutes, 0) > 0 ? n(inline.setupMinutes, 0) : inlineFinishSetupMinutes(slot.key));
+      inline.setupWasteFeet = force ? inlineFinishSetupWasteFeet(slot.key) : (n(inline.setupWasteFeet, 0) > 0 ? n(inline.setupWasteFeet, 0) : inlineFinishSetupWasteFeet(slot.key));
       if (slot.key === "barniz") {
         inline.coveragePct = force ? inkDefaults.barnizCoveragePct : (n(inline.coveragePct, 0) > 0 ? n(inline.coveragePct, 0) : inkDefaults.barnizCoveragePct);
         inline.layerGsm = force ? inkDefaults.barnizGsm : (n(inline.layerGsm, 0) > 0 ? n(inline.layerGsm, 0) : inkDefaults.barnizGsm);
@@ -620,6 +1173,229 @@ function first(...values) {
   return "";
 }
 
+function normalizeFrontBackGroupData(rowOrRaw = {}) {
+  const group = rowOrRaw?.grupoFrenteDorso || rowOrRaw?.grupo_frente_dorso || rowOrRaw?.frontBackGroup || rowOrRaw?.raw_data?.grupoFrenteDorso || rowOrRaw?.raw_data?.CODEX_FD_GROUP || rowOrRaw?.CODEX_FD_GROUP || rowOrRaw;
+  if (!group || typeof group !== "object" || Array.isArray(group)) return null;
+  const explicitElements = Array.isArray(group.elementLineCodes)
+    ? group.elementLineCodes.map((item) => String(item || "").trim()).filter(Boolean)
+    : Array.isArray(group.elementos)
+      ? group.elementos.map((item) => String(item?.lineCode || item?.linea || item || "").trim()).filter(Boolean)
+      : [];
+  const legacyMembers = Array.isArray(group.memberLineCodes)
+    ? group.memberLineCodes.map((item) => String(item || "").trim()).filter(Boolean)
+    : [group.primaryLineCode, group.partnerLineCode].map((item) => String(item || "").trim()).filter(Boolean);
+  const memberLineCodes = [...new Set((explicitElements.length ? explicitElements : legacyMembers).filter(Boolean))];
+  const groupLineCode = String(first(group.groupLineCode, group.lineaGrupo, group.primaryLineCode, memberLineCodes[0]) || "").trim();
+  const roleText = String(first(group.role, group.rol) || "").trim().toLowerCase();
+  if (!group.groupId || !groupLineCode || !memberLineCodes.length) return null;
+  return {
+    ...group,
+    role: ["elemento", "componente", "frente", "dorso"].includes(roleText) ? "elemento" : "grupo",
+    groupLineCode,
+    primaryLineCode: groupLineCode,
+    elementLineCodes: memberLineCodes,
+    memberLineCodes,
+    elementRole: String(first(group.elementRole, group.ladoElemento) || "").trim()
+  };
+}
+
+function currentFrontBackGroup() {
+  return normalizeFrontBackGroupData(state.context?.calculo?.grupoFrenteDorso || state.context?.calculo?.frontBackGroup || state.context?.calculo?.raw_data || {});
+}
+
+function frontBackGroupQuantity(group = currentFrontBackGroup()) {
+  if (!group) return 0;
+  const related = Array.isArray(state.context?.lineasRelacionadas) ? state.context.lineasRelacionadas : [];
+  const groupLine = related.find((line) => String(line?.line_code || line?.linea || "").trim() === group.groupLineCode);
+  return n(first(groupLine?.quantity, groupLine?.raw_data?.["Cantidad Productos"], state.context?.calculo?.quantityProducts), 0);
+}
+
+function isFrontBackElementContext() {
+  return currentFrontBackGroup()?.role === "elemento";
+}
+
+function isFrontBackGroupContext() {
+  return currentFrontBackGroup()?.role === "grupo";
+}
+
+function isEmbeddedView() {
+  return new URLSearchParams(window.location.search).get("embedded") === "1";
+}
+
+function isFrontBackEmbeddedElementContext() {
+  return isEmbeddedView() && isFrontBackElementContext();
+}
+
+function relatedFrontBackLines(group = currentFrontBackGroup()) {
+  if (!group) return { groupLine: null, elements: [] };
+  const current = state.context?.calculo || null;
+  const related = Array.isArray(state.context?.lineasRelacionadas) ? state.context.lineasRelacionadas : [];
+  const byCode = new Map(
+    [current, ...related]
+      .filter(Boolean)
+      .map((line) => [String(line.lineCode || line.line_code || line.linea || "").trim(), line])
+      .filter(([code]) => Boolean(code))
+  );
+  const groupLine = byCode.get(group.groupLineCode) || (String(current?.lineCode || "").trim() === group.groupLineCode ? current : null);
+  const elementCodes = Array.isArray(group.elementLineCodes) ? group.elementLineCodes : group.memberLineCodes || [];
+  const elements = elementCodes
+    .map((lineCode, index) => {
+      const code = String(lineCode || "").trim();
+      const line = byCode.get(code);
+      if (!line) return null;
+      const role = String(group.elementRoles?.[code] || (index === 0 ? "frente" : "dorso")).trim();
+      return { line, code, role, index };
+    })
+    .filter(Boolean);
+  return { groupLine, elements };
+}
+
+function storedLineRaw(line = {}) {
+  return line.raw_data || line.rawData || {};
+}
+
+function storedLineJobName(line = {}) {
+  const raw = storedLineRaw(line);
+  return first(line.jobName, line.job_name, raw["NOMBRE TRABAJO"], raw["Nombre Trabajo"], line.lineCode, line.line_code, "");
+}
+
+function storedLineSubtotal(line = {}) {
+  const raw = storedLineRaw(line);
+  return n(first(
+    raw.CODEX_PROCESS_RESULT?.industrial,
+    raw["GENERAL | 5 | SUBTOTAL"],
+    line.totalCost,
+    line.total_cost,
+    line.subtotal_1,
+    raw.CODEX_PROCESS_RESULT?.total,
+    raw["PRECIO TOTAL AL FINALIZAR"],
+    raw["GENERAL | 9 | TOTAL | DOL"],
+    raw["GENERAL | 7 | TOTAL | DOL"]
+  ), 0);
+}
+
+function frontBackElementSubtotalSummary(group = currentFrontBackGroup()) {
+  const related = relatedFrontBackLines(group);
+  const items = related.elements.map((item) => ({
+    ...item,
+    subtotal: storedLineSubtotal(item.line)
+  }));
+  return {
+    items,
+    subtotal: r(items.reduce((sum, item) => sum + n(item.subtotal, 0), 0))
+  };
+}
+
+function storedLineRoute(line = {}) {
+  const quoteCode = first(line.quoteCode, line.quote_code, state.form?.header?.quoteCode, "");
+  const lineCode = first(line.lineCode, line.line_code, line.linea, "");
+  if (!quoteCode || !lineCode) return "";
+  return buildLineCalculationRoute({
+    lineCode,
+    quoteCode,
+    productId: first(line.productCode, line.product_code, lineCode),
+    department: first(line.department, line.departmento, storedLineRaw(line).DEPARTAMENTO, "Flexografia")
+  });
+}
+
+function frontBackSharedProcessKeys() {
+  return new Set(["sustrato", "preprensa", "planchas", "impresion", "barnizado", "laminado", "estampado", "embosado", "troquelado", "rebobinado", "empaque"]);
+}
+
+function isProcessAllowedForCurrentFrontBackContext(key = "") {
+  if (isFrontBackEmbeddedElementContext() && ["troquel", "sustrato", "impresion"].includes(norm(key))) return false;
+  return true;
+}
+
+function lineCodeFromLine(line = {}) {
+  return String(first(line.lineCode, line.line_code, line.linea, "") || "").trim();
+}
+
+function routeWithQueryParam(route = "", key = "", value = "") {
+  if (!route || !key) return route;
+  try {
+    const url = new URL(route, window.location.origin);
+    url.searchParams.set(key, value);
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch (_) {
+    const joiner = route.includes("?") ? "&" : "?";
+    return `${route}${joiner}${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+  }
+}
+
+function frontBackEmbeddedRoute(line = {}) {
+  const route = storedLineRoute(line);
+  return routeWithQueryParam(route, "embedded", "1");
+}
+
+function resizeFrontBackEmbeddedFrame(frame) {
+  if (!frame) return;
+  try {
+    const doc = frame.contentDocument || frame.contentWindow?.document;
+    if (!doc) return;
+    const resize = () => {
+      const bodyHeight = Math.max(doc.body?.scrollHeight || 0, doc.body?.offsetHeight || 0);
+      const contentBottom = Math.max(
+        bodyHeight,
+        ...Array.from(doc.body?.children || []).map((node) => {
+          const rect = node.getBoundingClientRect();
+          return rect.bottom;
+        })
+      );
+      const height = Math.max(
+        240,
+        Math.ceil(contentBottom + 2)
+      );
+      frame.style.height = `${height}px`;
+    };
+    resize();
+    frame._frontBackResizeObserver?.disconnect?.();
+    if (doc.body && window.ResizeObserver) {
+      const observer = new ResizeObserver(resize);
+      observer.observe(doc.body);
+      frame._frontBackResizeObserver = observer;
+    }
+    [250, 800, 1600].forEach((delay) => setTimeout(resize, delay));
+  } catch (_) {
+    frame.style.height = "1200px";
+  }
+}
+
+function bindFrontBackEmbeddedFrame() {
+  const frame = els.frontBackElementsBody?.querySelector("[data-front-back-embedded-frame]");
+  if (!frame) return;
+  frame.addEventListener("load", () => resizeFrontBackEmbeddedFrame(frame), { once: true });
+}
+
+async function refreshFrontBackEmbeddedLine(lineCode = "") {
+  const quoteCode = state.form?.header?.quoteCode || "";
+  if (!quoteCode || !lineCode) return;
+  try {
+    const payload = await getJson(`/api/flexo/calculo?quoteId=${encodeURIComponent(quoteCode)}&lineId=${encodeURIComponent(lineCode)}`);
+    const next = payload?.calculo;
+    if (!next) return;
+    state.context.lineasRelacionadas = (state.context.lineasRelacionadas || []).map((line) => (
+      lineCodeFromLine(line) === lineCode ? { ...line, ...next, raw_data: next.raw_data || line.raw_data } : line
+    ));
+  } catch (_) {
+    // La línea embebida se mantiene visible aunque no se pueda refrescar el resumen del padre.
+  }
+}
+
+async function persistFrontBackEmbeddedFrame(lineCode = "") {
+  const frame = els.frontBackElementsBody?.querySelector(`[data-front-back-embedded-frame][data-line-code="${CSS.escape(lineCode)}"]`);
+  if (!frame) return;
+  try {
+    const win = frame.contentWindow;
+    if (typeof win?.persistCalculation === "function") {
+      await win.persistCalculation();
+    }
+  } catch (_) {
+    // El cálculo embebido mantiene su propio guardado automático.
+  }
+  await refreshFrontBackEmbeddedLine(lineCode);
+}
+
 function firstPositiveNumber(...values) {
   for (const value of values) {
     const parsed = Number(value);
@@ -706,6 +1482,7 @@ function resolveDieMetrics(die = {}, context = {}) {
   return {
     dieCode: first(die.codigoTroquel, die.codigo, die.id, context?.dieCode, ""),
     dieDescription: first(die.descripcion, die.description, die.codigoTroquel, die.codigo, die.id, context?.dieCode, "No definido"),
+    dieShape: first(die.clasificacion, die.tipoTroquel, die.tipoTroquel2, die.formato, context?.raw_data?.["REQ | Forma"], context?.dieShape, ""),
     widthIn: r(mountWidthIn, 4),
     lengthIn: r(mountLengthIn, 4),
     mountWidthIn: r(mountWidthIn, 4),
@@ -842,6 +1619,15 @@ function openInfoPopover(trigger) {
   requestAnimationFrame(() => positionInfoPopover(trigger));
 }
 
+function showInfoPopover(trigger) {
+  const panel = ensureInfoPopover();
+  if (state.infoPopover.trigger === trigger && !panel.hidden) {
+    positionInfoPopover(trigger);
+    return;
+  }
+  openInfoPopover(trigger);
+}
+
 function getLineDeleteIconConfig() {
   const icons = state.config?.icons || {};
   const general = state.config?.general || {};
@@ -854,35 +1640,19 @@ function getLineDeleteIconConfig() {
   };
 }
 
-function getQuantityAddIconConfig() {
+function getProcessDeleteIconConfig() {
   const icons = state.config?.icons || {};
   const general = state.config?.general || {};
   return {
-    value: icons.quantityAdd || "+",
-    primary: general.iconColorQuantityAdd || "#738196",
-    secondary: general.iconColor2QuantityAdd || "#ffffff",
-    hover: general.iconColorHoverQuantityAdd || "#0b81b8",
-    size: Number(general.iconSizeQuantityAdd) || 20
+    value: icons.quoteRequestAttachmentDelete || icons.lineDelete || "🗑",
+    primary: general.iconColorQuoteRequestAttachmentDelete || general.iconColorLineDelete || "#b94848",
+    hover: general.iconColorHoverQuoteRequestAttachmentDelete || general.iconColorHoverLineDelete || "#d03535",
+    size: Number(general.iconSizeQuoteRequestAttachmentDelete || general.iconSizeLineDelete) || 18
   };
 }
 
 function getQuantityCapacity() {
-  const containerWidth = Math.max(0, els.quantityRepeater?.clientWidth || 0);
-  if (!containerWidth) return 1;
-  let count = 1;
-  while (true) {
-    const width = ((count - 1) * QUANTITY_LAYOUT.normalWidth)
-      + QUANTITY_LAYOUT.lastInputWidth
-      + QUANTITY_LAYOUT.addButtonWidth
-      + QUANTITY_LAYOUT.trashButtonWidth
-      + (count - 1) * QUANTITY_LAYOUT.gap
-      + QUANTITY_LAYOUT.lastGap;
-    if (width > containerWidth) {
-      return Math.max(1, count - 1);
-    }
-    count += 1;
-    if (count > 30) return 30;
-  }
+  return 30;
 }
 
 function stateSafeMerge(target, source) {
@@ -914,7 +1684,7 @@ function normalizeMaculaMontajeRows(rows = []) {
     detalle: first(row?.detalle, ""),
     porEstacion: n(row?.porEstacion, 0),
     cantidadTintas: n(row?.cantidadTintas, 0),
-    totalPies: n(row?.totalPies, 0)
+    totalPies: n(row?.totalPies, 0) > 0 ? n(row?.totalPies, 0) : r(n(row?.porEstacion, 0) * n(row?.cantidadTintas, 0), 2)
   }));
 }
 
@@ -931,11 +1701,27 @@ function defaultMaculaConfig() {
   const variant = processText.includes("digital") ? "digital" : "convencional";
   const fallback = state.costsConfig?.convencional || { maculaMontaje: [], maculaTiraje: [] };
   const source = state.costsConfig?.[variant] || fallback;
+  const montajeSource = Array.isArray(source.maculaMontaje) && source.maculaMontaje.length ? source.maculaMontaje : fallback.maculaMontaje;
+  const tirajeSource = Array.isArray(source.maculaTiraje) && source.maculaTiraje.length ? source.maculaTiraje : fallback.maculaTiraje;
+  const resolvedSource = montajeSource === fallback.maculaMontaje && tirajeSource === fallback.maculaTiraje ? "convencional" : variant;
   return {
-    source: variant,
-    montajeRows: normalizeMaculaMontajeRows(source.maculaMontaje || fallback.maculaMontaje),
-    tirajeRows: normalizeMaculaTirajeRows(source.maculaTiraje || fallback.maculaTiraje)
+    source: resolvedSource,
+    montajeRows: normalizeMaculaMontajeRows(montajeSource),
+    tirajeRows: normalizeMaculaTirajeRows(tirajeSource)
   };
+}
+
+function machineStartupWasteFeet(machineId = "") {
+  const machine = findMachine(machineId);
+  return firstPositiveNumber(machine?.maculaDefaultFeet, machine?.macula_default_pies, machine?.startupWasteFeet, machine?.setupWasteFeet, 0);
+}
+
+function defaultPrintMaculaSetupFeet(machineId = "") {
+  const machineFeet = machineStartupWasteFeet(machineId);
+  if (machineFeet > 0) return machineFeet;
+  const config = defaultMaculaConfig();
+  const row = (config.montajeRows || []).find((item) => normalizeMaculaProcessKey(item.detalle) === "impresion");
+  return n(row?.totalPies, 0);
 }
 
 function conventionalInkDefaults() {
@@ -1025,6 +1811,15 @@ function inlineFinishSetupMinutes(processKey = "") {
   return n(row?.minutosPorEstacion, 5);
 }
 
+function inlineFinishSetupWasteFeet(processKey = "") {
+  const rows = state.costsConfig?.convencional?.inlineFinishSetup || [];
+  const target = normalizeMaculaProcessKey(processKey);
+  const row = rows.find((item) => normalizeMaculaProcessKey(item?.proceso) === target)
+    || rows.find((item) => target.includes(normalizeMaculaProcessKey(item?.proceso)))
+    || rows.find((item) => normalizeMaculaProcessKey(item?.proceso).includes(target));
+  return n(row?.setupWasteFeet, 0);
+}
+
 function applyInlineFinishSetupDefaults(stageIndex, inlineKey, force = false) {
   const stage = state.form?.printStages?.[stageIndex];
   const inline = stage?.inlineFinishes?.[inlineKey];
@@ -1033,6 +1828,9 @@ function applyInlineFinishSetupDefaults(stageIndex, inlineKey, force = false) {
   inline.setupMinutes = force || n(inline.setupMinutes, 0) <= 0
     ? inlineFinishSetupMinutes(inlineKey)
     : n(inline.setupMinutes, 0);
+  inline.setupWasteFeet = force || n(inline.setupWasteFeet, 0) <= 0
+    ? inlineFinishSetupWasteFeet(inlineKey)
+    : n(inline.setupWasteFeet, 0);
   if (inlineKey === "barniz") {
     inline.coveragePct = force || n(inline.coveragePct, 0) <= 0
       ? inkDefaults.barnizCoveragePct
@@ -1217,11 +2015,62 @@ function ensureActiveProcessKeys(expanded = false) {
 }
 
 function hasActiveProcess(key) {
-  return Array.isArray(state.form.activeProcessKeys) && state.form.activeProcessKeys.includes(key);
+  return isProcessAllowedForCurrentFrontBackContext(key) && Array.isArray(state.form.activeProcessKeys) && state.form.activeProcessKeys.includes(key);
 }
 
 function activePrintStages() {
   return Array.isArray(state.form.printStages) ? state.form.printStages : [];
+}
+
+function inlineKeyForExternalFinish(processKey = "") {
+  return Object.entries(INLINE_EXTERNAL_FINISH_KEY).find((entry) => entry[1] === processKey)?.[0] || "";
+}
+
+function primaryPrintMachineForForm(form = state.form) {
+  const stage = Array.isArray(form?.printStages) && form.printStages.length ? form.printStages[0] : form?.print;
+  return findMachine(stage?.machineId || form?.print?.machineId || "");
+}
+
+function isSystemManagedFinish(finish = {}) {
+  return finish.autoManaged === true || finish.source === "system" || finish.origin === "system";
+}
+
+function syncInlineFinishesForMachine(stageIndex = 0) {
+  const stage = state.form?.printStages?.[stageIndex];
+  if (!stage?.inlineFinishes) return;
+  const machine = findMachine(stage.machineId);
+  if (!machineSupportsInline(machine)) return;
+  Object.entries(INLINE_EXTERNAL_FINISH_KEY).forEach(([inlineKey, externalKey]) => {
+    const hasSystemFinish = (state.form.finishes || []).some((finish) => finish.processKey === externalKey && finish.active !== false && isSystemManagedFinish(finish));
+    const hasInlineProcess = Array.isArray(state.form.activeProcessKeys) && state.form.activeProcessKeys.includes(inlineKey);
+    if (!hasSystemFinish && !hasInlineProcess) return;
+    stage.inlineFinishes[inlineKey] = { ...(stage.inlineFinishes[inlineKey] || {}), active: true };
+    applyInlineFinishSetupDefaults(stageIndex, inlineKey, false);
+  });
+}
+
+function isActiveExternalFinish(finish = {}, form = state.form) {
+  const key = String(finish?.processKey || "").trim();
+  if (!isProcessAllowedForCurrentFrontBackContext(key)) return false;
+  if (!EXTERNAL_FINISH_BY_KEY[key]) return false;
+  if (finish.active === false) return false;
+  const inlineKey = inlineKeyForExternalFinish(key);
+  if (inlineKey && isSystemManagedFinish(finish) && machineSupportsInline(primaryPrintMachineForForm(form))) return false;
+  return Array.isArray(form?.activeProcessKeys) && form.activeProcessKeys.includes(key);
+}
+
+function activeExternalFinishEntries(form = state.form) {
+  return (Array.isArray(form?.finishes) ? form.finishes : [])
+    .map((finish, index) => ({ finish, index }))
+    .filter((entry) => isActiveExternalFinish(entry.finish, form));
+}
+
+function externalConfigForInlineFinish(key) {
+  return EXTERNAL_FINISH_BY_KEY[INLINE_EXTERNAL_FINISH_KEY[key]] || null;
+}
+
+function isOptionalPlateCostProcess(key) {
+  return String(key || "") === "embosado";
 }
 
 function createPrintStage(base = {}) {
@@ -1235,7 +2084,7 @@ function createPrintStage(base = {}) {
     const source = base.inlineFinishes?.[slot.key] || {};
     const numberingConfig = slot.key === "numerado" ? buildNumberingConfig(rawNumbering, source) : null;
     inlineFinishes[slot.key] = {
-      active: Boolean(source.active),
+      active: source.active === undefined ? ["barniz", "troquelado"].includes(slot.key) : Boolean(source.active),
       processId: source.processId || "",
       materialId: source.materialId || "",
       setupMinutes: n(source.setupMinutes, inlineFinishSetupMinutes(slot.key)),
@@ -1244,6 +2093,10 @@ function createPrintStage(base = {}) {
       costPerFoot: n(source.costPerFoot, 0),
       costPerMeter: n(source.costPerMeter, 0),
       costPerMsi: n(source.costPerMsi, 0),
+      costPerFt2: n(source.costPerFt2, 0),
+      costPerUnit: n(source.costPerUnit, 0),
+      costPerKg: n(source.costPerKg, 0),
+      layerGft2: n(source.layerGft2, 0),
       coveragePct: slot.key === "barniz"
         ? (n(source.coveragePct, 0) > 0 ? n(source.coveragePct, 0) : inkDefaults.barnizCoveragePct)
         : n(source.coveragePct, 100),
@@ -1252,13 +2105,24 @@ function createPrintStage(base = {}) {
         : n(source.layerGsm, 0),
       costPerLb: n(source.costPerLb, 0),
       plateCost: n(source.plateCost, 0),
+      plateWidthIn: n(source.plateWidthIn, 0),
+      plateLengthIn: n(source.plateLengthIn, 0),
+      setupWasteFeet: n(source.setupWasteFeet, inlineFinishSetupWasteFeet(slot.key)),
+      operationWastePct: n(source.operationWastePct, 0),
+      speed: n(source.speed, 0),
+      costHourMachine: n(source.costHourMachine, 0),
+      costHourOperator: n(source.costHourOperator, 0),
+      variableBase: n(source.variableBase, 0),
+      variableUnitCost: n(source.variableUnitCost, 0),
       comment: source.comment || numberingConfig?.detail || "",
       numberingType: numberingConfig?.numberingType || "",
       isQr: Boolean(numberingConfig?.isQr),
       rangeFrom: numberingConfig?.rangeFrom || "",
       rangeTo: numberingConfig?.rangeTo || "",
       attachmentName: numberingConfig?.attachmentName || "",
-      detail: numberingConfig?.detail || ""
+      attachments: numberingConfig?.attachments || [],
+      detail: numberingConfig?.detail || "",
+      sonified: Boolean(source.sonified)
     };
   });
   return {
@@ -1272,7 +2136,7 @@ function createPrintStage(base = {}) {
     availableColors: n(base.availableColors, 0),
     costHour: n(base.costHour, 0),
     operatorHourCost: n(base.operatorHourCost, 0),
-    maculaSetupFeet: base.maculaSetupFeet,
+    maculaSetupFeet: n(base.maculaSetupFeet, 0) > 0 ? base.maculaSetupFeet : defaultPrintMaculaSetupFeet(base.machineId),
     maculaTirajeFeet: base.maculaTirajeFeet,
     maculaTirajePct: base.maculaTirajePct,
     coveragePct: n(base.coveragePct, 0) > 0 ? n(base.coveragePct, 0) : inkDefaults.cmykCoveragePct,
@@ -1352,6 +2216,8 @@ function createFinishItem(base = {}, index = 0) {
     operationWastePct: n(base.operationWastePct, 0),
     variableBase: n(base.variableBase, 0),
     variableUnitCost: n(base.variableUnitCost, 0),
+    source: base.source || base.origin || "user",
+    autoManaged: base.autoManaged === true || base.source === "system" || base.origin === "system",
     comment: base.comment || ""
   };
 }
@@ -1364,8 +2230,6 @@ function ensureConfiguredProcessInstances() {
       const finishes = Array.isArray(state.form.finishes) ? state.form.finishes : [];
       if (finishes.some((item) => item.processKey === meta.key)) return;
       const process = findProcessByKeywords(EXTERNAL_FINISH_BY_KEY[meta.key].keywords);
-      const machine = selectSingleMachineOrNull(finishMachines(EXTERNAL_FINISH_BY_KEY[meta.key]));
-      const machineCapacity = machine ? finishMachineCapacity(machine, EXTERNAL_FINISH_BY_KEY[meta.key]) : null;
       const material = materialsByClassification(EXTERNAL_FINISH_BY_KEY[meta.key].materialFamily, EXTERNAL_FINISH_BY_KEY[meta.key].materialKeywords || [])[0] || null;
       const costs = materialUnitCosts(material, state.form.header.rollWidthIn);
       const wasteDefaults = finishWasteDefault(meta.key);
@@ -1373,15 +2237,15 @@ function ensureConfiguredProcessInstances() {
         processKey: meta.key,
         slotLabel: EXTERNAL_FINISH_BY_KEY[meta.key].label,
         processId: process?.id || "",
-        machineId: machine?.id || "",
-        machineName: machine ? machineDisplayName(machine) : "",
+        machineId: "",
+        machineName: "",
         materialId: EXTERNAL_FINISH_BY_KEY[meta.key].usesMaterial ? (material?.id || "") : "",
         description: process?.nombre || EXTERNAL_FINISH_BY_KEY[meta.key].label,
-        setupMinutes: firstPositiveNumber(process?.tiempo_preparacion_general, machine?.setupBaseMinutes, machineCapacity?.tiempo_preparacion_general, 0),
-        speed: firstPositiveNumber(process?.velocidad_produccion, machine?.productionSpeed, machineCapacity?.velocidad_produccion, 0),
-        costHour: firstPositiveNumber(process?.costo_hora_maquina, process?.costo_hora_operario, machine?.hourlyMachineCost, machine?.hourlyOperatorCost, machineCapacity?.costo_hora_maquina, machineCapacity?.costo_hora_operario, 0),
-        costHourMachine: firstPositiveNumber(process?.costo_hora_maquina, machine?.hourlyMachineCost, machineCapacity?.costo_hora_maquina, 0),
-        costHourOperator: firstPositiveNumber(process?.costo_hora_operario, machine?.hourlyOperatorCost, machineCapacity?.costo_hora_operario, 0),
+        setupMinutes: firstPositiveNumber(process?.tiempo_preparacion_general, 0),
+        speed: firstPositiveNumber(process?.velocidad_produccion, 0),
+        costHour: firstPositiveNumber(process?.costo_hora_maquina, process?.costo_hora_operario, 0),
+        costHourMachine: firstPositiveNumber(process?.costo_hora_maquina, 0),
+        costHourOperator: firstPositiveNumber(process?.costo_hora_operario, 0),
         fixedCost: n(process?.costo_fijo, 0),
         variableUnitCost: n(process?.costo_x_pie || process?.costo_x_msi || process?.costo_x_kg || process?.costo_x_millar, 0),
         costPerFoot: costs.costPerFoot,
@@ -1392,7 +2256,9 @@ function ensureConfiguredProcessInstances() {
         costPerKg: n(material?.costo_x_kg, 0),
         layerGft2: n(first(material?.rendimiento_g_ft2, material?.peso_capa_gsm), 0),
         setupWasteFeet: wasteDefaults.setupWasteFeet,
-        operationWastePct: wasteDefaults.operationWastePct
+        operationWastePct: wasteDefaults.operationWastePct,
+        source: "system",
+        autoManaged: true
       }, finishes.length));
     }
   });
@@ -1407,20 +2273,16 @@ function syncPrimaryPrintStage() {
 function addProcessKey(key) {
   const meta = processMeta(key);
   if (!meta) return false;
+  if (!isProcessAllowedForCurrentFrontBackContext(key)) return false;
   if (meta?.locked) return false;
   const alreadyActive = hasActiveProcess(key);
   if (!meta.repeatable && alreadyActive) return false;
   if (key === "impresion") {
     state.form.activeProcessKeys = sortActiveProcessKeys((state.form.activeProcessKeys || []).concat(key));
     const stages = activePrintStages();
-    const defaultPrintMachine = selectSingleMachineOrNull(printMachines());
     if (alreadyActive) {
       const seed = stages[stages.length - 1] || state.form.print || {};
-      state.form.printStages = stages.concat(createPrintStage({
-        ...seed,
-        machineId: defaultPrintMachine?.id || "",
-        machineName: defaultPrintMachine ? machineDisplayName(defaultPrintMachine) : ""
-      }));
+      state.form.printStages = stages.concat(createPrintStage(seed));
     } else if (!stages.length) {
       state.form.printStages = [createPrintStage(state.form.print || {})];
     }
@@ -1431,8 +2293,6 @@ function addProcessKey(key) {
       state.form.activeProcessKeys = sortActiveProcessKeys((state.form.activeProcessKeys || []).concat(key));
       const finishes = Array.isArray(state.form.finishes) ? state.form.finishes : [];
       const process = findProcessByKeywords(EXTERNAL_FINISH_BY_KEY[key].keywords);
-      const machine = selectSingleMachineOrNull(finishMachines(EXTERNAL_FINISH_BY_KEY[key]));
-      const machineCapacity = machine ? finishMachineCapacity(machine, EXTERNAL_FINISH_BY_KEY[key]) : null;
       const material = materialsByClassification(EXTERNAL_FINISH_BY_KEY[key].materialFamily, EXTERNAL_FINISH_BY_KEY[key].materialKeywords || [])[0] || null;
       const costs = materialUnitCosts(material, state.form.header.rollWidthIn);
       const wasteDefaults = finishWasteDefault(key);
@@ -1440,15 +2300,15 @@ function addProcessKey(key) {
         processKey: key,
         slotLabel: EXTERNAL_FINISH_BY_KEY[key].label,
         processId: process?.id || "",
-        machineId: machine?.id || "",
-        machineName: machine ? machineDisplayName(machine) : "",
+        machineId: "",
+        machineName: "",
         materialId: EXTERNAL_FINISH_BY_KEY[key].usesMaterial ? (material?.id || "") : "",
         description: process?.nombre || EXTERNAL_FINISH_BY_KEY[key].label,
-        setupMinutes: firstPositiveNumber(process?.tiempo_preparacion_general, machine?.setupBaseMinutes, machineCapacity?.tiempo_preparacion_general, 0),
-        speed: firstPositiveNumber(process?.velocidad_produccion, machine?.productionSpeed, machineCapacity?.velocidad_produccion, 0),
-        costHour: firstPositiveNumber(process?.costo_hora_maquina, process?.costo_hora_operario, machine?.hourlyMachineCost, machine?.hourlyOperatorCost, machineCapacity?.costo_hora_maquina, machineCapacity?.costo_hora_operario, 0),
-        costHourMachine: firstPositiveNumber(process?.costo_hora_maquina, machine?.hourlyMachineCost, machineCapacity?.costo_hora_maquina, 0),
-        costHourOperator: firstPositiveNumber(process?.costo_hora_operario, machine?.hourlyOperatorCost, machineCapacity?.costo_hora_operario, 0),
+        setupMinutes: firstPositiveNumber(process?.tiempo_preparacion_general, 0),
+        speed: firstPositiveNumber(process?.velocidad_produccion, 0),
+        costHour: firstPositiveNumber(process?.costo_hora_maquina, process?.costo_hora_operario, 0),
+        costHourMachine: firstPositiveNumber(process?.costo_hora_maquina, 0),
+        costHourOperator: firstPositiveNumber(process?.costo_hora_operario, 0),
         fixedCost: n(process?.costo_fijo, 0),
         variableUnitCost: n(process?.costo_x_pie || process?.costo_x_msi || process?.costo_x_kg || process?.costo_x_millar, 0),
         costPerFoot: costs.costPerFoot,
@@ -1459,7 +2319,9 @@ function addProcessKey(key) {
         costPerKg: n(material?.costo_x_kg, 0),
         layerGft2: n(first(material?.rendimiento_g_ft2, material?.peso_capa_gsm), 0),
         setupWasteFeet: wasteDefaults.setupWasteFeet,
-        operationWastePct: wasteDefaults.operationWastePct
+        operationWastePct: wasteDefaults.operationWastePct,
+        source: "user",
+        autoManaged: false
       }, finishes.length));
     return true;
   }
@@ -1496,10 +2358,30 @@ async function getJson(url, options) {
   return payload;
 }
 
+function readUserSession() {
+  try {
+    return JSON.parse(localStorage.getItem("erp-user-session") || sessionStorage.getItem("erp-user-session") || "null");
+  } catch (error) {
+    return null;
+  }
+}
+
+function sessionHeaders() {
+  const session = readUserSession();
+  if (!session) return {};
+  return {
+    "x-erp-session": JSON.stringify({
+      username: session.username || "",
+      name: session.name || "",
+      permissionName: session.permissionName || ""
+    })
+  };
+}
+
 async function postJson(url, body) {
   const response = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...sessionHeaders() },
     body: JSON.stringify(body || {})
   });
   const payload = await response.json();
@@ -1527,6 +2409,14 @@ function coreDiameterSelectOptions() {
 function processOptions(items, selected = "") {
   return [`<option value="">Seleccionar...</option>`]
     .concat(items.map((item) => `<option value="${item.id}"${String(item.id) === String(selected) ? " selected" : ""}>${esc(item.nombre || item.descripcion || item.id)}</option>`))
+    .join("");
+}
+
+function processOptionsStrict(items, selected = "") {
+  const options = items.filter((item) => String(item?.id || "").trim());
+  const selectedValue = options.some((item) => String(item.id) === String(selected)) ? selected : "";
+  return [`<option value=""${selectedValue ? "" : " selected"}>Seleccionar...</option>`]
+    .concat(options.map((item) => `<option value="${esc(item.id)}"${String(item.id) === String(selectedValue) ? " selected" : ""}>${esc(item.nombre || item.descripcion || item.id)}</option>`))
     .join("");
 }
 
@@ -1595,14 +2485,7 @@ function autoProcessSnapshot() {
 }
 
 function autoWarningsList() {
-  const warnings = autoSelectionSnapshot()?.warnings;
-  if (Array.isArray(warnings)) {
-    return warnings.map((item) => String(item || "").trim()).filter(Boolean);
-  }
-  return String(state.context?.calculo?.raw_data?.["REQ | Advertencias Automáticas"] || "")
-    .split(/\n+/)
-    .map((item) => item.replace(/^[\s\-•]+/, "").trim())
-    .filter(Boolean);
+  return [];
 }
 
 function processKeyFromAutoSnapshot(value = "") {
@@ -1757,11 +2640,26 @@ function machineAllowsAnyInline(machine) {
 
 function numberingTypeOptions() {
   return [
-    { id: "", nombre: "Selecciona..." },
-    { id: "Numeracion", nombre: "Numeración" },
+    { id: "Numeracion Aleatoria", nombre: "Numeración Aleatoria" },
+    { id: "Numeracion Consecutiva", nombre: "Numeración Consecutiva" },
     { id: "Codigo de Barras", nombre: "Código de Barras" },
     { id: "Codigo QR", nombre: "Código QR" }
   ];
+}
+
+function normalizeNumberingType(value = "", rangeFrom = "", rangeTo = "") {
+  const raw = String(value || "").trim();
+  const token = norm(raw);
+  if (!token && !rangeFrom && !rangeTo) return "";
+  if (token.includes("qr")) return "Codigo QR";
+  if (token.includes("barra")) return "Codigo de Barras";
+  if (token.includes("aleat")) return "Numeracion Aleatoria";
+  if (token.includes("consec") || rangeFrom || rangeTo) return "Numeracion Consecutiva";
+  return raw;
+}
+
+function isConsecutiveNumbering(value = "") {
+  return normalizeNumberingType(value) === "Numeracion Consecutiva";
 }
 
 function buildNumberingConfig(raw = {}, inline = {}) {
@@ -1781,12 +2679,16 @@ function buildNumberingConfig(raw = {}, inline = {}) {
     inline.comment,
     ""
   ) || "").trim();
+  const rangeFrom = String(first(inline.rangeFrom, raw["REQ | Numeracion Desde"], raw["BOT | Numeracion Desde"], "") || "").trim();
+  const rangeTo = String(first(inline.rangeTo, raw["REQ | Numeracion Hasta"], raw["BOT | Numeracion Hasta"], "") || "").trim();
+  const normalizedType = normalizeNumberingType(numberingType, rangeFrom, rangeTo);
   return {
-    numberingType,
-    isQr: inline.isQr === true || String(inline.isQr || "").toLowerCase() === "true" || /qr/i.test(numberingType),
-    rangeFrom: String(first(inline.rangeFrom, raw["REQ | Numeracion Desde"], raw["BOT | Numeracion Desde"], "") || "").trim(),
-    rangeTo: String(first(inline.rangeTo, raw["REQ | Numeracion Hasta"], raw["BOT | Numeracion Hasta"], "") || "").trim(),
+    numberingType: normalizedType,
+    isQr: /qr/i.test(normalizedType),
+    rangeFrom,
+    rangeTo,
     attachmentName: String(first(inline.attachmentName, raw["REQ | Numeracion Adjunto"], raw["BOT | Numeracion Adjunto"], "") || "").trim(),
+    attachments: normalizeNumberingAttachments(inline),
     detail
   };
 }
@@ -2216,16 +3118,21 @@ function renderQuantities() {
   state.form.header.quantities = quantities;
   state.form.header.quantity = currentQuantity(state.form);
   const capacity = getQuantityCapacity();
-  const addIcon = getQuantityAddIconConfig();
-  const deleteIcon = getLineDeleteIconConfig();
+  const lockedByFrontBackGroup = isFrontBackElementContext();
+  const addIcon = iconPresentation("quantityAdd", "+", "#738196", 18);
+  const deleteIcon = iconPresentation("quantityDelete", "🗑", "#b6425f", 18);
   els.quantityRepeater.innerHTML = `<div class="quantity-row">${quantities.map((item, index) => {
     const isLast = index === quantities.length - 1;
-    return `<div class="quantity-card${isLast ? " is-last" : ""}">
+    const canAdd = isLast && quantities.length < capacity && !lockedByFrontBackGroup;
+    const canRemove = isLast && quantities.length > 1 && !lockedByFrontBackGroup;
+    const displayValue = item.value ? formatInteger(item.value) : "";
+    const chipChars = Math.max(4, displayValue.length || 4);
+    return `<div class="quantity-card${isLast ? " is-last" : ""}" style="--qty-chars:${chipChars};">
       <div class="quantity-input-group">
-        <input type="text" inputmode="numeric" data-quantity-index="${index}" aria-label="Cantidad ${index + 1}" value="${item.value ? esc(formatInteger(item.value)) : ""}">
-        ${isLast ? `<button type="button" class="quantity-inline-action quantity-inline-add qty-add-chip" data-action="add-quantity" aria-label="Agregar cantidad" title="Agregar cantidad" style="--quantity-add-icon-color:${esc(addIcon.primary)};--quantity-add-icon-hover:${esc(addIcon.hover)};--quantity-add-icon-size:${addIcon.size}px;"${quantities.length >= capacity ? " disabled" : ""}><span class="qty-add-label">+</span></button>` : ""}
+        <input type="text" inputmode="numeric" data-quantity-index="${index}" aria-label="Cantidad ${index + 1}" value="${esc(displayValue)}"${lockedByFrontBackGroup ? ' readonly title="Cantidad definida por la línea grupo frente/dorso"' : ""}>
+        ${isLast ? `<button type="button" class="quantity-inline-action quantity-inline-add qty-add-chip" data-action="add-quantity" data-index="${index}" aria-label="Agregar cantidad después de la cantidad ${index + 1}" title="Agregar cantidad" style="--quantity-add-icon-color:${esc(addIcon.color)};--quantity-add-icon-hover:${esc(addIcon.hover)};--quantity-add-icon-size:${addIcon.size}px;"${canAdd ? "" : " disabled"}>${renderIconMarkup(addIcon.value, "Agregar cantidad", "quantity-add-icon")}</button>` : ""}
       </div>
-      ${isLast ? `<button type="button" class="quantity-trash-button" data-action="remove-quantity" aria-label="Eliminar última cantidad" title="Eliminar última cantidad" style="--delete-icon-color:${esc(deleteIcon.primary)};--delete-icon-hover:${esc(deleteIcon.hover)};--delete-icon-size:${deleteIcon.size}px;"${quantities.length <= 1 ? " disabled" : ""}>${renderIconMarkup(deleteIcon.value, "Eliminar última cantidad", "quantity-trash-icon")}</button>` : ""}
+      ${isLast ? `<button type="button" class="quantity-trash-button" data-action="remove-quantity" data-index="${index}" aria-label="Eliminar cantidad ${index + 1}" title="Eliminar cantidad" style="--delete-icon-color:${esc(deleteIcon.color)};--delete-icon-hover:${esc(deleteIcon.hover)};--delete-icon-size:${deleteIcon.size}px;"${canRemove ? "" : " disabled"}>${renderIconMarkup(deleteIcon.value, "Eliminar cantidad", "quantity-trash-icon")}</button>` : ""}
     </div>`;
   }).join("")}</div>`;
 }
@@ -2320,6 +3227,13 @@ function setRequiredState(node, missing) {
   if (wrap) wrap.classList.toggle("field-required-wrap", Boolean(missing));
 }
 
+function setWarningState(node, warning) {
+  if (!node) return;
+  node.classList.toggle("field-warning-input", Boolean(warning));
+  const wrap = node.closest?.(".display-input-wrap");
+  if (wrap) wrap.classList.toggle("field-warning-wrap", Boolean(warning));
+}
+
 function markRequiredNode(node, missing) {
   if (!node) return;
   if (Array.isArray(node) || node instanceof NodeList) {
@@ -2333,9 +3247,15 @@ function markRequiredScoped(scope, field, missing) {
   document.querySelectorAll(`[data-scope="${scope}"][data-field="${field}"]`).forEach((node) => setRequiredState(node, missing));
 }
 
+function markWarningScoped(scope, field, warning) {
+  document.querySelectorAll(`[data-scope="${scope}"][data-field="${field}"]`).forEach((node) => setWarningState(node, warning));
+}
+
 function clearRequiredHighlights() {
   document.querySelectorAll(".field-required-input").forEach((node) => node.classList.remove("field-required-input"));
   document.querySelectorAll(".field-required-wrap").forEach((node) => node.classList.remove("field-required-wrap"));
+  document.querySelectorAll(".field-warning-input").forEach((node) => node.classList.remove("field-warning-input"));
+  document.querySelectorAll(".field-warning-wrap").forEach((node) => node.classList.remove("field-warning-wrap"));
 }
 
 function uniqueMessages(messages = []) {
@@ -2350,7 +3270,7 @@ function summarizeMessages(messages = [], limit = 2) {
 }
 
 function resolvePrimaryValidationProcessKey() {
-  const orderedKeys = sortActiveProcessKeys(state.form?.activeProcessKeys || []);
+  const orderedKeys = sortActiveProcessKeys(state.form?.activeProcessKeys || []).filter((key) => isProcessAllowedForCurrentFrontBackContext(key));
   if (orderedKeys.includes("impresion")) {
     const firstStage = activePrintStages()[0];
     if (firstStage) return `impresion-${firstStage.id || 1}`;
@@ -2361,15 +3281,20 @@ function resolvePrimaryValidationProcessKey() {
 function buildCalculationValidationState(result = totals()) {
   const form = state.form || {};
   const alerts = {};
+  const issues = [];
   const blockingMessages = [];
   const primaryTarget = resolvePrimaryValidationProcessKey();
   const packagingTarget = hasActiveProcess("empaque") ? "empaque" : primaryTarget;
   const addIssue = (processKey, message) => {
     const text = String(message || "").trim();
     if (!processKey || !text) return;
+    if (!isProcessAllowedForCurrentFrontBackContext(processKey)) return;
     if (!Array.isArray(alerts[processKey])) alerts[processKey] = [];
     if (!alerts[processKey].includes(text)) alerts[processKey].push(text);
     if (!blockingMessages.includes(text)) blockingMessages.push(text);
+    if (!issues.some((item) => item.processKey === processKey && item.message === text)) {
+      issues.push({ processKey, message: text });
+    }
   };
   const addWhen = (processKey, condition, message) => {
     if (condition) addIssue(processKey, message);
@@ -2386,8 +3311,11 @@ function buildCalculationValidationState(result = totals()) {
   addWhen(primaryTarget, !String(form.header?.applicationType || "").trim(), "Falta tipo de etiquetado.");
   addWhen(packagingTarget, n(form.header?.labelsPerRoll, 0) <= 0, "Falta etiquetas por rollo.");
 
-  addWhen("sustrato", !String(form.substrate?.materialId || "").trim(), "Falta sustrato.");
-  addWhen("sustrato", n(form.substrate?.costPerFoot, 0) <= 0, "Falta costo de sustrato.");
+  const substrateMaterial = selectedSubstrateMaterial(form);
+  addWhen("sustrato", !substrateMaterial, "Falta sustrato.");
+  addWhen("sustrato", substrateMaterial && n(form.substrate?.costPerFoot, 0) <= 0, "Falta costo de sustrato.");
+  addWhen("planchas", !form.header?.noPrint && !hasActiveProcess("planchas"), "Falta agregar o justificar planchas.");
+  addWhen("impresion", !form.header?.noPrint && !hasActiveProcess("impresion"), "Falta agregar o justificar impresión.");
 
   if (hasActiveProcess("diseno")) {
     addWhen("diseno", n(form.design?.artCount, 0) <= 0, "Falta cantidad de artes.");
@@ -2405,19 +3333,29 @@ function buildCalculationValidationState(result = totals()) {
     const laser = laserPlateMetrics(form);
     const chargePlates = form.plates?.chargePlates !== false;
     const chargeVirginPlate = form.plates?.chargeVirginPlate !== false;
-    addWhen("planchas", chargePlates && chargeVirginPlate && laser.missing.material, "Falta material de plancha virgen.");
-    addWhen("planchas", laser.missing.machine, "Falta máquina de grabado láser.");
-    addWhen("planchas", laser.missing.costHourMachine, "Falta costo hora máquina en planchas.");
-    addWhen("planchas", laser.missing.costHourOperator, "Falta costo hora operario en planchas.");
-    addWhen("planchas", laser.missing.speed, "Falta velocidad de planchas.");
-    PLATE_KEYS.filter((entry) => entry.key !== "laser" && !entry.materialOnly).forEach((entry) => {
-      const step = form.plates?.[entry.key] || {};
-      const label = entry.label || entry.title || entry.nombre || entry.key;
-      addWhen("planchas", !String(step.processId || "").trim(), `Falta proceso de ${label}.`);
-      addWhen("planchas", n(step.fixedMinutes, 0) <= 0, `Falta tiempo fijo de ${label}.`);
-      addWhen("planchas", n(step.costHourMachine, 0) <= 0, `Falta costo máquina de ${label}.`);
-      addWhen("planchas", n(step.costHourOperator, 0) <= 0, `Falta costo operario de ${label}.`);
-    });
+    const plateMode = normalizePlateMode(form.plates?.plateMode);
+    if (chargePlates && plateMode === "external") {
+      const rows = normalizePlateExternalRows(form.plates.external);
+      addWhen("planchas", rows.every((row) => n(row.cost, 0) <= 0), "Falta costo externo de planchas.");
+    } else if (chargePlates && plateMode === "inventory") {
+      addWhen("planchas", !String(form.plates?.inventory?.materialId || "").trim(), "Falta plancha de inventario.");
+    } else {
+      addWhen("planchas", chargePlates && chargeVirginPlate && laser.missing.material, "Falta material de plancha virgen.");
+    }
+    if (chargePlates && chargeVirginPlate && (!plateMode || plateMode === "virgin")) {
+      addWhen("planchas", laser.missing.machine, "Falta máquina de grabado láser.");
+      addWhen("planchas", laser.missing.costHourMachine, "Falta costo hora máquina en planchas.");
+      addWhen("planchas", laser.missing.costHourOperator, "Falta costo hora operario en planchas.");
+      addWhen("planchas", laser.missing.speed, "Falta velocidad de planchas.");
+      PLATE_KEYS.filter((entry) => entry.key !== "laser" && !entry.materialOnly).forEach((entry) => {
+        const step = form.plates?.[entry.key] || {};
+        const label = entry.label || entry.title || entry.nombre || entry.key;
+        addWhen("planchas", !String(step.processId || "").trim(), `Falta proceso de ${label}.`);
+        addWhen("planchas", n(step.fixedMinutes, 0) <= 0, `Falta tiempo fijo de ${label}.`);
+        addWhen("planchas", n(step.costHourMachine, 0) <= 0, `Falta costo máquina de ${label}.`);
+        addWhen("planchas", n(step.costHourOperator, 0) <= 0, `Falta costo operario de ${label}.`);
+      });
+    }
   }
 
   if (hasActiveProcess("impresion")) {
@@ -2442,12 +3380,16 @@ function buildCalculationValidationState(result = totals()) {
       addWhen(key, n(stage.availableColors, 0) <= 0, "Falta cantidad de estaciones.");
       addWhen(key, n(stage.costHour, 0) <= 0, "Falta costo hora máquina.");
       addWhen(key, n(stage.operatorHourCost, 0) <= 0, "Falta costo hora operario.");
-      addWhen(key, r(n(stage.maculaSetupFeet, 0) + n(stage.maculaTirajeFeet, 0), 2) <= 0, "Falta desperdicio de arranque.");
+      addWhen(key, r(n(stage.maculaSetupFeet, 0) + n(stage.maculaTirajeFeet, 0), 2) <= 0, "Falta merma de impresión.");
+      const numbering = stage.inlineFinishes?.numerado;
+      if (numbering?.active) {
+        addWhen(key, !String(numbering.numberingType || "").trim(), "Falta tipo de numerado.");
+      }
       if (index === 0) stageWarnings.forEach((warning) => addIssue(key, warning));
     });
   }
 
-  (form.finishes || []).forEach((finish, index) => {
+  activeExternalFinishEntries(form).forEach(({ finish, index }) => {
     const config = EXTERNAL_FINISH_BY_KEY[finish.processKey];
     if (!config) return;
     const key = `${config.key}-${index}`;
@@ -2467,7 +3409,7 @@ function buildCalculationValidationState(result = totals()) {
         addWhen(key, n(finish.costPerFt2, 0) <= 0, `Falta costo material de ${config.label.toLowerCase()}.`);
       }
     }
-    if (config.usesPlateCost) {
+    if (config.usesPlateCost && !isOptionalPlateCostProcess(finish.processKey)) {
       addWhen(key, n(finish.plateCost, 0) <= 0, `Falta costo de plancha de ${config.label.toLowerCase()}.`);
     }
   });
@@ -2481,6 +3423,7 @@ function buildCalculationValidationState(result = totals()) {
 
   return {
     alerts,
+    issues,
     blockingMessages,
     hasBlockingIssues: blockingMessages.length > 0,
     summaryText: summarizeMessages(blockingMessages, 3)
@@ -2554,8 +3497,9 @@ function applyRequiredHighlights(result = null) {
   markRequiredNode(els.quantityRepeater?.querySelectorAll("input[data-quantity-index]"), quantityMissing);
 
   markRequiredScoped("troquel", "dieCode", !String(form.troquel?.dieCode || "").trim());
-  markRequiredScoped("substrate", "materialId", !String(form.substrate?.materialId || "").trim());
-  markRequiredScoped("substrate", "costPerFoot", n(form.substrate?.costPerFoot, 0) <= 0);
+  const substrateMaterial = selectedSubstrateMaterial(form);
+  markRequiredScoped("substrate", "materialId", !substrateMaterial);
+  markRequiredScoped("substrate", "costPerFoot", Boolean(substrateMaterial) && n(form.substrate?.costPerFoot, 0) <= 0);
 
   if (hasActiveProcess("diseno")) {
     markRequiredScoped("design", "artCount", n(form.design?.artCount, 0) <= 0);
@@ -2571,19 +3515,27 @@ function applyRequiredHighlights(result = null) {
 
   if (hasActiveProcess("planchas")) {
     const laser = laserPlateMetrics(form);
-  const chargePlates = form.plates?.chargePlates !== false;
-  const chargeVirginPlate = form.plates?.chargeVirginPlate !== false;
-  markRequiredScoped("plates.virgin", "materialId", chargePlates && chargeVirginPlate && laser.missing.material);
-    markRequiredScoped("plates.laser", "processId", laser.missing.machine);
-    markRequiredScoped("plates.laser", "costHourMachine", laser.missing.costHourMachine);
-    markRequiredScoped("plates.laser", "costHourOperator", laser.missing.costHourOperator);
-    markRequiredScoped("plates.laser", "speed", laser.missing.speed);
+    const chargePlates = form.plates?.chargePlates !== false;
+    const chargeVirginPlate = form.plates?.chargeVirginPlate !== false;
+    const plateMode = normalizePlateMode(form.plates?.plateMode);
+    const restrictPlates = chargePlates && chargeVirginPlate && (!plateMode || plateMode === "virgin");
+    markRequiredScoped("plates.inventory", "materialId", chargePlates && plateMode === "inventory" && !String(form.plates?.inventory?.materialId || "").trim());
+    if (chargePlates && plateMode === "external") {
+      normalizePlateExternalRows(form.plates.external).forEach((row, index) => {
+        markRequiredScoped(`plates.external.${index}`, "cost", n(row.cost, 0) <= 0);
+      });
+    }
+    markRequiredScoped("plates.virgin", "materialId", restrictPlates && laser.missing.material);
+    markRequiredScoped("plates.laser", "processId", restrictPlates && laser.missing.machine);
+    markRequiredScoped("plates.laser", "costHourMachine", restrictPlates && laser.missing.costHourMachine);
+    markRequiredScoped("plates.laser", "costHourOperator", restrictPlates && laser.missing.costHourOperator);
+    markRequiredScoped("plates.laser", "speed", restrictPlates && laser.missing.speed);
     PLATE_KEYS.filter((entry) => entry.key !== "laser" && !entry.materialOnly).forEach((entry) => {
       const step = form.plates?.[entry.key] || {};
-      markRequiredScoped(`plates.${entry.key}`, "processId", !String(step.processId || "").trim());
-      markRequiredScoped(`plates.${entry.key}`, "fixedMinutes", n(step.fixedMinutes, 0) <= 0);
-      markRequiredScoped(`plates.${entry.key}`, "costHourMachine", n(step.costHourMachine, 0) <= 0);
-      markRequiredScoped(`plates.${entry.key}`, "costHourOperator", n(step.costHourOperator, 0) <= 0);
+      markRequiredScoped(`plates.${entry.key}`, "processId", restrictPlates && !String(step.processId || "").trim());
+      markRequiredScoped(`plates.${entry.key}`, "fixedMinutes", restrictPlates && n(step.fixedMinutes, 0) <= 0);
+      markRequiredScoped(`plates.${entry.key}`, "costHourMachine", restrictPlates && n(step.costHourMachine, 0) <= 0);
+      markRequiredScoped(`plates.${entry.key}`, "costHourOperator", restrictPlates && n(step.costHourOperator, 0) <= 0);
     });
   }
 
@@ -2609,10 +3561,16 @@ function applyRequiredHighlights(result = null) {
       markRequiredScoped(scope, "costHour", n(stage.costHour, 0) <= 0);
       markRequiredScoped(scope, "operatorHourCost", n(stage.operatorHourCost, 0) <= 0);
       markRequiredScoped(scope, "maculaSetupFeet", r(n(stage.maculaSetupFeet, 0) + n(stage.maculaTirajeFeet, 0), 2) <= 0);
+      const numbering = stage.inlineFinishes?.numerado;
+      if (numbering?.active) {
+        markRequiredScoped(`${scope}.inlineFinishes.numerado`, "numberingType", !String(numbering.numberingType || "").trim());
+      }
+      const emboss = stage.inlineFinishes?.embosado;
+      markWarningScoped(`${scope}.inlineFinishes.embosado`, "plateCost", Boolean(emboss?.active) && n(emboss.plateCost, 0) <= 0);
     });
   }
 
-  (form.finishes || []).forEach((finish, index) => {
+  activeExternalFinishEntries(form).forEach(({ finish, index }) => {
     const config = EXTERNAL_FINISH_BY_KEY[finish.processKey];
     if (!config) return;
     const scope = `finishes.${index}`;
@@ -2632,8 +3590,10 @@ function applyRequiredHighlights(result = null) {
         markRequiredScoped(scope, "costPerFt2", n(finish.costPerFt2, 0) <= 0);
       }
     }
-    if (config.usesPlateCost) {
+    if (config.usesPlateCost && !isOptionalPlateCostProcess(finish.processKey)) {
       markRequiredScoped(scope, "plateCost", n(finish.plateCost, 0) <= 0);
+    } else if (config.usesPlateCost && isOptionalPlateCostProcess(finish.processKey)) {
+      markWarningScoped(scope, "plateCost", n(finish.plateCost, 0) <= 0);
     }
   });
 
@@ -2690,7 +3650,8 @@ function issueList(title, issues = []) {
 function card(processKey, title, subtitle, subtotal, body, options = {}) {
   const { open = false, removable = false, removeType = "", removeIndex = "" } = options;
   const lifted = liftFormulaInfo(body || "");
-  return `<details class="process-card" data-process-key="${esc(processKey)}"${open ? " open" : ""}><summary><div class="process-summary-main"><strong>${title}</strong><span>${esc(subtitle)}</span></div><div class="process-summary-side"><em>${money(subtotal)}</em>${lifted.info}</div></summary><div class="process-body">${lifted.body}</div>${removable ? `<button type="button" class="process-remove-button" data-action="remove-process" data-remove-type="${esc(removeType)}" data-remove-index="${esc(removeIndex)}" aria-label="Eliminar proceso"><span class="process-delete-icon" aria-hidden="true">×</span></button>` : ""}</details>`;
+  const deleteIcon = getProcessDeleteIconConfig();
+  return `<details class="process-card" data-process-key="${esc(processKey)}"${open ? " open" : ""}><summary><div class="process-summary-main"><strong>${title}</strong><span>${esc(subtitle)}</span></div><div class="process-summary-side"><em>${money(subtotal)}</em>${lifted.info}</div></summary><div class="process-body">${lifted.body}</div>${removable ? `<button type="button" class="process-remove-button" data-action="remove-process" data-remove-type="${esc(removeType)}" data-remove-index="${esc(removeIndex)}" aria-label="Eliminar proceso" title="Eliminar proceso" style="--process-delete-icon-color:${esc(deleteIcon.primary)};--process-delete-icon-hover:${esc(deleteIcon.hover)};--process-delete-icon-size:${deleteIcon.size}px;">${renderIconMarkup(deleteIcon.value, "Eliminar proceso", "process-delete-icon")}</button>` : ""}</details>`;
 }
 
 function subprocessCard(openKey, titleMarkup, subtotal, body, extraClass = "", defaultOpen = false) {
@@ -2770,7 +3731,7 @@ function inlineItemsForMacula(stage = {}) {
 }
 
 function documentMaculaFromStages(base = metrics()) {
-  const items = activePrintStages().map((stage) => resolvePrintMacula(base, inlineItemsForMacula(stage)));
+  const items = activePrintStages().map((stage) => applyStageMaculaOverrides(stage, resolvePrintMacula(base, inlineItemsForMacula(stage)), base));
   return {
     items,
     setupFeet: r(items.reduce((sum, item) => sum + n(item.setupFeet, 0), 0), 2),
@@ -2796,18 +3757,32 @@ function buildFormulaIssues({
   if (cylinderDevelopmentIn <= 0) issues.push("Falta Desarrollo del Cilindro en el troquel.");
   if (acrossCount <= 0) issues.push("Falta Cantidad de Etiquetas al Través en el troquel.");
   if (webWidthIn <= 0) issues.push("Falta Ancho de la Bobina.");
-  if (requiresWaste && startupWasteFeet <= 0) issues.push("Falta Desperdicio de Arranque o Mácula activa para completar la longitud total.");
+  if (requiresWaste && startupWasteFeet <= 0) issues.push("Falta Merma activa para completar la longitud total.");
   if (requiresTime && speedFtMin <= 0 && speedMMin <= 0) issues.push("Falta Velocidad de Operación.");
   if (requiresTime && setupAdjustmentMin <= 0) issues.push("Falta Tiempo de Montaje y Ajuste.");
   return issues;
 }
 
 function substrateUnitCost(form = state.form, base = metrics(form)) {
-  return n(form.substrate.costPerFoot, 0);
+  return selectedSubstrateMaterial(form) ? n(form.substrate?.costPerFoot, 0) : 0;
 }
 
 function substrateConsumptionValue(form = state.form, base = metrics(form)) {
   return base.linealFeet;
+}
+
+function selectedSubstrateMaterial(form = state.form) {
+  const materialId = String(form?.substrate?.materialId || "").trim();
+  return materialId ? findMaterial(materialId) : null;
+}
+
+function syncSubstratePricingWithMaterial(form = state.form) {
+  if (!form?.substrate) return;
+  if (selectedSubstrateMaterial(form)) return;
+  form.substrate.materialId = "";
+  form.substrate.costPerFoot = 0;
+  form.substrate.costPerMeter = 0;
+  form.substrate.costPerMsi = 0;
 }
 
 function buildForm() {
@@ -2823,10 +3798,7 @@ function buildForm() {
       ? raw.CODEX_PROCESS_SNAPSHOT
       : [];
   const die = findDie(context?.dieCode);
-  const selectedQuotedMachine = findMachineByDisplayName(context?.quotedMachine)
-    || findMachine(autoSelection?.machineId)
-    || findMachineByDisplayName(autoSelection?.machineName)
-    || null;
+  const selectedQuotedMachine = null;
   const printProcess = byCategory("impresion")[0] || findProcessByKeywords(["impresion"]);
   const materialId = context?.materialCode || "";
   const material = findMaterial(materialId);
@@ -2837,7 +3809,10 @@ function buildForm() {
   const outputType = typeOptions.some((item) => String(item.id || item.codigo || "").toUpperCase() === requestedOutputType) ? requestedOutputType : defaultOutputType;
   const automaticRouteRequested = norm(raw["REQ | Ruta Solicitada"]).includes("automat");
   const requestedQuantities = requestedQuantitiesFromRaw(raw);
-  const quantityProducts = requestedQuantities[0] || n(context?.quantityProducts, 0);
+  const frontBackGroup = normalizeFrontBackGroupData(context?.grupoFrenteDorso || context?.frontBackGroup || raw);
+  const lockedGroupQuantity = frontBackGroup?.role === "elemento" ? frontBackGroupQuantity(frontBackGroup) : 0;
+  const quantityProducts = lockedGroupQuantity || requestedQuantities[0] || n(context?.quantityProducts, 0);
+  const normalizedRequestedQuantities = lockedGroupQuantity ? [lockedGroupQuantity] : requestedQuantities;
   const dieMetrics = resolveDieMetrics(die || {}, context || {});
   const maculaConfig = defaultMaculaConfig();
   const inkDefaults = conventionalInkDefaults();
@@ -2849,7 +3824,7 @@ function buildForm() {
       customerCode: first(quote?.customer_code, context?.customerCode),
       customerName: first(quote?.customer_name, context?.customerName),
       productType: first(context?.productType, productTypes[0], "Etiquetas"),
-      jobName: first(context?.jobName, "Nuevo trabajo"),
+      jobName: first(context?.jobName, ""),
       salespersonName: first(quote?.salesperson_name, context?.salespersonName),
       workType: first(context?.orderType, "Nuevo"),
       labelWidthIn: n(context?.widthInches, 0),
@@ -2869,7 +3844,7 @@ function buildForm() {
       doubleWhitePass: norm(raw["TINTA BLANCA | DOBLE PASADA | CHECK"]) === "si",
       noPrint: norm(raw["SIN IMPRESION"]) === "si",
       quantity: quantityProducts,
-      quantities: normalizeQuantities((requestedQuantities.length ? requestedQuantities : [quantityProducts]).map((value, index) => ({ id: `qty-${index + 1}`, value }))),
+      quantities: normalizeQuantities((normalizedRequestedQuantities.length ? normalizedRequestedQuantities : [quantityProducts]).map((value, index) => ({ id: `qty-${index + 1}`, value }))),
       quoteCode: context?.quoteCode || quote?.quote_code || "",
       lineCode: context?.lineCode || "",
       lineStatus: context?.lineStatus || "",
@@ -2898,9 +3873,9 @@ function buildForm() {
     },
     design: { artCount: Math.max(1, n(context?.quantityTypes, n(raw["CANTIDAD TIPOS"], n(raw["CANTIDAD ARTES"], 1)))), timePerArt: 0.75, changeFactor: 0.5, hourCost: n(findProcessByKeywords(["diseno"])?.costo_hora_operario, 15) },
     prepress: { artCount: Math.max(1, n(context?.quantityTypes, n(raw["CANTIDAD TIPOS"], n(raw["CANTIDAD ARTES"], 1)))), artsPerHour: 2, hourCost: n(findProcessByKeywords(["preprensa"])?.costo_hora_operario, 15) },
-    plates: { chargePlates: true, chargeVirginPlate: true },
+    plates: { chargePlates: true, chargeVirginPlate: true, plateMode: "", external: [{ description: "", cost: 0, comments: "", attachmentName: "" }], inventory: { materialId: "" } },
     print: (() => {
-      const selectedPrintMachine = selectedQuotedMachine || selectSingleMachineOrNull(printMachines());
+      const selectedPrintMachine = selectedQuotedMachine;
       const selectedPrintCapacity = selectedPrintMachine
         ? (primaryMachineCapacity(selectedPrintMachine, (item) => {
             const haystack = capacityHaystack(selectedPrintMachine, item);
@@ -2912,7 +3887,7 @@ function buildForm() {
       const materialPreTreated = materialPremierPreapplied(material);
       return {
         machineId: selectedPrintMachine?.id || "",
-        machineName: selectedPrintMachine ? machineDisplayName(selectedPrintMachine) : first(context?.quotedMachine, autoSelection?.machineName, ""),
+        machineName: selectedPrintMachine ? machineDisplayName(selectedPrintMachine) : "",
         setupMinutes: firstPositiveNumber(selectedPrintMachine?.setupBaseMinutes, selectedPrintCapacity?.tiempo_preparacion_general, printProcess?.tiempo_preparacion_general, 20),
         cleaningMinutes: 12,
         mountingMinutes: firstPositiveNumber(selectedPrintMachine?.setupPerStationMinutes, selectedPrintCapacity?.tiempo_por_estacion, printProcess?.tiempo_por_estacion, 0) * Math.max(1, n(context?.tintCount, 0)),
@@ -2989,16 +3964,31 @@ function buildForm() {
   syncDerivedHeaderAndPackaging(form);
   if (savedUi && typeof savedUi === "object") {
     stateSafeMerge(form, savedUi);
-    form.header.quantities = normalizeQuantities((requestedQuantities.length ? requestedQuantities : form.header.quantities).map((item, index) => ({
+    const savedQuantities = Array.isArray(savedUi?.header?.quantities) ? savedUi.header.quantities : [];
+    const quantitySource = savedQuantities.length ? savedQuantities : (requestedQuantities.length ? requestedQuantities : form.header.quantities);
+    form.header.quantities = normalizeQuantities(quantitySource.map((item, index) => ({
       id: item?.id || `qty-${index + 1}`,
       value: typeof item === "object" ? item.value : item
     })));
     syncDerivedHeaderAndPackaging(form);
   }
+  syncSubstratePricingWithMaterial(form);
+  form.header.quoteCode = first(context?.quoteCode, quote?.quote_code, raw["ID COTIZACION"], form.header.quoteCode);
+  form.header.lineCode = first(context?.lineCode, raw["ID LINEA"], form.header.lineCode);
+  form.header.lineStatus = first(context?.lineStatus, raw["SOLICITUD ESTADO"], raw["ESTADO LINEA"], form.header.lineStatus);
+  form.header.customerCode = first(quote?.customer_code, context?.customerCode, raw["ID CLIENTE"], form.header.customerCode);
+  form.header.customerName = first(quote?.customer_name, context?.customerName, raw.CLIENTE, form.header.customerName);
+  form.header.salespersonName = first(quote?.salesperson_name, context?.salespersonName, raw.VENDEDOR, form.header.salespersonName);
   form.plates.chargePlates = form.plates.chargePlates !== false;
   form.plates.chargeVirginPlate = form.plates.chargeVirginPlate !== false;
+  form.plates.plateMode = normalizePlateMode(form.plates.plateMode);
+  form.plates.external = normalizePlateExternalRows(form.plates.external);
+  form.plates.inventory = form.plates.inventory && typeof form.plates.inventory === "object" ? form.plates.inventory : { materialId: "" };
   if (!String(form.plates.virgin?.materialId || "").trim() && String(form.plates.laser?.materialId || "").trim()) {
     form.plates.virgin.materialId = form.plates.laser.materialId;
+  }
+  if (!String(form.plates.inventory?.materialId || "").trim()) {
+    form.plates.inventory.materialId = form.plates.virgin?.materialId || form.plates.laser?.materialId || "";
   }
   form.macula = {
     source: first(form.macula?.source, maculaConfig.source),
@@ -3035,7 +4025,12 @@ function buildForm() {
       if (INLINE_PRINT_BY_KEY[key]) return inferredSet.has(key);
       return true;
     }));
-    form.finishes = form.finishes.map((item) => ({ ...item, active: inferredSet.has(item.processKey) }));
+    form.finishes = form.finishes.map((item) => ({
+      ...item,
+      active: inferredSet.has(item.processKey),
+      source: item.source || "system",
+      autoManaged: item.autoManaged !== false
+    }));
     if (form.printStages?.[0]?.inlineFinishes) {
       Object.keys(form.printStages[0].inlineFinishes).forEach((key) => {
         form.printStages[0].inlineFinishes[key].active = inferredSet.has(key);
@@ -3049,8 +4044,20 @@ function buildForm() {
   }
   const numberingProcessPresent = inferredProcessKeys.includes("numerado");
   const inlineSource = form.printStages?.[0]?.inlineFinishes || {};
+  const varnishSonified = norm(raw["REQ | Barniz Zonificado"]) === "si";
+  if (varnishSonified) {
+    form.activeProcessKeys = sortActiveProcessKeys((form.activeProcessKeys || []).concat("barnizado"));
+  }
   if (inferredProcessKeys.includes("barnizado")) {
     inlineSource.barniz = { ...(inlineSource.barniz || {}), active: machineSupportsInline(quotedMachine) };
+  }
+  if (varnishSonified) {
+    inlineSource.barniz = {
+      ...(inlineSource.barniz || {}),
+      active: true,
+      sonified: true,
+      comment: first(inlineSource.barniz?.comment, "Zonificado")
+    };
   }
   if (inferredProcessKeys.includes("laminado")) {
     inlineSource.laminado = { ...(inlineSource.laminado || {}), active: machineSupportsInline(quotedMachine) };
@@ -3060,6 +4067,9 @@ function buildForm() {
   }
   if (inferredProcessKeys.includes("embosado")) {
     inlineSource.embosado = { ...(inlineSource.embosado || {}), active: machineSupportsInline(quotedMachine) };
+  }
+  if (inferredProcessKeys.includes("troquelado")) {
+    inlineSource.troquelado = { ...(inlineSource.troquelado || {}), active: machineSupportsInline(quotedMachine) };
   }
   if (numberingProcessPresent) {
     inlineSource.numerado = { ...(inlineSource.numerado || {}), active: true };
@@ -3071,8 +4081,9 @@ function buildForm() {
   state.form = form;
   ensureActiveProcessKeys(shouldExpand);
   ensureConfiguredProcessInstances();
+  syncInlineFinishesForMachine(0);
   if (form.printStages?.[0]) {
-    ["barniz", "laminado", "estampado", "embosado", "numerado"].forEach((inlineKey) => {
+    ["barniz", "laminado", "estampado", "embosado", "troquelado", "numerado"].forEach((inlineKey) => {
       if (form.printStages[0].inlineFinishes?.[inlineKey]?.active) {
         applyInlineFinishSetupDefaults(0, inlineKey, true);
       }
@@ -3084,7 +4095,7 @@ function buildForm() {
 
 function calcTroquel() {
   const base = metrics();
-  const pricing = applyProcessMinimum("troquel", 0);
+  const pricing = { processKey: "troquel", rawSubtotal: 0, minimumCost: 0, minimumApplied: false, subtotal: 0 };
   return {
     ...pricing,
     labelsPerRepeat: base.labelsPerRepeat,
@@ -3107,8 +4118,8 @@ function calcMacula() {
     montajeTotalPies: r(montajeRows.reduce((sum, row) => sum + n(row.totalPies, 0), 0), 2),
     montajeTotalEstaciones: r(montajeRows.reduce((sum, row) => sum + n(row.porEstacion, 0), 0), 2),
     tirajePromedioPct: tirajeRows.length ? r(tirajeRows.reduce((sum, row) => sum + n(row.porcentaje, 0), 0) / tirajeRows.length, 2) : 0,
-    formulaText: "Mácula base = parámetros de montaje y tiraje definidos en Costos. La cotización los carga como referencia editable por documento.",
-    explanation: "Este bloque resume la configuración vigente de mácula y la deja editable dentro de la cotización para ajustar el desperdicio del trabajo sin cambiar la tabla maestra."
+    formulaText: "Merma base = parámetros de montaje y tiraje definidos en Costos. La cotización los carga como referencia editable por documento.",
+    explanation: "Este bloque resume la configuración vigente de merma y la deja editable dentro de la cotización para ajustar la merma del trabajo sin cambiar la tabla maestra."
   };
 }
 
@@ -3135,13 +4146,16 @@ function parseMaculaDetailTokens(detail) {
 function resolvePrintMacula(base, inlineItems = []) {
   const macula = calcMacula();
   const activeInlineKeys = inlineItems
-    .filter((item) => item.active)
+    .filter((item) => item.active && item.allowedForMachine !== false)
     .map((item) => normalizeMaculaProcessKey(item.key || item.label || ""))
     .filter(Boolean);
   const activeSet = new Set(["impresion", ...activeInlineKeys]);
 
-  const setupRows = macula.montajeRows.filter((row) => activeSet.has(normalizeMaculaProcessKey(row.detalle)));
-  const setupFeet = r(setupRows.reduce((sum, row) => sum + n(row.totalPies, 0), 0), 2);
+  const setupRows = macula.montajeRows.filter((row) => normalizeMaculaProcessKey(row.detalle) === "impresion");
+  const inlineSetupFeet = r(inlineItems
+    .filter((item) => item.active && item.allowedForMachine !== false)
+    .reduce((sum, item) => sum + n(item.setupWasteFeet, 0), 0), 2);
+  const setupFeet = r(setupRows.reduce((sum, row) => sum + n(row.totalPies, 0), 0) + inlineSetupFeet, 2);
 
   let tirajeRow = null;
   macula.tirajeRows.forEach((row) => {
@@ -3162,6 +4176,7 @@ function resolvePrintMacula(base, inlineItems = []) {
     setupRows,
     tirajeRow,
     setupFeet,
+    inlineSetupFeet,
     tirajePct,
     tirajeFeet,
     totalFeet,
@@ -3169,9 +4184,28 @@ function resolvePrintMacula(base, inlineItems = []) {
   };
 }
 
+function applyStageMaculaOverrides(stage = {}, macula = {}, base = metrics()) {
+  const next = { ...macula };
+  const hasSetupOverride = stage.maculaSetupFeet !== undefined && stage.maculaSetupFeet !== "";
+  const hasTirajeFeetOverride = stage.maculaTirajeFeet !== undefined && stage.maculaTirajeFeet !== "" && n(stage.maculaTirajeFeet, 0) > 0;
+  const hasTirajePctOverride = stage.maculaTirajePct !== undefined && stage.maculaTirajePct !== "" && n(stage.maculaTirajePct, 0) > 0;
+  if (hasSetupOverride && n(stage.maculaSetupFeet, 0) > 0) next.setupFeet = r(n(stage.maculaSetupFeet, 0) + n(next.inlineSetupFeet, 0), 2);
+  if (hasTirajePctOverride) {
+    next.tirajePct = r(n(stage.maculaTirajePct, 0), 2);
+    if (!hasTirajeFeetOverride) next.tirajeFeet = r(n(base.linealFeet, 0) * (n(next.tirajePct, 0) / 100), 2);
+  }
+  if (hasTirajeFeetOverride) next.tirajeFeet = r(n(stage.maculaTirajeFeet, 0), 2);
+  next.totalFeet = r(n(next.setupFeet, 0) + n(next.tirajeFeet, 0), 2);
+  return next;
+}
+
 function calcSustrato() {
   const base = metrics();
-  const macula = hasActiveProcess("impresion") ? documentMaculaFromStages(base) : { totalFeet: 0 };
+  const material = selectedSubstrateMaterial(state.form);
+  const materialName = first(material?.nombre, material?.name, material?.descripcion, "");
+  const macula = hasActiveProcess("impresion") ? documentMaculaFromStages(base) : { setupFeet: 0, tirajeFeet: 0, totalFeet: 0 };
+  const maculaSetupFeet = r(n(macula.setupFeet, 0), 2);
+  const maculaTirajeFeet = r(n(macula.tirajeFeet, 0), 2);
   const startupWasteFeet = r(macula.totalFeet, 2);
   const totalLengthFeet = r(base.linealFeet + startupWasteFeet, 2);
   const totalLengthMeters = r(totalLengthFeet * 0.3048, 4);
@@ -3192,20 +4226,24 @@ function calcSustrato() {
   });
   return {
     ...base,
+    maculaSetupFeet,
+    maculaTirajeFeet,
+    maculaTotalFeet: startupWasteFeet,
     startupWasteFeet,
     totalLengthFeet,
     totalLengthMeters,
     totalAreaFt2,
     consumption,
+    materialName,
     unitCost,
     unitLabel,
     unitCostLabel,
     ...pricing,
     issues,
-    formulaConsumption: "Longitud Total (pies) = [ (Cantidad a Producir x Desarrollo del Cilindro) / (12 x Cantidad de Etiquetas al Través) ] + Desperdicio de Arranque",
+    formulaConsumption: "Longitud Total (pies) = [ (Cantidad a Producir x Desarrollo del Cilindro) / (12 x Cantidad de Etiquetas al Través) ] + Merma Total",
     formulaArea: "Área Total Consumida (pies²) = Longitud Total (pies) x (Ancho de la Bobina / 12)",
     formulaCost: `Costo sustrato = Longitud Total en ${unitLabel} x ${unitCostLabel}`,
-    explanation: "Sustrato ahora toma la longitud neta del trabajo, le suma la mácula o desperdicio de arranque y con eso calcula tanto la longitud total requerida como el área total consumida del material."
+    explanation: "Sustrato toma la longitud neta del trabajo, le suma la merma y con eso calcula tanto la longitud total requerida como el área total consumida del material."
   };
 }
 
@@ -3265,6 +4303,39 @@ function calcPlates() {
       };
     });
     return { ...applyProcessMinimum("planchas", 0), breakdown, explanation: digitalPlateRuleMessage() };
+  }
+  const plateMode = normalizePlateMode(state.form.plates?.plateMode);
+  if (plateMode === "external") {
+    const rows = normalizePlateExternalRows(state.form.plates.external);
+    state.form.plates.external = rows;
+    const rawSubtotal = r(rows.reduce((sum, item) => sum + n(item.cost, 0), 0));
+    return {
+      ...applyProcessMinimum("planchas", rawSubtotal),
+      breakdown: emptyPlateBreakdown("Costo externo de planchas registrado manualmente."),
+      externalRows: rows,
+      formulaText: "Subtotal planchas = suma de costos externos registrados.",
+      explanation: "Costo externo toma la descripción, costo, comentarios y adjunto indicado para planchas."
+    };
+  }
+  if (plateMode === "inventory") {
+    const laser = laserPlateMetrics();
+    const material = findMaterial(state.form.plates?.inventory?.materialId);
+    const costPerIn2 = materialCostPerIn2(material);
+    const rawSubtotal = costPerIn2 > 0 && laser.totalArea > 0 ? r(laser.totalArea * costPerIn2) : 0;
+    state.form.plates.inventory = {
+      ...(state.form.plates.inventory || {}),
+      area: laser.totalArea,
+      costPerIn2
+    };
+    return {
+      ...applyProcessMinimum("planchas", rawSubtotal),
+      breakdown: emptyPlateBreakdown("Plancha cargada desde inventario."),
+      inventory: state.form.plates.inventory,
+      inventoryMaterial: material,
+      inventoryMetrics: laser,
+      formulaText: "Costo de inventario = Área Total Requerida x Costo por in².",
+      explanation: "De Inventario usa el material seleccionado y calcula el costo con el área total requerida."
+    };
   }
   if (state.form.plates?.chargeVirginPlate === false) {
     const breakdown = {};
@@ -3344,57 +4415,107 @@ function calcPrint() {
     let premierSetupSubtotal = 0;
     const inlineItems = INLINE_PRINT_SLOTS.map((slot) => {
       const inline = item.inlineFinishes?.[slot.key] || {};
+      const config = externalConfigForInlineFinish(slot.key) || slot;
+      const isInlineDie = config.key === "troquelado";
       const inlineAllowed = inlineFinishAllowedForMachine(machine, slot.key);
       const material = findMaterial(inline.materialId);
       const inlineOperatorHourCost = n(item.operatorHourCost, n(state.form.print.operatorHourCost, 0));
-      const unitCost = state.form.substrate.unit === "metros"
-        ? n(inline.costPerMeter, 0)
-        : state.form.substrate.unit === "msi"
-          ? n(inline.costPerMsi, 0)
-          : n(inline.costPerFoot, 0);
-      const materialBase = slot.key === "estampado" ? base.printedAreaM2 : substrateConsumptionValue(state.form, base);
+      const inlineMachineHourCost = n(first(inline.costHourMachine, item.costHour), 0);
+      const inlineSpeedFtMin = n(inline.speed, 0) > 0
+        ? n(inline.speed, 0)
+        : (speedUnit === "m/min" ? r(n(speedMetersMin, 0) * 3.28084, 4) : n(speedMetersMin, 0));
+      const baseLengthFeet = n(base.totalLengthFeet, n(base.linealFeet, 0));
+      const runBase = config.key === "troquelado" && n(inline.variableBase, 0) > 0
+        ? n(inline.variableBase, 0) + n(inline.setupWasteFeet, 0)
+        : baseLengthFeet + n(inline.setupWasteFeet, 0);
+      const runMinutes = inlineSpeedFtMin > 0 ? r(runBase / inlineSpeedFtMin) : 0;
+      const totalMinutes = r(n(inline.setupMinutes, 0) + runMinutes, 6);
+      const supplyWidthIn = config.usesUnitMaterial || config.usesWeightMaterial
+        ? n(base.webWidthIn, 0)
+        : materialSupplyWidthIn(material, base.webWidthIn);
+      const wastePct = config.usesUnitMaterial ? n(inline.operationWastePct, 0) : n(first(inline.operationWastePct, materialWastePct(material)), 0);
+      const netMaterialAreaFt2 = r(runBase * (supplyWidthIn / 12), 6);
+      const materialAreaFt2 = r(netMaterialAreaFt2 * (1 + (wastePct / 100)), 6);
+      const materialBase = config.usesUnitMaterial
+        ? Math.max(0, Math.ceil(n(base.rollCount, 0)))
+        : materialAreaFt2;
+      const areaCostFt2 = firstPositiveNumber(inline.costPerFt2, material?.costo_x_ft2, material?.costoPorFt2, 0);
+      const weightCostKg = firstPositiveNumber(inline.costPerKg, material?.costo_x_kg, 0);
+      const layerGft2 = firstPositiveNumber(inline.layerGft2, material?.rendimiento_g_ft2, material?.peso_capa_gsm, 0);
+      const unitCost = config.usesWeightMaterial ? weightCostKg
+        : config.usesUnitMaterial ? n(inline.costPerUnit, 0)
+        : areaCostFt2 > 0 ? areaCostFt2
+        : state.form.substrate.unit === "metros" ? n(inline.costPerMeter, 0)
+        : state.form.substrate.unit === "msi" ? n(inline.costPerMsi, 0)
+        : n(inline.costPerFoot, 0);
       const setupCost = r((n(inline.setupMinutes, 0) / 60) * inlineOperatorHourCost);
+      let machineSubtotal = r((totalMinutes / 60) * inlineMachineHourCost);
+      let operatorSubtotal = r((totalMinutes / 60) * inlineOperatorHourCost);
       const varnishProfile = varnishProfileInfo(item);
       const varnishCoverage = n(varnishProfile.coveragePct, 100) / 100;
       const varnishGsm = n(varnishProfile.gsm, 3);
       const varnishCostPerLb = n(inline.costPerLb, materialCostPerPound(material));
-      const materialConsumptionLb = slot.key === "barniz" && inline.active
-        ? r((base.printedAreaM2 * varnishCoverage * varnishGsm) / 453.59237, 6)
-        : 0;
-      const materialSubtotal = slot.key === "barniz"
+      const materialConsumptionKg = config.usesWeightMaterial ? r((materialBase * layerGft2) / 1000, 6) : 0;
+      const materialConsumptionLb = slot.key === "barniz" && !config.usesWeightMaterial && inline.active ? r((base.printedAreaM2 * varnishCoverage * varnishGsm) / 453.59237, 6) : 0;
+      let materialSubtotal = config.usesWeightMaterial
+        ? r(materialConsumptionKg * weightCostKg)
+        : slot.key === "barniz"
         ? r(materialConsumptionLb * varnishCostPerLb)
-        : slot.usesMaterial && inline.active
+        : config.usesMaterial && inline.active
           ? r(materialBase * unitCost)
           : 0;
-      const plateCost = slot.usesPlateCost && inline.active ? r(n(inline.plateCost, 0)) : 0;
+      let plateCost = config.usesPlateCost && inline.active ? r(n(inline.plateCost, 0)) : 0;
+      let linearSubtotal = isInlineDie ? r(runBase * n(inline.variableUnitCost, 0)) : 0;
+      let rawSubtotal = r(machineSubtotal + operatorSubtotal + n(inline.fixedCost, 0) + linearSubtotal + materialSubtotal + plateCost);
+      if (isInlineDie) {
+        machineSubtotal = 0;
+        operatorSubtotal = 0;
+        materialSubtotal = 0;
+        plateCost = 0;
+        linearSubtotal = 0;
+        rawSubtotal = 0;
+      }
       return {
         ...slot,
         ...inline,
+        ...config,
+        key: slot.key,
+        label: slot.label,
         materialName: material?.descripcion || material?.nombre || "",
         unitCost,
         materialBase,
+        calcBase: runBase,
+        runMinutes,
+        totalMinutes,
+        speed: inlineSpeedFtMin,
+        supplyWidthIn,
+        wastePct,
+        netMaterialAreaFt2,
+        costPerFt2: areaCostFt2,
+        costPerKg: weightCostKg,
+        layerGft2,
+        materialConsumptionKg,
         materialConsumptionLb,
         coveragePct: slot.key === "barniz" ? n(varnishProfile.coveragePct, 100) : n(inline.coveragePct, 0),
         varnishBcm: slot.key === "barniz" ? n(varnishProfile.bcm, 0) : 0,
         layerGsm: varnishGsm,
         costPerLb: varnishCostPerLb,
+        costHourMachine: inlineMachineHourCost,
         operatorHourCost: inlineOperatorHourCost,
         allowedForMachine: inlineAllowed,
         setupCost,
+        machineSubtotal,
+        operatorSubtotal,
+        linearSubtotal,
         materialSubtotal,
         plateCost,
-        subtotal: inline.active && inlineAllowed ? r(setupCost + materialSubtotal + plateCost + n(inline.fixedCost, 0)) : 0
+        rawSubtotal,
+        subtotal: inline.active && inlineAllowed ? rawSubtotal : 0
       };
     });
     const inlineSubtotal = r(inlineItems.reduce((sum, inline) => sum + inline.subtotal, 0));
-    const macula = resolvePrintMacula(base, inlineItems);
-    const hasMaculaSetupOverride = item.maculaSetupFeet !== undefined && item.maculaSetupFeet !== "";
-    const hasMaculaTirajeFeetOverride = item.maculaTirajeFeet !== undefined && item.maculaTirajeFeet !== "";
-    const hasMaculaTirajePctOverride = item.maculaTirajePct !== undefined && item.maculaTirajePct !== "";
-    if (hasMaculaSetupOverride) macula.setupFeet = r(n(item.maculaSetupFeet, 0), 2);
-    if (hasMaculaTirajeFeetOverride) macula.tirajeFeet = r(n(item.maculaTirajeFeet, 0), 2);
-    if (hasMaculaTirajePctOverride) macula.tirajePct = r(n(item.maculaTirajePct, 0), 2);
-    macula.totalFeet = r(n(macula.setupFeet, 0) + n(macula.tirajeFeet, 0), 2);
+    const macula = applyStageMaculaOverrides(item, resolvePrintMacula(base, inlineItems), base);
+    item.maculaSetupFeet = n(item.maculaSetupFeet, 0) > 0 ? item.maculaSetupFeet : macula.setupFeet;
     const startupWasteFeet = r(n(macula.totalFeet, 0), 2);
     const maculaMaterialSubtotal = r(startupWasteFeet * substrateUnitCost(state.form, base));
     const totalLengthFeet = r(base.linealFeet + startupWasteFeet, 2);
@@ -3438,7 +4559,10 @@ function calcPrint() {
         premierSubtotal = r(premierLiquidSubtotal + premierSetupSubtotal + premierProcessSubtotal);
       }
     }
-    const setupAdjustmentMin = r(n(item.setupMinutes, 0) + n(item.cleaningMinutes, 0) + n(item.mountingMinutes, 0), 2);
+    const inlineSetupMinutes = r(inlineItems
+      .filter((inline) => inline.active && inline.allowedForMachine !== false)
+      .reduce((sum, inline) => sum + n(inline.setupMinutes, 0), 0), 2);
+    const setupAdjustmentMin = r(n(item.setupMinutes, 0) + n(item.cleaningMinutes, 0) + n(item.mountingMinutes, 0) + inlineSetupMinutes, 2);
     const runMinutes = printSpeedMinutes(totalLengthFeet, totalLengthMeters, speedMetersMin, machine);
     const totalMinutes = r(runMinutes + setupAdjustmentMin, 2);
     const machineSubtotal = r((totalMinutes / 60) * n(item.costHour, 0));
@@ -3471,6 +4595,7 @@ function calcPrint() {
         speedMMin: speedUnit === "m/min" ? speedMetersMin : 0,
         speedUnit,
         setupAdjustmentMin,
+        inlineSetupMinutes,
         printedAreaFt2: base.printedAreaFt2,
         runMinutes,
         totalMinutes,
@@ -3515,12 +4640,12 @@ function calcPrint() {
   const totalMinutes = r(items.reduce((sum, item) => sum + item.totalMinutes, 0));
   const runMinutes = r(items.reduce((sum, item) => sum + item.runMinutes, 0));
   const pricing = applyProcessMinimum("impresion", r(machineSubtotal + operatorSubtotal + inkSubtotal + digitalWashSubtotal + premierSubtotal + inlineSubtotal));
-  return { ...base, ...pricing, items, runMinutes, totalMinutes, machineSubtotal, operatorSubtotal, inkConsumption, inkSubtotal, digitalWashSubtotal, premierSubtotal, inlineSubtotal, maculaSetupFeet, maculaTirajeFeet, maculaTotalFeet, timeFormula: "Tiempo Total en Máquina (min) = (Longitud Total en pies / Velocidad de Operación en FT/min) + Tiempo de Montaje y Ajuste", inkFormula: "Consumo tinta = área impresa × cobertura × BCM anilox × factor transferencia × densidad tinta × tintas requeridas", explanation: "Impresión calcula el tiempo de corrida usando la longitud total del trabajo, incluyendo la mácula o desperdicio de arranque, antes de sumar el tiempo de montaje y ajuste." };
+  return { ...base, ...pricing, items, runMinutes, totalMinutes, machineSubtotal, operatorSubtotal, inkConsumption, inkSubtotal, digitalWashSubtotal, premierSubtotal, inlineSubtotal, maculaSetupFeet, maculaTirajeFeet, maculaTotalFeet, timeFormula: "Tiempo Total en Máquina (min) = (Longitud Total en pies / Velocidad de Operación en ft/min) + Tiempo de Montaje y Ajuste", inkFormula: "Consumo tinta = área impresa × cobertura × BCM anilox × factor transferencia × densidad tinta × tintas requeridas", explanation: "Impresión calcula el tiempo de corrida usando la longitud total del trabajo, incluyendo la merma, antes de sumar el tiempo de montaje y ajuste." };
 }
 
 function calcFinishes() {
   const base = calcSustrato();
-  const items = state.form.finishes.map((item) => {
+  const items = activeExternalFinishEntries().map(({ finish: item, index }) => {
     const config = EXTERNAL_FINISH_BY_KEY[item.processKey] || {};
     const material = findMaterial(item.materialId);
     const baseLengthFeet = n(base.totalLengthFeet, n(base.linealFeet, 0));
@@ -3571,8 +4696,8 @@ function calcFinishes() {
       formulaText = "Laminado = costo máquina + costo operador + (Área Material ft² × (1 + Merma %) × costo material ft²).";
       explanation = "Laminado usa el ancho real del laminado, calcula el área técnica del proceso y aplica la merma del suministro antes de valorizarlo.";
     } else if (item.processKey === "estampado") {
-      formulaText = "Estampado = costo máquina + costo operador + (Área Foil ft² × (1 + Merma %) × costo foil ft²) + costo cliché.";
-      explanation = "Estampado usa el ancho real del foil, aplica su merma técnica y suma el costo único del cliché del trabajo.";
+      formulaText = "Estampado = costo máquina + costo operador + (Área Foil ft² × (1 + Merma %) × costo foil ft²).";
+      explanation = "Estampado usa el ancho real del foil y aplica su merma técnica antes de valorizar el material.";
     } else if (item.processKey === "embosado") {
       formulaText = "Embosado = costo máquina + costo operador + costo cliché.";
       explanation = "Embosado no consume material variable en esta etapa; se valora por tiempo de máquina y costo del cliché.";
@@ -3583,7 +4708,7 @@ function calcFinishes() {
       formulaText = "Rebobinado = costo máquina + costo operador.";
       explanation = "Rebobinado usa el mismo material ya impreso; en esta etapa se valora solo por el tiempo propio de la rebobinadora y la mano de obra.";
     }
-    return { ...item, ...pricing, calcBase: runBase, runMinutes, unitCost, supplyWidthIn, wastePct, netMaterialAreaFt2, materialBase, materialConsumptionKg, materialSubtotal, machineSubtotal, operatorSubtotal, plateCost, formulaText, explanation };
+    return { ...item, ...pricing, sourceIndex: index, calcBase: runBase, runMinutes, unitCost, supplyWidthIn, wastePct, netMaterialAreaFt2, materialBase, materialConsumptionKg, materialSubtotal, machineSubtotal, operatorSubtotal, plateCost, formulaText, explanation };
   });
   return { items, subtotal: r(items.reduce((sum, item) => sum + item.subtotal, 0)) };
 }
@@ -3613,16 +4738,42 @@ function totals() {
   const finishes = calcFinishes();
   const packaging = calcPackaging();
   const additional = calcAdditional();
-  const industrial = r(macula.subtotal + sustrato.subtotal + design.subtotal + prepress.subtotal + plates.subtotal + print.subtotal + finishes.subtotal + packaging.subtotal + additional.subtotal);
-  const overhead = r(industrial * (1 + n(state.form.commercial.overheadPct, 0) / 100));
-  const margin = r(overhead * (1 + n(state.form.commercial.marginPct, 0) / 100));
-  const discountPct = n(state.form.commercial.discountPct, 0);
+  const frontBackElements = isFrontBackGroupContext() ? frontBackElementSubtotalSummary() : { items: [], subtotal: 0 };
+  if (!isProcessAllowedForCurrentFrontBackContext("troquel")) troquel.subtotal = 0;
+  if (!isProcessAllowedForCurrentFrontBackContext("sustrato")) {
+    sustrato.rawSubtotal = 0;
+    sustrato.subtotal = 0;
+    sustrato.minimumApplied = false;
+  }
+  if (!isProcessAllowedForCurrentFrontBackContext("impresion")) {
+    print.items = [];
+    print.rawSubtotal = 0;
+    print.subtotal = 0;
+    print.minimumApplied = false;
+  }
+  const industrial = r(
+    macula.subtotal
+    + troquel.subtotal
+    + sustrato.subtotal
+    + design.subtotal
+    + prepress.subtotal
+    + plates.subtotal
+    + print.subtotal
+    + finishes.subtotal
+    + packaging.subtotal
+    + additional.subtotal
+    + frontBackElements.subtotal
+  );
+  const commercial = state.form.commercial;
+  const overhead = r(industrial * (1 + n(commercial.overheadPct, 0) / 100));
+  const margin = r(overhead * (1 + n(commercial.marginPct, 0) / 100));
+  const discountPct = n(commercial.discountPct, 0);
   const discount = discountPct > 0 ? r(margin * (discountPct / 100)) : 0;
   const afterDiscount = r(margin - discount);
-  const tax = r(afterDiscount * (n(state.form.commercial.taxPct, 0) / 100));
+  const tax = r(afterDiscount * (n(commercial.taxPct, 0) / 100));
   const total = r(afterDiscount + tax);
   const quantity = currentQuantity(state.form);
-  return { macula, troquel, sustrato, design, prepress, plates, print, finishes, packaging, additional, industrial, overhead, margin, discount, discountPct, afterDiscount, tax, total, unit: quantity > 0 ? r(total / quantity, 6) : 0 };
+  return { macula, troquel, sustrato, design, prepress, plates, print, finishes, packaging, additional, frontBackElements, industrial, overhead, margin, discount, discountPct, taxPct: n(commercial.taxPct, 0), afterDiscount, tax, total, unit: quantity > 0 ? r(total / quantity, 6) : 0 };
 }
 
 function buildSavePayload() {
@@ -3639,7 +4790,7 @@ function buildSavePayload() {
     salespersonName: state.form.header.salespersonName,
     processType: state.form.header.noPrint ? "Sin impresion" : printProductionType || state.form.header.processType || "Convencional",
     materialId: state.form.substrate.materialId,
-    materialName: findMaterial(state.form.substrate.materialId)?.descripcion || "",
+    materialName: first(selectedSubstrateMaterial(state.form)?.nombre, selectedSubstrateMaterial(state.form)?.name, selectedSubstrateMaterial(state.form)?.descripcion, ""),
     dieId: state.form.troquel.dieCode,
     machineName: state.form.print.machineName,
     quantityProducts: currentQuantity(state.form),
@@ -3662,6 +4813,10 @@ function buildSavePayload() {
     validationBlocking: validationState.hasBlockingIssues,
     jobName: state.form.header.jobName,
     department: "Flexografia",
+    processResult: JSON.parse(JSON.stringify(result)),
+    trackingClosure: state.quoteTracking.closure
+      ? JSON.parse(JSON.stringify(state.quoteTracking.closure))
+      : (state.context?.calculo?.raw_data?.CODEX_QUOTE_CLOSURE || null),
     uiState: JSON.parse(JSON.stringify(state.form))
   };
 }
@@ -3720,6 +4875,7 @@ function resolveProductTypes() {
 }
 
 function renderHeader() {
+  syncFrontBackCalculationShell();
   fillSelect(els.productType, resolveProductTypes().map((item) => ({ value: item, label: item })), state.form.header.productType);
   fillSelect(els.workType, WORK_TYPES.map((item) => ({ value: item, label: item })), state.form.header.workType);
   fillSelect(els.outputType, outputTypesCatalog().map((item) => ({ value: item.id || item.codigo, label: item.name || item.nombre || item.id || item.codigo })), state.form.header.outputType);
@@ -3738,16 +4894,80 @@ function renderHeader() {
   syncHeaderUnitMasks();
   renderFavoriteDocumentButton();
   syncCustomerCodeWidth();
+  renderFrontBackElementsCard();
   renderQuantities();
   outputPreview();
   refreshCalculationValidation();
+}
+
+function syncFrontBackCalculationShell() {
+  const isElement = isFrontBackElementContext();
+  const isEmbeddedElement = isEmbeddedView() && isElement;
+  document.body.classList.toggle("is-front-back-element-context", isElement);
+  document.body.classList.toggle("is-front-back-embedded", isEmbeddedView());
+  document.body.classList.toggle("is-front-back-embedded-element", isEmbeddedElement);
+  document.documentElement.classList.toggle("is-front-back-embedded-early", isEmbeddedElement);
+  if (els.printConfigCard) els.printConfigCard.hidden = false;
+}
+
+function renderFrontBackElementsCard() {
+  if (!els.frontBackElementsCard || !els.frontBackElementsBody) return;
+  if (isFrontBackEmbeddedElementContext()) {
+    els.frontBackElementsCard.hidden = true;
+    els.frontBackElementsBody.innerHTML = "";
+    return;
+  }
+  const group = currentFrontBackGroup();
+  if (!group) {
+    els.frontBackElementsCard.hidden = true;
+    els.frontBackElementsBody.innerHTML = "";
+    return;
+  }
+  const { groupLine, elements } = relatedFrontBackLines(group);
+  if (!elements.length) {
+    els.frontBackElementsCard.hidden = true;
+    els.frontBackElementsBody.innerHTML = "";
+    return;
+  }
+  els.frontBackElementsCard.hidden = false;
+  if (isFrontBackElementContext()) {
+    const groupRoute = storedLineRoute(groupLine || {});
+    els.frontBackElementsBody.innerHTML = `
+      <div class="front-back-group-note">
+        <strong>Elemento ${esc(group.elementRole || "")}</strong>
+        <span>La cantidad, sustrato, preprensa, planchas e impresión se controlan desde la línea grupo ${esc(group.groupLineCode)}.</span>
+        ${groupRoute ? `<button type="button" class="inline-button" data-front-back-open-line="${esc(group.groupLineCode)}">Abrir grupo</button>` : ""}
+      </div>
+    `;
+    return;
+  }
+  if (state.frontBackActiveElementLineCode && !elements.some((item) => item.code === state.frontBackActiveElementLineCode)) {
+    state.frontBackActiveElementLineCode = "";
+  }
+  const active = elements.find((item) => item.code === state.frontBackActiveElementLineCode) || null;
+  const tabMarkup = elements.map((item) => {
+    const isActive = item.code === active?.code;
+    const name = storedLineJobName(item.line) || item.code;
+    return `<button type="button" class="front-back-element-tab${isActive ? " is-active" : ""}" data-front-back-element-tab="${esc(item.code)}" aria-selected="${isActive ? "true" : "false"}">
+      <em>${esc(item.code)}</em>
+      <strong>${esc(name)}</strong>
+    </button>`;
+  }).join("");
+  const embeddedRoute = active ? frontBackEmbeddedRoute(active.line) : "";
+  els.frontBackElementsBody.innerHTML = `
+    <div class="front-back-element-tabs" role="tablist">${tabMarkup}</div>
+    ${active && embeddedRoute ? `<div class="front-back-embedded-shell">
+      <iframe class="front-back-embedded-frame" data-front-back-embedded-frame data-line-code="${esc(active.code)}" src="${esc(embeddedRoute)}" title="Cálculo ${esc(active.code)}"></iframe>
+    </div>` : ""}
+  `;
+  bindFrontBackEmbeddedFrame();
 }
 
 function renderProcessLauncher() {
   if (!els.processLauncherButton || !els.processLauncherIcon || !els.processLauncherMenu) return;
   const launcherIcon = iconPresentation("processLauncher", "◎", "#0b81b8", 24);
   const refreshIcon = iconPresentation("refreshCosts", "↻", "#5b7896", 20);
-  const activeExtras = (state.form?.activeProcessKeys || []).filter((key) => !processMeta(key)?.locked);
+  const activeExtras = (state.form?.activeProcessKeys || []).filter((key) => !processMeta(key)?.locked && isProcessAllowedForCurrentFrontBackContext(key));
   els.processLauncherButton.style.setProperty("--floating-icon-color", launcherIcon.color);
   els.processLauncherButton.style.setProperty("--floating-icon-hover", launcherIcon.hover);
   els.processLauncherButton.style.setProperty("--floating-icon-size", `${launcherIcon.size}px`);
@@ -3762,7 +4982,7 @@ function renderProcessLauncher() {
   applyIconToContainer(els.processLauncherIcon, launcherIcon.value, "Procesos");
   applyIconToContainer(els.refreshCostsIcon, refreshIcon.value, "Actualizar costos");
   els.processLauncherMenu.innerHTML = configuredProcessDefinitions()
-    .filter((item) => !item.locked && item.active !== false)
+    .filter((item) => !item.locked && item.active !== false && isProcessAllowedForCurrentFrontBackContext(item.key))
     .map((item) => {
       const disabled = !item.repeatable && hasActiveProcess(item.key);
       return `<button type="button" class="process-launcher-item${disabled ? " is-disabled" : ""}" data-process-key="${esc(item.key)}"${disabled ? " disabled" : ' draggable="true"'}><strong>${esc(item.label)}</strong></button>`;
@@ -3777,6 +4997,7 @@ function renderProcessPicker() {
   if (state.processPickerOpen) els.processPickerPanel.removeAttribute("hidden");
   else els.processPickerPanel.setAttribute("hidden", "");
   els.processPickerMenu.innerHTML = configuredProcessDefinitions()
+    .filter((item) => isProcessAllowedForCurrentFrontBackContext(item.key))
     .map((item) => {
       const disabled = item.locked || (!item.repeatable && hasActiveProcess(item.key));
       return `<button type="button" class="process-picker-item${disabled ? " is-disabled" : ""}" data-process-key="${esc(item.key)}"${disabled ? " disabled" : ""}${disabled ? "" : ' draggable="true"'}>${esc(item.label)}</button>`;
@@ -3820,6 +5041,652 @@ function renderTimelineLauncher() {
   updateProcessLauncherMenuPlacement();
 }
 
+function detailQuantityValues() {
+  return normalizeQuantities(state.form?.header?.quantities || [])
+    .map((item) => n(item.value, 0))
+    .filter((value) => value > 0)
+    .slice(0, 6);
+}
+
+function totalsForQuantity(quantity) {
+  const originalQuantities = state.form.header.quantities;
+  const originalQuantity = state.form.header.quantity;
+  try {
+    state.form.header.quantities = [{ id: "details-qty", value: quantity }];
+    state.form.header.quantity = quantity;
+    syncDerivedHeaderAndPackaging(state.form);
+    return totals();
+  } finally {
+    state.form.header.quantities = originalQuantities;
+    state.form.header.quantity = originalQuantity;
+    syncDerivedHeaderAndPackaging(state.form);
+  }
+}
+
+function sumInlineFinish(result = {}, match = {}) {
+  return r((result.print?.items || []).reduce((sum, item) => {
+    return sum + (item.inlineItems || []).reduce((inner, inline) => {
+      if (!inline?.subtotal) return inner;
+      const sameKey = match.processKey ? inline.processKey === match.processKey : true;
+      const sameLabel = match.label ? String(inline.label || "") === String(match.label || "") : true;
+      return sameKey && sameLabel ? inner + n(inline.subtotal, 0) : inner;
+    }, 0);
+  }, 0));
+}
+
+function sumExternalFinish(result = {}, match = {}) {
+  return r((result.finishes?.items || []).reduce((sum, finish) => {
+    if (!finish?.subtotal) return sum;
+    const sameKey = match.processKey ? finish.processKey === match.processKey : true;
+    const sameIndex = Number.isFinite(match.sourceIndex) ? finish.sourceIndex === match.sourceIndex : true;
+    return sameKey && sameIndex ? sum + n(finish.subtotal, 0) : sum;
+  }, 0));
+}
+
+function detailTooltipText(lines = []) {
+  return lines.map((line) => String(line || "").trim()).filter(Boolean).slice(0, 5).join("\n");
+}
+
+function detailMinimumLine(block = {}) {
+  if (!block?.minimumApplied) return "";
+  return `Mínimo: max(${money(block.rawSubtotal || 0)}, ${money(block.minimumCost || 0)}) = ${money(block.subtotal || 0)}.`;
+}
+
+function detailInlineMatches(result = {}, match = {}) {
+  return (result.print?.items || []).flatMap((item) => item.inlineItems || []).filter((inline) => {
+    if (!inline?.subtotal) return false;
+    const sameKey = match.processKey ? inline.processKey === match.processKey : true;
+    const sameLabel = match.label ? String(inline.label || "") === String(match.label || "") : true;
+    return sameKey && sameLabel;
+  });
+}
+
+function detailExternalMatches(result = {}, match = {}) {
+  return (result.finishes?.items || []).filter((finish) => {
+    if (!finish?.subtotal) return false;
+    const sameKey = match.processKey ? finish.processKey === match.processKey : true;
+    const sameIndex = Number.isFinite(match.sourceIndex) ? finish.sourceIndex === match.sourceIndex : true;
+    return sameKey && sameIndex;
+  });
+}
+
+function detailSum(items = [], field = "") {
+  return r(items.reduce((sum, item) => sum + n(item?.[field], 0), 0));
+}
+
+function detailDisplayValue(row = {}, result = {}) {
+  const value = row.value?.(result) ?? 0;
+  if (row.format === "feet") return `${num(value, 2)} ft`;
+  if (row.format === "area") return `${num(value, 2)} ft²`;
+  return money(value || 0);
+}
+
+function detailCleanText(value = "") {
+  return String(value ?? "").replace(/\s+/g, " ").trim();
+}
+
+function detailUniqueParts(parts = [], limit = 4) {
+  const seen = new Set();
+  const clean = [];
+  parts.forEach((part) => {
+    const value = detailCleanText(part);
+    if (!value) return;
+    const key = norm(value);
+    if (seen.has(key)) return;
+    seen.add(key);
+    clean.push(value);
+  });
+  if (clean.length <= limit) return clean;
+  return clean.slice(0, limit).concat(`+${clean.length - limit}`);
+}
+
+function detailJoin(parts = [], limit = 4) {
+  return detailUniqueParts(parts, limit).join(" · ");
+}
+
+function detailDimension(value, unit = "in", maximumFractionDigits = 2, prefix = "") {
+  const amount = n(value, 0);
+  if (amount <= 0) return "";
+  return `${prefix}${num(amount, maximumFractionDigits)} ${unit}`.trim();
+}
+
+function detailMaterialName(materialId = "", fallback = "") {
+  const material = findMaterial(materialId);
+  return detailCleanText(first(material?.descripcion, material?.nombre, material?.codigo, fallback));
+}
+
+function detailMachineName(machineId = "", fallback = "") {
+  const machine = findMachine(machineId);
+  return detailCleanText(first(fallback, machineDisplayName(machine), machine?.nombre, machine?.codigo));
+}
+
+function detailDieSummary() {
+  const code = detailCleanText(state.form?.troquel?.dieCode || "");
+  const description = detailCleanText(state.form?.troquel?.dieDescription || "");
+  if (code && description && !norm(description).includes(norm(code))) return `${code} ${description}`;
+  return description || code;
+}
+
+function detailPlateSize(item = {}) {
+  const width = n(item.plateWidthIn, 0);
+  const length = n(item.plateLengthIn, 0);
+  if (width <= 0 || length <= 0) return "";
+  return `${num(width, 2)} x ${num(length, 2)} in`;
+}
+
+function detailNumberingSummary(item = {}) {
+  const numberingType = normalizeNumberingType(item.numberingType, item.rangeFrom, item.rangeTo);
+  const range = isConsecutiveNumbering(numberingType) && (item.rangeFrom || item.rangeTo)
+    ? `Rango ${[item.rangeFrom || "?", item.rangeTo || "?"].join(" - ")}`
+    : "";
+  const attachment = normalizeNumberingAttachments(item)[0]?.fileName || item.attachmentName || "";
+  return detailJoin([
+    numberingType,
+    range,
+    first(item.detail, item.comment, ""),
+    attachment ? `Adj. ${attachment}` : ""
+  ], 3);
+}
+
+function detailInlineFinishSummary(inline = {}, stage = {}) {
+  const key = String(inline.key || "").trim();
+  if (key === "barniz") {
+    const profile = varnishProfileInfo(stage);
+    return detailJoin([profile.tipo, detailDimension(profile.gsm, "GSM", 2)]);
+  }
+  if (key === "numerado") return detailNumberingSummary(inline);
+  if (key === "troquelado") return detailDieSummary();
+  if (key === "embosado") return detailPlateSize(inline);
+  if (key === "estampado" || key === "laminado") {
+    return detailJoin([
+      detailMaterialName(inline.materialId, inline.materialName),
+      detailDimension(inline.supplyWidthIn, "in", 2, "Ancho ")
+    ]);
+  }
+  return detailJoin([detailMaterialName(inline.materialId, inline.materialName), inline.comment]);
+}
+
+function detailExternalFinishSummary(finish = {}, config = {}) {
+  const key = String(finish.processKey || config.key || "").trim();
+  if (key === "troquelado") return detailDieSummary();
+  if (key === "embosado") return detailPlateSize(finish);
+  if (key === "barnizado") {
+    return detailJoin([
+      detailMaterialName(finish.materialId, finish.materialName),
+      detailDimension(finish.layerGft2, "g/ft²", 2)
+    ]);
+  }
+  if (key === "estampado" || key === "laminado") {
+    return detailJoin([
+      detailMaterialName(finish.materialId, finish.materialName),
+      detailDimension(finish.supplyWidthIn, "in", 2, "Ancho ")
+    ]);
+  }
+  return detailJoin([
+    detailMachineName(finish.machineId, finish.machineName),
+    finish.comment
+  ]);
+}
+
+function detailPrintSummary(result = {}) {
+  const machines = (result.print?.items || [])
+    .map((item) => detailMachineName(item.machineId, item.machineName))
+    .filter(Boolean);
+  return detailUniqueParts(machines, 3).join(" · ");
+}
+
+function detailSubstrateSummary(result = {}) {
+  return detailJoin([result.sustrato?.materialName, detailMaterialName(state.form?.substrate?.materialId)], 1) || "Sin sustrato";
+}
+
+function detailFinishesSummary(result = {}) {
+  const items = (result.finishes?.items || []).filter((finish) => n(finish.subtotal, 0) > 0);
+  return detailUniqueParts(items.map((finish) => {
+    const config = EXTERNAL_FINISH_BY_KEY[finish.processKey] || {};
+    return detailJoin([config.label || finish.description || "Acabado", detailExternalFinishSummary(finish, config)], 2);
+  }), 3).join(" · ");
+}
+
+function detailAmountTooltip(row = {}, result = {}, quantity = 0) {
+  const key = row.key || "";
+  if (row.type === "measure") {
+    return detailTooltipText([
+      row.tooltip || row.label,
+      `Valor: ${detailDisplayValue(row, result)}.`
+    ]);
+  }
+  if (row.type === "inlineFinish") {
+    const items = detailInlineMatches(result, row.match || {});
+    const extras = r(detailSum(items, "materialSubtotal") + detailSum(items, "plateCost") + detailSum(items, "linearSubtotal") + detailSum(items, "fixedCost"));
+    return detailTooltipText([
+      `${row.label}: acabado dentro de impresión.`,
+      "Fórmula: máquina + operador + insumos + fijos.",
+      `Base: ${num(detailSum(items, "calcBase"), 2)} pies | Tiempo: ${num(detailSum(items, "totalMinutes"), 2)} min.`,
+      `Ejemplo: ${money(detailSum(items, "machineSubtotal"))} + ${money(detailSum(items, "operatorSubtotal"))} + ${money(extras)} = ${money(row.value(result) || 0)}.`
+    ]);
+  }
+  if (row.type === "externalFinish") {
+    const items = detailExternalMatches(result, row.match || {});
+    const finish = items[0] || {};
+    const extras = r(detailSum(items, "materialSubtotal") + detailSum(items, "plateCost") + detailSum(items, "fixedCost") + items.reduce((sum, item) => sum + (n(item.calcBase, 0) * n(item.variableUnitCost, 0)), 0));
+    return detailTooltipText([
+      `${row.label}: ${finish.formulaText || "costo máquina + operador + insumos."}`,
+      `Base: ${num(detailSum(items, "calcBase"), 2)} pies | Tiempo: ${num(detailSum(items, "runMinutes"), 2)} min.`,
+      `Ejemplo: ${money(detailSum(items, "machineSubtotal"))} + ${money(detailSum(items, "operatorSubtotal"))} + ${money(extras)} = ${money(row.value(result) || 0)}.`
+    ]);
+  }
+  if (key === "sustrato") {
+    const s = result.sustrato || {};
+    return detailTooltipText([
+      `Cantidad: ${num(quantity, 0)}.`,
+      "Fórmula: longitud total x costo/ft.",
+      `Ejemplo: ${num(s.totalLengthFeet, 2)} ft x ${money(s.unitCost || 0)} = ${money(s.rawSubtotal ?? s.subtotal ?? 0)}.`,
+      `Merma: montaje ${num(s.maculaSetupFeet, 2)} ft + tiraje ${num(s.maculaTirajeFeet, 2)} ft = ${num(s.startupWasteFeet, 2)} ft.`,
+      `Área impresión: ${num(s.printedAreaFt2, 2)} ft².`,
+      detailMinimumLine(s)
+    ]);
+  }
+  if (key === "diseno") {
+    const d = result.design || {};
+    return detailTooltipText([
+      "Fórmula: tiempo total x costo/h.",
+      `Ejemplo: ${num(d.time, 2)} h x ${money(state.form.design.hourCost || 0)} = ${money(d.rawSubtotal ?? d.subtotal ?? 0)}.`,
+      detailMinimumLine(d)
+    ]);
+  }
+  if (key === "preprensa") {
+    const p = result.prepress || {};
+    return detailTooltipText([
+      "Fórmula: artes / rendimiento x costo/h.",
+      `Ejemplo: ${num(p.time, 2)} h x ${money(state.form.prepress.hourCost || 0)} = ${money(p.rawSubtotal ?? p.subtotal ?? 0)}.`,
+      detailMinimumLine(p)
+    ]);
+  }
+  if (key === "planchas") {
+    const p = result.plates || {};
+    const laser = Object.values(p.breakdown || {}).map((item) => item?.laserMetrics).find(Boolean) || {};
+    const parts = PLATE_KEYS.map((entry) => {
+      const subtotal = n(p.breakdown?.[entry.key]?.subtotal, 0);
+      return subtotal ? `${entry.label}: ${money(subtotal)}` : "";
+    }).filter(Boolean).join(" · ");
+    return detailTooltipText([
+      "Fórmula: plancha + grabado + revelado + limpieza + secado.",
+      `Planchas/colores: ${num(laser.totalColors || 0, 0)} | Área: ${num(laser.totalArea || 0, 2)} in².`,
+      parts ? `Detalle: ${parts}.` : "",
+      detailMinimumLine(p)
+    ]);
+  }
+  if (key === "impresion") {
+    const p = result.print || {};
+    return detailTooltipText([
+      "Fórmula: máquina + operador + tinta + acabados en línea.",
+      `Tiempo: ${num(p.totalMinutes || 0, 2)} min | Tinta: ${money(p.inkSubtotal || 0)}.`,
+      `Ejemplo: ${money(p.machineSubtotal || 0)} + ${money(p.operatorSubtotal || 0)} + ${money(p.inkSubtotal || 0)} + ${money(p.inlineSubtotal || 0)} = ${money(p.rawSubtotal ?? p.subtotal ?? 0)}.`,
+      detailMinimumLine(p)
+    ]);
+  }
+  if (key === "acabados") {
+    const items = (result.finishes?.items || []).filter((finish) => n(finish.subtotal, 0) > 0);
+    const sample = items.slice(0, 3).map((finish) => `${EXTERNAL_FINISH_BY_KEY[finish.processKey]?.label || finish.description || "Acabado"}: ${money(finish.subtotal)}`).join(" · ");
+    return detailTooltipText([
+      `Suma de acabados externos (${items.length}).`,
+      sample ? `Detalle: ${sample}.` : "Sin acabados externos activos.",
+      `Total: ${money(result.finishes?.subtotal || 0)}.`
+    ]);
+  }
+  if (key === "empaque") {
+    const p = result.packaging || {};
+    return detailTooltipText([
+      "Fórmula: rollos / rendimiento x operarios x costo/h + externo.",
+      `Rollos: ${num(p.rolls || 0, 2)} | Tiempo: ${num(p.hours || 0, 2)} h.`,
+      `Ejemplo: ${num(p.hours || 0, 2)} h x ${num(state.form.packaging.operators || 0, 0)} op x ${money(state.form.packaging.hourCost || 0)} + ${money(state.form.packaging.externalCost || 0)} = ${money(p.rawSubtotal ?? p.subtotal ?? 0)}.`,
+      detailMinimumLine(p)
+    ]);
+  }
+  if (key === "adicionales") {
+    const rows = (result.additional?.rows || []).filter((item) => n(item.subtotal, 0) > 0);
+    const sample = rows.slice(0, 3).map((item) => `${item.description || item.name || "Adicional"}: ${money(item.subtotal)}`).join(" · ");
+    return detailTooltipText([
+      `Suma de adicionales (${rows.length}).`,
+      sample ? `Detalle: ${sample}.` : "Sin adicionales activos.",
+      detailMinimumLine(result.additional)
+    ]);
+  }
+  if (key === "subtotal") {
+    return detailTooltipText([
+      "Fórmula: suma de costos industriales.",
+      `Sustrato ${money(result.sustrato?.subtotal || 0)} + impresión ${money(result.print?.subtotal || 0)} + acabados ${money(result.finishes?.subtotal || 0)} + demás procesos = ${money(result.industrial || 0)}.`
+    ]);
+  }
+  if (key === "overhead") {
+    const pct = n(state.form.commercial.overheadPct, 0);
+    return detailTooltipText([
+      `Overhead: ${num(pct, 2)}%.`,
+      `Fórmula: subtotal x porcentaje.`,
+      `Ejemplo: ${money(result.industrial || 0)} x ${num(pct, 2)}% = ${money(row.value(result) || 0)}.`
+    ]);
+  }
+  if (key === "margen") {
+    const pct = n(state.form.commercial.marginPct, 0);
+    return detailTooltipText([
+      `Margen: ${num(pct, 2)}%.`,
+      `Fórmula: total con overhead x porcentaje.`,
+      `Ejemplo: ${money(result.overhead || 0)} x ${num(pct, 2)}% = ${money(row.value(result) || 0)}.`
+    ]);
+  }
+  if (key === "descuento") {
+    const pct = n(state.form.commercial.discountPct, 0);
+    return detailTooltipText([
+      `Descuento: ${num(pct, 2)}%.`,
+      `Fórmula: total con margen x porcentaje.`,
+      `Ejemplo: ${money(result.margin || 0)} x ${num(pct, 2)}% = ${money(Math.abs(row.value(result) || 0))}.`
+    ]);
+  }
+  if (key === "totalAjustes") {
+    return detailTooltipText([
+      "Fórmula: subtotal + overhead + margen - descuento.",
+      `Ejemplo: ${money(result.margin || 0)} - ${money(result.discount || 0)} = ${money(result.afterDiscount || 0)}.`
+    ]);
+  }
+  if (key === "iva") {
+    const pct = n(state.form.commercial.taxPct, 0);
+    return detailTooltipText([
+      `IVA: ${num(pct, 2)}%.`,
+      `Fórmula: total con ajustes x IVA.`,
+      `Ejemplo: ${money(result.afterDiscount || 0)} x ${num(pct, 2)}% = ${money(result.tax || 0)}.`
+    ]);
+  }
+  if (key === "totalFinal") {
+    return detailTooltipText([
+      "Fórmula: total con ajustes + IVA.",
+      `Ejemplo: ${money(result.afterDiscount || 0)} + ${money(result.tax || 0)} = ${money(result.total || 0)}.`
+    ]);
+  }
+  if (key === "precioUnitario") {
+    return detailTooltipText([
+      "Fórmula: total final / cantidad.",
+      `Ejemplo: ${money(result.total || 0)} / ${num(quantity, 0)} = ${money(result.unit || 0)}.`
+    ]);
+  }
+  if (key === "precioMillar") {
+    return detailTooltipText([
+      "Fórmula: precio unitario x 1 000.",
+      `Ejemplo: ${money(result.unit || 0)} x 1 000 = ${money(r(n(result.unit, 0) * 1000))}.`
+    ]);
+  }
+  return detailTooltipText([`Monto: ${money(row.value?.(result) || 0)}.`]);
+}
+
+function detailAmountCell(row = {}, result = {}, index = 0, quantity = 0) {
+  const tooltip = detailAmountTooltip(row, result, quantity);
+  const classes = ["details-cost-value"];
+  if (index === 0) classes.push("is-edit-target");
+  if (tooltip) classes.push("has-tooltip");
+  return `<div class="${classes.join(" ")}"${tooltip ? ` tabindex="0" aria-haspopup="dialog" aria-expanded="false" aria-label="${esc(tooltip)}" data-info-title="${esc(`Detalle ${row.label || ""}`)}" data-info-body="${esc(tooltip)}"` : ""}><span class="details-cost-value-text">${esc(detailDisplayValue(row, result))}</span></div>`;
+}
+
+function detailSubstrateRows() {
+  return [
+    { key: "sustratoCantidad", type: "measure", label: "Sustrato", child: true, breakdown: true, format: "feet", tooltip: "Sustrato neto antes de merma.", value: (result) => result.sustrato?.linealFeet },
+    { key: "sustratoMermaMontaje", type: "measure", label: "Merma Sustrato Montaje", child: true, breakdown: true, format: "feet", tooltip: "Merma de montaje tomada de Costos por estación/proceso.", value: (result) => result.sustrato?.maculaSetupFeet },
+    { key: "sustratoMermaTiraje", type: "measure", label: "Merma Sustrato Tiraje", child: true, breakdown: true, format: "feet", tooltip: "Merma de tiraje calculada con el porcentaje definido en Costos.", value: (result) => result.sustrato?.maculaTirajeFeet },
+    { key: "sustratoTotalCantidad", type: "measure", label: "Total Sustrato", child: true, breakdown: true, format: "feet", tooltip: "Sustrato neto más merma de montaje y merma de tiraje.", value: (result) => result.sustrato?.totalLengthFeet },
+    { key: "sustratoAreaImpresion", type: "measure", label: "Área de Impresión", child: true, breakdown: true, format: "area", tooltip: "Área neta impresa del trabajo.", value: (result) => result.sustrato?.printedAreaFt2 }
+  ];
+}
+
+function detailCostRows(baseResult = {}) {
+  const inlineFinishes = [];
+  (baseResult.print?.items || []).forEach((item) => {
+    (item.inlineItems || []).forEach((inline) => {
+      if (!inline.active && !n(inline.subtotal, 0)) return;
+      const key = `${inline.processKey || ""}|${inline.label || ""}`;
+      if (inlineFinishes.some((row) => row.key === key)) return;
+      inlineFinishes.push({
+        key,
+        type: "inlineFinish",
+        label: inline.label || processLabelFromKey(inline.processKey) || "Acabado",
+        detail: detailInlineFinishSummary(inline, item),
+        child: true,
+        jumpKey: "impresion",
+        match: { processKey: inline.processKey, label: inline.label },
+        value: (result) => sumInlineFinish(result, { processKey: inline.processKey, label: inline.label })
+      });
+    });
+  });
+  const externalFinishes = (baseResult.finishes?.items || [])
+    .map((finish, index) => {
+      const config = EXTERNAL_FINISH_BY_KEY[finish.processKey] || {};
+      return {
+        key: `external-${finish.processKey || index}-${finish.sourceIndex ?? index}`,
+        type: "externalFinish",
+        label: config.label || finish.description || "Acabado",
+        detail: detailExternalFinishSummary(finish, config),
+        jumpKey: finish.processKey || "",
+        match: { processKey: finish.processKey, sourceIndex: finish.sourceIndex },
+        value: (result) => sumExternalFinish(result, { processKey: finish.processKey, sourceIndex: finish.sourceIndex })
+      };
+    });
+  const frontBackElementRows = isFrontBackGroupContext()
+    ? (baseResult.frontBackElements?.items || []).map((item, index) => {
+      const role = item.role ? `${item.role.charAt(0).toUpperCase()}${item.role.slice(1)}` : "Elemento";
+      const name = storedLineJobName(item.line);
+      return {
+        key: `elementoFrenteDorso-${item.code || index}`,
+        label: `Elemento ${index + 1}`,
+        detail: [role, item.code, name].filter(Boolean).join(" · "),
+        child: true,
+        value: (result) => {
+          const match = (result.frontBackElements?.items || []).find((entry) => entry.code === item.code);
+          return match?.subtotal ?? item.subtotal;
+        }
+      };
+    }) : [];
+  const frontBackElementTotalRow = frontBackElementRows.length ? [{
+    key: "sumaElementosFrenteDorso",
+    label: "Suma de elementos",
+    value: (result) => result.frontBackElements?.subtotal,
+    total: true
+  }] : [];
+  const rows = [
+    { key: "troquel", label: "Troquel", detail: detailDieSummary() || "Sin troquel", jumpKey: "troquel", value: (result) => result.troquel?.subtotal },
+    { key: "sustrato", label: "Sustrato", detail: detailSubstrateSummary(baseResult), jumpKey: "sustrato", expandKey: "sustrato", value: (result) => result.sustrato?.subtotal },
+    ...(state.detailsOpen?.sustrato ? detailSubstrateRows() : []),
+    { key: "diseno", label: "Diseño", jumpKey: "diseno", value: (result) => result.design?.subtotal },
+    { key: "preprensa", label: "Preprensa", jumpKey: "preprensa", value: (result) => result.prepress?.subtotal },
+    { key: "planchas", label: "Planchas", jumpKey: "planchas", value: (result) => result.plates?.subtotal },
+    { key: "impresion", label: "Impresión", detail: detailPrintSummary(baseResult), jumpKey: "impresion", value: (result) => result.print?.subtotal },
+    ...inlineFinishes,
+    ...externalFinishes,
+    { key: "empaque", label: "Empaque", jumpKey: "empaque", value: (result) => result.packaging?.subtotal },
+    { key: "adicionales", label: "Adicionales", jumpKey: "adicionales", value: (result) => result.additional?.subtotal },
+    ...frontBackElementRows,
+    ...frontBackElementTotalRow,
+    { key: "subtotal", label: "Subtotal", value: (result) => result.industrial, total: true },
+    { key: "overhead", label: "Overhead", commercialKey: "overheadPct", value: (result) => r(n(result.overhead, 0) - n(result.industrial, 0)) },
+    { key: "margen", label: "Margen", commercialKey: "marginPct", value: (result) => r(n(result.margin, 0) - n(result.overhead, 0)) },
+    { key: "descuento", label: "Descuento", commercialKey: "discountPct", value: (result) => -n(result.discount, 0) },
+    { key: "totalAjustes", label: "Total con Ajustes", value: (result) => result.afterDiscount, total: true },
+    { key: "iva", label: "IVA", commercialKey: "taxPct", value: (result) => result.tax },
+    { key: "totalFinal", label: "Total Final", value: (result) => result.total, total: true, final: true },
+    { key: "precioUnitario", label: "Precio Unitario", value: (result) => result.unit },
+    { key: "precioMillar", label: "Precio por Millar", value: (result) => r(n(result.unit, 0) * 1000) }
+  ];
+  return rows;
+}
+
+function detailAlertMessagesForRow(row = {}, validationState = state.processValidation) {
+  const alerts = validationState?.alerts || {};
+  const keys = new Set([row.validationKey, row.key, row.jumpKey].filter(Boolean));
+  (row.validationKeys || []).forEach((key) => key && keys.add(key));
+  if (row.key === "impresion") {
+    Object.keys(alerts).filter((key) => key.startsWith("impresion-")).forEach((key) => keys.add(key));
+  }
+  if (row.key === "acabados") {
+    Object.keys(alerts).forEach((key) => {
+      const processKey = key.replace(/-\d+$/, "");
+      if (EXTERNAL_FINISH_BY_KEY[processKey]) keys.add(key);
+    });
+  }
+  if (row.type === "externalFinish" && row.match?.processKey) {
+    if (Number.isFinite(row.match.sourceIndex)) keys.add(`${row.match.processKey}-${row.match.sourceIndex}`);
+  }
+  return uniqueMessages([...keys].flatMap((key) => alerts[key] || []));
+}
+
+function detailShortAlertText(row = {}, alertMessages = []) {
+  const text = norm(alertMessages.join(" "));
+  if (!text) return "";
+  if (text.includes("sustrato")) return "Sin sustrato";
+  if (text.includes("maquina")) return "Sin máquina";
+  if (row.key === "troquel" || text.includes("falta troquel")) return "Sin troquel";
+  if (text.includes("material")) return "Sin material";
+  if (text.includes("tipo")) return "Sin tipo";
+  if (text.includes("costo")) return "Sin costo";
+  if (text.includes("velocidad")) return "Sin velocidad";
+  if (text.includes("setup")) return "Sin setup";
+  return "Revisar";
+}
+
+function detailLabelMarkup(row = {}) {
+  const detail = detailCleanText(row.detail || "");
+  const full = detail ? `${row.label} - ${detail}` : row.label;
+  return `<span class="details-label-text" title="${esc(full)}"><span class="details-label-main">${esc(row.label)}</span>${detail ? `<span class="details-label-separator"> - </span><span class="details-label-extra">${esc(detail)}</span>` : ""}</span>`;
+}
+
+function detailRowLabel(row = {}) {
+  if (row.commercialKey) {
+    const pct = n(state.form?.commercial?.[row.commercialKey], 0);
+    return `<button type="button" class="details-adjust-trigger" data-details-edit="${esc(row.commercialKey)}"><span>${esc(row.label)}</span><small>${num(pct, 2)}%</small></button>`;
+  }
+  if (row.expandKey) {
+    const expanded = Boolean(state.detailsOpen?.[row.expandKey]);
+    const toggle = `<button type="button" class="details-expand-toggle" data-details-toggle="${esc(row.expandKey)}" aria-expanded="${expanded ? "true" : "false"}" aria-label="${expanded ? "Contraer" : "Expandir"} ${esc(row.label)}">${expanded ? "▾" : "▸"}</button>`;
+    const label = row.jumpKey
+      ? `<button type="button" class="details-jump-link" data-jump-process="${esc(row.jumpKey)}">${detailLabelMarkup(row)}</button>`
+      : detailLabelMarkup(row);
+    return `<span class="details-label-group">${toggle}${label}</span>`;
+  }
+  if (row.jumpKey) {
+    return `<button type="button" class="details-jump-link" data-jump-process="${esc(row.jumpKey)}">${detailLabelMarkup(row)}</button>`;
+  }
+  return detailLabelMarkup(row);
+}
+
+function detailRowLabelWithAlert(row = {}, alertMessages = []) {
+  const fullAlertText = summarizeMessages(alertMessages, 2);
+  const alertText = detailShortAlertText(row, alertMessages);
+  const displayRow = alertText && norm(row.detail || "").includes(norm(alertText)) ? { ...row, detail: "" } : row;
+  const alertMarkup = alertText ? `<span class="details-row-alert" title="${esc(fullAlertText)}">${esc(alertText)}</span>` : "";
+  return `<span class="details-row-label-wrap">${detailRowLabel(displayRow)}${alertMarkup}</span>`;
+}
+
+function detailsGridStyle(quantityCount) {
+  const count = Math.max(1, Number(quantityCount) || 1);
+  return `grid-template-columns:minmax(170px,220px) repeat(${count}, minmax(104px,1fr));`;
+}
+
+function detailEditableLabel(row = {}) {
+  if (!row.commercialKey) return detailRowLabel(row);
+  const pct = n(state.form?.commercial?.[row.commercialKey], 0);
+  return `<button type="button" class="details-adjust-trigger" data-details-edit="${esc(row.commercialKey)}"><span>${esc(row.label)}</span><small>${num(pct, 2)}%</small></button>`;
+}
+
+function renderQuoteTracking() {
+  if (!els.quoteTrackingMount || !state.form) return;
+  const trackingId = quoteTrackingStorageId();
+  if (state.quoteTracking.id !== trackingId || !Array.isArray(state.quoteTracking.milestones) || !state.quoteTracking.milestones.length) {
+    state.quoteTracking.id = trackingId;
+    state.quoteTracking.milestones = loadQuoteTrackingMilestones();
+  }
+  const milestones = state.quoteTracking.milestones;
+  const quoteCode = String(state.form.header.quoteCode || "").trim() || "Sin base";
+  const lineCode = String(state.form.header.lineCode || "").trim();
+  const quoteRoute = state.form.header.quoteCode ? `/cotizaciones/documento?codigo=${encodeURIComponent(state.form.header.quoteCode)}` : "";
+  const customerName = String(state.form.header.customerName || "").trim() || "Cliente sin definir";
+  const doneCount = quoteTrackingDoneCount();
+  const panelOpen = Boolean(state.quoteTracking.panelOpen);
+  const statusText = milestones[milestones.length - 1]?.done ? "Cerrada" : doneCount >= 4 ? "Proforma enviada" : doneCount >= 3 ? "Cotización finalizada" : "En proceso";
+  const nextLabels = ["Completar solicitud del vendedor", "Completar solicitud del vendedor", "Finalizar cotización", "Enviar proforma al cliente", "Finalizar comercialmente"];
+  const body = milestones.map((item, index) => {
+    const available = quoteTrackingAvailable(index);
+    const last = index === milestones.length - 1;
+    const opacity = item.done ? "1" : available ? "0.72" : "0.38";
+    let node = "";
+    if (item.done) {
+      const undoable = !item.fixed;
+      node = `<button type="button" class="tl-done-btn tl-avatar-anim${undoable ? " undoable" : ""}" style="background:${esc(item.color)};"${undoable ? ` data-tracking-undo="${index}" title="Deshacer este hito y los siguientes" aria-label="Deshacer ${esc(item.label)}"` : ""}>${esc(item.initials || initialsFromName(item.user))}${undoable ? '<span class="tl-undo-overlay"><i class="ti ti-arrow-back-up" style="font-size:15px;color:#fff;" aria-hidden="true"></i></span>' : ""}<span class="tl-check-badge"><i class="ti ti-check" style="font-size:9px;color:#fff;" aria-hidden="true"></i></span></button>`;
+    } else if (item.cr) {
+      node = `<div style="position:relative;flex-shrink:0;"><div class="tl-locked" style="border-color:#d97706;"><i class="ti ${esc(item.icon)}" style="font-size:17px;color:#d97706;" aria-hidden="true"></i></div><span class="tl-warn-badge"><i class="ti ti-alert-triangle" style="font-size:8px;color:#fff;" aria-hidden="true"></i></span></div>`;
+    } else if (available) {
+      node = `<button type="button" class="tl-pending-btn" data-tracking-complete="${index}" title="Marcar como completado" aria-label="Completar ${esc(item.label)}"><i class="ti ${esc(item.icon)}" style="font-size:17px;" aria-hidden="true"></i></button>`;
+    } else {
+      node = `<div class="tl-locked"><i class="ti ${esc(item.icon)}" style="font-size:17px;" aria-hidden="true"></i></div>`;
+    }
+    const solid = item.done && !last && milestones[index + 1]?.done;
+    const line = last ? "" : solid ? '<div style="flex:1;width:2px;background:var(--color-border-secondary);margin:6px 0;min-height:22px;"></div>' : '<div style="flex:1;border-left:2px dashed var(--color-border-tertiary);margin:6px 0;min-height:22px;width:0;"></div>';
+    let content = "";
+    if (item.done) {
+      const changeButton = item.canCR ? `<button type="button" class="btn-changes" data-tracking-open-form="${index}" aria-label="${esc(item.crLabel)}"><i class="ti ti-message-report" style="font-size:12px;" aria-hidden="true"></i>${esc(item.crWho)}: solicitar cambios</button>` : "";
+      const form = state.quoteTracking.formOpenKey === item.key ? `<div class="cr-form"><div style="font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:8px;">${esc(item.crLabel)}</div><textarea id="quoteTrackingText-${index}" class="cr-textarea" placeholder="${esc(item.crPH)}" data-tracking-textarea></textarea><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;"><button type="button" class="btn-cancel" data-tracking-close-form>Cancelar</button><button type="button" class="btn-submit" data-tracking-submit-cr="${index}"><i class="ti ti-send" style="font-size:12px;" aria-hidden="true"></i>Enviar y revertir</button></div></div>` : "";
+      const closure = item.key === "cierre" ? state.quoteTracking.closure : null;
+      const closureText = closure
+        ? (closure.outcome === "accepted"
+          ? `Venta aceptada${closure.orderCode ? ` · Orden ${closure.orderCode}` : ""}`
+          : `Cierre sin venta · ${closure.reason || "Sin motivo"}`)
+        : "";
+      const closureNote = closureText ? `<div class="tracking-close-note"><strong>${esc(closureText)}</strong>${closure.comments ? `<span>${esc(closure.comments)}</span>` : ""}</div>` : "";
+      const productBtn = item.key === "cierre" ? `<div style="display:flex;gap:8px;margin-top:8px;"><button type="button" class="btn-mark tracking-product-action" data-tracking-create-product aria-label="Crear producto" style="font-size:11px;padding:5px 10px;"><i class="ti ti-box" style="font-size:11px;" aria-hidden="true"></i>Crear producto</button></div>` : "";
+      content = `<div class="tl-content-anim" style="padding-bottom:18px;"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px;"><i class="ti ${esc(item.icon)}" style="font-size:14px;color:var(--color-text-secondary);" aria-hidden="true"></i><span style="font-size:13px;font-weight:500;color:var(--color-text-primary);">${esc(item.label)}</span></div><div style="font-size:13px;color:var(--color-text-primary);">${esc(item.user || "")}</div><div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px;">${esc(item.date || "Pendiente")}</div>${closureNote}${changeButton}${form}${productBtn}</div>`;
+    } else if (item.cr) {
+      const crNote = `<div class="cr-note"><div style="font-size:11px;font-weight:500;color:var(--color-text-warning);">Cambios solicitados por ${esc(item.cr.by)}</div><div style="font-size:11px;color:var(--color-text-warning);margin-top:2px;">${esc(item.cr.date)}</div><div style="font-size:12px;color:var(--color-text-primary);margin-top:6px;line-height:1.4;">"${esc(item.cr.comment)}"</div></div>`;
+      content = `<div style="padding-bottom:18px;"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px;"><i class="ti ${esc(item.icon)}" style="font-size:14px;color:#d97706;" aria-hidden="true"></i><span style="font-size:13px;font-weight:500;color:var(--color-text-primary);">${esc(item.label)}</span></div>${crNote}<button type="button" class="btn-mark" data-tracking-complete="${index}" style="margin-top:10px;" aria-label="Marcar ${esc(item.label)} como completado"><i class="ti ti-check" style="font-size:12px;" aria-hidden="true"></i>Marcar como hecho</button></div>`;
+    } else if (available) {
+      const proformaButton = item.key === "envio" ? '<button type="button" class="btn-mark" data-tracking-proforma aria-label="Ver proforma"><i class="ti ti-file-invoice" style="font-size:12px;" aria-hidden="true"></i>Ver Proforma</button>' : "";
+      const closeForm = state.quoteTracking.formOpenKey === "cierre-descarte" ? `<div class="tracking-close-form"><label><span>Motivo</span><select id="quoteTrackingCloseReason" data-tracking-close-input><option value="">Selecciona un motivo</option>${QUOTE_CLOSE_REASON_OPTIONS.map((reason) => `<option value="${esc(reason)}">${esc(reason)}</option>`).join("")}</select></label><label><span>Comentario</span><textarea id="quoteTrackingCloseComments" class="cr-textarea" placeholder="Comentario para gerencia" data-tracking-close-input></textarea></label><div class="tracking-close-actions"><button type="button" class="btn-cancel" data-tracking-close-form>Cancelar</button><button type="button" class="btn-submit" data-tracking-submit-close="${index}"><i class="ti ti-send" style="font-size:12px;" aria-hidden="true"></i>Guardar cierre</button></div></div>` : "";
+      const closeActions = item.key === "cierre"
+        ? `<div class="tracking-close-menu"><button type="button" class="btn-mark tracking-primary-action" data-tracking-create-order="${index}" aria-label="Crear orden de producción"><i class="ti ti-check" style="font-size:12px;" aria-hidden="true"></i>Crear orden</button><button type="button" class="btn-mark tracking-secondary-action" data-tracking-open-close-reason="${index}" aria-label="Dar motivo de cierre"><i class="ti ti-message-report" style="font-size:12px;" aria-hidden="true"></i>Dar motivo</button><button type="button" class="btn-mark tracking-product-action" data-tracking-create-product aria-label="Crear producto"><i class="ti ti-box" style="font-size:12px;" aria-hidden="true"></i>Crear producto</button></div>${closeForm}`
+        : `<div style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn-mark" data-tracking-complete="${index}" aria-label="Marcar ${esc(item.label)} como completado"><i class="ti ti-check" style="font-size:12px;" aria-hidden="true"></i>${item.key === "envio" ? "Marcar como enviada" : "Marcar como hecho"}</button>${proformaButton}</div>`;
+      content = `<div style="padding-bottom:18px;"><div style="margin-bottom:6px;font-size:13px;font-weight:500;color:var(--color-text-secondary);">${esc(item.label)}</div>${closeActions}</div>`;
+    } else {
+      content = `<div style="padding-bottom:18px;"><div style="margin-bottom:4px;font-size:13px;font-weight:500;color:var(--color-text-secondary);">${esc(item.label)}</div><div style="font-size:12px;color:var(--color-text-tertiary);">${esc(item.hint || "")}</div></div>`;
+    }
+    return `<div style="display:grid;grid-template-columns:48px 1fr;gap:0 14px;opacity:${opacity};"><div style="display:flex;flex-direction:column;align-items:center;">${node}${line}</div>${content}</div>`;
+  }).join("");
+  els.quoteTrackingMount.innerHTML = `<h2 class="sr-only">Panel de seguimiento con solicitudes de cambio por hito</h2><div class="quote-tracking-wrap"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 16px;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);margin-bottom:10px;"><div style="display:grid;gap:4px;min-width:0;flex:1;overflow:hidden;"><a class="quote-tracking-code summary-row-link" href="${esc(quoteRoute || "#")}"${quoteRoute ? ` data-route="${esc(quoteRoute)}" data-label="Cotización ${esc(quoteCode)}"` : ""} style="font-size:13px;font-weight:500;color:var(--color-text-primary);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(quoteCode)}</a><span style="font-size:13px;color:var(--color-text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(customerName)}</span><span style="font-size:11px;font-weight:500;padding:3px 10px;border-radius:999px;background:var(--color-background-info);color:var(--color-text-info);width:max-content;max-width:100%;">${esc(statusText)}</span></div><button type="button" id="tl-btn" data-tracking-toggle style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:var(--border-radius-md);border:0.5px solid ${panelOpen ? "var(--color-border-info)" : "var(--color-border-secondary)"};background:${panelOpen ? "var(--color-background-info)" : "var(--color-background-secondary)"};color:${panelOpen ? "var(--color-text-info)" : "var(--color-text-primary)"};font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;flex-shrink:0;"><i class="ti ti-route" style="font-size:16px;" aria-hidden="true"></i>Seguimiento</button></div><div id="tl-panel" style="display:${panelOpen ? "block" : "none"};background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden;"><div style="display:flex;align-items:center;justify-content:space-between;padding:15px 20px 13px;border-bottom:0.5px solid var(--color-border-tertiary);"><div><div style="font-size:15px;font-weight:500;color:var(--color-text-primary);">Historial de seguimiento</div><div style="font-size:12px;color:var(--color-text-secondary);margin-top:3px;">${esc(quoteCode)} · ${esc(customerName)}</div></div><span id="counter-badge" style="font-size:11px;font-weight:500;padding:4px 12px;border-radius:999px;background:${doneCount === milestones.length ? "var(--color-background-success)" : "var(--color-background-warning)"};color:${doneCount === milestones.length ? "var(--color-text-success)" : "var(--color-text-warning)"};">${doneCount} de ${milestones.length} completados</span></div><div id="tl-body" style="padding:20px 24px 4px;">${body}</div><div id="tl-footer" style="display:flex;align-items:center;gap:8px;padding:12px 24px 15px;border-top:0.5px solid var(--color-border-tertiary);margin-top:16px;"><i id="footer-icon" class="ti ${doneCount >= milestones.length ? "ti-circle-check" : "ti-arrow-right-circle"}" style="font-size:16px;color:${doneCount >= milestones.length ? "var(--color-text-success)" : "var(--color-text-info)"};" aria-hidden="true"></i><span id="next-step-text" style="font-size:12px;color:var(--color-text-secondary);">${doneCount >= milestones.length ? '<span style="font-weight:500;color:var(--color-text-success);">Cotización completamente cerrada</span>' : `Próximo paso: <span style="font-weight:500;color:var(--color-text-primary);">${esc(nextLabels[doneCount] || nextLabels[0])}</span>`}</span></div></div></div>`;
+}
+
+function renderDetailsDemo(baseResult = totals()) {
+  if (!els.detailsCostTable) return;
+  renderQuoteTracking();
+  const quantities = detailQuantityValues();
+  const quoteCode = String(state.form.header.quoteCode || "").trim();
+  const lineCode = String(state.form.header.lineCode || "").trim();
+  if (els.detailsLineBadge) els.detailsLineBadge.textContent = lineCode ? `Línea ${lineCode}` : "Línea sin base";
+  if (!quantities.length) {
+    els.detailsCostTable.innerHTML = '<div class="details-empty">Agrega cantidades para ver el detalle.</div>';
+    return;
+  }
+  const results = quantities.map((quantity, index) => (index === 0 && n(quantity, 0) === currentQuantity(state.form)) ? baseResult : totalsForQuantity(quantity));
+  const rows = detailCostRows(baseResult);
+  const validationState = buildCalculationValidationState(baseResult);
+  const gridStyle = detailsGridStyle(quantities.length);
+  const header = `<div class="details-cost-row details-cost-head" style="${esc(gridStyle)}"><div>Cantidades</div>${quantities.map((quantity) => `<div class="details-cost-value details-quantity-cell">${esc(num(quantity, 0))}</div>`).join("")}</div>`;
+  const body = rows.map((row) => {
+    const classes = ["details-cost-row"];
+    if (row.child) classes.push("is-child");
+    if (row.breakdown) classes.push("is-breakdown");
+    if (row.total) classes.push("is-total");
+    if (row.final) classes.push("is-final");
+    const alertMessages = detailAlertMessagesForRow(row, validationState);
+    const alertText = summarizeMessages(alertMessages, 2);
+    if (alertMessages.length) classes.push("is-alert");
+    const cells = results.map((result, index) => detailAmountCell(row, result, index, quantities[index])).join("");
+    return `<div class="${classes.join(" ")}" style="${esc(gridStyle)}"${alertText ? ` title="${esc(alertText)}"` : ""}><div>${detailRowLabelWithAlert(row, alertMessages)}</div>${cells}</div>`;
+  }).join("");
+  els.detailsCostTable.innerHTML = header + body;
+}
+
 function updateProcessLauncherMenuPlacement() {
   if (!els.processLauncherShell || !els.processLauncherPrimary || !els.processLauncherBridge) return;
   const shellRect = els.processLauncherShell.getBoundingClientRect();
@@ -3834,6 +5701,7 @@ function updateProcessLauncherMenuPlacement() {
 }
 
 function injectProcessRemoveButtons() {
+  const deleteIcon = getProcessDeleteIconConfig();
   els.processSections.querySelectorAll(".process-card").forEach((cardNode) => {
     const key = cardNode.dataset.processKey;
     if (!key || processMeta(key)?.locked) return;
@@ -3845,12 +5713,17 @@ function injectProcessRemoveButtons() {
     button.dataset.removeType = "single";
     button.dataset.removeIndex = key;
     button.setAttribute("aria-label", "Eliminar proceso");
-    button.innerHTML = '<span class="process-delete-icon" aria-hidden="true">×</span>';
+    button.setAttribute("title", "Eliminar proceso");
+    button.style.setProperty("--process-delete-icon-color", deleteIcon.primary);
+    button.style.setProperty("--process-delete-icon-hover", deleteIcon.hover);
+    button.style.setProperty("--process-delete-icon-size", `${deleteIcon.size}px`);
+    button.innerHTML = renderIconMarkup(deleteIcon.value, "Eliminar proceso", "process-delete-icon");
     cardNode.appendChild(button);
   });
 }
 
 function renderSidebar(result) {
+  renderDetailsDemo(result);
   const material = findMaterial(state.form.substrate.materialId);
   const printProcess = findProcess(state.form.print.processId);
   const quantities = normalizeQuantities(state.form.header.quantities).map((item) => num(item.value, 0)).join(" │ ");
@@ -3860,9 +5733,7 @@ function renderSidebar(result) {
   const autoWarnings = autoWarningsList();
   const autoProcesses = autoProcessSnapshot();
   const currentAutoRoute = state.context?.calculo?.processType || autoSelection?.route || "";
-  const autoMachineName = autoSelection?.missingMachine
-    ? "No disponible"
-    : first(autoSelection?.machineName, state.context?.calculo?.quotedMachine, "");
+  const autoMachineName = "";
   const autoMaterialName = first(autoSelection?.materialName, state.context?.calculo?.materialName, "");
   const autoDieCode = first(autoSelection?.dieCode, state.context?.calculo?.dieCode, "");
   const currentMachineName = printProcess?.machine_name || state.form.print.machineName || "";
@@ -3880,18 +5751,22 @@ function renderSidebar(result) {
   const plateRule = digitalPlateRuleApplies() ? "Planchas no se cobran" : "Planchas sí se cobran";
   const statusBase = state.form.header.quoteCode && state.form.header.lineCode ? `Evaluando ${state.form.header.quoteCode} / ${state.form.header.lineCode}.` : "Evaluando cálculo de flexografía.";
   els.calcStatus.textContent = digitalPlateRuleApplies() ? `${statusBase} ${digitalPlateRuleMessage()}` : statusBase;
-  els.contextRows.innerHTML = [["Cotización", state.form.header.quoteCode || "Sin base"], ["Línea", state.form.header.lineCode || "Sin base"], ["Cantidades productos", quantities || "Sin definir"], ["Cantidad base", num(currentQuantity(state.form), 0)], ["Troquel", state.form.troquel.dieCode || "No definido"], ["Sustrato", material?.descripcion || "No definido"], ["Máquina impresión", printProcess?.machine_name || state.form.print.machineName || "No definida"], ["Proceso productivo", processProductiveType], ["Ruta automática", state.context?.calculo?.processType || autoSelection?.route || "No definida"], ["Montaje base", first(autoSelection?.mounting?.summary, state.context?.calculo?.raw_data?.["REQ | Montaje Automático"], "Pendiente")], ["Regla planchas", plateRule], ["Estado línea", state.form.header.lineStatus || "En evaluación"]].map(([label, value]) => `<div class="summary-row"><span>${esc(label)}</span><span class="summary-row-value">${esc(value)}</span></div>`).join("");
+  const quoteCode = String(state.form.header.quoteCode || "").trim();
+  const quoteRoute = quoteCode ? `/cotizaciones/documento?codigo=${encodeURIComponent(quoteCode)}` : "";
+  const quoteValue = quoteRoute
+    ? `<a class="summary-row-link" href="${esc(quoteRoute)}" data-route="${esc(quoteRoute)}" data-label="Cotización ${esc(quoteCode)}">${esc(quoteCode)}</a>`
+    : esc("Sin base");
+  els.contextRows.innerHTML = [["Cotización", quoteValue, true], ["Línea", state.form.header.lineCode || "Sin base"], ["Cantidades productos", quantities || "Sin definir"], ["Cantidad base", num(currentQuantity(state.form), 0)], ["Troquel", state.form.troquel.dieCode || "No definido"], ["Sustrato", material?.descripcion || "No definido"], ["Máquina impresión", printProcess?.machine_name || state.form.print.machineName || "No definida"], ["Proceso productivo", processProductiveType], ["Ruta automática", state.context?.calculo?.processType || autoSelection?.route || "No definida"], ["Montaje base", first(autoSelection?.mounting?.summary, state.context?.calculo?.raw_data?.["REQ | Montaje Automático"], "Pendiente")], ["Regla planchas", plateRule], ["Estado línea", state.form.header.lineStatus || "En evaluación"]].map(([label, value, html]) => `<div class="summary-row"><span>${esc(label)}</span><span class="summary-row-value">${html ? value : esc(value)}</span></div>`).join("");
   if (els.automaticSummaryRows) {
     const processSequence = autoProcesses.length
       ? autoProcesses.map((item) => item.processName || item.name || item.processKey || "").filter(Boolean).join(" → ")
       : first(state.context?.calculo?.raw_data?.CODEX_PROCESS_SEQUENCE_TEXT, "Pendiente");
-    const warningText = autoWarnings.length ? autoWarnings.join(" | ") : "Sin advertencias";
     els.automaticSummaryRows.innerHTML = [
       ["Umbral digital", num(first(autoSelection?.digitalThreshold, state.context?.calculo?.raw_data?.CODEX_AUTO_SELECTION?.digitalThreshold), 0)],
       ["Ruta", state.context?.calculo?.processType || autoSelection?.route || "No definida"],
       ["Familia solicitada", first(autoSelection?.materialFamily, "Pendiente")],
       ["Material automático", first(autoSelection?.materialName, state.context?.calculo?.materialName, "Pendiente")],
-      ["Máquina automática", first(autoSelection?.machineName, state.context?.calculo?.quotedMachine, "Pendiente")],
+      ["Máquina automática", "No definida"],
       ["Troquel automático", first(autoSelection?.dieCode, state.context?.calculo?.dieCode, "No definido")],
       ["Etiquetas por rollo", num(first(autoSelection?.labelsPerRoll, state.context?.calculo?.labelsPerRoll), 0)],
       ["Montaje automático", first(autoSelection?.mounting?.summary, "Pendiente")],
@@ -3902,8 +5777,7 @@ function renderSidebar(result) {
       ["Producción base", autoPricing?.productionCost > 0 ? money(autoPricing.productionCost) : "Pendiente"],
       ["Subtotal automático", autoPricing?.subtotalBeforeTax > 0 ? money(autoPricing.subtotalBeforeTax) : "Pendiente"],
       ["IVA automático", autoPricing?.taxAmount > 0 ? money(autoPricing.taxAmount) : "Pendiente"],
-      ["Total automático", autoPricing?.totalAmount > 0 ? money(autoPricing.totalAmount) : "Pendiente"],
-      ["Advertencias", warningText]
+      ["Total automático", autoPricing?.totalAmount > 0 ? money(autoPricing.totalAmount) : "Pendiente"]
     ].map(([label, value]) => `<div class="summary-row${label === "Total automático" ? " summary-row-total" : ""}"><span>${esc(label)}</span><span class="summary-row-value">${esc(value)}</span></div>`).join("");
   }
   const discountRows = result.discount > 0
@@ -3932,6 +5806,7 @@ function buildSapPreviewPayloads(result) {
   const quoteCode = String(state.form?.header?.quoteCode || "").trim();
   const lineCode = String(state.form?.header?.lineCode || "").trim();
   const quote = state.context?.cotizacion || {};
+  const frontBackGroup = currentFrontBackGroup();
   const salespersonName = first(quote.salesperson_name, state.form?.header?.salespersonName, state.context?.calculo?.salespersonName, "");
   const salespersonConfig = findSapSalespersonConfigByName(salespersonName);
   const salesPersonCode = salespersonConfig?.salesPersonCode ?? null;
@@ -4055,7 +5930,8 @@ function buildSapPreviewPayloads(result) {
     source: {
       salespersonName,
       salesPersonCode,
-      profitCenterCode
+      profitCenterCode,
+      frontBackGroup
     }
   };
 
@@ -4157,6 +6033,7 @@ function renderSapPreview(result) {
       ["Código vendedor SAP", first(orderPayload.source?.salesPersonCode, "Pendiente")],
       ["Centro beneficio OV", first(orderPayload.source?.profitCenterCode, "Pendiente")],
       ["Centro costo producción", first(inventoryExitPayload.source?.productionCostCenterCode, "Pendiente")],
+      ["Corrida", orderPayload.source?.frontBackGroup ? `Frente/Dorso · ${orderPayload.source.frontBackGroup.role || ""}` : "Individual"],
       ["Fuente inventario", first(state.config?.general?.inventorySourceMode, "local")],
       ["Campo clasificación", first(state.config?.general?.inventoryImportedClassificationField, "U_ClasificacionERP")],
       ["Componentes BOM", String(bomComponents.length)],
@@ -4165,6 +6042,12 @@ function renderSapPreview(result) {
   }
   if (els.sapPreviewOrder) {
     els.sapPreviewOrder.textContent = JSON.stringify(orderPayload, null, 2);
+  }
+  if (els.sapPreviewShipments) {
+    els.sapPreviewShipments.textContent = JSON.stringify({
+      inventoryExit: inventoryExitPayload,
+      inventoryEntry: inventoryEntryPayload
+    }, null, 2);
   }
   if (els.sapPreviewBom) {
     els.sapPreviewBom.textContent = JSON.stringify({
@@ -4217,6 +6100,12 @@ async function sendSapPreview() {
       response: orderResult
     }, null, 2);
   }
+  if (els.sapPreviewShipments) {
+    els.sapPreviewShipments.textContent = JSON.stringify({
+      inventoryExit: "Preparado en la previsualización. No se envió movimiento de inventario desde este botón.",
+      inventoryEntry: "Preparado en la previsualización. No se envió movimiento de inventario desde este botón."
+    }, null, 2);
+  }
   if (els.sapPreviewBom) {
     els.sapPreviewBom.textContent = JSON.stringify({
       request: bomPayload,
@@ -4228,10 +6117,263 @@ async function sendSapPreview() {
 }
 
 function openSapOutputView() {
-  const target = "/configuracion-general";
+  const target = "/configuracion-general?sap=1";
   if (!openRouteInShell(target, "Configuración SAP")) {
     window.location.href = withShellParam(target);
   }
+}
+
+function formatValidationMessageForProforma(validationState = refreshCalculationValidation()) {
+  const issueMessages = summarizeIssuesByProcess(validationState?.issues || []).map((issue) => issue.message);
+  const messages = uniqueMessages(issueMessages.length ? issueMessages : (validationState?.blockingMessages || []));
+  if (!messages.length) return "";
+  const detail = `${messages.slice(0, 4).join(" ")}${messages.length > 4 ? ` +${messages.length - 4} más.` : ""}`;
+  return `No se puede abrir la proforma. En este cálculo faltan ${messages.length} dato(s): ${detail}`;
+}
+
+function extractStoredLineBlockMessage(line = {}) {
+  const raw = line.raw_data || {};
+  return String(
+    raw["ANALISIS CAMPOS PDF"]
+    || raw["ANALISIS CAMPOS CREAR ORDEN"]
+    || raw["ANALISIS CAMPOS FINALIZAR"]
+    || ""
+  ).trim();
+}
+
+function processKeyFromIssueText(message = "") {
+  const text = norm(message);
+  if (!text) return "";
+  const finishMatch = EXTERNAL_FINISH_SLOTS.find((slot) => {
+    const label = norm(slot.label);
+    return label && text.includes(label);
+  });
+  if (finishMatch) return finishMatch.key;
+  const menuMatch = PROCESS_MENU.find((item) => {
+    const label = norm(item.label);
+    return label && text.includes(label);
+  });
+  return menuMatch?.key || "";
+}
+
+function activeProcessKeysFromStoredLine(line = {}) {
+  const raw = line.raw_data || {};
+  const uiState = raw.CODEX_UI_STATE || {};
+  const keys = new Set(Array.isArray(uiState.activeProcessKeys) ? uiState.activeProcessKeys : []);
+  const uiFinishes = Array.isArray(uiState.finishes) ? uiState.finishes : [];
+  const explicitFinishKeys = new Set(
+    uiFinishes
+      .filter((finish) => finish?.active !== false)
+      .map((finish) => String(finish?.processKey || finish?.slotKey || finish?.key || "").trim())
+      .filter((key) => EXTERNAL_FINISH_BY_KEY[key])
+  );
+  if (uiFinishes.length) {
+    [...keys].forEach((key) => {
+      if (EXTERNAL_FINISH_BY_KEY[key] && !explicitFinishKeys.has(key)) keys.delete(key);
+    });
+  }
+  (Array.isArray(raw.CODEX_PROCESS_SNAPSHOT) ? raw.CODEX_PROCESS_SNAPSHOT : []).forEach((item) => {
+    const key = processKeyFromAutoSnapshot(item?.processKey || item?.processName || item?.name || "");
+    if (key && (!EXTERNAL_FINISH_BY_KEY[key] || !uiFinishes.length || explicitFinishKeys.has(key))) keys.add(key);
+  });
+  (Array.isArray(uiState.processSequence) ? uiState.processSequence : []).forEach((item) => {
+    const key = processKeyFromAutoSnapshot(item?.processKey || item?.processName || item?.name || item || "");
+    if (key && (!EXTERNAL_FINISH_BY_KEY[key] || !uiFinishes.length || explicitFinishKeys.has(key))) keys.add(key);
+  });
+  return keys;
+}
+
+function formatStoredLineBlockMessageForProforma(line = {}, quoteCode = "") {
+  const lineCode = String(line.line_code || line.linea || line.raw_data?.["ID LINEA"] || "").trim();
+  const message = extractStoredLineBlockMessage(line);
+  if (!lineCode || !message) return "";
+  const currentLineCode = String(state.form?.header?.lineCode || "").trim();
+  if (lineCode === currentLineCode) {
+    return `No se puede abrir la proforma. En este cálculo sucede el problema: ${esc(message)}`;
+  }
+  const route = buildLineCalculationRoute({
+    lineCode,
+    quoteCode,
+    productId: line.product_code || "",
+    department: line.department || line.raw_data?.DEPARTAMENTO || "Flexografia"
+  });
+  const lineLabel = route
+    ? `<a class="summary-row-link" href="${esc(route)}" data-route="${esc(route)}" data-label="Cálculo ${esc(lineCode)}">${esc(lineCode)}</a>`
+    : esc(lineCode);
+  return `No se puede abrir la proforma. La línea ${lineLabel} requiere completar el cálculo: ${esc(message)}`;
+}
+
+function storedLineIssues(line = {}) {
+  const raw = line.raw_data || {};
+  const activeKeys = activeProcessKeysFromStoredLine(line);
+  const messages = Array.isArray(raw.CODEX_VALIDATION_MESSAGES)
+    ? raw.CODEX_VALIDATION_MESSAGES.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+  const fallback = extractStoredLineBlockMessage(line);
+  return uniqueMessages(messages.length ? messages : (fallback ? [fallback] : []))
+    .map((message) => ({ message, processKey: processKeyFromIssueText(message) }))
+    .filter((issue) => {
+      if (!EXTERNAL_FINISH_BY_KEY[issue.processKey]) return true;
+      return !activeKeys.size || activeKeys.has(issue.processKey);
+    });
+}
+
+async function findStoredProformaBlockLines(quoteCode) {
+  if (!quoteCode) return [];
+  try {
+    const payload = await getJson(`/api/cotizaciones/${encodeURIComponent(quoteCode)}`);
+    const lines = Array.isArray(payload?.lineas) ? payload.lineas : [];
+    return lines
+      .map((line) => ({ line, issues: storedLineIssues(line) }))
+      .filter((item) => item.issues.length);
+  } catch {
+    return [];
+  }
+}
+
+function buildCurrentLineBlockItem(validationState = state.processValidation) {
+  const issues = Array.isArray(validationState?.issues) ? validationState.issues : [];
+  if (!issues.length) return null;
+  return {
+    current: true,
+    lineCode: String(state.form?.header?.lineCode || "actual").trim() || "actual",
+    quoteCode: String(state.form?.header?.quoteCode || "").trim(),
+    issues
+  };
+}
+
+function buildStoredLineBlockItem(item = {}, quoteCode = "") {
+  const line = item.line || {};
+  const lineCode = String(line.line_code || line.linea || line.raw_data?.["ID LINEA"] || "").trim();
+  if (!lineCode || !item.issues?.length) return null;
+  return {
+    current: lineCode === String(state.form?.header?.lineCode || "").trim(),
+    lineCode,
+    quoteCode,
+    productId: line.product_code || "",
+    department: line.department || line.raw_data?.DEPARTAMENTO || "Flexografia",
+    issues: item.issues
+  };
+}
+
+function lineBlockKey(item = {}) {
+  return `${item.quoteCode || ""}::${item.lineCode || ""}`;
+}
+
+function mergeProformaBlockItems(currentItem, storedItems = [], quoteCode = "") {
+  const map = new Map();
+  if (currentItem) map.set(lineBlockKey(currentItem), currentItem);
+  storedItems.map((item) => buildStoredLineBlockItem(item, quoteCode)).filter(Boolean).forEach((item) => {
+    const key = lineBlockKey(item);
+    if (map.has(key)) return;
+    map.set(key, item);
+  });
+  return [...map.values()].sort((left, right) => Number(!left.current) - Number(!right.current));
+}
+
+function processLabelFromKey(processKey = "") {
+  const baseKey = String(processKey || "").split("-")[0];
+  return PROCESS_MENU_BY_KEY[baseKey]?.label || baseKey || "Faltante";
+}
+
+function summarizeIssuesByProcess(issues = []) {
+  const map = new Map();
+  (Array.isArray(issues) ? issues : []).forEach((issue) => {
+    const processKey = String(issue?.processKey || processKeyFromIssueText(issue?.message || "") || "").trim();
+    const label = processLabelFromKey(processKey);
+    const key = processKey || String(issue?.message || "").trim();
+    if (!key || map.has(key)) return;
+    map.set(key, {
+      ...issue,
+      processKey,
+      message: processKey ? `${label} requiere configuración.` : String(issue?.message || "").trim()
+    });
+  });
+  return [...map.values()];
+}
+
+function buildProformaBlockMessage(items = []) {
+  if (!items.length) return "";
+  const lineCount = items.length;
+  const rows = items.map((item) => {
+    const route = item.current ? "" : buildLineCalculationRoute(item);
+    const lineLabel = item.current
+      ? `${esc(item.lineCode)} <span class="calc-center-message-meta">(actual)</span>`
+      : `<a class="summary-row-link" href="${esc(route)}" data-route="${esc(route)}" data-label="Cálculo ${esc(item.lineCode)}">${esc(item.lineCode)}</a>`;
+    const issues = summarizeIssuesByProcess(item.issues).map((issue) => {
+      const label = processLabelFromKey(issue.processKey);
+      const issueRoute = route && issue.processKey ? buildLineCalculationRoute({ ...item, processKey: issue.processKey }) : route;
+      const problem = item.current && issue.processKey
+        ? `<button type="button" class="calc-message-link" data-jump-process="${esc(issue.processKey)}">${esc(label)}</button>`
+        : (issueRoute ? `<a class="summary-row-link" href="${esc(issueRoute)}" data-route="${esc(issueRoute)}" data-label="Cálculo ${esc(item.lineCode)}">${esc(label)}</a>` : esc(label));
+      return `<li>${problem}: ${esc(issue.message)}</li>`;
+    }).join("");
+    return `<section class="calc-message-line"><div class="calc-message-line-head">Línea ${lineLabel}</div><ul>${issues}</ul></section>`;
+  }).join("");
+  return `<div class="calc-message-title">Faltantes en líneas de cálculo de esta proforma</div><div class="calc-message-intro">Esta proforma toma datos de ${lineCount} línea${lineCount === 1 ? "" : "s"} de cálculo. Completa o justifica cada faltante antes de continuar.</div><div class="calc-message-list">${rows}</div>`;
+}
+
+async function currentQuoteProformaBlockItems() {
+  const quoteCode = String(state.form?.header?.quoteCode || "").trim();
+  if (!quoteCode) return [];
+  const validationState = refreshCalculationValidation();
+  return mergeProformaBlockItems(
+    buildCurrentLineBlockItem(validationState),
+    await findStoredProformaBlockLines(quoteCode),
+    quoteCode
+  );
+}
+
+async function showQuoteProformaBlockMessageIfNeeded() {
+  const blockMessage = buildProformaBlockMessage(await currentQuoteProformaBlockItems());
+  if (!blockMessage) return false;
+  showCenterMessage(blockMessage, { html: true, duration: 18000 });
+  return true;
+}
+
+async function closeProformaForCurrentQuote(reason = "tracking_sent") {
+  const quoteCode = String(state.form?.header?.quoteCode || "").trim();
+  if (!quoteCode) throw new Error("Debes tener una cotización activa para cerrar la proforma.");
+  await postJson(`/api/proformas/${encodeURIComponent(quoteCode)}/close`, { reason });
+}
+
+async function reopenProformaForCurrentQuote(reason = "tracking_reopened") {
+  const quoteCode = String(state.form?.header?.quoteCode || "").trim();
+  if (!quoteCode) return null;
+  return postJson(`/api/proformas/${encodeURIComponent(quoteCode)}/reopen`, { reason });
+}
+
+function jumpToProcessIssue(processKey = "") {
+  const key = String(processKey || "").trim();
+  if (!key) return;
+  const escapeSelector = window.CSS?.escape || ((value) => String(value).replace(/"/g, '\\"'));
+  const card = document.querySelector(`.process-card[data-process-key="${escapeSelector(key)}"]`)
+    || document.querySelector(`.process-card[data-process-key^="${escapeSelector(key.split("-")[0])}-"]`);
+  if (!card) return;
+  card.open = true;
+  state.processOpen[card.dataset.processKey || key] = true;
+  document.getElementById("calcCenterMessage")?.setAttribute("hidden", "");
+  card.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function openProformaForCurrentQuote() {
+  const quoteCode = String(state.form?.header?.quoteCode || "").trim();
+  if (!quoteCode) {
+    showCenterMessage("Debes tener una cotización activa para ver la proforma.");
+    return;
+  }
+  const validationState = refreshCalculationValidation();
+  const blockItems = mergeProformaBlockItems(
+    buildCurrentLineBlockItem(validationState),
+    await findStoredProformaBlockLines(quoteCode),
+    quoteCode
+  );
+  const blockMessage = buildProformaBlockMessage(blockItems);
+  if (blockMessage) {
+    showCenterMessage(blockMessage, { html: true, duration: 18000 });
+    return;
+  }
+  openAppRoute(`/proforma?codigo=${encodeURIComponent(quoteCode)}`, `Proforma ${quoteCode}`);
 }
 
 function applyDefaultLauncherPosition() {
@@ -4248,6 +6390,43 @@ function applyDefaultLauncherPosition() {
   els.processLauncherShell.style.left = `${left}px`;
   els.processLauncherShell.style.top = `${top}px`;
   els.processLauncherShell.style.bottom = "auto";
+}
+
+function renderPlateModeSelector() {
+  const current = normalizePlateMode(state.form.plates?.plateMode);
+  return `<div class="front-back-element-tabs plate-mode-tabs" role="tablist" aria-label="Tipo de plancha">${PLATE_MODE_OPTIONS.map((option) => `<button type="button" class="front-back-element-tab plate-mode-tab${current === option.key ? " is-active" : ""}" data-action="set-plate-mode" data-plate-mode="${esc(option.key)}" role="tab" aria-selected="${current === option.key ? "true" : "false"}"><strong>${esc(option.label)}</strong></button>`).join("")}</div>`;
+}
+
+function renderPlateExternalAttachmentTable(item = {}, index = 0) {
+  const fileName = String(item.attachmentName || "").trim();
+  const attachIcon = iconPresentation("quoteRequestAttachment", "📎", "#1e516d", 18);
+  const deleteIcon = iconPresentation("quoteRequestAttachmentDelete", "×", "#b94848", 18);
+  const extension = fileName.includes(".") ? fileName.split(".").pop().slice(0, 5).toUpperCase() : "FILE";
+  return `<div class="additional-attachments-card"><div class="additional-attachment-actions"><label class="additional-icon-action" title="Adjuntar archivo" aria-label="Adjuntar archivo" style="--icon-color:${esc(attachIcon.color)};--icon-hover-color:${esc(attachIcon.hover)};--config-icon-size:${attachIcon.size}px;">${renderIconMarkup(attachIcon.value, "Adjuntar archivo", "additional-attachment-icon")}<input data-scope="plates.external.${index}" data-field="attachmentName" data-kind="file" type="file"></label></div><div class="additional-attachment-list">${fileName ? `<div class="additional-attachment-card"><div class="additional-attachment-filetile"><strong>${esc(extension)}</strong><span>Adjunto</span></div><div class="additional-attachment-body"><span class="additional-attachment-name" title="${esc(fileName)}">${esc(fileName)}</span><span class="additional-attachment-size">Archivo asociado al costo externo</span></div><button type="button" class="additional-attachment-remove" data-action="clear-plate-external-attachment" data-index="${index}" aria-label="Eliminar adjunto" title="Eliminar adjunto" style="--icon-color:${esc(deleteIcon.color)};--icon-hover-color:${esc(deleteIcon.hover)};--config-icon-size:${deleteIcon.size}px;">${renderIconMarkup(deleteIcon.value, "Eliminar adjunto", "additional-attachment-delete-icon")}</button></div>` : `<div class="additional-attachment-empty">Sin adjuntos</div>`}</div></div>`;
+}
+
+function renderPlateExternalRow(item = {}, index = 0) {
+  return `<div class="additional-item"><div class="additional-row"><input data-scope="plates.external.${index}" data-field="description" type="text" value="${esc(item.description || "")}" placeholder="Descripción">${displayInput(`plates.external.${index}`, "cost", item.cost || 0, { prefix: "$", maximumFractionDigits: 2, step: "0.01" })}<input data-scope="plates.external.${index}" data-field="comments" type="text" value="${esc(item.comments || "")}" placeholder="Comentarios"><button type="button" class="process-trash-button" data-action="remove-plate-external" data-index="${index}" aria-label="Eliminar fila" title="Eliminar fila"><span class="process-delete-icon" aria-hidden="true">&#128465;</span></button></div>${renderPlateExternalAttachmentTable(item, index)}</div>`;
+}
+
+function renderPlateExternalPanel(plates) {
+  const rows = normalizePlateExternalRows(state.form.plates.external);
+  state.form.plates.external = rows;
+  return `<div class="table-toolbar"><button type="button" class="inline-button" data-action="add-plate-external">Agregar fila</button></div><div class="additional-table plate-external-table"><div class="additional-head"><span>Descripción</span><span>Costo</span><span>Comentarios</span><span></span></div>${rows.map((item, index) => renderPlateExternalRow(item, index)).join("")}</div><div class="readonly-grid compact-top subtotal-right">${metric("Subtotal Planchas", money(plates.subtotal))}</div>${formula("Costo Externo", "Subtotal planchas = suma de costos externos registrados.", plates.explanation, {
+    exampleLines: rows.map((row, index) => `Costo externo ${index + 1}: ${formulaValue(row.cost || 0, 2)}`),
+    answer: `R/ El total a cobrar por planchas es ${money(plates.subtotal || 0)}`
+  })}`;
+}
+
+function renderPlateInventoryPanel(plates) {
+  const inventory = state.form.plates.inventory || {};
+  const laser = plates.inventoryMetrics || laserPlateMetrics();
+  const material = plates.inventoryMaterial || findMaterial(inventory.materialId);
+  const stockOptions = plateStockMaterials(state.form.plates?.laser?.processId).map((item) => ({ id: item.id, nombre: item.descripcion || item.nombre || item.codigo || item.id }));
+  return `<div class="editable-grid plate-grid plate-grid-virgin"><label class="span-2"><span>Plancha de Inventario</span><select data-scope="plates.inventory" data-field="materialId">${processOptions(stockOptions, inventory.materialId)}</select></label><label><span>Costo por in²</span><input type="text" value="${plates.inventory?.costPerIn2 > 0 ? `$${num(plates.inventory.costPerIn2, 4)}` : ""}" readonly></label><label><span>Subtotal Inventario</span><input type="text" value="${esc(money(plates.rawSubtotal || 0))}" readonly></label></div><div class="readonly-grid compact-top plate-metrics-grid plate-metrics-grid-focus">${metricBox("Material", material ? esc(material.descripcion || material.nombre || material.id) : "Pendiente", !material, false)}${metricBox("Cantidad Planchas", laser.totalColors > 0 ? num(laser.totalColors, 0) : "Pendiente", laser.missing.totalColors, laser.hasAbsurdData)}${metricBox("Área Total", laser.totalArea > 0 ? `${num(laser.totalArea, 4)} in²` : "Pendiente", laser.missing.totalColors || laser.missing.mountWidthIn || laser.missing.mountLengthIn || laser.missing.elongationPct, laser.hasAbsurdData)}${metricBox("Costo por in²", plates.inventory?.costPerIn2 > 0 ? `$${num(plates.inventory.costPerIn2, 4)}` : "Pendiente", !plates.inventory?.costPerIn2, laser.hasAbsurdData)}${metricBox("Subtotal", money(plates.rawSubtotal || 0), false, false)}</div><div class="readonly-grid compact-top subtotal-right">${metric("Subtotal Planchas", money(plates.subtotal))}</div>${formula("De Inventario", "Costo de inventario = Área Total Requerida x Costo por in².", plates.explanation, {
+    exampleLines: [`${formulaValue(laser.totalArea, 2)} x ${formulaValue(plates.inventory?.costPerIn2 || 0, 4)} = ${formulaValue(plates.rawSubtotal || 0, 2)}`],
+    answer: `R/ El total a cobrar por planchas es ${money(plates.subtotal || 0)}`
+  })}`;
 }
 
 function renderPlateStep(entry, plates) {
@@ -4320,6 +6499,52 @@ function renderVarnishProfile(stageScope, stage) {
   return `<div class="process-inline-table-shell varnish-profile-shell"><div class="ink-profile-table varnish-profile-table"><div class="ink-profile-head ink-profile-row"><span>Tipo de Trabajo</span><span>BCM</span><span>Cobertura %</span><span>GSM</span></div><div class="ink-profile-row"><input ${dataAttrs("tipo")} type="text" value="${esc(profile.tipo)}"${readOnlyAttrs}><input ${dataAttrs("bcm")} type="number" step="0.01" value="${esc(profile.bcm)}"${readOnlyAttrs}><input ${dataAttrs("coveragePct")} type="number" step="0.01" value="${esc(profile.coveragePct)}"${readOnlyAttrs}><input ${dataAttrs("gsm")} type="number" step="0.01" value="${esc(profile.gsm)}"${readOnlyAttrs}></div></div></div>`;
 }
 
+function normalizeNumberingAttachments(item = {}) {
+  const items = Array.isArray(item.attachments) ? item.attachments : [];
+  const normalized = items
+    .map((attachment) => ({
+      id: String(attachment?.id || "").trim(),
+      fileName: String(attachment?.fileName || attachment?.name || "").trim(),
+      notes: String(attachment?.notes || "Numerado").trim()
+    }))
+    .filter((attachment) => attachment.fileName && norm(attachment.notes || "Numerado").includes("numer"));
+  const legacyName = String(item.attachmentName || "").trim();
+  if (legacyName && !normalized.some((attachment) => attachment.fileName === legacyName)) {
+    normalized.push({ id: "", fileName: legacyName, notes: "Numerado" });
+  }
+  return normalized;
+}
+
+function numberingAttachmentField(scope, item = {}) {
+  const attachments = normalizeNumberingAttachments(item);
+  const attachIcon = iconPresentation("quoteRequestAttachment", "📎", "#1e516d", 18);
+  const deleteIcon = iconPresentation("quoteRequestAttachmentDelete", "×", "#b94848", 18);
+  const rows = attachments.length ? attachments : [{ fileName: "" }];
+  const needsEmptyRow = attachments.length && attachments.every((attachment) => String(attachment.fileName || attachment.name || "").trim());
+  if (needsEmptyRow) rows.push({ fileName: "" });
+  return `<div class="span-4 numbering-attachment-table"><div class="numbering-attachment-head"><span>Adjunto</span><span>Archivo</span><span></span></div>${rows.map((attachment, index) => {
+    const fileName = String(attachment.fileName || attachment.name || "").trim();
+    return `<div class="numbering-attachment-row"><label class="numbering-attachment-upload" title="Adjuntar archivo" aria-label="Adjuntar archivo" style="--icon-color:${esc(attachIcon.color)};--icon-hover-color:${esc(attachIcon.hover)};--config-icon-size:${attachIcon.size}px;">${renderIconMarkup(attachIcon.value, "Adjuntar archivo", "numbering-attachment-icon")}<input data-scope="${scope}" data-field="numberingAttachment" data-kind="file" data-numbering-attachment-index="${index}" type="file" accept=".xls,.xlsx,.csv,.pdf,image/*"></label><span class="numbering-attachment-name" title="${esc(fileName || "Sin adjunto")}">${esc(fileName || "Sin adjunto")}</span><span class="numbering-attachment-actions">${fileName ? `<button type="button" data-action="clear-numbering-attachment" data-scope="${scope}" data-index="${index}" aria-label="Eliminar adjunto" title="Eliminar adjunto" style="--icon-color:${esc(deleteIcon.color)};--icon-hover-color:${esc(deleteIcon.hover)};--config-icon-size:${deleteIcon.size}px;">${renderIconMarkup(deleteIcon.value, "Eliminar adjunto", "numbering-attachment-delete-icon")}</button>` : ""}</span></div>`;
+  }).join("")}</div>`;
+}
+
+function renderAdditionalAttachmentTable(item = {}, index = 0) {
+  const fileName = String(item.attachmentName || "").trim();
+  const attachIcon = iconPresentation("quoteRequestAttachment", "📎", "#1e516d", 18);
+  const deleteIcon = iconPresentation("quoteRequestAttachmentDelete", "×", "#b94848", 18);
+  const extension = fileName.includes(".") ? fileName.split(".").pop().slice(0, 5).toUpperCase() : "FILE";
+  return `<div class="additional-attachments-card"><div class="additional-attachment-actions"><label class="additional-icon-action" title="Adjuntar archivo" aria-label="Adjuntar archivo" style="--icon-color:${esc(attachIcon.color)};--icon-hover-color:${esc(attachIcon.hover)};--config-icon-size:${attachIcon.size}px;">${renderIconMarkup(attachIcon.value, "Adjuntar archivo", "additional-attachment-icon")}<input data-scope="additional.${index}" data-field="attachmentName" data-kind="file" type="file"></label></div><div class="additional-attachment-list">${fileName ? `<div class="additional-attachment-card"><div class="additional-attachment-filetile"><strong>${esc(extension)}</strong><span>Adjunto</span></div><div class="additional-attachment-body"><span class="additional-attachment-name" title="${esc(fileName)}">${esc(fileName)}</span><span class="additional-attachment-size">Archivo asociado al proceso adicional</span></div><button type="button" class="additional-attachment-remove" data-action="clear-additional-attachment" data-index="${index}" aria-label="Eliminar adjunto" title="Eliminar adjunto" style="--icon-color:${esc(deleteIcon.color)};--icon-hover-color:${esc(deleteIcon.hover)};--config-icon-size:${deleteIcon.size}px;">${renderIconMarkup(deleteIcon.value, "Eliminar adjunto", "additional-attachment-delete-icon")}</button></div>` : `<div class="additional-attachment-empty">Sin adjuntos</div>`}</div></div>`;
+}
+
+function renderAdditionalProcessRow(item = {}, index = 0) {
+  return `<div class="additional-item"><div class="additional-row"><input data-scope="additional.${index}" data-field="description" type="text" value="${esc(item.description || "")}">${displayInput(`additional.${index}`, "cost", item.cost || 0, { prefix: "$", maximumFractionDigits: 2, step: "0.01" })}<input data-scope="additional.${index}" data-field="comments" type="text" value="${esc(item.comments || "")}"><button type="button" class="process-trash-button" data-action="remove-additional" data-index="${index}" aria-label="Eliminar fila" title="Eliminar fila"><span class="process-delete-icon" aria-hidden="true">&#128465;</span></button></div>${renderAdditionalAttachmentTable(item, index)}</div>`;
+}
+
+function renderNumberingFields(scope, item = {}) {
+  const numberingType = normalizeNumberingType(item.numberingType, item.rangeFrom, item.rangeTo);
+  return `<label><span>Tipo Numerado</span><select data-scope="${scope}" data-field="numberingType">${processOptionsStrict(numberingTypeOptions(), numberingType)}</select></label><label><span>Tiempo Montaje</span>${displayInput(scope, "setupMinutes", item.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label><label><span>Costo Fijo</span>${displayInput(scope, "fixedCost", item.fixedCost, { prefix: "$", maximumFractionDigits: 2 })}</label>`;
+}
+
 function renderInlinePrintBlock(stage, stageIndex, inline) {
   const materialOptions = materialsByClassification(inline.materialFamily, inline.materialKeywords || []).map((item) => ({ id: item.id, nombre: item.descripcion || item.nombre || item.id }));
   const scope = `printStages.${stageIndex}.inlineFinishes.${inline.key}`;
@@ -4330,40 +6555,100 @@ function renderInlinePrintBlock(stage, stageIndex, inline) {
   const materialSelect = (label = "Material", span = "span-3") => `<label class="${span}"><span>${label}</span><select data-scope="${scope}" data-field="materialId">${processOptions(materialOptions, inline.materialId)}</select></label>`;
   let fields = "";
   let extraConfig = "";
-  if (inline.key === "barniz") {
-    fields = `${materialSelect("Tipo de Barniz", "span-2")}<label class="span-2"><span>Costo Libra</span>${displayInput(scope, "costPerLb", inline.costPerLb, { currency: true, maximumFractionDigits: 2 })}</label><label class="span-2"><span>Tiempo Montaje</span>${displayInput(scope, "setupMinutes", inline.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label>${commentField}`;
-    extraConfig = renderVarnishProfile(stageScope, stage);
-  } else if (inline.key === "laminado") {
-    fields = `${materialSelect("Material Laminado")}<label><span>Costo por Pie</span>${displayInput(scope, "costPerFoot", inline.costPerFoot, { prefix: "$", maximumFractionDigits: 6 })}</label><label class="span-2"><span>Tiempo Montaje</span>${displayInput(scope, "setupMinutes", inline.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label>${commentField}`;
-  } else if (inline.key === "estampado") {
-    fields = `${materialSelect("Material de Cobertura")}<label><span>Costo por Pie</span>${displayInput(scope, "costPerFoot", inline.costPerFoot, { prefix: "$", maximumFractionDigits: 6 })}</label><label class="span-2"><span>Tiempo Montaje</span>${displayInput(scope, "setupMinutes", inline.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label><label class="span-2"><span>Costo Cliché</span>${displayInput(scope, "plateCost", inline.plateCost, { prefix: "$", maximumFractionDigits: 2 })}</label>${commentField}`;
-  } else if (inline.key === "embosado") {
-    fields = `<label class="span-2"><span>Tiempo Montaje</span>${displayInput(scope, "setupMinutes", inline.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label><label class="span-2"><span>Costo Cliché</span>${displayInput(scope, "plateCost", inline.plateCost, { prefix: "$", maximumFractionDigits: 2 })}</label>${commentField}`;
-  } else if (inline.key === "troquelado") {
-    fields = `<label class="span-2"><span>Tiempo Montaje</span>${displayInput(scope, "setupMinutes", inline.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label>${commentField}`;
+  const externalConfig = externalConfigForInlineFinish(inline.key);
+  if (externalConfig) {
+    const isInlineDie = externalConfig.key === "troquelado";
+    const materialFields = [];
+    const plateFields = [];
+    const processFields = [
+      `<label><span>Montaje <span class="field-unit">min</span></span>${displayInput(scope, "setupMinutes", inline.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label>`,
+      ...(isInlineDie ? [] : [
+        `<label><span>Velocidad <span class="field-unit">ft/min</span></span>${displayInput(scope, "speed", inline.speed, { suffix: "ft/min", maximumFractionDigits: 4 })}</label>`,
+        `<label><span>Costo Máquina <span class="field-unit">$/h</span></span>${displayInput(scope, "costHourMachine", inline.costHourMachine, { prefix: "$", maximumFractionDigits: 2 })}</label>`,
+        `<label><span>Costo Operador <span class="field-unit">$/h</span></span>${displayInput(scope, "costHourOperator", inline.operatorHourCost || inline.costHourOperator, { prefix: "$", maximumFractionDigits: 2 })}</label>`
+      ]),
+      `<label><span>Merma Ajuste <span class="field-unit">ft</span></span>${displayInput(scope, "setupWasteFeet", inline.setupWasteFeet, { suffix: "ft", maximumFractionDigits: 2 })}</label>`,
+      ...(isInlineDie ? [] : [`<label><span>Merma Operación <span class="field-unit">%</span></span>${displayInput(scope, "operationWastePct", inline.operationWastePct, { suffix: "%", maximumFractionDigits: 2 })}</label>`])
+    ];
+    if (inline.key === "barniz") {
+      processFields.push(`<label class="inline-process-check inline-field-check"><input data-scope="${scope}" data-field="sonified" type="checkbox"${inline.sonified ? " checked" : ""}><span>Zonificado</span></label>`);
+    }
+    if (externalConfig.key === "troquelado" && !isInlineDie) {
+      processFields.push(`<label><span>Costo Lineal</span>${displayInput(scope, "variableUnitCost", inline.variableUnitCost, { prefix: "$", maximumFractionDigits: 6 })}</label>`);
+      if (n(inline.fixedCost, 0) > 0) processFields.push(`<label><span>Costo Base</span>${displayInput(scope, "fixedCost", inline.fixedCost, { prefix: "$", maximumFractionDigits: 2 })}</label>`);
+    }
+    if (externalConfig.usesWeightMaterial) {
+      materialFields.push(
+        materialSelect("Material", "span-2"),
+        `<label><span>Rendimiento <span class="field-unit">g/ft²</span></span>${displayInput(scope, "layerGft2", inline.layerGft2, { maximumFractionDigits: 6 })}</label>`,
+        `<label><span>Costo Kg <span class="field-unit">$/kg</span></span>${displayInput(scope, "costPerKg", inline.costPerKg, { prefix: "$", maximumFractionDigits: 6 })}</label>`
+      );
+    } else if (externalConfig.usesUnitMaterial) {
+      materialFields.push(materialSelect("Material", "span-2"), `<label><span>Costo Unidad <span class="field-unit">$</span></span>${displayInput(scope, "costPerUnit", inline.costPerUnit, { prefix: "$", maximumFractionDigits: 6 })}</label>`);
+    } else if (externalConfig.usesMaterial) {
+      materialFields.push(materialSelect("Material", "span-2"), `<label><span>Costo ft² <span class="field-unit">$/ft²</span></span>${displayInput(scope, "costPerFt2", inline.costPerFt2, { prefix: "$", maximumFractionDigits: 6 })}</label>`);
+    }
+    if (externalConfig.usesPlateCost && !isInlineDie) {
+      plateFields.push(
+        `<label><span>Ancho Cliché <span class="field-unit">in</span></span>${displayInput(scope, "plateWidthIn", inline.plateWidthIn, { suffix: "in", maximumFractionDigits: 4 })}</label>`,
+        `<label><span>Largo Cliché <span class="field-unit">in</span></span>${displayInput(scope, "plateLengthIn", inline.plateLengthIn, { suffix: "in", maximumFractionDigits: 4 })}</label>`,
+        `<label><span>Costo Cliché <span class="field-unit">$</span></span>${displayInput(scope, "plateCost", inline.plateCost, { prefix: "$", maximumFractionDigits: 2 })}</label>`
+      );
+    }
+    fields = `${processFields.join("")}${plateFields.join("")}${materialFields.join("")}${commentField}`;
   } else if (inline.key === "numerado") {
-    fields = `<label class="span-3"><span>Tipo de Numerado</span><select data-scope="${scope}" data-field="numberingType">${processOptions(numberingTypeOptions(), inline.numberingType)}</select></label><label><span>Tiempo Montaje</span>${displayInput(scope, "setupMinutes", inline.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label><label class="span-2"><span>Desde</span><input data-scope="${scope}" data-field="rangeFrom" type="text" value="${esc(inline.rangeFrom || "")}"></label><label class="span-2"><span>Hasta</span><input data-scope="${scope}" data-field="rangeTo" type="text" value="${esc(inline.rangeTo || "")}"></label><label class="inline-process-check inline-field-check"><input data-scope="${scope}" data-field="isQr" type="checkbox"${inline.isQr ? " checked" : ""}><span>QR</span></label><label><span>Costo Fijo</span>${displayInput(scope, "fixedCost", inline.fixedCost, { prefix: "$", maximumFractionDigits: 2 })}</label><label class="file-icon-field"><span>Adjunto</span><input data-scope="${scope}" data-field="attachmentName" data-kind="file" type="file"><strong aria-hidden="true">+</strong></label>${commentField}`;
+    fields = `${renderNumberingFields(scope, inline)}${commentField}${numberingAttachmentField(scope, inline)}`;
   } else {
     fields = `<label class="span-2"><span>Tiempo Montaje</span>${displayInput(scope, "setupMinutes", inline.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label>${inline.usesMaterial ? `${materialSelect("Material")}<label><span>Costo por Pie</span>${displayInput(scope, "costPerFoot", inline.costPerFoot, { prefix: "$", maximumFractionDigits: 6 })}</label>` : ""}${inline.usesPlateCost ? `<label class="span-2"><span>Costo Cliché</span>${displayInput(scope, "plateCost", inline.plateCost, { prefix: "$", maximumFractionDigits: 2 })}</label>` : ""}${commentField}`;
   }
   const configZone = `<div class="process-zone"><div class="process-zone-head"><h4>Parámetros de Configuración</h4></div><div class="process-finish-grid">${fields}</div>${extraConfig}</div>`;
   const numberingSummary = inline.key === "numerado"
-    ? `${metric("Tipo", esc(inline.numberingType || (inline.isQr ? "Código QR" : "Sin definir")))}${metric("Rango", esc([inline.rangeFrom, inline.rangeTo].filter(Boolean).join(" - ") || "Sin rango"))}${metric("Adjunto", esc(inline.attachmentName || "Sin adjunto"))}`
+    ? `${metric("Tipo", esc(normalizeNumberingType(inline.numberingType, inline.rangeFrom, inline.rangeTo) || "Sin definir"))}${isConsecutiveNumbering(normalizeNumberingType(inline.numberingType, inline.rangeFrom, inline.rangeTo)) ? metric("Rango", esc([inline.rangeFrom, inline.rangeTo].filter(Boolean).join(" - ") || "Sin rango")) : ""}${metric("Adjunto", esc(inline.attachmentName || "Sin adjunto"))}`
     : "";
-  const barnizSummary = `${metric("Consumo Barniz", `${num(inline.materialConsumptionLb || 0, 4)} lb`)}${metric("GSM Barniz", num(inline.layerGsm || 0, 4))}${metric("Subtotal Material", money(inline.materialSubtotal))}${metric("Subtotal", money(inline.subtotal))}`;
+  const barnizSummary = `${inline.sonified ? metric("Zonificado", "Sí") : ""}${metric("Consumo Barniz", `${num(inline.materialConsumptionLb || 0, 4)} lb`)}${metric("GSM Barniz", num(inline.layerGsm || 0, 4))}${metric("Subtotal Material", money(inline.materialSubtotal))}${metric("Subtotal", money(inline.subtotal))}`;
   const standardSummary = `${metric("Tiempo Montaje", `${num(inline.setupMinutes, 2)} min`)}${inline.usesMaterial ? metric("Material", esc(inline.materialName || "Sin definir")) : ""}${inline.usesMaterial ? metric("Subtotal Material", money(inline.materialSubtotal)) : ""}${inline.usesPlateCost ? metric("Costo Cliché", money(inline.plateCost)) : ""}${numberingSummary}${metric("Subtotal", money(inline.subtotal))}`;
-  const metricsZone = `<div class="process-zone process-zone-accent"><div class="process-zone-head"><h4>Resumen</h4></div><div class="process-kpi-grid">${inline.key === "barniz" ? barnizSummary : standardSummary}</div></div>`;
-  const formulaText = inline.key === "barniz"
+  const inlineDieSummary = [
+    metric("Tiempo Montaje", `${num(inline.setupMinutes || 0, 2)} min`),
+    metric("Merma Ajuste", `${num(inline.setupWasteFeet || 0, 2)} ft`),
+    metric("Subtotal", money(inline.subtotal))
+  ].join("");
+  const externalSummary = externalConfig ? (inline.key === "troquelado" ? inlineDieSummary : [
+    metric("Base de Corrida", `${num(inline.calcBase || 0, 2)} pies`),
+    metric("Tiempo Total", `${num(inline.totalMinutes || 0, 2)} min`),
+    inline.usesMaterial ? metric("Material", esc(inline.materialName || "Sin definir")) : "",
+    inline.usesMaterial ? metric("Base Material", `${num(inline.materialBase || 0, 2)} ft²`) : "",
+    inline.usesWeightMaterial ? metric("Consumo Material", `${num(inline.materialConsumptionKg || 0, 4)} kg`) : "",
+    inline.usesMaterial ? metric("Subtotal Material", money(inline.materialSubtotal)) : "",
+    inline.usesPlateCost ? metric("Costo Cliché", money(inline.plateCost)) : "",
+    inline.key === "troquelado" ? metric("Costo Lineal", money(inline.linearSubtotal || 0)) : "",
+    metric("Subtotal", money(inline.subtotal))
+  ].join("")) : "";
+  const inlineFormulaPlateTerm = externalConfig?.usesPlateCost || inline.usesPlateCost ? " + Costo Cliché" : "";
+  const inlineFormulaPlateExample = externalConfig?.usesPlateCost || inline.usesPlateCost ? ` + Costo Cliché ${formulaValue(inline.plateCost || 0, 2)}` : "";
+  const metricsZone = `<div class="process-zone process-zone-accent"><div class="process-zone-head"><h4>Resumen</h4></div><div class="process-kpi-grid">${externalConfig ? externalSummary : inline.key === "barniz" ? barnizSummary : standardSummary}</div></div>`;
+  const formulaText = externalConfig && inline.key === "troquelado"
+    ? "Troquelado en línea = tiempo de montaje y merma de ajuste dentro del proceso de impresión."
+    : externalConfig
+    ? `Subtotal ${inline.label} = Costo Máquina + Costo Operador + Costo Material${inlineFormulaPlateTerm} + Costo Fijo.`
+    : inline.key === "barniz"
     ? "Subtotal Barniz = Costo Tiempo Montaje + Subtotal Material + Costos Únicos."
-    : `Subtotal ${inline.label} = Costo Tiempo Montaje + Subtotal Material + Costo Cliché + Costo Fijo.`;
-  const formulaExplanation = inline.key === "barniz"
+    : `Subtotal ${inline.label} = Costo Tiempo Montaje + Subtotal Material${inlineFormulaPlateTerm} + Costo Fijo.`;
+  const formulaExplanation = externalConfig && inline.key === "troquelado"
+    ? "El troquelado en línea no agrega costo externo ni costo lineal; su tiempo se suma al montaje de impresión y su merma de ajuste al consumo de sustrato."
+    : externalConfig
+    ? "El acabado en línea usa la misma base de corrida, merma, consumo de material y desglose de costos que el acabado externo equivalente."
+    : inline.key === "barniz"
     ? `Consumo Barniz = Área Impresa x Cobertura Barniz x GSM Barniz / 453.59237. Costo Insumos Barniz = Consumo Barniz x Costo Libra. ${inline.explanation || ""}`
     : inline.explanation || "";
   const info = formulaButton(`Cálculo ${inline.label}`, formulaText, formulaExplanation, {
     exampleLines: [
-      `Subtotal ${inline.label}: Costo Tiempo Montaje ${formulaValue(inline.setupCost || 0, 2)} + Subtotal Material ${formulaValue(inline.materialSubtotal || 0, 2)} + Costo Cliché ${formulaValue(inline.plateCost || 0, 2)} + Costo Fijo ${formulaValue(inline.fixedCost || 0, 2)} = ${formulaValue(inline.subtotal || 0, 2)}`
+      inline.key === "troquelado"
+        ? `Montaje ${formulaValue(inline.setupMinutes || 0, 2)} min + Merma Ajuste ${formulaValue(inline.setupWasteFeet || 0, 2)} ft`
+        : `Subtotal ${inline.label}: Costo Máquina ${formulaValue(inline.machineSubtotal || 0, 2)} + Costo Operador ${formulaValue(inline.operatorSubtotal || inline.setupCost || 0, 2)} + Subtotal Material ${formulaValue(inline.materialSubtotal || 0, 2)}${inlineFormulaPlateExample} + Costo Fijo ${formulaValue(inline.fixedCost || 0, 2)} = ${formulaValue(inline.subtotal || 0, 2)}`
     ],
-    answer: `R/ El total a cobrar por ${inline.label.toLowerCase()} es ${money(inline.subtotal || 0)}`
+    answer: inline.key === "troquelado"
+      ? `R/ El troquelado en línea no agrega costo externo; consume ${num(inline.setupWasteFeet || 0, 2)} ft de merma de ajuste.`
+      : `R/ El total a cobrar por ${inline.label.toLowerCase()} es ${money(inline.subtotal || 0)}`
   });
   return `<details class="subprocess-card inline-process-card" data-open-key="${esc(scope)}"><summary class="inline-process-summary"><div class="inline-process-heading"><label class="inline-process-check"><input data-scope="printStages.${stageIndex}.inlineFinishes.${inline.key}" data-field="active" type="checkbox"${inline.active ? " checked" : ""}><span>${esc(inline.label)}</span></label></div><div class="process-summary-side"><em>${money(inline.subtotal)}</em>${info}</div></summary><div class="process-body"><div class="process-layout process-layout-inline"><div class="process-layout-main">${configZone}</div><div class="process-layout-side">${metricsZone}</div></div></div></details>`;
 }
@@ -4373,13 +6658,20 @@ function renderInlineToggleBar(stageIndex, inlineItems) {
 }
 
 function renderPrintInkBlock(scope, item, printItem) {
-  const info = "Consumo Tinta = Área Impresa x Cobertura x BCM Anilox x Factor Transferencia x Densidad x Tintas Requeridas. Subtotal Tinta = Consumo Tinta x Costo por Libra.";
+  const info = formulaButton("Cálculo de Tinta Convencional", "Consumo Tinta = Área Impresa x Cobertura x BCM Anilox x Factor Transferencia x Densidad x Tintas Requeridas. Subtotal Tinta = Consumo Tinta x Costo por Libra.", "El consumo se calcula con el área impresa actual y el costo se obtiene multiplicando las libras consumidas por el costo de la tinta seleccionada.", {
+    exampleLines: [
+      `Área impresa: ${formulaValue(printItem.printedAreaFt2 || 0, 4)} ft² = ${formulaValue((printItem.printedAreaFt2 || 0) * 144, 4)} in²`,
+      `Consumo por tinta: ${formulaValue((printItem.inkConsumptionPerColorLb || 0), 6)} lb`,
+      `Consumo total: ${formulaValue(printItem.inkConsumption || 0, 6)} lb x ${formulaValue(printItem.inkCostPerLb || 0, 4)} = ${formulaValue(printItem.inkSubtotal || 0, 2)}`
+    ],
+    answer: `R/ El total de tinta convencional calculado es ${money(printItem.inkSubtotal || 0)}.`
+  });
   const tintaOptions = conventionalInkMaterialOptions().map((entry) => ({ id: entry.id, nombre: entry.descripcion || entry.nombre || entry.id }));
   const tintaBlancaOptions = whiteInkMaterialOptions().map((entry) => ({ id: entry.id, nombre: entry.descripcion || entry.nombre || entry.id }));
   const tintaSelectors = `<label class="span-2"><span>Tinta CMYK UV</span><select data-scope="${scope}" data-field="inkMaterialId">${processOptions(tintaOptions, item.inkMaterialId)}</select></label>${state.form.header.useWhiteInk ? `<label class="span-2"><span>Tinta Blanca</span><select data-scope="${scope}" data-field="whiteInkMaterialId">${processOptions(tintaBlancaOptions, item.whiteInkMaterialId)}</select></label>` : ""}`;
   const parameterZone = `<div class="process-zone"><div class="process-zone-head"><h4>Parámetros de Tinta</h4></div><div class="process-print-grid process-print-grid-ink">${tintaSelectors}<label><span>Cobertura Tinta</span>${displayInput(scope, "coveragePct", item.coveragePct, { suffix: "%", maximumFractionDigits: 2 })}</label><label><span>Cobertura Diseño</span>${displayInput(scope, "designCoveragePct", item.designCoveragePct, { suffix: "%", maximumFractionDigits: 2 })}</label><label><span>BCM Anilox</span>${displayInput(scope, "aniloxBcm", item.aniloxBcm, { maximumFractionDigits: 4 })}</label><label><span>Factor Transferencia</span>${displayInput(scope, "transferFactor", item.transferFactor, { maximumFractionDigits: 4 })}</label><label><span>Densidad Tinta</span>${displayInput(scope, "inkDensity", item.inkDensity, { maximumFractionDigits: 4 })}</label><label><span>Costo Lb CMYK</span>${displayInput(scope, "inkCostPerLb", item.inkCostPerLb, { prefix: "$", maximumFractionDigits: 4 })}</label><label><span>Costo Lb Blanco</span>${displayInput(scope, "whiteInkCostPerLb", item.whiteInkCostPerLb, { prefix: "$", maximumFractionDigits: 4 })}</label><label><span>Costo Lb Pantone</span>${displayInput(scope, "pantoneInkCostPerLb", item.pantoneInkCostPerLb, { prefix: "$", maximumFractionDigits: 4 })}</label></div></div>`;
   const profileZone = `<div class="process-zone"><div class="process-zone-head"><h4>Tipos de Trabajo</h4></div><div class="process-inline-table-shell">${renderInkProfiles(scope, item.inkProfiles || [])}</div></div>`;
-  return `<details class="subprocess-card inline-process-card print-ink-card" data-open-key="${esc(scope)}.ink"><summary class="inline-process-summary"><div class="inline-process-heading"><strong>Cálculo de Tinta Convencional</strong></div><div class="process-summary-side"><em>${money(printItem.inkSubtotal || 0)}</em>${infoPopoverButton("Cálculo de Tinta Convencional", info, "formula-help")}</div></summary><div class="process-body">${parameterZone}${profileZone}<div class="readonly-grid compact-top step-metrics">${metric("Tintas Requeridas", num(printItem.colors || 0, 0))}${metric("Consumo Tinta", `${num(printItem.inkConsumption || 0, 4)} lb`)}${metric("Costo por Lb", money(printItem.inkCostPerLb || 0))}${metric("Subtotal Tinta", money(printItem.inkSubtotal || 0))}</div></div></details>`;
+  return `<details class="subprocess-card inline-process-card print-ink-card" data-open-key="${esc(scope)}.ink"><summary class="inline-process-summary"><div class="inline-process-heading"><strong>Cálculo de Tinta Convencional</strong></div><div class="process-summary-side"><em>${money(printItem.inkSubtotal || 0)}</em>${info}</div></summary><div class="process-body">${parameterZone}${profileZone}<div class="readonly-grid compact-top step-metrics">${metric("Tintas Requeridas", num(printItem.colors || 0, 0))}${metric("Consumo Tinta", `${num(printItem.inkConsumption || 0, 4)} lb`)}${metric("Costo por Lb", money(printItem.inkCostPerLb || 0))}${metric("Subtotal Tinta", money(printItem.inkSubtotal || 0))}</div></div></details>`;
 }
 
 function renderDigitalPremierBlock(scope, item, printItem) {
@@ -4397,8 +6689,8 @@ function renderDigitalInkBlock(scope, item, printItem) {
 
 function renderPrintMaculaBlock(scope, printItem, isConventional) {
   if (!isConventional) return "";
-  const info = "Mácula Total = Mácula Setup + Mácula Tiraje. El Costo Material Mácula usa el costo del sustrato seleccionado y la cantidad de pies adicionales consumidos.";
-  return `<details class="subprocess-card inline-process-card print-macula-card" data-open-key="${esc(scope)}.macula"><summary class="inline-process-summary"><div class="inline-process-heading"><strong>Mácula</strong></div><div class="process-summary-side"><em>${money(printItem.maculaMaterialSubtotal || 0)}</em>${infoPopoverButton("Mácula", info, "formula-help")}</div></summary><div class="process-body"><div class="editable-grid macula-cost-grid"><label><span>Mácula Setup</span>${displayInput(scope, "maculaSetupFeet", printItem.macula?.setupFeet || 0, { suffix: "pies", maximumFractionDigits: 2 })}</label><label><span>Mácula Tiraje</span>${displayInput(scope, "maculaTirajeFeet", printItem.macula?.tirajeFeet || 0, { suffix: "pies", maximumFractionDigits: 2 })}</label><label><span>Mácula Total</span>${readonlyDisplay(`${num(printItem.macula?.totalFeet || 0, 2)} pies`)}</label><label><span>Porcentaje Tiraje</span>${displayInput(scope, "maculaTirajePct", printItem.macula?.tirajePct || 0, { suffix: "%", maximumFractionDigits: 2 })}</label><label><span>Costo Material Mácula</span>${readonlyDisplay(money(printItem.maculaMaterialSubtotal || 0))}</label></div></div></details>`;
+  const info = "La sumatoria de merma suma la merma de montaje y la merma de impresión. El costo de material usa el sustrato seleccionado y los pies adicionales consumidos.";
+  return `<details class="subprocess-card inline-process-card print-macula-card" data-open-key="${esc(scope)}.macula"><summary class="inline-process-summary"><div class="inline-process-heading"><strong>Merma de Procesos</strong></div><div class="process-summary-side"><em>${money(printItem.maculaMaterialSubtotal || 0)}</em>${infoPopoverButton("Merma de Procesos", info, "formula-help")}</div></summary><div class="process-body"><div class="editable-grid macula-cost-grid"><label><span>Merma Montaje</span>${displayInput(scope, "maculaSetupFeet", printItem.macula?.setupFeet || 0, { suffix: "pies", maximumFractionDigits: 2 })}</label><label><span>Merma Impresión</span>${displayInput(scope, "maculaTirajeFeet", printItem.macula?.tirajeFeet || 0, { suffix: "pies", maximumFractionDigits: 2 })}</label><label><span>Sumatoria</span>${readonlyDisplay(`${num(printItem.macula?.totalFeet || 0, 2)} pies`)}</label><label><span>% Merma Imp.</span>${displayInput(scope, "maculaTirajePct", printItem.macula?.tirajePct || 0, { suffix: "%", maximumFractionDigits: 2 })}</label><label><span>Costo Merma</span>${readonlyDisplay(money(printItem.maculaMaterialSubtotal || 0))}</label></div></div></details>`;
 }
 
 function renderPrintStageCard(item, printItem, index, orderNumber) {
@@ -4420,9 +6712,9 @@ function renderPrintStageCard(item, printItem, index, orderNumber) {
     : `<div class="inline-toggle-note">Esta máquina no tiene subprocesos inline habilitados para cotización.</div>`;
   const speedDisplayValue = n(item.speedMetersMin, 0);
   const speedUnit = printSpeedUnit(stageMachine);
-  const configZone = `<div class="process-zone"><div class="process-zone-head"><h4>Parámetros de Configuración</h4></div><div class="process-machine-row"><label class="span-2"><span>Máquina</span><select data-scope="${scope}" data-field="machineId">${processOptions(stagePrintOptions, item.machineId)}</select></label></div><div class="process-subsection"><h5>Producción</h5><div class="process-print-grid process-print-grid-production"><label><span>Setup <span class="field-unit">min</span></span>${displayInput(scope, "setupMinutes", item.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label><label><span>Limpieza <span class="field-unit">min</span></span>${displayInput(scope, "cleaningMinutes", item.cleaningMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label><label><span>Montaje <span class="field-unit">min</span></span>${displayInput(scope, "mountingMinutes", item.mountingMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label><label><span>Desp. Arranque <span class="field-unit">pies</span></span>${displayInput(scope, "maculaSetupFeet", item.maculaSetupFeet, { suffix: "pies", maximumFractionDigits: 2 })}</label><label><span>Velocidad <span class="field-unit">${speedUnit}</span></span>${displayInput(scope, "speedMetersMin", item.speedMetersMin, { suffix: speedUnit, maximumFractionDigits: 2, inputValue: speedDisplayValue, displayValue: speedDisplayValue })}</label><label><span>Estaciones</span>${displayInput(scope, "availableColors", item.availableColors, { integer: true, maximumFractionDigits: 0, step: "1" })}</label><label><span>Costo Máquina <span class="field-unit">$/h</span></span>${displayInput(scope, "costHour", item.costHour, { prefix: "$", maximumFractionDigits: 2 })}</label><label><span>Costo Operador <span class="field-unit">$/h</span></span>${displayInput(scope, "operatorHourCost", item.operatorHourCost, { prefix: "$", maximumFractionDigits: 2 })}</label></div></div></div>`;
+  const configZone = `<div class="process-zone"><div class="process-zone-head"><h4>Parámetros de Configuración</h4></div><div class="process-machine-row"><label class="span-2"><span>Máquina</span><select data-scope="${scope}" data-field="machineId">${processOptions(stagePrintOptions, item.machineId)}</select></label></div><div class="process-subsection"><h5>Producción</h5><div class="process-print-grid process-print-grid-production"><label><span>Setup <span class="field-unit">min</span></span>${displayInput(scope, "setupMinutes", item.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label><label><span>Limpieza <span class="field-unit">min</span></span>${displayInput(scope, "cleaningMinutes", item.cleaningMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label><label><span>Montaje <span class="field-unit">min</span></span>${displayInput(scope, "mountingMinutes", item.mountingMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label><label><span>Merma Arranque <span class="field-unit">ft</span></span>${displayInput(scope, "maculaSetupFeet", item.maculaSetupFeet, { suffix: "ft", maximumFractionDigits: 2 })}</label><label><span>% Merma Tiraje</span>${displayInput(scope, "maculaTirajePct", firstPositiveNumber(printItem.macula?.tirajePct, item.maculaTirajePct), { suffix: "%", maximumFractionDigits: 2 })}</label><label><span>Velocidad <span class="field-unit">${speedUnit}</span></span>${displayInput(scope, "speedMetersMin", item.speedMetersMin, { suffix: speedUnit, maximumFractionDigits: 2, inputValue: speedDisplayValue, displayValue: speedDisplayValue })}</label><label><span>Estaciones</span>${displayInput(scope, "availableColors", item.availableColors, { integer: true, maximumFractionDigits: 0, step: "1" })}</label><label><span>Costo Máquina <span class="field-unit">$/h</span></span>${displayInput(scope, "costHour", item.costHour, { prefix: "$", maximumFractionDigits: 2 })}</label><label><span>Costo Operador <span class="field-unit">$/h</span></span>${displayInput(scope, "operatorHourCost", item.operatorHourCost, { prefix: "$", maximumFractionDigits: 2 })}</label></div></div></div>`;
   const costInfo = isConventionalMachine ? "Tiempo total = setup + limpieza + montaje + proceso lineal. Consumo tinta = área impresa x cobertura x BCM anilox x factor transferencia x densidad tinta x tintas requeridas." : "Tiempo total = setup + limpieza + montaje + proceso lineal. En digital, la tinta se cobra por consumo kg o por clic según la máquina; Premier se suma si el sustrato requiere tratamiento.";
-  const metricsZone = `<div class="process-zone process-zone-accent"><div class="process-zone-head"><h4>Indicadores del Proceso</h4></div><div class="process-kpi-grid">${metricBox("Pies Netos", printItem.linealFeet > 0 ? `${num(printItem.linealFeet || 0, 2)} pies` : "Pendiente", n(printItem.linealFeet, 0) <= 0)}${metricBox("Desperdicio de Arranque", printItem.startupWasteFeet > 0 ? `${num(printItem.startupWasteFeet || 0, 2)} pies` : "Pendiente", (printItem.issues || []).some((issue) => issue.includes("Desperdicio de Arranque")))}${metricBox("Longitud Total", printItem.totalLengthFeet > 0 ? `${num(printItem.totalLengthFeet || 0, 2)} pies` : "Pendiente", (printItem.issues || []).length > 0)}${metricBox("Tiempo Total", printItem.totalMinutes > 0 ? `${num(printItem.totalMinutes || 0, 2)} min` : "Pendiente", (printItem.issues || []).some((issue) => issue.includes("Velocidad") || issue.includes("Montaje y Ajuste")))}</div>${issueList("Problemas detectados en la fórmula", printItem.issues || [])}</div>`;
+  const metricsZone = `<div class="process-zone process-zone-accent"><div class="process-zone-head"><h4>Indicadores del Proceso</h4></div><div class="process-kpi-grid">${metricBox("Pies Netos", printItem.linealFeet > 0 ? `${num(printItem.linealFeet || 0, 2)} pies` : "Pendiente", n(printItem.linealFeet, 0) <= 0)}${metricBox("Merma Total", printItem.startupWasteFeet > 0 ? `${num(printItem.startupWasteFeet || 0, 2)} pies` : "Pendiente", (printItem.issues || []).some((issue) => String(issue).toLowerCase().includes("merma")))}${metricBox("Longitud Total", printItem.totalLengthFeet > 0 ? `${num(printItem.totalLengthFeet || 0, 2)} pies` : "Pendiente", (printItem.issues || []).length > 0)}${metricBox("Tiempo Total", printItem.totalMinutes > 0 ? `${num(printItem.totalMinutes || 0, 2)} min` : "Pendiente", (printItem.issues || []).some((issue) => issue.includes("Velocidad") || issue.includes("Montaje y Ajuste")))}</div>${issueList("Problemas detectados en la fórmula", printItem.issues || [])}</div>`;
   const maculaZone = renderPrintMaculaBlock(scope, printItem, isConventionalMachine);
   const premierZone = !isConventionalMachine ? renderDigitalPremierBlock(scope, item, printItem) : "";
   const inkZone = isConventionalMachine ? renderPrintInkBlock(scope, item, printItem) : renderDigitalInkBlock(scope, item, printItem);
@@ -4437,11 +6729,13 @@ function renderPrintStageCard(item, printItem, index, orderNumber) {
             </div>
         </div>
         
-        <div class="process-zone-head"><h4>2. Mácula de Impresión (Startup Waste)</h4></div>
+        <div class="process-zone-head"><h4>2. Merma de Procesos</h4></div>
         <div class="summary-rows process-cost-summary">
-            ${summaryRowWithInfo("Pies de Desperdicio", `${num(printItem.startupWasteFeet || 0, 2)} pies`, "Pies de arranque o mácula activa para completar la longitud total.")}
-            ${isConventionalMachine ? summaryRowWithInfo("Costo Material Mácula", money(printItem.maculaMaterialSubtotal || 0), "Costo de material adicional generado por mácula. Se muestra aquí para lectura operativa y forma parte del consumo de sustrato.") : ""}
-            ${summaryRowWithInfo("Mácula Total", money(printItem.maculaTotalFeetCost || 0), "Mácula = Pies × $/pie. Se incluye en el consumo total de material.")}
+            ${summaryRowWithInfo("Merma Montaje", `${num(printItem.macula?.setupFeet || 0, 2)} pies`, "Merma de montaje del proceso.")}
+            ${summaryRowWithInfo("Merma Impresión", `${num(printItem.macula?.tirajeFeet || 0, 2)} pies`, "Merma de impresión calculada para el tiraje.")}
+            ${summaryRowWithInfo("Sumatoria", `${num(printItem.macula?.totalFeet || printItem.startupWasteFeet || 0, 2)} pies`, "Suma de merma de montaje y merma de impresión.")}
+            ${isConventionalMachine ? summaryRowWithInfo("Costo Merma", money(printItem.maculaMaterialSubtotal || 0), "Costo de material adicional generado por merma. Se muestra aquí para lectura operativa y forma parte del consumo de sustrato.") : ""}
+            ${summaryRowWithInfo("Importe Merma", money(printItem.maculaTotalFeetCost || 0), "Merma = pies × $/pie. Se incluye en el consumo total de material.")}
         </div>
         
         <div class="process-zone-head"><h4>3. Costos por Tipo de Tinta</h4></div>
@@ -4460,8 +6754,8 @@ function renderPrintStageCard(item, printItem, index, orderNumber) {
         </div>
     </div>`;
   const speedLengthUnit = speedUnit === "m/min" ? "metros" : "pies";
-  const lowerBlocks = [maculaZone, premierZone, inkZone, `<div class="inline-print-zone">${inlineZone}</div>`].filter(Boolean).join("");
-  const body = `<div class="process-layout process-layout-print"><div class="process-layout-main">${configZone}</div><div class="process-layout-side">${metricsZone}${costZone}</div></div><div class="print-stage-expanded-blocks">${lowerBlocks}</div>${formula("Fórmula de Tiempo Total", `Tiempo Total en Máquina (min) = (Longitud Total en ${speedLengthUnit} / Velocidad de Operación en ${speedUnit}) + Tiempo de Montaje y Ajuste`, "La longitud total de impresión suma la mácula y luego se divide entre la velocidad real de operación. Después se agrega el tiempo de preparación, limpieza y montaje.", {
+  const lowerBlocks = [premierZone, inkZone, maculaZone, `<div class="inline-print-zone">${inlineZone}</div>`].filter(Boolean).join("");
+  const body = `<div class="process-layout process-layout-print"><div class="process-layout-main">${configZone}</div><div class="process-layout-side">${metricsZone}${costZone}</div></div><div class="print-stage-expanded-blocks">${lowerBlocks}</div>${formula("Fórmula de Tiempo Total", `Tiempo Total en Máquina (min) = (Longitud Total en ${speedLengthUnit} / Velocidad de Operación en ${speedUnit}) + Tiempo de Montaje y Ajuste`, "La longitud total de impresión suma la merma y luego se divide entre la velocidad real de operación. Después se agrega el tiempo de preparación, limpieza y montaje.", {
     exampleLines: [
       `Tiempo Total: (${formulaValue(printItem.totalLengthFeet || printItem.totalLengthMeters || 0, 2)} / ${formulaValue(item.speedMetersMin, 2)}) + ${formulaValue(printItem.setupAdjustmentMin || 0, 2)} = ${formulaValue(printItem.totalMinutes || 0, 2)} min`,
       `Subtotal Impresión: ${formulaValue(printItem.machineSubtotal || 0, 2)} + ${formulaValue(printItem.operatorSubtotal || 0, 2)} + ${formulaValue(printItem.inkSubtotal || 0, 2)} + ${formulaValue(printItem.inlineSubtotal || 0, 2)} = ${formulaValue(printItem.rawSubtotal ?? printItem.subtotal ?? 0, 2)}`,
@@ -4476,7 +6770,7 @@ function renderExternalFinishCard(config, finish, index, orderNumber) {
   const materialOptions = materialsByClassification(config.materialFamily, config.materialKeywords || []).map((item) => ({ id: item.id, nombre: item.descripcion || item.nombre || item.id }));
   const machineOptions = finishMachineOptions(config, finish.machineId);
   const scope = `finishes.${index}`;
-  const speedSuffix = "FT/min";
+  const speedSuffix = "ft/min";
   const displayTotalMinutes = r(n(finish.setupMinutes, 0) + n(finish.runMinutes, 0), 6);
   const processMachineCost = r((displayTotalMinutes / 60) * n(first(finish.costHourMachine, finish.costHour), 0), 4);
   const processOperatorCost = r((displayTotalMinutes / 60) * n(finish.costHourOperator, 0), 4);
@@ -4486,7 +6780,7 @@ function renderExternalFinishCard(config, finish, index, orderNumber) {
   const machineFields = [
     `<label class="span-2"><span>Máquina</span><select data-scope="${scope}" data-field="machineId">${processOptions(machineOptions, finish.machineId)}</select></label>`,
     `<label><span>Montaje <span class="field-unit">min</span></span>${displayInput(scope, "setupMinutes", finish.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label>`,
-    `<label><span>Velocidad <span class="field-unit">FT/min</span></span>${displayInput(scope, "speed", finish.speed, { suffix: speedSuffix, maximumFractionDigits: 4 })}</label>`,
+    `<label><span>Velocidad <span class="field-unit">ft/min</span></span>${displayInput(scope, "speed", finish.speed, { suffix: speedSuffix, maximumFractionDigits: 4 })}</label>`,
     `<label><span>Costo Máquina <span class="field-unit">$/h</span></span>${displayInput(scope, "costHourMachine", finish.costHourMachine, { prefix: "$", maximumFractionDigits: 2 })}</label>`,
     `<label><span>Costo Operador <span class="field-unit">$/h</span></span>${displayInput(scope, "costHourOperator", finish.costHourOperator, { prefix: "$", maximumFractionDigits: 2 })}</label>`,
     `<label><span>Merma Ajuste <span class="field-unit">ft</span></span>${displayInput(scope, "setupWasteFeet", finish.setupWasteFeet, { suffix: "ft", maximumFractionDigits: 2 })}</label>`,
@@ -4570,9 +6864,17 @@ function renderExternalFinishCard(config, finish, index, orderNumber) {
   }
   costRows.push(`<div class="summary-row process-row-total"><span>Subtotal ${esc(config.label)}</span><strong>${money(finish.subtotal || 0)}</strong></div>`);
   const costZone = `<div class="process-zone process-zone-accent"><div class="process-zone-head"><h4>Desglose de Costos</h4></div><div class="summary-rows process-cost-summary">${costRows.join("")}</div></div>`;
+  const finishExampleParts = [
+    formulaValue(processMachineCost, 2),
+    formulaValue(processOperatorCost, 2),
+    formulaValue(finish.fixedCost || 0, 2),
+    formulaValue(linearCost || 0, 2),
+    formulaValue(finish.materialSubtotal || 0, 2),
+    config.usesPlateCost ? formulaValue(finish.plateCost || 0, 2) : ""
+  ].filter(Boolean).join(" + ");
   const body = `<div class="process-layout process-layout-print"><div class="process-layout-main">${configZone}</div><div class="process-layout-side">${indicatorZone}${costZone}</div></div>${formula(`Cálculo ${config.label}`, finish.formulaText || "", finish.explanation || "El subtotal combina preparación, corrida e insumos propios del acabado.", {
     exampleLines: [
-      `Subtotal ${config.label}: ${formulaValue(processMachineCost, 2)} + ${formulaValue(processOperatorCost, 2)} + ${formulaValue(finish.fixedCost || 0, 2)} + ${formulaValue(linearCost || 0, 2)} + ${formulaValue(finish.materialSubtotal || 0, 2)} + ${formulaValue(finish.plateCost || 0, 2)} = ${formulaValue(finish.rawSubtotal ?? finish.subtotal ?? 0, 2)}`,
+      `Subtotal ${config.label}: ${finishExampleParts} = ${formulaValue(finish.rawSubtotal ?? finish.subtotal ?? 0, 2)}`,
       ...minimumCostExampleLines(finish, config.label)
     ],
     answer: `R/ El total a cobrar por ${config.label.toLowerCase()} es ${money(finish.subtotal || 0)}`
@@ -4603,6 +6905,7 @@ function renderProcesses() {
   const focusSnapshot = captureFocus();
   snapshotOpenProcesses();
   syncDerivedHeaderAndPackaging(state.form);
+  syncSubstratePricingWithMaterial(state.form);
   const result = totals();
   const macula = result.macula;
   const troquel = result.troquel;
@@ -4624,15 +6927,15 @@ function renderProcesses() {
   };
   const nextTitle = (label) => `${orderNumber++}. ${label}`;
   const sectionBuilders = {
-    macula: () => card("macula", nextTitle("Mácula"), "", macula.subtotal, `<div class="process-zone"><div class="process-zone-head"><h4>Mácula Montaje</h4></div>${renderMaculaMontajeRows(state.form.macula?.montajeRows || [])}</div><div class="process-zone"><div class="process-zone-head"><h4>Mácula Tiraje</h4></div>${renderMaculaTirajeRows(state.form.macula?.tirajeRows || [])}</div>${formula("Base de mácula", macula.formulaText, macula.explanation, {
+    macula: () => card("macula", nextTitle("Merma"), "", macula.subtotal, `<div class="process-zone"><div class="process-zone-head"><h4>Merma Montaje</h4></div>${renderMaculaMontajeRows(state.form.macula?.montajeRows || [])}</div><div class="process-zone"><div class="process-zone-head"><h4>Merma Tiraje</h4></div>${renderMaculaTirajeRows(state.form.macula?.tirajeRows || [])}</div>${formula("Base de merma", macula.formulaText, macula.explanation, {
       exampleLines: [
-        `Mácula Montaje actual: ${formulaValue(macula.montajeTotalPies || 0, 2)} pies`,
-        `Mácula Tiraje promedio: ${formulaValue(macula.tirajePromedioPct || 0, 2)} %`,
-        ...minimumCostExampleLines(macula, "Mácula")
+        `Merma Montaje actual: ${formulaValue(macula.montajeTotalPies || 0, 2)} pies`,
+        `Merma Tiraje promedio: ${formulaValue(macula.tirajePromedioPct || 0, 2)} %`,
+        ...minimumCostExampleLines(macula, "Merma")
       ],
-      answer: `R/ La referencia actual de mácula usa ${formulaValue(macula.montajeRows.length, 0)} filas de montaje y ${formulaValue(macula.tirajeRows.length, 0)} filas de tiraje`
+      answer: `R/ La referencia actual de merma usa ${formulaValue(macula.montajeRows.length, 0)} filas de montaje y ${formulaValue(macula.tirajeRows.length, 0)} filas de tiraje`
     })}`),
-    troquel: () => card("troquel", nextTitle("Troquel"), state.form.troquel.dieDescription, troquel.subtotal, `<div class="editable-grid"><label class="span-2"><span>Troquel</span><select data-scope="troquel" data-field="dieCode">${processOptions(dieOptions, state.form.troquel.dieCode)}</select></label></div><div class="readonly-grid compact-top">${metric("Código Troquel", esc(state.form.troquel.dieCode || "No definido"))}${metric("Ancho Montaje", `${num(state.form.troquel.widthIn, 3)} in`)}${metric("Largo Montaje", `${num(state.form.troquel.lengthIn, 3)} in`)}${metric("Ancho Material", `${num(state.form.troquel.materialWidthIn || 0, 3)} in`)}${metric("Elongación", `${num(state.form.troquel.elongationPct || 0, 3)} %`)}${metric("Dientes", num(state.form.troquel.teeth, 0))}${metric("Repeticiones", num(state.form.troquel.repeats, 0))}${metric("Filas", num(state.form.troquel.rows, 0))}${metric("Etiquetas por Vuelta", num(troquel.labelsPerRepeat, 0))}${metric("Desarrollo Total", `${num(troquel.development, 3)} in`)}</div>${formula("Base del Troquel", troquel.formulaText, troquel.explanation, {
+    troquel: () => { const shapeValue = String(state.form.troquel.dieShape || '').trim(); const shapeIndex = { Circular: 1, Cuadrado: 2, Rectangular: 3, Ovalado: 4, Especial: 5 }[shapeValue] || 0; const shapeImage = shapeIndex ? state.config?.general?.['dieShapeImage' + shapeIndex] || '' : ''; return card("troquel", nextTitle("Troquel"), state.form.troquel.dieDescription, troquel.subtotal, `<div class="editable-grid"><label class="span-2"><span>Troquel</span><select data-scope="troquel" data-field="dieCode">${processOptions(dieOptions, state.form.troquel.dieCode)}</select></label></div><div class="readonly-grid compact-top">${shapeImage ? `<div class="metric-cell" style="grid-column:1/-1;display:flex;align-items:center;gap:10px"><span>Forma</span><strong>${esc(shapeValue)}</strong><img src="${esc(shapeImage)}" alt="${esc(shapeValue)}" style="height:36px;width:auto;border-radius:4px;border:1px solid var(--color-border-tertiary);"></div>` : metric("Forma", esc(shapeValue || "No definida"))}${metric("Código Troquel", esc(state.form.troquel.dieCode || "No definido"))}${metric("Ancho Montaje", `${num(state.form.troquel.widthIn, 3)} in`)}${metric("Largo Montaje", `${num(state.form.troquel.lengthIn, 3)} in`)}${metric("Ancho Material", `${num(state.form.troquel.materialWidthIn || 0, 3)} in`)}${metric("Elongación", `${num(state.form.troquel.elongationPct || 0, 3)} %`)}${metric("Dientes", num(state.form.troquel.teeth, 0))}${metric("Repeticiones", num(state.form.troquel.repeats, 0))}${metric("Filas", num(state.form.troquel.rows, 0))}${metric("Etiquetas por Vuelta", num(troquel.labelsPerRepeat, 0))}${metric("Desarrollo Total", `${num(troquel.development, 3)} in`)}</div>${formula("Base del Troquel", troquel.formulaText, troquel.explanation, {
       exampleLines: [
         `Etiquetas por repetición: ${formulaValue(state.form.troquel.rows || 0, 0)} x ${formulaValue(state.form.troquel.repeats || 0, 0)} = ${formulaValue(troquel.labelsPerRepeat || 0, 0)}`,
         `Desarrollo total: ${formulaValue(state.form.troquel.lengthIn || 0, 2)} x ${formulaValue(state.form.troquel.repeats || 0, 0)} = ${formulaValue(troquel.development || 0, 2)} in`,
@@ -4640,7 +6943,7 @@ function renderProcesses() {
       ],
       answer: `R/ El troquel actual entrega ${formulaValue(troquel.labelsPerRepeat || 0, 0)} etiquetas por vuelta y ${formulaValue(troquel.development || 0, 2)} in de desarrollo`
     })}`),
-    sustrato: () => card("sustrato", nextTitle("Sustrato"), material?.descripcion || "Selecciona material", sustrato.subtotal, `<div class="editable-grid substrate-grid"><label class="span-2"><span>Material</span><select data-scope="substrate" data-field="materialId">${processOptions(substrateMaterialOptions().map((item) => ({ id: item.id, nombre: item.descripcion || item.nombre || item.id })), state.form.substrate.materialId)}</select></label><label><span>Costo/pie</span>${displayInput("substrate", "costPerFoot", state.form.substrate.costPerFoot, { prefix: "$", suffix: "/pie", maximumFractionDigits: 6, step: "0.000001" })}</label></div><div class="readonly-grid compact-top">${metricBox("Etiquetas al Través", sustrato.acrossCount > 0 ? num(sustrato.acrossCount, 0) : "Pendiente", n(sustrato.acrossCount, 0) <= 0)}${metricBox("Desarrollo del Cilindro", sustrato.cylinderDevelopmentIn > 0 ? `${num(sustrato.cylinderDevelopmentIn, 3)} in` : "Pendiente", n(sustrato.cylinderDevelopmentIn, 0) <= 0)}${metricBox("Desperdicio de Arranque", sustrato.startupWasteFeet > 0 ? `${num(sustrato.startupWasteFeet, 2)} pies` : "Pendiente", (sustrato.issues || []).some((issue) => issue.includes("Desperdicio de Arranque")))}${metricBox("Longitud Total", sustrato.totalLengthFeet > 0 ? `${num(sustrato.totalLengthFeet, 2)} pies` : "Pendiente", (sustrato.issues || []).length > 0)}${metricBox("Área Total Consumida", sustrato.totalAreaFt2 > 0 ? `${num(sustrato.totalAreaFt2, 2)} ft²` : "Pendiente", n(sustrato.webWidthIn, 0) <= 0 || (sustrato.issues || []).length > 0)}${metric("Costo por Pie", money(sustrato.unitCost))}${metric("Subtotal", money(sustrato.subtotal))}</div>${issueList("Problemas detectados en la fórmula", sustrato.issues || [])}${formula("Costo del Sustrato", sustrato.formulaCost, sustrato.explanation, {
+    sustrato: () => card("sustrato", nextTitle("Sustrato"), sustrato.materialName || "Selecciona material", sustrato.subtotal, `<div class="editable-grid substrate-grid"><label class="span-2"><span>Material</span><select data-scope="substrate" data-field="materialId">${processOptions(substrateMaterialOptions().map((item) => ({ id: item.id, nombre: item.nombre || item.name || item.descripcion || item.id })), state.form.substrate.materialId)}</select></label><label><span>Costo/pie</span>${displayInput("substrate", "costPerFoot", state.form.substrate.costPerFoot, { prefix: "$", suffix: "/pie", maximumFractionDigits: 6, step: "0.000001" })}</label></div><div class="readonly-grid compact-top">${metricBox("Etiquetas al Través", sustrato.acrossCount > 0 ? num(sustrato.acrossCount, 0) : "Pendiente", n(sustrato.acrossCount, 0) <= 0)}${metricBox("Desarrollo del Cilindro", sustrato.cylinderDevelopmentIn > 0 ? `${num(sustrato.cylinderDevelopmentIn, 3)} in` : "Pendiente", n(sustrato.cylinderDevelopmentIn, 0) <= 0)}${metricBox("Merma Total", sustrato.startupWasteFeet > 0 ? `${num(sustrato.startupWasteFeet, 2)} pies` : "Pendiente", (sustrato.issues || []).some((issue) => String(issue).toLowerCase().includes("merma")))}${metricBox("Longitud Total", sustrato.totalLengthFeet > 0 ? `${num(sustrato.totalLengthFeet, 2)} pies` : "Pendiente", (sustrato.issues || []).length > 0)}${metricBox("Área Total Consumida", sustrato.totalAreaFt2 > 0 ? `${num(sustrato.totalAreaFt2, 2)} ft²` : "Pendiente", n(sustrato.webWidthIn, 0) <= 0 || (sustrato.issues || []).length > 0)}${metric("Costo por Pie", money(sustrato.unitCost))}${metric("Subtotal", money(sustrato.subtotal))}</div>${issueList("Problemas detectados en la fórmula", sustrato.issues || [])}${formula("Costo del Sustrato", sustrato.formulaCost, sustrato.explanation, {
       exampleLines: [
         `Cantidad Lineal Sustrato: ( ${formulaValue(sustrato.qty || 0, 0)} x ${formulaValue(sustrato.cylinderDevelopmentIn || 0, 2)} ) / ( 12 x ${formulaValue(sustrato.acrossCount || 0, 0)} ) = ${formulaValue(sustrato.linealFeet || 0, 2)}`,
         `Longitud Total: ${formulaValue(sustrato.linealFeet || 0, 2)} + ${formulaValue(sustrato.startupWasteFeet || 0, 2)} = ${formulaValue(sustrato.totalLengthFeet || 0, 2)}`,
@@ -4665,13 +6968,22 @@ function renderProcesses() {
       ],
       answer: `R/ El total a cobrar por preprensa es ${money(prepress.subtotal || 0)}`
     })}`),
-    planchas: () => card("planchas", `${nextTitle("Planchas")}${digitalProcessNote ? ` <span style="color:#c62828;font-size:12px;font-weight:400;">${esc(digitalProcessNote)}</span>` : ""}`, "", plates.subtotal, `<div class="subprocess-stack">${PLATE_KEYS.map((entry) => renderPlateStep(entry, plates)).join("")}</div><div class="readonly-grid compact-top subtotal-right">${metric("Subtotal Planchas", money(plates.subtotal))}</div>${formula("Total Planchas", "Total Planchas = Plancha Virgen + Grabado Láser + Revelado + Limpieza + Secado / Curado", plates.explanation, {
-      exampleLines: [
-        `Total Planchas: ${PLATE_KEYS.map((entry) => formulaValue(plates.breakdown?.[entry.key]?.subtotal || 0, 2)).join(" + ")} = ${formulaValue(plates.rawSubtotal ?? plates.subtotal ?? 0, 2)}`,
-        ...minimumCostExampleLines(plates, "Planchas")
-      ],
-      answer: `R/ El total a cobrar por planchas es ${money(plates.subtotal || 0)}`
-    })}`),
+    planchas: () => {
+      const plateMode = normalizePlateMode(state.form.plates?.plateMode);
+      const selector = renderPlateModeSelector();
+      const body = plateMode === "external"
+        ? `${selector}${renderPlateExternalPanel(plates)}`
+        : (plateMode === "inventory"
+          ? `${selector}${renderPlateInventoryPanel(plates)}`
+          : `${selector}<div class="subprocess-stack">${PLATE_KEYS.map((entry) => renderPlateStep(entry, plates)).join("")}</div><div class="readonly-grid compact-top subtotal-right">${metric("Subtotal Planchas", money(plates.subtotal))}</div>${formula("Total Planchas", "Total Planchas = Plancha Virgen + Grabado Láser + Revelado + Limpieza + Secado / Curado", plates.explanation, {
+            exampleLines: [
+              `Total Planchas: ${PLATE_KEYS.map((entry) => formulaValue(plates.breakdown?.[entry.key]?.subtotal || 0, 2)).join(" + ")} = ${formulaValue(plates.rawSubtotal ?? plates.subtotal ?? 0, 2)}`,
+              ...minimumCostExampleLines(plates, "Planchas")
+            ],
+            answer: `R/ El total a cobrar por planchas es ${money(plates.subtotal || 0)}`
+          })}`);
+      return card("planchas", `${nextTitle("Planchas")}${digitalProcessNote ? ` <span style="color:#c62828;font-size:12px;font-weight:400;">${esc(digitalProcessNote)}</span>` : ""}`, "", plates.subtotal, body);
+    },
     empaque: () => card("empaque", nextTitle("Empaque"), "", packaging.subtotal, `<div class="editable-grid"><label><span>Rollos</span>${readonlyDisplay(`${num(state.form.packaging.rollCount || 0, 2)} rollos`)}</label><label><span>Rend./h</span>${displayInput("packaging", "yieldPerHour", state.form.packaging.yieldPerHour, { suffix: "rollos/h", maximumFractionDigits: 2, step: "0.01" })}</label><label><span>Operarios</span>${displayInput("packaging", "operators", state.form.packaging.operators, { integer: true, maximumFractionDigits: 0, step: "1" })}</label><label><span>Costo Op.</span>${displayInput("packaging", "hourCost", state.form.packaging.hourCost, { prefix: "$", maximumFractionDigits: 2, step: "0.01" })}</label><label><span>Costo Ext.</span>${displayInput("packaging", "externalCost", state.form.packaging.externalCost, { prefix: "$", maximumFractionDigits: 2, step: "0.01" })}</label><label class="span-2"><span>Comentarios</span><input data-scope="packaging" data-field="comments" type="text" value="${esc(state.form.packaging.comments)}"></label><label class="span-2 file-icon-field"><span>Adjunto <span class="field-unit-clip" aria-hidden="true">&#128206;</span></span><input data-scope="packaging" data-field="attachmentName" data-kind="file" type="file"></label></div><div class="readonly-grid compact-top">${metric("Tiempo", `${num(packaging.hours, 2)} h`)}${metric("Subtotal", money(packaging.subtotal))}</div>${formula("Cálculo de Empaque", packaging.formulaText, packaging.explanation, {
       exampleLines: [
         `Cantidad de Rollos: ${formulaValue(currentQuantity(state.form), 0)} / ${formulaValue(state.form.header.labelsPerRoll || 0, 0)} = ${formulaValue(packaging.rolls || 0, 4)}`,
@@ -4681,7 +6993,7 @@ function renderProcesses() {
       ],
       answer: `R/ El total a cobrar por empaque es ${money(packaging.subtotal || 0)}`
     })}`),
-    adicionales: () => card("adicionales", nextTitle("Procesos Adicionales"), "", additional.subtotal, `<div class="table-toolbar"><button type="button" class="inline-button" data-action="add-additional">Agregar fila</button></div><div class="additional-table"><div class="additional-head"><span>Descripción</span><span>Costo</span><span>Adjunto</span><span>Comentarios</span><span></span></div>${(state.form.additional.length ? state.form.additional : [{ description: "", cost: 0, attachmentName: "", comments: "" }]).map((item, index) => `<div class="additional-row"><input data-scope="additional.${index}" data-field="description" type="text" value="${esc(item.description || "")}"><input data-scope="additional.${index}" data-field="cost" type="number" step="0.01" value="${esc(item.cost || 0)}"><label class="additional-file-cell" title="Adjuntar archivo"><span class="additional-clip-icon" aria-hidden="true">&#128206;</span><input data-scope="additional.${index}" data-field="attachmentName" data-kind="file" type="file"></label><input data-scope="additional.${index}" data-field="comments" type="text" value="${esc(item.comments || "")}"><button type="button" class="process-trash-button" data-action="remove-additional" data-index="${index}" aria-label="Eliminar fila"><span class="process-delete-icon" aria-hidden="true">&#128465;</span></button></div>`).join("")}</div>${formula("Subtotal Adicional", "Subtotal procesos adicionales = suma de costos manuales registrados.", "Este bloque absorbe costos o gestiones que todavía no están estandarizados en inventario.", {
+    adicionales: () => card("adicionales", nextTitle("Procesos Adicionales"), "", additional.subtotal, `<div class="table-toolbar"><button type="button" class="inline-button" data-action="add-additional">Agregar fila</button></div><div class="additional-table"><div class="additional-head"><span>Descripción</span><span>Costo</span><span>Comentarios</span><span></span></div>${(state.form.additional.length ? state.form.additional : [{ description: "", cost: 0, attachmentName: "", comments: "" }]).map((item, index) => renderAdditionalProcessRow(item, index)).join("")}</div>${formula("Subtotal Adicional", "Subtotal procesos adicionales = suma de costos manuales registrados.", "Este bloque absorbe costos o gestiones que todavía no están estandarizados en inventario.", {
       exampleLines: [
         `Subtotal Adicionales: ${(additional.rows || []).length ? additional.rows.map((row) => formulaValue(row.subtotal || 0, 2)).join(" + ") : "0"} = ${formulaValue(additional.rawSubtotal ?? additional.subtotal ?? 0, 2)}`,
         ...minimumCostExampleLines(additional, "Procesos adicionales")
@@ -4689,13 +7001,13 @@ function renderProcesses() {
       answer: `R/ El total a cobrar por procesos adicionales es ${money(additional.subtotal || 0)}`
     })}`)
   };
-  const finishEntries = (state.form.finishes || []).map((finish, index) => ({
-    index,
-    finish,
-    config: EXTERNAL_FINISH_BY_KEY[finish.processKey],
-    calc: finishes.items[index]
+  const finishEntries = finishes.items.map((calc) => ({
+    index: Number.isInteger(calc.sourceIndex) ? calc.sourceIndex : (state.form.finishes || []).indexOf(calc),
+    finish: calc,
+    config: EXTERNAL_FINISH_BY_KEY[calc.processKey],
+    calc
   })).filter((entry) => entry.config && entry.calc);
-  const orderedKeys = sortActiveProcessKeys(state.form.activeProcessKeys || []);
+  const orderedKeys = sortActiveProcessKeys(state.form.activeProcessKeys || []).filter((key) => isProcessAllowedForCurrentFrontBackContext(key));
   orderedKeys.forEach((key) => {
     if (key === "impresion") {
       activePrintStages().forEach((item, index) => pushSection(renderPrintStageCard(item, print.items[index] || {}, index, orderNumber++)));
@@ -4735,10 +7047,53 @@ function setNested(scope, field, value) {
   target[last][field] = value;
 }
 
+function getNestedTarget(scope) {
+  const parts = String(scope || "").split(".");
+  let target = state.form;
+  while (parts.length && target) {
+    const key = /^\d+$/.test(parts[0]) ? Number(parts[0]) : parts[0];
+    target = target[key];
+    parts.shift();
+  }
+  return target || null;
+}
+
+function syncNumberingAttachmentState(scope, attachments = []) {
+  const target = getNestedTarget(scope);
+  if (!target) return;
+  target.attachments = attachments.filter((attachment) => String(attachment?.fileName || "").trim());
+  target.attachmentName = target.attachments[0]?.fileName || "";
+  if (scope.startsWith("printStages.")) syncPrimaryPrintStage();
+}
+
+function readFileBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || "").split(",")[1] || "");
+    reader.onerror = () => reject(reader.error || new Error("No fue posible leer el adjunto."));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadNumberingAttachment(file) {
+  const quoteCode = String(state.form?.header?.quoteCode || "").trim();
+  const lineCode = String(state.form?.header?.lineCode || "").trim();
+  if (!quoteCode || !lineCode || !file) return null;
+  const contentBase64 = await readFileBase64(file);
+  const payload = await postJson(`/api/cotizaciones/${encodeURIComponent(quoteCode)}/lineas/${encodeURIComponent(lineCode)}/adjuntos`, {
+    fileName: file.name,
+    mimeType: file.type || "application/octet-stream",
+    fileExt: (file.name.split(".").pop() || "").trim(),
+    contentBase64,
+    notes: "Numerado"
+  });
+  return payload?.adjunto || null;
+}
+
 function applyDieDefaults(dieCode) {
   const die = findDie(dieCode);
   if (!die) return;
-  const metricsValue = resolveDieMetrics(die, state.context || {});
+  const metricsValue = resolveDieMetrics(die, state.context?.calculo || {});
   Object.assign(state.form.troquel, metricsValue);
   if (n(metricsValue.materialWidthIn, 0) > 0) {
     state.form.header.rollWidthIn = n(metricsValue.materialWidthIn, state.form.header.rollWidthIn);
@@ -4753,7 +7108,7 @@ function applyProcessDefaults(scope, processId) {
     const index = Number(scope.split(".")[1]);
     const finish = state.form.finishes[index];
     const config = EXTERNAL_FINISH_BY_KEY[finish?.processKey] || {};
-    const machine = findMachine(finish?.machineId) || selectSingleMachineOrNull(finishMachines(config));
+    const machine = findMachine(finish?.machineId);
     const machineCapacity = machine ? finishMachineCapacity(machine, config) : null;
     Object.assign(finish, {
       processId,
@@ -4834,10 +7189,12 @@ function applyPrintMachineDefaults(machineId) {
     speedMetersMin: printSpeedValue(firstPositiveNumber(machine.productionSpeed, capacity?.velocidad_produccion, 0)) || state.form.print.speedMetersMin,
     costHour: firstPositiveNumber(machine.hourlyMachineCost, capacity?.costo_hora_maquina, state.form.print.costHour),
     operatorHourCost: firstPositiveNumber(machine.hourlyOperatorCost, capacity?.costo_hora_operario, state.form.print.operatorHourCost),
-    availableColors: machineSupportsInline(machine) ? 8 : 4
+    availableColors: machineSupportsInline(machine) ? 8 : 4,
+    maculaSetupFeet: defaultPrintMaculaSetupFeet(machineId)
   });
   if (Array.isArray(state.form.printStages) && state.form.printStages.length) {
     Object.assign(state.form.printStages[0], state.form.print);
+    syncInlineFinishesForMachine(0);
   }
 }
 
@@ -4875,12 +7232,158 @@ function applyPrintStageMachineDefaults(scope, machineId) {
     digitalPremierMode: digitalSettings.premierMode,
     digitalPremierSetupMin: digitalSettings.premierSetupMin,
     digitalPremierOfflineCostPerMeter: digitalSettings.premierOfflineCostPerMeter,
-    digitalPremierMaintenanceCost: digitalSettings.premierMaintenanceCost
+    digitalPremierMaintenanceCost: digitalSettings.premierMaintenanceCost,
+    maculaSetupFeet: defaultPrintMaculaSetupFeet(machineId)
   });
+  syncInlineFinishesForMachine(index);
   if (index === 0) syncPrimaryPrintStage();
 }
 
+function commitDetailsCommercialValue(key, value) {
+  state.form.commercial[key] = n(value, 0);
+  if (els[key]) els[key].value = state.form.commercial[key];
+  scheduleSave();
+  renderProcesses();
+}
+
+function openDetailsCommercialEditor(button) {
+  const key = button?.dataset?.detailsEdit;
+  if (!key || !Object.prototype.hasOwnProperty.call(state.form.commercial, key)) return;
+  const rowNode = button.closest(".details-cost-row");
+  const targetCell = rowNode?.querySelector(".details-cost-value.is-edit-target");
+  if (!targetCell) return;
+  const input = document.createElement("input");
+  input.type = "number";
+  input.min = "0";
+  input.step = "0.01";
+  if (key === "discountPct") input.max = "100";
+  input.className = "details-adjust-input";
+  input.value = state.form.commercial[key] ?? 0;
+  targetCell.innerHTML = "";
+  targetCell.appendChild(input);
+  input.focus();
+  input.select();
+  const commit = () => commitDetailsCommercialValue(key, input.value);
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") commit();
+    if (event.key === "Escape") renderProcesses();
+  });
+  input.addEventListener("blur", commit, { once: true });
+}
+
+function bindDetailsDemo() {
+  els.detailsProformaButton?.addEventListener("click", (event) => {
+    event.preventDefault();
+    openProformaForCurrentQuote().catch(() => {
+      showCenterMessage("No fue posible validar la proforma en este momento.");
+    });
+  });
+  els.detailsCostTable?.addEventListener("click", (event) => {
+    const trigger = event.target.closest("[data-details-edit]");
+    if (!trigger) return;
+    event.preventDefault();
+    openDetailsCommercialEditor(trigger);
+  });
+  els.quoteTrackingMount?.addEventListener("click", (event) => {
+    const toggle = event.target.closest("[data-tracking-toggle]");
+    if (toggle) {
+      state.quoteTracking.panelOpen = !state.quoteTracking.panelOpen;
+      renderQuoteTracking();
+      return;
+    }
+    const proforma = event.target.closest("[data-tracking-proforma]");
+    if (proforma) {
+      event.preventDefault();
+      openProformaForCurrentQuote().catch(() => showCenterMessage("No fue posible validar la proforma en este momento."));
+      return;
+    }
+    const complete = event.target.closest("[data-tracking-complete]");
+    if (complete) {
+      completeQuoteTrackingMilestone(Number(complete.dataset.trackingComplete)).catch((error) => {
+        showCenterMessage(error.message || "No fue posible actualizar el seguimiento.");
+      });
+      return;
+    }
+    const createOrder = event.target.closest("[data-tracking-create-order]");
+    if (createOrder) {
+      createOrder.disabled = true;
+      createProductionOrderFromTracking(Number(createOrder.dataset.trackingCreateOrder)).catch((error) => {
+        showCenterMessage(error.message || "No fue posible crear la orden.");
+      }).finally(() => {
+        createOrder.disabled = false;
+      });
+      return;
+    }
+    const closeReason = event.target.closest("[data-tracking-open-close-reason]");
+    if (closeReason) {
+      openQuoteClosureForm(Number(closeReason.dataset.trackingOpenCloseReason));
+      return;
+    }
+    const closeSubmit = event.target.closest("[data-tracking-submit-close]");
+    if (closeSubmit) {
+      submitQuoteClosureReason(Number(closeSubmit.dataset.trackingSubmitClose)).catch((error) => {
+        showCenterMessage(error.message || "No fue posible guardar el cierre.");
+      });
+      return;
+    }
+    const createProduct = event.target.closest("[data-tracking-create-product]");
+    if (createProduct) {
+      createProduct.disabled = true;
+      createProductFromCurrentLine().catch((error) => {
+        showCenterMessage(error.message || "No fue posible crear el producto.");
+      }).finally(() => {
+        createProduct.disabled = false;
+      });
+      return;
+    }
+    const undo = event.target.closest("[data-tracking-undo]");
+    if (undo) {
+      undoQuoteTrackingMilestone(Number(undo.dataset.trackingUndo));
+      return;
+    }
+    const openForm = event.target.closest("[data-tracking-open-form]");
+    if (openForm) {
+      openQuoteTrackingForm(Number(openForm.dataset.trackingOpenForm));
+      return;
+    }
+    if (event.target.closest("[data-tracking-close-form]")) {
+      closeQuoteTrackingForm();
+      return;
+    }
+    const submit = event.target.closest("[data-tracking-submit-cr]");
+    if (submit) {
+      submitQuoteTrackingChange(Number(submit.dataset.trackingSubmitCr)).catch(() => {
+        showCenterMessage("No fue posible enviar la solicitud de cambios.");
+      });
+    }
+  });
+  els.quoteTrackingMount?.addEventListener("input", (event) => {
+    if (event.target.matches("[data-tracking-textarea]")) event.target.classList.remove("error");
+    if (event.target.matches("[data-tracking-close-input]")) event.target.classList.remove("error");
+  });
+}
+
 function bindHeader() {
+  els.frontBackElementsBody?.addEventListener("click", async (event) => {
+    const tab = event.target.closest("[data-front-back-element-tab]");
+    if (tab) {
+      const nextCode = tab.dataset.frontBackElementTab || "";
+      const currentCode = state.frontBackActiveElementLineCode || "";
+      if (currentCode) await persistFrontBackEmbeddedFrame(currentCode);
+      state.frontBackActiveElementLineCode = currentCode === nextCode ? "" : nextCode;
+      renderFrontBackElementsCard();
+      renderProcesses();
+      return;
+    }
+    const openButton = event.target.closest("[data-front-back-open-line]");
+    if (openButton) {
+      const lineCode = openButton.dataset.frontBackOpenLine || "";
+      const related = [state.context?.calculo, ...(state.context?.lineasRelacionadas || [])].filter(Boolean);
+      const target = related.find((line) => String(line.lineCode || line.line_code || line.linea || "").trim() === lineCode);
+      const route = storedLineRoute(target || { line_code: lineCode, quote_code: state.form?.header?.quoteCode });
+      if (route && !openRouteInShell(route, `Cálculo ${lineCode}`)) window.location.href = route;
+    }
+  });
   [["customerCode", els.customerCode, "text"], ["customerName", els.customerName, "text"], ["productType", els.productType, "text"], ["jobName", els.jobName, "text"], ["salespersonName", els.salespersonName, "text"], ["workType", els.workType, "text"], ["labelWidthIn", els.labelWidthIn, "number"], ["labelHeightIn", els.labelHeightIn, "number"], ["rollWidthIn", els.rollWidthIn, "number"], ["coreDiameter", els.coreDiameter, "text"], ["labelsPerRoll", els.labelsPerRoll, "number"], ["applicationType", els.applicationType, "text"], ["applicationEnvironment", els.applicationEnvironment, "text"], ["surfaceType", els.surfaceType, "text"], ["outputType", els.outputType, "text"], ["quantityTypes", els.quantityTypes, "number"], ["quantityChanges", els.quantityChanges, "number"], ["pantoneCount", els.pantoneCount, "number"]].forEach(([key, element, type]) => {
     const updateState = () => {
       state.form.header[key] = type === "number" ? n(element.value, 0) : element.value;
@@ -4917,6 +7420,12 @@ function bindHeader() {
   els.sapPreviewOpenOutputButton?.addEventListener("click", (event) => {
     event.stopPropagation();
     openSapOutputView();
+  });
+  els.viewProformaButton?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openProformaForCurrentQuote().catch(() => {
+      showCenterMessage("No fue posible validar la proforma en este momento.");
+    });
   });
   [["overheadPct", els.overheadPct], ["marginPct", els.marginPct], ["taxPct", els.taxPct], ["discountPct", els.discountPct]].forEach(([key, element]) => {
     element.addEventListener("input", () => { state.form.commercial[key] = n(element.value, 0); scheduleSave(); });
@@ -4965,6 +7474,10 @@ function bindQuantityRepeater() {
   els.quantityRepeater.addEventListener("input", (event) => {
     const input = event.target.closest("input[data-quantity-index]");
     if (!input) return;
+    if (isFrontBackElementContext()) {
+      input.value = formatInteger(currentQuantity(state.form));
+      return;
+    }
     const index = Number(input.dataset.quantityIndex);
     state.form.header.quantities[index].value = Math.max(0, n(input.value, 0));
     input.value = state.form.header.quantities[index].value ? formatInteger(state.form.header.quantities[index].value) : "";
@@ -4975,6 +7488,10 @@ function bindQuantityRepeater() {
   els.quantityRepeater.addEventListener("change", (event) => {
     const input = event.target.closest("input[data-quantity-index]");
     if (!input) return;
+    if (isFrontBackElementContext()) {
+      input.value = formatInteger(currentQuantity(state.form));
+      return;
+    }
     const index = Number(input.dataset.quantityIndex);
     state.form.header.quantities[index].value = Math.max(0, n(input.value, 0));
     input.value = state.form.header.quantities[index].value ? formatInteger(state.form.header.quantities[index].value) : "";
@@ -4985,24 +7502,30 @@ function bindQuantityRepeater() {
   els.quantityRepeater.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-action]");
     if (!button) return;
+    if (isFrontBackElementContext()) return;
     if (button.dataset.action === "add-quantity") {
       if (state.form.header.quantities.length >= getQuantityCapacity()) return;
-      state.form.header.quantities.push({ id: `qty-${state.form.header.quantities.length + 1}`, value: 0 });
+      const index = Number(button.dataset.index);
+      const insertAt = Number.isInteger(index) ? index + 1 : state.form.header.quantities.length;
+      state.form.header.quantities.splice(insertAt, 0, { id: `qty-${Date.now()}`, value: 0 });
       state.form.header.quantities = normalizeQuantities(state.form.header.quantities);
       syncDerivedHeaderAndPackaging(state.form);
       renderHeader();
       renderProcesses();
-      els.quantityRepeater.querySelector(`input[data-quantity-index="${state.form.header.quantities.length - 1}"]`)?.focus();
+      els.quantityRepeater.querySelector(`input[data-quantity-index="${Math.min(insertAt, state.form.header.quantities.length - 1)}"]`)?.focus();
       scheduleSave();
       return;
     }
     if (button.dataset.action === "remove-quantity") {
       if (state.form.header.quantities.length <= 1) return;
-      state.form.header.quantities.pop();
+      const index = Number(button.dataset.index);
+      const removeAt = Number.isInteger(index) ? index : state.form.header.quantities.length - 1;
+      state.form.header.quantities.splice(Math.max(0, Math.min(removeAt, state.form.header.quantities.length - 1)), 1);
       state.form.header.quantities = normalizeQuantities(state.form.header.quantities);
       syncDerivedHeaderAndPackaging(state.form);
       renderHeader();
       renderProcesses();
+      els.quantityRepeater.querySelector(`input[data-quantity-index="${Math.max(0, Math.min(removeAt, state.form.header.quantities.length - 1))}"]`)?.focus();
       scheduleSave();
     }
   });
@@ -5022,6 +7545,41 @@ function bindProcesses() {
     const field = target.dataset.field;
     if (!scope || !field) return;
     if (scope.startsWith("additional.") && !state.form.additional[Number(scope.split(".")[1])]) state.form.additional[Number(scope.split(".")[1])] = { description: "", cost: 0, attachmentName: "", comments: "" };
+    if (scope.startsWith("plates.external.")) {
+      state.form.plates.external = normalizePlateExternalRows(state.form.plates.external);
+      const index = Number(scope.split(".")[2]);
+      if (Number.isInteger(index) && !state.form.plates.external[index]) state.form.plates.external[index] = { description: "", cost: 0, attachmentName: "", comments: "" };
+    }
+    if (target.dataset.kind === "file" && field === "numberingAttachment") {
+      const file = target.files?.[0] || null;
+      if (!file) return;
+      const targetItem = getNestedTarget(scope);
+      const attachments = normalizeNumberingAttachments(targetItem);
+      const index = Math.max(0, Number(target.dataset.numberingAttachmentIndex) || 0);
+      attachments[index] = { id: "", fileName: file.name, notes: "Numerado" };
+      syncNumberingAttachmentState(scope, attachments);
+      renderProcesses();
+      scheduleSave();
+      uploadNumberingAttachment(file)
+        .then((stored) => {
+          if (!stored?.id) return;
+          const currentItem = getNestedTarget(scope);
+          const currentAttachments = normalizeNumberingAttachments(currentItem);
+          const matchIndex = currentAttachments.findIndex((attachment, itemIndex) => itemIndex === index || attachment.fileName === file.name);
+          if (matchIndex < 0) return;
+          currentAttachments[matchIndex] = {
+            id: String(stored.id || ""),
+            fileName: String(stored.file_name || stored.fileName || file.name),
+            notes: "Numerado"
+          };
+          syncNumberingAttachmentState(scope, currentAttachments);
+          scheduleSave();
+        })
+        .catch((error) => {
+          els.calcStatus.textContent = error.message || "No fue posible guardar el adjunto general.";
+        });
+      return;
+    }
     let value = target.dataset.kind === "file" ? (target.files?.[0]?.name || "") : target.type === "checkbox" ? target.checked : target.type === "number" ? n(target.value, 0) : target.value;
     if (target.tagName === "SELECT" && field === "isQr") value = String(target.value).toLowerCase() === "true";
     if ((scope === "print" || scope.startsWith("printStages.")) && field === "speedMetersMin") {
@@ -5040,7 +7598,13 @@ function bindProcesses() {
       const parts = scope.split(".");
       const stageIndex = Number(parts[1]);
       if (state.form.printStages?.[stageIndex]?.inlineFinishes?.numerado) {
-        state.form.printStages[stageIndex].inlineFinishes.numerado.isQr = /qr/i.test(String(value || ""));
+        const normalizedType = normalizeNumberingType(value);
+        state.form.printStages[stageIndex].inlineFinishes.numerado.numberingType = normalizedType;
+        state.form.printStages[stageIndex].inlineFinishes.numerado.isQr = /qr/i.test(normalizedType);
+        if (!isConsecutiveNumbering(normalizedType)) {
+          state.form.printStages[stageIndex].inlineFinishes.numerado.rangeFrom = "";
+          state.form.printStages[stageIndex].inlineFinishes.numerado.rangeTo = "";
+        }
       }
     }
     if (scope === "substrate" && field === "materialId") {
@@ -5092,14 +7656,20 @@ function bindProcesses() {
       const material = findMaterial(value);
       if (inlineKey === "barniz") {
         Object.assign(state.form.printStages[stageIndex].inlineFinishes[inlineKey], {
-          costPerLb: materialCostPerPound(material)
+          costPerLb: materialCostPerPound(material),
+          costPerKg: n(material?.costo_x_kg, 0),
+          layerGft2: n(first(material?.rendimiento_g_ft2, material?.peso_capa_gsm), 0)
         });
       } else {
         const costs = materialUnitCosts(material, state.form.header.rollWidthIn);
         Object.assign(state.form.printStages[stageIndex].inlineFinishes[inlineKey], {
           costPerFoot: costs.costPerFoot,
           costPerMeter: costs.costPerMeter,
-          costPerMsi: costs.costMsi
+          costPerMsi: costs.costMsi,
+          costPerFt2: n(first(material?.costo_x_ft2, material?.costoPorFt2), 0),
+          costPerUnit: n(material?.costo_x_unidad, 0),
+          costPerKg: n(material?.costo_x_kg, 0),
+          layerGft2: n(first(material?.rendimiento_g_ft2, material?.peso_capa_gsm), 0)
         });
       }
       syncPrimaryPrintStage();
@@ -5151,6 +7721,57 @@ function bindProcesses() {
       renderProcesses();
       scheduleSave();
       return;
+    }
+    if (button.dataset.action === "clear-numbering-attachment") {
+      const scope = button.dataset.scope;
+      if (scope) {
+        const target = getNestedTarget(scope);
+        const attachments = normalizeNumberingAttachments(target);
+        const index = Number(button.dataset.index);
+        const removed = Number.isInteger(index) ? attachments.splice(index, 1)[0] : attachments.shift();
+        syncNumberingAttachmentState(scope, attachments);
+        if (removed?.id) {
+          fetch(`/api/adjuntos/${encodeURIComponent(removed.id)}`, { method: "DELETE" }).catch(() => null);
+        }
+        renderProcesses();
+        scheduleSave();
+      }
+      return;
+    }
+    if (button.dataset.action === "clear-additional-attachment") {
+      const index = Number(button.dataset.index);
+      if (Number.isInteger(index) && state.form.additional?.[index]) {
+        state.form.additional[index].attachmentName = "";
+        renderProcesses();
+        scheduleSave();
+      }
+      return;
+    }
+    if (button.dataset.action === "set-plate-mode") {
+      state.form.plates.plateMode = normalizePlateMode(button.dataset.plateMode);
+      state.form.plates.external = normalizePlateExternalRows(state.form.plates.external);
+      state.form.plates.inventory = state.form.plates.inventory && typeof state.form.plates.inventory === "object" ? state.form.plates.inventory : { materialId: "" };
+      renderProcesses();
+      scheduleSave();
+      return;
+    }
+    if (button.dataset.action === "clear-plate-external-attachment") {
+      const index = Number(button.dataset.index);
+      if (Number.isInteger(index) && state.form.plates?.external?.[index]) {
+        state.form.plates.external[index].attachmentName = "";
+        renderProcesses();
+        scheduleSave();
+      }
+      return;
+    }
+    if (button.dataset.action === "add-plate-external") {
+      state.form.plates.external = normalizePlateExternalRows(state.form.plates.external);
+      state.form.plates.external.push({ description: "", cost: 0, attachmentName: "", comments: "" });
+    }
+    if (button.dataset.action === "remove-plate-external") {
+      state.form.plates.external = normalizePlateExternalRows(state.form.plates.external);
+      state.form.plates.external.splice(Number(button.dataset.index), 1);
+      state.form.plates.external = normalizePlateExternalRows(state.form.plates.external);
     }
     if (button.dataset.action === "add-additional") state.form.additional.push({ description: "", cost: 0, attachmentName: "", comments: "" });
     if (button.dataset.action === "remove-additional") state.form.additional.splice(Number(button.dataset.index), 1);
@@ -5343,10 +7964,17 @@ function bindProcessPicker() {
   });
 }
 
+function isBdfgProcessMessageForCurrentLine(data = {}) {
+  const targetLineCode = String(data.lineCode || data.targetLineCode || "").trim();
+  if (!targetLineCode) return true;
+  return targetLineCode === String(state.form?.header?.lineCode || "").trim();
+}
+
 function bindBdfgProcessTray() {
   window.addEventListener("message", (event) => {
     if (event.origin !== window.location.origin) return;
     const data = event.data || {};
+    if (!isBdfgProcessMessageForCurrentLine(data)) return;
     if (data.type === "erp-process-drag-start") {
       state.draggingProcessKey = String(data.processId || "").trim();
       els.processSections?.classList.add("is-drop-target");
@@ -5420,6 +8048,7 @@ async function init() {
       // Ignore persisted launcher position errors and fall back to CSS defaults.
     }
     bindHeader();
+    bindDetailsDemo();
     bindFavoriteDocument();
     bindTimelineLauncher();
     bindQuantityRepeater();
@@ -5427,6 +8056,8 @@ async function init() {
     bindProcessPicker();
     bindProcessLauncher();
     bindBdfgProcessTray();
+    const jumpProcess = String(params.get("jumpProcess") || "").trim();
+    if (jumpProcess) setTimeout(() => jumpToProcessIssue(jumpProcess), 350);
     window.addEventListener("resize", () => {
       renderQuantities();
       updateProcessLauncherMenuPlacement();
@@ -5443,6 +8074,40 @@ document.addEventListener("toggle", (event) => {
 }, true);
 
 document.addEventListener("click", (event) => {
+  const closeMessage = event.target.closest?.("[data-close-calc-message]");
+  if (closeMessage) {
+    event.preventDefault();
+    event.stopPropagation();
+    document.getElementById("calcCenterMessage")?.setAttribute("hidden", "");
+    return;
+  }
+  const processJump = event.target.closest?.("[data-jump-process]");
+  if (processJump) {
+    event.preventDefault();
+    event.stopPropagation();
+    jumpToProcessIssue(processJump.dataset.jumpProcess);
+    return;
+  }
+  const closeSubmit = event.target.closest?.("[data-tracking-submit-close]");
+  if (closeSubmit && document.getElementById("calcCenterMessage")?.contains(closeSubmit)) {
+    event.preventDefault();
+    event.stopPropagation();
+    closeSubmit.disabled = true;
+    submitQuoteClosureReason(Number(closeSubmit.dataset.trackingSubmitClose))
+      .then((saved) => {
+        if (saved) document.getElementById("calcCenterMessage")?.setAttribute("hidden", "");
+      })
+      .catch((error) => showCenterMessage(error.message || "No fue posible guardar el cierre."))
+      .finally(() => { closeSubmit.disabled = false; });
+    return;
+  }
+  const routeLink = event.target.closest?.("[data-route]");
+  if (routeLink) {
+    event.preventDefault();
+    event.stopPropagation();
+    openAppRoute(routeLink.dataset.route, routeLink.dataset.label || routeLink.textContent || "Documento");
+    return;
+  }
   const trigger = event.target.closest?.(".info-popover-trigger");
   const panel = state.infoPopover.panel;
   if (trigger) {
@@ -5455,6 +8120,42 @@ document.addEventListener("click", (event) => {
     closeInfoPopover();
   }
 }, true);
+
+document.addEventListener("click", (event) => {
+  const toggle = event.target.closest?.("[data-details-toggle]");
+  if (!toggle || !els.detailsCostTable?.contains(toggle)) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const key = toggle.dataset.detailsToggle;
+  state.detailsOpen[key] = !state.detailsOpen[key];
+  renderDetailsDemo(totals());
+}, true);
+
+document.addEventListener("pointerover", (event) => {
+  const trigger = event.target.closest?.(".details-cost-value.has-tooltip");
+  if (!trigger || !els.detailsCostTable?.contains(trigger)) return;
+  showInfoPopover(trigger);
+});
+
+document.addEventListener("pointerout", (event) => {
+  const trigger = event.target.closest?.(".details-cost-value.has-tooltip");
+  if (!trigger || !els.detailsCostTable?.contains(trigger)) return;
+  if (event.relatedTarget && trigger.contains(event.relatedTarget)) return;
+  if (state.infoPopover.trigger === trigger) closeInfoPopover();
+});
+
+document.addEventListener("focusin", (event) => {
+  const trigger = event.target.closest?.(".details-cost-value.has-tooltip");
+  if (!trigger || !els.detailsCostTable?.contains(trigger)) return;
+  showInfoPopover(trigger);
+});
+
+document.addEventListener("focusout", (event) => {
+  const trigger = event.target.closest?.(".details-cost-value.has-tooltip");
+  if (!trigger || !els.detailsCostTable?.contains(trigger)) return;
+  if (event.relatedTarget && trigger.contains(event.relatedTarget)) return;
+  if (state.infoPopover.trigger === trigger) closeInfoPopover();
+});
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {

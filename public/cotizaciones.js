@@ -4,32 +4,32 @@ const SMART_CATALOGS_ENDPOINT = '/api/cotizaciones-inteligentes/catalogos';
 const PARTNERS_ENDPOINT = '/api/socios';
 const SESSION_STORAGE_KEY = 'erp-user-session';
 const LAUNCHER_POSITION_KEY = 'quote-request-launcher-position-v2';
+const QUOTE_CONFIG_CACHE_KEY = 'erp-quotes-config-cache';
+const QUOTE_CONFIG_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+const QUOTE_CONFIG_CACHE_TEXT_LIMIT = 24000;
 const DEFAULT_ICON_MAP = {
     processLauncher: { value: '/assets/icons/exclusive-launcher.png', color: '#1e516d', size: 48 },
-    quoteRequestSubmit: { value: 'âž¤', color: '#ffffff', size: 18 },
-    quoteRequestAdvanced: { value: 'âš™', color: '#5f7288', size: 18 },
-    quoteRequestAttachment: { value: 'â—‰', color: '#1e516d', size: 18 },
-    quoteRequestRecord: { value: 'â—', color: '#1e516d', size: 18 },
-    quoteRequestRecordStop: { value: 'â– ', color: '#ef4444', size: 18 },
+    quoteRequestSubmit: { value: '\u27a4', color: '#ffffff', size: 18 },
+    quoteRequestAdvanced: { value: '\u2699', color: '#5f7288', size: 18 },
+    quoteRequestAttachment: { value: '\u25c9', color: '#1e516d', size: 18 },
+    quoteRequestRecord: { value: '\u25cf', color: '#1e516d', size: 18 },
+    quoteRequestRecordStop: { value: '\u25a0', color: '#ef4444', size: 18 },
     quoteRequestAttachmentDelete: { value: 'X', color: '#b94848', size: 18 },
+    'quantity.add': { value: '+', color: '#738196', size: 20 },
+    'quantity.delete': { value: '×', color: '#b94848', size: 18 },
     'icons.quantity.delete': { value: '×', color: '#a74343', size: 18 },
     // New keys for premium sync
-    crearCotizacion: { value: 'âž¤', color: '#1e516d', size: 24 },
-    procesoAvanzadoFlotante: { value: 'âš™', color: '#5f7288', size: 20 },
-    proformaView: { value: 'ðŸ‘', color: '#1e516d', size: 18 },
-    proformaClose: { value: 'âœ“', color: '#1e516d', size: 18 }
+    crearCotizacion: { value: '\u27a4', color: '#1e516d', size: 24 },
+    procesoAvanzadoFlotante: { value: '\u2699', color: '#5f7288', size: 20 },
+    proformaView: { value: '\ud83d\udc41', color: '#1e516d', size: 18 },
+    proformaClose: { value: '\u2713', color: '#1e516d', size: 18 },
+    quoteExpand: { value: '▸', color: '#607286', size: 18 },
+    quoteCollapse: { value: '▾', color: '#607286', size: 18 },
+    lineReorder: { value: '⋮⋮', color: '#607286', size: 18 },
+    lineMenu: { value: '⋯', color: '#607286', size: 18 },
+    lineProforma: { value: '\ud83d\udc41', color: '#1e516d', size: 16 },
+    lineAdd: { value: '+', color: '#1e516d', size: 18 }
 };
-const STATIC_MATERIALS = [
-    'OPP Blanco',
-    'OPP Transparente',
-    'Papel Couche',
-    'Papel Térmico',
-    'Papel Transfer',
-    'PET Blanco',
-    'PET Transparente',
-    'Vinil Blanco',
-    'Vinil Transparente'
-];
 const DEFAULT_SURFACES = ['Botella', 'Caja', 'Carton', 'Envase', 'Frasco', 'Pouch', 'Tapa', 'Vidrio'];
 const DEFAULT_PRODUCT_TYPES = ['Etiquetas', 'Cinta Continua', 'Empaque Flexible', 'Código de Barras', 'Números de Carrera'];
 
@@ -37,6 +37,7 @@ const rowsBody = document.getElementById('quotesTableBody');
 const quotesTableWrap = document.querySelector('.quote-browser-table-wrap');
 const quotesScrollBottomIndicator = document.getElementById('quotesScrollBottomIndicator');
 const quotesSearchInput = document.getElementById('quotesSearchInput');
+const nuevoCalculoButton = document.getElementById('nuevoCalculoButton');
 const nuevaCotizacionButton = document.getElementById('nuevaCotizacionButton');
 const refreshQuotesButton = document.getElementById('refreshQuotesButton');
 const sapConnectorButton = document.getElementById('sapConnectorButton');
@@ -47,15 +48,34 @@ const form = document.getElementById('nuevaCotizacionForm');
 const statusNode = document.getElementById('nuevaCotizacionStatus');
 const customerNameInput = document.getElementById('nuevoClienteNombre');
 const customerCodeInput = document.getElementById('nuevoClienteCodigo');
+const customerContactSelect = document.getElementById('nuevoClienteContacto');
 const customerLookupPanel = document.getElementById('quoteCustomerLookupPanel');
 const customerLookupResults = document.getElementById('quoteCustomerLookupResults');
+const newCalcPopover = document.getElementById('nuevoCalculoPopover');
+const newCalcForm = document.getElementById('nuevoCalculoForm');
+const newCalcCloseButton = document.getElementById('cerrarNuevoCalculoButton');
+const newCalcCancelButton = document.getElementById('cancelarNuevoCalculoButton');
+const newCalcSubmitButton = document.getElementById('aceptarNuevoCalculoButton');
+const newCalcCustomerNameInput = document.getElementById('nuevoCalculoClienteNombre');
+const newCalcCustomerCodeInput = document.getElementById('nuevoCalculoClienteCodigo');
+const newCalcContactSelect = document.getElementById('nuevoCalculoContacto');
+const newCalcCustomerLookupPanel = document.getElementById('newCalcCustomerLookupPanel');
+const newCalcCustomerLookupResults = document.getElementById('newCalcCustomerLookupResults');
+const newCalcStatusNode = document.getElementById('nuevoCalculoStatus');
 const requestProcessTypeInput = document.getElementById('requestProcessType');
 const fixedSizeSelect = document.getElementById('requestFixedSize');
+const fixedSizeTrigger = document.getElementById('requestFixedSizeTrigger');
+const fixedSizePanel = document.getElementById('requestFixedSizePanel');
+const customSizeFields = document.getElementById('requestCustomSizeFields');
+const customWidthInput = document.getElementById('requestCustomWidth');
+const customHeightInput = document.getElementById('requestCustomHeight');
 const materialInput = document.getElementById('requestMaterial');
 const materialSuggestions = document.getElementById('materialSuggestions');
 const surfaceInput = document.getElementById('requestSurface');
 const surfaceSuggestions = document.getElementById('surfaceSuggestions');
 const requestProductTypeSelect = document.getElementById('requestProductType');
+const requestProductTypeTrigger = document.getElementById('requestProductTypeTrigger');
+const requestProductTypePanel = document.getElementById('requestProductTypePanel');
 const requestQuantityRepeater = document.getElementById('requestQuantityRepeater');
 const stampingWidthInput = document.getElementById('stampingWidth');
 const routePreviewConfig = document.getElementById('requestRoutePreviewConfig');
@@ -77,17 +97,27 @@ const numberingPopoverTrigger = document.getElementById('numberingPopoverTrigger
 const numberingPopover = document.getElementById('numberingPopover');
 const numberingPopoverClose = document.getElementById('numberingPopoverClose');
 const numberingSummary = document.getElementById('numberingSummary');
+const numberingRangeFields = document.getElementById('numberingRangeFields');
 const numberingRangeStartInput = document.getElementById('numberingRangeStart');
 const numberingRangeEndInput = document.getElementById('numberingRangeEnd');
 const numberingDetailInput = document.getElementById('numberingDetail');
 const numberingAttachmentInput = document.getElementById('numberingAttachmentInput');
 const numberingAttachmentMeta = document.getElementById('numberingAttachmentMeta');
+const numberingAttachmentRows = document.getElementById('numberingAttachmentRows');
 const attachmentsInput = document.getElementById('requestAttachments');
 const attachmentsPreview = document.getElementById('requestAttachmentsPreview');
 const attachmentPreviewModal = document.getElementById('attachmentPreviewModal');
 const attachmentPreviewTitle = document.getElementById('attachmentPreviewTitle');
 const attachmentPreviewContent = document.getElementById('attachmentPreviewContent');
 const attachmentPreviewClose = document.getElementById('attachmentPreviewClose');
+const frontBackModal = document.getElementById('frontBackModal');
+const frontBackCurrent = document.getElementById('frontBackCurrent');
+const frontBackOptions = document.getElementById('frontBackOptions');
+const frontBackWarning = document.getElementById('frontBackWarning');
+const frontBackClose = document.getElementById('frontBackClose');
+const frontBackCancel = document.getElementById('frontBackCancel');
+const frontBackSave = document.getElementById('frontBackSave');
+const frontBackUnlink = document.getElementById('frontBackUnlink');
 const audioRecordButton = document.getElementById('audioRecordButton');
 const audioRecordIndicator = document.getElementById('audioRecordIndicator');
 const launcherWrap = document.getElementById('quoteRequestCreateButtonWrap');
@@ -181,7 +211,24 @@ function canCreateModule(moduleKey) {
 
 function sessionHeader() {
     const session = readUserSession();
-    return session ? { 'x-erp-session': JSON.stringify(session) } : {};
+    if (!session) return {};
+    return {
+        'x-erp-session': JSON.stringify({
+            id: session.id || session.userId || session.sessionId || '',
+            userId: session.userId || session.id || '',
+            username: session.username || session.user || '',
+            user: session.user || session.username || '',
+            name: session.name || session.fullName || session.user || session.username || '',
+            fullName: session.fullName || session.name || '',
+            permissionName: session.permissionName || '',
+            modules: session.modules || {}
+        })
+    };
+}
+
+function currentUserName() {
+    const session = readUserSession();
+    return normalizeText(session?.name || session?.fullName || session?.user || session?.username || 'Vendedor');
 }
 
 function formatVisibleCountLabel(count, noun) {
@@ -203,13 +250,19 @@ let quoteCatalog = [];
 let quoteSearchTimer = null;
 let quoteTreeLineSequence = 100000;
 const expandedQuoteCodes = new Set();
+const expandedFrontBackGroupKeys = new Set();
 const quoteLineCache = new Map();
 const quoteLineLoading = new Set();
 const quoteLineLookup = new Map();
+const quoteLineActionLocks = new Set();
 let selectedQuoteContextCode = '';
 let selectedQuoteContextLineId = 0;
+let frontBackModalRow = null;
 let partnerLookupAbort = null;
-let materialItems = STATIC_MATERIALS.map((name) => ({ code: '', name }));
+let requestContactAbort = null;
+let newCalcPartnerLookupAbort = null;
+let newCalcContactAbort = null;
+let materialItems = [];
 let surfaceItems = [...DEFAULT_SURFACES];
 let pendingAttachments = [];
 let mediaRecorder = null;
@@ -277,6 +330,123 @@ function renderRequestProductTypeOptions() {
     const currentValue = normalizeText(requestProductTypeSelect.value);
     requestProductTypeSelect.innerHTML = options.map((item) => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join('');
     requestProductTypeSelect.value = options.includes(currentValue) ? currentValue : (options[0] || '');
+    renderRequestProductTypePanel(options);
+    syncRequestProductTypeTrigger();
+}
+
+function syncRequestProductTypeTrigger() {
+    const value = requestProductTypeSelect?.value || '';
+    const textNode = requestProductTypeTrigger?.querySelector('[data-product-type-text]');
+    if (textNode) textNode.textContent = value;
+}
+
+function renderRequestProductTypePanel(options = resolveConfiguredProductTypes()) {
+    if (!requestProductTypePanel) return;
+    const selected = requestProductTypeSelect?.value || '';
+    requestProductTypePanel.innerHTML = options.map((item) => `
+        <button type="button" class="quote-request-lookup-item${item === selected ? ' is-selected' : ''}" data-product-type-value="${escapeHtml(item)}" role="option" aria-selected="${item === selected ? 'true' : 'false'}">
+            <span class="quote-request-lookup-name">${escapeHtml(item)}</span>
+        </button>
+    `).join('');
+}
+
+function positionRequestProductTypePanel() {
+    if (!requestProductTypePanel || !requestProductTypeTrigger || requestProductTypePanel.hidden) return;
+    if (requestProductTypePanel.parentElement !== document.body) {
+        document.body.appendChild(requestProductTypePanel);
+    }
+    const rect = requestProductTypeTrigger.getBoundingClientRect();
+    const viewportGap = 8;
+    const width = Math.min(rect.width, window.innerWidth - viewportGap * 2);
+    const left = Math.min(Math.max(viewportGap, rect.left), window.innerWidth - width - viewportGap);
+    const top = rect.bottom + 2;
+    const maxHeight = Math.max(140, Math.min(460, window.innerHeight - top - viewportGap));
+
+    requestProductTypePanel.style.setProperty('--quote-product-type-left', `${left}px`);
+    requestProductTypePanel.style.setProperty('--quote-product-type-top', `${top}px`);
+    requestProductTypePanel.style.setProperty('--quote-product-type-width', `${width}px`);
+    requestProductTypePanel.style.setProperty('--quote-product-type-max-height', `${maxHeight}px`);
+}
+
+function positionMaterialSuggestionsPanel() {
+    if (!materialSuggestions || !materialInput || materialSuggestions.hidden) return;
+    if (materialSuggestions.parentElement !== document.body) {
+        document.body.appendChild(materialSuggestions);
+    }
+    const rect = materialInput.getBoundingClientRect();
+    const viewportGap = 8;
+    const width = Math.min(rect.width, window.innerWidth - viewportGap * 2);
+    const left = Math.min(Math.max(viewportGap, rect.left), window.innerWidth - width - viewportGap);
+    const top = rect.bottom + 2;
+    const maxHeight = Math.max(140, Math.min(420, window.innerHeight - top - viewportGap));
+
+    materialSuggestions.style.setProperty('--quote-material-panel-left', `${left}px`);
+    materialSuggestions.style.setProperty('--quote-material-panel-top', `${top}px`);
+    materialSuggestions.style.setProperty('--quote-material-panel-width', `${width}px`);
+    materialSuggestions.style.setProperty('--quote-material-panel-max-height', `${maxHeight}px`);
+}
+
+function syncFixedSizeTrigger() {
+    if (!fixedSizeSelect || !fixedSizeTrigger) return;
+    const textNode = fixedSizeTrigger.querySelector('[data-fixed-size-text]');
+    const selected = fixedSizeSelect.selectedOptions?.[0];
+    if (textNode) textNode.textContent = selected?.textContent || 'Selecciona una medida';
+    toggleCustomSizeFields();
+}
+
+function toggleCustomSizeFields() {
+    if (!customSizeFields || !fixedSizeSelect) return;
+    customSizeFields.hidden = fixedSizeSelect.value !== 'custom';
+}
+
+function renderFixedSizePanel() {
+    if (!fixedSizePanel || !fixedSizeSelect) return;
+    const selected = fixedSizeSelect.value || '';
+    fixedSizePanel.innerHTML = Array.from(fixedSizeSelect.options).map((option) => `
+        <button type="button" class="quote-request-lookup-item${option.value === selected ? ' is-selected' : ''}" data-fixed-size-value="${escapeHtml(option.value)}" role="option" aria-selected="${option.value === selected ? 'true' : 'false'}">
+            <span class="quote-request-lookup-name">${escapeHtml(option.textContent || '')}</span>
+        </button>
+    `).join('');
+}
+
+function positionFixedSizePanel() {
+    if (!fixedSizePanel || !fixedSizeTrigger || fixedSizePanel.hidden) return;
+    if (fixedSizePanel.parentElement !== document.body) {
+        document.body.appendChild(fixedSizePanel);
+    }
+    const rect = fixedSizeTrigger.getBoundingClientRect();
+    const viewportGap = 8;
+    const width = Math.min(rect.width, window.innerWidth - viewportGap * 2);
+    const left = Math.min(Math.max(viewportGap, rect.left), window.innerWidth - width - viewportGap);
+    const top = rect.bottom + 2;
+    const maxHeight = Math.max(140, Math.min(420, window.innerHeight - top - viewportGap));
+
+    fixedSizePanel.style.setProperty('--quote-fixed-size-left', `${left}px`);
+    fixedSizePanel.style.setProperty('--quote-fixed-size-top', `${top}px`);
+    fixedSizePanel.style.setProperty('--quote-fixed-size-width', `${width}px`);
+    fixedSizePanel.style.setProperty('--quote-fixed-size-max-height', `${maxHeight}px`);
+}
+
+function toggleFixedSizePanel(forceOpen = null) {
+    if (!fixedSizePanel || !fixedSizeTrigger) return;
+    const shouldOpen = forceOpen === null ? fixedSizePanel.hidden : forceOpen;
+    fixedSizePanel.hidden = !shouldOpen;
+    fixedSizeTrigger.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+    if (shouldOpen) {
+        renderFixedSizePanel();
+        positionFixedSizePanel();
+    }
+}
+
+function toggleRequestProductTypePanel(forceOpen = null) {
+    if (!requestProductTypePanel || !requestProductTypeTrigger) return;
+    const shouldOpen = forceOpen === null ? requestProductTypePanel.hidden : forceOpen;
+    requestProductTypePanel.hidden = !shouldOpen;
+    requestProductTypeTrigger.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+    if (shouldOpen) {
+        renderRequestProductTypePanel();
+        positionRequestProductTypePanel();
+    }
 }
 
 function parseRequestedQuantityValue(rawValue) {
@@ -301,62 +471,57 @@ function readRequestedQuantities() {
         .slice(0, 6);
 }
 
+function readRequestQuantityItems() {
+    const inputs = Array.from(requestQuantityRepeater?.querySelectorAll('input[data-request-quantity-index]') || []);
+    const items = inputs.map((input, index) => ({
+        id: `qty-${index + 1}`,
+        value: parseRequestedQuantityValue(input.value)
+    })).slice(0, 6);
+    return items.length ? items : [{ id: 'qty-1', value: 0 }];
+}
+
+function normalizeRequestQuantityItems(values = []) {
+    const source = Array.isArray(values) ? values : [];
+    const items = source.map((item, index) => ({
+        id: item?.id || `qty-${index + 1}`,
+        value: parseRequestedQuantityValue(typeof item === 'object' ? item.value : item)
+    })).slice(0, 6);
+    return items.length ? items : [{ id: 'qty-1', value: 0 }];
+}
+
+function getRequestQuantityCapacity() {
+    const containerWidth = Math.max(0, requestQuantityRepeater?.clientWidth || 0);
+    if (!containerWidth) return 1;
+    const layout = { normalWidth: 150, lastWidth: 190, gap: 8 };
+    let count = 1;
+    while (count < 6) {
+        const width = ((count - 1) * layout.normalWidth) + layout.lastWidth + ((count - 1) * layout.gap);
+        if (width > containerWidth) return Math.max(1, count - 1);
+        count += 1;
+    }
+    return 6;
+}
+
 function renderRequestQuantityRepeater(values = null) {
     if (!requestQuantityRepeater) return;
-    const source = Array.isArray(values) ? values : readRequestedQuantities();
-    const normalized = source
-        .map((value) => parseRequestedQuantityValue(value))
-        .filter((value) => value > 0)
-        .slice(0, 6);
-    if (!normalized.length) normalized.push(0);
-
-    // Clear and set container styles directly — no external CSS dependency
-    requestQuantityRepeater.innerHTML = '';
-    requestQuantityRepeater.style.cssText = 'display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;gap:6px;width:100%;overflow:visible;';
-
-    normalized.forEach((value, index) => {
-        const isLast = index === normalized.length - 1;
-        const hasValue = value > 0;
-
-        // Input
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.inputMode = 'numeric';
-        input.dataset.requestQuantityIndex = String(index);
-        input.setAttribute('aria-label', `Cantidad ${index + 1}`);
-        input.placeholder = '999 999';
-        input.value = hasValue ? formatNumber(value) : '';
-        input.style.cssText = 'width:110px;min-width:110px;max-width:110px;height:36px;padding:6px 10px;border:1px solid #c9d6e2;border-radius:10px;background:#fff;color:#17354a;font:inherit;font-size:13px;text-align:center;font-variant-numeric:tabular-nums;box-sizing:border-box;flex-shrink:0;';
-        requestQuantityRepeater.appendChild(input);
-
-        // Add button — only on last field, only if it has a value, and max 6
-        if (isLast && hasValue && normalized.length < 6) {
-            const addBtn = document.createElement('button');
-            addBtn.type = 'button';
-            addBtn.dataset.addRequestQuantity = 'true';
-            addBtn.setAttribute('aria-label', 'Agregar cantidad');
-            addBtn.title = 'Agregar cantidad';
-            addBtn.textContent = '+';
-            addBtn.style.cssText = 'width:32px;min-width:32px;height:32px;border:1px solid #c9d6e2;border-radius:8px;background:#fff;color:#1e6fa8;font-size:20px;font-weight:700;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;';
-            addBtn.addEventListener('mouseenter', () => { addBtn.style.background = '#e8f4fb'; addBtn.style.borderColor = '#29a6db'; });
-            addBtn.addEventListener('mouseleave', () => { addBtn.style.background = '#fff'; addBtn.style.borderColor = '#c9d6e2'; });
-            requestQuantityRepeater.appendChild(addBtn);
-        }
-
-        // Delete button — only on last field, only if more than 1 field
-        if (isLast && normalized.length > 1) {
-            const delBtn = document.createElement('button');
-            delBtn.type = 'button';
-            delBtn.dataset.removeRequestQuantity = 'true';
-            delBtn.setAttribute('aria-label', 'Eliminar ultima cantidad');
-            delBtn.title = 'Eliminar ultima cantidad';
-            delBtn.textContent = 'x';
-            delBtn.style.cssText = 'width:32px;min-width:32px;height:32px;border:1px solid #e0c0c0;border-radius:8px;background:#fff;color:#a74343;font-size:22px;font-weight:400;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;';
-            delBtn.addEventListener('mouseenter', () => { delBtn.style.background = '#fdf0f0'; delBtn.style.borderColor = '#d03535'; });
-            delBtn.addEventListener('mouseleave', () => { delBtn.style.background = '#fff'; delBtn.style.borderColor = '#e0c0c0'; });
-            requestQuantityRepeater.appendChild(delBtn);
-        }
-    });
+    const quantities = normalizeRequestQuantityItems(Array.isArray(values) ? values : readRequestQuantityItems());
+    const capacity = getRequestQuantityCapacity();
+    const addIcon = getResolvedIcon(['quantity.add', 'quantityAdd', 'icons.quantity.add'], 'quantity.add');
+    const deleteIcon = getResolvedIcon(['quantity.delete', 'quantityDelete', 'icons.quantity.delete'], 'quantity.delete');
+    requestQuantityRepeater.innerHTML = `<div class="quantity-row">${quantities.map((item, index) => {
+        const isLast = index === quantities.length - 1;
+        return `<div class="quantity-card${isLast ? ' is-last' : ''}">
+            <div class="quantity-input-group">
+                <input type="text" inputmode="numeric" autocomplete="off" data-request-quantity-index="${index}" aria-label="Cantidad ${index + 1}" placeholder="999 999" value="${item.value ? escapeHtml(formatNumber(item.value)) : ''}">
+                ${isLast ? `<button type="button" class="quantity-inline-action quantity-inline-add qty-add-chip" data-action="add-quantity" aria-label="Agregar cantidad" title="Agregar cantidad" style="--quantity-add-icon-color:${escapeHtml(addIcon.color || '#738196')};--quantity-add-icon-hover:${escapeHtml(addIcon.hover || '#0b81b8')};--quantity-add-icon-size:${Number(addIcon.size) || 18}px;"${quantities.length >= capacity ? ' disabled' : ''}><span data-qty-icon="add"></span></button>` : ''}
+            </div>
+            ${isLast ? `<button type="button" class="quantity-trash-button" data-action="remove-quantity" aria-label="Eliminar ultima cantidad" title="Eliminar ultima cantidad" style="--delete-icon-color:${escapeHtml(deleteIcon.color || '#b6425f')};--delete-icon-hover:${escapeHtml(deleteIcon.hover || '#d03535')};--delete-icon-size:${Number(deleteIcon.size) || 18}px;"${quantities.length <= 1 ? ' disabled' : ''}><span data-qty-icon="delete">x</span></button>` : ''}
+        </div>`;
+    }).join('')}</div>`;
+    const addTarget = requestQuantityRepeater.querySelector('[data-qty-icon="add"]');
+    if (addTarget) renderIcon(addTarget, addIcon.value, addIcon.color || '#738196', addIcon.size || 18);
+    const deleteTarget = requestQuantityRepeater.querySelector('[data-qty-icon="delete"]');
+    if (deleteTarget) renderIcon(deleteTarget, deleteIcon.value, deleteIcon.color || '#b6425f', deleteIcon.size || 18);
 }
 
 function escapeHtml(value) {
@@ -372,8 +537,31 @@ function normalizeText(value) {
     return String(value ?? '').trim();
 }
 
+function normalizeNumberingValue(value) {
+    const raw = normalizeText(value);
+    const plain = raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    if (plain.includes('consecut')) return 'Numeracion Consecutiva';
+    if (plain.includes('aleator')) return 'Numeracion Aleatoria';
+    if (plain.includes('barra')) return 'Código de Barras';
+    if (plain.includes('qr')) return 'Código QR';
+    return raw;
+}
+
 function getSelectedNumberingValue() {
-    return form?.querySelector('input[name="numbering"]:checked')?.value || '';
+    return normalizeNumberingValue(form?.querySelector('input[name="numbering"]:checked')?.value || '');
+}
+
+function isConsecutiveNumbering(value = getSelectedNumberingValue()) {
+    return normalizeNumberingValue(value) === 'Numeracion Consecutiva';
+}
+
+function getNumberingLabel(value = getSelectedNumberingValue()) {
+    const normalized = normalizeNumberingValue(value);
+    if (normalized === 'Numeracion Consecutiva') return 'Consecutiva';
+    if (normalized === 'Numeracion Aleatoria') return 'Aleatoria';
+    if (normalized === 'Código de Barras') return 'Código de Barras';
+    if (normalized === 'Código QR') return 'Código QR';
+    return normalized || 'Sin numeración';
 }
 
 function findPendingAttachmentIndex(predicate) {
@@ -398,12 +586,13 @@ function buildNumberingSummaryText() {
     const numberingType = getSelectedNumberingValue();
     if (!numberingType) {
         return {
-            title: 'Sin numeración configurada',
-            detail: 'Haz clic en “Numeración” para definir tipo, rango y adjunto Excel.'
+            title: 'Sin numeración',
+            detail: ''
         };
     }
-    const from = normalizeText(numberingRangeStartInput?.value);
-    const to = normalizeText(numberingRangeEndInput?.value);
+    const isConsecutive = isConsecutiveNumbering(numberingType);
+    const from = isConsecutive ? normalizeText(numberingRangeStartInput?.value) : '';
+    const to = isConsecutive ? normalizeText(numberingRangeEndInput?.value) : '';
     const detail = normalizeText(numberingDetailInput?.value);
     const attachmentIndex = findPendingAttachmentIndex((item) => item?.slot === 'numbering');
     const fragments = [];
@@ -411,21 +600,81 @@ function buildNumberingSummaryText() {
     if (detail) fragments.push(detail);
     if (attachmentIndex >= 0) fragments.push(`Adjunto: ${pendingAttachments[attachmentIndex]?.fileName || 'Excel cargado'}`);
     return {
-        title: numberingType,
-        detail: fragments.join(' · ') || 'Configuración lista para cotizar.'
+        title: getNumberingLabel(numberingType),
+        detail: fragments.join(' · ')
     };
 }
 
+function renderNumberingAttachmentTable() {
+    if (!numberingAttachmentRows) return;
+    const attachmentIndex = findPendingAttachmentIndex((item) => item?.slot === 'numbering');
+    const attachment = attachmentIndex >= 0 ? pendingAttachments[attachmentIndex] : null;
+    const addIcon = getResolvedIcon(['quoteRequestAttachment', 'attachment'], 'quoteRequestAttachment');
+    const deleteIcon = getResolvedIcon(['quoteRequestAttachmentDelete', 'eliminar adjunto solicitud', 'loginRepositoryDelete'], 'quoteRequestAttachmentDelete');
+    numberingAttachmentRows.innerHTML = `
+        <div class="quote-request-numbering-attachment-row">
+            <label class="quote-request-numbering-attachment-upload" for="numberingAttachmentInput" title="Adjuntar" aria-label="Adjuntar">
+                <span data-numbering-attachment-icon="add"></span>
+            </label>
+            <span class="quote-request-numbering-attachment-name">${escapeHtml(attachment?.fileName || 'Sin adjunto')}</span>
+            ${attachment ? '<button type="button" class="quote-request-numbering-attachment-delete" data-remove-numbering-attachment title="Eliminar" aria-label="Eliminar adjunto"><span data-numbering-attachment-icon="delete"></span></button>' : '<span></span>'}
+        </div>`;
+    const addTarget = numberingAttachmentRows.querySelector('[data-numbering-attachment-icon="add"]');
+    const deleteTarget = numberingAttachmentRows.querySelector('[data-numbering-attachment-icon="delete"]');
+    if (addTarget) renderIcon(addTarget, addIcon.value, addIcon.color || '#159fdb', addIcon.size || 18);
+    if (deleteTarget) renderIcon(deleteTarget, deleteIcon.value, deleteIcon.color || '#5f7487', deleteIcon.size || 18);
+}
+
 function renderNumberingSummary() {
-    if (!numberingSummary) return;
+    const isConsecutive = isConsecutiveNumbering();
+    if (numberingRangeFields) numberingRangeFields.hidden = !isConsecutive;
+    if (!isConsecutive) {
+        if (numberingRangeStartInput) numberingRangeStartInput.value = '';
+        if (numberingRangeEndInput) numberingRangeEndInput.value = '';
+    }
     const summary = buildNumberingSummaryText();
-    numberingSummary.innerHTML = `<strong>${escapeHtml(summary.title)}</strong><span>${escapeHtml(summary.detail)}</span>`;
+    if (numberingSummary) numberingSummary.innerHTML = `<strong>${escapeHtml(summary.title)}</strong><span>${escapeHtml(summary.detail)}</span>`;
     if (numberingAttachmentMeta) {
         const attachmentIndex = findPendingAttachmentIndex((item) => item?.slot === 'numbering');
         numberingAttachmentMeta.textContent = attachmentIndex >= 0
             ? `Archivo cargado: ${pendingAttachments[attachmentIndex]?.fileName || 'Excel adjunto'}`
             : 'Puedes adjuntar un Excel o CSV con la secuencia.';
     }
+    renderNumberingAttachmentTable();
+    updateFinishCompactSummaries();
+}
+
+function getCheckedFinishValue(name, fallback = '') {
+    return form?.querySelector(`input[name="${name}"]:checked`)?.value || fallback;
+}
+
+function updateFinishCompactSummaries() {
+    const summaries = {
+        varnish: [getCheckedFinishValue('varnish', 'Sin Barniz'), document.getElementById('varnishSonified')?.checked ? 'Zonificado' : ''].filter(Boolean).join(' · '),
+        stamping: [getCheckedFinishValue('stamping', 'Ninguno'), normalizeText(stampingWidthInput?.value) ? `${normalizeText(stampingWidthInput?.value)} mm` : ''].filter(Boolean).join(' · '),
+        embossed: document.getElementById('finishEmbossed')?.checked ? 'Activo' : 'Sin embosado',
+        diecut: document.getElementById('finishDieCut')?.checked ? 'Activo' : 'Sin troquelado',
+        numbering: buildNumberingSummaryText().title
+    };
+    Object.entries(summaries).forEach(([key, value]) => {
+        const node = document.querySelector(`[data-finish-key="${key}"] [data-finish-compact-summary]`);
+        if (node) node.textContent = value;
+    });
+}
+
+function initFinishCompactPanels() {
+    document.querySelectorAll('[data-finish-key]').forEach((block) => {
+        if (block.querySelector('[data-finish-compact-toggle]')) return;
+        const title = normalizeText(block.querySelector('h4')?.textContent) || 'Acabado';
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'quote-request-finish-compact-head';
+        button.dataset.finishCompactToggle = '';
+        button.setAttribute('aria-expanded', 'false');
+        button.innerHTML = `<span>${escapeHtml(title)}</span><span class="quote-request-finish-compact-summary" data-finish-compact-summary></span>`;
+        block.querySelector('h4')?.after(button);
+    });
+    updateFinishCompactSummaries();
 }
 
 function closeNumberingPopover() {
@@ -455,6 +704,28 @@ function setStatus(message, tone = 'info') {
     statusNode.dataset.tone = tone;
 }
 
+function setNewCalcStatus(message, tone = 'info') {
+    if (!newCalcStatusNode) return;
+    newCalcStatusNode.hidden = !message;
+    newCalcStatusNode.textContent = message || '';
+    newCalcStatusNode.dataset.tone = tone;
+}
+
+function setButtonBusy(button, busy, busyText = 'Procesando...') {
+    if (!button) return;
+    if (busy) {
+        button.dataset.idleText = button.textContent || '';
+        button.textContent = busyText;
+        button.disabled = true;
+        return;
+    }
+    button.disabled = false;
+    if (button.dataset.idleText) {
+        button.textContent = button.dataset.idleText;
+        delete button.dataset.idleText;
+    }
+}
+
 async function fetchJson(url, options) {
     const response = await fetch(url, options);
     const payload = await response.json().catch(() => ({}));
@@ -462,6 +733,57 @@ async function fetchJson(url, options) {
         throw new Error(payload.error || 'No fue posible completar la solicitud.');
     }
     return payload;
+}
+
+function readQuoteConfigCache() {
+    try {
+        const raw = localStorage.getItem(QUOTE_CONFIG_CACHE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        const storedAt = Number(parsed?.storedAt || 0);
+        if (!storedAt || Date.now() - storedAt > QUOTE_CONFIG_CACHE_TTL_MS) return null;
+        return parsed.data || null;
+    } catch (error) {
+        return null;
+    }
+}
+
+function writeQuoteConfigCache(config) {
+    try {
+        localStorage.setItem(QUOTE_CONFIG_CACHE_KEY, JSON.stringify({
+            storedAt: Date.now(),
+            data: config
+        }));
+    } catch (error) {
+        console.warn('No fue posible actualizar el caché local de cotizaciones.', error);
+    }
+}
+
+function compactQuoteConfigForCache(value, key = '') {
+    if (typeof value === 'string') {
+        const text = value.trim();
+        const keyText = String(key || '').toLowerCase();
+        const assetLike = /(image|imagen|logo|icon|foto|photo|font|background|screensaver|repositorio|repository)/.test(keyText);
+        if ((assetLike && text.length > QUOTE_CONFIG_CACHE_TEXT_LIMIT) || text.length > QUOTE_CONFIG_CACHE_TEXT_LIMIT * 4) {
+            return '';
+        }
+        return value;
+    }
+    if (Array.isArray(value)) {
+        return value.map((item) => compactQuoteConfigForCache(item, key)).filter((item) => item !== '');
+    }
+    if (value && typeof value === 'object') {
+        return Object.fromEntries(
+            Object.entries(value)
+                .map(([childKey, childValue]) => [childKey, compactQuoteConfigForCache(childValue, childKey)])
+                .filter(([, childValue]) => childValue !== '')
+        );
+    }
+    return value;
+}
+
+function areQuoteConfigsEqual(left, right) {
+    return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
 }
 
 function setSapConfigStatus(message, tone = 'info') {
@@ -866,25 +1188,51 @@ function iconMarkup(value, altText, extraClass = '') {
     return `<span class="icon-glyph ${extraClass}">${escapeHtml(value || '')}</span>`;
 }
 
-function iconConfigFor(key, canonicalKey = null) {
+function iconSuffix(key) {
+    return String(key || '')
+        .split(/[.\s_-]+/)
+        .filter(Boolean)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join('');
+}
+
+function readConfiguredIconValue(key) {
     const icons = loadedConfig?.icons || {};
+    if (normalizeText(icons[key])) return normalizeText(icons[key]);
+    if (key.startsWith('icons.') && normalizeText(loadedConfig?.[key])) return normalizeText(loadedConfig[key]);
+    const parts = String(key || '').replace(/^icons\./, '').split('.');
+    let current = icons;
+    for (const part of parts) {
+        current = current?.[part];
+    }
+    return normalizeText(current);
+}
+
+function sanitizeIconValue(value) {
+    if (!value) return '';
+    const str = String(value);
+    if (str.includes('\uFFFD') || str.includes('\uFFFd') || str.includes('\uFFfD')) return '';
+    return str;
+}
+
+function iconConfigFor(key, canonicalKey = null) {
     const general = loadedConfig?.general || {};
     const propKey = canonicalKey || key;
     
-    const internalKey = key.replace(/\s+/g, '').replace(/[Ã¡Ã©Ã­Ã³Ãº]/g, (m) => ({ 'Ã¡': 'a', 'Ã©': 'e', 'Ã­': 'i', 'Ã³': 'o', 'Ãº': 'u' }[m]));
+    const internalKey = key.replace(/\s+/g, '').replace(/[áéíóú]/g, (m) => ({ 'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u' }[m]));
     const fallback = DEFAULT_ICON_MAP[key] || DEFAULT_ICON_MAP[internalKey] || DEFAULT_ICON_MAP[propKey] || { value: '', color: '#6b7580', size: 24 };
     
-    const value = normalizeText(icons[key]) || fallback.value;
-    const suffix = propKey.charAt(0).toUpperCase() + propKey.slice(1).replace(/\s+/g, '');
+    const value = sanitizeIconValue(readConfiguredIconValue(key)) || sanitizeIconValue(readConfiguredIconValue(propKey)) || fallback.value;
+    const suffix = iconSuffix(propKey);
     const color = general[`iconColor${suffix}`] || fallback.color;
+    const hover = general[`iconColorHover${suffix}`] || color;
     const size = Number(general[`iconSize${suffix}`]) || fallback.size;
-    return { value, color, size };
+    return { value, color, hover, size };
 }
 
 function getResolvedIcon(keys, canonicalKey) {
     for (const key of keys) {
-        const icons = loadedConfig?.icons || {};
-        if (icons[key]) return iconConfigFor(key, canonicalKey);
+        if (readConfiguredIconValue(key)) return iconConfigFor(key, canonicalKey);
     }
     return iconConfigFor(canonicalKey || keys[keys.length - 1]);
 }
@@ -893,7 +1241,7 @@ function applyConfiguredIcons() {
     const primaryConf = iconConfigFor('processLauncher');
     
     // Check multiple potential keys for each action, using a canonical key for properties
-    const submitConf = getResolvedIcon(['crear cotizaciÃ³n', 'crear cotizacion', 'solicitud de cotizaciÃ³n', 'solicitud de cotizacion', 'quoteRequestSubmit'], 'quoteRequestSubmit');
+    const submitConf = getResolvedIcon(['crear cotización', 'crear cotizacion', 'solicitud de cotización', 'solicitud de cotizacion', 'quoteRequestSubmit'], 'quoteRequestSubmit');
     const advancedConf = getResolvedIcon(['cotizaciones', 'proceso avanzado flotante', 'proceso avanzado', 'quoteRequestAdvanced'], 'quoteRequestAdvanced');
     const proformaConf = getResolvedIcon(['ver proforma', 'proformaView'], 'proformaView');
 
@@ -910,17 +1258,19 @@ function applyConfiguredIcons() {
     document.querySelectorAll('.quote-request-attachment-remove').forEach((button) => renderIcon(button, deleteConf.value, deleteConf.color, deleteConf.size));
 
     // Iconos de cantidades desde base de datos
-    const qtyAddConf = getResolvedIcon(['icons.quantity.add', 'quantityAdd', 'tableAdd'], 'quantityAdd');
-    const qtyDelConf = getResolvedIcon(['icons.quantity.delete'], 'icons.quantity.delete');
+    const qtyAddConf = getResolvedIcon(['quantity.add', 'quantityAdd', 'icons.quantity.add'], 'quantity.add');
+    const qtyDelConf = getResolvedIcon(['quantity.delete', 'quantityDelete', 'icons.quantity.delete'], 'quantity.delete');
     document.querySelectorAll('[data-qty-icon="add"]').forEach((span) => {
         if (qtyAddConf.value) {
             span.parentElement.style.color = qtyAddConf.color || '#1e6fa8';
+            span.parentElement.style.setProperty('--quantity-add-icon-size', `${Number(qtyAddConf.size) || 18}px`);
             renderIcon(span, qtyAddConf.value, qtyAddConf.color || '#1e6fa8', qtyAddConf.size || 18);
         }
     });
     document.querySelectorAll('[data-qty-icon="delete"]').forEach((span) => {
         if (qtyDelConf.value) {
             span.parentElement.style.color = qtyDelConf.color || '#a74343';
+            span.parentElement.style.setProperty('--delete-icon-size', `${Number(qtyDelConf.size) || 18}px`);
             renderIcon(span, qtyDelConf.value, qtyDelConf.color || '#a74343', qtyDelConf.size || 18);
         }
     });
@@ -1014,20 +1364,20 @@ function pickFirstMeaningfulNumber(...values) {
 function normalizeQuoteLine(line, quoteCode, index = 0) {
     quoteTreeLineSequence += 1;
     const raw = line.raw_data || {};
-    const calculationBlockMessage = String(
+    const summary = line.line_summary && typeof line.line_summary === 'object'
+        ? line.line_summary
+        : (raw.line_summary && typeof raw.line_summary === 'object' ? raw.line_summary : {});
+    const calculationBlockMessage = stripNonBlockingSapAccountingWarnings(String(
         raw['ANALISIS CAMPOS CREAR ORDEN']
         || raw['ANALISIS CAMPOS FINALIZAR']
         || raw['ANALISIS CAMPOS PDF']
         || ''
-    ).trim();
+    ).trim());
     const autoSelection = raw.CODEX_AUTO_SELECTION || {};
-    const autoWarnings = Array.isArray(autoSelection.warnings)
-        ? autoSelection.warnings.filter(Boolean)
-        : String(raw['REQ | Advertencias Automáticas'] || '')
-            .split('|')
-            .map((item) => normalizeText(item))
-            .filter(Boolean);
+    const autoWarnings = [];
     const fallbackTotal = pickFirstMeaningfulNumber(
+        summary.subtotal_1,
+        summary.total_cost,
         line.subtotal_1,
         line.total_cost,
         raw['PRECIO TOTAL AL FINALIZAR'],
@@ -1035,28 +1385,31 @@ function normalizeQuoteLine(line, quoteCode, index = 0) {
         raw['GENERAL | 7 | TOTAL | DOL'],
         raw['GENERAL | 9 | TOTAL | COL EXPORTAR REPORTE VENTAS']
     );
+    const measure = summary.measure || [summary.width_in, summary.length_in].filter((value) => value || value === 0).join(' x ');
     return {
         id: quoteTreeLineSequence,
         quoteId: quoteCode || line.quote_code || '',
-        linea: line.line_code || '',
-        originalLinea: line.line_code || '',
-        lineOrder: Number(line.line_order) || index + 1,
-        departamento: line.department || 'Flexografia',
-        nombreTrabajo: line.job_name || 'Nuevo cálculo',
+        linea: summary.line_code || line.line_code || '',
+        originalLinea: summary.line_code || line.line_code || '',
+        lineOrder: Number(summary.line_order || line.line_order) || index + 1,
+        departamento: summary.department || line.department || 'Flexografia',
+        nombreTrabajo: summary.job_name || line.job_name || '',
         rawData: raw,
-        material: line.material_name || '',
-        materialCode: line.material_code || raw['Material Convencional | Id Material'] || raw['Material Digital | Id Material'] || '',
-        medida: [raw['DIMENSIONES ETIQUETA | ANCHO'], raw['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join(' x '),
-        machineName: line.machine_name || raw['CONV | MAQUINA'] || raw['DIGITAL | MAQUINA'] || '',
-        dieCode: line.die_code || raw['GENERAL | TROQUEL | ID'] || raw['REQ | Troquelado'] || '',
-        processType: line.process_type || raw['Proceso Productivo'] || '',
-        processSequenceText: raw['CODEX_PROCESS_SEQUENCE_TEXT'] || raw['BOT | Process Sequence'] || '',
-        estado: line.status || raw['SOLICITUD ESTADO'] || raw['ESTADO LINEA'] || 'Borrador',
-        finalizadaOrden: Boolean(line.finalized_for_order || raw['CODEX_FINALIZED_FOR_ORDER']),
+        lineSummary: summary,
+        material: summary.material_name || line.material_name || '',
+        materialCode: summary.material_code || line.material_code || raw['Material Convencional | Id Material'] || raw['Material Digital | Id Material'] || '',
+        medida: measure || [raw['DIMENSIONES ETIQUETA | ANCHO'], raw['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join(' x '),
+        machineName: summary.machine_name || line.machine_name || raw['CONV | MAQUINA'] || raw['DIGITAL | MAQUINA'] || '',
+        dieCode: summary.die_code || line.die_code || raw['GENERAL | TROQUEL | ID'] || raw['REQ | Troquelado'] || '',
+        processType: summary.process_type || line.process_type || raw['Proceso Productivo'] || '',
+        processSequenceText: summary.process_sequence_text || raw['CODEX_PROCESS_SEQUENCE_TEXT'] || raw['BOT | Process Sequence'] || '',
+        frontBackGroup: normalizeFrontBackGroupClient(line.grupo_frente_dorso || line.front_back_group || summary.grupo_frente_dorso || summary.front_back_group || raw),
+        estado: summary.status || line.status || raw['SOLICITUD ESTADO'] || raw['ESTADO LINEA'] || 'Borrador',
+        finalizadaOrden: Boolean(summary.finalized_for_order || line.finalized_for_order || raw['CODEX_FINALIZED_FOR_ORDER']),
         calculationBlockMessage,
         subtotal1: fallbackTotal ?? '',
-        productId: line.product_code || '',
-        quantity: pickFirstMeaningfulNumber(line.quantity, raw['Cantidad Productos']),
+        productId: summary.product_code || line.product_code || line.line_code || '',
+        quantity: pickFirstMeaningfulNumber(summary.quantity, line.quantity, raw['Cantidad Productos']),
         autoRoute: autoSelection.processType || raw['REQ | Ruta Automática'] || line.process_type || '',
         autoMaterialCode: autoSelection.materialCode || raw['REQ | Material Automático'] || line.material_code || '',
         autoMaterialName: line.material_name || raw['GENERAL | MATERIAL'] || '',
@@ -1073,9 +1426,9 @@ function normalizeQuoteLine(line, quoteCode, index = 0) {
 
 function getQuoteCalculationBlockMessage(quoteCode) {
     const lines = quoteLineCache.get(quoteCode) || [];
-    const blockedLine = lines.find((item) => String(item?.calculationBlockMessage || '').trim());
+    const blockedLine = lines.find((item) => stripNonBlockingSapAccountingWarnings(item?.calculationBlockMessage || ''));
     if (!blockedLine) return '';
-    return `La línea ${blockedLine.linea} requiere completar el cálculo. ${blockedLine.calculationBlockMessage}`.trim();
+    return `La línea ${blockedLine.linea} requiere completar el cálculo. ${stripNonBlockingSapAccountingWarnings(blockedLine.calculationBlockMessage)}`.trim();
 }
 
 function ensureQuoteReadyForProforma(quoteCode) {
@@ -1083,14 +1436,178 @@ function ensureQuoteReadyForProforma(quoteCode) {
     if (message) throw new Error(message);
 }
 
+function buildLineCalculationRoute({ lineCode, quoteCode, productId = '', department = 'Flexografia', processKey = '' } = {}) {
+    if (!lineCode || !quoteCode) return '';
+    const query = {
+        lineId: lineCode,
+        quoteId: quoteCode,
+        productId,
+        department
+    };
+    if (processKey) query.jumpProcess = processKey;
+    return `/calculo-flexografia?${new URLSearchParams(query).toString()}`;
+}
+
+function showCenterMessage(message, options = {}) {
+    const text = String(message || '').trim();
+    if (!text) return;
+    let node = document.getElementById('calcCenterMessage');
+    if (!node) {
+        node = document.createElement('div');
+        node.id = 'calcCenterMessage';
+        node.className = 'calc-center-message';
+        document.body.appendChild(node);
+    }
+    const closeButton = '<button type="button" class="calc-center-message-close" data-close-calc-message aria-label="Cerrar">&times;</button>';
+    if (options.html) node.innerHTML = `${closeButton}<div class="calc-center-message-content">${text}</div>`;
+    else node.innerHTML = `${closeButton}<div class="calc-center-message-content">${escapeHtml(text)}</div>`;
+    node.hidden = false;
+    clearTimeout(showCenterMessage.timer);
+    showCenterMessage.timer = setTimeout(() => { node.hidden = true; }, options.duration || 5200);
+}
+
+const PROFORMA_BLOCK_PROCESS_LABELS = [
+    { key: 'barnizado', label: 'Barnizado' },
+    { key: 'laminado', label: 'Laminado' },
+    { key: 'estampado', label: 'Estampado' },
+    { key: 'embosado', label: 'Embosado' },
+    { key: 'troquelado', label: 'Troquelado' },
+    { key: 'rebobinado', label: 'Rebobinado' },
+    { key: 'troquel', label: 'Troquel' },
+    { key: 'sustrato', label: 'Sustrato' },
+    { key: 'diseno', label: 'Diseño' },
+    { key: 'preprensa', label: 'Preprensa' },
+    { key: 'planchas', label: 'Planchas' },
+    { key: 'impresion', label: 'Impresión' },
+    { key: 'empaque', label: 'Empaque' },
+    { key: 'adicionales', label: 'Procesos adicionales' }
+];
+
+function normalizeProformaIssueText(value = '') {
+    return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+function processKeyFromIssueText(message = '') {
+    const text = normalizeProformaIssueText(message);
+    if (!text) return '';
+    const match = PROFORMA_BLOCK_PROCESS_LABELS.find((item) => {
+        const label = normalizeProformaIssueText(item.label);
+        return label && text.includes(label);
+    });
+    return match?.key || '';
+}
+
+function processLabelFromKey(processKey = '') {
+    const baseKey = String(processKey || '').split('-')[0];
+    return PROFORMA_BLOCK_PROCESS_LABELS.find((item) => item.key === baseKey)?.label || baseKey || 'Faltante';
+}
+
+function summarizeProformaIssuesByProcess(issues = []) {
+    const map = new Map();
+    (Array.isArray(issues) ? issues : []).forEach((issue) => {
+        const processKey = String(issue?.processKey || processKeyFromIssueText(issue?.message || '') || '').trim();
+        const label = processLabelFromKey(processKey);
+        const key = processKey || String(issue?.message || '').trim();
+        if (!key || map.has(key)) return;
+        map.set(key, {
+            ...issue,
+            processKey,
+            message: processKey ? `${label} requiere configuración.` : String(issue?.message || '').trim()
+        });
+    });
+    return [...map.values()];
+}
+
+function proformaBlockIssuesFromLine(line = {}) {
+    const raw = line.raw_data || line.rawData || {};
+    const messages = Array.isArray(raw.CODEX_VALIDATION_MESSAGES)
+        ? raw.CODEX_VALIDATION_MESSAGES.map((item) => String(item || '').trim()).filter(Boolean)
+        : [];
+    const fallback = String(raw['ANALISIS CAMPOS PDF'] || raw['ANALISIS CAMPOS CREAR ORDEN'] || raw['ANALISIS CAMPOS FINALIZAR'] || '').trim();
+    return [...new Set(messages.length ? messages : (fallback ? [fallback] : []))]
+        .map((message) => ({ message, processKey: processKeyFromIssueText(message) }));
+}
+
+async function getProformaBlockMessage(quoteCode) {
+    const payload = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(quoteCode)}`, { headers: sessionHeader() });
+    const lines = Array.isArray(payload?.lineas) ? payload.lineas : [];
+    const blocked = lines
+        .map((line) => ({
+            lineCode: String(line.line_code || line.linea || line.raw_data?.['ID LINEA'] || '').trim(),
+            quoteCode,
+            productId: line.product_code || '',
+            department: line.department || line.raw_data?.DEPARTAMENTO || 'Flexografia',
+            issues: proformaBlockIssuesFromLine(line)
+        }))
+        .filter((item) => item.issues.length);
+    if (!blocked.length) return '';
+    const rows = blocked.map((item) => {
+        const route = buildLineCalculationRoute(item);
+        const lineLabel = route
+            ? `<a class="summary-row-link" href="${escapeHtml(route)}" data-route="${escapeHtml(route)}" data-label="Cálculo ${escapeHtml(item.lineCode)}">${escapeHtml(item.lineCode || 'sin código')}</a>`
+            : escapeHtml(item.lineCode || 'sin código');
+        const issues = summarizeProformaIssuesByProcess(item.issues).map((issue) => {
+            const issueRoute = buildLineCalculationRoute({ ...item, processKey: issue.processKey });
+            const label = processLabelFromKey(issue.processKey);
+            const problem = issueRoute
+                ? `<a class="summary-row-link" href="${escapeHtml(issueRoute)}" data-route="${escapeHtml(issueRoute)}" data-label="Cálculo ${escapeHtml(item.lineCode)}">${escapeHtml(label)}</a>`
+                : escapeHtml(label);
+            return `<li>${problem}: ${escapeHtml(issue.message)}</li>`;
+        }).join('');
+        return `<section class="calc-message-line"><div class="calc-message-line-head">Línea ${lineLabel}</div><ul>${issues}</ul></section>`;
+    }).join('');
+    const count = blocked.length;
+    return `<div class="calc-message-title">Faltantes en líneas de cálculo de esta proforma</div><div class="calc-message-intro">Esta proforma toma datos de ${count} línea${count === 1 ? '' : 's'} de cálculo. Completa o justifica cada faltante antes de continuar.</div><div class="calc-message-list">${rows}</div>`;
+}
+
+async function openProformaIfReady(quoteCode) {
+    const blockMessage = await getProformaBlockMessage(quoteCode);
+    if (blockMessage) {
+        showCenterMessage(blockMessage, { html: true, duration: 18000 });
+        setStatus('No se puede abrir la proforma: faltan datos en una o más líneas.', 'error');
+        return;
+    }
+    const route = `/proforma?codigo=${encodeURIComponent(quoteCode)}`;
+    if (!openRouteInShell(route, `Proforma ${quoteCode}`)) window.location.href = route;
+}
+
+document.addEventListener('click', (event) => {
+    const closeMessage = event.target.closest?.('.calc-center-message [data-close-calc-message]');
+    if (closeMessage) {
+        event.preventDefault();
+        clearTimeout(showCenterMessage.timer);
+        document.getElementById('calcCenterMessage')?.setAttribute('hidden', '');
+        return;
+    }
+    const routeLink = event.target.closest?.('.calc-center-message [data-route]');
+    if (!routeLink) return;
+    event.preventDefault();
+    const route = routeLink.dataset.route || routeLink.getAttribute('href') || '';
+    const label = routeLink.dataset.label || routeLink.textContent || 'Cálculo';
+    if (!openRouteInShell(route, label)) window.location.href = route;
+});
+
 function ensureLineReadyForOrder(row) {
-    const message = String(row?.calculationBlockMessage || '').trim();
+    const message = stripNonBlockingSapAccountingWarnings(row?.calculationBlockMessage || '');
     if (message) throw new Error(message);
+}
+
+function isNonBlockingSapAccountingWarning(message = '') {
+    const text = String(message || '').trim();
+    return /No existe configuración de centro de beneficio para el ejecutivo de ventas indicado/i.test(text)
+        || /El ejecutivo de ventas indicado no tiene centro de beneficio configurado/i.test(text);
+}
+
+function stripNonBlockingSapAccountingWarnings(message = '') {
+    const text = String(message || '').trim();
+    if (!text) return '';
+    const parts = text.split(/(?<=[.!?])\s+/).map((part) => part.trim()).filter(Boolean);
+    return parts.filter((part) => !isNonBlockingSapAccountingWarning(part)).join(' ').trim();
 }
 
 function quoteTreeLineTitle(row) {
     return [
-        row.nombreTrabajo || 'Nuevo cálculo',
+        row.nombreTrabajo || 'Sin nombre',
         row.medida ? `(${row.medida})` : ''
     ].filter(Boolean).join(' ');
 }
@@ -1105,6 +1622,107 @@ function quoteTreeLineMeta(row) {
 
 function quoteTotalFromLines(lines = []) {
     return lines.reduce((sum, line) => sum + parseMoneyValue(line.subtotal1), 0);
+}
+
+function normalizeFrontBackGroupClient(rowOrRaw = {}) {
+    const group = rowOrRaw?.grupoFrenteDorso || rowOrRaw?.grupo_frente_dorso || rowOrRaw?.frontBackGroup || rowOrRaw?.rawData?.grupoFrenteDorso || rowOrRaw?.rawData?.CODEX_FD_GROUP || rowOrRaw?.CODEX_FD_GROUP || rowOrRaw;
+    if (!group || typeof group !== 'object') return null;
+    const explicitElements = Array.isArray(group.elementLineCodes)
+        ? group.elementLineCodes.map(normalizeText).filter(Boolean)
+        : Array.isArray(group.elementos)
+            ? group.elementos.map((item) => normalizeText(item?.lineCode || item?.linea || item)).filter(Boolean)
+            : [];
+    const legacyMembers = Array.isArray(group.memberLineCodes)
+        ? group.memberLineCodes.map(normalizeText).filter(Boolean)
+        : [group.primaryLineCode, group.partnerLineCode].map(normalizeText).filter(Boolean);
+    const memberLineCodes = Array.from(new Set((explicitElements.length ? explicitElements : legacyMembers).filter(Boolean)));
+    const primaryLineCode = normalizeText(group.groupLineCode || group.lineaGrupo || group.primaryLineCode || memberLineCodes[0]);
+    const partnerLineCode = normalizeText(group.partnerLineCode || group.backLineCode || memberLineCodes.find((code) => code !== primaryLineCode));
+    const groupId = normalizeText(group.groupId);
+    if (!groupId || !primaryLineCode || !memberLineCodes.length) return null;
+    const roleText = normalizeText(group.role || group.rol).toLowerCase();
+    const role = ['elemento', 'componente', 'frente', 'dorso'].includes(roleText) ? 'elemento' : 'grupo';
+    return {
+        ...group,
+        groupId,
+        label: normalizeText(group.label) || 'Grupo Frente/Dorso',
+        role,
+        groupLineCode: primaryLineCode,
+        lineaGrupo: primaryLineCode,
+        primaryLineCode,
+        partnerLineCode,
+        frontLineCode: normalizeText(group.frontLineCode || memberLineCodes[0]),
+        backLineCode: normalizeText(group.backLineCode || memberLineCodes[1] || partnerLineCode),
+        elementLineCodes: memberLineCodes,
+        memberLineCodes,
+        allLineCodes: Array.from(new Set([primaryLineCode, ...memberLineCodes].filter(Boolean))),
+        elementRole: normalizeText(group.elementRole || group.ladoElemento),
+        elementRoles: group.elementRoles && typeof group.elementRoles === 'object' ? group.elementRoles : {},
+        warnings: Array.isArray(group.warnings) ? group.warnings.map(normalizeText).filter(Boolean) : []
+    };
+}
+
+function getFrontBackGroup(row) {
+    return normalizeFrontBackGroupClient(row);
+}
+
+function frontBackPartnerCode(row) {
+    const group = getFrontBackGroup(row);
+    if (!group) return '';
+    if (row.linea === group.groupLineCode) return group.elementLineCodes.join(' + ');
+    return group.groupLineCode;
+}
+
+function frontBackChipMarkup(row) {
+    const group = getFrontBackGroup(row);
+    if (!group) return '';
+    const role = group.role === 'grupo' ? 'Grupo' : (group.elementRole ? group.elementRole : 'Elemento');
+    const partner = frontBackPartnerCode(row);
+    return `<div class="quote-master-line-badges"><span class="quote-line-auto-chip">Grupo frente/dorso · ${escapeHtml(role)}${partner ? ` · ${escapeHtml(partner)}` : ''}</span></div>`;
+}
+
+function frontBackGroupKey(group, quoteCode = '') {
+    const id = normalizeText(group?.groupId || group?.groupLineCode || group?.lineaGrupo);
+    if (!id) return '';
+    return [quoteCode, id].filter(Boolean).join('::');
+}
+
+function buildFrontBackLineTree(lines = [], quoteCode = '') {
+    const byLineCode = new Map(lines.map((line) => [normalizeText(line.linea), line]).filter(([code]) => Boolean(code)));
+    const handledChildCodes = new Set();
+    const nodes = [];
+    lines.forEach((line, sourceIndex) => {
+        const group = getFrontBackGroup(line);
+        const lineCode = normalizeText(line.linea);
+        if (handledChildCodes.has(lineCode)) return;
+        if (group?.role === 'elemento' && byLineCode.has(group.groupLineCode)) return;
+        const isGroupLine = group?.role === 'grupo';
+        if (!isGroupLine) {
+            nodes.push({ line, sourceIndex, kind: 'line' });
+            return;
+        }
+        const childCodes = Array.from(new Set((group.elementLineCodes || group.memberLineCodes || []).map(normalizeText).filter(Boolean)));
+        const children = childCodes
+            .filter((code) => code && code !== lineCode)
+            .map((code) => byLineCode.get(code))
+            .filter(Boolean);
+        children.forEach((child) => handledChildCodes.add(normalizeText(child.linea)));
+        const key = frontBackGroupKey(group, quoteCode);
+        const expanded = expandedFrontBackGroupKeys.has(key);
+        nodes.push({ line, sourceIndex, kind: 'group', group, key, childCount: children.length, expanded });
+        if (expanded) {
+            children.forEach((child) => {
+                nodes.push({
+                    line: child,
+                    sourceIndex: lines.findIndex((item) => item.id === child.id),
+                    kind: 'child',
+                    group,
+                    key
+                });
+            });
+        }
+    });
+    return nodes;
 }
 
 async function fetchQuoteLines(quoteCode, options = {}) {
@@ -1219,12 +1837,128 @@ function renderQuoteRealSummary(row) {
     `;
 }
 
+function firstQuoteDetail(raw, keys = []) {
+    for (const key of keys) {
+        const value = cleanQuoteDetail(raw?.[key]);
+        if (value) return value;
+    }
+    return '';
+}
+
+function formatQuoteLineQuantities(row) {
+    const raw = row.rawData || {};
+    const source = raw['REQ | Cantidades']
+        || raw['REQ | Cantidad de Productos']
+        || raw['CANTIDADES']
+        || raw['Cantidad de Productos']
+        || row.quantity
+        || '';
+    if (Array.isArray(source)) {
+        return source.map((item) => normalizeText(item)).filter(Boolean).join(' - ');
+    }
+    const text = normalizeText(source);
+    if (!text) return '';
+    return text
+        .split(/[|,;]+/)
+        .map((item) => normalizeText(item))
+        .filter(Boolean)
+        .join(' - ');
+}
+
+function formatQuoteLineDie(row) {
+    const raw = row.rawData || {};
+    const booleanValues = ['si', 'sí', 'yes', 'true', '1', 'activo', 'activa'];
+    const dieType = firstQuoteDetail(raw, [
+        'REQ | Forma de Troquel',
+        'GENERAL | TROQUEL | FORMA',
+        'GENERAL | TROQUEL | TIPO'
+    ]);
+    const rawDieCode = cleanQuoteDetail(row.dieCode || raw['GENERAL | TROQUEL | ID']);
+    const dieCode = booleanValues.includes(rawDieCode.toLowerCase()) ? '' : rawDieCode;
+    const requested = firstQuoteDetail(raw, ['REQ | Troquelado']);
+    const hasRequestedDie = booleanValues.includes(requested.toLowerCase());
+    if (dieType && dieCode) return `${dieType} (${dieCode})`;
+    return dieType || (dieCode ? `Troquel (${dieCode})` : (hasRequestedDie ? 'Troquelado' : ''));
+}
+
+function buildQuoteLineFinishParts(row) {
+    const raw = row.rawData || {};
+    const parts = [];
+    const barniz = firstQuoteDetail(raw, ['REQ | Barniz', 'BARNIZ', 'CONV | BARNIZ | TIPO']);
+    if (barniz) parts.push(`Barniz ${barniz}`);
+    const laminado = firstQuoteDetail(raw, ['REQ | Laminado', 'LAMINADO', 'CONV | LAMINADO | TIPO']);
+    if (laminado) parts.push(`Laminado ${laminado}`);
+    const estampado = firstQuoteDetail(raw, ['REQ | Estampado', 'ESTAMPADO', 'CONV | ESTAMPADO | FOIL']);
+    if (estampado) parts.push(`Estampado (${estampado})`);
+    const embosado = firstQuoteDetail(raw, ['REQ | Embosado', 'EMBOSADO | TIPO', 'EMBOSADO']);
+    if (embosado) parts.push(['si', 'sí', 'yes', 'true', '1'].includes(embosado.toLowerCase()) ? 'Embosado' : `Embosado (${embosado})`);
+    const numeracion = firstQuoteDetail(raw, ['REQ | Numeracion Resumen', 'REQ | Numeracion Detalle', 'REQ | Numeracion', 'ACABADOS | NUMERADO']);
+    if (numeracion) parts.push(`Numeración (${numeracion})`);
+    return parts;
+}
+
+function isQuoteLineNoPrint(row) {
+    const raw = row.rawData || {};
+    const values = [
+        raw['SIN IMPRESION'],
+        raw['SIN IMPRESIÓN'],
+        raw['REQ | Sin Impresion'],
+        raw['REQ | Sin Impresión'],
+        row.processType
+    ];
+    return values.some((value) => {
+        const normalized = normalizeText(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        return ['si', 'sí', 'yes', 'true', '1'].includes(normalized) || normalized === 'sin impresion';
+    });
+}
+
+function renderQuoteLineDetail(row, index) {
+    const raw = row.rawData || {};
+    const lineCode = cleanQuoteDetail(row.linea || row.originalLinea || `LC${String(index + 1).padStart(5, '0')}`);
+    const productId = cleanQuoteDetail(row.productId);
+    const title = cleanQuoteDetail(row.nombreTrabajo) || 'Sin nombre';
+    const measure = cleanQuoteDetail(row.medida);
+    const quantities = formatQuoteLineQuantities(row);
+    const material = cleanQuoteDetail(row.material || raw['REQ | Sustrato'] || raw['SUSTRATO'] || raw['MATERIAL']);
+    const machine = cleanQuoteDetail(row.machineName);
+    const die = formatQuoteLineDie(row);
+    const finishParts = buildQuoteLineFinishParts(row);
+    const noPrint = isQuoteLineNoPrint(row);
+    const secondLine = [
+        quantities ? `Cantidad: ${quantities}` : '',
+        material
+    ].filter(Boolean).join(' | ');
+    const thirdLineParts = [
+        machine ? escapeHtml(machine) : (noPrint ? '' : '<span class="is-warning">Sin máquina</span>'),
+        die ? escapeHtml(die) : ''
+    ].filter(Boolean);
+    const thirdLine = thirdLineParts.join(' - ');
+    const fourthLine = finishParts.length
+        ? finishParts.map((part) => escapeHtml(part)).join(' - ')
+        : (die ? '' : '<span class="is-warning">Sin acabados</span>');
+    return `
+        <div class="quote-master-line-detail">
+            <div class="quote-master-line-detail-main">
+                ${lineCode ? `<span class="quote-master-line-ref">(${escapeHtml(lineCode)})</span>` : ''}
+                <span class="quote-master-line-product">${escapeHtml(title)}</span>
+                ${measure ? `<span class="quote-master-line-measure">(${escapeHtml(measure)})</span>` : ''}
+            </div>
+            ${productId && productId !== lineCode ? `<div class="quote-master-line-detail-row">Producto: ${escapeHtml(productId)}</div>` : ''}
+            ${secondLine ? `<div class="quote-master-line-detail-row">${escapeHtml(secondLine)}</div>` : ''}
+            ${thirdLine ? `<div class="quote-master-line-detail-row">${thirdLine}</div>` : ''}
+            ${fourthLine ? `<div class="quote-master-line-detail-row">${fourthLine}</div>` : ''}
+            ${frontBackChipMarkup(row)}
+        </div>
+    `;
+}
+
 function lineMenuIconConfig(key, fallbackValue, fallbackColor = '#46515d', fallbackSize = 18) {
     const iconKeyMap = {
         duplicate: ['lineDuplicate'],
         copy: ['lineCopy'],
         product: ['lineCreateProduct', 'dashboardProducts'],
         createQuote: ['lineCreateQuote'],
+        frontBack: ['lineCreateQuote'],
         createOrder: ['lineCreateProductionOrder'],
         export: ['lineExport'],
         attachments: ['lineAttachments'],
@@ -1235,6 +1969,7 @@ function lineMenuIconConfig(key, fallbackValue, fallbackColor = '#46515d', fallb
         copy: 'lineCopy',
         product: 'lineCreateProduct',
         createQuote: 'lineCreateQuote',
+        frontBack: 'lineCreateQuote',
         createOrder: 'lineCreateProductionOrder',
         export: 'lineExport',
         attachments: 'lineAttachments',
@@ -1246,6 +1981,7 @@ function lineMenuIconConfig(key, fallbackValue, fallbackColor = '#46515d', fallb
         copy: 'LineCopy',
         product: 'LineCreateProduct',
         createQuote: 'LineCreateQuote',
+        frontBack: 'LineCreateQuote',
         createOrder: 'LineCreateProductionOrder',
         export: 'LineExport',
         attachments: 'LineAttachments',
@@ -1276,40 +2012,57 @@ function lineMenuIconMarkup(key, label, fallbackValue, danger = false) {
 let lineDragState = null;
 let lineDragDropInitialized = false;
 
-function renderQuoteLineCard(row, index, totalLines) {
+function renderQuoteLineCard(row, index, totalLines, treeOptions = {}) {
     quoteLineLookup.set(row.id, row);
-    const lineTitle = buildLineTitle(row, index);
-    const lineMeta = buildLineMeta(row);
+    const reorderConf = getResolvedIcon(['lineReorder', 'tableMove'], 'lineReorder');
     const openConf = getResolvedIcon(['browserOpen', 'tableOpen'], 'tableOpen');
+    const menuConf = getResolvedIcon(['lineMenu', 'tableActions'], 'lineMenu');
     const openColor = loadedConfig?.general?.iconColorBrowserOpen || loadedConfig?.general?.iconColorTableOpen || '#0b81b8';
     const openHover = loadedConfig?.general?.iconColorHoverBrowserOpen || loadedConfig?.general?.iconColorHoverTableOpen || '#07638c';
     const openSize = Number(loadedConfig?.general?.iconSizeBrowserOpen || loadedConfig?.general?.iconSizeTableOpen) || openConf.size || 18;
+    const menuColor = loadedConfig?.general?.iconColorLineMenu || menuConf.color || '#607286';
+    const menuHover = loadedConfig?.general?.iconColorHoverLineMenu || menuConf.hover || '#0b81b8';
+    const menuSize = Number(loadedConfig?.general?.iconSizeLineMenu) || menuConf.size || 18;
     const canCreateProduct = canCreateModule('productos');
+    const frontBackGroup = getFrontBackGroup(row);
+    const isFrontBackElement = frontBackGroup?.role === 'elemento';
+    const displayIndex = Number.isFinite(Number(treeOptions.sourceIndex)) && Number(treeOptions.sourceIndex) >= 0
+        ? Number(treeOptions.sourceIndex)
+        : index;
+    const isTreeGroup = treeOptions.kind === 'group' && Number(treeOptions.childCount || 0) > 0;
+    const isTreeChild = treeOptions.kind === 'child';
+    const treeClass = isTreeGroup ? ' is-front-back-parent' : (isTreeChild ? ' is-front-back-child' : '');
+    const treeAttrs = isTreeGroup
+        ? ` data-front-back-group-key="${escapeHtml(treeOptions.groupKey || '')}" aria-expanded="${treeOptions.expanded ? 'true' : 'false'}"`
+        : (isTreeChild ? ` data-front-back-parent-key="${escapeHtml(treeOptions.groupKey || '')}"` : '');
+    const groupToggle = isTreeGroup
+        ? `<button type="button" class="quote-master-line-tree-toggle" data-front-back-toggle="${escapeHtml(treeOptions.groupKey || '')}" aria-expanded="${treeOptions.expanded ? 'true' : 'false'}" aria-label="${treeOptions.expanded ? 'Contraer grupo frente/dorso' : 'Desplegar grupo frente/dorso'}">${treeOptions.expanded ? '▾' : '▸'}</button>`
+        : '<span class="quote-master-line-tree-spacer" aria-hidden="true"></span>';
     return `
-        <article class="quote-master-line" data-line-id="${row.id}" data-line-index="${index}" data-quote-id="${escapeHtml(row.quoteId)}" draggable="true">
+        <article class="quote-master-line${treeClass}" data-line-id="${row.id}" data-line-index="${displayIndex}" data-quote-id="${escapeHtml(row.quoteId)}"${treeAttrs} draggable="true">
             <div class="quote-master-line-order" title="Arrastrar para reordenar">
-                <span class="quote-master-line-num">${index + 1}</span>
-                <span class="quote-master-drag-handle" aria-hidden="true">&#8942;&#8942;</span>
+                ${groupToggle}
+                <span class="quote-master-line-num">${displayIndex + 1}</span>
+                <span class="quote-master-drag-handle" aria-hidden="true" style="--icon-color:${escapeHtml(reorderConf.color)};--icon-hover-color:${escapeHtml(reorderConf.hover)};--config-icon-size:${escapeHtml(String(reorderConf.size || 18))}px;">${iconMarkup(reorderConf.value, 'Ordenar línea', 'table-icon-media')}</span>
             </div>
             <div class="quote-master-line-body">
-                <div class="quote-master-line-title">${escapeHtml(lineTitle)}</div>
-                ${lineMeta ? `<div class="quote-master-line-meta">${escapeHtml(lineMeta)}</div>` : ''}
-                ${renderQuoteRealSummary(row)}
+                ${renderQuoteLineDetail(row, index)}
             </div>
             <div class="quote-master-line-right">
                 <span class="quote-master-line-total">${escapeHtml(formatMoney(row.subtotal1))}</span>
                 <div class="quote-line-actions row-tools row-tools-row-end">
                     <span class="row-action-divider" aria-hidden="true"></span>
-                    <button type="button" class="quote-line-icon-btn quote-line-edit-btn" data-line-action="edit" data-line-id="${row.id}" title="Editar cálculo" aria-label="Editar" style="--icon-color:${escapeHtml(openColor)};--icon-hover-color:${escapeHtml(openHover)};--config-icon-size:${escapeHtml(String(openSize))}px;">${iconMarkup(openConf.value, 'Editar cálculo', 'table-icon-media')}</button>
                     <div class="quote-line-menu-wrap" data-line-menu-id="${row.id}">
-                        <button type="button" class="quote-line-icon-btn quote-line-menu-trigger" data-line-menu-toggle="${row.id}" title="Más opciones" aria-label="Más opciones" aria-haspopup="true" aria-expanded="false">&#8942;</button>
+                        <button type="button" class="quote-line-icon-btn quote-line-menu-trigger" data-line-menu-toggle="${row.id}" title="Más opciones" aria-label="Más opciones" aria-haspopup="true" aria-expanded="false" style="--icon-color:${escapeHtml(menuColor)};--icon-hover-color:${escapeHtml(menuHover)};--config-icon-size:${escapeHtml(String(menuSize))}px;">${iconMarkup(menuConf.value, 'Más opciones', 'table-icon-media')}</button>
+                        <button type="button" class="quote-line-icon-btn quote-line-edit-btn" data-line-action="edit" data-line-id="${row.id}" title="Editar cálculo" aria-label="Editar" style="--icon-color:${escapeHtml(openColor)};--icon-hover-color:${escapeHtml(openHover)};--config-icon-size:${escapeHtml(String(openSize))}px;">${iconMarkup(openConf.value, 'Editar cálculo', 'table-icon-media')}</button>
                         <div class="quote-line-menu-panel" data-line-menu-panel="${row.id}" hidden>
                             <div class="row-action-menu-list">
                                 <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="duplicate" data-line-id="${row.id}">${lineMenuIconMarkup('duplicate', 'Duplicar Línea', '⎘')}<span>Duplicar Línea</span></button>
                                 <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="copy" data-line-id="${row.id}">${lineMenuIconMarkup('copy', 'Copiar Línea a Otra Cotización', '⎘')}<span>Copiar Línea a Otra Cotización</span></button>
                                 ${canCreateProduct ? `<button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="create-product" data-line-id="${row.id}">${lineMenuIconMarkup('product', 'Convertir en producto', '▣')}<span>Convertir en producto</span></button>` : ''}
                                 <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="create-quote" data-line-id="${row.id}">${lineMenuIconMarkup('createQuote', 'Crear nueva cotización a partir de esta línea', '▣')}<span>Crear nueva cotización a partir de esta línea</span></button>
-                                ${row.finalizadaOrden ? `<button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="create-production-order" data-line-id="${row.id}">${lineMenuIconMarkup('createOrder', 'Crear orden de producción', '⚒')}<span>Crear orden de producción</span></button>` : ''}
+                                <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="front-back" data-line-id="${row.id}">${lineMenuIconMarkup('frontBack', 'Frente/Dorso', 'FD')}<span>${frontBackGroup ? 'Editar Frente/Dorso' : 'Crear Frente/Dorso'}</span></button>
+                                ${row.finalizadaOrden && !isFrontBackElement ? `<button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="create-production-order" data-line-id="${row.id}">${lineMenuIconMarkup('createOrder', 'Crear orden de producción', '⚒')}<span>Crear orden de producción</span></button>` : ''}
                                 <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="export" data-line-id="${row.id}">${lineMenuIconMarkup('export', 'Exportar Línea a Excel', '⭳')}<span>Exportar Línea a Excel</span></button>
                                 <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="attachments" data-line-id="${row.id}">${lineMenuIconMarkup('attachments', 'Ver Adjuntos', '📎')}<span>Ver Adjuntos</span></button>
                                 <div class="row-action-menu-section-divider" aria-hidden="true"></div>
@@ -1329,14 +2082,17 @@ function renderQuoteLineCard(row, index, totalLines) {
 
 function renderQuoteLinesPanel(quoteCode) {
     const canCreateQuoteLines = canCreateModule('cotizaciones');
+    const proformaConf = getResolvedIcon(['lineProforma', 'proformaView'], 'lineProforma');
+    const addConf = getResolvedIcon(['lineAdd', 'tableAdd'], 'lineAdd');
+    const escapedCode = escapeHtml(quoteCode);
     const footer = `
         <div class="quote-master-lines-footer">
-            <button type="button" class="quote-line-action-btn quote-line-proforma-btn" data-print-proforma="${escapeHtml(quoteCode)}" title="Ver Proforma">
-                <span class="quote-line-action-icon" aria-hidden="true">↓</span> Ver Proforma
-            </button>
-            ${canCreateQuoteLines ? `<button type="button" class="quote-line-action-btn quote-line-add-btn" data-add-line="${escapeHtml(quoteCode)}" title="Agregar línea de cálculo">
-                <span class="quote-line-action-icon" aria-hidden="true">+</span> Agregar línea
+            ${canCreateQuoteLines ? `<button type="button" class="quote-browser-action-btn quote-line-add-btn" data-add-line="${escapedCode}" title="Agregar línea de cálculo" style="--icon-color:${escapeHtml(addConf.color)};--icon-hover-color:${escapeHtml(addConf.hover)};--config-icon-size:${escapeHtml(String(addConf.size || 18))}px;" onclick="this.disabled=true;this.querySelector('span').textContent='Cargando...';createQuoteLineAndOpenCalculation('${escapedCode}').catch(e=>setStatus(e.message,'error')).finally(()=>{this.disabled=false;this.querySelector('span').innerHTML='${escapeHtml(iconMarkup(addConf.value, 'Agregar línea', 'table-icon-media'))} Agregar línea'})">
+                <span class="quote-line-action-icon" aria-hidden="true">${iconMarkup(addConf.value, 'Agregar línea', 'table-icon-media')}</span> Agregar línea
             </button>` : ''}
+            <button type="button" class="quote-browser-action-btn quote-line-proforma-btn" data-print-proforma="${escapedCode}" title="Ver Proforma" style="--icon-color:${escapeHtml(proformaConf.color)};--icon-hover-color:${escapeHtml(proformaConf.hover)};--config-icon-size:${escapeHtml(String(proformaConf.size || 16))}px;" onclick="openProformaIfReady('${escapedCode}').catch(e=>setStatus(e.message,'error'))">
+                <span class="quote-line-action-icon" aria-hidden="true">${iconMarkup(proformaConf.value, 'Ver Proforma', 'table-icon-media')}</span> Ver Proforma
+            </button>
         </div>
     `;
     if (quoteLineLoading.has(quoteCode)) {
@@ -1349,7 +2105,25 @@ function renderQuoteLinesPanel(quoteCode) {
     if (!lines.length) {
         return `<div class="quote-master-line-message">Esta cotización todavía no tiene líneas de cálculo.</div>${footer}`;
     }
-    return `<div class="quote-master-lines">${lines.map((line, index) => renderQuoteLineCard(line, index, lines.length)).join('')}</div>${footer}`;
+    const treeNodes = buildFrontBackLineTree(lines, quoteCode);
+    return `<div class="quote-master-lines">${treeNodes.map((node, index) => renderQuoteLineCard(node.line, index, lines.length, {
+        kind: node.kind,
+        sourceIndex: node.sourceIndex,
+        groupKey: node.key,
+        childCount: node.childCount,
+        expanded: node.expanded
+    })).join('')}</div>${footer}`;
+}
+
+function quoteStatusInfo(item = {}) {
+    const raw = normalizeText([item.status, item.line_statuses].filter(Boolean).join(' ')).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    if (['pendiente', 'solicitud', 'solicitad', 'vendedor'].some((token) => raw.includes(token))) {
+        return { label: 'Solicitada', state: 'pending' };
+    }
+    if (['finaliz', 'proforma', 'enviad', 'cerrad', 'produccion'].some((token) => raw.includes(token)) || /\bcotizada\b/.test(raw)) {
+        return { label: 'Cotizada', state: 'quoted' };
+    }
+    return { label: 'No enviado', state: 'unsent' };
 }
 
 function renderQuoteParentRow(item) {
@@ -1360,6 +2134,7 @@ function renderQuoteParentRow(item) {
     const total = cachedLines.length
         ? formatMoney(quoteTotalFromLines(cachedLines))
         : (lineCount > 0 ? formatMoney(item.quote_total) : '—');
+    const toggleConf = getResolvedIcon([isExpanded ? 'quoteCollapse' : 'quoteExpand'], isExpanded ? 'quoteCollapse' : 'quoteExpand');
     const openConf = getResolvedIcon(['browserOpen', 'tableOpen'], 'tableOpen');
     const openColor = loadedConfig?.general?.iconColorBrowserOpen || loadedConfig?.general?.iconColorTableOpen || '#0b81b8';
     const openHover = loadedConfig?.general?.iconColorHoverBrowserOpen || loadedConfig?.general?.iconColorHoverTableOpen || '#07638c';
@@ -1370,13 +2145,14 @@ function renderQuoteParentRow(item) {
     const deleteSize = Number(loadedConfig?.general?.iconSizeLineDelete) || deleteConf.size || 18;
     const customerName = item.customer_name || '';
     const customerCode = item.customer_code || '';
+    const statusInfo = quoteStatusInfo(item);
     const createdOn = formatDate(item.created_on);
     const dueOn = formatDate(item.due_on);
     return `
         <tr class="quote-master-row ${isExpanded ? 'is-expanded' : ''}" data-quote-code="${escapeHtml(quoteCode)}">
             <td class="quote-master-td-toggle">
-                <button type="button" class="quote-master-toggle" data-toggle-quote="${escapeHtml(quoteCode)}" aria-expanded="${isExpanded ? 'true' : 'false'}" aria-label="${isExpanded ? 'Contraer' : 'Expandir'} cotización">
-                    <span class="quote-master-toggle-glyph" aria-hidden="true">&#9656;</span>
+                <button type="button" class="quote-master-toggle" data-toggle-quote="${escapeHtml(quoteCode)}" aria-expanded="${isExpanded ? 'true' : 'false'}" aria-label="${isExpanded ? 'Contraer' : 'Expandir'} cotización" style="--icon-color:${escapeHtml(toggleConf.color)};--icon-hover-color:${escapeHtml(toggleConf.hover)};--config-icon-size:${escapeHtml(String(toggleConf.size || 18))}px;">
+                    <span class="quote-master-toggle-glyph" aria-hidden="true">${iconMarkup(toggleConf.value, isExpanded ? 'Contraer' : 'Expandir', 'table-icon-media')}</span>
                     <span class="quote-master-toggle-count">${lineCount}</span>
                 </button>
             </td>
@@ -1387,6 +2163,7 @@ function renderQuoteParentRow(item) {
                 <div class="quote-master-info-block">
                     <span class="quote-master-info-name">${escapeHtml(customerName)}</span>
                     ${customerCode ? `<span class="quote-master-info-code">${escapeHtml(customerCode)}</span>` : ''}
+                    <span class="quote-status-chip" data-state="${escapeHtml(statusInfo.state)}">${escapeHtml(statusInfo.label)}</span>
                 </div>
             </td>
             <td class="quote-master-td-date">${escapeHtml(createdOn)}</td>
@@ -1407,7 +2184,17 @@ function renderQuoteParentRow(item) {
 
 async function refreshQuoteLines(quoteCode) {
     await fetchQuoteLines(quoteCode, { force: true });
-    renderQuotesTable(getFilteredQuotes());
+    const allQuotes = getFilteredQuotes();
+    const quoteIndex = allQuotes.findIndex(q => q.quote_code === quoteCode);
+    if (quoteIndex >= 0) {
+        const lines = quoteLineCache.get(quoteCode);
+        allQuotes[quoteIndex].line_count = lines ? lines.length : 0;
+    }
+    renderQuotesTable(allQuotes);
+    // Renderizar el panel de líneas si la cotización está expandida
+    if (expandedQuoteCodes.has(quoteCode)) {
+        renderQuoteLinesPanel(quoteCode);
+    }
 }
 
 function openQuoteDocument(quoteCode) {
@@ -1418,7 +2205,7 @@ function openQuoteDocument(quoteCode) {
     }
 }
 
-function openLineCalculation(row) {
+function openLineCalculation(row, options = {}) {
     if (!row?.quoteId || !row?.linea) return;
     const route = `/calculo-flexografia?${new URLSearchParams({
         lineId: row.linea,
@@ -1426,27 +2213,48 @@ function openLineCalculation(row) {
         productId: row.productId || '',
         department: row.departamento || ''
     }).toString()}`;
+    if (options.newTab) {
+        if (!openRouteInShell(route, `Cálculo ${row.linea}`)) {
+            window.open(route, '_blank', 'noopener');
+        }
+        return;
+    }
     if (!openRouteInShell(route, `Cálculo ${row.linea}`)) {
         window.location.href = route;
     }
 }
 
 async function createQuoteLineAndOpenCalculation(quoteCode) {
+    const currentLines = quoteLineCache.get(quoteCode) || [];
     const payload = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(quoteCode)}/lineas`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             ...sessionHeader()
         },
-        body: JSON.stringify({})
+        body: JSON.stringify({
+            line_order: currentLines.length + 1,
+            department: 'Flexografia',
+            status: 'Borrador'
+        })
     });
-    const line = payload?.linea || null;
+    const line = payload?.linea ? normalizeQuoteLine(payload.linea, quoteCode) : null;
     if (!line?.quoteId || !line?.linea) {
         throw new Error('No fue posible crear la nueva línea de cálculo.');
     }
-    quoteLineCache.clear();
-    await loadQuotes();
-    openLineCalculation(line);
+    // Recargar las líneas de esta cotización y actualizar la vista
+    await fetchQuoteLines(quoteCode, { force: true });
+    const allQuotes = getFilteredQuotes();
+    const quoteIndex = allQuotes.findIndex(q => q.quote_code === quoteCode);
+    if (quoteIndex >= 0) {
+        allQuotes[quoteIndex].line_count = (currentLines.length + 1);
+    }
+    renderQuotesTable(allQuotes);
+    // Renderizar el panel de líneas si la cotización está expandida
+    if (expandedQuoteCodes.has(quoteCode)) {
+        renderQuoteLinesPanel(quoteCode);
+    }
+    openLineCalculation(line, { newTab: true });
 }
 
 async function persistQuoteLineOrder(quoteCode, lines) {
@@ -1476,9 +2284,26 @@ async function moveQuoteLine(row, direction) {
     await persistQuoteLineOrder(row.quoteId, nextLines);
 }
 
+function quoteLineActionLockKey(action, row) {
+    return `${action}:${row?.quoteId || ''}:${row?.linea || row?.id || ''}`;
+}
+
+async function runQuoteLineActionLocked(action, row, task) {
+    const key = quoteLineActionLockKey(action, row);
+    if (quoteLineActionLocks.has(key)) return;
+    quoteLineActionLocks.add(key);
+    try {
+        return await task();
+    } finally {
+        quoteLineActionLocks.delete(key);
+    }
+}
+
 async function duplicateQuoteLine(row) {
-    await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}/duplicar`, { method: 'POST' });
-    await refreshQuoteLines(row.quoteId);
+    return runQuoteLineActionLocked('duplicate', row, async () => {
+        await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}/duplicar`, { method: 'POST' });
+        await refreshQuoteLines(row.quoteId);
+    });
 }
 
 async function createQuoteFromLine(row) {
@@ -1498,11 +2323,105 @@ async function createProductFromLine(row) {
     });
     const code = payload?.producto?.product_code;
     if (code) {
+        await refreshQuoteLines(row.quoteId);
+        setStatus(`Producto ${code} asociado a la línea ${row.linea}.`, 'saved');
         const route = '/productos';
         if (!openRouteInShell(route, 'Productos')) {
             window.location.href = route;
         }
     }
+}
+
+function frontBackLineOptionMarkup(row, checked = false) {
+    return `
+        <label class="front-back-option">
+            <input type="checkbox" name="frontBackElement" value="${escapeHtml(row.linea)}"${checked ? ' checked' : ''}>
+            <span>
+                <strong>${escapeHtml(row.linea)} · ${escapeHtml(row.nombreTrabajo || 'Sin nombre')}</strong>
+                <span>${escapeHtml([row.material, row.machineName, row.medida].filter(Boolean).join(' · ') || 'Sin detalle técnico')}</span>
+            </span>
+        </label>
+    `;
+}
+
+function renderFrontBackModal(row) {
+    if (!frontBackModal || !frontBackCurrent || !frontBackOptions) return;
+    const lines = quoteLineCache.get(row.quoteId) || [];
+    const group = getFrontBackGroup(row);
+    const selectedCodes = new Set(group?.elementLineCodes || []);
+    const candidates = lines.filter((item) => {
+        if (!item.linea || item.linea === row.linea) return false;
+        const itemGroup = getFrontBackGroup(item);
+        return !itemGroup || itemGroup.groupId === group?.groupId;
+    });
+    frontBackCurrent.innerHTML = `
+        <strong>Línea grupo: ${escapeHtml(row.linea)} · ${escapeHtml(row.nombreTrabajo || 'Sin nombre')}</strong>
+        <span>La proforma mostrará solo esta línea. Selecciona exactamente dos elementos productivos: frente y dorso.</span>
+    `;
+    frontBackOptions.innerHTML = candidates.length
+        ? candidates.map((item) => frontBackLineOptionMarkup(item, selectedCodes.has(item.linea))).join('')
+        : '<div class="front-back-current"><strong>Sin líneas disponibles</strong><span>Agrega dos líneas de cálculo para poder crear el grupo frente/dorso.</span></div>';
+    if (frontBackWarning) {
+        const warnings = group?.warnings || [];
+        frontBackWarning.hidden = !warnings.length;
+        frontBackWarning.textContent = warnings.length ? `Validar compatibilidad: ${warnings.join(' | ')}` : '';
+    }
+    if (frontBackUnlink) frontBackUnlink.hidden = !group;
+    if (frontBackSave) frontBackSave.disabled = candidates.length < 2;
+}
+
+function openFrontBackModal(row) {
+    if (!frontBackModal) return;
+    const group = getFrontBackGroup(row);
+    const lines = quoteLineCache.get(row.quoteId) || [];
+    const modalRow = group?.role === 'elemento'
+        ? (lines.find((item) => item.linea === group.groupLineCode) || row)
+        : row;
+    frontBackModalRow = modalRow;
+    renderFrontBackModal(modalRow);
+    frontBackModal.hidden = false;
+    document.body.classList.add('popover-open');
+}
+
+function closeFrontBackModal() {
+    if (!frontBackModal) return;
+    frontBackModal.hidden = true;
+    frontBackModalRow = null;
+    document.body.classList.remove('popover-open');
+}
+
+async function saveFrontBackGroup() {
+    const row = frontBackModalRow;
+    if (!row?.quoteId || !row.linea) return;
+    const selected = Array.from(frontBackModal?.querySelectorAll('input[name="frontBackElement"]:checked') || []).map((input) => input.value).filter(Boolean);
+    if (selected.length !== 2) throw new Error('Selecciona exactamente dos elementos: frente y dorso.');
+    const payload = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/frente-dorso`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            groupLineCode: row.linea,
+            elementLineCodes: selected,
+            label: 'Grupo Frente/Dorso'
+        })
+    });
+    const savedGroup = payload?.group || {};
+    const savedGroupKey = frontBackGroupKey(savedGroup, row.quoteId);
+    if (savedGroupKey) expandedFrontBackGroupKeys.add(savedGroupKey);
+    closeFrontBackModal();
+    await refreshQuoteLines(row.quoteId);
+    setStatus('Grupo frente/dorso guardado.', 'saved');
+}
+
+async function unlinkFrontBackGroup() {
+    const row = frontBackModalRow;
+    const group = getFrontBackGroup(row);
+    if (!row?.quoteId || !group?.groupId) return;
+    await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/frente-dorso/${encodeURIComponent(group.groupId)}`, {
+        method: 'DELETE'
+    });
+    closeFrontBackModal();
+    await refreshQuoteLines(row.quoteId);
+    setStatus('Grupo frente/dorso eliminado.', 'saved');
 }
 
 async function createProductionOrder(row) {
@@ -1543,10 +2462,12 @@ async function toggleLineFinalized(row) {
 }
 
 async function deleteQuoteLine(row) {
-    const confirmed = window.confirm(`Se eliminará la línea ${row.linea}. ¿Deseas continuar?`);
-    if (!confirmed) return;
-    await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}`, { method: 'DELETE' });
-    await refreshQuoteLines(row.quoteId);
+    return runQuoteLineActionLocked('delete', row, async () => {
+        const confirmed = window.confirm(`Se eliminará la línea ${row.linea}. ¿Deseas continuar?`);
+        if (!confirmed) return;
+        await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}`, { method: 'DELETE' });
+        await refreshQuoteLines(row.quoteId);
+    });
 }
 
 async function handleQuoteLineAction(action, row) {
@@ -1558,6 +2479,7 @@ async function handleQuoteLineAction(action, row) {
     if (action === 'copy') return openQuoteDocument(row.quoteId);
     if (action === 'create-product') return createProductFromLine(row);
     if (action === 'create-quote') return createQuoteFromLine(row);
+    if (action === 'front-back') return openFrontBackModal(row);
     if (action === 'create-production-order') return createProductionOrder(row);
     if (action === 'export') {
         window.open(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}/exportar`, '_blank', 'noopener');
@@ -1594,7 +2516,7 @@ async function loadQuotes() {
     const params = new URLSearchParams({ limit: '200' });
     const search = normalizeText(quotesSearchInput?.value);
     if (search) params.set('q', search);
-    const payload = await fetchJson(`${QUOTES_ENDPOINT}?${params.toString()}`);
+    const payload = await fetchJson(`${QUOTES_ENDPOINT}?${params.toString()}`, { headers: sessionHeader() });
     quoteCatalog = Array.isArray(payload.cotizaciones) ? payload.cotizaciones : [];
     if (selectedQuoteContextCode && !quoteCatalog.some((item) => item.quote_code === selectedQuoteContextCode)) {
         selectedQuoteContextCode = '';
@@ -1603,10 +2525,38 @@ async function loadQuotes() {
     renderQuotesTable(getFilteredQuotes());
 }
 
+async function refreshQuoteConfig(cachedConfig = null) {
+    let nextConfig = null;
+    try {
+        nextConfig = await fetchJson(CONFIG_ENDPOINT, { cache: 'no-cache' });
+    } catch (error) {
+        if (cachedConfig) return;
+        throw error;
+    }
+    const cacheableConfig = compactQuoteConfigForCache(nextConfig);
+    if (!areQuoteConfigsEqual(cacheableConfig, cachedConfig)) {
+        writeQuoteConfigCache(cacheableConfig);
+    }
+    applyQuoteConfig(nextConfig);
+}
+
 async function loadConfig() {
-    loadedConfig = await fetchJson(CONFIG_ENDPOINT);
+    const cachedConfig = readQuoteConfigCache();
+    if (cachedConfig) {
+        applyQuoteConfig(cachedConfig);
+        refreshQuoteConfig(cachedConfig).catch((error) => {
+            console.warn('No fue posible refrescar la configuración de cotizaciones.', error);
+        });
+        return;
+    }
+    await refreshQuoteConfig(cachedConfig);
+}
+
+function applyQuoteConfig(config) {
+    loadedConfig = config || {};
     applyConfiguredIcons();
     renderRequestQuantityRepeater();
+    syncFixedSizeTrigger();
     renderRequestProductTypeOptions();
     renderShapePicker();
     if (quoteCatalog.length) {
@@ -1616,12 +2566,9 @@ async function loadConfig() {
 
 function applyExternalConfigUpdate(config) {
     if (config && typeof config === 'object') {
-        loadedConfig = config;
-        applyConfiguredIcons();
-        renderRequestQuantityRepeater();
-        renderRequestProductTypeOptions();
-        renderShapePicker();
-        if (quoteCatalog.length) renderQuotesTable(getFilteredQuotes());
+        const cacheableConfig = compactQuoteConfigForCache(config);
+        writeQuoteConfigCache(cacheableConfig);
+        applyQuoteConfig(config);
         return;
     }
     loadConfig().catch(console.error);
@@ -1643,19 +2590,28 @@ window.addEventListener('erp-general-config-updated', (event) => {
 async function loadSmartCatalogs() {
     try {
         const payload = await fetchJson(SMART_CATALOGS_ENDPOINT);
-        const families = Array.isArray(payload?.materialFamilies) ? payload.materialFamilies : [];
+        const substrateMaterials = Array.isArray(payload?.substrateMaterials) ? payload.substrateMaterials : [];
         smartCatalogMeta = {
             digitalThreshold: Number(payload?.digitalThreshold || 100000) || 100000,
             labelsPerRollDefault: Number(payload?.labelsPerRollDefault || 1000) || 1000
         };
-        if (families.length) {
-            materialItems = families.map((item) => ({
+        const sourceItems = substrateMaterials;
+        if (sourceItems.length) {
+            const seen = new Set();
+            materialItems = sourceItems.map((item) => ({
                 code: item.code || item.name || '',
                 name: item.name || item.code || ''
-            }));
+            })).filter((item) => {
+                const key = `${normalizeText(item.code).toLowerCase()}|${normalizeText(item.name).toLowerCase()}`;
+                if (!normalizeText(item.name) || seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+        } else {
+            materialItems = [];
         }
     } catch (error) {
-        materialItems = STATIC_MATERIALS.map((name) => ({ code: '', name }));
+        materialItems = [];
         smartCatalogMeta = {
             digitalThreshold: 100000,
             labelsPerRollDefault: 1000
@@ -1671,27 +2627,31 @@ function renderInlineSuggestionList(panel, items, emptyMessage) {
         panel.hidden = false;
         return;
     }
-    panel.innerHTML = items.map((item) => `
+    panel.innerHTML = items.map((item) => {
+        const code = normalizeText(item.code || '');
+        const name = normalizeText(item.name || '');
+        const showCode = code && code.toLowerCase() !== name.toLowerCase();
+        return `
         <button type="button" class="quote-request-lookup-item" data-value="${escapeHtml(item.name)}" data-code="${escapeHtml(item.code || '')}">
             <span class="quote-request-lookup-name">${escapeHtml(item.name)}</span>
-            <span class="quote-request-lookup-code">${escapeHtml(item.code || '')}</span>
+            ${showCode ? `<span class="quote-request-lookup-code">${escapeHtml(item.code || '')}</span>` : ''}
         </button>
-    `).join('');
+    `;
+    }).join('');
     panel.hidden = false;
 }
 
 function showMaterialSuggestions() {
     const term = normalizeText(materialInput?.value).toLowerCase();
     const items = materialItems
-        .filter((item) => !term || item.name.toLowerCase().includes(term))
+        .filter((item) => !term || `${item.name || ''} ${item.code || ''}`.toLowerCase().includes(term))
         .slice(0, 12);
-    renderInlineSuggestionList(materialSuggestions, items, 'No hay materiales disponibles.');
+    renderInlineSuggestionList(materialSuggestions, items, 'No hay sustratos disponibles en inventario.');
+    positionMaterialSuggestionsPanel();
 }
 
 function showSurfaceSuggestions() {
-    const term = normalizeText(surfaceInput?.value).toLowerCase();
     const items = surfaceItems
-        .filter((item) => !term || item.toLowerCase().includes(term))
         .slice(0, 12)
         .map((item) => ({ name: item, code: '' }));
     renderInlineSuggestionList(surfaceSuggestions, items, 'No hay superficies disponibles.');
@@ -1700,6 +2660,44 @@ function showSurfaceSuggestions() {
 function hideInlinePanels() {
     if (materialSuggestions) materialSuggestions.hidden = true;
     if (surfaceSuggestions) surfaceSuggestions.hidden = true;
+    toggleFixedSizePanel(false);
+    toggleRequestProductTypePanel(false);
+}
+
+function positionCustomerLookupPanel() {
+    if (!customerLookupPanel || !customerNameInput || customerLookupPanel.hidden) return;
+    if (customerLookupPanel.parentElement !== document.body) {
+        document.body.appendChild(customerLookupPanel);
+    }
+    const rect = customerNameInput.getBoundingClientRect();
+    const viewportGap = 8;
+    const width = Math.min(rect.width, window.innerWidth - viewportGap * 2);
+    const left = Math.min(Math.max(viewportGap, rect.left), window.innerWidth - width - viewportGap);
+    const top = rect.bottom + 2;
+    const maxHeight = Math.max(140, Math.min(460, window.innerHeight - top - viewportGap));
+
+    customerLookupPanel.style.setProperty('--quote-customer-lookup-left', `${left}px`);
+    customerLookupPanel.style.setProperty('--quote-customer-lookup-top', `${top}px`);
+    customerLookupPanel.style.setProperty('--quote-customer-lookup-width', `${width}px`);
+    customerLookupPanel.style.setProperty('--quote-customer-lookup-max-height', `${maxHeight}px`);
+}
+
+function positionNewCalcCustomerLookupPanel() {
+    if (!newCalcCustomerLookupPanel || !newCalcCustomerNameInput || newCalcCustomerLookupPanel.hidden) return;
+    if (newCalcCustomerLookupPanel.parentElement !== document.body) {
+        document.body.appendChild(newCalcCustomerLookupPanel);
+    }
+    const rect = newCalcCustomerNameInput.getBoundingClientRect();
+    const viewportGap = 8;
+    const width = Math.min(rect.width, window.innerWidth - viewportGap * 2);
+    const left = Math.min(Math.max(viewportGap, rect.left), window.innerWidth - width - viewportGap);
+    const top = rect.bottom + 2;
+    const maxHeight = Math.max(140, Math.min(460, window.innerHeight - top - viewportGap));
+
+    newCalcCustomerLookupPanel.style.setProperty('--quote-new-calc-customer-left', `${left}px`);
+    newCalcCustomerLookupPanel.style.setProperty('--quote-new-calc-customer-top', `${top}px`);
+    newCalcCustomerLookupPanel.style.setProperty('--quote-new-calc-customer-width', `${width}px`);
+    newCalcCustomerLookupPanel.style.setProperty('--quote-new-calc-customer-max-height', `${maxHeight}px`);
 }
 
 async function searchPartners(term) {
@@ -1720,12 +2718,104 @@ async function searchPartners(term) {
         `).join('')
         : '<div class="quote-request-lookup-empty">No se encontraron socios.</div>';
     customerLookupPanel.hidden = false;
+    positionCustomerLookupPanel();
+}
+
+async function searchNewCalcPartners(term) {
+    newCalcPartnerLookupAbort?.abort();
+    newCalcPartnerLookupAbort = new AbortController();
+    const query = new URLSearchParams({ limit: '12' });
+    if (term) query.set('q', term);
+    const response = await fetch(`${PARTNERS_ENDPOINT}?${query.toString()}`, { signal: newCalcPartnerLookupAbort.signal });
+    const payload = await response.json().catch(() => ({ socios: [] }));
+    if (!response.ok) throw new Error(payload.error || 'No fue posible cargar socios.');
+    const items = Array.isArray(payload.socios) ? payload.socios : [];
+    newCalcCustomerLookupResults.innerHTML = items.length
+        ? items.map((item) => `
+            <button type="button" class="quote-request-lookup-item" data-partner-code="${escapeHtml(item.partner_code || '')}" data-partner-name="${escapeHtml(item.partner_name || '')}">
+                <span class="quote-request-lookup-name">${escapeHtml(item.partner_name || '')}</span>
+                <span class="quote-request-lookup-code">${escapeHtml(item.partner_code || '')}</span>
+            </button>
+        `).join('')
+        : '<div class="quote-request-lookup-empty">No se encontraron socios.</div>';
+    newCalcCustomerLookupPanel.hidden = false;
+    positionNewCalcCustomerLookupPanel();
+}
+
+function resetContactSelect(select, message = 'Selecciona un cliente') {
+    if (!select) return;
+    select.innerHTML = `<option value="">${escapeHtml(message)}</option>`;
+    select.disabled = true;
+}
+
+function contactOptionLabel(contact = {}) {
+    return normalizeText(contact.contact_name)
+        || [contact.first_name, contact.last_name].map(normalizeText).filter(Boolean).join(' ')
+        || normalizeText(contact.email)
+        || 'Contacto sin nombre';
+}
+
+function renderContactOptions(select, contacts = []) {
+    if (!select) return;
+    const items = contacts.map((contact) => ({
+        name: contactOptionLabel(contact),
+        email: normalizeText(contact.email),
+        phone: normalizeText(contact.phone || contact.mobile)
+    })).filter((item) => item.name);
+    if (!items.length) {
+        resetContactSelect(select, 'Sin contactos asociados');
+        return;
+    }
+    select.disabled = false;
+    select.innerHTML = `<option value="">Selecciona contacto</option>${items.map((item) => `
+        <option value="${escapeHtml(item.name)}" data-email="${escapeHtml(item.email)}" data-phone="${escapeHtml(item.phone)}">${escapeHtml(item.name)}</option>
+    `).join('')}`;
+    if (items.length === 1) select.selectedIndex = 1;
+}
+
+async function loadRequestContacts(partnerCode) {
+    resetContactSelect(customerContactSelect, partnerCode ? 'Cargando contactos...' : 'Selecciona un cliente');
+    if (!partnerCode) return;
+    requestContactAbort?.abort();
+    requestContactAbort = new AbortController();
+    const payload = await fetchJson(`${PARTNERS_ENDPOINT}/${encodeURIComponent(partnerCode)}/contactos`, { signal: requestContactAbort.signal });
+    renderContactOptions(customerContactSelect, Array.isArray(payload.contactos) ? payload.contactos : []);
+}
+
+async function loadNewCalcContacts(partnerCode) {
+    resetContactSelect(newCalcContactSelect, partnerCode ? 'Cargando contactos...' : 'Selecciona un cliente');
+    if (!partnerCode) return;
+    newCalcContactAbort?.abort();
+    newCalcContactAbort = new AbortController();
+    const payload = await fetchJson(`${PARTNERS_ENDPOINT}/${encodeURIComponent(partnerCode)}/contactos`, { signal: newCalcContactAbort.signal });
+    renderContactOptions(newCalcContactSelect, Array.isArray(payload.contactos) ? payload.contactos : []);
 }
 
 function applyPartnerSelection(code, name) {
     customerCodeInput.value = code || '';
     customerNameInput.value = name || '';
     if (customerLookupPanel) customerLookupPanel.hidden = true;
+    loadRequestContacts(code).catch((error) => {
+        if (error.name !== 'AbortError') setStatus(error.message, 'error');
+    });
+}
+
+function applyNewCalcPartnerSelection(code, name) {
+    newCalcCustomerCodeInput.value = code || '';
+    newCalcCustomerNameInput.value = name || '';
+    if (newCalcCustomerLookupPanel) newCalcCustomerLookupPanel.hidden = true;
+    loadNewCalcContacts(code).catch((error) => {
+        if (error.name !== 'AbortError') setNewCalcStatus(error.message, 'error');
+    });
+}
+
+function selectedContactPayload(select) {
+    const option = select?.selectedOptions?.[0];
+    return {
+        contact_name: normalizeText(select?.value),
+        email: normalizeText(option?.dataset?.email),
+        phone: normalizeText(option?.dataset?.phone)
+    };
 }
 
 function syncToggleChipState(scope = document) {
@@ -1985,7 +3075,14 @@ function formHasContent() {
 
 function resetFormState() {
     form?.reset();
+    form?.querySelectorAll('input[name="numbering"]').forEach((input) => {
+        input.checked = false;
+    });
     customerCodeInput.value = '';
+    resetContactSelect(customerContactSelect, 'Selecciona un cliente');
+    if (materialInput) materialInput.dataset.materialCode = '';
+    if (customWidthInput) customWidthInput.value = '';
+    if (customHeightInput) customHeightInput.value = '';
     pendingAttachments.forEach((item) => {
         if (item.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(item.previewUrl);
     });
@@ -1995,6 +3092,7 @@ function resetFormState() {
     setStatus('');
     syncToggleChipState();
     applyConfiguredIcons();
+    syncFixedSizeTrigger();
     renderRequestProductTypeOptions();
     renderRequestQuantityRepeater([0]);
     closeAttachmentPreview();
@@ -2043,9 +3141,15 @@ function buildShapeThumbMarkup(shape) {
         : `<span class="quote-request-shape-fallback" data-shape="${escapeHtml(shape.value)}"></span>`;
 }
 
+function getSelectedShapeInput() {
+    return document.querySelector('[data-shape-panel] input[name="die_shape"]:checked')
+        || shapePicker?.querySelector('input[name="die_shape"]:checked')
+        || null;
+}
+
 function syncShapePickerState() {
     if (!shapePicker) return;
-    const selectedInput = shapePicker.querySelector('input[name="die_shape"]:checked');
+    const selectedInput = getSelectedShapeInput();
     const selectedValue = selectedInput?.value || '';
     const selectedLabel = selectedInput?.dataset.label || selectedValue || 'Selecciona una forma';
     const selectedImage = selectedInput?.dataset.image || '';
@@ -2060,28 +3164,60 @@ function syncShapePickerState() {
             image: selectedImage
         });
     }
-    shapePicker.querySelectorAll('.quote-request-shape-option').forEach((option) => {
+    const panel = document.querySelector('[data-shape-panel]') || shapePicker.querySelector('[data-shape-panel]');
+    panel?.querySelectorAll('.quote-request-shape-option').forEach((option) => {
         option.classList.toggle('is-selected', option.dataset.shapeValue === selectedValue);
     });
     if (trigger) trigger.setAttribute('aria-expanded', 'false');
-    const panel = shapePicker.querySelector('[data-shape-panel]');
     if (panel) panel.hidden = true;
+}
+
+function markDieCutWhenShapeSelected() {
+    const dieCut = document.getElementById('finishDieCut');
+    if (!dieCut || dieCut.checked || !getSelectedShapeInput()?.value) return;
+    dieCut.checked = true;
+    syncToggleChipState();
+    updateFinishCompactSummaries();
+}
+
+function positionShapePickerPanel() {
+    if (!shapePicker) return;
+    const panel = document.querySelector('[data-shape-panel]') || shapePicker.querySelector('[data-shape-panel]');
+    const trigger = shapePicker.querySelector('[data-shape-trigger]');
+    if (!panel || !trigger || panel.hidden) return;
+    if (panel.parentElement !== document.body) {
+        document.body.appendChild(panel);
+    }
+    const rect = trigger.getBoundingClientRect();
+    const viewportGap = 8;
+    const width = Math.min(rect.width, window.innerWidth - viewportGap * 2);
+    const left = Math.min(Math.max(viewportGap, rect.left), window.innerWidth - width - viewportGap);
+    const top = rect.bottom - 10;
+    const maxHeight = Math.max(150, Math.min(420, window.innerHeight - top - viewportGap));
+
+    panel.style.setProperty('--quote-shape-panel-left', `${left}px`);
+    panel.style.setProperty('--quote-shape-panel-top', `${top}px`);
+    panel.style.setProperty('--quote-shape-panel-width', `${width}px`);
+    panel.style.setProperty('--quote-shape-panel-max-height', `${maxHeight}px`);
 }
 
 function toggleShapePickerPanel(forceOpen) {
     if (!shapePicker) return;
-    const panel = shapePicker.querySelector('[data-shape-panel]');
+    const panel = document.querySelector('[data-shape-panel]') || shapePicker.querySelector('[data-shape-panel]');
     const trigger = shapePicker.querySelector('[data-shape-trigger]');
     if (!panel || !trigger) return;
     const nextState = typeof forceOpen === 'boolean' ? forceOpen : panel.hidden;
     panel.hidden = !nextState;
     trigger.setAttribute('aria-expanded', nextState ? 'true' : 'false');
+    if (nextState) positionShapePickerPanel();
 }
 
 function renderShapePicker() {
     if (!shapePicker) return;
     const shapes = getShapeOptions();
-    const selectedValue = shapePicker.querySelector('input[name="die_shape"]:checked')?.value || shapes[0]?.value || '';
+    const selectedValue = getSelectedShapeInput()?.value || shapes[0]?.value || '';
+    const detachedPanel = document.querySelector('[data-shape-panel]');
+    if (detachedPanel && detachedPanel.parentElement !== shapePicker) detachedPanel.remove();
     shapePicker.innerHTML = `
         <div class="quote-request-field">
             <span>Forma de Troquel</span>
@@ -2108,8 +3244,16 @@ function renderShapePicker() {
 }
 
 function collectRequestPayload() {
-    const selectedShape = form.querySelector('input[name="die_shape"]:checked')?.value || '';
+    const selectedShape = getSelectedShapeInput()?.value || '';
     const selectedSize = fixedSizeSelect?.selectedOptions?.[0];
+    const isCustomSize = fixedSizeSelect?.value === 'custom';
+    const customWidth = Number(customWidthInput?.value || 0) || 0;
+    const customHeight = Number(customHeightInput?.value || 0) || 0;
+    const widthInches = isCustomSize ? customWidth : (Number(selectedSize?.dataset.width || 0) || null);
+    const lengthInches = isCustomSize ? customHeight : (Number(selectedSize?.dataset.length || 0) || null);
+    const sizeLabel = isCustomSize
+        ? (widthInches && lengthInches ? `Medida especial: ${widthInches} in x ${lengthInches} in` : 'Medida especial')
+        : normalizeText(selectedSize?.textContent || fixedSizeSelect?.value);
     const numbering = getSelectedNumberingValue();
     const stamping = form.querySelector('input[name="stamping"]:checked')?.value || '';
     const lamination = form.querySelector('input[name="lamination"]:checked')?.value || '';
@@ -2119,34 +3263,43 @@ function collectRequestPayload() {
     const productType = requestProductTypeSelect?.value || '';
     const processType = normalizeText(requestProcessTypeInput?.value) || 'Convencional';
     const quantities = readRequestedQuantities();
-    const numberingFrom = normalizeText(numberingRangeStartInput?.value);
-    const numberingTo = normalizeText(numberingRangeEndInput?.value);
+    const contact = selectedContactPayload(customerContactSelect);
+    const varnishZonificado = document.getElementById('varnishSonified')?.checked ? 'Si' : 'No';
+    const numberingIsConsecutive = isConsecutiveNumbering(numbering);
+    const numberingFrom = numberingIsConsecutive ? normalizeText(numberingRangeStartInput?.value) : '';
+    const numberingTo = numberingIsConsecutive ? normalizeText(numberingRangeEndInput?.value) : '';
     const numberingDetail = normalizeText(numberingDetailInput?.value);
     const numberingAttachmentIndex = findPendingAttachmentIndex((item) => item?.slot === 'numbering');
     const numberingAttachment = numberingAttachmentIndex >= 0 ? pendingAttachments[numberingAttachmentIndex] : null;
     const numberingSummary = numbering
-        ? [numbering, numberingFrom || numberingTo ? `Desde ${numberingFrom || '...'} hasta ${numberingTo || '...'}` : '', numberingDetail].filter(Boolean).join(' | ')
+        ? [getNumberingLabel(numbering), numberingFrom || numberingTo ? `Desde ${numberingFrom || '...'} hasta ${numberingTo || '...'}` : '', numberingDetail].filter(Boolean).join(' | ')
         : '';
 
     return {
         customer_code: normalizeText(customerCodeInput.value),
         customer_name: normalizeText(customerNameInput.value),
+        contact_name: contact.contact_name,
+        email: contact.email,
+        phone: contact.phone,
         job_name: normalizeText(document.getElementById('requestJobName')?.value),
         quantity: quantities.map((item) => formatNumber(item)).join(', '),
         quantities,
         product_type: normalizeText(productType),
         process_type: processType,
         material_name: normalizeText(materialInput?.value),
+        material_code: normalizeText(materialInput?.dataset?.materialCode),
         applicationType: normalizeText(surfaceInput?.value),
         outputType: placement,
-        widthInches: Number(selectedSize?.dataset.width || 0) || null,
-        lengthInches: Number(selectedSize?.dataset.length || 0) || null,
+        widthInches,
+        lengthInches,
         request_meta: {
             'REQ | Tipo de Producto': normalizeText(productType),
             'REQ | Cantidades': quantities.map((item) => formatNumber(item)).join(', '),
             'REQ | Ruta Solicitada': 'Automática',
+            'REQ | Cliente Contacto': contact.contact_name,
             'REQ | Forma': selectedShape,
             'REQ | Barniz': varnish,
+            'REQ | Barniz Zonificado': varnishZonificado,
             'REQ | Laminado': lamination,
             'REQ | Estampado': stamping,
             'REQ | Estampado Ancho': stampingWidth,
@@ -2161,14 +3314,22 @@ function collectRequestPayload() {
             'REQ | Superficie': normalizeText(surfaceInput?.value),
             'REQ | Colocacion': placement,
             'REQ | Comentarios': normalizeText(document.getElementById('requestComments')?.value),
-            'REQ | Medida Fija': normalizeText(fixedSizeSelect?.value),
+            'REQ | Medida Fija': sizeLabel,
             'REQ | Numeracion Aviso': numbering ? 'Revisar proceso adicional de impresion para numerado.' : '',
+            'TRAZABILIDAD | SOLICITUD VENDEDOR': 'Si',
+            'TRAZABILIDAD | FECHA SOLICITUD VENDEDOR': new Date().toISOString(),
+            'TRAZABILIDAD | USUARIO SOLICITUD VENDEDOR': currentUserName(),
             'CODEX_UI_STATE': {
+                request: 'solicitud-vendedor',
                 productType: normalizeText(productType),
                 quantities,
                 dieShape: selectedShape,
-                widthInches: Number(selectedSize?.dataset.width || 0) || null,
-                lengthInches: Number(selectedSize?.dataset.length || 0) || null,
+                widthInches,
+                lengthInches,
+                header: {
+                    customerName: normalizeText(customerNameInput.value),
+                    contactName: contact.contact_name
+                },
                 numbering: {
                     type: numbering,
                     from: numberingFrom,
@@ -2178,6 +3339,8 @@ function collectRequestPayload() {
                 },
                 finishes: {
                     varnish,
+                    varnishZonificado,
+                    varnishSonified: varnishZonificado,
                     laminado: lamination,
                     stamping,
                     stampingWidth
@@ -2212,6 +3375,8 @@ function clearQuickRequestValidationState() {
 }
 
 function showQuickRequestErrors(errors) {
+    const message = errors.length ? `Faltan: ${errors.join(', ')}.` : '';
+    setStatus(message, 'error');
     if (!launcherErrors || !launcherErrorsList) return;
     const rect = launcherWrap?.getBoundingClientRect?.() || { top: 0 };
     launcherErrors.classList.toggle('is-below', rect.top < (window.innerHeight / 2));
@@ -2224,6 +3389,10 @@ function markQuickRequestInvalid(element, errors, label) {
     if (label) errors.push(label);
 }
 
+function getPlacementField() {
+    return form?.querySelector('input[name="placement"]')?.closest('.quote-request-field') || null;
+}
+
 function validateQuickRequestStep(stepNumber) {
     const payload = collectRequestPayload();
     payload.quantities = parseRequestedQuantities(payload.quantities);
@@ -2232,17 +3401,22 @@ function validateQuickRequestStep(stepNumber) {
 
     if (stepNumber === 1) {
         if (!payload.customer_name) markQuickRequestInvalid(customerNameInput, errors, 'Nombre del cliente');
+        if (!payload.contact_name) markQuickRequestInvalid(customerContactSelect, errors, 'Contacto');
         if (!payload.job_name) markQuickRequestInvalid(document.getElementById('requestJobName'), errors, 'Nombre del producto');
         if (!payload.product_type) markQuickRequestInvalid(requestProductTypeSelect, errors, 'Tipo de producto');
         if (!payload.quantities.length) {
-            markQuickRequestInvalid(requestQuantityRepeater, errors, 'Cantidad');
+            errors.push('Cantidad');
             requestQuantityRepeater?.querySelectorAll('input[data-request-quantity-index]')?.forEach((input) => input.classList.add('is-invalid'));
         }
     }
 
     if (stepNumber === 2) {
-        if (!fixedSizeSelect?.value) markQuickRequestInvalid(fixedSizeSelect, errors, 'Medida');
-        const selectedShape = form?.querySelector('input[name="die_shape"]:checked')?.value || '';
+        if (!fixedSizeSelect?.value) markQuickRequestInvalid(fixedSizeTrigger || fixedSizeSelect, errors, 'Medida');
+        if (fixedSizeSelect?.value === 'custom') {
+            if (!payload.widthInches || payload.widthInches <= 0) markQuickRequestInvalid(customWidthInput, errors, 'Ancho especial');
+            if (!payload.lengthInches || payload.lengthInches <= 0) markQuickRequestInvalid(customHeightInput, errors, 'Alto especial');
+        }
+        const selectedShape = getSelectedShapeInput()?.value || '';
         if (!selectedShape) {
             markQuickRequestInvalid(shapePicker, errors, 'Forma');
         }
@@ -2251,13 +3425,14 @@ function validateQuickRequestStep(stepNumber) {
 
     if (stepNumber === 4) {
         if (!payload.applicationType) markQuickRequestInvalid(surfaceInput, errors, 'Superficie de aplicación');
-        if (!payload.outputType) markQuickRequestInvalid(form?.querySelector('input[name="placement"]'), errors, 'Colocación');
+        if (!payload.outputType) markQuickRequestInvalid(getPlacementField(), errors, 'Colocación');
     }
 
     if (errors.length > 0) {
         showQuickRequestErrors(errors);
-        throw new Error('Por favor, completa los campos requeridos.');
+        throw new Error(`Faltan: ${errors.join(', ')}.`);
     }
+    setStatus('');
     return payload;
 }
 
@@ -2266,7 +3441,7 @@ function validateQuickRequest(forAdvanced) {
     payload.quantities = parseRequestedQuantities(payload.quantities);
     const errors = [];
     clearQuickRequestValidationState();
-    const selectedShape = form?.querySelector('input[name="die_shape"]:checked')?.value || '';
+    const selectedShape = getSelectedShapeInput()?.value || '';
 
     const check = (value, el, name) => {
         if (!value) {
@@ -2275,7 +3450,8 @@ function validateQuickRequest(forAdvanced) {
         }
     };
 
-    check(payload.customer_name, customerNameInput, 'Nombre del socio');
+    check(payload.customer_name, customerNameInput, 'Nombre del cliente');
+    check(payload.contact_name, customerContactSelect, 'Contacto');
     check(payload.job_name, document.getElementById('requestJobName'), 'Nombre del producto');
     check(payload.product_type, requestProductTypeSelect, 'Tipo de producto');
     if (!payload.quantities.length) {
@@ -2290,16 +3466,21 @@ function validateQuickRequest(forAdvanced) {
     if (!forAdvanced) {
         check(selectedShape, shapePicker, 'Forma');
         check(payload.material_name, materialInput, 'Sustrato');
-        check(payload.applicationType, surfaceInput, 'Superficie de aplicaciÃ³n');
-        check(fixedSizeSelect?.value, fixedSizeSelect, 'Medida');
+        check(payload.applicationType, surfaceInput, 'Superficie de aplicación');
+        check(fixedSizeSelect?.value, fixedSizeTrigger || fixedSizeSelect, 'Medida');
+        if (fixedSizeSelect?.value === 'custom') {
+            check(payload.widthInches > 0, customWidthInput, 'Ancho especial');
+            check(payload.lengthInches > 0, customHeightInput, 'Alto especial');
+        }
     }
 
-    check(payload.outputType, form.querySelector('input[name="placement"]'), 'Colocacion');
+    check(payload.outputType, getPlacementField(), 'Colocación');
     if (errors.length > 0) {
         showQuickRequestErrors(errors);
-        throw new Error('Por favor, completa los campos requeridos.');
+        throw new Error(`Faltan: ${errors.join(', ')}.`);
     }
 
+    setStatus('');
     return payload;
 }
 
@@ -2318,14 +3499,18 @@ function buildQuickRequestFingerprint(payload) {
 }
 
 async function createQuickQuoteDraft(payload, options = {}) {
-    const status = options.status || 'Solicitud';
+    const status = options.status || 'Solicitada';
     const quoteResponse = await fetchJson(QUOTES_ENDPOINT, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...sessionHeader() },
         body: JSON.stringify({
             customer_code: payload.customer_code,
             customer_name: payload.customer_name,
-            status: 'Borrador'
+            contact_name: payload.contact_name,
+            email: payload.email,
+            phone: payload.phone,
+            salesperson_name: currentUserName(),
+            status
         })
     });
     const quoteCode = quoteResponse?.cotizacion?.quote_code;
@@ -2336,14 +3521,18 @@ async function createQuickQuoteDraft(payload, options = {}) {
         const quantityValue = quantities[index];
         const lineResponse = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(quoteCode)}/lineas`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...sessionHeader() },
             body: JSON.stringify({
                 customer_code: payload.customer_code,
                 customer_name: payload.customer_name,
+                contact_name: payload.contact_name,
+                email: payload.email,
+                phone: payload.phone,
+                salesperson_name: currentUserName(),
                 job_name: payload.job_name,
                 quantity: quantityValue,
                 material_name: payload.material_name,
-                material_code: payload.material_name,
+                material_code: payload.material_code || payload.material_name,
                 applicationType: payload.applicationType,
                 outputType: payload.outputType,
                 widthInches: payload.widthInches,
@@ -2352,6 +3541,7 @@ async function createQuickQuoteDraft(payload, options = {}) {
                 line_order: index + 1,
                 request_meta: {
                     ...payload.request_meta,
+                    'SOLICITUD ESTADO': status,
                     'REQ | Cantidad Solicitada Original': String(quantityValue),
                     'REQ | Grupo de Cantidades': quantities.join(', ')
                 }
@@ -2389,6 +3579,7 @@ function renderQuickRequestSummary(payload, proformaData) {
     const totals = proformaData?.totals || {};
     const summaryItems = [
         ['Cliente', payload.customer_name],
+        ['Contacto', payload.contact_name],
         ['Producto', payload.job_name],
         ['Forma', technical.shapesText || payload.request_meta?.['REQ | Forma'] || ''],
         ['Medida', technical.measuresText || `${payload.widthInches || ''}" x ${payload.lengthInches || ''}"`],
@@ -2458,7 +3649,7 @@ async function ensureQuickRequestPreview() {
     }
     renderQuickRequestSummaryPlaceholder('Generando proforma automática...');
     setStatus('Generando resumen final de la cotización...', 'saving');
-    const draft = await createQuickQuoteDraft(payload, { status: 'Solicitud' });
+    const draft = await createQuickQuoteDraft(payload, { status: 'Solicitada' });
     const proformaData = await fetchJson(`/api/proformas/${encodeURIComponent(draft.quoteCode)}`);
     quoteRequestWizardState.previewQuoteCode = draft.quoteCode;
     quoteRequestWizardState.previewFirstLineCode = draft.firstLineCode;
@@ -2468,7 +3659,7 @@ async function ensureQuickRequestPreview() {
     quoteRequestWizardState.keepPreviewQuote = false;
     renderQuickRequestSummary(payload, proformaData);
     await loadQuotes();
-    setStatus(`Cotización ${draft.quoteCode} lista para revisar o imprimir.`, 'saved');
+    setStatus(`Solicitud ${draft.quoteCode} lista para revisar o imprimir.`, 'saved');
     return quoteRequestWizardState;
 }
 
@@ -2525,10 +3716,12 @@ async function uploadPendingAttachments(quoteCode, lineCode) {
 }
 
 async function submitQuoteRequest(forAdvanced = false) {
+    const busyButtons = [forAdvanced ? advancedButton : createButton, forAdvanced ? wizardAdvancedButton : wizardPrintButton].filter(Boolean);
     try {
         const payload = validateQuickRequest(forAdvanced);
-        setStatus(forAdvanced ? 'Preparando proceso avanzado...' : 'Creando cotización...', 'saving');
-        const draft = await createQuickQuoteDraft(payload, { status: forAdvanced ? 'Borrador' : 'Solicitud' });
+        busyButtons.forEach((button) => setButtonBusy(button, true, forAdvanced ? 'Preparando...' : 'Creando...'));
+        setStatus(forAdvanced ? 'Preparando proceso avanzado...' : 'Creando solicitud...', 'saving');
+        const draft = await createQuickQuoteDraft(payload, { status: forAdvanced ? 'Borrador' : 'Solicitada' });
         const { quoteCode, quantities, firstLineCode } = draft;
         await loadQuotes();
         if (forAdvanced) {
@@ -2538,20 +3731,13 @@ async function submitQuoteRequest(forAdvanced = false) {
             }
             return;
         }
-        const route = `/calculo-flexografia?${new URLSearchParams({
-            lineId: firstLineCode || '',
-            quoteId: quoteCode,
-            productId: '',
-            department: 'Flexografia'
-        }).toString()}`;
-        setStatus(`Cotizacion ${quoteCode} creada con ${quantities.length} cantidad(es).`, 'saved');
+        setStatus(`Solicitud ${quoteCode} creada con ${quantities.length} cantidad(es).`, 'saved');
         closePopover(true);
-        if (!openRouteInShell(route, `Cálculo ${firstLineCode || quoteCode}`)) {
-            window.location.href = route;
-        }
         return;
     } catch (error) {
         setStatus(error.message, 'error');
+    } finally {
+        busyButtons.forEach((button) => setButtonBusy(button, false));
     }
 }
 
@@ -2564,8 +3750,10 @@ function openPopover() {
     if (processLauncherButton) processLauncherButton.setAttribute('aria-expanded', 'false');
     renderAttachments();
     renderNumberingSummary();
+    renderRequestQuantityRepeater();
     toggleShapePickerPanel(false);
     syncToggleChipState();
+    markDieCutWhenShapeSelected();
     updateQuickRequestWizard();
     setTimeout(() => customerNameInput?.focus(), 30);
 }
@@ -2582,6 +3770,101 @@ function closePopover(force = false) {
     toggleShapePickerPanel(false);
     resetFormState();
     form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+}
+
+function openNewCalcPopover() {
+    if (!newCalcPopover) return;
+    newCalcForm?.reset();
+    if (newCalcCustomerCodeInput) newCalcCustomerCodeInput.value = '';
+    resetContactSelect(newCalcContactSelect, 'Selecciona un cliente');
+    setNewCalcStatus('');
+    newCalcPopover.hidden = false;
+    setTimeout(() => newCalcCustomerNameInput?.focus(), 30);
+}
+
+function closeNewCalcPopover(force = false) {
+    if (!newCalcPopover) return;
+    const hasContent = normalizeText(newCalcCustomerNameInput?.value) || normalizeText(newCalcContactSelect?.value);
+    if (!force && hasContent && !window.confirm('Hay datos sin guardar. ¿Quieres cerrar?')) return;
+    newCalcPopover.hidden = true;
+    newCalcForm?.reset();
+    if (newCalcCustomerCodeInput) newCalcCustomerCodeInput.value = '';
+    resetContactSelect(newCalcContactSelect, 'Selecciona un cliente');
+    if (newCalcCustomerLookupPanel) newCalcCustomerLookupPanel.hidden = true;
+    setNewCalcStatus('');
+}
+
+async function submitNewCalculation() {
+    const customerName = normalizeText(newCalcCustomerNameInput?.value);
+    const customerCode = normalizeText(newCalcCustomerCodeInput?.value);
+    const contact = selectedContactPayload(newCalcContactSelect);
+    newCalcForm?.querySelectorAll('.is-invalid').forEach((item) => item.classList.remove('is-invalid'));
+    const errors = [];
+    if (!customerName || !customerCode) {
+        newCalcCustomerNameInput?.classList.add('is-invalid');
+        errors.push('Cliente');
+    }
+    if (!contact.contact_name) {
+        newCalcContactSelect?.classList.add('is-invalid');
+        errors.push('Contacto');
+    }
+    if (errors.length) {
+        throw new Error(`Faltan: ${errors.join(', ')}.`);
+    }
+    setButtonBusy(newCalcSubmitButton, true, 'Creando...');
+    setNewCalcStatus('Creando cálculo...', 'saving');
+    try {
+        const quoteResponse = await fetchJson(QUOTES_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...sessionHeader() },
+            body: JSON.stringify({
+                customer_code: customerCode,
+                customer_name: customerName,
+                contact_name: contact.contact_name,
+                email: contact.email,
+                phone: contact.phone,
+                salesperson_name: currentUserName(),
+                status: 'Borrador'
+            })
+        });
+        const quoteCode = quoteResponse?.cotizacion?.quote_code;
+        if (!quoteCode) throw new Error('La cotización se creó sin código.');
+        const lineResponse = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(quoteCode)}/lineas`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...sessionHeader() },
+            body: JSON.stringify({
+                customer_code: customerCode,
+                customer_name: customerName,
+                contact_name: contact.contact_name,
+                email: contact.email,
+                phone: contact.phone,
+                salesperson_name: currentUserName(),
+                job_name: '',
+                department: 'Flexografia',
+                process_type: 'Convencional',
+                status: 'Borrador',
+                request_meta: {
+                    'REQ | Cliente Contacto': contact.contact_name,
+                    'TRAZABILIDAD | ORIGEN': 'Cálculo manual'
+                }
+            })
+        });
+        const lineCode = lineResponse?.linea?.line_code || lineResponse?.calculo?.line_code || '';
+        if (!lineCode) throw new Error('La línea se creó sin código.');
+        await loadQuotes();
+        closeNewCalcPopover(true);
+        const route = `/calculo-flexografia?${new URLSearchParams({
+            lineId: lineCode,
+            quoteId: quoteCode,
+            productId: '',
+            department: 'Flexografia'
+        }).toString()}`;
+        if (!openRouteInShell(route, `Cálculo ${lineCode}`)) {
+            window.location.href = route;
+        }
+    } finally {
+        setButtonBusy(newCalcSubmitButton, false);
+    }
 }
 
 async function handleNumberingAttachmentChange() {
@@ -2673,6 +3956,7 @@ async function toggleAudioRecording() {
 }
 
 function bindEvents() {
+    nuevoCalculoButton?.addEventListener('click', openNewCalcPopover);
     nuevaCotizacionButton?.addEventListener('click', openPopover);
     refreshQuotesButton?.addEventListener('click', () => {
         quoteLineCache.clear();
@@ -2690,6 +3974,15 @@ function bindEvents() {
         openSapPopover().catch((error) => setSapConfigStatus(error.message, 'error'));
     });
     closeButton?.addEventListener('click', () => closePopover());
+    newCalcCloseButton?.addEventListener('click', () => closeNewCalcPopover());
+    newCalcCancelButton?.addEventListener('click', () => closeNewCalcPopover());
+    newCalcPopover?.addEventListener('click', (event) => {
+        if (event.target?.dataset?.closeNewCalc === 'true') closeNewCalcPopover();
+    });
+    newCalcForm?.addEventListener('submit', (event) => {
+        event.preventDefault();
+        submitNewCalculation().catch((error) => setNewCalcStatus(error.message, 'error'));
+    });
     shapePicker?.addEventListener('click', (event) => {
         const trigger = event.target.closest('[data-shape-trigger]');
         if (trigger) {
@@ -2704,6 +3997,7 @@ function bindEvents() {
             if (input) {
                 input.checked = true;
                 syncShapePickerState();
+                markDieCutWhenShapeSelected();
                 invalidateQuickRequestPreview();
             }
         }
@@ -2711,6 +4005,7 @@ function bindEvents() {
     shapePicker?.addEventListener('change', (event) => {
         if (event.target?.matches?.('input[name="die_shape"]')) {
             syncShapePickerState();
+            markDieCutWhenShapeSelected();
             invalidateQuickRequestPreview();
         }
     });
@@ -2758,6 +4053,19 @@ function bindEvents() {
     sapLoadTemplateButton?.addEventListener('click', loadSapTemplate);
     sapSendPayloadButton?.addEventListener('click', () => runSapWrite().catch((error) => setSapConfigStatus(error.message, 'error')));
     sapWriteEntity?.addEventListener('change', loadSapTemplate);
+    frontBackClose?.addEventListener('click', closeFrontBackModal);
+    frontBackCancel?.addEventListener('click', closeFrontBackModal);
+    frontBackSave?.addEventListener('click', () => saveFrontBackGroup().catch((error) => setStatus(error.message, 'error')));
+    frontBackUnlink?.addEventListener('click', () => unlinkFrontBackGroup().catch((error) => setStatus(error.message, 'error')));
+    frontBackModal?.addEventListener('click', (event) => {
+        if (event.target === frontBackModal) closeFrontBackModal();
+    });
+    frontBackModal?.addEventListener('change', (event) => {
+        const input = event.target?.closest?.('input[name="frontBackElement"]');
+        if (!input) return;
+        const selected = Array.from(frontBackModal.querySelectorAll('input[name="frontBackElement"]:checked'));
+        if (selected.length > 2) input.checked = false;
+    });
 
     processLauncherButton?.addEventListener('click', (event) => {
         if (dragState?.moved) return;
@@ -2824,80 +4132,209 @@ function bindEvents() {
 
     document.addEventListener('click', (event) => {
         if (!event.target.closest('#processLauncherStack')) toggleProcessLauncher(false);
-        if (!event.target.closest('#dieShapePicker')) toggleShapePickerPanel(false);
-        if (!numberingPopover?.hidden) {
+        const shapeOption = event.target.closest('.quote-request-shape-option');
+        if (shapeOption) {
+            const input = shapeOption.querySelector('input[name="die_shape"]');
+            if (input) {
+                input.checked = true;
+                syncShapePickerState();
+                markDieCutWhenShapeSelected();
+                invalidateQuickRequestPreview();
+            }
+            return;
+        }
+        if (!event.target.closest('#dieShapePicker') && !event.target.closest('[data-shape-panel]')) toggleShapePickerPanel(false);
+        if (!event.target.closest('#requestFixedSizeTrigger') && !event.target.closest('#requestFixedSizePanel')) {
+            toggleFixedSizePanel(false);
+        }
+        if (!event.target.closest('#nuevoCalculoClienteNombre') && !event.target.closest('#newCalcCustomerLookupPanel')) {
+            if (newCalcCustomerLookupPanel) newCalcCustomerLookupPanel.hidden = true;
+        }
+        if (!event.target.closest('.quote-request-product-type-wrap') && !event.target.closest('#requestProductTypePanel')) {
+            toggleRequestProductTypePanel(false);
+        }
+        if (numberingPopover && !numberingPopover.hidden) {
             if (event.target === numberingPopoverTrigger || numberingPopoverTrigger?.contains(event.target)) return;
             if (numberingPopover.contains(event.target)) return;
             closeNumberingPopover();
         }
-        // Close any open line submenus when clicking outside
-        if (!event.target.closest('[data-line-menu-id]')) {
-            rowsBody?.querySelectorAll('[data-line-menu-panel]').forEach((p) => { p.hidden = true; });
-            rowsBody?.querySelectorAll('[data-line-menu-toggle]').forEach((t) => { t.setAttribute('aria-expanded', 'false'); });
+        const portalLineAction = event.target.closest('.quote-line-menu-panel [data-line-action]');
+        if (portalLineAction) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            const row = quoteLineLookup.get(Number(portalLineAction.dataset.lineId));
+            if (row) {
+                selectedQuoteContextCode = row.quoteId || selectedQuoteContextCode;
+                selectedQuoteContextLineId = Number(portalLineAction.dataset.lineId) || 0;
+            }
+            closeQuoteLineMenus();
+            handleQuoteLineAction(portalLineAction.dataset.lineAction, row).catch((error) => setStatus(error.message, 'error'));
+            return;
+        }
+        if (!event.target.closest('[data-line-menu-id]') && !event.target.closest('.quote-line-menu-panel')) {
+            closeQuoteLineMenus();
         }
     });
+    form?.addEventListener('click', (event) => {
+        const removeNumberingAttachment = event.target.closest('[data-remove-numbering-attachment]');
+        if (removeNumberingAttachment) {
+            const attachmentIndex = findPendingAttachmentIndex((item) => item?.slot === 'numbering');
+            if (attachmentIndex >= 0) removePendingAttachmentByIndex(attachmentIndex);
+            if (numberingAttachmentInput) numberingAttachmentInput.value = '';
+            renderAttachments();
+            renderNumberingSummary();
+            invalidateQuickRequestPreview();
+            return;
+        }
+        const toggle = event.target.closest('[data-finish-compact-toggle]');
+        if (!toggle) return;
+        const block = toggle.closest('[data-finish-key]');
+        if (!block) return;
+        const willOpen = !block.classList.contains('is-compact-open');
+        form.querySelectorAll('[data-finish-key].is-compact-open').forEach((item) => {
+            item.classList.remove('is-compact-open');
+            item.querySelector('[data-finish-compact-toggle]')?.setAttribute('aria-expanded', 'false');
+        });
+        block.classList.toggle('is-compact-open', willOpen);
+        toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    });
     
-    // Real-time error clearing
     requestQuantityRepeater?.addEventListener('input', (event) => {
         const input = event.target.closest('input[data-request-quantity-index]');
         if (!input) return;
-        // Clear invalid state
-        input.style.borderColor = '#c9d6e2';
-        input.style.boxShadow = '';
-        requestQuantityRepeater.style.outline = '';
         requestQuantityRepeater.classList.remove('is-invalid');
-        // Show/hide + button based on whether this field has a value
-        const hasValue = parseRequestedQuantityValue(input.value) > 0;
-        const existingAdd = requestQuantityRepeater.querySelector('[data-add-request-quantity]');
-        const existingDel = requestQuantityRepeater.querySelector('[data-remove-request-quantity]');
-        const allInputs = Array.from(requestQuantityRepeater.querySelectorAll('input[data-request-quantity-index]'));
-        const isLast = allInputs.indexOf(input) === allInputs.length - 1;
-        if (isLast) {
-            if (hasValue && allInputs.length < 6) {
-                if (!existingAdd) {
-                    const addBtn = document.createElement('button');
-                    addBtn.type = 'button';
-                    addBtn.dataset.addRequestQuantity = 'true';
-                    addBtn.setAttribute('aria-label', 'Agregar cantidad');
-                    addBtn.title = 'Agregar cantidad';
-                    addBtn.textContent = '+';
-                    addBtn.style.cssText = 'width:32px;min-width:32px;height:32px;border:1px solid #c9d6e2;border-radius:8px;background:#fff;color:#1e6fa8;font-size:20px;font-weight:700;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;';
-                    addBtn.addEventListener('mouseenter', () => { addBtn.style.background = '#e8f4fb'; addBtn.style.borderColor = '#29a6db'; });
-                    addBtn.addEventListener('mouseleave', () => { addBtn.style.background = '#fff'; addBtn.style.borderColor = '#c9d6e2'; });
-                    if (existingDel) requestQuantityRepeater.insertBefore(addBtn, existingDel);
-                    else requestQuantityRepeater.appendChild(addBtn);
-                }
-            } else {
-                existingAdd?.remove();
-            }
-        }
+        invalidateQuickRequestPreview();
+    });
+    requestQuantityRepeater?.addEventListener('change', (event) => {
+        const input = event.target.closest('input[data-request-quantity-index]');
+        if (!input) return;
+        input.value = formatRequestedQuantityValue(input.value);
         invalidateQuickRequestPreview();
     });
     requestQuantityRepeater?.addEventListener('click', (event) => {
-        const addButton = event.target.closest('[data-add-request-quantity]');
+        const addButton = event.target.closest('[data-action="add-quantity"]');
         if (addButton) {
-            const quantities = readRequestedQuantities();
-            if (quantities.length >= 6) return;
-            quantities.push(0);
+            const quantities = readRequestQuantityItems();
+            if (quantities.length >= getRequestQuantityCapacity()) return;
+            quantities.push({ id: `qty-${quantities.length + 1}`, value: 0 });
             renderRequestQuantityRepeater(quantities);
             const inputs = requestQuantityRepeater.querySelectorAll('input[data-request-quantity-index]');
             inputs[inputs.length - 1]?.focus();
             invalidateQuickRequestPreview();
             return;
         }
-        const removeButton = event.target.closest('[data-remove-request-quantity]');
+        const removeButton = event.target.closest('[data-action="remove-quantity"]');
         if (removeButton) {
-            const quantities = readRequestedQuantities();
+            const quantities = readRequestQuantityItems();
             if (quantities.length <= 1) return;
             quantities.pop();
             renderRequestQuantityRepeater(quantities);
             invalidateQuickRequestPreview();
         }
     });
+
+    function closeQuoteLineMenus() {
+        document.querySelectorAll('[data-line-menu-panel]').forEach((panel) => {
+            panel.hidden = true;
+            panel.style.removeProperty('--line-menu-top');
+            panel.style.removeProperty('--line-menu-left');
+            panel.style.removeProperty('--line-menu-max-height');
+            if (panel.__lineMenuHome?.isConnected && panel.parentElement !== panel.__lineMenuHome) {
+                panel.__lineMenuHome.appendChild(panel);
+            }
+        });
+        rowsBody?.querySelectorAll('[data-line-menu-toggle]').forEach((toggle) => {
+            toggle.setAttribute('aria-expanded', 'false');
+        });
+    }
+
+function positionQuoteLineMenu(trigger, panel) {
+    const GAP = 6;
+    const PAD = 10;
+    const win = trigger.ownerDocument.defaultView;
+    const triggerRect = trigger.getBoundingClientRect();
+
+    // Calcular offset real del frame dentro de la ventana principal
+    let frameOffsetTop = 0;
+    let frameOffsetLeft = 0;
+    try {
+        const frameEl = win.frameElement;
+        if (frameEl) {
+            const frameRect = frameEl.getBoundingClientRect();
+            frameOffsetTop  = frameRect.top;
+            frameOffsetLeft = frameRect.left;
+        }
+    } catch(e) {}
+
+    // Usar dimensiones de la ventana principal
+    const vh = (win.parent || win).innerHeight;
+    const vw = (win.parent || win).innerWidth;
+
+    // Coordenadas del trigger en la ventana principal
+    const realTop    = triggerRect.top    + frameOffsetTop;
+    const realBottom = triggerRect.bottom + frameOffsetTop;
+    const realLeft   = triggerRect.left   + frameOffsetLeft;
+    const realRight  = triggerRect.right  + frameOffsetLeft;
+
+    panel.style.removeProperty('--line-menu-max-height');
+
+    const naturalHeight = panel.scrollHeight;
+    const naturalWidth  = panel.offsetWidth || 260;
+
+  const spaceBelow = vh - realBottom - PAD;
+const spaceAbove = realTop - PAD;
+
+let top;
+if (naturalHeight <= spaceBelow) {
+    // Cabe completo abajo → abrir abajo
+    top = triggerRect.bottom + GAP;
+} else if (naturalHeight <= spaceAbove) {
+    // Cabe completo arriba → abrir arriba
+    top = triggerRect.top - naturalHeight - GAP;
+} else {
+    // No cabe ni arriba ni abajo → centrar en ventana principal
+    const centroVentana = (vh - naturalHeight) / 2;
+    let topEnFrame = centroVentana - frameOffsetTop;
+    
+    // Asegurar que no se corte arriba ni abajo dentro del frame
+    const frameHeight = win.innerHeight;
+    topEnFrame = Math.max(PAD, topEnFrame);
+    topEnFrame = Math.min(frameHeight - naturalHeight - PAD, topEnFrame);
+    
+    top = topEnFrame;
+} 
+
+    // Horizontal: izquierda → derecha → pegado al borde
+    const leftOfTrigger  = realLeft  - naturalWidth - GAP;
+    const rightOfTrigger = realRight + GAP;
+    let left;
+    if (leftOfTrigger >= PAD) {
+        left = triggerRect.left - naturalWidth - GAP;
+    } else if (rightOfTrigger + naturalWidth <= vw - PAD) {
+        left = triggerRect.right + GAP;
+    } else {
+        left = Math.max(PAD - frameOffsetLeft, vw - naturalWidth - PAD - frameOffsetLeft);
+    }
+
+    panel.style.setProperty('--line-menu-top',  `${Math.round(top)}px`);
+    panel.style.setProperty('--line-menu-left', `${Math.round(left)}px`);
+}
+
+function repositionOpenQuoteLineMenu() {
+    const panel = document.querySelector('[data-line-menu-panel]:not([hidden])');
+    if (!panel) return;
+    const trigger = document.querySelector(`[data-line-menu-toggle="${panel.dataset.lineMenuPanel}"]`);
+    if (trigger) positionQuoteLineMenu(trigger, panel);
+}
+
+    window.addEventListener('resize', repositionOpenQuoteLineMenu);
+    window.addEventListener('scroll', repositionOpenQuoteLineMenu, true);
+
     form?.addEventListener('input', (event) => {
         if (event.target.classList.contains('is-invalid')) {
             event.target.classList.remove('is-invalid');
         }
+        updateFinishCompactSummaries();
         invalidateQuickRequestPreview();
         renderAutomaticRoutePreview();
     });
@@ -2905,12 +4342,16 @@ function bindEvents() {
         if (event.target.matches('.quote-request-toggle-chip input, .quote-request-shape-card input')) {
             syncToggleChipState();
         }
+        if (event.target.matches('input[name="placement"]')) {
+            getPlacementField()?.classList.remove('is-invalid');
+        }
         if (event.target.matches('input[name="numbering"]')) {
             renderNumberingSummary();
         }
         if (event.target.classList.contains('is-invalid')) {
             event.target.classList.remove('is-invalid');
         }
+        updateFinishCompactSummaries();
         invalidateQuickRequestPreview();
         renderAutomaticRoutePreview();
     });
@@ -2921,19 +4362,93 @@ function bindEvents() {
         handleNumberingAttachmentChange().catch((error) => setStatus(error.message, 'error'));
     });
 
-    customerNameInput?.addEventListener('input', (e) => searchPartners(e.target.value).catch(console.error));
+    customerNameInput?.addEventListener('input', (e) => {
+        if (customerCodeInput) customerCodeInput.value = '';
+        resetContactSelect(customerContactSelect, 'Selecciona un cliente');
+        searchPartners(e.target.value).catch(console.error);
+    });
+    customerNameInput?.addEventListener('focus', () => {
+        if (!customerNameInput.value) return;
+        searchPartners(customerNameInput.value).catch(console.error);
+    });
+    customerContactSelect?.addEventListener('change', () => customerContactSelect.classList.remove('is-invalid'));
+    newCalcCustomerNameInput?.addEventListener('input', (event) => {
+        if (newCalcCustomerCodeInput) newCalcCustomerCodeInput.value = '';
+        resetContactSelect(newCalcContactSelect, 'Selecciona un cliente');
+        searchNewCalcPartners(event.target.value).catch((error) => {
+            if (error.name !== 'AbortError') setNewCalcStatus(error.message, 'error');
+        });
+    });
+    newCalcCustomerNameInput?.addEventListener('focus', () => {
+        if (!newCalcCustomerNameInput.value) return;
+        searchNewCalcPartners(newCalcCustomerNameInput.value).catch((error) => {
+            if (error.name !== 'AbortError') setNewCalcStatus(error.message, 'error');
+        });
+    });
+    newCalcContactSelect?.addEventListener('change', () => newCalcContactSelect.classList.remove('is-invalid'));
+    window.addEventListener('resize', () => {
+        positionCustomerLookupPanel();
+        positionNewCalcCustomerLookupPanel();
+        positionRequestProductTypePanel();
+        positionFixedSizePanel();
+        positionMaterialSuggestionsPanel();
+        positionShapePickerPanel();
+        renderRequestQuantityRepeater();
+    });
+    window.addEventListener('scroll', () => {
+        positionCustomerLookupPanel();
+        positionNewCalcCustomerLookupPanel();
+        positionRequestProductTypePanel();
+        positionFixedSizePanel();
+        positionMaterialSuggestionsPanel();
+        positionShapePickerPanel();
+    }, true);
     customerLookupResults?.addEventListener('click', (e) => {
         const item = e.target.closest('.quote-request-lookup-item');
         if (item) applyPartnerSelection(item.dataset.partnerCode, item.dataset.partnerName);
     });
+    newCalcCustomerLookupResults?.addEventListener('click', (e) => {
+        const item = e.target.closest('.quote-request-lookup-item');
+        if (item) applyNewCalcPartnerSelection(item.dataset.partnerCode, item.dataset.partnerName);
+    });
+    fixedSizeTrigger?.addEventListener('click', () => toggleFixedSizePanel());
+    fixedSizePanel?.addEventListener('click', (e) => {
+        const item = e.target.closest('[data-fixed-size-value]');
+        if (!item || !fixedSizeSelect) return;
+        fixedSizeSelect.value = item.dataset.fixedSizeValue || '';
+        syncFixedSizeTrigger();
+        fixedSizeTrigger.classList.remove('is-invalid');
+        renderFixedSizePanel();
+        toggleFixedSizePanel(false);
+        fixedSizeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    fixedSizeSelect?.addEventListener('change', () => {
+        syncFixedSizeTrigger();
+        invalidateQuickRequestPreview();
+    });
+    requestProductTypeTrigger?.addEventListener('click', () => toggleRequestProductTypePanel());
+    requestProductTypePanel?.addEventListener('click', (e) => {
+        const item = e.target.closest('[data-product-type-value]');
+        if (!item || !requestProductTypeSelect) return;
+        requestProductTypeSelect.value = item.dataset.productTypeValue || '';
+        syncRequestProductTypeTrigger();
+        renderRequestProductTypePanel();
+        toggleRequestProductTypePanel(false);
+        requestProductTypeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    });
 
-    materialInput?.addEventListener('input', showMaterialSuggestions);
+    materialInput?.addEventListener('input', () => {
+        materialInput.dataset.materialCode = '';
+        showMaterialSuggestions();
+    });
     materialInput?.addEventListener('focus', showMaterialSuggestions);
     materialSuggestions?.addEventListener('click', (e) => {
         const item = e.target.closest('.quote-request-lookup-item');
         if (item) {
             materialInput.value = item.dataset.value;
+            materialInput.dataset.materialCode = item.dataset.code || '';
             hideInlinePanels();
+            invalidateQuickRequestPreview();
         }
     });
 
@@ -2944,25 +4459,40 @@ function bindEvents() {
         if (item) {
             surfaceInput.value = item.dataset.value;
             hideInlinePanels();
+            invalidateQuickRequestPreview();
         }
     });
 
     rowsBody?.addEventListener('click', (e) => {
         // Line submenu toggle
-        const menuToggle = e.target.closest('[data-line-menu-toggle]');
-        if (menuToggle) {
+const menuToggle = e.target.closest('[data-line-menu-toggle]');
+if (menuToggle) {
+    e.stopPropagation();
+    const lineId = menuToggle.dataset.lineMenuToggle;
+    const panel = document.querySelector(`[data-line-menu-panel="${lineId}"]`);
+    if (!panel) return;
+    const isOpen = !panel.hidden;
+    closeQuoteLineMenus();
+    if (!isOpen) {
+        panel.hidden = false;
+        menuToggle.setAttribute('aria-expanded', 'true');
+        positionQuoteLineMenu(menuToggle, panel);
+    }
+    return;
+}
+
+        const frontBackToggle = e.target.closest('[data-front-back-toggle]');
+        if (frontBackToggle) {
+            e.preventDefault();
             e.stopPropagation();
-            const lineId = menuToggle.dataset.lineMenuToggle;
-            const panel = rowsBody.querySelector(`[data-line-menu-panel="${lineId}"]`);
-            if (!panel) return;
-            const isOpen = !panel.hidden;
-            // Close all open menus first
-            rowsBody.querySelectorAll('[data-line-menu-panel]').forEach((p) => { p.hidden = true; });
-            rowsBody.querySelectorAll('[data-line-menu-toggle]').forEach((t) => { t.setAttribute('aria-expanded', 'false'); });
-            if (!isOpen) {
-                panel.hidden = false;
-                menuToggle.setAttribute('aria-expanded', 'true');
+            const key = frontBackToggle.dataset.frontBackToggle || '';
+            if (!key) return;
+            if (expandedFrontBackGroupKeys.has(key)) {
+                expandedFrontBackGroupKeys.delete(key);
+            } else {
+                expandedFrontBackGroupKeys.add(key);
             }
+            renderQuotesTable(getFilteredQuotes());
             return;
         }
 
@@ -2981,21 +4511,17 @@ function bindEvents() {
                 return;
             }
             expandedQuoteCodes.add(code);
-            fetchQuoteLines(code).catch((error) => setStatus(error.message, 'error'));
+            renderQuotesTable(getFilteredQuotes());
+            fetchQuoteLines(code)
+                .then(() => renderQuotesTable(getFilteredQuotes()))
+                .catch((error) => setStatus(error.message, 'error'));
             return;
         }
         const proformaButton = e.target.closest('[data-print-proforma]');
         if (proformaButton) {
             const code = proformaButton.dataset.printProforma;
             if (!code) return;
-            try {
-                ensureQuoteReadyForProforma(code);
-            } catch (error) {
-                setStatus(error.message, 'error');
-                return;
-            }
-            const route = `/proforma?codigo=${encodeURIComponent(code)}`;
-            if (!openRouteInShell(route, `Proforma ${code}`)) window.location.href = route;
+            openProformaIfReady(code).catch((error) => setStatus(error.message, 'error'));
             return;
         }
         // Add line button
@@ -3003,19 +4529,22 @@ function bindEvents() {
         if (addLineButton) {
             const code = addLineButton.dataset.addLine;
             if (!code) return;
-            createQuoteLineAndOpenCalculation(code).catch((error) => setStatus(error.message, 'error'));
+            addLineButton.disabled = true;
+            createQuoteLineAndOpenCalculation(code)
+                .catch((error) => setStatus(error.message, 'error'))
+                .finally(() => { addLineButton.disabled = false; });
             return;
         }
         const lineActionButton = e.target.closest('[data-line-action]');
         if (lineActionButton) {
+            e.preventDefault();
+            e.stopPropagation();
             const row = quoteLineLookup.get(Number(lineActionButton.dataset.lineId));
             if (row) {
                 selectedQuoteContextCode = row.quoteId || selectedQuoteContextCode;
                 selectedQuoteContextLineId = Number(lineActionButton.dataset.lineId) || 0;
             }
-            // Close any open menu panel
-            rowsBody.querySelectorAll('[data-line-menu-panel]').forEach((p) => { p.hidden = true; });
-            rowsBody.querySelectorAll('[data-line-menu-toggle]').forEach((t) => { t.setAttribute('aria-expanded', 'false'); });
+            closeQuoteLineMenus();
             handleQuoteLineAction(lineActionButton.dataset.lineAction, row).catch((error) => setStatus(error.message, 'error'));
             return;
         }
@@ -3030,9 +4559,7 @@ function bindEvents() {
                 .catch((error) => setStatus(error.message, 'error'));
             return;
         }
-        // Close open menus on outside click
-        rowsBody.querySelectorAll('[data-line-menu-panel]').forEach((p) => { p.hidden = true; });
-        rowsBody.querySelectorAll('[data-line-menu-toggle]').forEach((t) => { t.setAttribute('aria-expanded', 'false'); });
+        closeQuoteLineMenus();
         const button = e.target.closest('[data-open-quote]');
         if (!button) return;
         const code = button.dataset.openQuote;
@@ -3128,12 +4655,19 @@ function bindEvents() {
 }
 
 async function init() {
+    const canFullAccess = canCreateModule('cotizaciones');
+    const canCreateCalc = canCreateModule('calculos') || canFullAccess;
+    const canCreateReq  = canCreateModule('solicitudes') || canFullAccess;
+    if (nuevoCalculoButton) {
+        nuevoCalculoButton.hidden = !canCreateCalc;
+    }
     if (nuevaCotizacionButton) {
-        nuevaCotizacionButton.hidden = !canCreateModule('cotizaciones');
+        nuevaCotizacionButton.hidden = !canCreateReq;
     }
     if (launcherWrap) {
         launcherWrap.hidden = true;
     }
+    initFinishCompactPanels();
     renderAttachments();
     renderNumberingSummary();
     renderRequestQuantityRepeater([0]);

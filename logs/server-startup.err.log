@@ -1,0 +1,130 @@
+[2026-05-10T17:46:54.654Z] No se pudo iniciar el servidor: el puerto 3000 ya está en uso.
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at app.listen (C:\ERP Impresion\PrintLab\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (C:\ERP Impresion\PrintLab\server.js:14553:20)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object..js (node:internal/modules/cjs/loader:1893:10)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+
+[2026-05-12T21:15:55.161Z] No se pudo iniciar el servidor: el puerto 3010 ya está en uso.
+Error: listen EADDRINUSE: address already in use :::3010
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at app.listen (C:\ERP Impresion\PrintLab\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (C:\ERP Impresion\PrintLab\server.js:15282:20)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object..js (node:internal/modules/cjs/loader:1893:10)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+
+[2026-05-12T22:43:59.135Z] No se pudo iniciar el servidor: el puerto 3000 ya está en uso.
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at app.listen (C:\ERP Impresion\PrintLab\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (C:\ERP Impresion\PrintLab\server.js:15573:20)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object..js (node:internal/modules/cjs/loader:1893:10)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+
+[2026-05-14T01:08:52.218Z] No se pudo iniciar el servidor: el puerto 3000 ya está en uso.
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at app.listen (C:\ERP Impresion\PrintLab\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (C:\ERP Impresion\PrintLab\server.js:15781:20)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object..js (node:internal/modules/cjs/loader:1893:10)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+
+[2026-05-14T01:25:03.831Z] No se pudo iniciar el servidor: el puerto 3000 ya está en uso.
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at app.listen (C:\ERP Impresion\PrintLab\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (C:\ERP Impresion\PrintLab\server.js:15781:20)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object..js (node:internal/modules/cjs/loader:1893:10)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+
+[2026-05-14T01:34:51.514Z] No se pudo iniciar el servidor: el puerto 3000 ya está en uso.
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at app.listen (C:\ERP Impresion\PrintLab\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (C:\ERP Impresion\PrintLab\server.js:15805:20)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object..js (node:internal/modules/cjs/loader:1893:10)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+
+[2026-05-14T02:02:16.065Z] No se pudo iniciar el servidor: el puerto 3000 ya está en uso.
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at app.listen (C:\ERP Impresion\PrintLab\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (C:\ERP Impresion\PrintLab\server.js:15818:20)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object..js (node:internal/modules/cjs/loader:1893:10)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+
+[2026-05-14T02:39:20.943Z] No se pudo iniciar el servidor: el puerto 3000 ya está en uso.
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at app.listen (C:\ERP Impresion\PrintLab\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (C:\ERP Impresion\PrintLab\server.js:15822:20)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object..js (node:internal/modules/cjs/loader:1893:10)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+
+[2026-05-14T02:46:31.895Z] No se pudo iniciar el servidor: el puerto 3000 ya está en uso.
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at app.listen (C:\ERP Impresion\PrintLab\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (C:\ERP Impresion\PrintLab\server.js:15826:20)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object..js (node:internal/modules/cjs/loader:1893:10)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+
+[2026-05-15T17:27:24.285Z] No se pudo iniciar el servidor: el puerto 3000 ya está en uso.
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at app.listen (C:\ERP Impresion\PrintLab\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (C:\ERP Impresion\PrintLab\server.js:15826:20)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object..js (node:internal/modules/cjs/loader:1893:10)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+
