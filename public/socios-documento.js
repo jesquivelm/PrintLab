@@ -1,4 +1,4 @@
-const CONFIG_ENDPOINT = '/api/config/general';
+const CONFIG_ENDPOINT = '/api/config/shell';
 const SOCIOS_ENDPOINT = '/api/socios';
 const PRESENTATION_KEY = 'socios';
 

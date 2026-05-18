@@ -915,7 +915,7 @@ async function loadOrder() {
     currentOrderCode = orderCode;
     const [orderResponse, configResponse, catalogsResponse] = await Promise.all([
         fetch(`/api/ordenes-produccion/${encodeURIComponent(orderCode)}`),
-        fetch('/api/config/general'),
+        fetch('/api/config/shell'),
         fetch('/api/catalogs')
     ]);
     const payload = await orderResponse.json();

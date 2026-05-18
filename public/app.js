@@ -1,4 +1,4 @@
-const CONFIG_ENDPOINT = '/api/config/general';
+const CONFIG_ENDPOINT = '/api/config/shell';
 const QUOTES_ENDPOINT = '/api/cotizaciones';
 
 const GENERAL_CONFIG_CACHE_KEY = 'erp-general-config-cache';

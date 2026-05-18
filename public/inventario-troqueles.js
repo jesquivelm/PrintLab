@@ -1,4 +1,4 @@
-const CONFIG_ENDPOINT = '/api/config/general';
+const CONFIG_ENDPOINT = '/api/config/shell';
 const PRESENTATION_KEY = 'inventario-troqueles';
 
 const troquelesSearchInput = document.getElementById('troquelesSearchInput');

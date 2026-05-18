@@ -646,7 +646,7 @@
     async function bootstrap() {
         initProfileEvents();
         try {
-            const response = await fetch('/api/config/general');
+            const response = await fetch('/api/config/shell');
             const config = response.ok ? await response.json() : {};
             initTopbar(config);
         } catch (_) {

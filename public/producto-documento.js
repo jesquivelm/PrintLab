@@ -1,4 +1,4 @@
-const PRODUCT_DOC_CONFIG_ENDPOINT = '/api/config/general';
+const PRODUCT_DOC_CONFIG_ENDPOINT = '/api/config/shell';
 const PRODUCT_DOC_SESSION_KEY = 'erp-user-session';
 
 const statusEl = document.getElementById('productDocStatus');

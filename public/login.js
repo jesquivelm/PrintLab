@@ -1,4 +1,4 @@
-const LOGIN_CONFIG_ENDPOINT = '/api/config/general';
+const LOGIN_CONFIG_ENDPOINT = '/api/config/shell';
 const LOGIN_REPOSITORY_ENDPOINT = '/api/login-repository';
 const LOGIN_AUTH_ENDPOINT = '/api/auth/login';
 const LOGIN_REPOSITORY_URL_BASE = '/uploads/login-repository/';

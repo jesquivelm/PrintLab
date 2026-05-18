@@ -28,6 +28,8 @@ const APP_ROOT = __dirname;
 const DATA_ROOT = path.resolve(__dirname, '..');
 const CONFIG_DIR = path.join(APP_ROOT, 'config');
 const GENERAL_CONFIG_PATH = path.join(CONFIG_DIR, 'general-config.json');
+const BOOTSTRAP_CONFIG_PATH = path.join(APP_ROOT, 'public', 'bootstrap-config.js');
+const GENERAL_CONFIG_CACHE_TTL_MS = 5 * 60 * 1000;
 const PUBLIC_UPLOADS_DIR = path.join(APP_ROOT, 'public', 'uploads');
 const LOGIN_REPOSITORY_DIR = path.join(PUBLIC_UPLOADS_DIR, 'login-repository');
 const LOGIN_REPOSITORY_URL_BASE = '/uploads/login-repository';
@@ -41,6 +43,10 @@ const IN2_PER_M2 = 1550.0031;
 const ONE_HOUR_MS = 60 * 60 * 1000;
 const ONE_DAY_MS = 24 * ONE_HOUR_MS;
 const THIRTY_DAYS_MS = 30 * ONE_DAY_MS;
+let generalConfigCache = null;
+let generalConfigCacheExpiresAt = 0;
+let shellConfigCache = null;
+let shellConfigCacheExpiresAt = 0;
 
 const PRESENTATION_NAMES = {
     'dashboard': 'Dashboard',
@@ -2696,6 +2702,23 @@ function normalizeQuoteProductTypes(value, fallbackJson = DEFAULT_GENERAL_CONFIG
         .slice(0, 60);
 }
 
+function readBootstrapConfigSnapshot() {
+    try {
+        const raw = fs.readFileSync(BOOTSTRAP_CONFIG_PATH, 'utf8');
+        const match = raw.match(/window\.PrintLabConfigBootstrap\s*=\s*([\s\S]*?);\s*window\.PrintLabLoginRepositoryBootstrap/);
+        return match ? JSON.parse(match[1]) : null;
+    } catch (error) {
+        return null;
+    }
+}
+
+function invalidateConfigCaches() {
+    generalConfigCache = null;
+    generalConfigCacheExpiresAt = 0;
+    shellConfigCache = null;
+    shellConfigCacheExpiresAt = 0;
+}
+
 function loadGeneralConfigFromFile() {
     ensureGeneralConfig();
     try {
@@ -2715,6 +2738,10 @@ function saveGeneralConfigToFile(config) {
 }
 
 async function loadGeneralConfig() {
+    const now = Date.now();
+    if (generalConfigCache && generalConfigCacheExpiresAt > now) {
+        return generalConfigCache;
+    }
     const fallback = loadGeneralConfigFromFile();
     try {
         const result = await pgQuery(
@@ -2725,18 +2752,35 @@ async function loadGeneralConfig() {
             ['general']
         );
         if (!result.rows.length) {
+            generalConfigCache = fallback;
+            generalConfigCacheExpiresAt = now + GENERAL_CONFIG_CACHE_TTL_MS;
             return fallback;
         }
-        return normalizeGeneralConfigRecord(result.rows[0].config_value || {});
+        generalConfigCache = normalizeGeneralConfigRecord(result.rows[0].config_value || {});
+        generalConfigCacheExpiresAt = now + GENERAL_CONFIG_CACHE_TTL_MS;
+        return generalConfigCache;
     } catch (error) {
+        generalConfigCache = fallback;
+        generalConfigCacheExpiresAt = now + GENERAL_CONFIG_CACHE_TTL_MS;
         return fallback;
     }
+}
+
+async function loadShellConfig() {
+    const now = Date.now();
+    if (shellConfigCache && shellConfigCacheExpiresAt > now) {
+        return shellConfigCache;
+    }
+    shellConfigCache = normalizeGeneralConfigRecord(readBootstrapConfigSnapshot() || await loadGeneralConfig());
+    shellConfigCacheExpiresAt = now + GENERAL_CONFIG_CACHE_TTL_MS;
+    return shellConfigCache;
 }
 
 async function saveGeneralConfig(config) {
     const previous = await loadGeneralConfig();
     const normalized = normalizeGeneralConfigRecord(config, previous);
     saveGeneralConfigToFile(normalized);
+    invalidateConfigCaches();
     const changedBy = pickFirstValue(normalized?.session?.currentUser, previous?.session?.currentUser, getConfiguredCurrentUser());
     try {
         await pgQuery(
@@ -10423,6 +10467,15 @@ app.get('/api/config/general', async (req, res) => {
         res.json(await loadGeneralConfig());
     } catch (error) {
         res.status(500).json({ error: 'No fue posible cargar la configuración general.' });
+    }
+});
+
+app.get('/api/config/shell', async (req, res) => {
+    try {
+        res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
+        res.json(await loadShellConfig());
+    } catch (error) {
+        res.status(500).json({ error: 'No fue posible cargar la configuración visual.' });
     }
 });
 

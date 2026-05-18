@@ -1,4 +1,4 @@
-const CONFIG_ENDPOINT = "/api/config/general";
+const CONFIG_ENDPOINT = "/api/config/shell";
 const COSTS_ENDPOINT = "/api/costos-config";
 const PRESENTATION_KEY = "costos";
 const COSTS_FALLBACK_STORAGE_KEY = "erp-costos-config";

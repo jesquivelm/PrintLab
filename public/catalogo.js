@@ -1189,7 +1189,7 @@ function applyConfig(config) {
 }
 
 async function loadHeaderConfig() {
-    const response = await fetch('/api/config/general');
+    const response = await fetch('/api/config/shell');
     if (!response.ok) throw new Error('No se pudo cargar la configuración.');
     applyConfig(await response.json());
     if (isMaterialsInventory() && Array.isArray(currentItems) && currentItems.length) {

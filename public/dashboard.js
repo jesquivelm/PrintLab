@@ -1,4 +1,4 @@
-const CONFIG_ENDPOINT = '/api/config/general';
+const CONFIG_ENDPOINT = '/api/config/shell';
 const SESSION_STORAGE_KEY = 'erp-user-session';
 const DASHBOARD_CONFIG_CACHE_KEY = 'erp-dashboard-config-cache';
 const DASHBOARD_CONFIG_CACHE_TTL_MS = 12 * 60 * 60 * 1000;

@@ -8014,7 +8014,7 @@ async function init() {
     const quoteId = params.get("quoteId") || "";
     const lineId = params.get("lineId") || "";
     const [config, catalogs, context, costsConfig, sapConfig, sapSalespersonConfigs, sapProductionCostCenter] = await Promise.all([
-      withTimeout(getJson("/api/config/general"), 3500, {}),
+      withTimeout(getJson("/api/config/shell"), 1500, {}),
       withTimeout(getJson("/api/catalogs"), 2500, emptyCatalogs()),
       quoteId || lineId ? getJson(`/api/flexo/calculo?${new URLSearchParams({ quoteId, lineId }).toString()}`) : Promise.resolve(null),
       getJson("/api/costos-config").catch(() => null),

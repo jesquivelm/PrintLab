@@ -1,4 +1,4 @@
-const CONFIG_ENDPOINT = '/api/config/general';
+const CONFIG_ENDPOINT = '/api/config/shell';
 const QUOTES_ENDPOINT = '/api/cotizaciones';
 const PARTNERS_ENDPOINT = '/api/socios';
 const ORDERS_ENDPOINT = '/api/ordenes-produccion';

@@ -1,4 +1,4 @@
-const CONFIG_ENDPOINT = '/api/config/general';
+const CONFIG_ENDPOINT = '/api/config/shell';
 const SESSION_STORAGE_KEY = 'erp-user-session';
 
 const companyLogo = document.getElementById('notificationsCompanyLogo');
