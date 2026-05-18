@@ -9,6 +9,12 @@ const chatMount = document.getElementById('notificationsChatMount');
 let currentConfig = null;
 let notificationChatWidget = null;
 
+const DEFAULT_NOTIFICATION_ICONS = {
+    notificationChatTitle: { value: '/assets/bootstrap/icons-notificationChatTitle.png', color: '#0b81b8', size: 18 },
+    notificationChatAttach: { value: '/assets/bootstrap/icons-notificationChatAttach.png', color: '#607286', size: 16 },
+    notificationChatSend: { value: '/assets/bootstrap/icons-notificationChatSend.png', color: '#0b81b8', size: 16 }
+};
+
 function readSession() {
     try {
         return JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || sessionStorage.getItem(SESSION_STORAGE_KEY) || 'null');
@@ -60,14 +66,17 @@ function toIconSuffix(key) {
 function getNotificationIconConfig(primaryKey, fallbackKey = '', literalFallback = '', defaultColor = '#5f7392', defaultSize = 20) {
     const primarySuffix = toIconSuffix(primaryKey);
     const fallbackSuffix = fallbackKey ? toIconSuffix(fallbackKey) : '';
+    const staticIcon = DEFAULT_NOTIFICATION_ICONS[primaryKey] || {};
     const value = firstFilled(
         currentConfig?.icons?.[primaryKey],
         fallbackKey ? currentConfig?.icons?.[fallbackKey] : '',
+        staticIcon.value,
         literalFallback
     );
     const color = firstFilled(
         currentConfig?.general?.[`iconColor${primarySuffix}`],
         fallbackSuffix ? currentConfig?.general?.[`iconColor${fallbackSuffix}`] : '',
+        staticIcon.color,
         defaultColor
     );
     const hoverColor = firstFilled(
@@ -78,9 +87,25 @@ function getNotificationIconConfig(primaryKey, fallbackKey = '', literalFallback
     const size = Number(firstFilled(
         currentConfig?.general?.[`iconSize${primarySuffix}`],
         fallbackSuffix ? currentConfig?.general?.[`iconSize${fallbackSuffix}`] : '',
+        staticIcon.size,
         defaultSize
     )) || defaultSize;
     return { value, color, hoverColor, size };
+}
+
+function getNotificationIconSet() {
+    return {
+        title: getNotificationIconConfig('notificationChatTitle', 'dashboardNotifications', '✉', '#0b81b8', 18),
+        attach: getNotificationIconConfig('notificationChatAttach', '', '📎', '#607286', 16),
+        send: getNotificationIconConfig('notificationChatSend', '', '➤', '#0b81b8', 16),
+        delete: { ...getNotificationIconConfig('lineDelete', '', '🗑', '#607286', 16), color: '#607286', hoverColor: '#344054', size: 16 }
+    };
+}
+
+function refreshNotificationWidgetIcons() {
+    if (!notificationChatWidget) return;
+    notificationChatWidget.icons = getNotificationIconSet();
+    notificationChatWidget.render();
 }
 
 function applyBranding(config) {
@@ -122,7 +147,7 @@ async function init() {
         window.location.replace('/login');
         return;
     }
-    await loadConfig();
+    const configReady = loadConfig();
     if (!window.NotificationChatWidget || !chatMount) {
         renderStartupError('No fue posible iniciar la ventana de notificaciones.');
         return;
@@ -136,18 +161,14 @@ async function init() {
         showClose: false,
         draggable: false,
         allowMinimize: false,
-        icons: {
-            title: getNotificationIconConfig('notificationChatTitle', 'dashboardNotifications', '✉', '#0b81b8', 18),
-            attach: getNotificationIconConfig('notificationChatAttach', '', '📎', '#607286', 16),
-            send: getNotificationIconConfig('notificationChatSend', '', '➤', '#0b81b8', 16),
-            delete: { ...getNotificationIconConfig('lineDelete', '', '🗑', '#607286', 16), color: '#607286', hoverColor: '#344054', size: 16 }
-        },
+        icons: getNotificationIconSet(),
         openRoute: (route, label) => {
             if (!openRouteInShell(route, label || 'Documento')) window.location.href = route;
         },
         onUnreadChange: publishNotificationsUpdated,
         onChanged: publishNotificationsUpdated
     });
+    configReady.then(refreshNotificationWidgetIcons);
     await notificationChatWidget.open();
 }
 

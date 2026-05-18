@@ -520,8 +520,9 @@ body.popover-open { overflow: hidden; }
     height: 100%;
     border: 0;
     border-radius: 0;
-    background: #ffffff;
+    background: var(--app-bg);
     box-shadow: none;
+    color-scheme: light dark;
 }
 .dashboard-frame[hidden] {
     display: none;
@@ -9165,6 +9166,11 @@ html[data-theme="dark"] .calc-popover-backdrop {
 html[data-theme="dark"] img,
 html[data-theme="dark"] iframe {
     color-scheme: light;
+}
+
+html[data-theme="dark"] .dashboard-frame {
+    background: var(--app-bg);
+    color-scheme: dark;
 }
 
 html[data-theme="dark"] .login-body {

@@ -638,6 +638,8 @@ function createTabFrame(tab) {
     iframe.className = 'dashboard-frame';
     iframe.title = tab.label || 'Contenido ERP';
     iframe.dataset.tabId = tab.id;
+    iframe.style.background = 'var(--app-bg)';
+    iframe.style.colorScheme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
     iframe.src = normalizeRoute(tab.route);
     iframe.hidden = true;
     workspacePanel.appendChild(iframe);

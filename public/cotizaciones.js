@@ -27,6 +27,7 @@ const DEFAULT_ICON_MAP = {
     quoteCollapse: { value: '▾', color: '#607286', size: 18 },
     lineReorder: { value: '⋮⋮', color: '#607286', size: 18 },
     lineMenu: { value: '⋯', color: '#607286', size: 18 },
+    lineEdit: { value: '\u270e', color: '#0b81b8', size: 18 },
     lineProforma: { value: '\ud83d\udc41', color: '#1e516d', size: 16 },
     lineAdd: { value: '+', color: '#1e516d', size: 18 }
 };
@@ -2015,11 +2016,11 @@ let lineDragDropInitialized = false;
 function renderQuoteLineCard(row, index, totalLines, treeOptions = {}) {
     quoteLineLookup.set(row.id, row);
     const reorderConf = getResolvedIcon(['lineReorder', 'tableMove'], 'lineReorder');
-    const openConf = getResolvedIcon(['browserOpen', 'tableOpen'], 'tableOpen');
+    const editConf = getResolvedIcon(['lineEdit', 'tableEdit', 'quoteLineEdit'], 'lineEdit');
     const menuConf = getResolvedIcon(['lineMenu', 'tableActions'], 'lineMenu');
-    const openColor = loadedConfig?.general?.iconColorBrowserOpen || loadedConfig?.general?.iconColorTableOpen || '#0b81b8';
-    const openHover = loadedConfig?.general?.iconColorHoverBrowserOpen || loadedConfig?.general?.iconColorHoverTableOpen || '#07638c';
-    const openSize = Number(loadedConfig?.general?.iconSizeBrowserOpen || loadedConfig?.general?.iconSizeTableOpen) || openConf.size || 18;
+    const editColor = loadedConfig?.general?.iconColorLineEdit || loadedConfig?.general?.iconColorTableEdit || editConf.color || '#0b81b8';
+    const editHover = loadedConfig?.general?.iconColorHoverLineEdit || loadedConfig?.general?.iconColorHoverTableEdit || editConf.hover || '#07638c';
+    const editSize = Number(loadedConfig?.general?.iconSizeLineEdit || loadedConfig?.general?.iconSizeTableEdit) || editConf.size || 18;
     const menuColor = loadedConfig?.general?.iconColorLineMenu || menuConf.color || '#607286';
     const menuHover = loadedConfig?.general?.iconColorHoverLineMenu || menuConf.hover || '#0b81b8';
     const menuSize = Number(loadedConfig?.general?.iconSizeLineMenu) || menuConf.size || 18;
@@ -2054,7 +2055,7 @@ function renderQuoteLineCard(row, index, totalLines, treeOptions = {}) {
                     <span class="row-action-divider" aria-hidden="true"></span>
                     <div class="quote-line-menu-wrap" data-line-menu-id="${row.id}">
                         <button type="button" class="quote-line-icon-btn quote-line-menu-trigger" data-line-menu-toggle="${row.id}" title="Más opciones" aria-label="Más opciones" aria-haspopup="true" aria-expanded="false" style="--icon-color:${escapeHtml(menuColor)};--icon-hover-color:${escapeHtml(menuHover)};--config-icon-size:${escapeHtml(String(menuSize))}px;">${iconMarkup(menuConf.value, 'Más opciones', 'table-icon-media')}</button>
-                        <button type="button" class="quote-line-icon-btn quote-line-edit-btn" data-line-action="edit" data-line-id="${row.id}" title="Editar cálculo" aria-label="Editar" style="--icon-color:${escapeHtml(openColor)};--icon-hover-color:${escapeHtml(openHover)};--config-icon-size:${escapeHtml(String(openSize))}px;">${iconMarkup(openConf.value, 'Editar cálculo', 'table-icon-media')}</button>
+                        <button type="button" class="quote-line-icon-btn quote-line-edit-btn" data-line-action="edit" data-line-id="${row.id}" title="Editar cálculo" aria-label="Editar" style="--icon-color:${escapeHtml(editColor)};--icon-hover-color:${escapeHtml(editHover)};--config-icon-size:${escapeHtml(String(editSize))}px;">${iconMarkup(editConf.value, 'Editar cálculo', 'table-icon-media')}</button>
                         <div class="quote-line-menu-panel" data-line-menu-panel="${row.id}" hidden>
                             <div class="row-action-menu-list">
                                 <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="duplicate" data-line-id="${row.id}">${lineMenuIconMarkup('duplicate', 'Duplicar Línea', '⎘')}<span>Duplicar Línea</span></button>

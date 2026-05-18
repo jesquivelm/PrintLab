@@ -123,6 +123,7 @@
             this.composeStatus = '';
             this.composeError = '';
             this.revealedThreadCode = '';
+            this.isLoadingThreads = false;
             this.docSwipe = null;
             this.suppressDocClick = false;
             this.isDeletingThread = false;
@@ -134,7 +135,14 @@
             this.ensureRoot();
             this.root.hidden = false;
             if (!this.embedded) this.applySavedPosition();
-            await this.loadThreads();
+            this.isLoadingThreads = true;
+            this.render();
+            try {
+                await this.loadThreads();
+            } finally {
+                this.isLoadingThreads = false;
+            }
+            this.render();
             const contact = this.activeContact();
             const thread = this.generalThread(contact);
             if (!this.activeThreadCode && thread?.threadCode) {
@@ -177,6 +185,7 @@
             const size = Number(forcedSize || icon.size || 16);
             const color = icon.color || 'currentColor';
             if (value.startsWith('data:image')) return `<img class="nc-config-icon" src="${esc(value)}" alt="" style="width:var(--nc-icon-size, ${size}px);height:var(--nc-icon-size, ${size}px);">`;
+            if (/\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(value)) return `<img class="nc-config-icon" src="${esc(value)}" alt="" style="width:var(--nc-icon-size, ${size}px);height:var(--nc-icon-size, ${size}px);">`;
             if (value.startsWith('http') || value.startsWith('/')) return `<span class="nc-config-icon icon-svg-mask" style="-webkit-mask-image:url('${esc(value)}');mask-image:url('${esc(value)}');width:var(--nc-icon-size, ${size}px);height:var(--nc-icon-size, ${size}px);background:var(--nc-icon-color, ${esc(color)});"></span>`;
             return `<span class="nc-config-icon" style="font-size:var(--nc-icon-size, ${size}px);color:var(--nc-icon-color, ${esc(color)});">${esc(value)}</span>`;
         }
@@ -392,6 +401,7 @@
             const contacts = this.contacts.filter((contact) => !query
                 || normalizeText(contact.name).includes(query)
                 || contact.threads.some((thread) => normalizeText(threadLabel(thread)).includes(query)));
+            if (this.isLoadingThreads) return '<div class="nc-empty"><span class="nc-spinner" aria-hidden="true"></span><p>Cargando conversaciones...</p></div>';
             if (!contacts.length) return '<div class="nc-empty"><i class="ti ti-message-2" aria-hidden="true"></i><p>No hay conversaciones.</p></div>';
             return contacts.map((contact) => {
                 const open = contact.id === this.activeContactId && this.expandedContacts.has(contact.id);
@@ -426,6 +436,9 @@
         }
 
         renderConversation() {
+            if (this.isLoadingThreads) {
+                return '<div class="nc-empty"><span class="nc-spinner" aria-hidden="true"></span><p>Cargando notificaciones...</p></div>';
+            }
             const contact = this.activeContact();
             const thread = this.activeThread();
             if (!contact) {
