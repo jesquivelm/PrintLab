@@ -35,7 +35,8 @@ function isSvgValue(value) {
 }
 
 function isImageValue(value) {
-    return String(value || '').trim().startsWith('data:image/');
+    const normalized = String(value || '').trim().toLowerCase();
+    return normalized.startsWith('data:image/') || /\.(svg|png|jpe?g|webp|gif)(\?|#|$)/i.test(normalized);
 }
 
 function iconMarkup(value, altText, extraClass = '') {

@@ -11082,7 +11082,8 @@ app.post('/api/auth/login', async (req, res) => {
 
         const result = await pgQuery(
             `SELECT u.id, u.full_name, u.username, u.department, u.process, u.photo_url, u.is_active,
-                    u.permission_id, u.default_landing AS user_default_landing, p.permission_name,
+                    u.permission_id, u.default_landing AS user_default_landing, u.floating_button_config,
+                    p.permission_name,
                     p.default_landing AS permission_default_landing, p.module_permissions
                FROM admin_users u
           LEFT JOIN admin_permissions p
@@ -11122,6 +11123,9 @@ app.post('/api/auth/login', async (req, res) => {
                 permissionId: row.permission_id == null ? null : Number(row.permission_id),
                 permissionName,
                 defaultLanding: sanitizeOptionalPresentationKey(row.user_default_landing) || sanitizePresentationKey(row.permission_default_landing),
+                floatingButtonConfig: row.floating_button_config && typeof row.floating_button_config === 'object' && !Array.isArray(row.floating_button_config)
+                    ? row.floating_button_config
+                    : {},
                 modules: isSuperAdminPermissionName(permissionName)
                     ? buildFullPermissionMatrix()
                     : normalizePermissionMatrix(row.module_permissions || {})
@@ -15483,8 +15487,13 @@ app.get('/api/inventario/:kind/export', async (req, res) => {
 
 app.get('/api/catalogs', async (req, res) => {
     try {
-        const helpers = await loadFlexoEngineHelpers();
-        const catalogs = await helpers.loadWebCatalogs();
+        let catalogs = {};
+        try {
+            const helpers = await loadFlexoEngineHelpers();
+            catalogs = await helpers.loadWebCatalogs();
+        } catch (catalogError) {
+            console.warn('No fue posible cargar catálogos base del motor flexo; se usará inventario local.', catalogError.message);
+        }
         const materialRows = await listInventory('materiales', { limit: 5000 });
         const machineRows = await listInventory('maquinas', { limit: 5000 });
         const troquelRows = await listInventory('troqueles', { limit: 5000 });

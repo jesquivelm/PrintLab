@@ -6942,7 +6942,7 @@ function renderProcesses() {
         ...minimumCostExampleLines(troquel, "Troquel")
       ],
       answer: `R/ El troquel actual entrega ${formulaValue(troquel.labelsPerRepeat || 0, 0)} etiquetas por vuelta y ${formulaValue(troquel.development || 0, 2)} in de desarrollo`
-    })}`),
+    })}`); },
     sustrato: () => card("sustrato", nextTitle("Sustrato"), sustrato.materialName || "Selecciona material", sustrato.subtotal, `<div class="editable-grid substrate-grid"><label class="span-2"><span>Material</span><select data-scope="substrate" data-field="materialId">${processOptions(substrateMaterialOptions().map((item) => ({ id: item.id, nombre: item.nombre || item.name || item.descripcion || item.id })), state.form.substrate.materialId)}</select></label><label><span>Costo/pie</span>${displayInput("substrate", "costPerFoot", state.form.substrate.costPerFoot, { prefix: "$", suffix: "/pie", maximumFractionDigits: 6, step: "0.000001" })}</label></div><div class="readonly-grid compact-top">${metricBox("Etiquetas al Través", sustrato.acrossCount > 0 ? num(sustrato.acrossCount, 0) : "Pendiente", n(sustrato.acrossCount, 0) <= 0)}${metricBox("Desarrollo del Cilindro", sustrato.cylinderDevelopmentIn > 0 ? `${num(sustrato.cylinderDevelopmentIn, 3)} in` : "Pendiente", n(sustrato.cylinderDevelopmentIn, 0) <= 0)}${metricBox("Merma Total", sustrato.startupWasteFeet > 0 ? `${num(sustrato.startupWasteFeet, 2)} pies` : "Pendiente", (sustrato.issues || []).some((issue) => String(issue).toLowerCase().includes("merma")))}${metricBox("Longitud Total", sustrato.totalLengthFeet > 0 ? `${num(sustrato.totalLengthFeet, 2)} pies` : "Pendiente", (sustrato.issues || []).length > 0)}${metricBox("Área Total Consumida", sustrato.totalAreaFt2 > 0 ? `${num(sustrato.totalAreaFt2, 2)} ft²` : "Pendiente", n(sustrato.webWidthIn, 0) <= 0 || (sustrato.issues || []).length > 0)}${metric("Costo por Pie", money(sustrato.unitCost))}${metric("Subtotal", money(sustrato.subtotal))}</div>${issueList("Problemas detectados en la fórmula", sustrato.issues || [])}${formula("Costo del Sustrato", sustrato.formulaCost, sustrato.explanation, {
       exampleLines: [
         `Cantidad Lineal Sustrato: ( ${formulaValue(sustrato.qty || 0, 0)} x ${formulaValue(sustrato.cylinderDevelopmentIn || 0, 2)} ) / ( 12 x ${formulaValue(sustrato.acrossCount || 0, 0)} ) = ${formulaValue(sustrato.linealFeet || 0, 2)}`,
@@ -8004,7 +8004,7 @@ async function init() {
     const lineId = params.get("lineId") || "";
     const [config, catalogs, context, costsConfig, sapConfig, sapSalespersonConfigs, sapProductionCostCenter] = await Promise.all([
       getJson("/api/config/general"),
-      getJson("/api/catalogs"),
+      getJson("/api/catalogs").catch(() => ({ materials: [], troqueles: [], machines: [], machineCategories: {}, processes: [], outputTypes: [] })),
       quoteId || lineId ? getJson(`/api/flexo/calculo?${new URLSearchParams({ quoteId, lineId }).toString()}`) : Promise.resolve(null),
       getJson("/api/costos-config").catch(() => null),
       getJson("/api/sap/config").catch(() => null),

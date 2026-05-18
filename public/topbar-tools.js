@@ -91,7 +91,7 @@
             const safeUrl = escapeHtml(value);
             return `<span class="icon-svg-mask ${extraClass}" role="img" aria-label="${escapeHtml(altText)}" style="-webkit-mask-image:url('${safeUrl}');mask-image:url('${safeUrl}');"></span>`;
         }
-        if (normalized.startsWith('data:image')) {
+        if (normalized.startsWith('data:image') || /\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(normalized)) {
             return `<img src="${escapeHtml(value)}" alt="${escapeHtml(altText)}" class="icon-image ${extraClass}">`;
         }
         return `<span class="icon-glyph ${extraClass}">${escapeHtml(value || '')}</span>`;
@@ -620,6 +620,8 @@
             const current = getCurrentFavoritePayload();
             const isFavorite = favorites.some((item) => String(item?.route || '').trim() === current.route);
             applyFavoriteState(button, isFavorite, favoriteIconOn, favoriteIconOff);
+            if (button.dataset.topbarFavoriteBound === 'true') return;
+            button.dataset.topbarFavoriteBound = 'true';
             button.addEventListener('click', () => {
                 const panelId = button.getAttribute('data-topbar-favorite-target');
                 const panel = panelId ? document.getElementById(panelId) : null;
@@ -643,12 +645,16 @@
 
     async function bootstrap() {
         initProfileEvents();
+        const bootstrapConfig = window.PrintLabConfigBootstrap && typeof window.PrintLabConfigBootstrap === 'object'
+            ? window.PrintLabConfigBootstrap
+            : {};
+        initTopbar(bootstrapConfig);
         try {
             const response = await fetch('/api/config/general');
             const config = response.ok ? await response.json() : {};
             initTopbar(config);
         } catch (_) {
-            initTopbar({});
+            initTopbar(bootstrapConfig);
         }
     }
 

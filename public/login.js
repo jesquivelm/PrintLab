@@ -1,10 +1,14 @@
 const LOGIN_CONFIG_ENDPOINT = '/api/config/general';
 const LOGIN_REPOSITORY_ENDPOINT = '/api/login-repository';
 const LOGIN_AUTH_ENDPOINT = '/api/auth/login';
+const LOGIN_REPOSITORY_URL_BASE = '/uploads/login-repository/';
 const SESSION_STORAGE_KEY = 'erp-user-session';
 const REMEMBER_STORAGE_KEY = 'erp-remembered-login';
 const LOGIN_CONFIG_CACHE_KEY = 'erp-login-config-cache';
 const LOGIN_REPOSITORY_CACHE_KEY = 'erp-login-repository-cache';
+const DASHBOARD_CONFIG_CACHE_KEY = 'erp-dashboard-config-cache';
+const GENERAL_CONFIG_CACHE_KEY = 'erp-general-config-cache';
+const BDFG_PROFILE_CACHE_KEY_PREFIX = 'erp-bdfg-profile-cache';
 const LOGIN_CONFIG_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 const LOGIN_REPOSITORY_CACHE_TTL_MS = 30 * 60 * 1000;
 const LOGIN_CONFIG_CACHE_TEXT_LIMIT = 24000;
@@ -16,6 +20,12 @@ const LOGIN_LOGO_CACHE_REQUEST_PATH = '/__erp-login-cache/logo';
 const LOGIN_IMAGE_CACHE_LIMIT = 3;
 const LOGIN_IMAGE_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const LOGIN_ANIM_VARIANTS = ['anim-0', 'anim-1', 'anim-2'];
+const LOGIN_BOOTSTRAP_CONFIG = window.PrintLabConfigBootstrap && typeof window.PrintLabConfigBootstrap === 'object'
+    ? window.PrintLabConfigBootstrap
+    : null;
+const LOGIN_BOOTSTRAP_REPOSITORY = window.PrintLabLoginRepositoryBootstrap && typeof window.PrintLabLoginRepositoryBootstrap === 'object'
+    ? window.PrintLabLoginRepositoryBootstrap
+    : null;
 
 const loginForm = document.getElementById('loginForm');
 const loginUsername = document.getElementById('loginUsername');
@@ -116,6 +126,51 @@ function compactConfigForLocalCache(value, key = '') {
     return value;
 }
 
+function hasObjectContent(value) {
+    return value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length > 0;
+}
+
+function mergeBootstrapAssetsForConfigCache(config) {
+    const base = hasObjectContent(config) ? { ...config } : {};
+    if (!hasObjectContent(LOGIN_BOOTSTRAP_CONFIG)) return base;
+    if (hasObjectContent(LOGIN_BOOTSTRAP_CONFIG.branding)) {
+        base.branding = { ...(base.branding || {}) };
+        ['logoUrl', 'companyLogoUrl'].forEach((key) => {
+            if (!base.branding[key] && LOGIN_BOOTSTRAP_CONFIG.branding[key]) {
+                base.branding[key] = LOGIN_BOOTSTRAP_CONFIG.branding[key];
+            }
+        });
+        if (!base.branding.companyName && LOGIN_BOOTSTRAP_CONFIG.branding.companyName) {
+            base.branding.companyName = LOGIN_BOOTSTRAP_CONFIG.branding.companyName;
+        }
+    }
+    if (hasObjectContent(LOGIN_BOOTSTRAP_CONFIG.icons)) {
+        base.icons = { ...LOGIN_BOOTSTRAP_CONFIG.icons, ...(base.icons || {}) };
+    }
+    return base;
+}
+
+function writeSharedConfigCaches(config) {
+    const cacheableConfig = mergeBootstrapAssetsForConfigCache(compactConfigForLocalCache(config));
+    if (!hasObjectContent(cacheableConfig)) return cacheableConfig;
+    writeCache(LOGIN_CONFIG_CACHE_KEY, cacheableConfig);
+    writeCache(DASHBOARD_CONFIG_CACHE_KEY, cacheableConfig);
+    writeCache(GENERAL_CONFIG_CACHE_KEY, cacheableConfig);
+    return cacheableConfig;
+}
+
+function writeDashboardProfileCache(user) {
+    const username = String(user?.username || '').trim().toLowerCase();
+    const floatingButtonConfig = user?.floatingButtonConfig;
+    if (!username || !floatingButtonConfig || typeof floatingButtonConfig !== 'object' || Array.isArray(floatingButtonConfig)) return;
+    writeCache(`${BDFG_PROFILE_CACHE_KEY_PREFIX}:${username}`, {
+        username,
+        name: user.name || user.username || '',
+        photoUrl: user.photoUrl || '',
+        floatingButtonConfig
+    });
+}
+
 function compactLoginRepositoryForCache(repository) {
     if (!repository || typeof repository !== 'object') return repository;
     const images = Array.isArray(repository.images)
@@ -133,13 +188,25 @@ function compactLoginRepositoryForCache(repository) {
 
 function getRepositoryImageUrls(repository) {
     return Array.isArray(repository?.images)
-        ? repository.images.map((item) => item?.url).filter(Boolean)
+        ? repository.images
+            .map((item) => normalizeLoginRepositoryUrl(item?.url || item?.optimizedUrl || item?.originalUrl || item?.fileName || item?.name))
+            .filter(Boolean)
         : [];
+}
+
+function normalizeLoginRepositoryUrl(url) {
+    const text = String(url || '').trim();
+    if (!text) return '';
+    if (/^(blob:|data:image|https?:|\/)/i.test(text)) return text;
+    if (/^[^/?#]+\.(?:avif|gif|jpe?g|png|svg|webp)$/i.test(text)) {
+        return `${LOGIN_REPOSITORY_URL_BASE}${encodeURIComponent(text)}`;
+    }
+    return text;
 }
 
 function normalizeLoginImageUrl(url) {
     try {
-        return new URL(String(url || '').trim(), window.location.origin).href;
+        return new URL(normalizeLoginRepositoryUrl(url), window.location.origin).href;
     } catch (error) {
         return '';
     }
@@ -552,13 +619,10 @@ async function refreshLoginConfig(cachedConfig, cachedRepository) {
     }
 
     const repositoryImages = getRepositoryImageUrls(repository);
-    const cacheableConfig = compactConfigForLocalCache(config);
+    const cacheableConfig = writeSharedConfigCaches(config);
     const cacheableRepository = compactLoginRepositoryForCache(repository);
     scheduleLoginImageCache(repositoryImages);
 
-    if (!areJsonEqual(cacheableConfig, cachedConfig)) {
-        writeCache(LOGIN_CONFIG_CACHE_KEY, cacheableConfig);
-    }
     if (!areJsonEqual(cacheableRepository, cachedRepository)) {
         writeCache(LOGIN_REPOSITORY_CACHE_KEY, cacheableRepository);
     }
@@ -572,11 +636,13 @@ async function refreshLoginConfig(cachedConfig, cachedRepository) {
 async function loadConfig() {
     const cachedConfig = readCache(LOGIN_CONFIG_CACHE_KEY, LOGIN_CONFIG_CACHE_TTL_MS);
     const cachedRepository = readCache(LOGIN_REPOSITORY_CACHE_KEY, LOGIN_REPOSITORY_CACHE_TTL_MS);
-    const cachedImages = loginRepositoryImages.length ? loginRepositoryImages : getRepositoryImageUrls(cachedRepository);
+    const bootstrapConfig = cachedConfig || LOGIN_BOOTSTRAP_CONFIG;
+    const bootstrapRepository = cachedRepository || LOGIN_BOOTSTRAP_REPOSITORY;
+    const cachedImages = loginRepositoryImages.length ? loginRepositoryImages : getRepositoryImageUrls(bootstrapRepository);
 
-    if (cachedConfig) {
-        applyLoginBranding(cachedConfig, cachedImages);
-        refreshLoginConfig(cachedConfig, cachedRepository).catch((error) => {
+    if (bootstrapConfig) {
+        applyLoginBranding(bootstrapConfig, cachedImages);
+        refreshLoginConfig(bootstrapConfig, bootstrapRepository).catch((error) => {
             console.warn('No fue posible refrescar la configuración del login.', error);
         });
         return;
@@ -603,16 +669,31 @@ async function handleLogin(event) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })
         });
-        const data = await response.json();
+        const data = await readLoginResponse(response);
         if (!response.ok) {
             throw new Error(data?.error || 'No fue posible iniciar sesión.');
         }
         persistRememberedCredentials();
+        writeDashboardProfileCache(data.user);
         setStoredSession(data.user, loginRemember.checked);
         loginStatus.textContent = '';
         window.location.href = resolveAllowedLandingRoute(data.user);
     } catch (error) {
         loginStatus.textContent = error.message || 'No fue posible iniciar sesión.';
+    }
+}
+
+async function readLoginResponse(response) {
+    const text = await response.text();
+    if (!text) return {};
+    try {
+        return JSON.parse(text);
+    } catch (error) {
+        const normalized = text.replace(/\s+/g, ' ').trim();
+        if (response.status === 404) {
+            return { error: 'No se encontró el servicio de inicio de sesión.' };
+        }
+        return { error: normalized || 'El servidor respondió con un formato no válido.' };
     }
 }
 

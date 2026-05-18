@@ -1,8 +1,12 @@
 const CONFIG_ENDPOINT = '/api/config/general';
 const SESSION_STORAGE_KEY = 'erp-user-session';
 const DASHBOARD_CONFIG_CACHE_KEY = 'erp-dashboard-config-cache';
+const DASHBOARD_PROFILE_CACHE_KEY_PREFIX = 'erp-bdfg-profile-cache';
 const DASHBOARD_CONFIG_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 const DASHBOARD_CONFIG_CACHE_TEXT_LIMIT = 24000;
+const DASHBOARD_BOOTSTRAP_CONFIG = window.PrintLabConfigBootstrap && typeof window.PrintLabConfigBootstrap === 'object'
+    ? window.PrintLabConfigBootstrap
+    : null;
 const tabsContainer = document.getElementById('dashboardTabs');
 const tabsBar = document.querySelector('.dashboard-tabs-bar');
 const homePanel = document.getElementById('dashboardHome');
@@ -280,7 +284,7 @@ function getEffectiveBdfgConfig() {
         ...buildBdfgThemeConfig(globalTheme, defaults.theme),
         theme: globalTheme,
         colorMode: String(globalSource?.bdfgColorMode || defaults.colorMode).trim().toLowerCase() || defaults.colorMode,
-        mainSize: sanitizeBdfgNumber(globalSource?.bdfgMainSize, defaults.mainSize, 58, 140),
+        mainSize: sanitizeBdfgNumber(globalSource?.bdfgMainSize, defaults.mainSize, 25, 100),
         menuDistance: sanitizeBdfgNumber(globalSource?.bdfgMenuDistance, defaults.menuDistance, 72, 200),
         miniShape: String(globalSource?.bdfgMiniShape || defaults.miniShape).trim().toLowerCase() || defaults.miniShape,
         layout: String(globalSource?.bdfgLayout || defaults.layout).trim().toLowerCase() || defaults.layout,
@@ -304,7 +308,7 @@ function getEffectiveBdfgConfig() {
         ...userThemeBase,
         theme: userTheme,
         colorMode: String(userConfig.colorMode || globalBase.colorMode).trim().toLowerCase() || globalBase.colorMode,
-        mainSize: sanitizeBdfgNumber(userConfig.mainSize, globalBase.mainSize, 58, 140),
+        mainSize: sanitizeBdfgNumber(userConfig.mainSize, globalBase.mainSize, 25, 100),
         menuDistance: sanitizeBdfgNumber(userConfig.menuDistance, globalBase.menuDistance, 72, 200),
         miniShape: String(userConfig.miniShape || globalBase.miniShape).trim().toLowerCase() || globalBase.miniShape,
         layout: String(userConfig.layout || globalBase.layout).trim().toLowerCase() || globalBase.layout,
@@ -355,6 +359,34 @@ function writeDashboardConfigCache(config) {
     }
 }
 
+function readDashboardProfileCache() {
+    try {
+        const username = String(activeUserSession?.username || '').trim().toLowerCase();
+        if (!username) return null;
+        const raw = localStorage.getItem(`${DASHBOARD_PROFILE_CACHE_KEY_PREFIX}:${username}`);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        const storedAt = Number(parsed?.storedAt || 0);
+        if (!storedAt || Date.now() - storedAt > DASHBOARD_CONFIG_CACHE_TTL_MS) return null;
+        return parsed.data || null;
+    } catch (error) {
+        return null;
+    }
+}
+
+function writeDashboardProfileCache(profile) {
+    try {
+        const username = String(activeUserSession?.username || profile?.username || '').trim().toLowerCase();
+        if (!username || !profile || typeof profile !== 'object') return;
+        localStorage.setItem(`${DASHBOARD_PROFILE_CACHE_KEY_PREFIX}:${username}`, JSON.stringify({
+            storedAt: Date.now(),
+            data: profile
+        }));
+    } catch (error) {
+        console.warn('No fue posible actualizar el caché local del perfil.', error);
+    }
+}
+
 function compactDashboardConfigForCache(value, key = '') {
     if (typeof value === 'string') {
         const text = value.trim();
@@ -378,6 +410,26 @@ function compactDashboardConfigForCache(value, key = '') {
     return value;
 }
 
+function mergeDashboardBootstrapAssets(config) {
+    const base = config && typeof config === 'object' && !Array.isArray(config) ? { ...config } : {};
+    if (!DASHBOARD_BOOTSTRAP_CONFIG || typeof DASHBOARD_BOOTSTRAP_CONFIG !== 'object') return base;
+    if (DASHBOARD_BOOTSTRAP_CONFIG.icons && typeof DASHBOARD_BOOTSTRAP_CONFIG.icons === 'object') {
+        base.icons = { ...(base.icons || {}), ...DASHBOARD_BOOTSTRAP_CONFIG.icons };
+    }
+    if (DASHBOARD_BOOTSTRAP_CONFIG.branding && typeof DASHBOARD_BOOTSTRAP_CONFIG.branding === 'object') {
+        base.branding = { ...(base.branding || {}) };
+        ['logoUrl', 'companyLogoUrl'].forEach((key) => {
+            if (DASHBOARD_BOOTSTRAP_CONFIG.branding[key]) {
+                base.branding[key] = DASHBOARD_BOOTSTRAP_CONFIG.branding[key];
+            }
+        });
+        if (!base.branding.companyName && DASHBOARD_BOOTSTRAP_CONFIG.branding.companyName) {
+            base.branding.companyName = DASHBOARD_BOOTSTRAP_CONFIG.branding.companyName;
+        }
+    }
+    return base;
+}
+
 function areDashboardConfigsEqual(left, right) {
     return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
 }
@@ -388,7 +440,7 @@ function iconMarkup(value, altText, extraClass = '') {
         const safeUrl = escapeHtml(value);
         return `<span class="icon-svg-mask ${extraClass}" role="img" aria-label="${escapeHtml(altText)}" style="-webkit-mask-image:url('${safeUrl}');mask-image:url('${safeUrl}');"></span>`;
     }
-    if (normalized.startsWith('data:image')) {
+    if (normalized.startsWith('data:image') || /\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(normalized)) {
         return `<img src="${escapeHtml(value)}" alt="${escapeHtml(altText)}" class="icon-image ${extraClass}">`;
     }
     return `<span class="icon-glyph ${extraClass}">${escapeHtml(value || '')}</span>`;
@@ -1885,13 +1937,19 @@ async function loadBdfgNotifications() {
 }
 
 async function loadBdfgUserProfile() {
+    const cachedProfile = readDashboardProfileCache();
+    if (cachedProfile) {
+        bdfgUserProfile = cachedProfile;
+        renderBdfg();
+    }
     try {
         const response = await fetch(BDFG_PROFILE_ENDPOINT, { headers: sessionHeaders() });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(payload.error || 'No fue posible cargar el perfil.');
         bdfgUserProfile = payload || {};
+        writeDashboardProfileCache(bdfgUserProfile);
     } catch (error) {
-        bdfgUserProfile = null;
+        if (!cachedProfile) bdfgUserProfile = null;
     }
     renderBdfg();
 }
@@ -2636,9 +2694,9 @@ async function applyDashboardConfig(configOverride = null) {
     const hasOverride = configOverride && typeof configOverride === 'object';
     let cachedConfig = null;
     if (!hasOverride) {
-        cachedConfig = readDashboardConfigCache();
+        cachedConfig = readDashboardConfigCache() || DASHBOARD_BOOTSTRAP_CONFIG;
         if (cachedConfig) {
-            applyDashboardConfigPayload(cachedConfig);
+            applyDashboardConfigPayload(mergeDashboardBootstrapAssets(cachedConfig));
         }
     }
     let nextConfig = hasOverride ? configOverride : null;
@@ -2647,11 +2705,11 @@ async function applyDashboardConfig(configOverride = null) {
         if (!response.ok) return;
         nextConfig = await response.json();
     }
-    const cacheableConfig = compactDashboardConfigForCache(nextConfig);
+    const cacheableConfig = mergeDashboardBootstrapAssets(compactDashboardConfigForCache(nextConfig));
     if (!areDashboardConfigsEqual(cacheableConfig, cachedConfig)) {
         writeDashboardConfigCache(cacheableConfig);
     }
-    applyDashboardConfigPayload(nextConfig);
+    applyDashboardConfigPayload(mergeDashboardBootstrapAssets(nextConfig));
 }
 
 function applyDashboardConfigPayload(config) {
