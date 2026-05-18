@@ -2358,6 +2358,17 @@ async function getJson(url, options) {
   return payload;
 }
 
+function emptyCatalogs() {
+  return { materials: [], troqueles: [], machines: [], machineCategories: {}, processes: [], outputTypes: [] };
+}
+
+function withTimeout(promise, ms, fallback) {
+  return Promise.race([
+    promise.catch(() => fallback),
+    new Promise((resolve) => setTimeout(() => resolve(fallback), ms))
+  ]);
+}
+
 function readUserSession() {
   try {
     return JSON.parse(localStorage.getItem("erp-user-session") || sessionStorage.getItem("erp-user-session") || "null");
@@ -8003,8 +8014,8 @@ async function init() {
     const quoteId = params.get("quoteId") || "";
     const lineId = params.get("lineId") || "";
     const [config, catalogs, context, costsConfig, sapConfig, sapSalespersonConfigs, sapProductionCostCenter] = await Promise.all([
-      getJson("/api/config/general"),
-      getJson("/api/catalogs").catch(() => ({ materials: [], troqueles: [], machines: [], machineCategories: {}, processes: [], outputTypes: [] })),
+      withTimeout(getJson("/api/config/general"), 3500, {}),
+      withTimeout(getJson("/api/catalogs"), 2500, emptyCatalogs()),
       quoteId || lineId ? getJson(`/api/flexo/calculo?${new URLSearchParams({ quoteId, lineId }).toString()}`) : Promise.resolve(null),
       getJson("/api/costos-config").catch(() => null),
       getJson("/api/sap/config").catch(() => null),

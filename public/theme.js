@@ -1,8 +1,22 @@
 (function () {
     const STORAGE_KEY = 'printlab-theme-mode';
     const MODES = ['light', 'dark'];
+    const CACHE_CLEANUP_KEY = 'erp-bootstrap-cache-cleanup-20260518';
     const root = document.documentElement;
     const isEmbedded = window !== window.parent || new URLSearchParams(window.location.search).get('shell') === '1';
+
+    function cleanupBootstrapCache() {
+        try {
+            if (localStorage.getItem(CACHE_CLEANUP_KEY) === 'done') return;
+            ['erp-login-config-cache', 'erp-dashboard-config-cache', 'erp-general-config-cache'].forEach((key) => {
+                localStorage.removeItem(key);
+            });
+            Object.keys(localStorage)
+                .filter((key) => key.startsWith('erp-bdfg-profile-cache:'))
+                .forEach((key) => localStorage.removeItem(key));
+            localStorage.setItem(CACHE_CLEANUP_KEY, 'done');
+        } catch (_) {}
+    }
 
     function systemTheme() {
         return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -93,6 +107,7 @@
         updateButton(button, normalizeMode(root.dataset.themeMode), root.dataset.theme || resolvedTheme(readMode()));
     }
 
+    cleanupBootstrapCache();
     const initialMode = readMode();
     writeMode(initialMode);
     applyMode(initialMode, { broadcast: false });

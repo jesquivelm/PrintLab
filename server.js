@@ -15487,13 +15487,7 @@ app.get('/api/inventario/:kind/export', async (req, res) => {
 
 app.get('/api/catalogs', async (req, res) => {
     try {
-        let catalogs = {};
-        try {
-            const helpers = await loadFlexoEngineHelpers();
-            catalogs = await helpers.loadWebCatalogs();
-        } catch (catalogError) {
-            console.warn('No fue posible cargar catálogos base del motor flexo; se usará inventario local.', catalogError.message);
-        }
+        const catalogs = {};
         const materialRows = await listInventory('materiales', { limit: 5000 });
         const machineRows = await listInventory('maquinas', { limit: 5000 });
         const troquelRows = await listInventory('troqueles', { limit: 5000 });

@@ -1,12 +1,8 @@
 const CONFIG_ENDPOINT = '/api/config/general';
 const SESSION_STORAGE_KEY = 'erp-user-session';
 const DASHBOARD_CONFIG_CACHE_KEY = 'erp-dashboard-config-cache';
-const DASHBOARD_PROFILE_CACHE_KEY_PREFIX = 'erp-bdfg-profile-cache';
 const DASHBOARD_CONFIG_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 const DASHBOARD_CONFIG_CACHE_TEXT_LIMIT = 24000;
-const DASHBOARD_BOOTSTRAP_CONFIG = window.PrintLabConfigBootstrap && typeof window.PrintLabConfigBootstrap === 'object'
-    ? window.PrintLabConfigBootstrap
-    : null;
 const tabsContainer = document.getElementById('dashboardTabs');
 const tabsBar = document.querySelector('.dashboard-tabs-bar');
 const homePanel = document.getElementById('dashboardHome');
@@ -359,34 +355,6 @@ function writeDashboardConfigCache(config) {
     }
 }
 
-function readDashboardProfileCache() {
-    try {
-        const username = String(activeUserSession?.username || '').trim().toLowerCase();
-        if (!username) return null;
-        const raw = localStorage.getItem(`${DASHBOARD_PROFILE_CACHE_KEY_PREFIX}:${username}`);
-        if (!raw) return null;
-        const parsed = JSON.parse(raw);
-        const storedAt = Number(parsed?.storedAt || 0);
-        if (!storedAt || Date.now() - storedAt > DASHBOARD_CONFIG_CACHE_TTL_MS) return null;
-        return parsed.data || null;
-    } catch (error) {
-        return null;
-    }
-}
-
-function writeDashboardProfileCache(profile) {
-    try {
-        const username = String(activeUserSession?.username || profile?.username || '').trim().toLowerCase();
-        if (!username || !profile || typeof profile !== 'object') return;
-        localStorage.setItem(`${DASHBOARD_PROFILE_CACHE_KEY_PREFIX}:${username}`, JSON.stringify({
-            storedAt: Date.now(),
-            data: profile
-        }));
-    } catch (error) {
-        console.warn('No fue posible actualizar el caché local del perfil.', error);
-    }
-}
-
 function compactDashboardConfigForCache(value, key = '') {
     if (typeof value === 'string') {
         const text = value.trim();
@@ -408,26 +376,6 @@ function compactDashboardConfigForCache(value, key = '') {
         );
     }
     return value;
-}
-
-function mergeDashboardBootstrapAssets(config) {
-    const base = config && typeof config === 'object' && !Array.isArray(config) ? { ...config } : {};
-    if (!DASHBOARD_BOOTSTRAP_CONFIG || typeof DASHBOARD_BOOTSTRAP_CONFIG !== 'object') return base;
-    if (DASHBOARD_BOOTSTRAP_CONFIG.icons && typeof DASHBOARD_BOOTSTRAP_CONFIG.icons === 'object') {
-        base.icons = { ...(base.icons || {}), ...DASHBOARD_BOOTSTRAP_CONFIG.icons };
-    }
-    if (DASHBOARD_BOOTSTRAP_CONFIG.branding && typeof DASHBOARD_BOOTSTRAP_CONFIG.branding === 'object') {
-        base.branding = { ...(base.branding || {}) };
-        ['logoUrl', 'companyLogoUrl'].forEach((key) => {
-            if (DASHBOARD_BOOTSTRAP_CONFIG.branding[key]) {
-                base.branding[key] = DASHBOARD_BOOTSTRAP_CONFIG.branding[key];
-            }
-        });
-        if (!base.branding.companyName && DASHBOARD_BOOTSTRAP_CONFIG.branding.companyName) {
-            base.branding.companyName = DASHBOARD_BOOTSTRAP_CONFIG.branding.companyName;
-        }
-    }
-    return base;
 }
 
 function areDashboardConfigsEqual(left, right) {
@@ -1937,19 +1885,13 @@ async function loadBdfgNotifications() {
 }
 
 async function loadBdfgUserProfile() {
-    const cachedProfile = readDashboardProfileCache();
-    if (cachedProfile) {
-        bdfgUserProfile = cachedProfile;
-        renderBdfg();
-    }
     try {
         const response = await fetch(BDFG_PROFILE_ENDPOINT, { headers: sessionHeaders() });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(payload.error || 'No fue posible cargar el perfil.');
         bdfgUserProfile = payload || {};
-        writeDashboardProfileCache(bdfgUserProfile);
     } catch (error) {
-        if (!cachedProfile) bdfgUserProfile = null;
+        bdfgUserProfile = null;
     }
     renderBdfg();
 }
@@ -2694,9 +2636,9 @@ async function applyDashboardConfig(configOverride = null) {
     const hasOverride = configOverride && typeof configOverride === 'object';
     let cachedConfig = null;
     if (!hasOverride) {
-        cachedConfig = readDashboardConfigCache() || DASHBOARD_BOOTSTRAP_CONFIG;
+        cachedConfig = readDashboardConfigCache();
         if (cachedConfig) {
-            applyDashboardConfigPayload(mergeDashboardBootstrapAssets(cachedConfig));
+            applyDashboardConfigPayload(cachedConfig);
         }
     }
     let nextConfig = hasOverride ? configOverride : null;
@@ -2705,11 +2647,11 @@ async function applyDashboardConfig(configOverride = null) {
         if (!response.ok) return;
         nextConfig = await response.json();
     }
-    const cacheableConfig = mergeDashboardBootstrapAssets(compactDashboardConfigForCache(nextConfig));
+    const cacheableConfig = compactDashboardConfigForCache(nextConfig);
     if (!areDashboardConfigsEqual(cacheableConfig, cachedConfig)) {
         writeDashboardConfigCache(cacheableConfig);
     }
-    applyDashboardConfigPayload(mergeDashboardBootstrapAssets(nextConfig));
+    applyDashboardConfigPayload(nextConfig);
 }
 
 function applyDashboardConfigPayload(config) {

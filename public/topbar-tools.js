@@ -645,16 +645,12 @@
 
     async function bootstrap() {
         initProfileEvents();
-        const bootstrapConfig = window.PrintLabConfigBootstrap && typeof window.PrintLabConfigBootstrap === 'object'
-            ? window.PrintLabConfigBootstrap
-            : {};
-        initTopbar(bootstrapConfig);
         try {
             const response = await fetch('/api/config/general');
             const config = response.ok ? await response.json() : {};
             initTopbar(config);
         } catch (_) {
-            initTopbar(bootstrapConfig);
+            initTopbar({});
         }
     }
 
