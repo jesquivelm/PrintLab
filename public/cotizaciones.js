@@ -2319,11 +2319,11 @@ let lineDragDropInitialized = false;
 function renderQuoteLineCard(row, index, totalLines, treeOptions = {}) {
     quoteLineLookup.set(row.id, row);
     const reorderConf = getResolvedIcon(['lineReorder', 'tableMove'], 'lineReorder');
-    const editConf = getResolvedIcon(['tableOpen'], 'tableOpen');
+    const editConf = getResolvedIcon(['browserOpen', 'tableOpen'], 'tableOpen');
     const menuConf = getResolvedIcon(['lineMenu', 'tableActions'], 'lineMenu');
-    const editColor = loadedConfig?.general?.iconColorTableOpen || editConf.color || '#9ba2ab';
-    const editHover = loadedConfig?.general?.iconColorHoverTableOpen || editConf.hover || '#0b81b8';
-    const editSize = Number(loadedConfig?.general?.iconSizeTableOpen) || editConf.size || 20;
+    const editColor = loadedConfig?.general?.iconColorBrowserOpen || loadedConfig?.general?.iconColorTableOpen || editConf.color || '#0b81b8';
+    const editHover = loadedConfig?.general?.iconColorHoverBrowserOpen || loadedConfig?.general?.iconColorHoverTableOpen || editConf.hover || '#07638c';
+    const editSize = Number(loadedConfig?.general?.iconSizeBrowserOpen || loadedConfig?.general?.iconSizeTableOpen) || editConf.size || 18;
     const menuColor = loadedConfig?.general?.iconColorLineMenu || menuConf.color || '#607286';
     const menuHover = loadedConfig?.general?.iconColorHoverLineMenu || menuConf.hover || '#0b81b8';
     const menuSize = Number(loadedConfig?.general?.iconSizeLineMenu) || menuConf.size || 18;
