@@ -296,6 +296,7 @@ let quoteRequestWizardState = {
     previewDirty: false,
     keepPreviewQuote: false
 };
+let quoteRequestSubmitInFlight = false;
 
 function resolveConfiguredProductTypes() {
     const rawValue = loadedConfig?.general?.quoteProductTypesJson;
@@ -3787,6 +3788,19 @@ function buildQuickRequestFingerprint(payload) {
 
 async function createQuickQuoteDraft(payload, options = {}) {
     const status = options.status || 'Solicitada';
+    const quantities = payload.quantities?.length ? payload.quantities : [payload.quantity];
+    const baseQuantity = parseRequestedQuantityValue(quantities[0]) || 0;
+    const requestMeta = { ...(payload.request_meta || {}) };
+    const uiState = requestMeta.CODEX_UI_STATE;
+    if (uiState && typeof uiState === 'object' && !Array.isArray(uiState)) {
+        requestMeta.CODEX_UI_STATE = {
+            ...uiState,
+            header: {
+                ...(uiState.header || {}),
+                quantities: quantities.map((value, index) => ({ id: `qty-${index + 1}`, value }))
+            }
+        };
+    }
     const quoteResponse = await fetchJson(QUOTES_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...sessionHeader() },
@@ -3802,43 +3816,39 @@ async function createQuickQuoteDraft(payload, options = {}) {
     });
     const quoteCode = quoteResponse?.cotizacion?.quote_code;
     if (!quoteCode) throw new Error('La cotización se creó sin código.');
-    const quantities = payload.quantities?.length ? payload.quantities : [payload.quantity];
     let firstLineCode = '';
-    for (let index = 0; index < quantities.length; index += 1) {
-        const quantityValue = quantities[index];
-        const lineResponse = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(quoteCode)}/lineas`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...sessionHeader() },
-            body: JSON.stringify({
-                customer_code: payload.customer_code,
-                customer_name: payload.customer_name,
-                contact_name: payload.contact_name,
-                email: payload.email,
-                phone: payload.phone,
-                salesperson_name: currentUserName(),
-                job_name: payload.job_name,
-                quantity: quantityValue,
-                material_name: payload.material_name,
-                material_code: payload.material_code || payload.material_name,
-                applicationType: payload.applicationType,
-                outputType: payload.outputType,
-                widthInches: payload.widthInches,
-                lengthInches: payload.lengthInches,
-                status,
-                line_order: index + 1,
-                request_meta: {
-                    ...payload.request_meta,
-                    'SOLICITUD ESTADO': status,
-                    'REQ | Cantidad Solicitada Original': String(quantityValue),
-                    'REQ | Grupo de Cantidades': quantities.join(', ')
-                }
-            })
-        });
-        const lineCode = lineResponse?.linea?.line_code;
-        if (!lineCode) throw new Error('La línea se creó sin código.');
-        if (!firstLineCode) firstLineCode = lineCode;
-        await uploadPendingAttachments(quoteCode, lineCode);
-    }
+    const lineResponse = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(quoteCode)}/lineas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...sessionHeader() },
+        body: JSON.stringify({
+            customer_code: payload.customer_code,
+            customer_name: payload.customer_name,
+            contact_name: payload.contact_name,
+            email: payload.email,
+            phone: payload.phone,
+            salesperson_name: currentUserName(),
+            job_name: payload.job_name,
+            quantity: baseQuantity,
+            quantityProducts: baseQuantity,
+            material_name: payload.material_name,
+            material_code: payload.material_code || payload.material_name,
+            applicationType: payload.applicationType,
+            outputType: payload.outputType,
+            widthInches: payload.widthInches,
+            lengthInches: payload.lengthInches,
+            status,
+            line_order: 1,
+            request_meta: {
+                ...requestMeta,
+                'SOLICITUD ESTADO': status,
+                'REQ | Cantidad Solicitada Original': String(baseQuantity),
+                'REQ | Grupo de Cantidades': quantities.join(', ')
+            }
+        })
+    });
+    firstLineCode = lineResponse?.linea?.line_code;
+    if (!firstLineCode) throw new Error('La línea se creó sin código.');
+    await uploadPendingAttachments(quoteCode, firstLineCode);
     return { quoteCode, firstLineCode, quantities };
 }
 
@@ -4003,13 +4013,33 @@ async function uploadPendingAttachments(quoteCode, lineCode) {
 }
 
 async function submitQuoteRequest(forAdvanced = false) {
+    if (quoteRequestSubmitInFlight) return;
+    quoteRequestSubmitInFlight = true;
     const busyButtons = [forAdvanced ? advancedButton : createButton, forAdvanced ? wizardAdvancedButton : wizardPrintButton].filter(Boolean);
     try {
         const payload = validateQuickRequest(forAdvanced);
+        const fingerprint = buildQuickRequestFingerprint(payload);
         busyButtons.forEach((button) => setButtonBusy(button, true, forAdvanced ? 'Preparando...' : 'Creando...'));
         setStatus(forAdvanced ? 'Preparando proceso avanzado...' : 'Creando solicitud...', 'saving');
-        const draft = await createQuickQuoteDraft(payload, { status: forAdvanced ? 'Borrador' : 'Solicitada' });
+        let draft = null;
+        if (!forAdvanced
+            && quoteRequestWizardState.previewQuoteCode
+            && !quoteRequestWizardState.previewDirty
+            && quoteRequestWizardState.previewFingerprint === fingerprint
+        ) {
+            draft = {
+                quoteCode: quoteRequestWizardState.previewQuoteCode,
+                firstLineCode: quoteRequestWizardState.previewFirstLineCode,
+                quantities: payload.quantities
+            };
+        } else {
+            if (quoteRequestWizardState.previewQuoteCode) {
+                await deleteQuickQuoteDraft(quoteRequestWizardState.previewQuoteCode);
+            }
+            draft = await createQuickQuoteDraft(payload, { status: forAdvanced ? 'Borrador' : 'Solicitada' });
+        }
         const { quoteCode, quantities, firstLineCode } = draft;
+        quoteRequestWizardState.keepPreviewQuote = true;
         await loadQuotes();
         if (forAdvanced) {
             const route = `/cotizaciones/documento?codigo=${encodeURIComponent(quoteCode)}`;
@@ -4025,6 +4055,7 @@ async function submitQuoteRequest(forAdvanced = false) {
         setStatus(error.message, 'error');
     } finally {
         busyButtons.forEach((button) => setButtonBusy(button, false));
+        quoteRequestSubmitInFlight = false;
     }
 }
 
@@ -4049,6 +4080,11 @@ function closePopover(force = false) {
     if (!force && formHasContent()) {
         const confirmed = window.confirm('Hay datos sin guardar. Quieres cerrar?');
         if (!confirmed) return;
+    }
+    const previewQuoteCode = quoteRequestWizardState.previewQuoteCode;
+    const keepPreviewQuote = quoteRequestWizardState.keepPreviewQuote;
+    if (previewQuoteCode && !keepPreviewQuote) {
+        deleteQuickQuoteDraft(previewQuoteCode).catch((error) => console.error('No fue posible eliminar la cotización temporal.', error));
     }
     popover.hidden = true;
     if (processLauncherStack) processLauncherStack.classList.remove('is-active');
