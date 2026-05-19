@@ -3,6 +3,7 @@ const QUOTES_ENDPOINT = '/api/cotizaciones';
 
 const GENERAL_CONFIG_CACHE_KEY = 'erp-general-config-cache';
 const GENERAL_CONFIG_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+const QUOTE_TRACKING_STORAGE_KEY = 'erp-flexo-quote-tracking';
 
 const rowsBody = document.getElementById('quoteRows');
 const filterInput = document.getElementById('filtroLineas');
@@ -481,7 +482,12 @@ function proformaBlockIssuesFromLine(line = {}) {
         : [];
     const fallback = String(raw['ANALISIS CAMPOS PDF'] || raw['ANALISIS CAMPOS CREAR ORDEN'] || raw['ANALISIS CAMPOS FINALIZAR'] || '').trim();
     return [...new Set(messages.length ? messages : (fallback ? [fallback] : []))]
-        .map((message) => ({ message, processKey: processKeyFromIssueText(message) }));
+        .map((message) => ({ message, processKey: processKeyFromIssueText(message) }))
+        .filter((issue) => {
+            const text = normalizeProformaIssueText(issue.message || '');
+            const key = String(issue.processKey || '').split('-')[0];
+            return key !== 'planchas' && !text.includes('plancha');
+        });
 }
 
 async function getProformaBlockMessage(quoteCode) {
@@ -679,6 +685,59 @@ function formatDateTimeShort(value) {
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
     return `${day}-${month}-${year} ${hours}:${minutes}`;
+}
+
+function readQuoteTrackingStore() {
+    try {
+        const parsed = JSON.parse(localStorage.getItem(QUOTE_TRACKING_STORAGE_KEY) || '{}');
+        return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (_) {
+        return {};
+    }
+}
+
+function initialsFromName(name) {
+    const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+    return parts.length ? parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join('') : '•';
+}
+
+function trackingColorForName(name) {
+    const palette = ['#2B7FC7', '#1A9E75', '#7C5CBF', '#C0761F', '#4B6F8F'];
+    const total = Array.from(String(name || '')).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+    return palette[total % palette.length];
+}
+
+function trackingMilestonesForRow(row = {}) {
+    const raw = row.rawData || {};
+    const sellerName = raw.VENDEDOR || raw['VENDEDOR | USUARIO'] || currentUserName?.textContent || 'Vendedor';
+    const currentUser = currentUserName?.textContent || sellerName || 'Usuario';
+    const status = normalizeProformaIssueText(row.estado || raw['ESTADO LINEA'] || raw['SOLICITUD ESTADO']);
+    const quoteDone = ['cotizada', 'finalizada', 'proforma', 'enviada', 'cerrada', 'produccion'].some((item) => status.includes(item));
+    const requestDone = ['pendiente', 'solicitud', 'vendedor', 'cotiz', 'finaliz', 'proforma', 'enviad', 'cerrad'].some((item) => status.includes(item))
+        || normalizeProformaIssueText(raw['TRAZABILIDAD | SOLICITUD VENDEDOR']) === 'si';
+    const defaults = [
+        { key: 'creacion', label: 'Creación', user: sellerName, date: formatDate(currentQuote?.created_on || raw['FECHA CREACION DATE'] || raw['FECHA CREACION']), done: true },
+        { key: 'solicitud', label: 'Solicitud del vendedor', user: requestDone ? (raw['TRAZABILIDAD | USUARIO SOLICITUD VENDEDOR'] || sellerName) : '', date: requestDone ? (raw['TRAZABILIDAD | FECHA SOLICITUD VENDEDOR'] || raw['TRAZABILIDAD | FECHA'] || '') : '', done: requestDone },
+        { key: 'finalizacion', label: 'Finalización de cotización', user: quoteDone ? currentUser : '', date: quoteDone ? formatDateTimeShort(Date.now()) : '', done: quoteDone },
+        { key: 'envio', label: 'Envío de proforma', user: '', date: '', done: false },
+        { key: 'cierre', label: 'Finalización comercial', user: '', date: '', done: false }
+    ];
+    const stored = readQuoteTrackingStore()[`${row.quoteId || currentQuote?.quote_code || 'cotizacion'}::${row.linea || 'linea'}`] || {};
+    const saved = Array.isArray(stored.milestones) ? stored.milestones : [];
+    return defaults.map((item) => {
+        const savedItem = saved.find((entry) => entry?.key === item.key);
+        return savedItem ? { ...item, ...savedItem, label: item.label } : item;
+    });
+}
+
+function openRowTracking(row) {
+    const milestones = trackingMilestonesForRow(row);
+    const doneCount = milestones.filter((item) => item.done).length;
+    const body = `<div class="line-tracking-head"><strong>${escapeHtml(row.quoteId || currentQuote?.quote_code || '')} · ${escapeHtml(row.nombreTrabajo || row.productId || '')}</strong><span>${doneCount} de ${milestones.length} completados</span></div><div class="line-tracking-list">${milestones.map((item) => {
+        const name = item.user || 'Pendiente';
+        return `<article class="line-tracking-item${item.done ? ' is-done' : ''}"><span class="line-tracking-avatar" style="background:${escapeHtml(trackingColorForName(name))};">${escapeHtml(initialsFromName(name))}</span><div><strong>${escapeHtml(item.label)}</strong><span>${escapeHtml(name)}</span><em>${escapeHtml(item.date || 'Pendiente')}</em></div></article>`;
+    }).join('')}</div>`;
+    showCenterMessage(body, { html: true, duration: 300000 });
 }
 
 function formatDateForInput(value) {
@@ -1224,22 +1283,11 @@ async function copyLineToQuote(targetQuoteCode) {
     if (!response.ok) throw new Error(payload.error || 'No se pudo copiar la línea.');
     closeCopyPopover();
     await loadQuoteCatalog('');
-    if (!openRouteInShell(`/cotizaciones/documento?codigo=${encodeURIComponent(targetQuoteCode)}`, `Cotización ${targetQuoteCode}`)) {
-        await navigateToQuote(targetQuoteCode);
-    }
     setStatus(`Línea copiada a ${targetQuoteCode}.`, 'saved');
 }
 
 async function createQuoteFromLine(row) {
-    const confirmed = window.confirm('¿Quieres crear otra cotización a partir de esta línea?');
-    if (!confirmed) return;
-    const response = await fetch(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}/nueva-cotizacion`, { method: 'POST' });
-    const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error || 'No se pudo crear la nueva cotización.');
-    await loadQuoteCatalog('');
-    if (!openRouteInShell(`/cotizaciones/documento?codigo=${encodeURIComponent(payload.cotizacion.quote_code)}`, `Cotización ${payload.cotizacion.quote_code}`)) {
-        window.open(`/cotizaciones/documento?codigo=${encodeURIComponent(payload.cotizacion.quote_code)}`, '_blank', 'noopener');
-    }
+    return openCopyPopover(row.id);
 }
 
 function exportLine(row) {
@@ -1366,7 +1414,7 @@ async function handleRowMenuAction(action, rowId) {
         return saveRow(row)
             .then(() => setStatus(`Línea ${row.linea || row.originalLinea} ${row.finalizadaOrden ? 'finalizada' : 'reabierta'}.`, 'saved'));
     }
-    if (action === 'open-tracking') return openCalc(row.id);
+    if (action === 'open-tracking') return openRowTracking(row);
     if (action === 'duplicate-line') return duplicateLine(row);
     if (action === 'copy-line') return openCopyPopover(rowId);
     if (action === 'create-quote-from-line') return createQuoteFromLine(row);
@@ -1514,6 +1562,7 @@ function applyQuotePayload(payload) {
         linea: line.line_code || '',
         originalLinea: line.line_code || '',
         lineOrder: Number(line.line_order) || index + 1,
+        rawData: line.raw_data || {},
         departamento: line.department || 'Flexografia',
         nombreTrabajo: line.job_name || '',
         material: line.material_name || '',

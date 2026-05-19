@@ -3,6 +3,7 @@ const QUOTES_ENDPOINT = '/api/cotizaciones';
 const SMART_CATALOGS_ENDPOINT = '/api/cotizaciones-inteligentes/catalogos';
 const PARTNERS_ENDPOINT = '/api/socios';
 const SESSION_STORAGE_KEY = 'erp-user-session';
+const QUOTE_TRACKING_STORAGE_KEY = 'erp-flexo-quote-tracking';
 const LAUNCHER_POSITION_KEY = 'quote-request-launcher-position-v2';
 const QUOTE_CONFIG_CACHE_KEY = 'erp-quotes-config-cache';
 const QUOTE_CONFIG_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
@@ -27,7 +28,7 @@ const DEFAULT_ICON_MAP = {
     quoteCollapse: { value: '▾', color: '#607286', size: 18 },
     lineReorder: { value: '⋮⋮', color: '#607286', size: 18 },
     lineMenu: { value: '⋯', color: '#607286', size: 18 },
-    lineEdit: { value: '/assets/bootstrap/icons-lineEdit.svg', color: '#0b81b8', size: 18 },
+    lineEdit: { value: '✏️', color: '#0b81b8', size: 18 },
     lineProforma: { value: '\ud83d\udc41', color: '#1e516d', size: 16 },
     lineAdd: { value: '+', color: '#1e516d', size: 18 }
 };
@@ -259,6 +260,9 @@ const quoteLineActionLocks = new Set();
 let selectedQuoteContextCode = '';
 let selectedQuoteContextLineId = 0;
 let frontBackModalRow = null;
+let lineActionModal = null;
+let lineActionState = { row: null, mode: '' };
+let lineActionSearchTimer = null;
 let partnerLookupAbort = null;
 let requestContactAbort = null;
 let newCalcPartnerLookupAbort = null;
@@ -1300,6 +1304,18 @@ function formatDate(value) {
     return date.toLocaleDateString('es-CR');
 }
 
+function formatDateTimeShort(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${day}-${month}-${year} ${hours}:${minutes}`;
+}
+
 function parseMoneyValue(value) {
     if (value === null || value === undefined || value === '') return 0;
     if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
@@ -1498,6 +1514,12 @@ function processKeyFromIssueText(message = '') {
     return match?.key || '';
 }
 
+function isPlateProformaIssue(issue = {}) {
+    const text = normalizeProformaIssueText(issue.message || issue);
+    const key = String(issue.processKey || processKeyFromIssueText(issue.message || issue) || '').split('-')[0];
+    return key === 'planchas' || text.includes('plancha');
+}
+
 function processLabelFromKey(processKey = '') {
     const baseKey = String(processKey || '').split('-')[0];
     return PROFORMA_BLOCK_PROCESS_LABELS.find((item) => item.key === baseKey)?.label || baseKey || 'Faltante';
@@ -1526,7 +1548,8 @@ function proformaBlockIssuesFromLine(line = {}) {
         : [];
     const fallback = String(raw['ANALISIS CAMPOS PDF'] || raw['ANALISIS CAMPOS CREAR ORDEN'] || raw['ANALISIS CAMPOS FINALIZAR'] || '').trim();
     return [...new Set(messages.length ? messages : (fallback ? [fallback] : []))]
-        .map((message) => ({ message, processKey: processKeyFromIssueText(message) }));
+        .map((message) => ({ message, processKey: processKeyFromIssueText(message) }))
+        .filter((issue) => !isPlateProformaIssue(issue));
 }
 
 async function getProformaBlockMessage(quoteCode) {
@@ -2009,6 +2032,286 @@ function lineMenuIconMarkup(key, label, fallbackValue, danger = false) {
     `;
 }
 
+function ensureLineActionModal() {
+    if (lineActionModal) return lineActionModal;
+    lineActionModal = document.createElement('div');
+    lineActionModal.id = 'lineActionModal';
+    lineActionModal.className = 'socios-create-popover line-action-popover';
+    lineActionModal.hidden = true;
+    document.body.appendChild(lineActionModal);
+    lineActionModal.addEventListener('click', handleLineActionModalClick);
+    lineActionModal.addEventListener('input', handleLineActionModalInput);
+    lineActionModal.addEventListener('change', handleLineActionModalChange);
+    return lineActionModal;
+}
+
+function closeLineActionModal() {
+    if (!lineActionModal) return;
+    lineActionModal.hidden = true;
+    lineActionModal.innerHTML = '';
+    lineActionState = { row: null, mode: '' };
+    document.body.classList.remove('popover-open');
+}
+
+function openLineActionModal(title, bodyHtml) {
+    const modal = ensureLineActionModal();
+    modal.innerHTML = `
+        <div class="socios-create-popover-backdrop" data-line-action-close="true"></div>
+        <section class="socios-create-popover-panel line-action-popover-panel" role="dialog" aria-modal="true" aria-label="${escapeHtml(title)}">
+            <div class="copy-popover-body line-action-popover-body">
+                <div class="copy-popover-header socios-create-header">
+                    <div><h2>${escapeHtml(title)}</h2></div>
+                    <button type="button" class="calc-popover-close" data-line-action-close="true" aria-label="Cerrar">×</button>
+                </div>
+                ${bodyHtml}
+            </div>
+        </section>
+    `;
+    modal.hidden = false;
+    document.body.classList.add('popover-open');
+}
+
+function destinationQuoteRowsMarkup(items = []) {
+    if (!items.length) return '<tr><td colspan="5">No hay cotizaciones para mostrar.</td></tr>';
+    return items.map((item) => `
+        <tr>
+            <td>${escapeHtml(item.quote_code || '')}</td>
+            <td>${escapeHtml(item.customer_name || '')}</td>
+            <td>${escapeHtml(item.job_name || item.product_name || '')}</td>
+            <td>${escapeHtml(formatDate(item.created_on) || '')}</td>
+            <td><button type="button" class="line-action-select" data-select-destination-quote="${escapeHtml(item.quote_code || '')}">Seleccionar</button></td>
+        </tr>
+    `).join('');
+}
+
+async function loadDestinationQuotes(term = '') {
+    const results = document.getElementById('lineActionQuoteResults');
+    const row = lineActionState.row;
+    if (!results || !row) return;
+    results.innerHTML = '<tr><td colspan="5">Buscando cotizaciones...</td></tr>';
+    const params = new URLSearchParams({ q: term, excludeQuote: row.quoteId || '', limit: '30' });
+    const payload = await fetchJson(`/api/cotizaciones-destino?${params.toString()}`, { headers: sessionHeader() });
+    results.innerHTML = destinationQuoteRowsMarkup(payload.items || []);
+}
+
+function openQuoteDestinationModal(row, mode = 'copy') {
+    lineActionState = { row, mode };
+    openLineActionModal('Buscar cotización destino', `
+        <div class="line-action-search-row">
+            <input id="lineActionQuoteSearch" class="copy-popover-search quote-browser-search" type="search" placeholder="Buscar por cotización, cliente, producto o proceso">
+            <button type="button" class="action-btn quote-browser-action-btn" data-create-new-quote-from-line>Crear nueva</button>
+        </div>
+        <div class="copy-popover-table-wrap line-action-table-wrap">
+            <table class="copy-popover-table">
+                <thead><tr><th>Cotización</th><th>Cliente</th><th>Producto</th><th>Creación</th><th></th></tr></thead>
+                <tbody id="lineActionQuoteResults"></tbody>
+            </table>
+        </div>
+    `);
+    document.getElementById('lineActionQuoteSearch')?.focus();
+    loadDestinationQuotes('').catch((error) => setStatus(error.message, 'error'));
+}
+
+async function copyLineToDestinationQuote(targetQuoteCode) {
+    const row = lineActionState.row;
+    if (!row || !targetQuoteCode) return;
+    await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}/copiar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...sessionHeader() },
+        body: JSON.stringify({ targetQuoteCode })
+    });
+    closeLineActionModal();
+    await loadQuotes();
+    setStatus(`Línea ${row.linea} copiada a ${targetQuoteCode}.`, 'saved');
+}
+
+async function createNewQuoteFromLine(row) {
+    const payload = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}/nueva-cotizacion`, {
+        method: 'POST',
+        headers: sessionHeader()
+    });
+    closeLineActionModal();
+    await loadQuotes();
+    setStatus(`Cotización ${payload?.cotizacion?.quote_code || ''} creada desde la línea ${row.linea}.`, 'saved');
+}
+
+function attachmentRowsMarkup(items = []) {
+    if (!items.length) return '<tr><td colspan="5">Esta línea no tiene adjuntos.</td></tr>';
+    return items.map((item) => `
+        <tr>
+            <td>${escapeHtml(item.classification || item.category || item.notes || item.label || item.key || 'Adjunto')}</td>
+            <td>${escapeHtml(item.file_name || item.filename || item.label || item.key || 'Adjunto')}${item.size_bytes ? `<span class="attachment-card-meta">${escapeHtml(formatFileSize(item.size_bytes))}</span>` : ''}</td>
+            <td>${escapeHtml(item.uploaded_by || 'admin')}</td>
+            <td>${escapeHtml(formatDateTimeShort(item.created_at))}</td>
+            <td>${item.isStored ? `<a class="line-action-select" href="/api/adjuntos/${escapeHtml(item.id)}/download" target="_blank" rel="noopener noreferrer">Descargar</a>` : ''}</td>
+        </tr>
+    `).join('');
+}
+
+async function loadLineAttachmentsModal(row) {
+    const body = document.getElementById('lineActionAttachmentRows');
+    if (!body) return;
+    body.innerHTML = '<tr><td colspan="5">Cargando adjuntos...</td></tr>';
+    const payload = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}/adjuntos`, { headers: sessionHeader() });
+    body.innerHTML = attachmentRowsMarkup(payload.items || []);
+}
+
+function openLineAttachmentsModal(row) {
+    lineActionState = { row, mode: 'attachments' };
+    openLineActionModal(`Adjuntos de ${row.linea || 'línea'}`, `
+        <div class="line-action-upload-row">
+            <label class="quote-request-field"><span>Clasificación</span><input id="lineActionAttachmentClass" class="quote-request-input" type="text" placeholder="Arte, visto bueno, orden, referencia"></label>
+            <input id="lineActionAttachmentFile" type="file" multiple hidden>
+            <button type="button" class="action-btn quote-browser-action-btn" data-pick-line-attachment>Elegir archivo</button>
+            <button type="button" class="action-btn quote-browser-action-btn" data-upload-line-attachment>Subir</button>
+            <span id="lineActionAttachmentName" class="attachment-upload-name">Ningún archivo seleccionado</span>
+        </div>
+        <div class="copy-popover-table-wrap line-action-table-wrap">
+            <table class="copy-popover-table attachments-table">
+                <thead><tr><th>Clasificación</th><th>Archivo</th><th>Usuario</th><th>Fecha</th><th></th></tr></thead>
+                <tbody id="lineActionAttachmentRows"></tbody>
+            </table>
+        </div>
+    `);
+    loadLineAttachmentsModal(row).catch((error) => setStatus(error.message, 'error'));
+}
+
+async function uploadLineActionAttachments() {
+    const row = lineActionState.row;
+    const input = document.getElementById('lineActionAttachmentFile');
+    const classification = String(document.getElementById('lineActionAttachmentClass')?.value || '').trim();
+    const files = Array.from(input?.files || []);
+    if (!row || !files.length) throw new Error('Selecciona al menos un archivo.');
+    for (const file of files) {
+        await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}/adjuntos`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...sessionHeader() },
+            body: JSON.stringify({
+                fileName: file.name,
+                mimeType: file.type || 'application/octet-stream',
+                fileExt: (file.name.split('.').pop() || '').toLowerCase(),
+                contentBase64: await readAsBase64(file),
+                notes: classification || 'Adjunto'
+            })
+        });
+    }
+    if (input) input.value = '';
+    const name = document.getElementById('lineActionAttachmentName');
+    if (name) name.textContent = 'Ningún archivo seleccionado';
+    await loadLineAttachmentsModal(row);
+    setStatus('Adjuntos actualizados.', 'saved');
+}
+
+function readQuoteTrackingStore() {
+    try {
+        const parsed = JSON.parse(localStorage.getItem(QUOTE_TRACKING_STORAGE_KEY) || '{}');
+        return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (_) {
+        return {};
+    }
+}
+
+function initialsFromName(name) {
+    const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+    return parts.length ? parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join('') : '•';
+}
+
+function trackingColorForName(name) {
+    const palette = ['#2B7FC7', '#1A9E75', '#7C5CBF', '#C0761F', '#4B6F8F'];
+    const total = Array.from(String(name || '')).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+    return palette[total % palette.length];
+}
+
+function trackingMilestonesForRow(row = {}) {
+    const raw = row.rawData || {};
+    const session = readUserSession() || {};
+    const sellerName = row.lineSummary?.salesperson_name || raw.VENDEDOR || raw['VENDEDOR | USUARIO'] || 'Vendedor';
+    const currentUser = session.name || session.fullName || session.username || session.user || sellerName || 'Usuario';
+    const status = normalizeProformaIssueText(row.estado || raw['ESTADO LINEA'] || raw['SOLICITUD ESTADO']);
+    const quoteDone = ['cotizada', 'finalizada', 'proforma', 'enviada', 'cerrada', 'produccion'].some((item) => status.includes(item));
+    const requestDone = ['pendiente', 'solicitud', 'vendedor', 'cotiz', 'finaliz', 'proforma', 'enviad', 'cerrad'].some((item) => status.includes(item))
+        || normalizeProformaIssueText(raw['TRAZABILIDAD | SOLICITUD VENDEDOR']) === 'si';
+    const requestUser = requestDone ? (raw['TRAZABILIDAD | USUARIO SOLICITUD VENDEDOR'] || sellerName) : '';
+    const requestDate = requestDone ? (raw['TRAZABILIDAD | FECHA SOLICITUD VENDEDOR'] || raw['TRAZABILIDAD | FECHA'] || '') : '';
+    const defaults = [
+        { key: 'creacion', label: 'Creación', user: sellerName, date: formatDate(row.lineSummary?.created_on || raw['FECHA CREACION DATE'] || raw['FECHA CREACION']), done: true },
+        { key: 'solicitud', label: 'Solicitud del vendedor', user: requestUser, date: requestDate, done: requestDone },
+        { key: 'finalizacion', label: 'Finalización de cotización', user: quoteDone ? currentUser : '', date: quoteDone ? formatDateTimeShort(Date.now()) : '', done: quoteDone },
+        { key: 'envio', label: 'Envío de proforma', user: '', date: '', done: false },
+        { key: 'cierre', label: 'Finalización comercial', user: '', date: '', done: false }
+    ];
+    const stored = readQuoteTrackingStore()[`${row.quoteId || 'cotizacion'}::${row.linea || 'linea'}`] || {};
+    const saved = Array.isArray(stored.milestones) ? stored.milestones : [];
+    return defaults.map((item) => {
+        const savedItem = saved.find((entry) => entry?.key === item.key);
+        return savedItem ? { ...item, ...savedItem, label: item.label } : item;
+    });
+}
+
+function openLineTrackingModal(row) {
+    const milestones = trackingMilestonesForRow(row);
+    const doneCount = milestones.filter((item) => item.done).length;
+    lineActionState = { row, mode: 'tracking' };
+    openLineActionModal(`Seguimiento ${row.linea || ''}`, `
+        <div class="line-tracking-head">
+            <strong>${escapeHtml(row.quoteId || '')} · ${escapeHtml(row.nombreTrabajo || row.productId || '')}</strong>
+            <span>${doneCount} de ${milestones.length} completados</span>
+        </div>
+        <div class="line-tracking-list">
+            ${milestones.map((item) => {
+                const name = item.user || 'Pendiente';
+                return `<article class="line-tracking-item${item.done ? ' is-done' : ''}">
+                    <span class="line-tracking-avatar" style="background:${escapeHtml(trackingColorForName(name))};">${escapeHtml(initialsFromName(name))}</span>
+                    <div><strong>${escapeHtml(item.label)}</strong><span>${escapeHtml(name)}</span><em>${escapeHtml(item.date || 'Pendiente')}</em></div>
+                </article>`;
+            }).join('')}
+        </div>
+    `);
+}
+
+function handleLineActionModalInput(event) {
+    if (event.target?.id !== 'lineActionQuoteSearch') return;
+    clearTimeout(lineActionSearchTimer);
+    lineActionSearchTimer = setTimeout(() => {
+        loadDestinationQuotes(event.target.value || '').catch((error) => setStatus(error.message, 'error'));
+    }, 220);
+}
+
+function handleLineActionModalChange(event) {
+    if (event.target?.id !== 'lineActionAttachmentFile') return;
+    const files = Array.from(event.target.files || []);
+    const name = document.getElementById('lineActionAttachmentName');
+    if (name) name.textContent = files.length ? files.map((file) => file.name).join(', ') : 'Ningún archivo seleccionado';
+}
+
+function handleLineActionModalClick(event) {
+    if (event.target.closest('[data-line-action-close]')) {
+        event.preventDefault();
+        closeLineActionModal();
+        return;
+    }
+    const selectQuote = event.target.closest('[data-select-destination-quote]');
+    if (selectQuote) {
+        event.preventDefault();
+        copyLineToDestinationQuote(selectQuote.dataset.selectDestinationQuote).catch((error) => setStatus(error.message, 'error'));
+        return;
+    }
+    if (event.target.closest('[data-create-new-quote-from-line]')) {
+        event.preventDefault();
+        createNewQuoteFromLine(lineActionState.row).catch((error) => setStatus(error.message, 'error'));
+        return;
+    }
+    if (event.target.closest('[data-pick-line-attachment]')) {
+        event.preventDefault();
+        document.getElementById('lineActionAttachmentFile')?.click();
+        return;
+    }
+    if (event.target.closest('[data-upload-line-attachment]')) {
+        event.preventDefault();
+        uploadLineActionAttachments().catch((error) => setStatus(error.message, 'error'));
+    }
+}
+
 // Drag state for line reordering
 let lineDragState = null;
 let lineDragDropInitialized = false;
@@ -2017,6 +2320,7 @@ function renderQuoteLineCard(row, index, totalLines, treeOptions = {}) {
     quoteLineLookup.set(row.id, row);
     const reorderConf = getResolvedIcon(['lineReorder', 'tableMove'], 'lineReorder');
     const editConf = getResolvedIcon(['lineEdit', 'tableEdit', 'quoteLineEdit'], 'lineEdit');
+    if (String(editConf.value || '').includes('icons-lineEdit.svg')) editConf.value = '✏️';
     const menuConf = getResolvedIcon(['lineMenu', 'tableActions'], 'lineMenu');
     const editColor = loadedConfig?.general?.iconColorLineEdit || loadedConfig?.general?.iconColorTableEdit || editConf.color || '#0b81b8';
     const editHover = loadedConfig?.general?.iconColorHoverLineEdit || loadedConfig?.general?.iconColorHoverTableEdit || editConf.hover || '#07638c';
@@ -2308,10 +2612,7 @@ async function duplicateQuoteLine(row) {
 }
 
 async function createQuoteFromLine(row) {
-    const payload = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}/nueva-cotizacion`, { method: 'POST' });
-    await loadQuotes();
-    const code = payload?.cotizacion?.quote_code;
-    if (code) openQuoteDocument(code);
+    return openQuoteDestinationModal(row, 'create-quote');
 }
 
 async function createProductFromLine(row) {
@@ -2462,7 +2763,7 @@ async function handleQuoteLineAction(action, row) {
     if (action === 'move-up') return moveQuoteLine(row, -1);
     if (action === 'move-down') return moveQuoteLine(row, 1);
     if (action === 'duplicate') return duplicateQuoteLine(row);
-    if (action === 'copy') return openQuoteDocument(row.quoteId, { copyLine: row.linea });
+    if (action === 'copy') return openQuoteDestinationModal(row, 'copy');
     if (action === 'create-product') return createProductFromLine(row);
     if (action === 'create-quote') return createQuoteFromLine(row);
     if (action === 'front-back') return openFrontBackModal(row);
@@ -2471,8 +2772,8 @@ async function handleQuoteLineAction(action, row) {
         window.open(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}/exportar`, '_blank', 'noopener');
         return;
     }
-    if (action === 'attachments') return openQuoteDocument(row.quoteId);
-    if (action === 'tracking') return openLineCalculation(row);
+    if (action === 'attachments') return openLineAttachmentsModal(row);
+    if (action === 'tracking') return openLineTrackingModal(row);
     if (action === 'finalize') return toggleLineFinalized(row);
     if (action === 'delete') return deleteQuoteLine(row);
 }

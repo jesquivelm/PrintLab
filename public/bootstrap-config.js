@@ -61,7 +61,7 @@
         "floatingSave": "/assets/bootstrap/icons-floatingSave.svg",
         "tableActions": "/assets/bootstrap/icons-tableActions.png",
         "lineMenu": "/assets/bootstrap/icons-lineMenu.png",
-        "lineEdit": "/assets/bootstrap/icons-lineEdit.svg",
+        "lineEdit": "✏️",
         "lineDuplicate": "/assets/bootstrap/icons-lineDuplicate.png",
         "lineCopy": "/assets/bootstrap/icons-lineCopy.png",
         "lineCreateProduct": "/assets/bootstrap/icons-lineCreateProduct.png",

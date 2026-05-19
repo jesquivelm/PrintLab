@@ -933,7 +933,7 @@ const DEFAULT_GENERAL_CONFIG = {
         floatingSave: '/assets/bootstrap/icons-floatingSave.svg',
         tableActions: '\u22EF',
         lineMenu: '\u22EF',
-        lineEdit: '/assets/bootstrap/icons-lineEdit.svg',
+        lineEdit: '✏️',
         lineDuplicate: '\u2398',
         lineCopy: '\u2398',
         lineCreateProduct: '\u25A3',
@@ -5359,7 +5359,8 @@ function proformaBlockingMessagesFromRaw(raw = {}) {
         raw['ANALISIS CAMPOS CREAR ORDEN'],
         raw['ANALISIS CAMPOS FINALIZAR']
     ));
-    return [...new Set([...messages, fallback].filter(Boolean))];
+    return [...new Set([...messages, fallback].filter(Boolean))]
+        .filter((message) => !normalizeText(message).includes('plancha'));
 }
 
 function findQuoteProformaBlockingLine(rows = []) {
