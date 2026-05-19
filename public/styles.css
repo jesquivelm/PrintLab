@@ -12990,12 +12990,24 @@ html[data-theme="dark"] .inventory-form.inventory-form-maquinas .inventory-input
     text-align: right;
 }
 
-.product-catalog-table .product-col-actions .browser-open-link,
-.product-catalog-table .product-col-actions .browser-open-link:hover,
-.product-catalog-table .product-col-actions .browser-open-link:focus-visible,
-html[data-theme="dark"] .product-catalog-table .product-col-actions .browser-open-link,
-html[data-theme="dark"] .product-catalog-table .product-col-actions .browser-open-link:hover,
-html[data-theme="dark"] .product-catalog-table .product-col-actions .browser-open-link:focus-visible {
+.product-catalog-table .browser-open-link,
+.product-catalog-table .browser-open-link:hover,
+.product-catalog-table .browser-open-link:focus-visible,
+.product-document-card [data-product-doc-panel="cotizaciones"] .browser-open-link,
+.product-document-card [data-product-doc-panel="cotizaciones"] .browser-open-link:hover,
+.product-document-card [data-product-doc-panel="cotizaciones"] .browser-open-link:focus-visible,
+.product-document-card [data-product-doc-panel="ordenes"] .browser-open-link,
+.product-document-card [data-product-doc-panel="ordenes"] .browser-open-link:hover,
+.product-document-card [data-product-doc-panel="ordenes"] .browser-open-link:focus-visible,
+html[data-theme="dark"] .product-catalog-table .browser-open-link,
+html[data-theme="dark"] .product-catalog-table .browser-open-link:hover,
+html[data-theme="dark"] .product-catalog-table .browser-open-link:focus-visible,
+html[data-theme="dark"] .product-document-card [data-product-doc-panel="cotizaciones"] .browser-open-link,
+html[data-theme="dark"] .product-document-card [data-product-doc-panel="cotizaciones"] .browser-open-link:hover,
+html[data-theme="dark"] .product-document-card [data-product-doc-panel="cotizaciones"] .browser-open-link:focus-visible,
+html[data-theme="dark"] .product-document-card [data-product-doc-panel="ordenes"] .browser-open-link,
+html[data-theme="dark"] .product-document-card [data-product-doc-panel="ordenes"] .browser-open-link:hover,
+html[data-theme="dark"] .product-document-card [data-product-doc-panel="ordenes"] .browser-open-link:focus-visible {
     background: transparent !important;
 }
 
