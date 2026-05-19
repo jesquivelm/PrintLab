@@ -979,8 +979,8 @@ function renderDataRow(row, index, subtotalKeys) {
             <td>
                 <div class="row-tools row-tools-row-end">
                     <span class="row-action-divider" aria-hidden="true"></span>
-                    ${canOpenCalc ? `<button type="button" class="row-tool-btn row-tool-detail" data-action="open-calc" data-id="${row.id}" aria-label="Abrir cálculo" style="${iconButtonStyle('open', 16)}">${iconMarkup(rowIcons.open, 'Abrir cálculo', 'table-icon-media')}</button>` : '<span class="row-tool-spacer"></span>'}
                     <button type="button" class="row-tool-btn row-tool-actions" data-action="toggle-row-menu" data-id="${row.id}" aria-label="Más opciones" title="Más opciones" style="${iconButtonStyle('actions', 18)}">${iconMarkup(rowIcons.actions, 'Más opciones', 'table-icon-media')}</button>
+                    ${canOpenCalc ? `<button type="button" class="row-tool-btn row-tool-detail" data-action="open-calc" data-id="${row.id}" aria-label="Abrir cálculo" style="${iconButtonStyle('open', 16)}">${iconMarkup(rowIcons.open, 'Abrir cálculo', 'table-icon-media')}</button>` : '<span class="row-tool-spacer"></span>'}
                 </div>
             </td>
         </tr>
@@ -2462,7 +2462,9 @@ rowsBody?.addEventListener('click', async (event) => {
     }
     const rowElement = event.target.closest('tr[data-id]');
     if (rowElement) {
-        activeRowId = Number(rowElement.dataset.id);
+        const nextRowId = Number(rowElement.dataset.id);
+        if (activeRowId === nextRowId) return;
+        activeRowId = nextRowId;
         renderRows();
     }
 });
