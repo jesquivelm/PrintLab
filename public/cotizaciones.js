@@ -2319,12 +2319,11 @@ let lineDragDropInitialized = false;
 function renderQuoteLineCard(row, index, totalLines, treeOptions = {}) {
     quoteLineLookup.set(row.id, row);
     const reorderConf = getResolvedIcon(['lineReorder', 'tableMove'], 'lineReorder');
-    const editConf = getResolvedIcon(['lineEdit', 'tableEdit', 'quoteLineEdit'], 'lineEdit');
-    if (String(editConf.value || '').includes('icons-lineEdit.svg')) editConf.value = '✏️';
+    const editConf = getResolvedIcon(['tableOpen'], 'tableOpen');
     const menuConf = getResolvedIcon(['lineMenu', 'tableActions'], 'lineMenu');
-    const editColor = loadedConfig?.general?.iconColorLineEdit || loadedConfig?.general?.iconColorTableEdit || editConf.color || '#0b81b8';
-    const editHover = loadedConfig?.general?.iconColorHoverLineEdit || loadedConfig?.general?.iconColorHoverTableEdit || editConf.hover || '#07638c';
-    const editSize = Number(loadedConfig?.general?.iconSizeLineEdit || loadedConfig?.general?.iconSizeTableEdit) || editConf.size || 18;
+    const editColor = loadedConfig?.general?.iconColorTableOpen || editConf.color || '#9ba2ab';
+    const editHover = loadedConfig?.general?.iconColorHoverTableOpen || editConf.hover || '#0b81b8';
+    const editSize = Number(loadedConfig?.general?.iconSizeTableOpen) || editConf.size || 20;
     const menuColor = loadedConfig?.general?.iconColorLineMenu || menuConf.color || '#607286';
     const menuHover = loadedConfig?.general?.iconColorHoverLineMenu || menuConf.hover || '#0b81b8';
     const menuSize = Number(loadedConfig?.general?.iconSizeLineMenu) || menuConf.size || 18;
