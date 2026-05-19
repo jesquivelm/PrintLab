@@ -13003,6 +13003,34 @@ html[data-theme="dark"] .product-catalog-card .copy-popover-table thead th {
     margin-top: 10px;
 }
 
+.product-document-card #productDocQuoteButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 88px;
+    height: 42px;
+    padding: 0 18px;
+    border: 1px solid #7bc9ec;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #ffffff 0%, #f6fbfe 100%);
+    color: #178fc7;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: none;
+    transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.product-document-card #productDocQuoteButton:hover,
+.product-document-card #productDocQuoteButton:focus-visible {
+    border-color: #7bc9ec;
+    background: linear-gradient(180deg, #29afe5 0%, #1698d0 100%);
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 20px rgba(17, 143, 198, 0.18);
+}
+
 html[data-theme="dark"] .product-document-card .production-summary-item,
 html[data-theme="dark"] .product-document-card .production-product-hero {
     border-color: var(--app-border);
