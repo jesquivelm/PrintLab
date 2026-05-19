@@ -5606,6 +5606,14 @@ body.shell-embedded .summary-footer {
     width: 20%;
     min-width: 120px;
 }
+.quote-browser-table.quote-table-compact thead th.money-cell,
+.quote-browser-table.quote-table-compact tbody td.money-cell {
+    text-align: right;
+}
+.quote-browser-table.quote-table-compact tbody td.money-cell .quote-cell-value {
+    justify-content: flex-end;
+    text-align: right;
+}
 .quote-browser-table.quote-table-compact th:nth-child(6),
 .quote-browser-table.quote-table-compact td:nth-child(6) {
     width: 110px;

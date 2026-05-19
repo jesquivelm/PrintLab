@@ -875,59 +875,140 @@ function isQuoteSummaryNoPrint(row) {
     });
 }
 
-function renderLineSummary(row) {
-    const titleExtras = uniqueSummaryParts([
-        row.medidaFija,
-        row.medida
-    ]);
-    const title = [row.nombreTrabajo || 'Sin nombre', titleExtras[0] ? `(${titleExtras[0]})` : '']
+function isEnabledQuoteDetail(value) {
+    const normalized = normalizeSummaryValue(value).toLowerCase();
+    if (!normalized) return false;
+    return !['no', 'false', '0', 'sin', 'ninguno', 'n/a'].includes(normalized);
+}
+
+function cleanQuoteDetail(value) {
+    const text = normalizeSummaryValue(value);
+    if (!text) return '';
+    return isEnabledQuoteDetail(text) ? text : '';
+}
+
+function formatQuoteDimension(value) {
+    const text = normalizeSummaryValue(value);
+    if (!text) return '';
+    return /["a-z%]/i.test(text) ? text : `${text}"`;
+}
+
+function formatQuoteMillimeters(value) {
+    const text = normalizeSummaryValue(value);
+    if (!text) return '';
+    return /mm$/i.test(text) ? text : `${text} mm`;
+}
+
+function firstQuoteDetail(raw, keys = []) {
+    for (const key of keys) {
+        const value = cleanQuoteDetail(raw?.[key]);
+        if (value) return value;
+    }
+    return '';
+}
+
+function formatQuoteLineQuantities(row) {
+    const raw = row.rawData || {};
+    const source = raw['REQ | Cantidades']
+        || raw['REQ | Cantidad de Productos']
+        || raw['CANTIDADES']
+        || raw['Cantidad de Productos']
+        || row.quantity
+        || '';
+    if (Array.isArray(source)) {
+        return source.map((item) => normalizeSummaryValue(item)).filter(Boolean).join(' - ');
+    }
+    const text = normalizeSummaryValue(source);
+    if (!text) return '';
+    return text
+        .split(/[|,;]+/)
+        .map((item) => normalizeSummaryValue(item))
         .filter(Boolean)
-        .join(' ');
+        .join(' - ');
+}
 
-    const machineDefined = normalizeSummaryValue(row.machineName);
-    const finishes = uniqueSummaryParts([
-        isMeaningfulSummaryValue(row.barniz) ? row.barniz : '',
-        isMeaningfulSummaryValue(row.laminado) ? row.laminado : '',
-        isMeaningfulSummaryValue(row.estampado) ? row.estampado : '',
-        isMeaningfulSummaryValue(row.embosado) ? row.embosado : '',
-        isMeaningfulSummaryValue(row.troquelado) ? row.troquelado : '',
-        isMeaningfulSummaryValue(row.numeracion) ? row.numeracion : ''
+function formatQuoteLineDie(row) {
+    const raw = row.rawData || {};
+    const booleanValues = ['si', 'sí', 'yes', 'true', '1', 'activo', 'activa'];
+    const dieType = firstQuoteDetail(raw, [
+        'REQ | Forma de Troquel',
+        'GENERAL | TROQUEL | FORMA',
+        'GENERAL | TROQUEL | TIPO'
     ]);
+    const rawDieCode = cleanQuoteDetail(row.dieCode || raw['GENERAL | TROQUEL | ID']);
+    const dieCode = booleanValues.includes(rawDieCode.toLowerCase()) ? '' : rawDieCode;
+    const requested = firstQuoteDetail(raw, ['REQ | Troquelado']);
+    const hasRequestedDie = booleanValues.includes(requested.toLowerCase());
+    if (dieType && dieCode) return `${dieType} (${dieCode})`;
+    return dieType || (dieCode ? `Troquel (${dieCode})` : (hasRequestedDie ? 'Troquelado' : ''));
+}
 
-    const pType = row.processType || row.routeLabel;
-    const pSeq = row.processSequenceText || row.mountingSummary;
-    const noPrint = isQuoteSummaryNoPrint(row);
-    const lineCode = normalizeSummaryValue(row.linea || row.originalLinea);
-    const productId = normalizeSummaryValue(row.productId);
-    const measure = titleExtras[0] || '';
-    const secondLine = uniqueSummaryParts([row.material]).join(' | ');
-    const thirdLine = [
-        machineDefined ? escapeHtml(machineDefined) : (noPrint ? '' : '<span class="is-warning">Sin máquina</span>'),
-        pType ? escapeHtml(pType) : '',
-        pSeq ? escapeHtml(pSeq) : ''
-    ].filter(Boolean).join(' - ');
-    const fourthLine = finishes.length
-        ? finishes.map((part) => escapeHtml(part)).join(' - ')
-        : '<span class="is-warning">Sin acabados</span>';
+function buildQuoteLineFinishParts(row) {
+    const raw = row.rawData || {};
+    const parts = [];
+    const barniz = firstQuoteDetail(raw, ['REQ | Barniz', 'BARNIZ', 'CONV | BARNIZ | TIPO']);
+    if (barniz) parts.push(`Barniz ${barniz}`);
+    const laminado = firstQuoteDetail(raw, ['REQ | Laminado', 'LAMINADO', 'CONV | LAMINADO | TIPO']);
+    if (laminado) parts.push(`Laminado ${laminado}`);
+    const estampado = firstQuoteDetail(raw, ['REQ | Estampado', 'ESTAMPADO', 'CONV | ESTAMPADO | FOIL']);
+    if (estampado) parts.push(`Estampado (${estampado})`);
+    const embosado = firstQuoteDetail(raw, ['REQ | Embosado', 'EMBOSADO | TIPO', 'EMBOSADO']);
+    if (embosado) parts.push(['si', 'sí', 'yes', 'true', '1'].includes(embosado.toLowerCase()) ? 'Embosado' : `Embosado (${embosado})`);
+    const numeracion = firstQuoteDetail(raw, ['REQ | Numeracion Resumen', 'REQ | Numeracion Detalle', 'REQ | Numeracion', 'ACABADOS | NUMERADO']);
+    if (numeracion) parts.push(`Numeración (${numeracion})`);
+    return parts;
+}
 
-    const summaryTitle = [
-        title,
-        [row.material, machineDefined || (noPrint ? '' : 'Sin máquina')].filter(Boolean).join(' - '),
-        [pType, pSeq].filter(Boolean).join(' - '),
-        finishes.length ? finishes.join(' - ') : 'Sin acabados'
+function isQuoteLineNoPrint(row) {
+    const raw = row.rawData || {};
+    const values = [
+        raw['SIN IMPRESION'],
+        raw['SIN IMPRESIÓN'],
+        raw['REQ | Sin Impresion'],
+        raw['REQ | Sin Impresión'],
+        row.processType
+    ];
+    return values.some((value) => {
+        const normalized = normalizeSummaryValue(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        return ['si', 'sí', 'yes', 'true', '1'].includes(normalized) || normalized === 'sin impresion';
+    });
+}
+
+function renderLineSummary(row, index) {
+    const raw = row.rawData || {};
+    const lineCode = cleanQuoteDetail(row.linea || row.originalLinea || `LC${String(index + 1).padStart(5, '0')}`);
+    const productId = cleanQuoteDetail(row.productId);
+    const title = cleanQuoteDetail(row.nombreTrabajo) || 'Sin nombre';
+    const measure = cleanQuoteDetail(row.medida);
+    const quantities = formatQuoteLineQuantities(row);
+    const material = cleanQuoteDetail(row.material || raw['REQ | Sustrato'] || raw['SUSTRATO'] || raw['MATERIAL']);
+    const machine = cleanQuoteDetail(row.machineName);
+    const die = formatQuoteLineDie(row);
+    const finishParts = buildQuoteLineFinishParts(row);
+    const noPrint = isQuoteLineNoPrint(row);
+    const secondLine = [
+        quantities ? `Cantidad: ${quantities}` : '',
+        material
     ].filter(Boolean).join(' | ');
+    const thirdLine = [
+        machine ? escapeHtml(machine) : (noPrint ? '' : '<span class="is-warning">Sin máquina</span>'),
+        die ? escapeHtml(die) : ''
+    ].filter(Boolean).join(' - ');
+    const fourthLine = finishParts.length
+        ? finishParts.map((part) => escapeHtml(part)).join(' - ')
+        : (die ? '' : '<span class="is-warning">Sin acabados</span>');
 
     return `
-        <div class="quote-master-line-detail" title="${escapeHtml(summaryTitle)}">
+        <div class="quote-master-line-detail">
             <div class="quote-master-line-detail-main">
                 ${lineCode ? `<span class="quote-master-line-ref">(${escapeHtml(lineCode)})</span>` : ''}
-                <span class="quote-master-line-product">${escapeHtml(row.nombreTrabajo || 'Sin nombre')}</span>
+                <span class="quote-master-line-product">${escapeHtml(title)}</span>
                 ${measure ? `<span class="quote-master-line-measure">(${escapeHtml(measure)})</span>` : ''}
             </div>
             ${productId && productId !== lineCode ? `<div class="quote-master-line-detail-row">Producto: ${escapeHtml(productId)}</div>` : ''}
             ${secondLine ? `<div class="quote-master-line-detail-row">${escapeHtml(secondLine)}</div>` : ''}
             ${thirdLine ? `<div class="quote-master-line-detail-row">${thirdLine}</div>` : ''}
-            <div class="quote-master-line-detail-row">${fourthLine}</div>
+            ${fourthLine ? `<div class="quote-master-line-detail-row">${fourthLine}</div>` : ''}
         </div>
     `;
 }
@@ -957,7 +1038,7 @@ function renderSubtotalCells(row, subtotalKeys) {
 }
 
 function renderSubtotalHeaderCells(subtotalKeys) {
-    return subtotalKeys.map((key, index) => `<th>${subtotalHeaderLabel(index, subtotalKeys.length)}</th>`).join('');
+    return subtotalKeys.map((key, index) => `<th class="money-cell">${subtotalHeaderLabel(index, subtotalKeys.length)}</th>`).join('');
 }
 
 function renderDataRow(row, index, subtotalKeys) {
@@ -974,7 +1055,7 @@ function renderDataRow(row, index, subtotalKeys) {
                 </div>
             </td>
             <td>${quoteCellMarkup(row.linea)}</td>
-            <td>${renderLineSummary(row)}</td>
+            <td>${renderLineSummary(row, index)}</td>
             ${renderSubtotalCells(row, subtotalKeys)}
             <td>
                 <div class="row-tools row-tools-row-end">
@@ -1567,8 +1648,10 @@ function applyQuotePayload(payload) {
         nombreTrabajo: line.job_name || '',
         material: line.material_name || '',
       medidaFija: line.raw_data?.['REQ | Medida Fija'] || '',
-      medida: [line.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'], line.raw_data?.['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join('x'),
+      medida: [line.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'], line.raw_data?.['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join(' x '),
       machineName: line.machine_name || line.raw_data?.['CONV | MAQUINA'] || line.raw_data?.['DIGITAL | MAQUINA'] || '',
+      dieCode: line.die_code || line.raw_data?.['GENERAL | TROQUEL | ID'] || line.raw_data?.['REQ | Troquelado'] || '',
+      quantity: line.quantity ?? line.raw_data?.['Cantidad Productos'] ?? '',
       noPrint: ['si', 'sí', 'yes', 'true', '1'].includes(normalizeSummaryValue(line.raw_data?.['SIN IMPRESION'] || line.raw_data?.['SIN IMPRESIÓN']).toLowerCase()),
       barniz: line.raw_data?.['REQ | Barniz'] || '',
       laminado: line.raw_data?.['REQ | Laminado'] || '',
@@ -1875,8 +1958,10 @@ async function persistNewRow() {
         nombreTrabajo: linea.job_name || '',
         material: linea.material_name || '',
         medidaFija: linea.raw_data?.['REQ | Medida Fija'] || '',
-        medida: [linea.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'], linea.raw_data?.['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join('x'),
+        medida: [linea.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'], linea.raw_data?.['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join(' x '),
         machineName: linea.machine_name || linea.raw_data?.['CONV | MAQUINA'] || linea.raw_data?.['DIGITAL | MAQUINA'] || '',
+        dieCode: linea.die_code || linea.raw_data?.['GENERAL | TROQUEL | ID'] || linea.raw_data?.['REQ | Troquelado'] || '',
+        quantity: linea.quantity ?? linea.raw_data?.['Cantidad Productos'] ?? '',
         noPrint: ['si', 'sí', 'yes', 'true', '1'].includes(normalizeSummaryValue(linea.raw_data?.['SIN IMPRESION'] || linea.raw_data?.['SIN IMPRESIÓN']).toLowerCase()),
         barniz: linea.raw_data?.['REQ | Barniz'] || '',
         laminado: linea.raw_data?.['REQ | Laminado'] || '',
@@ -1920,8 +2005,10 @@ async function saveRow(row) {
             nombreTrabajo: saved.job_name || item.nombreTrabajo,
             material: saved.material_name || item.material,
             medidaFija: saved.raw_data?.['REQ | Medida Fija'] || item.medidaFija,
-            medida: [saved.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'], saved.raw_data?.['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join('x') || item.medida,
+            medida: [saved.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'], saved.raw_data?.['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join(' x ') || item.medida,
             machineName: saved.machine_name || saved.raw_data?.['CONV | MAQUINA'] || saved.raw_data?.['DIGITAL | MAQUINA'] || item.machineName,
+            dieCode: saved.die_code || saved.raw_data?.['GENERAL | TROQUEL | ID'] || saved.raw_data?.['REQ | Troquelado'] || item.dieCode,
+            quantity: saved.quantity ?? saved.raw_data?.['Cantidad Productos'] ?? item.quantity,
             noPrint: ['si', 'sí', 'yes', 'true', '1'].includes(normalizeSummaryValue(saved.raw_data?.['SIN IMPRESION'] || saved.raw_data?.['SIN IMPRESIÓN']).toLowerCase()) || item.noPrint,
             barniz: saved.raw_data?.['REQ | Barniz'] || item.barniz,
             laminado: saved.raw_data?.['REQ | Laminado'] || item.laminado,
