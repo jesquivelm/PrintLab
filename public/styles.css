@@ -12990,6 +12990,15 @@ html[data-theme="dark"] .inventory-form.inventory-form-maquinas .inventory-input
     text-align: right;
 }
 
+.product-catalog-table .product-col-actions .browser-open-link,
+.product-catalog-table .product-col-actions .browser-open-link:hover,
+.product-catalog-table .product-col-actions .browser-open-link:focus-visible,
+html[data-theme="dark"] .product-catalog-table .product-col-actions .browser-open-link,
+html[data-theme="dark"] .product-catalog-table .product-col-actions .browser-open-link:hover,
+html[data-theme="dark"] .product-catalog-table .product-col-actions .browser-open-link:focus-visible {
+    background: transparent !important;
+}
+
 .product-catalog-card .quote-browser-search-row {
     padding: 14px 16px;
     border: 1px solid var(--app-border);
