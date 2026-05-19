@@ -8322,6 +8322,7 @@ function buildQuoteRawData(payload = {}, existingRawData = {}) {
 
     return {
         ...existingRawData,
+        'CODEX_REQUEST_KEY': pickFirstValue(payload.request_key, existingRawData['CODEX_REQUEST_KEY']),
         'ID CLIENTE': customerCode,
         'CLIENTE NOMBRE': customerName,
         'CLIENTE | CONTACTO NOMBRE COMPLETO': contactName,
@@ -11410,6 +11411,20 @@ app.post('/api/cotizaciones', async (req, res) => {
         const payload = { ...(req.body || {}) };
         const activeUser = getRequestUserName(req, payload.salesperson_name);
         payload.salesperson_name = activeUser;
+        const requestKey = pickFirstValue(payload.request_key);
+        if (requestKey) {
+            const existing = await pgQuery(
+                `SELECT quote_code, customer_code, customer_name, contact_name, email, salesperson_name, phone, status, created_on, due_on, raw_data
+                   FROM quotes
+                  WHERE raw_data->>'CODEX_REQUEST_KEY' = $1
+                  ORDER BY created_on DESC NULLS LAST, quote_code DESC
+                  LIMIT 1`,
+                [requestKey]
+            );
+            if (existing.rows.length) {
+                return res.json({ cotizacion: mapQuoteHeader(existing.rows[0]) });
+            }
+        }
         const quoteCode = pickFirstValue(payload.quote_code) || await generateNextQuoteCode();
         const createdOn = pickFirstValue(payload.created_on, new Date().toISOString().slice(0, 10));
         const dueOn = pickFirstValue(payload.due_on, createdOn);
@@ -11533,6 +11548,22 @@ app.post('/api/cotizaciones/:codigo/lineas', async (req, res) => {
         }
 
         const quote = quoteResult.rows[0];
+        const requestKey = pickFirstValue(payload.request_meta?.CODEX_REQUEST_KEY, payload.request_key);
+        if (requestKey) {
+            const existingLine = await pgQuery(
+                `SELECT calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name, die_code, material_code,
+                        quantity, subtotal_cost, total_cost, unit_price, raw_data
+                   FROM flexo_calculations
+                  WHERE quote_code = $1
+                    AND raw_data->>'CODEX_REQUEST_KEY' = $2
+                  ORDER BY created_at ASC NULLS LAST, calculation_code ASC
+                  LIMIT 1`,
+                [codigo, requestKey]
+            );
+            if (existingLine.rows.length) {
+                return res.json({ linea: mapCalculationLine(existingLine.rows[0]), calculo: mapFlexoCalculationDetail(existingLine.rows[0]) });
+            }
+        }
         const lineCode = pickFirstValue(payload.line_code) || await generateNextLineCode();
         const calculationCode = pickFirstValue(payload.calculation_code) || await generateNextCalculationCode();
         const autoSelection = await resolveSmartQuoteLineSelection(payload);

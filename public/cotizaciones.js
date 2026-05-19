@@ -289,6 +289,7 @@ let sapConfigState = null;
 let quoteRequestWizardState = {
     currentStep: 1,
     totalSteps: Math.max(1, wizardSections.length || 5),
+    requestId: createQuoteRequestId(),
     previewQuoteCode: '',
     previewFirstLineCode: '',
     previewFingerprint: '',
@@ -297,6 +298,10 @@ let quoteRequestWizardState = {
     keepPreviewQuote: false
 };
 let quoteRequestSubmitInFlight = false;
+
+function createQuoteRequestId() {
+    return `qr-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 function resolveConfiguredProductTypes() {
     const rawValue = loadedConfig?.general?.quoteProductTypesJson;
@@ -3390,6 +3395,7 @@ function resetFormState() {
     quoteRequestWizardState = {
         currentStep: 1,
         totalSteps: Math.max(1, wizardSections.length || 5),
+        requestId: createQuoteRequestId(),
         previewQuoteCode: '',
         previewFirstLineCode: '',
         previewFingerprint: '',
@@ -3773,6 +3779,7 @@ function validateQuickRequest(forAdvanced) {
 }
 
 function buildQuickRequestFingerprint(payload) {
+    const meta = payload.request_meta || {};
     return JSON.stringify({
         customer: payload.customer_code || payload.customer_name,
         job: payload.job_name,
@@ -3782,14 +3789,35 @@ function buildQuickRequestFingerprint(payload) {
         placement: payload.outputType,
         width: payload.widthInches,
         length: payload.lengthInches,
-        meta: payload.request_meta || {}
+        productType: payload.product_type,
+        shape: meta['REQ | Forma'],
+        varnish: meta['REQ | Barniz'],
+        lamination: meta['REQ | Laminado'],
+        stamping: meta['REQ | Estampado'],
+        numbering: meta['REQ | Numeracion Resumen'],
+        comments: meta['REQ | Comentarios']
     });
+}
+
+function hashQuickRequestFingerprint(value) {
+    let hash = 0;
+    const text = String(value || '');
+    for (let index = 0; index < text.length; index += 1) {
+        hash = ((hash << 5) - hash) + text.charCodeAt(index);
+        hash |= 0;
+    }
+    return Math.abs(hash).toString(36);
+}
+
+function buildQuickRequestKey(payload) {
+    return `${quoteRequestWizardState.requestId}-${hashQuickRequestFingerprint(buildQuickRequestFingerprint(payload))}`;
 }
 
 async function createQuickQuoteDraft(payload, options = {}) {
     const status = options.status || 'Solicitada';
     const quantities = payload.quantities?.length ? payload.quantities : [payload.quantity];
     const baseQuantity = parseRequestedQuantityValue(quantities[0]) || 0;
+    const requestKey = options.requestKey || buildQuickRequestKey(payload);
     const requestMeta = { ...(payload.request_meta || {}) };
     const uiState = requestMeta.CODEX_UI_STATE;
     if (uiState && typeof uiState === 'object' && !Array.isArray(uiState)) {
@@ -3811,6 +3839,7 @@ async function createQuickQuoteDraft(payload, options = {}) {
             email: payload.email,
             phone: payload.phone,
             salesperson_name: currentUserName(),
+            request_key: requestKey,
             status
         })
     });
@@ -3840,6 +3869,7 @@ async function createQuickQuoteDraft(payload, options = {}) {
             line_order: 1,
             request_meta: {
                 ...requestMeta,
+                'CODEX_REQUEST_KEY': requestKey,
                 'SOLICITUD ESTADO': status,
                 'REQ | Cantidad Solicitada Original': String(baseQuantity),
                 'REQ | Grupo de Cantidades': quantities.join(', ')
@@ -4019,6 +4049,7 @@ async function submitQuoteRequest(forAdvanced = false) {
     try {
         const payload = validateQuickRequest(forAdvanced);
         const fingerprint = buildQuickRequestFingerprint(payload);
+        const requestKey = buildQuickRequestKey(payload);
         busyButtons.forEach((button) => setButtonBusy(button, true, forAdvanced ? 'Preparando...' : 'Creando...'));
         setStatus(forAdvanced ? 'Preparando proceso avanzado...' : 'Creando solicitud...', 'saving');
         let draft = null;
@@ -4036,7 +4067,7 @@ async function submitQuoteRequest(forAdvanced = false) {
             if (quoteRequestWizardState.previewQuoteCode) {
                 await deleteQuickQuoteDraft(quoteRequestWizardState.previewQuoteCode);
             }
-            draft = await createQuickQuoteDraft(payload, { status: forAdvanced ? 'Borrador' : 'Solicitada' });
+            draft = await createQuickQuoteDraft(payload, { status: forAdvanced ? 'Borrador' : 'Solicitada', requestKey });
         }
         const { quoteCode, quantities, firstLineCode } = draft;
         quoteRequestWizardState.keepPreviewQuote = true;
