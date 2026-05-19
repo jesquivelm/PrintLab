@@ -13003,11 +13003,16 @@ html[data-theme="dark"] .product-catalog-card .copy-popover-table thead th {
     margin-top: 10px;
 }
 
+.product-document-card .production-order-column-primary > .socios-section:first-child .production-subgroup-head {
+    margin-bottom: 6px;
+}
+
 .product-document-card #productDocQuoteButton {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
+    margin-left: 10px;
     min-width: 88px;
     height: 42px;
     padding: 0 18px;
