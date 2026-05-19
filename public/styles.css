@@ -5738,9 +5738,6 @@ body.shell-embedded .summary-footer {
     height: var(--config-icon-size, 18px);
     flex-basis: var(--config-icon-size, 18px);
 }
-.row-tool-actions {
-    border-radius: 999px;
-}
 .row-tool-spacer { width: var(--config-icon-size, 16px); height: var(--config-icon-size, 16px); flex: 0 0 var(--config-icon-size, 16px); }
 .row-action-divider {
     width: 1px;

@@ -894,7 +894,7 @@ function renderDataRow(row, index, subtotalKeys) {
                 <div class="row-tools row-tools-row-end">
                     <span class="row-action-divider" aria-hidden="true"></span>
                     ${canOpenCalc ? `<button type="button" class="row-tool-btn row-tool-detail" data-action="open-calc" data-id="${row.id}" aria-label="Abrir cálculo" style="${iconButtonStyle('open', 16)}">${iconMarkup(rowIcons.open, 'Abrir cálculo', 'table-icon-media')}</button>` : '<span class="row-tool-spacer"></span>'}
-                    <button type="button" class="row-tool-btn row-tool-actions" data-action="toggle-row-menu" data-id="${row.id}" aria-label="Acciones de línea" style="${iconButtonStyle('actions', 18)}">${iconMarkup(rowIcons.actions, 'Acciones de línea', 'table-icon-media')}</button>
+                    <span class="row-tool-spacer" aria-hidden="true"></span>
                 </div>
             </td>
         </tr>
@@ -1357,20 +1357,6 @@ function bindRowActions() {
             } catch (error) {
                 setStatus(error.message, 'error');
             }
-        };
-    });
-
-    rowsBody?.querySelectorAll('[data-action="toggle-row-menu"]').forEach((button) => {
-        button.onclick = (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            const rowId = Number(button.dataset.id);
-            if (!rowId) return;
-            if (actionMenuRowId === rowId && rowActionMenu && !rowActionMenu.hidden) {
-                closeRowMenu();
-                return;
-            }
-            openRowMenu(rowId, button);
         };
     });
 }
@@ -2401,7 +2387,7 @@ document.addEventListener('click', (event) => {
 });
 
 document.addEventListener('click', (event) => {
-    if (rowActionMenu && !rowActionMenu.hidden && !rowActionMenu.contains(event.target) && !event.target.closest('[data-action="toggle-row-menu"]')) {
+    if (rowActionMenu && !rowActionMenu.hidden && !rowActionMenu.contains(event.target)) {
         if (event.target.closest('a[href]')) return;
         closeRowMenu();
     }
