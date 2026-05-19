@@ -980,7 +980,7 @@ function renderDataRow(row, index, subtotalKeys) {
                 <div class="row-tools row-tools-row-end">
                     <span class="row-action-divider" aria-hidden="true"></span>
                     ${canOpenCalc ? `<button type="button" class="row-tool-btn row-tool-detail" data-action="open-calc" data-id="${row.id}" aria-label="Abrir cálculo" style="${iconButtonStyle('open', 16)}">${iconMarkup(rowIcons.open, 'Abrir cálculo', 'table-icon-media')}</button>` : '<span class="row-tool-spacer"></span>'}
-                    <span class="row-tool-spacer" aria-hidden="true"></span>
+                    <button type="button" class="row-tool-btn row-tool-actions" data-action="toggle-row-menu" data-id="${row.id}" aria-label="Más opciones" title="Más opciones" style="${iconButtonStyle('actions', 18)}">${iconMarkup(rowIcons.actions, 'Más opciones', 'table-icon-media')}</button>
                 </div>
             </td>
         </tr>
@@ -1485,6 +1485,20 @@ function bindRowActions() {
             } catch (error) {
                 setStatus(error.message, 'error');
             }
+        };
+    });
+
+    rowsBody?.querySelectorAll('[data-action="toggle-row-menu"]').forEach((button) => {
+        button.onclick = (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const rowId = Number(button.dataset.id);
+            if (!rowId) return;
+            if (actionMenuRowId === rowId && rowActionMenu && !rowActionMenu.hidden) {
+                closeRowMenu();
+                return;
+            }
+            openRowMenu(rowId, button);
         };
     });
 }
@@ -2071,7 +2085,7 @@ function applyConfig(config) {
         move: config.icons?.tableMove || '\u22EE\u22EE',
         open: config.icons?.tableOpen || '\u2699',
         plus: config.icons?.tableAdd || '+',
-        actions: config.icons?.tableActions || '\u22EF',
+        actions: config.icons?.lineMenu || config.icons?.tableActions || '\u22EF',
         duplicate: config.icons?.lineDuplicate || '\u2398',
         copy: config.icons?.lineCopy || '\u2398',
         createQuote: config.icons?.lineCreateQuote || '\u25A3',
@@ -2108,10 +2122,10 @@ function applyConfig(config) {
             size: pxSize(config.general?.iconSizeTableAdd, presentation.iconSize)
         },
         actions: {
-            primary: config.general?.iconColorTableActions || config.general?.iconColor || '#9ba2ab',
-            secondary: config.general?.iconColor2TableActions || '#ffffff',
-            hover: config.general?.iconColorHoverTableActions || '#0b81b8',
-            size: pxSize(config.general?.iconSizeTableActions, presentation.iconSize)
+            primary: config.general?.iconColorLineMenu || config.general?.iconColorTableActions || config.general?.iconColor || '#607286',
+            secondary: config.general?.iconColor2LineMenu || config.general?.iconColor2TableActions || '#ffffff',
+            hover: config.general?.iconColorHoverLineMenu || config.general?.iconColorHoverTableActions || '#0b81b8',
+            size: pxSize(config.general?.iconSizeLineMenu || config.general?.iconSizeTableActions, presentation.iconSize)
         },
         duplicate: {
             primary: config.general?.iconColorLineDuplicate || '#46515d',
@@ -2528,7 +2542,7 @@ document.addEventListener('click', (event) => {
 });
 
 document.addEventListener('click', (event) => {
-    if (rowActionMenu && !rowActionMenu.hidden && !rowActionMenu.contains(event.target)) {
+    if (rowActionMenu && !rowActionMenu.hidden && !rowActionMenu.contains(event.target) && !event.target.closest('[data-action="toggle-row-menu"]')) {
         if (event.target.closest('a[href]')) return;
         closeRowMenu();
     }
