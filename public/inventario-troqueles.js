@@ -20,11 +20,13 @@ function isShellEmbedded() {
 }
 
 function isSvgValue(value) {
-    return String(value || '').trim().startsWith('data:image/svg+xml');
+    const source = String(value || '').trim().toLowerCase();
+    return source.startsWith('data:image/svg+xml') || source.endsWith('.svg');
 }
 
 function isImageValue(value) {
-    return String(value || '').trim().startsWith('data:image/');
+    const source = String(value || '').trim().toLowerCase();
+    return source.startsWith('data:image/') || /\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(source);
 }
 
 function firstFilled(...values) {

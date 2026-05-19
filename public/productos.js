@@ -31,12 +31,13 @@ function firstFilled(...values) {
 }
 
 function isSvgValue(value) {
-    return String(value || '').trim().startsWith('data:image/svg+xml');
+    const source = String(value || '').trim().toLowerCase();
+    return source.startsWith('data:image/svg+xml') || source.endsWith('.svg');
 }
 
 function isImageValue(value) {
     const normalized = String(value || '').trim().toLowerCase();
-    return normalized.startsWith('data:image/') || /\.(svg|png|jpe?g|webp|gif)(\?|#|$)/i.test(normalized);
+    return normalized.startsWith('data:image/') || /\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(normalized);
 }
 
 function iconMarkup(value, altText, extraClass = '') {

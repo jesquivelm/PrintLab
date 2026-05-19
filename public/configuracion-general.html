@@ -5633,8 +5633,26 @@
                                             </label>
                                             <label>
                                                 <span>Validez Estándar de la Oferta</span>
-                                                <input id="proformaValidityField" name="general.proformaDefaultValidity" type="text" placeholder="15 días">
+                                                <select id="proformaValidityField" name="general.proformaDefaultValidity">
+                                                    <option>5 días</option>
+                                                    <option>8 días</option>
+                                                    <option>15 días</option>
+                                                    <option>22 días</option>
+                                                    <option selected>30 días</option>
+                                                    <option>De acuerdo a programación con el cliente</option>
+                                                    <option>Según lo establecido en el cartel de compra.</option>
+                                                </select>
                                             </label>
+                                        </div>
+                                        <input id="proformaValidityOptionsJsonField" name="general.proformaValidityOptionsJson" type="hidden" value='["5 días","8 días","15 días","22 días","30 días","De acuerdo a programación con el cliente","Según lo establecido en el cartel de compra."]'>
+                                        <div class="proforma-currency-table" style="margin-top:12px;">
+                                            <div class="proforma-currency-row"><label><span>Valores de validez</span><input type="text" value="5 días" readonly></label></div>
+                                            <div class="proforma-currency-row"><label><span>Valores de validez</span><input type="text" value="8 días" readonly></label></div>
+                                            <div class="proforma-currency-row"><label><span>Valores de validez</span><input type="text" value="15 días" readonly></label></div>
+                                            <div class="proforma-currency-row"><label><span>Valores de validez</span><input type="text" value="22 días" readonly></label></div>
+                                            <div class="proforma-currency-row"><label><span>Valores de validez</span><input type="text" value="30 días" readonly></label></div>
+                                            <div class="proforma-currency-row"><label><span>Valores de validez</span><input type="text" value="De acuerdo a programación con el cliente" readonly></label></div>
+                                            <div class="proforma-currency-row"><label><span>Valores de validez</span><input type="text" value="Según lo establecido en el cartel de compra." readonly></label></div>
                                         </div>
                                     </div>
 
@@ -11971,8 +11989,8 @@
 
         function normalizeProformaCurrencies(value) {
             const fallback = [
-                { code: 'CRC', label: 'Colones', symbol: '₡', exchangeRate: 1 },
-                { code: 'USD', label: 'Dólares', symbol: '$', exchangeRate: 0.0019 }
+                { code: 'USD', label: 'Dólares', symbol: '$', exchangeRate: 1 },
+                { code: 'CRC', label: 'Colones', symbol: '₡', exchangeRate: 1 }
             ];
             try {
                 const source = typeof value === 'string' ? JSON.parse(value || '[]') : value;
@@ -12007,7 +12025,7 @@
 
         function populateProformaDefaultCurrencyOptions() {
             if (!proformaDefaultCurrencyField) return;
-            const current = proformaDefaultCurrencyField.value || loadedConfig?.general?.proformaDefaultCurrency || proformaCurrencyRows[0]?.code || 'CRC';
+            const current = proformaDefaultCurrencyField.value || loadedConfig?.general?.proformaDefaultCurrency || 'USD';
             proformaDefaultCurrencyField.innerHTML = proformaCurrencyRows
                 .map((row) => `<option value="${escapeHtml(row.code)}">${escapeHtml(`${row.code} · ${row.label}`)}</option>`)
                 .join('');
@@ -12434,7 +12452,7 @@
                 proformaPreviewIntro.textContent = proformaIntroField?.value?.trim() || 'Agradecemos la oportunidad de presentar esta propuesta comercial con base en su configuración actual.';
             }
             applyProformaPreviewIntroStyle();
-            const selectedCurrencyCode = proformaDefaultCurrencyField?.value || proformaCurrencyRows[0]?.code || 'CRC';
+            const selectedCurrencyCode = proformaDefaultCurrencyField?.value || 'USD';
             const selectedCurrency = proformaCurrencyRows.find((row) => row.code === selectedCurrencyCode) || proformaCurrencyRows[0];
             if (proformaPreviewQuoteCode) {
                 proformaPreviewQuoteCode.textContent = 'Cotización PRO-0001';
@@ -12443,7 +12461,7 @@
                 proformaPreviewIssueDate.textContent = `Fecha de emisión: ${formatProformaPreviewDate()}`;
             }
             if (proformaPreviewValidity) {
-                const validity = proformaValidityField?.value?.trim() || '15 días';
+                const validity = proformaValidityField?.value?.trim() || '30 días';
                 proformaPreviewValidity.textContent = `Validez: ${validity}`;
             }
             if (proformaPreviewClientBlock) {

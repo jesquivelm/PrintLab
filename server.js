@@ -915,6 +915,7 @@ const DEFAULT_GENERAL_CONFIG = {
         popoverClose: '\u2715',
         tableMove: '\u22EE\u22EE',
         tableOpen: '\u2699',
+        tableEdit: '/assets/bootstrap/icons-tableEdit.svg',
         tableAdd: '+',
         quantityAdd: '+',
         quantity: {
@@ -929,9 +930,10 @@ const DEFAULT_GENERAL_CONFIG = {
         favoriteDocumentOn: '\u2605',
         refreshCosts: '\u21BB',
         timelineLauncher: '\u25F4',
-        floatingSave: '💾',
+        floatingSave: '/assets/bootstrap/icons-floatingSave.svg',
         tableActions: '\u22EF',
         lineMenu: '\u22EF',
+        lineEdit: '/assets/bootstrap/icons-lineEdit.svg',
         lineDuplicate: '\u2398',
         lineCopy: '\u2398',
         lineCreateProduct: '\u25A3',
@@ -1026,12 +1028,21 @@ const DEFAULT_GENERAL_CONFIG = {
         proformaPhone: '+506 0000 0000',
         proformaWebsite: 'www.printlab.local',
         proformaEmail: 'info@printlab.local',
-        proformaDefaultCurrency: 'CRC',
+        proformaDefaultCurrency: 'USD',
         proformaCurrenciesJson: JSON.stringify([
             { code: 'CRC', label: 'Colones', symbol: '₡', exchangeRate: 1 },
             { code: 'USD', label: 'Dólares', symbol: '$', exchangeRate: 0.0019 }
         ]),
-        proformaDefaultValidity: '15 días',
+        proformaDefaultValidity: '30 días',
+        proformaValidityOptionsJson: JSON.stringify([
+            '5 días',
+            '8 días',
+            '15 días',
+            '22 días',
+            '30 días',
+            'De acuerdo a programación con el cliente',
+            'Según lo establecido en el cartel de compra.'
+        ]),
         proformaIntro: '',
         proformaIntroFontFamily: 'inherit',
         proformaIntroFontSize: 15,
@@ -2641,7 +2652,9 @@ function normalizeGeneralConfigRecord(config, baseConfig = DEFAULT_GENERAL_CONFI
     normalized.general.inventoryImportedClassificationField = String(normalized.general.inventoryImportedClassificationField || DEFAULT_GENERAL_CONFIG.general.inventoryImportedClassificationField).trim() || DEFAULT_GENERAL_CONFIG.general.inventoryImportedClassificationField;
     normalized.branding.companyName = fixCommonTextArtifacts(normalized.branding.companyName);
     normalized.general.proformaCurrenciesJson = JSON.stringify(normalizeProformaCurrencyList(normalized.general.proformaCurrenciesJson));
-    normalized.general.proformaDefaultCurrency = String(normalized.general.proformaDefaultCurrency || 'CRC').trim().toUpperCase() || 'CRC';
+    normalized.general.proformaDefaultCurrency = String(normalized.general.proformaDefaultCurrency || 'USD').trim().toUpperCase() || 'USD';
+    normalized.general.proformaDefaultValidity = String(normalized.general.proformaDefaultValidity || '30 días').trim() || '30 días';
+    normalized.general.proformaValidityOptionsJson = JSON.stringify(normalizeProformaValidityOptions(normalized.general.proformaValidityOptionsJson));
     normalized.general.proformaHeaderColor = normalizeProformaHeaderColor(normalized.general.proformaHeaderColor, DEFAULT_GENERAL_CONFIG.general.proformaHeaderColor);
     normalized.general.proformaCompanyNameColor = normalizeProformaHeaderColor(normalized.general.proformaCompanyNameColor, DEFAULT_GENERAL_CONFIG.general.proformaCompanyNameColor);
     normalized.general.proformaShowCompanyName = String(normalized.general.proformaShowCompanyName || 'true').trim().toLowerCase() === 'false' ? 'false' : 'true';
@@ -3396,6 +3409,26 @@ function normalizeProformaCurrencyList(value, fallbackJson = DEFAULT_GENERAL_CON
         exchangeRate: Number(row?.exchangeRate || 0)
     })).filter((row) => row.code && row.label && Number.isFinite(row.exchangeRate) && row.exchangeRate > 0);
     return normalized.length ? normalized : fallback;
+}
+
+function normalizeProformaValidityOptions(value, fallbackJson = DEFAULT_GENERAL_CONFIG.general.proformaValidityOptionsJson) {
+    const fallback = [
+        '5 días',
+        '8 días',
+        '15 días',
+        '22 días',
+        '30 días',
+        'De acuerdo a programación con el cliente',
+        'Según lo establecido en el cartel de compra.'
+    ];
+    try {
+        const source = typeof value === 'string' ? JSON.parse(value || fallbackJson || '[]') : value;
+        const rows = Array.isArray(source) ? source : [];
+        const cleaned = rows.map((item) => sanitizeAdminUserText(item).trim()).filter(Boolean);
+        return cleaned.length ? [...new Set(cleaned)] : fallback;
+    } catch (_) {
+        return fallback;
+    }
 }
 
 function normalizeAdminUserRecord(row = {}) {
@@ -4967,11 +5000,12 @@ async function getProformaConfigSnapshot(config = {}) {
     const currencies = exchangeContext.currencies?.length
         ? exchangeContext.currencies
         : normalizeProformaCurrencyList(general.proformaCurrenciesJson);
+    const preferredDefaultCurrency = currencies.some((item) => item.code === 'USD') ? 'USD' : String(general.proformaDefaultCurrency || '').trim().toUpperCase();
     const defaultCurrency = String(
         exchangeContext.defaultCurrency
-        || general.proformaDefaultCurrency
+        || preferredDefaultCurrency
         || currencies[0]?.code
-        || 'CRC'
+        || 'USD'
     ).trim().toUpperCase();
     const selectedCurrency = currencies.find((item) => item.code === defaultCurrency) || exchangeContext.defaultCurrencyMeta || currencies[0] || { code: 'CRC', label: 'Colones', symbol: '₡', exchangeRate: 1 };
     return {
@@ -5001,6 +5035,7 @@ async function getProformaConfigSnapshot(config = {}) {
         baseCurrency: exchangeContext.baseCurrency || 'USD',
         exchangeRateDate: exchangeContext.rateDate || null,
         defaultValidity: sanitizeAdminUserText(general.proformaDefaultValidity),
+        validityOptions: normalizeProformaValidityOptions(general.proformaValidityOptionsJson),
         intro: sanitizeAdminUserText(general.proformaIntro),
         introStyle: {
             fontFamily: String(general.proformaIntroFontFamily || 'inherit').trim() || 'inherit',
@@ -5464,6 +5499,7 @@ async function buildQuoteProformaPayload(quoteCode, client = null) {
         },
         currencies: configSnapshot.currencies,
         validity: pickFirstValue(rawData.validity, configSnapshot.defaultValidity),
+        validityOptions: configSnapshot.validityOptions,
         priceDisplayMode: selectedPriceDisplayMode,
         pricePresentation: getProformaPricePresentation(selectedPriceDisplayMode),
         priceDetailMode: getProformaPriceDetail(selectedPriceDisplayMode),

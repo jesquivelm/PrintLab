@@ -683,16 +683,18 @@ function toggleHeaderMenu(forceState) {
 
 function setHeaderIcon(button, value, altText) {
     if (!button) return;
-    button.innerHTML = `<span class="icon-glyph" aria-hidden="true">${value}</span>`;
+    button.innerHTML = iconMarkup(value, altText, 'top-icon-media');
     button.setAttribute('aria-label', altText);
 }
 
 function isSvgValue(value) {
-    return String(value || '').trim().startsWith('data:image/svg+xml');
+    const source = String(value || '').trim().toLowerCase();
+    return source.startsWith('data:image/svg+xml') || source.endsWith('.svg');
 }
 
 function isImageValue(value) {
-    return String(value || '').trim().startsWith('data:image/');
+    const source = String(value || '').trim().toLowerCase();
+    return source.startsWith('data:image/') || /\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(source);
 }
 
 function escapeHtml(value) {
@@ -1743,7 +1745,7 @@ function renderTable(items) {
                     }
                     const href = escapeHtml(buildInventoryUrl('detail', item.id));
                     const label = escapeHtml(item.codigo || item.nombre || item.descripcion || 'registro');
-                    return `<td${className}><a class="browser-open-link" href="${href}" data-open-detail="${escapeHtml(item.id)}" aria-label="Abrir troquel ${label}">↗</a></td>`;
+                    return `<td${className}><a class="browser-open-link" href="${href}" data-open-detail="${escapeHtml(item.id)}" aria-label="Abrir troquel ${label}" title="Abrir troquel ${label}" style="--icon-color:${escapeHtml(openIcon.color)};--icon-hover-color:${escapeHtml(openIcon.hover)};--config-icon-size:${escapeHtml(String(openIcon.size))}px;">${iconMarkup(openIcon.value, 'Abrir troquel', 'table-icon-media')}</a></td>`;
                 }
                 return `<td${className} title="${escapeHtml(formatCellValue(item[column.key]))}">${escapeHtml(formatCellValue(item[column.key]))}</td>`;
             }).join('')}

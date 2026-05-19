@@ -669,6 +669,18 @@ function formatDate(value) {
     return date.toLocaleDateString('es-CR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+function formatDateTimeShort(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${day}-${month}-${year} ${hours}:${minutes}`;
+}
+
 function formatDateForInput(value) {
     if (!value) return '';
     const direct = String(value).trim();
@@ -1027,7 +1039,7 @@ function getRowActionDefinitionsForRow(row) {
         { key: 'createQuote', label: 'Crear Nueva Cotización a Partir de Esta Línea', icon: rowIcons.createQuote, action: 'create-quote-from-line' },
         { key: 'export', label: 'Exportar Línea a Excel', icon: rowIcons.export, action: 'export-line' },
         { key: 'attachments', label: 'Ver Adjuntos', icon: rowIcons.attachments, action: 'view-attachments' },
-        { dividerBefore: true, key: 'finalize', label: 'Finalizar Cálculo', action: 'toggle-finalize-order', checked: Boolean(row?.finalizadaOrden) },
+        { dividerBefore: true, key: 'finalize', label: 'Seguimiento', action: 'open-tracking' },
         { dividerBefore: true, key: 'delete', label: 'Eliminar Línea', icon: rowIcons.delete, action: 'delete-line', danger: true }
     ];
 }
@@ -1244,23 +1256,18 @@ async function openAttachments(row) {
     const items = payload.items || [];
     if (attachmentsList) {
         attachmentsList.innerHTML = items.length
-            ? items.map((item) => `
-                <article class="attachment-card">
-                    <div class="attachment-card-main">
-                        <strong>${escapeHtml(item.label || item.key || 'Adjunto')}</strong>
-                        <div class="attachment-card-meta">${escapeHtml([
-                            item.uploaded_by || 'admin',
-                            item.created_at ? formatDate(item.created_at) : '',
-                            item.size_bytes ? formatFileSize(item.size_bytes) : ''
-                        ].filter(Boolean).join(' - '))}</div>
-                        ${item.notes ? `<span class="attachment-card-meta">${escapeHtml(item.notes)}</span>` : ''}
-                    </div>
-                    <div class="attachment-card-actions">
+            ? `<table class="attachments-table"><thead><tr><th>Clasificación</th><th>Archivo</th><th>Usuario</th><th>Fecha</th><th></th></tr></thead><tbody>${items.map((item) => `
+                <tr>
+                    <td>${escapeHtml(item.classification || item.category || item.label || item.key || 'Adjunto')}</td>
+                    <td>${escapeHtml(item.file_name || item.filename || item.original_name || item.label || item.key || 'Adjunto')}${item.size_bytes ? `<span class="attachment-card-meta">${escapeHtml(formatFileSize(item.size_bytes))}</span>` : ''}</td>
+                    <td>${escapeHtml(item.uploaded_by || 'admin')}</td>
+                    <td>${escapeHtml(formatDateTimeShort(item.created_at))}</td>
+                    <td class="attachment-card-actions">
                         ${item.isStored ? `<a class="attachment-action-btn" href="/api/adjuntos/${escapeHtml(item.id)}/download" target="_blank" rel="noopener noreferrer" aria-label="Descargar archivo" style="${iconButtonStyle('attachmentDownload', 18)}">${iconMarkup(rowIcons.attachmentDownload, 'Descargar archivo', 'table-icon-media')}</a>` : ''}
                         ${item.isStored ? `<button type="button" class="attachment-action-btn" data-action="replace-attachment" data-id="${escapeHtml(item.id)}" aria-label="Actualizar archivo" style="${iconButtonStyle('attachmentReplace', 18)}">${iconMarkup(rowIcons.attachmentReplace, 'Actualizar archivo', 'table-icon-media')}</button>` : ''}
-                    </div>
-                </article>
-            `).join('')
+                    </td>
+                </tr>
+            `).join('')}</tbody></table>`
             : '<div class="attachments-empty">Esta línea no tiene adjuntos detectados.</div>';
     }
     if (attachmentsPopover) {
@@ -1359,6 +1366,7 @@ async function handleRowMenuAction(action, rowId) {
         return saveRow(row)
             .then(() => setStatus(`Línea ${row.linea || row.originalLinea} ${row.finalizadaOrden ? 'finalizada' : 'reabierta'}.`, 'saved'));
     }
+    if (action === 'open-tracking') return openCalc(row.id);
     if (action === 'duplicate-line') return duplicateLine(row);
     if (action === 'copy-line') return openCopyPopover(rowId);
     if (action === 'create-quote-from-line') return createQuoteFromLine(row);
@@ -2359,9 +2367,16 @@ async function loadInitialQuote() {
     await loadQuoteCatalog('');
     const params = new URLSearchParams(window.location.search);
     const codigo = params.get('codigo');
+    const copyLine = params.get('copyLine');
     if (codigo) {
         applyQuotePayload(await fetchQuoteDetail(codigo));
         window.history.replaceState({ codigo }, '', `/?codigo=${encodeURIComponent(codigo)}`);
+        if (copyLine) {
+            setTimeout(() => {
+                const row = quoteRows.find((item) => String(item.linea || item.originalLinea || '') === copyLine);
+                if (row) openCopyPopover(row.id);
+            }, 150);
+        }
         return;
     }
 

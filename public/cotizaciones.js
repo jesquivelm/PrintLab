@@ -27,7 +27,7 @@ const DEFAULT_ICON_MAP = {
     quoteCollapse: { value: '▾', color: '#607286', size: 18 },
     lineReorder: { value: '⋮⋮', color: '#607286', size: 18 },
     lineMenu: { value: '⋯', color: '#607286', size: 18 },
-    lineEdit: { value: '\u270e', color: '#0b81b8', size: 18 },
+    lineEdit: { value: '/assets/bootstrap/icons-lineEdit.svg', color: '#0b81b8', size: 18 },
     lineProforma: { value: '\ud83d\udc41', color: '#1e516d', size: 16 },
     lineAdd: { value: '+', color: '#1e516d', size: 18 }
 };
@@ -2067,9 +2067,7 @@ function renderQuoteLineCard(row, index, totalLines, treeOptions = {}) {
                                 <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="export" data-line-id="${row.id}">${lineMenuIconMarkup('export', 'Exportar Línea a Excel', '⭳')}<span>Exportar Línea a Excel</span></button>
                                 <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="attachments" data-line-id="${row.id}">${lineMenuIconMarkup('attachments', 'Ver Adjuntos', '📎')}<span>Ver Adjuntos</span></button>
                                 <div class="row-action-menu-section-divider" aria-hidden="true"></div>
-                                <button type="button" class="row-action-menu-item quote-line-menu-item is-toggle" data-line-action="finalize" data-line-id="${row.id}">
-                                    <span class="row-action-menu-toggle"><span class="row-action-check ${row.finalizadaOrden ? 'is-checked' : ''}" aria-hidden="true"></span><span>${row.finalizadaOrden ? 'Desmarcar Finalizado' : 'Finalizar Cálculo'}</span></span>
-                                </button>
+                                <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="tracking" data-line-id="${row.id}">${lineMenuIconMarkup('frontBack', 'Seguimiento', 'FD')}<span>Seguimiento</span></button>
                                 <div class="row-action-menu-section-divider" aria-hidden="true"></div>
                                 <button type="button" class="row-action-menu-item quote-line-menu-item is-danger" data-line-action="delete" data-line-id="${row.id}">${lineMenuIconMarkup('delete', 'Eliminar Línea', '×', true)}<span>Eliminar Línea</span></button>
                             </div>
@@ -2198,9 +2196,11 @@ async function refreshQuoteLines(quoteCode) {
     }
 }
 
-function openQuoteDocument(quoteCode) {
+function openQuoteDocument(quoteCode, options = {}) {
     if (!quoteCode) return;
-    const route = `/cotizaciones/documento?codigo=${encodeURIComponent(quoteCode)}`;
+    const params = new URLSearchParams({ codigo: quoteCode });
+    if (options.copyLine) params.set('copyLine', options.copyLine);
+    const route = `/cotizaciones/documento?${params.toString()}`;
     if (!openRouteInShell(route, `Cotizacion ${quoteCode}`)) {
         window.location.href = route;
     }
@@ -2315,22 +2315,7 @@ async function createQuoteFromLine(row) {
 }
 
 async function createProductFromLine(row) {
-    if (!canCreateModule('productos')) {
-        throw new Error('Tu permiso permite ver productos, pero no crear productos desde cotizaciones.');
-    }
-    const payload = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}/producto`, {
-        method: 'POST',
-        headers: sessionHeader()
-    });
-    const code = payload?.producto?.product_code;
-    if (code) {
-        await refreshQuoteLines(row.quoteId);
-        setStatus(`Producto ${code} asociado a la línea ${row.linea}.`, 'saved');
-        const route = '/productos';
-        if (!openRouteInShell(route, 'Productos')) {
-            window.location.href = route;
-        }
-    }
+    throw new Error('Convertir a producto está desactivado: falta definir el flujo final de creación de productos desde cotizaciones.');
 }
 
 function frontBackLineOptionMarkup(row, checked = false) {
@@ -2477,7 +2462,7 @@ async function handleQuoteLineAction(action, row) {
     if (action === 'move-up') return moveQuoteLine(row, -1);
     if (action === 'move-down') return moveQuoteLine(row, 1);
     if (action === 'duplicate') return duplicateQuoteLine(row);
-    if (action === 'copy') return openQuoteDocument(row.quoteId);
+    if (action === 'copy') return openQuoteDocument(row.quoteId, { copyLine: row.linea });
     if (action === 'create-product') return createProductFromLine(row);
     if (action === 'create-quote') return createQuoteFromLine(row);
     if (action === 'front-back') return openFrontBackModal(row);
@@ -2487,6 +2472,7 @@ async function handleQuoteLineAction(action, row) {
         return;
     }
     if (action === 'attachments') return openQuoteDocument(row.quoteId);
+    if (action === 'tracking') return openLineCalculation(row);
     if (action === 'finalize') return toggleLineFinalized(row);
     if (action === 'delete') return deleteQuoteLine(row);
 }
@@ -4657,7 +4643,7 @@ if (menuToggle) {
 
 async function init() {
     const canFullAccess = canCreateModule('cotizaciones');
-    const canCreateCalc = canCreateModule('calculos') || canFullAccess;
+    const canCreateCalc = true;
     const canCreateReq  = canCreateModule('solicitudes') || canFullAccess;
     if (nuevoCalculoButton) {
         nuevoCalculoButton.hidden = !canCreateCalc;

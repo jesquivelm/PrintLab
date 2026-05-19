@@ -529,7 +529,11 @@ function renderIconButton(button, iconValue) {
         button.innerHTML = '';
         return;
     }
-    if (/^data:image\//i.test(value)) {
+    const isSvg = /^data:image\/svg\+xml/i.test(value) || /\.svg(\?|#|$)/i.test(value);
+    const isImage = /^data:image\//i.test(value) || /\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(value);
+    if (isSvg) {
+        button.innerHTML = `<span class="icon-svg-mask table-icon-media" style="-webkit-mask-image:url('${escapeHtml(value)}');mask-image:url('${escapeHtml(value)}');"></span>`;
+    } else if (isImage) {
         button.innerHTML = `<img src="${escapeHtml(value)}" alt="" class="icon-image">`;
     } else {
         button.textContent = value;
@@ -562,10 +566,14 @@ function applyHeaderConfig(config) {
         fallback.style.display = logoUrl ? 'none' : 'flex';
     }
     renderIconButton(sourceQuoteButton, icons.browserOpen || icons.quoteLookup || DEFAULT_ICONS.view);
+    sourceQuoteButton?.setAttribute('title', 'Abrir cotización origen');
     renderIconButton(pantonesButton, icons.orderPantones || DEFAULT_ICONS.pantones);
+    pantonesButton?.setAttribute('title', 'Detalle de pantones');
     renderIconButton(deliveriesButton, icons.orderDeliveries || DEFAULT_ICONS.deliveries);
+    deliveriesButton?.setAttribute('title', 'Detalle de entregas');
     renderIconButton(numberingButton, icons.orderNumbering || DEFAULT_ICONS.numbering);
     renderIconButton(attachmentsButton, icons.orderAttachments || icons.lineAttachments || DEFAULT_ICONS.attachments);
+    attachmentsButton?.setAttribute('title', 'Ver adjuntos');
     renderIconButton(artworkLookupButton, icons.browserOpen || DEFAULT_ICONS.view);
     setToggleIcon(samplesToggleButton, false);
     setToggleIcon(deliveryToggleButton, false);

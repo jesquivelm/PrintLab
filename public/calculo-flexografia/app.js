@@ -1651,7 +1651,16 @@ function getProcessDeleteIconConfig() {
 }
 
 function getQuantityCapacity() {
-  return 30;
+  const containerWidth = Math.max(0, els.quantityRepeater?.clientWidth || 0);
+  if (!containerWidth) return 2;
+  const layout = { normalWidth: 150, lastWidth: 190, gap: 8 };
+  let count = 1;
+  while (count < 6) {
+    const width = ((count - 1) * layout.normalWidth) + layout.lastWidth + ((count - 1) * layout.gap);
+    if (width > containerWidth) return Math.max(1, count - 1);
+    count += 1;
+  }
+  return 6;
 }
 
 function stateSafeMerge(target, source) {
@@ -2983,8 +2992,9 @@ function effectiveColors(form = state.form) {
 function normalizeQuantities(values = []) {
   const rows = Array.isArray(values) ? values : [];
   const normalized = rows.map((item, index) => ({ id: item?.id || `qty-${index + 1}`, value: Math.max(0, n(item?.value, 0)) }));
-  if (!normalized.length) return [{ id: "qty-1", value: 0 }];
-  return normalized;
+  const limited = normalized.slice(0, 6);
+  if (!limited.length) return [{ id: "qty-1", value: 0 }];
+  return limited;
 }
 
 function currentQuantity(form = state.form) {
@@ -3124,10 +3134,10 @@ function syncCustomerCodeWidth() {
 }
 
 function renderQuantities() {
-  const quantities = normalizeQuantities(state.form.header.quantities);
+  const capacity = getQuantityCapacity();
+  const quantities = normalizeQuantities(state.form.header.quantities).slice(0, capacity);
   state.form.header.quantities = quantities;
   state.form.header.quantity = currentQuantity(state.form);
-  const capacity = getQuantityCapacity();
   const lockedByFrontBackGroup = isFrontBackElementContext();
   const addIcon = iconPresentation("quantityAdd", "+", "#738196", 18);
   const deleteIcon = iconPresentation("quantityDelete", "🗑", "#b6425f", 18);
@@ -5602,12 +5612,13 @@ function renderQuoteTracking() {
       const changeButton = item.canCR ? `<button type="button" class="btn-changes" data-tracking-open-form="${index}" aria-label="${esc(item.crLabel)}"><i class="ti ti-message-report" style="font-size:12px;" aria-hidden="true"></i>${esc(item.crWho)}: solicitar cambios</button>` : "";
       const form = state.quoteTracking.formOpenKey === item.key ? `<div class="cr-form"><div style="font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:8px;">${esc(item.crLabel)}</div><textarea id="quoteTrackingText-${index}" class="cr-textarea" placeholder="${esc(item.crPH)}" data-tracking-textarea></textarea><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;"><button type="button" class="btn-cancel" data-tracking-close-form>Cancelar</button><button type="button" class="btn-submit" data-tracking-submit-cr="${index}"><i class="ti ti-send" style="font-size:12px;" aria-hidden="true"></i>Enviar y revertir</button></div></div>` : "";
       const closure = item.key === "cierre" ? state.quoteTracking.closure : null;
+      const orderLink = closure?.orderCode ? `<a class="summary-row-link" href="/orden-produccion/${encodeURIComponent(closure.orderCode)}" data-route="/orden-produccion/${esc(encodeURIComponent(closure.orderCode))}" data-label="Orden ${esc(closure.orderCode)}">${esc(closure.orderCode)}</a>` : "";
       const closureText = closure
         ? (closure.outcome === "accepted"
-          ? `Venta aceptada${closure.orderCode ? ` · Orden ${closure.orderCode}` : ""}`
+          ? `Venta aceptada${closure.orderCode ? " · Orden " : ""}`
           : `Cierre sin venta · ${closure.reason || "Sin motivo"}`)
         : "";
-      const closureNote = closureText ? `<div class="tracking-close-note"><strong>${esc(closureText)}</strong>${closure.comments ? `<span>${esc(closure.comments)}</span>` : ""}</div>` : "";
+      const closureNote = closureText ? `<div class="tracking-close-note"><strong>${esc(closureText)}${orderLink}</strong>${closure.comments ? `<span>${esc(closure.comments)}</span>` : ""}</div>` : "";
       const productBtn = item.key === "cierre" ? `<div style="display:flex;gap:8px;margin-top:8px;"><button type="button" class="btn-mark tracking-product-action" data-tracking-create-product aria-label="Crear producto" style="font-size:11px;padding:5px 10px;"><i class="ti ti-box" style="font-size:11px;" aria-hidden="true"></i>Crear producto</button></div>` : "";
       content = `<div class="tl-content-anim" style="padding-bottom:18px;"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px;"><i class="ti ${esc(item.icon)}" style="font-size:14px;color:var(--color-text-secondary);" aria-hidden="true"></i><span style="font-size:13px;font-weight:500;color:var(--color-text-primary);">${esc(item.label)}</span></div><div style="font-size:13px;color:var(--color-text-primary);">${esc(item.user || "")}</div><div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px;">${esc(item.date || "Pendiente")}</div>${closureNote}${changeButton}${form}${productBtn}</div>`;
     } else if (item.cr) {
