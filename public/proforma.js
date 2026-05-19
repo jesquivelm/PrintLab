@@ -37,7 +37,6 @@ const fields = {
     clientEmail: document.getElementById('proformaClientEmail'),
     currencyCode: document.getElementById('proformaCurrency'),
     validity: document.getElementById('proformaValidity'),
-    validityOptions: document.getElementById('proformaValidityOptions'),
     pricePresentation: document.getElementById('proformaPricePresentation'),
     priceDisplayMode: document.getElementById('proformaPriceDisplayMode'),
     sellerSignatureEnabled: document.getElementById('proformaSellerSignatureEnabled'),
@@ -403,10 +402,7 @@ function fillForm(data) {
         <option value="${escapeHtml(currency.code)}">${escapeHtml(`${currency.code} · ${currency.label}`)}</option>
     `).join('');
     fields.currencyCode.value = data.currency?.code || (data.currencies || []).find((currency) => currency.code === 'USD')?.code || data.currencies?.[0]?.code || 'USD';
-    if (fields.validityOptions) {
-        fields.validityOptions.innerHTML = (data.validityOptions || []).map((item) => `<option value="${escapeHtml(item)}"></option>`).join('');
-    }
-    fields.validity.value = repairTextEncoding(data.validity || '');
+    fillSelectOptions(fields.validity, (data.validityOptions || []).map((item) => repairTextEncoding(item)), repairTextEncoding(data.validity || '30 días'));
     if (fields.sellerSignatureEnabled) fields.sellerSignatureEnabled.checked = data.sellerSignatureEnabled !== false;
     if (fields.pricePresentation) {
         fields.pricePresentation.innerHTML = `

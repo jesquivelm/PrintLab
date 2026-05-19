@@ -5633,27 +5633,15 @@
                                             </label>
                                             <label>
                                                 <span>Validez Estándar de la Oferta</span>
-                                                <select id="proformaValidityField" name="general.proformaDefaultValidity">
-                                                    <option>5 días</option>
-                                                    <option>8 días</option>
-                                                    <option>15 días</option>
-                                                    <option>22 días</option>
-                                                    <option selected>30 días</option>
-                                                    <option>De acuerdo a programación con el cliente</option>
-                                                    <option>Según lo establecido en el cartel de compra.</option>
-                                                </select>
+                                                <select id="proformaValidityField" name="general.proformaDefaultValidity"></select>
                                             </label>
                                         </div>
                                         <input id="proformaValidityOptionsJsonField" name="general.proformaValidityOptionsJson" type="hidden" value='["5 días","8 días","15 días","22 días","30 días","De acuerdo a programación con el cliente","Según lo establecido en el cartel de compra."]'>
-                                        <div class="proforma-currency-table" style="margin-top:12px;">
-                                            <div class="proforma-currency-row"><label><span>Valores de validez</span><input type="text" value="5 días" readonly></label></div>
-                                            <div class="proforma-currency-row"><label><span>Valores de validez</span><input type="text" value="8 días" readonly></label></div>
-                                            <div class="proforma-currency-row"><label><span>Valores de validez</span><input type="text" value="15 días" readonly></label></div>
-                                            <div class="proforma-currency-row"><label><span>Valores de validez</span><input type="text" value="22 días" readonly></label></div>
-                                            <div class="proforma-currency-row"><label><span>Valores de validez</span><input type="text" value="30 días" readonly></label></div>
-                                            <div class="proforma-currency-row"><label><span>Valores de validez</span><input type="text" value="De acuerdo a programación con el cliente" readonly></label></div>
-                                            <div class="proforma-currency-row"><label><span>Valores de validez</span><input type="text" value="Según lo establecido en el cartel de compra." readonly></label></div>
+                                        <div class="proforma-config-headline" style="margin-top:12px;">
+                                            <h3>Valores de Validez</h3>
+                                            <button type="button" id="proformaValidityAddButton" class="proforma-currency-add-button" aria-label="Agregar validez" title="Agregar validez"></button>
                                         </div>
+                                        <div id="proformaValidityTable" class="proforma-currency-table" style="margin-top:12px;"></div>
                                     </div>
 
                                     <div class="proforma-config-section">
@@ -7057,6 +7045,7 @@
         let selectedNotificationThreadMessages = [];
         let notificationCenterAttachmentDraft = null;
         let proformaCurrencyRows = [];
+        let proformaValidityRows = [];
 
         function getIconHtml(key, fallbackText, fallbackColor, fallbackSize) {
             const suffix = String(key || '').split(/[.\s_-]+/).filter(Boolean).map(part => part.charAt(0).toUpperCase() + part.slice(1)).join('');
@@ -7358,6 +7347,9 @@
         const proformaCurrencyAddButton = document.getElementById('proformaCurrencyAddButton');
         const proformaDefaultCurrencyField = document.getElementById('proformaDefaultCurrencyField');
         const proformaValidityField = document.getElementById('proformaValidityField');
+        const proformaValidityOptionsJsonField = document.getElementById('proformaValidityOptionsJsonField');
+        const proformaValidityTable = document.getElementById('proformaValidityTable');
+        const proformaValidityAddButton = document.getElementById('proformaValidityAddButton');
         const proformaIntroField = document.getElementById('proformaIntroField');
         const proformaIntroFontFamilyField = document.getElementById('proformaIntroFontFamilyField');
         const proformaIntroFontSizeField = document.getElementById('proformaIntroFontSizeField');
@@ -12007,6 +11999,34 @@
             }
         }
 
+        function normalizeProformaValidityRows(value) {
+            const fallback = [
+                '5 días',
+                '8 días',
+                '15 días',
+                '22 días',
+                '30 días',
+                'De acuerdo a programación con el cliente',
+                'Según lo establecido en el cartel de compra.'
+            ];
+            try {
+                const source = typeof value === 'string' ? JSON.parse(value || '[]') : value;
+                const rows = Array.isArray(source) ? source : [];
+                const seen = new Set();
+                const cleaned = rows
+                    .map((item) => String(item || '').trim())
+                    .filter((item) => {
+                        const key = item.toLowerCase();
+                        if (!item || seen.has(key)) return false;
+                        seen.add(key);
+                        return true;
+                    });
+                return cleaned.length ? cleaned : fallback;
+            } catch (error) {
+                return fallback;
+            }
+        }
+
         function getProformaPriceDisplayLabel(value) {
             return {
                 unit: 'Mostrar precio unitario',
@@ -12025,13 +12045,55 @@
 
         function populateProformaDefaultCurrencyOptions() {
             if (!proformaDefaultCurrencyField) return;
-            const current = proformaDefaultCurrencyField.value || loadedConfig?.general?.proformaDefaultCurrency || 'USD';
+            const current = proformaDefaultCurrencyField.value || (proformaCurrencyRows.some((row) => row.code === 'USD') ? 'USD' : loadedConfig?.general?.proformaDefaultCurrency || 'USD');
             proformaDefaultCurrencyField.innerHTML = proformaCurrencyRows
                 .map((row) => `<option value="${escapeHtml(row.code)}">${escapeHtml(`${row.code} · ${row.label}`)}</option>`)
                 .join('');
             if ([...proformaDefaultCurrencyField.options].some((option) => option.value === current)) {
                 proformaDefaultCurrencyField.value = current;
             }
+        }
+
+        function updateProformaValidityOptionsField() {
+            if (proformaValidityOptionsJsonField) {
+                proformaValidityOptionsJsonField.value = JSON.stringify(proformaValidityRows);
+            }
+        }
+
+        function populateProformaValidityOptions() {
+            if (!proformaValidityField) return;
+            const current = proformaValidityField.value || loadedConfig?.general?.proformaDefaultValidity || '30 días';
+            const values = proformaValidityRows.includes(current) ? proformaValidityRows : [...proformaValidityRows, current].filter(Boolean);
+            proformaValidityField.innerHTML = values
+                .map((item) => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`)
+                .join('');
+            proformaValidityField.value = values.includes(current) ? current : (values[0] || '');
+        }
+
+        function renderProformaValidityButton() {
+            if (!proformaValidityAddButton) return;
+            const addIcon = getPermissionIconConfig('proformaCurrencyAdd', '#118fc6', 18, '+');
+            renderButtonIcon(proformaValidityAddButton, addIcon.value, addIcon.color, addIcon.size, '+');
+        }
+
+        function renderProformaValidityRows() {
+            if (!proformaValidityTable) return;
+            const deleteIcon = getPermissionIconConfig('proformaCurrencyDelete', '#b94848', 18, '🗑');
+            proformaValidityTable.innerHTML = proformaValidityRows.map((value, index) => `
+                <div class="proforma-currency-row" data-proforma-validity-index="${index}">
+                    <label>
+                        <span>Validez</span>
+                        <input type="text" value="${escapeHtml(value)}" data-proforma-validity-field maxlength="120">
+                    </label>
+                    <button type="button" class="proforma-currency-delete-button" data-proforma-validity-delete="${index}" aria-label="Eliminar validez" title="Eliminar validez"></button>
+                </div>
+            `).join('');
+            proformaValidityTable.querySelectorAll('[data-proforma-validity-delete]').forEach((button) => {
+                renderButtonIcon(button, deleteIcon.value, deleteIcon.color, deleteIcon.size, '🗑');
+            });
+            updateProformaValidityOptionsField();
+            populateProformaValidityOptions();
+            updateProformaPreview();
         }
 
         function renderProformaCurrencyButton() {
@@ -12567,9 +12629,12 @@
         function populateProformaConfigFields() {
             const general = loadedConfig.general || {};
             proformaCurrencyRows = normalizeProformaCurrencies(general.proformaCurrenciesJson);
+            proformaValidityRows = normalizeProformaValidityRows(general.proformaValidityOptionsJson);
             if (proformaLogoUrlField) proformaLogoUrlField.value = general.proformaLogoUrl || '';
             if (proformaCompanyFontUrlField) proformaCompanyFontUrlField.value = general.proformaCompanyFontUrl || '';
             renderProformaCurrencies();
+            renderProformaValidityButton();
+            renderProformaValidityRows();
             applyProformaLogoPreview();
             applyProformaCompanyFontPreview();
             updateProformaPreview();
@@ -12939,6 +13004,37 @@
                     proformaCurrencyRows = normalizeProformaCurrencies([]);
                 }
                 renderProformaCurrencies();
+                queueConfigSave();
+            });
+            proformaValidityAddButton?.addEventListener('click', () => {
+                proformaValidityRows.push('');
+                renderProformaValidityRows();
+                queueConfigSave();
+            });
+            proformaValidityTable?.addEventListener('input', (event) => {
+                const row = event.target.closest('[data-proforma-validity-index]');
+                if (!row || !event.target.matches('[data-proforma-validity-field]')) return;
+                const index = Number(row.dataset.proformaValidityIndex);
+                if (!Number.isInteger(index)) return;
+                proformaValidityRows[index] = String(event.target.value || '');
+                updateProformaValidityOptionsField();
+                populateProformaValidityOptions();
+                updateProformaPreview();
+            });
+            proformaValidityTable?.addEventListener('change', () => {
+                proformaValidityRows = normalizeProformaValidityRows(proformaValidityRows);
+                renderProformaValidityRows();
+                queueConfigSave();
+            });
+            proformaValidityTable?.addEventListener('click', (event) => {
+                const deleteButton = event.target.closest('[data-proforma-validity-delete]');
+                if (!deleteButton) return;
+                const index = Number(deleteButton.dataset.proformaValidityDelete);
+                proformaValidityRows = proformaValidityRows.filter((_, currentIndex) => currentIndex !== index);
+                if (!proformaValidityRows.length) {
+                    proformaValidityRows = normalizeProformaValidityRows([]);
+                }
+                renderProformaValidityRows();
                 queueConfigSave();
             });
             [

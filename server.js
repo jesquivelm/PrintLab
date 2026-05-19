@@ -5002,8 +5002,8 @@ async function getProformaConfigSnapshot(config = {}) {
         : normalizeProformaCurrencyList(general.proformaCurrenciesJson);
     const preferredDefaultCurrency = currencies.some((item) => item.code === 'USD') ? 'USD' : String(general.proformaDefaultCurrency || '').trim().toUpperCase();
     const defaultCurrency = String(
-        exchangeContext.defaultCurrency
-        || preferredDefaultCurrency
+        preferredDefaultCurrency
+        || exchangeContext.defaultCurrency
         || currencies[0]?.code
         || 'USD'
     ).trim().toUpperCase();
