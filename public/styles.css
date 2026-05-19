@@ -5532,7 +5532,9 @@ body.shell-embedded .summary-footer {
 }
 .quote-browser-table.quote-table-compact thead th:nth-child(1),
 .quote-browser-table.quote-table-compact thead th:nth-child(2),
-.quote-browser-table.quote-table-compact thead th:nth-child(6) {
+.quote-browser-table.quote-table-compact thead th:nth-child(5),
+.quote-browser-table.quote-table-compact thead th:nth-child(6),
+.quote-browser-table.quote-table-compact thead th:nth-child(8) {
     text-align: center;
 }
 .quote-browser-table.quote-table-compact thead th:nth-child(3) {
@@ -5545,6 +5547,19 @@ body.shell-embedded .summary-footer {
     padding: 10px 8px;
     border-bottom: 1px solid #eef2f5;
     vertical-align: middle;
+}
+.quote-browser-table.quote-table-compact .quote-cell-value {
+    display: flex;
+    align-items: center;
+    min-height: 29px;
+    padding: 0 2px;
+    color: inherit;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.quote-browser-table.quote-table-compact .quote-cell-value.is-empty {
+    color: transparent;
 }
 .quote-browser-table.quote-table-compact tbody tr:hover td {
     background: #fbfdff;
@@ -5592,19 +5607,30 @@ body.shell-embedded .summary-footer {
     width: auto;
     min-width: 0;
 }
+.quote-browser-table.quote-table-compact tbody td:nth-child(5) .quote-cell-value,
 .quote-browser-table.quote-table-compact tbody td:nth-child(6) .quote-cell-value {
     justify-content: center;
     text-align: center;
 }
+.quote-browser-table.quote-table-compact .quote-detail-created-head {
+    font-weight: 400;
+}
+.quote-browser-table.quote-table-compact .quote-detail-date-cell .quote-cell-value {
+    color: var(--app-text-soft, #5f7080);
+    font-size: 12px;
+    font-weight: 400;
+    white-space: nowrap;
+}
 .quote-browser-table.quote-table-compact th:nth-child(4),
 .quote-browser-table.quote-table-compact td:nth-child(4) {
-    width: 40%;
+    width: auto;
     min-width: 250px;
 }
 .quote-browser-table.quote-table-compact th:nth-child(5),
 .quote-browser-table.quote-table-compact td:nth-child(5) {
-    width: 20%;
-    min-width: 120px;
+    width: 104px;
+    min-width: 104px;
+    text-align: center;
 }
 .quote-browser-table.quote-table-compact thead th.money-cell,
 .quote-browser-table.quote-table-compact tbody td.money-cell {
@@ -5614,8 +5640,18 @@ body.shell-embedded .summary-footer {
     justify-content: flex-end;
     text-align: right;
 }
+.quote-browser-table.quote-table-compact tbody td.money-cell .quote-cell-value.is-money {
+    color: #2c5282;
+    font-weight: 600;
+}
 .quote-browser-table.quote-table-compact th:nth-child(6),
 .quote-browser-table.quote-table-compact td:nth-child(6) {
+    width: 104px;
+    min-width: 104px;
+    text-align: center;
+}
+.quote-browser-table.quote-table-compact th:nth-child(7),
+.quote-browser-table.quote-table-compact td:nth-child(7) {
     width: 110px;
     min-width: 110px;
     text-align: right;
@@ -9330,7 +9366,8 @@ html[data-theme="dark"] .quote-line-summary-meta {
 }
 
 html[data-theme="dark"] .quote-table .money-cell .quote-cell-value.is-money,
-html[data-theme="dark"] .quote-browser-table.quote-table-compact tbody td:nth-child(6) input {
+html[data-theme="dark"] .quote-browser-table.quote-table-compact .money-cell .quote-cell-value.is-money,
+html[data-theme="dark"] .quote-browser-table.quote-table-compact tbody td:nth-child(7) input {
     color: var(--app-primary-strong);
 }
 

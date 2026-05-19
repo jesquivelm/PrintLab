@@ -817,6 +817,8 @@ function createRowSkeleton() {
         subtotal2: '',
         subtotal3: '',
         subtotal4: '',
+        createdOn: currentQuote?.created_on || '',
+        dueOn: currentQuote?.due_on || '',
         ocultar: false,
         opcional: false,
         prueba: true,
@@ -1030,7 +1032,7 @@ function visibleSubtotalColumns(rows) {
 }
 
 function subtotalHeaderLabel(index, total) {
-    return total <= 1 ? 'Subtotal' : `Subtotal ${index + 1}`;
+    return total <= 1 ? 'Monto' : `Monto ${index + 1}`;
 }
 
 function renderSubtotalCells(row, subtotalKeys) {
@@ -1056,6 +1058,8 @@ function renderDataRow(row, index, subtotalKeys) {
             </td>
             <td>${quoteCellMarkup(row.linea)}</td>
             <td>${renderLineSummary(row, index)}</td>
+            <td class="quote-detail-date-cell is-created">${quoteCellMarkup(formatDate(row.createdOn))}</td>
+            <td class="quote-detail-date-cell">${quoteCellMarkup(formatDate(row.dueOn))}</td>
             ${renderSubtotalCells(row, subtotalKeys)}
             <td>
                 <div class="row-tools row-tools-row-end">
@@ -1082,7 +1086,7 @@ function renderBlankRow(isFirstBlank, subtotalColumnCount) {
                     ` : ''}
                 </div>
             </td>
-            <td></td><td></td>${blankSubtotalCells}<td></td>
+            <td></td><td></td><td></td><td></td>${blankSubtotalCells}<td></td>
         </tr>
     `;
 }
@@ -1090,13 +1094,15 @@ function renderBlankRow(isFirstBlank, subtotalColumnCount) {
 function renderRows() {
     const rows = filteredRows();
     const subtotalKeys = visibleSubtotalColumns(rows);
-    const headerRow = document.querySelector('.quote-table thead tr');
+    const headerRow = document.querySelector('.quote-browser-table.quote-table-compact thead tr');
     if (headerRow) {
         headerRow.innerHTML = `
             <th class="col-index"></th>
             <th class="col-actions"></th>
             <th>L&iacute;nea</th>
             <th>Descripci&oacute;n</th>
+            <th class="quote-detail-created-head">Creación</th>
+            <th>Vencimiento</th>
             ${renderSubtotalHeaderCells(subtotalKeys)}
             <th class="col-row-actions"></th>
         `;
@@ -1644,6 +1650,8 @@ function applyQuotePayload(payload) {
         originalLinea: line.line_code || '',
         lineOrder: Number(line.line_order) || index + 1,
         rawData: line.raw_data || {},
+        createdOn: line.created_on || line.raw_data?.['FECHA CREACION DATE'] || line.raw_data?.['FECHA CREACION'] || quote?.created_on || '',
+        dueOn: line.due_on || line.raw_data?.['FECHA VENCIMIENTO'] || quote?.due_on || '',
         departamento: line.department || 'Flexografia',
         nombreTrabajo: line.job_name || '',
         material: line.material_name || '',
@@ -1955,6 +1963,8 @@ async function persistNewRow() {
         linea: linea.line_code,
         originalLinea: linea.line_code,
         lineOrder: Number(linea.line_order) || (quoteRows.length + 1),
+        createdOn: linea.created_on || linea.raw_data?.['FECHA CREACION DATE'] || linea.raw_data?.['FECHA CREACION'] || currentQuote?.created_on || '',
+        dueOn: linea.due_on || linea.raw_data?.['FECHA VENCIMIENTO'] || currentQuote?.due_on || '',
         nombreTrabajo: linea.job_name || '',
         material: linea.material_name || '',
         medidaFija: linea.raw_data?.['REQ | Medida Fija'] || '',
@@ -2023,6 +2033,8 @@ async function saveRow(row) {
             finalizadaOrden: Boolean(saved.finalized_for_order || saved.raw_data?.['CODEX_FINALIZED_FOR_ORDER'] || item.finalizadaOrden),
             estado: saved.status || item.estado,
             lineOrder: Number(saved.line_order) || item.lineOrder,
+            createdOn: saved.created_on || saved.raw_data?.['FECHA CREACION DATE'] || saved.raw_data?.['FECHA CREACION'] || item.createdOn,
+            dueOn: saved.due_on || saved.raw_data?.['FECHA VENCIMIENTO'] || item.dueOn,
             subtotal1: saved.subtotal_1 ?? item.subtotal1,
             productId: saved.product_code || item.productId,
             processType: saved.process_type || item.processType,
