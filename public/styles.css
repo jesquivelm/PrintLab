@@ -5046,83 +5046,255 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     line-height: 1.5;
 }
 .production-flow-popover-panel {
-    width: min(520px, calc(100vw - 40px));
+    width: min(620px, calc(100vw - 32px));
+    max-height: calc(100vh - 48px);
+    top: 24px;
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    transform: translateX(-50%);
+    border-radius: 22px;
+    background: #ffffff;
 }
 .production-flow-body {
     display: grid;
-    gap: 14px;
-    padding: 22px;
+    gap: 10px;
+    padding: 16px;
+    overflow: auto;
+    background: #f0f2f8;
 }
-.production-flow-head {
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-    align-items: center;
-    padding: 12px 14px;
-    border: 1px solid #dbe5ec;
-    border-radius: 12px;
-    background: #fbfdff;
-    color: #203746;
-}
-.production-flow-head span {
-    color: #70808d;
-    font-size: 12px;
-}
-.production-flow-list {
+.production-flow-shell {
     display: grid;
-    gap: 8px;
+    gap: 10px;
+}
+.production-flow-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 20px 22px;
+    border-radius: 22px;
+    background: #ffffff;
+    box-shadow: 0 4px 12px rgba(15, 17, 23, .08), 0 1px 4px rgba(15, 17, 23, .06);
+}
+.production-flow-header div:first-child {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+.production-flow-header span {
+    font-size: 11px;
+    font-weight: 500;
+    color: #9499b0;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+.production-flow-header strong {
+    font-size: 18px;
+    color: #0f1117;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.production-flow-header em {
+    font-size: 13px;
+    color: #5c6078;
+    font-style: normal;
+}
+.production-flow-live {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #9499b0;
+    font-size: 11px;
+    white-space: nowrap;
+}
+.production-flow-live span {
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    background: #c8cbda;
+}
+.production-flow-live.is-live span {
+    background: #059669;
+    box-shadow: 0 0 0 4px rgba(5, 150, 105, .16);
+}
+.production-flow-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 5px;
+    border-radius: 16px;
+    background: #f6f7fb;
+}
+.production-flow-tabs button {
+    flex: 1;
+    min-height: 34px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: #5c6078;
+    font-size: 13px;
+    font-weight: 500;
+}
+.production-flow-tabs button.is-active {
+    background: #ffffff;
+    color: #0f1117;
+    box-shadow: 0 1px 3px rgba(15,17,23,.07), 0 1px 2px rgba(15,17,23,.05);
+}
+.production-flow-view {
+    display: none;
+}
+.production-flow-view.is-active {
+    display: block;
+}
+.production-flow-panel {
+    overflow: hidden;
+    border-radius: 22px;
+    background: #ffffff;
+    box-shadow: 0 4px 12px rgba(15, 17, 23, .08), 0 1px 4px rgba(15, 17, 23, .06);
+}
+.production-flow-panel-head {
+    display: flex;
+    justify-content: space-between;
+    padding: 16px 22px 14px;
+    border-bottom: 1px solid #eceef5;
+}
+.production-flow-panel-head div {
+    display: grid;
+    gap: 1px;
+}
+.production-flow-panel-head strong {
+    font-size: 14px;
+    color: #0f1117;
+}
+.production-flow-panel-head span {
+    font-size: 12px;
+    color: #9499b0;
+}
+.production-flow-timeline {
+    display: grid;
+    padding: 20px 22px 8px;
 }
 .production-flow-step {
     display: grid;
-    grid-template-columns: 24px minmax(0, 1fr);
-    gap: 10px;
-    padding: 10px 12px;
+    grid-template-columns: 52px minmax(0, 1fr);
+    gap: 0 14px;
+    padding: 0;
     position: relative;
-    border: 1px solid #dbe5ec;
-    border-radius: 12px;
-    background: #fbfdff;
+    border: 0;
+    background: transparent;
 }
 .production-flow-step:not(:last-child)::after {
-    content: none;
+    content: '';
+    position: absolute;
+    left: 25px;
+    top: 46px;
+    bottom: -16px;
+    width: 2px;
+    border-radius: 1px;
+    background: repeating-linear-gradient(to bottom, #dde0ed 0, #dde0ed 5px, transparent 5px, transparent 9px);
 }
 .production-flow-marker {
-    width: 22px;
-    height: 22px;
+    width: 48px;
+    height: 48px;
     border-radius: 999px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: 1px dashed #cfdce6;
-    color: #7890a3;
-    background: #fff;
-    font-size: 12px;
+    border: 2px solid #dde0ed;
+    color: #9499b0;
+    background: #f6f7fb;
+    font-size: 15px;
     font-weight: 700;
     z-index: 1;
 }
 .production-flow-step.is-active .production-flow-marker {
-    border-style: solid;
-    border-color: #38a5d6;
-    color: #0b75a4;
-    background: #eef8fe;
+    border-color: #bfcffe;
+    color: #2563eb;
+    background: #eff4ff;
+}
+.production-flow-step.is-stopped .production-flow-marker {
+    border-color: #fecaca;
+    color: #dc2626;
+    background: #fef2f2;
 }
 .production-flow-step.is-done .production-flow-marker {
-    border-color: #16a34a;
-    background: #16a34a;
+    border-color: #a7f3d0;
+    background: #059669;
     color: #fff;
 }
 .production-flow-copy {
     display: grid;
-    gap: 2px;
+    gap: 4px;
     min-width: 0;
+    padding-bottom: 22px;
 }
 .production-flow-copy strong {
-    font-size: 13px;
-    color: #203746;
+    font-size: 14px;
+    color: #0f1117;
 }
 .production-flow-copy span,
 .production-flow-copy small {
-    color: #70808d;
+    color: #5c6078;
     font-size: 12px;
+    line-height: 1.35;
+}
+.production-flow-compare {
+    display: grid;
+    gap: 12px;
+    padding: 16px 22px 20px;
+}
+.production-flow-compare-row {
+    display: grid;
+    gap: 10px;
+    padding: 14px;
+    border: 1px solid #eceef5;
+    border-radius: 16px;
+    background: #ffffff;
+}
+.production-flow-compare-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+.production-flow-compare-title strong {
+    font-size: 13px;
+    color: #0f1117;
+}
+.production-flow-compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+.production-flow-compare-grid > div {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+    padding: 11px;
+    border-radius: 12px;
+    background: #f6f7fb;
+}
+.production-flow-compare-grid span {
+    font-size: 11px;
+    font-weight: 700;
+    color: #9499b0;
+}
+.production-flow-compare-grid strong {
+    font-size: 13px;
+    color: #0f1117;
+}
+.production-flow-compare-grid em {
+    font-size: 11px;
+    color: #5c6078;
+    font-style: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.production-flow-compare-grid .is-over {
+    color: #dc2626;
 }
 .socios-table-wrap {
     overflow: auto;
@@ -11227,6 +11399,14 @@ html[data-theme="dark"] .planning-queue-pill {
 }
 
 html[data-theme="dark"] .production-product-key-grid,
+html[data-theme="dark"] .production-flow-popover-panel,
+html[data-theme="dark"] .production-flow-body,
+html[data-theme="dark"] .production-flow-header,
+html[data-theme="dark"] .production-flow-tabs,
+html[data-theme="dark"] .production-flow-tabs button.is-active,
+html[data-theme="dark"] .production-flow-panel,
+html[data-theme="dark"] .production-flow-compare-row,
+html[data-theme="dark"] .production-flow-compare-grid > div,
 html[data-theme="dark"] .production-flow-head,
 html[data-theme="dark"] .production-flow-step,
 html[data-theme="dark"] .production-flow-marker,
@@ -11236,6 +11416,45 @@ html[data-theme="dark"] .production-date-field input {
     background: var(--app-surface-soft) !important;
     color: var(--app-text) !important;
     border-color: var(--app-border) !important;
+}
+
+html[data-theme="dark"] .production-flow-header strong,
+html[data-theme="dark"] .production-flow-panel-head strong,
+html[data-theme="dark"] .production-flow-tabs button.is-active,
+html[data-theme="dark"] .production-flow-copy strong,
+html[data-theme="dark"] .production-flow-compare-title strong,
+html[data-theme="dark"] .production-flow-compare-grid strong {
+    color: var(--app-text) !important;
+}
+
+html[data-theme="dark"] .production-flow-header span,
+html[data-theme="dark"] .production-flow-header em,
+html[data-theme="dark"] .production-flow-live,
+html[data-theme="dark"] .production-flow-tabs button,
+html[data-theme="dark"] .production-flow-panel-head span,
+html[data-theme="dark"] .production-flow-copy span,
+html[data-theme="dark"] .production-flow-copy small,
+html[data-theme="dark"] .production-flow-compare-grid span,
+html[data-theme="dark"] .production-flow-compare-grid em {
+    color: var(--app-text-muted) !important;
+}
+
+html[data-theme="dark"] .production-flow-step.is-done .production-flow-marker {
+    background: #059669 !important;
+    color: #ffffff !important;
+    border-color: #34d399 !important;
+}
+
+html[data-theme="dark"] .production-flow-step.is-active .production-flow-marker {
+    background: rgba(37, 99, 235, .18) !important;
+    color: #93c5fd !important;
+    border-color: #60a5fa !important;
+}
+
+html[data-theme="dark"] .production-flow-step.is-stopped .production-flow-marker {
+    background: rgba(220, 38, 38, .18) !important;
+    color: #fca5a5 !important;
+    border-color: #f87171 !important;
 }
 
 html[data-theme="dark"] .production-planning-process,

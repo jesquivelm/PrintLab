@@ -7259,6 +7259,35 @@ function inferRouteProcessKeys(orderRow = {}) {
     return normalizePlanningProcessKeys([...keys]);
 }
 
+function orderTrackingProcessKeys(orderRow = {}, routeRows = []) {
+    const raw = orderRow?.raw_data || {};
+    const selected = normalizePlanningProcessKeys(raw?.planning_control?.selectedProcessKeys || raw?.planningControl?.selectedProcessKeys || []);
+    const quoted = getQuotedPlanningProcessKeys(orderRow);
+    const sourceKeys = selected.length ? selected : quoted;
+    const keys = new Set(sourceKeys.map(canonicalProductionFlowKey).filter((key) => PRODUCTION_FLOW_SEQUENCE.includes(key)));
+    if (keys.has('impresion')) {
+        ['diseno', 'preprensa', 'visto_bueno', 'planchas', 'tintas', 'impresion'].forEach((key) => keys.add(key));
+    }
+    if (!keys.size) {
+        routeRows.forEach((row) => {
+            const key = canonicalProductionFlowKey(row.process_key || row.process_name);
+            if (PRODUCTION_FLOW_SEQUENCE.includes(key)) keys.add(key);
+        });
+    }
+    return [...keys];
+}
+
+function processOrderFromCosts(costsConfig = {}) {
+    const rows = Array.isArray(costsConfig?.general?.processDefaults) ? costsConfig.general.processDefaults : [];
+    const order = new Map();
+    rows.forEach((row, index) => {
+        const key = canonicalProductionFlowKey(row?.key || row?.label);
+        if (key && !order.has(key)) order.set(key, Number(row?.order || ((index + 1) * 10)));
+    });
+    if (order.has('preprensa') && !order.has('visto_bueno')) order.set('visto_bueno', order.get('preprensa') + 0.5);
+    return order;
+}
+
 async function listLiveOrders() {
     const result = await pgQuery(`
         SELECT order_code, quote_code, line_code, product_code, machine_name, material_code, die_code,
@@ -14014,6 +14043,7 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
         if (!orderResult.rows.length) {
             return res.status(404).json({ ok: false, error: 'Orden de producción no encontrada.' });
         }
+        const orderRow = orderResult.rows[0];
         const routeResult = await pgQuery(`
             SELECT
                 r.id::text AS route_id,
@@ -14021,12 +14051,20 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
                 r.process_name,
                 r.route_status,
                 r.sequence_order,
+                r.duration_hours,
+                r.machine_profile_id::text AS machine_profile_id,
                 r.actual_start_at,
                 r.actual_end_at,
                 e.operator_name,
                 e.event_type,
                 e.notes,
-                e.created_at AS event_created_at
+                e.created_at AS event_created_at,
+                w.feet_consumed,
+                w.setup_waste_feet,
+                w.run_waste_feet,
+                w.useful_feet,
+                w.final_speed_fpm,
+                w.created_at AS waste_created_at
             FROM production_order_routes r
             LEFT JOIN LATERAL (
                 SELECT *
@@ -14035,22 +14073,48 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
                 ORDER BY ev.created_at DESC
                 LIMIT 1
             ) e ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT *
+                FROM production_waste_logs wl
+                WHERE wl.route_id = r.id
+                ORDER BY wl.created_at DESC
+                LIMIT 1
+            ) w ON TRUE
             WHERE r.order_code = $1
             ORDER BY r.sequence_order, r.created_at
         `, [req.params.codigo]);
+        const costsConfig = await loadCostsConfig();
+        const orderMap = processOrderFromCosts(costsConfig);
+        const processKeys = orderTrackingProcessKeys(orderRow, routeResult.rows)
+            .sort((left, right) => (orderMap.get(left) ?? 999) - (orderMap.get(right) ?? 999));
+        const raw = orderRow.raw_data || {};
+        const control = getOrderPlanningControl(raw);
+        const snapshot = raw.planning_snapshot || raw.planningSnapshot || {};
+        const snapshotByKey = new Map((Array.isArray(snapshot.processes) ? snapshot.processes : []).map((process) => [
+            canonicalProductionFlowKey(process.processKey || process.processName),
+            process
+        ]));
         const grouped = new Map();
         routeResult.rows.forEach((row) => {
             const key = canonicalProductionFlowKey(row.process_key || row.process_name);
-            if (!PRODUCTION_FLOW_SEQUENCE.includes(key)) return;
+            if (!processKeys.includes(key)) return;
             const current = grouped.get(key) || {
                 processKey: key,
                 processName: PRODUCTION_FLOW_LABELS[key],
                 routeStatus: 'PENDIENTE',
+                routeId: row.route_id,
+                durationHours: Number(row.duration_hours || 0),
                 completedBy: '',
                 completedAt: null,
                 startedAt: null,
-                notes: ''
+                notes: '',
+                realMinutes: 0,
+                feetConsumed: 0,
+                usefulFeet: 0,
+                finalSpeedFpm: 0
             };
+            current.routeId = current.routeId || row.route_id;
+            current.durationHours = Math.max(current.durationHours, Number(row.duration_hours || 0));
             if (row.route_status === 'COMPLETADO' || current.routeStatus !== 'COMPLETADO') {
                 current.routeStatus = row.route_status || current.routeStatus;
                 current.completedBy = row.route_status === 'COMPLETADO' ? (row.operator_name || current.completedBy) : current.completedBy;
@@ -14058,22 +14122,85 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
                 current.startedAt = row.actual_start_at || current.startedAt;
                 current.notes = row.notes || current.notes;
             }
+            const startAt = row.actual_start_at ? new Date(row.actual_start_at) : null;
+            const endAt = row.actual_end_at ? new Date(row.actual_end_at) : null;
+            if (startAt && !Number.isNaN(startAt.getTime())) {
+                const end = endAt && !Number.isNaN(endAt.getTime()) ? endAt : new Date();
+                current.realMinutes = Math.max(current.realMinutes, Math.round((end.getTime() - startAt.getTime()) / 60000));
+            }
+            current.feetConsumed = Math.max(current.feetConsumed, Number(row.feet_consumed || 0));
+            current.usefulFeet = Math.max(current.usefulFeet, Number(row.useful_feet || 0));
+            current.finalSpeedFpm = Math.max(current.finalSpeedFpm, Number(row.final_speed_fpm || 0));
             grouped.set(key, current);
         });
-        const steps = PRODUCTION_FLOW_SEQUENCE.map((key, index) => {
+        const fixedSteps = [
+            {
+                processKey: 'orden_creada',
+                processName: 'Creación de orden',
+                sequenceOrder: 1,
+                routeStatus: 'COMPLETADO',
+                completedBy: pickFirstValue(raw.created_by, raw.createdBy, 'Sistema'),
+                completedAt: orderRow.created_at || null,
+                startedAt: orderRow.created_at || null,
+                notes: ''
+            },
+            {
+                processKey: 'solicitud_vendedor',
+                processName: 'Solicitud del vendedor',
+                sequenceOrder: 2,
+                routeStatus: control.salesReleased ? 'COMPLETADO' : 'PENDIENTE',
+                completedBy: control.salesReleasedBy || raw.salesperson_name || raw.quote_snapshot?.salesperson_name || '',
+                completedAt: control.salesReleasedAt || null,
+                startedAt: control.salesReleasedAt || null,
+                notes: control.returnReason || ''
+            },
+            {
+                processKey: 'planeacion',
+                processName: 'Planeación',
+                sequenceOrder: 3,
+                routeStatus: control.launchedToGantt ? 'COMPLETADO' : (control.planningStatus === 'PENDIENTE_PLANIFICACION' ? 'RUN' : 'PENDIENTE'),
+                completedBy: control.launchedBy || control.processSelectionUpdatedBy || '',
+                completedAt: control.launchedAt || null,
+                startedAt: control.processSelectionUpdatedAt || control.salesReleasedAt || null,
+                notes: control.returnReason || ''
+            }
+        ];
+        const processSteps = processKeys.map((key, index) => {
             const item = grouped.get(key) || {};
+            const planned = snapshotByKey.get(key) || {};
             return {
                 processKey: key,
-                processName: PRODUCTION_FLOW_LABELS[key],
-                sequenceOrder: index + 1,
+                processName: planned.processName || item.processName || PRODUCTION_FLOW_LABELS[key],
+                sequenceOrder: index + 4,
                 routeStatus: item.routeStatus || 'PENDIENTE',
                 completedBy: item.completedBy || '',
                 completedAt: item.completedAt || null,
                 startedAt: item.startedAt || null,
-                notes: item.notes || ''
+                notes: item.notes || '',
+                planned: {
+                    minutes: Number(planned.durationHours || item.durationHours || 0) * 60,
+                    setupMinutes: Number(planned.setupMinutes || 0),
+                    machineName: planned.machineName || '',
+                    quantity: Number(planned.baseFeet || snapshot.baseFeet || 0),
+                    unit: 'ft'
+                },
+                real: {
+                    minutes: Number(item.realMinutes || 0),
+                    quantity: Number(item.feetConsumed || 0),
+                    usefulQuantity: Number(item.usefulFeet || 0),
+                    speedFpm: Number(item.finalSpeedFpm || 0),
+                    unit: 'ft'
+                }
             };
         });
-        res.json({ ok: true, order: orderResult.rows[0], steps });
+        const live = processSteps.some((step) => ['RUN', 'SETUP', 'PARO'].includes(String(step.routeStatus || '').toUpperCase()));
+        res.json({
+            ok: true,
+            order: orderRow,
+            live,
+            steps: [...fixedSteps, ...processSteps],
+            comparisons: processSteps
+        });
     } catch (error) {
         res.status(500).json({ ok: false, error: error.message || 'No fue posible cargar el seguimiento de la orden.' });
     }

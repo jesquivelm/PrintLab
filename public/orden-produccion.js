@@ -72,6 +72,7 @@ let currentOutputTypes = [];
 let currentOrderAttachments = [];
 let currentArtworkAttachment = null;
 let currentOrderFlowSteps = [];
+let currentOrderFlowPayload = null;
 let trackingUserPhotos = new Map();
 let artworkSectionBaseHeight = 0;
 let artworkSectionMaxHeight = 0;
@@ -420,38 +421,128 @@ function renderPlanningSnapshot(raw = {}) {
     bindTrackingAvatarFallback(planningSnapshotList);
 }
 
-function renderOrderFlowSteps(steps = []) {
+function formatFlowMinutes(value) {
+    const minutes = Number(value || 0);
+    if (!Number.isFinite(minutes) || minutes <= 0) return '—';
+    if (minutes < 60) return `${Math.round(minutes)} min`;
+    return `${(minutes / 60).toLocaleString('es-CR', { maximumFractionDigits: 2 })} h`;
+}
+
+function formatFlowQuantity(value, unit = '') {
+    const qty = Number(value || 0);
+    if (!Number.isFinite(qty) || qty <= 0) return '—';
+    return `${qty.toLocaleString('es-CR', { maximumFractionDigits: 2 })}${unit ? ` ${unit}` : ''}`;
+}
+
+function flowStatusClass(status) {
+    const normalized = String(status || '').toUpperCase();
+    if (normalized === 'COMPLETADO') return 'is-done';
+    if (['RUN', 'SETUP'].includes(normalized)) return 'is-active';
+    if (normalized === 'PARO') return 'is-stopped';
+    return '';
+}
+
+function renderOrderTracking(payload = {}) {
     if (!orderFlowBody) return;
-    const visibleSteps = steps.filter((step) => isVisibleOrderProcess(step.processName || step.processKey));
-    if (!visibleSteps.length) {
+    const steps = Array.isArray(payload.steps) ? payload.steps : [];
+    const comparisons = Array.isArray(payload.comparisons) ? payload.comparisons : [];
+    if (!steps.length) {
         orderFlowBody.innerHTML = '<div class="production-summary-empty">Sin marcas de seguimiento registradas.</div>';
         return;
     }
+    const order = payload.order || currentLoadedOrder || {};
+    const raw = order.raw_data || {};
+    const quote = raw.quote_snapshot || {};
+    const line = raw.line_summary || {};
+    const doneCount = steps.filter((step) => String(step.routeStatus || '').toUpperCase() === 'COMPLETADO').length;
+    const live = Boolean(payload.live);
     orderFlowBody.innerHTML = `
-        <div class="production-flow-head">
-            <strong>Flujo de Producción</strong>
-        </div>
-        <div class="production-flow-list">
-            ${visibleSteps.map((step) => {
-                const status = String(step.routeStatus || 'PENDIENTE').toUpperCase();
-                const isDone = status === 'COMPLETADO';
-                const isActive = ['RUN', 'SETUP', 'PARO'].includes(status);
-                const marker = isDone ? '✓' : '';
-                const user = step.completedBy || step.startedBy || '';
-                const when = formatDate(step.completedAt || step.startedAt, true);
-                return `
-                    <article class="production-flow-step${isDone ? ' is-done' : ''}${isActive ? ' is-active' : ''}">
-                        <div class="production-flow-marker">${escapeHtml(marker)}</div>
-                        <div class="production-flow-copy">
-                            <strong>${escapeHtml(step.processName || 'Proceso')}</strong>
-                            ${user ? `<span>${escapeHtml(user)}</span>` : ''}
-                            ${when ? `<small>${escapeHtml(when)}</small>` : ''}
-                        </div>
-                    </article>
-                `;
-            }).join('')}
+        <div class="production-flow-shell">
+            <div class="production-flow-header">
+                <div>
+                    <span>${escapeHtml(order.order_code || currentOrderCode || 'Orden')}</span>
+                    <strong>${escapeHtml(raw.customer_name || quote.customer_name || 'Sin cliente')}</strong>
+                    <em>${escapeHtml(line.job_name || line.product_name || raw.product_name || 'Sin producto')}</em>
+                </div>
+                <div class="production-flow-live${live ? ' is-live' : ''}">
+                    <span></span>${live ? 'En vivo' : 'Sin proceso activo'}
+                </div>
+            </div>
+            <div class="production-flow-tabs">
+                <button type="button" class="is-active" data-order-flow-tab="flow">Flujo</button>
+                <button type="button" data-order-flow-tab="compare">Planificado vs. Real</button>
+            </div>
+            <section class="production-flow-view is-active" data-order-flow-view="flow">
+                <div class="production-flow-panel">
+                    <div class="production-flow-panel-head">
+                        <div><strong>Flujo de producción</strong><span>${doneCount} de ${steps.length} etapas completas</span></div>
+                    </div>
+                    <div class="production-flow-timeline">
+                        ${steps.map((step) => {
+                            const status = String(step.routeStatus || 'PENDIENTE').toUpperCase();
+                            const isDone = status === 'COMPLETADO';
+                            const isActive = ['RUN', 'SETUP', 'PARO'].includes(status);
+                            const user = step.completedBy || step.startedBy || '';
+                            const when = formatDate(step.completedAt || step.startedAt, true);
+                            return `
+                                <article class="production-flow-step ${flowStatusClass(status)}">
+                                    <div class="production-flow-marker">${isDone ? '✓' : ''}</div>
+                                    <div class="production-flow-copy">
+                                        <strong>${escapeHtml(step.processName || 'Proceso')}</strong>
+                                        <span>${escapeHtml(formatRouteStatus(status))}${isActive ? ' · En proceso' : ''}</span>
+                                        ${user ? `<small>${escapeHtml(user)}</small>` : ''}
+                                        ${when ? `<small>${escapeHtml(when)}</small>` : ''}
+                                        ${step.notes ? `<small>${escapeHtml(step.notes)}</small>` : ''}
+                                    </div>
+                                </article>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            </section>
+            <section class="production-flow-view" data-order-flow-view="compare">
+                <div class="production-flow-panel">
+                    <div class="production-flow-panel-head">
+                        <div><strong>Planificado vs. Real</strong><span>Cotización contra datos de producción</span></div>
+                    </div>
+                    <div class="production-flow-compare">
+                        ${comparisons.length ? comparisons.map((step) => {
+                            const planned = step.planned || {};
+                            const real = step.real || {};
+                            const timeOver = Number(real.minutes || 0) > 0 && Number(planned.minutes || 0) > 0 && Number(real.minutes) > Number(planned.minutes);
+                            const qtyOver = Number(real.quantity || 0) > 0 && Number(planned.quantity || 0) > 0 && Number(real.quantity) > Number(planned.quantity);
+                            return `
+                                <article class="production-flow-compare-row">
+                                    <div class="production-flow-compare-title">
+                                        <strong>${escapeHtml(step.processName || 'Proceso')}</strong>
+                                        ${['RUN', 'SETUP', 'PARO'].includes(String(step.routeStatus || '').toUpperCase()) ? '<span class="production-flow-live is-live"><span></span>En vivo</span>' : ''}
+                                    </div>
+                                    <div class="production-flow-compare-grid">
+                                        <div>
+                                            <span>Cotizado</span>
+                                            <strong>${escapeHtml(formatFlowMinutes(planned.minutes))}</strong>
+                                            <em>${escapeHtml(planned.machineName || 'Sin máquina')}</em>
+                                            <em>${escapeHtml(formatFlowQuantity(planned.quantity, planned.unit))}</em>
+                                        </div>
+                                        <div>
+                                            <span>Real</span>
+                                            <strong class="${timeOver ? 'is-over' : ''}">${escapeHtml(formatFlowMinutes(real.minutes))}</strong>
+                                            <em>${escapeHtml(real.speedFpm ? `${parseNumber(real.speedFpm)} ft/min` : 'Sin velocidad')}</em>
+                                            <em class="${qtyOver ? 'is-over' : ''}">${escapeHtml(formatFlowQuantity(real.quantity, real.unit))}</em>
+                                        </div>
+                                    </div>
+                                </article>
+                            `;
+                        }).join('') : '<div class="production-summary-empty">Sin comparación disponible.</div>'}
+                    </div>
+                </div>
+            </section>
         </div>
     `;
+}
+
+function renderOrderFlowSteps(steps = []) {
+    renderOrderTracking({ steps, comparisons: steps.filter((step) => step.planned || step.real) });
 }
 
 async function openOrderFlowPopover() {
@@ -459,7 +550,8 @@ async function openOrderFlowPopover() {
     openPopover('orderFlowPopover');
     if (orderFlowBody) orderFlowBody.innerHTML = '<div class="production-summary-empty">Cargando seguimiento...</div>';
     try {
-        renderOrderFlowSteps(await fetchOrderFlowSteps());
+        await fetchOrderFlowSteps();
+        renderOrderTracking(currentOrderFlowPayload);
     } catch (error) {
         if (orderFlowBody) orderFlowBody.innerHTML = `<div class="production-summary-empty">${escapeHtml(error.message)}</div>`;
     }
@@ -471,6 +563,7 @@ async function fetchOrderFlowSteps() {
     });
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || 'No se pudo cargar el seguimiento.');
+    currentOrderFlowPayload = payload;
     currentOrderFlowSteps = Array.isArray(payload.steps) ? payload.steps : [];
     return currentOrderFlowSteps;
 }
@@ -1349,6 +1442,13 @@ pantonesButton?.addEventListener('click', () => openPopover('orderPantonesPopove
 numberingButton?.addEventListener('click', () => openPopover('orderNumberingPopover'));
 attachmentsButton?.addEventListener('click', () => openPopover('orderAttachmentsPopover'));
 orderFlowToggleButton?.addEventListener('click', openOrderFlowPopover);
+orderFlowBody?.addEventListener('click', (event) => {
+    const tab = event.target?.closest?.('[data-order-flow-tab]');
+    if (!tab) return;
+    const target = tab.dataset.orderFlowTab;
+    orderFlowBody.querySelectorAll('[data-order-flow-tab]').forEach((button) => button.classList.toggle('is-active', button === tab));
+    orderFlowBody.querySelectorAll('[data-order-flow-view]').forEach((view) => view.classList.toggle('is-active', view.dataset.orderFlowView === target));
+});
 scheduledDateInput?.addEventListener('change', () => {
     saveOrderDetails({
         planningControl: {
