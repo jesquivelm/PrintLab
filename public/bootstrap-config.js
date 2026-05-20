@@ -24,7 +24,7 @@
         "notificationChatSend": "/assets/bootstrap/icons-notificationChatSend.png",
         "dashboardInventory": "/assets/bootstrap/icons-dashboardInventory.png",
         "dashboardOrders": "/assets/bootstrap/icons-dashboardOrders.png",
-        "dashboardProduction": "\u25A1",
+        "dashboardProduction": "\u{1F3ED}",
         "dashboardCosts": "/assets/bootstrap/icons-dashboardCosts.png",
         "dashboardSettings": "/assets/bootstrap/icons-dashboardSettings.png",
         "mobileQuotes": "▤",
