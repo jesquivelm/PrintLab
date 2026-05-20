@@ -4490,6 +4490,53 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     font-size: 12px;
     color: #70808d;
 }
+.production-planning-compare {
+    display: grid;
+    gap: 8px;
+}
+.production-planning-compare-head,
+.production-planning-compare-row {
+    display: grid;
+    grid-template-columns: minmax(110px, 0.8fr) minmax(160px, 1.2fr) minmax(140px, 1fr);
+    gap: 10px;
+    align-items: stretch;
+}
+.production-planning-compare-head {
+    color: #70808d;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+.production-planning-compare-row {
+    padding: 10px;
+    border: 1px solid #dbe5ec;
+    border-radius: 12px;
+    background: #fbfdff;
+}
+.production-planning-process,
+.production-planning-plan,
+.production-planning-received {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+    font-size: 12px;
+    color: #203746;
+}
+.production-planning-process strong,
+.production-planning-received strong {
+    font-size: 12px;
+    color: #203746;
+}
+.production-planning-process span,
+.production-planning-plan span,
+.production-planning-received span {
+    color: #70808d;
+    line-height: 1.35;
+}
+.production-planning-received.has-mark strong {
+    color: #17804c;
+}
 .production-order-layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(300px, 0.9fr);
@@ -4815,8 +4862,17 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
 }
 .production-order-popover-actions {
     display: flex;
-    justify-content: flex-end;
+    justify-content: flex-start;
+    gap: 10px;
+    flex-wrap: wrap;
     margin-bottom: 14px;
+}
+.production-order-popover-actions .action-btn {
+    min-height: 38px;
+    padding: 0 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
 }
 .production-order-popover-section {
     display: grid;
@@ -9040,6 +9096,12 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
         text-align: left;
         justify-content: flex-start;
     }
+    .production-planning-compare-head {
+        display: none;
+    }
+    .production-planning-compare-row {
+        grid-template-columns: 1fr;
+    }
 }
 @media (max-width: 920px) {
     .production-product-hero-main,
@@ -10965,10 +11027,26 @@ html[data-theme="dark"] .production-product-key-grid,
 html[data-theme="dark"] .production-flow-head,
 html[data-theme="dark"] .production-flow-step,
 html[data-theme="dark"] .production-flow-marker,
+html[data-theme="dark"] .production-planning-compare-row,
 html[data-theme="dark"] .production-date-field input {
     background: var(--app-surface-soft) !important;
     color: var(--app-text) !important;
     border-color: var(--app-border) !important;
+}
+
+html[data-theme="dark"] .production-planning-process,
+html[data-theme="dark"] .production-planning-plan,
+html[data-theme="dark"] .production-planning-received,
+html[data-theme="dark"] .production-planning-process strong,
+html[data-theme="dark"] .production-planning-received strong {
+    color: var(--app-text) !important;
+}
+
+html[data-theme="dark"] .production-planning-compare-head,
+html[data-theme="dark"] .production-planning-process span,
+html[data-theme="dark"] .production-planning-plan span,
+html[data-theme="dark"] .production-planning-received span {
+    color: var(--app-text-muted) !important;
 }
 
 html[data-theme="dark"] .production-order-card .production-summary-item,

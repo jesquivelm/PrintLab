@@ -67,6 +67,7 @@ let currentConfig = {};
 let currentOutputTypes = [];
 let currentOrderAttachments = [];
 let currentArtworkAttachment = null;
+let currentOrderFlowSteps = [];
 let artworkSectionBaseHeight = 0;
 let artworkSectionMaxHeight = 0;
 const SESSION_STORAGE_KEY = 'erp-user-session';
@@ -86,6 +87,27 @@ const DEFAULT_ICONS = {
     toggleOpen: '▴',
     view: '⌕'
 };
+
+const ORDER_VISIBLE_PROCESSES = ['diseno', 'preprensa', 'visto bueno', 'tintas', 'impresion', 'rebobinado', 'empaque'];
+
+function normalizeProcessName(value) {
+    return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+}
+
+function isVisibleOrderProcess(value) {
+    const name = normalizeProcessName(value);
+    if (!name || /plancha|acabado/.test(name)) return false;
+    return ORDER_VISIBLE_PROCESSES.some((item) => name.includes(item));
+}
+
+function findReceivedStep(process = {}) {
+    const plannedName = normalizeProcessName(process.processName || process.processKey);
+    if (!plannedName) return null;
+    return currentOrderFlowSteps.find((step) => {
+        const stepName = normalizeProcessName(step.processName || step.processKey);
+        return isVisibleOrderProcess(stepName) && (stepName === plannedName || stepName.includes(plannedName) || plannedName.includes(stepName));
+    }) || null;
+}
 
 if (shellEmbedded) document.body.classList.add('shell-embedded');
 
@@ -273,12 +295,7 @@ async function updatePlanningControl(action) {
 
 function renderPlanningSnapshot(raw = {}) {
     const snapshot = raw.planning_snapshot || raw.planningSnapshot || null;
-    const allowed = ['diseño', 'diseno', 'preprensa', 'visto bueno', 'tintas', 'impresión', 'impresion', 'rebobinado', 'empaque'];
-    const processes = (Array.isArray(snapshot?.processes) ? snapshot.processes : []).filter((process) => {
-        const name = String(process.processName || process.processKey || '').trim().toLowerCase();
-        if (/plancha|acabado/.test(name)) return false;
-        return allowed.some((item) => name.includes(item));
-    });
+    const processes = (Array.isArray(snapshot?.processes) ? snapshot.processes : []).filter((process) => isVisibleOrderProcess(process.processName || process.processKey));
     if (!snapshot || !processes.length) {
         planningSnapshotSummary.textContent = 'No hay una ruta de planificación estructurada disponible para esta orden.';
         planningSnapshotMeta.textContent = 'Cuando se regenere o se cree una orden nueva, aquí aparecerán los tiempos por proceso.';
@@ -287,29 +304,40 @@ function renderPlanningSnapshot(raw = {}) {
     }
     planningSnapshotSummary.textContent = `Planificado: ${processes.length} proceso(s), ${parseNumber(snapshot.baseFeet)} pies estimados y ${parseNumber(snapshot.tintCount)} tinta(s).`;
     planningSnapshotMeta.textContent = `Generada ${formatDate(snapshot.generatedAt, true)}. Base: ${snapshot.processType || 'Sin tipo'}${snapshot.sourceMachineName ? ` · Máquina sugerida: ${snapshot.sourceMachineName}` : ''}.`;
-    planningSnapshotList.innerHTML = processes.map((process) => `
-        <article class="production-order-planning-step">
-            <div class="production-order-planning-step-head">
-                <div class="production-order-planning-step-title">${escapeHtml(process.processName || process.processKey || 'Proceso')}</div>
-                <div class="production-order-planning-step-badge">${escapeHtml(String(process.sequenceOrder || ''))}</div>
-            </div>
-            <div class="production-order-planning-step-grid">
-                <div><span>Máquina</span><strong>${escapeHtml(process.machineName || 'Sin definir')}</strong></div>
-                <div><span>Duración</span><strong>${escapeHtml(parseNumber(process.durationHours, ' h') || '0 h')}</strong></div>
-                <div><span>Setup</span><strong>${escapeHtml(parseNumber(process.setupMinutes, ' min') || '0 min')}</strong></div>
-            </div>
-        </article>
-    `).join('');
+    planningSnapshotList.innerHTML = `
+        <div class="production-planning-compare">
+            <div class="production-planning-compare-head"><span>Proceso</span><span>Planificado</span><span>Recibido</span></div>
+            ${processes.map((process) => {
+                const received = findReceivedStep(process);
+                const receivedStatus = String(received?.routeStatus || '').trim();
+                const receivedUser = received?.completedBy || received?.startedBy || '';
+                const receivedDate = formatDate(received?.completedAt || received?.startedAt, true);
+                return `
+                    <article class="production-planning-compare-row">
+                        <div class="production-planning-process">
+                            <strong>${escapeHtml(process.processName || process.processKey || 'Proceso')}</strong>
+                            <span>${escapeHtml(String(process.sequenceOrder || ''))}</span>
+                        </div>
+                        <div class="production-planning-plan">
+                            <span>Máquina: ${escapeHtml(process.machineName || 'Sin definir')}</span>
+                            <span>Duración: ${escapeHtml(parseNumber(process.durationHours, ' h') || '0 h')}</span>
+                            <span>Setup: ${escapeHtml(parseNumber(process.setupMinutes, ' min') || '0 min')}</span>
+                        </div>
+                        <div class="production-planning-received ${received ? 'has-mark' : ''}">
+                            <strong>${escapeHtml(receivedStatus || 'Pendiente')}</strong>
+                            ${receivedUser ? `<span>${escapeHtml(receivedUser)}</span>` : ''}
+                            ${receivedDate ? `<span>${escapeHtml(receivedDate)}</span>` : ''}
+                        </div>
+                    </article>
+                `;
+            }).join('')}
+        </div>
+    `;
 }
 
 function renderOrderFlowSteps(steps = []) {
     if (!orderFlowBody) return;
-    const allowed = ['diseño', 'diseno', 'preprensa', 'visto bueno', 'tintas', 'impresión', 'impresion', 'rebobinado', 'empaque'];
-    const visibleSteps = steps.filter((step) => {
-        const name = String(step.processName || '').trim().toLowerCase();
-        if (/plancha|acabado/.test(name)) return false;
-        return allowed.some((item) => name.includes(item));
-    });
+    const visibleSteps = steps.filter((step) => isVisibleOrderProcess(step.processName || step.processKey));
     if (!visibleSteps.length) {
         orderFlowBody.innerHTML = '<div class="production-summary-empty">Sin marcas de seguimiento registradas.</div>';
         return;
@@ -346,14 +374,33 @@ async function openOrderFlowPopover() {
     openPopover('orderFlowPopover');
     if (orderFlowBody) orderFlowBody.innerHTML = '<div class="production-summary-empty">Cargando seguimiento...</div>';
     try {
-        const response = await fetch(`/api/ordenes-produccion/${encodeURIComponent(currentOrderCode)}/seguimiento`, {
-            headers: sessionHeader()
-        });
-        const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error || 'No se pudo cargar el seguimiento.');
-        renderOrderFlowSteps(Array.isArray(payload.steps) ? payload.steps : []);
+        renderOrderFlowSteps(await fetchOrderFlowSteps());
     } catch (error) {
         if (orderFlowBody) orderFlowBody.innerHTML = `<div class="production-summary-empty">${escapeHtml(error.message)}</div>`;
+    }
+}
+
+async function fetchOrderFlowSteps() {
+    const response = await fetch(`/api/ordenes-produccion/${encodeURIComponent(currentOrderCode)}/seguimiento`, {
+        headers: sessionHeader()
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || 'No se pudo cargar el seguimiento.');
+    currentOrderFlowSteps = Array.isArray(payload.steps) ? payload.steps : [];
+    return currentOrderFlowSteps;
+}
+
+async function openPlanningControlPopover() {
+    if (!currentOrderCode) return;
+    openPopover('orderPlanningPopover');
+    const raw = currentLoadedOrder?.raw_data || {};
+    planningSnapshotMeta.textContent = 'Cargando marcas reales...';
+    try {
+        await fetchOrderFlowSteps();
+        renderPlanningSnapshot(raw);
+    } catch (error) {
+        renderPlanningSnapshot(raw);
+        planningSnapshotMeta.textContent = error.message;
     }
 }
 
@@ -1110,8 +1157,8 @@ finishNotesInput?.addEventListener('input', queueNotesSave);
 releasePlanningButton?.addEventListener('click', () => updatePlanningControl('release-sales'));
 openPlanningQueueButton?.addEventListener('click', () => openRoute('/planificacion/lanzamiento', 'Cola de planificación'));
 popoverPlanningQueueButton?.addEventListener('click', () => openRoute('/planificacion/lanzamiento', 'Cola de planificación'));
-openPlanningButton?.addEventListener('click', () => openPopover('orderPlanningPopover'));
-stateButton?.addEventListener('click', () => openPopover('orderPlanningPopover'));
+openPlanningButton?.addEventListener('click', openPlanningControlPopover);
+stateButton?.addEventListener('click', openPlanningControlPopover);
 pantonesButton?.addEventListener('click', () => openPopover('orderPantonesPopover'));
     if (deliveriesButton) {
         deliveriesButton.title = 'Detalle de entregas';
