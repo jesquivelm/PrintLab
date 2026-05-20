@@ -4562,6 +4562,7 @@
                             <button type="button" class="design-subtab" data-design-tab="colores-tabs">Colores de Tabs</button>
                             <button type="button" class="design-subtab" data-design-tab="favoritos">Botón flotante</button>
                             <button type="button" class="design-subtab" data-design-tab="vista-movil">Vista móvil</button>
+                            <button type="button" class="design-subtab" data-design-tab="limites-carga">Dimensiones de carga</button>
                         </div>
 
                         <div id="tab-datos-generales" class="design-subpanel">
@@ -5279,6 +5280,20 @@
                             </div>
                             <p style="margin-top:10px; color:#6f7a84; font-size:12px;">
                                 En escritorio seguirás viendo cotizaciones normales, salvo cuando abras la vista de validación o uses <code>?mobilePreview=1</code>.
+                            </p>
+                        </section>
+                        </div>
+                        <div id="tab-limites-carga" class="design-subpanel" hidden>
+                        <section class="config-card">
+                            <h2>Dimensiones de carga</h2>
+                            <div class="config-form-row">
+                                <label>
+                                    <span>Tamaño máximo de subida (MB)</span>
+                                    <input type="number" name="general.maxUploadMb" min="1" max="500" value="10" style="width:100px;">
+                                </label>
+                            </div>
+                            <p style="margin-top:10px; color:#6f7a84; font-size:12px;">
+                                Límite aplicado a subida de archivos adjuntos en notificaciones y mensajes.
                             </p>
                         </section>
                         </div>

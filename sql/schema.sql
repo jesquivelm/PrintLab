@@ -238,3 +238,5 @@ CREATE INDEX IF NOT EXISTS idx_flexo_orders_line_code ON flexo_orders(line_code)
 CREATE INDEX IF NOT EXISTS idx_flexo_orders_quote_line ON flexo_orders(quote_code, line_code);
 CREATE INDEX IF NOT EXISTS idx_flexo_calculations_quote_line_created ON flexo_calculations(quote_code, line_code, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_flexo_products_quote_line ON flexo_products(quote_code, line_code);
+CREATE INDEX IF NOT EXISTS idx_notification_messages_recipient_read ON notification_center_messages(recipient_user_id, read_at);
+CREATE INDEX IF NOT EXISTS idx_notification_participants_user ON notification_center_participants(user_id);

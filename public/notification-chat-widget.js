@@ -126,7 +126,11 @@
             this.isLoadingThreads = false;
             this.docSwipe = null;
             this.suppressDocClick = false;
+            this.maxUploadBytes = (Number(options.maxUploadMb) || 10) * 1024 * 1024;
             this.isDeletingThread = false;
+            this.messageOffset = 0;
+            this.hasMoreMessages = false;
+            this.isLoadingMore = false;
             this.drag = null;
             this.root = null;
         }
@@ -386,7 +390,6 @@
             </div>`;
             const messages = body.querySelector('.nc-messages');
             if (messages) messages.scrollTop = messages.scrollHeight;
-            this.hydrateAttachmentUrls().catch(() => {});
         }
 
         renderContacts() {
@@ -479,7 +482,8 @@
 
         renderMessages() {
             if (!this.messages.length) return '<div class="nc-empty"><i class="ti ti-message-2" aria-hidden="true"></i><p>No hay mensajes en este hilo.</p></div>';
-            return this.messages.map((message) => {
+            const loadMore = this.hasMoreMessages ? `<button type="button" class="nc-load-more" data-ncw-load-more>${this.isLoadingMore ? 'Cargando...' : 'Cargar mensajes anteriores'}</button>` : '';
+            return loadMore + this.messages.map((message) => {
                 const own = this.isOwn(message);
                 const attachments = Array.isArray(message.attachments) ? message.attachments.slice(0, MAX_ATTACHMENTS) : [];
                 return `<div class="nc-msg-wrap${own ? ' own' : ''}">
@@ -505,12 +509,13 @@
         renderAttachmentCard(item) {
             const key = attachmentKey(item);
             const cachedHref = key ? this.attachmentObjectUrls.get(key) : '';
-            const pendingDownload = Boolean(item.downloadUrl && !cachedHref && !item.contentBase64);
-            const href = pendingDownload ? '#' : (cachedHref || attachmentHref(item));
             const isImage = String(item.mimeType || '').startsWith('image/');
-            const canPreviewImage = isImage && href && href !== '#';
-            return `<a class="nc-attachment-card${isImage ? ' is-image' : ''}" href="${esc(href)}" target="_blank" rel="noopener" download="${esc(item.fileName || 'adjunto')}">
-                ${canPreviewImage ? `<img src="${esc(href)}" alt="${esc(item.fileName || 'Imagen')}">` : `<span class="nc-attachment-ext">${esc(isImage ? 'img' : (fileExt(item.fileName) || 'file'))}</span>`}
+            const hasPreview = isImage && Boolean(item.previewBase64);
+            const isLoaded = Boolean(cachedHref || item.contentBase64);
+            const imgSrc = hasPreview && !isLoaded ? item.previewBase64 : (cachedHref || attachmentHref(item));
+            const showPreview = hasPreview && !isLoaded;
+            return `<a class="nc-attachment-card${isImage ? ' is-image' : ''}${showPreview ? ' has-preview' : ''}" href="${esc(cachedHref || attachmentHref(item))}" target="_blank" rel="noopener" download="${esc(item.fileName || 'adjunto')}" data-ncw-attachment-key="${esc(key)}">
+                ${isImage ? `<img src="${esc(imgSrc)}" alt="${esc(item.fileName || 'Imagen')}" loading="lazy">${showPreview ? '<span class="nc-preview-overlay">Cargar imagen</span>' : ''}` : `<span class="nc-attachment-ext">${esc(isImage ? 'img' : (fileExt(item.fileName) || 'file'))}</span>`}
                 <span><strong>${esc(item.fileName || 'Adjunto')}</strong><em>${esc(formatSize(item.sizeBytes))}</em></span>
             </a>`;
         }
@@ -549,14 +554,36 @@
             if (!code) return;
             this.activeThreadCode = code;
             this.attachmentDrafts = [];
-            const response = await fetch(`${THREAD_ENDPOINT}/${encodeURIComponent(code)}/messages`, { headers: this.headers() });
+            this.messageOffset = 0;
+            this.hasMoreMessages = false;
+            const response = await fetch(`${THREAD_ENDPOINT}/${encodeURIComponent(code)}/messages?limit=50&offset=0`, { headers: this.headers() });
             const payload = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(payload.error || 'No fue posible cargar la conversación.');
             this.messages = Array.isArray(payload.items) ? payload.items : [];
+            this.hasMoreMessages = Boolean(payload.hasMore);
+            this.messageOffset = this.messages.length;
             this.threads = this.threads.map((thread) => thread.threadCode === code ? { ...thread, unreadCount: 0 } : thread);
             this.contacts = this.groupContacts();
             this.render();
             this.onChanged?.();
+        }
+
+        async loadMoreMessages() {
+            if (this.isLoadingMore || !this.hasMoreMessages || !this.activeThreadCode) return;
+            this.isLoadingMore = true;
+            this.render();
+            try {
+                const response = await fetch(`${THREAD_ENDPOINT}/${encodeURIComponent(this.activeThreadCode)}/messages?limit=50&offset=${this.messageOffset}`, { headers: this.headers() });
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok) return;
+                const more = Array.isArray(payload.items) ? payload.items : [];
+                this.messages = [...more, ...this.messages];
+                this.hasMoreMessages = Boolean(payload.hasMore);
+                this.messageOffset += more.length;
+            } finally {
+                this.isLoadingMore = false;
+                this.render();
+            }
         }
 
         async sendMessage() {
@@ -656,6 +683,12 @@
             if (this.isSending || this.isReadingAttachments) return;
             const selected = Array.from(files || []).slice(0, Math.max(0, MAX_ATTACHMENTS - this.attachmentDrafts.length));
             if (!selected.length) return;
+            const oversized = selected.filter((f) => f.size > this.maxUploadBytes);
+            if (oversized.length) {
+                this.composeError = `Archivo(s) exceden el límite de ${(this.maxUploadBytes / 1024 / 1024).toFixed(0)} MB: ${oversized.map((f) => f.name).join(', ')}`;
+                this.render();
+                return;
+            }
             this.isReadingAttachments = true;
             this.composeError = '';
             this.composeStatus = selected.length === 1 ? 'Preparando adjunto...' : 'Preparando adjuntos...';
@@ -720,6 +753,23 @@
                 }
                 this.revealedThreadCode = '';
                 this.openThread(threadButton.dataset.ncwThread || '').catch(() => {});
+                return;
+            }
+            if (event.target.closest('[data-ncw-load-more]')) {
+                this.loadMoreMessages().catch(() => {});
+                return;
+            }
+            const previewCard = event.target.closest('[data-ncw-attachment-key]');
+            if (previewCard && previewCard.classList.contains('has-preview')) {
+                event.preventDefault();
+                const key = previewCard.dataset.ncwAttachmentKey;
+                if (!key || this.attachmentLoading.has(key)) return;
+                this.attachmentLoading.add(key);
+                previewCard.classList.remove('has-preview');
+                previewCard.querySelector('.nc-preview-overlay')?.remove();
+                const img = previewCard.querySelector('img');
+                if (img) img.src = esc(attachmentHref(this.messages.flatMap(m => m.attachments || []).find(a => attachmentKey(a) === key) || {}));
+                this.attachmentLoading.delete(key);
                 return;
             }
             if (event.target.closest('[data-ncw-open-doc]')) {

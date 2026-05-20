@@ -996,6 +996,7 @@ const DEFAULT_GENERAL_CONFIG = {
         companyEmail: 'info@printlab.local',
         loginScreensaverMotionSeconds: 16,
         loginScreensaverSlideSeconds: 10,
+        maxUploadMb: 10,
         mobileSellerAutoRoute: 'true',
         mobileSellerTheme: 'light',
         mobileSellerLightBg: '#f5f7fb',
@@ -2684,6 +2685,7 @@ function normalizeGeneralConfigRecord(config, baseConfig = DEFAULT_GENERAL_CONFI
     normalized.general.proformaIntroColor = normalizeProformaHeaderColor(normalized.general.proformaIntroColor, '#2f3c46');
     normalized.general.proformaPriceDisplayMode = String(normalized.general.proformaPriceDisplayMode || 'both').trim() || 'both';
     normalized.general.proformaSellerSignatureEnabled = String(normalized.general.proformaSellerSignatureEnabled || 'true').trim().toLowerCase() === 'false' ? 'false' : 'true';
+    normalized.general.maxUploadMb = Math.max(1, Math.min(Number(normalized.general.maxUploadMb) || 10, 500));
     return normalized;
 }
 
@@ -6102,6 +6104,7 @@ async function ensureNotificationCenterSchema() {
         )
     `);
     await pgQuery(`CREATE INDEX IF NOT EXISTS notification_center_participants_thread_idx ON notification_center_participants(thread_id, role_key)`);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS idx_notification_participants_user ON notification_center_participants(user_id)`);
     await pgQuery(`
         CREATE TABLE IF NOT EXISTS notification_center_messages (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -6132,6 +6135,7 @@ async function ensureNotificationCenterSchema() {
     `);
     await pgQuery(`CREATE INDEX IF NOT EXISTS notification_center_messages_thread_idx ON notification_center_messages(thread_id, sent_at DESC)`);
     await pgQuery(`CREATE INDEX IF NOT EXISTS notification_center_messages_channel_idx ON notification_center_messages(channel_key, external_status, sent_at DESC)`);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS idx_notification_messages_recipient_read ON notification_center_messages(recipient_user_id, read_at)`);
     await pgQuery(`
         CREATE TABLE IF NOT EXISTS notification_center_message_attachments (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -6151,6 +6155,7 @@ async function ensureNotificationCenterSchema() {
     `);
     await pgQuery(`ALTER TABLE notification_center_message_attachments ADD COLUMN IF NOT EXISTS storage_path TEXT NOT NULL DEFAULT ''`);
     await pgQuery(`ALTER TABLE notification_center_message_attachments ADD COLUMN IF NOT EXISTS content_sha256 TEXT NOT NULL DEFAULT ''`);
+    await pgQuery(`ALTER TABLE notification_center_message_attachments ADD COLUMN IF NOT EXISTS preview_base64 TEXT NOT NULL DEFAULT ''`);
     await pgQuery(`CREATE INDEX IF NOT EXISTS notification_center_message_attachments_message_idx ON notification_center_message_attachments(message_id, created_at DESC)`);
     await pgQuery(`
         CREATE TABLE IF NOT EXISTS notification_channel_keys (
@@ -6648,6 +6653,14 @@ async function createNotificationCenterMessage({ thread, payload = {}, sender = 
     if (!bodyText && !hasAttachment) {
         throw new Error('Debes indicar un mensaje o al menos un adjunto.');
     }
+    const maxBytes = (Number(payload.maxUploadMb) || 10) * 1024 * 1024;
+    for (const att of attachments) {
+        const b64 = String(att?.contentBase64 || '').replace(/^data:[^;]+;base64,/, '');
+        const bytes = Buffer.from(b64, 'base64').length;
+        if (bytes > maxBytes) {
+            throw new Error(`El archivo "${att.fileName || att.name || 'desconocido'}" excede el límite de ${(maxBytes / 1024 / 1024).toFixed(0)} MB.`);
+        }
+    }
     const result = await executor.query(
         `INSERT INTO notification_center_messages (
             message_code, thread_id, message_type, channel_key, body_text,
@@ -6694,23 +6707,40 @@ async function createNotificationCenterMessage({ thread, payload = {}, sender = 
             fileName,
             contentBase64
         });
+        const mimeType = sanitizeAdminUserText(attachment?.mimeType, 'application/octet-stream') || 'application/octet-stream';
+        let previewBase64 = '';
+        if (mimeType.startsWith('image/')) {
+            try {
+                const sharp = require('sharp');
+                const raw = contentBase64.replace(/^data:[^;]+;base64,/, '');
+                const buf = Buffer.from(raw, 'base64');
+                const thumb = await sharp(buf)
+                    .resize(200, 200, { fit: 'inside', withoutEnlargement: true })
+                    .webp({ quality: 70 })
+                    .toBuffer();
+                previewBase64 = 'data:image/webp;base64,' + thumb.toString('base64');
+            } catch (e) {
+                console.error('Error generating preview for', fileName, ':', e.message);
+            }
+        }
         const attachmentResult = await executor.query(
             `INSERT INTO notification_center_message_attachments (
-                id, message_id, attachment_kind, file_name, mime_type, file_ext, content_base64, storage_path, content_sha256, size_bytes, notes, uploaded_by
-             ) VALUES ($1,$2,$3,$4,$5,$6,'',$7,$8,$9,$10,$11)
-             RETURNING id, attachment_kind, file_name, mime_type, file_ext, storage_path, size_bytes, notes, uploaded_by, created_at`,
+                id, message_id, attachment_kind, file_name, mime_type, file_ext, content_base64, storage_path, content_sha256, size_bytes, notes, uploaded_by, preview_base64
+             ) VALUES ($1,$2,$3,$4,$5,$6,'',$7,$8,$9,$10,$11,$12)
+             RETURNING id, attachment_kind, file_name, mime_type, file_ext, storage_path, size_bytes, notes, uploaded_by, created_at, preview_base64`,
             [
                 attachmentId,
                 message.id,
                 sanitizeAdminUserText(attachment?.attachmentKind, attachment?.kind, 'archivo'),
                 fileName,
-                sanitizeAdminUserText(attachment?.mimeType, 'application/octet-stream') || 'application/octet-stream',
+                mimeType,
                 sanitizeAdminUserText(attachment?.fileExt, path.extname(fileName).replace('.', '')),
                 stored.storagePath,
                 stored.contentSha256,
                 stored.sizeBytes,
                 sanitizeAdminUserText(attachment?.notes),
-                sanitizeAdminUserText(sender?.name, payload.actor, getConfiguredCurrentUser())
+                sanitizeAdminUserText(sender?.name, payload.actor, getConfiguredCurrentUser()),
+                previewBase64
             ]
         );
         insertedAttachments.push({
@@ -6723,7 +6753,8 @@ async function createNotificationCenterMessage({ thread, payload = {}, sender = 
             sizeBytes: Number(attachmentResult.rows[0]?.size_bytes || 0),
             notes: String(attachmentResult.rows[0]?.notes || '').trim(),
             uploadedBy: String(attachmentResult.rows[0]?.uploaded_by || '').trim(),
-            createdAt: attachmentResult.rows[0]?.created_at || null
+            createdAt: attachmentResult.rows[0]?.created_at || null,
+            previewBase64: attachmentResult.rows[0]?.preview_base64 || ''
         });
     }
     await executor.query(
@@ -14890,9 +14921,10 @@ app.get('/api/notification-center/threads', async (req, res) => {
                            COALESCE((
                                SELECT COUNT(*)::int
                                  FROM notification_center_message_attachments a
-                                 JOIN notification_center_messages am
-                                   ON am.id = a.message_id
-                                WHERE am.thread_id = t.id
+                                WHERE EXISTS (
+                                    SELECT 1 FROM notification_center_messages m2
+                                     WHERE m2.id = a.message_id AND m2.thread_id = t.id
+                                )
                            ), 0) AS attachment_count,
                            COALESCE(SUM(CASE WHEN m.read_at IS NULL AND $2::bigint IS NOT NULL AND m.recipient_user_id = $2 THEN 1 ELSE 0 END), 0)::int AS unread_count
                       FROM notification_center_messages m
@@ -15164,7 +15196,9 @@ app.get('/api/notification-center/threads/:threadCode/messages', async (req, res
                 [thread.id, actor.user.id]
             );
         }
-        const [messagesResult, attachmentsResult] = await Promise.all([
+        const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
+        const offset = Math.max(Number(req.query.offset) || 0, 0);
+        const [messagesResult, attachmentsResult, countResult] = await Promise.all([
             pgQuery(
                 `SELECT id, message_code, thread_id, message_type, channel_key, body_text,
                         sender_user_id, sender_name, sender_email, sender_whatsapp, sender_sms,
@@ -15172,19 +15206,26 @@ app.get('/api/notification-center/threads/:threadCode/messages', async (req, res
                         is_inbound, external_status, delivered_at, received_at, read_at, failed_at, sent_at, metadata
                    FROM notification_center_messages
                   WHERE thread_id = $1
-                  ORDER BY sent_at ASC, id ASC`,
-                [thread.id]
+                  ORDER BY sent_at DESC, id DESC
+                  LIMIT $2 OFFSET $3`,
+                [thread.id, limit, offset]
             ),
             pgQuery(
-                `SELECT a.id, a.message_id, a.attachment_kind, a.file_name, a.mime_type, a.file_ext, a.content_base64, a.size_bytes, a.notes, a.uploaded_by, a.created_at
+                `SELECT a.id, a.message_id, a.attachment_kind, a.file_name, a.mime_type, a.file_ext, a.content_base64, a.preview_base64, a.size_bytes, a.notes, a.uploaded_by, a.created_at
                    FROM notification_center_message_attachments a
                    JOIN notification_center_messages m
                      ON m.id = a.message_id
                   WHERE m.thread_id = $1
                   ORDER BY a.created_at ASC, a.id ASC`,
                 [thread.id]
+            ),
+            pgQuery(
+                `SELECT COUNT(*)::int AS total FROM notification_center_messages WHERE thread_id = $1`,
+                [thread.id]
             )
         ]);
+        const totalMessages = countResult.rows[0]?.total || 0;
+        messagesResult.rows.reverse();
         const attachmentsMap = new Map();
         for (const row of attachmentsResult.rows) {
             const messageId = String(row.message_id || '').trim();
@@ -15196,6 +15237,7 @@ app.get('/api/notification-center/threads/:threadCode/messages', async (req, res
                 mimeType: String(row.mime_type || '').trim(),
                 fileExt: String(row.file_ext || '').trim(),
                 contentBase64: String(row.content_base64 || '').trim(),
+                previewBase64: String(row.preview_base64 || '').trim(),
                 sizeBytes: Number(row.size_bytes || 0),
                 notes: String(row.notes || '').trim(),
                 uploadedBy: String(row.uploaded_by || '').trim(),
@@ -15204,7 +15246,9 @@ app.get('/api/notification-center/threads/:threadCode/messages', async (req, res
             });
         }
         res.json({
-            items: messagesResult.rows.map((row) => normalizeNotificationCenterMessageRow(row, attachmentsMap.get(String(row.id || '').trim()) || []))
+            items: messagesResult.rows.map((row) => normalizeNotificationCenterMessageRow(row, attachmentsMap.get(String(row.id || '').trim()) || [])),
+            hasMore: (offset + limit) < totalMessages,
+            total: totalMessages
         });
     } catch (error) {
         const status = /identificar al usuario/i.test(error.message || '') ? 401 : /localizar la conversación/i.test(error.message || '') ? 404 : 500;
@@ -15244,9 +15288,12 @@ app.post('/api/notification-center/threads/:threadCode/messages', async (req, re
                 recipient = await findAdminUserByIdentity(thread.seller_name || thread.target_user_name, null);
             }
         }
+        const generalConfig = await loadGeneralConfig();
+        const general = generalConfig?.general || {};
+        const maxUploadMb = Number(general.maxUploadMb) || 10;
         const message = await createNotificationCenterMessage({
             thread,
-            payload,
+            payload: { ...payload, maxUploadMb },
             sender,
             recipient,
             attachments
