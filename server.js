@@ -38,6 +38,7 @@ const NOTIFICATION_ATTACHMENT_STORAGE_DIR = path.join(APP_ROOT, 'storage', 'noti
 const FLEXO_ENGINE_DIR = path.join(APP_ROOT, 'services', 'flexo-engine');
 const FLEXO_ENGINE_HELPERS_PATH = path.join(FLEXO_ENGINE_DIR, 'dist', 'web', 'server-helpers.js');
 const FLEXO_CALCULATOR_PUBLIC_DIR = path.join(APP_ROOT, 'public', 'calculo-flexografia');
+const ICONS_DISK_DIR = path.join(APP_ROOT, 'public', 'assets', 'bootstrap', 'icons');
 const FT2_PER_M2 = 10.7639104167;
 const IN2_PER_M2 = 1550.0031;
 const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -2797,7 +2798,6 @@ async function loadGeneralConfig() {
     }
 }
 
-const SHELL_ICON_ASSET_KEYS = new Set(['orderArtworkDelete', 'orderStatus', 'orderNumbering', 'orderFlow']);
 const DATA_IMAGE_EXTENSIONS = new Map([
     ['image/svg+xml', 'svg'],
     ['image/png', 'png'],
@@ -2829,9 +2829,13 @@ function readDataImageIcon(value) {
 
 function buildShellIconValue(key, value) {
     const meta = getDataImageIconMeta(value);
-    if (!meta || !SHELL_ICON_ASSET_KEYS.has(key)) return value;
-    const version = crypto.createHash('sha1').update(meta.text).digest('hex').slice(0, 12);
-    return `/api/config/general/icons/${version}/${encodeURIComponent(key)}.${meta.extension}`;
+    if (!meta) return value;
+    const ext = meta.extension;
+    const filePath = path.join(ICONS_DISK_DIR, key + '.' + ext);
+    if (fs.existsSync(filePath)) {
+        return '/assets/bootstrap/icons/' + encodeURIComponent(key) + '.' + ext;
+    }
+    return value;
 }
 
 function buildShellConfig(config) {
@@ -2874,10 +2878,45 @@ async function compressIconsOnSave(config) {
     }
 }
 
+async function writeIconsToDisk(config) {
+    const icons = config.icons;
+    if (!icons || typeof icons !== 'object') return;
+    if (!fs.existsSync(ICONS_DISK_DIR)) fs.mkdirSync(ICONS_DISK_DIR, { recursive: true });
+    const sharp = require('sharp');
+    const keys = Object.keys(icons);
+    for (const key of keys) {
+        const val = icons[key];
+        if (typeof val !== 'string') continue;
+        let buf = null;
+        let ext = '';
+        if (val.startsWith('data:image/png;base64,')) {
+            buf = Buffer.from(val.split(',')[1], 'base64');
+            ext = 'png';
+        } else if (val.startsWith('data:image/webp;base64,')) {
+            buf = Buffer.from(val.split(',')[1], 'base64');
+            ext = 'webp';
+        } else if (val.startsWith('data:image/svg+xml;base64,')) {
+            buf = Buffer.from(val.split(',')[1], 'base64');
+            ext = 'svg';
+        } else if (val.startsWith('data:image/jpeg;base64,')) {
+            buf = Buffer.from(val.split(',')[1], 'base64');
+            ext = 'jpg';
+        } else {
+            continue;
+        }
+        try {
+            fs.writeFileSync(path.join(ICONS_DISK_DIR, key + '.' + ext), buf);
+        } catch (e) {
+            console.error('Error writing icon ' + key + ':', e.message);
+        }
+    }
+}
+
 async function saveGeneralConfig(config) {
     const previous = await loadGeneralConfig();
     const normalized = normalizeGeneralConfigRecord(config, previous);
     await compressIconsOnSave(normalized);
+    await writeIconsToDisk(normalized);
     saveGeneralConfigToFile(normalized);
     invalidateConfigCaches();
     const changedBy = pickFirstValue(normalized?.session?.currentUser, previous?.session?.currentUser, getConfiguredCurrentUser());
