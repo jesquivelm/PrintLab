@@ -835,8 +835,7 @@ function renderCards() {
         if (!isAllowed) return;
         visibleCount += 1;
         const iconTarget = button.querySelector(`[data-icon-target="${card.iconKey}"]`);
-        const isProductionCard = card.iconKey === 'dashboardProduction';
-        const iconValue = isProductionCard ? '\u25A1' : (loadedConfig?.icons?.[card.iconKey] || card.fallbackIcon || '□');
+        const iconValue = loadedConfig?.icons?.[card.iconKey] || card.fallbackIcon || '□';
         const suffix = card.iconKey.charAt(0).toUpperCase() + card.iconKey.slice(1);
         
         // Try to get color from tab colors first if it matches
@@ -860,7 +859,7 @@ function renderCards() {
         color = color || '#0b81b8';
 
         const hover = loadedConfig?.general?.[`iconColorHover${suffix}`] || color || '#17abdf';
-        const configuredSize = isProductionCard ? 38 : (Number(loadedConfig?.general?.[`iconSize${suffix}`]) || 38);
+        const configuredSize = Number(loadedConfig?.general?.[`iconSize${suffix}`]) || 38;
         if (iconTarget) {
             const cardWidth = button.clientWidth || 190;
             const size = Math.max(24, Math.min(configuredSize, Math.max(42, Math.min(84, Math.floor(cardWidth * 0.42)))));
