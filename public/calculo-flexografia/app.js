@@ -894,6 +894,29 @@ function showCenterMessage(message, options = {}) {
   }
 }
 
+function setTrackingButtonLoading(button, label = "Procesando...") {
+  if (!button) return () => {};
+  const originalHtml = button.innerHTML;
+  const originalDisabled = button.disabled;
+  const width = button.getBoundingClientRect?.().width || 0;
+  button.dataset.loading = "true";
+  button.disabled = true;
+  button.setAttribute("aria-busy", "true");
+  button.classList.add("is-tracking-loading");
+  if (width > 0 && !button.classList.contains("tl-pending-btn")) button.style.minWidth = `${Math.ceil(width)}px`;
+  button.innerHTML = button.classList.contains("tl-pending-btn")
+    ? '<span class="tracking-button-spinner" aria-hidden="true"></span>'
+    : `<span class="tracking-button-spinner" aria-hidden="true"></span><span>${esc(label)}</span>`;
+  return () => {
+    button.innerHTML = originalHtml;
+    button.disabled = originalDisabled;
+    button.removeAttribute("aria-busy");
+    button.classList.remove("is-tracking-loading");
+    delete button.dataset.loading;
+    button.style.minWidth = "";
+  };
+}
+
 async function loadLineNotifications() {
   const quoteCode = String(state.form?.header?.quoteCode || "").trim();
   const lineCode = String(state.form?.header?.lineCode || "").trim();
@@ -7301,9 +7324,10 @@ function openDetailsCommercialEditor(button) {
 function bindDetailsDemo() {
   els.detailsProformaButton?.addEventListener("click", (event) => {
     event.preventDefault();
+    const done = setTrackingButtonLoading(els.detailsProformaButton, "Validando...");
     openProformaForCurrentQuote().catch(() => {
       showCenterMessage("No fue posible validar la proforma en este momento.");
-    });
+    }).finally(done);
   });
   els.detailsCostTable?.addEventListener("click", (event) => {
     const trigger = event.target.closest("[data-details-edit]");
@@ -7321,24 +7345,26 @@ function bindDetailsDemo() {
     const proforma = event.target.closest("[data-tracking-proforma]");
     if (proforma) {
       event.preventDefault();
-      openProformaForCurrentQuote().catch(() => showCenterMessage("No fue posible validar la proforma en este momento."));
+      const done = setTrackingButtonLoading(proforma, "Validando...");
+      openProformaForCurrentQuote().catch(() => showCenterMessage("No fue posible validar la proforma en este momento.")).finally(done);
       return;
     }
     const complete = event.target.closest("[data-tracking-complete]");
     if (complete) {
-      completeQuoteTrackingMilestone(Number(complete.dataset.trackingComplete)).catch((error) => {
+      const index = Number(complete.dataset.trackingComplete);
+      const item = state.quoteTracking.milestones?.[index];
+      const done = setTrackingButtonLoading(complete, item?.key === "envio" ? "Enviando..." : "Guardando...");
+      completeQuoteTrackingMilestone(index).catch((error) => {
         showCenterMessage(error.message || "No fue posible actualizar el seguimiento.");
-      });
+      }).finally(done);
       return;
     }
     const createOrder = event.target.closest("[data-tracking-create-order]");
     if (createOrder) {
-      createOrder.disabled = true;
+      const done = setTrackingButtonLoading(createOrder, "Creando...");
       createProductionOrderFromTracking(Number(createOrder.dataset.trackingCreateOrder)).catch((error) => {
         showCenterMessage(error.message || "No fue posible crear la orden.");
-      }).finally(() => {
-        createOrder.disabled = false;
-      });
+      }).finally(done);
       return;
     }
     const closeReason = event.target.closest("[data-tracking-open-close-reason]");
@@ -7348,19 +7374,18 @@ function bindDetailsDemo() {
     }
     const closeSubmit = event.target.closest("[data-tracking-submit-close]");
     if (closeSubmit) {
+      const done = setTrackingButtonLoading(closeSubmit, "Guardando...");
       submitQuoteClosureReason(Number(closeSubmit.dataset.trackingSubmitClose)).catch((error) => {
         showCenterMessage(error.message || "No fue posible guardar el cierre.");
-      });
+      }).finally(done);
       return;
     }
     const createProduct = event.target.closest("[data-tracking-create-product]");
     if (createProduct) {
-      createProduct.disabled = true;
+      const done = setTrackingButtonLoading(createProduct, "Creando...");
       createProductFromCurrentLine().catch((error) => {
         showCenterMessage(error.message || "No fue posible crear el producto.");
-      }).finally(() => {
-        createProduct.disabled = false;
-      });
+      }).finally(done);
       return;
     }
     const undo = event.target.closest("[data-tracking-undo]");
@@ -7379,9 +7404,10 @@ function bindDetailsDemo() {
     }
     const submit = event.target.closest("[data-tracking-submit-cr]");
     if (submit) {
+      const done = setTrackingButtonLoading(submit, "Enviando...");
       submitQuoteTrackingChange(Number(submit.dataset.trackingSubmitCr)).catch(() => {
         showCenterMessage("No fue posible enviar la solicitud de cambios.");
-      });
+      }).finally(done);
     }
   });
   els.quoteTrackingMount?.addEventListener("input", (event) => {
@@ -8121,13 +8147,13 @@ document.addEventListener("click", (event) => {
   if (closeSubmit && document.getElementById("calcCenterMessage")?.contains(closeSubmit)) {
     event.preventDefault();
     event.stopPropagation();
-    closeSubmit.disabled = true;
+    const done = setTrackingButtonLoading(closeSubmit, "Guardando...");
     submitQuoteClosureReason(Number(closeSubmit.dataset.trackingSubmitClose))
       .then((saved) => {
         if (saved) document.getElementById("calcCenterMessage")?.setAttribute("hidden", "");
       })
       .catch((error) => showCenterMessage(error.message || "No fue posible guardar el cierre."))
-      .finally(() => { closeSubmit.disabled = false; });
+      .finally(done);
     return;
   }
   const routeLink = event.target.closest?.("[data-route]");
