@@ -5787,6 +5787,8 @@ async function ensureProductCatalogSchema() {
     await pgQuery(`CREATE INDEX IF NOT EXISTS idx_flexo_products_client ON flexo_products(client_code, client_name)`);
     await pgQuery(`CREATE INDEX IF NOT EXISTS idx_flexo_product_history_product ON flexo_product_quote_history(product_code, created_at DESC)`);
     await pgQuery(`CREATE INDEX IF NOT EXISTS idx_flexo_product_history_quote ON flexo_product_quote_history(quote_code, line_code)`);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS idx_flexo_products_quote_line ON flexo_products(quote_code, line_code)`);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS idx_flexo_calculations_quote_line_created ON flexo_calculations(quote_code, line_code, created_at DESC)`);
 }
 
 async function ensureProductionSchema() {
@@ -5806,6 +5808,9 @@ async function ensureProductionSchema() {
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
     `);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS idx_flexo_orders_created_at ON flexo_orders(created_at DESC)`);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS idx_flexo_orders_line_code ON flexo_orders(line_code)`);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS idx_flexo_orders_quote_line ON flexo_orders(quote_code, line_code)`);
 }
 
 function normalizeAttachmentBase64(value) {
@@ -15782,12 +15787,16 @@ app.get('/api/inventario/:kind/export', async (req, res) => {
 
 app.get('/api/catalogs', async (req, res) => {
     try {
+        const scope = String(req.query.scope || '').trim();
         const catalogs = {};
-        const materialRows = await listInventory('materiales', { limit: 5000 });
-        const machineRows = await listInventory('maquinas', { limit: 5000 });
-        const troquelRows = await listInventory('troqueles', { limit: 5000 });
-        const processes = await listInventory('procesos', { limit: 2000 });
+        const materialRows = !scope || scope === 'all' ? await listInventory('materiales', { limit: 5000 }) : [];
+        const machineRows = !scope || scope === 'all' ? await listInventory('maquinas', { limit: 5000 }) : [];
+        const troquelRows = !scope || scope === 'all' ? await listInventory('troqueles', { limit: 5000 }) : [];
+        const processes = !scope || scope === 'all' ? await listInventory('procesos', { limit: 2000 }) : [];
         const outputTypes = await listInventory('tipos-salida', { limit: 500 });
+        if (scope === 'output-types') {
+            return res.json({ outputTypes });
+        }
         const materials = await loadFlexoMaterialsCatalog({ localRows: materialRows });
         const machines = machineRows.map((item) => {
             const capacities = Array.isArray(item.capacidades) ? item.capacidades : [];

@@ -233,3 +233,8 @@ CREATE INDEX IF NOT EXISTS idx_quotes_customer_code ON quotes(customer_code);
 CREATE INDEX IF NOT EXISTS idx_quote_lines_quote_code ON quote_lines(quote_code);
 CREATE INDEX IF NOT EXISTS idx_flexo_calculations_quote_code ON flexo_calculations(quote_code);
 CREATE INDEX IF NOT EXISTS idx_flexo_orders_quote_code ON flexo_orders(quote_code);
+CREATE INDEX IF NOT EXISTS idx_flexo_orders_created_at ON flexo_orders(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_flexo_orders_line_code ON flexo_orders(line_code);
+CREATE INDEX IF NOT EXISTS idx_flexo_orders_quote_line ON flexo_orders(quote_code, line_code);
+CREATE INDEX IF NOT EXISTS idx_flexo_calculations_quote_line_created ON flexo_calculations(quote_code, line_code, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_flexo_products_quote_line ON flexo_products(quote_code, line_code);
