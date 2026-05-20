@@ -3377,10 +3377,12 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
 .costs-process-table th:nth-child(4),
 .costs-process-table th:nth-child(5),
 .costs-process-table th:nth-child(6),
+.costs-process-table th:nth-child(7),
 .costs-process-table td:nth-child(3),
 .costs-process-table td:nth-child(4),
 .costs-process-table td:nth-child(5),
-.costs-process-table td:nth-child(6) {
+.costs-process-table td:nth-child(6),
+.costs-process-table td:nth-child(7) {
     text-align: center;
 }
 
@@ -3390,6 +3392,9 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     color: #5f7080;
     font-size: 12px;
     font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .costs-process-table td {
@@ -3402,10 +3407,10 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     border-bottom: 0;
 }
 
-.costs-process-col-number { width: 7%; }
-.costs-process-col-process { width: 31%; }
-.costs-process-col-check { width: 9%; }
-.costs-process-col-cost { width: 17%; }
+.costs-process-col-number { width: 5%; }
+.costs-process-col-process { width: 25%; }
+.costs-process-col-check { width: 8.5%; }
+.costs-process-col-cost { width: 19%; }
 
 .costs-process-default-number {
     color: #748494;
@@ -14323,4 +14328,356 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 .calc-center-message-meta {
     color: var(--app-text-muted, #64748b);
     font-weight: 600;
+}
+
+.production-order-card {
+    --order-panel-bg: #ffffff;
+    --order-panel-soft: #fbfdff;
+    --order-panel-subtle: #f6fafc;
+    --order-panel-border: #dbe5ec;
+    --order-pill-bg: #eef6fb;
+    --order-pill-text: #577086;
+}
+
+.production-order-card .production-order-layout-refined {
+    grid-template-columns: minmax(0, 1.36fr) minmax(300px, 1fr);
+    gap: 16px 22px;
+    align-items: start;
+}
+
+#orderContent .production-order-column-primary {
+    display: contents;
+}
+
+#orderContent .production-order-column-primary > .production-client-section {
+    grid-column: 1;
+    grid-row: 1;
+    min-height: 126px;
+}
+
+#orderContent .production-order-column-primary > .production-product-section {
+    grid-column: 1;
+    grid-row: 2;
+}
+
+#orderContent .production-order-column-primary > .production-info-pair {
+    grid-column: 1;
+    grid-row: 3;
+}
+
+#orderContent .production-order-column-primary > .production-observations-section {
+    grid-column: 1 / -1;
+    grid-row: 4;
+    margin-top: 0;
+}
+
+#orderContent .production-order-column-secondary {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    gap: 14px;
+}
+
+.production-order-card .socios-section {
+    padding: 16px 14px;
+    border-radius: 12px;
+    border-color: var(--order-panel-border);
+    background: var(--order-panel-bg);
+    box-shadow: none;
+}
+
+.production-order-card .section-caption {
+    max-width: calc(100% - 38px);
+    min-height: 20px;
+    height: 20px;
+    margin: 0 36px 14px 0;
+    padding: 0 16px;
+    border-radius: 999px;
+    background: var(--order-pill-bg);
+    color: var(--order-pill-text);
+    font-size: 11px;
+    line-height: 20px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.production-order-card label,
+.production-order-card .production-summary-label,
+.production-order-card .production-summary-line-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.production-order-card .production-summary-stack {
+    gap: 12px;
+}
+
+.production-client-section .production-summary-stack {
+    gap: 14px;
+}
+
+.production-product-section .production-summary-stack {
+    gap: 12px;
+}
+
+.production-info-pair,
+.production-product-pair {
+    gap: 14px;
+}
+
+.production-info-pair > .socios-section:first-child {
+    order: 2;
+}
+
+.production-info-pair > .socios-section:nth-child(2) {
+    order: 1;
+}
+
+.production-subgroup {
+    gap: 12px;
+    padding: 14px;
+    border-radius: 12px;
+    background: var(--order-panel-soft);
+    border-color: var(--order-panel-border);
+}
+
+.production-summary-grid {
+    gap: 12px 14px;
+}
+
+.production-summary-item {
+    gap: 5px;
+}
+
+.production-product-hero-copy {
+    flex-wrap: nowrap;
+}
+
+.production-product-name,
+.production-product-codes {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.production-chip {
+    min-height: 28px;
+    padding: 0 14px;
+}
+
+.production-roll-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(150px, 0.96fr);
+}
+
+.production-output-preview {
+    min-height: 104px;
+    align-items: center;
+    justify-content: center;
+    padding-top: 0;
+}
+
+.production-output-image {
+    max-height: 98px;
+    object-position: center center;
+}
+
+.production-tracking-card {
+    min-height: 228px;
+}
+
+.production-tracking-card .production-section-corner-toggle {
+    top: 14px;
+}
+
+.production-tracking-card #orderAttachmentsButton {
+    right: 16px;
+}
+
+.production-tracking-card #orderDeliveriesButton {
+    right: 54px;
+}
+
+.production-tracking-card #orderStateButton {
+    right: 92px;
+}
+
+.production-tracking-grid {
+    gap: 14px 20px;
+    margin-top: 16px;
+}
+
+.production-tracking-column {
+    gap: 12px;
+}
+
+.production-tracking-card .production-state-pill,
+.production-tracking-card .production-schedule-pill {
+    min-width: 128px;
+    min-height: 28px;
+    justify-content: center;
+    padding: 0 14px;
+}
+
+.production-tracking-card .production-order-code {
+    font-size: 24px;
+}
+
+.production-date-field input {
+    min-height: 34px;
+    height: 34px;
+    text-align: center;
+}
+
+.production-section-head-inline {
+    min-height: 26px;
+}
+
+.production-section-head-inline .section-caption {
+    margin-bottom: 0;
+}
+
+.production-section-head-inline .production-quantity-highlight {
+    font-size: 24px;
+    line-height: 1;
+}
+
+.production-art-section {
+    min-height: 404px;
+}
+
+.production-art-section .production-summary-grid-art {
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+
+.production-art-meta-stack {
+    order: 1;
+}
+
+.production-art-comments-field {
+    order: 2;
+}
+
+.production-art-section .production-art-preview-wrap {
+    order: 3;
+}
+
+.production-art-comments-field textarea {
+    min-height: 92px;
+    height: 92px;
+    max-height: 92px;
+}
+
+.production-art-dropzone {
+    min-height: 134px;
+    margin-top: 2px;
+}
+
+.production-art-preview {
+    border-radius: 8px;
+}
+
+.production-notes-box {
+    min-height: 68px;
+    max-height: 68px;
+}
+
+.production-notes-input {
+    resize: none;
+}
+
+html[data-theme="dark"] .production-order-card {
+    --order-panel-bg: #152033;
+    --order-panel-soft: #1d2a3d;
+    --order-panel-subtle: #111c30;
+    --order-panel-border: #26364d;
+    --order-pill-bg: #173553;
+    --order-pill-text: #8fa8bd;
+}
+
+html[data-theme="dark"] body:has(.production-order-card) {
+    background: #0f1726;
+}
+
+html[data-theme="dark"] .production-order-card .socios-section {
+    background: var(--order-panel-bg) !important;
+    border-color: var(--order-panel-border) !important;
+    color: var(--app-text) !important;
+}
+
+html[data-theme="dark"] .production-order-card .section-caption {
+    background: var(--order-pill-bg) !important;
+    color: var(--order-pill-text) !important;
+    border-color: transparent !important;
+}
+
+html[data-theme="dark"] .production-order-card .production-subgroup,
+html[data-theme="dark"] .production-order-card .production-summary-line,
+html[data-theme="dark"] .production-order-card .production-art-preview,
+html[data-theme="dark"] .production-order-card .production-art-dropzone,
+html[data-theme="dark"] .production-order-card .production-output-preview {
+    background: var(--order-panel-soft) !important;
+    border-color: var(--order-panel-border) !important;
+    box-shadow: none !important;
+}
+
+html[data-theme="dark"] .production-order-card input,
+html[data-theme="dark"] .production-order-card select,
+html[data-theme="dark"] .production-order-card textarea,
+html[data-theme="dark"] .production-order-card .production-notes-box,
+html[data-theme="dark"] .production-order-card .production-date-field input {
+    background: var(--order-panel-subtle) !important;
+    border-color: var(--order-panel-border) !important;
+    color: var(--app-text) !important;
+}
+
+html[data-theme="dark"] .production-tracking-card .production-inline-icon,
+html[data-theme="dark"] .production-section-head-inline .production-inline-icon,
+html[data-theme="dark"] .production-art-section .production-section-corner-toggle {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+
+html[data-theme="dark"] .production-tracking-card .production-state-pill.is-pending {
+    background: rgba(251, 191, 36, 0.18) !important;
+    color: #fde68a !important;
+}
+
+html[data-theme="dark"] .production-tracking-card .production-schedule-pill.is-alert {
+    background: rgba(248, 113, 113, 0.22) !important;
+    color: #fecaca !important;
+}
+
+html[data-theme="dark"] .production-order-card .production-chip {
+    background: #16415b !important;
+    color: #b7e3f8 !important;
+    border-color: transparent !important;
+}
+
+html[data-theme="dark"] .production-order-card .production-summary-label,
+html[data-theme="dark"] .production-order-card .production-summary-line-label {
+    color: #8fa8bd !important;
+}
+
+@media (max-width: 920px) {
+    .production-order-card .production-order-layout-refined {
+        grid-template-columns: 1fr;
+    }
+
+    #orderContent .production-order-column-primary,
+    #orderContent .production-order-column-secondary {
+        display: grid;
+        grid-column: 1;
+        grid-row: auto;
+    }
+
+    #orderContent .production-order-column-primary > .production-client-section,
+    #orderContent .production-order-column-primary > .production-product-section,
+    #orderContent .production-order-column-primary > .production-info-pair,
+    #orderContent .production-order-column-primary > .production-observations-section {
+        grid-column: 1;
+        grid-row: auto;
+    }
 }

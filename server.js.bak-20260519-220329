@@ -1385,21 +1385,21 @@ const DEFAULT_COSTS_CONFIG = {
         defaultQuantityTypes: 1,
         defaultCmykEnabled: 'true',
         processDefaults: [
-            { key: 'macula', label: 'Merma', active: true, createEnabled: true, locked: true, repeatable: false, order: 5, minimumCost: 0 },
-            { key: 'troquel', label: 'Troquel', active: true, createEnabled: false, locked: true, repeatable: false, order: 10, minimumCost: 0 },
-            { key: 'sustrato', label: 'Sustrato', active: true, createEnabled: false, locked: true, repeatable: false, order: 20, minimumCost: 0 },
-            { key: 'diseno', label: 'Diseño', active: false, createEnabled: true, locked: false, repeatable: false, order: 30, minimumCost: 0 },
-            { key: 'preprensa', label: 'Preprensa', active: true, createEnabled: true, locked: true, repeatable: false, order: 40, minimumCost: 0 },
-            { key: 'planchas', label: 'Planchas', active: false, createEnabled: false, locked: false, repeatable: false, order: 50, minimumCost: 0 },
-            { key: 'impresion', label: 'Impresión', active: false, createEnabled: true, locked: false, repeatable: false, order: 60, minimumCost: 0 },
-            { key: 'barnizado', label: 'Barnizado', active: false, createEnabled: true, locked: false, repeatable: false, order: 69, minimumCost: 0 },
-            { key: 'laminado', label: 'Laminado', active: false, createEnabled: true, locked: false, repeatable: false, order: 70, minimumCost: 0 },
-            { key: 'estampado', label: 'Estampado', active: false, createEnabled: true, locked: false, repeatable: false, order: 71, minimumCost: 0 },
-            { key: 'embosado', label: 'Embosado', active: false, createEnabled: true, locked: false, repeatable: false, order: 72, minimumCost: 0 },
-            { key: 'troquelado', label: 'Troquelado', active: false, createEnabled: false, locked: false, repeatable: false, order: 73, minimumCost: 0 },
-            { key: 'rebobinado', label: 'Rebobinado', active: false, createEnabled: true, locked: false, repeatable: false, order: 74, minimumCost: 0 },
-            { key: 'empaque', label: 'Empaque', active: false, createEnabled: true, locked: false, repeatable: false, order: 80, minimumCost: 0 },
-            { key: 'adicionales', label: 'Procesos adicionales', active: false, createEnabled: false, locked: false, repeatable: false, order: 90, minimumCost: 0 }
+            { key: 'macula', label: 'Merma', active: true, locked: true, repeatable: false, order: 5, minimumCost: 0 },
+            { key: 'troquel', label: 'Troquel', active: true, locked: true, repeatable: false, order: 10, minimumCost: 0 },
+            { key: 'sustrato', label: 'Sustrato', active: true, locked: true, repeatable: false, order: 20, minimumCost: 0 },
+            { key: 'diseno', label: 'Diseño', active: false, locked: false, repeatable: false, order: 30, minimumCost: 0 },
+            { key: 'preprensa', label: 'Preprensa', active: true, locked: true, repeatable: false, order: 40, minimumCost: 0 },
+            { key: 'planchas', label: 'Planchas', active: false, locked: false, repeatable: false, order: 50, minimumCost: 0 },
+            { key: 'impresion', label: 'Impresión', active: false, locked: false, repeatable: false, order: 60, minimumCost: 0 },
+            { key: 'barnizado', label: 'Barnizado', active: false, locked: false, repeatable: false, order: 69, minimumCost: 0 },
+            { key: 'laminado', label: 'Laminado', active: false, locked: false, repeatable: false, order: 70, minimumCost: 0 },
+            { key: 'estampado', label: 'Estampado', active: false, locked: false, repeatable: false, order: 71, minimumCost: 0 },
+            { key: 'embosado', label: 'Embosado', active: false, locked: false, repeatable: false, order: 72, minimumCost: 0 },
+            { key: 'troquelado', label: 'Troquelado', active: false, locked: false, repeatable: false, order: 73, minimumCost: 0 },
+            { key: 'rebobinado', label: 'Rebobinado', active: false, locked: false, repeatable: false, order: 74, minimumCost: 0 },
+            { key: 'empaque', label: 'Empaque', active: false, locked: false, repeatable: false, order: 80, minimumCost: 0 },
+            { key: 'adicionales', label: 'Procesos adicionales', active: false, locked: false, repeatable: false, order: 90, minimumCost: 0 }
         ]
     },
     convencional: {
@@ -2894,11 +2894,8 @@ function normalizeCostsConfigRecord(config) {
             const fallback = fallbackByKey.get(key);
             if (!key || !fallback || seen.has(key)) return null;
             seen.add(key);
-            const locked = ['macula', 'troquel'].includes(key) ? true : (row?.locked === true || String(row?.locked || '').trim().toLowerCase() === 'true');
+            const locked = row?.locked === true || String(row?.locked || '').trim().toLowerCase() === 'true';
             const active = locked ? true : (row?.active === true || String(row?.active || '').trim().toLowerCase() === 'true');
-            const createEnabled = key === 'macula'
-                ? true
-                : (row?.createEnabled === true || row?.create === true || String(row?.createEnabled ?? row?.create ?? fallback.createEnabled ?? '').trim().toLowerCase() === 'true');
             const repeatable = row?.repeatable === true || String(row?.repeatable || '').trim().toLowerCase() === 'true';
             const hasGanttEnabled = row?.ganttEnabled !== undefined && row?.ganttEnabled !== null;
             const ganttEnabled = hasGanttEnabled
@@ -2908,7 +2905,6 @@ function normalizeCostsConfigRecord(config) {
                 key,
                 label: String(row?.label || fallback.label || '').trim(),
                 active,
-                createEnabled: active ? createEnabled : false,
                 locked,
                 repeatable,
                 ganttEnabled,
@@ -2923,7 +2919,6 @@ function normalizeCostsConfigRecord(config) {
                 key,
                 label: String(item.label || '').trim(),
                 active: item.locked ? true : Boolean(item.active),
-                createEnabled: key === 'macula' ? true : Boolean(item.createEnabled && (item.locked || item.active)),
                 locked: Boolean(item.locked),
                 repeatable: Boolean(item.repeatable),
                 ganttEnabled: item.ganttEnabled === undefined ? Boolean(item.active) : Boolean(item.ganttEnabled),
@@ -5355,55 +5350,6 @@ async function reopenQuoteProforma(quoteCode, reason = 'tracking_reopened', clie
     return result.rows[0] || null;
 }
 
-const PROFORMA_BLOCK_PROCESS_LABELS = {
-    barnizado: 'Barnizado',
-    laminado: 'Laminado',
-    estampado: 'Estampado',
-    embosado: 'Embosado',
-    troquelado: 'Troquelado',
-    rebobinado: 'Rebobinado',
-    troquel: 'Troquel',
-    sustrato: 'Sustrato',
-    diseno: 'Diseño',
-    preprensa: 'Preprensa',
-    planchas: 'Planchas',
-    impresion: 'Impresión',
-    empaque: 'Empaque',
-    adicionales: 'Procesos adicionales'
-};
-
-function proformaProcessKeyFromMessage(message = '') {
-    const text = normalizeText(message);
-    if (!text) return '';
-    if (text.includes('troquelado')) return 'troquelado';
-    if (text.includes('troquel')) return 'troquel';
-    if (text.includes('plancha') || text.includes('cliche') || text.includes('fotopol')) return 'planchas';
-    if (text.includes('impresion') || text.includes('maquina de impresion')) return 'impresion';
-    if (text.includes('preprensa')) return 'preprensa';
-    if (text.includes('diseno') || text.includes('arte')) return 'diseno';
-    if (text.includes('rebob')) return 'rebobinado';
-    if (text.includes('barniz')) return 'barnizado';
-    if (text.includes('laminad')) return 'laminado';
-    if (text.includes('estamp')) return 'estampado';
-    if (text.includes('embos')) return 'embosado';
-    if (text.includes('empaque') || text.includes('rollo')) return 'empaque';
-    if (text.includes('sustrato') || text.includes('material')) return 'sustrato';
-    return '';
-}
-
-function summarizeProformaBlockingMessages(messages = []) {
-    const map = new Map();
-    (Array.isArray(messages) ? messages : []).forEach((message) => {
-        const clean = stripNonBlockingSapAccountingWarnings(message);
-        if (!clean) return;
-        const processKey = proformaProcessKeyFromMessage(clean);
-        const key = processKey || clean;
-        if (map.has(key)) return;
-        map.set(key, processKey ? `${PROFORMA_BLOCK_PROCESS_LABELS[processKey] || processKey} requiere configuración.` : clean);
-    });
-    return [...map.values()];
-}
-
 function proformaBlockingMessagesFromRaw(raw = {}) {
     const messages = Array.isArray(raw.CODEX_VALIDATION_MESSAGES)
         ? raw.CODEX_VALIDATION_MESSAGES.map((item) => stripNonBlockingSapAccountingWarnings(item)).filter(Boolean)
@@ -5413,7 +5359,8 @@ function proformaBlockingMessagesFromRaw(raw = {}) {
         raw['ANALISIS CAMPOS CREAR ORDEN'],
         raw['ANALISIS CAMPOS FINALIZAR']
     ));
-    return summarizeProformaBlockingMessages([...new Set([...messages, fallback].filter(Boolean))]);
+    return [...new Set([...messages, fallback].filter(Boolean))]
+        .filter((message) => !normalizeText(message).includes('plancha'));
 }
 
 function findQuoteProformaBlockingLine(rows = []) {
@@ -12046,7 +11993,7 @@ app.patch('/api/cotizaciones/:codigo/lineas/:linea', async (req, res) => {
                 ? payload.finalized_for_order
                 : payload.finalizedForOrder);
         }
-        const finalizeValidation = proformaBlockingMessagesFromRaw(rawData).join(' ');
+        const finalizeValidation = stripNonBlockingSapAccountingWarnings(rawData['ANALISIS CAMPOS FINALIZAR']);
         if (Boolean(rawData['CODEX_FINALIZED_FOR_ORDER']) && finalizeValidation) {
             throw new Error(finalizeValidation);
         }
@@ -12675,7 +12622,10 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/orden-produccion', async (req,
             if (!context.line) {
                 throw new Error('No se encontró la línea origen.');
             }
-            const createOrderValidation = proformaBlockingMessagesFromRaw(context.line.raw_data || {}).join(' ');
+            const createOrderValidation = stripNonBlockingSapAccountingWarnings(sanitizeAdminUserText(
+                context.line.raw_data?.['ANALISIS CAMPOS CREAR ORDEN'],
+                context.line.raw_data?.['ANALISIS CAMPOS FINALIZAR']
+            ));
             if (createOrderValidation) {
                 throw new Error(createOrderValidation);
             }
@@ -12804,11 +12754,8 @@ app.patch('/api/ordenes-produccion/:codigo/details', async (req, res) => {
 
         if (payload.art && typeof payload.art === 'object') {
             lineRaw['COMENTARIOS VENDEDOR'] = pickFirstValue(payload.art.comments);
+            lineRaw['ORDEN DE ARTE'] = pickFirstValue(payload.art.artworkNumber);
             lineRaw['ARTE EN PODER DE'] = pickFirstValue(payload.art.artworkHolder);
-        }
-
-        if (payload.notes && typeof payload.notes === 'object') {
-            lineRaw['ACABADOS | OBSERVACIONES'] = pickFirstValue(payload.notes.finishNotes);
         }
 
         lineSnapshot.raw_data = lineRaw;
@@ -15517,7 +15464,7 @@ app.post('/api/flexo/calculo/guardar', async (req, res) => {
                 ? payload.finalized_for_order
                 : payload.finalizedForOrder);
         }
-        const finalizeValidation = proformaBlockingMessagesFromRaw(rawData).join(' ');
+        const finalizeValidation = stripNonBlockingSapAccountingWarnings(rawData['ANALISIS CAMPOS FINALIZAR']);
         if (Boolean(rawData['CODEX_FINALIZED_FOR_ORDER']) && finalizeValidation) {
             throw new Error(finalizeValidation);
         }

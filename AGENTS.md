@@ -1,172 +1,327 @@
-INSTRUCCIONES GENERALES (GENÉRICAS PARA CUALQUIER PROYECTO)
-PRINCIPIO BASE
+# GENERAL INSTRUCTIONS (GLOBAL RULES FOR ANY PROJECT)
 
+# CORE PRINCIPLE
 
+Before modifying any file:
 
-IMPORTANTE: AHORRA TOKENS, NO LOS GASTES EN COSAS QUE NO HAN SIDO SOLICITADAS.
+1. Minimize token usage at all costs. Do not waste tokens on tasks, explanations, refactors, or analyses that were not explicitly requested.
+2. Create a timestamped backup of the exact file that will be modified.
+3. Verify that the backup was successfully created before proceeding.
+4. Only after backup verification, apply the requested change.
+5. At task completion, report the exact backup path created.
+6. If the project is connected to Git, always commit and push the changes to keep the repository updated.
+7. Final formatting must remain fully human-readable. Always verify spacing, margins, alignment, and font visibility for both light and dark themes.
 
+Work with extreme caution and respect the existing system architecture. Do not modify anything outside the requested scope.
 
+---
 
+# WORK RULES
 
+Before editing any file, strictly verify and preserve UTF-8 encoding.
 
-Antes de modificar cualquier archivo:
+Never corrupt accented characters, ñ, opening punctuation, currency symbols, or special characters into mojibake sequences such as:
 
-1. Crear respaldo con timestamp del archivo exacto que se va a tocar.
-2. Confirmar que el respaldo existe.
-3. Recién después aplicar el cambio.
-4. Reportar la ruta del respaldo al cierre.
+- Ã¡
+- Ã©
+- Ã±
+- â
+- Â
+- �
 
-Trabajar con extremo cuidado respetando el sistema existente. No modificar nada fuera de lo solicitado.
+If corrupted text already exists:
+- Report it first.
+- Specify exactly which files contain corruption.
+- Do NOT automatically fix encoding issues unless explicitly authorized.
 
-REGLAS DE TRABAJO
+When editing visible application text, forms, labels, quotations, or documents:
 
-Antes de modificar cualquier archivo, revisa y respeta estrictamente la codificación UTF-8.
+- Preserve real Spanish characters:
+  á, é, í, ó, ú, ñ, ¿, ¡, ₡, $, °
+- Do not change file encoding.
+- Do not perform mass encoding conversions.
+- Do not create global “text repair” functions without authorization.
+- Only modify the exact requested text.
+- After editing, scan for residual corruption characters:
+  Ã, Â, â, �
+  and report if any remain.
 
-No conviertas textos con tildes, eñes, signos de apertura, símbolos de moneda ni caracteres especiales a secuencias corruptas tipo mojibake, por ejemplo: Ã¡, Ã©, Ã±, â, Â, .
+Before finishing, explicitly validate and report:
+- Which texts were modified.
+- Which files were modified.
+- Whether corrupted characters were found.
+- Whether anything remains pending.
 
-Si encuentras texto corrupto existente, primero repórtalo y dime en qué archivos aparece. No lo corrijas automáticamente salvo que yo lo autorice.
+---
 
-Cuando edites textos visibles de la aplicación o proformas:
+# LAYOUT AND FORMAT RULES
 
-* Mantén los caracteres reales en español: á, é, í, ó, ú, ñ, ¿, ¡, ₡, $, °.
-* No cambies la codificación del archivo.
-* No hagas conversiones masivas de encoding.
-* No agregues funciones globales para “reparar” texto sin autorización.
-* Corrige solo el texto solicitado.
-* Después de editar, busca residuos como Ã, Â, â,  y repórtame si queda alguno.
+Apply formatting fixes only when explicitly requested.
 
-Antes de finalizar, valida sintaxis y dime exactamente:
+Strictly preserve:
+- Layout
+- Widths
+- Heights
+- Margins
+- Padding
+- Alignment
+- Existing structure
 
-* qué textos tocaste,
-* en qué archivos,
-* si encontraste caracteres corruptos,
-* y si quedó algo pendiente.
+Do not redesign or restructure existing UI components.
 
+All labels must remain on a single line.
+Never allow line wrapping.
 
+If text does not fit:
+- Visually truncate it, or
+- Abbreviate it intelligently,
+but NEVER expand containers or alter layout height.
 
-Aplicar ajustes de formato, manteniendo estrictamente el layout actual sin modificar tamaños, anchos, márgenes, paddings ni estructura existente y solo si se solicita poder hacerlo.
+Abbreviations must remain semantically clear.
+Prefer concise labels of 1–2 words whenever possible.
 
-Forzar que todas las etiquetas (labels) ocupen una sola línea, sin permitir saltos de línea. Si el texto no cabe, debe truncarse visualmente o abreviarse, pero nunca expandir el contenedor ni alterar la altura del campo.
+Maintain perfectly consistent:
+- Horizontal alignment
+- Vertical alignment
+- Spacing
+- Field positioning
 
-En caso de abreviación, debe mantenerse claridad semántica. Si es necesario, usar abreviaciones estándar o reformular el texto para que quepa en una sola línea sin perder significado funcional. Priorizar máximo 1–2 palabras por label.
+No element should:
+- Shift unexpectedly
+- Overlap
+- Trigger layout reflow
+- Resize neighboring components
 
-Mantener alineación horizontal y vertical consistente entre todos los campos. Ningún elemento debe desplazarse, desalinearse, superponerse incorrectamente ni afectar la posición de otros. No debe existir reflow del layout.
+Label content must NEVER modify container dimensions.
 
-No permitir que el contenido del label modifique el tamaño del contenedor. El comportamiento debe ser completamente estable y predecible.
+---
 
-Para campos numéricos, aplicar correctamente el manejo de unidades de medida y símbolos de moneda en ambos casos (obligatorio):
+# NUMERIC AND CURRENCY FIELD RULES
 
-No crear campos adicionales.
-No colocar la unidad o símbolo fuera del input.
-No usar elementos separados al lado del campo.
-No modificar la estructura existente.
+For numeric fields, measurement units, and currency symbols:
 
-Se debe respetar estrictamente el patrón existente del sistema, donde la unidad o símbolo se muestra como un elemento visual superpuesto dentro del mismo campo (overlay), como ya está implementado en otros campos.
+STRICT REQUIREMENTS:
 
-Este comportamiento aplica en ambos casos:
+- Do not create extra fields.
+- Do not place units outside the input.
+- Do not use side elements beside the field.
+- Do not alter existing field structure.
 
-Unidades de medida (ej: kg, m, %, etc.)
-Símbolos de moneda (ej: ₡, $, etc.)
+You MUST follow the existing system pattern where:
+- Units and currency symbols appear as visual overlays INSIDE the field.
 
-La unidad o símbolo debe estar dentro del campo, alineado correctamente (izquierda o derecha según corresponda), sin afectar el valor numérico ni el funcionamiento del input.
+This applies to:
+- Units (kg, m, %, etc.)
+- Currency symbols (₡, $, etc.)
 
-El input debe seguir siendo numérico puro; la unidad o símbolo es únicamente visual.
+The symbol or unit must:
+- Stay visually inside the field
+- Align correctly left or right
+- Never interfere with numeric values
+- Remain purely visual
 
-Asegurar consistencia total con los campos existentes que ya usan este formato. No reinventar la solución ni aplicar variaciones.
+The input itself must remain numerically pure.
 
-No rediseñar, no reorganizar, no agregar estilos nuevos innecesarios. Solo controlar el comportamiento del texto en labels y la correcta visualización de unidades y símbolos dentro del campo, sin romper la estructura existente.
+Maintain complete consistency with existing fields already using this pattern.
+Do not reinvent the solution.
+Do not create alternative implementations.
 
-Cuando exista en el sistema un campo ya resuelto visualmente, no improvisar una variante nueva. Primero buscar un campo de referencia real dentro del sistema y copiar exactamente su misma estructura, clases, comportamiento y formato visual. Si un campo numeral no puede mostrar sufijos directamente, usar el mismo patrón existente de campo base + máscara/texto superpuesto, en lugar de inventar otra solución parecida. Antes de dar un cambio por bueno, comparar visualmente contra la referencia original y autocorregir si no quedó idéntico.
+If an equivalent field already exists in the system:
+- Find it first.
+- Copy its exact:
+  - Structure
+  - Classes
+  - Behavior
+  - Visual formatting
 
-Todos los campos deben cumplir un formato establecido, si tienes duda, revisa el formato de los campos circundantes para copiarlo por completo
-Cuando los campos sean numerales procura dejar siempre el formato de numero que usamos, actualmente dejamos un espacio en el campo de los miles
-Cuando los campos sean de tipo moneda, es importante mostrar siempre el simbolo al lado del monto, cumpliendo tambien con el formato de campos numerales mencionado en el punto anterior.
-Evita poner comentarios que no tienen ningun sentido o resumenes que no dejan datos valiosos al usuario.
-Separa los contenedores de informacion para que no se vean apretujados en la presentacion, un poco de margen no le cae mal nunca a nadie.
-Gasta la menor cantidad de tokens posible, utiliza cualquier metodo a tu alcance para hacer el trabajo que se te pide solamente y no gastar tokens en cosas innecesarias y que no fueron solicitadas. Este punto es obligatorio.
-Los botones ya tienen un formato establecido, si tienes dudas puedes consultar otras presentaciones con formatos establecidos como el de busqueda de socios o de cotizaciones.
-Siempre que encuentres un scroll en modo oscuro estandariza el color a uno mas discreto para que no resalte en la pantalla.
-Evita los marcos en los iconos y el color de fondo, y procura que cada icono que exista en el inventario de iconos respete la configuracion que tiene.
-En Caso de requerir poner un icono nuevo, puedes crearlo en el catalogo de iconos que existe en la configuracion.
-Ordena el espacio de los campos de forma logica, no le des mas espacio de la cuenta a campos con poca informacion y haz lo inverso con campos como comentarios, donde es posible que la informacion se variada.
-En el modo oscuro, evita las sobras o fondos innecesarios. Me refiero por ejemplo a los que pones bajo a comentarios no solicitados.
-Mejora el margen entre cada objeto para que ninguno quede pegado a otro objeto.
-Analizar el impacto antes de modificar.
-Advertir si un cambio puede afectar el sistema.
-Preguntar ante dudas, no asumir.
-No improvisar soluciones.
-No cambiar formatos sin autorización.
-Respetar diseño y lógica existentes.
-No romper funcionalidades existentes.
-No modificar fuera del área indicada.
-No omitir pasos.
-Reportar tareas incompletas.
-Admitir limitaciones antes de continuar.
-Recomendar respaldo en cambios riesgosos.
-Verificar funcionamiento después de cambios.
-Cerrar conexiones, procesos o recursos utilizados.
-No consumir recursos innecesarios.
-Avisar antes de afectar usuarios o servicios.
-No agregar dependencias sin autorización.
-No eliminar código funcional sin justificación.
-COMENTARIOS EN CÓDIGO
-No agregar comentarios innecesarios.
-No dejar código comentado.
-No dejar comentarios temporales.
-Comentar solo si es solicitado o estrictamente necesario.
-TEXTOS Y CONTENIDO
-Usar lenguaje correcto y consistente.
-Mantener ortografía adecuada.
-No improvisar textos.
-No cambiar etiquetas sin autorización.
-Evitar caracteres problemáticos.
-FORMATO Y DISEÑO
-Respetar formato existente.
-Mantener consistencia visual.
-No rediseñar sin autorización.
-Seguir patrones existentes.
-Si no hay referencia clara, preguntar.
-SEGURIDAD
-Recomendar respaldo antes de cambios importantes.
-No ejecutar acciones destructivas sin advertencia.
-No eliminar datos sin autorización.
-Detenerse ante riesgos críticos.
-PRUEBAS Y VALIDACIÓN
-Probar cada cambio realizado.
-Verificar que no se rompa nada relacionado.
-No afirmar funcionamiento sin prueba.
-Indicar claramente lo que no se pudo probar.
-CIERRE DE TAREA (FORMATO OBLIGATORIO)
+If suffix rendering requires overlays/masks:
+- Reuse the same existing implementation.
+- Never improvise similar alternatives.
 
-Siempre reportar:
+Before approving a change:
+- Compare visually against the original reference.
+- Self-correct until identical.
 
-Qué se modificó.
-Qué se probó.
-Resultado de pruebas.
-Qué no se pudo probar.
-Bloqueos encontrados.
-Archivos modificados.
-Pasos adicionales necesarios.
-REGLA DE FORMATO EXISTENTE
-Buscar referencias dentro del sistema antes de actuar.
-Reutilizar patrones existentes.
-Mantener consistencia total.
-No inventar soluciones nuevas si ya existe una.
-Detenerse y preguntar si no hay claridad.
-VALIDACIÓN REAL
-No declarar tareas como completas sin validación.
-No asumir resultados.
-Comunicar fallos inmediatamente.
-No ocultar errores.
-Reportar bloqueos claramente.
-HONESTIDAD Y ALCANCE
-No afirmar cumplimiento si es parcial.
-Indicar qué sí se hizo y qué no.
-No cambiar el alcance sin avisar.
-Priorizar instrucciones explícitas del usuario.
-Verificar antes de confirmar.
-PRINCIPIO FINAL
-Mejor reportar fallos reales que soluciones falsas.
-Mejor admitir bloqueos que ocultarlos.
-No declarar éxito sin evidencia.
+---
 
+# FIELD FORMAT CONSISTENCY
+
+All fields must follow the system's established formatting rules.
+
+If unsure:
+- Inspect nearby fields.
+- Replicate their behavior exactly.
+
+Numeric fields:
+- Preserve the existing thousands separator format.
+- Maintain spacing conventions already used by the system.
+
+Currency fields:
+- Always display the currency symbol.
+- Respect the same numeric formatting standards.
+
+---
+
+# UI / UX RULES
+
+Avoid meaningless comments or summaries that provide no value.
+
+Separate information containers properly.
+Avoid cramped layouts.
+Proper spacing and breathing room are mandatory.
+
+Minimize token usage aggressively.
+Use the smallest possible amount of tokens required to complete the requested task.
+This rule is mandatory.
+
+Buttons already have established design patterns.
+If uncertain:
+- Reference existing screens such as:
+  - Member search
+  - Quotations
+  - Existing system forms
+
+Dark mode rules:
+- Standardize scrollbar colors to discreet tones.
+- Avoid bright or visually aggressive scrollbars.
+- Avoid unnecessary shadows or background panels.
+- Especially avoid artificial backgrounds under comments unless requested.
+
+Icons:
+- Avoid unnecessary icon borders or background fills.
+- Respect the existing icon system configuration.
+- If a new icon is required:
+  - Add it through the existing icon catalog/configuration system.
+
+Field sizing:
+- Allocate space logically.
+- Small fields should not consume excessive width.
+- Large text areas (comments, observations) should receive proportionally more space.
+
+Improve spacing between objects to avoid visual collisions.
+
+---
+
+# DEVELOPMENT RULES
+
+Always:
+- Analyze impact before modifying.
+- Warn if changes may affect the system.
+- Ask when uncertain.
+- Never assume requirements.
+- Never improvise solutions.
+- Never alter formats without authorization.
+- Respect existing design and logic.
+- Avoid breaking existing functionality.
+- Never modify outside the requested scope.
+- Never skip steps.
+- Report incomplete tasks.
+- Admit limitations before proceeding.
+- Recommend backups for risky operations.
+- Validate functionality after changes.
+- Close connections, processes, and temporary resources used.
+- Avoid unnecessary resource consumption.
+- Warn before impacting users or live services.
+- Never add dependencies without authorization.
+- Never remove working code without justification.
+
+---
+
+# CODE COMMENTS
+
+- Do not add unnecessary comments.
+- Do not leave commented-out code.
+- Do not leave temporary notes.
+- Only comment code if explicitly requested or absolutely necessary.
+
+---
+
+# TEXT AND CONTENT RULES
+
+- Use correct and consistent language.
+- Maintain proper spelling.
+- Never improvise texts.
+- Do not rename labels without authorization.
+- Avoid problematic characters.
+
+---
+
+# DESIGN RULES
+
+- Preserve existing formatting.
+- Maintain visual consistency.
+- Never redesign without authorization.
+- Follow existing patterns.
+- If no clear reference exists, stop and ask.
+
+---
+
+# SECURITY RULES
+
+- Recommend backups before critical changes.
+- Never execute destructive actions without warning.
+- Never delete data without authorization.
+- Stop immediately if critical risks are detected.
+
+---
+
+# TESTING AND VALIDATION
+
+- Test every implemented change.
+- Verify related functionality was not broken.
+- Never claim functionality without validation.
+- Clearly state what could not be tested.
+
+---
+
+# TASK COMPLETION (MANDATORY FORMAT)
+
+Always report:
+
+- What was modified
+- What was tested
+- Test results
+- What could not be tested
+- Blockers encountered
+- Modified files
+- Additional required steps
+
+---
+
+# EXISTING FORMAT RULE
+
+Before implementing anything:
+
+- Search for existing references inside the system.
+- Reuse established patterns.
+- Maintain complete consistency.
+- Never invent a new solution if one already exists.
+- Stop and ask if clarity is insufficient.
+
+---
+
+# REAL VALIDATION
+
+- Never declare tasks complete without validation.
+- Never assume outcomes.
+- Report failures immediately.
+- Never hide errors.
+- Clearly report blockers.
+
+---
+
+# HONESTY AND SCOPE
+
+- Never claim full compliance if partial.
+- Explicitly state what was completed and what was not.
+- Never change scope silently.
+- Prioritize explicit user instructions above assumptions.
+- Verify before confirming success.
+
+---
+
+# FINAL PRINCIPLE
+
+It is better to report real failures than fake solutions.
+It is better to admit blockers than hide them.
+Never declare success without evidence.

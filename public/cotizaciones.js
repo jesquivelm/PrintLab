@@ -1514,17 +1514,24 @@ function normalizeProformaIssueText(value = '') {
 function processKeyFromIssueText(message = '') {
     const text = normalizeProformaIssueText(message);
     if (!text) return '';
+    if (text.includes('troquelado')) return 'troquelado';
+    if (text.includes('troquel')) return 'troquel';
+    if (text.includes('plancha') || text.includes('cliche') || text.includes('fotopol')) return 'planchas';
+    if (text.includes('impresion') || text.includes('maquina de impresion')) return 'impresion';
+    if (text.includes('preprensa')) return 'preprensa';
+    if (text.includes('diseno') || text.includes('arte')) return 'diseno';
+    if (text.includes('rebob')) return 'rebobinado';
+    if (text.includes('barniz')) return 'barnizado';
+    if (text.includes('laminad')) return 'laminado';
+    if (text.includes('estamp')) return 'estampado';
+    if (text.includes('embos')) return 'embosado';
+    if (text.includes('empaque') || text.includes('rollo')) return 'empaque';
+    if (text.includes('sustrato') || text.includes('material')) return 'sustrato';
     const match = PROFORMA_BLOCK_PROCESS_LABELS.find((item) => {
         const label = normalizeProformaIssueText(item.label);
         return label && text.includes(label);
     });
     return match?.key || '';
-}
-
-function isPlateProformaIssue(issue = {}) {
-    const text = normalizeProformaIssueText(issue.message || issue);
-    const key = String(issue.processKey || processKeyFromIssueText(issue.message || issue) || '').split('-')[0];
-    return key === 'planchas' || text.includes('plancha');
 }
 
 function processLabelFromKey(processKey = '') {
@@ -1536,13 +1543,14 @@ function summarizeProformaIssuesByProcess(issues = []) {
     const map = new Map();
     (Array.isArray(issues) ? issues : []).forEach((issue) => {
         const processKey = String(issue?.processKey || processKeyFromIssueText(issue?.message || '') || '').trim();
-        const label = processLabelFromKey(processKey);
-        const key = processKey || String(issue?.message || '').trim();
+        const baseKey = processKey.split('-')[0];
+        const label = processLabelFromKey(baseKey);
+        const key = baseKey || String(issue?.message || '').trim();
         if (!key || map.has(key)) return;
         map.set(key, {
             ...issue,
-            processKey,
-            message: processKey ? `${label} requiere configuración.` : String(issue?.message || '').trim()
+            processKey: baseKey,
+            message: baseKey ? `${label} requiere configuración.` : String(issue?.message || '').trim()
         });
     });
     return [...map.values()];
@@ -1555,8 +1563,7 @@ function proformaBlockIssuesFromLine(line = {}) {
         : [];
     const fallback = String(raw['ANALISIS CAMPOS PDF'] || raw['ANALISIS CAMPOS CREAR ORDEN'] || raw['ANALISIS CAMPOS FINALIZAR'] || '').trim();
     return [...new Set(messages.length ? messages : (fallback ? [fallback] : []))]
-        .map((message) => ({ message, processKey: processKeyFromIssueText(message) }))
-        .filter((issue) => !isPlateProformaIssue(issue));
+        .map((message) => ({ message, processKey: processKeyFromIssueText(message) }));
 }
 
 async function getProformaBlockMessage(quoteCode) {

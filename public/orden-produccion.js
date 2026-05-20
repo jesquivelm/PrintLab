@@ -813,7 +813,7 @@ function renderArtwork(attachments) {
     if (artworkDeleteButton) artworkDeleteButton.hidden = !artwork;
     if (!artwork) {
         artworkPreview.classList.add('production-art-preview-compact');
-        artworkPreview.innerHTML = '<div class="attachments-empty">Toca o arrastra aquí el arte de la orden.</div>';
+        artworkPreview.innerHTML = '<div class="attachments-empty">Arrastra el Arte</div>';
         updateArtworkSectionConstraint();
         return;
     }
@@ -1057,6 +1057,12 @@ function renderOrder(order) {
         { label: 'Orden de Arte', value: pickFirst(lineRaw['ORDEN DE ARTE']) },
         { label: 'Arte en Poder de', value: pickFirst(lineRaw['ARTE EN PODER DE']) }
     ]);
+    if (artSummary && artForm && artToggleButton) {
+        artSummary.hidden = true;
+        artForm.hidden = false;
+        setToggleIcon(artToggleButton, true);
+        requestAnimationFrame(updateArtworkSectionConstraint);
+    }
 
     const quoteCurrency = pickFirst(quote.currency, raw.currency, line.currency);
     const quoteQuantity = parseNumber(

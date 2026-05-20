@@ -4421,6 +4421,21 @@ html[data-theme="dark"] select option:hover {
   transform: translateY(-1px);
 }
 
+.process-trash-button .process-delete-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--process-delete-icon-size, 18px);
+  height: var(--process-delete-icon-size, 18px);
+  color: var(--process-delete-icon-color, currentColor);
+  font-size: var(--process-delete-icon-size, 18px);
+  line-height: 1;
+}
+
+.process-trash-button:hover .process-delete-icon {
+  color: var(--process-delete-icon-hover, currentColor);
+}
+
 /* Fila Total Final en sidebar */
 .summary-row-total {
   font-weight: 700;

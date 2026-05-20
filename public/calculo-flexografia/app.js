@@ -24,6 +24,7 @@ const PLATE_MODE_OPTIONS = [
   { key: "inventory", label: "Planchas en Inventario" },
   { key: "external", label: "Costo Externo" }
 ];
+const PLATE_CREATE_MODE_OPTION = { key: "create", label: "Crear" };
 const INLINE_PRINT_SLOTS = [
   { key: "barniz", label: "Barniz", keywords: ["barniz"], materialFamily: "barniz", materialKeywords: ["barniz"] },
   { key: "laminado", label: "Laminado", keywords: ["laminado"], materialFamily: "laminado", materialKeywords: ["laminado", "laminante", "overtape", "arclad", "graf depot"], usesMaterial: true },
@@ -71,6 +72,7 @@ const PROCESS_CONFIG_FALLBACK = PROCESS_MENU.map((item) => ({
   key: item.key,
   label: item.label,
   active: true,
+  createEnabled: !["troquel", "sustrato", "planchas", "troquelado", "adicionales"].includes(item.key),
   locked: Boolean(item.locked),
   repeatable: Boolean(item.repeatable),
   order: Number(item.order || 999),
@@ -258,7 +260,11 @@ function iconPresentation(key, fallbackValue, fallbackColor, fallbackSize) {
 
 function normalizePlateMode(value) {
   const key = String(value || "").trim().toLowerCase();
-  return PLATE_MODE_OPTIONS.some((item) => item.key === key) ? key : "";
+  return plateModeOptions().some((item) => item.key === key) ? key : "";
+}
+
+function plateModeOptions() {
+  return processCreateEnabled("planchas") ? [PLATE_CREATE_MODE_OPTION, ...PLATE_MODE_OPTIONS] : PLATE_MODE_OPTIONS;
 }
 
 function emptyPlateBreakdown(reason = "Costo = 0.") {
@@ -1937,8 +1943,11 @@ function configuredProcessDefinitions() {
     const fallback = fallbackByKey[key];
     if (!fallback || seen.has(key)) return null;
     seen.add(key);
-    const locked = item?.locked === true || String(item?.locked || "").trim().toLowerCase() === "true";
+    const locked = key === "troquel" ? true : (item?.locked === true || String(item?.locked || "").trim().toLowerCase() === "true");
     const active = locked ? true : (item?.active === true || String(item?.active || "").trim().toLowerCase() === "true");
+    const createEnabled = item?.createEnabled === true
+      || item?.create === true
+      || String(item?.createEnabled ?? item?.create ?? fallback.createEnabled ?? "").trim().toLowerCase() === "true";
     const repeatable = item?.repeatable === true || String(item?.repeatable || "").trim().toLowerCase() === "true";
     return {
       ...PROCESS_MENU_BY_KEY[key],
@@ -1946,6 +1955,7 @@ function configuredProcessDefinitions() {
       label: first(item?.label, fallback.label, PROCESS_MENU_BY_KEY[key]?.label, key),
       locked,
       active,
+      createEnabled: active ? createEnabled : false,
       repeatable,
       order: n(item?.order, fallback.order),
       minimumCost: Math.max(0, n(item?.minimumCost, 0))
@@ -2051,6 +2061,13 @@ function processMinimumCost(key = "") {
   return Math.max(0, n(processMeta(key)?.minimumCost, 0));
 }
 
+function processCreateEnabled(key = "") {
+  const target = norm(key);
+  if (target === "macula") return true;
+  const meta = processMeta(target);
+  return meta?.createEnabled === true;
+}
+
 function applyProcessMinimum(processKey, rawSubtotal) {
   const minimumCost = processMinimumCost(processKey);
   const normalizedRaw = r(rawSubtotal);
@@ -2117,7 +2134,7 @@ function syncInlineFinishesForMachine(stageIndex = 0) {
   if (!machineSupportsInline(machine)) return;
   Object.entries(INLINE_EXTERNAL_FINISH_KEY).forEach(([inlineKey, externalKey]) => {
     const hasSystemFinish = (state.form.finishes || []).some((finish) => finish.processKey === externalKey && finish.active !== false && isSystemManagedFinish(finish));
-    const hasInlineProcess = Array.isArray(state.form.activeProcessKeys) && state.form.activeProcessKeys.includes(inlineKey);
+    const hasInlineProcess = Array.isArray(state.form.activeProcessKeys) && (state.form.activeProcessKeys.includes(inlineKey) || state.form.activeProcessKeys.includes(externalKey));
     if (!hasSystemFinish && !hasInlineProcess) return;
     stage.inlineFinishes[inlineKey] = { ...(stage.inlineFinishes[inlineKey] || {}), active: true };
     applyInlineFinishSetupDefaults(stageIndex, inlineKey, false);
@@ -2302,25 +2319,28 @@ function ensureConfiguredProcessInstances() {
   configuredProcessDefinitions().forEach((meta) => {
     if (!activeKeys.has(meta.key)) return;
     if (EXTERNAL_FINISH_BY_KEY[meta.key]) {
+      const config = EXTERNAL_FINISH_BY_KEY[meta.key];
       const finishes = Array.isArray(state.form.finishes) ? state.form.finishes : [];
       if (finishes.some((item) => item.processKey === meta.key)) return;
-      const process = findProcessByKeywords(EXTERNAL_FINISH_BY_KEY[meta.key].keywords);
-      const material = materialsByClassification(EXTERNAL_FINISH_BY_KEY[meta.key].materialFamily, EXTERNAL_FINISH_BY_KEY[meta.key].materialKeywords || [])[0] || null;
+      const process = findProcessByKeywords(config.keywords);
+      const machine = selectSingleMachineOrNull(finishMachines(config));
+      const capacity = machine ? finishMachineCapacity(machine, config) : null;
+      const material = materialsByClassification(config.materialFamily, config.materialKeywords || [])[0] || null;
       const costs = materialUnitCosts(material, state.form.header.rollWidthIn);
       const wasteDefaults = finishWasteDefault(meta.key);
       state.form.finishes = finishes.concat(createFinishItem({
         processKey: meta.key,
-        slotLabel: EXTERNAL_FINISH_BY_KEY[meta.key].label,
+        slotLabel: config.label,
         processId: process?.id || "",
-        machineId: "",
-        machineName: "",
-        materialId: EXTERNAL_FINISH_BY_KEY[meta.key].usesMaterial ? (material?.id || "") : "",
-        description: process?.nombre || EXTERNAL_FINISH_BY_KEY[meta.key].label,
-        setupMinutes: firstPositiveNumber(process?.tiempo_preparacion_general, 0),
-        speed: firstPositiveNumber(process?.velocidad_produccion, 0),
-        costHour: firstPositiveNumber(process?.costo_hora_maquina, process?.costo_hora_operario, 0),
-        costHourMachine: firstPositiveNumber(process?.costo_hora_maquina, 0),
-        costHourOperator: firstPositiveNumber(process?.costo_hora_operario, 0),
+        machineId: machine?.id || "",
+        machineName: machine ? machineDisplayName(machine) : "",
+        materialId: config.usesMaterial ? (material?.id || "") : "",
+        description: process?.nombre || config.label,
+        setupMinutes: firstPositiveNumber(machine?.setupBaseMinutes, capacity?.tiempo_preparacion_general, process?.tiempo_preparacion_general, 0),
+        speed: firstPositiveNumber(machine?.productionSpeed, capacity?.velocidad_produccion, process?.velocidad_produccion, 0),
+        costHour: firstPositiveNumber(machine?.hourlyMachineCost, capacity?.costo_hora_maquina, process?.costo_hora_maquina, process?.costo_hora_operario, 0),
+        costHourMachine: firstPositiveNumber(machine?.hourlyMachineCost, capacity?.costo_hora_maquina, process?.costo_hora_maquina, 0),
+        costHourOperator: firstPositiveNumber(machine?.hourlyOperatorCost, capacity?.costo_hora_operario, process?.costo_hora_operario, 0),
         fixedCost: n(process?.costo_fijo, 0),
         variableUnitCost: n(process?.costo_x_pie || process?.costo_x_msi || process?.costo_x_kg || process?.costo_x_millar, 0),
         costPerFoot: costs.costPerFoot,
@@ -2365,25 +2385,28 @@ function addProcessKey(key) {
     return true;
   }
   if (EXTERNAL_FINISH_BY_KEY[key]) {
+      const config = EXTERNAL_FINISH_BY_KEY[key];
       state.form.activeProcessKeys = sortActiveProcessKeys((state.form.activeProcessKeys || []).concat(key));
       const finishes = Array.isArray(state.form.finishes) ? state.form.finishes : [];
-      const process = findProcessByKeywords(EXTERNAL_FINISH_BY_KEY[key].keywords);
-      const material = materialsByClassification(EXTERNAL_FINISH_BY_KEY[key].materialFamily, EXTERNAL_FINISH_BY_KEY[key].materialKeywords || [])[0] || null;
+      const process = findProcessByKeywords(config.keywords);
+      const machine = selectSingleMachineOrNull(finishMachines(config));
+      const capacity = machine ? finishMachineCapacity(machine, config) : null;
+      const material = materialsByClassification(config.materialFamily, config.materialKeywords || [])[0] || null;
       const costs = materialUnitCosts(material, state.form.header.rollWidthIn);
       const wasteDefaults = finishWasteDefault(key);
       state.form.finishes = finishes.concat(createFinishItem({
         processKey: key,
-        slotLabel: EXTERNAL_FINISH_BY_KEY[key].label,
+        slotLabel: config.label,
         processId: process?.id || "",
-        machineId: "",
-        machineName: "",
-        materialId: EXTERNAL_FINISH_BY_KEY[key].usesMaterial ? (material?.id || "") : "",
-        description: process?.nombre || EXTERNAL_FINISH_BY_KEY[key].label,
-        setupMinutes: firstPositiveNumber(process?.tiempo_preparacion_general, 0),
-        speed: firstPositiveNumber(process?.velocidad_produccion, 0),
-        costHour: firstPositiveNumber(process?.costo_hora_maquina, process?.costo_hora_operario, 0),
-        costHourMachine: firstPositiveNumber(process?.costo_hora_maquina, 0),
-        costHourOperator: firstPositiveNumber(process?.costo_hora_operario, 0),
+        machineId: machine?.id || "",
+        machineName: machine ? machineDisplayName(machine) : "",
+        materialId: config.usesMaterial ? (material?.id || "") : "",
+        description: process?.nombre || config.label,
+        setupMinutes: firstPositiveNumber(machine?.setupBaseMinutes, capacity?.tiempo_preparacion_general, process?.tiempo_preparacion_general, 0),
+        speed: firstPositiveNumber(machine?.productionSpeed, capacity?.velocidad_produccion, process?.velocidad_produccion, 0),
+        costHour: firstPositiveNumber(machine?.hourlyMachineCost, capacity?.costo_hora_maquina, process?.costo_hora_maquina, process?.costo_hora_operario, 0),
+        costHourMachine: firstPositiveNumber(machine?.hourlyMachineCost, capacity?.costo_hora_maquina, process?.costo_hora_maquina, 0),
+        costHourOperator: firstPositiveNumber(machine?.hourlyOperatorCost, capacity?.costo_hora_operario, process?.costo_hora_operario, 0),
         fixedCost: n(process?.costo_fijo, 0),
         variableUnitCost: n(process?.costo_x_pie || process?.costo_x_msi || process?.costo_x_kg || process?.costo_x_millar, 0),
         costPerFoot: costs.costPerFoot,
@@ -2492,8 +2515,8 @@ function coreDiameterSelectOptions() {
   });
 }
 
-function processOptions(items, selected = "") {
-  return [`<option value="">Seleccionar...</option>`]
+function processOptions(items, selected = "", placeholder = "Seleccionar...") {
+  return [`<option value="">${esc(placeholder)}</option>`]
     .concat(items.map((item) => `<option value="${item.id}"${String(item.id) === String(selected) ? " selected" : ""}>${esc(item.nombre || item.descripcion || item.id)}</option>`))
     .join("");
 }
@@ -3047,6 +3070,43 @@ function findDie(code) {
   return (state.catalogs.troqueles || []).find((item) => [item.id, item.codigo, item.codigoTroquel].some((value) => String(value || "") === String(code || ""))) || null;
 }
 
+function dieShapeToken(value = "") {
+  const token = norm(value);
+  if (token.includes("circul") || token.includes("redond")) return "circular";
+  if (token.includes("oval")) return "ovalado";
+  if (token.includes("cuadr")) return "cuadrado";
+  if (token.includes("rect")) return "rectangular";
+  if (token.includes("especial")) return "especial";
+  return token;
+}
+
+function dimensionsMatch(widthA, lengthA, widthB, lengthB, tolerance = 0.015) {
+  const aWidth = n(widthA, 0);
+  const aLength = n(lengthA, 0);
+  const bWidth = n(widthB, 0);
+  const bLength = n(lengthB, 0);
+  if (aWidth <= 0 || bWidth <= 0) return false;
+  if (aLength <= 0 || bLength <= 0) return Math.abs(aWidth - bWidth) <= tolerance;
+  const direct = Math.abs(aWidth - bWidth) <= tolerance && Math.abs(aLength - bLength) <= tolerance;
+  const rotated = Math.abs(aWidth - bLength) <= tolerance && Math.abs(aLength - bWidth) <= tolerance;
+  return direct || rotated;
+}
+
+function recommendedDieForCurrentForm() {
+  if (String(state.form?.troquel?.dieCode || "").trim()) return null;
+  const raw = state.context?.calculo?.raw_data || {};
+  const targetShape = dieShapeToken(first(state.form?.troquel?.dieShape, raw["REQ | Forma"], state.context?.calculo?.dieShape, ""));
+  const targetWidth = n(first(state.form?.header?.labelWidthIn, state.form?.troquel?.widthIn), 0);
+  const targetLength = n(first(state.form?.header?.labelHeightIn, state.form?.troquel?.lengthIn), 0);
+  if (!targetWidth || !targetLength) return null;
+  return (state.catalogs.troqueles || []).find((die) => {
+    const metricsValue = resolveDieMetrics(die, {});
+    const shape = dieShapeToken(metricsValue.dieShape);
+    const shapeOk = !targetShape || !shape || targetShape === shape;
+    return shapeOk && dimensionsMatch(targetWidth, targetLength, metricsValue.widthIn, metricsValue.lengthIn);
+  }) || null;
+}
+
 function effectiveColors(form = state.form) {
   if (form.header.noPrint) return 0;
   let total = n(form.header.pantoneCount, 0);
@@ -3422,6 +3482,15 @@ function buildCalculationValidationState(result = totals()) {
     if (chargePlates && plateMode === "external") {
       const rows = normalizePlateExternalRows(form.plates.external);
       addWhen("planchas", rows.every((row) => n(row.cost, 0) <= 0), "Falta costo externo de planchas.");
+    } else if (chargePlates && plateMode === "create" && processCreateEnabled("planchas")) {
+      PLATE_KEYS.forEach((entry) => {
+        const item = form.plates?.[entry.key] || {};
+        if (entry.materialOnly && form.plates?.chargeVirginPlate !== false) {
+          addWhen("planchas", !String(item.materialId || "").trim(), "Falta plancha virgen de inventario.");
+          return;
+        }
+        addWhen("planchas", !String(item.processId || "").trim(), `Falta máquina de ${entry.label.toLowerCase()}.`);
+      });
     } else if (chargePlates && plateMode !== "inventory") {
       addWhen("planchas", true, "Define planchas en inventario o costo externo de planchas.");
     }
@@ -3588,6 +3657,14 @@ function applyRequiredHighlights(result = null) {
     if (chargePlates && plateMode === "external") {
       normalizePlateExternalRows(form.plates.external).forEach((row, index) => {
         markRequiredScoped(`plates.external.${index}`, "cost", n(row.cost, 0) <= 0);
+      });
+    } else if (chargePlates && plateMode === "create" && processCreateEnabled("planchas")) {
+      PLATE_KEYS.forEach((entry) => {
+        const item = form.plates?.[entry.key] || {};
+        if (entry.materialOnly && form.plates?.chargeVirginPlate !== false) {
+          markRequiredScoped(`plates.${entry.key}`, "materialId", !String(item.materialId || "").trim());
+        }
+        if (!entry.materialOnly) markRequiredScoped(`plates.${entry.key}`, "processId", !String(item.processId || "").trim());
       });
     }
   }
@@ -3851,7 +3928,7 @@ function buildForm() {
       ? raw.CODEX_PROCESS_SNAPSHOT
       : [];
   const die = findDie(context?.dieCode);
-  const selectedQuotedMachine = null;
+  const selectedQuotedMachine = findMachineByDisplayName(first(autoSelection?.machineName, context?.machineName, "")) || selectSingleMachineOrNull(printMachines());
   const printProcess = byCategory("impresion")[0] || findProcessByKeywords(["impresion"]);
   const materialId = context?.materialCode || "";
   const material = findMaterial(materialId);
@@ -4383,7 +4460,7 @@ function calcPlates() {
       explanation: "Las planchas se tomarán de inventario y no requieren costo externo en este cálculo."
     };
   }
-  if (plateMode !== "external") {
+  if (plateMode !== "create") {
     return { ...applyProcessMinimum("planchas", 0), breakdown: emptyPlateBreakdown("Pendiente definir inventario o costo externo."), explanation: "Selecciona planchas en inventario o registra un costo externo para continuar." };
   }
   if (state.form.plates?.chargeVirginPlate === false) {
@@ -6446,11 +6523,11 @@ function applyDefaultLauncherPosition() {
 
 function renderPlateModeSelector() {
   const current = normalizePlateMode(state.form.plates?.plateMode);
-  return `<div class="front-back-element-tabs plate-mode-tabs" role="tablist" aria-label="Tipo de plancha">${PLATE_MODE_OPTIONS.map((option) => `<button type="button" class="front-back-element-tab plate-mode-tab${current === option.key ? " is-active" : ""}" data-action="set-plate-mode" data-plate-mode="${esc(option.key)}" role="tab" aria-selected="${current === option.key ? "true" : "false"}"><strong>${esc(option.label)}</strong></button>`).join("")}</div>`;
+  return `<div class="front-back-element-tabs plate-mode-tabs" role="tablist" aria-label="Tipo de plancha">${plateModeOptions().map((option) => `<button type="button" class="front-back-element-tab plate-mode-tab${current === option.key ? " is-active" : ""}" data-action="set-plate-mode" data-plate-mode="${esc(option.key)}" role="tab" aria-selected="${current === option.key ? "true" : "false"}"><strong>${esc(option.label)}</strong></button>`).join("")}</div>`;
 }
 
-function renderPlateVirginDisabledPanel() {
-  return `<div class="plate-disabled-panel"><label class="inline-process-check plate-virgin-check"><input type="checkbox" disabled><span>Plancha Virgen</span></label></div>`;
+function renderPlatePendingPanel() {
+  return `<div class="plate-disabled-panel"><label class="inline-process-check plate-virgin-check"><input type="checkbox" disabled><span>Inventario / Costo Externo</span></label></div>`;
 }
 
 function renderPlateExternalAttachmentTable(item = {}, index = 0) {
@@ -6480,6 +6557,10 @@ function renderPlateInventoryPanel(plates) {
     exampleLines: ["Planchas en inventario: no se solicita costo externo."],
     answer: `R/ Las planchas se registran como inventario y no bloquean la proforma.`
   })}`;
+}
+
+function renderPlateCreatePanel(plates) {
+  return `<div class="process-zone"><div class="process-zone-head"><h4>Creación</h4></div>${PLATE_KEYS.map((entry) => renderPlateStep(entry, plates)).join("")}</div><div class="readonly-grid compact-top subtotal-right">${metric("Subtotal Planchas", money(plates.subtotal))}</div>`;
 }
 
 function renderPlateStep(entry, plates) {
@@ -6988,7 +7069,7 @@ function renderProcesses() {
       ],
       answer: `R/ La referencia actual de merma usa ${formulaValue(macula.montajeRows.length, 0)} filas de montaje y ${formulaValue(macula.tirajeRows.length, 0)} filas de tiraje`
     })}`),
-    troquel: () => { const shapeValue = String(state.form.troquel.dieShape || '').trim(); const shapeIndex = { Circular: 1, Cuadrado: 2, Rectangular: 3, Ovalado: 4, Especial: 5 }[shapeValue] || 0; const shapeImage = shapeIndex ? state.config?.general?.['dieShapeImage' + shapeIndex] || '' : ''; return card("troquel", nextTitle("Troquel"), state.form.troquel.dieDescription, troquel.subtotal, `<div class="editable-grid"><label class="span-2"><span>Troquel</span><select data-scope="troquel" data-field="dieCode">${processOptions(dieOptions, state.form.troquel.dieCode)}</select></label></div><div class="readonly-grid compact-top">${shapeImage ? `<div class="metric-cell" style="grid-column:1/-1;display:flex;align-items:center;gap:10px"><span>Forma</span><strong>${esc(shapeValue)}</strong><img src="${esc(shapeImage)}" alt="${esc(shapeValue)}" style="height:36px;width:auto;border-radius:4px;border:1px solid var(--color-border-tertiary);"></div>` : metric("Forma", esc(shapeValue || "No definida"))}${metric("Código Troquel", esc(state.form.troquel.dieCode || "No definido"))}${metric("Ancho Montaje", `${num(state.form.troquel.widthIn, 3)} in`)}${metric("Largo Montaje", `${num(state.form.troquel.lengthIn, 3)} in`)}${metric("Ancho Material", `${num(state.form.troquel.materialWidthIn || 0, 3)} in`)}${metric("Elongación", `${num(state.form.troquel.elongationPct || 0, 3)} %`)}${metric("Dientes", num(state.form.troquel.teeth, 0))}${metric("Repeticiones", num(state.form.troquel.repeats, 0))}${metric("Filas", num(state.form.troquel.rows, 0))}${metric("Etiquetas por Vuelta", num(troquel.labelsPerRepeat, 0))}${metric("Desarrollo Total", `${num(troquel.development, 3)} in`)}</div>${formula("Base del Troquel", troquel.formulaText, troquel.explanation, {
+    troquel: () => { const shapeValue = String(state.form.troquel.dieShape || state.context?.calculo?.raw_data?.["REQ | Forma"] || '').trim(); const shapeIndex = { Circular: 1, Cuadrado: 2, Rectangular: 3, Ovalado: 4, Especial: 5 }[shapeValue] || 0; const shapeImage = shapeIndex ? state.config?.general?.['dieShapeImage' + shapeIndex] || '' : ''; const recommendedDie = recommendedDieForCurrentForm(); const recommendedLabel = recommendedDie ? `Recomendado: ${first(recommendedDie.codigoTroquel, recommendedDie.codigo, recommendedDie.id)}` : "Seleccionar..."; const productDimension = `${num(state.form.header?.labelWidthIn || 0, 3)} x ${num(state.form.header?.labelHeightIn || 0, 3)} in`; return card("troquel", nextTitle("Troquel"), state.form.troquel.dieDescription, troquel.subtotal, `<div class="editable-grid"><label class="span-2"><span>Troquel</span><select data-scope="troquel" data-field="dieCode">${processOptions(dieOptions, state.form.troquel.dieCode, recommendedLabel)}</select></label></div><div class="readonly-grid compact-top">${shapeImage ? `<div class="metric-cell" style="grid-column:1/-1;display:flex;align-items:center;gap:10px"><span>Forma</span><strong>${esc(shapeValue || "No definida")}</strong><img src="${esc(shapeImage)}" alt="${esc(shapeValue)}" style="height:36px;width:auto;border-radius:4px;border:1px solid var(--color-border-tertiary);"></div>` : metric("Forma", esc(shapeValue || "No definida"))}${metric("Dimensión Producto", productDimension)}${metric("Código Troquel", esc(state.form.troquel.dieCode || "No definido"))}${metric("Ancho Montaje", `${num(state.form.troquel.widthIn, 3)} in`)}${metric("Largo Montaje", `${num(state.form.troquel.lengthIn, 3)} in`)}${metric("Ancho Material", `${num(state.form.troquel.materialWidthIn || 0, 3)} in`)}${metric("Elongación", `${num(state.form.troquel.elongationPct || 0, 3)} %`)}${metric("Dientes", num(state.form.troquel.teeth, 0))}${metric("Repeticiones", num(state.form.troquel.repeats, 0))}${metric("Filas", num(state.form.troquel.rows, 0))}${metric("Etiquetas por Vuelta", num(troquel.labelsPerRepeat, 0))}${metric("Desarrollo Total", `${num(troquel.development, 3)} in`)}</div>${formula("Base del Troquel", troquel.formulaText, troquel.explanation, {
       exampleLines: [
         `Etiquetas por repetición: ${formulaValue(state.form.troquel.rows || 0, 0)} x ${formulaValue(state.form.troquel.repeats || 0, 0)} = ${formulaValue(troquel.labelsPerRepeat || 0, 0)}`,
         `Desarrollo total: ${formulaValue(state.form.troquel.lengthIn || 0, 2)} x ${formulaValue(state.form.troquel.repeats || 0, 0)} = ${formulaValue(troquel.development || 0, 2)} in`,
@@ -7026,12 +7107,14 @@ function renderProcesses() {
       const selector = renderPlateModeSelector();
       const body = plateMode === "external"
         ? `${selector}${renderPlateExternalPanel(plates)}`
+        : (plateMode === "create"
+          ? `${selector}${renderPlateCreatePanel(plates)}`
         : (plateMode === "inventory"
           ? `${selector}${renderPlateInventoryPanel(plates)}`
-          : `${selector}${renderPlateVirginDisabledPanel()}${formula("Planchas", "Selecciona planchas en inventario o costo externo.", plates.explanation, {
-            exampleLines: ["Plancha Virgen desactivada."],
+          : `${selector}${renderPlatePendingPanel()}${formula("Planchas", "Selecciona planchas en inventario o costo externo.", plates.explanation, {
+            exampleLines: ["Pendiente definir inventario o costo externo."],
             answer: "R/ Falta definir inventario o costo externo de planchas."
-          })}`);
+          })}`));
       return card("planchas", `${nextTitle("Planchas")}${digitalProcessNote ? ` <span style="color:#c62828;font-size:12px;font-weight:400;">${esc(digitalProcessNote)}</span>` : ""}`, "", plates.subtotal, body);
     },
     empaque: () => card("empaque", nextTitle("Empaque"), "", packaging.subtotal, `<div class="editable-grid"><label><span>Rollos</span>${readonlyDisplay(`${num(state.form.packaging.rollCount || 0, 2)} rollos`)}</label><label><span>Rend./h</span>${displayInput("packaging", "yieldPerHour", state.form.packaging.yieldPerHour, { suffix: "rollos/h", maximumFractionDigits: 2, step: "0.01" })}</label><label><span>Operarios</span>${displayInput("packaging", "operators", state.form.packaging.operators, { integer: true, maximumFractionDigits: 0, step: "1" })}</label><label><span>Costo Op.</span>${displayInput("packaging", "hourCost", state.form.packaging.hourCost, { prefix: "$", maximumFractionDigits: 2, step: "0.01" })}</label><label><span>Costo Ext.</span>${displayInput("packaging", "externalCost", state.form.packaging.externalCost, { prefix: "$", maximumFractionDigits: 2, step: "0.01" })}</label><label class="span-2"><span>Comentarios</span><input data-scope="packaging" data-field="comments" type="text" value="${esc(state.form.packaging.comments)}"></label><label class="span-2 file-icon-field"><span>Adjunto <span class="field-unit-clip" aria-hidden="true">&#128206;</span></span><input data-scope="packaging" data-field="attachmentName" data-kind="file" type="file"></label></div><div class="readonly-grid compact-top">${metric("Tiempo", `${num(packaging.hours, 2)} h`)}${metric("Subtotal", money(packaging.subtotal))}</div>${formula("Cálculo de Empaque", packaging.formulaText, packaging.explanation, {

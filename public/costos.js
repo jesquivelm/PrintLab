@@ -4,21 +4,21 @@ const PRESENTATION_KEY = "costos";
 const COSTS_FALLBACK_STORAGE_KEY = "erp-costos-config";
 const DEFAULT_FLOATING_SAVE_ICON = "\u{1F4BE}";
 const PROCESS_DEFAULTS = [
-    { key: "macula", label: "Merma", active: true, locked: true, repeatable: false, order: 5 },
-    { key: "troquel", label: "Troquel", active: true, locked: true, repeatable: false, order: 10 },
-    { key: "sustrato", label: "Sustrato", active: true, locked: true, repeatable: false, order: 20 },
-    { key: "diseno", label: "Dise\u00f1o", active: false, locked: false, repeatable: false, order: 30 },
-    { key: "preprensa", label: "Preprensa", active: true, locked: true, repeatable: false, order: 40 },
-    { key: "planchas", label: "Planchas", active: false, locked: false, repeatable: false, order: 50 },
-    { key: "impresion", label: "Impresi\u00f3n", active: false, locked: false, repeatable: false, order: 60 },
-    { key: "barnizado", label: "Barnizado", active: false, locked: false, repeatable: false, order: 69 },
-    { key: "laminado", label: "Laminado", active: false, locked: false, repeatable: false, order: 70 },
-    { key: "estampado", label: "Estampado", active: false, locked: false, repeatable: false, order: 71 },
-    { key: "embosado", label: "Embosado", active: false, locked: false, repeatable: false, order: 72 },
-    { key: "troquelado", label: "Troquelado", active: false, locked: false, repeatable: false, order: 73 },
-    { key: "rebobinado", label: "Rebobinado", active: false, locked: false, repeatable: false, order: 74 },
-    { key: "empaque", label: "Empaque", active: false, locked: false, repeatable: false, order: 80 },
-    { key: "adicionales", label: "Procesos adicionales", active: false, locked: false, repeatable: false, order: 90 }
+    { key: "macula", label: "Merma", active: true, createEnabled: true, locked: true, repeatable: false, order: 5 },
+    { key: "troquel", label: "Troquel", active: true, createEnabled: false, locked: true, repeatable: false, order: 10 },
+    { key: "sustrato", label: "Sustrato", active: true, createEnabled: false, locked: true, repeatable: false, order: 20 },
+    { key: "diseno", label: "Dise\u00f1o", active: false, createEnabled: true, locked: false, repeatable: false, order: 30 },
+    { key: "preprensa", label: "Preprensa", active: true, createEnabled: true, locked: true, repeatable: false, order: 40 },
+    { key: "planchas", label: "Planchas", active: false, createEnabled: false, locked: false, repeatable: false, order: 50 },
+    { key: "impresion", label: "Impresi\u00f3n", active: false, createEnabled: true, locked: false, repeatable: false, order: 60 },
+    { key: "barnizado", label: "Barnizado", active: false, createEnabled: true, locked: false, repeatable: false, order: 69 },
+    { key: "laminado", label: "Laminado", active: false, createEnabled: true, locked: false, repeatable: false, order: 70 },
+    { key: "estampado", label: "Estampado", active: false, createEnabled: true, locked: false, repeatable: false, order: 71 },
+    { key: "embosado", label: "Embosado", active: false, createEnabled: true, locked: false, repeatable: false, order: 72 },
+    { key: "troquelado", label: "Troquelado", active: false, createEnabled: false, locked: false, repeatable: false, order: 73 },
+    { key: "rebobinado", label: "Rebobinado", active: false, createEnabled: true, locked: false, repeatable: false, order: 74 },
+    { key: "empaque", label: "Empaque", active: false, createEnabled: true, locked: false, repeatable: false, order: 80 },
+    { key: "adicionales", label: "Procesos adicionales", active: false, createEnabled: false, locked: false, repeatable: false, order: 90 }
 ];
 
 const DEFAULT_COSTS_CONFIG = {
@@ -257,13 +257,15 @@ function normalizeProcessDefaults(value) {
         const fallback = fallbackByKey[key];
         if (!fallback || seen.has(key)) return null;
         seen.add(key);
-        const locked = booleanValue(row?.locked, fallback.locked);
+        const locked = ["macula", "troquel"].includes(key) ? true : booleanValue(row?.locked, fallback.locked);
         const active = locked ? true : booleanValue(row?.active, fallback.active);
+        const createEnabled = key === "macula" ? true : booleanValue(row?.createEnabled ?? row?.create, fallback.createEnabled);
         const repeatable = booleanValue(row?.repeatable, fallback.repeatable);
         return {
             key,
             label: fallback.label,
             active,
+            createEnabled: active ? createEnabled : false,
             locked,
             repeatable,
             ganttEnabled: booleanValue(row?.ganttEnabled, row?.ganttEnabled == null ? active : false),
@@ -277,6 +279,7 @@ function normalizeProcessDefaults(value) {
             key: item.key,
             label: item.label,
             active: item.locked ? true : item.active,
+            createEnabled: item.key === "macula" ? true : Boolean(item.createEnabled && (item.locked || item.active)),
             locked: item.locked,
             repeatable: item.repeatable,
             ganttEnabled: Boolean(item.active),
@@ -668,6 +671,11 @@ function renderProcessDefaultRows() {
                 </label>
             </td>
             <td class="costs-process-default-cell-check">
+                <label class="costs-process-default-check" aria-label="Crear">
+                    <input type="checkbox" data-process-field="createEnabled" data-index="${index}"${row.createEnabled ? " checked" : ""}${row.key === "macula" ? " disabled" : ""}>
+                </label>
+            </td>
+            <td class="costs-process-default-cell-check">
                 <label class="costs-process-default-check" aria-label="Mostrar en Gantt">
                     <input type="checkbox" data-process-field="ganttEnabled" data-index="${index}"${row.ganttEnabled ? " checked" : ""}>
                 </label>
@@ -822,13 +830,26 @@ processDefaultsList?.addEventListener("change", (event) => {
     if (!row) return;
     if (target.dataset.processField === "active") {
         row.active = target.checked;
-        if (!row.active) row.locked = false;
+        if (!row.active) {
+            row.locked = false;
+            row.createEnabled = false;
+        }
+        if (["macula", "troquel"].includes(row.key)) {
+            row.active = true;
+            row.locked = true;
+            if (row.key === "macula") row.createEnabled = true;
+        }
+    }
+    if (target.dataset.processField === "createEnabled") {
+        row.createEnabled = row.key === "macula" ? true : target.checked;
+        if (row.createEnabled) row.active = true;
     }
     if (target.dataset.processField === "ganttEnabled") {
         row.ganttEnabled = target.checked;
     }
     if (target.dataset.processField === "locked") {
         row.locked = target.checked;
+        if (["macula", "troquel"].includes(row.key)) row.locked = true;
         if (row.locked) row.active = true;
     }
     if (target.dataset.processField === "repeatable") {
