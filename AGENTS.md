@@ -174,6 +174,18 @@ Minimize token usage aggressively.
 Use the smallest possible amount of tokens required to complete the requested task.
 This rule is mandatory.
 
+For visual/UI/layout/icon work, token savings must never replace the required visual validation.
+
+When the request includes screenshots, exact positioning, sizes, colors, spacing, icons, light/dark themes, or layout fidelity:
+- Treat the visual reference as the source of truth.
+- Identify the affected screen and the exact files before editing.
+- Keep the mandatory backup, UTF-8, and scope rules unchanged.
+- Validate in a real rendered view whenever the app can be run locally.
+- Use screenshots or browser inspection to check alignment, clipping, overflow, spacing, icon size, colors, and light/dark behavior.
+- Self-correct visible regressions before declaring the task complete.
+- If visual validation cannot be performed, report it explicitly as not tested and do not claim the result is perfect.
+- Do not commit or push visual work as complete unless visual validation passed or the blocker was clearly reported.
+
 Buttons already have established design patterns.
 If uncertain:
 - Reference existing screens such as:
