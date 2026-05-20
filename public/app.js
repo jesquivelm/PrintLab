@@ -122,6 +122,7 @@ let copySourceRowId = null;
 let quoteCatalog = [];
 let quoteCatalogIndex = -1;
 let quoteRefreshPending = false;
+let trackingUserPhotos = new Map();
 let attachmentsRowId = null;
 let attachmentsRefreshTimer = null;
 let replaceAttachmentId = null;
@@ -707,6 +708,53 @@ function trackingColorForName(name) {
     return palette[total % palette.length];
 }
 
+function trackingUserLookupKey(value) {
+    return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function registerTrackingUserPhoto(map, value, photoUrl) {
+    const key = trackingUserLookupKey(value);
+    const photo = String(photoUrl || '').trim();
+    if (key && photo && !map.has(key)) map.set(key, photo);
+}
+
+async function loadTrackingUserPhotos() {
+    try {
+        const response = await fetch('/api/admin-users');
+        if (!response.ok) return;
+        const users = await response.json();
+        const map = new Map();
+        (Array.isArray(users) ? users : []).forEach((user) => {
+            const photo = user.photoUrl || user.photo_url || '';
+            [user.name, user.fullName, user.full_name, user.username, user.sapSalespersonName, user.sap_salesperson_name].forEach((value) => registerTrackingUserPhoto(map, value, photo));
+        });
+        trackingUserPhotos = map;
+    } catch (_) {
+        trackingUserPhotos = new Map();
+    }
+}
+
+function trackingPhotoForName(name) {
+    return trackingUserPhotos.get(trackingUserLookupKey(name)) || '';
+}
+
+function trackingAvatarMarkup(name) {
+    const photo = trackingPhotoForName(name);
+    const initials = initialsFromName(name);
+    if (!photo) return escapeHtml(initials);
+    return `<img class="tracking-avatar-image" src="${escapeHtml(photo)}" alt="${escapeHtml(name || 'Usuario')}" data-tracking-avatar-img><span class="tracking-avatar-fallback" hidden>${escapeHtml(initials)}</span>`;
+}
+
+function bindTrackingAvatarFallback(root = document) {
+    root.querySelectorAll?.('[data-tracking-avatar-img]').forEach((image) => {
+        image.addEventListener('error', () => {
+            image.hidden = true;
+            const fallback = image.nextElementSibling;
+            if (fallback) fallback.hidden = false;
+        }, { once: true });
+    });
+}
+
 function trackingMilestonesForRow(row = {}) {
     const raw = row.rawData || {};
     const sellerName = raw.VENDEDOR || raw['VENDEDOR | USUARIO'] || currentUserName?.textContent || 'Vendedor';
@@ -735,9 +783,10 @@ function openRowTracking(row) {
     const doneCount = milestones.filter((item) => item.done).length;
     const body = `<div class="line-tracking-head"><strong>${escapeHtml(row.quoteId || currentQuote?.quote_code || '')} · ${escapeHtml(row.nombreTrabajo || row.productId || '')}</strong><span>${doneCount} de ${milestones.length} completados</span></div><div class="line-tracking-list">${milestones.map((item) => {
         const name = item.user || 'Pendiente';
-        return `<article class="line-tracking-item${item.done ? ' is-done' : ''}"><span class="line-tracking-avatar" style="background:${escapeHtml(trackingColorForName(name))};">${escapeHtml(initialsFromName(name))}</span><div><strong>${escapeHtml(item.label)}</strong><span>${escapeHtml(name)}</span><em>${escapeHtml(item.date || 'Pendiente')}</em></div></article>`;
+        return `<article class="line-tracking-item${item.done ? ' is-done' : ''}"><span class="line-tracking-avatar${trackingPhotoForName(name) ? ' has-photo' : ''}" style="background:${escapeHtml(trackingColorForName(name))};">${trackingAvatarMarkup(name)}</span><div><strong>${escapeHtml(item.label)}</strong><span>${escapeHtml(name)}</span><em>${escapeHtml(item.date || 'Pendiente')}</em></div></article>`;
     }).join('')}</div>`;
     showCenterMessage(body, { html: true, duration: 300000 });
+    bindTrackingAvatarFallback();
 }
 
 function formatDateForInput(value) {
@@ -2799,6 +2848,7 @@ window.addEventListener('popstate', (event) => {
 (async function bootstrap() {
     try {
         await loadConfig();
+        await loadTrackingUserPhotos();
         await loadInitialQuote();
         setStatus(currentQuote?.quote_code ? `Cotización ${currentQuote.quote_code} cargada.` : 'No hay cotizaciones aún.', 'saved');
     } catch (error) {

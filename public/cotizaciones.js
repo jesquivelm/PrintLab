@@ -263,6 +263,7 @@ let frontBackModalRow = null;
 let lineActionModal = null;
 let lineActionState = { row: null, mode: '' };
 let lineActionSearchTimer = null;
+let trackingUserPhotos = new Map();
 let partnerLookupAbort = null;
 let requestContactAbort = null;
 let newCalcPartnerLookupAbort = null;
@@ -2228,6 +2229,54 @@ function trackingColorForName(name) {
     return palette[total % palette.length];
 }
 
+function trackingUserLookupKey(value) {
+    return normalizeText(value).toLowerCase().replace(/\s+/g, ' ');
+}
+
+function registerTrackingUserPhoto(map, value, photoUrl) {
+    const key = trackingUserLookupKey(value);
+    const photo = String(photoUrl || '').trim();
+    if (key && photo && !map.has(key)) map.set(key, photo);
+}
+
+async function loadTrackingUserPhotos() {
+    try {
+        const payload = await fetchJson('/api/admin-users', { headers: sessionHeader() });
+        const map = new Map();
+        const session = readUserSession() || {};
+        const sessionPhoto = session.photoUrl || session.photo_url || '';
+        [session.name, session.fullName, session.username, session.user].forEach((value) => registerTrackingUserPhoto(map, value, sessionPhoto));
+        (Array.isArray(payload) ? payload : []).forEach((user) => {
+            const photo = user.photoUrl || user.photo_url || '';
+            [user.name, user.fullName, user.full_name, user.username, user.sapSalespersonName, user.sap_salesperson_name].forEach((value) => registerTrackingUserPhoto(map, value, photo));
+        });
+        trackingUserPhotos = map;
+    } catch (_) {
+        trackingUserPhotos = new Map();
+    }
+}
+
+function trackingPhotoForName(name) {
+    return trackingUserPhotos.get(trackingUserLookupKey(name)) || '';
+}
+
+function trackingAvatarMarkup(name) {
+    const photo = trackingPhotoForName(name);
+    const initials = initialsFromName(name);
+    if (!photo) return escapeHtml(initials);
+    return `<img class="tracking-avatar-image" src="${escapeHtml(photo)}" alt="${escapeHtml(name || 'Usuario')}" data-tracking-avatar-img><span class="tracking-avatar-fallback" hidden>${escapeHtml(initials)}</span>`;
+}
+
+function bindTrackingAvatarFallback(root = document) {
+    root.querySelectorAll?.('[data-tracking-avatar-img]').forEach((image) => {
+        image.addEventListener('error', () => {
+            image.hidden = true;
+            const fallback = image.nextElementSibling;
+            if (fallback) fallback.hidden = false;
+        }, { once: true });
+    });
+}
+
 function trackingMilestonesForRow(row = {}) {
     const raw = row.rawData || {};
     const session = readUserSession() || {};
@@ -2267,12 +2316,13 @@ function openLineTrackingModal(row) {
             ${milestones.map((item) => {
                 const name = item.user || 'Pendiente';
                 return `<article class="line-tracking-item${item.done ? ' is-done' : ''}">
-                    <span class="line-tracking-avatar" style="background:${escapeHtml(trackingColorForName(name))};">${escapeHtml(initialsFromName(name))}</span>
+                    <span class="line-tracking-avatar${trackingPhotoForName(name) ? ' has-photo' : ''}" style="background:${escapeHtml(trackingColorForName(name))};">${trackingAvatarMarkup(name)}</span>
                     <div><strong>${escapeHtml(item.label)}</strong><span>${escapeHtml(name)}</span><em>${escapeHtml(item.date || 'Pendiente')}</em></div>
                 </article>`;
             }).join('')}
         </div>
     `);
+    bindTrackingAvatarFallback(lineActionModal || document);
 }
 
 function handleLineActionModalInput(event) {
@@ -5031,7 +5081,7 @@ async function init() {
     bindEvents();
     syncToggleChipState();
     loadSapTemplate();
-    await Promise.all([loadConfig(), loadQuotes(), loadSmartCatalogs()]);
+    await Promise.all([loadConfig(), loadTrackingUserPhotos(), loadQuotes(), loadSmartCatalogs()]);
 
     if (launcherWrap) {
         if (disableQuoteRequestLauncherDrag) {

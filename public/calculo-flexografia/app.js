@@ -187,6 +187,7 @@ const state = {
   processOpen: {},
   detailsOpen: { sustrato: false },
   quoteTracking: { id: "", panelOpen: false, formOpenKey: "", milestones: [], closure: null },
+  trackingUserPhotos: new Map(),
   frontBackActiveElementLineCode: "",
   infoPopover: {
     trigger: null,
@@ -368,6 +369,49 @@ function writeQuoteTrackingStore(items) {
 function currentTrackingUser() {
   const session = readUserSession();
   return first(session?.name, session?.fullName, session?.username, session?.user, state.config?.session?.currentUser, state.config?.general?.currentUser, state.form?.header?.salespersonName, "Usuario");
+}
+
+function trackingUserLookupKey(value) {
+  return norm(value).replace(/\s+/g, " ");
+}
+
+function registerTrackingUserPhoto(map, value, photoUrl) {
+  const key = trackingUserLookupKey(value);
+  const photo = String(photoUrl || "").trim();
+  if (key && photo && !map.has(key)) map.set(key, photo);
+}
+
+function buildTrackingUserPhotoMap(users = []) {
+  const map = new Map();
+  const session = readUserSession() || {};
+  const sessionPhoto = first(session.photoUrl, session.photo_url);
+  [session.name, session.fullName, session.username, session.user].forEach((value) => registerTrackingUserPhoto(map, value, sessionPhoto));
+  (Array.isArray(users) ? users : []).forEach((user) => {
+    const photo = first(user?.photoUrl, user?.photo_url);
+    [user?.name, user?.fullName, user?.full_name, user?.username, user?.sapSalespersonName, user?.sap_salesperson_name].forEach((value) => registerTrackingUserPhoto(map, value, photo));
+  });
+  return map;
+}
+
+function trackingPhotoForName(name) {
+  return state.trackingUserPhotos?.get(trackingUserLookupKey(name)) || "";
+}
+
+function trackingAvatarContent(name) {
+  const photo = trackingPhotoForName(name);
+  const initials = initialsFromName(name);
+  if (!photo) return esc(initials);
+  return `<img class="tracking-avatar-image" src="${esc(photo)}" alt="${esc(name || "Usuario")}" data-tracking-avatar-img><span class="tracking-avatar-fallback" hidden>${esc(initials)}</span>`;
+}
+
+function bindTrackingAvatarFallback(root) {
+  root?.querySelectorAll("[data-tracking-avatar-img]").forEach((image) => {
+    image.addEventListener("error", () => {
+      image.hidden = true;
+      const fallback = image.nextElementSibling;
+      if (fallback) fallback.hidden = false;
+    }, { once: true });
+  });
 }
 
 function trackingColorForName(name) {
@@ -5000,7 +5044,7 @@ function renderTimelineLauncher() {
     <div class="timeline-list">
       ${buildTimelineEntries().map((entry) => `
         <article class="timeline-entry${entry.stamp ? "" : " is-pending"}">
-          <div class="timeline-entry-avatar">${esc(initialsFromName(entry.user))}</div>
+          <div class="timeline-entry-avatar${trackingPhotoForName(entry.user) ? " has-photo" : ""}">${trackingAvatarContent(entry.user)}</div>
           <div class="timeline-entry-line"></div>
           <div class="timeline-entry-content">
             <div class="timeline-entry-head">
@@ -5019,6 +5063,7 @@ function renderTimelineLauncher() {
     </div>
     <button type="button" id="timelineReportButton" class="timeline-report-button">Notificar problema</button>
   `;
+  bindTrackingAvatarFallback(els.timelineLauncherPanel);
   els.timelineLauncherLabel.textContent = "";
   updateProcessLauncherMenuPlacement();
 }
@@ -5597,7 +5642,7 @@ function renderQuoteTracking() {
     let node = "";
     if (item.done) {
       const undoable = !item.fixed;
-      node = `<button type="button" class="tl-done-btn tl-avatar-anim${undoable ? " undoable" : ""}" style="background:${esc(item.color)};"${undoable ? ` data-tracking-undo="${index}" title="Deshacer este hito y los siguientes" aria-label="Deshacer ${esc(item.label)}"` : ""}>${esc(item.initials || initialsFromName(item.user))}${undoable ? '<span class="tl-undo-overlay"><i class="ti ti-arrow-back-up" style="font-size:15px;color:#fff;" aria-hidden="true"></i></span>' : ""}<span class="tl-check-badge"><i class="ti ti-check" style="font-size:9px;color:#fff;" aria-hidden="true"></i></span></button>`;
+      node = `<button type="button" class="tl-done-btn tl-avatar-anim${trackingPhotoForName(item.user) ? " has-photo" : ""}${undoable ? " undoable" : ""}" style="background:${esc(item.color)};"${undoable ? ` data-tracking-undo="${index}" title="Deshacer este hito y los siguientes" aria-label="Deshacer ${esc(item.label)}"` : ""}>${trackingAvatarContent(item.user)}${undoable ? '<span class="tl-undo-overlay"><i class="ti ti-arrow-back-up" style="font-size:15px;color:#fff;" aria-hidden="true"></i></span>' : ""}<span class="tl-check-badge"><i class="ti ti-check" style="font-size:9px;color:#fff;" aria-hidden="true"></i></span></button>`;
     } else if (item.cr) {
       node = `<div style="position:relative;flex-shrink:0;"><div class="tl-locked" style="border-color:#d97706;"><i class="ti ${esc(item.icon)}" style="font-size:17px;color:#d97706;" aria-hidden="true"></i></div><span class="tl-warn-badge"><i class="ti ti-alert-triangle" style="font-size:8px;color:#fff;" aria-hidden="true"></i></span></div>`;
     } else if (available) {
@@ -5637,6 +5682,7 @@ function renderQuoteTracking() {
     return `<div style="display:grid;grid-template-columns:48px 1fr;gap:0 14px;opacity:${opacity};"><div style="display:flex;flex-direction:column;align-items:center;">${node}${line}</div>${content}</div>`;
   }).join("");
   els.quoteTrackingMount.innerHTML = `<h2 class="sr-only">Panel de seguimiento con solicitudes de cambio por hito</h2><div class="quote-tracking-wrap"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 16px;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);margin-bottom:10px;"><div style="display:grid;gap:4px;min-width:0;flex:1;overflow:hidden;"><a class="quote-tracking-code summary-row-link" href="${esc(quoteRoute || "#")}"${quoteRoute ? ` data-route="${esc(quoteRoute)}" data-label="Cotización ${esc(quoteCode)}"` : ""} style="font-size:13px;font-weight:500;color:var(--color-text-primary);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(quoteCode)}</a><span style="font-size:13px;color:var(--color-text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(customerName)}</span><span style="font-size:11px;font-weight:500;padding:3px 10px;border-radius:999px;background:var(--color-background-info);color:var(--color-text-info);width:max-content;max-width:100%;">${esc(statusText)}</span></div><button type="button" id="tl-btn" data-tracking-toggle style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:var(--border-radius-md);border:0.5px solid ${panelOpen ? "var(--color-border-info)" : "var(--color-border-secondary)"};background:${panelOpen ? "var(--color-background-info)" : "var(--color-background-secondary)"};color:${panelOpen ? "var(--color-text-info)" : "var(--color-text-primary)"};font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;flex-shrink:0;"><i class="ti ti-route" style="font-size:16px;" aria-hidden="true"></i>Seguimiento</button></div><div id="tl-panel" style="display:${panelOpen ? "block" : "none"};background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden;"><div style="display:flex;align-items:center;justify-content:space-between;padding:15px 20px 13px;border-bottom:0.5px solid var(--color-border-tertiary);"><div><div style="font-size:15px;font-weight:500;color:var(--color-text-primary);">Historial de seguimiento</div><div style="font-size:12px;color:var(--color-text-secondary);margin-top:3px;">${esc(quoteCode)} · ${esc(customerName)}</div></div><span id="counter-badge" style="font-size:11px;font-weight:500;padding:4px 12px;border-radius:999px;background:${doneCount === milestones.length ? "var(--color-background-success)" : "var(--color-background-warning)"};color:${doneCount === milestones.length ? "var(--color-text-success)" : "var(--color-text-warning)"};">${doneCount} de ${milestones.length} completados</span></div><div id="tl-body" style="padding:20px 24px 4px;">${body}</div><div id="tl-footer" style="display:flex;align-items:center;gap:8px;padding:12px 24px 15px;border-top:0.5px solid var(--color-border-tertiary);margin-top:16px;"><i id="footer-icon" class="ti ${doneCount >= milestones.length ? "ti-circle-check" : "ti-arrow-right-circle"}" style="font-size:16px;color:${doneCount >= milestones.length ? "var(--color-text-success)" : "var(--color-text-info)"};" aria-hidden="true"></i><span id="next-step-text" style="font-size:12px;color:var(--color-text-secondary);">${doneCount >= milestones.length ? '<span style="font-weight:500;color:var(--color-text-success);">Cotización completamente cerrada</span>' : `Próximo paso: <span style="font-weight:500;color:var(--color-text-primary);">${esc(nextLabels[doneCount] || nextLabels[0])}</span>`}</span></div></div></div>`;
+  bindTrackingAvatarFallback(els.quoteTrackingMount);
 }
 
 function renderDetailsDemo(baseResult = totals()) {
@@ -7983,14 +8029,15 @@ async function init() {
   try {
     const quoteId = params.get("quoteId") || "";
     const lineId = params.get("lineId") || "";
-    const [config, catalogs, context, costsConfig, sapConfig, sapSalespersonConfigs, sapProductionCostCenter] = await Promise.all([
+    const [config, catalogs, context, costsConfig, sapConfig, sapSalespersonConfigs, sapProductionCostCenter, trackingUsers] = await Promise.all([
       withTimeout(getJson("/api/config/shell"), 1500, {}),
       withTimeout(getJson("/api/catalogs"), 2500, emptyCatalogs()),
       quoteId || lineId ? getJson(`/api/flexo/calculo?${new URLSearchParams({ quoteId, lineId }).toString()}`) : Promise.resolve(null),
       getJson("/api/costos-config").catch(() => null),
       getJson("/api/sap/config").catch(() => null),
       getJson("/api/sap/salesperson-profit-centers").catch(() => ({ items: [] })),
-      getJson("/api/sap/production-cost-center").catch(() => null)
+      getJson("/api/sap/production-cost-center").catch(() => null),
+      getJson("/api/admin-users", { headers: sessionHeaders() }).catch(() => [])
     ]);
     state.config = config;
     state.context = context;
@@ -7998,6 +8045,7 @@ async function init() {
     state.sapConfig = sapConfig;
     state.sapSalespersonConfigs = Array.isArray(sapSalespersonConfigs?.items) ? sapSalespersonConfigs.items : [];
     state.sapProductionCostCenter = sapProductionCostCenter;
+    state.trackingUserPhotos = buildTrackingUserPhotoMap(trackingUsers);
     state.catalogs = {
       materials: catalogs.materials || [],
       troqueles: catalogs.troqueles || [],
