@@ -350,6 +350,18 @@ function openRoute(route, label) {
     window.location.href = route;
 }
 
+function buildOrderDataLink(route, label, title) {
+    if (!route || !label) return '';
+    return `<a class="production-data-link" href="${escapeHtml(route)}" data-order-route="${escapeHtml(route)}" data-order-label="${escapeHtml(title || label)}">${escapeHtml(label)}</a>`;
+}
+
+document.addEventListener('click', (event) => {
+    const link = event.target.closest('.production-data-link[data-order-route]');
+    if (!link) return;
+    event.preventDefault();
+    openRoute(link.dataset.orderRoute || link.getAttribute('href'), link.dataset.orderLabel || link.textContent.trim());
+});
+
 function buildCalcRoute({ quoteCode, lineCode, productCode, department }) {
     const params = new URLSearchParams({ lineId: lineCode || '', quoteId: quoteCode || '', productId: productCode || '', department: department || '' });
     return `/calculo-flexografia?${params.toString()}`;
@@ -750,7 +762,11 @@ function renderOrder(order) {
     const quoteLineCode = pickFirst(raw.source_line_code, detail.lineCode, line.line_code);
     const showProductId = localProductCode && localProductCode !== quoteLineCode;
     const clientProductCode = pickFirst(lineRaw['ID PRODUCTO CLIENTE'], lineRaw['CODIGO PRODUCTO CLIENTE']);
-    const productCodes = [clientProductCode ? `(${clientProductCode})` : '', showProductId ? `(${localProductCode})` : ''].filter(Boolean).join(' ');
+    const productRoute = localProductCode ? `/producto-documento?codigo=${encodeURIComponent(localProductCode)}` : '';
+    const productCodes = [
+        clientProductCode ? `<span>(${escapeHtml(clientProductCode)})</span>` : '',
+        showProductId ? `<span>(${buildOrderDataLink(productRoute, localProductCode, `Producto ${localProductCode}`)})</span>` : ''
+    ].filter(Boolean).join(' ');
     const outputType = pickFirst(detail.outputType, lineRaw['TIPO SALIDA']);
     const stateText = pickFirst(raw.status, 'Pendiente');
     const promisedDateRaw = raw.planning_control?.promisedDeliveryDate || quote.due_on;
@@ -779,8 +795,14 @@ function renderOrder(order) {
     setOptionalText('orderSellerText', sellerName);
     document.getElementById('orderCustomerContactRow').hidden = ![customerContact, customerPhone, customerEmail].some(Boolean);
     document.getElementById('orderCustomerAddressRow').hidden = !customerAddress;
+    const sourceQuoteCode = pickFirst(raw.source_quote_code, quote.quote_code);
+    const sourceLineCode = pickFirst(raw.source_line_code, detail.lineCode);
     if (sourceQuoteButton) {
-        sourceQuoteButton.textContent = [pickFirst(raw.source_quote_code, quote.quote_code), pickFirst(raw.source_line_code, detail.lineCode)].filter(Boolean).join(' / ');
+        sourceQuoteButton.innerHTML = [
+            buildOrderDataLink(`/cotizaciones/documento?codigo=${encodeURIComponent(sourceQuoteCode)}`, sourceQuoteCode, `Cotización ${sourceQuoteCode}`),
+            sourceQuoteCode && sourceLineCode ? '<span class="production-source-separator">/</span>' : '',
+            buildOrderDataLink(buildCalcRoute({ quoteCode: sourceQuoteCode, lineCode: sourceLineCode, productCode: localProductCode, department: pickFirst(line.department, detail.department, lineRaw['DEPARTAMENTO']) }), sourceLineCode, `Cálculo ${sourceLineCode}`)
+        ].filter(Boolean).join('');
     }
 
     samplesSummary.innerHTML = buildSummaryLinesOptional([
@@ -790,12 +812,9 @@ function renderOrder(order) {
         { label: 'Detalle', value: [pickFirst(lineRaw['MUESTRAS | DETALLE']), pickFirst(lineRaw['MUESTRAS | TELEFONO']), pickFirst(lineRaw['MUESTRAS | EMAIL']), pickFirst(lineRaw['MUESTRAS | DIRECCION'])].filter(Boolean).join(' · ') }
     ]);
 
-    setOptionalText('orderProductCodesText', productCodes);
+    setHtml('orderProductCodesText', productCodes);
     setText('orderJobText', [pickFirst(line.job_name, detail.jobName), dimensions ? `(${dimensions})` : ''].filter(Boolean).join(' '), 'Trabajo sin nombre');
     setOptionalText('orderDimensionsText', '');
-    setText('orderQuantityInlineText', quantity, 'Sin cantidad');
-    setText('orderArtworkInlineText', pickFirst(lineRaw['ORDEN DE ARTE'], lineRaw['ARTE EN PODER DE'], 'Pendiente'), 'Pendiente');
-    setText('orderDieReferenceText', dieCode || 'Sin troquel', 'Sin troquel');
 
     const printingAlert = document.getElementById('orderPrintingAlert');
     const printingGrid = document.getElementById('orderPrintingGrid');
@@ -946,8 +965,6 @@ async function loadOrder() {
     const quote = raw.quote_snapshot || {};
     const line = raw.line_summary || {};
     const detail = raw.line_snapshot || {};
-
-    sourceQuoteButton.onclick = () => openPopover('orderSourceQuotePopover');
 }
 
 samplesToggleButton?.addEventListener('click', () => toggleSection(samplesSummary, samplesForm, samplesToggleButton, samplesForm.hidden));

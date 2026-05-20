@@ -4686,7 +4686,6 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     font-size: 12px;
     font-weight: 700;
     color: #577086;
-    text-transform: uppercase;
     letter-spacing: 0.04em;
 }
 .production-chip-list {
@@ -8581,22 +8580,29 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
 .production-order-spotlight-right .production-summary-value {
     text-align: right;
 }
-.production-source-link-button {
-    border: 0;
-    background: transparent;
-    padding: 0;
-    color: #35586f;
-    font: inherit;
+.production-source-link-group {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 5px;
+    min-width: 0;
     font-size: 13px;
     line-height: 1.35;
     text-align: right;
-    cursor: pointer;
 }
-.production-source-link-button:hover,
-.production-source-link-button:focus-visible {
+.production-data-link {
+    color: #0b81b8;
+    text-decoration: none;
+    font-weight: 700;
+}
+.production-data-link:hover,
+.production-data-link:focus-visible {
     color: #0b81b8;
     text-decoration: underline;
     outline: none;
+}
+.production-source-separator {
+    color: #7a8b99;
 }
 .production-inline-link > * {
     min-width: 0;
@@ -8612,6 +8618,10 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
     width: 30px;
     height: 30px;
     font-size: 14px;
+}
+#orderAttachmentsButton,
+#orderDeliveriesButton {
+    --config-icon-size: 20px;
 }
 .production-inline-icon-tiny {
     width: 24px;
@@ -10893,6 +10903,31 @@ html[data-theme="dark"] .production-date-field input {
     border-color: var(--app-border) !important;
 }
 
+html[data-theme="dark"] .production-order-card .production-summary-item,
+html[data-theme="dark"] .production-order-card .production-summary-line,
+html[data-theme="dark"] .production-order-card .production-order-spotlight,
+html[data-theme="dark"] .production-order-card .production-order-spotlight-item,
+html[data-theme="dark"] .production-order-card .production-product-key-grid {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+
+html[data-theme="dark"] .production-order-card .production-date-field input {
+    background: #111c30 !important;
+    color: var(--app-text) !important;
+    border-color: var(--app-border) !important;
+    color-scheme: dark;
+}
+
+html[data-theme="dark"] .production-order-card .production-data-link {
+    color: #38bdf8 !important;
+}
+
+html[data-theme="dark"] .production-order-card .production-source-separator {
+    color: var(--app-text-muted) !important;
+}
+
 html[data-theme="dark"] .production-flow-step:not(:last-child)::after {
     border-left-color: var(--app-border) !important;
 }
@@ -11001,6 +11036,11 @@ html[data-theme="dark"] .production-state-pill.is-pending,
 html[data-theme="dark"] .production-schedule-pill.is-warning {
     background: rgba(251, 191, 36, 0.16) !important;
     color: #fde68a !important;
+}
+
+html[data-theme="dark"] .production-schedule-pill.is-alert {
+    background: rgba(248, 113, 113, 0.16) !important;
+    color: #fecaca !important;
 }
 
 html[data-theme="dark"] .scroll-bottom-indicator {
