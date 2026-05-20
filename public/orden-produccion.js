@@ -1291,8 +1291,6 @@ function applyHeaderConfig(config) {
     attachmentsButton?.setAttribute('title', 'Ver adjuntos');
     renderIconButton(stateButton, iconConfigFor('orderStatus', DEFAULT_ICONS.status));
     stateButton?.setAttribute('title', 'Control de planificación');
-    renderIconButton(orderFlowToggleButton, iconConfigFor('orderFlow', DEFAULT_ICONS.flow));
-    orderFlowToggleButton?.setAttribute('title', 'Ver seguimiento');
     renderIconButton(artworkDeleteButton, iconConfigFor('orderArtworkDelete', DEFAULT_ICONS.deleteArtwork, '#b94848'));
     setToggleIcon(samplesToggleButton, false);
     setToggleIcon(deliveryToggleButton, false);
