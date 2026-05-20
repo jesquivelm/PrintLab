@@ -4391,10 +4391,9 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     gap: 4px;
 }
 .production-order-control-title {
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0;
     color: #6c7d8a;
 }
 .production-order-control-status {
@@ -4421,8 +4420,6 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     margin-bottom: 12px;
 }
 .production-order-planning-summary {
-    font-size: 14px;
-    font-weight: 600;
     color: #203746;
 }
 .production-order-planning-meta {
@@ -4431,7 +4428,7 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
 }
 .production-order-planning-list {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    grid-template-columns: 1fr;
     gap: 12px;
 }
 .production-order-planning-step {
@@ -4543,8 +4540,8 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
 }
 .production-flow-history-row {
     display: grid;
-    grid-template-columns: 40px minmax(0, 1.15fr) minmax(0, .9fr);
-    gap: 12px;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 10px;
     align-items: center;
     padding: 10px 12px;
     border: 1px solid #dfe7ee;
@@ -4554,6 +4551,16 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
 }
 .production-flow-history-row.is-done {
     opacity: 1;
+}
+.production-flow-history-head {
+    margin-bottom: 0;
+}
+.production-flow-history-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(130px, .8fr);
+    gap: 12px;
+    align-items: center;
+    min-width: 0;
 }
 .production-flow-history-title {
     display: inline-flex;
@@ -4575,9 +4582,11 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
 }
 .production-flow-history-title span,
 .production-flow-history-plan span,
-.production-flow-history-received span {
+.production-flow-history-received span,
+.production-flow-history-received em {
     color: #607286;
     font-size: 12px;
+    font-style: normal;
     line-height: 1.35;
 }
 .production-order-layout {
@@ -4925,7 +4934,12 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     width: fit-content;
 }
 .production-order-popover-panel {
-    width: min(980px, calc(100vw - 40px));
+    top: 6vh;
+    bottom: 6vh;
+    left: 50%;
+    right: auto;
+    width: min(820px, calc(100vw - 32px));
+    transform: translateX(-50%);
 }
 .production-order-popover-actions {
     display: flex;
@@ -9207,10 +9221,10 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
         grid-template-columns: 1fr;
     }
     .production-flow-history-row {
-        grid-template-columns: 40px minmax(0, 1fr);
+        grid-template-columns: 34px minmax(0, 1fr);
     }
-    .production-flow-history-received {
-        grid-column: 2 / 3;
+    .production-flow-history-body {
+        grid-template-columns: 1fr;
     }
 }
 @media (max-width: 920px) {
@@ -11173,7 +11187,8 @@ html[data-theme="dark"] .production-delivery-summary-line .production-summary-li
 
 html[data-theme="dark"] .production-flow-history-title span,
 html[data-theme="dark"] .production-flow-history-plan span,
-html[data-theme="dark"] .production-flow-history-received span {
+html[data-theme="dark"] .production-flow-history-received span,
+html[data-theme="dark"] .production-flow-history-received em {
     color: var(--app-text-muted) !important;
 }
 

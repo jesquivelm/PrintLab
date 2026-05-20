@@ -101,6 +101,18 @@ function isVisibleOrderProcess(value) {
     return ORDER_VISIBLE_PROCESSES.some((item) => name.includes(item));
 }
 
+function formatRouteStatus(value) {
+    const normalized = String(value || '').trim().toUpperCase();
+    const labels = {
+        COMPLETADO: 'Completado',
+        PENDIENTE: 'Pendiente',
+        RUN: 'En Proceso',
+        SETUP: 'Setup',
+        PARO: 'Paro'
+    };
+    return labels[normalized] || (value ? String(value).trim() : 'Pendiente');
+}
+
 function findReceivedStep(process = {}) {
     const plannedName = normalizeProcessName(process.processName || process.processKey);
     if (!plannedName) return null;
@@ -292,14 +304,14 @@ function renderPlanningControl(raw = {}) {
         planningStatusText.textContent = `La orden ya fue lanzada a planificación. Entrega prometida: ${promisedText}.`;
         planningMetaText.textContent = control.launchedAt ? `Lanzada al Gantt ${formatDate(control.launchedAt, true)} por ${control.launchedBy || 'usuario actual'}.` : 'La orden ya está activa en el Gantt.';
         releasePlanningButton.disabled = true;
-        releasePlanningButton.textContent = 'Ya lanzada a planificación';
+        releasePlanningButton.textContent = 'Ya Lanzada a Planificación';
         return;
     }
     if (control.planningStatus === 'PENDIENTE_PLANIFICACION') {
         planningStatusText.textContent = `Orden liberada por ventas y pendiente de revisión en planificación. Entrega prometida: ${promisedText}.`;
         planningMetaText.textContent = control.salesReleasedAt ? `Liberada ${formatDate(control.salesReleasedAt, true)} por ${control.salesReleasedBy || 'usuario actual'}.` : 'Pendiente de análisis por planificación.';
         releasePlanningButton.disabled = true;
-        releasePlanningButton.textContent = 'Pendiente en planificación';
+        releasePlanningButton.textContent = 'Pendiente en Planificación';
         return;
     }
     if (control.planningStatus === 'DEVUELTA_VENTAS') {
@@ -342,37 +354,47 @@ function renderPlanningSnapshot(raw = {}) {
     const snapshot = raw.planning_snapshot || raw.planningSnapshot || null;
     const processes = (Array.isArray(snapshot?.processes) ? snapshot.processes : []).filter((process) => isVisibleOrderProcess(process.processName || process.processKey));
     if (!snapshot || !processes.length) {
-        planningSnapshotSummary.textContent = 'No hay una ruta de planificación estructurada disponible para esta orden.';
+        planningSnapshotSummary.innerHTML = '<div class="line-tracking-head production-flow-history-head"><strong>Ruta de Planificación</strong><span>0 procesos</span></div>';
         planningSnapshotMeta.textContent = 'Cuando se regenere o se cree una orden nueva, aquí aparecerán los tiempos por proceso.';
         planningSnapshotList.innerHTML = '<div class="production-order-planning-empty">Sin procesos planeados todavía.</div>';
         return;
     }
-    planningSnapshotSummary.textContent = `Planificado: ${processes.length} proceso(s), ${parseNumber(snapshot.baseFeet)} pies estimados y ${parseNumber(snapshot.tintCount)} tinta(s).`;
+    const doneCount = processes.filter((process) => findReceivedStep(process)).length;
+    planningSnapshotSummary.innerHTML = `
+        <div class="line-tracking-head production-flow-history-head">
+            <strong>Ruta de Planificación</strong>
+            <span>${doneCount} de ${processes.length} marcados</span>
+        </div>
+    `;
     planningSnapshotMeta.textContent = `Generada ${formatDate(snapshot.generatedAt, true)}. Base: ${snapshot.processType || 'Sin tipo'}${snapshot.sourceMachineName ? ` · Máquina sugerida: ${snapshot.sourceMachineName}` : ''}.`;
     planningSnapshotList.innerHTML = `
         <div class="production-flow-history">
             ${processes.map((process) => {
                 const received = findReceivedStep(process);
-                const receivedStatus = String(received?.routeStatus || '').trim();
+                const receivedStatus = formatRouteStatus(received?.routeStatus);
                 const receivedUser = received?.completedBy || received?.startedBy || '';
                 const receivedDate = formatDate(received?.completedAt || received?.startedAt, true);
                 const avatarName = receivedUser || 'Pendiente';
+                const plannedDuration = parseNumber(process.durationHours, ' h') || '0 h';
+                const plannedSetup = parseNumber(process.setupMinutes, ' min') || '0 min';
                 return `
-                    <article class="production-flow-history-row${received ? ' is-done' : ''}">
+                    <article class="line-tracking-item production-flow-history-row${received ? ' is-done' : ''}">
                         <span class="line-tracking-avatar${trackingUserPhotos.get(trackingUserLookupKey(avatarName)) ? ' has-photo' : ''}">${trackingAvatarMarkup(avatarName)}</span>
-                        <div class="production-flow-history-plan">
-                            <div class="production-flow-history-title">
-                                <strong>${escapeHtml(process.processName || process.processKey || 'Proceso')}</strong>
-                                ${process.sequenceOrder ? `<span>${escapeHtml(String(process.sequenceOrder))}</span>` : ''}
+                        <div class="production-flow-history-body">
+                            <div class="production-flow-history-plan">
+                                <div class="production-flow-history-title">
+                                    <strong>${escapeHtml(process.processName || process.processKey || 'Proceso')}</strong>
+                                    ${process.sequenceOrder ? `<span>Proceso ${escapeHtml(String(process.sequenceOrder))}</span>` : ''}
+                                </div>
+                                <span>Máquina: ${escapeHtml(process.machineName || 'Sin definir')}</span>
+                                <span>Duración: ${escapeHtml(plannedDuration)}</span>
+                                <span>Setup: ${escapeHtml(plannedSetup)}</span>
                             </div>
-                            <span>Máquina: ${escapeHtml(process.machineName || 'Sin definir')}</span>
-                            <span>Duración: ${escapeHtml(parseNumber(process.durationHours, ' h') || '0 h')}</span>
-                            <span>Setup: ${escapeHtml(parseNumber(process.setupMinutes, ' min') || '0 min')}</span>
-                        </div>
-                        <div class="production-flow-history-received">
-                            <strong>${escapeHtml(receivedStatus || 'Pendiente')}</strong>
-                            ${receivedUser ? `<span>${escapeHtml(receivedUser)}</span>` : ''}
-                            ${receivedDate ? `<span>${escapeHtml(receivedDate)}</span>` : ''}
+                            <div class="production-flow-history-received">
+                                <strong>${escapeHtml(receivedStatus)}</strong>
+                                <span>${escapeHtml(receivedUser || 'Sin marca')}</span>
+                                <em>${escapeHtml(receivedDate || 'Pendiente')}</em>
+                            </div>
                         </div>
                     </article>
                 `;
