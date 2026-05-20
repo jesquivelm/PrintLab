@@ -4537,6 +4537,49 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
 .production-planning-received.has-mark strong {
     color: #17804c;
 }
+.production-flow-history {
+    display: grid;
+    gap: 10px;
+}
+.production-flow-history-row {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1.15fr) minmax(0, .9fr);
+    gap: 12px;
+    align-items: center;
+    padding: 10px 12px;
+    border: 1px solid #dfe7ee;
+    border-radius: 8px;
+    background: #fff;
+    opacity: .76;
+}
+.production-flow-history-row.is-done {
+    opacity: 1;
+}
+.production-flow-history-title {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+    flex-wrap: wrap;
+}
+.production-flow-history-plan,
+.production-flow-history-received {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+.production-flow-history-title strong,
+.production-flow-history-received strong {
+    font-size: 13px;
+    color: #203746;
+}
+.production-flow-history-title span,
+.production-flow-history-plan span,
+.production-flow-history-received span {
+    color: #607286;
+    font-size: 12px;
+    line-height: 1.35;
+}
 .production-order-layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(300px, 0.9fr);
@@ -4873,6 +4916,11 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     border-radius: 20px;
     font-size: 12px;
     font-weight: 700;
+}
+.production-order-popover-actions .action-btn-primary {
+    background: var(--app-primary-soft, rgba(11,129,184,.12));
+    color: var(--app-primary, #0b81b8);
+    border-color: rgba(11,129,184,.22);
 }
 .production-order-popover-section {
     display: grid;
@@ -8709,7 +8757,13 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
     right: 52px;
 }
 .production-state-corner-toggle {
-    right: 90px;
+    right: 52px;
+}
+.production-tracking-card .production-inline-icon,
+.production-section-head-inline .production-inline-icon {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
 }
 .production-tracking-grid {
     display: grid;
@@ -9101,6 +9155,12 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
     }
     .production-planning-compare-row {
         grid-template-columns: 1fr;
+    }
+    .production-flow-history-row {
+        grid-template-columns: 40px minmax(0, 1fr);
+    }
+    .production-flow-history-received {
+        grid-column: 2 / 3;
     }
 }
 @media (max-width: 920px) {
@@ -11028,6 +11088,7 @@ html[data-theme="dark"] .production-flow-head,
 html[data-theme="dark"] .production-flow-step,
 html[data-theme="dark"] .production-flow-marker,
 html[data-theme="dark"] .production-planning-compare-row,
+html[data-theme="dark"] .production-flow-history-row,
 html[data-theme="dark"] .production-date-field input {
     background: var(--app-surface-soft) !important;
     color: var(--app-text) !important;
@@ -11042,10 +11103,21 @@ html[data-theme="dark"] .production-planning-received strong {
     color: var(--app-text) !important;
 }
 
+html[data-theme="dark"] .production-flow-history-title strong,
+html[data-theme="dark"] .production-flow-history-received strong {
+    color: var(--app-text) !important;
+}
+
 html[data-theme="dark"] .production-planning-compare-head,
 html[data-theme="dark"] .production-planning-process span,
 html[data-theme="dark"] .production-planning-plan span,
 html[data-theme="dark"] .production-planning-received span {
+    color: var(--app-text-muted) !important;
+}
+
+html[data-theme="dark"] .production-flow-history-title span,
+html[data-theme="dark"] .production-flow-history-plan span,
+html[data-theme="dark"] .production-flow-history-received span {
     color: var(--app-text-muted) !important;
 }
 

@@ -68,6 +68,7 @@ let currentOutputTypes = [];
 let currentOrderAttachments = [];
 let currentArtworkAttachment = null;
 let currentOrderFlowSteps = [];
+let trackingUserPhotos = new Map();
 let artworkSectionBaseHeight = 0;
 let artworkSectionMaxHeight = 0;
 const SESSION_STORAGE_KEY = 'erp-user-session';
@@ -107,6 +108,50 @@ function findReceivedStep(process = {}) {
         const stepName = normalizeProcessName(step.processName || step.processKey);
         return isVisibleOrderProcess(stepName) && (stepName === plannedName || stepName.includes(plannedName) || plannedName.includes(stepName));
     }) || null;
+}
+
+function trackingUserLookupKey(value) {
+    return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+}
+
+function initialsFromName(name) {
+    const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+    return (parts[0]?.[0] || 'U') + (parts[1]?.[0] || '');
+}
+
+function trackingAvatarMarkup(name) {
+    const photo = trackingUserPhotos.get(trackingUserLookupKey(name));
+    const initials = escapeHtml(initialsFromName(name).toUpperCase());
+    if (!photo) return initials;
+    return `<img class="tracking-avatar-image" src="${escapeHtml(photo)}" alt="${escapeHtml(name || 'Usuario')}" data-tracking-avatar-img><span class="tracking-avatar-fallback" hidden>${initials}</span>`;
+}
+
+function bindTrackingAvatarFallback(root = document) {
+    root.querySelectorAll?.('[data-tracking-avatar-img]').forEach((image) => {
+        image.addEventListener('error', () => {
+            image.hidden = true;
+            const fallback = image.parentElement?.querySelector('.tracking-avatar-fallback');
+            if (fallback) fallback.hidden = false;
+        }, { once: true });
+    });
+}
+
+async function loadTrackingUserPhotos() {
+    try {
+        const response = await fetch('/api/admin-users', { headers: sessionHeader() });
+        const users = response.ok ? await response.json() : [];
+        const map = new Map();
+        users.forEach((user) => {
+            const photo = String(user.photoUrl || user.photo_url || '').trim();
+            [user.name, user.fullName, user.full_name, user.username, user.sapSalespersonName, user.sap_salesperson_name].forEach((value) => {
+                const key = trackingUserLookupKey(value);
+                if (key && photo && !map.has(key)) map.set(key, photo);
+            });
+        });
+        trackingUserPhotos = map;
+    } catch (error) {
+        trackingUserPhotos = new Map();
+    }
 }
 
 if (shellEmbedded) document.body.classList.add('shell-embedded');
@@ -263,13 +308,13 @@ function renderPlanningControl(raw = {}) {
         planningReturnReasonText.hidden = false;
         planningReturnReasonText.textContent = control.returnReason ? `Última devolución de planificación: ${control.returnReason}` : 'Última devolución de planificación: pendiente de detalle.';
         releasePlanningButton.disabled = false;
-        releasePlanningButton.textContent = 'Reliberar a planificación';
+        releasePlanningButton.textContent = 'Reliberar a Planificación';
         return;
     }
     planningStatusText.textContent = `Pendiente de revisión de ventas. Entrega prometida: ${promisedText}.`;
     planningMetaText.textContent = 'Cuando ventas confirme la orden, la puede enviar a la cola de planificación.';
     releasePlanningButton.disabled = false;
-    releasePlanningButton.textContent = 'Liberar a planificación';
+    releasePlanningButton.textContent = 'Liberar a Planificación';
 }
 async function updatePlanningControl(action) {
     if (!currentOrderCode) return;
@@ -305,25 +350,26 @@ function renderPlanningSnapshot(raw = {}) {
     planningSnapshotSummary.textContent = `Planificado: ${processes.length} proceso(s), ${parseNumber(snapshot.baseFeet)} pies estimados y ${parseNumber(snapshot.tintCount)} tinta(s).`;
     planningSnapshotMeta.textContent = `Generada ${formatDate(snapshot.generatedAt, true)}. Base: ${snapshot.processType || 'Sin tipo'}${snapshot.sourceMachineName ? ` · Máquina sugerida: ${snapshot.sourceMachineName}` : ''}.`;
     planningSnapshotList.innerHTML = `
-        <div class="production-planning-compare">
-            <div class="production-planning-compare-head"><span>Proceso</span><span>Planificado</span><span>Recibido</span></div>
+        <div class="production-flow-history">
             ${processes.map((process) => {
                 const received = findReceivedStep(process);
                 const receivedStatus = String(received?.routeStatus || '').trim();
                 const receivedUser = received?.completedBy || received?.startedBy || '';
                 const receivedDate = formatDate(received?.completedAt || received?.startedAt, true);
+                const avatarName = receivedUser || 'Pendiente';
                 return `
-                    <article class="production-planning-compare-row">
-                        <div class="production-planning-process">
-                            <strong>${escapeHtml(process.processName || process.processKey || 'Proceso')}</strong>
-                            <span>${escapeHtml(String(process.sequenceOrder || ''))}</span>
-                        </div>
-                        <div class="production-planning-plan">
+                    <article class="production-flow-history-row${received ? ' is-done' : ''}">
+                        <span class="line-tracking-avatar${trackingUserPhotos.get(trackingUserLookupKey(avatarName)) ? ' has-photo' : ''}">${trackingAvatarMarkup(avatarName)}</span>
+                        <div class="production-flow-history-plan">
+                            <div class="production-flow-history-title">
+                                <strong>${escapeHtml(process.processName || process.processKey || 'Proceso')}</strong>
+                                ${process.sequenceOrder ? `<span>${escapeHtml(String(process.sequenceOrder))}</span>` : ''}
+                            </div>
                             <span>Máquina: ${escapeHtml(process.machineName || 'Sin definir')}</span>
                             <span>Duración: ${escapeHtml(parseNumber(process.durationHours, ' h') || '0 h')}</span>
                             <span>Setup: ${escapeHtml(parseNumber(process.setupMinutes, ' min') || '0 min')}</span>
                         </div>
-                        <div class="production-planning-received ${received ? 'has-mark' : ''}">
+                        <div class="production-flow-history-received">
                             <strong>${escapeHtml(receivedStatus || 'Pendiente')}</strong>
                             ${receivedUser ? `<span>${escapeHtml(receivedUser)}</span>` : ''}
                             ${receivedDate ? `<span>${escapeHtml(receivedDate)}</span>` : ''}
@@ -333,6 +379,7 @@ function renderPlanningSnapshot(raw = {}) {
             }).join('')}
         </div>
     `;
+    bindTrackingAvatarFallback(planningSnapshotList);
 }
 
 function renderOrderFlowSteps(steps = []) {
@@ -396,7 +443,7 @@ async function openPlanningControlPopover() {
     const raw = currentLoadedOrder?.raw_data || {};
     planningSnapshotMeta.textContent = 'Cargando marcas reales...';
     try {
-        await fetchOrderFlowSteps();
+        await Promise.all([fetchOrderFlowSteps(), loadTrackingUserPhotos()]);
         renderPlanningSnapshot(raw);
     } catch (error) {
         renderPlanningSnapshot(raw);
