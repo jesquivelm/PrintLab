@@ -485,22 +485,9 @@ function renderOrderTracking(payload) {
     if (!orderFlowBody) return;
     var steps = Array.isArray(payload && payload.steps) ? payload.steps : [];
     var cmp = Array.isArray(payload && payload.comparisons) ? payload.comparisons : [];
-    var live = Boolean(payload && payload.live);
-    var order = (payload && payload.order) || currentLoadedOrder || {};
-    var raw = order.raw_data || {};
-    var quote = raw.quote_snapshot || {};
-    var line = raw.line_summary || {};
-    var doneCount = steps.filter(function (s) { return String(s.routeStatus || '').toUpperCase() === 'COMPLETADO'; }).length;
-
-    var metaHtml = '<div class="production-flow-header">'
-        + '<div><span>' + escapeHtml(order.order_code || currentOrderCode || 'Orden') + '</span>'
-        + '<strong>' + escapeHtml(raw.customer_name || quote.customer_name || 'Sin cliente') + '</strong>'
-        + '<em>' + escapeHtml(line.job_name || line.product_name || raw.product_name || 'Sin producto') + '</em></div>'
-        + '<div class="production-flow-live' + (live ? ' is-live' : '') + '"><span></span>' + (live ? 'En vivo' : 'Sin proceso activo') + '</div>'
-        + '</div>';
 
     // Flujo view
-    var flujoHtml = renderFlowTimeline(steps, order);
+    var flujoHtml = renderFlowTimeline(steps);
 
     // Planificacion view — use existing renderPlanningSnapshot
     var planifHtml = '<div class="production-flow-planning-tab" id="flow-planning-root">'
@@ -522,8 +509,7 @@ function renderOrderTracking(payload) {
     // Comparacion view
     var cmpHtml = renderComparisonView(cmp);
 
-    orderFlowBody.innerHTML = metaHtml
-        + '<section data-flow-view="flujo" class="is-active">' + flujoHtml + '</section>'
+    orderFlowBody.innerHTML = '<section data-flow-view="flujo" class="is-active">' + flujoHtml + '</section>'
         + '<section data-flow-view="planificacion">' + planifHtml + '</section>'
         + '<section data-flow-view="comparacion">' + cmpHtml + '</section>';
 
