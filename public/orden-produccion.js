@@ -581,23 +581,19 @@ function renderFlowTimeline(steps, order) {
                 + '<span class="tl-role-chip"><i class="ti ti-user" style="font-size:10px;"></i>' + (s.role || 'Operador') + '</span>'
                 + chips + ipLabel;
         } else {
-            contentHtml = '<div class="tl-step-title muted">' + escapeHtml(s.processName || 'Proceso') + '</div>'
+            var pendingActions = '';
+            if (s.processKey === 'solicitud_vendedor') {
+                pendingActions = '<button class="btn btn-success" style="margin-left:auto;flex-shrink:0;" onclick="completeStep(' + i + ')"><i class="ti ti-send" style="font-size:12px;"></i>Marcar solicitud enviada</button>';
+            } else if (s.processKey === 'planeacion') {
+                pendingActions = '<button class="btn btn-primary" style="margin-left:auto;flex-shrink:0;" onclick="completeStep(' + i + ')"><i class="ti ti-player-play" style="font-size:12px;"></i>Liberar a producción</button>';
+            } else if (s.processKey === 'visto_bueno') {
+                pendingActions = '<button class="btn btn-primary" style="flex-shrink:0;" onclick="completeStep(' + i + ')"><i class="ti ti-check" style="font-size:12px;"></i>Aprobar VB</button>'
+                    + '<button class="btn btn-outline-warn" style="flex-shrink:0;" onclick="showVBForm(' + i + ')"><i class="ti ti-arrow-back-up" style="font-size:11px;"></i>Solicitar correcciones</button>';
+            }
+            contentHtml = '<div class="tl-step-title muted" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' + escapeHtml(s.processName || 'Proceso')
+                + pendingActions + '</div>'
                 + '<div class="tl-step-hint">' + (s.notes || 'Pendiente') + '</div>'
                 + '<span class="tl-role-chip"><i class="ti ti-user" style="font-size:10px;"></i>' + (s.role || 'Operador') + '</span>';
-        }
-
-        // Special step actions
-        if (s.processKey === 'solicitud_vendedor' && !isDone) {
-            contentHtml += '<div style="margin-top:8px;"><button class="btn btn-success" onclick="completeStep(' + i + ')"><i class="ti ti-send" style="font-size:12px;"></i>Marcar solicitud enviada</button></div>';
-        }
-        if (s.processKey === 'planeacion' && !isDone) {
-            contentHtml += '<div style="margin-top:8px;"><button class="btn btn-primary" onclick="completeStep(' + i + ')"><i class="ti ti-player-play" style="font-size:12px;"></i>Liberar a producción</button></div>';
-        }
-        if (s.processKey === 'visto_bueno' && !isDone) {
-            contentHtml += '<div class="flex gap-6 wrap" style="margin-top:8px;">'
-                + '<button class="btn btn-primary" onclick="completeStep(' + i + ')"><i class="ti ti-check" style="font-size:12px;"></i>Aprobar VB</button>'
-                + '<button class="btn btn-outline-warn" onclick="showVBForm(' + i + ')"><i class="ti ti-arrow-back-up" style="font-size:11px;"></i>Solicitar correcciones</button>'
-                + '</div>';
         }
 
         tlHtml += '<div class="tl-row" style="opacity:' + (isDone || isActive ? '1' : '0.6') + ';">'
