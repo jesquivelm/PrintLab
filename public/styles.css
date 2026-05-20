@@ -4596,6 +4596,29 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     gap: 16px;
     min-width: 0;
 }
+#orderContent .production-order-column-primary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+}
+#orderContent .production-order-column-primary > .production-client-section {
+    grid-column: 1;
+    grid-row: 1;
+}
+#orderContent .production-order-column-primary > .production-product-section {
+    grid-column: 2;
+    grid-row: 1;
+}
+#orderContent .production-order-column-primary > .production-info-pair,
+#orderContent .production-order-column-primary > .production-observations-section {
+    grid-column: 1 / -1;
+}
+.production-info-pair,
+.production-product-pair {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    min-width: 0;
+}
 .production-order-card .socios-section {
     padding: 18px 16px 16px;
     border-radius: 14px;
@@ -4858,7 +4881,7 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     margin-top: 12px;
 }
 .production-art-preview {
-    min-height: 420px;
+    min-height: 300px;
     border: 1px solid #dbe5ec;
     border-radius: 12px;
     background: linear-gradient(180deg, #ffffff 0%, #f8fbfd 100%);
@@ -4871,11 +4894,12 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     aspect-ratio: 8.5 / 11;
     overflow: hidden;
     width: 100%;
+    max-height: 360px;
     max-width: 100%;
     box-sizing: border-box;
 }
 .production-art-preview-compact {
-    min-height: 180px;
+    min-height: 150px;
 }
 .production-art-image {
     max-width: 100%;
@@ -8666,6 +8690,11 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
     color: #203746;
     word-break: break-word;
 }
+.production-info-pair .production-summary-line-value,
+.production-info-pair .production-summary-value,
+.production-delivery-summary-line .production-summary-line-value {
+    color: #e5eef8;
+}
 .production-summary-empty {
     padding: 12px;
     border: 1px dashed #d8e3ea;
@@ -8757,6 +8786,9 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
     right: 52px;
 }
 .production-state-corner-toggle {
+    right: 90px;
+}
+.production-deliveries-corner-toggle {
     right: 52px;
 }
 .production-tracking-card .production-inline-icon,
@@ -8792,10 +8824,13 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
     gap: 12px;
 }
 .production-section-head-inline .section-caption {
-    flex: 1 1 auto;
+    flex: 0 1 auto;
+    min-height: 24px;
+    padding: 4px 12px;
 }
 .production-section-head-inline .production-quantity-highlight {
     flex: 0 0 auto;
+    color: #ffffff;
 }
 .production-product-hero {
     display: grid;
@@ -9036,7 +9071,7 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
 .production-art-section .production-art-preview {
     flex: 1 1 auto;
     min-height: 0;
-    max-height: 100%;
+    max-height: 360px;
     overflow: auto;
 }
 .production-art-preview-wrap {
@@ -9045,7 +9080,8 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
 }
 .production-art-delete {
     position: absolute;
-    top: 10px;
+    top: auto;
+    bottom: 10px;
     right: 10px;
     z-index: 2;
 }
@@ -9140,6 +9176,20 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
         grid-template-columns: 1fr;
     }
     .production-tracking-grid {
+        grid-template-columns: 1fr;
+    }
+    #orderContent .production-order-column-primary {
+        grid-template-columns: 1fr;
+    }
+    #orderContent .production-order-column-primary > .production-client-section,
+    #orderContent .production-order-column-primary > .production-product-section,
+    #orderContent .production-order-column-primary > .production-info-pair,
+    #orderContent .production-order-column-primary > .production-observations-section {
+        grid-column: 1;
+        grid-row: auto;
+    }
+    .production-info-pair,
+    .production-product-pair {
         grid-template-columns: 1fr;
     }
     .production-tracking-column-right,
@@ -11113,6 +11163,12 @@ html[data-theme="dark"] .production-planning-process span,
 html[data-theme="dark"] .production-planning-plan span,
 html[data-theme="dark"] .production-planning-received span {
     color: var(--app-text-muted) !important;
+}
+
+html[data-theme="dark"] .production-info-pair .production-summary-line-value,
+html[data-theme="dark"] .production-info-pair .production-summary-value,
+html[data-theme="dark"] .production-delivery-summary-line .production-summary-line-value {
+    color: var(--app-text) !important;
 }
 
 html[data-theme="dark"] .production-flow-history-title span,
