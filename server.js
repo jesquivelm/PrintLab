@@ -2851,9 +2851,31 @@ async function loadShellConfig() {
     return shellConfigCache;
 }
 
+async function compressIconsOnSave(config) {
+    const icons = config.icons;
+    if (!icons || typeof icons !== 'object') return;
+    const sharp = require('sharp');
+    const keys = Object.keys(icons);
+    for (const key of keys) {
+        const val = icons[key];
+        if (typeof val !== 'string' || !val.startsWith('data:image/png;base64,')) continue;
+        try {
+            const raw = val.split(',')[1];
+            const buf = Buffer.from(raw, 'base64');
+            const compressed = await sharp(buf).png({ quality: 90, compressionLevel: 9 }).toBuffer();
+            if (compressed.length < buf.length) {
+                icons[key] = 'data:image/png;base64,' + compressed.toString('base64');
+            }
+        } catch (e) {
+            console.error('Error compressing icon ' + key + ':', e.message);
+        }
+    }
+}
+
 async function saveGeneralConfig(config) {
     const previous = await loadGeneralConfig();
     const normalized = normalizeGeneralConfigRecord(config, previous);
+    await compressIconsOnSave(normalized);
     saveGeneralConfigToFile(normalized);
     invalidateConfigCaches();
     const changedBy = pickFirstValue(normalized?.session?.currentUser, previous?.session?.currentUser, getConfiguredCurrentUser());
