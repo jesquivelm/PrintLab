@@ -14245,6 +14245,106 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
     }
 });
 
+app.post('/api/ordenes-produccion/:codigo/seguimiento/completar', async (req, res) => {
+    try {
+        const codigo = req.params.codigo;
+        const processKey = String(req.body?.processKey || '').trim();
+        const notes = String(req.body?.notes || '').trim();
+        if (!processKey) return res.status(400).json({ ok: false, error: 'Se requiere processKey.' });
+
+        // Map special process keys to planning actions
+        if (processKey === 'solicitud_vendedor') {
+            // Trigger release-sales
+            const orderResult = await pgQuery(`SELECT * FROM flexo_orders WHERE order_code = $1 LIMIT 1`, [codigo]);
+            if (!orderResult.rows.length) return res.status(404).json({ ok: false, error: 'Orden no encontrada.' });
+            const rawData = orderResult.rows[0].raw_data || {};
+            const actor = getRequestUserName(req);
+            const nextRawData = withUpdatedOrderPlanningControl(rawData, {
+                salesReleased: true,
+                salesReleasedAt: new Date().toISOString(),
+                salesReleasedBy: actor,
+                planningStatus: 'PENDIENTE_PLANIFICACION',
+                launchedToGantt: false,
+                launchedAt: null, launchedBy: '',
+                returnedAt: null, returnedBy: '', returnReason: ''
+            });
+            await pgQuery(`UPDATE flexo_orders SET raw_data = $2::jsonb WHERE order_code = $1`, [codigo, JSON.stringify(nextRawData)]);
+            return res.json({ ok: true, message: 'Solicitud registrada. Orden enviada a planificación.', processKey });
+        }
+
+        if (processKey === 'planeacion') {
+            // Trigger launch-gantt
+            const orderResult = await pgQuery(`SELECT * FROM flexo_orders WHERE order_code = $1 LIMIT 1`, [codigo]);
+            if (!orderResult.rows.length) return res.status(404).json({ ok: false, error: 'Orden no encontrada.' });
+            const rawData = orderResult.rows[0].raw_data || {};
+            const control = getOrderPlanningControl(rawData);
+            if (control.planningStatus !== 'PENDIENTE_PLANIFICACION' && control.planningStatus !== 'EN_GANTT') {
+                return res.status(400).json({ ok: false, error: 'La orden debe estar pendiente de planificación.' });
+            }
+            const actor = getRequestUserName(req);
+            const nextRawData = withUpdatedOrderPlanningControl(rawData, {
+                salesReleased: true, planningStatus: 'EN_GANTT',
+                launchedToGantt: true, launchedAt: new Date().toISOString(), launchedBy: actor,
+                returnReason: ''
+            });
+            await pgQuery(`UPDATE flexo_orders SET raw_data = $2::jsonb WHERE order_code = $1`, [codigo, JSON.stringify(nextRawData)]);
+            const refreshedOrder = { ...orderResult.rows[0], raw_data: nextRawData };
+            try { await ensurePlanningRoutesForOrder(refreshedOrder, null, { replaceExisting: true }); } catch (e) { /* non-critical */ }
+            return res.json({ ok: true, message: 'Orden lanzada a Gantt.', processKey });
+        }
+
+        // Generic route step completion — record event on matching route
+        const routeResult = await pgQuery(
+            `SELECT id FROM production_order_routes WHERE order_code = $1 AND process_key = $2 ORDER BY sequence_order LIMIT 1`,
+            [codigo, processKey]
+        );
+        if (routeResult.rows.length) {
+            const routeId = routeResult.rows[0].id;
+            await pgQuery(
+                `INSERT INTO production_route_events (route_id, operator_name, event_type, notes, event_payload, created_at)
+                 VALUES ($1, $2, 'completado', $3, '{}'::jsonb, NOW())`,
+                [routeId, getRequestUserName(req), notes]
+            );
+            await pgQuery(
+                `UPDATE production_order_routes SET route_status = 'COMPLETADO', actual_end_at = NOW() WHERE id = $1`,
+                [routeId]
+            );
+        }
+        res.json({ ok: true, message: 'Paso completado.', processKey });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible completar el paso.' });
+    }
+});
+
+app.post('/api/ordenes-produccion/:codigo/seguimiento/vb-revert', async (req, res) => {
+    try {
+        const codigo = req.params.codigo;
+        const targetKey = String(req.body?.targetKey || '').trim();
+        const reason = String(req.body?.reason || '').trim();
+        if (!targetKey || !reason) return res.status(400).json({ ok: false, error: 'Se requiere targetKey y motivo.' });
+
+        // Find and reset the target route
+        const routeResult = await pgQuery(
+            `SELECT id FROM production_order_routes WHERE order_code = $1 AND process_key = $2 ORDER BY sequence_order LIMIT 1`,
+            [codigo, targetKey]
+        );
+        if (routeResult.rows.length) {
+            const routeId = routeResult.rows[0].id;
+            await pgQuery(
+                `INSERT INTO production_route_events (route_id, operator_name, event_type, notes, event_payload, created_at)
+                 VALUES ($1, $2, 'revertido', $3, '{}'::jsonb, NOW())`,
+                [routeId, getRequestUserName(req), 'VB solicitó correcciones: ' + reason]
+            );
+            await pgQuery(
+                `UPDATE production_order_routes SET route_status = 'PENDIENTE', actual_end_at = NULL WHERE id = $1`,
+                [routeId]
+            );
+        }
+        res.json({ ok: true, message: 'Paso revertido para correcciones.' });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible revertir el paso.' });
+    }
+});
 app.get('/api/mes/contexto', async (req, res) => {
     try {
         await ensurePlanningRoutesForLiveOrders();

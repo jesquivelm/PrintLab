@@ -14,7 +14,6 @@ const deliveriesButton = document.getElementById('orderDeliveriesButton');
 const numberingButton = document.getElementById('orderNumberingButton');
 const stateButton = document.getElementById('orderStateButton');
 const artworkDeleteButton = document.getElementById('orderArtworkDeleteButton');
-const orderFlowToggleButton = document.getElementById('orderFlowToggleButton');
 const orderFlowBody = document.getElementById('orderFlowBody');
 const scheduledDateInput = document.getElementById('orderScheduledDateInput');
 const finishNotesInput = document.getElementById('orderFinishNotesInput');
@@ -313,43 +312,53 @@ function getPlanningControl(raw = {}) {
 }
 
 function renderPlanningControl(raw = {}) {
-    const control = getPlanningControl(raw);
-    const promisedText = control.promisedDeliveryDate ? formatDate(control.promisedDeliveryDate) : 'Sin fecha prometida';
-    planningReturnReasonText.hidden = true;
-    planningReturnReasonText.textContent = '';
-    if (control.planningStatus === 'EN_GANTT') {
-        planningStatusText.textContent = `La orden ya fue lanzada a planificación. Entrega prometida: ${promisedText}.`;
-        planningMetaText.textContent = control.launchedAt ? `Lanzada al Gantt ${formatDate(control.launchedAt, true)} por ${control.launchedBy || 'usuario actual'}.` : 'La orden ya está activa en el Gantt.';
-        releasePlanningButton.disabled = true;
-        releasePlanningButton.textContent = 'Ya Lanzada a Planificación';
-        return;
+    const control = getOrderPlanningControlFromRaw(raw);
+    if (!planningStatusText) return;
+    if (control.salesReleased) {
+        if (control.launchedToGantt) {
+            planningStatusText.textContent = 'Lanzada a planificación';
+            planningStatusText.style.color = 'var(--app-success, #16a34a)';
+            if (releasePlanningButton) {
+                releasePlanningButton.disabled = true;
+                releasePlanningButton.textContent = 'Ya Lanzada a Planificación';
+            }
+        } else if (control.planningStatus === 'PENDIENTE_PLANIFICACION') {
+            planningStatusText.innerHTML = 'Pendiente en planificación <span class="live-dot" style="width:6px;height:6px;display:inline-block;margin-left:4px;"></span>';
+            planningStatusText.style.color = 'var(--app-warning, #b7791f)';
+            if (releasePlanningButton) {
+                releasePlanningButton.disabled = true;
+                releasePlanningButton.textContent = 'Pendiente en Planificación';
+            }
+        } else {
+            planningStatusText.textContent = 'Liberada a planificación';
+            planningStatusText.style.color = 'var(--app-primary, #0277a9)';
+            if (releasePlanningButton) {
+                releasePlanningButton.disabled = false;
+                releasePlanningButton.textContent = 'Reliberar a Planificación';
+            }
+        }
+    } else if (control.planningStatus === 'DEVUELTA_VENTAS') {
+        planningStatusText.textContent = 'Devuelta por planificación';
+        planningStatusText.style.color = 'var(--app-danger, #dc2626)';
+        if (releasePlanningButton) {
+            releasePlanningButton.disabled = false;
+            releasePlanningButton.textContent = 'Reliberar a Planificación';
+        }
+    } else {
+        if (releasePlanningButton) {
+            releasePlanningButton.disabled = false;
+            releasePlanningButton.textContent = 'Liberar a Planificación';
+        }
     }
-    if (control.planningStatus === 'PENDIENTE_PLANIFICACION') {
-        planningStatusText.textContent = `Orden liberada por ventas y pendiente de revisión en planificación. Entrega prometida: ${promisedText}.`;
-        planningMetaText.textContent = control.salesReleasedAt ? `Liberada ${formatDate(control.salesReleasedAt, true)} por ${control.salesReleasedBy || 'usuario actual'}.` : 'Pendiente de análisis por planificación.';
-        releasePlanningButton.disabled = true;
-        releasePlanningButton.textContent = 'Pendiente en Planificación';
-        return;
+    if (planningReturnReasonText) {
+        planningReturnReasonText.hidden = control.planningStatus !== 'DEVUELTA_VENTAS';
+        planningReturnReasonText.textContent = control.returnReason ? 'Última devolución: ' + control.returnReason : '';
     }
-    if (control.planningStatus === 'DEVUELTA_VENTAS') {
-        planningStatusText.textContent = `La orden fue devuelta a ventas. Entrega prometida: ${promisedText}.`;
-        planningMetaText.textContent = control.returnReason || 'Planificación indicó que la orden requiere ajustes antes de reliberarse.';
-        planningReturnReasonText.hidden = false;
-        planningReturnReasonText.textContent = control.returnReason ? `Última devolución de planificación: ${control.returnReason}` : 'Última devolución de planificación: pendiente de detalle.';
-        releasePlanningButton.disabled = false;
-        releasePlanningButton.textContent = 'Reliberar a Planificación';
-        return;
-    }
-    planningStatusText.textContent = `Pendiente de revisión de ventas. Entrega prometida: ${promisedText}.`;
-    planningMetaText.textContent = 'Cuando ventas confirme la orden, la puede enviar a la cola de planificación.';
-    releasePlanningButton.disabled = false;
-    releasePlanningButton.textContent = 'Liberar a Planificación';
 }
 async function updatePlanningControl(action) {
     if (!currentOrderCode) return;
-    releasePlanningButton.disabled = true;
-    const previousText = releasePlanningButton.textContent;
-    releasePlanningButton.textContent = 'Guardando...';
+    var btn = document.getElementById('flowReleasePlanningButton') || releasePlanningButton;
+    if (btn) { btn.disabled = true; btn._prevText = btn.textContent; btn.textContent = 'Guardando...'; }
     try {
         const response = await fetch(`/api/ordenes-produccion/${encodeURIComponent(currentOrderCode)}/planning-control`, {
             method: 'PATCH',
@@ -360,14 +369,16 @@ async function updatePlanningControl(action) {
         if (!response.ok) throw new Error(payload.error || 'No se pudo actualizar el control de planificación.');
         currentLoadedOrder = payload.orden;
         renderOrder(currentLoadedOrder);
+        notify('Planificación actualizada', action === 'release-sales' ? 'Orden liberada a planificación' : 'Orden lanzada a Gantt', 'success');
     } catch (error) {
-        releasePlanningButton.disabled = false;
-        releasePlanningButton.textContent = previousText;
-        planningMetaText.textContent = error.message;
+        if (btn) { btn.disabled = false; btn.textContent = btn._prevText || 'Liberar a Planificación'; }
+        var metaEl = document.getElementById('flowPlanningMetaText') || planningMetaText;
+        if (metaEl) metaEl.textContent = error.message;
     }
 }
 
 function renderPlanningSnapshot(raw = {}) {
+    if (!planningSnapshotSummary || !planningSnapshotMeta || !planningSnapshotList) return;
     const snapshot = raw.planning_snapshot || raw.planningSnapshot || null;
     const processes = (Array.isArray(snapshot?.processes) ? snapshot.processes : []).filter((process) => isVisibleOrderProcess(process.processName || process.processKey));
     if (!snapshot || !processes.length) {
@@ -442,123 +453,545 @@ function flowStatusClass(status) {
     return '';
 }
 
-function renderOrderTracking(payload = {}) {
-    if (!orderFlowBody) return;
-    const steps = Array.isArray(payload.steps) ? payload.steps : [];
-    const comparisons = Array.isArray(payload.comparisons) ? payload.comparisons : [];
-    if (!steps.length) {
-        orderFlowBody.innerHTML = '<div class="production-summary-empty">Sin marcas de seguimiento registradas.</div>';
-        return;
-    }
-    const order = payload.order || currentLoadedOrder || {};
-    const raw = order.raw_data || {};
-    const quote = raw.quote_snapshot || {};
-    const line = raw.line_summary || {};
-    const doneCount = steps.filter((step) => String(step.routeStatus || '').toUpperCase() === 'COMPLETADO').length;
-    const live = Boolean(payload.live);
-    orderFlowBody.innerHTML = `
-        <div class="production-flow-shell">
-            <div class="production-flow-header">
-                <div>
-                    <span>${escapeHtml(order.order_code || currentOrderCode || 'Orden')}</span>
-                    <strong>${escapeHtml(raw.customer_name || quote.customer_name || 'Sin cliente')}</strong>
-                    <em>${escapeHtml(line.job_name || line.product_name || raw.product_name || 'Sin producto')}</em>
-                </div>
-                <div class="production-flow-live${live ? ' is-live' : ''}">
-                    <span></span>${live ? 'En vivo' : 'Sin proceso activo'}
-                </div>
-            </div>
-            <div class="production-flow-tabs">
-                <button type="button" class="is-active" data-order-flow-tab="flow">Flujo</button>
-                <button type="button" data-order-flow-tab="compare">Planificado vs. Real</button>
-            </div>
-            <section class="production-flow-view is-active" data-order-flow-view="flow">
-                <div class="production-flow-panel">
-                    <div class="production-flow-panel-head">
-                        <div><strong>Flujo de producción</strong><span>${doneCount} de ${steps.length} etapas completas</span></div>
-                    </div>
-                    <div class="production-flow-timeline">
-                        ${steps.map((step) => {
-                            const status = String(step.routeStatus || 'PENDIENTE').toUpperCase();
-                            const isDone = status === 'COMPLETADO';
-                            const isActive = ['RUN', 'SETUP', 'PARO'].includes(status);
-                            const user = step.completedBy || step.startedBy || '';
-                            const when = formatDate(step.completedAt || step.startedAt, true);
-                            return `
-                                <article class="production-flow-step ${flowStatusClass(status)}">
-                                    <div class="production-flow-marker">${isDone ? '✓' : ''}</div>
-                                    <div class="production-flow-copy">
-                                        <strong>${escapeHtml(step.processName || 'Proceso')}</strong>
-                                        <span>${escapeHtml(formatRouteStatus(status))}${isActive ? ' · En proceso' : ''}</span>
-                                        ${user ? `<small>${escapeHtml(user)}</small>` : ''}
-                                        ${when ? `<small>${escapeHtml(when)}</small>` : ''}
-                                        ${step.notes ? `<small>${escapeHtml(step.notes)}</small>` : ''}
-                                    </div>
-                                </article>
-                            `;
-                        }).join('')}
-                    </div>
-                </div>
-            </section>
-            <section class="production-flow-view" data-order-flow-view="compare">
-                <div class="production-flow-panel">
-                    <div class="production-flow-panel-head">
-                        <div><strong>Planificado vs. Real</strong><span>Cotización contra datos de producción</span></div>
-                    </div>
-                    <div class="production-flow-compare">
-                        ${comparisons.length ? comparisons.map((step) => {
-                            const planned = step.planned || {};
-                            const real = step.real || {};
-                            const timeOver = Number(real.minutes || 0) > 0 && Number(planned.minutes || 0) > 0 && Number(real.minutes) > Number(planned.minutes);
-                            const qtyOver = Number(real.quantity || 0) > 0 && Number(planned.quantity || 0) > 0 && Number(real.quantity) > Number(planned.quantity);
-                            return `
-                                <article class="production-flow-compare-row">
-                                    <div class="production-flow-compare-title">
-                                        <strong>${escapeHtml(step.processName || 'Proceso')}</strong>
-                                        ${['RUN', 'SETUP', 'PARO'].includes(String(step.routeStatus || '').toUpperCase()) ? '<span class="production-flow-live is-live"><span></span>En vivo</span>' : ''}
-                                    </div>
-                                    <div class="production-flow-compare-grid">
-                                        <div>
-                                            <span>Cotizado</span>
-                                            <strong>${escapeHtml(formatFlowMinutes(planned.minutes))}</strong>
-                                            <em>${escapeHtml(planned.machineName || 'Sin máquina')}</em>
-                                            <em>${escapeHtml(formatFlowQuantity(planned.quantity, planned.unit))}</em>
-                                        </div>
-                                        <div>
-                                            <span>Real</span>
-                                            <strong class="${timeOver ? 'is-over' : ''}">${escapeHtml(formatFlowMinutes(real.minutes))}</strong>
-                                            <em>${escapeHtml(real.speedFpm ? `${parseNumber(real.speedFpm)} ft/min` : 'Sin velocidad')}</em>
-                                            <em class="${qtyOver ? 'is-over' : ''}">${escapeHtml(formatFlowQuantity(real.quantity, real.unit))}</em>
-                                        </div>
-                                    </div>
-                                </article>
-                            `;
-                        }).join('') : '<div class="production-summary-empty">Sin comparación disponible.</div>'}
-                    </div>
-                </div>
-            </section>
-        </div>
-    `;
+// ── FLOW HISTORY (local) ──
+var FLOW_HIST = [];
+
+function flowHistAdd(msg) {
+    FLOW_HIST.unshift({ msg: msg, ts: fmtNowShort() });
+    if (FLOW_HIST.length > 40) FLOW_HIST.pop();
 }
 
-function renderOrderFlowSteps(steps = []) {
-    renderOrderTracking({ steps, comparisons: steps.filter((step) => step.planned || step.real) });
+function fmtNowShort() {
+    var d = new Date(), ms = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    return d.getDate() + ' ' + ms[d.getMonth()] + ' · ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+}
+
+function notify(title, msg, type) {
+    var colors = { success: ['var(--green)', 'ti-circle-check'], warning: ['var(--amber)', 'ti-alert-triangle'], info: ['var(--blue)', 'ti-info-circle'], danger: ['var(--red)', 'ti-alert-circle'] };
+    var c = colors[type] || colors.info;
+    var el = document.createElement('div');
+    el.className = 'notif-item';
+    el.innerHTML = '<i class="ti ' + c[1] + '" style="font-size:18px;color:' + c[0] + ';flex-shrink:0;margin-top:1px;"></i><div><div class="notif-title" style="color:' + c[0] + '">' + title + '</div><div class="notif-body">' + msg + '</div></div>';
+    var area = document.getElementById('notif-area') || (function () {
+        var a = document.createElement('div'); a.id = 'notif-area'; a.className = 'notif-area';
+        document.body.appendChild(a); return a;
+    })();
+    area.appendChild(el);
+    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 4500);
+}
+
+// ── RENDER MAIN (flow flujo + planificacion + comparacion) ──
+function renderOrderTracking(payload) {
+    if (!orderFlowBody) return;
+    var steps = Array.isArray(payload && payload.steps) ? payload.steps : [];
+    var cmp = Array.isArray(payload && payload.comparisons) ? payload.comparisons : [];
+    var live = Boolean(payload && payload.live);
+    var order = (payload && payload.order) || currentLoadedOrder || {};
+    var raw = order.raw_data || {};
+    var quote = raw.quote_snapshot || {};
+    var line = raw.line_summary || {};
+    var doneCount = steps.filter(function (s) { return String(s.routeStatus || '').toUpperCase() === 'COMPLETADO'; }).length;
+
+    var metaHtml = '<div class="production-flow-header">'
+        + '<div><span>' + escapeHtml(order.order_code || currentOrderCode || 'Orden') + '</span>'
+        + '<strong>' + escapeHtml(raw.customer_name || quote.customer_name || 'Sin cliente') + '</strong>'
+        + '<em>' + escapeHtml(line.job_name || line.product_name || raw.product_name || 'Sin producto') + '</em></div>'
+        + '<div class="production-flow-live' + (live ? ' is-live' : '') + '"><span></span>' + (live ? 'En vivo' : 'Sin proceso activo') + '</div>'
+        + '</div>';
+
+    // Flujo view
+    var flujoHtml = renderFlowTimeline(steps, order);
+
+    // Planificacion view — use existing renderPlanningSnapshot
+    var planifHtml = '<div class="production-flow-planning-tab" id="flow-planning-root">'
+        + '<div class="production-order-popover-section"><div id="flowPlanningStatusText" class="production-order-control-status"></div>'
+        + '<div id="flowPlanningMetaText" class="production-order-control-meta"></div>'
+        + '<div id="flowPlanningReturnReasonText" class="production-order-control-meta" hidden></div></div>'
+        + '<div class="production-order-popover-actions" id="flowPlanningActions">'
+        + '<button type="button" id="flowReleasePlanningButton" class="action-btn action-btn-primary">Liberar a Planificación</button>'
+        + '<button type="button" id="flowLaunchGanttButton" class="action-btn action-btn-success" hidden>Lanzar a Gantt</button>'
+        + '<button type="button" id="flowReturnSalesButton" class="action-btn action-btn-danger" hidden>Devolver a Vendedor</button>'
+        + '<button type="button" id="flowPlanningQueueButton" class="action-btn">Ver Cola</button>'
+        + '</div>'
+        + '<div class="production-order-popover-section"><div class="production-order-control-title">Ruta de Planificación</div>'
+        + '<div id="flowPlanningSnapshotSummary" class="production-order-planning-summary"></div>'
+        + '<div id="flowPlanningSnapshotMeta" class="production-order-planning-meta"></div>'
+        + '<div id="flowPlanningSnapshotList" class="production-order-planning-list"></div></div>'
+        + '</div>';
+
+    // Comparacion view
+    var cmpHtml = renderComparisonView(cmp);
+
+    orderFlowBody.innerHTML = metaHtml
+        + '<section data-flow-view="flujo" class="is-active">' + flujoHtml + '</section>'
+        + '<section data-flow-view="planificacion">' + planifHtml + '</section>'
+        + '<section data-flow-view="comparacion">' + cmpHtml + '</section>';
+
+    // Wire planning buttons
+    var rpb = document.getElementById('flowReleasePlanningButton');
+    var lgb = document.getElementById('flowLaunchGanttButton');
+    var rsb = document.getElementById('flowReturnSalesButton');
+    var pqb = document.getElementById('flowPlanningQueueButton');
+    if (rpb) rpb.onclick = function () { updatePlanningControl('release-sales'); };
+    if (lgb) lgb.onclick = function () { updatePlanningControl('launch-gantt'); };
+    if (rsb) rsb.onclick = function () { showReturnSalesForm(); };
+    if (pqb) pqb.onclick = function () { openRoute('/planificacion/lanzamiento', 'Cola de planificación'); };
+}
+
+function renderFlowTimeline(steps, order) {
+    if (!steps.length) return '<div class="production-summary-empty">Sin marcas de seguimiento registradas.</div>';
+    var doneCount = steps.filter(function (s) { return String(s.routeStatus || '').toUpperCase() === 'COMPLETADO'; }).length;
+    var total = steps.length;
+
+    // Build timeline rows
+    var tlHtml = '';
+    for (var i = 0; i < steps.length; i++) {
+        var s = steps[i];
+        var status = String(s.routeStatus || 'PENDIENTE').toUpperCase();
+        var isDone = status === 'COMPLETADO';
+        var isActive = ['RUN', 'SETUP'].includes(status);
+        var isStopped = status === 'PARO';
+        var isLocked = !isDone && !isActive && !isStopped;
+        var isLast = i === steps.length - 1;
+
+        var initials = (s.completedBy || '').split(' ').map(function (w) { return w[0] || ''; }).join('').slice(0, 2) || '??';
+        var color = isDone ? '#059669' : (isActive ? '#2563eb' : (isStopped ? '#dc2626' : '#c8cbda'));
+        var nodeInner = isDone
+            ? '<span>' + initials + '</span><span class="tl-check"><i class="ti ti-check" style="font-size:9px;color:#fff;"></i></span>'
+            : '<i class="ti ti-' + stepIcon(s.processKey) + '" style="font-size:17px;"></i>';
+
+        var nodeClass = isDone ? 'tl-node done' : (isActive ? 'tl-node avail in-progress' : (isStopped ? 'tl-node warn' : 'tl-node locked'));
+
+        // Connector
+        var solid = isDone && !isLast && steps[i + 1] && String(steps[i + 1].routeStatus || '').toUpperCase() === 'COMPLETADO';
+        var line = isLast ? '' : '<div class="tl-connector ' + (solid ? 'solid' : 'dashed') + '"></div>';
+
+        // Content
+        var chips = '';
+        if (s.planned && s.planned.machineName) {
+            chips += '<span class="info-chip" style="margin-top:5px;margin-right:4px;"><i class="ti ti-cpu" style="font-size:10px;"></i>' + escapeHtml(s.planned.machineName) + '</span>';
+        }
+        if (s.planned && s.planned.minutes > 0) {
+            chips += '<span class="info-chip" style="margin-top:5px;"><i class="ti ti-clock" style="font-size:10px;"></i>' + fmtFlowTime(s.planned.minutes) + ' estimado</span>';
+        }
+
+        var contentHtml = '';
+        if (isDone) {
+            var notaBadge = s.notes
+                ? '<div style="margin-top:6px;padding:6px 10px;background:var(--ink-7);border-radius:var(--radius-sm);border-left:3px solid var(--ink-5);font-size:12px;color:var(--ink-3);line-height:1.4;"><i class="ti ti-note" style="font-size:11px;"></i> ' + escapeHtml(s.notes) + '</div>'
+                : '';
+            contentHtml = '<div class="tl-step-title"><i class="ti ti-check-circle" style="font-size:14px;color:var(--green);"></i>' + escapeHtml(s.processName || 'Proceso') + '</div>'
+                + '<div class="tl-step-meta">' + escapeHtml(s.completedBy || '') + (s.completedAt ? ' · ' + formatDate(s.completedAt, true) : '') + '</div>'
+                + '<span class="tl-role-chip"><i class="ti ti-user" style="font-size:10px;"></i>' + (s.role || 'Operador') + '</span>'
+                + chips + notaBadge;
+        } else if (isStopped) {
+            contentHtml = '<div class="tl-step-title" style="color:var(--amber);"><i class="ti ti-alert-triangle" style="font-size:14px;"></i>' + escapeHtml(s.processName || 'Proceso') + '</div>'
+                + '<div class="tl-step-meta" style="color:var(--red);">Detenido</div>'
+                + '<span class="tl-role-chip"><i class="ti ti-user" style="font-size:10px;"></i>' + (s.role || 'Operador') + '</span>';
+        } else if (isActive) {
+            var ipLabel = '<div class="in-progress-label" style="margin-top:6px;"><span class="live-dot" style="width:6px;height:6px;margin:0;"></span>En progreso</div>';
+            contentHtml = '<div class="tl-step-title" style="color:var(--blue);"><i class="ti ti-player-play" style="font-size:14px;"></i>' + escapeHtml(s.processName || 'Proceso') + '</div>'
+                + '<div class="tl-step-meta" style="color:var(--blue);">En proceso</div>'
+                + '<span class="tl-role-chip"><i class="ti ti-user" style="font-size:10px;"></i>' + (s.role || 'Operador') + '</span>'
+                + chips + ipLabel;
+        } else {
+            contentHtml = '<div class="tl-step-title muted">' + escapeHtml(s.processName || 'Proceso') + '</div>'
+                + '<div class="tl-step-hint">' + (s.notes || 'Pendiente') + '</div>'
+                + '<span class="tl-role-chip"><i class="ti ti-user" style="font-size:10px;"></i>' + (s.role || 'Operador') + '</span>';
+        }
+
+        // Special step actions
+        if (s.processKey === 'solicitud_vendedor' && !isDone) {
+            contentHtml += '<div style="margin-top:8px;"><button class="btn btn-success" onclick="completeStep(' + i + ')"><i class="ti ti-send" style="font-size:12px;"></i>Marcar solicitud enviada</button></div>';
+        }
+        if (s.processKey === 'planeacion' && !isDone) {
+            contentHtml += '<div style="margin-top:8px;"><button class="btn btn-primary" onclick="completeStep(' + i + ')"><i class="ti ti-player-play" style="font-size:12px;"></i>Liberar a producción</button></div>';
+        }
+        if (s.processKey === 'visto_bueno' && !isDone) {
+            contentHtml += '<div class="flex gap-6 wrap" style="margin-top:8px;">'
+                + '<button class="btn btn-primary" onclick="completeStep(' + i + ')"><i class="ti ti-check" style="font-size:12px;"></i>Aprobar VB</button>'
+                + '<button class="btn btn-outline-warn" onclick="showVBForm(' + i + ')"><i class="ti ti-arrow-back-up" style="font-size:11px;"></i>Solicitar correcciones</button>'
+                + '</div>';
+        }
+
+        tlHtml += '<div class="tl-row" style="opacity:' + (isDone || isActive ? '1' : '0.6') + ';">'
+            + '<div class="tl-col-left">'
+            + '<div class="' + nodeClass + '" style="background:' + color + (isActive ? ';border:2px solid var(--blue);background:var(--blue-light);color:var(--blue);' : '') + (isStopped ? ';background:var(--amber-light);border:2px solid var(--amber-mid);color:var(--amber);' : '') + '">'
+            + nodeInner + '</div>' + line + '</div>'
+            + '<div class="tl-content">' + contentHtml + '</div></div>';
+
+        // Liberation banner
+        if (s.processKey === 'planeacion' && isDone && i + 1 < steps.length && String(steps[i + 1].routeStatus || '').toUpperCase() !== 'COMPLETADO') {
+            tlHtml += '<div class="liberated-banner"><i class="ti ti-player-play" style="font-size:12px;"></i>Orden liberada a producción</div>';
+        }
+    }
+
+    // History
+    if (FLOW_HIST.length > 0) {
+        tlHtml += '<div class="hist-section"><div class="hist-header"><i class="ti ti-history" style="font-size:13px;"></i>Historial</div>';
+        var shown = Math.min(FLOW_HIST.length, 8);
+        for (var h = 0; h < shown; h++) {
+            tlHtml += '<div class="hist-row"><span class="hist-date">' + FLOW_HIST[h].ts + '</span><span>' + FLOW_HIST[h].msg + '</span></div>';
+        }
+        tlHtml += '</div>';
+    }
+
+    return '<div class="fp-panel">'
+        + '<div class="fp-panel-head"><div><div class="fp-panel-title">Flujo de producción</div><div class="fp-panel-sub">' + doneCount + ' de ' + total + ' etapas completas</div></div>'
+        + '<span class="fp-counter" style="background:' + (doneCount === total ? 'var(--green-light)' : (doneCount > 0 ? 'var(--amber-light)' : 'var(--ink-7)')) + ';color:' + (doneCount === total ? 'var(--green)' : (doneCount > 0 ? 'var(--amber)' : 'var(--ink-4)')) + ';">' + doneCount + '/' + total + '</span>'
+        + '</div>'
+        + '<div class="fp-progress"><div class="fp-progress-fill" style="width:' + Math.round(doneCount / total * 100) + '%;background:linear-gradient(90deg,var(--green),#34d399);"></div></div>'
+        + '<div class="fp-body" style="padding-top:0;">' + tlHtml + '</div>'
+        + '</div>';
+}
+
+function stepIcon(key) {
+    var icons = {
+        orden_creada: 'file-plus', solicitud_vendedor: 'send', planeacion: 'player-play',
+        diseno: 'vector-bezier', preprensa: 'printer', visto_bueno: 'circle-check',
+        planchas: 'layers-subtract', tintas: 'droplet', impresion: 'brand-codesandbox',
+        acabados: 'scissors', rebobinado: 'refresh', empaque: 'package',
+        entrega: 'truck', calidad: 'checkup-list'
+    };
+    return icons[key] || 'arrow-right';
+}
+
+function fmtFlowTime(min) {
+    if (!min || min <= 0) return '—';
+    if (min < 60) return min + 'min';
+    var h = Math.floor(min / 60), m = min % 60;
+    return h + 'h' + (m ? ' ' + m + 'min' : '');
+}
+
+function renderComparisonView(cmp) {
+    if (!cmp || !cmp.length) return '<div class="production-summary-empty">Sin comparación disponible.</div>';
+    var html = '<div class="fp-panel">'
+        + '<div class="fp-panel-head"><div><div class="fp-panel-title">Planificado vs. Real</div><div class="fp-panel-sub">Cotización contra datos de producción</div></div></div>'
+        + '<div style="padding:16px 22px 20px;">';
+    cmp.forEach(function (step) {
+        var planned = step.planned || {};
+        var real = step.real || {};
+        var timeOver = Number(real.minutes || 0) > 0 && Number(planned.minutes || 0) > 0 && Number(real.minutes) > Number(planned.minutes);
+        var qtyOver = Number(real.quantity || 0) > 0 && Number(planned.quantity || 0) > 0 && Number(real.quantity) > Number(planned.quantity);
+        var isDone = String(step.routeStatus || '').toUpperCase() === 'COMPLETADO';
+
+        html += '<div class="step-section">'
+            + '<div class="cmp-step-header"><div class="cmp-step-icon" style="background:var(--blue-light);color:var(--blue);"><i class="ti ti-' + stepIcon(step.processKey) + '"></i></div>'
+            + escapeHtml(step.processName || 'Proceso') + '</div>'
+            + '<div class="cmp-grid">'
+            + '<div class="cmp-col planned"><div class="cmp-col-title"><i class="ti ti-clipboard-list"></i>Cotizado</div>';
+        if (planned.minutes > 0) html += '<div class="cmp-row"><span class="cmp-row-label">Tiempo</span><span class="cmp-row-val">' + fmtFlowTime(planned.minutes) + '</span></div>';
+        if (planned.machineName) html += '<div class="cmp-row"><span class="cmp-row-label">Máquina</span><span class="cmp-row-val" style="font-size:10px;">' + escapeHtml(planned.machineName) + '</span></div>';
+        if (planned.quantity > 0) html += '<div class="cmp-row"><span class="cmp-row-label">Cantidad</span><span class="cmp-row-val">' + fmtFlowQty(planned.quantity, planned.unit) + '</span></div>';
+
+        html += '</div><div class="cmp-col real"><div class="cmp-col-title"><i class="ti ti-activity"></i>Real</div>';
+        if (planned.minutes > 0) {
+            html += '<div class="cmp-row" style="align-items:center;"><span class="cmp-row-label">Tiempo</span>'
+                + (isDone
+                    ? '<input type="number" class="form-input cmp-real-input" data-cmp-type="time" data-cmp-idx="' + htmlEncode(step.processKey) + '" placeholder="min" value="' + (real.minutes || '') + '" min="0" style="width:72px;padding:3px 7px;font-size:11px;">'
+                    : '<span class="cmp-row-val' + (timeOver ? ' over' : '') + '">' + (real.minutes ? fmtFlowTime(real.minutes) : '—') + '</span>')
+                + '</div>';
+        }
+        if (planned.quantity > 0) {
+            html += '<div class="cmp-row" style="align-items:center;"><span class="cmp-row-label">Cantidad</span>'
+                + (isDone
+                    ? '<input type="number" class="form-input cmp-real-input" data-cmp-type="qty" data-cmp-idx="' + htmlEncode(step.processKey) + '" placeholder="' + escapeHtml(planned.unit || '') + '" value="' + (real.quantity || '') + '" min="0" style="width:72px;padding:3px 7px;font-size:11px;">'
+                    : '<span class="cmp-row-val' + (qtyOver ? ' over' : '') + '">' + (real.quantity ? fmtFlowQty(real.quantity, planned.unit) : '—') + '</span>')
+                + '</div>';
+        }
+        if (!isDone) html += '<div style="font-size:11px;color:var(--ink-5);margin-top:4px;font-style:italic;">Pendiente de completar</div>';
+        html += '</div></div>';
+        if (timeOver) {
+            var td = real.minutes - planned.minutes;
+            html += '<div class="excess-alert" style="background:var(--amber-light);border-color:var(--amber-mid);margin-top:6px;">'
+                + '<i class="ti ti-clock excess-alert-icon" style="color:var(--amber);"></i>'
+                + '<div><div class="excess-alert-title" style="color:var(--amber);">Exceso de tiempo</div>'
+                + '<div class="excess-alert-body">' + fmtFlowTime(td) + ' adicionales sobre el tiempo cotizado.</div></div></div>';
+        }
+        html += '</div>';
+    });
+    html += '</div></div>';
+    return html;
+}
+
+function fmtFlowQty(qty, unit) {
+    if (!qty || qty <= 0) return '—';
+    return Number(qty).toLocaleString('es-CR', { maximumFractionDigits: 2 }) + (unit ? ' ' + unit : '');
+}
+
+function htmlEncode(s) {
+    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ── TAB RENDERERS ──
+function renderPlanningTab() {
+    var root = document.getElementById('flow-planning-root');
+    if (!root) return;
+    // Copy data from old planning elements
+    var raw = (currentLoadedOrder || {}).raw_data || {};
+    renderPlanningIntoControls(raw);
+}
+
+function renderPlanningIntoControls(raw) {
+    var statusEl = document.getElementById('flowPlanningStatusText');
+    var metaEl = document.getElementById('flowPlanningMetaText');
+    var returnEl = document.getElementById('flowPlanningReturnReasonText');
+    var rpb = document.getElementById('flowReleasePlanningButton');
+    var lgb = document.getElementById('flowLaunchGanttButton');
+    var rsb = document.getElementById('flowReturnSalesButton');
+    if (!statusEl) return;
+
+    var control = getOrderPlanningControlFromRaw(raw);
+    var statusLabel = control.salesReleased ? (control.launchedToGantt ? 'Lanzada a Gantt' : (control.planningStatus === 'PENDIENTE_PLANIFICACION' ? 'Pendiente en planificación' : 'Liberada')) : 'Pendiente de liberación';
+    var statusColor = control.salesReleased ? (control.launchedToGantt ? 'var(--green)' : 'var(--amber)') : 'var(--ink-4)';
+    statusEl.textContent = statusLabel;
+    statusEl.style.color = statusColor;
+
+    if (metaEl) {
+        var metaParts = [];
+        if (control.salesReleasedBy) metaParts.push('Liberada por: ' + control.salesReleasedBy);
+        if (control.salesReleasedAt) metaParts.push(formatDate(control.salesReleasedAt, true));
+        if (control.launchedBy) metaParts.push('Lanzada por: ' + control.launchedBy);
+        if (control.returnedBy) metaParts.push('Devuelta por: ' + control.returnedBy);
+        if (control.planningStatus === 'DEVUELTA_VENTAS') metaParts.push('Motivo: ' + (control.returnReason || 'Sin motivo'));
+        metaEl.textContent = metaParts.join(' · ') || 'Sin información de planificación';
+    }
+
+    if (returnEl) {
+        returnEl.hidden = control.planningStatus !== 'DEVUELTA_VENTAS' || !control.returnReason;
+        if (!returnEl.hidden) returnEl.textContent = 'Motivo de devolución: ' + (control.returnReason || '');
+    }
+
+    // Buttons visibility
+    if (rpb) {
+        rpb.hidden = control.salesReleased && control.planningStatus !== 'DEVUELTA_VENTAS';
+        rpb.disabled = control.salesReleased && control.planningStatus !== 'DEVUELTA_VENTAS';
+        rpb.textContent = control.planningStatus === 'DEVUELTA_VENTAS' ? 'Reliberar a Planificación' : 'Liberar a Planificación';
+    }
+    if (lgb) {
+        lgb.hidden = !(control.salesReleased && control.planningStatus === 'PENDIENTE_PLANIFICACION');
+    }
+    if (rsb) {
+        rsb.hidden = !(control.salesReleased && control.planningStatus !== 'DEVUELTA_VENTAS' && control.planningStatus !== 'EN_GANTT');
+    }
+
+    // Route snapshot
+    renderPlanningSnapshotTo(raw);
+}
+
+function renderPlanningSnapshotTo(raw) {
+    var summaryEl = document.getElementById('flowPlanningSnapshotSummary');
+    var metaEl = document.getElementById('flowPlanningSnapshotMeta');
+    var listEl = document.getElementById('flowPlanningSnapshotList');
+    if (!summaryEl || !metaEl || !listEl) return;
+
+    var snapshot = raw.planning_snapshot || raw.planningSnapshot || null;
+    var processes = (Array.isArray(snapshot && snapshot.processes) ? snapshot.processes : []).filter(function (p) {
+        return isVisibleOrderProcess(p.processName || p.processKey);
+    });
+
+    if (!snapshot || !processes.length) {
+        summaryEl.innerHTML = '<div class="line-tracking-head production-flow-history-head"><strong>Ruta de Planificación</strong><span>0 procesos</span></div>';
+        metaEl.textContent = 'Cuando se regenere o se cree una orden nueva, aquí aparecerán los tiempos por proceso.';
+        listEl.innerHTML = '<div class="production-order-planning-empty">Sin procesos planeados todavía.</div>';
+        return;
+    }
+
+    var doneCount = 0;
+    var listHtml = '<div class="production-flow-history">';
+    processes.forEach(function (p) {
+        var received = findReceivedStep(p);
+        if (received) doneCount++;
+        var rStatus = flowStatusLabel(received && received.routeStatus);
+        var rUser = (received && (received.completedBy || received.startedBy)) || 'Pendiente';
+        var rDate = formatDate(received && (received.completedAt || received.startedAt), true) || '—';
+        var pd = parseNumber(p.durationHours, ' h') || '0 h';
+        listHtml += '<article class="line-tracking-item production-flow-history-row' + (received ? ' is-done' : '') + '">'
+            + '<span class="line-tracking-avatar">' + trackingAvatarMarkup(rUser) + '</span>'
+            + '<div class="production-flow-history-body">'
+            + '<div class="production-flow-history-plan">'
+            + '<div class="production-flow-history-title"><strong>' + escapeHtml(p.processName || p.processKey || 'Proceso') + '</strong>'
+            + (p.sequenceOrder ? '<span>Proceso ' + escapeHtml(String(p.sequenceOrder)) + '</span>' : '') + '</div>'
+            + '<span>Máquina: ' + escapeHtml(p.machineName || 'Sin definir') + '</span>'
+            + '<span>Duración: ' + escapeHtml(pd) + '</span>'
+            + (p.setupMinutes ? '<span>Setup: ' + escapeHtml(p.setupMinutes) + ' min</span>' : '') + '</div>'
+            + '<div class="production-flow-history-received">'
+            + '<strong>' + escapeHtml(rStatus) + '</strong>'
+            + '<span>' + escapeHtml(rUser) + '</span>'
+            + '<em>' + escapeHtml(rDate) + '</em></div></div></article>';
+    });
+    listHtml += '</div>';
+
+    summaryEl.innerHTML = '<div class="line-tracking-head production-flow-history-head"><strong>Ruta de Planificación</strong><span>' + doneCount + ' de ' + processes.length + ' marcados</span></div>';
+    metaEl.textContent = 'Generada ' + formatDate(snapshot.generatedAt, true) + '. Base: ' + (snapshot.processType || 'Sin tipo') + (snapshot.sourceMachineName ? ' · Máquina sugerida: ' + snapshot.sourceMachineName : '') + '.';
+    listEl.innerHTML = listHtml;
+    bindTrackingAvatarFallback(listEl);
+}
+
+function getOrderPlanningControlFromRaw(raw) {
+    var c = raw.planning_control || raw.planningControl || {};
+    return {
+        salesReleased: Boolean(c.salesReleased),
+        salesReleasedAt: c.salesReleasedAt || null,
+        salesReleasedBy: c.salesReleasedBy || '',
+        planningStatus: c.planningStatus || '',
+        launchedToGantt: Boolean(c.launchedToGantt),
+        launchedAt: c.launchedAt || null,
+        launchedBy: c.launchedBy || '',
+        returnedAt: c.returnedAt || null,
+        returnedBy: c.returnedBy || '',
+        returnReason: c.returnReason || ''
+    };
+}
+
+function flowStatusLabel(status) {
+    var s = String(status || '').toUpperCase();
+    if (s === 'COMPLETADO') return 'Completado';
+    if (['RUN', 'SETUP'].includes(s)) return 'En proceso';
+    if (s === 'PARO') return 'Detenido';
+    return 'Pendiente';
+}
+
+var VB_FORM_OPEN = null;
+var RETURN_FORM_OPEN = false;
+
+function completeStep(idx) {
+    var steps = currentOrderFlowPayload && currentOrderFlowPayload.steps;
+    if (!steps || !steps[idx]) return;
+    var step = steps[idx];
+    var processKey = step.processKey || '';
+    var notes = prompt('Nota opcional para ' + step.processName + ':', '') || '';
+    step.routeStatus = 'COMPLETADO';
+    step.completedBy = 'Yo';
+    step.completedAt = new Date().toISOString();
+    flowHistAdd('✅ <strong>' + step.processName + '</strong> completado');
+    notify(step.processName + ' completado', 'Registrado', 'success');
+    renderInPlace();
+    // Save to backend
+    fetch('/api/ordenes-produccion/' + encodeURIComponent(currentOrderCode) + '/seguimiento/completar', {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, sessionHeader()),
+        body: JSON.stringify({ processKey: processKey, notes: notes })
+    }).then(function (r) { return r.json(); }).then(function (p) {
+        if (!p.ok && p.error) notify('Error', p.error, 'danger');
+    }).catch(function (err) {
+        notify('Error de red', err.message, 'danger');
+    });
+}
+
+function showVBForm(idx) {
+    VB_FORM_OPEN = idx;
+    renderInPlace();
+}
+
+function submitVBRevert(targetKey) {
+    if (VB_FORM_OPEN === null) return;
+    var ta = document.getElementById('vb-reason-ta');
+    if (!ta || !ta.value.trim()) { if (ta) { ta.classList.add('error'); ta.focus(); } return; }
+    var steps = currentOrderFlowPayload && currentOrderFlowPayload.steps;
+    if (!steps) return;
+    var reason = ta.value.trim();
+    for (var i = 0; i < steps.length; i++) {
+        if (steps[i].processKey === targetKey) {
+            steps[i].routeStatus = 'PENDIENTE';
+            steps[i].completedBy = '';
+            steps[i].completedAt = null;
+            break;
+        }
+    }
+    flowHistAdd('↩️ <strong>' + steps[VB_FORM_OPEN].processName + '</strong> solicitó correcciones en ' + targetKey + ': "' + reason + '"');
+    notify('Correcciones solicitadas', reason, 'warning');
+    VB_FORM_OPEN = null;
+    renderInPlace();
+    fetch('/api/ordenes-produccion/' + encodeURIComponent(currentOrderCode) + '/seguimiento/vb-revert', {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, sessionHeader()),
+        body: JSON.stringify({ targetKey: targetKey, reason: reason })
+    }).then(function (r) { return r.json(); }).then(function (p) {
+        if (!p.ok && p.error) notify('Error', p.error, 'danger');
+    }).catch(function (err) {
+        notify('Error de red', err.message, 'danger');
+    });
+}
+
+function showReturnSalesForm() {
+    RETURN_FORM_OPEN = true;
+    renderReturnForm();
+}
+
+function renderReturnForm() {
+    var root = document.getElementById('flow-planning-root');
+    if (!root) return;
+    var existing = document.getElementById('flow-return-form');
+    if (existing) existing.remove();
+    if (!RETURN_FORM_OPEN) return;
+    var form = document.createElement('div');
+    form.id = 'flow-return-form';
+    form.className = 'cr-form';
+    form.style.margin = '12px 22px';
+    form.innerHTML = '<div class="cr-form-title"><i class="ti ti-arrow-back-up"></i>Devolver orden al vendedor</div>'
+        + '<textarea id="flow-return-ta" class="cr-textarea" placeholder="Motivo de la devolución..."></textarea>'
+        + '<div class="form-actions">'
+        + '<button class="btn btn-ghost" onclick="RETURN_FORM_OPEN=false;var f=document.getElementById(\'flow-return-form\');if(f)f.remove();">Cancelar</button>'
+        + '<button class="btn btn-danger" onclick="submitReturnSales()"><i class="ti ti-send" style="font-size:12px;"></i>Devolver</button></div>';
+    root.parentNode.insertBefore(form, root.nextSibling);
+}
+
+function submitReturnSales() {
+    var ta = document.getElementById('flow-return-ta');
+    if (!ta || !ta.value.trim()) { if (ta) { ta.focus(); return; } return; }
+    updatePlanningControlWithReason('return-sales', ta.value.trim());
+    RETURN_FORM_OPEN = false;
+    var f = document.getElementById('flow-return-form');
+    if (f) f.remove();
+}
+
+function updatePlanningControlWithReason(action, reason) {
+    if (!currentOrderCode) return;
+    var btn = document.getElementById('flowReleasePlanningButton');
+    if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+    fetch('/api/ordenes-produccion/' + encodeURIComponent(currentOrderCode) + '/planning-control', {
+        method: 'PATCH',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, sessionHeader()),
+        body: JSON.stringify({ action: action, reason: reason })
+    }).then(function (r) { return r.json(); }).then(function (payload) {
+        if (payload.orden) {
+            currentLoadedOrder = payload.orden;
+            renderOrder(currentLoadedOrder);
+            notify('Planificación actualizada', payload.orden ? 'Cambios guardados' : '', 'success');
+        }
+    }).catch(function (err) {
+        if (btn) { btn.disabled = false; btn.textContent = 'Liberar a Planificación'; }
+        notify('Error', err.message, 'danger');
+    });
+}
+
+function renderComparisonTab() {
+    var section = orderFlowBody && orderFlowBody.querySelector('[data-flow-view="comparacion"]');
+    if (!section) return;
+    var cmp = (currentOrderFlowPayload && currentOrderFlowPayload.comparisons) || [];
+    section.innerHTML = renderComparisonView(cmp);
+}
+
+function renderInPlace() {
+    renderOrderTracking(currentOrderFlowPayload);
+    renderPlanningTab();
 }
 
 async function openOrderFlowPopover() {
     if (!currentOrderCode) return;
     openPopover('orderFlowPopover');
-    if (orderFlowBody) orderFlowBody.innerHTML = '<div class="production-summary-empty">Cargando seguimiento...</div>';
+    if (orderFlowBody) orderFlowBody.innerHTML = '<div class="production-summary-empty" style="padding:40px;text-align:center;">Cargando seguimiento...</div>';
     try {
         await fetchOrderFlowSteps();
         renderOrderTracking(currentOrderFlowPayload);
     } catch (error) {
-        if (orderFlowBody) orderFlowBody.innerHTML = `<div class="production-summary-empty">${escapeHtml(error.message)}</div>`;
+        if (orderFlowBody) orderFlowBody.innerHTML = '<div class="production-summary-empty">' + escapeHtml(error.message) + '</div>';
     }
 }
 
 async function fetchOrderFlowSteps() {
-    const response = await fetch(`/api/ordenes-produccion/${encodeURIComponent(currentOrderCode)}/seguimiento`, {
+    const response = await fetch('/api/ordenes-produccion/' + encodeURIComponent(currentOrderCode) + '/seguimiento', {
         headers: sessionHeader()
     });
     const payload = await response.json();
@@ -570,16 +1003,14 @@ async function fetchOrderFlowSteps() {
 
 async function openPlanningControlPopover() {
     if (!currentOrderCode) return;
-    openPopover('orderPlanningPopover');
-    const raw = currentLoadedOrder?.raw_data || {};
-    planningSnapshotMeta.textContent = 'Cargando marcas reales...';
-    try {
-        await Promise.all([fetchOrderFlowSteps(), loadTrackingUserPhotos()]);
-        renderPlanningSnapshot(raw);
-    } catch (error) {
-        renderPlanningSnapshot(raw);
-        planningSnapshotMeta.textContent = error.message;
-    }
+    // Redirect to merged flow popover, show planning tab
+    await openOrderFlowPopover();
+    // Switch to planning tab
+    var tabs = orderFlowBody && orderFlowBody.parentNode && orderFlowBody.parentNode.querySelectorAll('[data-flow-tab]');
+    if (tabs) tabs.forEach(function (b) { b.classList.toggle('is-active', b.dataset.flowTab === 'planificacion'); });
+    var views = orderFlowBody && orderFlowBody.querySelectorAll('[data-flow-view]');
+    if (views) views.forEach(function (v) { v.classList.toggle('is-active', v.dataset.flowView === 'planificacion'); });
+    renderPlanningTab();
 }
 
 function openRoute(route, label) {
@@ -1432,7 +1863,7 @@ releasePlanningButton?.addEventListener('click', () => updatePlanningControl('re
 openPlanningQueueButton?.addEventListener('click', () => openRoute('/planificacion/lanzamiento', 'Cola de planificación'));
 popoverPlanningQueueButton?.addEventListener('click', () => openRoute('/planificacion/lanzamiento', 'Cola de planificación'));
 openPlanningButton?.addEventListener('click', openPlanningControlPopover);
-stateButton?.addEventListener('click', openPlanningControlPopover);
+stateButton?.addEventListener('click', openOrderFlowPopover);
 pantonesButton?.addEventListener('click', () => openPopover('orderPantonesPopover'));
     if (deliveriesButton) {
         deliveriesButton.title = 'Detalle de entregas';
@@ -1441,13 +1872,14 @@ pantonesButton?.addEventListener('click', () => openPopover('orderPantonesPopove
     }
 numberingButton?.addEventListener('click', () => openPopover('orderNumberingPopover'));
 attachmentsButton?.addEventListener('click', () => openPopover('orderAttachmentsPopover'));
-orderFlowToggleButton?.addEventListener('click', openOrderFlowPopover);
 orderFlowBody?.addEventListener('click', (event) => {
-    const tab = event.target?.closest?.('[data-order-flow-tab]');
+    const tab = event.target?.closest?.('[data-flow-tab]');
     if (!tab) return;
-    const target = tab.dataset.orderFlowTab;
-    orderFlowBody.querySelectorAll('[data-order-flow-tab]').forEach((button) => button.classList.toggle('is-active', button === tab));
-    orderFlowBody.querySelectorAll('[data-order-flow-view]').forEach((view) => view.classList.toggle('is-active', view.dataset.orderFlowView === target));
+    const target = tab.dataset.flowTab;
+    orderFlowBody.querySelectorAll('[data-flow-tab]').forEach((button) => button.classList.toggle('is-active', button === tab));
+    orderFlowBody.querySelectorAll('[data-flow-view]').forEach((view) => view.classList.toggle('is-active', view.dataset.flowView === target));
+    if (target === 'planificacion') renderPlanningTab();
+    if (target === 'comparacion') renderComparisonTab();
 });
 scheduledDateInput?.addEventListener('change', () => {
     saveOrderDetails({
