@@ -896,7 +896,7 @@ const DEFAULT_GENERAL_CONFIG = {
         notificationChatSend: '\u27A4',
         dashboardInventory: '\u25A5',
         dashboardOrders: '\u2699',
-        dashboardProduction: '\u25A1',
+        dashboardProduction: '\u{1F3ED}',
         dashboardCosts: '\u25A7',
         dashboardSettings: '\u2692',
         mobileQuotes: '\u25A4',

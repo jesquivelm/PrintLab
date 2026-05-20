@@ -187,8 +187,42 @@ Dark mode rules:
 - Avoid unnecessary shadows or background panels.
 - Especially avoid artificial backgrounds under comments unless requested.
 
-Icons:
-- Avoid unnecessary icon borders or background fills.
+
+# ICON SYSTEM RULES (MANDATORY)
+
+All newly requested icons MUST be created and registered through the official icon system/database used by the project.
+
+Do not create temporary inline icons, hardcoded icon objects, duplicated local icon definitions, or isolated icon implementations outside the centralized icon registry.
+
+Before considering the task complete, verify that:
+- The icon was successfully stored in the database/configuration source.
+- The icon can be retrieved correctly by the system.
+- The icon renders correctly in both light and dark mode.
+
+All icons MUST strictly respect their assigned configuration values, including:
+- Color
+- Size
+- Stroke width
+- Background behavior
+- Hover behavior
+- Border rules
+- Visual alignment
+- Dark/light mode variants
+
+Never override icon styles locally unless explicitly authorized.
+
+When rendering icons:
+- Reuse the existing icon rendering pipeline.
+- Preserve the exact visual consistency already defined by the system.
+- Avoid introducing custom wrappers, backgrounds, containers, or ad-hoc styling.
+
+If an equivalent icon configuration pattern already exists in the system:
+- Reuse it exactly.
+- Do not invent alternative implementations.
+
+Always validate visually that the icon matches the existing system behavior before declaring the task complete.
+
+- Avoid icon borders or background fills.
 - Respect the existing icon system configuration.
 - If a new icon is required:
   - Add it through the existing icon catalog/configuration system.
