@@ -13,10 +13,11 @@ const pantonesButton = document.getElementById('orderPantonesButton');
 const deliveriesButton = document.getElementById('orderDeliveriesButton');
 const numberingButton = document.getElementById('orderNumberingButton');
 const stateButton = document.getElementById('orderStateButton');
-const artworkLookupButton = document.getElementById('orderArtworkLookupButton');
+const artworkDeleteButton = document.getElementById('orderArtworkDeleteButton');
 const orderFlowToggleButton = document.getElementById('orderFlowToggleButton');
 const orderFlowBody = document.getElementById('orderFlowBody');
 const scheduledDateInput = document.getElementById('orderScheduledDateInput');
+const finishNotesInput = document.getElementById('orderFinishNotesInput');
 
 const planningStatusText = document.getElementById('orderPlanningStatusText');
 const planningMetaText = document.getElementById('orderPlanningMetaText');
@@ -55,7 +56,6 @@ const artSummary = document.getElementById('orderArtSummary');
 const artForm = document.getElementById('orderArtForm');
 const artToggleButton = document.getElementById('orderArtToggleButton');
 const sellerCommentsInput = document.getElementById('orderSellerCommentsInput');
-const artworkNumberInput = document.getElementById('orderArtworkNumberInput');
 const artworkHolderInput = document.getElementById('orderArtworkHolderInput');
 const artworkFileInput = document.getElementById('orderArtworkFileInput');
 const artSection = document.querySelector('.production-art-section');
@@ -66,6 +66,7 @@ let currentLoadedOrder = null;
 let currentConfig = {};
 let currentOutputTypes = [];
 let currentOrderAttachments = [];
+let currentArtworkAttachment = null;
 let artworkSectionBaseHeight = 0;
 let artworkSectionMaxHeight = 0;
 const SESSION_STORAGE_KEY = 'erp-user-session';
@@ -77,6 +78,8 @@ const DEFAULT_ICONS = {
     deliveries: '⇄',
     numbering: '#',
     attachments: '📎',
+    flow: '≋',
+    deleteArtwork: '×',
     artwork: '↥',
     toggleClosed: '▾',
     toggleOpen: '▴',
@@ -296,28 +299,35 @@ function renderPlanningSnapshot(raw = {}) {
 
 function renderOrderFlowSteps(steps = []) {
     if (!orderFlowBody) return;
-    if (!steps.length) {
+    const allowed = ['diseño', 'diseno', 'preprensa', 'visto bueno', 'tintas', 'impresión', 'impresion', 'rebobinado', 'empaque'];
+    const visibleSteps = steps.filter((step) => {
+        const name = String(step.processName || '').trim().toLowerCase();
+        if (/plancha|acabado/.test(name)) return false;
+        return allowed.some((item) => name.includes(item));
+    });
+    if (!visibleSteps.length) {
         orderFlowBody.innerHTML = '<div class="production-summary-empty">Sin marcas de seguimiento registradas.</div>';
         return;
     }
-    const doneCount = steps.filter((step) => String(step.routeStatus || '').toUpperCase() === 'COMPLETADO').length;
     orderFlowBody.innerHTML = `
         <div class="production-flow-head">
-            <strong>${escapeHtml(doneCount)} de ${escapeHtml(steps.length)} completados</strong>
-            <span>${escapeHtml(currentOrderCode || '')}</span>
+            <strong>Flujo de Producción</strong>
         </div>
         <div class="production-flow-list">
-            ${steps.map((step) => {
+            ${visibleSteps.map((step) => {
                 const status = String(step.routeStatus || 'PENDIENTE').toUpperCase();
                 const isDone = status === 'COMPLETADO';
                 const isActive = ['RUN', 'SETUP', 'PARO'].includes(status);
+                const marker = isDone ? '✓' : '';
+                const user = step.completedBy || step.startedBy || '';
+                const when = formatDate(step.completedAt || step.startedAt, true);
                 return `
                     <article class="production-flow-step${isDone ? ' is-done' : ''}${isActive ? ' is-active' : ''}">
-                        <div class="production-flow-marker">${isDone ? '✓' : step.sequenceOrder}</div>
+                        <div class="production-flow-marker">${escapeHtml(marker)}</div>
                         <div class="production-flow-copy">
                             <strong>${escapeHtml(step.processName || 'Proceso')}</strong>
-                            <span>${escapeHtml(isDone ? `Completado por ${step.completedBy || 'usuario activo'}` : status.toLowerCase())}</span>
-                            <small>${escapeHtml(formatDate(step.completedAt || step.startedAt, true) || 'Pendiente')}</small>
+                            ${user ? `<span>${escapeHtml(user)}</span>` : ''}
+                            ${when ? `<small>${escapeHtml(when)}</small>` : ''}
                         </div>
                     </article>
                 `;
@@ -514,10 +524,6 @@ function buildPantones(raw = {}, detail = {}) {
     return { count: pantoneCount, items: pantones };
 }
 
-function buildNotes(value, fallback = 'Sin observaciones registradas.') {
-    return escapeHtml(pickFirst(value, fallback)).replace(/\n/g, '<br>');
-}
-
 function openPopover(id) {
     const popover = document.getElementById(id);
     if (!popover) return;
@@ -534,9 +540,31 @@ function closePopover(id) {
     if (![...document.querySelectorAll('.calc-popover')].some((node) => !node.hidden)) document.body.classList.remove('popover-open');
 }
 
+function iconSuffix(key) {
+    return String(key || '').split(/[.\s_-]+/).filter(Boolean).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join('');
+}
+
+function iconConfigFor(key, fallbackValue, fallbackColor = '#1e516d', fallbackSize = 18) {
+    const general = currentConfig.general || {};
+    const suffix = iconSuffix(key);
+    return {
+        value: currentConfig.icons?.[key] || fallbackValue || '',
+        color: general[`iconColor${suffix}`] || fallbackColor,
+        hover: general[`iconColorHover${suffix}`] || general[`iconColor${suffix}`] || fallbackColor,
+        size: Number(general[`iconSize${suffix}`]) || fallbackSize
+    };
+}
+
 function renderIconButton(button, iconValue) {
     if (!button) return;
-    const value = String(iconValue || '').trim();
+    const config = typeof iconValue === 'object' && iconValue !== null ? iconValue : { value: iconValue };
+    const value = String(config.value || '').trim();
+    if (config.color) button.style.setProperty('--icon-color', config.color);
+    if (config.hover) button.style.setProperty('--icon-hover-color', config.hover);
+    if (config.size) {
+        button.style.setProperty('--config-icon-size', `${config.size}px`);
+        button.style.fontSize = `${config.size}px`;
+    }
     if (!value) {
         button.innerHTML = '';
         return;
@@ -579,14 +607,16 @@ function applyHeaderConfig(config) {
     }
     renderIconButton(sourceQuoteButton, icons.browserOpen || icons.quoteLookup || DEFAULT_ICONS.view);
     sourceQuoteButton?.setAttribute('title', 'Abrir cotización origen');
-    renderIconButton(pantonesButton, icons.orderPantones || DEFAULT_ICONS.pantones);
+    renderIconButton(pantonesButton, iconConfigFor('orderPantones', DEFAULT_ICONS.pantones));
     pantonesButton?.setAttribute('title', 'Detalle de pantones');
-    renderIconButton(deliveriesButton, icons.orderDeliveries || DEFAULT_ICONS.deliveries);
+    renderIconButton(deliveriesButton, iconConfigFor('orderDeliveries', DEFAULT_ICONS.deliveries));
     deliveriesButton?.setAttribute('title', 'Detalle de entregas');
-    renderIconButton(numberingButton, icons.orderNumbering || DEFAULT_ICONS.numbering);
-    renderIconButton(attachmentsButton, icons.orderAttachments || icons.lineAttachments || DEFAULT_ICONS.attachments);
+    renderIconButton(numberingButton, iconConfigFor('orderNumbering', DEFAULT_ICONS.numbering));
+    renderIconButton(attachmentsButton, iconConfigFor('orderAttachments', icons.lineAttachments || DEFAULT_ICONS.attachments));
     attachmentsButton?.setAttribute('title', 'Ver adjuntos');
-    renderIconButton(artworkLookupButton, icons.browserOpen || DEFAULT_ICONS.view);
+    renderIconButton(orderFlowToggleButton, iconConfigFor('orderFlow', DEFAULT_ICONS.flow));
+    orderFlowToggleButton?.setAttribute('title', 'Ver seguimiento');
+    renderIconButton(artworkDeleteButton, iconConfigFor('orderArtworkDelete', DEFAULT_ICONS.deleteArtwork, '#b94848'));
     setToggleIcon(samplesToggleButton, false);
     setToggleIcon(deliveryToggleButton, false);
     setToggleIcon(artToggleButton, false);
@@ -656,6 +686,8 @@ function renderOutputTypePreview(outputType) {
 
 function renderArtwork(attachments) {
     const artwork = attachments.find((item) => isArtworkAttachment(item));
+    currentArtworkAttachment = artwork || null;
+    if (artworkDeleteButton) artworkDeleteButton.hidden = !artwork;
     if (!artwork) {
         artworkPreview.classList.add('production-art-preview-compact');
         artworkPreview.innerHTML = '<div class="attachments-empty">Toca o arrastra aquí el arte de la orden.</div>';
@@ -676,6 +708,24 @@ function renderArtwork(attachments) {
     }
     artworkPreview.innerHTML = `<div class="production-art-copy"><strong>${escapeHtml(artwork.label || 'Referencia')}</strong><span>${escapeHtml(value)}</span></div>`;
     updateArtworkSectionConstraint();
+}
+
+async function deleteArtwork() {
+    const artwork = currentArtworkAttachment;
+    if (!artwork) return;
+    if (!artwork.id) {
+        currentOrderAttachments = currentOrderAttachments.filter((item) => item !== artwork);
+        renderArtwork(currentOrderAttachments);
+        return;
+    }
+    const response = await fetch(`/api/adjuntos/${encodeURIComponent(artwork.id)}`, {
+        method: 'DELETE',
+        headers: sessionHeader()
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || 'No se pudo eliminar el arte.');
+    await refreshOrderAttachments();
+    renderArtwork(currentOrderAttachments);
 }
 
 function renderDeliveries(raw = {}) {
@@ -715,8 +765,8 @@ function populateEditableForms(raw = {}) {
     deliveryContactInput.value = pickFirst(lineRaw['ENTREGA | CONTACTO']);
     deliveryDetailInput.value = pickFirst(lineRaw['ENTREGA | DETALLE'], [lineRaw['ENTREGA | EMAIL'], lineRaw['ENTREGA | TELEFONO'], lineRaw['ENTREGA | DIRECCION'], lineRaw['ENTREGA | COMENTARIOS']].filter(Boolean).join(' / '));
     sellerCommentsInput.value = pickFirst(lineRaw['COMENTARIOS VENDEDOR'], lineRaw['OBSERVACIONES VENTAS']);
-    artworkNumberInput.value = pickFirst(lineRaw['ORDEN DE ARTE']);
     artworkHolderInput.value = pickFirst(lineRaw['ARTE EN PODER DE']);
+    if (finishNotesInput) finishNotesInput.value = pickFirst(lineRaw['ACABADOS | OBSERVACIONES']);
 }
 
 function toggleSection(summaryNode, formNode, button, editing) {
@@ -858,11 +908,15 @@ function renderOrder(order) {
         </div>
     `;
 
-    deliverySummary.innerHTML = buildSummaryLinesOptional([
-        { label: 'Tipo de Entrega', value: pickFirst(lineRaw['ENTREGA | TIPO'], quote.delivery_time) },
-        { label: 'Contacto de Entrega', value: pickFirst(lineRaw['ENTREGA | CONTACTO'], quote.contact_name) },
-        { label: 'Detalle de Entrega', value: pickFirst(lineRaw['ENTREGA | DETALLE'], [lineRaw['ENTREGA | EMAIL'], lineRaw['ENTREGA | TELEFONO'], lineRaw['ENTREGA | DIRECCION'], lineRaw['ENTREGA | COMENTARIOS']].filter(Boolean).join(' / ')) }
-    ]);
+    const deliveryText = [
+        pickFirst(lineRaw['ENTREGA | TIPO'], quote.delivery_time),
+        pickFirst(lineRaw['ENTREGA | CONTACTO'], quote.contact_name),
+        pickFirst(lineRaw['ENTREGA | DETALLE']),
+        [lineRaw['ENTREGA | EMAIL'], lineRaw['ENTREGA | TELEFONO'], lineRaw['ENTREGA | DIRECCION'], lineRaw['ENTREGA | COMENTARIOS']].filter(Boolean).join(' / ')
+    ].filter(Boolean).join(' · ');
+    deliverySummary.innerHTML = deliveryText
+        ? `<div class="production-summary-line production-delivery-summary-line"><span class="production-summary-line-value">${escapeHtml(deliveryText)}</span></div>`
+        : '';
 
     setText('orderCodeText', order.order_code, 'Sin orden');
     setText('orderStateText', stateText, 'Pendiente');
@@ -881,7 +935,6 @@ function renderOrder(order) {
         { label: 'Arte en Poder de', value: pickFirst(lineRaw['ARTE EN PODER DE']) }
     ]);
 
-    setHtml('orderFinishNotesText', buildNotes(pickFirst(lineRaw['ACABADOS | OBSERVACIONES'])));
     const quoteCurrency = pickFirst(quote.currency, raw.currency, line.currency);
     const quoteQuantity = parseNumber(
         pickFirst(
@@ -1020,10 +1073,19 @@ function queueArtSave() {
         saveOrderDetails({
             art: {
                 comments: sellerCommentsInput.value,
-                artworkNumber: artworkNumberInput.value,
                 artworkHolder: artworkHolderInput.value
             }
         }).catch((error) => {
+            statusBox.hidden = false;
+            statusBox.textContent = error.message;
+        });
+    }, 250);
+}
+
+function queueNotesSave() {
+    clearTimeout(artSaveTimer);
+    artSaveTimer = setTimeout(() => {
+        saveOrderDetails({ notes: { finishNotes: finishNotesInput.value } }).catch((error) => {
             statusBox.hidden = false;
             statusBox.textContent = error.message;
         });
@@ -1034,8 +1096,9 @@ function queueArtSave() {
     .forEach((field) => field?.addEventListener('input', queueSamplesSave));
 [deliveryModeInput, deliveryContactInput, deliveryDetailInput]
     .forEach((field) => field?.addEventListener('input', queueDeliverySave));
-[sellerCommentsInput, artworkNumberInput, artworkHolderInput]
+[sellerCommentsInput, artworkHolderInput]
     .forEach((field) => field?.addEventListener('input', queueArtSave));
+finishNotesInput?.addEventListener('input', queueNotesSave);
 
 releasePlanningButton?.addEventListener('click', () => updatePlanningControl('release-sales'));
 openPlanningQueueButton?.addEventListener('click', () => openRoute('/planificacion/lanzamiento', 'Cola de planificación'));
@@ -1062,7 +1125,13 @@ scheduledDateInput?.addEventListener('change', () => {
     });
 });
 artworkPreview?.addEventListener('click', () => artworkFileInput?.click());
-artworkLookupButton?.addEventListener('click', () => artworkNumberInput?.focus());
+artworkDeleteButton?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    deleteArtwork().catch((error) => {
+        statusBox.hidden = false;
+        statusBox.textContent = error.message;
+    });
+});
 artworkFileInput?.addEventListener('change', async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;

@@ -216,13 +216,14 @@
 
                             <section class="socios-section production-observations-section">
                                 <div class="section-caption">Observaciones</div>
-                                <div id="orderFinishNotesText" class="production-notes-box"></div>
+                                <textarea id="orderFinishNotesInput" class="production-notes-box production-notes-input" rows="3" placeholder="Observaciones"></textarea>
                             </section>
                         </div>
 
                         <div class="production-order-column production-order-column-secondary">
                             <section class="socios-section production-tracking-card">
-                                <button type="button" id="orderFlowToggleButton" class="section-caption production-tracking-title">Seguimiento de la Orden</button>
+                                <div class="section-caption production-tracking-title">Seguimiento de la Orden</div>
+                                <button type="button" id="orderFlowToggleButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small production-section-corner-toggle production-flow-corner-toggle" aria-label="Ver seguimiento"></button>
                                 <button type="button" id="orderAttachmentsButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small production-section-corner-toggle" aria-label="Ver adjuntos"></button>
                                 <div class="production-order-spotlight">
                                     <div class="production-order-spotlight-item production-order-spotlight-right">
@@ -262,14 +263,10 @@
                             </section>
 
                             <section class="socios-section">
-                                <div class="section-caption">Cantidad de Productos</div>
-                                <div class="production-summary-stack">
-                                    <div class="production-summary-item production-summary-item-emphasis-right">
-                                        <strong id="orderQuantityText" class="production-quantity-highlight"></strong>
-                                    </div>
-                                    <div class="production-inline-link production-inline-link-right">
-                                        <button type="button" id="orderDeliveriesButton" class="browser-open-link production-inline-icon production-inline-icon-small" aria-label="Detalle de entregas" title="Detalle de entregas"></button>
-                                    </div>
+                                <div class="production-section-head-inline">
+                                    <div class="section-caption">Cantidad de Productos</div>
+                                    <strong id="orderQuantityText" class="production-quantity-highlight"></strong>
+                                    <button type="button" id="orderDeliveriesButton" class="browser-open-link production-inline-icon production-inline-icon-small" aria-label="Detalle de entregas" title="Detalle de entregas"></button>
                                 </div>
                             </section>
 
@@ -284,13 +281,6 @@
                                             <textarea id="orderSellerCommentsInput" rows="4" placeholder="Comentarios de arte"></textarea>
                                         </div>
                                         <div class="production-art-meta-stack">
-                                            <div class="field production-art-order-field">
-                                                <label for="orderArtworkNumberInput">Orden de Arte</label>
-                                                <div class="production-inline-link">
-                                                    <input id="orderArtworkNumberInput" type="text" placeholder="Asociar orden de arte">
-                                                    <button type="button" id="orderArtworkLookupButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Buscar orden de arte"></button>
-                                                </div>
-                                            </div>
                                             <div class="field production-art-holder-field">
                                                 <label for="orderArtworkHolderInput">Arte en Poder de</label>
                                                 <input id="orderArtworkHolderInput" type="text" list="orderArtworkHolderOptions" placeholder="Seleccionar o escribir">
@@ -305,7 +295,10 @@
                                         </div>
                                     </div>
                                     <input id="orderArtworkFileInput" type="file" accept="image/*" hidden>
-                                    <button type="button" id="orderArtworkPreview" class="production-art-preview production-art-preview-compact production-art-dropzone" aria-label="Adjuntar arte"></button>
+                                    <div class="production-art-preview-wrap">
+                                        <button type="button" id="orderArtworkPreview" class="production-art-preview production-art-preview-compact production-art-dropzone" aria-label="Adjuntar arte"></button>
+                                        <button type="button" id="orderArtworkDeleteButton" class="browser-open-link production-inline-icon production-inline-icon-small production-art-delete" aria-label="Eliminar arte" hidden>×</button>
+                                    </div>
                                 </form>
                             </section>
                         </div>

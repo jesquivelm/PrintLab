@@ -101,6 +101,8 @@
         "quoteCollapse": "/assets/bootstrap/icons-quoteCollapse.png",
         "orderNumbering": "#",
         "orderDeliveries": "/assets/bootstrap/icons-orderDeliveries.png",
+        "orderFlow": "\u226B",
+        "orderArtworkDelete": "\u00D7",
         "quantity.delete": "/assets/bootstrap/icons-quantity.delete.png",
         "dashboardFabMain": "/assets/bootstrap/icons-dashboardFabMain.png",
         "orderAttachments": "/assets/bootstrap/icons-orderAttachments.png",

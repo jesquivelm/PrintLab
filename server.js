@@ -12754,8 +12754,11 @@ app.patch('/api/ordenes-produccion/:codigo/details', async (req, res) => {
 
         if (payload.art && typeof payload.art === 'object') {
             lineRaw['COMENTARIOS VENDEDOR'] = pickFirstValue(payload.art.comments);
-            lineRaw['ORDEN DE ARTE'] = pickFirstValue(payload.art.artworkNumber);
             lineRaw['ARTE EN PODER DE'] = pickFirstValue(payload.art.artworkHolder);
+        }
+
+        if (payload.notes && typeof payload.notes === 'object') {
+            lineRaw['ACABADOS | OBSERVACIONES'] = pickFirstValue(payload.notes.finishNotes);
         }
 
         lineSnapshot.raw_data = lineRaw;
