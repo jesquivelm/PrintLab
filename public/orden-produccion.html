@@ -348,19 +348,22 @@
         </div>
     </div>
 
-    <div id="orderDeliveriesPopover" class="calc-popover" hidden>
+    <div id="orderDeliveriesPopover" class="calc-popover production-deliveries-popover" hidden>
         <div class="calc-popover-backdrop" data-close-popover="orderDeliveriesPopover"></div>
-        <div class="calc-popover-panel">
+        <div class="calc-popover-panel production-deliveries-popover-panel">
             <button type="button" class="calc-popover-close" data-close-popover="orderDeliveriesPopover" aria-label="Cerrar">×</button>
             <div class="calc-popover-body">
                 <div class="copy-popover-header">
                     <h2>Detalle de Entregas</h2>
                 </div>
+                <div class="production-deliveries-total">
+                    <span>Cantidad a entregar</span>
+                    <strong id="orderDeliveriesQuantityText">Pendiente</strong>
+                </div>
                 <div class="socios-table-wrap production-mini-table">
                     <table class="quote-table socios-table">
                         <thead>
                             <tr>
-                                <th>Entrega</th>
                                 <th>Cantidad</th>
                                 <th>Fecha</th>
                             </tr>
@@ -368,6 +371,7 @@
                         <tbody id="orderDeliveriesBody"></tbody>
                     </table>
                 </div>
+                <div id="orderDeliveriesMessage" class="production-deliveries-message" hidden></div>
             </div>
         </div>
     </div>

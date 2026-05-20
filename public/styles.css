@@ -4894,6 +4894,71 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
 .production-mini-table {
     margin-top: 12px;
 }
+.production-deliveries-popover {
+    pointer-events: none;
+}
+.production-deliveries-popover .calc-popover-backdrop {
+    background: transparent;
+    pointer-events: auto;
+}
+.production-deliveries-popover-panel {
+    width: 300px;
+    min-height: 334px;
+    max-height: 550px;
+    right: auto;
+    bottom: auto;
+    border-radius: 10px;
+    pointer-events: auto;
+}
+.production-deliveries-popover .calc-popover-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px;
+    overflow: auto;
+}
+.production-deliveries-popover .copy-popover-header h2 {
+    margin: 0;
+    font-size: 15px;
+}
+.production-deliveries-total {
+    display: grid;
+    gap: 4px;
+    padding: 10px 12px;
+    border: 1px solid #dbe5ec;
+    border-radius: 8px;
+    background: #f8fbfd;
+}
+.production-deliveries-total span {
+    font-size: 10px;
+    font-weight: 700;
+    color: #70808d;
+}
+.production-deliveries-total strong {
+    font-size: 20px;
+    color: #203746;
+}
+.production-mini-table table {
+    width: 100%;
+}
+.production-mini-table input {
+    width: 100%;
+    min-height: 30px;
+    padding: 5px 8px;
+    border: 1px solid #d8e3ea;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #203746;
+    font: inherit;
+}
+.production-mini-table input.is-invalid {
+    border-color: #d03535;
+    box-shadow: 0 0 0 2px rgba(208, 53, 53, 0.12);
+}
+.production-deliveries-message {
+    font-size: 11px;
+    color: #b94848;
+}
 .production-art-preview {
     min-height: 300px;
     border: 1px solid #dbe5ec;
@@ -10990,6 +11055,15 @@ html[data-theme="dark"] .socios-table {
     background: var(--app-surface) !important;
     color: var(--app-text) !important;
     border-color: var(--app-border) !important;
+}
+html[data-theme="dark"] .production-deliveries-total,
+html[data-theme="dark"] .production-mini-table input {
+    background: #101a2b;
+    color: var(--app-text);
+    border-color: var(--app-border);
+}
+html[data-theme="dark"] .production-deliveries-total strong {
+    color: var(--app-text);
 }
 
 html[data-theme="dark"] .copy-popover-table th,

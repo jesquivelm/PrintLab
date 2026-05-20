@@ -26,6 +26,10 @@ const planningSnapshotSummary = document.getElementById('orderPlanningSnapshotSu
 const planningSnapshotMeta = document.getElementById('orderPlanningSnapshotMeta');
 const planningSnapshotList = document.getElementById('orderPlanningSnapshotList');
 const deliveriesBody = document.getElementById('orderDeliveriesBody');
+const deliveriesPopover = document.getElementById('orderDeliveriesPopover');
+const deliveriesPanel = deliveriesPopover?.querySelector('.production-deliveries-popover-panel');
+const deliveriesQuantityText = document.getElementById('orderDeliveriesQuantityText');
+const deliveriesMessage = document.getElementById('orderDeliveriesMessage');
 const pantonesPopoverBody = document.getElementById('orderPantonesPopoverBody');
 const numberingPopoverBody = document.getElementById('orderNumberingPopoverBody');
 const attachmentsPopoverBody = document.getElementById('orderAttachmentsPopoverBody');
@@ -190,6 +194,18 @@ function parseNumber(value, suffix = '') {
     const num = Number(value);
     if (!Number.isFinite(num)) return value || '';
     return `${num.toLocaleString('es-CR', { maximumFractionDigits: 2 })}${suffix}`;
+}
+
+function normalizeDateInputValue(value) {
+    const text = String(value || '').trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+    if (!text) return '';
+    const date = new Date(text);
+    if (Number.isNaN(date.getTime())) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 }
 
 function pickFirst(...values) {
@@ -651,6 +667,7 @@ function openPopover(id) {
     popover.hidden = false;
     popover.classList.add('is-visible');
     document.body.classList.add('popover-open');
+    if (id === 'orderDeliveriesPopover') positionDeliveriesPopover();
 }
 
 function closePopover(id) {
@@ -659,6 +676,18 @@ function closePopover(id) {
     popover.hidden = true;
     popover.classList.remove('is-visible');
     if (![...document.querySelectorAll('.calc-popover')].some((node) => !node.hidden)) document.body.classList.remove('popover-open');
+}
+
+function positionDeliveriesPopover() {
+    if (!deliveriesButton || !deliveriesPanel) return;
+    const rect = deliveriesButton.getBoundingClientRect();
+    const width = 300;
+    const margin = 12;
+    const height = Math.min(550, Math.max(334, deliveriesPanel.offsetHeight || 334));
+    const left = Math.max(margin, Math.min(window.innerWidth - width - margin, rect.right - width));
+    const top = Math.max(margin, Math.min(window.innerHeight - height - margin, rect.bottom + 10));
+    deliveriesPanel.style.left = `${left}px`;
+    deliveriesPanel.style.top = `${top}px`;
 }
 
 function iconSuffix(key) {
@@ -852,11 +881,48 @@ async function deleteArtwork() {
     renderArtwork(currentOrderAttachments);
 }
 
-function renderDeliveries(raw = {}) {
-    const quantities = [raw['CANTIDAD PRODUCTOS 1'], raw['CANTIDAD PRODUCTOS 2'], raw['CANTIDAD PRODUCTOS 3']].filter((value) => value !== undefined && value !== null && value !== '');
-    deliveriesBody.innerHTML = quantities.length
-        ? quantities.map((value, index) => `<tr><td>Entrega ${index + 1}</td><td>${escapeHtml(parseNumber(value))}</td><td>${index === 0 ? 'Inicial' : 'Pendiente'}</td></tr>`).join('')
-        : '<tr><td>Entrega 1</td><td>Pendiente</td><td>Pendiente</td></tr>';
+function readDeliveryRows(raw = {}, defaultQuantity = '', defaultDate = '') {
+    let savedRows = raw['ENTREGA | PROGRAMACION'];
+    if (typeof savedRows === 'string') {
+        try {
+            savedRows = JSON.parse(savedRows);
+        } catch (_) {
+            savedRows = [];
+        }
+    }
+    if (Array.isArray(savedRows) && savedRows.length) {
+        return savedRows
+            .map((row) => ({
+                quantity: pickFirst(row?.quantity, row?.cantidad),
+                date: normalizeDateInputValue(pickFirst(row?.date, row?.fecha))
+            }))
+            .filter((row) => row.quantity || row.date);
+    }
+
+    const quantities = [raw['CANTIDAD PRODUCTOS 1'], raw['CANTIDAD PRODUCTOS 2'], raw['CANTIDAD PRODUCTOS 3']]
+        .filter((value) => value !== undefined && value !== null && String(value).trim() !== '');
+    if (quantities.length) {
+        return quantities.map((value, index) => ({
+            quantity: value,
+            date: index === 0 ? normalizeDateInputValue(defaultDate) : ''
+        }));
+    }
+    return defaultQuantity ? [{ quantity: defaultQuantity, date: normalizeDateInputValue(defaultDate) }] : [];
+}
+
+function renderDeliveries(raw = {}, totalQuantity = '', defaultDate = '', defaultQuantity = '') {
+    if (deliveriesQuantityText) deliveriesQuantityText.textContent = totalQuantity || 'Pendiente';
+    if (!deliveriesBody) return;
+    if (deliveriesMessage) deliveriesMessage.hidden = true;
+
+    const rows = readDeliveryRows(raw, defaultQuantity, defaultDate);
+    const editableRows = [...rows, { quantity: '', date: '' }];
+    deliveriesBody.innerHTML = editableRows.map((row, index) => `
+        <tr data-delivery-row="${index}">
+            <td><input type="number" min="0" step="1" inputmode="numeric" data-delivery-field="quantity" value="${escapeHtml(row.quantity)}" placeholder="Cantidad"></td>
+            <td><input type="date" data-delivery-field="date" value="${escapeHtml(row.date)}"></td>
+        </tr>
+    `).join('');
 }
 
 function buildFinishTags(raw = {}, detail = {}, dieCode = '') {
@@ -924,7 +990,8 @@ function renderOrder(order) {
     const noPrint = isNoPrint(detail, lineRaw);
     const pantones = buildPantones(lineRaw, detail);
     const dimensions = buildDimensionsText(detail);
-    const quantity = parseNumber(raw.totals?.quantity || order.ordered_quantity);
+    const quantityValue = raw.totals?.quantity || order.ordered_quantity;
+    const quantity = parseNumber(quantityValue);
     const linearFeet = Number(detail.materialFeet || 0);
     const wasteFeet = Number(detail.materialFeetWaste || 0);
     const totalFeet = linearFeet + wasteFeet;
@@ -959,7 +1026,7 @@ function renderOrder(order) {
     document.title = `${order.order_code} | Orden de Producción`;
     renderPlanningControl(raw);
     renderPlanningSnapshot(raw);
-    renderDeliveries(lineRaw);
+    renderDeliveries(lineRaw, quantity, scheduledDateRaw, quantityValue);
     renderArtwork(currentOrderAttachments.length ? currentOrderAttachments : attachments);
     populateEditableForms(raw);
 
@@ -1161,6 +1228,28 @@ let samplesSaveTimer = null;
 let deliverySaveTimer = null;
 let artSaveTimer = null;
 
+function collectDeliveryScheduleRows() {
+    const rows = [];
+    let invalid = false;
+    deliveriesBody?.querySelectorAll('tr[data-delivery-row]').forEach((row) => {
+        const quantityInput = row.querySelector('[data-delivery-field="quantity"]');
+        const dateInput = row.querySelector('[data-delivery-field="date"]');
+        const quantity = String(quantityInput?.value || '').trim();
+        const date = String(dateInput?.value || '').trim();
+        quantityInput?.classList.remove('is-invalid');
+        dateInput?.classList.remove('is-invalid');
+        if (!quantity && !date) return;
+        if (!quantity || !date) {
+            invalid = true;
+            if (!quantity) quantityInput?.classList.add('is-invalid');
+            if (!date) dateInput?.classList.add('is-invalid');
+            return;
+        }
+        rows.push({ quantity, date });
+    });
+    return { rows, invalid };
+}
+
 function queueSamplesSave() {
     clearTimeout(samplesSaveTimer);
     samplesSaveTimer = setTimeout(() => {
@@ -1184,11 +1273,21 @@ function queueSamplesSave() {
 function queueDeliverySave() {
     clearTimeout(deliverySaveTimer);
     deliverySaveTimer = setTimeout(() => {
+        const schedule = collectDeliveryScheduleRows();
+        if (schedule.invalid) {
+            if (deliveriesMessage) {
+                deliveriesMessage.textContent = 'Cada entrega debe tener cantidad y fecha.';
+                deliveriesMessage.hidden = false;
+            }
+            return;
+        }
+        if (deliveriesMessage) deliveriesMessage.hidden = true;
         saveOrderDetails({
             delivery: {
                 mode: deliveryModeInput.value,
                 contact: deliveryContactInput.value,
-                detail: deliveryDetailInput.value
+                detail: deliveryDetailInput.value,
+                schedule: schedule.rows
             }
         }).catch((error) => {
             statusBox.hidden = false;
@@ -1226,6 +1325,12 @@ function queueNotesSave() {
     .forEach((field) => field?.addEventListener('input', queueSamplesSave));
 [deliveryModeInput, deliveryContactInput, deliveryDetailInput]
     .forEach((field) => field?.addEventListener('input', queueDeliverySave));
+deliveriesBody?.addEventListener('change', (event) => {
+    if (event.target?.matches?.('[data-delivery-field]')) queueDeliverySave();
+});
+window.addEventListener('resize', () => {
+    if (deliveriesPopover && !deliveriesPopover.hidden) positionDeliveriesPopover();
+});
 [sellerCommentsInput, artworkHolderInput]
     .forEach((field) => field?.addEventListener('input', queueArtSave));
 finishNotesInput?.addEventListener('input', queueNotesSave);

@@ -12930,6 +12930,16 @@ app.patch('/api/ordenes-produccion/:codigo/details', async (req, res) => {
             lineRaw['ENTREGA | TIPO'] = pickFirstValue(payload.delivery.mode);
             lineRaw['ENTREGA | CONTACTO'] = pickFirstValue(payload.delivery.contact);
             lineRaw['ENTREGA | DETALLE'] = pickFirstValue(payload.delivery.detail);
+            if (Object.prototype.hasOwnProperty.call(payload.delivery, 'schedule')) {
+                lineRaw['ENTREGA | PROGRAMACION'] = Array.isArray(payload.delivery.schedule)
+                    ? payload.delivery.schedule
+                        .map((row) => ({
+                            quantity: pickFirstValue(row?.quantity),
+                            date: pickFirstValue(row?.date)
+                        }))
+                        .filter((row) => row.quantity && row.date)
+                    : [];
+            }
         }
 
         if (payload.planningControl && typeof payload.planningControl === 'object') {
