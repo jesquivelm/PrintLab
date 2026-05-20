@@ -682,6 +682,7 @@ function renderIconButton(button, iconValue) {
     const value = String(config.value || '').trim();
     if (config.color) button.style.setProperty('--icon-color', config.color);
     if (config.hover) button.style.setProperty('--icon-hover-color', config.hover);
+    if (config.color) button.style.color = config.color;
     if (config.size) {
         button.style.setProperty('--config-icon-size', `${config.size}px`);
         button.style.fontSize = `${config.size}px`;
@@ -693,9 +694,9 @@ function renderIconButton(button, iconValue) {
     const isSvg = /^data:image\/svg\+xml/i.test(value) || /\.svg(\?|#|$)/i.test(value);
     const isImage = /^data:image\//i.test(value) || /\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(value);
     if (isSvg) {
-        button.innerHTML = `<span class="icon-svg-mask table-icon-media" style="-webkit-mask-image:url('${escapeHtml(value)}');mask-image:url('${escapeHtml(value)}');"></span>`;
+        button.innerHTML = `<span class="icon-svg-mask table-icon-media" style="width:var(--config-icon-size,18px);height:var(--config-icon-size,18px);-webkit-mask-image:url('${escapeHtml(value)}');mask-image:url('${escapeHtml(value)}');"></span>`;
     } else if (isImage) {
-        button.innerHTML = `<img src="${escapeHtml(value)}" alt="" class="icon-image">`;
+        button.innerHTML = `<img src="${escapeHtml(value)}" alt="" class="icon-image" style="width:var(--config-icon-size,18px);height:var(--config-icon-size,18px);">`;
     } else {
         button.textContent = value;
     }

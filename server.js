@@ -962,6 +962,10 @@ const DEFAULT_GENERAL_CONFIG = {
         quoteRequestAttachment: '\uD83D\uDCCE',
         quoteRequestRecord: '\uD83C\uDFA4',
         quoteRequestRecordStop: '\u25A0',
+        orderNumbering: '#',
+        orderStatus: '\u25C9',
+        orderFlow: '\u226B',
+        orderArtworkDelete: '\u00D7',
         proformaCurrencyAdd: '+',
         proformaCurrencyDelete: '\u{1F5D1}',
         proformaView: '\u{1F441}',
@@ -1048,6 +1052,18 @@ const DEFAULT_GENERAL_CONFIG = {
         proformaIntroFontSize: 15,
         proformaIntroColor: '#2f3c46',
         proformaTermsConditions: '',
+        iconColorOrderNumbering: '#1e516d',
+        iconColorHoverOrderNumbering: '#0b81b8',
+        iconSizeOrderNumbering: '40',
+        iconColorOrderStatus: '#1e516d',
+        iconColorHoverOrderStatus: '#0b81b8',
+        iconSizeOrderStatus: '40',
+        iconColorOrderFlow: '#1e516d',
+        iconColorHoverOrderFlow: '#0b81b8',
+        iconSizeOrderFlow: '40',
+        iconColorOrderArtworkDelete: '#b94848',
+        iconColorHoverOrderArtworkDelete: '#8f2f2f',
+        iconSizeOrderArtworkDelete: '40',
         proformaPaymentTerms: '',
         proformaDeliveryTime: '',
         proformaTechnicalSpecs: '',
@@ -2784,7 +2800,7 @@ async function loadShellConfig() {
     if (shellConfigCache && shellConfigCacheExpiresAt > now) {
         return shellConfigCache;
     }
-    shellConfigCache = normalizeGeneralConfigRecord(readBootstrapConfigSnapshot() || await loadGeneralConfig());
+    shellConfigCache = normalizeGeneralConfigRecord(await loadGeneralConfig());
     shellConfigCacheExpiresAt = now + GENERAL_CONFIG_CACHE_TTL_MS;
     return shellConfigCache;
 }
