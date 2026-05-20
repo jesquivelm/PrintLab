@@ -40,7 +40,7 @@ const DASHBOARD_CARDS = [
 { route: '/configuracion-general', label: 'Configuraci\u00f3n', iconKey: 'dashboardSettings', modules: ['configuracion-general'] },
 { route: '/ordenes-produccion', label: '\u00d3rdenes', iconKey: 'dashboardOrders', modules: ['ordenes'] },
 { route: '/planificacion/lanzamiento', label: 'Planificaci\u00f3n', iconKey: 'dashboardPlanning', modules: ['planificacion'] },
-{ route: '/produccion.html', label: 'Producci\u00f3n', iconKey: 'dashboardProduction', modules: ['dashboard'], fallbackIcon: '\u{1F3ED}' },
+{ route: '/produccion.html', label: 'Producci\u00f3n', iconKey: 'dashboardProduction', modules: ['dashboard'], fallbackIcon: '\u25A1' },
 { route: '/notificaciones.html', label: 'Notificaciones', iconKey: 'dashboardNotifications', modules: ['dashboard'] }
 ];
 const INVENTORY_CARD_ROUTE = '/inventario-materiales';
@@ -835,7 +835,8 @@ function renderCards() {
         if (!isAllowed) return;
         visibleCount += 1;
         const iconTarget = button.querySelector(`[data-icon-target="${card.iconKey}"]`);
-        const iconValue = loadedConfig?.icons?.[card.iconKey] || card.fallbackIcon || '□';
+        const isProductionCard = card.iconKey === 'dashboardProduction';
+        const iconValue = isProductionCard ? '\u25A1' : (loadedConfig?.icons?.[card.iconKey] || card.fallbackIcon || '□');
         const suffix = card.iconKey.charAt(0).toUpperCase() + card.iconKey.slice(1);
         
         // Try to get color from tab colors first if it matches
@@ -859,7 +860,7 @@ function renderCards() {
         color = color || '#0b81b8';
 
         const hover = loadedConfig?.general?.[`iconColorHover${suffix}`] || color || '#17abdf';
-        const configuredSize = Number(loadedConfig?.general?.[`iconSize${suffix}`]) || 38;
+        const configuredSize = isProductionCard ? 38 : (Number(loadedConfig?.general?.[`iconSize${suffix}`]) || 38);
         if (iconTarget) {
             const cardWidth = button.clientWidth || 190;
             const size = Math.max(24, Math.min(configuredSize, Math.max(42, Math.min(84, Math.floor(cardWidth * 0.42)))));

@@ -896,7 +896,7 @@ const DEFAULT_GENERAL_CONFIG = {
         notificationChatSend: '\u27A4',
         dashboardInventory: '\u25A5',
         dashboardOrders: '\u2699',
-        dashboardProduction: '\u{1F3ED}',
+        dashboardProduction: '\u25A1',
         dashboardCosts: '\u25A7',
         dashboardSettings: '\u2692',
         mobileQuotes: '\u25A4',
@@ -2795,12 +2795,58 @@ async function loadGeneralConfig() {
     }
 }
 
+const SHELL_ICON_ASSET_KEYS = new Set(['orderArtworkDelete', 'orderStatus', 'orderNumbering', 'orderFlow']);
+const DATA_IMAGE_EXTENSIONS = new Map([
+    ['image/svg+xml', 'svg'],
+    ['image/png', 'png'],
+    ['image/jpeg', 'jpg'],
+    ['image/jpg', 'jpg'],
+    ['image/webp', 'webp'],
+    ['image/gif', 'gif']
+]);
+
+function getDataImageIconMeta(value) {
+    const text = String(value || '').trim();
+    const match = text.match(/^data:(image\/[a-z0-9.+-]+)(;base64)?,(.*)$/i);
+    if (!match) return null;
+    const mime = match[1].toLowerCase();
+    const extension = DATA_IMAGE_EXTENSIONS.get(mime);
+    if (!extension) return null;
+    return { text, mime, extension, isBase64: Boolean(match[2]), data: match[3] || '' };
+}
+
+function readDataImageIcon(value) {
+    const meta = getDataImageIconMeta(value);
+    if (!meta) return null;
+    return {
+        mime: meta.mime,
+        extension: meta.extension,
+        buffer: meta.isBase64 ? Buffer.from(meta.data, 'base64') : Buffer.from(decodeURIComponent(meta.data), 'utf8')
+    };
+}
+
+function buildShellIconValue(key, value) {
+    const meta = getDataImageIconMeta(value);
+    if (!meta || !SHELL_ICON_ASSET_KEYS.has(key)) return value;
+    const version = crypto.createHash('sha1').update(meta.text).digest('hex').slice(0, 12);
+    return `/api/config/general/icons/${version}/${encodeURIComponent(key)}.${meta.extension}`;
+}
+
+function buildShellConfig(config) {
+    const normalized = normalizeGeneralConfigRecord(config);
+    const icons = { ...(normalized.icons || {}) };
+    Object.keys(icons).forEach((key) => {
+        icons[key] = buildShellIconValue(key, icons[key]);
+    });
+    return { ...normalized, icons };
+}
+
 async function loadShellConfig() {
     const now = Date.now();
     if (shellConfigCache && shellConfigCacheExpiresAt > now) {
         return shellConfigCache;
     }
-    shellConfigCache = normalizeGeneralConfigRecord(await loadGeneralConfig());
+    shellConfigCache = buildShellConfig(await loadGeneralConfig());
     shellConfigCacheExpiresAt = now + GENERAL_CONFIG_CACHE_TTL_MS;
     return shellConfigCache;
 }
@@ -10586,6 +10632,27 @@ app.get('/api/config/shell', async (req, res) => {
     }
 });
 
+app.get('/api/config/general/icons/:version/:file', async (req, res) => {
+    try {
+        const file = String(req.params.file || '');
+        const match = file.match(/^([A-Za-z0-9_.-]+)\.(svg|png|jpg|jpeg|webp|gif)$/i);
+        if (!match) return res.status(404).end();
+
+        const iconKey = match[1];
+        if (!SHELL_ICON_ASSET_KEYS.has(iconKey)) return res.status(404).end();
+
+        const config = await loadGeneralConfig();
+        const icon = readDataImageIcon(config.icons?.[iconKey]);
+        if (!icon) return res.status(404).end();
+
+        res.setHeader('Content-Type', icon.mime);
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        res.send(icon.buffer);
+    } catch (error) {
+        res.status(404).end();
+    }
+});
+
 app.post('/api/config/general/icon', async (req, res) => {
     try {
         const orderIconKeys = new Set(['orderArtworkDelete', 'orderStatus', 'orderNumbering', 'orderFlow']);
@@ -10609,7 +10676,16 @@ app.post('/api/config/general/icon', async (req, res) => {
             icons: { [iconKey]: iconValue },
             general
         });
-        res.json(saved);
+        const savedGeneral = {};
+        Object.keys(general).forEach((key) => {
+            if (Object.prototype.hasOwnProperty.call(saved.general || {}, key)) {
+                savedGeneral[key] = saved.general[key];
+            }
+        });
+        res.json({
+            icons: { [iconKey]: saved.icons?.[iconKey] || iconValue },
+            general: savedGeneral
+        });
     } catch (error) {
         res.status(400).json({ error: error.message || 'No fue posible guardar el icono.' });
     }

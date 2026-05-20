@@ -7564,7 +7564,7 @@
             { key: 'notificationChatSend', label: 'Enviar Mensaje', group: 'Notificaciones', placeholder: '\u27A4', color: '#0b81b8', size: 16 },
             { key: 'dashboardInventory', label: 'Dashboard Inventarios', group: 'Dashboard', placeholder: '\u25A5', color: '#0b81b8', size: 38 },
 { key: 'dashboardOrders', label: 'Dashboard Órdenes', group: 'Dashboard', placeholder: '\u2699', color: '#0b81b8', size: 38 },
-{ key: 'dashboardProduction', label: 'Dashboard Producción', group: 'Dashboard', placeholder: '\u{1F3ED}', color: '#0b81b8', size: 38 },
+{ key: 'dashboardProduction', label: 'Dashboard Producción', group: 'Dashboard', placeholder: '\u25A1', color: '#0b81b8', size: 38 },
 { key: 'dashboardPlanning', label: 'Dashboard Planificación', group: 'Dashboard', placeholder: '\u25F3', color: '#0b81b8', size: 38 },
 { key: 'dashboardCosts', label: 'Dashboard Costos', group: 'Dashboard', placeholder: '\u25A7', color: '#0b81b8', size: 38 },
             { key: 'dashboardSettings', label: 'Dashboard Configuración', group: 'Dashboard', placeholder: '\u2692', color: '#0b81b8', size: 38 },
@@ -14379,7 +14379,9 @@
                 throw new Error(errorMessage);
             }
 
-            loadedConfig = await response.json();
+            const savedPatch = await response.json();
+            loadedConfig.icons = { ...(loadedConfig.icons || {}), ...(savedPatch.icons || {}) };
+            loadedConfig.general = { ...(loadedConfig.general || {}), ...(savedPatch.general || {}) };
             window.dispatchEvent(new CustomEvent('erp-general-config-updated', { detail: loadedConfig }));
             try {
                 localStorage.setItem('erp-general-config-updated', JSON.stringify({ at: Date.now() }));
