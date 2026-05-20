@@ -14124,7 +14124,29 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
         `, [req.params.codigo]);
         const raw = orderRow.raw_data || {};
         const lineRaw = raw.line_snapshot?.raw_data || {};
-        // Read CODEX_PROCESS_SNAPSHOT for the exact calculation process order with numbering
+        // Get quoted process keys from calculation result (subtotals > 0)
+        const quotedKeys = getQuotedPlanningProcessKeys(orderRow);
+        // Collect process keys from ALL available sources
+        const collectedKeys = new Set();
+        // 1. Quoted keys (canonicalized — finish subtypes map to 'acabados')
+        quotedKeys.forEach(function (key) {
+            const flowKey = canonicalProductionFlowKey(key);
+            if (PRODUCTION_FLOW_SEQUENCE.includes(flowKey)) collectedKeys.add(flowKey);
+        });
+        // 2. Route rows from database
+        routeResult.rows.forEach(function (row) {
+            const key = canonicalProductionFlowKey(row.process_key || row.process_name);
+            if (PRODUCTION_FLOW_SEQUENCE.includes(key)) collectedKeys.add(key);
+        });
+        // 3. Planning snapshot processes
+        const snapshot = raw.planning_snapshot || raw.planningSnapshot || {};
+        (Array.isArray(snapshot.processes) ? snapshot.processes : []).forEach(function (p) {
+            const key = canonicalProductionFlowKey(p.processKey || p.processName);
+            if (PRODUCTION_FLOW_SEQUENCE.includes(key)) collectedKeys.add(key);
+        });
+        // Always include base processes
+        PLANNING_BASE_PROCESS_KEYS.forEach(function (key) { collectedKeys.add(key); });
+        // Read CODEX_PROCESS_SNAPSHOT for exact calculation order with numbering
         const codexSnapshot = normalizeProcessDisplayList(
             Array.isArray(lineRaw['CODEX_PROCESS_SNAPSHOT']) ? lineRaw['CODEX_PROCESS_SNAPSHOT'] : []
         );
@@ -14137,44 +14159,15 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
                 allCodexKeys.push(key);
             }
         });
-        // Get quoted process keys from calculation result (subtotals > 0)
-        const quotedKeys = getQuotedPlanningProcessKeys(orderRow);
-        const quotedSet = new Set(quotedKeys.map(canonicalProductionFlowKey));
-        // Build ordered process list from CODEX_PROCESS_SNAPSHOT, filtering to production-only + quoted
-        const finalKeys = [];
-        allCodexKeys.forEach(function (key) {
-            if (!PRODUCTION_FLOW_SEQUENCE.includes(key)) return;
-            if (!quotedSet.has(key) && !PLANNING_BASE_PROCESS_KEYS.includes(key)) return;
-            if (finalKeys.indexOf(key) !== -1) return;
-            finalKeys.push(key);
+        // Sort by CODEX_PROCESS_SNAPSHOT order; fallback to PRODUCTION_FLOW_SEQUENCE
+        const flowOrderIndex = new Map();
+        PRODUCTION_FLOW_SEQUENCE.forEach(function (key, idx) { flowOrderIndex.set(key, idx); });
+        const processKeys = [...collectedKeys].sort(function (left, right) {
+            const l = codexOrderMap.get(left) ?? flowOrderIndex.get(left) ?? 999;
+            const r = codexOrderMap.get(right) ?? flowOrderIndex.get(right) ?? 999;
+            return l - r;
         });
-        // Ensure base processes (rebobinado, empaque) are always included at their snapshot position
-        PLANNING_BASE_PROCESS_KEYS.forEach(function (key) {
-            if (finalKeys.indexOf(key) === -1) finalKeys.push(key);
-        });
-        // Fallback: if no CODEX_PROCESS_SNAPSHOT, use quoted keys ordered by flow sequence
-        const processKeys = finalKeys.length
-            ? finalKeys
-            : (function () {
-                const keys = new Set();
-                quotedSet.forEach(function (key) {
-                    if (PRODUCTION_FLOW_SEQUENCE.includes(key)) keys.add(key);
-                });
-                PLANNING_BASE_PROCESS_KEYS.forEach(function (key) { keys.add(key); });
-                if (!keys.size) {
-                    routeResult.rows.forEach(function (row) {
-                        const key = canonicalProductionFlowKey(row.process_key || row.process_name);
-                        if (PRODUCTION_FLOW_SEQUENCE.includes(key)) keys.add(key);
-                    });
-                }
-                const flowOrderIndex = new Map();
-                PRODUCTION_FLOW_SEQUENCE.forEach(function (key, idx) { flowOrderIndex.set(key, idx); });
-                return [...keys].sort(function (left, right) {
-                    return (flowOrderIndex.get(left) ?? 999) - (flowOrderIndex.get(right) ?? 999);
-                });
-            })();
         const control = getOrderPlanningControl(raw);
-        const snapshot = raw.planning_snapshot || raw.planningSnapshot || {};
         const snapshotByKey = new Map((Array.isArray(snapshot.processes) ? snapshot.processes : []).map((process) => [
             canonicalProductionFlowKey(process.processKey || process.processName),
             process
@@ -14221,7 +14214,7 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
         const fixedSteps = [
             {
                 processKey: 'orden_creada',
-                processName: 'Creación de orden',
+                processName: 'Creación de Orden',
                 sequenceOrder: 1,
                 routeStatus: 'COMPLETADO',
                 completedBy: pickFirstValue(raw.created_by, raw.createdBy, 'Sistema'),
@@ -14231,7 +14224,7 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
             },
             {
                 processKey: 'solicitud_vendedor',
-                processName: 'Solicitud del vendedor',
+                processName: 'Solicitud del Vendedor',
                 sequenceOrder: 2,
                 routeStatus: control.salesReleased ? 'COMPLETADO' : 'PENDIENTE',
                 completedBy: control.salesReleasedBy || raw.salesperson_name || raw.quote_snapshot?.salesperson_name || '',

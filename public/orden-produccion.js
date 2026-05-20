@@ -583,12 +583,12 @@ function renderFlowTimeline(steps, order) {
         } else {
             var pendingActions = '';
             if (s.processKey === 'solicitud_vendedor') {
-                pendingActions = '<button class="btn btn-success" style="margin-left:auto;flex-shrink:0;" onclick="completeStep(' + i + ')"><i class="ti ti-send" style="font-size:12px;"></i>Marcar solicitud enviada</button>';
+                pendingActions = '<button class="btn btn-success" style="flex-shrink:0;" onclick="completeStep(' + i + ')"><i class="ti ti-send" style="font-size:12px;"></i>Marcar Solicitud Enviada</button>';
             } else if (s.processKey === 'planeacion') {
-                pendingActions = '<button class="btn btn-primary" style="margin-left:auto;flex-shrink:0;" onclick="completeStep(' + i + ')"><i class="ti ti-player-play" style="font-size:12px;"></i>Liberar a producción</button>';
+                pendingActions = '<button class="btn btn-primary" style="flex-shrink:0;" onclick="completeStep(' + i + ')"><i class="ti ti-player-play" style="font-size:12px;"></i>Liberar a Producción</button>';
             } else if (s.processKey === 'visto_bueno') {
                 pendingActions = '<button class="btn btn-primary" style="flex-shrink:0;" onclick="completeStep(' + i + ')"><i class="ti ti-check" style="font-size:12px;"></i>Aprobar VB</button>'
-                    + '<button class="btn btn-outline-warn" style="flex-shrink:0;" onclick="showVBForm(' + i + ')"><i class="ti ti-arrow-back-up" style="font-size:11px;"></i>Solicitar correcciones</button>';
+                    + '<button class="btn btn-outline-warn" style="flex-shrink:0;" onclick="showVBForm(' + i + ')"><i class="ti ti-arrow-back-up" style="font-size:11px;"></i>Solicitar Correcciones</button>';
             }
             contentHtml = '<div class="tl-step-title muted" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' + escapeHtml(s.processName || 'Proceso')
                 + pendingActions + '</div>'
