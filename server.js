@@ -1513,8 +1513,8 @@ const DEFAULT_COSTS_CONFIG = {
 };
 
 app.use(cors());
-app.use(bodyParser.json({ limit: '20mb' }));
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public'), {
     index: false,
     redirect: false,
@@ -10583,6 +10583,35 @@ app.get('/api/config/shell', async (req, res) => {
         res.json(await loadShellConfig());
     } catch (error) {
         res.status(500).json({ error: 'No fue posible cargar la configuración visual.' });
+    }
+});
+
+app.post('/api/config/general/icon', async (req, res) => {
+    try {
+        const orderIconKeys = new Set(['orderArtworkDelete', 'orderStatus', 'orderNumbering', 'orderFlow']);
+        const iconKey = String(req.body?.key || '').trim();
+        const iconValue = String(req.body?.value || '').trim();
+        const general = req.body?.general && typeof req.body.general === 'object' && !Array.isArray(req.body.general)
+            ? req.body.general
+            : {};
+
+        if (!/^[A-Za-z0-9_.-]+$/.test(iconKey)) {
+            return res.status(400).json({ error: 'Icono inválido.' });
+        }
+        if (!iconValue) {
+            return res.status(400).json({ error: 'Icono vacío.' });
+        }
+        if (!orderIconKeys.has(iconKey)) {
+            return res.status(400).json({ error: 'Este guardado aplica solo a iconos de órdenes.' });
+        }
+
+        const saved = await saveGeneralConfig({
+            icons: { [iconKey]: iconValue },
+            general
+        });
+        res.json(saved);
+    } catch (error) {
+        res.status(400).json({ error: error.message || 'No fue posible guardar el icono.' });
     }
 });
 

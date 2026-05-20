@@ -14342,12 +14342,60 @@
             });
         }
 
+        const ORDER_ICON_UPLOAD_KEYS = new Set(['orderArtworkDelete', 'orderStatus', 'orderNumbering', 'orderFlow']);
+
+        function buildSingleIconGeneralPayload(iconKey, item) {
+            const suffix = toIconSuffix(iconKey);
+            const general = {};
+            ['iconColor', 'iconColor2', 'iconColorHover', 'iconSize'].forEach(prefix => {
+                const input = item?.querySelector(`input[name="general.${prefix}${suffix}"]`) || document.querySelector(`input[name="general.${prefix}${suffix}"]`);
+                if (input) general[`${prefix}${suffix}`] = input.value;
+            });
+            return general;
+        }
+
+        async function saveSingleIconConfig(iconKey, iconValue, item) {
+            const saveStatus = document.getElementById('saveStatus');
+            const floatingStatus = document.getElementById('saveStatusFloating');
+            if (saveStatus) saveStatus.textContent = 'Guardando icono...';
+            if (floatingStatus) floatingStatus.textContent = 'Guardando icono...';
+
+            const response = await fetch('/api/config/general/icon', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    key: iconKey,
+                    value: iconValue,
+                    general: buildSingleIconGeneralPayload(iconKey, item)
+                })
+            });
+
+            if (!response.ok) {
+                let errorMessage = 'Error al guardar';
+                try {
+                    const errorPayload = await response.json();
+                    errorMessage = errorPayload?.error || errorMessage;
+                } catch (_) {}
+                throw new Error(errorMessage);
+            }
+
+            loadedConfig = await response.json();
+            window.dispatchEvent(new CustomEvent('erp-general-config-updated', { detail: loadedConfig }));
+            try {
+                localStorage.setItem('erp-general-config-updated', JSON.stringify({ at: Date.now() }));
+            } catch (_) {}
+            if (saveStatus) saveStatus.textContent = 'Configuración guardada.';
+            if (floatingStatus) floatingStatus.textContent = 'Configuración guardada.';
+            return loadedConfig;
+        }
+
         function bindIconUploadHandlers() {
             document.querySelectorAll('[data-icon-upload]').forEach(uploadInput => {
                 if (uploadInput.dataset.iconUploadBound === 'true') return;
 
                 const iconInputName = uploadInput.dataset.iconUpload || '';
                 const iconKey = iconInputName.replace(/^icons\./, '');
+                const isOrderIconUpload = ORDER_ICON_UPLOAD_KEYS.has(iconKey);
                 const item = uploadInput.closest('.icon-item');
                 const textInput = item?.querySelector(`[name="${iconInputName}"]`) || document.querySelector(`[name="${iconInputName}"]`);
                 const previewEl = item?.querySelector('.icon-preview') || document.getElementById(`preview-icons.${iconKey}`);
@@ -14363,10 +14411,14 @@
                                 reader.readAsDataURL(file);
                             });
 
-                            const resizedDataUrl = await new Promise((resolve) => {
+                            const resizedDataUrl = await new Promise((resolve, reject) => {
+                                if (/^data:image\/svg\+xml/i.test(dataUrl)) {
+                                    resolve(dataUrl);
+                                    return;
+                                }
                                 const img = new Image();
                                 img.onload = () => {
-                                    const maxDim = 512;
+                                    const maxDim = isOrderIconUpload ? 256 : 512;
                                     let width = img.width;
                                     let height = img.height;
                                     if (width > maxDim || height > maxDim) {
@@ -14379,12 +14431,18 @@
                                         }
                                     }
                                     const canvas = document.createElement('canvas');
-                                    canvas.width = width;
-                                    canvas.height = height;
+                                    canvas.width = Math.max(1, Math.round(width));
+                                    canvas.height = Math.max(1, Math.round(height));
                                     const ctx = canvas.getContext('2d');
-                                    ctx.drawImage(img, 0, 0, width, height);
-                                    resolve(canvas.toDataURL('image/png'));
+                                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                                    if (!isOrderIconUpload) {
+                                        resolve(canvas.toDataURL('image/png'));
+                                        return;
+                                    }
+                                    const webpDataUrl = canvas.toDataURL('image/webp', 0.82);
+                                    resolve(webpDataUrl.startsWith('data:image/webp') ? webpDataUrl : canvas.toDataURL('image/png'));
                                 };
+                                img.onerror = () => reject(new Error('No fue posible leer el icono.'));
                                 img.src = dataUrl;
                             });
 
@@ -14403,7 +14461,11 @@
                             renderPermissionAdminDeleteButton();
 
                             updatePreviews();
-                            await saveConfig({ throwOnError: true });
+                            if (isOrderIconUpload) {
+                                await saveSingleIconConfig(iconKey, resizedDataUrl, item);
+                            } else {
+                                await saveConfig({ throwOnError: true });
+                            }
                             uploadInput.value = '';
                         } catch (err) {
                             console.error('Error al procesar el icono:', err);
