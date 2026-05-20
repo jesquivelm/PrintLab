@@ -79,6 +79,7 @@ const DEFAULT_ICONS = {
     numbering: '#',
     attachments: '📎',
     flow: '≋',
+    status: '◉',
     deleteArtwork: '×',
     artwork: '↥',
     toggleClosed: '▾',
@@ -272,14 +273,19 @@ async function updatePlanningControl(action) {
 
 function renderPlanningSnapshot(raw = {}) {
     const snapshot = raw.planning_snapshot || raw.planningSnapshot || null;
-    const processes = Array.isArray(snapshot?.processes) ? snapshot.processes : [];
+    const allowed = ['diseño', 'diseno', 'preprensa', 'visto bueno', 'tintas', 'impresión', 'impresion', 'rebobinado', 'empaque'];
+    const processes = (Array.isArray(snapshot?.processes) ? snapshot.processes : []).filter((process) => {
+        const name = String(process.processName || process.processKey || '').trim().toLowerCase();
+        if (/plancha|acabado/.test(name)) return false;
+        return allowed.some((item) => name.includes(item));
+    });
     if (!snapshot || !processes.length) {
         planningSnapshotSummary.textContent = 'No hay una ruta de planificación estructurada disponible para esta orden.';
         planningSnapshotMeta.textContent = 'Cuando se regenere o se cree una orden nueva, aquí aparecerán los tiempos por proceso.';
         planningSnapshotList.innerHTML = '<div class="production-order-planning-empty">Sin procesos planeados todavía.</div>';
         return;
     }
-    planningSnapshotSummary.textContent = `Ruta base con ${processes.length} proceso(s), ${parseNumber(snapshot.baseFeet)} pies estimados y ${parseNumber(snapshot.tintCount)} tinta(s).`;
+    planningSnapshotSummary.textContent = `Planificado: ${processes.length} proceso(s), ${parseNumber(snapshot.baseFeet)} pies estimados y ${parseNumber(snapshot.tintCount)} tinta(s).`;
     planningSnapshotMeta.textContent = `Generada ${formatDate(snapshot.generatedAt, true)}. Base: ${snapshot.processType || 'Sin tipo'}${snapshot.sourceMachineName ? ` · Máquina sugerida: ${snapshot.sourceMachineName}` : ''}.`;
     planningSnapshotList.innerHTML = processes.map((process) => `
         <article class="production-order-planning-step">
@@ -291,7 +297,6 @@ function renderPlanningSnapshot(raw = {}) {
                 <div><span>Máquina</span><strong>${escapeHtml(process.machineName || 'Sin definir')}</strong></div>
                 <div><span>Duración</span><strong>${escapeHtml(parseNumber(process.durationHours, ' h') || '0 h')}</strong></div>
                 <div><span>Setup</span><strong>${escapeHtml(parseNumber(process.setupMinutes, ' min') || '0 min')}</strong></div>
-                <div><span>Corrida</span><strong>${escapeHtml(parseNumber(process.runMinutes, ' min') || '0 min')}</strong></div>
             </div>
         </article>
     `).join('');
@@ -614,6 +619,8 @@ function applyHeaderConfig(config) {
     renderIconButton(numberingButton, iconConfigFor('orderNumbering', DEFAULT_ICONS.numbering));
     renderIconButton(attachmentsButton, iconConfigFor('orderAttachments', icons.lineAttachments || DEFAULT_ICONS.attachments));
     attachmentsButton?.setAttribute('title', 'Ver adjuntos');
+    renderIconButton(stateButton, iconConfigFor('orderStatus', DEFAULT_ICONS.status));
+    stateButton?.setAttribute('title', 'Control de planificación');
     renderIconButton(orderFlowToggleButton, iconConfigFor('orderFlow', DEFAULT_ICONS.flow));
     orderFlowToggleButton?.setAttribute('title', 'Ver seguimiento');
     renderIconButton(artworkDeleteButton, iconConfigFor('orderArtworkDelete', DEFAULT_ICONS.deleteArtwork, '#b94848'));

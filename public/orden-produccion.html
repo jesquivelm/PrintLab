@@ -223,42 +223,39 @@
                         <div class="production-order-column production-order-column-secondary">
                             <section class="socios-section production-tracking-card">
                                 <div class="section-caption production-tracking-title">Seguimiento de la Orden</div>
+                                <button type="button" id="orderStateButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small production-section-corner-toggle production-state-corner-toggle" aria-label="Abrir control de planificación"></button>
                                 <button type="button" id="orderFlowToggleButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small production-section-corner-toggle production-flow-corner-toggle" aria-label="Ver seguimiento"></button>
                                 <button type="button" id="orderAttachmentsButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small production-section-corner-toggle" aria-label="Ver adjuntos"></button>
-                                <div class="production-order-spotlight">
-                                    <div class="production-order-spotlight-item production-order-spotlight-right">
-                                        <span class="production-summary-label">Orden</span>
-                                        <strong id="orderCodeText" class="production-order-code"></strong>
-                                        <div class="production-inline-link production-inline-link-right">
+                                <div class="production-tracking-grid">
+                                    <div class="production-tracking-column">
+                                        <div class="production-summary-item">
+                                            <span class="production-summary-label">Estado</span>
+                                            <strong id="orderStateText" class="production-order-state production-state-pill"></strong>
+                                        </div>
+                                        <div class="production-summary-item">
+                                            <span class="production-summary-label">Entrada a Proceso</span>
+                                            <span id="orderCreatedText" class="production-summary-value"></span>
+                                        </div>
+                                        <div class="production-summary-item">
+                                            <span class="production-summary-label">Fecha Producción</span>
+                                            <span id="orderScheduledDateText" class="production-summary-value production-schedule-pill"></span>
+                                        </div>
+                                    </div>
+                                    <div class="production-tracking-column production-tracking-column-right">
+                                        <div class="production-summary-item">
+                                            <span class="production-summary-label">Orden</span>
+                                            <strong id="orderCodeText" class="production-order-code"></strong>
                                             <div id="openSourceQuoteButton" class="production-source-link-group" aria-label="Ver cálculo origen"></div>
                                         </div>
-                                    </div>
-                                    <div class="production-order-spotlight-item">
-                                        <span class="production-summary-label">Estado</span>
-                                        <div class="production-inline-link">
-                                            <button type="button" id="orderStateButton" class="production-state-trigger" aria-label="Abrir control de planificación">
-                                                <strong id="orderStateText" class="production-order-state production-state-pill"></strong>
-                                            </button>
+                                        <div class="production-summary-item">
+                                            <span class="production-summary-label">Estimado Vendedor</span>
+                                            <span id="orderPromisedDateText" class="production-summary-value production-schedule-pill"></span>
                                         </div>
+                                        <label class="production-summary-item production-date-field">
+                                            <span class="production-summary-label">Entrega Cliente</span>
+                                            <input id="orderScheduledDateInput" type="date">
+                                        </label>
                                     </div>
-                                </div>
-                                <div class="production-summary-grid production-summary-grid-two">
-                                    <div class="production-summary-item">
-                                        <span class="production-summary-label">Entrada a Proceso</span>
-                                        <span id="orderCreatedText" class="production-summary-value"></span>
-                                    </div>
-                                    <div class="production-summary-item">
-                                        <span class="production-summary-label">Estimado Vendedor</span>
-                                        <span id="orderPromisedDateText" class="production-summary-value production-schedule-pill"></span>
-                                    </div>
-                                    <div class="production-summary-item">
-                                        <span class="production-summary-label">Fecha Producción</span>
-                                        <span id="orderScheduledDateText" class="production-summary-value production-schedule-pill"></span>
-                                    </div>
-                                    <label class="production-summary-item production-date-field">
-                                        <span class="production-summary-label">Entrega Cliente</span>
-                                        <input id="orderScheduledDateInput" type="date">
-                                    </label>
                                 </div>
                             </section>
 
