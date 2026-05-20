@@ -962,6 +962,10 @@ const DEFAULT_GENERAL_CONFIG = {
         quoteRequestAttachment: '\uD83D\uDCCE',
         quoteRequestRecord: '\uD83C\uDFA4',
         quoteRequestRecordStop: '\u25A0',
+        orderNumbering: '#',
+        orderStatus: '\u25C9',
+        orderFlow: '\u226B',
+        orderArtworkDelete: '\u00D7',
         proformaCurrencyAdd: '+',
         proformaCurrencyDelete: '\u{1F5D1}',
         proformaView: '\u{1F441}',
@@ -1048,6 +1052,18 @@ const DEFAULT_GENERAL_CONFIG = {
         proformaIntroFontSize: 15,
         proformaIntroColor: '#2f3c46',
         proformaTermsConditions: '',
+        iconColorOrderNumbering: '#1e516d',
+        iconColorHoverOrderNumbering: '#0b81b8',
+        iconSizeOrderNumbering: '40',
+        iconColorOrderStatus: '#1e516d',
+        iconColorHoverOrderStatus: '#0b81b8',
+        iconSizeOrderStatus: '40',
+        iconColorOrderFlow: '#1e516d',
+        iconColorHoverOrderFlow: '#0b81b8',
+        iconSizeOrderFlow: '40',
+        iconColorOrderArtworkDelete: '#b94848',
+        iconColorHoverOrderArtworkDelete: '#8f2f2f',
+        iconSizeOrderArtworkDelete: '40',
         proformaPaymentTerms: '',
         proformaDeliveryTime: '',
         proformaTechnicalSpecs: '',
@@ -1385,21 +1401,21 @@ const DEFAULT_COSTS_CONFIG = {
         defaultQuantityTypes: 1,
         defaultCmykEnabled: 'true',
         processDefaults: [
-            { key: 'macula', label: 'Merma', active: true, locked: true, repeatable: false, order: 5, minimumCost: 0 },
-            { key: 'troquel', label: 'Troquel', active: true, locked: true, repeatable: false, order: 10, minimumCost: 0 },
-            { key: 'sustrato', label: 'Sustrato', active: true, locked: true, repeatable: false, order: 20, minimumCost: 0 },
-            { key: 'diseno', label: 'Diseño', active: false, locked: false, repeatable: false, order: 30, minimumCost: 0 },
-            { key: 'preprensa', label: 'Preprensa', active: true, locked: true, repeatable: false, order: 40, minimumCost: 0 },
-            { key: 'planchas', label: 'Planchas', active: false, locked: false, repeatable: false, order: 50, minimumCost: 0 },
-            { key: 'impresion', label: 'Impresión', active: false, locked: false, repeatable: false, order: 60, minimumCost: 0 },
-            { key: 'barnizado', label: 'Barnizado', active: false, locked: false, repeatable: false, order: 69, minimumCost: 0 },
-            { key: 'laminado', label: 'Laminado', active: false, locked: false, repeatable: false, order: 70, minimumCost: 0 },
-            { key: 'estampado', label: 'Estampado', active: false, locked: false, repeatable: false, order: 71, minimumCost: 0 },
-            { key: 'embosado', label: 'Embosado', active: false, locked: false, repeatable: false, order: 72, minimumCost: 0 },
-            { key: 'troquelado', label: 'Troquelado', active: false, locked: false, repeatable: false, order: 73, minimumCost: 0 },
-            { key: 'rebobinado', label: 'Rebobinado', active: false, locked: false, repeatable: false, order: 74, minimumCost: 0 },
-            { key: 'empaque', label: 'Empaque', active: false, locked: false, repeatable: false, order: 80, minimumCost: 0 },
-            { key: 'adicionales', label: 'Procesos adicionales', active: false, locked: false, repeatable: false, order: 90, minimumCost: 0 }
+            { key: 'macula', label: 'Merma', active: true, createEnabled: true, locked: true, repeatable: false, order: 5, minimumCost: 0 },
+            { key: 'troquel', label: 'Troquel', active: true, createEnabled: false, locked: true, repeatable: false, order: 10, minimumCost: 0 },
+            { key: 'sustrato', label: 'Sustrato', active: true, createEnabled: false, locked: true, repeatable: false, order: 20, minimumCost: 0 },
+            { key: 'diseno', label: 'Diseño', active: false, createEnabled: true, locked: false, repeatable: false, order: 30, minimumCost: 0 },
+            { key: 'preprensa', label: 'Preprensa', active: true, createEnabled: true, locked: true, repeatable: false, order: 40, minimumCost: 0 },
+            { key: 'planchas', label: 'Planchas', active: false, createEnabled: false, locked: false, repeatable: false, order: 50, minimumCost: 0 },
+            { key: 'impresion', label: 'Impresión', active: false, createEnabled: true, locked: false, repeatable: false, order: 60, minimumCost: 0 },
+            { key: 'barnizado', label: 'Barnizado', active: false, createEnabled: true, locked: false, repeatable: false, order: 69, minimumCost: 0 },
+            { key: 'laminado', label: 'Laminado', active: false, createEnabled: true, locked: false, repeatable: false, order: 70, minimumCost: 0 },
+            { key: 'estampado', label: 'Estampado', active: false, createEnabled: true, locked: false, repeatable: false, order: 71, minimumCost: 0 },
+            { key: 'embosado', label: 'Embosado', active: false, createEnabled: true, locked: false, repeatable: false, order: 72, minimumCost: 0 },
+            { key: 'troquelado', label: 'Troquelado', active: false, createEnabled: false, locked: false, repeatable: false, order: 73, minimumCost: 0 },
+            { key: 'rebobinado', label: 'Rebobinado', active: false, createEnabled: true, locked: false, repeatable: false, order: 74, minimumCost: 0 },
+            { key: 'empaque', label: 'Empaque', active: false, createEnabled: true, locked: false, repeatable: false, order: 80, minimumCost: 0 },
+            { key: 'adicionales', label: 'Procesos adicionales', active: false, createEnabled: false, locked: false, repeatable: false, order: 90, minimumCost: 0 }
         ]
     },
     convencional: {
@@ -1497,8 +1513,8 @@ const DEFAULT_COSTS_CONFIG = {
 };
 
 app.use(cors());
-app.use(bodyParser.json({ limit: '20mb' }));
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public'), {
     index: false,
     redirect: false,
@@ -2779,19 +2795,87 @@ async function loadGeneralConfig() {
     }
 }
 
+const SHELL_ICON_ASSET_KEYS = new Set(['orderArtworkDelete', 'orderStatus', 'orderNumbering', 'orderFlow']);
+const DATA_IMAGE_EXTENSIONS = new Map([
+    ['image/svg+xml', 'svg'],
+    ['image/png', 'png'],
+    ['image/jpeg', 'jpg'],
+    ['image/jpg', 'jpg'],
+    ['image/webp', 'webp'],
+    ['image/gif', 'gif']
+]);
+
+function getDataImageIconMeta(value) {
+    const text = String(value || '').trim();
+    const match = text.match(/^data:(image\/[a-z0-9.+-]+)(;base64)?,(.*)$/i);
+    if (!match) return null;
+    const mime = match[1].toLowerCase();
+    const extension = DATA_IMAGE_EXTENSIONS.get(mime);
+    if (!extension) return null;
+    return { text, mime, extension, isBase64: Boolean(match[2]), data: match[3] || '' };
+}
+
+function readDataImageIcon(value) {
+    const meta = getDataImageIconMeta(value);
+    if (!meta) return null;
+    return {
+        mime: meta.mime,
+        extension: meta.extension,
+        buffer: meta.isBase64 ? Buffer.from(meta.data, 'base64') : Buffer.from(decodeURIComponent(meta.data), 'utf8')
+    };
+}
+
+function buildShellIconValue(key, value) {
+    const meta = getDataImageIconMeta(value);
+    if (!meta || !SHELL_ICON_ASSET_KEYS.has(key)) return value;
+    const version = crypto.createHash('sha1').update(meta.text).digest('hex').slice(0, 12);
+    return `/api/config/general/icons/${version}/${encodeURIComponent(key)}.${meta.extension}`;
+}
+
+function buildShellConfig(config) {
+    const normalized = normalizeGeneralConfigRecord(config);
+    const icons = { ...(normalized.icons || {}) };
+    Object.keys(icons).forEach((key) => {
+        icons[key] = buildShellIconValue(key, icons[key]);
+    });
+    return { ...normalized, icons };
+}
+
 async function loadShellConfig() {
     const now = Date.now();
     if (shellConfigCache && shellConfigCacheExpiresAt > now) {
         return shellConfigCache;
     }
-    shellConfigCache = normalizeGeneralConfigRecord(readBootstrapConfigSnapshot() || await loadGeneralConfig());
+    shellConfigCache = buildShellConfig(await loadGeneralConfig());
     shellConfigCacheExpiresAt = now + GENERAL_CONFIG_CACHE_TTL_MS;
     return shellConfigCache;
+}
+
+async function compressIconsOnSave(config) {
+    const icons = config.icons;
+    if (!icons || typeof icons !== 'object') return;
+    const sharp = require('sharp');
+    const keys = Object.keys(icons);
+    for (const key of keys) {
+        const val = icons[key];
+        if (typeof val !== 'string' || !val.startsWith('data:image/png;base64,')) continue;
+        try {
+            const raw = val.split(',')[1];
+            const buf = Buffer.from(raw, 'base64');
+            const compressed = await sharp(buf).png({ quality: 90, compressionLevel: 9 }).toBuffer();
+            if (compressed.length < buf.length) {
+                icons[key] = 'data:image/png;base64,' + compressed.toString('base64');
+            }
+        } catch (e) {
+            console.error('Error compressing icon ' + key + ':', e.message);
+        }
+    }
 }
 
 async function saveGeneralConfig(config) {
     const previous = await loadGeneralConfig();
     const normalized = normalizeGeneralConfigRecord(config, previous);
+    await compressIconsOnSave(normalized);
     saveGeneralConfigToFile(normalized);
     invalidateConfigCaches();
     const changedBy = pickFirstValue(normalized?.session?.currentUser, previous?.session?.currentUser, getConfiguredCurrentUser());
@@ -2894,8 +2978,11 @@ function normalizeCostsConfigRecord(config) {
             const fallback = fallbackByKey.get(key);
             if (!key || !fallback || seen.has(key)) return null;
             seen.add(key);
-            const locked = row?.locked === true || String(row?.locked || '').trim().toLowerCase() === 'true';
+            const locked = ['macula', 'troquel'].includes(key) ? true : (row?.locked === true || String(row?.locked || '').trim().toLowerCase() === 'true');
             const active = locked ? true : (row?.active === true || String(row?.active || '').trim().toLowerCase() === 'true');
+            const createEnabled = key === 'macula'
+                ? true
+                : (row?.createEnabled === true || row?.create === true || String(row?.createEnabled ?? row?.create ?? fallback.createEnabled ?? '').trim().toLowerCase() === 'true');
             const repeatable = row?.repeatable === true || String(row?.repeatable || '').trim().toLowerCase() === 'true';
             const hasGanttEnabled = row?.ganttEnabled !== undefined && row?.ganttEnabled !== null;
             const ganttEnabled = hasGanttEnabled
@@ -2905,6 +2992,7 @@ function normalizeCostsConfigRecord(config) {
                 key,
                 label: String(row?.label || fallback.label || '').trim(),
                 active,
+                createEnabled: active ? createEnabled : false,
                 locked,
                 repeatable,
                 ganttEnabled,
@@ -2919,6 +3007,7 @@ function normalizeCostsConfigRecord(config) {
                 key,
                 label: String(item.label || '').trim(),
                 active: item.locked ? true : Boolean(item.active),
+                createEnabled: key === 'macula' ? true : Boolean(item.createEnabled && (item.locked || item.active)),
                 locked: Boolean(item.locked),
                 repeatable: Boolean(item.repeatable),
                 ganttEnabled: item.ganttEnabled === undefined ? Boolean(item.active) : Boolean(item.ganttEnabled),
@@ -5350,6 +5439,55 @@ async function reopenQuoteProforma(quoteCode, reason = 'tracking_reopened', clie
     return result.rows[0] || null;
 }
 
+const PROFORMA_BLOCK_PROCESS_LABELS = {
+    barnizado: 'Barnizado',
+    laminado: 'Laminado',
+    estampado: 'Estampado',
+    embosado: 'Embosado',
+    troquelado: 'Troquelado',
+    rebobinado: 'Rebobinado',
+    troquel: 'Troquel',
+    sustrato: 'Sustrato',
+    diseno: 'Diseño',
+    preprensa: 'Preprensa',
+    planchas: 'Planchas',
+    impresion: 'Impresión',
+    empaque: 'Empaque',
+    adicionales: 'Procesos adicionales'
+};
+
+function proformaProcessKeyFromMessage(message = '') {
+    const text = normalizeText(message);
+    if (!text) return '';
+    if (text.includes('troquelado')) return 'troquelado';
+    if (text.includes('troquel')) return 'troquel';
+    if (text.includes('plancha') || text.includes('cliche') || text.includes('fotopol')) return 'planchas';
+    if (text.includes('impresion') || text.includes('maquina de impresion')) return 'impresion';
+    if (text.includes('preprensa')) return 'preprensa';
+    if (text.includes('diseno') || text.includes('arte')) return 'diseno';
+    if (text.includes('rebob')) return 'rebobinado';
+    if (text.includes('barniz')) return 'barnizado';
+    if (text.includes('laminad')) return 'laminado';
+    if (text.includes('estamp')) return 'estampado';
+    if (text.includes('embos')) return 'embosado';
+    if (text.includes('empaque') || text.includes('rollo')) return 'empaque';
+    if (text.includes('sustrato') || text.includes('material')) return 'sustrato';
+    return '';
+}
+
+function summarizeProformaBlockingMessages(messages = []) {
+    const map = new Map();
+    (Array.isArray(messages) ? messages : []).forEach((message) => {
+        const clean = stripNonBlockingSapAccountingWarnings(message);
+        if (!clean) return;
+        const processKey = proformaProcessKeyFromMessage(clean);
+        const key = processKey || clean;
+        if (map.has(key)) return;
+        map.set(key, processKey ? `${PROFORMA_BLOCK_PROCESS_LABELS[processKey] || processKey} requiere configuración.` : clean);
+    });
+    return [...map.values()];
+}
+
 function proformaBlockingMessagesFromRaw(raw = {}) {
     const messages = Array.isArray(raw.CODEX_VALIDATION_MESSAGES)
         ? raw.CODEX_VALIDATION_MESSAGES.map((item) => stripNonBlockingSapAccountingWarnings(item)).filter(Boolean)
@@ -5359,8 +5497,7 @@ function proformaBlockingMessagesFromRaw(raw = {}) {
         raw['ANALISIS CAMPOS CREAR ORDEN'],
         raw['ANALISIS CAMPOS FINALIZAR']
     ));
-    return [...new Set([...messages, fallback].filter(Boolean))]
-        .filter((message) => !normalizeText(message).includes('plancha'));
+    return summarizeProformaBlockingMessages([...new Set([...messages, fallback].filter(Boolean))]);
 }
 
 function findQuoteProformaBlockingLine(rows = []) {
@@ -5672,6 +5809,8 @@ async function ensureProductCatalogSchema() {
     await pgQuery(`CREATE INDEX IF NOT EXISTS idx_flexo_products_client ON flexo_products(client_code, client_name)`);
     await pgQuery(`CREATE INDEX IF NOT EXISTS idx_flexo_product_history_product ON flexo_product_quote_history(product_code, created_at DESC)`);
     await pgQuery(`CREATE INDEX IF NOT EXISTS idx_flexo_product_history_quote ON flexo_product_quote_history(quote_code, line_code)`);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS idx_flexo_products_quote_line ON flexo_products(quote_code, line_code)`);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS idx_flexo_calculations_quote_line_created ON flexo_calculations(quote_code, line_code, created_at DESC)`);
 }
 
 async function ensureProductionSchema() {
@@ -5691,6 +5830,9 @@ async function ensureProductionSchema() {
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
     `);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS idx_flexo_orders_created_at ON flexo_orders(created_at DESC)`);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS idx_flexo_orders_line_code ON flexo_orders(line_code)`);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS idx_flexo_orders_quote_line ON flexo_orders(quote_code, line_code)`);
 }
 
 function normalizeAttachmentBase64(value) {
@@ -10517,6 +10659,65 @@ app.get('/api/config/shell', async (req, res) => {
     }
 });
 
+app.get('/api/config/general/icons/:version/:file', async (req, res) => {
+    try {
+        const file = String(req.params.file || '');
+        const match = file.match(/^([A-Za-z0-9_.-]+)\.(svg|png|jpg|jpeg|webp|gif)$/i);
+        if (!match) return res.status(404).end();
+
+        const iconKey = match[1];
+        if (!SHELL_ICON_ASSET_KEYS.has(iconKey)) return res.status(404).end();
+
+        const config = await loadGeneralConfig();
+        const icon = readDataImageIcon(config.icons?.[iconKey]);
+        if (!icon) return res.status(404).end();
+
+        res.setHeader('Content-Type', icon.mime);
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        res.send(icon.buffer);
+    } catch (error) {
+        res.status(404).end();
+    }
+});
+
+app.post('/api/config/general/icon', async (req, res) => {
+    try {
+        const orderIconKeys = new Set(['orderArtworkDelete', 'orderStatus', 'orderNumbering', 'orderFlow']);
+        const iconKey = String(req.body?.key || '').trim();
+        const iconValue = String(req.body?.value || '').trim();
+        const general = req.body?.general && typeof req.body.general === 'object' && !Array.isArray(req.body.general)
+            ? req.body.general
+            : {};
+
+        if (!/^[A-Za-z0-9_.-]+$/.test(iconKey)) {
+            return res.status(400).json({ error: 'Icono inválido.' });
+        }
+        if (!iconValue) {
+            return res.status(400).json({ error: 'Icono vacío.' });
+        }
+        if (!orderIconKeys.has(iconKey)) {
+            return res.status(400).json({ error: 'Este guardado aplica solo a iconos de órdenes.' });
+        }
+
+        const saved = await saveGeneralConfig({
+            icons: { [iconKey]: iconValue },
+            general
+        });
+        const savedGeneral = {};
+        Object.keys(general).forEach((key) => {
+            if (Object.prototype.hasOwnProperty.call(saved.general || {}, key)) {
+                savedGeneral[key] = saved.general[key];
+            }
+        });
+        res.json({
+            icons: { [iconKey]: saved.icons?.[iconKey] || iconValue },
+            general: savedGeneral
+        });
+    } catch (error) {
+        res.status(400).json({ error: error.message || 'No fue posible guardar el icono.' });
+    }
+});
+
 app.post('/api/config/general', async (req, res) => {
     try {
         const saved = await saveGeneralConfig(req.body || {});
@@ -11993,7 +12194,7 @@ app.patch('/api/cotizaciones/:codigo/lineas/:linea', async (req, res) => {
                 ? payload.finalized_for_order
                 : payload.finalizedForOrder);
         }
-        const finalizeValidation = stripNonBlockingSapAccountingWarnings(rawData['ANALISIS CAMPOS FINALIZAR']);
+        const finalizeValidation = proformaBlockingMessagesFromRaw(rawData).join(' ');
         if (Boolean(rawData['CODEX_FINALIZED_FOR_ORDER']) && finalizeValidation) {
             throw new Error(finalizeValidation);
         }
@@ -12622,10 +12823,7 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/orden-produccion', async (req,
             if (!context.line) {
                 throw new Error('No se encontró la línea origen.');
             }
-            const createOrderValidation = stripNonBlockingSapAccountingWarnings(sanitizeAdminUserText(
-                context.line.raw_data?.['ANALISIS CAMPOS CREAR ORDEN'],
-                context.line.raw_data?.['ANALISIS CAMPOS FINALIZAR']
-            ));
+            const createOrderValidation = proformaBlockingMessagesFromRaw(context.line.raw_data || {}).join(' ');
             if (createOrderValidation) {
                 throw new Error(createOrderValidation);
             }
@@ -12732,6 +12930,16 @@ app.patch('/api/ordenes-produccion/:codigo/details', async (req, res) => {
             lineRaw['ENTREGA | TIPO'] = pickFirstValue(payload.delivery.mode);
             lineRaw['ENTREGA | CONTACTO'] = pickFirstValue(payload.delivery.contact);
             lineRaw['ENTREGA | DETALLE'] = pickFirstValue(payload.delivery.detail);
+            if (Object.prototype.hasOwnProperty.call(payload.delivery, 'schedule')) {
+                lineRaw['ENTREGA | PROGRAMACION'] = Array.isArray(payload.delivery.schedule)
+                    ? payload.delivery.schedule
+                        .map((row) => ({
+                            quantity: pickFirstValue(row?.quantity),
+                            date: pickFirstValue(row?.date)
+                        }))
+                        .filter((row) => row.quantity && row.date)
+                    : [];
+            }
         }
 
         if (payload.planningControl && typeof payload.planningControl === 'object') {
@@ -12754,8 +12962,11 @@ app.patch('/api/ordenes-produccion/:codigo/details', async (req, res) => {
 
         if (payload.art && typeof payload.art === 'object') {
             lineRaw['COMENTARIOS VENDEDOR'] = pickFirstValue(payload.art.comments);
-            lineRaw['ORDEN DE ARTE'] = pickFirstValue(payload.art.artworkNumber);
             lineRaw['ARTE EN PODER DE'] = pickFirstValue(payload.art.artworkHolder);
+        }
+
+        if (payload.notes && typeof payload.notes === 'object') {
+            lineRaw['ACABADOS | OBSERVACIONES'] = pickFirstValue(payload.notes.finishNotes);
         }
 
         lineSnapshot.raw_data = lineRaw;
@@ -15464,7 +15675,7 @@ app.post('/api/flexo/calculo/guardar', async (req, res) => {
                 ? payload.finalized_for_order
                 : payload.finalizedForOrder);
         }
-        const finalizeValidation = stripNonBlockingSapAccountingWarnings(rawData['ANALISIS CAMPOS FINALIZAR']);
+        const finalizeValidation = proformaBlockingMessagesFromRaw(rawData).join(' ');
         if (Boolean(rawData['CODEX_FINALIZED_FOR_ORDER']) && finalizeValidation) {
             throw new Error(finalizeValidation);
         }
@@ -15608,12 +15819,16 @@ app.get('/api/inventario/:kind/export', async (req, res) => {
 
 app.get('/api/catalogs', async (req, res) => {
     try {
+        const scope = String(req.query.scope || '').trim();
         const catalogs = {};
-        const materialRows = await listInventory('materiales', { limit: 5000 });
-        const machineRows = await listInventory('maquinas', { limit: 5000 });
-        const troquelRows = await listInventory('troqueles', { limit: 5000 });
-        const processes = await listInventory('procesos', { limit: 2000 });
+        const materialRows = !scope || scope === 'all' ? await listInventory('materiales', { limit: 5000 }) : [];
+        const machineRows = !scope || scope === 'all' ? await listInventory('maquinas', { limit: 5000 }) : [];
+        const troquelRows = !scope || scope === 'all' ? await listInventory('troqueles', { limit: 5000 }) : [];
+        const processes = !scope || scope === 'all' ? await listInventory('procesos', { limit: 2000 }) : [];
         const outputTypes = await listInventory('tipos-salida', { limit: 500 });
+        if (scope === 'output-types') {
+            return res.json({ outputTypes });
+        }
         const materials = await loadFlexoMaterialsCatalog({ localRows: materialRows });
         const machines = machineRows.map((item) => {
             const capacities = Array.isArray(item.capacidades) ? item.capacidades : [];
