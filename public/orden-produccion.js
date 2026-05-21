@@ -135,8 +135,8 @@ function initialsFromName(name) {
     return (parts[0]?.[0] || 'U') + (parts[1]?.[0] || '');
 }
 
-function trackingAvatarMarkup(name) {
-    const photo = trackingUserPhotos.get(trackingUserLookupKey(name));
+function trackingAvatarMarkup(name, photoOverride) {
+    const photo = String(photoOverride || '').trim() || trackingUserPhotos.get(trackingUserLookupKey(name));
     const initials = escapeHtml(initialsFromName(name).toUpperCase());
     if (!photo) return initials;
     return `<img class="tracking-avatar-image" src="${escapeHtml(photo)}" alt="${escapeHtml(name || 'Usuario')}" data-tracking-avatar-img><span class="tracking-avatar-fallback" hidden>${initials}</span>`;
@@ -234,6 +234,7 @@ function sessionHeader() {
             user: session.user || session.username || '',
             name: session.fullName || session.name || session.user || session.username || '',
             fullName: session.fullName || session.name || '',
+            photoUrl: session.photoUrl || session.photo_url || '',
             permissionName: session.permissionName || '',
             modules: session.modules || {}
         })
@@ -498,48 +499,11 @@ function notify(title, msg, type) {
     setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 4500);
 }
 
-// ── RENDER MAIN (flow flujo + planificacion + comparacion) ──
 function renderOrderTracking(payload) {
     if (!orderFlowBody) return;
     var steps = Array.isArray(payload && payload.steps) ? payload.steps : [];
-    var cmp = Array.isArray(payload && payload.comparisons) ? payload.comparisons : [];
-
-    // Flujo view
-    var flujoHtml = renderFlowTimeline(steps);
-
-    // Planificacion view — use existing renderPlanningSnapshot
-    var planifHtml = '<div class="production-flow-planning-tab" id="flow-planning-root">'
-        + '<div class="production-order-popover-section"><div id="flowPlanningStatusText" class="production-order-control-status"></div>'
-        + '<div id="flowPlanningMetaText" class="production-order-control-meta"></div>'
-        + '<div id="flowPlanningReturnReasonText" class="production-order-control-meta" hidden></div></div>'
-        + '<div class="production-order-popover-actions" id="flowPlanningActions">'
-        + '<button type="button" id="flowReleasePlanningButton" class="action-btn action-btn-primary">Liberar a Planificación</button>'
-        + '<button type="button" id="flowLaunchGanttButton" class="action-btn action-btn-success" hidden>Lanzar a Gantt</button>'
-        + '<button type="button" id="flowReturnSalesButton" class="action-btn action-btn-danger" hidden>Devolver a Vendedor</button>'
-        + '<button type="button" id="flowPlanningQueueButton" class="action-btn">Ver Cola</button>'
-        + '</div>'
-        + '<div class="production-order-popover-section"><div class="production-order-control-title">Ruta de Planificación</div>'
-        + '<div id="flowPlanningSnapshotSummary" class="production-order-planning-summary"></div>'
-        + '<div id="flowPlanningSnapshotMeta" class="production-order-planning-meta"></div>'
-        + '<div id="flowPlanningSnapshotList" class="production-order-planning-list"></div></div>'
-        + '</div>';
-
-    // Comparacion view
-    var cmpHtml = renderComparisonView(cmp);
-
-    orderFlowBody.innerHTML = '<section data-flow-view="flujo" class="is-active">' + flujoHtml + '</section>'
-        + '<section data-flow-view="planificacion">' + planifHtml + '</section>'
-        + '<section data-flow-view="comparacion">' + cmpHtml + '</section>';
-
-    // Wire planning buttons
-    var rpb = document.getElementById('flowReleasePlanningButton');
-    var lgb = document.getElementById('flowLaunchGanttButton');
-    var rsb = document.getElementById('flowReturnSalesButton');
-    var pqb = document.getElementById('flowPlanningQueueButton');
-    if (rpb) rpb.onclick = function () { updatePlanningControl('release-sales'); };
-    if (lgb) lgb.onclick = function () { updatePlanningControl('launch-gantt'); };
-    if (rsb) rsb.onclick = function () { showReturnSalesForm(); };
-    if (pqb) pqb.onclick = function () { openRoute('/planificacion/lanzamiento', 'Cola de planificación'); };
+    orderFlowBody.innerHTML = renderFlowTimeline(steps);
+    bindTrackingAvatarFallback(orderFlowBody);
 }
 
 function renderFlowTimeline(steps, order) {
@@ -558,26 +522,30 @@ function renderFlowTimeline(steps, order) {
         var isLocked = !isDone && !isActive && !isStopped;
         var isLast = i === steps.length - 1;
 
-        var nodeInner = '<i class="ti ti-' + stepIcon(s.processKey) + '" style="font-size:16px;"></i>';
-
         var nodeClass = isDone ? 'tl-node done' : (isActive ? 'tl-node avail in-progress' : (isStopped ? 'tl-node warn' : 'tl-node locked'));
+        var markerName = String(s.completedBy || s.startedBy || '').trim();
+        var markerPhoto = String(s.completedByPhoto || s.startedByPhoto || '').trim();
+        var hasMarkerPhoto = Boolean(markerPhoto || trackingUserPhotos.get(trackingUserLookupKey(markerName)));
+        var nodeInner = markerName
+            ? trackingAvatarMarkup(markerName, markerPhoto)
+            : '<i class="ti ti-' + stepIcon(s.processKey) + '" style="font-size:16px;"></i>';
+        if (markerName) nodeClass += ' has-avatar' + (hasMarkerPhoto ? ' has-photo' : '');
 
         // Connector
         var solid = isDone && !isLast && steps[i + 1] && String(steps[i + 1].routeStatus || '').toUpperCase() === 'COMPLETADO';
         var line = isLast ? '' : '<div class="tl-connector ' + (solid ? 'solid' : 'dashed') + '"></div>';
 
         // Content
-        var chips = '';
+        var detailRows = '';
         var machineProcessKeys = ['planchas', 'impresion', 'acabados', 'barnizado', 'laminado', 'troquelado', 'estampado', 'embosado', 'numeracion', 'rebobinado'];
         if (machineProcessKeys.includes(s.processKey) && s.planned && s.planned.machineName) {
-            chips += '<span class="info-chip"><i class="ti ti-cpu" style="font-size:10px;"></i>' + escapeHtml(s.planned.machineName) + '</span>';
+            detailRows += '<span class="flow-detail-row"><i class="ti ti-cpu" style="font-size:11px;"></i>' + escapeHtml(s.planned.machineName) + '</span>';
         }
         if (s.planned && s.planned.minutes > 0) {
-            chips += '<span class="info-chip"><i class="ti ti-clock" style="font-size:10px;"></i>' + fmtFlowTime(s.planned.minutes) + '</span>';
+            detailRows += '<span class="flow-detail-row"><i class="ti ti-clock" style="font-size:11px;"></i>' + fmtFlowTime(s.planned.minutes) + '</span>';
         }
 
         var contentHtml = '';
-        var markerName = String(s.completedBy || s.startedBy || '').trim();
         var markerDate = s.completedAt || s.startedAt || '';
         var metaParts = [];
         if (markerName) metaParts.push(escapeHtml(markerName));
@@ -586,17 +554,8 @@ function renderFlowTimeline(steps, order) {
         var titleStateClass = isDone ? 'done' : (isActive ? 'active' : (isStopped ? 'stopped' : 'pending'));
         var titleIcon = isDone ? 'check-circle' : (isActive ? 'player-play' : (isStopped ? 'alert-triangle' : stepIcon(s.processKey)));
         var titleHtml = '<div class="tl-step-title ' + titleStateClass + '"><i class="ti ti-' + titleIcon + '" style="font-size:14px;"></i>' + escapeHtml(s.processName || 'Proceso') + '</div>';
-        var sideHtml = chips;
-        if (isDone) {
-            contentHtml = '<div class="tl-step-grid"><div class="tl-step-main">' + titleHtml + metaHtml + '</div><div class="tl-step-side">' + sideHtml + '</div></div>';
-        } else if (isStopped) {
-            contentHtml = '<div class="tl-step-grid"><div class="tl-step-main">' + titleHtml + metaHtml + '</div><div class="tl-step-side">' + sideHtml + '</div></div>';
-        } else if (isActive) {
-            var ipLabel = '<div class="in-progress-label"><span class="live-dot" style="width:6px;height:6px;margin:0;"></span>En progreso</div>';
-            contentHtml = '<div class="tl-step-grid"><div class="tl-step-main">' + titleHtml + metaHtml + '</div><div class="tl-step-side">' + sideHtml + ipLabel + '</div></div>';
-        } else {
-            contentHtml = '<div class="tl-step-grid"><div class="tl-step-main">' + titleHtml + metaHtml + '</div><div class="tl-step-side">' + sideHtml + '</div></div>';
-        }
+        var sideHtml = detailRows ? '<div class="flow-detail-stack">' + detailRows + '</div>' : '';
+        contentHtml = '<div class="tl-step-grid"><div class="tl-step-main">' + titleHtml + metaHtml + '</div><div class="tl-step-side">' + sideHtml + '</div></div>';
 
         tlHtml += '<div class="tl-row">'
             + '<div class="tl-col-left">'
@@ -604,10 +563,6 @@ function renderFlowTimeline(steps, order) {
             + nodeInner + '</div>' + line + '</div>'
             + '<div class="tl-content">' + contentHtml + '</div></div>';
 
-        // Liberation banner
-        if (s.processKey === 'planeacion' && isDone && i + 1 < steps.length && String(steps[i + 1].routeStatus || '').toUpperCase() !== 'COMPLETADO') {
-            tlHtml += '<div class="liberated-banner"><i class="ti ti-player-play" style="font-size:12px;"></i>Orden liberada a producción</div>';
-        }
     }
 
     // History
@@ -954,16 +909,8 @@ function updatePlanningControlWithReason(action, reason) {
     });
 }
 
-function renderComparisonTab() {
-    var section = orderFlowBody && orderFlowBody.querySelector('[data-flow-view="comparacion"]');
-    if (!section) return;
-    var cmp = (currentOrderFlowPayload && currentOrderFlowPayload.comparisons) || [];
-    section.innerHTML = renderComparisonView(cmp);
-}
-
 function renderInPlace() {
     renderOrderTracking(currentOrderFlowPayload);
-    renderPlanningTab();
 }
 
 async function openOrderFlowPopover() {
@@ -991,14 +938,7 @@ async function fetchOrderFlowSteps() {
 
 async function openPlanningControlPopover() {
     if (!currentOrderCode) return;
-    // Redirect to merged flow popover, show planning tab
     await openOrderFlowPopover();
-    // Switch to planning tab
-    var tabs = orderFlowBody && orderFlowBody.parentNode && orderFlowBody.parentNode.querySelectorAll('[data-flow-tab]');
-    if (tabs) tabs.forEach(function (b) { b.classList.toggle('is-active', b.dataset.flowTab === 'planificacion'); });
-    var views = orderFlowBody && orderFlowBody.querySelectorAll('[data-flow-view]');
-    if (views) views.forEach(function (v) { v.classList.toggle('is-active', v.dataset.flowView === 'planificacion'); });
-    renderPlanningTab();
 }
 
 function openRoute(route, label) {
@@ -1953,15 +1893,6 @@ pantonesButton?.addEventListener('click', () => openPopover('orderPantonesPopove
     }
 numberingButton?.addEventListener('click', () => openPopover('orderNumberingPopover'));
 attachmentsButton?.addEventListener('click', () => openPopover('orderAttachmentsPopover'));
-orderFlowBody?.addEventListener('click', (event) => {
-    const tab = event.target?.closest?.('[data-flow-tab]');
-    if (!tab) return;
-    const target = tab.dataset.flowTab;
-    orderFlowBody.querySelectorAll('[data-flow-tab]').forEach((button) => button.classList.toggle('is-active', button === tab));
-    orderFlowBody.querySelectorAll('[data-flow-view]').forEach((view) => view.classList.toggle('is-active', view.dataset.flowView === target));
-    if (target === 'planificacion') renderPlanningTab();
-    if (target === 'comparacion') renderComparisonTab();
-});
 scheduledDateInput?.addEventListener('change', () => {
     saveOrderDetails({
         planningControl: {

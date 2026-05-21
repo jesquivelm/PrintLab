@@ -7355,7 +7355,23 @@ function orderLineRawData(orderRow = {}) {
 }
 
 function orderQuotedResult(orderRow = {}) {
-    return orderLineRawData(orderRow)?.['Datos_Cotizados'] || {};
+    const raw = orderRow?.raw_data || {};
+    const lineRaw = orderLineRawData(orderRow);
+    const lineSnapshot = raw?.line_snapshot && typeof raw.line_snapshot === 'object' ? raw.line_snapshot : {};
+    const lineSummary = raw?.line_summary && typeof raw.line_summary === 'object' ? raw.line_summary : {};
+    return [
+        lineRaw?.['Datos_Cotizados'],
+        lineRaw?.CODEX_PROCESS_RESULT,
+        lineRaw?.processResult,
+        lineSnapshot?.raw_data?.['Datos_Cotizados'],
+        lineSnapshot?.raw_data?.CODEX_PROCESS_RESULT,
+        lineSnapshot?.processResult,
+        lineSummary?.raw_data?.['Datos_Cotizados'],
+        lineSummary?.raw_data?.CODEX_PROCESS_RESULT,
+        raw?.['Datos_Cotizados'],
+        raw?.CODEX_PROCESS_RESULT,
+        raw?.processResult
+    ].find((item) => item && typeof item === 'object' && !Array.isArray(item)) || {};
 }
 
 function firstPositivePlanningNumber(...values) {
@@ -14498,7 +14514,13 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
         const snapshot = raw.planning_snapshot || raw.planningSnapshot || {};
         const processKeys = resolveOrderTrackingProcessKeys(orderRow, costsConfig, routeResult.rows);
         const control = getOrderPlanningControl(raw);
-        const actorIdentities = [
+        const session = readErpSessionFromRequest(req) || {};
+        const actorIdentities = [];
+        const addActorIdentity = (value) => {
+            const cleaned = sanitizeAdminUserText(value).toLowerCase();
+            if (cleaned) actorIdentities.push(cleaned);
+        };
+        [
             raw.traceability?.created_by,
             raw.traceability?.createdBy,
             raw['TRAZABILIDAD | USUARIO'],
@@ -14509,11 +14531,36 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
             control.launchedBy,
             control.processSelectionUpdatedBy,
             ...routeResult.rows.map((row) => row.operator_name)
-        ].map((value) => sanitizeAdminUserText(value).toLowerCase()).filter(Boolean);
+        ].forEach(addActorIdentity);
         const actorDisplayNames = new Map();
+        const actorPhotoUrls = new Map();
+        const registerActorAlias = (key, displayName, photoUrl = '', prefer = false) => {
+            const normalized = sanitizeAdminUserText(key).toLowerCase();
+            const cleanName = sanitizeAdminUserText(displayName);
+            const cleanPhoto = sanitizeAdminUserText(photoUrl);
+            if (!normalized) return;
+            if (cleanName && (prefer || !actorDisplayNames.has(normalized))) actorDisplayNames.set(normalized, cleanName);
+            if (cleanPhoto && (prefer || !actorPhotoUrls.has(normalized))) actorPhotoUrls.set(normalized, cleanPhoto);
+        };
+        const sessionDisplayName = pickFirstValue(
+            sanitizeAdminUserText(session?.fullName),
+            sanitizeAdminUserText(session?.name),
+            sanitizeAdminUserText(session?.displayName),
+            sanitizeAdminUserText(session?.user),
+            sanitizeAdminUserText(session?.username),
+            sanitizeAdminUserText(session?.email)
+        );
+        const sessionPhotoUrl = pickFirstValue(
+            sanitizeAdminUserText(session?.photoUrl),
+            sanitizeAdminUserText(session?.photo_url),
+            sanitizeAdminUserText(session?.avatarUrl),
+            sanitizeAdminUserText(session?.avatar_url)
+        );
+        [session?.username, session?.user, session?.name, session?.fullName, session?.displayName, session?.email]
+            .forEach((value) => registerActorAlias(value, sessionDisplayName, sessionPhotoUrl, true));
         if (actorIdentities.length) {
             const userResult = await pgQuery(
-                `SELECT full_name, username
+                `SELECT full_name, username, photo_url
                    FROM admin_users
                   WHERE LOWER(TRIM(username)) = ANY($1::text[])
                      OR LOWER(TRIM(full_name)) = ANY($1::text[])`,
@@ -14521,16 +14568,19 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
             );
             userResult.rows.forEach((row) => {
                 const displayName = sanitizeAdminUserText(row.full_name, row.username);
+                const photoUrl = sanitizeAdminUserText(row.photo_url);
                 [row.username, row.full_name].forEach((key) => {
-                    const normalized = sanitizeAdminUserText(key).toLowerCase();
-                    if (normalized && displayName) actorDisplayNames.set(normalized, displayName);
+                    registerActorAlias(key, displayName, photoUrl);
                 });
             });
         }
-        const resolveActorDisplayName = (value) => {
+        const resolveActorInfo = (value) => {
             const cleaned = sanitizeAdminUserText(value);
-            if (!cleaned) return '';
-            return actorDisplayNames.get(cleaned.toLowerCase()) || cleaned;
+            if (!cleaned) return { name: '', photoUrl: '' };
+            const normalized = cleaned.toLowerCase();
+            const name = actorDisplayNames.get(normalized) || cleaned;
+            const photoUrl = actorPhotoUrls.get(normalized) || actorPhotoUrls.get(sanitizeAdminUserText(name).toLowerCase()) || '';
+            return { name, photoUrl };
         };
         const snapshotByKey = new Map((Array.isArray(snapshot.processes) ? snapshot.processes : []).map((process) => [
             canonicalProductionFlowKey(process.processKey || process.processName),
@@ -14547,6 +14597,7 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
                 routeId: row.route_id,
                 durationHours: Number(row.duration_hours || 0),
                 completedBy: '',
+                completedByPhoto: '',
                 completedAt: null,
                 startedAt: null,
                 notes: '',
@@ -14560,8 +14611,10 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
             const routePayload = row.route_payload && typeof row.route_payload === 'object' ? row.route_payload : {};
             current.durationSource = routePayload.source || current.durationSource || '';
             if (row.route_status === 'COMPLETADO' || current.routeStatus !== 'COMPLETADO') {
+                const routeActor = resolveActorInfo(row.operator_name);
                 current.routeStatus = row.route_status || current.routeStatus;
-                current.completedBy = row.route_status === 'COMPLETADO' ? (resolveActorDisplayName(row.operator_name) || current.completedBy) : current.completedBy;
+                current.completedBy = row.route_status === 'COMPLETADO' ? (routeActor.name || current.completedBy) : current.completedBy;
+                current.completedByPhoto = row.route_status === 'COMPLETADO' ? (routeActor.photoUrl || current.completedByPhoto) : current.completedByPhoto;
                 current.completedAt = row.actual_end_at || (row.event_type === 'completado' ? row.event_created_at : current.completedAt);
                 current.startedAt = row.actual_start_at || current.startedAt;
                 current.notes = row.notes || current.notes;
@@ -14577,21 +14630,25 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
             current.finalSpeedFpm = Math.max(current.finalSpeedFpm, Number(row.final_speed_fpm || 0));
             grouped.set(key, current);
         });
+        const createdActor = resolveActorInfo(pickFirstValue(
+            raw.traceability?.created_by,
+            raw.traceability?.createdBy,
+            raw['TRAZABILIDAD | USUARIO'],
+            raw.created_by,
+            raw.createdBy,
+            raw.usuario_creacion,
+            ''
+        ));
+        const salesActor = resolveActorInfo(control.salesReleasedBy || raw.salesperson_name || raw.quote_snapshot?.salesperson_name || '');
+        const planningActor = resolveActorInfo(control.launchedBy || control.processSelectionUpdatedBy || '');
         const fixedSteps = [
             {
                 processKey: 'orden_creada',
                 processName: 'Creación de Orden',
                 sequenceOrder: 1,
                 routeStatus: 'COMPLETADO',
-                completedBy: resolveActorDisplayName(pickFirstValue(
-                    raw.traceability?.created_by,
-                    raw.traceability?.createdBy,
-                    raw['TRAZABILIDAD | USUARIO'],
-                    raw.created_by,
-                    raw.createdBy,
-                    raw.usuario_creacion,
-                    ''
-                )),
+                completedBy: createdActor.name,
+                completedByPhoto: createdActor.photoUrl,
                 completedAt: pickFirstValue(raw.traceability?.created_at, raw.traceability?.createdAt, raw['TRAZABILIDAD | FECHA'], raw.created_at, orderRow.created_at) || null,
                 startedAt: pickFirstValue(raw.traceability?.created_at, raw.traceability?.createdAt, raw['TRAZABILIDAD | FECHA'], raw.created_at, orderRow.created_at) || null,
                 notes: ''
@@ -14601,7 +14658,8 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
                 processName: 'Solicitud de Vendedor',
                 sequenceOrder: 2,
                 routeStatus: control.salesReleased ? 'COMPLETADO' : 'PENDIENTE',
-                completedBy: resolveActorDisplayName(control.salesReleasedBy || raw.salesperson_name || raw.quote_snapshot?.salesperson_name || ''),
+                completedBy: salesActor.name,
+                completedByPhoto: salesActor.photoUrl,
                 completedAt: control.salesReleasedAt || null,
                 startedAt: control.salesReleasedAt || null,
                 notes: control.returnReason || ''
@@ -14611,12 +14669,14 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
                 processName: 'Seguimiento',
                 sequenceOrder: 3,
                 routeStatus: control.launchedToGantt ? 'COMPLETADO' : (control.planningStatus === 'PENDIENTE_PLANIFICACION' ? 'RUN' : 'PENDIENTE'),
-                completedBy: resolveActorDisplayName(control.launchedBy || control.processSelectionUpdatedBy || ''),
+                completedBy: planningActor.name,
+                completedByPhoto: planningActor.photoUrl,
                 completedAt: control.launchedAt || null,
                 startedAt: control.processSelectionUpdatedAt || control.salesReleasedAt || null,
                 notes: control.returnReason || ''
             }
         ];
+        const machineProcessKeys = new Set(['planchas', 'impresion', 'acabados', 'barnizado', 'laminado', 'troquelado', 'estampado', 'embosado', 'numeracion', 'rebobinado']);
         const processSteps = processKeys.map((key, index) => {
             const item = grouped.get(key) || {};
             const planned = snapshotByKey.get(key) || {};
@@ -14636,13 +14696,14 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
                 sequenceOrder: index + 4,
                 routeStatus: item.routeStatus || 'PENDIENTE',
                 completedBy: item.completedBy || '',
+                completedByPhoto: item.completedByPhoto || '',
                 completedAt: item.completedAt || null,
                 startedAt: item.startedAt || null,
                 notes: item.notes || '',
                 planned: {
                     minutes: plannedMinutes,
                     setupMinutes: Number(planned.setupMinutes || 0),
-                    machineName: planned.machineName || '',
+                    machineName: machineProcessKeys.has(key) ? (planned.machineName || '') : '',
                     quantity: Number(planned.baseFeet || snapshot.baseFeet || 0),
                     unit: 'ft'
                 },

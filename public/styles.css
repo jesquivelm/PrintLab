@@ -5111,7 +5111,7 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     gap: 10px;
     padding: 16px;
     overflow: auto;
-    background: #f0f2f8;
+    background: transparent;
 }
 .production-flow-shell {
     display: grid;
@@ -11471,7 +11471,6 @@ html[data-theme="dark"] .production-order-frontback-member-dorso {
 
 html[data-theme="dark"] .production-product-key-grid,
 html[data-theme="dark"] .production-flow-popover-panel,
-html[data-theme="dark"] .production-flow-body,
 html[data-theme="dark"] .production-flow-header,
 html[data-theme="dark"] .production-flow-tabs,
 html[data-theme="dark"] .production-flow-tabs button.is-active,
