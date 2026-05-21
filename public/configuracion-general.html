@@ -400,7 +400,7 @@
         }
         .quotes-general-split {
             display: grid;
-            grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+            grid-template-columns: minmax(220px, 0.82fr) minmax(220px, 0.82fr) minmax(320px, 1fr);
             gap: 16px;
             align-items: start;
         }
@@ -5362,6 +5362,26 @@
                                             </table>
                                         </div>
                                     </section>
+                                    <section class="config-card quote-product-types-card quote-application-options-card">
+                                        <input id="quoteApplicationOptionsJson" name="general.quoteApplicationOptionsJson" type="hidden">
+                                        <h2 class="config-section-title">Aplicación</h2>
+                                        <div class="quote-product-types-toolbar">
+                                            <p>Esta lista alimenta la solicitud y el cálculo.</p>
+                                            <button id="quoteApplicationOptionAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
+                                        </div>
+                                        <div class="quote-product-types-table-wrap">
+                                            <table class="quote-product-types-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="width:72px;">#</th>
+                                                        <th>Valor</th>
+                                                        <th>Acción</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="quoteApplicationOptionsTableBody"></tbody>
+                                            </table>
+                                        </div>
+                                    </section>
                                     <section id="ordersGeneralSection" class="config-card quotes-orders-compact-card">
                                         <h2 class="config-section-title">Configuración de Creación de Órdenes</h2>
                                         <div class="config-form-grid quotes-orders-general-grid">
@@ -7028,6 +7048,7 @@
         };
         const PERMISSION_PRESENTATION_KEYS = ['dashboard', 'socios', 'productos', 'cotizaciones', 'ordenes', 'sap', 'planificacion', 'calculos', 'costos', 'inventario-mp', 'inventario-troqueles', 'inventario-maquinaria', 'configuracion-general', 'vendedores', 'seguimiento', 'solicitudes'];
         const ERP_SESSION_STORAGE_KEY = 'erp-user-session';
+        const DEFAULT_QUOTE_APPLICATION_OPTIONS = ['Botella', 'Caja', 'Carton', 'Envase', 'Frasco', 'Pouch', 'Tapa', 'Vidrio'];
         
         let loadedConfig = {};
         let presentationsData = {};
@@ -7082,6 +7103,9 @@
         function renderConfigButtonsIcons() {
             const productTypeAddBtn = document.getElementById('quoteProductTypeAddButton');
             if (productTypeAddBtn) productTypeAddBtn.innerHTML = getIconHtml('quantity.add', '+', '#738196', 20);
+
+            const applicationOptionAddBtn = document.getElementById('quoteApplicationOptionAddButton');
+            if (applicationOptionAddBtn) applicationOptionAddBtn.innerHTML = getIconHtml('quantity.add', '+', '#738196', 20);
 
             const outputTypeAddBtn = document.getElementById('quoteOutputTypesAddButton');
             if (outputTypeAddBtn) outputTypeAddBtn.innerHTML = getIconHtml('quantity.add', '+', '#738196', 20);
@@ -7427,6 +7451,9 @@
         const quoteProductTypesJsonField = document.getElementById('quoteProductTypesJson');
         const quoteProductTypesTableBody = document.getElementById('quoteProductTypesTableBody');
         const quoteProductTypeAddButton = document.getElementById('quoteProductTypeAddButton');
+        const quoteApplicationOptionsJsonField = document.getElementById('quoteApplicationOptionsJson');
+        const quoteApplicationOptionsTableBody = document.getElementById('quoteApplicationOptionsTableBody');
+        const quoteApplicationOptionAddButton = document.getElementById('quoteApplicationOptionAddButton');
         const inventoryClassificationSourceValue = document.getElementById('inventoryClassificationSourceValue');
         const inventoryClassificationCategory = document.getElementById('inventoryClassificationCategory');
         const inventoryClassificationDisplayLabel = document.getElementById('inventoryClassificationDisplayLabel');
@@ -8495,6 +8522,7 @@
                 }
             });
             renderQuoteProductTypesTable();
+            renderQuoteApplicationOptionsTable();
             renderConfigButtonsIcons();
             syncToggleButtons();
             syncTabColorSwatches();
@@ -8552,6 +8580,29 @@
                     <td>${index + 1}</td>
                     <td><input type="text" value="${escapeHtml(item)}" data-quote-product-type-index="${index}" maxlength="80"></td>
                     <td><button type="button" class="icon-only-btn quote-product-types-remove" data-remove-quote-product-type="${index}" aria-label="Eliminar tipo de producto" title="Eliminar tipo de producto">${getIconHtml('quantity.delete', '&#128465;', '#b94848', 18)}</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function readQuoteApplicationOptionsFromConfig() {
+            const items = normalizeQuoteProductTypeItems(quoteApplicationOptionsJsonField?.value || loadedConfig?.general?.quoteApplicationOptionsJson || '');
+            return items.length ? items : [...DEFAULT_QUOTE_APPLICATION_OPTIONS];
+        }
+
+        function syncQuoteApplicationOptionsField(items) {
+            if (!quoteApplicationOptionsJsonField) return;
+            quoteApplicationOptionsJsonField.value = JSON.stringify(normalizeQuoteProductTypeItems(items));
+        }
+
+        function renderQuoteApplicationOptionsTable() {
+            if (!quoteApplicationOptionsTableBody) return;
+            const items = readQuoteApplicationOptionsFromConfig();
+            syncQuoteApplicationOptionsField(items);
+            quoteApplicationOptionsTableBody.innerHTML = items.map((item, index) => `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td><input type="text" value="${escapeHtml(item)}" data-quote-application-option-index="${index}" maxlength="80"></td>
+                    <td><button type="button" class="icon-only-btn quote-product-types-remove" data-remove-quote-application-option="${index}" aria-label="Eliminar aplicación" title="Eliminar aplicación">${getIconHtml('quantity.delete', '&#128465;', '#b94848', 18)}</button></td>
                 </tr>
             `).join('');
         }
@@ -14559,6 +14610,7 @@
             const input = inputs[inputs.length - 1];
             input?.focus();
             input?.select();
+            queueConfigSave();
         });
         quoteProductTypesTableBody?.addEventListener('input', (event) => {
             const input = event.target.closest('input[data-quote-product-type-index]');
@@ -14590,6 +14642,50 @@
             items.splice(index, 1);
             syncQuoteProductTypesField(items);
             renderQuoteProductTypesTable();
+            queueConfigSave();
+        });
+        quoteApplicationOptionAddButton?.addEventListener('click', () => {
+            const items = readQuoteApplicationOptionsFromConfig();
+            if (items.length >= 60) return;
+            items.push(`Nueva Aplicación ${items.length + 1}`);
+            syncQuoteApplicationOptionsField(items);
+            renderQuoteApplicationOptionsTable();
+            const inputs = quoteApplicationOptionsTableBody?.querySelectorAll('input[data-quote-application-option-index]') || [];
+            const input = inputs[inputs.length - 1];
+            input?.focus();
+            input?.select();
+            queueConfigSave();
+        });
+        quoteApplicationOptionsTableBody?.addEventListener('input', (event) => {
+            const input = event.target.closest('input[data-quote-application-option-index]');
+            if (!input) return;
+            const items = readQuoteApplicationOptionsFromConfig();
+            const index = Number(input.dataset.quoteApplicationOptionIndex);
+            if (!Number.isInteger(index) || index < 0) return;
+            items[index] = input.value;
+            syncQuoteApplicationOptionsField(items);
+            queueConfigSave();
+        });
+        quoteApplicationOptionsTableBody?.addEventListener('change', (event) => {
+            const input = event.target.closest('input[data-quote-application-option-index]');
+            if (!input) return;
+            const items = readQuoteApplicationOptionsFromConfig();
+            const index = Number(input.dataset.quoteApplicationOptionIndex);
+            if (!Number.isInteger(index) || index < 0) return;
+            items[index] = input.value;
+            syncQuoteApplicationOptionsField(items);
+            renderQuoteApplicationOptionsTable();
+            queueConfigSave();
+        });
+        quoteApplicationOptionsTableBody?.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-remove-quote-application-option]');
+            if (!button) return;
+            const index = Number(button.dataset.removeQuoteApplicationOption);
+            const items = readQuoteApplicationOptionsFromConfig();
+            if (!Number.isInteger(index) || index < 0 || index >= items.length) return;
+            items.splice(index, 1);
+            syncQuoteApplicationOptionsField(items);
+            renderQuoteApplicationOptionsTable();
             queueConfigSave();
         });
         inventoryClassificationNewButton?.addEventListener('click', () => {
@@ -14749,11 +14845,15 @@
                 if (quoteProductTypesJsonField) {
                     quoteProductTypesJsonField.value = loadedConfig?.general?.quoteProductTypesJson || quoteProductTypesJsonField.value || '[]';
                 }
+                if (quoteApplicationOptionsJsonField) {
+                    quoteApplicationOptionsJsonField.value = loadedConfig?.general?.quoteApplicationOptionsJson || quoteApplicationOptionsJsonField.value || JSON.stringify(DEFAULT_QUOTE_APPLICATION_OPTIONS);
+                }
                 ensureIconLibraryFields();
                 applyIconPreviews();
                 bindIconUploadHandlers();
                 renderConfigButtonsIcons();
                 renderQuoteProductTypesTable();
+                renderQuoteApplicationOptionsTable();
                 setInventoryClassificationStatus('Configura el campo SAP y luego mapea sus valores a categorías flexográficas.', false);
                 populateProformaConfigFields();
                 applyHeaderConfig(loadedConfig);

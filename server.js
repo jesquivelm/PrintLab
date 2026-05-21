@@ -1012,6 +1012,16 @@ const DEFAULT_GENERAL_CONFIG = {
             'Código de Barras',
             'Números de Carrera'
         ]),
+        quoteApplicationOptionsJson: JSON.stringify([
+            'Botella',
+            'Caja',
+            'Carton',
+            'Envase',
+            'Frasco',
+            'Pouch',
+            'Tapa',
+            'Vidrio'
+        ]),
         quoteAutomaticDigitalMaxQuantity: 100000,
         quoteAutomaticLabelsPerRoll: 1000,
         inventorySourceMode: 'local',
@@ -2666,6 +2676,7 @@ function normalizeGeneralConfigRecord(config, baseConfig = DEFAULT_GENERAL_CONFI
 
     normalized.general.moduleTitle = fixCommonTextArtifacts(normalized.general.moduleTitle);
     normalized.general.quoteProductTypesJson = JSON.stringify(normalizeQuoteProductTypes(normalized.general.quoteProductTypesJson, DEFAULT_GENERAL_CONFIG.general.quoteProductTypesJson));
+    normalized.general.quoteApplicationOptionsJson = JSON.stringify(normalizeQuoteProductTypes(normalized.general.quoteApplicationOptionsJson, DEFAULT_GENERAL_CONFIG.general.quoteApplicationOptionsJson));
     normalized.general.inventorySourceMode = String(normalized.general.inventorySourceMode || DEFAULT_GENERAL_CONFIG.general.inventorySourceMode).trim().toLowerCase() === 'sap' ? 'sap' : 'local';
     normalized.general.inventoryImportedClassificationField = String(normalized.general.inventoryImportedClassificationField || DEFAULT_GENERAL_CONFIG.general.inventoryImportedClassificationField).trim() || DEFAULT_GENERAL_CONFIG.general.inventoryImportedClassificationField;
     normalized.branding.companyName = fixCommonTextArtifacts(normalized.branding.companyName);

@@ -1,6 +1,7 @@
 const params = new URLSearchParams(window.location.search);
 
 const DEFAULT_PRODUCT_TYPES = ["Etiquetas", "Cinta Continua", "Empaque Flexible", "Código de Barras", "Números de Carrera"];
+const DEFAULT_APPLICATION_OPTIONS = ["Botella", "Caja", "Carton", "Envase", "Frasco", "Pouch", "Tapa", "Vidrio"];
 const WORK_TYPES = ["Nuevo", "Repetición", "Repetición con Cambio", "Validación", "Muestra", "Regalía", "Proyecto"];
 const DEFAULT_OUTPUT_TYPES = [
   { id: "A", name: "A", description: "Configuracion de salida tipo A" },
@@ -109,8 +110,10 @@ const els = {
   rollWidthInDisplay: document.getElementById("rollWidthInDisplay"),
   coreDiameterDisplay: document.getElementById("coreDiameterDisplay"),
   labelsPerRoll: document.getElementById("labelsPerRoll"),
+  labelsPerRollDisplay: document.getElementById("labelsPerRollDisplay"),
   applicationType: document.getElementById("applicationType"),
   applicationEnvironment: document.getElementById("applicationEnvironment"),
+  applicationEnvironmentOptions: document.getElementById("applicationEnvironmentOptions"),
   surfaceType: document.getElementById("surfaceType"),
   outputType: document.getElementById("outputType"),
   outputTypePreview: document.getElementById("outputTypePreview"),
@@ -244,7 +247,12 @@ function money(value) {
 }
 
 function toIconSuffix(key) {
-  return key.charAt(0).toUpperCase() + key.slice(1);
+  return String(key || "").split(/[.\s_-]+/).filter(Boolean).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join("");
+}
+
+function isBrokenIconValue(value) {
+  const text = String(value || "").trim();
+  return !text || text === "??" || /\uFFFD/.test(text);
 }
 
 function iconPresentation(key, fallbackValue, fallbackColor, fallbackSize) {
@@ -256,6 +264,16 @@ function iconPresentation(key, fallbackValue, fallbackColor, fallbackSize) {
     hover: first(general[`iconColorHover${suffix}`], fallbackColor),
     size: Number(first(general[`iconSize${suffix}`], fallbackSize)) || fallbackSize
   };
+}
+
+function iconPresentationAny(keys, fallbackValue, fallbackColor, fallbackSize) {
+  const keyList = Array.isArray(keys) ? keys : [keys];
+  for (const key of keyList) {
+    const presentation = iconPresentation(key, fallbackValue, fallbackColor, fallbackSize);
+    if (!isBrokenIconValue(presentation.value) && presentation.value !== fallbackValue) return presentation;
+  }
+  const base = iconPresentation(keyList[0], fallbackValue, fallbackColor, fallbackSize);
+  return { ...base, value: isBrokenIconValue(base.value) ? fallbackValue : base.value };
 }
 
 function normalizePlateMode(value) {
@@ -3288,7 +3306,7 @@ function renderQuantities() {
   state.form.header.quantity = currentQuantity(state.form);
   const lockedByFrontBackGroup = isFrontBackElementContext();
   const addIcon = iconPresentation("quantityAdd", "+", "#738196", 18);
-  const deleteIcon = iconPresentation("quantityDelete", "🗑", "#b6425f", 18);
+  const deleteIcon = iconPresentationAny(["quantity.delete", "quantityDelete", "icons.quantity.delete"], "/calculo-flexografia/icons/trash.svg", "#b6425f", 18);
   els.quantityRepeater.innerHTML = `<div class="quantity-row">${quantities.map((item, index) => {
     const isLast = index === quantities.length - 1;
     const canAdd = isLast && quantities.length < capacity && !lockedByFrontBackGroup;
@@ -3379,6 +3397,10 @@ function syncHeaderUnitMasks() {
   updateMask(els.labelHeightIn, els.labelHeightInDisplay, "in");
   updateMask(els.rollWidthIn, els.rollWidthInDisplay, "in");
   updateMask(els.coreDiameter, els.coreDiameterDisplay, "in");
+  if (els.labelsPerRollDisplay) {
+    const rawValue = String(els.labelsPerRoll?.value ?? "").trim();
+    els.labelsPerRollDisplay.textContent = rawValue ? formatInteger(rawValue) : "";
+  }
 }
 
 function normalizeVisibleFieldLabels(root = document) {
@@ -3802,7 +3824,8 @@ function card(processKey, title, subtitle, subtotal, body, options = {}) {
   const { open = false, removable = false, removeType = "", removeIndex = "" } = options;
   const lifted = liftFormulaInfo(body || "");
   const deleteIcon = getProcessDeleteIconConfig();
-  return `<details class="process-card" data-process-key="${esc(processKey)}"${open ? " open" : ""}><summary><div class="process-summary-main"><strong>${title}</strong><span>${esc(subtitle)}</span></div><div class="process-summary-side"><em>${money(subtotal)}</em>${lifted.info}</div></summary><div class="process-body">${lifted.body}</div>${removable ? `<button type="button" class="process-remove-button" data-action="remove-process" data-remove-type="${esc(removeType)}" data-remove-index="${esc(removeIndex)}" aria-label="Eliminar proceso" title="Eliminar proceso" style="--process-delete-icon-color:${esc(deleteIcon.primary)};--process-delete-icon-hover:${esc(deleteIcon.hover)};--process-delete-icon-size:${deleteIcon.size}px;">${renderIconMarkup(deleteIcon.value, "Eliminar proceso", "process-delete-icon")}</button>` : ""}</details>`;
+  const subtotalMarkup = subtotal === null || subtotal === undefined || subtotal === "" ? "" : `<em>${money(subtotal)}</em>`;
+  return `<details class="process-card" data-process-key="${esc(processKey)}"${open ? " open" : ""}><summary><div class="process-summary-main"><strong>${title}</strong><span>${esc(subtitle)}</span></div><div class="process-summary-side">${subtotalMarkup}${lifted.info}</div></summary><div class="process-body">${lifted.body}</div>${removable ? `<button type="button" class="process-remove-button" data-action="remove-process" data-remove-type="${esc(removeType)}" data-remove-index="${esc(removeIndex)}" aria-label="Eliminar proceso" title="Eliminar proceso" style="--process-delete-icon-color:${esc(deleteIcon.primary)};--process-delete-icon-hover:${esc(deleteIcon.hover)};--process-delete-icon-size:${deleteIcon.size}px;">${renderIconMarkup(deleteIcon.value, "Eliminar proceso", "process-delete-icon")}</button>` : ""}</details>`;
 }
 
 function subprocessCard(openKey, titleMarkup, subtotal, body, extraClass = "", defaultOpen = false) {
@@ -4989,8 +5012,8 @@ function scheduleSave() {
   }, 500);
 }
 
-function resolveProductTypes() {
-  let parsed = state.config?.general?.quoteProductTypesJson;
+function normalizeConfigTextList(value, fallback = []) {
+  let parsed = value;
   if (typeof parsed === "string") {
     const trimmed = parsed.trim();
     if (!trimmed) {
@@ -5018,7 +5041,22 @@ function resolveProductTypes() {
       seen.add(key);
       return true;
     });
-  return items.length ? items : [...DEFAULT_PRODUCT_TYPES];
+  return items.length ? items : [...fallback];
+}
+
+function resolveProductTypes() {
+  return normalizeConfigTextList(state.config?.general?.quoteProductTypesJson, DEFAULT_PRODUCT_TYPES);
+}
+
+function resolveApplicationOptions() {
+  const items = normalizeConfigTextList(state.config?.general?.quoteApplicationOptionsJson, DEFAULT_APPLICATION_OPTIONS);
+  const current = String(state.form?.header?.applicationEnvironment || "").trim();
+  return current && !items.some((item) => item.toLowerCase() === current.toLowerCase()) ? [...items, current] : items;
+}
+
+function renderApplicationEnvironmentOptions() {
+  if (!els.applicationEnvironmentOptions) return;
+  els.applicationEnvironmentOptions.innerHTML = resolveApplicationOptions().map((item) => `<option value="${esc(item)}"></option>`).join("");
 }
 
 function renderHeader() {
@@ -5027,6 +5065,7 @@ function renderHeader() {
   fillSelect(els.workType, WORK_TYPES.map((item) => ({ value: item, label: item })), state.form.header.workType);
   fillSelect(els.outputType, outputTypesCatalog().map((item) => ({ value: item.id || item.codigo, label: item.name || item.nombre || item.id || item.codigo })), state.form.header.outputType);
   fillSelect(els.coreDiameter, coreDiameterSelectOptions(), state.form.header.coreDiameter);
+  renderApplicationEnvironmentOptions();
   [["customerCode", els.customerCode], ["customerName", els.customerName], ["jobName", els.jobName], ["salespersonName", els.salespersonName], ["labelWidthIn", els.labelWidthIn], ["labelHeightIn", els.labelHeightIn], ["rollWidthIn", els.rollWidthIn], ["coreDiameter", els.coreDiameter], ["labelsPerRoll", els.labelsPerRoll], ["applicationType", els.applicationType], ["applicationEnvironment", els.applicationEnvironment], ["surfaceType", els.surfaceType], ["quantityTypes", els.quantityTypes], ["quantityChanges", els.quantityChanges], ["pantoneCount", els.pantoneCount]].forEach(([key, element]) => { element.value = state.form.header[key] ?? ""; });
   els.useCmyk.checked = Boolean(state.form.header.useCmyk);
   els.useWhiteInk.checked = Boolean(state.form.header.useWhiteInk);
@@ -6574,10 +6613,7 @@ function renderPlateExternalPanel(plates) {
 }
 
 function renderPlateInventoryPanel(plates) {
-  return `<div class="plate-disabled-panel"><label class="inline-process-check plate-virgin-check"><input type="checkbox" checked disabled><span>Planchas en Inventario</span></label></div><div class="readonly-grid compact-top subtotal-right">${metric("Subtotal Planchas", money(plates.subtotal))}</div>${formula("De Inventario", "Costo de planchas = 0 porque las planchas se tomarán de inventario.", plates.explanation, {
-    exampleLines: ["Planchas en inventario: no se solicita costo externo."],
-    answer: `R/ Las planchas se registran como inventario y no bloquean la proforma.`
-  })}`;
+  return `<div class="plate-disabled-panel"><label class="inline-process-check plate-virgin-check"><input type="checkbox" checked disabled><span>Planchas en Inventario</span></label></div>`;
 }
 
 function renderPlateCreatePanel(plates) {
@@ -7136,7 +7172,7 @@ function renderProcesses() {
             exampleLines: ["Pendiente definir inventario o costo externo."],
             answer: "R/ Falta definir inventario o costo externo de planchas."
           })}`));
-      return card("planchas", `${nextTitle("Planchas")}${digitalProcessNote ? ` <span style="color:#c62828;font-size:12px;font-weight:400;">${esc(digitalProcessNote)}</span>` : ""}`, "", plates.subtotal, body);
+      return card("planchas", `${nextTitle("Planchas")}${digitalProcessNote ? ` <span style="color:#c62828;font-size:12px;font-weight:400;">${esc(digitalProcessNote)}</span>` : ""}`, "", plateMode === "inventory" ? null : plates.subtotal, body);
     },
     empaque: () => card("empaque", nextTitle("Empaque"), "", packaging.subtotal, `<div class="editable-grid"><label><span>Rollos</span>${readonlyDisplay(`${num(state.form.packaging.rollCount || 0, 2)} rollos`)}</label><label><span>Rend./h</span>${displayInput("packaging", "yieldPerHour", state.form.packaging.yieldPerHour, { suffix: "rollos/h", maximumFractionDigits: 2, step: "0.01" })}</label><label><span>Operarios</span>${displayInput("packaging", "operators", state.form.packaging.operators, { integer: true, maximumFractionDigits: 0, step: "1" })}</label><label><span>Costo Op.</span>${displayInput("packaging", "hourCost", state.form.packaging.hourCost, { prefix: "$", maximumFractionDigits: 2, step: "0.01" })}</label><label><span>Costo Ext.</span>${displayInput("packaging", "externalCost", state.form.packaging.externalCost, { prefix: "$", maximumFractionDigits: 2, step: "0.01" })}</label><label class="span-2"><span>Comentarios</span><input data-scope="packaging" data-field="comments" type="text" value="${esc(state.form.packaging.comments)}"></label><label class="span-2 file-icon-field"><span>Adjunto <span class="field-unit-clip" aria-hidden="true">&#128206;</span></span><input data-scope="packaging" data-field="attachmentName" data-kind="file" type="file"></label></div><div class="readonly-grid compact-top">${metric("Tiempo", `${num(packaging.hours, 2)} h`)}${metric("Subtotal", money(packaging.subtotal))}</div>${formula("Cálculo de Empaque", packaging.formulaText, packaging.explanation, {
       exampleLines: [
@@ -7549,7 +7585,7 @@ function bindHeader() {
       if (key === "outputType") outputPreview();
       if (key === "customerName" && els.customerNameDisplay) els.customerNameDisplay.textContent = state.form.header.customerName || "";
       if (key === "salespersonName" && els.salespersonDisplay) els.salespersonDisplay.textContent = state.form.header.salespersonName || "";
-      if (key === "labelWidthIn" || key === "labelHeightIn" || key === "rollWidthIn" || key === "coreDiameter") syncHeaderUnitMasks();
+      if (key === "labelWidthIn" || key === "labelHeightIn" || key === "rollWidthIn" || key === "coreDiameter" || key === "labelsPerRoll") syncHeaderUnitMasks();
       refreshCalculationValidation();
       scheduleSave();
     };

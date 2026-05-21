@@ -304,8 +304,7 @@ function createQuoteRequestId() {
     return `qr-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function resolveConfiguredProductTypes() {
-    const rawValue = loadedConfig?.general?.quoteProductTypesJson;
+function normalizeConfiguredList(rawValue) {
     let parsed = rawValue;
     if (typeof parsed === 'string') {
         const trimmed = parsed.trim();
@@ -333,7 +332,16 @@ function resolveConfiguredProductTypes() {
             seen.add(key);
             return true;
         });
+}
+
+function resolveConfiguredProductTypes() {
+    const items = normalizeConfiguredList(loadedConfig?.general?.quoteProductTypesJson);
     return items.length ? items : [...DEFAULT_PRODUCT_TYPES];
+}
+
+function resolveConfiguredSurfaces() {
+    const items = normalizeConfiguredList(loadedConfig?.general?.quoteApplicationOptionsJson);
+    return items.length ? items : [...DEFAULT_SURFACES];
 }
 
 function renderRequestProductTypeOptions() {
@@ -2960,6 +2968,7 @@ async function loadConfig() {
 
 function applyQuoteConfig(config) {
     loadedConfig = config || {};
+    surfaceItems = resolveConfiguredSurfaces();
     applyConfiguredIcons();
     renderRequestQuantityRepeater();
     syncFixedSizeTrigger();

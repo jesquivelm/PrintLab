@@ -123,7 +123,10 @@
                   </label>
                   <label class="output-layout-roll">
                     <span>Cantidad de Etiquetas por Rollo</span>
-                    <input id="labelsPerRoll" type="number" min="0" step="1">
+                    <span class="display-input-wrap">
+                      <input id="labelsPerRoll" class="display-input" type="number" min="0" step="1">
+                      <span id="labelsPerRollDisplay" class="display-input-mask"></span>
+                    </span>
                   </label>
                   <label class="output-layout-application">
                     <span>Tipo de Etiquetado</span>
@@ -146,7 +149,8 @@
                 <div class="panel-grid one-up">
                   <label>
                     <span>Aplicación</span>
-                    <textarea id="applicationEnvironment" rows="4"></textarea>
+                    <input id="applicationEnvironment" type="text" list="applicationEnvironmentOptions" autocomplete="off">
+                    <datalist id="applicationEnvironmentOptions"></datalist>
                   </label>
                   <label>
                     <span>Tipo de Superficie</span>
