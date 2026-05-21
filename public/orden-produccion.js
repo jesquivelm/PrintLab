@@ -235,8 +235,7 @@ function sessionHeader() {
             name: session.fullName || session.name || session.user || session.username || '',
             fullName: session.fullName || session.name || '',
             photoUrl: session.photoUrl || session.photo_url || '',
-            permissionName: session.permissionName || '',
-            modules: session.modules || {}
+            permissionName: session.permissionName || ''
         })
     };
 }
