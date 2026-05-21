@@ -3110,13 +3110,17 @@ function findDie(code) {
 }
 
 function dieShapeToken(value = "") {
-  const token = norm(value);
+  const raw = String(value || "").trim().toLowerCase();
+  let token = norm(value);
+  if (raw.startsWith("v-") || raw.startsWith("v ")) {
+    token = norm(raw.replace(/^v[- ]/, ""));
+  }
   if (token.includes("butt") || token.includes("boot") || token.includes("book") || token.includes("bc-")) return "butt cut";
-  if (token.includes("circul") || token.includes("redond")) return "circular";
-  if (token.includes("oval")) return "ovalado";
-  if (token.includes("cuadr")) return "cuadrado";
-  if (token.includes("rect")) return "rectangular";
-  if (token.includes("especial")) return "especial";
+  if (token === "c" || token.includes("circul") || token.includes("redond") || raw.includes("circle") || raw.includes("redondo")) return "circular";
+  if (token === "o" || token.includes("oval")) return "ovalado";
+  if (token === "q" || token === "cu" || token.includes("cuadr") || raw.includes("cuadrado") || raw.includes("cuadro")) return "cuadrado";
+  if (token === "r" || token.includes("rect") || raw.includes("rectang") || raw.includes("rectangle")) return "rectangular";
+  if (token === "e" || token.includes("especial")) return "especial";
   return token;
 }
 
@@ -3146,20 +3150,30 @@ function dieShapeImageForValue(value = "") {
 function dieMatchesShape(die = {}, shapeValue = "") {
   const target = dieShapeToken(shapeValue);
   if (!target) return true;
+  const fields = [
+    "dieShape", "clasificacion", "tipoTroquel", "tipoTroquel2",
+    "formato", "codigoTroquel", "codigo", "id", "descripcion", "description"
+  ];
   const metricsValue = resolveDieMetrics(die, {});
-  const haystack = [
-    metricsValue.dieShape,
-    die.clasificacion,
-    die.tipoTroquel,
-    die.tipoTroquel2,
-    die.formato,
-    die.codigoTroquel,
-    die.codigo,
-    die.id,
-    die.descripcion,
-    die.description
-  ].filter(Boolean).join(" ");
-  return dieShapeToken(haystack) === target;
+  for (const f of fields) {
+    const val = f === "dieShape" ? metricsValue.dieShape : die[f];
+    if (!val) continue;
+    if (dieShapeToken(val) === target) return true;
+    const sv = String(val || "").trim().toLowerCase();
+    if (sv.startsWith("v-") || sv.startsWith("v ")) {
+      const stripped = sv.replace(/^v[- ]/, "");
+      if (dieShapeToken(stripped) === target) return true;
+    }
+  }
+  const targetWord = dieShapeOptionsFromConfig().find((o) => dieShapeToken(o.value) === target);
+  if (targetWord && targetWord.label) {
+    const targetLabel = targetWord.label.toLowerCase();
+    for (const f of fields) {
+      const val = f === "dieShape" ? metricsValue.dieShape : die[f];
+      if (val && String(val).toLowerCase().includes(targetLabel)) return true;
+    }
+  }
+  return false;
 }
 
 function troquelDieOptions() {
@@ -7193,7 +7207,7 @@ function renderProcesses() {
       const recommendedLabel = recommendedDie ? `Recomendado: ${first(recommendedDie.codigoTroquel, recommendedDie.codigo, recommendedDie.id)}` : "Seleccionar...";
       const productDimension = `${num(state.form.header?.labelWidthIn || 0, 3)} x ${num(state.form.header?.labelHeightIn || 0, 3)} in`;
       const associateChecked = state.form.troquel.associateDieShape !== false ? " checked" : "";
-      return card("troquel", nextTitle("Troquel"), state.form.troquel.dieDescription, troquel.subtotal, `<div class="editable-grid die-association-row"><label><span>Forma</span><select data-scope="troquel" data-field="dieShape">${shapeSelectOptions(shapeValue)}</select></label><label class="inline-process-check plate-virgin-check die-associate-check"><input data-scope="troquel" data-field="associateDieShape" type="checkbox"${associateChecked}><span>Asociar</span></label><label><span>Troquel</span><select data-scope="troquel" data-field="dieCode">${processOptions(troquelDieOptions(), state.form.troquel.dieCode, recommendedLabel)}</select></label></div><div class="readonly-grid compact-top">${shapeImage ? `<div class="metric-cell" style="grid-column:1/-1;display:flex;align-items:center;gap:10px"><span>Forma</span><strong>${esc(shapeValue || "No definida")}</strong><img src="${esc(shapeImage)}" alt="${esc(shapeValue)}" style="height:36px;width:auto;border-radius:4px;border:1px solid var(--color-border-tertiary);"></div>` : metric("Forma", esc(shapeValue || "No definida"))}${metric("Dimensión Producto", productDimension)}${metric("Código Troquel", esc(state.form.troquel.dieCode || "No definido"))}${metric("Ancho Montaje", `${num(state.form.troquel.widthIn, 3)} in`)}${metric("Largo Montaje", `${num(state.form.troquel.lengthIn, 3)} in`)}${metric("Ancho Material", `${num(state.form.troquel.materialWidthIn || 0, 3)} in`)}${metric("Elongación", `${num(state.form.troquel.elongationPct || 0, 3)} %`)}${metric("Dientes", num(state.form.troquel.teeth, 0))}${metric("Repeticiones", num(state.form.troquel.repeats, 0))}${metric("Filas", num(state.form.troquel.rows, 0))}${metric("Etiquetas por Vuelta", num(troquel.labelsPerRepeat, 0))}${metric("Desarrollo Total", `${num(troquel.development, 3)} in`)}</div>${formula("Base del Troquel", troquel.formulaText, troquel.explanation, {
+      return card("troquel", nextTitle("Troquel"), state.form.troquel.dieDescription, troquel.subtotal, `<div class="editable-grid die-association-row"><label><span>Forma</span><span class="die-shape-select-wrap"><select data-scope="troquel" data-field="dieShape">${shapeSelectOptions(shapeValue)}</select>${shapeImage ? `<img class="die-shape-select-preview" src="${esc(shapeImage)}" alt="${esc(shapeValue)}">` : ""}</span></label><label class="die-associate-check"><span>Asociar</span><input data-scope="troquel" data-field="associateDieShape" type="checkbox"${associateChecked}></label><label><span>Troquel</span><select data-scope="troquel" data-field="dieCode">${processOptions(troquelDieOptions(), state.form.troquel.dieCode, recommendedLabel)}</select></label></div><div class="readonly-grid compact-top">${metric("Dimensión Producto", productDimension)}${metric("Código Troquel", esc(state.form.troquel.dieCode || "No definido"))}${metric("Ancho Montaje", `${num(state.form.troquel.widthIn, 3)} in`)}${metric("Largo Montaje", `${num(state.form.troquel.lengthIn, 3)} in`)}${metric("Ancho Material", `${num(state.form.troquel.materialWidthIn || 0, 3)} in`)}${metric("Elongación", `${num(state.form.troquel.elongationPct || 0, 3)} %`)}${metric("Dientes", num(state.form.troquel.teeth, 0))}${metric("Repeticiones", num(state.form.troquel.repeats, 0))}${metric("Filas", num(state.form.troquel.rows, 0))}${metric("Etiquetas por Vuelta", num(troquel.labelsPerRepeat, 0))}${metric("Desarrollo Total", `${num(troquel.development, 3)} in`)}</div>${formula("Base del Troquel", troquel.formulaText, troquel.explanation, {
       exampleLines: [
         `Etiquetas por repetición: ${formulaValue(state.form.troquel.rows || 0, 0)} x ${formulaValue(state.form.troquel.repeats || 0, 0)} = ${formulaValue(troquel.labelsPerRepeat || 0, 0)}`,
         `Desarrollo total: ${formulaValue(state.form.troquel.lengthIn || 0, 2)} x ${formulaValue(state.form.troquel.repeats || 0, 0)} = ${formulaValue(troquel.development || 0, 2)} in`,

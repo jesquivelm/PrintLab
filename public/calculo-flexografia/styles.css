@@ -1193,10 +1193,43 @@ label span,
 }
 
 .die-associate-check {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
   min-height: 42px;
-  align-self: end;
-  margin: 0;
+  justify-content: end;
+  padding: 0 0 2px;
+  cursor: pointer;
   white-space: nowrap;
+}
+.die-associate-check span {
+  font-size: 0.78rem;
+  color: var(--label-dim, #577086);
+  letter-spacing: 0.01em;
+}
+.die-associate-check input[type="checkbox"] {
+  margin: 0;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--app-primary, #17abdf);
+  cursor: pointer;
+}
+
+.die-shape-select-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.die-shape-select-wrap select {
+  flex: 1;
+  min-width: 0;
+}
+.die-shape-select-preview {
+  height: 32px;
+  width: auto;
+  border-radius: 4px;
+  flex-shrink: 0;
 }
 
 .impression-grid-compact {
@@ -4122,6 +4155,7 @@ html[data-theme="dark"] .floating-action-icon-button:hover {
 }
 
 html[data-theme="dark"] .inline-process-check input:checked,
+html[data-theme="dark"] .die-associate-check input:checked,
 html[data-theme="dark"] .impression-check-card input:checked,
 html[data-theme="dark"] .plate-virgin-check input:checked {
   background: linear-gradient(180deg, #38bdf8, #0ea5e9) !important;
@@ -4130,7 +4164,8 @@ html[data-theme="dark"] .plate-virgin-check input:checked {
 }
 
 html[data-theme="dark"] .impression-check-card input:not(:checked),
-html[data-theme="dark"] .inline-process-check input:not(:checked) {
+html[data-theme="dark"] .inline-process-check input:not(:checked),
+html[data-theme="dark"] .die-associate-check input:not(:checked) {
   background: #111c30;
   border-color: var(--line);
 }
