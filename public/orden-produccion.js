@@ -1527,19 +1527,11 @@ function renderOrder(order) {
     const line = raw.line_summary || {};
     const detail = raw.line_snapshot || {};
     const lineRaw = detail.raw_data || {};
+    const printing = raw.printing || null;
     const attachments = extractAttachments(raw);
-    const noPrint = isNoPrint(detail, lineRaw);
-    const pantones = buildPantones(lineRaw, detail);
     const dimensions = buildDimensionsText(detail);
     const quantityValue = raw.totals?.quantity || order.ordered_quantity;
     const quantity = parseNumber(quantityValue);
-    const linearFeet = Number(detail.materialFeet || 0);
-    const wasteFeet = Number(detail.materialFeetWaste || 0);
-    const totalFeet = linearFeet + wasteFeet;
-    const labelsPerRoll = Number(detail.labelsPerRoll || 0);
-    const rollCount = labelsPerRoll > 0 && Number(raw.totals?.quantity || order.ordered_quantity || 0) > 0 ? Math.ceil(Number(raw.totals?.quantity || order.ordered_quantity || 0) / labelsPerRoll) : '';
-    const dieCode = pickFirst(detail.dieCode, lineRaw['GENERAL | TROQUEL | ID'], order.die_code);
-    const finishes = buildFinishTags(lineRaw, detail, dieCode);
     const localProductCode = pickFirst(line.product_code, detail.productCode);
     const quoteLineCode = pickFirst(raw.source_line_code, detail.lineCode, line.line_code);
     const showProductId = localProductCode && localProductCode !== quoteLineCode;
@@ -1549,11 +1541,9 @@ function renderOrder(order) {
         clientProductCode ? `<span>(${escapeHtml(clientProductCode)})</span>` : '',
         showProductId ? `<span>(${buildOrderDataLink(productRoute, localProductCode, `Producto ${localProductCode}`)})</span>` : ''
     ].filter(Boolean).join(' ');
-    const outputType = pickFirst(detail.outputType, lineRaw['TIPO SALIDA']);
     const stateText = pickFirst(raw.status, 'Pendiente');
     const promisedDateRaw = raw.planning_control?.promisedDeliveryDate || quote.due_on;
     const scheduledDateRaw = raw.planning_control?.scheduledDeliveryDate || raw.scheduled_on;
-    const numberingValue = pickFirst(lineRaw['ACABADOS | NUMERADO'], lineRaw.NUMERADO);
     const customerId = pickFirst(raw.customer_code, quote.customer_code);
     const customerName = pickFirst(raw.customer_name, quote.customer_name);
     const customerContact = pickFirst(raw.contact_name, quote.contact_name, lineRaw['CLIENTE | CONTACTO NOMBRE COMPLETO']);
@@ -1561,6 +1551,60 @@ function renderOrder(order) {
     const customerEmail = pickFirst(raw.email, quote.email, lineRaw['CLIENTE | CONTACTO EMAIL']);
     const customerAddress = pickFirst(lineRaw.STREET, lineRaw['CLIENTE | DIRECCION'], lineRaw['DIRECCION ENTREGA']);
     const sellerName = pickFirst(raw.salesperson_name, quote.salesperson_name, detail.salespersonName);
+
+    /* --- Centralized printing data block (raw.printing takes priority) --- */
+    var noPrint;
+    var linearFeet, wasteFeet, totalFeet;
+    var labelsPerRoll, rollCount;
+    var dieCode;
+    var finishes;
+    var numberingValue;
+    var outputType;
+    var inkTintCount, inkPantoneCount, inkHasCmyk, inkHasWhite, inkHasDoubleWhite, inkNames;
+    var pantoneList;
+    var frontBackObj;
+
+    if (printing) {
+        noPrint = !printing.hasPrint;
+        linearFeet = Number(printing.materialFeet || 0);
+        wasteFeet = Number(printing.materialFeetWaste || 0);
+        totalFeet = linearFeet + wasteFeet;
+        labelsPerRoll = Number(printing.labelsPerRoll || 0);
+        rollCount = labelsPerRoll > 0 && quantity > 0 ? Math.ceil(quantity / labelsPerRoll) : '';
+        dieCode = printing.dieCode || '';
+        finishes = Array.isArray(printing.finishes) ? printing.finishes : [];
+        numberingValue = printing.numbering || '';
+        outputType = printing.outputType || '';
+        inkTintCount = Number(printing.tintCount || 0);
+        inkPantoneCount = Number(printing.pantoneCount || 0);
+        inkHasCmyk = Boolean(printing.hasCmyk);
+        inkHasWhite = Boolean(printing.hasWhite);
+        inkHasDoubleWhite = Boolean(printing.hasDoubleWhite);
+        inkNames = Array.isArray(printing.inkNames) ? printing.inkNames : [];
+        pantoneList = Array.isArray(printing.pantones) ? printing.pantones : [];
+        frontBackObj = printing.frontBack || null;
+    } else {
+        noPrint = isNoPrint(detail, lineRaw);
+        linearFeet = Number(detail.materialFeet || 0);
+        wasteFeet = Number(detail.materialFeetWaste || 0);
+        totalFeet = linearFeet + wasteFeet;
+        labelsPerRoll = Number(detail.labelsPerRoll || 0);
+        rollCount = labelsPerRoll > 0 && quantity > 0 ? Math.ceil(quantity / labelsPerRoll) : '';
+        dieCode = pickFirst(detail.dieCode, lineRaw['GENERAL | TROQUEL | ID'], order.die_code);
+        finishes = buildFinishTags(lineRaw, detail, dieCode);
+        numberingValue = pickFirst(lineRaw['ACABADOS | NUMERADO'], lineRaw.NUMERADO);
+        outputType = pickFirst(detail.outputType, lineRaw['TIPO SALIDA']);
+        inkTintCount = Number(detail.tintCount || lineRaw['CANTIDAD TINTAS'] || 0);
+        inkPantoneCount = Number(detail.pantoneCount || lineRaw['CANTIDAD PANTONES'] || 0);
+        inkHasCmyk = String(lineRaw['CMYK'] || '').toLowerCase() === 'si' || lineRaw['GENERAL | CMYK'] === true;
+        inkHasWhite = String(lineRaw['TINTA BLANCA'] || '').toLowerCase() === 'si' || lineRaw['GENERAL | TINTA BLANCA'] === true;
+        inkHasDoubleWhite = String(lineRaw['DOBLE PASADA BLANCA'] || '').toLowerCase() === 'si';
+        inkNames = [];
+        pantoneList = [lineRaw['PANTONE 1'], lineRaw['PANTONE 2'], lineRaw['PANTONE 3']].filter(Boolean);
+        frontBackObj = (raw.production_run && raw.production_run.mode === 'frente_dorso') ? raw.production_run : null;
+    }
+    const pantonesCount = inkPantoneCount + (pantoneList.length > 0 ? 0 : 0);
+    /* --- end printing data block --- */
 
     statusBox.hidden = true;
     contentBox.hidden = false;
@@ -1597,11 +1641,10 @@ function renderOrder(order) {
     setHtml('orderProductCodesText', productCodes);
     var frontBackBlock = document.getElementById('orderFrontBackBlock');
     var frontBackMembers = document.getElementById('orderFrontBackMembers');
-    var productionRun = raw.production_run;
-    if (productionRun && productionRun.mode === 'frente_dorso') {
+    if (frontBackObj) {
         frontBackBlock.style.display = 'flex';
-        frontBackBlock.querySelector('.production-order-frontback-badge').textContent = productionRun.label || 'Frente / Dorso';
-        var outputs = Array.isArray(productionRun.outputs) ? productionRun.outputs : [];
+        frontBackBlock.querySelector('.production-order-frontback-badge').textContent = frontBackObj.label || 'Frente / Dorso';
+        var outputs = Array.isArray(frontBackObj.outputs) ? frontBackObj.outputs : [];
         frontBackMembers.innerHTML = outputs.map(function (o) {
             var sideClass = String(o.side || o.lineCode || '').toLowerCase().includes('dorso') ? 'production-order-frontback-member-dorso' : 'production-order-frontback-member-frente';
             var label = o.side || o.lineCode || o.productCode || 'Producto';
@@ -1624,22 +1667,32 @@ function renderOrder(order) {
         printingGrid.hidden = false;
     }
 
-    setText('orderMachineText', pickFirst(detail.quotedMachine, line.machine_name, order.machine_name), 'Sin máquina');
-    setText('orderMaterialText', pickFirst(detail.materialName, line.material_name, order.material_code), 'Sin sustrato');
+    setText('orderMachineText', printing ? printing.machineName : pickFirst(detail.quotedMachine, line.machine_name, order.machine_name), 'Sin máquina');
+    setText('orderMaterialText', printing ? printing.materialName : pickFirst(detail.materialName, line.material_name, order.material_code), 'Sin sustrato');
     setText('orderFeetText', totalFeet > 0 ? `${parseNumber(linearFeet, ' ft')} + ${parseNumber(wasteFeet, ' ft')} = ${parseNumber(totalFeet, ' ft')}` : '', 'Sin consumo registrado');
     setText('orderRollCountText', rollCount ? parseNumber(rollCount) : '', 'Por definir');
 
-    const inkConfig = buildInkConfig(detail, lineRaw);
+    var inkConfig;
+    if (printing) {
+        var configParts = [];
+        if (inkTintCount > 0) configParts.push(inkTintCount + (inkPantoneCount > 0 ? ' (' + inkPantoneCount + ' pantones)' : '') + ' tintas');
+        if (inkHasCmyk) configParts.push('CMYK');
+        if (inkHasWhite) configParts.push('Blanco' + (inkHasDoubleWhite ? ' doble pasada' : ''));
+        if (inkNames.length) configParts.push(inkNames.join(', '));
+        inkConfig = configParts.length ? configParts.join(' · ') : 'Estándar';
+    } else {
+        inkConfig = buildInkConfig(detail, lineRaw);
+    }
     document.getElementById('orderInkBlock').hidden = noPrint;
     setText('orderInkConfigText', inkConfig, 'Sin configuración');
-    pantonesButton.hidden = pantones.count <= 0;
-    pantonesPopoverBody.innerHTML = pantones.count > 0
-        ? `<div class="production-order-popover-summary"><strong>${escapeHtml(parseNumber(pantones.count))} Pantones declarados</strong><span>${escapeHtml(pantones.items.length ? pantones.items.join(' / ') : 'Todavía no hay detalle de pantones cargado.')}</span></div>`
+    pantonesButton.hidden = pantoneList.length <= 0 && inkPantoneCount <= 0;
+    pantonesPopoverBody.innerHTML = (pantoneList.length > 0 || inkPantoneCount > 0)
+        ? `<div class="production-order-popover-summary"><strong>${escapeHtml(parseNumber(inkPantoneCount))} Pantones declarados</strong><span>${escapeHtml(pantoneList.length ? pantoneList.join(' / ') : 'Todavía no hay detalle de pantones cargado.')}</span></div>`
         : '<div class="attachments-empty">Esta orden no tiene pantones declarados.</div>';
 
-    setText('orderCoreWidthText', parseNumber(detail.coreWidth), 'Sin dato');
-    setText('orderCoreDiameterText', pickFirst(detail.coreDiameter), 'Sin dato');
-    setText('orderRollLabelsText', parseNumber(detail.labelsPerRoll), 'Sin dato');
+    setText('orderCoreWidthText', printing ? parseNumber(printing.coreWidth) : parseNumber(detail.coreWidth), 'Sin dato');
+    setText('orderCoreDiameterText', printing ? pickFirst(printing.coreDiameter) : pickFirst(detail.coreDiameter), 'Sin dato');
+    setText('orderRollLabelsText', printing ? parseNumber(printing.labelsPerRoll) : parseNumber(detail.labelsPerRoll), 'Sin dato');
     setOptionalText('orderOutputTypeText', outputType);
     renderOutputTypePreview(outputType);
     finishList.innerHTML = finishes.length

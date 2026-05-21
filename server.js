@@ -8562,6 +8562,98 @@ function getOrderPlanningControl(rawData = {}, quoteRow = null) {
     };
 }
 
+/**
+ * Centraliza todos los datos de impresión de una orden en un único bloque.
+ * Lee desde line_snapshot, line_snapshot.raw_data, Datos_Cotizados, Estado_UI y campos planos.
+ * Esto elimina la búsqueda fragmentada en múltiples fuentes.
+ */
+function extractPrintingData(rawData = {}) {
+    const ls = rawData.line_snapshot || {};
+    const lr = (ls.raw_data || {});
+    const dc = lr['Datos_Cotizados'] || {};
+    const uiState = lr['Estado_UI'] || {};
+    const stages = Array.isArray(uiState.printStages) ? uiState.printStages : [];
+    const hasPrintInput = String(lr['SIN IMPRESION'] || '').toLowerCase() !== 'si';
+    const hasCmyk = String(lr['CMYK'] || '').toLowerCase() === 'si' || lr['GENERAL | CMYK'] === true;
+    const hasWhite = String(lr['TINTA BLANCA'] || '').toLowerCase() === 'si' || lr['GENERAL | TINTA BLANCA'] === true;
+    const hasDoubleWhite = String(lr['DOBLE PASADA BLANCA'] || '').toLowerCase() === 'si';
+    const tintCount = Number(ls.tintCount || lr['CANTIDAD TINTAS'] || 0);
+    const pantoneCount = Number(ls.pantoneCount || lr['CANTIDAD PANTONES'] || 0);
+    const inkNames = [];
+    const inkMaterialIds = [];
+    stages.forEach(function (s) {
+        if (s.inkMaterialDesc) { inkNames.push(s.inkMaterialDesc); }
+        if (s.inkMaterialId) { inkMaterialIds.push(s.inkMaterialId); }
+        if (hasWhite && s.whiteInkMaterialDesc && !inkNames.includes(s.whiteInkMaterialDesc)) {
+            inkNames.push(s.whiteInkMaterialDesc);
+        }
+        if (hasWhite && s.whiteInkMaterialId) {
+            inkMaterialIds.push(s.whiteInkMaterialId);
+        }
+    });
+    const pantones = [lr['PANTONE 1'], lr['PANTONE 2'], lr['PANTONE 3']].filter(Boolean);
+    const dieCode = ls.dieCode || lr['GENERAL | TROQUEL | ID'] || '';
+    const finishes = [];
+    (Array.isArray(dc?.print?.items) ? dc.print.items : []).forEach(function (pi) {
+        (Array.isArray(pi?.inlineItems) ? pi.inlineItems : []).forEach(function (inl) {
+            if (inl?.active && (inl.processKey || inl.key || inl.label)) {
+                finishes.push(inl.label || inl.materialName || inl.processKey || inl.key);
+            }
+        });
+    });
+    (Array.isArray(dc?.finishes?.items) ? dc.finishes.items : []).forEach(function (ext) {
+        if (ext?.active && (ext.processKey || ext.key || ext.label || ext.description)) {
+            finishes.push(ext.label || ext.description || ext.processKey || ext.key);
+        }
+    });
+    ['ACABADOS | BARNIZ', 'BARNIZ', 'ACABADOS | LAMINADO', 'LAMINADO', 'ACABADOS | FOIL', 'FOIL',
+     'ACABADOS | EMBOSADO', 'EMBOSADO', 'ACABADOS | NUMERADO', 'NUMERADO'].forEach(function (fk) {
+        var v = lr[fk];
+        if (v && !finishes.some(function (f) { return f === v || f.includes(String(v)); })) {
+            finishes.push(String(v).trim());
+        }
+    });
+    if (dieCode) finishes.push('Troquelado (' + dieCode + ')');
+    var uniqueFinishes = [];
+    finishes.forEach(function (f) { if (!uniqueFinishes.includes(f)) uniqueFinishes.push(f); });
+    const numbering = lr['ACABADOS | NUMERADO'] || lr['NUMERADO'] || '';
+    const machineName = ls.quotedMachine || lr['MAQUINA IMPRESION'] || lr['CONV | MAQUINA'] || '';
+    const materialName = ls.materialName || lr['GENERAL | MATERIAL'] || '';
+    const materialFeet = Number(ls.materialFeet || lr['GENERAL | SUSTRATO | CONSUMO PIES'] || 0);
+    const materialFeetWaste = Number(ls.materialFeetWaste || 0);
+    const coreWidth = ls.coreWidth || '';
+    const coreDiameter = ls.coreDiameter || '';
+    const labelsPerRoll = Number(ls.labelsPerRoll || 0);
+    const outputType = ls.outputType || lr['TIPO SALIDA'] || '';
+    const frontBackRun = rawData.production_run;
+    const fb = frontBackRun && frontBackRun.mode === 'frente_dorso'
+        ? { mode: 'frente_dorso', label: frontBackRun.label || 'Frente / Dorso', outputs: frontBackRun.outputs || [] }
+        : null;
+    return {
+        hasPrint: hasPrintInput,
+        machineName: machineName || '',
+        materialName: materialName || '',
+        materialFeet: materialFeet,
+        materialFeetWaste: materialFeetWaste,
+        tintCount: tintCount,
+        pantoneCount: pantoneCount,
+        hasCmyk: hasCmyk,
+        hasWhite: hasWhite,
+        hasDoubleWhite: hasDoubleWhite,
+        inkNames: inkNames,
+        inkMaterialIds: inkMaterialIds,
+        pantones: pantones,
+        finishes: uniqueFinishes,
+        dieCode: dieCode,
+        numbering: numbering,
+        coreWidth: coreWidth,
+        coreDiameter: coreDiameter,
+        labelsPerRoll: labelsPerRoll,
+        outputType: outputType,
+        frontBack: fb
+    };
+}
+
 function withUpdatedOrderPlanningControl(rawData = {}, updates = {}, quoteRow = null) {
     return {
         ...rawData,
@@ -13038,7 +13130,14 @@ app.get('/api/ordenes-produccion/:codigo', async (req, res) => {
             return res.status(404).json({ error: 'Orden de producción no encontrada.' });
         }
         if (result.rows[0].raw_data) normalizeCalculationKeys(result.rows[0].raw_data);
-        res.json({ orden: result.rows[0] });
+        const orden = result.rows[0];
+        if (orden.raw_data) {
+            normalizeCalculationKeys(orden.raw_data);
+            if (!orden.raw_data.printing) {
+                orden.raw_data.printing = extractPrintingData(orden.raw_data);
+            }
+        }
+        res.json({ orden });
     } catch (error) {
         res.status(500).json({ error: error.message || 'No fue posible cargar la orden de producción.' });
     }
@@ -13122,7 +13221,11 @@ app.patch('/api/ordenes-produccion/:codigo/details', async (req, res) => {
         );
 
         const updated = await pgQuery(`SELECT * FROM flexo_orders WHERE order_code = $1 LIMIT 1`, [req.params.codigo]);
-        res.json({ ok: true, orden: updated.rows[0] });
+        const patched = updated.rows[0];
+        if (patched.raw_data && !patched.raw_data.printing) {
+            patched.raw_data.printing = extractPrintingData(patched.raw_data);
+        }
+        res.json({ ok: true, orden: patched });
     } catch (error) {
         res.status(500).json({ error: error.message || 'No fue posible actualizar los datos de la orden.' });
     }
