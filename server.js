@@ -7358,6 +7358,64 @@ function orderQuotedResult(orderRow = {}) {
     return orderLineRawData(orderRow)?.['Datos_Cotizados'] || {};
 }
 
+function firstPositivePlanningNumber(...values) {
+    for (const value of values) {
+        const parsed = parseLegacyNumber(value);
+        const numeric = Number(parsed);
+        if (Number.isFinite(numeric) && numeric > 0) return numeric;
+    }
+    return 0;
+}
+
+function quotedDurationMinutesFrom(item = {}) {
+    if (!item || typeof item !== 'object') return 0;
+    const minutes = firstPositivePlanningNumber(
+        item.totalMinutes,
+        item.durationMinutes,
+        item.minutes,
+        Number(item.setupAdjustmentMin || 0) + Number(item.runMinutes || 0),
+        Number(item.setupMinutes || 0) + Number(item.runMinutes || 0)
+    );
+    if (minutes > 0) return minutes;
+    const hours = firstPositivePlanningNumber(item.time, item.hours, item.durationHours, item.totalHours);
+    return hours > 0 ? hours * 60 : 0;
+}
+
+function quotedProcessDurationMinutes(orderRow = {}, processKey = '') {
+    const key = canonicalProductionFlowKey(processKey);
+    const result = orderQuotedResult(orderRow);
+    if (!result || typeof result !== 'object') return 0;
+    if (key === 'diseno') return quotedDurationMinutesFrom(result.design);
+    if (key === 'preprensa') return quotedDurationMinutesFrom(result.prepress);
+    if (key === 'impresion') {
+        const direct = quotedDurationMinutesFrom(result.print);
+        if (direct > 0) return direct;
+        return (Array.isArray(result.print?.items) ? result.print.items : [])
+            .reduce((sum, item) => sum + quotedDurationMinutesFrom(item), 0);
+    }
+    if (key === 'empaque') return quotedDurationMinutesFrom(result.packaging);
+    if (key === 'planchas') {
+        const direct = quotedDurationMinutesFrom(result.plates);
+        if (direct > 0) return direct;
+        return (Array.isArray(result.plates?.items) ? result.plates.items : [])
+            .reduce((sum, item) => sum + quotedDurationMinutesFrom(item), 0);
+    }
+    const finishItems = Array.isArray(result.finishes?.items) ? result.finishes.items : [];
+    const matchingFinishes = finishItems.filter((item) => {
+        const candidates = [
+            item.processKey,
+            item.key,
+            item.slotKey,
+            item.label,
+            item.processName,
+            item.description,
+            item.name
+        ].map(canonicalProductionFlowKey);
+        return candidates.includes(key);
+    });
+    return matchingFinishes.reduce((sum, item) => sum + quotedDurationMinutesFrom(item), 0);
+}
+
 function orderUiState(orderRow = {}) {
     const raw = orderRow?.raw_data || {};
     const lineRaw = orderLineRawData(orderRow);
@@ -7523,21 +7581,23 @@ function buildPlanningSnapshot(rawData = {}, processMap = new Map(), profileMap 
         const setupPerStationMinutes = Number(machineProfile?.setup_per_station_minutes || 0);
         const setupMinutes = setupBaseMinutes + ((processKey === 'impresion' ? tintCount : 0) * setupPerStationMinutes);
         const runMinutes = speed > 0 && baseFeet > 0 ? baseFeet / speed : 0;
-        const durationHours = Number((((setupMinutes + runMinutes) / 60) || 0.25).toFixed(4));
+        const quotedMinutes = quotedProcessDurationMinutes(pseudoOrder, processKey);
+        const totalMinutes = quotedMinutes > 0 ? quotedMinutes : (setupMinutes + runMinutes);
+        const durationHours = totalMinutes > 0 ? Number((totalMinutes / 60).toFixed(4)) : 0;
 
         return {
             processKey,
             processName: process?.process_name || processKey,
             sequenceOrder: index + 1,
             machineProfileId: machineProfile?.id || null,
-            machineName: machineProfile?.machine_name || snapshot.machineName || '',
+            machineName: machineProfile?.machine_name || (processKey === 'impresion' ? snapshot.machineName : ''),
             tintCount,
             baseFeet,
             speedFpm: speed,
             setupMinutes: Number(setupMinutes.toFixed(4)),
             runMinutes: Number(runMinutes.toFixed(4)),
             durationHours,
-            source: machineProfile ? 'profile-estimate' : 'fallback-estimate'
+            source: quotedMinutes > 0 ? 'quoted-calculation' : (machineProfile ? 'profile-estimate' : 'missing-duration')
         };
     });
 
@@ -7634,7 +7694,7 @@ async function ensurePlanningRoutesForOrder(order, references = null, options = 
             : selectMachineProfileForPlanning(processKey, snapshot, profileMap);
         const durationHours = Number(plannedProcess.durationHours || 0) > 0
             ? Number(plannedProcess.durationHours)
-            : 0.25;
+            : 0;
 
         const insertResult = await executor.query(`
             INSERT INTO production_order_routes (
@@ -7664,7 +7724,7 @@ async function ensurePlanningRoutesForOrder(order, references = null, options = 
                 setupMinutes: Number(plannedProcess.setupMinutes || 0),
                 runMinutes: Number(plannedProcess.runMinutes || 0),
                 speedFpm: Number(plannedProcess.speedFpm || 0),
-                source: plannedProcess.source || 'fallback-estimate'
+                source: plannedProcess.source || 'missing-duration'
             })
         ]);
 
@@ -14403,6 +14463,7 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
                 r.sequence_order,
                 r.duration_hours,
                 r.machine_profile_id::text AS machine_profile_id,
+                r.route_payload,
                 r.actual_start_at,
                 r.actual_end_at,
                 e.operator_name,
@@ -14496,6 +14557,8 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
             };
             current.routeId = current.routeId || row.route_id;
             current.durationHours = Math.max(current.durationHours, Number(row.duration_hours || 0));
+            const routePayload = row.route_payload && typeof row.route_payload === 'object' ? row.route_payload : {};
+            current.durationSource = routePayload.source || current.durationSource || '';
             if (row.route_status === 'COMPLETADO' || current.routeStatus !== 'COMPLETADO') {
                 current.routeStatus = row.route_status || current.routeStatus;
                 current.completedBy = row.route_status === 'COMPLETADO' ? (resolveActorDisplayName(row.operator_name) || current.completedBy) : current.completedBy;
@@ -14557,6 +14620,16 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
         const processSteps = processKeys.map((key, index) => {
             const item = grouped.get(key) || {};
             const planned = snapshotByKey.get(key) || {};
+            const quotedMinutes = quotedProcessDurationMinutes(orderRow, key);
+            const plannedSource = String(planned.source || '').toLowerCase();
+            const itemSource = String(item.durationSource || '').toLowerCase();
+            const plannedDurationMinutes = Number(planned.durationHours || 0) * 60;
+            const routeDurationMinutes = Number(item.durationHours || 0) * 60;
+            const plannedMinutes = firstPositivePlanningNumber(
+                quotedMinutes,
+                plannedSource === 'fallback-estimate' || plannedSource === 'missing-duration' ? 0 : plannedDurationMinutes,
+                itemSource === 'fallback-estimate' || itemSource === 'missing-duration' ? 0 : routeDurationMinutes
+            );
             return {
                 processKey: key,
                 processName: PRODUCTION_FLOW_LABELS[key] || planned.processName || item.processName,
@@ -14567,7 +14640,7 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
                 startedAt: item.startedAt || null,
                 notes: item.notes || '',
                 planned: {
-                    minutes: Number(planned.durationHours || item.durationHours || 0) * 60,
+                    minutes: plannedMinutes,
                     setupMinutes: Number(planned.setupMinutes || 0),
                     machineName: planned.machineName || '',
                     quantity: Number(planned.baseFeet || snapshot.baseFeet || 0),

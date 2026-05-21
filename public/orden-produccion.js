@@ -558,11 +558,7 @@ function renderFlowTimeline(steps, order) {
         var isLocked = !isDone && !isActive && !isStopped;
         var isLast = i === steps.length - 1;
 
-        var initials = (s.completedBy || '').split(' ').map(function (w) { return w[0] || ''; }).join('').slice(0, 2) || '??';
-        var color = isDone ? '#059669' : (isActive ? '#2563eb' : (isStopped ? '#dc2626' : '#c8cbda'));
-        var nodeInner = isDone
-            ? '<span>' + initials + '</span><span class="tl-check"><i class="ti ti-check" style="font-size:9px;color:#fff;"></i></span>'
-            : '<i class="ti ti-' + stepIcon(s.processKey) + '" style="font-size:17px;"></i>';
+        var nodeInner = '<i class="ti ti-' + stepIcon(s.processKey) + '" style="font-size:16px;"></i>';
 
         var nodeClass = isDone ? 'tl-node done' : (isActive ? 'tl-node avail in-progress' : (isStopped ? 'tl-node warn' : 'tl-node locked'));
 
@@ -572,11 +568,12 @@ function renderFlowTimeline(steps, order) {
 
         // Content
         var chips = '';
-        if (s.processKey === 'impresion' && s.planned && s.planned.machineName) {
-            chips += '<span class="info-chip" style="margin-top:5px;margin-right:4px;"><i class="ti ti-cpu" style="font-size:10px;"></i>' + escapeHtml(s.planned.machineName) + '</span>';
+        var machineProcessKeys = ['planchas', 'impresion', 'acabados', 'barnizado', 'laminado', 'troquelado', 'estampado', 'embosado', 'numeracion', 'rebobinado'];
+        if (machineProcessKeys.includes(s.processKey) && s.planned && s.planned.machineName) {
+            chips += '<span class="info-chip"><i class="ti ti-cpu" style="font-size:10px;"></i>' + escapeHtml(s.planned.machineName) + '</span>';
         }
         if (s.planned && s.planned.minutes > 0) {
-            chips += '<span class="info-chip" style="margin-top:5px;"><i class="ti ti-clock" style="font-size:10px;"></i>' + fmtFlowTime(s.planned.minutes) + ' estimado</span>';
+            chips += '<span class="info-chip"><i class="ti ti-clock" style="font-size:10px;"></i>' + fmtFlowTime(s.planned.minutes) + '</span>';
         }
 
         var contentHtml = '';
@@ -589,12 +586,7 @@ function renderFlowTimeline(steps, order) {
         var titleStateClass = isDone ? 'done' : (isActive ? 'active' : (isStopped ? 'stopped' : 'pending'));
         var titleIcon = isDone ? 'check-circle' : (isActive ? 'player-play' : (isStopped ? 'alert-triangle' : stepIcon(s.processKey)));
         var titleHtml = '<div class="tl-step-title ' + titleStateClass + '"><i class="ti ti-' + titleIcon + '" style="font-size:14px;"></i>' + escapeHtml(s.processName || 'Proceso') + '</div>';
-        var statusClass = isDone ? 'done' : (isActive ? 'active' : (isStopped ? 'stopped' : 'pending'));
-        var statusHtml = '<span class="tl-step-status ' + statusClass + '">' + flowStatusLabel(status) + '</span>';
-        var noteHtml = s.notes
-            ? '<div class="tl-step-note"><i class="ti ti-note" style="font-size:11px;"></i> ' + escapeHtml(s.notes) + '</div>'
-            : '';
-        var sideHtml = statusHtml + chips + noteHtml;
+        var sideHtml = chips;
         if (isDone) {
             contentHtml = '<div class="tl-step-grid"><div class="tl-step-main">' + titleHtml + metaHtml + '</div><div class="tl-step-side">' + sideHtml + '</div></div>';
         } else if (isStopped) {
@@ -603,21 +595,12 @@ function renderFlowTimeline(steps, order) {
             var ipLabel = '<div class="in-progress-label"><span class="live-dot" style="width:6px;height:6px;margin:0;"></span>En progreso</div>';
             contentHtml = '<div class="tl-step-grid"><div class="tl-step-main">' + titleHtml + metaHtml + '</div><div class="tl-step-side">' + sideHtml + ipLabel + '</div></div>';
         } else {
-            var pendingActions = '';
-            if (s.processKey === 'solicitud_vendedor') {
-                pendingActions = '<button class="btn btn-success" style="flex-shrink:0;" onclick="completeStep(' + i + ')"><i class="ti ti-send" style="font-size:12px;"></i>Marcar Solicitud Enviada</button>';
-            } else if (s.processKey === 'planeacion') {
-                pendingActions = '<button class="btn btn-primary" style="flex-shrink:0;" onclick="completeStep(' + i + ')"><i class="ti ti-player-play" style="font-size:12px;"></i>Liberar a Producción</button>';
-            } else if (s.processKey === 'visto_bueno') {
-                pendingActions = '<button class="btn btn-primary" style="flex-shrink:0;" onclick="completeStep(' + i + ')"><i class="ti ti-check" style="font-size:12px;"></i>Aprobar VB</button>'
-                    + '<button class="btn btn-outline-warn" style="flex-shrink:0;" onclick="showVBForm(' + i + ')"><i class="ti ti-arrow-back-up" style="font-size:11px;"></i>Solicitar Correcciones</button>';
-            }
-            contentHtml = '<div class="tl-step-grid"><div class="tl-step-main">' + titleHtml + metaHtml + '</div><div class="tl-step-side">' + sideHtml + pendingActions + '</div></div>';
+            contentHtml = '<div class="tl-step-grid"><div class="tl-step-main">' + titleHtml + metaHtml + '</div><div class="tl-step-side">' + sideHtml + '</div></div>';
         }
 
         tlHtml += '<div class="tl-row">'
             + '<div class="tl-col-left">'
-            + '<div class="' + nodeClass + '" style="background:' + color + (isActive ? ';border:2px solid var(--flow-blue);background:var(--blue-light);color:var(--flow-blue);' : '') + (isStopped ? ';background:var(--amber-light);border:2px solid var(--amber-mid);color:var(--amber);' : '') + '">'
+            + '<div class="' + nodeClass + '">'
             + nodeInner + '</div>' + line + '</div>'
             + '<div class="tl-content">' + contentHtml + '</div></div>';
 
@@ -658,10 +641,12 @@ function stepIcon(key) {
 }
 
 function fmtFlowTime(min) {
-    if (!min || min <= 0) return '—';
-    if (min < 60) return min + 'min';
-    var h = Math.floor(min / 60), m = min % 60;
-    return h + 'h' + (m ? ' ' + m + 'min' : '');
+    var total = Math.round(Number(min || 0));
+    if (!Number.isFinite(total) || total <= 0) return '—';
+    if (total < 60) return total + ' min';
+    var h = Math.floor(total / 60);
+    var m = total % 60;
+    return h + ' h' + (m ? ' ' + m + ' min' : '');
 }
 
 function renderComparisonView(cmp) {
