@@ -3877,8 +3877,8 @@ function readErpSessionFromRequest(req) {
 function getRequestUserName(req, fallback = '') {
     const session = readErpSessionFromRequest(req);
     return pickFirstValue(
-        sanitizeAdminUserText(session?.name),
         sanitizeAdminUserText(session?.fullName),
+        sanitizeAdminUserText(session?.name),
         sanitizeAdminUserText(session?.user),
         sanitizeAdminUserText(session?.username),
         sanitizeAdminUserText(session?.email),
@@ -8653,6 +8653,9 @@ function buildProductionOrderRawData({ orderCode, quoteRow, lineRow, attachments
         salesperson_name: pickFirstValue(quoteRow?.salesperson_name, raw.VENDEDOR),
         status: 'Pendiente',
         created_on: new Date().toISOString(),
+        created_by: metadata.created_by,
+        createdBy: metadata.created_by,
+        created_at: metadata.created_at,
         planning_control: {
             salesReleased: false,
             salesReleasedAt: null,
@@ -14434,6 +14437,40 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
         const snapshot = raw.planning_snapshot || raw.planningSnapshot || {};
         const processKeys = resolveOrderTrackingProcessKeys(orderRow, costsConfig, routeResult.rows);
         const control = getOrderPlanningControl(raw);
+        const actorIdentities = [
+            raw.traceability?.created_by,
+            raw.traceability?.createdBy,
+            raw['TRAZABILIDAD | USUARIO'],
+            raw.created_by,
+            raw.createdBy,
+            raw.usuario_creacion,
+            control.salesReleasedBy,
+            control.launchedBy,
+            control.processSelectionUpdatedBy,
+            ...routeResult.rows.map((row) => row.operator_name)
+        ].map((value) => sanitizeAdminUserText(value).toLowerCase()).filter(Boolean);
+        const actorDisplayNames = new Map();
+        if (actorIdentities.length) {
+            const userResult = await pgQuery(
+                `SELECT full_name, username
+                   FROM admin_users
+                  WHERE LOWER(TRIM(username)) = ANY($1::text[])
+                     OR LOWER(TRIM(full_name)) = ANY($1::text[])`,
+                [Array.from(new Set(actorIdentities))]
+            );
+            userResult.rows.forEach((row) => {
+                const displayName = sanitizeAdminUserText(row.full_name, row.username);
+                [row.username, row.full_name].forEach((key) => {
+                    const normalized = sanitizeAdminUserText(key).toLowerCase();
+                    if (normalized && displayName) actorDisplayNames.set(normalized, displayName);
+                });
+            });
+        }
+        const resolveActorDisplayName = (value) => {
+            const cleaned = sanitizeAdminUserText(value);
+            if (!cleaned) return '';
+            return actorDisplayNames.get(cleaned.toLowerCase()) || cleaned;
+        };
         const snapshotByKey = new Map((Array.isArray(snapshot.processes) ? snapshot.processes : []).map((process) => [
             canonicalProductionFlowKey(process.processKey || process.processName),
             process
@@ -14461,7 +14498,7 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
             current.durationHours = Math.max(current.durationHours, Number(row.duration_hours || 0));
             if (row.route_status === 'COMPLETADO' || current.routeStatus !== 'COMPLETADO') {
                 current.routeStatus = row.route_status || current.routeStatus;
-                current.completedBy = row.route_status === 'COMPLETADO' ? (row.operator_name || current.completedBy) : current.completedBy;
+                current.completedBy = row.route_status === 'COMPLETADO' ? (resolveActorDisplayName(row.operator_name) || current.completedBy) : current.completedBy;
                 current.completedAt = row.actual_end_at || (row.event_type === 'completado' ? row.event_created_at : current.completedAt);
                 current.startedAt = row.actual_start_at || current.startedAt;
                 current.notes = row.notes || current.notes;
@@ -14483,9 +14520,17 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
                 processName: 'Creación de Orden',
                 sequenceOrder: 1,
                 routeStatus: 'COMPLETADO',
-                completedBy: pickFirstValue(raw.created_by, raw.createdBy, 'Sistema'),
-                completedAt: orderRow.created_at || null,
-                startedAt: orderRow.created_at || null,
+                completedBy: resolveActorDisplayName(pickFirstValue(
+                    raw.traceability?.created_by,
+                    raw.traceability?.createdBy,
+                    raw['TRAZABILIDAD | USUARIO'],
+                    raw.created_by,
+                    raw.createdBy,
+                    raw.usuario_creacion,
+                    ''
+                )),
+                completedAt: pickFirstValue(raw.traceability?.created_at, raw.traceability?.createdAt, raw['TRAZABILIDAD | FECHA'], raw.created_at, orderRow.created_at) || null,
+                startedAt: pickFirstValue(raw.traceability?.created_at, raw.traceability?.createdAt, raw['TRAZABILIDAD | FECHA'], raw.created_at, orderRow.created_at) || null,
                 notes: ''
             },
             {
@@ -14493,7 +14538,7 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
                 processName: 'Solicitud de Vendedor',
                 sequenceOrder: 2,
                 routeStatus: control.salesReleased ? 'COMPLETADO' : 'PENDIENTE',
-                completedBy: control.salesReleasedBy || raw.salesperson_name || raw.quote_snapshot?.salesperson_name || '',
+                completedBy: resolveActorDisplayName(control.salesReleasedBy || raw.salesperson_name || raw.quote_snapshot?.salesperson_name || ''),
                 completedAt: control.salesReleasedAt || null,
                 startedAt: control.salesReleasedAt || null,
                 notes: control.returnReason || ''
@@ -14503,7 +14548,7 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
                 processName: 'Seguimiento',
                 sequenceOrder: 3,
                 routeStatus: control.launchedToGantt ? 'COMPLETADO' : (control.planningStatus === 'PENDIENTE_PLANIFICACION' ? 'RUN' : 'PENDIENTE'),
-                completedBy: control.launchedBy || control.processSelectionUpdatedBy || '',
+                completedBy: resolveActorDisplayName(control.launchedBy || control.processSelectionUpdatedBy || ''),
                 completedAt: control.launchedAt || null,
                 startedAt: control.processSelectionUpdatedAt || control.salesReleasedAt || null,
                 notes: control.returnReason || ''
@@ -14514,7 +14559,7 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
             const planned = snapshotByKey.get(key) || {};
             return {
                 processKey: key,
-                processName: planned.processName || item.processName || PRODUCTION_FLOW_LABELS[key],
+                processName: PRODUCTION_FLOW_LABELS[key] || planned.processName || item.processName,
                 sequenceOrder: index + 4,
                 routeStatus: item.routeStatus || 'PENDIENTE',
                 completedBy: item.completedBy || '',

@@ -232,12 +232,20 @@ function sessionHeader() {
             userId: session.userId || session.id || '',
             username: session.username || session.user || '',
             user: session.user || session.username || '',
-            name: session.name || session.fullName || session.user || session.username || '',
+            name: session.fullName || session.name || session.user || session.username || '',
             fullName: session.fullName || session.name || '',
             permissionName: session.permissionName || '',
             modules: session.modules || {}
         })
     };
+}
+
+function currentSessionDisplayName() {
+    const session = readUserSession();
+    if (!session) return '';
+    return [session.fullName, session.name, session.displayName, session.user, session.username, session.email]
+        .map(function (value) { return String(value || '').trim(); })
+        .find(Boolean) || '';
 }
 
 function setText(id, value, fallback = 'Sin definir') {
@@ -564,7 +572,7 @@ function renderFlowTimeline(steps, order) {
 
         // Content
         var chips = '';
-        if (s.planned && s.planned.machineName) {
+        if (s.processKey === 'impresion' && s.planned && s.planned.machineName) {
             chips += '<span class="info-chip" style="margin-top:5px;margin-right:4px;"><i class="ti ti-cpu" style="font-size:10px;"></i>' + escapeHtml(s.planned.machineName) + '</span>';
         }
         if (s.planned && s.planned.minutes > 0) {
@@ -572,24 +580,28 @@ function renderFlowTimeline(steps, order) {
         }
 
         var contentHtml = '';
+        var markerName = String(s.completedBy || s.startedBy || '').trim();
+        var markerDate = s.completedAt || s.startedAt || '';
+        var metaParts = [];
+        if (markerName) metaParts.push(escapeHtml(markerName));
+        if (markerDate) metaParts.push(formatDate(markerDate, true));
+        var metaHtml = '<div class="tl-step-meta">' + (metaParts.length ? metaParts.join(' · ') : 'Sin marca') + '</div>';
+        var titleStateClass = isDone ? 'done' : (isActive ? 'active' : (isStopped ? 'stopped' : 'pending'));
+        var titleIcon = isDone ? 'check-circle' : (isActive ? 'player-play' : (isStopped ? 'alert-triangle' : stepIcon(s.processKey)));
+        var titleHtml = '<div class="tl-step-title ' + titleStateClass + '"><i class="ti ti-' + titleIcon + '" style="font-size:14px;"></i>' + escapeHtml(s.processName || 'Proceso') + '</div>';
+        var statusClass = isDone ? 'done' : (isActive ? 'active' : (isStopped ? 'stopped' : 'pending'));
+        var statusHtml = '<span class="tl-step-status ' + statusClass + '">' + flowStatusLabel(status) + '</span>';
+        var noteHtml = s.notes
+            ? '<div class="tl-step-note"><i class="ti ti-note" style="font-size:11px;"></i> ' + escapeHtml(s.notes) + '</div>'
+            : '';
+        var sideHtml = statusHtml + chips + noteHtml;
         if (isDone) {
-            var notaBadge = s.notes
-                ? '<div style="margin-top:6px;padding:6px 10px;background:var(--ink-7);border-radius:var(--radius-sm);border-left:3px solid var(--ink-5);font-size:12px;color:var(--ink-3);line-height:1.4;"><i class="ti ti-note" style="font-size:11px;"></i> ' + escapeHtml(s.notes) + '</div>'
-                : '';
-            contentHtml = '<div class="tl-step-title"><i class="ti ti-check-circle" style="font-size:14px;color:var(--green);"></i>' + escapeHtml(s.processName || 'Proceso') + '</div>'
-                + '<div class="tl-step-meta">' + escapeHtml(s.completedBy || '') + (s.completedAt ? ' · ' + formatDate(s.completedAt, true) : '') + '</div>'
-                + '<span class="tl-role-chip"><i class="ti ti-user" style="font-size:10px;"></i>' + (s.role || 'Operador') + '</span>'
-                + chips + notaBadge;
+            contentHtml = '<div class="tl-step-grid"><div class="tl-step-main">' + titleHtml + metaHtml + '</div><div class="tl-step-side">' + sideHtml + '</div></div>';
         } else if (isStopped) {
-            contentHtml = '<div class="tl-step-title" style="color:var(--amber);"><i class="ti ti-alert-triangle" style="font-size:14px;"></i>' + escapeHtml(s.processName || 'Proceso') + '</div>'
-                + '<div class="tl-step-meta" style="color:var(--red);">Detenido</div>'
-                + '<span class="tl-role-chip"><i class="ti ti-user" style="font-size:10px;"></i>' + (s.role || 'Operador') + '</span>';
+            contentHtml = '<div class="tl-step-grid"><div class="tl-step-main">' + titleHtml + metaHtml + '</div><div class="tl-step-side">' + sideHtml + '</div></div>';
         } else if (isActive) {
-            var ipLabel = '<div class="in-progress-label" style="margin-top:6px;"><span class="live-dot" style="width:6px;height:6px;margin:0;"></span>En progreso</div>';
-            contentHtml = '<div class="tl-step-title" style="color:var(--blue);"><i class="ti ti-player-play" style="font-size:14px;"></i>' + escapeHtml(s.processName || 'Proceso') + '</div>'
-                + '<div class="tl-step-meta" style="color:var(--blue);">En proceso</div>'
-                + '<span class="tl-role-chip"><i class="ti ti-user" style="font-size:10px;"></i>' + (s.role || 'Operador') + '</span>'
-                + chips + ipLabel;
+            var ipLabel = '<div class="in-progress-label"><span class="live-dot" style="width:6px;height:6px;margin:0;"></span>En progreso</div>';
+            contentHtml = '<div class="tl-step-grid"><div class="tl-step-main">' + titleHtml + metaHtml + '</div><div class="tl-step-side">' + sideHtml + ipLabel + '</div></div>';
         } else {
             var pendingActions = '';
             if (s.processKey === 'solicitud_vendedor') {
@@ -600,15 +612,12 @@ function renderFlowTimeline(steps, order) {
                 pendingActions = '<button class="btn btn-primary" style="flex-shrink:0;" onclick="completeStep(' + i + ')"><i class="ti ti-check" style="font-size:12px;"></i>Aprobar VB</button>'
                     + '<button class="btn btn-outline-warn" style="flex-shrink:0;" onclick="showVBForm(' + i + ')"><i class="ti ti-arrow-back-up" style="font-size:11px;"></i>Solicitar Correcciones</button>';
             }
-            contentHtml = '<div class="tl-step-title muted" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' + escapeHtml(s.processName || 'Proceso')
-                + pendingActions + '</div>'
-                + '<div class="tl-step-hint">' + (s.notes || 'Pendiente') + '</div>'
-                + '<span class="tl-role-chip"><i class="ti ti-user" style="font-size:10px;"></i>' + (s.role || 'Operador') + '</span>';
+            contentHtml = '<div class="tl-step-grid"><div class="tl-step-main">' + titleHtml + metaHtml + '</div><div class="tl-step-side">' + sideHtml + pendingActions + '</div></div>';
         }
 
-        tlHtml += '<div class="tl-row" style="opacity:' + (isDone || isActive ? '1' : '0.6') + ';">'
+        tlHtml += '<div class="tl-row">'
             + '<div class="tl-col-left">'
-            + '<div class="' + nodeClass + '" style="background:' + color + (isActive ? ';border:2px solid var(--blue);background:var(--blue-light);color:var(--blue);' : '') + (isStopped ? ';background:var(--amber-light);border:2px solid var(--amber-mid);color:var(--amber);' : '') + '">'
+            + '<div class="' + nodeClass + '" style="background:' + color + (isActive ? ';border:2px solid var(--flow-blue);background:var(--blue-light);color:var(--flow-blue);' : '') + (isStopped ? ';background:var(--amber-light);border:2px solid var(--amber-mid);color:var(--amber);' : '') + '">'
             + nodeInner + '</div>' + line + '</div>'
             + '<div class="tl-content">' + contentHtml + '</div></div>';
 
@@ -673,7 +682,7 @@ function renderComparisonView(cmp) {
             + '<div class="cmp-grid">'
             + '<div class="cmp-col planned"><div class="cmp-col-title"><i class="ti ti-clipboard-list"></i>Cotizado</div>';
         if (planned.minutes > 0) html += '<div class="cmp-row"><span class="cmp-row-label">Tiempo</span><span class="cmp-row-val">' + fmtFlowTime(planned.minutes) + '</span></div>';
-        if (planned.machineName) html += '<div class="cmp-row"><span class="cmp-row-label">Máquina</span><span class="cmp-row-val" style="font-size:10px;">' + escapeHtml(planned.machineName) + '</span></div>';
+        if (step.processKey === 'impresion' && planned.machineName) html += '<div class="cmp-row"><span class="cmp-row-label">Máquina</span><span class="cmp-row-val" style="font-size:10px;">' + escapeHtml(planned.machineName) + '</span></div>';
         if (planned.quantity > 0) html += '<div class="cmp-row"><span class="cmp-row-label">Cantidad</span><span class="cmp-row-val">' + fmtFlowQty(planned.quantity, planned.unit) + '</span></div>';
 
         html += '</div><div class="cmp-col real"><div class="cmp-col-title"><i class="ti ti-activity"></i>Real</div>';
@@ -853,8 +862,9 @@ function completeStep(idx) {
     var step = steps[idx];
     var processKey = step.processKey || '';
     var notes = prompt('Nota opcional para ' + step.processName + ':', '') || '';
+    var currentUser = currentSessionDisplayName();
     step.routeStatus = 'COMPLETADO';
-    step.completedBy = 'Yo';
+    step.completedBy = currentUser || step.completedBy || '';
     step.completedAt = new Date().toISOString();
     flowHistAdd('✅ <strong>' + step.processName + '</strong> completado');
     notify(step.processName + ' completado', 'Registrado', 'success');
@@ -866,6 +876,7 @@ function completeStep(idx) {
         body: JSON.stringify({ processKey: processKey, notes: notes })
     }).then(function (r) { return r.json(); }).then(function (p) {
         if (!p.ok && p.error) notify('Error', p.error, 'danger');
+        else fetchOrderFlowSteps().then(function () { renderOrderTracking(currentOrderFlowPayload); }).catch(function () {});
     }).catch(function (err) {
         notify('Error de red', err.message, 'danger');
     });
