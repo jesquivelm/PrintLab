@@ -309,9 +309,49 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
+function normalizeNetworkErrorMessage(message, fallback = 'No fue posible completar la solicitud.') {
+    const text = String(message || '').trim();
+    const lower = text.toLowerCase();
+    if (!text || (lower.includes('failed') && lower.includes('fetch')) || lower.includes('networkerror') || lower.includes('load failed')) {
+        return 'La información está tardando más de lo normal. Intenta abrirla de nuevo en unos segundos.';
+    }
+    return text || fallback;
+}
+
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchJsonWithRetry(url, options = {}, settings = {}) {
+    const method = String(options.method || 'GET').toUpperCase();
+    const retries = Number(settings.retries ?? (method === 'GET' ? 2 : 0));
+    const retryDelay = Number(settings.retryDelay ?? 700);
+    const fallback = settings.errorMessage || 'No fue posible completar la solicitud.';
+    let lastError = null;
+    for (let attempt = 0; attempt <= retries; attempt += 1) {
+        try {
+            const response = await fetch(url, options);
+            const payload = await response.json().catch(() => ({}));
+            if (response.ok) return payload;
+            lastError = new Error(payload.error || fallback);
+            lastError.noRetry = response.status < 500;
+            if (response.status < 500 || attempt === retries) throw lastError;
+        } catch (error) {
+            if (error?.name === 'AbortError') throw error;
+            if (error?.noRetry) throw error;
+            lastError = error;
+            if (attempt === retries) {
+                throw new Error(normalizeNetworkErrorMessage(error?.message || lastError?.message, fallback));
+            }
+        }
+        await sleep(retryDelay * (attempt + 1));
+    }
+    throw new Error(normalizeNetworkErrorMessage(lastError?.message, fallback));
+}
+
 function setStatus(message, tone = 'idle') {
     if (!saveStatus) return;
-    saveStatus.textContent = message;
+    saveStatus.textContent = normalizeNetworkErrorMessage(message, '');
     saveStatus.dataset.tone = tone;
     if (saveStatusTimer) clearTimeout(saveStatusTimer);
     if (tone !== 'saving') {
@@ -338,7 +378,7 @@ function iconMarkup(value, altText, extraClass = '') {
         return `<span class="icon-svg-mask ${extraClass}" role="img" aria-label="${escapeHtml(altText)}" style="-webkit-mask-image:url('${safeUrl}');mask-image:url('${safeUrl}');"></span>`;
     }
     if (isImageValue(value)) {
-        return `<img src="${escapeHtml(value)}" alt="${escapeHtml(altText)}" class="icon-image ${extraClass}">`;
+        return `<span class="icon-image-wrap ${extraClass}" role="img" aria-label="${escapeHtml(altText)}"><span class="icon-image-fallback" aria-hidden="true">□</span><img src="${escapeHtml(value)}" alt="" class="icon-image" onload="this.parentElement.classList.add('is-loaded')" onerror="this.remove()"></span>`;
     }
     return `<span class="icon-glyph ${extraClass}">${escapeHtml(value || '')}</span>`;
 }
@@ -2495,13 +2535,14 @@ async function loadConfig() {
         applyConfig(cachedConfig);
     }
 
-    const response = await fetch(CONFIG_ENDPOINT, { cache: 'no-cache' });
-    if (!response.ok) {
+    let freshConfig = null;
+    try {
+        freshConfig = await fetchJsonWithRetry(CONFIG_ENDPOINT, { cache: 'no-cache' }, { errorMessage: 'No se pudo cargar la configuración.' });
+    } catch (error) {
         if (cachedConfig) return;
-        throw new Error('No se pudo cargar la configuración.');
+        throw error;
     }
 
-    const freshConfig = await response.json();
     if (!areJsonEqual(freshConfig, cachedConfig)) {
         writeCache(GENERAL_CONFIG_CACHE_KEY, freshConfig);
     }
@@ -2511,17 +2552,13 @@ async function loadConfig() {
 }
 
 async function fetchQuoteDetail(code) {
-    const response = await fetch(`${QUOTES_ENDPOINT}/${encodeURIComponent(code)}`);
-    if (!response.ok) throw new Error('No se pudo cargar la cotización.');
-    return response.json();
+    return fetchJsonWithRetry(`${QUOTES_ENDPOINT}/${encodeURIComponent(code)}`, {}, { errorMessage: 'No se pudo cargar la cotización.' });
 }
 
 async function loadQuoteCatalog(search = '', updateNavigation = true) {
     const params = new URLSearchParams({ limit: '200' });
     if (search) params.set('q', search);
-    const response = await fetch(`${QUOTES_ENDPOINT}?${params.toString()}`);
-    if (!response.ok) throw new Error('No se pudo cargar el catálogo de cotizaciones.');
-    const payload = await response.json();
+    const payload = await fetchJsonWithRetry(`${QUOTES_ENDPOINT}?${params.toString()}`, {}, { errorMessage: 'No se pudo cargar el catálogo de cotizaciones.' });
     const items = payload.cotizaciones || [];
     if (updateNavigation) {
         quoteCatalog = items;
@@ -2603,9 +2640,7 @@ async function loadInitialQuote() {
         return;
     }
 
-    const listResponse = await fetch(`${QUOTES_ENDPOINT}?limit=20`);
-    if (!listResponse.ok) throw new Error('No se pudo cargar la lista de cotizaciones.');
-    const listPayload = await listResponse.json();
+    const listPayload = await fetchJsonWithRetry(`${QUOTES_ENDPOINT}?limit=20`, {}, { errorMessage: 'No se pudo cargar la lista de cotizaciones.' });
     const quotes = listPayload.cotizaciones || [];
     if (!quotes.length) {
         applyQuotePayload({ cotizacion: null, lineas: [], resumen: {} });

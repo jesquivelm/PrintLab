@@ -6917,6 +6917,38 @@ body.shell-embedded .summary-footer {
     height: 100%;
     object-fit: contain;
 }
+.icon-image-wrap {
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    width: var(--config-icon-size, 18px);
+    height: var(--config-icon-size, 18px);
+    color: var(--icon-color, currentColor);
+    line-height: 1;
+    flex: 0 0 auto;
+}
+.icon-image-wrap .icon-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+.icon-image-wrap .icon-image-fallback {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    color: var(--icon-color, currentColor);
+    font-size: calc(var(--config-icon-size, 18px) * .9);
+    font-weight: 700;
+}
+.icon-image-wrap.is-loaded .icon-image-fallback {
+    display: none;
+}
+.icon-image-wrap:not(.is-loaded) .icon-image {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+}
 .icon-svg-mask {
     display: inline-flex;
     width: 100%;

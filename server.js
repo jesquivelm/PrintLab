@@ -3887,6 +3887,17 @@ function getRequestUserName(req, fallback = '') {
     );
 }
 
+function getRequestUserPhotoUrl(req, fallback = '') {
+    const session = readErpSessionFromRequest(req);
+    return pickFirstValue(
+        sanitizeAdminUserText(session?.photoUrl),
+        sanitizeAdminUserText(session?.photo_url),
+        sanitizeAdminUserText(session?.avatarUrl),
+        sanitizeAdminUserText(session?.avatar_url),
+        sanitizeAdminUserText(fallback)
+    );
+}
+
 function canRequestCreateModule(req, moduleKey) {
     const session = readErpSessionFromRequest(req);
     if (isSuperAdminPermissionName(session?.permissionName)) return true;
@@ -6992,6 +7003,15 @@ function canonicalProductionFlowKey(value) {
     return key;
 }
 
+function normalizeOrderTrackingStepKey(value) {
+    const raw = normalizePlanningKey(value);
+    if (!raw) return '';
+    if (raw.includes('orden-creada') || raw.includes('creacion-de-orden') || raw.includes('orden-creacion')) return 'orden_creada';
+    if (raw.includes('solicitud-vendedor') || raw.includes('vendedor')) return 'solicitud_vendedor';
+    if (raw.includes('planeacion') || raw.includes('planificacion') || raw.includes('seguimiento')) return 'planeacion';
+    return canonicalProductionFlowKey(raw);
+}
+
 function canonicalPlanningProcessKey(value) {
     const key = normalizePlanningKey(value);
     if (!key) return '';
@@ -8904,6 +8924,54 @@ function withUpdatedOrderPlanningControl(rawData = {}, updates = {}, quoteRow = 
             ...updates
         }
     };
+}
+
+function getOrderTrackingMarks(rawData = {}) {
+    const marks = rawData?.order_tracking_marks || rawData?.orderTrackingMarks || {};
+    return marks && typeof marks === 'object' && !Array.isArray(marks) ? marks : {};
+}
+
+function withUpdatedOrderTrackingMark(rawData = {}, processKey = '', mark = {}) {
+    const key = normalizeOrderTrackingStepKey(processKey);
+    if (!key) return rawData;
+    return {
+        ...rawData,
+        order_tracking_marks: {
+            ...getOrderTrackingMarks(rawData),
+            [key]: mark
+        }
+    };
+}
+
+function applyOrderTrackingMarks(steps = [], rawData = {}, resolveActorInfo = () => ({ name: '', photoUrl: '' })) {
+    const marks = getOrderTrackingMarks(rawData);
+    return steps.map((step) => {
+        const key = normalizeOrderTrackingStepKey(step.processKey);
+        const mark = key ? marks[key] : null;
+        if (!mark || typeof mark !== 'object') return step;
+        if (mark.marked === false) {
+            return {
+                ...step,
+                routeStatus: 'PENDIENTE',
+                completedBy: '',
+                completedByPhoto: '',
+                completedAt: null,
+                startedAt: null,
+                trackingOverride: mark
+            };
+        }
+        if (mark.marked !== true) return step;
+        const actor = resolveActorInfo(mark.markedBy || mark.userName || mark.user || '');
+        return {
+            ...step,
+            routeStatus: 'COMPLETADO',
+            completedBy: actor.name || pickFirstValue(sanitizeAdminUserText(mark.markedBy), sanitizeAdminUserText(mark.userName), sanitizeAdminUserText(mark.user)),
+            completedByPhoto: pickFirstValue(sanitizeAdminUserText(mark.markedByPhoto), sanitizeAdminUserText(mark.photoUrl), actor.photoUrl),
+            completedAt: mark.markedAt || null,
+            startedAt: mark.markedAt || step.startedAt || null,
+            trackingOverride: mark
+        };
+    });
 }
 
 function buildOrderPlanningSummary(orderRow = {}, quoteRow = null) {
@@ -14522,6 +14590,7 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
         const snapshot = raw.planning_snapshot || raw.planningSnapshot || {};
         const processKeys = resolveOrderTrackingProcessKeys(orderRow, costsConfig, routeResult.rows);
         const control = getOrderPlanningControl(raw);
+        const trackingMarks = getOrderTrackingMarks(raw);
         const session = readErpSessionFromRequest(req) || {};
         const actorIdentities = [];
         const addActorIdentity = (value) => {
@@ -14538,7 +14607,8 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
             control.salesReleasedBy,
             control.launchedBy,
             control.processSelectionUpdatedBy,
-            ...routeResult.rows.map((row) => row.operator_name)
+            ...routeResult.rows.map((row) => row.operator_name),
+            ...Object.values(trackingMarks).flatMap((mark) => [mark?.markedBy, mark?.clearedBy, mark?.userName, mark?.user])
         ].forEach(addActorIdentity);
         const actorDisplayNames = new Map();
         const actorPhotoUrls = new Map();
@@ -14725,15 +14795,42 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
             };
         });
         const live = processSteps.some((step) => ['RUN', 'SETUP', 'PARO'].includes(String(step.routeStatus || '').toUpperCase()));
+        const steps = applyOrderTrackingMarks([...fixedSteps, ...processSteps], raw, resolveActorInfo);
         res.json({
             ok: true,
             order: orderRow,
             live,
-            steps: [...fixedSteps, ...processSteps],
+            steps,
             comparisons: processSteps
         });
     } catch (error) {
         res.status(500).json({ ok: false, error: error.message || 'No fue posible cargar el seguimiento de la orden.' });
+    }
+});
+
+app.post('/api/ordenes-produccion/:codigo/seguimiento/marca', async (req, res) => {
+    try {
+        const codigo = req.params.codigo;
+        const processKey = normalizeOrderTrackingStepKey(req.body?.processKey);
+        const marked = req.body?.marked !== false;
+        if (!processKey) return res.status(400).json({ ok: false, error: 'Se requiere processKey.' });
+
+        const orderResult = await pgQuery(`SELECT * FROM flexo_orders WHERE order_code = $1 LIMIT 1`, [codigo]);
+        if (!orderResult.rows.length) return res.status(404).json({ ok: false, error: 'Orden no encontrada.' });
+
+        const rawData = orderResult.rows[0].raw_data || {};
+        const actor = getRequestUserName(req);
+        const actorPhoto = getRequestUserPhotoUrl(req);
+        const now = new Date().toISOString();
+        const mark = marked
+            ? { marked: true, markedAt: now, markedBy: actor, markedByPhoto: actorPhoto }
+            : { marked: false, clearedAt: now, clearedBy: actor, clearedByPhoto: actorPhoto };
+        const nextRawData = withUpdatedOrderTrackingMark(rawData, processKey, mark);
+
+        await pgQuery(`UPDATE flexo_orders SET raw_data = $2::jsonb WHERE order_code = $1`, [codigo, JSON.stringify(nextRawData)]);
+        res.json({ ok: true, processKey, marked, mark });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible actualizar la marca.' });
     }
 });
 

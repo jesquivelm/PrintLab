@@ -709,10 +709,20 @@ function toggleNumberingPopover(forceOpen) {
     else closeNumberingPopover();
 }
 
+function normalizeNetworkErrorMessage(message, fallback = 'No fue posible completar la solicitud.') {
+    const text = String(message || '').trim();
+    const lower = text.toLowerCase();
+    if (!text || (lower.includes('failed') && lower.includes('fetch')) || lower.includes('networkerror') || lower.includes('load failed')) {
+        return 'La información está tardando más de lo normal. Intenta abrirla de nuevo en unos segundos.';
+    }
+    return text || fallback;
+}
+
 function setStatus(message, tone = 'info') {
     if (!statusNode) return;
+    const safeMessage = normalizeNetworkErrorMessage(message, '');
     statusNode.hidden = !message;
-    statusNode.textContent = message || '';
+    statusNode.textContent = safeMessage || '';
     statusNode.dataset.tone = tone;
 }
 
@@ -738,13 +748,34 @@ function setButtonBusy(button, busy, busyText = 'Procesando...') {
     }
 }
 
-async function fetchJson(url, options) {
-    const response = await fetch(url, options);
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-        throw new Error(payload.error || 'No fue posible completar la solicitud.');
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchJson(url, options = {}, settings = {}) {
+    const method = String(options.method || 'GET').toUpperCase();
+    const retries = Number(settings.retries ?? (method === 'GET' ? 2 : 0));
+    const retryDelay = Number(settings.retryDelay ?? 700);
+    let lastError = null;
+    for (let attempt = 0; attempt <= retries; attempt += 1) {
+        try {
+            const response = await fetch(url, options);
+            const payload = await response.json().catch(() => ({}));
+            if (response.ok) return payload;
+            lastError = new Error(payload.error || 'No fue posible completar la solicitud.');
+            lastError.noRetry = response.status < 500;
+            if (response.status < 500 || attempt === retries) throw lastError;
+        } catch (error) {
+            if (error?.name === 'AbortError') throw error;
+            if (error?.noRetry) throw error;
+            lastError = error;
+            if (attempt === retries) {
+                throw new Error(normalizeNetworkErrorMessage(error?.message || lastError?.message));
+            }
+        }
+        await sleep(retryDelay * (attempt + 1));
     }
-    return payload;
+    throw new Error(normalizeNetworkErrorMessage(lastError?.message));
 }
 
 function readQuoteConfigCache() {
@@ -1183,7 +1214,8 @@ function renderIcon(target, iconValue, color, size) {
         return;
     }
     if (isImageValue(value)) {
-        target.innerHTML = `<img src="${value}" alt="" class="icon-image" style="width:${size}px;height:${size}px;object-fit:contain;">`;
+        const safeValue = escapeHtml(value);
+        target.innerHTML = `<span class="icon-image-wrap" role="img" aria-label="" style="--config-icon-size:${escapeHtml(String(size || 18))}px;width:${escapeHtml(String(size || 18))}px;height:${escapeHtml(String(size || 18))}px;"><span class="icon-image-fallback" aria-hidden="true">□</span><img src="${safeValue}" alt="" class="icon-image" onload="this.parentElement.classList.add('is-loaded')" onerror="this.remove()"></span>`;
         return;
     }
     target.innerHTML = `<span class="icon-glyph" style="font-size:${size}px;">${escapeHtml(value)}</span>`;
@@ -1195,7 +1227,7 @@ function iconMarkup(value, altText, extraClass = '') {
         return `<span class="icon-svg-mask ${extraClass}" role="img" aria-label="${escapeHtml(altText)}" style="-webkit-mask-image:url('${safeUrl}');mask-image:url('${safeUrl}');"></span>`;
     }
     if (isImageValue(value)) {
-        return `<img src="${escapeHtml(value)}" alt="${escapeHtml(altText)}" class="icon-image ${extraClass}">`;
+        return `<span class="icon-image-wrap ${extraClass}" role="img" aria-label="${escapeHtml(altText)}"><span class="icon-image-fallback" aria-hidden="true">□</span><img src="${escapeHtml(value)}" alt="" class="icon-image" onload="this.parentElement.classList.add('is-loaded')" onerror="this.remove()"></span>`;
     }
     return `<span class="icon-glyph ${extraClass}">${escapeHtml(value || '')}</span>`;
 }

@@ -438,7 +438,7 @@ function renderPlanningSnapshot(raw = {}) {
                             </div>
                             <div class="production-flow-history-received">
                                 <strong>${escapeHtml(receivedStatus)}</strong>
-                                <span>${escapeHtml(receivedUser || 'Sin marca')}</span>
+                                ${receivedUser ? `<span>${escapeHtml(receivedUser)}</span>` : ''}
                                 <em>${escapeHtml(receivedDate || 'Pendiente')}</em>
                             </div>
                         </div>
@@ -498,6 +498,36 @@ function notify(title, msg, type) {
     setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 4500);
 }
 
+function sleep(ms) {
+    return new Promise(function (resolve) { setTimeout(resolve, ms); });
+}
+
+function friendlyNetworkMessage(scope) {
+    return scope + ' está tardando más de lo normal. Intenta abrirlo de nuevo en unos segundos.';
+}
+
+async function fetchJsonWithRetry(url, options = {}, settings = {}) {
+    const retries = Number(settings.retries ?? 2);
+    const retryDelay = Number(settings.retryDelay ?? 900);
+    let lastError = null;
+    for (let attempt = 0; attempt <= retries; attempt += 1) {
+        try {
+            const response = await fetch(url, options);
+            const payload = await response.json().catch(() => ({}));
+            if (response.ok) return payload;
+            lastError = new Error(payload.error || 'No fue posible completar la solicitud.');
+            lastError.noRetry = response.status < 500;
+            if (response.status < 500 || attempt === retries) throw lastError;
+        } catch (error) {
+            if (error?.noRetry) throw error;
+            lastError = error;
+            if (attempt === retries) throw lastError;
+        }
+        await sleep(retryDelay * (attempt + 1));
+    }
+    throw lastError || new Error('No fue posible completar la solicitud.');
+}
+
 function renderOrderTracking(payload) {
     if (!orderFlowBody) return;
     var steps = Array.isArray(payload && payload.steps) ? payload.steps : [];
@@ -506,7 +536,7 @@ function renderOrderTracking(payload) {
 }
 
 function renderFlowTimeline(steps, order) {
-    if (!steps.length) return '<div class="production-summary-empty">Sin marcas de seguimiento registradas.</div>';
+    if (!steps.length) return '<div class="production-summary-empty">No hay seguimiento registrado.</div>';
     var doneCount = steps.filter(function (s) { return String(s.routeStatus || '').toUpperCase() === 'COMPLETADO'; }).length;
     var total = steps.length;
 
@@ -526,8 +556,8 @@ function renderFlowTimeline(steps, order) {
         var markerPhoto = String(s.completedByPhoto || s.startedByPhoto || '').trim();
         var hasMarkerPhoto = Boolean(markerPhoto || trackingUserPhotos.get(trackingUserLookupKey(markerName)));
         var nodeInner = markerName
-            ? trackingAvatarMarkup(markerName, markerPhoto)
-            : '<i class="ti ti-' + stepIcon(s.processKey) + '" style="font-size:16px;"></i>';
+            ? '<span class="tl-avatar-clip">' + trackingAvatarMarkup(markerName, markerPhoto) + '</span><span class="tl-node-badge"><i class="ti ti-check" style="font-size:10px;"></i></span>'
+            : '<i class="ti ti-check" style="font-size:16px;"></i>';
         if (markerName) nodeClass += ' has-avatar' + (hasMarkerPhoto ? ' has-photo' : '');
 
         // Connector
@@ -540,8 +570,10 @@ function renderFlowTimeline(steps, order) {
         if (machineProcessKeys.includes(s.processKey) && s.planned && s.planned.machineName) {
             detailRows += '<span class="flow-detail-row"><i class="ti ti-cpu" style="font-size:11px;"></i>' + escapeHtml(s.planned.machineName) + '</span>';
         }
-        if (s.planned && s.planned.minutes > 0) {
-            detailRows += '<span class="flow-detail-row"><i class="ti ti-clock" style="font-size:11px;"></i>' + fmtFlowTime(s.planned.minutes) + '</span>';
+        var plannedTime = s.planned && s.planned.minutes > 0 ? fmtFlowTime(s.planned.minutes) : '';
+        var showTimeInTitle = isDone && plannedTime && s.processKey !== 'empaque';
+        if (plannedTime && !showTimeInTitle) {
+            detailRows += '<span class="flow-detail-row"><i class="ti ti-clock" style="font-size:11px;"></i>' + plannedTime + '</span>';
         }
 
         var contentHtml = '';
@@ -549,17 +581,17 @@ function renderFlowTimeline(steps, order) {
         var metaParts = [];
         if (markerName) metaParts.push(escapeHtml(markerName));
         if (markerDate) metaParts.push(formatDate(markerDate, true));
-        var metaHtml = '<div class="tl-step-meta">' + (metaParts.length ? metaParts.join(' · ') : 'Sin marca') + '</div>';
+        var metaHtml = metaParts.length ? '<div class="tl-step-meta">' + metaParts.join(' · ') + '</div>' : '';
         var titleStateClass = isDone ? 'done' : (isActive ? 'active' : (isStopped ? 'stopped' : 'pending'));
-        var titleIcon = isDone ? 'check-circle' : (isActive ? 'player-play' : (isStopped ? 'alert-triangle' : stepIcon(s.processKey)));
-        var titleHtml = '<div class="tl-step-title ' + titleStateClass + '"><i class="ti ti-' + titleIcon + '" style="font-size:14px;"></i>' + escapeHtml(s.processName || 'Proceso') + '</div>';
-        var sideHtml = detailRows ? '<div class="flow-detail-stack">' + detailRows + '</div>' : '';
-        contentHtml = '<div class="tl-step-grid"><div class="tl-step-main">' + titleHtml + metaHtml + '</div><div class="tl-step-side">' + sideHtml + '</div></div>';
+        var titleText = escapeHtml(s.processName || 'Proceso') + (showTimeInTitle ? ' <span class="tl-title-time">(' + plannedTime + ')</span>' : '');
+        var titleHtml = '<div class="tl-step-title ' + titleStateClass + '">' + titleText + '</div>';
+        var detailHtml = detailRows ? '<div class="flow-detail-stack">' + detailRows + '</div>' : '';
+        contentHtml = '<div class="tl-step-grid"><div class="tl-step-main">' + titleHtml + metaHtml + detailHtml + '</div></div>';
 
         tlHtml += '<div class="tl-row">'
             + '<div class="tl-col-left">'
-            + '<div class="' + nodeClass + '">'
-            + nodeInner + '</div>' + line + '</div>'
+            + '<button type="button" class="' + nodeClass + '" data-tracking-toggle-index="' + i + '" aria-label="' + (isDone ? 'Quitar marca de ' : 'Marcar ') + escapeHtml(s.processName || 'Proceso') + '">'
+            + nodeInner + '</button>' + line + '</div>'
             + '<div class="tl-content">' + contentHtml + '</div></div>';
 
     }
@@ -920,19 +952,33 @@ async function openOrderFlowPopover() {
         await fetchOrderFlowSteps();
         renderOrderTracking(currentOrderFlowPayload);
     } catch (error) {
-        if (orderFlowBody) orderFlowBody.innerHTML = '<div class="production-summary-empty">' + escapeHtml(error.message) + '</div>';
+        if (orderFlowBody) orderFlowBody.innerHTML = '<div class="production-summary-empty">' + escapeHtml(friendlyNetworkMessage('El seguimiento')) + '</div>';
     }
 }
 
 async function fetchOrderFlowSteps() {
-    const response = await fetch('/api/ordenes-produccion/' + encodeURIComponent(currentOrderCode) + '/seguimiento', {
+    const payload = await fetchJsonWithRetry('/api/ordenes-produccion/' + encodeURIComponent(currentOrderCode) + '/seguimiento', {
         headers: sessionHeader()
-    });
-    const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error || 'No se pudo cargar el seguimiento.');
+    }, { retries: 3, retryDelay: 800 });
     currentOrderFlowPayload = payload;
     currentOrderFlowSteps = Array.isArray(payload.steps) ? payload.steps : [];
     return currentOrderFlowSteps;
+}
+
+async function toggleTrackingStep(index) {
+    var steps = currentOrderFlowPayload && currentOrderFlowPayload.steps;
+    if (!steps || !steps[index]) return;
+    var step = steps[index];
+    var isDone = String(step.routeStatus || '').toUpperCase() === 'COMPLETADO';
+    var button = orderFlowBody?.querySelector('[data-tracking-toggle-index="' + index + '"]');
+    if (button) button.disabled = true;
+    await fetchJsonWithRetry('/api/ordenes-produccion/' + encodeURIComponent(currentOrderCode) + '/seguimiento/marca', {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, sessionHeader()),
+        body: JSON.stringify({ processKey: step.processKey, marked: !isDone })
+    }, { retries: 2, retryDelay: 700 });
+    await fetchOrderFlowSteps();
+    renderOrderTracking(currentOrderFlowPayload);
 }
 
 async function openPlanningControlPopover() {
@@ -1176,7 +1222,7 @@ function renderIconButton(button, iconValue) {
     if (isSvg) {
         button.innerHTML = `<span class="icon-svg-mask table-icon-media" style="width:var(--config-icon-size,18px);height:var(--config-icon-size,18px);-webkit-mask-image:url('${escapeHtml(value)}');mask-image:url('${escapeHtml(value)}');"></span>`;
     } else if (isImage) {
-        button.innerHTML = `<img src="${escapeHtml(value)}" alt="" class="icon-image" style="width:var(--config-icon-size,18px);height:var(--config-icon-size,18px);">`;
+        button.innerHTML = `<span class="icon-image-wrap table-icon-media" role="img" aria-label=""><span class="icon-image-fallback" aria-hidden="true">□</span><img src="${escapeHtml(value)}" alt="" class="icon-image" onload="this.parentElement.classList.add('is-loaded')" onerror="this.remove()"></span>`;
     } else {
         button.textContent = value;
     }
@@ -1892,6 +1938,16 @@ pantonesButton?.addEventListener('click', () => openPopover('orderPantonesPopove
     }
 numberingButton?.addEventListener('click', () => openPopover('orderNumberingPopover'));
 attachmentsButton?.addEventListener('click', () => openPopover('orderAttachmentsPopover'));
+orderFlowBody?.addEventListener('click', (event) => {
+    const button = event.target?.closest?.('[data-tracking-toggle-index]');
+    if (!button) return;
+    const index = Number(button.dataset.trackingToggleIndex);
+    if (!Number.isInteger(index)) return;
+    toggleTrackingStep(index).catch((error) => {
+        notify('Seguimiento', friendlyNetworkMessage('La marca'), 'warning');
+        renderOrderTracking(currentOrderFlowPayload);
+    });
+});
 scheduledDateInput?.addEventListener('change', () => {
     saveOrderDetails({
         planningControl: {
