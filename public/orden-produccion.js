@@ -279,12 +279,22 @@ function buildInkConfig(detail = {}, raw = {}) {
     const parts = [];
     if (detail.tintCount) {
         const tintCountText = parseNumber(detail.tintCount);
-        parts.push(hasCmyk && Number(detail.tintCount) === 4 ? `${tintCountText} Tintas (CMYK)` : `${tintCountText} Tintas`);
+        parts.push(hasCmyk && Number(detail.tintCount) === 4 ? tintCountText + ' Tintas (CMYK)' : tintCountText + ' Tintas');
     } else if (hasCmyk) {
         parts.push('4 Tintas (CMYK)');
     }
     if (hasWhite) parts.push('Blanco');
     if (hasDoubleWhite) parts.push('Doble Pasada de Blanco');
+    const uiState = raw['Estado_UI'] || {};
+    const stages = Array.isArray(uiState.printStages) ? uiState.printStages : [];
+    const inkNames = [];
+    stages.forEach(function (stage) {
+        if (stage.inkMaterialDesc) inkNames.push(stage.inkMaterialDesc);
+        if (hasWhite && stage.whiteInkMaterialDesc && !inkNames.some(function (n) { return n === stage.whiteInkMaterialDesc; })) {
+            inkNames.push(stage.whiteInkMaterialDesc);
+        }
+    });
+    if (inkNames.length) parts.push('(' + inkNames.join(', ') + ')');
     return parts.join(' / ');
 }
 
@@ -1431,16 +1441,43 @@ function renderDeliveries(raw = {}, totalQuantity = '', defaultDate = '', defaul
 
 function buildFinishTags(raw = {}, detail = {}, dieCode = '') {
     const tags = [];
-    const laminate = pickFirst(raw['ACABADOS | LAMINADO'], raw.LAMINADO);
-    const varnish = pickFirst(raw['ACABADOS | BARNIZ'], raw.BARNIZ);
-    const foil = pickFirst(raw['ACABADOS | FOIL'], raw.FOIL);
-    const emboss = pickFirst(raw['ACABADOS | EMBOSADO'], raw.EMBOSADO);
-    const numbering = pickFirst(raw['ACABADOS | NUMERADO'], raw.NUMERADO);
-    if (dieCode) tags.push(`Troquelado (${dieCode})`); else tags.push('Troquelado');
-    if (laminate) tags.push(`Laminado ${laminate}`.trim());
-    if (varnish) tags.push(`Barniz ${varnish}`.trim());
-    if (foil) tags.push(`Estampado ${foil}`.trim());
-    if (emboss) tags.push(`Embosado ${emboss}`.trim());
+    const dc = raw['Datos_Cotizados'] || {};
+    const inlineFinishes = [];
+    (Array.isArray(dc?.print?.items) ? dc.print.items : []).forEach(function (printItem) {
+        (Array.isArray(printItem?.inlineItems) ? printItem.inlineItems : []).forEach(function (inline) {
+            if (inline?.active && (inline.processKey || inline.key || inline.label)) {
+                inlineFinishes.push(inline);
+            }
+        });
+    });
+    const externalFinishes = Array.isArray(dc?.finishes?.items) ? dc.finishes.items : [];
+    const findFinish = function (keys) {
+        const v = pickFirst.apply(null, keys.map(function (k) { return raw[k]; }));
+        if (v) return v;
+        for (const inline of inlineFinishes) {
+            const k = inline.processKey || inline.key || inline.label || '';
+            if (keys.some(function (key) { return k.toLowerCase().includes(key.replace('ACABADOS | ', '').toLowerCase()); })) {
+                return inline.label || inline.materialName || inline.processKey || k;
+            }
+        }
+        for (const ext of externalFinishes) {
+            const ek = ext.processKey || ext.key || ext.label || ext.description || '';
+            if (keys.some(function (key) { return ek.toLowerCase().includes(key.replace('ACABADOS | ', '').toLowerCase()); })) {
+                return ext.label || ext.description || ext.processKey || ek;
+            }
+        }
+        return '';
+    };
+    const laminate = findFinish(['ACABADOS | LAMINADO', 'LAMINADO']);
+    const varnish = findFinish(['ACABADOS | BARNIZ', 'BARNIZ', 'BARNIZ UV']);
+    const foil = findFinish(['ACABADOS | FOIL', 'FOIL', 'ESTAMPADO']);
+    const emboss = findFinish(['ACABADOS | EMBOSADO', 'EMBOSADO']);
+    const numbering = findFinish(['ACABADOS | NUMERADO', 'NUMERADO']);
+    if (dieCode) tags.push('Troquelado (' + dieCode + ')'); else tags.push('Troquelado');
+    if (laminate) tags.push('Laminado ' + String(laminate).trim());
+    if (varnish) tags.push('Barniz ' + String(varnish).trim());
+    if (foil) tags.push('Estampado ' + String(foil).trim());
+    if (emboss) tags.push('Embosado ' + String(emboss).trim());
     if (numbering) tags.push('Numerado');
     if (!tags.length && isNoPrint(detail, raw)) tags.push('Troquelado');
     return [...new Set(tags)];
@@ -1558,7 +1595,22 @@ function renderOrder(order) {
     ]);
 
     setHtml('orderProductCodesText', productCodes);
-    setText('orderJobText', [pickFirst(line.job_name, detail.jobName), dimensions ? `(${dimensions})` : ''].filter(Boolean).join(' '), 'Trabajo sin nombre');
+    var frontBackBlock = document.getElementById('orderFrontBackBlock');
+    var frontBackMembers = document.getElementById('orderFrontBackMembers');
+    var productionRun = raw.production_run;
+    if (productionRun && productionRun.mode === 'frente_dorso') {
+        frontBackBlock.style.display = 'flex';
+        frontBackBlock.querySelector('.production-order-frontback-badge').textContent = productionRun.label || 'Frente / Dorso';
+        var outputs = Array.isArray(productionRun.outputs) ? productionRun.outputs : [];
+        frontBackMembers.innerHTML = outputs.map(function (o) {
+            var sideClass = String(o.side || o.lineCode || '').toLowerCase().includes('dorso') ? 'production-order-frontback-member-dorso' : 'production-order-frontback-member-frente';
+            var label = o.side || o.lineCode || o.productCode || 'Producto';
+            return '<span class="production-order-frontback-member ' + sideClass + '">' + escapeHtml(label) + ' (' + parseNumber(o.quantity) + ' uds)</span>';
+        }).join('');
+    } else {
+        frontBackBlock.style.display = 'none';
+    }
+    setText('orderJobText', [pickFirst(line.job_name, detail.jobName), dimensions ? '(' + dimensions + ')' : ''].filter(Boolean).join(' '), 'Trabajo sin nombre');
     setOptionalText('orderDimensionsText', '');
 
     const printingAlert = document.getElementById('orderPrintingAlert');

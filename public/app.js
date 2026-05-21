@@ -1518,13 +1518,39 @@ async function createProductionOrder(row) {
     if (!row?.finalizadaOrden) {
         throw new Error('Debes marcar la línea como finalizada antes de crear la orden de producción.');
     }
-    const response = await fetch(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}/orden-produccion`, { method: 'POST' });
-    const payload = await response.json();
+    var quantities = [];
+    try {
+        var uiState = row.raw_data && (row.raw_data['Estado_UI'] || row.raw_data.CODEX_UI_STATE || {});
+        var header = uiState.header || {};
+        var rawQty = Array.isArray(header.quantities) ? header.quantities : [];
+        if (rawQty.length > 1) {
+            quantities = rawQty.filter(function (q) { return q && Number(q.quantity) > 0; });
+        }
+    } catch (e) {}
+    var selectedQuantity = null;
+    if (quantities.length > 1) {
+        var qText = quantities.map(function (q, i) {
+            return (i + 1) + '. ' + parseNumber(q.quantity) + ' uds' + (q.unitPrice ? ' @ ' + q.unitPrice : '');
+        }).join('\n');
+        var choice = window.prompt('Selecciona la cantidad para la orden:\n' + qText + '\n\nIngresa el número de la opción (1-' + quantities.length + ') o acepta la cantidad actual:', '1');
+        var idx = parseInt(choice, 10);
+        if (!isNaN(idx) && idx >= 1 && idx <= quantities.length) {
+            selectedQuantity = Number(quantities[idx - 1].quantity);
+        }
+    }
+    var body = {};
+    if (selectedQuantity && selectedQuantity > 0) body.quantity = selectedQuantity;
+    var response = await fetch(QUOTES_ENDPOINT + '/' + encodeURIComponent(row.quoteId) + '/lineas/' + encodeURIComponent(row.linea) + '/orden-produccion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    });
+    var payload = await response.json();
     if (!response.ok) throw new Error(payload.error || 'No se pudo crear la orden de producción.');
     if (payload.orden?.order_code) {
-        setStatus(`Orden ${payload.orden.order_code} creada.`, 'saved');
-        const route = `/orden-produccion/${encodeURIComponent(payload.orden.order_code)}`;
-        if (!openRouteInShell(route, `Orden ${payload.orden.order_code}`)) {
+        setStatus('Orden ' + payload.orden.order_code + ' creada.', 'saved');
+        var route = '/orden-produccion/' + encodeURIComponent(payload.orden.order_code);
+        if (!openRouteInShell(route, 'Orden ' + payload.orden.order_code)) {
             window.location.href = route;
         }
     }

@@ -12994,6 +12994,12 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/orden-produccion', async (req,
             });
             rawData = await enrichOrderRawDataWithPlanningSnapshot(rawData, client);
 
+            const selectedQuantity = parseLegacyNumber(req.body?.quantity);
+            if (selectedQuantity > 0) {
+                rawData.totals = rawData.totals || {};
+                rawData.totals.quantity = selectedQuantity;
+            }
+
             await client.query(
                 `INSERT INTO flexo_orders (
                     order_code, quote_code, line_code, product_code, machine_name, material_code, die_code, ordered_quantity, raw_data

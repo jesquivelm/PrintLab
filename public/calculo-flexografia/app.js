@@ -792,11 +792,30 @@ async function createProductionOrderFromTracking(index) {
       await stageSapOutputForCurrentLine();
       sapPrepared = true;
     } catch (error) {
-      sapError = error.message || "No fue posible preparar la salida SAP.";
-      console.warn("Preparación SAP no bloqueante:", error);
-    }
+    sapError = error.message || "No fue posible preparar la salida SAP.";
+    console.warn("Preparación SAP no bloqueante:", error);
   }
-  const payload = await postJson(`/api/cotizaciones/${encodeURIComponent(quoteCode)}/lineas/${encodeURIComponent(lineCode)}/orden-produccion`, {});
+}
+
+  // Quantity selection when multiple tiers exist
+  var body = {};
+  try {
+    var header = state.context?.calculo?.raw_data?.['Estado_UI']?.header || {};
+    var rawQty = Array.isArray(header.quantities) ? header.quantities : [];
+    var quantities = rawQty.filter(function (q) { return q && Number(q.quantity) > 0; });
+    if (quantities.length > 1) {
+      var qText = quantities.map(function (q, i) {
+        return (i + 1) + '. ' + n(q.quantity, 0) + ' uds' + (q.unitPrice ? ' @ ' + q.unitPrice : '');
+      }).join('\n');
+      var choice = window.prompt('Selecciona la cantidad para la orden:\n' + qText + '\n\nIngresa el número de la opción (1-' + quantities.length + ') o Enter para usar la actual:', '1');
+      var idx = parseInt(choice, 10);
+      if (!isNaN(idx) && idx >= 1 && idx <= quantities.length) {
+        body.quantity = Number(quantities[idx - 1].quantity);
+      }
+    }
+  } catch (e) {}
+
+  const payload = await postJson(`/api/cotizaciones/${encodeURIComponent(quoteCode)}/lineas/${encodeURIComponent(lineCode)}/orden-produccion`, body);
   const orderCode = payload?.orden?.order_code || "";
   state.quoteTracking.closure = {
     outcome: "accepted",
@@ -2236,10 +2255,12 @@ function createPrintStage(base = {}) {
     transferFactor: n(base.transferFactor, 0.3),
     inkDensity: n(base.inkDensity, 1.5),
     inkMaterialId: base.inkMaterialId || tintaConvencional[0]?.id || "",
+    inkMaterialDesc: base.inkMaterialDesc || "",
     inkCostPerLb: n(base.inkCostPerLb, materialCostPerPound(findMaterial(base.inkMaterialId || tintaConvencional[0]?.id || ""))),
     inkGsm: n(base.inkGsm, 0) > 0 ? n(base.inkGsm, 0) : inkDefaults.cmykGsm,
     bcmGenerico: n(base.bcmGenerico, 2),
     whiteInkMaterialId: base.whiteInkMaterialId || tintaBlanca[0]?.id || "",
+    whiteInkMaterialDesc: base.whiteInkMaterialDesc || "",
     whiteInkCostPerLb: n(base.whiteInkCostPerLb, materialCostPerPound(findMaterial(base.whiteInkMaterialId || tintaBlanca[0]?.id || "")) || 30),
     pantoneInkCostPerLb: n(base.pantoneInkCostPerLb, 35),
     designCoveragePct: n(base.designCoveragePct, 60),
@@ -7763,12 +7784,14 @@ function bindProcesses() {
       const stageIndex = Number(scope.split(".")[1]);
       const material = findMaterial(value);
       state.form.printStages[stageIndex].inkCostPerLb = materialCostPerPound(material);
+      state.form.printStages[stageIndex].inkMaterialDesc = material ? (material.descripcion || material.nombre || '') : '';
       syncPrimaryPrintStage();
     }
     if (scope.startsWith("printStages.") && field === "whiteInkMaterialId") {
       const stageIndex = Number(scope.split(".")[1]);
       const material = findMaterial(value);
       state.form.printStages[stageIndex].whiteInkCostPerLb = materialCostPerPound(material);
+      state.form.printStages[stageIndex].whiteInkMaterialDesc = material ? (material.descripcion || material.nombre || '') : '';
       syncPrimaryPrintStage();
     }
       if (scope.startsWith("finishes.") && field === "materialId") {
