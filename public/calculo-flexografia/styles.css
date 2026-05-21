@@ -1188,48 +1188,199 @@ label span,
 }
 
 .die-association-row {
-  grid-template-columns: minmax(140px, 0.72fr) auto minmax(260px, 1.8fr);
+  grid-template-columns: minmax(160px, 1fr) auto minmax(200px, 1.6fr);
   align-items: end;
 }
+.die-association-row .inline-process-check {
+  align-self: end;
+  margin-bottom: 2px;
+}
 
-.die-associate-check {
-  display: flex;
-  flex-direction: column;
+.calc-shape-trigger {
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
-  min-height: 42px;
-  justify-content: end;
-  padding: 0 0 2px;
+  min-height: 32px;
+  border: 1px solid var(--line, #c8d6e5);
+  border-radius: var(--radius, 6px);
+  background: var(--card, #fff);
   cursor: pointer;
+  padding: 2px 8px 2px 4px;
+  gap: 6px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  color: var(--text, #1a2634);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  width: 100%;
   white-space: nowrap;
 }
-.die-associate-check span {
-  font-size: 0.78rem;
-  color: var(--label-dim, #577086);
-  letter-spacing: 0.01em;
+.calc-shape-trigger:hover {
+  border-color: var(--app-primary, #17abdf);
 }
-.die-associate-check input[type="checkbox"] {
-  margin: 0;
-  width: 16px;
-  height: 16px;
-  accent-color: var(--app-primary, #17abdf);
-  cursor: pointer;
+.calc-shape-trigger:focus-visible {
+  outline: 2px solid var(--app-primary, #17abdf);
+  outline-offset: 1px;
+}
+.calc-shape-trigger::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-right: 1.5px solid var(--label-dim, #7a8fa0);
+  border-bottom: 1.5px solid var(--label-dim, #7a8fa0);
+  transform: rotate(45deg);
+  margin-left: auto;
+  flex-shrink: 0;
+  transition: transform 0.18s ease;
+  margin-top: -3px;
+}
+.calc-shape-trigger[aria-expanded="true"]::after {
+  transform: rotate(-135deg);
+  margin-top: 2px;
+}
+.calc-shape-trigger-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+.calc-shape-thumb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--surface, #f0f4f8);
+}
+.calc-shape-trigger .calc-shape-thumb {
+  width: 32px;
+  height: 32px;
+}
+.calc-shape-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.calc-shape-thumb-fallback {
+  display: block;
+  width: 60%;
+  height: 60%;
+  border: 1.5px solid var(--label-dim, #7a8fa0);
+  border-radius: 3px;
+  background: var(--surface, #f0f4f8);
+}
+.calc-shape-thumb-fallback[data-shape="Circular"] {
+  border-radius: 50%;
+}
+.calc-shape-thumb-fallback[data-shape="Rectangular"] {
+  border-radius: 2px;
+  width: 70%;
+  height: 50%;
+}
+.calc-shape-thumb-fallback[data-shape="Ovalado"] {
+  border-radius: 50%;
+  width: 70%;
+  height: 50%;
+}
+.calc-shape-thumb-fallback[data-shape="Especial"] {
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  border: none;
+  background: var(--label-dim, #7a8fa0);
+}
+.calc-shape-thumb-fallback[data-shape="Butt Cut"] {
+  border-style: dashed;
+  border-radius: 2px;
+}
+.calc-shape-trigger-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+html[data-theme="dark"] .calc-shape-trigger {
+  background: var(--card, #162033);
+  border-color: var(--line, #26364a);
+  color: var(--text, #e2e8f0);
+}
+html[data-theme="dark"] .calc-shape-trigger:hover {
+  border-color: #38bdf8;
+}
+html[data-theme="dark"] .calc-shape-thumb {
+  background: #1e2d45;
+}
+html[data-theme="dark"] .calc-shape-trigger-label {
+  color: var(--text, #e2e8f0);
 }
 
-.die-shape-select-wrap {
+/* shape panel floating */
+.calc-shape-panel {
+  position: fixed;
+  z-index: 700;
+  top: var(--calc-shape-panel-top, 120px);
+  left: var(--calc-shape-panel-left, 16px);
+  width: var(--calc-shape-panel-width, 260px);
+  max-height: var(--calc-shape-panel-max-height, 320px);
+  overflow-y: auto;
+  background: var(--card, #fff);
+  border: 1px solid var(--line, #c8d6e5);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overscroll-behavior: contain;
+}
+.calc-shape-panel::-webkit-scrollbar {
+  width: 4px;
+}
+.calc-shape-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+.calc-shape-panel::-webkit-scrollbar-thumb {
+  background: var(--line, #c8d6e5);
+  border-radius: 2px;
+}
+html[data-theme="dark"] .calc-shape-panel {
+  background: #1a2a42;
+  border-color: var(--line, #26364a);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+html[data-theme="dark"] .calc-shape-panel::-webkit-scrollbar-thumb {
+  background: #3a506e;
+}
+.calc-shape-option {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+  user-select: none;
 }
-.die-shape-select-wrap select {
-  flex: 1;
-  min-width: 0;
+.calc-shape-option:hover {
+  background: var(--surface, #f0f4f8);
 }
-.die-shape-select-preview {
-  height: 32px;
-  width: auto;
-  border-radius: 4px;
-  flex-shrink: 0;
+.calc-shape-option.is-selected {
+  background: rgba(23, 171, 223, 0.08);
+}
+.calc-shape-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+html[data-theme="dark"] .calc-shape-option:hover {
+  background: #1e2d45;
+}
+html[data-theme="dark"] .calc-shape-option.is-selected {
+  background: rgba(56, 189, 248, 0.12);
 }
 
 .impression-grid-compact {
@@ -4155,7 +4306,6 @@ html[data-theme="dark"] .floating-action-icon-button:hover {
 }
 
 html[data-theme="dark"] .inline-process-check input:checked,
-html[data-theme="dark"] .die-associate-check input:checked,
 html[data-theme="dark"] .impression-check-card input:checked,
 html[data-theme="dark"] .plate-virgin-check input:checked {
   background: linear-gradient(180deg, #38bdf8, #0ea5e9) !important;
@@ -4164,8 +4314,7 @@ html[data-theme="dark"] .plate-virgin-check input:checked {
 }
 
 html[data-theme="dark"] .impression-check-card input:not(:checked),
-html[data-theme="dark"] .inline-process-check input:not(:checked),
-html[data-theme="dark"] .die-associate-check input:not(:checked) {
+html[data-theme="dark"] .inline-process-check input:not(:checked) {
   background: #111c30;
   border-color: var(--line);
 }
