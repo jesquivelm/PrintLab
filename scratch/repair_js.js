@@ -10,7 +10,7 @@ const part1 = content.split(anchor)[0] + anchor;
 // Definimos lo que falta de collectRequestPayload y la nueva función validateQuickRequest
 const middlePart = `
             'REQ | Numeracion Aviso': numbering ? 'Revisar proceso adicional de impresion para numerado.' : '',
-            'CODEX_UI_STATE': {
+            'Estado_UI': {
                 productType: normalizeText(document.getElementById('requestProductType')?.value),
                 dieShape: selectedShape,
                 widthInches: Number(selectedSize?.dataset.width || 0) || null,

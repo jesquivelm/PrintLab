@@ -649,7 +649,7 @@ async function resolveSmartQuoteLineSelection(payload = {}) {
     const catalogs = await loadFlexoCatalogsFromDb();
     const quantity = parseLegacyNumber(payload.quantity) ?? parseLegacyNumber(payload.quantityProducts) ?? 0;
     const threshold = Math.max(0, Number(generalConfig?.general?.quoteAutomaticDigitalMaxQuantity || 0)) || 100000;
-    const requestedShape = normalizeRequestedShape(payload?.request_meta?.['REQ | Forma'] || payload?.request_meta?.CODEX_UI_STATE?.dieShape || '');
+    const requestedShape = normalizeRequestedShape(payload?.request_meta?.['REQ | Forma'] || payload?.request_meta?.Estado_UI?.dieShape || '');
     const widthInches = parsePositiveNumber(payload.widthInches, 0);
     const lengthInches = parsePositiveNumber(payload.lengthInches, 0);
     const requestedFamily = normalizeCommercialMaterialFamily(payload.material_name || payload.material_code || '');
@@ -4593,12 +4593,12 @@ function buildCalculationLineSummary(row = {}) {
         ? `${width} x ${length}`
         : pickFirstValue(raw['REQ | Medida Fija']);
     const frontBackGroup = normalizeFrontBackGroup(raw);
-    const processSnapshot = Array.isArray(raw['CODEX_PROCESS_SNAPSHOT']) ? raw['CODEX_PROCESS_SNAPSHOT'] : [];
+    const processSnapshot = Array.isArray(raw['Secuencia_Procesos']) ? raw['Secuencia_Procesos'] : [];
     return {
         version: 1,
         quote_code: pickFirstValue(row.quote_code, raw['ID COTIZACION']),
         line_code: pickFirstValue(row.line_code, raw['ID LINEA']),
-        line_order: normalizeLineOrder(raw['CODEX_LINE_ORDER']),
+        line_order: normalizeLineOrder(raw['Orden_Linea']),
         customer_code: pickFirstValue(row.customer_code, raw['ID CLIENTE']),
         customer_name: pickFirstValue(raw.CLIENTE, raw['CLIENTE NOMBRE']),
         salesperson_name: pickFirstValue(raw.VENDEDOR, raw['VENDEDOR | USUARIO']),
@@ -4611,7 +4611,7 @@ function buildCalculationLineSummary(row = {}) {
         machine_name: pickFirstValue(row.machine_name, raw['DIGITAL | MAQUINA'], raw['CONV | MAQUINA']),
         process_type: processType,
         status: pickFirstValue(raw['SOLICITUD ESTADO'], raw['ESTADO LINEA'], 'Cotizada'),
-        finalized_for_order: Boolean(row.finalized_for_order ?? raw['CODEX_FINALIZED_FOR_ORDER']),
+        finalized_for_order: Boolean(row.finalized_for_order ?? raw['Finalizado_Para_Orden']),
         quantity: pickFirstValue(parseLegacyNumber(row.quantity), parseLegacyNumber(raw['Cantidad Productos']), parseLegacyNumber(raw['CANTIDAD PRODUCTOS 1'])),
         subtotal_1: subtotal1,
         total_cost: pickFirstValue(parseLegacyNumber(row.total_cost), parseLegacyNumber(raw['PRECIO TOTAL AL FINALIZAR'])),
@@ -4619,7 +4619,7 @@ function buildCalculationLineSummary(row = {}) {
         measure,
         width_in: width,
         length_in: length,
-        process_sequence_text: pickFirstValue(raw['CODEX_PROCESS_SEQUENCE_TEXT'], raw['BOT | Process Sequence']),
+        process_sequence_text: pickFirstValue(raw['Texto_Secuencia_Procesos'], raw['BOT | Process Sequence']),
         processes: processSnapshot
             .map((item) => pickFirstValue(item?.processName, item?.name, item?.label))
             .filter(Boolean),
@@ -4718,7 +4718,7 @@ function normalizeFrontBackLineCode(value) {
 }
 
 function normalizeFrontBackGroup(rawOrGroup = {}) {
-    const group = rawOrGroup?.grupoFrenteDorso || rawOrGroup?.grupo_frente_dorso || rawOrGroup?.CODEX_FD_GROUP || rawOrGroup?.frontBackGroup || rawOrGroup;
+    const group = rawOrGroup?.grupoFrenteDorso || rawOrGroup?.grupo_frente_dorso || rawOrGroup?.Grupo_Frente_Dorso || rawOrGroup?.frontBackGroup || rawOrGroup;
     if (!group || typeof group !== 'object' || Array.isArray(group)) return null;
     const groupLineCode = normalizeFrontBackLineCode(group.groupLineCode || group.lineaGrupo || group.primaryLineCode);
     const explicitElements = Array.isArray(group.elementLineCodes)
@@ -4851,12 +4851,12 @@ function applyFrontBackQuantityToRawData(rawData = {}, quantity = 0) {
     const normalizedQuantity = parseLegacyNumber(quantity) ?? 0;
     rawData['Cantidad Productos'] = normalizedQuantity;
     rawData['CANTIDAD PRODUCTOS 1'] = normalizedQuantity;
-    const uiState = rawData.CODEX_UI_STATE;
+    const uiState = rawData.Estado_UI;
     if (uiState && typeof uiState === 'object' && !Array.isArray(uiState)) {
         const header = uiState.header && typeof uiState.header === 'object' && !Array.isArray(uiState.header)
             ? uiState.header
             : {};
-        rawData.CODEX_UI_STATE = {
+        rawData.Estado_UI = {
             ...uiState,
             header: {
                 ...header,
@@ -4940,8 +4940,8 @@ function normalizeLineOrder(value, fallback = null) {
 
 const SQL_LINE_ORDER_VALUE = `
     CASE
-        WHEN COALESCE(raw_data->>'CODEX_LINE_ORDER', '') ~ '^[0-9]+$'
-            THEN (raw_data->>'CODEX_LINE_ORDER')::integer
+        WHEN COALESCE(raw_data->>'Orden_Linea', '') ~ '^[0-9]+$'
+            THEN (raw_data->>'Orden_Linea')::integer
         ELSE NULL
     END
 `;
@@ -4957,6 +4957,7 @@ async function getNextQuoteLineOrder(quoteCode) {
 }
 
 function mapFlexoCalculationDetail(row) {
+    if (row.raw_data) normalizeCalculationKeys(row.raw_data);
     const raw = row.raw_data || {};
     const processType = pickFirstValue(row.process_type, raw['Proceso Productivo'], 'Convencional');
     const activePrefix = String(processType).toLowerCase().includes('digit') ? 'DIGITAL' : 'CONV';
@@ -4982,7 +4983,7 @@ function mapFlexoCalculationDetail(row) {
         processType,
         machineName: quotedMachine,
         dieCode: pickFirstValue(raw['GENERAL | TROQUEL | ID'], raw[`${activePrefix} | TROQUEL | ID`], row.die_code),
-        uiState: raw['CODEX_UI_STATE'] || null
+        uiState: raw['Estado_UI'] || null
     });
 
       return {
@@ -4999,7 +5000,7 @@ function mapFlexoCalculationDetail(row) {
         frontBackGroup: normalizeFrontBackGroup(raw),
         grupoFrenteDorso: normalizeFrontBackGroup(raw),
           orderType: pickFirstValue(raw['TIPO ORDEN']),
-          finalizedForOrder: Boolean(row.finalized_for_order ?? raw['CODEX_FINALIZED_FOR_ORDER']),
+          finalizedForOrder: Boolean(row.finalized_for_order ?? raw['Finalizado_Para_Orden']),
           lineStatus: pickFirstValue(raw['SOLICITUD ESTADO'], raw['ESTADO LINEA'], raw['FIN COTIZACION | ESTADO']),
         calculationType: pickFirstValue(raw['ESTADO LINEA | CALCULO'], raw['ESTADO LINEA | SEGUN CANTIDAD ELEMENTOS']),
         quantityProducts: pickFirstValue(
@@ -5070,7 +5071,7 @@ function mapFlexoCalculationDetail(row) {
             creationStatus: pickFirstValue(raw['CREACION ESTADO'])
         },
         processes: processSnapshot,
-        uiState: raw['CODEX_UI_STATE'] || null,
+        uiState: raw['Estado_UI'] || null,
         digitalPlatesDisabled,
         raw_data: raw
     };
@@ -5184,7 +5185,7 @@ async function getProformaConfigSnapshot(config = {}) {
 
 function buildProformaProductSummary(line = {}, currency = {}, displayMode = 'both') {
     const raw = line.raw_data || {};
-    const autoSelection = raw['CODEX_AUTO_SELECTION'] || {};
+    const autoSelection = raw['Seleccion_Automatica'] || {};
     const finishDetails = [];
     const visibleExtras = [];
     const normalizedUiStateFinishes = Array.isArray(raw?.ui_state?.finishes) ? raw.ui_state.finishes : [];
@@ -5530,8 +5531,8 @@ function summarizeProformaBlockingMessages(messages = []) {
 }
 
 function proformaBlockingMessagesFromRaw(raw = {}) {
-    const messages = Array.isArray(raw.CODEX_VALIDATION_MESSAGES)
-        ? raw.CODEX_VALIDATION_MESSAGES.map((item) => stripNonBlockingSapAccountingWarnings(item)).filter(Boolean)
+    const messages = Array.isArray(raw.Mensajes_Validacion)
+        ? raw.Mensajes_Validacion.map((item) => stripNonBlockingSapAccountingWarnings(item)).filter(Boolean)
         : [];
     const fallback = stripNonBlockingSapAccountingWarnings(sanitizeAdminUserText(
         raw['ANALISIS CAMPOS PDF'],
@@ -7031,7 +7032,7 @@ function addPlanningProcessKey(target, key) {
 }
 
 function getUiStateProcessMeta(raw = {}) {
-    const uiState = raw?.['CODEX_UI_STATE'];
+    const uiState = raw?.['Estado_UI'];
     if (!uiState || typeof uiState !== 'object') {
         return {
             finishes: {},
@@ -7178,8 +7179,8 @@ function resolveRawProcessDetail(raw = {}, keys = []) {
 
 function buildCalculationProcessSnapshot({ raw = {}, processType = '', machineName = '', dieCode = '', uiState = null } = {}) {
     const declaredList = normalizeProcessDisplayList(
-        Array.isArray(raw['CODEX_PROCESS_SNAPSHOT']) && raw['CODEX_PROCESS_SNAPSHOT'].length
-            ? raw['CODEX_PROCESS_SNAPSHOT']
+        Array.isArray(raw['Secuencia_Procesos']) && raw['Secuencia_Procesos'].length
+            ? raw['Secuencia_Procesos']
             : Array.isArray(uiState?.processSequence) && uiState.processSequence.length
                 ? uiState.processSequence
                 : (() => {
@@ -8047,7 +8048,7 @@ function pushSapComponent(components = [], component = {}) {
 function appendSapComponentsFromLine(components = [], lineRow = {}, warehouse = '01') {
     const raw = lineRow?.raw_data || {};
     const result = raw['Datos_Cotizados'] || {};
-    const uiState = raw['CODEX_UI_STATE'] || {};
+    const uiState = raw['Estado_UI'] || {};
     const sourceLineCode = lineRow?.line_code || raw['ID LINEA'] || '';
     const materialCode = pickFirstValue(
         lineRow?.material_code,
@@ -8311,23 +8312,23 @@ function buildDuplicatedLineRawData(sourceRawData = {}) {
         'FIN COTIZACION | ESTADO',
         'RESPUESTA COTIZADOR | FECHA',
         'RESPUESTA COTIZADOR | USUARIO',
-        'CODEX_FINALIZED_FOR_ORDER'
+        'Finalizado_Para_Orden'
     ].forEach((key) => delete raw[key]);
     delete raw.grupoFrenteDorso;
     delete raw.grupo_frente_dorso;
-    delete raw.CODEX_FD_GROUP;
+    delete raw.Grupo_Frente_Dorso;
     raw['SOLICITUD ESTADO'] = 'Borrador';
     raw['ESTADO LINEA'] = 'Borrador';
     return raw;
 }
 
 function resetDuplicatedLineUiState(rawData = {}, { targetQuote = {}, lineCode = '' } = {}) {
-    const uiState = rawData.CODEX_UI_STATE;
+    const uiState = rawData.Estado_UI;
     if (!uiState || typeof uiState !== 'object' || Array.isArray(uiState)) return;
     const header = uiState.header && typeof uiState.header === 'object' && !Array.isArray(uiState.header)
         ? uiState.header
         : {};
-    rawData.CODEX_UI_STATE = {
+    rawData.Estado_UI = {
         ...uiState,
         header: {
             ...header,
@@ -8340,10 +8341,44 @@ function resetDuplicatedLineUiState(rawData = {}, { targetQuote = {}, lineCode =
             finalizedForOrder: false
         }
     };
-    delete rawData.CODEX_UI_STATE.quoteTracking;
-    delete rawData.CODEX_UI_STATE.tracking;
-    delete rawData.CODEX_UI_STATE.timeline;
-    delete rawData.CODEX_UI_STATE.milestones;
+    delete rawData.Estado_UI.quoteTracking;
+    delete rawData.Estado_UI.tracking;
+    delete rawData.Estado_UI.timeline;
+    delete rawData.Estado_UI.milestones;
+}
+
+/**
+ * Normalize legacy CODEX_* keys to new descriptive Spanish keys for backward compatibility
+ * with existing data in the database. Converts in-place on the given object.
+ */
+function normalizeCalculationKeys(obj) {
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
+    const MAP = {
+        'CODEX_UI_STATE': 'Estado_UI',
+        'CODEX_PROCESS_SNAPSHOT': 'Secuencia_Procesos',
+        'CODEX_PROCESS_SEQUENCE_TEXT': 'Texto_Secuencia_Procesos',
+        'CODEX_FINALIZED_FOR_ORDER': 'Finalizado_Para_Orden',
+        'CODEX_FD_GROUP': 'Grupo_Frente_Dorso',
+        'CODEX_AUTO_SELECTION': 'Seleccion_Automatica',
+        'CODEX_AUTO_PRICING': 'Precio_Automatico',
+        'CODEX_PLANNING_SNAPSHOT': 'Instantanea_Planificacion',
+        'CODEX_VALIDATION_MESSAGES': 'Mensajes_Validacion',
+        'CODEX_VALIDATION_BLOCKED': 'Validacion_Bloqueada',
+        'CODEX_QUOTE_CLOSURE': 'Cierre_Cotizacion',
+        'CODEX_REQUEST_KEY': 'Clave_Solicitud',
+        'CODEX_LINE_ORDER': 'Orden_Linea'
+    };
+    // Only add new key if old key exists AND new key doesn't already exist
+    for (const [oldKey, newKey] of Object.entries(MAP)) {
+        if (Object.prototype.hasOwnProperty.call(obj, oldKey) && !Object.prototype.hasOwnProperty.call(obj, newKey)) {
+            obj[newKey] = obj[oldKey];
+        }
+    }
+    // Normalize nested line_snapshot.raw_data if present
+    if (obj.line_snapshot && typeof obj.line_snapshot === 'object' && obj.line_snapshot.raw_data && typeof obj.line_snapshot.raw_data === 'object') {
+        normalizeCalculationKeys(obj.line_snapshot.raw_data);
+    }
+    return obj;
 }
 
 async function cloneCalculationToQuote({ sourceRow, targetQuote, traceability = {} }) {
@@ -8563,7 +8598,7 @@ function buildQuoteRawData(payload = {}, existingRawData = {}) {
 
     return {
         ...existingRawData,
-        'CODEX_REQUEST_KEY': pickFirstValue(payload.request_key, existingRawData['CODEX_REQUEST_KEY']),
+        'Clave_Solicitud': pickFirstValue(payload.request_key, existingRawData['Clave_Solicitud']),
         'ID CLIENTE': customerCode,
         'CLIENTE NOMBRE': customerName,
         'CLIENTE | CONTACTO NOMBRE COMPLETO': contactName,
@@ -8585,7 +8620,7 @@ function buildCalculationRawData(payload = {}, existingRawData = {}) {
     const activePrefix = isDigital ? 'DIGITAL' : 'CONV';
     const finalizedForOrder = hasOwn('finalized_for_order') || hasOwn('finalizedForOrder')
         ? Boolean(hasOwn('finalized_for_order') ? payload.finalized_for_order : payload.finalizedForOrder)
-        : Boolean(existingRawData['CODEX_FINALIZED_FOR_ORDER']);
+        : Boolean(existingRawData['Finalizado_Para_Orden']);
     const quantityProducts = hasOwn('quantityProducts') || hasOwn('quantity')
         ? (parseLegacyNumber(payload.quantity) ?? parseLegacyNumber(payload.quantityProducts))
         : parseLegacyNumber(existingRawData['Cantidad Productos']);
@@ -8656,7 +8691,7 @@ function buildCalculationRawData(payload = {}, existingRawData = {}) {
             : pickFirstValue(existingRawData['Material Digital | Id Material']),
           'SOLICITUD ESTADO': pickFirstValue(payload.status, existingRawData['SOLICITUD ESTADO'], 'Borrador'),
           'ESTADO LINEA': pickFirstValue(payload.status, existingRawData['ESTADO LINEA'], 'Borrador'),
-          'CODEX_FINALIZED_FOR_ORDER': finalizedForOrder,
+          'Finalizado_Para_Orden': finalizedForOrder,
           'Proceso Productivo': processType,
         'TIPO ETIQUETADO': hasOwn('applicationType') ? payload.applicationType : pickFirstValue(existingRawData['TIPO ETIQUETADO']),
         'TIPO SALIDA': hasOwn('outputType') ? payload.outputType : pickFirstValue(existingRawData['TIPO SALIDA']),
@@ -8679,11 +8714,11 @@ function buildCalculationRawData(payload = {}, existingRawData = {}) {
         'GENERAL | 9 | Impuestos': taxAmount ?? existingRawData['GENERAL | 9 | Impuestos'],
         'PRECIO TOTAL AL FINALIZAR': total,
         'GENERAL | 9 | UNITARIO | DOL': unitPrice,
-        'CODEX_UI_STATE': hasOwn('uiState') ? payload.uiState : (existingRawData['CODEX_UI_STATE'] || null),
+        'Estado_UI': hasOwn('uiState') ? payload.uiState : (existingRawData['Estado_UI'] || null),
         'Datos_Cotizados': hasOwn('processResult') ? payload.processResult : (existingRawData['Datos_Cotizados'] || null)
     };
 
-    const uiPrintState = rawData['CODEX_UI_STATE']?.print || rawData['CODEX_UI_STATE']?.printStages?.[0] || null;
+    const uiPrintState = rawData['Estado_UI']?.print || rawData['Estado_UI']?.printStages?.[0] || null;
     if (uiPrintState && typeof uiPrintState === 'object') {
         rawData['CONV | PERFIL TINTA | TIPO'] = pickFirstValue(uiPrintState.profileLabel, existingRawData['CONV | PERFIL TINTA | TIPO']);
         rawData['CONV | PERFIL TINTA | COBERTURA %'] = parseLegacyNumber(uiPrintState.coveragePct);
@@ -8714,10 +8749,10 @@ function buildCalculationRawData(payload = {}, existingRawData = {}) {
         processType,
         machineName: rawData[`${activePrefix} | MAQUINA`],
         dieCode: rawData['GENERAL | TROQUEL | ID'],
-        uiState: rawData['CODEX_UI_STATE'] || null
+        uiState: rawData['Estado_UI'] || null
     });
-    rawData['CODEX_PROCESS_SNAPSHOT'] = processSnapshot;
-    rawData['CODEX_PROCESS_SEQUENCE_TEXT'] = processSnapshot.map((item) => item.processName).join(' -> ');
+    rawData['Secuencia_Procesos'] = processSnapshot;
+    rawData['Texto_Secuencia_Procesos'] = processSnapshot.map((item) => item.processName).join(' -> ');
     applyCalculationLineSummary(rawData, {
         quote_code: rawData['ID COTIZACION'],
         line_code: rawData['ID LINEA'],
@@ -10155,8 +10190,8 @@ app.get('/api/cotizaciones/:codigo', async (req, res) => {
                ) latest_lines
               ORDER BY
                     CASE
-                        WHEN COALESCE(latest_lines.raw_data->>'CODEX_LINE_ORDER', '') ~ '^[0-9]+$'
-                            THEN (latest_lines.raw_data->>'CODEX_LINE_ORDER')::integer
+                        WHEN COALESCE(latest_lines.raw_data->>'Orden_Linea', '') ~ '^[0-9]+$'
+                            THEN (latest_lines.raw_data->>'Orden_Linea')::integer
                         ELSE NULL
                     END NULLS LAST,
                     line_code NULLS LAST`,
@@ -10689,7 +10724,7 @@ app.post('/api/productos/:codigo/cotizar', async (req, res) => {
                     traceability: metadata
                 }
             );
-            rawData['CODEX_LINE_ORDER'] = await getNextQuoteLineOrder(targetQuote.quote_code);
+            rawData['Orden_Linea'] = await getNextQuoteLineOrder(targetQuote.quote_code);
 
             await client.query(
                 `INSERT INTO flexo_calculations (
@@ -11716,7 +11751,7 @@ app.post('/api/cotizaciones', async (req, res) => {
             const existing = await pgQuery(
                 `SELECT quote_code, customer_code, customer_name, contact_name, email, salesperson_name, phone, status, created_on, due_on, raw_data
                    FROM quotes
-                  WHERE raw_data->>'CODEX_REQUEST_KEY' = $1
+                  WHERE raw_data->>'Clave_Solicitud' = $1
                   ORDER BY created_on DESC NULLS LAST, quote_code DESC
                   LIMIT 1`,
                 [requestKey]
@@ -11848,14 +11883,14 @@ app.post('/api/cotizaciones/:codigo/lineas', async (req, res) => {
         }
 
         const quote = quoteResult.rows[0];
-        const requestKey = pickFirstValue(payload.request_meta?.CODEX_REQUEST_KEY, payload.request_key);
+        const requestKey = pickFirstValue(payload.request_meta?.Clave_Solicitud, payload.request_key);
         if (requestKey) {
             const existingLine = await pgQuery(
                 `SELECT calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name, die_code, material_code,
                         quantity, subtotal_cost, total_cost, unit_price, raw_data
                    FROM flexo_calculations
                   WHERE quote_code = $1
-                    AND raw_data->>'CODEX_REQUEST_KEY' = $2
+                    AND raw_data->>'Clave_Solicitud' = $2
                   ORDER BY created_at ASC NULLS LAST, calculation_code ASC
                   LIMIT 1`,
                 [codigo, requestKey]
@@ -11891,8 +11926,8 @@ app.post('/api/cotizaciones/:codigo/lineas', async (req, res) => {
             'REQ | Advertencias Automáticas': '',
             'REQ | Fallback de Ruta': autoSelection.fallbackApplied ? 'Sí' : 'No'
         };
-        if (payload.request_meta?.CODEX_UI_STATE && typeof payload.request_meta.CODEX_UI_STATE === 'object') {
-            payload.request_meta.CODEX_UI_STATE.smartSelection = {
+        if (payload.request_meta?.Estado_UI && typeof payload.request_meta.Estado_UI === 'object') {
+            payload.request_meta.Estado_UI.smartSelection = {
                 digitalThreshold: autoSelection.digitalThreshold,
                 processType: payload.process_type,
                 dieCode: '',
@@ -11921,7 +11956,7 @@ app.post('/api/cotizaciones/:codigo/lineas', async (req, res) => {
                 ? payload.cmyk
                 : String(costDefaults.defaultCmykEnabled ?? generalDefaults.defaultCmykEnabled ?? 'true').trim().toLowerCase() !== 'false'
         });
-        rawData['CODEX_AUTO_SELECTION'] = {
+        rawData['Seleccion_Automatica'] = {
             digitalThreshold: autoSelection.digitalThreshold,
             processType: payload.process_type,
             dieCode: '',
@@ -11933,7 +11968,7 @@ app.post('/api/cotizaciones/:codigo/lineas', async (req, res) => {
             fallbackApplied: autoSelection.fallbackApplied,
             warnings: []
         };
-        rawData['CODEX_LINE_ORDER'] = lineOrder;
+        rawData['Orden_Linea'] = lineOrder;
         const automaticPricing = await estimateAutomaticQuotePricing({
             rawData,
             processType: payload.process_type,
@@ -11955,7 +11990,7 @@ app.post('/api/cotizaciones/:codigo/lineas', async (req, res) => {
         rawData['PRECIO UNITARIO'] = automaticPricing.unitPriceWithTax;
         rawData['PRECIO TOTAL AL FINALIZAR'] = automaticPricing.totalAmount;
         rawData['GENERAL | SUSTRATO | CONSUMO PIES'] = Number(autoSelection.selectedMounting?.linearFeet || 0);
-        rawData['CODEX_AUTO_PRICING'] = {
+        rawData['Precio_Automatico'] = {
             materialCost: automaticPricing.materialCost,
             productionCost: automaticPricing.productionCost,
             baseCost: automaticPricing.baseCost,
@@ -11967,7 +12002,7 @@ app.post('/api/cotizaciones/:codigo/lineas', async (req, res) => {
             unitPriceWithTax: automaticPricing.unitPriceWithTax,
             processBreakdown: automaticPricing.processBreakdown
         };
-        rawData['CODEX_PLANNING_SNAPSHOT'] = automaticPricing.planningSnapshot;
+        rawData['Instantanea_Planificacion'] = automaticPricing.planningSnapshot;
         applyCurrencyFieldsToRawData(rawData, payload.exchange_rate ?? payload.exchangeRate);
         applyCalculationLineSummary(rawData, {
             quote_code: codigo,
@@ -12043,7 +12078,7 @@ app.patch('/api/cotizaciones/:codigo/lineas/orden', async (req, res) => {
             const current = latestByLine.get(lineCode);
             if (!current) continue;
             const rawData = { ...(current.raw_data || {}) };
-            rawData['CODEX_LINE_ORDER'] = lineOrder;
+            rawData['Orden_Linea'] = lineOrder;
             applyCalculationLineSummary(rawData, current);
             await pgQuery(
                 `UPDATE flexo_calculations
@@ -12066,8 +12101,8 @@ app.patch('/api/cotizaciones/:codigo/lineas/orden', async (req, res) => {
                ) latest_lines
               ORDER BY
                     CASE
-                        WHEN COALESCE(latest_lines.raw_data->>'CODEX_LINE_ORDER', '') ~ '^[0-9]+$'
-                            THEN (latest_lines.raw_data->>'CODEX_LINE_ORDER')::integer
+                        WHEN COALESCE(latest_lines.raw_data->>'Orden_Linea', '') ~ '^[0-9]+$'
+                            THEN (latest_lines.raw_data->>'Orden_Linea')::integer
                         ELSE NULL
                     END NULLS LAST,
                     line_code NULLS LAST`,
@@ -12139,7 +12174,7 @@ app.post('/api/cotizaciones/:codigo/frente-dorso', async (req, res) => {
                 const rawData = { ...(row.raw_data || {}) };
                 delete rawData.grupoFrenteDorso;
                 delete rawData.grupo_frente_dorso;
-                delete rawData['CODEX_FD_GROUP'];
+                delete rawData['Grupo_Frente_Dorso'];
                 applyCalculationLineSummary(rawData, row);
                 await client.query(
                     `UPDATE flexo_calculations
@@ -12152,7 +12187,7 @@ app.post('/api/cotizaciones/:codigo/frente-dorso', async (req, res) => {
                 const lineCode = normalizeFrontBackLineCode(row.line_code);
                 const isGroupLine = lineCode === groupLineCode;
                 const rawData = applyFrontBackQuantityToRawData({ ...(row.raw_data || {}) }, groupQuantity);
-                delete rawData['CODEX_FD_GROUP'];
+                delete rawData['Grupo_Frente_Dorso'];
                 delete rawData.grupo_frente_dorso;
                 rawData.grupoFrenteDorso = {
                     ...baseGroup,
@@ -12192,7 +12227,7 @@ app.delete('/api/cotizaciones/:codigo/frente-dorso/:grupo', async (req, res) => 
                 if (!group || group.groupId !== groupId) continue;
                 delete rawData.grupoFrenteDorso;
                 delete rawData.grupo_frente_dorso;
-                delete rawData['CODEX_FD_GROUP'];
+                delete rawData['Grupo_Frente_Dorso'];
                 applyCalculationLineSummary(rawData, row);
                 await client.query(
                     `UPDATE flexo_calculations
@@ -12242,7 +12277,7 @@ app.patch('/api/cotizaciones/:codigo/lineas/:linea', async (req, res) => {
             rawPayload,
             existing.rows[0].raw_data || {}
         );
-        rawData['CODEX_LINE_ORDER'] = normalizeLineOrder(payload.line_order, normalizeLineOrder(existing.rows[0].raw_data?.['CODEX_LINE_ORDER']));
+        rawData['Orden_Linea'] = normalizeLineOrder(payload.line_order, normalizeLineOrder(existing.rows[0].raw_data?.['Orden_Linea']));
         try {
             const catalogs = await loadFlexoCatalogsFromDb();
             const processType = pickFirstValue(payload.process_type, rawData['Proceso Productivo'], 'Convencional');
@@ -12251,7 +12286,7 @@ app.patch('/api/cotizaciones/:codigo/lineas/:linea', async (req, res) => {
             const selectedMaterial = catalogs.materials.find((item) => String(item.code || '') === String(materialCode || '')) || null;
             const selectedDie = catalogs.dies.find((item) => String(item.code || '') === String(dieCode || '')) || null;
             const selectedMachine = catalogs.machines.find((item) => String(item.machineName || '') === String(machineName || rawData['DIGITAL | MAQUINA'] || rawData['CONV | MAQUINA'] || '')) || null;
-            const selectedMounting = rawData['CODEX_AUTO_SELECTION']?.mounting || null;
+            const selectedMounting = rawData['Seleccion_Automatica']?.mounting || null;
             const automaticPricing = await estimateAutomaticQuotePricing({
                 rawData,
                 processType,
@@ -12272,7 +12307,7 @@ app.patch('/api/cotizaciones/:codigo/lineas/:linea', async (req, res) => {
             rawData['GENERAL | 9 | UNITARIO | DOL'] = automaticPricing.unitPrice;
             rawData['PRECIO UNITARIO'] = automaticPricing.unitPriceWithTax;
             rawData['PRECIO TOTAL AL FINALIZAR'] = automaticPricing.totalAmount;
-            rawData['CODEX_AUTO_PRICING'] = {
+            rawData['Precio_Automatico'] = {
                 materialCost: automaticPricing.materialCost,
                 productionCost: automaticPricing.productionCost,
                 baseCost: automaticPricing.baseCost,
@@ -12284,17 +12319,17 @@ app.patch('/api/cotizaciones/:codigo/lineas/:linea', async (req, res) => {
                 unitPriceWithTax: automaticPricing.unitPriceWithTax,
                 processBreakdown: automaticPricing.processBreakdown
             };
-            rawData['CODEX_PLANNING_SNAPSHOT'] = automaticPricing.planningSnapshot;
+            rawData['Instantanea_Planificacion'] = automaticPricing.planningSnapshot;
         } catch (pricingError) {
         }
         applyCurrencyFieldsToRawData(rawData, payload.exchange_rate ?? payload.exchangeRate);
         if (Object.prototype.hasOwnProperty.call(payload, 'finalized_for_order') || Object.prototype.hasOwnProperty.call(payload, 'finalizedForOrder')) {
-            rawData['CODEX_FINALIZED_FOR_ORDER'] = Boolean(Object.prototype.hasOwnProperty.call(payload, 'finalized_for_order')
+            rawData['Finalizado_Para_Orden'] = Boolean(Object.prototype.hasOwnProperty.call(payload, 'finalized_for_order')
                 ? payload.finalized_for_order
                 : payload.finalizedForOrder);
         }
         const finalizeValidation = proformaBlockingMessagesFromRaw(rawData).join(' ');
-        if (Boolean(rawData['CODEX_FINALIZED_FOR_ORDER']) && finalizeValidation) {
+        if (Boolean(rawData['Finalizado_Para_Orden']) && finalizeValidation) {
             throw new Error(finalizeValidation);
         }
         const normalizedGroup = normalizeFrontBackGroup(rawData);
@@ -12361,7 +12396,7 @@ app.patch('/api/cotizaciones/:codigo/lineas/:linea', async (req, res) => {
         );
         let sapExport = null;
         const detailGroup = getFrontBackGroupFromLine(detail.rows[0]);
-        if (!Boolean(payload.skipSapExportStage) && Boolean(detail.rows[0]?.raw_data?.['CODEX_FINALIZED_FOR_ORDER']) && (!detailGroup || detailGroup.role === 'grupo')) {
+        if (!Boolean(payload.skipSapExportStage) && Boolean(detail.rows[0]?.raw_data?.['Finalizado_Para_Orden']) && (!detailGroup || detailGroup.role === 'grupo')) {
             const quoteResult = await pgQuery(`SELECT * FROM quotes WHERE quote_code = $1 LIMIT 1`, [codigo]);
             sapExport = await tryStageSapExportsForQuoteLine({
                 quoteRow: quoteResult.rows[0] || null,
@@ -12840,7 +12875,7 @@ app.delete('/api/cotizaciones/:codigo/lineas/:linea', async (req, res) => {
                     const rawData = { ...(row.raw_data || {}) };
                     delete rawData.grupoFrenteDorso;
                     delete rawData.grupo_frente_dorso;
-                    delete rawData['CODEX_FD_GROUP'];
+                    delete rawData['Grupo_Frente_Dorso'];
                     await client.query(
                         `UPDATE flexo_calculations
                             SET raw_data = $2::jsonb
@@ -12926,7 +12961,7 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/orden-produccion', async (req,
             if (createOrderValidation) {
                 throw new Error(createOrderValidation);
             }
-            if (!Boolean(context.line.finalized_for_order ?? context.line.raw_data?.['CODEX_FINALIZED_FOR_ORDER'])) {
+            if (!Boolean(context.line.finalized_for_order ?? context.line.raw_data?.['Finalizado_Para_Orden'])) {
                 throw new Error('La línea debe estar finalizada antes de crear una orden de producción.');
             }
 
@@ -12996,6 +13031,7 @@ app.get('/api/ordenes-produccion/:codigo', async (req, res) => {
         if (!result.rows.length) {
             return res.status(404).json({ error: 'Orden de producción no encontrada.' });
         }
+        if (result.rows[0].raw_data) normalizeCalculationKeys(result.rows[0].raw_data);
         res.json({ orden: result.rows[0] });
     } catch (error) {
         res.status(500).json({ error: error.message || 'No fue posible cargar la orden de producción.' });
@@ -13011,6 +13047,7 @@ app.patch('/api/ordenes-produccion/:codigo/details', async (req, res) => {
 
         const payload = req.body || {};
         const current = orderResult.rows[0];
+        if (current.raw_data) normalizeCalculationKeys(current.raw_data);
         const rawData = { ...(current.raw_data || {}) };
         const lineSnapshot = { ...(rawData.line_snapshot || {}) };
         const lineRaw = { ...(lineSnapshot.raw_data || {}) };
@@ -13843,7 +13880,7 @@ app.get('/api/planificacion/preturno', async (req, res) => {
             const lineSnapshot = raw.line_snapshot || {};
             const lineSummary = raw.line_summary || {};
             const snapshotRaw = lineSnapshot.raw_data || {};
-            const uiState = snapshotRaw.CODEX_UI_STATE || lineSnapshot.uiState || {};
+            const uiState = snapshotRaw.Estado_UI || lineSnapshot.uiState || {};
             const headerState = uiState.header || {};
             const processKey = normalizePlanningKey(row.process_name);
             const materialCode = row.material_code || lineSnapshot.materialCode || snapshotRaw['GENERAL | MATERIAL'] || '';
@@ -14122,6 +14159,7 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
             WHERE r.order_code = $1
             ORDER BY r.sequence_order, r.created_at
         `, [req.params.codigo]);
+        if (orderRow.raw_data) normalizeCalculationKeys(orderRow.raw_data);
         const raw = orderRow.raw_data || {};
         const lineRaw = raw.line_snapshot?.raw_data || {};
         // Get quoted process keys from calculation result (subtotals > 0)
@@ -14146,9 +14184,9 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
         });
         // Always include base processes
         PLANNING_BASE_PROCESS_KEYS.forEach(function (key) { collectedKeys.add(key); });
-        // Read CODEX_PROCESS_SNAPSHOT for exact calculation order with numbering
+        // Read Secuencia_Procesos for exact calculation order with numbering
         const codexSnapshot = normalizeProcessDisplayList(
-            Array.isArray(lineRaw['CODEX_PROCESS_SNAPSHOT']) ? lineRaw['CODEX_PROCESS_SNAPSHOT'] : []
+            Array.isArray(lineRaw['Secuencia_Procesos']) ? lineRaw['Secuencia_Procesos'] : []
         );
         const codexOrderMap = new Map();
         const allCodexKeys = [];
@@ -14159,7 +14197,7 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
                 allCodexKeys.push(key);
             }
         });
-        // Sort by CODEX_PROCESS_SNAPSHOT order; fallback to PRODUCTION_FLOW_SEQUENCE
+        // Sort by Secuencia_Procesos order; fallback to PRODUCTION_FLOW_SEQUENCE
         const flowOrderIndex = new Map();
         PRODUCTION_FLOW_SEQUENCE.forEach(function (key, idx) { flowOrderIndex.set(key, idx); });
         const processKeys = [...collectedKeys].sort(function (left, right) {
@@ -14914,8 +14952,8 @@ app.get('/api/flexo/calculo', async (req, res) => {
                ) latest_lines
               ORDER BY
                     CASE
-                        WHEN COALESCE(latest_lines.raw_data->>'CODEX_LINE_ORDER', '') ~ '^[0-9]+$'
-                            THEN (latest_lines.raw_data->>'CODEX_LINE_ORDER')::integer
+                        WHEN COALESCE(latest_lines.raw_data->>'Orden_Linea', '') ~ '^[0-9]+$'
+                            THEN (latest_lines.raw_data->>'Orden_Linea')::integer
                         ELSE NULL
                     END NULLS LAST,
                     line_code NULLS LAST`,
@@ -14960,7 +14998,7 @@ app.post('/api/flexo/sap-export/:quoteCode/:lineCode', async (req, res) => {
         if (!context.line) {
             return res.status(404).json({ error: 'No se encontró la línea origen.' });
         }
-        if (!Boolean(context.line.finalized_for_order ?? context.line.raw_data?.['CODEX_FINALIZED_FOR_ORDER'])) {
+        if (!Boolean(context.line.finalized_for_order ?? context.line.raw_data?.['Finalizado_Para_Orden'])) {
             return res.status(400).json({ error: 'La línea debe estar finalizada antes de preparar la salida SAP.' });
         }
         const accountingContext = await loadSapSalesOrderAccountingContext(pgQuery, {
@@ -16016,19 +16054,19 @@ app.post('/api/flexo/calculo/guardar', async (req, res) => {
         rawData['ANALISIS CAMPOS FINALIZAR'] = validationBlocked ? validationSummary : '';
         rawData['ANALISIS CAMPOS CREAR ORDEN'] = validationBlocked ? validationSummary : '';
         rawData['ANALISIS CAMPOS PDF'] = validationBlocked ? validationSummary : '';
-        rawData['CODEX_VALIDATION_MESSAGES'] = validationMessages;
-        rawData['CODEX_VALIDATION_BLOCKED'] = validationBlocked;
+        rawData['Mensajes_Validacion'] = validationMessages;
+        rawData['Validacion_Bloqueada'] = validationBlocked;
         if (Object.prototype.hasOwnProperty.call(payload, 'trackingClosure')) {
-            rawData['CODEX_QUOTE_CLOSURE'] = payload.trackingClosure || null;
+            rawData['Cierre_Cotizacion'] = payload.trackingClosure || null;
         }
         applyCurrencyFieldsToRawData(rawData, payload.exchangeRate ?? payload.exchange_rate);
         if (Object.prototype.hasOwnProperty.call(payload, 'finalized_for_order') || Object.prototype.hasOwnProperty.call(payload, 'finalizedForOrder')) {
-            rawData['CODEX_FINALIZED_FOR_ORDER'] = Boolean(Object.prototype.hasOwnProperty.call(payload, 'finalized_for_order')
+            rawData['Finalizado_Para_Orden'] = Boolean(Object.prototype.hasOwnProperty.call(payload, 'finalized_for_order')
                 ? payload.finalized_for_order
                 : payload.finalizedForOrder);
         }
         const finalizeValidation = proformaBlockingMessagesFromRaw(rawData).join(' ');
-        if (Boolean(rawData['CODEX_FINALIZED_FOR_ORDER']) && finalizeValidation) {
+        if (Boolean(rawData['Finalizado_Para_Orden']) && finalizeValidation) {
             throw new Error(finalizeValidation);
         }
         const normalizedGroup = normalizeFrontBackGroup(rawData);

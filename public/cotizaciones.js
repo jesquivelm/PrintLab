@@ -1397,7 +1397,7 @@ function normalizeQuoteLine(line, quoteCode, index = 0) {
         || raw['ANALISIS CAMPOS PDF']
         || ''
     ).trim());
-    const autoSelection = raw.CODEX_AUTO_SELECTION || {};
+    const autoSelection = raw.Seleccion_Automatica || {};
     const autoWarnings = [];
     const fallbackTotal = pickFirstMeaningfulNumber(
         summary.subtotal_1,
@@ -1426,10 +1426,10 @@ function normalizeQuoteLine(line, quoteCode, index = 0) {
         machineName: summary.machine_name || line.machine_name || raw['CONV | MAQUINA'] || raw['DIGITAL | MAQUINA'] || '',
         dieCode: summary.die_code || line.die_code || raw['GENERAL | TROQUEL | ID'] || raw['REQ | Troquelado'] || '',
         processType: summary.process_type || line.process_type || raw['Proceso Productivo'] || '',
-        processSequenceText: summary.process_sequence_text || raw['CODEX_PROCESS_SEQUENCE_TEXT'] || raw['BOT | Process Sequence'] || '',
+        processSequenceText: summary.process_sequence_text || raw['Texto_Secuencia_Procesos'] || raw['BOT | Process Sequence'] || '',
         frontBackGroup: normalizeFrontBackGroupClient(line.grupo_frente_dorso || line.front_back_group || summary.grupo_frente_dorso || summary.front_back_group || raw),
         estado: summary.status || line.status || raw['SOLICITUD ESTADO'] || raw['ESTADO LINEA'] || 'Borrador',
-        finalizadaOrden: Boolean(summary.finalized_for_order || line.finalized_for_order || raw['CODEX_FINALIZED_FOR_ORDER']),
+        finalizadaOrden: Boolean(summary.finalized_for_order || line.finalized_for_order || raw['Finalizado_Para_Orden']),
         calculationBlockMessage,
         subtotal1: fallbackTotal ?? '',
         productId: summary.product_code || line.product_code || line.line_code || '',
@@ -1558,8 +1558,8 @@ function summarizeProformaIssuesByProcess(issues = []) {
 
 function proformaBlockIssuesFromLine(line = {}) {
     const raw = line.raw_data || line.rawData || {};
-    const messages = Array.isArray(raw.CODEX_VALIDATION_MESSAGES)
-        ? raw.CODEX_VALIDATION_MESSAGES.map((item) => String(item || '').trim()).filter(Boolean)
+    const messages = Array.isArray(raw.Mensajes_Validacion)
+        ? raw.Mensajes_Validacion.map((item) => String(item || '').trim()).filter(Boolean)
         : [];
     const fallback = String(raw['ANALISIS CAMPOS PDF'] || raw['ANALISIS CAMPOS CREAR ORDEN'] || raw['ANALISIS CAMPOS FINALIZAR'] || '').trim();
     return [...new Set(messages.length ? messages : (fallback ? [fallback] : []))]
@@ -1663,7 +1663,7 @@ function quoteTotalFromLines(lines = []) {
 }
 
 function normalizeFrontBackGroupClient(rowOrRaw = {}) {
-    const group = rowOrRaw?.grupoFrenteDorso || rowOrRaw?.grupo_frente_dorso || rowOrRaw?.frontBackGroup || rowOrRaw?.rawData?.grupoFrenteDorso || rowOrRaw?.rawData?.CODEX_FD_GROUP || rowOrRaw?.CODEX_FD_GROUP || rowOrRaw;
+    const group = rowOrRaw?.grupoFrenteDorso || rowOrRaw?.grupo_frente_dorso || rowOrRaw?.frontBackGroup || rowOrRaw?.rawData?.grupoFrenteDorso || rowOrRaw?.rawData?.Grupo_Frente_Dorso || rowOrRaw?.Grupo_Frente_Dorso || rowOrRaw;
     if (!group || typeof group !== 'object') return null;
     const explicitElements = Array.isArray(group.elementLineCodes)
         ? group.elementLineCodes.map(normalizeText).filter(Boolean)
@@ -3670,7 +3670,7 @@ function collectRequestPayload() {
             'TRAZABILIDAD | SOLICITUD VENDEDOR': 'Si',
             'TRAZABILIDAD | FECHA SOLICITUD VENDEDOR': new Date().toISOString(),
             'TRAZABILIDAD | USUARIO SOLICITUD VENDEDOR': currentUserName(),
-            'CODEX_UI_STATE': {
+            'Estado_UI': {
                 request: 'solicitud-vendedor',
                 productType: normalizeText(productType),
                 quantities,
@@ -3876,9 +3876,9 @@ async function createQuickQuoteDraft(payload, options = {}) {
     const baseQuantity = parseRequestedQuantityValue(quantities[0]) || 0;
     const requestKey = options.requestKey || buildQuickRequestKey(payload);
     const requestMeta = { ...(payload.request_meta || {}) };
-    const uiState = requestMeta.CODEX_UI_STATE;
+    const uiState = requestMeta.Estado_UI;
     if (uiState && typeof uiState === 'object' && !Array.isArray(uiState)) {
-        requestMeta.CODEX_UI_STATE = {
+        requestMeta.Estado_UI = {
             ...uiState,
             header: {
                 ...(uiState.header || {}),
@@ -3926,7 +3926,7 @@ async function createQuickQuoteDraft(payload, options = {}) {
             line_order: 1,
             request_meta: {
                 ...requestMeta,
-                'CODEX_REQUEST_KEY': requestKey,
+                'Clave_Solicitud': requestKey,
                 'SOLICITUD ESTADO': status,
                 'REQ | Cantidad Solicitada Original': String(baseQuantity),
                 'REQ | Grupo de Cantidades': quantities.join(', ')

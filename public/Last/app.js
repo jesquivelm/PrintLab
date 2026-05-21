@@ -476,8 +476,8 @@ function processLabelFromKey(processKey = '') {
 
 function proformaBlockIssuesFromLine(line = {}) {
     const raw = line.raw_data || {};
-    const messages = Array.isArray(raw.CODEX_VALIDATION_MESSAGES)
-        ? raw.CODEX_VALIDATION_MESSAGES.map((item) => String(item || '').trim()).filter(Boolean)
+    const messages = Array.isArray(raw.Mensajes_Validacion)
+        ? raw.Mensajes_Validacion.map((item) => String(item || '').trim()).filter(Boolean)
         : [];
     const fallback = String(raw['ANALISIS CAMPOS PDF'] || raw['ANALISIS CAMPOS CREAR ORDEN'] || raw['ANALISIS CAMPOS FINALIZAR'] || '').trim();
     return [...new Set(messages.length ? messages : (fallback ? [fallback] : []))]
@@ -1429,7 +1429,7 @@ function applyQuotePayload(payload) {
     syncQuoteNumberFieldAppearance();
 
     quoteRows = lines.map((line, index) => ({
-        autoSelection: line.raw_data?.['CODEX_AUTO_SELECTION'] || {},
+        autoSelection: line.raw_data?.['Seleccion_Automatica'] || {},
         id: index + 1,
         linea: line.line_code || '',
         originalLinea: line.line_code || '',
@@ -1447,10 +1447,10 @@ function applyQuotePayload(payload) {
       troquelado: line.raw_data?.['REQ | Troquelado'] || '',
       numeracion: line.raw_data?.['REQ | Numeracion'] || line.raw_data?.['REQ | Numeracion Aviso'] || '',
       routeLabel: line.raw_data?.['REQ | Ruta Automática'] || line.process_type || '',
-      mountingSummary: line.raw_data?.['REQ | Montaje Automático'] || line.raw_data?.['CODEX_PROCESS_SEQUENCE_TEXT'] || '',
+      mountingSummary: line.raw_data?.['REQ | Montaje Automático'] || line.raw_data?.['Texto_Secuencia_Procesos'] || '',
       autoWarningsText: '',
       materialCode: line.raw_data?.['Material Convencional | Id Material'] || line.raw_data?.['Material Digital | Id Material'] || '',
-      finalizadaOrden: Boolean(line.finalized_for_order || line.raw_data?.['CODEX_FINALIZED_FOR_ORDER']),
+      finalizadaOrden: Boolean(line.finalized_for_order || line.raw_data?.['Finalizado_Para_Orden']),
       estado: line.status || 'Cotizada',
         subtotal1: line.subtotal_1 ?? '',
         subtotal2: line.subtotal_2 ?? '',
@@ -1463,7 +1463,7 @@ function applyQuotePayload(payload) {
         quoteId: quote?.quote_code || '',
         productId: line.product_code || '',
         processType: line.process_type || '',
-        processSequenceText: line.process_sequence_text || line.raw_data?.['CODEX_PROCESS_SEQUENCE_TEXT'] || ''
+        processSequenceText: line.process_sequence_text || line.raw_data?.['Texto_Secuencia_Procesos'] || ''
     }));
 
     setHeaderLockState(quoteRows.length > 0);
@@ -1755,14 +1755,14 @@ async function persistNewRow() {
         troquelado: linea.raw_data?.['REQ | Troquelado'] || '',
         numeracion: linea.raw_data?.['REQ | Numeracion'] || linea.raw_data?.['REQ | Numeracion Aviso'] || '',
         routeLabel: linea.raw_data?.['REQ | Ruta Automática'] || linea.process_type || '',
-        mountingSummary: linea.raw_data?.['REQ | Montaje Automático'] || linea.raw_data?.['CODEX_PROCESS_SEQUENCE_TEXT'] || '',
+        mountingSummary: linea.raw_data?.['REQ | Montaje Automático'] || linea.raw_data?.['Texto_Secuencia_Procesos'] || '',
         autoWarningsText: '',
         estado: linea.status || newRow.estado,
         subtotal1: linea.subtotal_1 ?? '',
         quoteId: currentQuote.quote_code,
         productId: linea.product_code || linea.line_code,
         processType: linea.process_type || newRow.processType || '',
-        processSequenceText: linea.process_sequence_text || linea.raw_data?.['CODEX_PROCESS_SEQUENCE_TEXT'] || newRow.processSequenceText || ''
+        processSequenceText: linea.process_sequence_text || linea.raw_data?.['Texto_Secuencia_Procesos'] || newRow.processSequenceText || ''
     };
     quoteRows = [...quoteRows, row];
     setHeaderLockState(true);
@@ -1799,16 +1799,16 @@ async function saveRow(row) {
             troquelado: saved.raw_data?.['REQ | Troquelado'] || item.troquelado,
             numeracion: saved.raw_data?.['REQ | Numeracion'] || saved.raw_data?.['REQ | Numeracion Aviso'] || item.numeracion,
             routeLabel: saved.raw_data?.['REQ | Ruta Automática'] || saved.process_type || item.routeLabel,
-            mountingSummary: saved.raw_data?.['REQ | Montaje Automático'] || saved.raw_data?.['CODEX_PROCESS_SEQUENCE_TEXT'] || item.mountingSummary,
+            mountingSummary: saved.raw_data?.['REQ | Montaje Automático'] || saved.raw_data?.['Texto_Secuencia_Procesos'] || item.mountingSummary,
             autoWarningsText: '',
             materialCode: saved.raw_data?.['Material Convencional | Id Material'] || saved.raw_data?.['Material Digital | Id Material'] || item.materialCode,
-            finalizadaOrden: Boolean(saved.finalized_for_order || saved.raw_data?.['CODEX_FINALIZED_FOR_ORDER'] || item.finalizadaOrden),
+            finalizadaOrden: Boolean(saved.finalized_for_order || saved.raw_data?.['Finalizado_Para_Orden'] || item.finalizadaOrden),
             estado: saved.status || item.estado,
             lineOrder: Number(saved.line_order) || item.lineOrder,
             subtotal1: saved.subtotal_1 ?? item.subtotal1,
             productId: saved.product_code || item.productId,
             processType: saved.process_type || item.processType,
-            processSequenceText: saved.process_sequence_text || saved.raw_data?.['CODEX_PROCESS_SEQUENCE_TEXT'] || item.processSequenceText
+            processSequenceText: saved.process_sequence_text || saved.raw_data?.['Texto_Secuencia_Procesos'] || item.processSequenceText
         } : item);
         renderRows();
     }

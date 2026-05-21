@@ -483,7 +483,7 @@ function loadQuoteTrackingMilestones() {
   const store = readQuoteTrackingStore();
   const id = quoteTrackingStorageId();
   const storedState = store[id] || {};
-  state.quoteTracking.closure = storedState.closure || state.context?.calculo?.raw_data?.CODEX_QUOTE_CLOSURE || state.form?.quoteTrackingClosure || null;
+  state.quoteTracking.closure = storedState.closure || state.context?.calculo?.raw_data?.Cierre_Cotizacion || state.form?.quoteTrackingClosure || null;
   const saved = Array.isArray(storedState.milestones) ? storedState.milestones : [];
   const defaults = quoteTrackingDefaults();
   const milestones = defaults.map((item) => {
@@ -761,7 +761,7 @@ async function persistCalculationForOrder() {
     trackingClosure: state.quoteTracking.closure || null
   };
   const saved = await postJson("/api/flexo/calculo/guardar", payload);
-  if (state.context?.calculo?.raw_data) state.context.calculo.raw_data.CODEX_FINALIZED_FOR_ORDER = true;
+  if (state.context?.calculo?.raw_data) state.context.calculo.raw_data.Finalizado_Para_Orden = true;
   return saved;
 }
 
@@ -1246,7 +1246,7 @@ function first(...values) {
 }
 
 function normalizeFrontBackGroupData(rowOrRaw = {}) {
-  const group = rowOrRaw?.grupoFrenteDorso || rowOrRaw?.grupo_frente_dorso || rowOrRaw?.frontBackGroup || rowOrRaw?.raw_data?.grupoFrenteDorso || rowOrRaw?.raw_data?.CODEX_FD_GROUP || rowOrRaw?.CODEX_FD_GROUP || rowOrRaw;
+  const group = rowOrRaw?.grupoFrenteDorso || rowOrRaw?.grupo_frente_dorso || rowOrRaw?.frontBackGroup || rowOrRaw?.raw_data?.grupoFrenteDorso || rowOrRaw?.raw_data?.Grupo_Frente_Dorso || rowOrRaw?.Grupo_Frente_Dorso || rowOrRaw;
   if (!group || typeof group !== "object" || Array.isArray(group)) return null;
   const explicitElements = Array.isArray(group.elementLineCodes)
     ? group.elementLineCodes.map((item) => String(item || "").trim()).filter(Boolean)
@@ -2576,20 +2576,20 @@ function machineDisplayName(machine) {
 }
 
 function autoSelectionSnapshot() {
-  const snapshot = state.context?.calculo?.raw_data?.CODEX_AUTO_SELECTION || {};
+  const snapshot = state.context?.calculo?.raw_data?.Seleccion_Automatica || {};
   const machineName = String(snapshot?.machineName || "").trim();
   if (!machineName) return snapshot;
   return findMachineByDisplayName(machineName) ? snapshot : { ...snapshot, machineName: "", missingMachine: true };
 }
 
 function autoPricingSnapshot() {
-  return state.context?.calculo?.raw_data?.CODEX_AUTO_PRICING || {};
+  return state.context?.calculo?.raw_data?.Precio_Automatico || {};
 }
 
 function autoProcessSnapshot() {
   const declared = state.context?.calculo?.processes;
   if (Array.isArray(declared) && declared.length) return declared;
-  const rawDeclared = state.context?.calculo?.raw_data?.CODEX_PROCESS_SNAPSHOT;
+  const rawDeclared = state.context?.calculo?.raw_data?.Secuencia_Procesos;
   return Array.isArray(rawDeclared) ? rawDeclared : [];
 }
 
@@ -3920,12 +3920,12 @@ function buildForm() {
   const quote = state.context?.cotizacion || null;
   const savedUi = context?.uiState || null;
   const raw = context?.raw_data || {};
-  const autoSelection = raw?.CODEX_AUTO_SELECTION || {};
-  const autoPricing = raw?.CODEX_AUTO_PRICING || {};
+  const autoSelection = raw?.Seleccion_Automatica || {};
+  const autoPricing = raw?.Precio_Automatico || {};
   const autoProcesses = Array.isArray(context?.processes) && context.processes.length
     ? context.processes
-    : Array.isArray(raw?.CODEX_PROCESS_SNAPSHOT)
-      ? raw.CODEX_PROCESS_SNAPSHOT
+    : Array.isArray(raw?.Secuencia_Procesos)
+      ? raw.Secuencia_Procesos
       : [];
   const die = findDie(context?.dieCode);
   const selectedQuotedMachine = findMachineByDisplayName(first(autoSelection?.machineName, context?.machineName, "")) || selectSingleMachineOrNull(printMachines());
@@ -4942,7 +4942,7 @@ function buildSavePayload() {
     processResult: JSON.parse(JSON.stringify(result)),
     trackingClosure: state.quoteTracking.closure
       ? JSON.parse(JSON.stringify(state.quoteTracking.closure))
-      : (state.context?.calculo?.raw_data?.CODEX_QUOTE_CLOSURE || null),
+      : (state.context?.calculo?.raw_data?.Cierre_Cotizacion || null),
     uiState: JSON.parse(JSON.stringify(state.form))
   };
 }
@@ -5889,9 +5889,9 @@ function renderSidebar(result) {
   if (els.automaticSummaryRows) {
     const processSequence = autoProcesses.length
       ? autoProcesses.map((item) => item.processName || item.name || item.processKey || "").filter(Boolean).join(" → ")
-      : first(state.context?.calculo?.raw_data?.CODEX_PROCESS_SEQUENCE_TEXT, "Pendiente");
+      : first(state.context?.calculo?.raw_data?.Texto_Secuencia_Procesos, "Pendiente");
     els.automaticSummaryRows.innerHTML = [
-      ["Umbral digital", num(first(autoSelection?.digitalThreshold, state.context?.calculo?.raw_data?.CODEX_AUTO_SELECTION?.digitalThreshold), 0)],
+      ["Umbral digital", num(first(autoSelection?.digitalThreshold, state.context?.calculo?.raw_data?.Seleccion_Automatica?.digitalThreshold), 0)],
       ["Ruta", state.context?.calculo?.processType || autoSelection?.route || "No definida"],
       ["Familia solicitada", first(autoSelection?.materialFamily, "Pendiente")],
       ["Material automático", first(autoSelection?.materialName, state.context?.calculo?.materialName, "Pendiente")],
@@ -6287,7 +6287,7 @@ function processKeyFromIssueText(message = "") {
 
 function activeProcessKeysFromStoredLine(line = {}) {
   const raw = line.raw_data || {};
-  const uiState = raw.CODEX_UI_STATE || {};
+  const uiState = raw.Estado_UI || {};
   const keys = new Set(Array.isArray(uiState.activeProcessKeys) ? uiState.activeProcessKeys : []);
   const uiFinishes = Array.isArray(uiState.finishes) ? uiState.finishes : [];
   const explicitFinishKeys = new Set(
@@ -6301,7 +6301,7 @@ function activeProcessKeysFromStoredLine(line = {}) {
       if (EXTERNAL_FINISH_BY_KEY[key] && !explicitFinishKeys.has(key)) keys.delete(key);
     });
   }
-  (Array.isArray(raw.CODEX_PROCESS_SNAPSHOT) ? raw.CODEX_PROCESS_SNAPSHOT : []).forEach((item) => {
+  (Array.isArray(raw.Secuencia_Procesos) ? raw.Secuencia_Procesos : []).forEach((item) => {
     const key = processKeyFromAutoSnapshot(item?.processKey || item?.processName || item?.name || "");
     if (key && (!EXTERNAL_FINISH_BY_KEY[key] || !uiFinishes.length || explicitFinishKeys.has(key))) keys.add(key);
   });
@@ -6335,8 +6335,8 @@ function formatStoredLineBlockMessageForProforma(line = {}, quoteCode = "") {
 function storedLineIssues(line = {}) {
   const raw = line.raw_data || {};
   const activeKeys = activeProcessKeysFromStoredLine(line);
-  const messages = Array.isArray(raw.CODEX_VALIDATION_MESSAGES)
-    ? raw.CODEX_VALIDATION_MESSAGES.map((item) => String(item || "").trim()).filter(Boolean)
+  const messages = Array.isArray(raw.Mensajes_Validacion)
+    ? raw.Mensajes_Validacion.map((item) => String(item || "").trim()).filter(Boolean)
     : [];
   const fallback = extractStoredLineBlockMessage(line);
   return uniqueMessages(messages.length ? messages : (fallback ? [fallback] : []))

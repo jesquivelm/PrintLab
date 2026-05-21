@@ -974,7 +974,7 @@ function pickFirstMeaningfulNumber(...values) {
 function normalizeQuoteLine(line, quoteCode, index = 0) {
     quoteTreeLineSequence += 1;
     const raw = line.raw_data || {};
-    const autoSelection = raw.CODEX_AUTO_SELECTION || {};
+    const autoSelection = raw.Seleccion_Automatica || {};
     const autoWarnings = [];
     const fallbackTotal = pickFirstMeaningfulNumber(
         line.subtotal_1,
@@ -997,9 +997,9 @@ function normalizeQuoteLine(line, quoteCode, index = 0) {
         medida: [raw['DIMENSIONES ETIQUETA | ANCHO'], raw['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join(' x '),
         machineName: line.machine_name || raw['CONV | MAQUINA'] || raw['DIGITAL | MAQUINA'] || '',
         processType: line.process_type || raw['Proceso Productivo'] || '',
-        processSequenceText: raw['CODEX_PROCESS_SEQUENCE_TEXT'] || raw['BOT | Process Sequence'] || '',
+        processSequenceText: raw['Texto_Secuencia_Procesos'] || raw['BOT | Process Sequence'] || '',
         estado: line.status || raw['SOLICITUD ESTADO'] || raw['ESTADO LINEA'] || 'Borrador',
-        finalizadaOrden: Boolean(line.finalized_for_order || raw['CODEX_FINALIZED_FOR_ORDER']),
+        finalizadaOrden: Boolean(line.finalized_for_order || raw['Finalizado_Para_Orden']),
         subtotal1: fallbackTotal ?? '',
         productId: line.product_code || '',
         quantity: pickFirstMeaningfulNumber(line.quantity, raw['Cantidad Productos']),
@@ -1931,7 +1931,7 @@ function collectRequestPayload() {
             'REQ | Comentarios': normalizeText(document.getElementById('requestComments')?.value),
             'REQ | Medida Fija': normalizeText(fixedSizeSelect?.value),
             'REQ | Numeracion Aviso': numbering ? 'Revisar proceso adicional de impresion para numerado.' : '',
-            'CODEX_UI_STATE': {
+            'Estado_UI': {
                 productType: normalizeText(productType),
                 quantities,
                 dieShape: selectedShape,
