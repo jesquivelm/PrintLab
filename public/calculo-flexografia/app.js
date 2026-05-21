@@ -1334,12 +1334,12 @@ function storedLineJobName(line = {}) {
 function storedLineSubtotal(line = {}) {
   const raw = storedLineRaw(line);
   return n(first(
-    raw.CODEX_PROCESS_RESULT?.industrial,
+    raw.Datos_Cotizados?.industrial,
     raw["GENERAL | 5 | SUBTOTAL"],
     line.totalCost,
     line.total_cost,
     line.subtotal_1,
-    raw.CODEX_PROCESS_RESULT?.total,
+    raw.Datos_Cotizados?.total,
     raw["PRECIO TOTAL AL FINALIZAR"],
     raw["GENERAL | 9 | TOTAL | DOL"],
     raw["GENERAL | 7 | TOTAL | DOL"]

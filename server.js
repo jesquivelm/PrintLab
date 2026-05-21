@@ -7064,7 +7064,7 @@ function getQuotedPlanningProcessKeys(orderRow = {}) {
     const orderRaw = snapshot.raw || {};
     const lineSnapshot = orderRaw.line_snapshot || {};
     const raw = lineSnapshot.raw_data || orderRaw || {};
-    const result = raw['CODEX_PROCESS_RESULT'] || {};
+    const result = raw['Datos_Cotizados'] || {};
     const uiProcessMeta = getUiStateProcessMeta(raw);
     const keys = new Set();
     const noPrint = String(snapshot.processType || raw['Proceso Productivo'] || '').toLowerCase().includes('sin impresion')
@@ -8046,7 +8046,7 @@ function pushSapComponent(components = [], component = {}) {
 
 function appendSapComponentsFromLine(components = [], lineRow = {}, warehouse = '01') {
     const raw = lineRow?.raw_data || {};
-    const result = raw['CODEX_PROCESS_RESULT'] || {};
+    const result = raw['Datos_Cotizados'] || {};
     const uiState = raw['CODEX_UI_STATE'] || {};
     const sourceLineCode = lineRow?.line_code || raw['ID LINEA'] || '';
     const materialCode = pickFirstValue(
@@ -8680,7 +8680,7 @@ function buildCalculationRawData(payload = {}, existingRawData = {}) {
         'PRECIO TOTAL AL FINALIZAR': total,
         'GENERAL | 9 | UNITARIO | DOL': unitPrice,
         'CODEX_UI_STATE': hasOwn('uiState') ? payload.uiState : (existingRawData['CODEX_UI_STATE'] || null),
-        'CODEX_PROCESS_RESULT': hasOwn('processResult') ? payload.processResult : (existingRawData['CODEX_PROCESS_RESULT'] || null)
+        'Datos_Cotizados': hasOwn('processResult') ? payload.processResult : (existingRawData['Datos_Cotizados'] || null)
     };
 
     const uiPrintState = rawData['CODEX_UI_STATE']?.print || rawData['CODEX_UI_STATE']?.printStages?.[0] || null;
@@ -13306,7 +13306,7 @@ app.get('/api/planificacion/lanzamiento', async (req, res) => {
                 const selectedSet = new Set(processKeys);
                 const quotedSet = new Set(quotedProcessKeys);
                 const tintCount = Number(lineSnapshot.tintCount || lineSnapshot.pantoneCount || lineRaw['CANTIDAD TINTAS'] || 0);
-                const processResultRaw = lineRaw['CODEX_PROCESS_RESULT'] || {};
+                const processResultRaw = lineRaw['Datos_Cotizados'] || {};
                 const plannedFeet = Number(
                     processResultRaw?.sustrato?.totalLengthFeet
                     || processResultRaw?.sustrato?.linealFeet
