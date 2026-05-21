@@ -6936,7 +6936,7 @@ const PLANNING_BASE_PROCESS_KEYS = Object.freeze(['rebobinado', 'empaque']);
 const PLANNING_PROCESS_LABELS = Object.freeze({
     diseno: 'Diseño',
     preprensa: 'Preprensa',
-    visto_bueno: 'Visto bueno',
+    visto_bueno: 'Visto Bueno',
     planchas: 'Planchas',
     tintas: 'Tintas',
     impresion: 'Impresión',
@@ -6956,9 +6956,14 @@ const PRODUCTION_FLOW_SEQUENCE = Object.freeze([
     'preprensa',
     'visto_bueno',
     'planchas',
-    'tintas',
     'impresion',
     'acabados',
+    'barnizado',
+    'laminado',
+    'troquelado',
+    'estampado',
+    'embosado',
+    'numeracion',
     'rebobinado',
     'empaque'
 ]);
@@ -6966,19 +6971,24 @@ const PRODUCTION_FLOW_SEQUENCE = Object.freeze([
 const PRODUCTION_FLOW_LABELS = Object.freeze({
     diseno: 'Diseño',
     preprensa: 'Preprensa',
-    visto_bueno: 'Visto bueno',
+    visto_bueno: 'Visto Bueno',
     planchas: 'Planchas',
-    tintas: 'Tintas',
     impresion: 'Impresión',
     acabados: 'Acabados',
+    barnizado: 'Barnizado',
+    laminado: 'Laminado',
+    troquelado: 'Troquelado',
+    estampado: 'Estampado',
+    embosado: 'Embosado',
+    numeracion: 'Numeración',
     rebobinado: 'Rebobinado',
     empaque: 'Empaque'
 });
 
 function canonicalProductionFlowKey(value) {
     const key = canonicalPlanningProcessKey(value);
-    if (['laminado', 'troquelado', 'estampado', 'barnizado', 'embosado', 'numeracion'].includes(key)) return 'acabados';
     if (key === 'visto' || key === 'visto-bueno') return 'visto_bueno';
+    if (key === 'numerado') return 'numeracion';
     return key;
 }
 
@@ -7232,7 +7242,7 @@ function buildCalculationProcessSnapshot({ raw = {}, processType = '', machineNa
             processName = 'Preprensa';
             break;
         case 'visto_bueno':
-            processName = 'Visto bueno';
+            processName = 'Visto Bueno';
             break;
         case 'planchas':
             processName = 'Planchas';
@@ -7289,13 +7299,16 @@ function inferRouteProcessKeys(orderRow = {}) {
     const quotedKeys = getQuotedPlanningProcessKeys(orderRow);
     const finishKeys = new Set(['laminado', 'troquelado', 'estampado', 'barnizado', 'embosado', 'numeracion', 'acabados']);
     const keys = new Set([
-        ...quotedKeys.map((key) => finishKeys.has(key) ? 'acabados' : key),
+        ...quotedKeys.map((key) => finishKeys.has(key) ? canonicalProductionFlowKey(key) : key),
+        'preprensa',
+        'visto_bueno',
         ...PLANNING_BASE_PROCESS_KEYS
     ]);
     if (keys.has('impresion')) {
-        ['diseno', 'preprensa', 'visto_bueno', 'planchas', 'tintas', 'impresion'].forEach((key) => keys.add(key));
+        ['preprensa', 'visto_bueno', 'impresion'].forEach((key) => keys.add(key));
     }
-    if (quotedKeys.some((key) => finishKeys.has(key))) keys.add('acabados');
+    if (!orderUsesInternalPlates(orderRow)) keys.delete('planchas');
+    keys.delete('tintas');
     return normalizePlanningProcessKeys([...keys]);
 }
 
@@ -7306,8 +7319,10 @@ function orderTrackingProcessKeys(orderRow = {}, routeRows = []) {
     const sourceKeys = selected.length ? selected : quoted;
     const keys = new Set(sourceKeys.map(canonicalProductionFlowKey).filter((key) => PRODUCTION_FLOW_SEQUENCE.includes(key)));
     if (keys.has('impresion')) {
-        ['diseno', 'preprensa', 'visto_bueno', 'planchas', 'tintas', 'impresion'].forEach((key) => keys.add(key));
+        ['preprensa', 'visto_bueno', 'impresion'].forEach((key) => keys.add(key));
     }
+    if (!orderUsesInternalPlates(orderRow)) keys.delete('planchas');
+    keys.delete('tintas');
     if (!keys.size) {
         routeRows.forEach((row) => {
             const key = canonicalProductionFlowKey(row.process_key || row.process_name);
@@ -7321,11 +7336,123 @@ function processOrderFromCosts(costsConfig = {}) {
     const rows = Array.isArray(costsConfig?.general?.processDefaults) ? costsConfig.general.processDefaults : [];
     const order = new Map();
     rows.forEach((row, index) => {
-        const key = canonicalProductionFlowKey(row?.key || row?.label);
+        const rawKey = String(row?.key || row?.label || '').trim().toLowerCase();
+        if (['macula', 'troquel', 'sustrato', 'adicionales'].includes(rawKey)) return;
+        const key = canonicalProductionFlowKey(rawKey || row?.label);
         if (key && !order.has(key)) order.set(key, Number(row?.order || ((index + 1) * 10)));
     });
     if (order.has('preprensa') && !order.has('visto_bueno')) order.set('visto_bueno', order.get('preprensa') + 0.5);
     return order;
+}
+
+const ORDER_TRACKING_MANDATORY_PROCESS_KEYS = Object.freeze(['preprensa', 'visto_bueno', 'rebobinado', 'empaque']);
+const ORDER_TRACKING_HIDDEN_PROCESS_KEYS = new Set(['macula', 'troquel', 'sustrato', 'tintas']);
+const ORDER_TRACKING_EXTERNAL_FINISH_KEYS = new Set(['acabados', 'barnizado', 'laminado', 'troquelado', 'estampado', 'embosado', 'numeracion']);
+
+function orderLineRawData(orderRow = {}) {
+    const raw = orderRow?.raw_data || {};
+    return raw?.line_snapshot?.raw_data || raw;
+}
+
+function orderQuotedResult(orderRow = {}) {
+    return orderLineRawData(orderRow)?.['Datos_Cotizados'] || {};
+}
+
+function orderUiState(orderRow = {}) {
+    const raw = orderRow?.raw_data || {};
+    const lineRaw = orderLineRawData(orderRow);
+    return lineRaw?.['Estado_UI'] || raw?.['Estado_UI'] || {};
+}
+
+function orderHasNoPrint(orderRow = {}) {
+    const snapshot = inferPlanningOrderSnapshot(orderRow);
+    const lineRaw = orderLineRawData(orderRow);
+    const uiState = orderUiState(orderRow);
+    const text = String(snapshot.processType || lineRaw['Proceso Productivo'] || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    return text.includes('sin impresion')
+        || isTruthyProcessFlag(lineRaw['NO IMPRESION'])
+        || isTruthyProcessFlag(lineRaw['SIN IMPRESION'])
+        || isTruthyProcessFlag(uiState?.header?.noPrint);
+}
+
+function orderHasQuotedDesign(orderRow = {}) {
+    const result = orderQuotedResult(orderRow);
+    return positivePlanningAmount(result?.design?.subtotal, result?.design?.rawSubtotal);
+}
+
+function orderHasQuotedPrint(orderRow = {}) {
+    if (orderHasNoPrint(orderRow)) return false;
+    const snapshot = inferPlanningOrderSnapshot(orderRow);
+    const result = orderQuotedResult(orderRow);
+    const lineSnapshot = orderRow?.raw_data?.line_snapshot || {};
+    const printItems = Array.isArray(result?.print?.items) ? result.print.items : [];
+    return positivePlanningAmount(
+        result?.print?.subtotal,
+        result?.print?.rawSubtotal,
+        lineSnapshot?.components?.print,
+        lineSnapshot?.components?.runCost
+    ) || printItems.some(processObjectLooksActive) || Boolean(snapshot.machineName);
+}
+
+function orderUsesInternalPlates(orderRow = {}, costsConfig = {}) {
+    const uiState = orderUiState(orderRow);
+    const plates = uiState?.plates && typeof uiState.plates === 'object' ? uiState.plates : {};
+    const plateMode = String(plates.plateMode || '').trim().toLowerCase();
+    const chargePlates = plates.chargePlates !== false;
+    const processDefault = findCostProcessDefault(costsConfig, 'planchas');
+    const createEnabled = processDefault ? processDefault.createEnabled === true : true;
+    return chargePlates && plateMode === 'create' && createEnabled;
+}
+
+function externalFinishProcessKeysForOrder(orderRow = {}) {
+    const keys = new Set();
+    const uiState = orderUiState(orderRow);
+    const result = orderQuotedResult(orderRow);
+    const add = (value) => {
+        const key = canonicalProductionFlowKey(value);
+        if (ORDER_TRACKING_EXTERNAL_FINISH_KEYS.has(key)) keys.add(key);
+    };
+    (Array.isArray(uiState?.finishes) ? uiState.finishes : []).forEach((finish) => {
+        if (finish?.active === false) return;
+        if (finish?.active === true || processObjectLooksActive(finish)) {
+            add(finish.processKey || finish.slotKey || finish.key || finish.label || finish.description);
+        }
+    });
+    (Array.isArray(result?.finishes?.items) ? result.finishes.items : []).forEach((finish) => {
+        if (!processObjectLooksActive(finish)) return;
+        add(finish.processKey || finish.key || finish.slotKey || finish.label || finish.description);
+    });
+    return [...keys];
+}
+
+function sortOrderTrackingProcessKeys(keys = [], costsConfig = {}) {
+    const costOrder = processOrderFromCosts(costsConfig);
+    const fallbackOrder = new Map(PRODUCTION_FLOW_SEQUENCE.map((key, index) => [key, (index + 1) * 10]));
+    const normalized = [...new Set(keys
+        .map(canonicalProductionFlowKey)
+        .filter((key) => key && PRODUCTION_FLOW_SEQUENCE.includes(key) && !ORDER_TRACKING_HIDDEN_PROCESS_KEYS.has(key)))];
+    return normalized.sort((left, right) => {
+        const leftOrder = costOrder.get(left) ?? fallbackOrder.get(left) ?? 999;
+        const rightOrder = costOrder.get(right) ?? fallbackOrder.get(right) ?? 999;
+        if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+        return (fallbackOrder.get(left) ?? 999) - (fallbackOrder.get(right) ?? 999);
+    });
+}
+
+function resolveOrderTrackingProcessKeys(orderRow = {}, costsConfig = {}, routeRows = []) {
+    const keys = new Set(ORDER_TRACKING_MANDATORY_PROCESS_KEYS);
+    if (orderHasQuotedDesign(orderRow)) keys.add('diseno');
+    if (orderUsesInternalPlates(orderRow, costsConfig)) keys.add('planchas');
+    if (orderHasQuotedPrint(orderRow)) keys.add('impresion');
+    externalFinishProcessKeysForOrder(orderRow).forEach((key) => keys.add(key));
+
+    if (!orderRow?.raw_data && Array.isArray(routeRows)) {
+        routeRows.forEach((row) => {
+            const key = canonicalProductionFlowKey(row.process_key || row.process_name);
+            if (!ORDER_TRACKING_HIDDEN_PROCESS_KEYS.has(key)) keys.add(key);
+        });
+    }
+    return sortOrderTrackingProcessKeys([...keys], costsConfig);
 }
 
 async function listLiveOrders() {
@@ -7445,34 +7572,62 @@ async function ensurePlanningRoutesForLiveOrders() {
 
 async function ensurePlanningRoutesForOrder(order, references = null, options = {}) {
     if (!order?.order_code) return;
-    const resolvedReferences = references || await loadPlanningReferenceMaps();
+    const executor = options.client || { query: pgQuery };
+    const resolvedReferences = references || await loadPlanningReferenceMaps(options.client || null);
     const { processMap, profileMap } = resolvedReferences;
     const replaceExisting = options.replaceExisting === true;
-    const existingResult = await pgQuery(
-        `SELECT id::text, sequence_order FROM production_order_routes WHERE order_code = $1 ORDER BY sequence_order`,
+    const costsConfig = options.costsConfig || await loadCostsConfig();
+    const existingResult = await executor.query(
+        `SELECT id::text, sequence_order, process_key, process_name, route_status
+           FROM production_order_routes
+          WHERE order_code = $1
+          ORDER BY sequence_order`,
         [order.order_code]
     );
-    if (existingResult.rows.length && !replaceExisting) return;
     if (existingResult.rows.length && replaceExisting) {
-        await pgQuery(`DELETE FROM production_order_routes WHERE order_code = $1`, [order.order_code]);
+        await executor.query(`DELETE FROM production_order_routes WHERE order_code = $1`, [order.order_code]);
     }
 
     const snapshot = inferPlanningOrderSnapshot(order);
     const freshPlanningSnapshot = buildPlanningSnapshot(order.raw_data || {}, processMap, profileMap);
     const storedPlanningSnapshot = order.raw_data?.planning_snapshot || order.raw_data?.planningSnapshot || null;
-    const plannedProcesses = Array.isArray(freshPlanningSnapshot?.processes) && freshPlanningSnapshot.processes.length
-        ? freshPlanningSnapshot.processes
-        : Array.isArray(storedPlanningSnapshot?.processes) && storedPlanningSnapshot.processes.length
-            ? storedPlanningSnapshot.processes
-            : [];
+    const plannedByKey = new Map();
+    [
+        ...(Array.isArray(storedPlanningSnapshot?.processes) ? storedPlanningSnapshot.processes : []),
+        ...(Array.isArray(freshPlanningSnapshot?.processes) ? freshPlanningSnapshot.processes : [])
+    ].forEach((process) => {
+        const key = canonicalProductionFlowKey(process?.processKey || process?.processName);
+        if (key && !plannedByKey.has(key)) plannedByKey.set(key, process);
+    });
+    const existingKeys = replaceExisting
+        ? new Set()
+        : new Set(existingResult.rows.map((row) => canonicalProductionFlowKey(row.process_key || row.process_name)).filter(Boolean));
+    const targetKeys = resolveOrderTrackingProcessKeys(order, costsConfig, existingResult.rows);
+    const plannedProcesses = targetKeys
+        .filter((key) => !existingKeys.has(key))
+        .map((key, index) => {
+            const planned = plannedByKey.get(key) || {};
+            const process = processMap.get(key);
+            return {
+                ...planned,
+                processKey: key,
+                processName: planned.processName || process?.process_name || PRODUCTION_FLOW_LABELS[key] || key,
+                sequenceOrder: replaceExisting || !existingResult.rows.length
+                    ? index + 1
+                    : Math.max(...existingResult.rows.map((row) => Number(row.sequence_order || 0)), 0) + index + 1
+            };
+        });
+    if (!plannedProcesses.length) return;
 
     let startHour = 0;
     let previousRouteId = null;
 
     for (const plannedProcess of plannedProcesses) {
         const processKey = plannedProcess.processKey;
-        const process = processMap.get(processKey);
-        if (!process) continue;
+        const process = processMap.get(processKey) || {
+            process_key: processKey,
+            process_name: plannedProcess.processName || PRODUCTION_FLOW_LABELS[processKey] || processKey
+        };
 
         const machineProfile = plannedProcess.machineProfileId
             ? (profileMap.get(processKey) || []).find((row) => String(row.id) === String(plannedProcess.machineProfileId)) || selectMachineProfileForPlanning(processKey, snapshot, profileMap)
@@ -7481,7 +7636,7 @@ async function ensurePlanningRoutesForOrder(order, references = null, options = 
             ? Number(plannedProcess.durationHours)
             : 0.25;
 
-        const insertResult = await pgQuery(`
+        const insertResult = await executor.query(`
             INSERT INTO production_order_routes (
                 order_code, quote_code, line_code, sequence_order,
                 process_key, process_name, machine_profile_id,
@@ -7691,7 +7846,7 @@ async function ensurePlanningSchema() {
     const seededProcesses = [
         { processKey: 'diseno', processName: 'Diseño', sequenceOrder: 1, colorHex: '#8B5CF6', iconKey: '[D]', isParallel: false },
         { processKey: 'preprensa', processName: 'Preprensa', sequenceOrder: 2, colorHex: '#6366F1', iconKey: '[PP]', isParallel: false },
-        { processKey: 'visto_bueno', processName: 'Visto bueno', sequenceOrder: 3, colorHex: '#22C55E', iconKey: '[VB]', isParallel: false },
+        { processKey: 'visto_bueno', processName: 'Visto Bueno', sequenceOrder: 3, colorHex: '#22C55E', iconKey: '[VB]', isParallel: false },
         { processKey: 'planchas', processName: 'Planchas', sequenceOrder: 4, colorHex: '#64748B', iconKey: '[PL]', isParallel: false },
         { processKey: 'tintas', processName: 'Tintas', sequenceOrder: 5, colorHex: '#0EA5E9', iconKey: '[TIN]', isParallel: false },
         { processKey: 'impresion', processName: 'Impresión', sequenceOrder: 6, colorHex: '#1D9E75', iconKey: '[IMP]', isParallel: false },
@@ -13111,7 +13266,12 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/orden-produccion', async (req,
             await closeQuoteProforma(codigo, 'order_generated', client);
 
             const orderResult = await client.query(`SELECT * FROM flexo_orders WHERE order_code = $1 LIMIT 1`, [orderCode]);
-            return orderResult.rows[0];
+            const savedOrder = orderResult.rows[0];
+            await ensurePlanningRoutesForOrder(savedOrder, await loadPlanningReferenceMaps(client), {
+                client,
+                costsConfig: await loadCostsConfig()
+            });
+            return savedOrder;
         });
 
         res.json({
@@ -14223,12 +14383,14 @@ app.get('/api/produccion/flujo', async (req, res) => {
 
 app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
     try {
-        await ensurePlanningRoutesForLiveOrders();
         const orderResult = await pgQuery(`SELECT * FROM flexo_orders WHERE order_code = $1 LIMIT 1`, [req.params.codigo]);
         if (!orderResult.rows.length) {
             return res.status(404).json({ ok: false, error: 'Orden de producción no encontrada.' });
         }
         const orderRow = orderResult.rows[0];
+        if (orderRow.raw_data) normalizeCalculationKeys(orderRow.raw_data);
+        const costsConfig = await loadCostsConfig();
+        await ensurePlanningRoutesForOrder(orderRow, null, { costsConfig });
         const routeResult = await pgQuery(`
             SELECT
                 r.id::text AS route_id,
@@ -14268,52 +14430,9 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
             WHERE r.order_code = $1
             ORDER BY r.sequence_order, r.created_at
         `, [req.params.codigo]);
-        if (orderRow.raw_data) normalizeCalculationKeys(orderRow.raw_data);
         const raw = orderRow.raw_data || {};
-        const lineRaw = raw.line_snapshot?.raw_data || {};
-        // Get quoted process keys from calculation result (subtotals > 0)
-        const quotedKeys = getQuotedPlanningProcessKeys(orderRow);
-        // Collect process keys from ALL available sources
-        const collectedKeys = new Set();
-        // 1. Quoted keys (canonicalized — finish subtypes map to 'acabados')
-        quotedKeys.forEach(function (key) {
-            const flowKey = canonicalProductionFlowKey(key);
-            if (PRODUCTION_FLOW_SEQUENCE.includes(flowKey)) collectedKeys.add(flowKey);
-        });
-        // 2. Route rows from database
-        routeResult.rows.forEach(function (row) {
-            const key = canonicalProductionFlowKey(row.process_key || row.process_name);
-            if (PRODUCTION_FLOW_SEQUENCE.includes(key)) collectedKeys.add(key);
-        });
-        // 3. Planning snapshot processes
         const snapshot = raw.planning_snapshot || raw.planningSnapshot || {};
-        (Array.isArray(snapshot.processes) ? snapshot.processes : []).forEach(function (p) {
-            const key = canonicalProductionFlowKey(p.processKey || p.processName);
-            if (PRODUCTION_FLOW_SEQUENCE.includes(key)) collectedKeys.add(key);
-        });
-        // Always include base processes
-        PLANNING_BASE_PROCESS_KEYS.forEach(function (key) { collectedKeys.add(key); });
-        // Read Secuencia_Procesos for exact calculation order with numbering
-        const codexSnapshot = normalizeProcessDisplayList(
-            Array.isArray(lineRaw['Secuencia_Procesos']) ? lineRaw['Secuencia_Procesos'] : []
-        );
-        const codexOrderMap = new Map();
-        const allCodexKeys = [];
-        codexSnapshot.forEach(function (p) {
-            const key = canonicalProductionFlowKey(p.processKey || p.processName);
-            if (key && !codexOrderMap.has(key)) {
-                codexOrderMap.set(key, Number(p.sequenceOrder) || codexOrderMap.size + 1);
-                allCodexKeys.push(key);
-            }
-        });
-        // Sort by Secuencia_Procesos order; fallback to PRODUCTION_FLOW_SEQUENCE
-        const flowOrderIndex = new Map();
-        PRODUCTION_FLOW_SEQUENCE.forEach(function (key, idx) { flowOrderIndex.set(key, idx); });
-        const processKeys = [...collectedKeys].sort(function (left, right) {
-            const l = codexOrderMap.get(left) ?? flowOrderIndex.get(left) ?? 999;
-            const r = codexOrderMap.get(right) ?? flowOrderIndex.get(right) ?? 999;
-            return l - r;
-        });
+        const processKeys = resolveOrderTrackingProcessKeys(orderRow, costsConfig, routeResult.rows);
         const control = getOrderPlanningControl(raw);
         const snapshotByKey = new Map((Array.isArray(snapshot.processes) ? snapshot.processes : []).map((process) => [
             canonicalProductionFlowKey(process.processKey || process.processName),
@@ -14371,7 +14490,7 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
             },
             {
                 processKey: 'solicitud_vendedor',
-                processName: 'Solicitud del Vendedor',
+                processName: 'Solicitud de Vendedor',
                 sequenceOrder: 2,
                 routeStatus: control.salesReleased ? 'COMPLETADO' : 'PENDIENTE',
                 completedBy: control.salesReleasedBy || raw.salesperson_name || raw.quote_snapshot?.salesperson_name || '',
@@ -14381,7 +14500,7 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
             },
             {
                 processKey: 'planeacion',
-                processName: 'Planeación',
+                processName: 'Seguimiento',
                 sequenceOrder: 3,
                 routeStatus: control.launchedToGantt ? 'COMPLETADO' : (control.planningStatus === 'PENDIENTE_PLANIFICACION' ? 'RUN' : 'PENDIENTE'),
                 completedBy: control.launchedBy || control.processSelectionUpdatedBy || '',
