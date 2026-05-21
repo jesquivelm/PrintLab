@@ -7387,10 +7387,10 @@ function quotedDurationMinutesFrom(item = {}) {
     if (!item || typeof item !== 'object') return 0;
     const minutes = firstPositivePlanningNumber(
         item.totalMinutes,
-        item.durationMinutes,
-        item.minutes,
         Number(item.setupAdjustmentMin || 0) + Number(item.runMinutes || 0),
-        Number(item.setupMinutes || 0) + Number(item.runMinutes || 0)
+        Number(item.setupMinutes || 0) + Number(item.runMinutes || 0),
+        item.durationMinutes,
+        item.minutes
     );
     if (minutes > 0) return minutes;
     const hours = firstPositivePlanningNumber(item.time, item.hours, item.durationHours, item.totalHours);
