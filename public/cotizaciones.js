@@ -3548,7 +3548,8 @@ function getShapeOptions() {
         { value: 'Cuadrado', label: general.dieShapeLabel2 || 'Cuadrado', image: general.dieShapeImage2 || '' },
         { value: 'Rectangular', label: general.dieShapeLabel3 || 'Rectangular', image: general.dieShapeImage3 || '' },
         { value: 'Ovalado', label: general.dieShapeLabel4 || 'Ovalado', image: general.dieShapeImage4 || '' },
-        { value: 'Especial', label: general.dieShapeLabel5 || 'Especial', image: general.dieShapeImage5 || '' }
+        { value: 'Especial', label: general.dieShapeLabel5 || 'Especial', image: general.dieShapeImage5 || '' },
+        { value: 'Butt Cut', label: general.dieShapeLabel6 || 'Butt Cut', image: general.dieShapeImage6 || '/assets/die-shapes/butt-cut.png' }
     ];
 }
 
@@ -3706,6 +3707,8 @@ function collectRequestPayload() {
         material_name: normalizeText(materialInput?.value),
         material_code: normalizeText(materialInput?.dataset?.materialCode),
         applicationType: normalizeText(surfaceInput?.value),
+        applicationEnvironment: normalizeText(surfaceInput?.value),
+        surfaceType: '',
         outputType: placement,
         widthInches,
         lengthInches,
@@ -3729,6 +3732,7 @@ function collectRequestPayload() {
             'REQ | Embosado': document.getElementById('finishEmbossed')?.checked ? 'Si' : 'No',
             'REQ | Troquelado': document.getElementById('finishDieCut')?.checked ? 'Si' : 'No',
             'REQ | Superficie': normalizeText(surfaceInput?.value),
+            'REQ | Tipo Superficie': '',
             'REQ | Colocacion': placement,
             'REQ | Comentarios': normalizeText(document.getElementById('requestComments')?.value),
             'REQ | Medida Fija': sizeLabel,
@@ -3985,6 +3989,8 @@ async function createQuickQuoteDraft(payload, options = {}) {
             material_name: payload.material_name,
             material_code: payload.material_code || payload.material_name,
             applicationType: payload.applicationType,
+            applicationEnvironment: payload.applicationEnvironment,
+            surfaceType: payload.surfaceType,
             outputType: payload.outputType,
             widthInches: payload.widthInches,
             lengthInches: payload.lengthInches,

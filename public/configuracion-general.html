@@ -8,12 +8,12 @@
     <link rel="stylesheet" href="/styles.css">
     <script src="/access-control.js"></script>
     <style>
-        .config-tabs { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; width: 100%; min-width: 0; margin-bottom: 20px; padding: 4px; border: 1px solid #d8e2ea; border-radius: 14px; background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.75); }
+        .config-tabs { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; width: 100%; min-width: 0; margin-bottom: 20px; padding: 4px; border: 1px solid #d8e2ea; border-radius: 14px; background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.75); }
         .topbar.topbar-quote {
             display: flex;
             align-items: center;
         }
-        .config-tab { display: inline-flex; align-items: center; justify-content: center; width: 100%; min-width: 0; padding: 10px 18px; cursor: pointer; border: none; background: transparent; color: #60707f; font-size: 13px; font-weight: 600; border-radius: 10px; transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease; }
+        .config-tab { display: inline-flex; align-items: center; justify-content: center; width: 100%; min-width: 0; padding: 10px 18px; cursor: pointer; border: none; background: transparent; color: #60707f; font-size: 13px; font-weight: 600; border-radius: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease; }
         .config-tab:hover { background: rgba(11,129,184,0.08); color: #23516a; }
         .config-tab.active { background: linear-gradient(180deg, #24a8df 0%, #118fc6 100%); color: #fff; box-shadow: 0 8px 18px rgba(17,143,198,0.24); }
         .config-tab.active:hover,
@@ -287,6 +287,7 @@
             color: #60707f;
             font-size: 12px;
             font-weight: 700;
+            white-space: nowrap;
             cursor: pointer;
             transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
         }
@@ -4550,6 +4551,7 @@
                         <button type="button" id="configTabSap" class="config-tab" data-tab="sap">SAP</button>
                         <button type="button" id="configTabNotificaciones" class="config-tab" data-tab="notificaciones">Notificaciones</button>
                         <button type="button" class="config-tab" data-tab="nomenclaturas">Nomenclaturas</button>
+                        <button type="button" class="config-tab" data-tab="tipo-cambio">Tipo de Cambio</button>
                         <button type="button" class="config-tab" data-tab="auditoria">Auditoría</button>
                     </div>
 
@@ -5337,7 +5339,8 @@
                             <div class="quotes-subtabs">
                                 <button type="button" class="quotes-subtab active" data-quotes-tab="calculo">Cálculo</button>
                                 <button type="button" class="quotes-subtab" data-quotes-tab="proforma">Proforma</button>
-                                <button type="button" class="quotes-subtab" data-quotes-tab="tipo-cambio">Tipo de cambio</button>
+                                <button type="button" class="quotes-subtab" data-quotes-tab="salidas">Tipos de Salida</button>
+                                <button type="button" class="quotes-subtab" data-quotes-tab="formas-troquel">Formas de Troquel</button>
                             </div>
 
                             <div id="quotes-panel-general" class="quotes-subpanel">
@@ -5502,10 +5505,6 @@
                                             </tbody>
                                         </table>
                                     </div>
-                                </section>
-                                <section id="dieShapesGeneralSection" class="config-card">
-                                    <h2 class="config-section-title">Formas de Troquel</h2>
-                                    <div id="dieShapeConfigGrid" class="die-shape-config-grid"></div>
                                 </section>
                             </div>
 
@@ -5854,7 +5853,17 @@
                                 </section>
                             </div>
 
-                            <div id="quotes-panel-tipo-cambio" class="quotes-subpanel" hidden>
+                            <div id="quotes-panel-formas-troquel" class="quotes-subpanel" hidden>
+                                <section id="dieShapesGeneralSection" class="config-card">
+                                    <h2 class="config-section-title">Formas de Troquel</h2>
+                                    <div id="dieShapeConfigGrid" class="die-shape-config-grid"></div>
+                                </section>
+                            </div>
+
+                        </section>
+                    </div>
+
+                    <div id="tab-tipo-cambio" class="config-tab-content">
                                 <section class="config-card">
                                     <div class="quote-output-types-head">
                                         <div>
@@ -5981,8 +5990,6 @@
                                     </div>
                                 </section>
                             </div>
-                        </section>
-                    </div>
                     <div id="tab-seguridad" class="config-tab-content">
                         <section class="config-card">
                             <div class="security-subtabs">
@@ -7855,7 +7862,8 @@
                 { index: 2, label: 'Cuadrado' },
                 { index: 3, label: 'Rectangular' },
                 { index: 4, label: 'Ovalado' },
-                { index: 5, label: 'Especial' }
+                { index: 5, label: 'Especial' },
+                { index: 6, label: 'Butt Cut' }
             ];
 
             defaults.forEach((item) => {
@@ -7883,7 +7891,8 @@
                 { index: 2, label: 'Cuadrado' },
                 { index: 3, label: 'Rectangular' },
                 { index: 4, label: 'Ovalado' },
-                { index: 5, label: 'Especial' }
+                { index: 5, label: 'Especial' },
+                { index: 6, label: 'Butt Cut' }
             ];
 
             defaults.forEach((item) => {
@@ -10660,31 +10669,27 @@
         }
 
         function activateQuotesTab(tabKey = 'calculo') {
-            const normalizedTabKey = tabKey === 'general' || tabKey === 'salidas' ? 'calculo' : tabKey;
+            const normalizedTabKey = tabKey === 'general' ? 'calculo' : tabKey;
             quotesSubtabs.forEach((tab) => {
                 tab.classList.toggle('active', tab.dataset.quotesTab === normalizedTabKey);
             });
             quotesSubpanels.forEach((panel) => {
                 const panelKey = panel.id.replace('quotes-panel-', '');
                 if (normalizedTabKey === 'calculo') {
-                    panel.hidden = !['general', 'calculo', 'salidas'].includes(panelKey);
+                    panel.hidden = !['general', 'calculo'].includes(panelKey);
                     return;
                 }
                 panel.hidden = panelKey !== normalizedTabKey;
             });
             if (normalizedTabKey === 'calculo') {
-                loadQuoteOutputTypes().catch((error) => {
-                    setQuoteOutputTypesStatus(error.message || 'No fue posible cargar los tipos de salida.', 'error');
-                });
                 loadInventoryClassificationMappings().catch((error) => {
                     setInventoryClassificationStatus(error.message || 'No fue posible cargar el mapeo de clasificación.', true);
                 });
             }
-            if (normalizedTabKey === 'tipo-cambio') {
-                loadExchangeRateModule().catch((error) => {
-                    setExchangeRateConfigStatus(error.message || 'No fue posible cargar el tipo de cambio.', 'error');
+            if (normalizedTabKey === 'salidas') {
+                loadQuoteOutputTypes().catch((error) => {
+                    setQuoteOutputTypesStatus(error.message || 'No fue posible cargar los tipos de salida.', 'error');
                 });
-                activateExchangeRateTab(document.querySelector('.exchange-rate-subtab.active')?.dataset.exchangeRateTab || 'tasas');
             }
             syncConfigTabHeights();
         }
@@ -14325,6 +14330,12 @@
                 if (requestedTabKey === 'cotizaciones') {
                     const activeQuotesTab = document.querySelector('.quotes-subtab.active')?.dataset.quotesTab || 'calculo';
                     activateQuotesTab(activeQuotesTab);
+                }
+                if (requestedTabKey === 'tipo-cambio') {
+                    loadExchangeRateModule().catch((error) => {
+                        setExchangeRateConfigStatus(error.message || 'No fue posible cargar el tipo de cambio.', 'error');
+                    });
+                    activateExchangeRateTab(document.querySelector('.exchange-rate-subtab.active')?.dataset.exchangeRateTab || 'tasas');
                 }
                 if (requestedTabKey === 'diseno') {
                     activateDesignTab(getActiveDesignTabKey());

@@ -271,6 +271,7 @@ function normalizeRequestedShape(value = '') {
         .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase();
     if (!normalized) return '';
+    if (normalized.includes('butt') || normalized.includes('boot') || normalized.includes('book')) return 'butt cut';
     if (normalized.includes('redond') || normalized.includes('circular')) return 'circular';
     if (normalized.includes('cuadr')) return 'cuadrado';
     if (normalized.includes('rect')) return 'rectangular';
@@ -295,7 +296,8 @@ function resolveDieShape(die = {}) {
     if (code.startsWith('O-') || code === 'O') return 'ovalado';
     if (code.startsWith('CU-') || code === 'CU') return 'cuadrado';
     if (code.startsWith('E-') || code === 'E') return 'especial';
-    if (code.startsWith('C-') || code.startsWith('BC-')) return 'rectangular';
+    if (code.startsWith('BC-')) return 'butt cut';
+    if (code.startsWith('C-')) return 'rectangular';
     return '';
 }
 
@@ -1087,11 +1089,13 @@ const DEFAULT_GENERAL_CONFIG = {
         dieShapeLabel3: 'Rectangular',
         dieShapeLabel4: 'Ovalado',
         dieShapeLabel5: 'Especial',
+        dieShapeLabel6: 'Butt Cut',
         dieShapeImage1: '',
         dieShapeImage2: '',
         dieShapeImage3: '',
         dieShapeImage4: '',
         dieShapeImage5: '',
+        dieShapeImage6: '/assets/die-shapes/butt-cut.png',
         partnerCodePrefix: 'CL',
         quoteCodePrefix: 'C-',
         quoteLineCodePrefix: 'LC',
@@ -9107,6 +9111,8 @@ function buildCalculationRawData(payload = {}, existingRawData = {}) {
           'Finalizado_Para_Orden': finalizedForOrder,
           'Proceso Productivo': processType,
         'TIPO ETIQUETADO': hasOwn('applicationType') ? payload.applicationType : pickFirstValue(existingRawData['TIPO ETIQUETADO']),
+        'AMBIENTE APLICACION': hasOwn('applicationEnvironment') ? payload.applicationEnvironment : pickFirstValue(existingRawData['AMBIENTE APLICACION']),
+        'TIPO SUPERFICIE': hasOwn('surfaceType') ? payload.surfaceType : pickFirstValue(existingRawData['TIPO SUPERFICIE']),
         'TIPO SALIDA': hasOwn('outputType') ? payload.outputType : pickFirstValue(existingRawData['TIPO SALIDA']),
         'GENERAL | TROQUEL | ID': hasOwn('die_code') ? payload.die_code : pickFirstValue(existingRawData['GENERAL | TROQUEL | ID']),
         [`${activePrefix} | MAQUINA`]: hasOwn('machine_name') ? payload.machine_name : pickFirstValue(existingRawData[`${activePrefix} | MAQUINA`]),
@@ -16558,6 +16564,8 @@ app.post('/api/flexo/calculo/guardar', async (req, res) => {
             coreWidth: payload.uiState?.coreWidth ?? payload.coreWidth,
             coreDiameter: payload.uiState?.coreDiameter ?? payload.coreDiameter,
             applicationType: payload.applicationType,
+            applicationEnvironment: payload.applicationEnvironment,
+            surfaceType: payload.surfaceType,
             outputType: payload.outputType,
             cmyk: payload.cmyk,
             uiState: payload.uiState,

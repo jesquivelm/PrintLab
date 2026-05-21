@@ -3111,12 +3111,68 @@ function findDie(code) {
 
 function dieShapeToken(value = "") {
   const token = norm(value);
+  if (token.includes("butt") || token.includes("boot") || token.includes("book") || token.includes("bc-")) return "butt cut";
   if (token.includes("circul") || token.includes("redond")) return "circular";
   if (token.includes("oval")) return "ovalado";
   if (token.includes("cuadr")) return "cuadrado";
   if (token.includes("rect")) return "rectangular";
   if (token.includes("especial")) return "especial";
   return token;
+}
+
+function dieShapeOptionsFromConfig() {
+  const general = state.config?.general || {};
+  return [
+    { value: "Circular", label: general.dieShapeLabel1 || "Circular", image: general.dieShapeImage1 || "" },
+    { value: "Cuadrado", label: general.dieShapeLabel2 || "Cuadrado", image: general.dieShapeImage2 || "" },
+    { value: "Rectangular", label: general.dieShapeLabel3 || "Rectangular", image: general.dieShapeImage3 || "" },
+    { value: "Ovalado", label: general.dieShapeLabel4 || "Ovalado", image: general.dieShapeImage4 || "" },
+    { value: "Especial", label: general.dieShapeLabel5 || "Especial", image: general.dieShapeImage5 || "" },
+    { value: "Butt Cut", label: general.dieShapeLabel6 || "Butt Cut", image: general.dieShapeImage6 || "/assets/die-shapes/butt-cut.png" }
+  ];
+}
+
+function dieShapeOptionValue(value = "") {
+  const token = dieShapeToken(value);
+  const match = dieShapeOptionsFromConfig().find((item) => dieShapeToken(item.value) === token || dieShapeToken(item.label) === token);
+  return match?.value || String(value || "").trim();
+}
+
+function dieShapeImageForValue(value = "") {
+  const token = dieShapeToken(value);
+  return dieShapeOptionsFromConfig().find((item) => dieShapeToken(item.value) === token || dieShapeToken(item.label) === token)?.image || "";
+}
+
+function dieMatchesShape(die = {}, shapeValue = "") {
+  const target = dieShapeToken(shapeValue);
+  if (!target) return true;
+  const metricsValue = resolveDieMetrics(die, {});
+  const haystack = [
+    metricsValue.dieShape,
+    die.clasificacion,
+    die.tipoTroquel,
+    die.tipoTroquel2,
+    die.formato,
+    die.codigoTroquel,
+    die.codigo,
+    die.id,
+    die.descripcion,
+    die.description
+  ].filter(Boolean).join(" ");
+  return dieShapeToken(haystack) === target;
+}
+
+function troquelDieOptions() {
+  const associate = state.form?.troquel?.associateDieShape !== false;
+  const shapeValue = state.form?.troquel?.dieShape || state.context?.calculo?.raw_data?.["REQ | Forma"] || "";
+  return (state.catalogs.troqueles || [])
+    .filter((die) => !associate || !shapeValue || dieMatchesShape(die, shapeValue))
+    .map((item) => ({ id: first(item.codigoTroquel, item.codigo, item.id), nombre: [first(item.codigoTroquel, item.codigo, item.id), first(item.descripcionCotizaciones, item.descripcion)].filter(Boolean).join(" - ") }));
+}
+
+function shapeSelectOptions(selectedValue = "") {
+  const current = dieShapeOptionValue(selectedValue);
+  return dieShapeOptionsFromConfig().map((item) => `<option value="${esc(item.value)}"${item.value === current ? " selected" : ""}>${esc(item.label)}</option>`).join("");
 }
 
 function dimensionsMatch(widthA, lengthA, widthB, lengthB, tolerance = 0.015) {
@@ -4006,10 +4062,10 @@ function buildForm() {
       rollWidthIn: n(first(savedUi?.header?.rollWidthIn, autoSelection?.mounting?.requiredWidthInches, autoSelection?.mounting?.usedWidthInches, context?.coreWidth, context?.materialWidth, dieMetrics.materialWidthIn, context?.widthInches, quoteDefaults.rollWidth), 0),
       coreDiameter: String(first(savedUi?.header?.coreDiameter, context?.coreDiameter, quoteDefaults.coreDiameter)).trim(),
       labelsPerRoll: n(first(savedUi?.header?.labelsPerRoll, context?.labelsPerRoll, autoSelection?.labelsPerRoll), 0),
-      applicationType: first(context?.applicationType, ""),
+      applicationType: first(savedUi?.header?.applicationType, context?.applicationType, ""),
       outputType,
-      applicationEnvironment: first(raw["AMBIENTE APLICACION"], ""),
-      surfaceType: first(raw["TIPO SUPERFICIE"], ""),
+      applicationEnvironment: first(savedUi?.header?.applicationEnvironment, raw["AMBIENTE APLICACION"], context?.applicationEnvironment, raw["REQ | Superficie"], context?.applicationType, ""),
+      surfaceType: first(savedUi?.header?.surfaceType, raw["TIPO SUPERFICIE"], context?.surfaceType, raw["REQ | Tipo Superficie"], material?.surfaceType, material?.tipo_superficie, ""),
       quantityTypes: Math.max(1, n(first(savedUi?.header?.quantityTypes, context?.quantityTypes, raw["CANTIDAD TIPOS"], quoteDefaults.quantityTypes), quoteDefaults.quantityTypes)),
       quantityChanges: n(context?.quantityChanges, 0),
       pantoneCount: n(context?.pantoneCount, 0),
@@ -4036,7 +4092,9 @@ function buildForm() {
       tirajeRows: maculaConfig.tirajeRows
     },
     troquel: {
-      ...dieMetrics
+      ...dieMetrics,
+      dieShape: dieShapeOptionValue(first(savedUi?.troquel?.dieShape, dieMetrics.dieShape, raw["REQ | Forma"])),
+      associateDieShape: savedUi?.troquel?.associateDieShape !== false
     },
     substrate: {
       materialId,
@@ -4973,6 +5031,8 @@ function buildSavePayload() {
     labelsPerRoll: n(state.form.header.labelsPerRoll, 0),
     stationCount: effectiveColors(state.form),
     applicationType: state.form.header.applicationType,
+    applicationEnvironment: state.form.header.applicationEnvironment,
+    surfaceType: state.form.header.surfaceType,
     outputType: state.form.header.outputType,
     cmyk: Boolean(state.form.header.useCmyk),
     finalTotal: result.total,
@@ -7126,14 +7186,22 @@ function renderProcesses() {
       ],
       answer: `R/ La referencia actual de merma usa ${formulaValue(macula.montajeRows.length, 0)} filas de montaje y ${formulaValue(macula.tirajeRows.length, 0)} filas de tiraje`
     })}`),
-    troquel: () => { const shapeValue = String(state.form.troquel.dieShape || state.context?.calculo?.raw_data?.["REQ | Forma"] || '').trim(); const shapeIndex = { Circular: 1, Cuadrado: 2, Rectangular: 3, Ovalado: 4, Especial: 5 }[shapeValue] || 0; const shapeImage = shapeIndex ? state.config?.general?.['dieShapeImage' + shapeIndex] || '' : ''; const recommendedDie = recommendedDieForCurrentForm(); const recommendedLabel = recommendedDie ? `Recomendado: ${first(recommendedDie.codigoTroquel, recommendedDie.codigo, recommendedDie.id)}` : "Seleccionar..."; const productDimension = `${num(state.form.header?.labelWidthIn || 0, 3)} x ${num(state.form.header?.labelHeightIn || 0, 3)} in`; return card("troquel", nextTitle("Troquel"), state.form.troquel.dieDescription, troquel.subtotal, `<div class="editable-grid"><label class="span-2"><span>Troquel</span><select data-scope="troquel" data-field="dieCode">${processOptions(dieOptions, state.form.troquel.dieCode, recommendedLabel)}</select></label></div><div class="readonly-grid compact-top">${shapeImage ? `<div class="metric-cell" style="grid-column:1/-1;display:flex;align-items:center;gap:10px"><span>Forma</span><strong>${esc(shapeValue || "No definida")}</strong><img src="${esc(shapeImage)}" alt="${esc(shapeValue)}" style="height:36px;width:auto;border-radius:4px;border:1px solid var(--color-border-tertiary);"></div>` : metric("Forma", esc(shapeValue || "No definida"))}${metric("Dimensión Producto", productDimension)}${metric("Código Troquel", esc(state.form.troquel.dieCode || "No definido"))}${metric("Ancho Montaje", `${num(state.form.troquel.widthIn, 3)} in`)}${metric("Largo Montaje", `${num(state.form.troquel.lengthIn, 3)} in`)}${metric("Ancho Material", `${num(state.form.troquel.materialWidthIn || 0, 3)} in`)}${metric("Elongación", `${num(state.form.troquel.elongationPct || 0, 3)} %`)}${metric("Dientes", num(state.form.troquel.teeth, 0))}${metric("Repeticiones", num(state.form.troquel.repeats, 0))}${metric("Filas", num(state.form.troquel.rows, 0))}${metric("Etiquetas por Vuelta", num(troquel.labelsPerRepeat, 0))}${metric("Desarrollo Total", `${num(troquel.development, 3)} in`)}</div>${formula("Base del Troquel", troquel.formulaText, troquel.explanation, {
+    troquel: () => {
+      const shapeValue = dieShapeOptionValue(state.form.troquel.dieShape || state.context?.calculo?.raw_data?.["REQ | Forma"] || "");
+      const shapeImage = dieShapeImageForValue(shapeValue);
+      const recommendedDie = recommendedDieForCurrentForm();
+      const recommendedLabel = recommendedDie ? `Recomendado: ${first(recommendedDie.codigoTroquel, recommendedDie.codigo, recommendedDie.id)}` : "Seleccionar...";
+      const productDimension = `${num(state.form.header?.labelWidthIn || 0, 3)} x ${num(state.form.header?.labelHeightIn || 0, 3)} in`;
+      const associateChecked = state.form.troquel.associateDieShape !== false ? " checked" : "";
+      return card("troquel", nextTitle("Troquel"), state.form.troquel.dieDescription, troquel.subtotal, `<div class="editable-grid die-association-row"><label><span>Forma</span><select data-scope="troquel" data-field="dieShape">${shapeSelectOptions(shapeValue)}</select></label><label class="inline-process-check plate-virgin-check die-associate-check"><input data-scope="troquel" data-field="associateDieShape" type="checkbox"${associateChecked}><span>Asociar</span></label><label><span>Troquel</span><select data-scope="troquel" data-field="dieCode">${processOptions(troquelDieOptions(), state.form.troquel.dieCode, recommendedLabel)}</select></label></div><div class="readonly-grid compact-top">${shapeImage ? `<div class="metric-cell" style="grid-column:1/-1;display:flex;align-items:center;gap:10px"><span>Forma</span><strong>${esc(shapeValue || "No definida")}</strong><img src="${esc(shapeImage)}" alt="${esc(shapeValue)}" style="height:36px;width:auto;border-radius:4px;border:1px solid var(--color-border-tertiary);"></div>` : metric("Forma", esc(shapeValue || "No definida"))}${metric("Dimensión Producto", productDimension)}${metric("Código Troquel", esc(state.form.troquel.dieCode || "No definido"))}${metric("Ancho Montaje", `${num(state.form.troquel.widthIn, 3)} in`)}${metric("Largo Montaje", `${num(state.form.troquel.lengthIn, 3)} in`)}${metric("Ancho Material", `${num(state.form.troquel.materialWidthIn || 0, 3)} in`)}${metric("Elongación", `${num(state.form.troquel.elongationPct || 0, 3)} %`)}${metric("Dientes", num(state.form.troquel.teeth, 0))}${metric("Repeticiones", num(state.form.troquel.repeats, 0))}${metric("Filas", num(state.form.troquel.rows, 0))}${metric("Etiquetas por Vuelta", num(troquel.labelsPerRepeat, 0))}${metric("Desarrollo Total", `${num(troquel.development, 3)} in`)}</div>${formula("Base del Troquel", troquel.formulaText, troquel.explanation, {
       exampleLines: [
         `Etiquetas por repetición: ${formulaValue(state.form.troquel.rows || 0, 0)} x ${formulaValue(state.form.troquel.repeats || 0, 0)} = ${formulaValue(troquel.labelsPerRepeat || 0, 0)}`,
         `Desarrollo total: ${formulaValue(state.form.troquel.lengthIn || 0, 2)} x ${formulaValue(state.form.troquel.repeats || 0, 0)} = ${formulaValue(troquel.development || 0, 2)} in`,
         ...minimumCostExampleLines(troquel, "Troquel")
       ],
       answer: `R/ El troquel actual entrega ${formulaValue(troquel.labelsPerRepeat || 0, 0)} etiquetas por vuelta y ${formulaValue(troquel.development || 0, 2)} in de desarrollo`
-    })}`); },
+    })}`);
+    },
     sustrato: () => card("sustrato", nextTitle("Sustrato"), sustrato.materialName || "Selecciona material", sustrato.subtotal, `<div class="editable-grid substrate-grid"><label class="span-2"><span>Material</span><select data-scope="substrate" data-field="materialId">${processOptions(substrateMaterialOptions().map((item) => ({ id: item.id, nombre: item.nombre || item.name || item.descripcion || item.id })), state.form.substrate.materialId)}</select></label><label><span>Costo/pie</span>${displayInput("substrate", "costPerFoot", state.form.substrate.costPerFoot, { prefix: "$", suffix: "/pie", maximumFractionDigits: 6, step: "0.000001" })}</label></div><div class="readonly-grid compact-top">${metricBox("Etiquetas al Través", sustrato.acrossCount > 0 ? num(sustrato.acrossCount, 0) : "Pendiente", n(sustrato.acrossCount, 0) <= 0)}${metricBox("Desarrollo del Cilindro", sustrato.cylinderDevelopmentIn > 0 ? `${num(sustrato.cylinderDevelopmentIn, 3)} in` : "Pendiente", n(sustrato.cylinderDevelopmentIn, 0) <= 0)}${metricBox("Merma Total", sustrato.startupWasteFeet > 0 ? `${num(sustrato.startupWasteFeet, 2)} pies` : "Pendiente", (sustrato.issues || []).some((issue) => String(issue).toLowerCase().includes("merma")))}${metricBox("Longitud Total", sustrato.totalLengthFeet > 0 ? `${num(sustrato.totalLengthFeet, 2)} pies` : "Pendiente", (sustrato.issues || []).length > 0)}${metricBox("Área Total Consumida", sustrato.totalAreaFt2 > 0 ? `${num(sustrato.totalAreaFt2, 2)} ft²` : "Pendiente", n(sustrato.webWidthIn, 0) <= 0 || (sustrato.issues || []).length > 0)}${metric("Costo por Pie", money(sustrato.unitCost))}${metric("Subtotal", money(sustrato.subtotal))}</div>${issueList("Problemas detectados en la fórmula", sustrato.issues || [])}${formula("Costo del Sustrato", sustrato.formulaCost, sustrato.explanation, {
       exampleLines: [
         `Cantidad Lineal Sustrato: ( ${formulaValue(sustrato.qty || 0, 0)} x ${formulaValue(sustrato.cylinderDevelopmentIn || 0, 2)} ) / ( 12 x ${formulaValue(sustrato.acrossCount || 0, 0)} ) = ${formulaValue(sustrato.linealFeet || 0, 2)}`,
@@ -7285,6 +7353,7 @@ function applyDieDefaults(dieCode) {
   if (!die) return;
   const metricsValue = resolveDieMetrics(die, state.context?.calculo || {});
   Object.assign(state.form.troquel, metricsValue);
+  state.form.troquel.dieShape = dieShapeOptionValue(metricsValue.dieShape || state.form.troquel.dieShape);
   if (n(metricsValue.materialWidthIn, 0) > 0) {
     state.form.header.rollWidthIn = n(metricsValue.materialWidthIn, state.form.header.rollWidthIn);
   }
@@ -7779,6 +7848,13 @@ function bindProcesses() {
       value = printSpeedValue(value);
     }
     setNested(scope, field, value);
+    if (scope === "troquel" && field === "dieShape") {
+      state.form.troquel.dieShape = dieShapeOptionValue(value);
+    }
+    if (scope === "troquel" && (field === "dieShape" || field === "associateDieShape") && state.form.troquel.associateDieShape !== false && state.form.troquel.dieCode) {
+      const selectedDie = findDie(state.form.troquel.dieCode);
+      if (selectedDie && !dieMatchesShape(selectedDie, state.form.troquel.dieShape)) state.form.troquel.dieCode = "";
+    }
     if (scope.startsWith("printStages.")) syncPrimaryPrintStage();
     if (scope.startsWith("printStages.") && scope.includes(".inlineFinishes.") && field === "active" && value) {
       const parts = scope.split(".");
