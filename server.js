@@ -7397,6 +7397,14 @@ function quotedDurationMinutesFrom(item = {}) {
     return hours > 0 ? hours * 60 : 0;
 }
 
+function quotedFinishDurationMinutesFrom(item = {}) {
+    if (!item || typeof item !== 'object') return 0;
+    const setupMinutes = firstPositivePlanningNumber(item.setupMinutes, item.setupAdjustmentMin);
+    const runMinutes = firstPositivePlanningNumber(item.runMinutes);
+    if (setupMinutes > 0 && runMinutes > 0) return setupMinutes + runMinutes;
+    return quotedDurationMinutesFrom(item);
+}
+
 function quotedProcessDurationMinutes(orderRow = {}, processKey = '') {
     const key = canonicalProductionFlowKey(processKey);
     const result = orderQuotedResult(orderRow);
@@ -7429,7 +7437,7 @@ function quotedProcessDurationMinutes(orderRow = {}, processKey = '') {
         ].map(canonicalProductionFlowKey);
         return candidates.includes(key);
     });
-    return matchingFinishes.reduce((sum, item) => sum + quotedDurationMinutesFrom(item), 0);
+    return matchingFinishes.reduce((sum, item) => sum + quotedFinishDurationMinutesFrom(item), 0);
 }
 
 function orderUiState(orderRow = {}) {
