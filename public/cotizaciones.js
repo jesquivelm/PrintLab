@@ -332,6 +332,7 @@ function normalizeConfiguredList(rawValue) {
             seen.add(key);
             return true;
         });
+    return items;
 }
 
 function resolveConfiguredProductTypes() {
