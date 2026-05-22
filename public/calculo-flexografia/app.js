@@ -3164,7 +3164,7 @@ function dieMatchesShape(die = {}, shapeValue = "") {
   if (!target) return true;
   const fields = [
     "dieShape", "clasificacion", "tipoTroquel", "tipoTroquel2",
-    "formato", "codigoTroquel", "codigo", "id", "descripcion", "description"
+    "formato", "descripcion", "description"
   ];
   const metricsValue = resolveDieMetrics(die, {});
   for (const f of fields) {
@@ -3193,7 +3193,19 @@ function troquelDieOptions() {
   const shapeValue = state.form?.troquel?.dieShape || state.context?.calculo?.raw_data?.["REQ | Forma"] || "";
   return (state.catalogs.troqueles || [])
     .filter((die) => !associate || !shapeValue || dieMatchesShape(die, shapeValue))
-    .map((item) => ({ id: first(item.codigoTroquel, item.codigo, item.id), nombre: [first(item.codigoTroquel, item.codigo, item.id), first(item.descripcionCotizaciones, item.descripcion)].filter(Boolean).join(" - ") }));
+    .map((item) => ({
+      id: first(item.codigoTroquel, item.codigo, item.id),
+      nombre: [
+        first(item.codigoTroquel, item.codigo, item.id),
+        first(
+          item.descripcionTroquel,
+          item.descripcionCotizaciones,
+          item.nombre,
+          item.descripcion,
+          item.description
+        )
+      ].filter(Boolean).join(" - ")
+    }));
 }
 
 function shapeSelectOptions(selectedValue = "") {

@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/styles.css">
     <script src="/access-control.js"></script>
     <style>
-        .config-tabs { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; width: 100%; min-width: 0; margin-bottom: 20px; padding: 4px; border: 1px solid #d8e2ea; border-radius: 14px; background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.75); }
+        .config-tabs { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 6px; width: 100%; min-width: 0; margin-bottom: 20px; padding: 4px; border: 1px solid #d8e2ea; border-radius: 14px; background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.75); }
         .topbar.topbar-quote {
             display: flex;
             align-items: center;
@@ -528,6 +528,14 @@
             padding: 14px 12px;
             color: #73808b;
             font-size: 12px;
+        }
+        .quote-product-types-table input.field-empty {
+            background-color: #fff9db;
+            border-color: #facc15;
+        }
+        html[data-theme="dark"] .quote-product-types-table input.field-empty {
+            background-color: #3a3200;
+            border-color: #a38600;
         }
         .quotes-orders-general-grid label {
             min-width: 0;
@@ -4547,6 +4555,7 @@
                     <div class="config-tabs">
                         <button type="button" class="config-tab active" data-tab="diseno">Diseño</button>
                         <button type="button" class="config-tab" data-tab="cotizaciones">Cotizaciones</button>
+                        <button type="button" class="config-tab" data-tab="mapeo-sap">Mapeo SAP</button>
                         <button type="button" class="config-tab" data-tab="seguridad">Seguridad</button>
                         <button type="button" id="configTabSap" class="config-tab" data-tab="sap">SAP</button>
                         <button type="button" id="configTabNotificaciones" class="config-tab" data-tab="notificaciones">Notificaciones</button>
@@ -5451,61 +5460,6 @@
                                     </div>
                                     <p class="config-help">Aquí defines si el cálculo usará el inventario local o el inventario importado desde SAP. También puedes indicar el nombre del campo SAP o UDF que servirá como base de clasificación.</p>
                                 </section>
-                                <section class="config-card">
-                                    <div class="sap-records-toolbar">
-                                        <div>
-                                            <h2 class="config-section-title">Mapeo de Clasificación de Inventario SAP</h2>
-                                            <p class="section-caption">Relaciona el valor real del campo SAP con la categoría flexográfica que el proyecto necesita.</p>
-                                        </div>
-                                    </div>
-                                    <div class="config-form-grid quotes-orders-general-grid">
-                                        <label>
-                                            <span>Valor Origen</span>
-                                            <input id="inventoryClassificationSourceValue" type="text" placeholder="Código o valor del campo SAP">
-                                        </label>
-                                        <label>
-                                            <span>Categoría Flexo</span>
-                                            <input id="inventoryClassificationCategory" type="text" placeholder="sustrato, tinta, foil, laminante...">
-                                        </label>
-                                        <label>
-                                            <span>Etiqueta Visible</span>
-                                            <input id="inventoryClassificationDisplayLabel" type="text" placeholder="Nombre amigable">
-                                        </label>
-                                        <label>
-                                            <span>Notas</span>
-                                            <input id="inventoryClassificationNotes" type="text" placeholder="Detalle opcional">
-                                        </label>
-                                        <label>
-                                            <span>Activo</span>
-                                            <select id="inventoryClassificationIsActive">
-                                                <option value="true">Sí</option>
-                                                <option value="false">No</option>
-                                            </select>
-                                        </label>
-                                    </div>
-                                    <div class="sap-security-actions">
-                                        <button type="button" id="inventoryClassificationNewButton" class="action-btn">Nuevo</button>
-                                        <button type="button" id="inventoryClassificationSaveButton" class="action-btn action-btn-primary">Guardar</button>
-                                    </div>
-                                    <div id="inventoryClassificationStatus" class="sap-security-empty">Cargando mapeo de clasificación...</div>
-                                    <div class="audit-table-wrap sap-records-table-wrap">
-                                        <table class="audit-table sap-records-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Valor Origen</th>
-                                                    <th>Categoría</th>
-                                                    <th>Etiqueta</th>
-                                                    <th>Activo</th>
-                                                    <th>Notas</th>
-                                                    <th>Acción</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="inventoryClassificationTableBody">
-                                                <tr><td colspan="6" class="audit-empty">Todavía no hay mapeos configurados.</td></tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </section>
                             </div>
 
                             <div id="quotes-panel-proforma" class="quotes-subpanel" hidden>
@@ -5860,6 +5814,64 @@
                                 </section>
                             </div>
 
+                        </section>
+                    </div>
+
+                    <div id="tab-mapeo-sap" class="config-tab-content">
+                        <section class="config-card">
+                            <div class="sap-records-toolbar">
+                                <div>
+                                    <h2 class="config-section-title">Mapeo de Clasificación de Inventario SAP</h2>
+                                    <p class="section-caption">Relaciona el valor real del campo SAP con la categoría flexográfica que el proyecto necesita.</p>
+                                </div>
+                            </div>
+                            <div class="config-form-grid quotes-orders-general-grid">
+                                <label>
+                                    <span>Valor Origen</span>
+                                    <input id="inventoryClassificationSourceValue" type="text" placeholder="Código o valor del campo SAP">
+                                </label>
+                                <label>
+                                    <span>Categoría Flexo</span>
+                                    <input id="inventoryClassificationCategory" type="text" placeholder="sustrato, tinta, foil, laminante...">
+                                </label>
+                                <label>
+                                    <span>Etiqueta Visible</span>
+                                    <input id="inventoryClassificationDisplayLabel" type="text" placeholder="Nombre amigable">
+                                </label>
+                                <label>
+                                    <span>Notas</span>
+                                    <input id="inventoryClassificationNotes" type="text" placeholder="Detalle opcional">
+                                </label>
+                                <label>
+                                    <span>Activo</span>
+                                    <select id="inventoryClassificationIsActive">
+                                        <option value="true">Sí</option>
+                                        <option value="false">No</option>
+                                    </select>
+                                </label>
+                            </div>
+                            <div class="sap-security-actions">
+                                <button type="button" id="inventoryClassificationNewButton" class="action-btn">Nuevo</button>
+                                <button type="button" id="inventoryClassificationSaveButton" class="action-btn action-btn-primary">Guardar</button>
+                            </div>
+                            <div id="inventoryClassificationStatus" class="sap-security-empty">Cargando mapeo de clasificación...</div>
+                            <div class="audit-table-wrap sap-records-table-wrap">
+                                <table class="audit-table sap-records-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Valor Origen</th>
+                                            <th>Categoría</th>
+                                            <th>Etiqueta</th>
+                                            <th>Activo</th>
+                                            <th>Notas</th>
+                                            <th>Acción</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="inventoryClassificationTableBody">
+                                        <tr><td colspan="6" class="audit-empty">Todavía no hay mapeos configurados.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </section>
                     </div>
 
@@ -8610,7 +8622,7 @@
             quoteApplicationOptionsTableBody.innerHTML = items.map((item, index) => `
                 <tr>
                     <td>${index + 1}</td>
-                    <td><input type="text" value="${escapeHtml(item)}" data-quote-application-option-index="${index}" maxlength="80"></td>
+                    <td><input type="text" value="${escapeHtml(item)}" data-quote-application-option-index="${index}" maxlength="80"${item ? "" : " class=\"field-empty\""}></td>
                     <td><button type="button" class="icon-only-btn quote-product-types-remove" data-remove-quote-application-option="${index}" aria-label="Eliminar aplicación" title="Eliminar aplicación">${getIconHtml('quantity.delete', '&#128465;', '#b94848', 18)}</button></td>
                 </tr>
             `).join('');
@@ -8665,7 +8677,7 @@
                     <td>${escapeHtml(item.displayLabel || '')}</td>
                     <td>${item.isActive === false ? 'No' : 'Sí'}</td>
                     <td>${escapeHtml(item.notes || '')}</td>
-                    <td><button type="button" class="quote-product-types-remove" data-delete-inventory-classification="${escapeHtml(item.id || '')}" aria-label="Eliminar" title="Eliminar mapeo">${getIconHtml('quantity.delete', '&#128465;', '#b94848', 18)}</button></td>
+                    <td><button type="button" class="icon-only-btn quote-product-types-remove" data-delete-inventory-classification="${escapeHtml(item.id || '')}" aria-label="Eliminar mapeo" title="Eliminar mapeo">${getIconHtml('quantity.delete', '&#128465;', '#b94848', 18)}</button></td>
                 </tr>
             `).join('');
         }
@@ -10681,11 +10693,6 @@
                 }
                 panel.hidden = panelKey !== normalizedTabKey;
             });
-            if (normalizedTabKey === 'calculo') {
-                loadInventoryClassificationMappings().catch((error) => {
-                    setInventoryClassificationStatus(error.message || 'No fue posible cargar el mapeo de clasificación.', true);
-                });
-            }
             if (normalizedTabKey === 'salidas') {
                 loadQuoteOutputTypes().catch((error) => {
                     setQuoteOutputTypesStatus(error.message || 'No fue posible cargar los tipos de salida.', 'error');
@@ -14331,6 +14338,11 @@
                     const activeQuotesTab = document.querySelector('.quotes-subtab.active')?.dataset.quotesTab || 'calculo';
                     activateQuotesTab(activeQuotesTab);
                 }
+                if (requestedTabKey === 'mapeo-sap') {
+                    loadInventoryClassificationMappings().catch((error) => {
+                        setInventoryClassificationStatus(error.message || 'No fue posible cargar el mapeo de clasificación.', true);
+                    });
+                }
                 if (requestedTabKey === 'tipo-cambio') {
                     loadExchangeRateModule().catch((error) => {
                         setExchangeRateConfigStatus(error.message || 'No fue posible cargar el tipo de cambio.', 'error');
@@ -14658,7 +14670,7 @@
         quoteApplicationOptionAddButton?.addEventListener('click', () => {
             const items = readQuoteApplicationOptionsFromConfig();
             if (items.length >= 60) return;
-            items.push(`Nueva Aplicación ${items.length + 1}`);
+            items.push("");
             syncQuoteApplicationOptionsField(items);
             renderQuoteApplicationOptionsTable();
             const inputs = quoteApplicationOptionsTableBody?.querySelectorAll('input[data-quote-application-option-index]') || [];
@@ -14670,6 +14682,7 @@
         quoteApplicationOptionsTableBody?.addEventListener('input', (event) => {
             const input = event.target.closest('input[data-quote-application-option-index]');
             if (!input) return;
+            input.classList.toggle('field-empty', input.value === '');
             const items = readQuoteApplicationOptionsFromConfig();
             const index = Number(input.dataset.quoteApplicationOptionIndex);
             if (!Number.isInteger(index) || index < 0) return;
@@ -14680,6 +14693,7 @@
         quoteApplicationOptionsTableBody?.addEventListener('change', (event) => {
             const input = event.target.closest('input[data-quote-application-option-index]');
             if (!input) return;
+            input.classList.toggle('field-empty', input.value === '');
             const items = readQuoteApplicationOptionsFromConfig();
             const index = Number(input.dataset.quoteApplicationOptionIndex);
             if (!Number.isInteger(index) || index < 0) return;
