@@ -151,6 +151,8 @@ const els = {
   useWhiteInk: document.getElementById("useWhiteInk"),
   doubleWhitePass: document.getElementById("doubleWhitePass"),
   noPrint: document.getElementById("noPrint"),
+  technicalDataCard: document.getElementById("technicalDataCard"),
+  technicalCollapsedSummary: document.getElementById("technicalCollapsedSummary"),
   printConfigCard: document.getElementById("printConfigCard"),
   quantityCard: document.getElementById("quantityCard"),
   frontBackElementsCard: document.getElementById("frontBackElementsCard"),
@@ -1614,6 +1616,11 @@ function outputTypesCatalog() {
     const rightLabel = String(right?.name || right?.nombre || right?.id || right?.codigo || right || "").trim();
     return leftLabel.localeCompare(rightLabel, "es", { sensitivity: "base" });
   });
+}
+
+function currentOutputTypeItem() {
+  const types = outputTypesCatalog();
+  return types.find((item) => String(item.id || item.codigo || "").toUpperCase() === String(state.form?.header?.outputType || "").toUpperCase()) || types[types.length - 1] || null;
 }
 
 function isSvgValue(value) {
@@ -3514,13 +3521,61 @@ function renderQuantities() {
 }
 
 function outputPreview() {
-  const types = outputTypesCatalog();
-  const current = types.find((item) => String(item.id || item.codigo || "").toUpperCase() === String(state.form.header.outputType || "").toUpperCase()) || types[types.length - 1];
+  const current = currentOutputTypeItem();
+  if (!current) {
+    els.outputTypePreview.innerHTML = "";
+    return;
+  }
   const displayId = current.shortName || current.code || current.codigo || current.id;
   const imageUrl = first(current.imageUrl, current.image_url, "");
   els.outputTypePreview.innerHTML = imageUrl
     ? `<div class="output-image-frame"><img src="${esc(imageUrl)}" alt="${esc(current.name || current.nombre || displayId || "Tipo de salida")}" class="output-image"></div>`
     : `<div class="output-tile"><div class="output-placeholder">${esc(displayId)}</div></div>`;
+}
+
+function outputPreviewContent(current = currentOutputTypeItem()) {
+  if (!current) return "";
+  const displayId = current.shortName || current.code || current.codigo || current.id || "";
+  const imageUrl = first(current.imageUrl, current.image_url, "");
+  return imageUrl
+    ? `<div class="output-image-frame"><img src="${esc(imageUrl)}" alt="${esc(current.name || current.nombre || displayId || "Tipo de salida")}" class="output-image"></div>`
+    : `<div class="output-tile"><div class="output-placeholder">${esc(displayId)}</div></div>`;
+}
+
+function selectedOptionText(selectEl, value) {
+  const target = String(value || "").trim();
+  if (!target) return "";
+  const option = Array.from(selectEl?.options || []).find((item) => String(item.value || "").trim() === target);
+  return String(option?.textContent || target).trim();
+}
+
+function inchValue(value) {
+  const amount = n(value, 0);
+  return amount > 0 ? `${num(amount, 3)}"` : "";
+}
+
+function inchLabel(value) {
+  const amount = n(value, 0);
+  return amount > 0 ? `${num(amount, 3)} in` : "";
+}
+
+function renderTechnicalCollapsedSummary() {
+  if (!els.technicalCollapsedSummary || !state.form?.header) return;
+  const header = state.form.header;
+  const outputItem = currentOutputTypeItem();
+  const outputCode = outputItem ? String(first(outputItem.shortName, outputItem.code, outputItem.codigo, outputItem.id, "")).trim() : "";
+  const dimensions = inchValue(header.labelWidthIn) && inchValue(header.labelHeightIn) ? `${inchValue(header.labelWidthIn)} x ${inchValue(header.labelHeightIn)}` : "";
+  const rows = [
+    ["Dimensiones", dimensions],
+    ["Ancho Core", inchLabel(header.rollWidthIn)],
+    ["Diámetro Core", inchLabel(header.coreDiameter)],
+    ["Cantidad Etiquetas por Rollo", n(header.labelsPerRoll, 0) > 0 ? formatInteger(header.labelsPerRoll) : ""],
+    ["Tipo Salida", outputCode],
+    ["Tipo Etiquetado", selectedOptionText(els.applicationType, header.applicationType)],
+    ["Aplicación", String(header.applicationEnvironment || "").trim()],
+    ["Superficie", String(header.surfaceType || "").trim()]
+  ].filter(([, value]) => String(value || "").trim());
+  els.technicalCollapsedSummary.innerHTML = `<div class="technical-summary-panel"><div class="technical-summary-lines">${rows.map(([label, value]) => `<div class="technical-summary-row"><span>${esc(label)}:</span> <strong>${esc(value)}</strong></div>`).join("")}</div><div class="technical-summary-preview">${outputPreviewContent(outputItem)}</div></div>`;
 }
 
 function metric(label, value) {
@@ -5277,6 +5332,7 @@ function renderHeader() {
   renderFrontBackElementsCard();
   renderQuantities();
   outputPreview();
+  renderTechnicalCollapsedSummary();
   refreshCalculationValidation();
 }
 
@@ -7790,6 +7846,7 @@ function bindHeader() {
       if (key === "customerName" && els.customerNameDisplay) els.customerNameDisplay.textContent = state.form.header.customerName || "";
       if (key === "salespersonName" && els.salespersonDisplay) els.salespersonDisplay.textContent = state.form.header.salespersonName || "";
       if (key === "labelWidthIn" || key === "labelHeightIn" || key === "rollWidthIn" || key === "coreDiameter" || key === "labelsPerRoll") syncHeaderUnitMasks();
+      renderTechnicalCollapsedSummary();
       refreshCalculationValidation();
       scheduleSave();
     };

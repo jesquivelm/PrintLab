@@ -191,6 +191,91 @@ html[data-theme="dark"] body {
   display: none;
 }
 
+.technical-data-card[open] .technical-collapsed-summary {
+  display: none;
+}
+
+.technical-data-card[open] .technical-card-body {
+  padding-top: 14px;
+}
+
+.technical-data-summary .card-head {
+  align-items: center;
+}
+
+.technical-data-summary .card-head::after {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform 0.16s ease;
+}
+
+.technical-data-card[open] .technical-data-summary .card-head::after {
+  transform: rotate(-135deg) translateY(2px);
+}
+
+.technical-collapsed-summary {
+  padding: 0 16px 16px;
+}
+
+.technical-summary-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(112px, 180px);
+  align-items: center;
+  gap: 24px;
+  width: min(960px, 100%);
+  min-height: 210px;
+  margin: 0 auto 8px;
+  padding: 22px 28px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--card) 86%, var(--bg));
+}
+
+.technical-summary-lines {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.technical-summary-row {
+  min-width: 0;
+  color: var(--text);
+  font-size: 1.02rem;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.technical-summary-row span,
+.technical-summary-row strong {
+  color: inherit;
+  font-weight: 500;
+}
+
+.technical-summary-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  height: 132px;
+}
+
+.technical-summary-preview .output-image-frame,
+.technical-summary-preview .output-tile {
+  width: 132px;
+  height: 132px;
+}
+
+.technical-summary-preview .output-image {
+  max-width: 132px;
+  max-height: 132px;
+}
+
 .front-back-elements-card {
   display: grid;
   gap: 12px;
@@ -3893,6 +3978,11 @@ label:has(> input[data-scope="substrate"][data-field="costPerFoot"])::after {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .technical-summary-panel {
+    grid-template-columns: minmax(0, 1fr) minmax(104px, 140px);
+    min-height: 180px;
+  }
+
   .plate-metrics-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -3983,6 +4073,26 @@ label:has(> input[data-scope="substrate"][data-field="costPerFoot"])::after {
       "roll"
       "application"
       "preview";
+  }
+
+  .technical-summary-panel {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+
+  .technical-summary-preview {
+    height: 112px;
+  }
+
+  .technical-summary-preview .output-image-frame,
+  .technical-summary-preview .output-tile {
+    width: 112px;
+    height: 112px;
+  }
+
+  .technical-summary-preview .output-image {
+    max-width: 112px;
+    max-height: 112px;
   }
 }
 
