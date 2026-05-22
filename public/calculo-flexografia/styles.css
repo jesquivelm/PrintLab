@@ -833,7 +833,7 @@ body.is-front-back-embedded-element #technicalDataCard .technical-column-right {
 .btn-changes{font-size:11px;color:var(--color-text-secondary);background:transparent;border:0.5px solid var(--color-border-secondary);border-radius:999px;padding:2px 10px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:4px;margin-top:7px;transition:border-color 0.15s,color 0.15s;}
 .btn-changes:hover{border-color:var(--color-border-warning);color:var(--color-text-warning);}
 .cr-note{margin-top:10px;padding:10px 12px;background:var(--color-background-warning);border-radius:var(--border-radius-md);border-left:3px solid var(--color-border-warning);}
-.tracking-close-menu{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.tracking-close-menu{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;}
 .tracking-primary-action{color:var(--color-text-success);background:var(--color-background-success);border-color:var(--color-border-success);}
 .tracking-secondary-action,.tracking-product-action{color:var(--color-text-primary);background:var(--color-background-secondary);border-color:var(--color-border-secondary);}
 .tracking-close-form{animation:form-in 0.22s ease both;margin-top:10px;padding:12px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);display:grid;gap:10px;}
@@ -2162,6 +2162,10 @@ html[data-theme="dark"] .calc-shape-option.is-selected {
   grid-column: 1 / -1;
 }
 
+.span-full {
+  grid-column: 1 / -1;
+}
+
 .hidden-cell {
   min-height: 1px;
 }
@@ -2449,6 +2453,19 @@ textarea {
 .inline-process-card .process-finish-grid {
   gap: 12px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.inline-process-card .process-finish-grid.inline-barniz-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.inline-process-card .process-finish-grid.inline-laminado-grid,
+.inline-process-card .process-finish-grid.inline-embosado-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.inline-process-card .process-finish-grid.inline-estampado-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .inline-process-card .process-kpi-grid {
@@ -3107,6 +3124,64 @@ label:has(> input[data-scope="substrate"][data-field="costPerFoot"])::after {
   border: 1px solid var(--line);
   border-radius: 14px;
   background: color-mix(in srgb, var(--card) 82%, var(--bg));
+}
+
+.inline-zonified-field {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  align-self: start;
+  min-width: 0;
+}
+
+.inline-zonified-control {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--card) 82%, var(--bg));
+}
+
+.inline-zonified-control input {
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+  padding: 0;
+  border-radius: 4px;
+  border: 1px solid #b7c8d7;
+  background: #ffffff;
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.inline-zonified-control input::after {
+  content: "";
+  width: 8px;
+  height: 4px;
+  border-left: 2px solid #ffffff;
+  border-bottom: 2px solid #ffffff;
+  transform: translateY(-1px) rotate(-45deg) scale(0);
+  transform-origin: center;
+  transition: transform 0.16s ease;
+}
+
+.inline-zonified-control input:checked {
+  background: linear-gradient(180deg, #2ea6d9, #1288bf);
+  border-color: #1288bf;
+  box-shadow: 0 0 0 4px rgba(18, 136, 191, 0.12);
+}
+
+.inline-zonified-control input:checked::after {
+  transform: translateY(-1px) rotate(-45deg) scale(1);
 }
 
 .file-icon-field {
@@ -3970,6 +4045,19 @@ label:has(> input[data-scope="substrate"][data-field="costPerFoot"])::after {
     grid-template-columns: 1fr;
   }
 
+  .inline-process-card .process-finish-grid.inline-barniz-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .inline-process-card .process-finish-grid.inline-laminado-grid,
+  .inline-process-card .process-finish-grid.inline-embosado-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .inline-process-card .process-finish-grid.inline-estampado-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
   .output-layout {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -3991,6 +4079,13 @@ label:has(> input[data-scope="substrate"][data-field="costPerFoot"])::after {
 
 @media (max-width: 860px) {
   .front-back-element-tabs {
+    grid-template-columns: 1fr;
+  }
+
+  .inline-process-card .process-finish-grid.inline-barniz-grid,
+  .inline-process-card .process-finish-grid.inline-laminado-grid,
+  .inline-process-card .process-finish-grid.inline-estampado-grid,
+  .inline-process-card .process-finish-grid.inline-embosado-grid {
     grid-template-columns: 1fr;
   }
 
@@ -4138,6 +4233,10 @@ label:has(> input[data-scope="substrate"][data-field="costPerFoot"])::after {
   }
 
   .span-4 {
+    grid-column: auto;
+  }
+
+  .span-full {
     grid-column: auto;
   }
 }
@@ -4432,6 +4531,7 @@ html[data-theme="dark"] .floating-action-icon-button:hover {
 }
 
 html[data-theme="dark"] .inline-process-check input:checked,
+html[data-theme="dark"] .inline-zonified-control input:checked,
 html[data-theme="dark"] .impression-check-card input:checked,
 html[data-theme="dark"] .plate-virgin-check input:checked {
   background: linear-gradient(180deg, #38bdf8, #0ea5e9) !important;
@@ -4440,7 +4540,8 @@ html[data-theme="dark"] .plate-virgin-check input:checked {
 }
 
 html[data-theme="dark"] .impression-check-card input:not(:checked),
-html[data-theme="dark"] .inline-process-check input:not(:checked) {
+html[data-theme="dark"] .inline-process-check input:not(:checked),
+html[data-theme="dark"] .inline-zonified-control input:not(:checked) {
   background: #111c30;
   border-color: var(--line);
 }
@@ -4499,6 +4600,7 @@ html[data-theme="dark"] .display-input-mask,
 html[data-theme="dark"] .field-affix,
 html[data-theme="dark"] .field-affix-tag,
 html[data-theme="dark"] .inline-field-check,
+html[data-theme="dark"] .inline-zonified-control,
 html[data-theme="dark"] .file-icon-field strong,
 html[data-theme="dark"] .info-popover-panel {
   background: color-mix(in srgb, var(--card) 82%, var(--bg)) !important;

@@ -9184,14 +9184,19 @@ function buildCalculationRawData(payload = {}, existingRawData = {}) {
 
     const uiPrintState = rawData['Estado_UI']?.print || rawData['Estado_UI']?.printStages?.[0] || null;
     if (uiPrintState && typeof uiPrintState === 'object') {
+        const inlineBarnizState = uiPrintState.inlineFinishes?.barniz || {};
+        const varnishInkProfile = Array.isArray(uiPrintState.inkProfiles)
+            ? uiPrintState.inkProfiles.find((row) => String(row?.tipo || '').toLowerCase().includes('barniz'))
+            : null;
         rawData['CONV | PERFIL TINTA | TIPO'] = pickFirstValue(uiPrintState.profileLabel, existingRawData['CONV | PERFIL TINTA | TIPO']);
         rawData['CONV | PERFIL TINTA | COBERTURA %'] = parseLegacyNumber(uiPrintState.coveragePct);
         rawData['CONV | PERFIL TINTA | BCM ANILOX'] = parseLegacyNumber(uiPrintState.aniloxBcm);
         rawData['CONV | PERFIL TINTA | GSM'] = parseLegacyNumber(uiPrintState.inkGsm);
-        rawData['CONV | BARNIZ | ACTIVO'] = Boolean(uiPrintState.inlineFinishes?.barniz?.active);
-        rawData['CONV | BARNIZ | ZONIFICADO'] = Boolean(uiPrintState.inlineFinishes?.barniz?.sonified);
-        rawData['CONV | BARNIZ | COBERTURA %'] = parseLegacyNumber(uiPrintState.inlineFinishes?.barniz?.coveragePct);
-        rawData['CONV | BARNIZ | GSM'] = parseLegacyNumber(uiPrintState.inlineFinishes?.barniz?.layerGsm);
+        rawData['CONV | BARNIZ | ACTIVO'] = Boolean(inlineBarnizState.active);
+        rawData['CONV | BARNIZ | ZONIFICADO'] = Boolean(inlineBarnizState.sonified);
+        rawData['CONV | BARNIZ | BCM ANILOX'] = parseLegacyNumber(pickFirstValue(inlineBarnizState.varnishBcm, varnishInkProfile?.bcm, existingRawData['CONV | BARNIZ | BCM ANILOX']));
+        rawData['CONV | BARNIZ | COBERTURA %'] = parseLegacyNumber(inlineBarnizState.coveragePct);
+        rawData['CONV | BARNIZ | GSM'] = parseLegacyNumber(inlineBarnizState.layerGsm);
     }
 
     if (payload.request_meta && typeof payload.request_meta === 'object' && !Array.isArray(payload.request_meta)) {

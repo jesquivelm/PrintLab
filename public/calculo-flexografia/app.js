@@ -492,10 +492,10 @@ function quoteTrackingDefaults() {
   const requestDate = requestDone ? first(raw["TRAZABILIDAD | FECHA SOLICITUD VENDEDOR"], raw["TRAZABILIDAD | FECHA"], quoteCreationTrackingDate()) : null;
   return [
     { key: "creacion", label: "Creación", icon: "ti-file-plus", user: sellerName, initials: initialsFromName(sellerName), color: trackingColorForName(sellerName), date: quoteCreationTrackingDate(), done: true, fixed: true, canCR: false, cr: null, formOpen: false },
-    { key: "solicitud", label: "Solicitud del vendedor", icon: "ti-send", user: requestUser, initials: initialsFromName(requestUser || sellerName), color: trackingColorForName(requestUser || sellerName), date: requestDate, done: requestDone, fixed: false, canCR: true, cr: null, formOpen: false, crLabel: "Solicitar cambios al vendedor", crWho: "Cotizador", crPH: "¿Qué información falta o cuál es la duda con la solicitud?" },
-    { key: "finalizacion", label: "Finalización de cotización", icon: "ti-list-check", user: quoteDone ? currentUser : null, initials: initialsFromName(currentUser), color: trackingColorForName(currentUser), date: quoteDone ? trackingStampNow() : null, done: quoteDone, fixed: false, canCR: true, cr: null, formOpen: false, crLabel: "Requerir cambios en la cotización", crWho: "Vendedor", crPH: "¿Qué necesita ajustarse antes de continuar?" },
-    { key: "envio", label: "Envío de proforma", icon: "ti-file-invoice", hint: "Requiere finalizar cotización primero", done: false, fixed: false, canCR: false, cr: null, formOpen: false, user: null, initials: initialsFromName(currentUser), color: trackingColorForName(currentUser) },
-    { key: "cierre", label: "Finalización comercial", icon: "ti-flag", hint: "Requiere enviar proforma primero", done: false, fixed: false, canCR: false, cr: null, formOpen: false, user: null, initials: initialsFromName(currentUser), color: trackingColorForName(currentUser) }
+    { key: "solicitud", label: "Solicitud del Vendedor", icon: "ti-send", user: requestUser, initials: initialsFromName(requestUser || sellerName), color: trackingColorForName(requestUser || sellerName), date: requestDate, done: requestDone, fixed: false, canCR: true, cr: null, formOpen: false, crLabel: "Solicitar cambios al Vendedor", crWho: "Cotizador", crPH: "¿Qué información falta o cuál es la duda con la solicitud?" },
+    { key: "finalizacion", label: "Finalización de Cotización", icon: "ti-list-check", user: quoteDone ? currentUser : null, initials: initialsFromName(currentUser), color: trackingColorForName(currentUser), date: quoteDone ? trackingStampNow() : null, done: quoteDone, fixed: false, canCR: true, cr: null, formOpen: false, crLabel: "Requerir cambios en la Cotización", crWho: "Vendedor", crPH: "¿Qué necesita ajustarse antes de continuar?" },
+    { key: "envio", label: "Envío de Proforma", icon: "ti-file-invoice", hint: "Requiere finalizar Cotización primero", done: false, fixed: false, canCR: false, cr: null, formOpen: false, user: null, initials: initialsFromName(currentUser), color: trackingColorForName(currentUser) },
+    { key: "cierre", label: "Finalización Comercial", icon: "ti-flag", hint: "Requiere enviar Proforma primero", done: false, fixed: false, canCR: false, cr: null, formOpen: false, user: null, initials: initialsFromName(currentUser), color: trackingColorForName(currentUser) }
   ];
 }
 
@@ -607,7 +607,7 @@ function trackingMessageForEvent(item = {}, eventType = "", detail = "") {
   if (eventType === "solicitud-cambios") return detail || `Se solicitaron cambios en "${label}".`;
   if (eventType === "orden-produccion") return detail || "La venta fue aceptada y se creó la orden de producción.";
   if (eventType === "cierre-descartado") return `La cotización fue cerrada sin venta. ${detail || ""}`.trim();
-  if (item.key === "finalizacion") return "La línea de cálculo fue marcada como Finalización de cotización.";
+  if (item.key === "finalizacion") return "La línea de cálculo fue marcada como Finalización de Cotización.";
   if (item.key === "envio") return "La proforma fue marcada como enviada.";
   if (item.key === "cierre") return "La cotización fue marcada como cerrada.";
   return `Se actualizó el seguimiento: ${label}.`;
@@ -1164,6 +1164,7 @@ function applyCostsConfigToCurrentLine(force = false) {
     stage.whiteInkCostPerLb = force ? inkDefaults.costoLbBlanco : (n(stage.whiteInkCostPerLb, 0) > 0 ? n(stage.whiteInkCostPerLb, 0) : inkDefaults.costoLbBlanco);
     stage.pantoneInkCostPerLb = force ? inkDefaults.costoLbPantone : (n(stage.pantoneInkCostPerLb, 0) > 0 ? n(stage.pantoneInkCostPerLb, 0) : inkDefaults.costoLbPantone);
     stage.designCoveragePct = force ? inkDefaults.coberturaDisenoPct : (n(stage.designCoveragePct, 0) > 0 ? n(stage.designCoveragePct, 0) : inkDefaults.coberturaDisenoPct);
+    stage.mountingMinutes = force ? inlineFinishSetupMinutes("impresion") : (n(stage.mountingMinutes, 0) > 0 ? n(stage.mountingMinutes, 0) : inlineFinishSetupMinutes("impresion"));
     stage.maculaSetupFeet = force ? defaultPrintMaculaSetupFeet(stage.machineId) : (n(stage.maculaSetupFeet, 0) > 0 ? n(stage.maculaSetupFeet, 0) : defaultPrintMaculaSetupFeet(stage.machineId));
     stage.inkProfiles = inkDefaults.depositos.map((item, index) => ({
       id: first(item?.id, `deposito-${index + 1}`),
@@ -1178,6 +1179,7 @@ function applyCostsConfigToCurrentLine(force = false) {
       inline.setupMinutes = force ? inlineFinishSetupMinutes(slot.key) : (n(inline.setupMinutes, 0) > 0 ? n(inline.setupMinutes, 0) : inlineFinishSetupMinutes(slot.key));
       inline.setupWasteFeet = force ? inlineFinishSetupWasteFeet(slot.key) : (n(inline.setupWasteFeet, 0) > 0 ? n(inline.setupWasteFeet, 0) : inlineFinishSetupWasteFeet(slot.key));
       if (slot.key === "barniz") {
+        inline.varnishBcm = force ? inkDefaults.barnizBcm : (n(inline.varnishBcm, 0) > 0 ? n(inline.varnishBcm, 0) : inkDefaults.barnizBcm);
         inline.coveragePct = force ? inkDefaults.barnizCoveragePct : (n(inline.coveragePct, 0) > 0 ? n(inline.coveragePct, 0) : inkDefaults.barnizCoveragePct);
         inline.layerGsm = force ? inkDefaults.barnizGsm : (n(inline.layerGsm, 0) > 0 ? n(inline.layerGsm, 0) : inkDefaults.barnizGsm);
       }
@@ -1961,6 +1963,9 @@ function applyInlineFinishSetupDefaults(stageIndex, inlineKey, force = false) {
     ? inlineFinishSetupWasteFeet(inlineKey)
     : n(inline.setupWasteFeet, 0);
   if (inlineKey === "barniz") {
+    inline.varnishBcm = force || n(inline.varnishBcm, 0) <= 0
+      ? inkDefaults.barnizBcm
+      : n(inline.varnishBcm, 0);
     inline.coveragePct = force || n(inline.coveragePct, 0) <= 0
       ? inkDefaults.barnizCoveragePct
       : n(inline.coveragePct, 0);
@@ -2237,6 +2242,8 @@ function createPrintStage(base = {}) {
       costPerUnit: n(source.costPerUnit, 0),
       costPerKg: n(source.costPerKg, 0),
       layerGft2: n(source.layerGft2, 0),
+      supplyWidthIn: n(source.supplyWidthIn, 0),
+      varnishBcm: n(source.varnishBcm, inkDefaults.barnizBcm),
       coveragePct: slot.key === "barniz"
         ? (n(source.coveragePct, 0) > 0 ? n(source.coveragePct, 0) : inkDefaults.barnizCoveragePct)
         : n(source.coveragePct, 100),
@@ -2254,7 +2261,7 @@ function createPrintStage(base = {}) {
       costHourOperator: n(source.costHourOperator, 0),
       variableBase: n(source.variableBase, 0),
       variableUnitCost: n(source.variableUnitCost, 0),
-      comment: source.comment || numberingConfig?.detail || "",
+      comment: source.comment || "",
       numberingType: numberingConfig?.numberingType || "",
       isQr: Boolean(numberingConfig?.isQr),
       rangeFrom: numberingConfig?.rangeFrom || "",
@@ -2271,7 +2278,7 @@ function createPrintStage(base = {}) {
     machineName: base.machineName || "",
     setupMinutes: n(base.setupMinutes, 0),
     cleaningMinutes: n(base.cleaningMinutes, 0),
-    mountingMinutes: n(base.mountingMinutes, 0),
+    mountingMinutes: firstPositiveNumber(base.mountingMinutes, inlineFinishSetupMinutes("impresion"), 0),
     speedMetersMin: n(base.speedMetersMin, 0),
     availableColors: n(base.availableColors, 0),
     costHour: n(base.costHour, 0),
@@ -3086,6 +3093,14 @@ function whiteInkMaterialOptions() {
 }
 
 function materialUnitCosts(material, widthInches = 0) {
+  const directCostPerFoot = n(first(material?.costo_x_pie, material?.costPerFootUsd, material?.costPerFoot), 0);
+  if (directCostPerFoot > 0) {
+    return {
+      costMsi: 0,
+      costPerFoot: r(directCostPerFoot, 6),
+      costPerMeter: r(directCostPerFoot / 0.3048, 6)
+    };
+  }
   const costFt2 = n(first(material?.costo_x_ft2, material?.costoPorFt2), 0);
   if (costFt2 > 0) {
     const widthFt = n(widthInches, 0) / 12;
@@ -4347,7 +4362,7 @@ function buildForm() {
         machineName: selectedPrintMachine ? machineDisplayName(selectedPrintMachine) : "",
         setupMinutes: firstPositiveNumber(selectedPrintMachine?.setupBaseMinutes, selectedPrintCapacity?.tiempo_preparacion_general, printProcess?.tiempo_preparacion_general, 20),
         cleaningMinutes: 12,
-        mountingMinutes: firstPositiveNumber(selectedPrintMachine?.setupPerStationMinutes, selectedPrintCapacity?.tiempo_por_estacion, printProcess?.tiempo_por_estacion, 0) * Math.max(1, n(context?.tintCount, 0)),
+        mountingMinutes: firstPositiveNumber(firstPositiveNumber(selectedPrintMachine?.setupPerStationMinutes, selectedPrintCapacity?.tiempo_por_estacion, printProcess?.tiempo_por_estacion, 0) * Math.max(1, n(context?.tintCount, 0)), inlineFinishSetupMinutes("impresion"), 0),
         speedMetersMin: printSpeedValue(firstPositiveNumber(selectedPrintMachine?.productionSpeed, selectedPrintCapacity?.velocidad_produccion, printProcess?.velocidad_produccion, 0)),
         availableColors: machineSupportsInline(selectedPrintMachine) ? 8 : 4,
         costHour: firstPositiveNumber(selectedPrintMachine?.hourlyMachineCost, selectedPrintCapacity?.costo_hora_maquina, printProcess?.costo_hora_maquina, 18),
@@ -4883,37 +4898,52 @@ function calcPrint() {
         : baseLengthFeet + n(inline.setupWasteFeet, 0);
       const runMinutes = inlineSpeedFtMin > 0 ? r(runBase / inlineSpeedFtMin) : 0;
       const totalMinutes = r(n(inline.setupMinutes, 0) + runMinutes, 6);
-      const supplyWidthIn = config.usesUnitMaterial || config.usesWeightMaterial
-        ? n(base.webWidthIn, 0)
-        : materialSupplyWidthIn(material, base.webWidthIn);
+      const isLinealInlineMaterial = ["laminado", "estampado"].includes(slot.key);
+      const materialCosts = materialUnitCosts(material, base.webWidthIn);
+      const supplyWidthIn = slot.key === "estampado"
+        ? firstPositiveNumber(inline.supplyWidthIn, materialSupplyWidthIn(material, base.webWidthIn), base.webWidthIn)
+        : config.usesUnitMaterial || config.usesWeightMaterial || slot.key === "laminado"
+          ? n(base.webWidthIn, 0)
+          : materialSupplyWidthIn(material, base.webWidthIn);
       const wastePct = config.usesUnitMaterial ? n(inline.operationWastePct, 0) : n(first(inline.operationWastePct, materialWastePct(material)), 0);
       const netMaterialAreaFt2 = r(runBase * (supplyWidthIn / 12), 6);
       const materialAreaFt2 = r(netMaterialAreaFt2 * (1 + (wastePct / 100)), 6);
       const materialBase = config.usesUnitMaterial
         ? Math.max(0, Math.ceil(n(base.rollCount, 0)))
-        : materialAreaFt2;
+        : isLinealInlineMaterial ? runBase : materialAreaFt2;
       const areaCostFt2 = firstPositiveNumber(inline.costPerFt2, material?.costo_x_ft2, material?.costoPorFt2, 0);
       const weightCostKg = firstPositiveNumber(inline.costPerKg, material?.costo_x_kg, 0);
       const layerGft2 = firstPositiveNumber(inline.layerGft2, material?.rendimiento_g_ft2, material?.peso_capa_gsm, 0);
-      const unitCost = config.usesWeightMaterial ? weightCostKg
+      const linealCostPerFoot = firstPositiveNumber(inline.costPerFoot, materialCosts.costPerFoot, material?.costo_x_pie, 0);
+      const unitCost = isLinealInlineMaterial ? linealCostPerFoot
+        : config.usesWeightMaterial ? weightCostKg
         : config.usesUnitMaterial ? n(inline.costPerUnit, 0)
         : areaCostFt2 > 0 ? areaCostFt2
         : state.form.substrate.unit === "metros" ? n(inline.costPerMeter, 0)
         : state.form.substrate.unit === "msi" ? n(inline.costPerMsi, 0)
-        : n(inline.costPerFoot, 0);
+        : linealCostPerFoot;
       const setupCost = r((n(inline.setupMinutes, 0) / 60) * inlineOperatorHourCost);
-      let machineSubtotal = r((totalMinutes / 60) * inlineMachineHourCost);
-      let operatorSubtotal = r((totalMinutes / 60) * inlineOperatorHourCost);
+      let machineSubtotal = 0;
+      let operatorSubtotal = 0;
       const varnishProfile = varnishProfileInfo(item);
-      const varnishCoverage = n(varnishProfile.coveragePct, 100) / 100;
+      const varnishBcm = firstPositiveNumber(inline.varnishBcm, varnishProfile.bcm, 0);
+      const varnishCoveragePct = firstPositiveNumber(inline.coveragePct, varnishProfile.coveragePct, 100);
+      const varnishCoverage = varnishCoveragePct / 100;
       const varnishGsm = n(varnishProfile.gsm, 3);
       const varnishCostPerLb = n(inline.costPerLb, materialCostPerPound(material));
-      const materialConsumptionKg = config.usesWeightMaterial ? r((materialBase * layerGft2) / 1000, 6) : 0;
-      const materialConsumptionLb = slot.key === "barniz" && !config.usesWeightMaterial && inline.active ? r((base.printedAreaM2 * varnishCoverage * varnishGsm) / 453.59237, 6) : 0;
-      let materialSubtotal = config.usesWeightMaterial
+      const varnishConsumptionKg = slot.key === "barniz" && inline.active
+        ? r(runBase * n(base.webWidthIn, 0) * varnishBcm * varnishCoverage * 0.000012, 6)
+        : 0;
+      const materialConsumptionKg = slot.key === "barniz"
+        ? varnishConsumptionKg
+        : config.usesWeightMaterial ? r((materialBase * layerGft2) / 1000, 6) : 0;
+      const materialConsumptionLb = slot.key === "barniz" ? r(materialConsumptionKg * 2.2046226218, 6) : 0;
+      let materialSubtotal = slot.key === "barniz"
         ? r(materialConsumptionKg * weightCostKg)
-        : slot.key === "barniz"
-        ? r(materialConsumptionLb * varnishCostPerLb)
+        : isLinealInlineMaterial && config.usesMaterial && inline.active
+        ? r(materialBase * linealCostPerFoot)
+        : config.usesWeightMaterial
+        ? r(materialConsumptionKg * weightCostKg)
         : config.usesMaterial && inline.active
           ? r(materialBase * unitCost)
           : 0;
@@ -4945,12 +4975,13 @@ function calcPrint() {
         wastePct,
         netMaterialAreaFt2,
         costPerFt2: areaCostFt2,
+        costPerFoot: linealCostPerFoot,
         costPerKg: weightCostKg,
         layerGft2,
         materialConsumptionKg,
         materialConsumptionLb,
-        coveragePct: slot.key === "barniz" ? n(varnishProfile.coveragePct, 100) : n(inline.coveragePct, 0),
-        varnishBcm: slot.key === "barniz" ? n(varnishProfile.bcm, 0) : 0,
+        coveragePct: slot.key === "barniz" ? varnishCoveragePct : n(inline.coveragePct, 0),
+        varnishBcm: slot.key === "barniz" ? varnishBcm : 0,
         layerGsm: varnishGsm,
         costPerLb: varnishCostPerLb,
         costHourMachine: inlineMachineHourCost,
@@ -5143,7 +5174,7 @@ function calcFinishes() {
     let formulaText = "Acabado = costo máquina + costo operador + insumos del proceso.";
     let explanation = "El acabado mantiene su montaje, corrida y costos propios.";
     if (item.processKey === "barnizado") {
-      formulaText = "Barniz = costo máquina + costo operador + (Área Material ft² × (1 + Merma %) × Rendimiento g/ft² / 1 000) × Costo Kg.";
+      formulaText = "Barniz = costo máquina + costo operador + (Área Material ft² × (1 + Merma %) × Rendimiento g/ft² / 1 000) × Costo por Kilo.";
       explanation = "Barnizado usa el área técnica del trabajo, aplica la merma del barniz y convierte el depósito en g/ft² a kilogramos antes de valorizarlo.";
     } else if (item.processKey === "laminado") {
       formulaText = "Laminado = costo máquina + costo operador + (Área Material ft² × (1 + Merma %) × costo material ft²).";
@@ -5665,7 +5696,7 @@ function detailInlineFinishSummary(inline = {}, stage = {}) {
   const key = String(inline.key || "").trim();
   if (key === "barniz") {
     const profile = varnishProfileInfo(stage);
-    return detailJoin([profile.tipo, detailDimension(profile.gsm, "GSM", 2)]);
+    return detailJoin([profile.tipo, detailDimension(profile.bcm, "BCM", 2), detailDimension(profile.coveragePct, "%", 2, "Cobertura ")]);
   }
   if (key === "numerado") return detailNumberingSummary(inline);
   if (key === "troquelado") return detailDieSummary();
@@ -6080,7 +6111,7 @@ function renderQuoteTracking() {
   const doneCount = quoteTrackingDoneCount();
   const panelOpen = Boolean(state.quoteTracking.panelOpen);
   const statusText = milestones[milestones.length - 1]?.done ? "Cerrada" : doneCount >= 4 ? "Proforma enviada" : doneCount >= 3 ? "Cotización finalizada" : "En proceso";
-  const nextLabels = ["Completar solicitud del vendedor", "Completar solicitud del vendedor", "Finalizar cotización", "Enviar proforma al cliente", "Finalizar comercialmente"];
+  const nextLabels = ["Completar Solicitud del Vendedor", "Completar Solicitud del Vendedor", "Finalizar Cotización", "Enviar Proforma al cliente", "Finalizar Comercialmente"];
   const body = milestones.map((item, index) => {
     const available = quoteTrackingAvailable(index);
     const last = index === milestones.length - 1;
@@ -7025,76 +7056,110 @@ function renderNumberingFields(scope, item = {}) {
 function renderInlinePrintBlock(stage, stageIndex, inline) {
   const materialOptions = materialsByClassification(inline.materialFamily, inline.materialKeywords || []).map((item) => ({ id: item.id, nombre: item.descripcion || item.nombre || item.id }));
   const scope = `printStages.${stageIndex}.inlineFinishes.${inline.key}`;
-  const stageScope = `printStages.${stageIndex}`;
   const commentField = inline.key === "numerado"
-    ? `<label class="span-4 comment-wide"><span>Comentario Interno</span><input data-scope="${scope}" data-field="comment" type="text" value="${esc(inline.comment || "")}"></label>`
-    : `<label class="span-4 comment-wide"><span>Comentario</span><input data-scope="${scope}" data-field="comment" type="text" value="${esc(inline.comment || "")}"></label>`;
+    ? `<label class="span-full comment-wide"><span>Comentario</span><input data-scope="${scope}" data-field="comment" type="text" value="${esc(inline.comment || "")}"></label>`
+    : `<label class="span-full comment-wide"><span>Comentario</span><input data-scope="${scope}" data-field="comment" type="text" value="${esc(inline.comment || "")}"></label>`;
   const materialSelect = (label = "Material", span = "span-3") => `<label class="${span}"><span>${label}</span><select data-scope="${scope}" data-field="materialId">${processOptions(materialOptions, inline.materialId)}</select></label>`;
   let fields = "";
   let extraConfig = "";
+  let gridClass = "";
   const externalConfig = externalConfigForInlineFinish(inline.key);
   if (externalConfig) {
     const isInlineDie = externalConfig.key === "troquelado";
-    const materialFields = [];
-    const plateFields = [];
-    const processFields = [
-      `<label><span>Montaje <span class="field-unit">min</span></span>${displayInput(scope, "setupMinutes", inline.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label>`,
-      ...(isInlineDie ? [] : [
-        `<label><span>Velocidad <span class="field-unit">ft/min</span></span>${displayInput(scope, "speed", inline.speed, { suffix: "ft/min", maximumFractionDigits: 4 })}</label>`,
-        `<label><span>Costo Máquina <span class="field-unit">$/h</span></span>${displayInput(scope, "costHourMachine", inline.costHourMachine, { prefix: "$", maximumFractionDigits: 2 })}</label>`,
-        `<label><span>Costo Operador <span class="field-unit">$/h</span></span>${displayInput(scope, "costHourOperator", inline.operatorHourCost || inline.costHourOperator, { prefix: "$", maximumFractionDigits: 2 })}</label>`
-      ]),
-      `<label><span>Merma Ajuste <span class="field-unit">ft</span></span>${displayInput(scope, "setupWasteFeet", inline.setupWasteFeet, { suffix: "ft", maximumFractionDigits: 2 })}</label>`,
-      ...(isInlineDie ? [] : [`<label><span>Merma Operación <span class="field-unit">%</span></span>${displayInput(scope, "operationWastePct", inline.operationWastePct, { suffix: "%", maximumFractionDigits: 2 })}</label>`])
-    ];
     if (inline.key === "barniz") {
-      processFields.push(`<label class="inline-process-check inline-field-check"><input data-scope="${scope}" data-field="sonified" type="checkbox"${inline.sonified ? " checked" : ""}><span>Zonificado</span></label>`);
-    }
-    if (externalConfig.key === "troquelado" && !isInlineDie) {
-      processFields.push(`<label><span>Costo Lineal</span>${displayInput(scope, "variableUnitCost", inline.variableUnitCost, { prefix: "$", maximumFractionDigits: 6 })}</label>`);
-      if (n(inline.fixedCost, 0) > 0) processFields.push(`<label><span>Costo Base</span>${displayInput(scope, "fixedCost", inline.fixedCost, { prefix: "$", maximumFractionDigits: 2 })}</label>`);
-    }
-    if (externalConfig.usesWeightMaterial) {
-      materialFields.push(
+      const varnishProfile = varnishProfileInfo(stage);
+      const varnishBcm = firstPositiveNumber(inline.varnishBcm, varnishProfile.bcm);
+      const coveragePct = firstPositiveNumber(inline.coveragePct, varnishProfile.coveragePct);
+      gridClass = "inline-barniz-grid";
+      fields = [
         materialSelect("Material", "span-2"),
-        `<label><span>Rendimiento <span class="field-unit">g/ft²</span></span>${displayInput(scope, "layerGft2", inline.layerGft2, { maximumFractionDigits: 6 })}</label>`,
-        `<label><span>Costo Kg <span class="field-unit">$/kg</span></span>${displayInput(scope, "costPerKg", inline.costPerKg, { prefix: "$", maximumFractionDigits: 6 })}</label>`
-      );
-    } else if (externalConfig.usesUnitMaterial) {
-      materialFields.push(materialSelect("Material", "span-2"), `<label><span>Costo Unidad <span class="field-unit">$</span></span>${displayInput(scope, "costPerUnit", inline.costPerUnit, { prefix: "$", maximumFractionDigits: 6 })}</label>`);
-    } else if (externalConfig.usesMaterial) {
-      materialFields.push(materialSelect("Material", "span-2"), `<label><span>Costo ft² <span class="field-unit">$/ft²</span></span>${displayInput(scope, "costPerFt2", inline.costPerFt2, { prefix: "$", maximumFractionDigits: 6 })}</label>`);
-    }
-    if (externalConfig.usesPlateCost && !isInlineDie) {
-      plateFields.push(
+        `<label><span>BCM Anilox</span>${displayInput(scope, "varnishBcm", varnishBcm, { maximumFractionDigits: 4, step: "0.01" })}</label>`,
+        `<label><span>Cobertura <span class="field-unit">%</span></span>${displayInput(scope, "coveragePct", coveragePct, { suffix: "%", maximumFractionDigits: 2 })}</label>`,
+        `<label><span>Costo por Kilo <span class="field-unit">$/kg</span></span>${displayInput(scope, "costPerKg", inline.costPerKg, { prefix: "$", maximumFractionDigits: 6 })}</label>`,
+        `<label class="inline-zonified-field"><span>Zonificado</span><div class="inline-zonified-control"><input data-scope="${scope}" data-field="sonified" type="checkbox"${inline.sonified ? " checked" : ""}></div></label>`,
+        commentField
+      ].join("");
+    } else if (inline.key === "laminado") {
+      gridClass = "inline-laminado-grid";
+      fields = [
+        materialSelect("Material", "span-2"),
+        `<label><span>Costo por Pie Lineal</span>${displayInput(scope, "costPerFoot", inline.costPerFoot, { prefix: "$", suffix: "/pie", maximumFractionDigits: 6 })}</label>`,
+        `<label><span>Montaje <span class="field-unit">min</span></span>${displayInput(scope, "setupMinutes", inline.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label>`,
+        commentField
+      ].join("");
+    } else if (inline.key === "estampado") {
+      gridClass = "inline-estampado-grid";
+      fields = [
+        materialSelect("Material", "span-2"),
+        `<label><span>Ancho del Rollo <span class="field-unit">in</span></span>${displayInput(scope, "supplyWidthIn", inline.supplyWidthIn, { suffix: "in", maximumFractionDigits: 4 })}</label>`,
+        `<label><span>Costo por Pie Lineal</span>${displayInput(scope, "costPerFoot", inline.costPerFoot, { prefix: "$", suffix: "/pie", maximumFractionDigits: 6 })}</label>`,
+        `<label><span>Montaje <span class="field-unit">min</span></span>${displayInput(scope, "setupMinutes", inline.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label>`,
+        commentField
+      ].join("");
+    } else if (inline.key === "embosado") {
+      gridClass = "inline-embosado-grid";
+      fields = [
+        `<label><span>Tiempo Montaje <span class="field-unit">min</span></span>${displayInput(scope, "setupMinutes", inline.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label>`,
         `<label><span>Ancho Cliché <span class="field-unit">in</span></span>${displayInput(scope, "plateWidthIn", inline.plateWidthIn, { suffix: "in", maximumFractionDigits: 4 })}</label>`,
         `<label><span>Largo Cliché <span class="field-unit">in</span></span>${displayInput(scope, "plateLengthIn", inline.plateLengthIn, { suffix: "in", maximumFractionDigits: 4 })}</label>`,
-        `<label><span>Costo Cliché <span class="field-unit">$</span></span>${displayInput(scope, "plateCost", inline.plateCost, { prefix: "$", maximumFractionDigits: 2 })}</label>`
-      );
+        `<label><span>Costo Cliché</span>${displayInput(scope, "plateCost", inline.plateCost, { prefix: "$", maximumFractionDigits: 2 })}</label>`,
+        commentField
+      ].join("");
+    } else {
+      const materialFields = [];
+      const plateFields = [];
+      const processFields = [
+        `<label><span>Montaje <span class="field-unit">min</span></span>${displayInput(scope, "setupMinutes", inline.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label>`,
+        ...(isInlineDie ? [] : [
+          `<label><span>Velocidad <span class="field-unit">ft/min</span></span>${displayInput(scope, "speed", inline.speed, { suffix: "ft/min", maximumFractionDigits: 4 })}</label>`,
+          `<label><span>Costo Máquina <span class="field-unit">$/h</span></span>${displayInput(scope, "costHourMachine", inline.costHourMachine, { prefix: "$", maximumFractionDigits: 2 })}</label>`,
+          `<label><span>Costo Operador <span class="field-unit">$/h</span></span>${displayInput(scope, "costHourOperator", inline.operatorHourCost || inline.costHourOperator, { prefix: "$", maximumFractionDigits: 2 })}</label>`
+        ]),
+        `<label><span>Merma Ajuste <span class="field-unit">ft</span></span>${displayInput(scope, "setupWasteFeet", inline.setupWasteFeet, { suffix: "ft", maximumFractionDigits: 2 })}</label>`,
+        ...(isInlineDie ? [] : [`<label><span>Merma Operación <span class="field-unit">%</span></span>${displayInput(scope, "operationWastePct", inline.operationWastePct, { suffix: "%", maximumFractionDigits: 2 })}</label>`])
+      ];
+      if (externalConfig.key === "troquelado" && !isInlineDie) {
+        processFields.push(`<label><span>Costo Lineal</span>${displayInput(scope, "variableUnitCost", inline.variableUnitCost, { prefix: "$", maximumFractionDigits: 6 })}</label>`);
+        if (n(inline.fixedCost, 0) > 0) processFields.push(`<label><span>Costo Base</span>${displayInput(scope, "fixedCost", inline.fixedCost, { prefix: "$", maximumFractionDigits: 2 })}</label>`);
+      }
+      if (externalConfig.usesUnitMaterial) {
+        materialFields.push(materialSelect("Material", "span-2"), `<label><span>Costo Unidad <span class="field-unit">$</span></span>${displayInput(scope, "costPerUnit", inline.costPerUnit, { prefix: "$", maximumFractionDigits: 6 })}</label>`);
+      } else if (externalConfig.usesMaterial) {
+        materialFields.push(materialSelect("Material", "span-2"), `<label><span>Costo ft² <span class="field-unit">$/ft²</span></span>${displayInput(scope, "costPerFt2", inline.costPerFt2, { prefix: "$", maximumFractionDigits: 6 })}</label>`);
+      }
+      if (externalConfig.usesPlateCost && !isInlineDie) {
+        plateFields.push(
+          `<label><span>Ancho Cliché <span class="field-unit">in</span></span>${displayInput(scope, "plateWidthIn", inline.plateWidthIn, { suffix: "in", maximumFractionDigits: 4 })}</label>`,
+          `<label><span>Largo Cliché <span class="field-unit">in</span></span>${displayInput(scope, "plateLengthIn", inline.plateLengthIn, { suffix: "in", maximumFractionDigits: 4 })}</label>`,
+          `<label><span>Costo Cliché</span>${displayInput(scope, "plateCost", inline.plateCost, { prefix: "$", maximumFractionDigits: 2 })}</label>`
+        );
+      }
+      fields = `${processFields.join("")}${plateFields.join("")}${materialFields.join("")}${commentField}`;
     }
-    fields = `${processFields.join("")}${plateFields.join("")}${materialFields.join("")}${commentField}`;
   } else if (inline.key === "numerado") {
     fields = `${renderNumberingFields(scope, inline)}${commentField}${numberingAttachmentField(scope, inline)}`;
   } else {
     fields = `<label class="span-2"><span>Tiempo Montaje</span>${displayInput(scope, "setupMinutes", inline.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label>${inline.usesMaterial ? `${materialSelect("Material")}<label><span>Costo por Pie</span>${displayInput(scope, "costPerFoot", inline.costPerFoot, { prefix: "$", maximumFractionDigits: 6 })}</label>` : ""}${inline.usesPlateCost ? `<label class="span-2"><span>Costo Cliché</span>${displayInput(scope, "plateCost", inline.plateCost, { prefix: "$", maximumFractionDigits: 2 })}</label>` : ""}${commentField}`;
   }
-  const configZone = `<div class="process-zone"><div class="process-zone-head"><h4>Parámetros de Configuración</h4></div><div class="process-finish-grid">${fields}</div>${extraConfig}</div>`;
+  const configZone = `<div class="process-zone"><div class="process-zone-head"><h4>Parámetros de Configuración</h4></div><div class="process-finish-grid ${gridClass}">${fields}</div>${extraConfig}</div>`;
   const numberingSummary = inline.key === "numerado"
     ? `${metric("Tipo", esc(normalizeNumberingType(inline.numberingType, inline.rangeFrom, inline.rangeTo) || "Sin definir"))}${isConsecutiveNumbering(normalizeNumberingType(inline.numberingType, inline.rangeFrom, inline.rangeTo)) ? metric("Rango", esc([inline.rangeFrom, inline.rangeTo].filter(Boolean).join(" - ") || "Sin rango")) : ""}${metric("Adjunto", esc(inline.attachmentName || "Sin adjunto"))}`
     : "";
-  const barnizSummary = `${inline.sonified ? metric("Zonificado", "Sí") : ""}${metric("Consumo Barniz", `${num(inline.materialConsumptionLb || 0, 4)} lb`)}${metric("GSM Barniz", num(inline.layerGsm || 0, 4))}${metric("Subtotal Material", money(inline.materialSubtotal))}${metric("Subtotal", money(inline.subtotal))}`;
-  const standardSummary = `${metric("Tiempo Montaje", `${num(inline.setupMinutes, 2)} min`)}${inline.usesMaterial ? metric("Material", esc(inline.materialName || "Sin definir")) : ""}${inline.usesMaterial ? metric("Subtotal Material", money(inline.materialSubtotal)) : ""}${inline.usesPlateCost ? metric("Costo Cliché", money(inline.plateCost)) : ""}${numberingSummary}${metric("Subtotal", money(inline.subtotal))}`;
+  const barnizSummary = `${inline.sonified ? metric("Zonificado", "Sí") : ""}${metric("Consumo Barniz", `${num(inline.materialConsumptionKg || 0, 4)} kg`)}${metric("BCM Anilox", num(inline.varnishBcm || 0, 4))}${metric("Cobertura", `${num(inline.coveragePct || 0, 2)} %`)}${metric("Costo por Kilo", money(inline.costPerKg || 0))}${metric("Subtotal", money(inline.subtotal))}`;
+  const standardSummary = `${metric("Tiempo Montaje", `${num(inline.setupMinutes, 2)} min`)}${inline.usesMaterial ? metric("Material", esc(inline.materialName || "Sin definir")) : ""}${inline.usesMaterial ? metric("Subtotal Material", money(inline.materialSubtotal)) : ""}${inline.usesPlateCost ? metric("Costo Cliché", money(inline.plateCost)) : ""}${n(inline.fixedCost, 0) > 0 ? metric("Costo Fijo", money(inline.fixedCost)) : ""}${numberingSummary}${metric("Subtotal", money(inline.subtotal))}`;
   const inlineDieSummary = [
     metric("Tiempo Montaje", `${num(inline.setupMinutes || 0, 2)} min`),
     metric("Merma Ajuste", `${num(inline.setupWasteFeet || 0, 2)} ft`),
     metric("Subtotal", money(inline.subtotal))
   ].join("");
+  const isLinealInlineMaterial = ["laminado", "estampado"].includes(inline.key);
   const externalSummary = externalConfig ? (inline.key === "troquelado" ? inlineDieSummary : [
     metric("Base de Corrida", `${num(inline.calcBase || 0, 2)} pies`),
-    metric("Tiempo Total", `${num(inline.totalMinutes || 0, 2)} min`),
+    metric("Montaje a Impresión", `${num(inline.setupMinutes || 0, 2)} min`),
     inline.usesMaterial ? metric("Material", esc(inline.materialName || "Sin definir")) : "",
-    inline.usesMaterial ? metric("Base Material", `${num(inline.materialBase || 0, 2)} ft²`) : "",
+    inline.usesMaterial ? metric(isLinealInlineMaterial ? "Pies Lineales" : "Base Material", isLinealInlineMaterial ? `${num(inline.materialBase || 0, 2)} pies` : `${num(inline.materialBase || 0, 2)} ft²`) : "",
     inline.usesWeightMaterial ? metric("Consumo Material", `${num(inline.materialConsumptionKg || 0, 4)} kg`) : "",
+    isLinealInlineMaterial ? metric("Costo Pie Lineal", money(inline.costPerFoot || 0)) : "",
     inline.usesMaterial ? metric("Subtotal Material", money(inline.materialSubtotal)) : "",
     inline.usesPlateCost ? metric("Costo Cliché", money(inline.plateCost)) : "",
     inline.key === "troquelado" ? metric("Costo Lineal", money(inline.linearSubtotal || 0)) : "",
@@ -7102,27 +7167,45 @@ function renderInlinePrintBlock(stage, stageIndex, inline) {
   ].join("")) : "";
   const inlineFormulaPlateTerm = externalConfig?.usesPlateCost || inline.usesPlateCost ? " + Costo Cliché" : "";
   const inlineFormulaPlateExample = externalConfig?.usesPlateCost || inline.usesPlateCost ? ` + Costo Cliché ${formulaValue(inline.plateCost || 0, 2)}` : "";
-  const metricsZone = `<div class="process-zone process-zone-accent"><div class="process-zone-head"><h4>Resumen</h4></div><div class="process-kpi-grid">${externalConfig ? externalSummary : inline.key === "barniz" ? barnizSummary : standardSummary}</div></div>`;
+  const metricsContent = inline.key === "barniz" ? barnizSummary : externalConfig ? externalSummary : standardSummary;
+  const metricsZone = `<div class="process-zone process-zone-accent"><div class="process-zone-head"><h4>Resumen</h4></div><div class="process-kpi-grid">${metricsContent}</div></div>`;
   const formulaText = externalConfig && inline.key === "troquelado"
     ? "Troquelado en línea = tiempo de montaje y merma de ajuste dentro del proceso de impresión."
+    : inline.key === "barniz"
+    ? "Kilogramos de Barniz = Pies Lineales x Ancho de Banda (in) x BCM Anilox x Cobertura x 0.000012. Costo Total = Kilogramos de Barniz x Precio por Kilo."
+    : inline.key === "laminado"
+    ? "Laminado = pies lineales de impresión x costo por pie lineal del laminado seleccionado."
+    : inline.key === "estampado"
+    ? "Estampado = pies lineales de impresión x costo por pie lineal del rollo seleccionado."
+    : inline.key === "embosado"
+    ? "Embosado = costo del cliché. El montaje se suma al tiempo de montaje de impresión."
     : externalConfig
-    ? `Subtotal ${inline.label} = Costo Máquina + Costo Operador + Costo Material${inlineFormulaPlateTerm} + Costo Fijo.`
+    ? `Subtotal ${inline.label} = Costo Material${inlineFormulaPlateTerm} + Costo Fijo.`
     : inline.key === "barniz"
     ? "Subtotal Barniz = Costo Tiempo Montaje + Subtotal Material + Costos Únicos."
     : `Subtotal ${inline.label} = Costo Tiempo Montaje + Subtotal Material${inlineFormulaPlateTerm} + Costo Fijo.`;
   const formulaExplanation = externalConfig && inline.key === "troquelado"
     ? "El troquelado en línea no agrega costo externo ni costo lineal; su tiempo se suma al montaje de impresión y su merma de ajuste al consumo de sustrato."
-    : externalConfig
-    ? "El acabado en línea usa la misma base de corrida, merma, consumo de material y desglose de costos que el acabado externo equivalente."
     : inline.key === "barniz"
-    ? `Consumo Barniz = Área Impresa x Cobertura Barniz x GSM Barniz / 453.59237. Costo Insumos Barniz = Consumo Barniz x Costo Libra. ${inline.explanation || ""}`
+    ? "Barniz usa el perfil Barniz UV configurado en Costos para tomar BCM y cobertura. La constante BCM convierte pies lineales y ancho de banda a kilogramos aplicados, considerando transferencia real y densidad estándar."
+    : inline.key === "laminado" || inline.key === "estampado"
+    ? "El material se calcula por pie lineal sobre la misma longitud que se imprime. El montaje se agrega al tiempo de montaje de la prensa porque el proceso es en línea."
+    : inline.key === "embosado"
+    ? "El tiempo de montaje se agrega a impresión; en el subtotal del embosado queda el costo del cliché."
+    : externalConfig
+    ? "El acabado en línea usa la misma base de corrida de impresión. Su montaje se cobra en el tiempo de impresión y aquí solo se valoran insumos propios."
     : inline.explanation || "";
+  const formulaExampleLine = inline.key === "troquelado"
+    ? `Montaje ${formulaValue(inline.setupMinutes || 0, 2)} min + Merma Ajuste ${formulaValue(inline.setupWasteFeet || 0, 2)} ft`
+    : inline.key === "barniz"
+      ? `Kg Barniz: ${formulaValue(inline.calcBase || 0, 2)} x ${formulaValue(inline.supplyWidthIn || 0, 2)} x ${formulaValue(inline.varnishBcm || 0, 2)} x ${formulaValue((inline.coveragePct || 0) / 100, 4)} x 0.000012 = ${formulaValue(inline.materialConsumptionKg || 0, 4)} kg`
+      : isLinealInlineMaterial
+        ? `Subtotal material: ${formulaValue(inline.materialBase || 0, 2)} pies x ${formulaValue(inline.costPerFoot || 0, 6)} = ${formulaValue(inline.materialSubtotal || 0, 2)}`
+        : inline.key === "embosado"
+          ? `Subtotal ${inline.label}: Costo Cliché ${formulaValue(inline.plateCost || 0, 2)} = ${formulaValue(inline.subtotal || 0, 2)}`
+          : `Subtotal ${inline.label}: Subtotal Material ${formulaValue(inline.materialSubtotal || 0, 2)}${inlineFormulaPlateExample} + Costo Fijo ${formulaValue(inline.fixedCost || 0, 2)} = ${formulaValue(inline.subtotal || 0, 2)}`;
   const info = formulaButton(`Cálculo ${inline.label}`, formulaText, formulaExplanation, {
-    exampleLines: [
-      inline.key === "troquelado"
-        ? `Montaje ${formulaValue(inline.setupMinutes || 0, 2)} min + Merma Ajuste ${formulaValue(inline.setupWasteFeet || 0, 2)} ft`
-        : `Subtotal ${inline.label}: Costo Máquina ${formulaValue(inline.machineSubtotal || 0, 2)} + Costo Operador ${formulaValue(inline.operatorSubtotal || inline.setupCost || 0, 2)} + Subtotal Material ${formulaValue(inline.materialSubtotal || 0, 2)}${inlineFormulaPlateExample} + Costo Fijo ${formulaValue(inline.fixedCost || 0, 2)} = ${formulaValue(inline.subtotal || 0, 2)}`
-    ],
+    exampleLines: [formulaExampleLine],
     answer: inline.key === "troquelado"
       ? `R/ El troquelado en línea no agrega costo externo; consume ${num(inline.setupWasteFeet || 0, 2)} ft de merma de ajuste.`
       : `R/ El total a cobrar por ${inline.label.toLowerCase()} es ${money(inline.subtotal || 0)}`
@@ -7269,7 +7352,7 @@ function renderExternalFinishCard(config, finish, index, orderNumber) {
     materialFields.push(
       `<label class="span-2"><span>Material</span><select data-scope="${scope}" data-field="materialId">${processOptions(materialOptions, finish.materialId)}</select></label>`,
       `<label><span>Rendimiento <span class="field-unit">g/ft²</span></span>${displayInput(scope, "layerGft2", finish.layerGft2, { maximumFractionDigits: 6 })}</label>`,
-      `<label><span>Costo Kg <span class="field-unit">$/kg</span></span>${displayInput(scope, "costPerKg", finish.costPerKg, { prefix: "$", maximumFractionDigits: 6 })}</label>`
+      `<label><span>Costo por Kilo <span class="field-unit">$/kg</span></span>${displayInput(scope, "costPerKg", finish.costPerKg, { prefix: "$", maximumFractionDigits: 6 })}</label>`
     );
   } else if (config.usesUnitMaterial) {
     materialFields.push(
@@ -7293,7 +7376,7 @@ function renderExternalFinishCard(config, finish, index, orderNumber) {
       `<label><span>Ancho Cliché <span class="field-unit">in</span></span>${displayInput(scope, "plateWidthIn", finish.plateWidthIn, { suffix: "in", maximumFractionDigits: 4 })}</label>`,
       `<label><span>Largo Cliché <span class="field-unit">in</span></span>${displayInput(scope, "plateLengthIn", finish.plateLengthIn, { suffix: "in", maximumFractionDigits: 4 })}</label>`
     );
-    plateFields.push(`<label><span>Costo Cliché <span class="field-unit">$</span></span>${displayInput(scope, "plateCost", finish.plateCost, { prefix: "$", maximumFractionDigits: 2 })}</label>`);
+    plateFields.push(`<label><span>Costo Cliché</span>${displayInput(scope, "plateCost", finish.plateCost, { prefix: "$", maximumFractionDigits: 2 })}</label>`);
   }
   const configZone = `<div class="process-zone"><div class="process-zone-head"><h4>Parámetros de Configuración</h4></div><div class="process-finish-grid">${machineFields.join("")}${plateFields.join("")}${materialFields.join("")}<label class="span-4"><span>Comentario</span><input data-scope="${scope}" data-field="comment" type="text" value="${esc(finish.comment || "")}"></label></div></div>`;
   const indicatorMetrics = [
@@ -7667,11 +7750,12 @@ function applyPrintMachineDefaults(machineId) {
     const haystack = capacityHaystack(machine, item);
     return haystack.includes("impresion") || haystack.includes("digital");
   }) || primaryMachineCapacity(machine);
+  const mountingMinutes = firstPositiveNumber(machine.setupPerStationMinutes, capacity?.tiempo_por_estacion, 0) * Math.max(1, effectiveColors(state.form));
   Object.assign(state.form.print, {
     machineId,
     machineName: machineDisplayName(machine) || state.form.print.machineName,
     setupMinutes: firstPositiveNumber(machine.setupBaseMinutes, capacity?.tiempo_preparacion_general, state.form.print.setupMinutes),
-    mountingMinutes: firstPositiveNumber(machine.setupPerStationMinutes, capacity?.tiempo_por_estacion, 0) * Math.max(1, effectiveColors(state.form)),
+    mountingMinutes: firstPositiveNumber(mountingMinutes, inlineFinishSetupMinutes("impresion"), state.form.print.mountingMinutes),
     speedMetersMin: printSpeedValue(firstPositiveNumber(machine.productionSpeed, capacity?.velocidad_produccion, 0)) || state.form.print.speedMetersMin,
     costHour: firstPositiveNumber(machine.hourlyMachineCost, capacity?.costo_hora_maquina, state.form.print.costHour),
     operatorHourCost: firstPositiveNumber(machine.hourlyOperatorCost, capacity?.costo_hora_operario, state.form.print.operatorHourCost),
@@ -7696,11 +7780,12 @@ function applyPrintStageMachineDefaults(scope, machineId) {
   const digitalSettings = digitalMachineSettings(machine, state.form.printStages[index]);
   const isDigital = isDigitalProductionMachine(machine);
   const stations = Math.max(0, effectiveColors(state.form) + n(state.form.printStages[index].digitalSpecialColors, 0));
+  const mountingMinutes = firstPositiveNumber(machine.setupPerStationMinutes, capacity?.tiempo_por_estacion, 0) * Math.max(1, effectiveColors(state.form));
   Object.assign(state.form.printStages[index], {
     machineId,
     machineName: machineDisplayName(machine) || state.form.printStages[index].machineName,
     setupMinutes: firstPositiveNumber(machine.setupBaseMinutes, capacity?.tiempo_preparacion_general, state.form.printStages[index].setupMinutes),
-    mountingMinutes: firstPositiveNumber(machine.setupPerStationMinutes, capacity?.tiempo_por_estacion, 0) * Math.max(1, effectiveColors(state.form)),
+    mountingMinutes: firstPositiveNumber(mountingMinutes, inlineFinishSetupMinutes("impresion"), state.form.printStages[index].mountingMinutes),
     speedMetersMin: isDigital ? digitalSpeedForStations(machine, state.form.printStages[index], stations) : (printSpeedValue(firstPositiveNumber(machine.productionSpeed, capacity?.velocidad_produccion, 0)) || state.form.printStages[index].speedMetersMin),
     costHour: firstPositiveNumber(machine.hourlyMachineCost, capacity?.costo_hora_maquina, state.form.printStages[index].costHour),
     operatorHourCost: firstPositiveNumber(machine.hourlyOperatorCost, capacity?.costo_hora_operario, state.form.printStages[index].operatorHourCost),
@@ -8157,7 +8242,7 @@ function bindProcesses() {
       if (inlineKey === "barniz") {
         Object.assign(state.form.printStages[stageIndex].inlineFinishes[inlineKey], {
           costPerLb: materialCostPerPound(material),
-          costPerKg: n(material?.costo_x_kg, 0),
+          costPerKg: n(first(material?.costo_x_kg, material?.costPerKgUsd), 0),
           layerGft2: n(first(material?.rendimiento_g_ft2, material?.peso_capa_gsm), 0)
         });
       } else {
@@ -8169,7 +8254,8 @@ function bindProcesses() {
           costPerFt2: n(first(material?.costo_x_ft2, material?.costoPorFt2), 0),
           costPerUnit: n(material?.costo_x_unidad, 0),
           costPerKg: n(material?.costo_x_kg, 0),
-          layerGft2: n(first(material?.rendimiento_g_ft2, material?.peso_capa_gsm), 0)
+          layerGft2: n(first(material?.rendimiento_g_ft2, material?.peso_capa_gsm), 0),
+          supplyWidthIn: inlineKey === "estampado" ? firstPositiveNumber(state.form.printStages[stageIndex].inlineFinishes[inlineKey].supplyWidthIn, materialSupplyWidthIn(material, state.form.header.rollWidthIn), 0) : state.form.printStages[stageIndex].inlineFinishes[inlineKey].supplyWidthIn
         });
       }
       syncPrimaryPrintStage();
