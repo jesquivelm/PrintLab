@@ -14854,10 +14854,10 @@
                     window.parent.postMessage({ type: 'erp-general-config-updated', config: loadedConfig }, window.location.origin);
                 }
                 if (quoteProductTypesJsonField) {
-                    quoteProductTypesJsonField.value = loadedConfig?.general?.quoteProductTypesJson || quoteProductTypesJsonField.value || '[]';
+                    quoteProductTypesJsonField.value = quoteProductTypesJsonField.value || loadedConfig?.general?.quoteProductTypesJson || '[]';
                 }
                 if (quoteApplicationOptionsJsonField) {
-                    quoteApplicationOptionsJsonField.value = loadedConfig?.general?.quoteApplicationOptionsJson || quoteApplicationOptionsJsonField.value || JSON.stringify(DEFAULT_QUOTE_APPLICATION_OPTIONS);
+                    quoteApplicationOptionsJsonField.value = quoteApplicationOptionsJsonField.value || loadedConfig?.general?.quoteApplicationOptionsJson || JSON.stringify(DEFAULT_QUOTE_APPLICATION_OPTIONS);
                 }
                 ensureIconLibraryFields();
                 applyIconPreviews();
