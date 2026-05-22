@@ -4836,11 +4836,13 @@ async function getLatestQuoteCalculationRows(quoteCode, client = null) {
                 quantity, subtotal_cost, total_cost, unit_price, raw_data, created_at
            FROM (
                 SELECT DISTINCT ON (line_code)
-                       calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name, die_code, material_code,
-                       quantity, subtotal_cost, total_cost, unit_price, raw_data, created_at
-                  FROM flexo_calculations
-                 WHERE quote_code = $1
-                 ORDER BY line_code NULLS LAST, created_at DESC NULLS LAST, calculation_code DESC NULLS LAST
+                       fc.calculation_code, fc.quote_code, fc.line_code, fc.product_code, fc.customer_code, fc.process_type, fc.machine_name, fc.die_code, fc.material_code,
+                       fc.quantity, fc.subtotal_cost, fc.total_cost, fc.unit_price, fc.raw_data, fc.created_at
+                  FROM flexo_calculations fc
+                  LEFT JOIN quotes q ON q.quote_code = fc.quote_code
+                 WHERE fc.quote_code = $1
+                   AND ${quoteOwnedCalculationPredicate('fc', 'q')}
+                 ORDER BY fc.line_code NULLS LAST, fc.created_at DESC NULLS LAST, fc.calculation_code DESC NULLS LAST
            ) latest_lines
           ORDER BY line_code NULLS LAST`,
         [quoteCode]
@@ -4973,10 +4975,13 @@ const SQL_LINE_ORDER_VALUE = `
 `;
 
 async function getNextQuoteLineOrder(quoteCode) {
+    const lineOrderValue = SQL_LINE_ORDER_VALUE.replace(/\braw_data\b/g, 'fc.raw_data');
     const result = await pgQuery(
-        `SELECT COALESCE(MAX(${SQL_LINE_ORDER_VALUE}), 0) AS max_order
-           FROM flexo_calculations
-          WHERE quote_code = $1`,
+        `SELECT COALESCE(MAX(${lineOrderValue}), 0) AS max_order
+           FROM flexo_calculations fc
+           LEFT JOIN quotes q ON q.quote_code = fc.quote_code
+          WHERE fc.quote_code = $1
+            AND ${quoteOwnedCalculationPredicate('fc', 'q')}`,
         [quoteCode]
     );
     return Number(result.rows[0]?.max_order || 0) + 1;
@@ -5586,10 +5591,12 @@ async function assertQuoteReadyForProforma(quoteCode, client = null) {
         `SELECT line_code, raw_data
            FROM (
                 SELECT DISTINCT ON (line_code)
-                       line_code, raw_data, created_at, calculation_code
-                  FROM flexo_calculations
-                 WHERE quote_code = $1
-                 ORDER BY line_code NULLS LAST, created_at DESC NULLS LAST, calculation_code DESC NULLS LAST
+                       fc.line_code, fc.raw_data, fc.created_at, fc.calculation_code
+                  FROM flexo_calculations fc
+                  LEFT JOIN quotes q ON q.quote_code = fc.quote_code
+                 WHERE fc.quote_code = $1
+                   AND ${quoteOwnedCalculationPredicate('fc', 'q')}
+                 ORDER BY fc.line_code NULLS LAST, fc.created_at DESC NULLS LAST, fc.calculation_code DESC NULLS LAST
            ) latest_lines
           ORDER BY line_code NULLS LAST`,
         [quoteCode]
@@ -5615,11 +5622,13 @@ async function buildQuoteProformaPayload(quoteCode, client = null) {
                 quantity, subtotal_cost, total_cost, unit_price, raw_data, created_at
            FROM (
                 SELECT DISTINCT ON (line_code)
-                       calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name, die_code, material_code,
-                       quantity, subtotal_cost, total_cost, unit_price, raw_data, created_at
-                  FROM flexo_calculations
-                 WHERE quote_code = $1
-                 ORDER BY line_code NULLS LAST, created_at DESC NULLS LAST, calculation_code DESC NULLS LAST
+                       fc.calculation_code, fc.quote_code, fc.line_code, fc.product_code, fc.customer_code, fc.process_type, fc.machine_name, fc.die_code, fc.material_code,
+                       fc.quantity, fc.subtotal_cost, fc.total_cost, fc.unit_price, fc.raw_data, fc.created_at
+                  FROM flexo_calculations fc
+                  LEFT JOIN quotes q ON q.quote_code = fc.quote_code
+                 WHERE fc.quote_code = $1
+                   AND ${quoteOwnedCalculationPredicate('fc', 'q')}
+                 ORDER BY fc.line_code NULLS LAST, fc.created_at DESC NULLS LAST, fc.calculation_code DESC NULLS LAST
            ) latest_lines
           ORDER BY line_code NULLS LAST`,
         [quoteCode]
@@ -5773,16 +5782,46 @@ async function generateNextConfiguredCode({ client = null, tableName, columnName
     return `${safePrefix}${suffix}`;
 }
 
+function quoteOwnedCalculationPredicate(calcAlias = 'fc', quoteAlias = 'q') {
+    return `(
+        ${quoteAlias}.quote_code IS NULL
+        OR ${quoteAlias}.created_at IS NULL
+        OR ${calcAlias}.created_at IS NULL
+        OR ${calcAlias}.created_at >= ${quoteAlias}.created_at - INTERVAL '5 minutes'
+        OR (
+            COALESCE(${quoteAlias}.raw_data->>'Clave_Solicitud', '') <> ''
+            AND ${calcAlias}.raw_data->>'Clave_Solicitud' = ${quoteAlias}.raw_data->>'Clave_Solicitud'
+        )
+    )`;
+}
+
 async function generateNextQuoteCode(client = null) {
     const general = await loadGeneralNomenclature();
-    return generateNextConfiguredCode({
-        client,
-        tableName: 'quotes',
-        columnName: 'quote_code',
-        prefix: general.quoteCodePrefix,
-        fallbackPrefix: 'C-',
-        padLength: 6
-    });
+    const executor = client || { query: pgQuery };
+    const safePrefix = String(general.quoteCodePrefix || 'C-').trim() || 'C-';
+    const regex = `^${escapeRegexLiteral(safePrefix)}[0-9]+$`;
+    const result = await executor.query(
+        `SELECT code
+           FROM (
+                SELECT quote_code AS code FROM quotes WHERE quote_code ~* $1
+                UNION
+                SELECT quote_code AS code FROM flexo_calculations WHERE quote_code ~* $1
+           ) used_codes`,
+        [regex]
+    );
+    let maxValue = 0;
+    let resolvedPad = 6;
+    const matcher = new RegExp(`^${escapeRegexLiteral(safePrefix)}(\\d+)$`, 'i');
+    for (const row of result.rows || []) {
+        const match = String(row.code || '').trim().match(matcher);
+        if (!match) continue;
+        const numeric = Number(match[1]);
+        if (Number.isFinite(numeric)) {
+            maxValue = Math.max(maxValue, numeric);
+            resolvedPad = Math.max(resolvedPad, match[1].length);
+        }
+    }
+    return `${safePrefix}${String(maxValue + 1).padStart(resolvedPad, '0')}`;
 }
 
 async function generateNextLineCode(client = null) {
@@ -8055,11 +8094,14 @@ async function getQuoteHeaderRow(quoteCode) {
 
 async function getLatestCalculationRow(quoteCode, lineCode) {
     const result = await pgQuery(
-        `SELECT calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name, die_code, material_code,
-                quantity, subtotal_cost, total_cost, unit_price, raw_data
-           FROM flexo_calculations
-          WHERE quote_code = $1 AND line_code = $2
-          ORDER BY created_at DESC NULLS LAST
+        `SELECT fc.calculation_code, fc.quote_code, fc.line_code, fc.product_code, fc.customer_code, fc.process_type, fc.machine_name, fc.die_code, fc.material_code,
+                fc.quantity, fc.subtotal_cost, fc.total_cost, fc.unit_price, fc.raw_data
+           FROM flexo_calculations fc
+           LEFT JOIN quotes q ON q.quote_code = fc.quote_code
+          WHERE fc.quote_code = $1
+            AND fc.line_code = $2
+            AND ${quoteOwnedCalculationPredicate('fc', 'q')}
+          ORDER BY fc.created_at DESC NULLS LAST, fc.calculation_code DESC NULLS LAST
           LIMIT 1`,
         [quoteCode, lineCode]
     );
@@ -8080,11 +8122,14 @@ async function getQuoteLineContext(quoteCode, lineCode, client = null) {
     const [quoteResult, calcResult] = await Promise.all([
         executor.query(`SELECT * FROM quotes WHERE quote_code = $1 LIMIT 1`, [quoteCode]),
         executor.query(
-            `SELECT calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name, die_code, material_code,
-                    quantity, subtotal_cost, total_cost, unit_price, raw_data
-               FROM flexo_calculations
-              WHERE quote_code = $1 AND line_code = $2
-              ORDER BY created_at DESC NULLS LAST
+            `SELECT fc.calculation_code, fc.quote_code, fc.line_code, fc.product_code, fc.customer_code, fc.process_type, fc.machine_name, fc.die_code, fc.material_code,
+                    fc.quantity, fc.subtotal_cost, fc.total_cost, fc.unit_price, fc.raw_data
+               FROM flexo_calculations fc
+               LEFT JOIN quotes q ON q.quote_code = fc.quote_code
+              WHERE fc.quote_code = $1
+                AND fc.line_code = $2
+                AND ${quoteOwnedCalculationPredicate('fc', 'q')}
+              ORDER BY fc.created_at DESC NULLS LAST, fc.calculation_code DESC NULLS LAST
               LIMIT 1`,
             [quoteCode, lineCode]
         )
@@ -10502,9 +10547,8 @@ app.get('/api/cotizaciones', async (req, res) => {
                 COALESCE(calc.quote_total, 0) AS quote_total,
                 COALESCE(calc.line_statuses, '') AS line_statuses
              FROM quotes q
-             LEFT JOIN (
+             LEFT JOIN LATERAL (
                 SELECT
-                    latest.quote_code,
                     COUNT(*) AS line_count,
                     COALESCE(SUM(
                         COALESCE(
@@ -10523,25 +10567,23 @@ app.get('/api/cotizaciones', async (req, res) => {
                         latest.raw_data->>'Estado Cotizacion'
                     ), ''), ' | ') AS line_statuses
                 FROM (
-                    SELECT DISTINCT ON (quote_code, line_code)
-                        quote_code,
-                        line_code,
-                        total_cost,
-                        unit_price,
-                        quantity,
-                        raw_data,
-                        created_at,
-                        calculation_code
-                    FROM flexo_calculations
+                    SELECT DISTINCT ON (fc.line_code)
+                        fc.line_code,
+                        fc.total_cost,
+                        fc.unit_price,
+                        fc.quantity,
+                        fc.raw_data,
+                        fc.created_at,
+                        fc.calculation_code
+                    FROM flexo_calculations fc
+                    WHERE fc.quote_code = q.quote_code
+                      AND ${quoteOwnedCalculationPredicate('fc', 'q')}
                     ORDER BY
-                        quote_code,
-                        line_code NULLS LAST,
-                        created_at DESC NULLS LAST,
-                        calculation_code DESC NULLS LAST
+                        fc.line_code NULLS LAST,
+                        fc.created_at DESC NULLS LAST,
+                        fc.calculation_code DESC NULLS LAST
                 ) latest
-                GROUP BY latest.quote_code
-             ) calc
-               ON calc.quote_code = q.quote_code
+             ) calc ON true
              ${whereClause}
              ORDER BY q.quote_code DESC
              LIMIT $${qIndex}`,
@@ -10601,11 +10643,13 @@ app.get('/api/cotizaciones/:codigo', async (req, res) => {
                     quantity, subtotal_cost, total_cost, unit_price, raw_data
                FROM (
                     SELECT DISTINCT ON (line_code)
-                           calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name, die_code, material_code,
-                           quantity, subtotal_cost, total_cost, unit_price, raw_data, created_at
-                      FROM flexo_calculations
-                     WHERE quote_code = $1
-                     ORDER BY line_code NULLS LAST, created_at DESC NULLS LAST, calculation_code DESC NULLS LAST
+                           fc.calculation_code, fc.quote_code, fc.line_code, fc.product_code, fc.customer_code, fc.process_type, fc.machine_name, fc.die_code, fc.material_code,
+                           fc.quantity, fc.subtotal_cost, fc.total_cost, fc.unit_price, fc.raw_data, fc.created_at
+                      FROM flexo_calculations fc
+                      LEFT JOIN quotes q ON q.quote_code = fc.quote_code
+                     WHERE fc.quote_code = $1
+                       AND ${quoteOwnedCalculationPredicate('fc', 'q')}
+                     ORDER BY fc.line_code NULLS LAST, fc.created_at DESC NULLS LAST, fc.calculation_code DESC NULLS LAST
                ) latest_lines
               ORDER BY
                     CASE
@@ -12482,10 +12526,12 @@ app.patch('/api/cotizaciones/:codigo/lineas/orden', async (req, res) => {
         }
 
         const latestResult = await pgQuery(
-            `SELECT DISTINCT ON (line_code) calculation_code, line_code, raw_data
-               FROM flexo_calculations
-              WHERE quote_code = $1
-              ORDER BY line_code NULLS LAST, created_at DESC NULLS LAST, calculation_code DESC NULLS LAST`,
+            `SELECT DISTINCT ON (fc.line_code) fc.calculation_code, fc.line_code, fc.raw_data
+               FROM flexo_calculations fc
+               LEFT JOIN quotes q ON q.quote_code = fc.quote_code
+              WHERE fc.quote_code = $1
+                AND ${quoteOwnedCalculationPredicate('fc', 'q')}
+              ORDER BY fc.line_code NULLS LAST, fc.created_at DESC NULLS LAST, fc.calculation_code DESC NULLS LAST`,
             [codigo]
         );
         const latestByLine = new Map(latestResult.rows.map((row) => [String(row.line_code || '').trim(), row]));
@@ -12512,11 +12558,13 @@ app.patch('/api/cotizaciones/:codigo/lineas/orden', async (req, res) => {
                     quantity, subtotal_cost, total_cost, unit_price, raw_data
                FROM (
                     SELECT DISTINCT ON (line_code)
-                           calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name, die_code, material_code,
-                           quantity, subtotal_cost, total_cost, unit_price, raw_data, created_at
-                      FROM flexo_calculations
-                     WHERE quote_code = $1
-                     ORDER BY line_code NULLS LAST, created_at DESC NULLS LAST, calculation_code DESC NULLS LAST
+                           fc.calculation_code, fc.quote_code, fc.line_code, fc.product_code, fc.customer_code, fc.process_type, fc.machine_name, fc.die_code, fc.material_code,
+                           fc.quantity, fc.subtotal_cost, fc.total_cost, fc.unit_price, fc.raw_data, fc.created_at
+                      FROM flexo_calculations fc
+                      LEFT JOIN quotes q ON q.quote_code = fc.quote_code
+                     WHERE fc.quote_code = $1
+                       AND ${quoteOwnedCalculationPredicate('fc', 'q')}
+                     ORDER BY fc.line_code NULLS LAST, fc.created_at DESC NULLS LAST, fc.calculation_code DESC NULLS LAST
                ) latest_lines
               ORDER BY
                     CASE
@@ -15444,20 +15492,22 @@ app.get('/api/flexo/calculo', async (req, res) => {
 
         if (quoteId) {
             values.push(quoteId);
-            where.push(`quote_code = $${values.length}`);
+            where.push(`fc.quote_code = $${values.length}`);
         }
 
         if (lineId) {
             values.push(lineId);
-            where.push(`line_code = $${values.length}`);
+            where.push(`fc.line_code = $${values.length}`);
         }
 
         const currentResult = await pgQuery(
-            `SELECT calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name, die_code, material_code,
-                    quantity, subtotal_cost, total_cost, unit_price, raw_data
-               FROM flexo_calculations
+            `SELECT fc.calculation_code, fc.quote_code, fc.line_code, fc.product_code, fc.customer_code, fc.process_type, fc.machine_name, fc.die_code, fc.material_code,
+                    fc.quantity, fc.subtotal_cost, fc.total_cost, fc.unit_price, fc.raw_data
+               FROM flexo_calculations fc
+               LEFT JOIN quotes q ON q.quote_code = fc.quote_code
               WHERE ${where.join(' AND ')}
-              ORDER BY quote_code DESC, line_code NULLS LAST
+                AND ${quoteOwnedCalculationPredicate('fc', 'q')}
+              ORDER BY fc.created_at DESC NULLS LAST, fc.calculation_code DESC NULLS LAST
               LIMIT 1`,
             values
         );
@@ -15473,11 +15523,13 @@ app.get('/api/flexo/calculo', async (req, res) => {
                     quantity, subtotal_cost, total_cost, unit_price, raw_data
                FROM (
                     SELECT DISTINCT ON (line_code)
-                           calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name, die_code, material_code,
-                           quantity, subtotal_cost, total_cost, unit_price, raw_data, created_at
-                      FROM flexo_calculations
-                     WHERE quote_code = $1
-                     ORDER BY line_code NULLS LAST, created_at DESC NULLS LAST, calculation_code DESC NULLS LAST
+                           fc.calculation_code, fc.quote_code, fc.line_code, fc.product_code, fc.customer_code, fc.process_type, fc.machine_name, fc.die_code, fc.material_code,
+                           fc.quantity, fc.subtotal_cost, fc.total_cost, fc.unit_price, fc.raw_data, fc.created_at
+                      FROM flexo_calculations fc
+                      LEFT JOIN quotes q ON q.quote_code = fc.quote_code
+                     WHERE fc.quote_code = $1
+                       AND ${quoteOwnedCalculationPredicate('fc', 'q')}
+                     ORDER BY fc.line_code NULLS LAST, fc.created_at DESC NULLS LAST, fc.calculation_code DESC NULLS LAST
                ) latest_lines
               ORDER BY
                     CASE
