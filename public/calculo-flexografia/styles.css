@@ -4668,6 +4668,10 @@ html[data-theme="dark"] .display-input-wrap .display-input.field-required-input:
   color: transparent !important;
 }
 
+html[data-theme="dark"] .display-input-wrap .display-input.field-warning-input:not(:focus):not(:active) {
+  color: transparent !important;
+}
+
 html[data-theme="dark"] .metric-cell-alert,
 html[data-theme="dark"] .formula-issues {
   background: rgba(248, 113, 113, 0.12) !important;

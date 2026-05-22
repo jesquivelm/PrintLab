@@ -4229,7 +4229,8 @@ function inlineItemsForMacula(stage = {}) {
     return {
       key: slot.key,
       label: slot.label,
-      active: Boolean(inline.active)
+      active: Boolean(inline.active),
+      setupWasteFeet: n(inline.setupWasteFeet, 0)
     };
   });
 }
@@ -4591,7 +4592,7 @@ function buildForm() {
   if (form.printStages?.[0]) {
     ["barniz", "laminado", "estampado", "embosado", "troquelado", "numerado"].forEach((inlineKey) => {
       if (form.printStages[0].inlineFinishes?.[inlineKey]?.active) {
-        applyInlineFinishSetupDefaults(0, inlineKey, true);
+        applyInlineFinishSetupDefaults(0, inlineKey, false);
       }
     });
   }
