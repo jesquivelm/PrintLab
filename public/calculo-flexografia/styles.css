@@ -1189,11 +1189,24 @@ label span,
 
 .die-association-row {
   grid-template-columns: minmax(160px, 1fr) auto minmax(200px, 1.6fr);
-  align-items: end;
+  align-items: start;
 }
 .die-association-row .inline-process-check {
-  align-self: end;
-  margin-bottom: 2px;
+  align-self: start;
+  margin: 0;
+}
+.die-association-row > label {
+  align-self: start;
+  min-width: 0;
+}
+.die-associate-field {
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+.die-associate-check {
+  overflow: visible !important;
+  min-height: 18px !important;
+  font-weight: 500;
 }
 
 .calc-shape-trigger {
@@ -4921,4 +4934,5 @@ html[data-theme="dark"] .formula-help:hover {
 
 .die-association-row {
   grid-template-columns: minmax(140px, 0.72fr) auto minmax(260px, 1.8fr);
+  align-items: start;
 }

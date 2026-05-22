@@ -3196,6 +3196,13 @@ function shapeSelectOptions(selectedValue = "") {
 
 let calcShapePanelCache = null;
 
+function closeCalcShapePanel() {
+  const panel = calcShapePanelCache || document.querySelector("[data-calc-shape-panel]");
+  const trigger = document.querySelector("[data-calc-shape-trigger]");
+  if (panel) panel.hidden = true;
+  if (trigger) trigger.setAttribute("aria-expanded", "false");
+}
+
 function ensureCalcShapePanel() {
   if (calcShapePanelCache && document.body.contains(calcShapePanelCache)) return calcShapePanelCache;
   const shapes = dieShapeOptionsFromConfig();
@@ -3259,8 +3266,16 @@ function positionCalcShapePanel(triggerEl) {
 function toggleCalcShapePanel(forceOpen) {
   const panel = ensureCalcShapePanel();
   const trigger = document.querySelector("[data-calc-shape-trigger]");
-  if (!panel || !trigger) return;
+  if (!panel) return;
+  if (!trigger) {
+    closeCalcShapePanel();
+    return;
+  }
   const nextState = typeof forceOpen === "boolean" ? forceOpen : panel.hidden;
+  if (!nextState) {
+    closeCalcShapePanel();
+    return;
+  }
   panel.hidden = !nextState;
   trigger.setAttribute("aria-expanded", nextState ? "true" : "false");
   if (nextState) {
@@ -7272,6 +7287,7 @@ function renderInkProfiles(scope, profiles = []) {
 
 function renderProcesses() {
   closeInfoPopover();
+  closeCalcShapePanel();
   const focusSnapshot = captureFocus();
   snapshotOpenProcesses();
   syncDerivedHeaderAndPackaging(state.form);
@@ -7312,7 +7328,7 @@ function renderProcesses() {
       const recommendedLabel = recommendedDie ? `Recomendado: ${first(recommendedDie.codigoTroquel, recommendedDie.codigo, recommendedDie.id)}` : "Seleccionar...";
       const productDimension = `${num(state.form.header?.labelWidthIn || 0, 3)} x ${num(state.form.header?.labelHeightIn || 0, 3)} in`;
       const associateChecked = state.form.troquel.associateDieShape !== false ? " checked" : "";
-      return card("troquel", nextTitle("Troquel"), state.form.troquel.dieDescription, troquel.subtotal, `<div class="editable-grid die-association-row"><label><span>Forma</span><button type="button" class="calc-shape-trigger" data-calc-shape-trigger aria-expanded="false"><span class="calc-shape-trigger-copy"><span class="calc-shape-thumb" data-calc-shape-thumb>${dieShapeThumbForValue(shapeValue, shapeImage)}</span><span class="calc-shape-trigger-label" data-calc-shape-label>${esc(shapeValue || "Seleccionar...")}</span></span></button></label><label class="inline-process-check plate-virgin-check"><input data-scope="troquel" data-field="associateDieShape" type="checkbox"${associateChecked}><span>Asociar</span></label><label><span>Troquel</span><select data-scope="troquel" data-field="dieCode">${processOptions(troquelDieOptions(), state.form.troquel.dieCode, recommendedLabel)}</select></label></div><div class="readonly-grid compact-top">${metric("Dimensión Producto", productDimension)}${metric("Código Troquel", esc(state.form.troquel.dieCode || "No definido"))}${metric("Ancho Montaje", `${num(state.form.troquel.widthIn, 3)} in`)}${metric("Largo Montaje", `${num(state.form.troquel.lengthIn, 3)} in`)}${metric("Ancho Material", `${num(state.form.troquel.materialWidthIn || 0, 3)} in`)}${metric("Elongación", `${num(state.form.troquel.elongationPct || 0, 3)} %`)}${metric("Dientes", num(state.form.troquel.teeth, 0))}${metric("Repeticiones", num(state.form.troquel.repeats, 0))}${metric("Filas", num(state.form.troquel.rows, 0))}${metric("Etiquetas por Vuelta", num(troquel.labelsPerRepeat, 0))}${metric("Desarrollo Total", `${num(troquel.development, 3)} in`)}</div>${formula("Base del Troquel", troquel.formulaText, troquel.explanation, {
+      return card("troquel", nextTitle("Troquel"), state.form.troquel.dieDescription, troquel.subtotal, `<div class="editable-grid die-association-row"><label><span>Forma</span><button type="button" class="calc-shape-trigger" data-calc-shape-trigger aria-expanded="false"><span class="calc-shape-trigger-copy"><span class="calc-shape-thumb" data-calc-shape-thumb>${dieShapeThumbForValue(shapeValue, shapeImage)}</span><span class="calc-shape-trigger-label" data-calc-shape-label>${esc(shapeValue || "Seleccionar...")}</span></span></button></label><label class="die-associate-field"><span>Asociar</span><span class="inline-process-check plate-virgin-check die-associate-check"><input data-scope="troquel" data-field="associateDieShape" type="checkbox"${associateChecked}></span></label><label><span>Troquel</span><select data-scope="troquel" data-field="dieCode">${processOptions(troquelDieOptions(), state.form.troquel.dieCode, recommendedLabel)}</select></label></div><div class="readonly-grid compact-top">${metric("Dimensión Producto", productDimension)}${metric("Código Troquel", esc(state.form.troquel.dieCode || "No definido"))}${metric("Ancho Montaje", `${num(state.form.troquel.widthIn, 3)} in`)}${metric("Largo Montaje", `${num(state.form.troquel.lengthIn, 3)} in`)}${metric("Ancho Material", `${num(state.form.troquel.materialWidthIn || 0, 3)} in`)}${metric("Elongación", `${num(state.form.troquel.elongationPct || 0, 3)} %`)}${metric("Dientes", num(state.form.troquel.teeth, 0))}${metric("Repeticiones", num(state.form.troquel.repeats, 0))}${metric("Filas", num(state.form.troquel.rows, 0))}${metric("Etiquetas por Vuelta", num(troquel.labelsPerRepeat, 0))}${metric("Desarrollo Total", `${num(troquel.development, 3)} in`)}</div>${formula("Base del Troquel", troquel.formulaText, troquel.explanation, {
       exampleLines: [
         `Etiquetas por repetición: ${formulaValue(state.form.troquel.rows || 0, 0)} x ${formulaValue(state.form.troquel.repeats || 0, 0)} = ${formulaValue(troquel.labelsPerRepeat || 0, 0)}`,
         `Desarrollo total: ${formulaValue(state.form.troquel.lengthIn || 0, 2)} x ${formulaValue(state.form.troquel.repeats || 0, 0)} = ${formulaValue(troquel.development || 0, 2)} in`,
@@ -7918,6 +7934,7 @@ function bindProcesses() {
     if (!details) return;
     const key = details.dataset.openKey || details.dataset.processKey || details.querySelector("summary strong")?.textContent?.trim();
     if (key) state.processOpen[key] = details.open;
+    if (!details.open && details.querySelector("[data-calc-shape-trigger]")) closeCalcShapePanel();
   }, true);
 
   const update = (event, shouldRender = false) => {
@@ -8364,7 +8381,7 @@ function bindProcessPicker() {
     const panel = calcShapePanelCache || document.querySelector("[data-calc-shape-panel]");
     if (!panel || panel.hidden) return;
     if (event.target.closest("[data-calc-shape-trigger]") || event.target.closest("[data-calc-shape-panel]")) return;
-    toggleCalcShapePanel(false);
+    closeCalcShapePanel();
   });
 }
 
@@ -8475,8 +8492,16 @@ async function init() {
 
 document.addEventListener("toggle", (event) => {
   if (event.target && event.target.matches && event.target.matches("details.process-card, details.subprocess-card[data-open-key]")) {
+    if (!event.target.open && event.target.querySelector("[data-calc-shape-trigger]")) closeCalcShapePanel();
     return;
   }
+}, true);
+
+document.addEventListener("pointerdown", (event) => {
+  const panel = calcShapePanelCache || document.querySelector("[data-calc-shape-panel]");
+  if (!panel || panel.hidden) return;
+  if (event.target.closest?.("[data-calc-shape-trigger]") || event.target.closest?.("[data-calc-shape-panel]")) return;
+  closeCalcShapePanel();
 }, true);
 
 document.addEventListener("click", (event) => {
