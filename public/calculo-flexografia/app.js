@@ -1593,7 +1593,7 @@ function resolveDieMetrics(die = {}, context = {}) {
   return {
     dieCode: first(die.codigoTroquel, die.codigo, die.id, context?.dieCode, ""),
     dieDescription: first(die.descripcion, die.description, die.codigoTroquel, die.codigo, die.id, context?.dieCode, "No definido"),
-    dieShape: first(die.clasificacion, die.tipoTroquel, die.tipoTroquel2, die.formato, context?.raw_data?.["REQ | Forma"], context?.dieShape, ""),
+    dieShape: first(die.shapeType, die.shape_type, die.clasificacion, die.classification, die.formaTroquel, die.forma_troquel, die.tipoTroquel2, die.tipo_troquel_2, context?.raw_data?.["REQ | Forma"], context?.dieShape, ""),
     widthIn: r(mountWidthIn, 4),
     lengthIn: r(mountLengthIn, 4),
     mountWidthIn: r(mountWidthIn, 4),
@@ -3149,6 +3149,48 @@ function dieShapeOptionValue(value = "") {
   return match?.value || String(value || "").trim();
 }
 
+const DIE_SHAPE_TYPE_MAP = new Map([
+  ["circular", "Circular"],
+  ["circulo", "Circular"],
+  ["redondo", "Circular"],
+  ["redonda", "Circular"],
+  ["cuadrado", "Cuadrado"],
+  ["cuadrada", "Cuadrado"],
+  ["rectangular", "Rectangular"],
+  ["rectangulo", "Rectangular"],
+  ["ovalado", "Ovalado"],
+  ["ovalada", "Ovalado"],
+  ["ovalo", "Ovalado"],
+  ["especial", "Especial"],
+  ["butt cut", "Butt Cut"],
+  ["but cut", "Butt Cut"],
+  ["boot cut", "Butt Cut"],
+  ["bootcut", "Butt Cut"],
+  ["buttcut", "Butt Cut"]
+]);
+
+function dieShapeType(value = "") {
+  const key = norm(value).replace(/[-_]+/g, " ").replace(/\s+/g, " ");
+  return DIE_SHAPE_TYPE_MAP.get(key) || "";
+}
+
+function selectedDieShapeType(value = "") {
+  return dieShapeType(dieShapeOptionValue(value)) || dieShapeType(value);
+}
+
+function dieInventoryShapeType(die = {}) {
+  return dieShapeType(first(
+    die.shapeType,
+    die.shape_type,
+    die.clasificacion,
+    die.classification,
+    die.formaTroquel,
+    die.forma_troquel,
+    die.tipoTroquel2,
+    die.tipo_troquel_2
+  ));
+}
+
 function dieShapeImageForValue(value = "") {
   const token = dieShapeToken(value);
   return dieShapeOptionsFromConfig().find((item) => dieShapeToken(item.value) === token || dieShapeToken(item.label) === token)?.image || "";
@@ -3160,10 +3202,19 @@ function dieShapeThumbForValue(value = "", image = "") {
 }
 
 function dieMatchesShape(die = {}, shapeValue = "") {
-  const target = dieShapeToken(shapeValue);
+  const target = selectedDieShapeType(shapeValue);
   if (!target) return true;
-  const val = first(die.clasificacion, die.tipoTroquel, die.tipoTroquel2, die.formato, die.dieShape);
-  return val ? dieShapeToken(val) === target : true;
+  return dieInventoryShapeType(die) === target;
+}
+
+function dieInventoryDescription(item = {}) {
+  return first(item.descripcion, item.description);
+}
+
+function dieOptionLabel(item = {}) {
+  const code = first(item.codigoTroquel, item.codigo, item.id);
+  const description = dieInventoryDescription(item);
+  return [code, description].filter(Boolean).join(" - ");
 }
 
 function troquelDieOptions() {
@@ -3173,7 +3224,7 @@ function troquelDieOptions() {
     .filter((die) => !associate || !shapeValue || dieMatchesShape(die, shapeValue))
     .map((item) => ({
       id: first(item.codigoTroquel, item.codigo, item.id),
-      nombre: `${first(item.codigoTroquel, item.codigo, item.id) || ""} - ${item.descripcion || ""}`
+      nombre: dieOptionLabel(item)
     }));
 }
 
