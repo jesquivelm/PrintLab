@@ -204,17 +204,13 @@ html[data-theme="dark"] body {
 }
 
 .technical-data-summary .card-head::after {
-  content: "";
-  width: 10px;
-  height: 10px;
-  border-right: 2px solid var(--muted);
-  border-bottom: 2px solid var(--muted);
-  transform: rotate(45deg) translateY(-2px);
-  transition: transform 0.16s ease;
+  content: none;
+  display: none;
 }
 
 .technical-data-card[open] .technical-data-summary .card-head::after {
-  transform: rotate(-135deg) translateY(2px);
+  content: none;
+  display: none;
 }
 
 .technical-collapsed-summary {
@@ -629,8 +625,10 @@ body.is-front-back-embedded-element #technicalDataCard .technical-column-right {
 
 .details-jump-link {
   display: inline-flex;
+  width: 100%;
   max-width: 100%;
   min-width: 0;
+  justify-content: flex-start;
   padding: 0;
   border: 0;
   background: transparent;
@@ -651,6 +649,7 @@ body.is-front-back-embedded-element #technicalDataCard .technical-column-right {
 
 .details-row-label-wrap {
   display: inline-flex;
+  width: 100%;
   max-width: 100%;
   min-width: 0;
   align-items: baseline;
@@ -680,6 +679,7 @@ body.is-front-back-embedded-element #technicalDataCard .technical-column-right {
 
 .details-label-group {
   display: inline-flex;
+  width: 100%;
   max-width: 100%;
   min-width: 0;
   align-items: center;
@@ -5105,6 +5105,12 @@ html[data-theme="dark"] select option:hover {
   top: 100%;
   border-top-color: var(--app-surface-raised);
   border-bottom-color: transparent;
+}
+
+.info-popover-panel::before,
+.info-popover-panel::after {
+  content: none !important;
+  display: none !important;
 }
 
 /* Botón de fórmula / comentario — más visible y con color */

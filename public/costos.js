@@ -154,6 +154,15 @@ const inkFields = {
     costoLbBlanco: document.getElementById("costosCostoLbBlanco"),
     costoLbPantone: document.getElementById("costosCostoLbPantone")
 };
+const COST_INPUT_FORMATS = {
+    costosBcmGenerico: { suffix: "BCM", maximumFractionDigits: 2 },
+    costosCoberturaTinta: { suffix: "%", maximumFractionDigits: 2 },
+    costosCoberturaDiseno: { suffix: "%", maximumFractionDigits: 2 },
+    costosDensidadUv: { maximumFractionDigits: 2 },
+    costosCostoLbCmyk: { prefix: "$", suffix: "lb", maximumFractionDigits: 2 },
+    costosCostoLbBlanco: { prefix: "$", suffix: "lb", maximumFractionDigits: 2 },
+    costosCostoLbPantone: { prefix: "$", suffix: "lb", maximumFractionDigits: 2 }
+};
 const digitalPremierFields = {
     mode: document.getElementById("costosDigitalPremierMode"),
     setupMin: document.getElementById("costosDigitalPremierSetupMin"),
@@ -225,6 +234,34 @@ function normalizeText(value) {
 function numberValue(value, fallback = 0) {
     const numeric = Number(value);
     return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function formatCostInputValue(value, format = {}) {
+    const raw = String(value ?? "").trim();
+    if (!raw) return "";
+    const numeric = Number(raw);
+    if (!Number.isFinite(numeric)) return raw;
+    const formatted = new Intl.NumberFormat("es-CR", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: format.maximumFractionDigits ?? 2
+    }).format(numeric);
+    return `${format.prefix ? `${format.prefix} ` : ""}${formatted}${format.suffix ? ` ${format.suffix}` : ""}`.trim();
+}
+
+function syncCostInputMask(input) {
+    const wrap = input?.closest?.(".costs-input-overlay");
+    if (!wrap) return;
+    let mask = wrap.querySelector(".costs-input-mask");
+    if (!mask) {
+        mask = document.createElement("span");
+        mask.className = "costs-input-mask";
+        wrap.appendChild(mask);
+    }
+    mask.textContent = formatCostInputValue(input.value, COST_INPUT_FORMATS[input.id] || {});
+}
+
+function syncCostInputMasks(root = document) {
+    root.querySelectorAll(".costs-input-overlay input").forEach(syncCostInputMask);
 }
 
 function booleanValue(value, fallback = false) {
@@ -529,6 +566,7 @@ function renderInkFields() {
     Object.entries(inkFields).forEach(([key, node]) => {
         if (node) node.value = ink[key] ?? "";
     });
+    syncCostInputMasks();
 }
 
 function renderDepositosRows() {
@@ -926,6 +964,7 @@ Object.entries(inkFields).forEach(([key, node]) => {
     node?.addEventListener("input", () => {
         if (!costsState) return;
         costsState.convencional.tintaGeneral[key] = numberValue(node.value, 0);
+        syncCostInputMask(node);
         queueCostsSave();
     });
 });

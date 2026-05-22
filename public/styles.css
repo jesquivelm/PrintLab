@@ -2767,7 +2767,8 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
 .costs-ink-grid {
     display: grid;
     gap: 12px;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(220px, 0.9fr);
+    align-items: start;
 }
 
 .costs-ink-grid label {
@@ -2824,6 +2825,8 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
 
 .costs-conv-reference-note {
     display: grid;
+    grid-column: 4;
+    grid-row: 1 / span 3;
     gap: 5px;
     align-content: start;
     min-width: 0;
@@ -2853,6 +2856,55 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     font: inherit;
     color: #203746;
     box-shadow: none;
+}
+
+.costs-input-overlay input {
+    position: relative;
+    z-index: 0;
+    color: transparent;
+    caret-color: #203746;
+    font-variant-numeric: tabular-nums;
+}
+
+.costs-input-overlay input:focus,
+.costs-input-overlay input:active {
+    color: #203746;
+}
+
+.costs-input-mask {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    padding: 0 12px;
+    border: 1px solid #d7e1e8;
+    border-radius: 10px;
+    background: #fbfcfd;
+    color: #203746;
+    font: inherit;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    pointer-events: none;
+    transition: opacity 0.12s ease;
+}
+
+.costs-input-overlay input:focus ~ .costs-input-mask,
+.costs-input-overlay input:active ~ .costs-input-mask {
+    opacity: 0;
+}
+
+.costs-input-overlay em {
+    z-index: 2;
+    opacity: 0;
+}
+
+.costs-input-overlay:focus-within em {
+    opacity: 1;
 }
 
 .costs-ink-grid input:focus,
@@ -3407,10 +3459,16 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     border-bottom: 0;
 }
 
-.costs-process-col-number { width: 5%; }
-.costs-process-col-process { width: 25%; }
-.costs-process-col-check { width: 8.5%; }
-.costs-process-col-cost { width: 19%; }
+.costs-process-table.costs-table colgroup col.costs-process-col-number { width: 4% !important; }
+.costs-process-table.costs-table colgroup col.costs-process-col-process { width: 29% !important; }
+.costs-process-table.costs-table colgroup col.costs-process-col-check { width: 7% !important; }
+.costs-process-table.costs-table colgroup col.costs-process-col-cost { width: 32% !important; }
+
+.costs-process-table th:first-child,
+.costs-process-table td:first-child {
+    padding-left: 4px;
+    padding-right: 4px;
+}
 
 .costs-process-default-number {
     color: #748494;
@@ -3423,8 +3481,9 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
 .costs-process-default-main {
     display: inline-flex;
     align-items: center;
-    gap: 10px;
+    gap: 6px;
     min-width: 0;
+    width: 100%;
 }
 
 .costs-process-default-handle {
@@ -3435,6 +3494,8 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     font-size: 16px;
     line-height: 1;
     cursor: grab;
+    width: 14px;
+    min-width: 14px;
 }
 
 .costs-process-default-handle:active {
@@ -3646,6 +3707,10 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
 @media (max-width: 1180px) {
     .costs-ink-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .costs-conv-reference-note {
+        grid-column: auto;
+        grid-row: auto;
     }
     .costs-general-layout,
     .costs-conventional-layout {
@@ -9823,6 +9888,31 @@ html[data-theme="dark"] .dashboard-tab.is-active {
     outline: none;
 }
 
+.costs-input-overlay input:not(:focus):not(:active) {
+    color: transparent !important;
+}
+
+.costs-input-overlay input:focus,
+.costs-input-overlay input:active {
+    color: var(--app-text, #203746) !important;
+}
+
+.costs-input-overlay:focus-within input {
+    color: var(--app-text, #203746) !important;
+}
+
+.costs-input-overlay:focus-within input:not(:focus):not(:active) {
+    color: var(--app-text, #203746) !important;
+}
+
+.costs-input-overlay:focus-within .costs-input-mask {
+    opacity: 0 !important;
+}
+
+.costs-input-overlay:focus-within em {
+    opacity: 1 !important;
+}
+
 .field label,
 .dashboard-search-help,
 .dashboard-search-meta,
@@ -11386,6 +11476,16 @@ html[data-theme="dark"] .production-order-card .socios-grid textarea {
     background: #111c30 !important;
     color: var(--app-text) !important;
     border-color: var(--app-border) !important;
+}
+
+html[data-theme="dark"] .costs-input-mask {
+    background: #111c30 !important;
+    color: var(--app-text) !important;
+    border-color: var(--app-border) !important;
+}
+
+html[data-theme="dark"] .costs-input-overlay input {
+    caret-color: var(--app-text) !important;
 }
 
 html[data-theme="dark"] input::placeholder,

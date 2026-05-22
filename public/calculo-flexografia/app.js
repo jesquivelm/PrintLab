@@ -51,6 +51,7 @@ const INLINE_EXTERNAL_FINISH_KEY = {
   embosado: "embosado",
   troquelado: "troquelado"
 };
+const PRINT_DETAIL_FINISH_KEYS = new Set(["barnizado", "laminado", "estampado", "embosado", "troquelado", "numerado"]);
 const PROCESS_MENU = [
   { key: "troquel", label: "Troquel", locked: true, repeatable: false, helper: "Base tecnica obligatoria", order: 10 },
   { key: "sustrato", label: "Sustrato", locked: true, repeatable: false, helper: "Material base obligatorio", order: 20 },
@@ -192,7 +193,7 @@ const state = {
   saveTimer: null,
   saving: false,
   processOpen: {},
-  detailsOpen: { sustrato: false },
+  detailsOpen: { sustrato: false, impresion: false },
   quoteTracking: { id: "", panelOpen: false, formOpenKey: "", milestones: [], closure: null },
   trackingUserPhotos: new Map(),
   frontBackActiveElementLineCode: "",
@@ -2161,6 +2162,16 @@ function ensureActiveProcessKeys(expanded = false) {
 
 function hasActiveProcess(key) {
   return isProcessAllowedForCurrentFrontBackContext(key) && Array.isArray(state.form.activeProcessKeys) && state.form.activeProcessKeys.includes(key);
+}
+
+function zeroProcessSubtotal(block = {}, overrides = {}) {
+  return {
+    ...block,
+    ...overrides,
+    rawSubtotal: 0,
+    subtotal: 0,
+    minimumApplied: false
+  };
 }
 
 function activePrintStages() {
@@ -5278,18 +5289,20 @@ function totals() {
   const packaging = calcPackaging();
   const additional = calcAdditional();
   const frontBackElements = isFrontBackGroupContext() ? frontBackElementSubtotalSummary() : { items: [], subtotal: 0 };
+  const additionalHasRows = Array.isArray(state.form.additional)
+    && state.form.additional.some((item) => n(item.cost, 0) > 0 || String(item.description || item.comments || item.attachmentName || "").trim());
   if (!isProcessAllowedForCurrentFrontBackContext("troquel")) troquel.subtotal = 0;
   if (!isProcessAllowedForCurrentFrontBackContext("sustrato")) {
     sustrato.rawSubtotal = 0;
     sustrato.subtotal = 0;
     sustrato.minimumApplied = false;
   }
-  if (!isProcessAllowedForCurrentFrontBackContext("impresion")) {
-    print.items = [];
-    print.rawSubtotal = 0;
-    print.subtotal = 0;
-    print.minimumApplied = false;
-  }
+  if (!hasActiveProcess("diseno")) Object.assign(design, zeroProcessSubtotal(design, { time: 0 }));
+  if (!hasActiveProcess("preprensa")) Object.assign(prepress, zeroProcessSubtotal(prepress, { time: 0 }));
+  if (!hasActiveProcess("planchas")) Object.assign(plates, zeroProcessSubtotal(plates));
+  if (!hasActiveProcess("impresion")) Object.assign(print, zeroProcessSubtotal(print, { items: [], machineSubtotal: 0, operatorSubtotal: 0, inkSubtotal: 0, inlineSubtotal: 0, digitalWashSubtotal: 0, premierSubtotal: 0 }));
+  if (!hasActiveProcess("empaque")) Object.assign(packaging, zeroProcessSubtotal(packaging, { rolls: 0, hours: 0 }));
+  if (!hasActiveProcess("adicionales") || !additionalHasRows) Object.assign(additional, zeroProcessSubtotal(additional, { rows: [] }));
   const industrial = r(
     macula.subtotal
     + troquel.subtotal
@@ -5625,7 +5638,7 @@ function totalsForQuantity(quantity) {
 function sumInlineFinish(result = {}, match = {}) {
   return r((result.print?.items || []).reduce((sum, item) => {
     return sum + (item.inlineItems || []).reduce((inner, inline) => {
-      if (!inline?.subtotal) return inner;
+      if (!inline?.active || inline.allowedForMachine === false) return inner;
       const sameKey = match.processKey ? inline.processKey === match.processKey : true;
       const sameLabel = match.label ? String(inline.label || "") === String(match.label || "") : true;
       return sameKey && sameLabel ? inner + n(inline.subtotal, 0) : inner;
@@ -5653,7 +5666,7 @@ function detailMinimumLine(block = {}) {
 
 function detailInlineMatches(result = {}, match = {}) {
   return (result.print?.items || []).flatMap((item) => item.inlineItems || []).filter((inline) => {
-    if (!inline?.subtotal) return false;
+    if (!inline?.active || inline.allowedForMachine === false) return false;
     const sameKey = match.processKey ? inline.processKey === match.processKey : true;
     const sameLabel = match.label ? String(inline.label || "") === String(match.label || "") : true;
     return sameKey && sameLabel;
@@ -5671,6 +5684,10 @@ function detailExternalMatches(result = {}, match = {}) {
 
 function detailSum(items = [], field = "") {
   return r(items.reduce((sum, item) => sum + n(item?.[field], 0), 0));
+}
+
+function detailPrintMetricSum(result = {}, field = "") {
+  return detailSum(result.print?.items || [], field);
 }
 
 function detailDisplayValue(row = {}, result = {}) {
@@ -5814,14 +5831,77 @@ function detailAmountTooltip(row = {}, result = {}, quantity = 0) {
       `Valor: ${detailDisplayValue(row, result)}.`
     ]);
   }
+  if (row.type === "printInk") {
+    const items = result.print?.items || [];
+    const sample = items[0] || {};
+    const usesClick = detailSum(items, "digitalClickSubtotal") > 0;
+    const isDigital = detailSum(items, "digitalInkKg") > 0 || usesClick;
+    return detailTooltipText(usesClick ? [
+      "Costo Tinta/Clics: cantidad x estaciones facturables x tarifa clic.",
+      `Estaciones: ${num(sample.digitalStations || 0, 0)} | Lavados: ${money(result.print?.digitalWashSubtotal || 0)}.`,
+      `Ejemplo: clics ${money(result.print?.inkSubtotal || 0)} + lavados ${money(result.print?.digitalWashSubtotal || 0)} = ${money(n(result.print?.inkSubtotal, 0) + n(result.print?.digitalWashSubtotal, 0))}.`
+    ] : isDigital ? [
+      "Costo Tinta: consumo kg x costo kg por tipo de tinta.",
+      `Consumo: CMYK ${num(detailSum(items, "digitalInkKg") - detailSum(items, "digitalWhiteKg") - detailSum(items, "digitalSpecialInkKg"), 4)} kg | Blanco ${num(detailSum(items, "digitalWhiteKg"), 4)} kg | Especial ${num(detailSum(items, "digitalSpecialInkKg"), 4)} kg.`,
+      `Total tinta: ${money(result.print?.inkSubtotal || 0)}.`
+    ] : [
+      "Costo Tinta: área impresa x cobertura x BCM x transferencia x densidad x tintas.",
+      `Consumo: ${num(result.print?.inkConsumption || 0, 6)} lb x ${money(sample.inkCostPerLb || 0)}.`,
+      `Total tinta: ${money(result.print?.inkSubtotal || 0)}.`
+    ]);
+  }
+  if (row.type === "printWaste") {
+    const setupFeet = detailPrintMetricSum(result, "maculaSetupFeet") || result.print?.maculaSetupFeet || 0;
+    const tirajeFeet = detailPrintMetricSum(result, "maculaTirajeFeet") || result.print?.maculaTirajeFeet || 0;
+    const totalFeet = detailPrintMetricSum(result, "startupWasteFeet") || result.print?.maculaTotalFeet || 0;
+    const wasteCost = detailPrintMetricSum(result, "maculaMaterialSubtotal");
+    return detailTooltipText([
+      "Merma de proceso: montaje + tiraje de impresión.",
+      `Montaje: ${num(setupFeet, 2)} ft | Tiraje: ${num(tirajeFeet, 2)} ft | Total: ${num(totalFeet, 2)} ft.`,
+      `Costo referencia: ${money(wasteCost)}.`,
+      "Este material se cobra dentro del sustrato; aquí se muestra como detalle operativo de impresión."
+    ]);
+  }
   if (row.type === "inlineFinish") {
     const items = detailInlineMatches(result, row.match || {});
+    const sample = items[0] || {};
+    if (sample.key === "barniz") {
+      return detailTooltipText([
+        "Barniz en línea: kg barniz x costo/kg.",
+        `Fórmula: longitud ${num(detailSum(items, "calcBase"), 2)} ft x ancho ${num(sample.supplyWidthIn || 0, 2)} in x BCM ${num(sample.varnishBcm || 0, 2)} x cobertura ${num(sample.coveragePct || 0, 2)}% x 0.000012.`,
+        `Consumo: ${num(detailSum(items, "materialConsumptionKg"), 4)} kg.`,
+        `Total barniz: ${money(row.value(result) || 0)}.`
+      ]);
+    }
+    if (sample.key === "laminado" || sample.key === "estampado") {
+      return detailTooltipText([
+        `${row.label} en línea: longitud total x costo por pie lineal.`,
+        `Base: ${num(detailSum(items, "materialBase"), 2)} ft | Costo pie: ${money(sample.costPerFoot || 0)}.`,
+        `Subtotal material: ${money(detailSum(items, "materialSubtotal"))}.`,
+        `Total ${row.label}: ${money(row.value(result) || 0)}.`
+      ]);
+    }
+    if (sample.key === "embosado") {
+      return detailTooltipText([
+        "Embosado en línea: costo de cliché.",
+        "El montaje se suma al tiempo de impresión.",
+        `Cliché: ${money(detailSum(items, "plateCost"))}.`,
+        `Total embosado: ${money(row.value(result) || 0)}.`
+      ]);
+    }
+    if (sample.key === "troquelado") {
+      return detailTooltipText([
+        "Troquelado en línea: no agrega costo externo.",
+        `Montaje: ${num(detailSum(items, "setupMinutes"), 2)} min | Merma ajuste: ${num(detailSum(items, "setupWasteFeet"), 2)} ft.`,
+        "El montaje y la merma se integran al proceso de impresión."
+      ]);
+    }
     const extras = r(detailSum(items, "materialSubtotal") + detailSum(items, "plateCost") + detailSum(items, "linearSubtotal") + detailSum(items, "fixedCost"));
     return detailTooltipText([
       `${row.label}: acabado dentro de impresión.`,
-      "Fórmula: máquina + operador + insumos + fijos.",
-      `Base: ${num(detailSum(items, "calcBase"), 2)} pies | Tiempo: ${num(detailSum(items, "totalMinutes"), 2)} min.`,
-      `Ejemplo: ${money(detailSum(items, "machineSubtotal"))} + ${money(detailSum(items, "operatorSubtotal"))} + ${money(extras)} = ${money(row.value(result) || 0)}.`
+      "Fórmula: insumos propios + fijos; el montaje queda en impresión.",
+      `Base: ${num(detailSum(items, "calcBase"), 2)} ft | Insumos: ${money(extras)}.`,
+      `Total ${row.label}: ${money(row.value(result) || 0)}.`
     ]);
   }
   if (row.type === "externalFinish") {
@@ -5877,10 +5957,18 @@ function detailAmountTooltip(row = {}, result = {}, quantity = 0) {
   }
   if (key === "impresion") {
     const p = result.print || {};
+    const printTerms = [
+      `Máquina ${money(p.machineSubtotal || 0)}`,
+      `operador ${money(p.operatorSubtotal || 0)}`,
+      `tinta ${money(p.inkSubtotal || 0)}`,
+      n(p.digitalWashSubtotal, 0) > 0 ? `lavados ${money(p.digitalWashSubtotal || 0)}` : "",
+      n(p.premierSubtotal, 0) > 0 ? `premier ${money(p.premierSubtotal || 0)}` : "",
+      `inline ${money(p.inlineSubtotal || 0)}`
+    ].filter(Boolean).join(" + ");
     return detailTooltipText([
-      "Fórmula: máquina + operador + tinta + acabados en línea.",
+      "Fórmula: máquina + operador + tinta/clics + lavados/premier + acabados en línea.",
       `Tiempo: ${num(p.totalMinutes || 0, 2)} min | Tinta: ${money(p.inkSubtotal || 0)}.`,
-      `Ejemplo: ${money(p.machineSubtotal || 0)} + ${money(p.operatorSubtotal || 0)} + ${money(p.inkSubtotal || 0)} + ${money(p.inlineSubtotal || 0)} = ${money(p.rawSubtotal ?? p.subtotal ?? 0)}.`,
+      `Ejemplo: ${printTerms} = ${money(p.rawSubtotal ?? p.subtotal ?? 0)}.`,
       detailMinimumLine(p)
     ]);
   }
@@ -5994,11 +6082,33 @@ function detailSubstrateRows() {
   ];
 }
 
-function detailCostRows(baseResult = {}) {
+function detailExternalFinishRow(finish = {}, index = 0, child = false) {
+  const config = EXTERNAL_FINISH_BY_KEY[finish.processKey] || {};
+  return {
+    key: `${child ? "print" : "external"}-${finish.processKey || index}-${finish.sourceIndex ?? index}`,
+    type: "externalFinish",
+    label: config.label || finish.description || "Acabado",
+    detail: detailExternalFinishSummary(finish, config),
+    child,
+    jumpKey: finish.processKey || "",
+    match: { processKey: finish.processKey, sourceIndex: finish.sourceIndex },
+    value: (result) => sumExternalFinish(result, { processKey: finish.processKey, sourceIndex: finish.sourceIndex })
+  };
+}
+
+function detailPrintRows(baseResult = {}) {
   const inlineFinishes = [];
+  const externalPrintFinishes = (baseResult.finishes?.items || []).filter((finish) => {
+    const key = String(finish?.processKey || "").trim();
+    return PRINT_DETAIL_FINISH_KEYS.has(key) && hasActiveProcess(key);
+  });
+  const externalInlineKeys = new Set(externalPrintFinishes.map((finish) => inlineKeyForExternalFinish(finish.processKey)).filter(Boolean));
   (baseResult.print?.items || []).forEach((item) => {
+    const allowedInlineKeys = new Set((item.availableInlineSlots || []).map((key) => String(key)));
     (item.inlineItems || []).forEach((inline) => {
-      if (!inline.active && !n(inline.subtotal, 0)) return;
+      if (!inline.active || inline.allowedForMachine === false) return;
+      if (allowedInlineKeys.size && !allowedInlineKeys.has(String(inline.key))) return;
+      if (externalInlineKeys.has(String(inline.key))) return;
       const key = `${inline.processKey || ""}|${inline.label || ""}`;
       if (inlineFinishes.some((row) => row.key === key)) return;
       inlineFinishes.push({
@@ -6013,19 +6123,19 @@ function detailCostRows(baseResult = {}) {
       });
     });
   });
+  return [
+    { key: "impresionTinta", type: "printInk", label: "Costo Tinta", child: true, breakdown: true, jumpKey: "impresion", value: (result) => result.print?.inkSubtotal },
+    { key: "impresionMermaProceso", type: "printWaste", label: "Merma Proceso", child: true, breakdown: true, jumpKey: "impresion", value: (result) => detailPrintMetricSum(result, "maculaMaterialSubtotal") },
+    ...externalPrintFinishes.map((finish, index) => detailExternalFinishRow(finish, index, true)),
+    ...inlineFinishes
+  ];
+}
+
+function detailCostRows(baseResult = {}) {
   const externalFinishes = (baseResult.finishes?.items || [])
-    .map((finish, index) => {
-      const config = EXTERNAL_FINISH_BY_KEY[finish.processKey] || {};
-      return {
-        key: `external-${finish.processKey || index}-${finish.sourceIndex ?? index}`,
-        type: "externalFinish",
-        label: config.label || finish.description || "Acabado",
-        detail: detailExternalFinishSummary(finish, config),
-        jumpKey: finish.processKey || "",
-        match: { processKey: finish.processKey, sourceIndex: finish.sourceIndex },
-        value: (result) => sumExternalFinish(result, { processKey: finish.processKey, sourceIndex: finish.sourceIndex })
-      };
-    });
+    .filter((finish) => hasActiveProcess(String(finish?.processKey || "").trim()))
+    .filter((finish) => !(hasActiveProcess("impresion") && PRINT_DETAIL_FINISH_KEYS.has(String(finish?.processKey || "").trim())))
+    .map((finish, index) => detailExternalFinishRow(finish, index, false));
   const frontBackElementRows = isFrontBackGroupContext()
     ? (baseResult.frontBackElements?.items || []).map((item, index) => {
       const role = item.role ? `${item.role.charAt(0).toUpperCase()}${item.role.slice(1)}` : "Elemento";
@@ -6047,18 +6157,21 @@ function detailCostRows(baseResult = {}) {
     value: (result) => result.frontBackElements?.subtotal,
     total: true
   }] : [];
+  const optionalRow = (key, row) => hasActiveProcess(key) ? row : null;
+  const additionalRows = baseResult.additional?.rows || [];
+  const hasAdditionalRows = additionalRows.some((item) => n(item.subtotal, 0) > 0 || detailCleanText(item.description || item.comments || item.attachmentName));
   const rows = [
-    { key: "troquel", label: "Troquel", detail: detailDieSummary() || "Sin troquel", jumpKey: "troquel", value: (result) => result.troquel?.subtotal },
-    { key: "sustrato", label: "Sustrato", detail: detailSubstrateSummary(baseResult), jumpKey: "sustrato", expandKey: "sustrato", value: (result) => result.sustrato?.subtotal },
-    ...(state.detailsOpen?.sustrato ? detailSubstrateRows() : []),
-    { key: "diseno", label: "Diseño", jumpKey: "diseno", value: (result) => result.design?.subtotal },
-    { key: "preprensa", label: "Preprensa", jumpKey: "preprensa", value: (result) => result.prepress?.subtotal },
-    { key: "planchas", label: "Planchas", jumpKey: "planchas", value: (result) => result.plates?.subtotal },
-    { key: "impresion", label: "Impresión", detail: detailPrintSummary(baseResult), jumpKey: "impresion", value: (result) => result.print?.subtotal },
-    ...inlineFinishes,
+    optionalRow("troquel", { key: "troquel", label: "Troquel", detail: detailDieSummary() || "Sin troquel", jumpKey: "troquel", value: (result) => result.troquel?.subtotal }),
+    optionalRow("sustrato", { key: "sustrato", label: "Sustrato", detail: detailSubstrateSummary(baseResult), jumpKey: "sustrato", expandKey: "sustrato", value: (result) => result.sustrato?.subtotal }),
+    ...(state.detailsOpen?.sustrato && hasActiveProcess("sustrato") ? detailSubstrateRows() : []),
+    optionalRow("diseno", { key: "diseno", label: "Diseño", jumpKey: "diseno", value: (result) => result.design?.subtotal }),
+    optionalRow("preprensa", { key: "preprensa", label: "Preprensa", jumpKey: "preprensa", value: (result) => result.prepress?.subtotal }),
+    optionalRow("planchas", { key: "planchas", label: "Planchas", jumpKey: "planchas", value: (result) => result.plates?.subtotal }),
+    optionalRow("impresion", { key: "impresion", label: "Impresión", detail: detailPrintSummary(baseResult), jumpKey: "impresion", expandKey: "impresion", value: (result) => result.print?.subtotal }),
+    ...(state.detailsOpen?.impresion && hasActiveProcess("impresion") ? detailPrintRows(baseResult) : []),
     ...externalFinishes,
-    { key: "empaque", label: "Empaque", jumpKey: "empaque", value: (result) => result.packaging?.subtotal },
-    { key: "adicionales", label: "Adicionales", jumpKey: "adicionales", value: (result) => result.additional?.subtotal },
+    optionalRow("empaque", { key: "empaque", label: "Empaque", jumpKey: "empaque", value: (result) => result.packaging?.subtotal }),
+    hasActiveProcess("adicionales") && hasAdditionalRows ? { key: "adicionales", label: "Adicionales", jumpKey: "adicionales", value: (result) => result.additional?.subtotal } : null,
     ...frontBackElementRows,
     ...frontBackElementTotalRow,
     { key: "subtotal", label: "Subtotal", value: (result) => result.industrial, total: true },
@@ -6070,7 +6183,7 @@ function detailCostRows(baseResult = {}) {
     { key: "totalFinal", label: "Total Final", value: (result) => result.total, total: true, final: true },
     { key: "precioUnitario", label: "Precio Unitario", value: (result) => result.unit },
     { key: "precioMillar", label: "Precio por Millar", value: (result) => r(n(result.unit, 0) * 1000) }
-  ];
+  ].filter(Boolean);
   return rows;
 }
 
