@@ -1199,18 +1199,18 @@ label span,
 .calc-shape-trigger {
   display: inline-flex;
   align-items: center;
-  min-height: 32px;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 64px;
   border: 1px solid var(--line, #c8d6e5);
   border-radius: var(--radius, 6px);
   background: var(--card, #fff);
   cursor: pointer;
-  padding: 2px 8px 2px 4px;
-  gap: 6px;
+  padding: 8px 12px 8px 8px;
   font-family: inherit;
   font-size: 0.85rem;
   color: var(--text, #1a2634);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  width: 100%;
   white-space: nowrap;
 }
 .calc-shape-trigger:hover {
@@ -1222,41 +1222,44 @@ label span,
 }
 .calc-shape-trigger::after {
   content: "";
-  width: 8px;
-  height: 8px;
-  border-right: 1.5px solid var(--label-dim, #7a8fa0);
-  border-bottom: 1.5px solid var(--label-dim, #7a8fa0);
-  transform: rotate(45deg);
-  margin-left: auto;
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid var(--label-dim, #7a8fa0);
+  border-bottom: 2px solid var(--label-dim, #7a8fa0);
+  transform: rotate(45deg) translateY(-2px);
+  opacity: 0.72;
   flex-shrink: 0;
   transition: transform 0.18s ease;
-  margin-top: -3px;
 }
 .calc-shape-trigger[aria-expanded="true"]::after {
-  transform: rotate(-135deg);
-  margin-top: 2px;
+  transform: rotate(-135deg) translateY(0);
 }
 .calc-shape-trigger-copy {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
   min-width: 0;
-  flex: 1;
 }
 .calc-shape-thumb {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 5px;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
   overflow: hidden;
   flex-shrink: 0;
-  background: var(--surface, #f0f4f8);
+  background: linear-gradient(180deg, #fff 0%, #eef5fa 100%);
 }
 .calc-shape-trigger .calc-shape-thumb {
-  width: 32px;
-  height: 32px;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+}
+.calc-shape-option .calc-shape-thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
 }
 .calc-shape-thumb img {
   width: 100%;
@@ -1265,8 +1268,8 @@ label span,
 }
 .calc-shape-thumb-fallback {
   display: block;
-  width: 60%;
-  height: 60%;
+  width: 68%;
+  height: 68%;
   border: 1.5px solid var(--label-dim, #7a8fa0);
   border-radius: 3px;
   background: var(--surface, #f0f4f8);
@@ -1295,7 +1298,7 @@ label span,
 }
 .calc-shape-trigger-label {
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1310,7 +1313,7 @@ html[data-theme="dark"] .calc-shape-trigger:hover {
   border-color: #38bdf8;
 }
 html[data-theme="dark"] .calc-shape-thumb {
-  background: #1e2d45;
+  background: linear-gradient(180deg, #1e2d45 0%, #162033 100%);
 }
 html[data-theme="dark"] .calc-shape-trigger-label {
   color: var(--text, #e2e8f0);
