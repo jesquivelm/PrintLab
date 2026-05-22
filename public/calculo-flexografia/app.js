@@ -3837,6 +3837,7 @@ function buildCalculationValidationState(result = totals()) {
 
   if (hasActiveProcess("impresion")) {
     const stageWarnings = autoWarningsList();
+    const substrateTotalLengthFeet = firstPositiveNumber(calcSustrato().totalLengthFeet, 0);
     activePrintStages().forEach((stage, index) => {
       const key = `impresion-${stage.id || index + 1}`;
       addWhen(key, !String(stage.machineId || "").trim(), "Falta máquina de impresión.");
@@ -3861,6 +3862,24 @@ function buildCalculationValidationState(result = totals()) {
       const numbering = stage.inlineFinishes?.numerado;
       if (numbering?.active) {
         addWhen(key, !String(numbering.numberingType || "").trim(), "Falta tipo de numerado.");
+      }
+      const barniz = stage.inlineFinishes?.barniz;
+      if (barniz?.active) {
+        addWhen(key, substrateTotalLengthFeet <= 0, "Falta Longitud Total del sustrato para barniz.");
+        addWhen(key, n(barniz.varnishBcm, 0) <= 0, "Falta BCM Anilox de barniz.");
+        addWhen(key, n(barniz.coveragePct, 0) <= 0, "Falta cobertura de barniz.");
+        addWhen(key, n(barniz.costPerKg, 0) <= 0, "Falta costo por kilo de barniz.");
+      }
+      const laminado = stage.inlineFinishes?.laminado;
+      if (laminado?.active) {
+        addWhen(key, substrateTotalLengthFeet <= 0, "Falta Longitud Total del sustrato para laminado.");
+        addWhen(key, n(laminado.costPerFoot, 0) <= 0, "Falta costo por pie lineal de laminado.");
+      }
+      const estampado = stage.inlineFinishes?.estampado;
+      if (estampado?.active) {
+        addWhen(key, substrateTotalLengthFeet <= 0, "Falta Longitud Total del sustrato para estampado.");
+        addWhen(key, n(estampado.supplyWidthIn, 0) <= 0, "Falta ancho del rollo de estampado.");
+        addWhen(key, n(estampado.costPerFoot, 0) <= 0, "Falta costo por pie lineal de estampado.");
       }
       if (index === 0) stageWarnings.forEach((warning) => addIssue(key, warning));
     });
@@ -4033,6 +4052,21 @@ function applyRequiredHighlights(result = null) {
       const numbering = stage.inlineFinishes?.numerado;
       if (numbering?.active) {
         markRequiredScoped(`${scope}.inlineFinishes.numerado`, "numberingType", !String(numbering.numberingType || "").trim());
+      }
+      const barniz = stage.inlineFinishes?.barniz;
+      if (barniz?.active) {
+        markRequiredScoped(`${scope}.inlineFinishes.barniz`, "varnishBcm", n(barniz.varnishBcm, 0) <= 0);
+        markRequiredScoped(`${scope}.inlineFinishes.barniz`, "coveragePct", n(barniz.coveragePct, 0) <= 0);
+        markRequiredScoped(`${scope}.inlineFinishes.barniz`, "costPerKg", n(barniz.costPerKg, 0) <= 0);
+      }
+      const laminado = stage.inlineFinishes?.laminado;
+      if (laminado?.active) {
+        markRequiredScoped(`${scope}.inlineFinishes.laminado`, "costPerFoot", n(laminado.costPerFoot, 0) <= 0);
+      }
+      const estampado = stage.inlineFinishes?.estampado;
+      if (estampado?.active) {
+        markRequiredScoped(`${scope}.inlineFinishes.estampado`, "supplyWidthIn", n(estampado.supplyWidthIn, 0) <= 0);
+        markRequiredScoped(`${scope}.inlineFinishes.estampado`, "costPerFoot", n(estampado.costPerFoot, 0) <= 0);
       }
       const emboss = stage.inlineFinishes?.embosado;
       markWarningScoped(`${scope}.inlineFinishes.embosado`, "plateCost", Boolean(emboss?.active) && n(emboss.plateCost, 0) <= 0);
@@ -4851,6 +4885,8 @@ function calcPlates() {
 
 function calcPrint() {
   const base = metrics();
+  const substrateTotal = calcSustrato();
+  const substrateTotalLengthFeet = firstPositiveNumber(substrateTotal.totalLengthFeet, substrateTotal.linealFeet, base.linealFeet, 0);
   const stages = activePrintStages();
   const items = stages.map((item) => {
     const machine = findMachine(item.machineId);
@@ -4892,25 +4928,27 @@ function calcPrint() {
       const inlineSpeedFtMin = n(inline.speed, 0) > 0
         ? n(inline.speed, 0)
         : (speedUnit === "m/min" ? r(n(speedMetersMin, 0) * 3.28084, 4) : n(speedMetersMin, 0));
-      const baseLengthFeet = n(base.totalLengthFeet, n(base.linealFeet, 0));
+      const baseLengthFeet = n(base.linealFeet, 0);
       const runBase = config.key === "troquelado" && n(inline.variableBase, 0) > 0
         ? n(inline.variableBase, 0) + n(inline.setupWasteFeet, 0)
         : baseLengthFeet + n(inline.setupWasteFeet, 0);
       const runMinutes = inlineSpeedFtMin > 0 ? r(runBase / inlineSpeedFtMin) : 0;
       const totalMinutes = r(n(inline.setupMinutes, 0) + runMinutes, 6);
       const isLinealInlineMaterial = ["laminado", "estampado"].includes(slot.key);
+      const usesSubstrateTotalLength = ["barniz", "laminado", "estampado"].includes(slot.key);
+      const calculationLengthFeet = usesSubstrateTotalLength ? substrateTotalLengthFeet : runBase;
       const materialCosts = materialUnitCosts(material, base.webWidthIn);
       const supplyWidthIn = slot.key === "estampado"
-        ? firstPositiveNumber(inline.supplyWidthIn, materialSupplyWidthIn(material, base.webWidthIn), base.webWidthIn)
+        ? n(inline.supplyWidthIn, 0)
         : config.usesUnitMaterial || config.usesWeightMaterial || slot.key === "laminado"
           ? n(base.webWidthIn, 0)
           : materialSupplyWidthIn(material, base.webWidthIn);
       const wastePct = config.usesUnitMaterial ? n(inline.operationWastePct, 0) : n(first(inline.operationWastePct, materialWastePct(material)), 0);
-      const netMaterialAreaFt2 = r(runBase * (supplyWidthIn / 12), 6);
+      const netMaterialAreaFt2 = r(calculationLengthFeet * (supplyWidthIn / 12), 6);
       const materialAreaFt2 = r(netMaterialAreaFt2 * (1 + (wastePct / 100)), 6);
       const materialBase = config.usesUnitMaterial
         ? Math.max(0, Math.ceil(n(base.rollCount, 0)))
-        : isLinealInlineMaterial ? runBase : materialAreaFt2;
+        : isLinealInlineMaterial ? calculationLengthFeet : materialAreaFt2;
       const areaCostFt2 = firstPositiveNumber(inline.costPerFt2, material?.costo_x_ft2, material?.costoPorFt2, 0);
       const weightCostKg = firstPositiveNumber(inline.costPerKg, material?.costo_x_kg, 0);
       const layerGft2 = firstPositiveNumber(inline.layerGft2, material?.rendimiento_g_ft2, material?.peso_capa_gsm, 0);
@@ -4932,7 +4970,7 @@ function calcPrint() {
       const varnishGsm = n(varnishProfile.gsm, 3);
       const varnishCostPerLb = n(inline.costPerLb, materialCostPerPound(material));
       const varnishConsumptionKg = slot.key === "barniz" && inline.active
-        ? r(runBase * n(base.webWidthIn, 0) * varnishBcm * varnishCoverage * 0.000012, 6)
+        ? r(calculationLengthFeet * n(base.webWidthIn, 0) * varnishBcm * varnishCoverage * 0.000012, 6)
         : 0;
       const materialConsumptionKg = slot.key === "barniz"
         ? varnishConsumptionKg
@@ -4950,6 +4988,20 @@ function calcPrint() {
       let plateCost = config.usesPlateCost && inline.active ? r(n(inline.plateCost, 0)) : 0;
       let linearSubtotal = isInlineDie ? r(runBase * n(inline.variableUnitCost, 0)) : 0;
       let rawSubtotal = r(machineSubtotal + operatorSubtotal + n(inline.fixedCost, 0) + linearSubtotal + materialSubtotal + plateCost);
+      const inlineIssues = [];
+      if (inline.active && inlineAllowed) {
+        if (usesSubstrateTotalLength && calculationLengthFeet <= 0) inlineIssues.push("Falta Longitud Total del sustrato.");
+        if (slot.key === "barniz") {
+          if (n(base.webWidthIn, 0) <= 0) inlineIssues.push("Falta Ancho de Banda.");
+          if (varnishBcm <= 0) inlineIssues.push("Falta BCM Anilox.");
+          if (varnishCoveragePct <= 0) inlineIssues.push("Falta Cobertura.");
+          if (weightCostKg <= 0) inlineIssues.push("Falta Costo por Kilo.");
+        }
+        if (isLinealInlineMaterial) {
+          if (linealCostPerFoot <= 0) inlineIssues.push("Falta Costo por Pie Lineal.");
+          if (slot.key === "estampado" && supplyWidthIn <= 0) inlineIssues.push("Falta Ancho del Rollo.");
+        }
+      }
       if (isInlineDie) {
         machineSubtotal = 0;
         operatorSubtotal = 0;
@@ -4967,7 +5019,8 @@ function calcPrint() {
         materialName: material?.descripcion || material?.nombre || "",
         unitCost,
         materialBase,
-        calcBase: runBase,
+        calcBase: calculationLengthFeet,
+        substrateTotalLengthFeet: calculationLengthFeet,
         runMinutes,
         totalMinutes,
         speed: inlineSpeedFtMin,
@@ -4994,7 +5047,8 @@ function calcPrint() {
         materialSubtotal,
         plateCost,
         rawSubtotal,
-        subtotal: inline.active && inlineAllowed ? rawSubtotal : 0
+        subtotal: inline.active && inlineAllowed ? rawSubtotal : 0,
+        issues: inlineIssues
       };
     });
     const inlineSubtotal = r(inlineItems.reduce((sum, inline) => sum + inline.subtotal, 0));
@@ -7145,7 +7199,7 @@ function renderInlinePrintBlock(stage, stageIndex, inline) {
   const numberingSummary = inline.key === "numerado"
     ? `${metric("Tipo", esc(normalizeNumberingType(inline.numberingType, inline.rangeFrom, inline.rangeTo) || "Sin definir"))}${isConsecutiveNumbering(normalizeNumberingType(inline.numberingType, inline.rangeFrom, inline.rangeTo)) ? metric("Rango", esc([inline.rangeFrom, inline.rangeTo].filter(Boolean).join(" - ") || "Sin rango")) : ""}${metric("Adjunto", esc(inline.attachmentName || "Sin adjunto"))}`
     : "";
-  const barnizSummary = `${inline.sonified ? metric("Zonificado", "Sí") : ""}${metric("Consumo Barniz", `${num(inline.materialConsumptionKg || 0, 4)} kg`)}${metric("BCM Anilox", num(inline.varnishBcm || 0, 4))}${metric("Cobertura", `${num(inline.coveragePct || 0, 2)} %`)}${metric("Costo por Kilo", money(inline.costPerKg || 0))}${metric("Subtotal", money(inline.subtotal))}`;
+  const barnizSummary = `${inline.sonified ? metric("Zonificado", "Sí") : ""}${metric("Longitud Total", `${num(inline.substrateTotalLengthFeet || inline.calcBase || 0, 2)} pies`)}${metric("Consumo Barniz", `${num(inline.materialConsumptionKg || 0, 4)} kg`)}${metric("BCM Anilox", num(inline.varnishBcm || 0, 4))}${metric("Cobertura", `${num(inline.coveragePct || 0, 2)} %`)}${metric("Costo por Kilo", money(inline.costPerKg || 0))}${metric("Subtotal", money(inline.subtotal))}`;
   const standardSummary = `${metric("Tiempo Montaje", `${num(inline.setupMinutes, 2)} min`)}${inline.usesMaterial ? metric("Material", esc(inline.materialName || "Sin definir")) : ""}${inline.usesMaterial ? metric("Subtotal Material", money(inline.materialSubtotal)) : ""}${inline.usesPlateCost ? metric("Costo Cliché", money(inline.plateCost)) : ""}${n(inline.fixedCost, 0) > 0 ? metric("Costo Fijo", money(inline.fixedCost)) : ""}${numberingSummary}${metric("Subtotal", money(inline.subtotal))}`;
   const inlineDieSummary = [
     metric("Tiempo Montaje", `${num(inline.setupMinutes || 0, 2)} min`),
@@ -7154,10 +7208,10 @@ function renderInlinePrintBlock(stage, stageIndex, inline) {
   ].join("");
   const isLinealInlineMaterial = ["laminado", "estampado"].includes(inline.key);
   const externalSummary = externalConfig ? (inline.key === "troquelado" ? inlineDieSummary : [
-    metric("Base de Corrida", `${num(inline.calcBase || 0, 2)} pies`),
+    metric(isLinealInlineMaterial ? "Longitud Total" : "Base de Corrida", `${num(inline.calcBase || 0, 2)} pies`),
     metric("Montaje a Impresión", `${num(inline.setupMinutes || 0, 2)} min`),
     inline.usesMaterial ? metric("Material", esc(inline.materialName || "Sin definir")) : "",
-    inline.usesMaterial ? metric(isLinealInlineMaterial ? "Pies Lineales" : "Base Material", isLinealInlineMaterial ? `${num(inline.materialBase || 0, 2)} pies` : `${num(inline.materialBase || 0, 2)} ft²`) : "",
+    inline.usesMaterial && !isLinealInlineMaterial ? metric("Base Material", `${num(inline.materialBase || 0, 2)} ft²`) : "",
     inline.usesWeightMaterial ? metric("Consumo Material", `${num(inline.materialConsumptionKg || 0, 4)} kg`) : "",
     isLinealInlineMaterial ? metric("Costo Pie Lineal", money(inline.costPerFoot || 0)) : "",
     inline.usesMaterial ? metric("Subtotal Material", money(inline.materialSubtotal)) : "",
@@ -7169,14 +7223,15 @@ function renderInlinePrintBlock(stage, stageIndex, inline) {
   const inlineFormulaPlateExample = externalConfig?.usesPlateCost || inline.usesPlateCost ? ` + Costo Cliché ${formulaValue(inline.plateCost || 0, 2)}` : "";
   const metricsContent = inline.key === "barniz" ? barnizSummary : externalConfig ? externalSummary : standardSummary;
   const metricsZone = `<div class="process-zone process-zone-accent"><div class="process-zone-head"><h4>Resumen</h4></div><div class="process-kpi-grid">${metricsContent}</div></div>`;
+  const issuesZone = issueList("Problemas detectados en la fórmula", inline.issues || []);
   const formulaText = externalConfig && inline.key === "troquelado"
     ? "Troquelado en línea = tiempo de montaje y merma de ajuste dentro del proceso de impresión."
     : inline.key === "barniz"
-    ? "Kilogramos de Barniz = Pies Lineales x Ancho de Banda (in) x BCM Anilox x Cobertura x 0.000012. Costo Total = Kilogramos de Barniz x Precio por Kilo."
+    ? "Kilogramos de Barniz = Longitud Total del sustrato x Ancho de Banda (in) x BCM Anilox x Cobertura x 0.000012. Costo Total = Kilogramos de Barniz x Precio por Kilo."
     : inline.key === "laminado"
-    ? "Laminado = pies lineales de impresión x costo por pie lineal del laminado seleccionado."
+    ? "Laminado = Longitud Total del sustrato x costo por pie lineal del laminado seleccionado."
     : inline.key === "estampado"
-    ? "Estampado = pies lineales de impresión x costo por pie lineal del rollo seleccionado."
+    ? "Estampado = Longitud Total del sustrato x costo por pie lineal del rollo seleccionado."
     : inline.key === "embosado"
     ? "Embosado = costo del cliché. El montaje se suma al tiempo de montaje de impresión."
     : externalConfig
@@ -7187,9 +7242,9 @@ function renderInlinePrintBlock(stage, stageIndex, inline) {
   const formulaExplanation = externalConfig && inline.key === "troquelado"
     ? "El troquelado en línea no agrega costo externo ni costo lineal; su tiempo se suma al montaje de impresión y su merma de ajuste al consumo de sustrato."
     : inline.key === "barniz"
-    ? "Barniz usa el perfil Barniz UV configurado en Costos para tomar BCM y cobertura. La constante BCM convierte pies lineales y ancho de banda a kilogramos aplicados, considerando transferencia real y densidad estándar."
+    ? "Barniz usa la Longitud Total del sustrato y el perfil Barniz UV configurado en Costos para tomar BCM y cobertura. La constante BCM convierte pies lineales y ancho de banda a kilogramos aplicados, considerando transferencia real y densidad estándar."
     : inline.key === "laminado" || inline.key === "estampado"
-    ? "El material se calcula por pie lineal sobre la misma longitud que se imprime. El montaje se agrega al tiempo de montaje de la prensa porque el proceso es en línea."
+    ? "El material se calcula por pie lineal sobre la Longitud Total del sustrato. El montaje se agrega al tiempo de montaje de la prensa porque el proceso es en línea."
     : inline.key === "embosado"
     ? "El tiempo de montaje se agrega a impresión; en el subtotal del embosado queda el costo del cliché."
     : externalConfig
@@ -7198,9 +7253,9 @@ function renderInlinePrintBlock(stage, stageIndex, inline) {
   const formulaExampleLine = inline.key === "troquelado"
     ? `Montaje ${formulaValue(inline.setupMinutes || 0, 2)} min + Merma Ajuste ${formulaValue(inline.setupWasteFeet || 0, 2)} ft`
     : inline.key === "barniz"
-      ? `Kg Barniz: ${formulaValue(inline.calcBase || 0, 2)} x ${formulaValue(inline.supplyWidthIn || 0, 2)} x ${formulaValue(inline.varnishBcm || 0, 2)} x ${formulaValue((inline.coveragePct || 0) / 100, 4)} x 0.000012 = ${formulaValue(inline.materialConsumptionKg || 0, 4)} kg`
+      ? `Kg Barniz: Longitud Total ${formulaValue(inline.calcBase || 0, 2)} x ${formulaValue(inline.supplyWidthIn || 0, 2)} x ${formulaValue(inline.varnishBcm || 0, 2)} x ${formulaValue((inline.coveragePct || 0) / 100, 4)} x 0.000012 = ${formulaValue(inline.materialConsumptionKg || 0, 4)} kg`
       : isLinealInlineMaterial
-        ? `Subtotal material: ${formulaValue(inline.materialBase || 0, 2)} pies x ${formulaValue(inline.costPerFoot || 0, 6)} = ${formulaValue(inline.materialSubtotal || 0, 2)}`
+        ? `Subtotal material: Longitud Total ${formulaValue(inline.materialBase || 0, 2)} pies x ${formulaValue(inline.costPerFoot || 0, 6)} = ${formulaValue(inline.materialSubtotal || 0, 2)}`
         : inline.key === "embosado"
           ? `Subtotal ${inline.label}: Costo Cliché ${formulaValue(inline.plateCost || 0, 2)} = ${formulaValue(inline.subtotal || 0, 2)}`
           : `Subtotal ${inline.label}: Subtotal Material ${formulaValue(inline.materialSubtotal || 0, 2)}${inlineFormulaPlateExample} + Costo Fijo ${formulaValue(inline.fixedCost || 0, 2)} = ${formulaValue(inline.subtotal || 0, 2)}`;
@@ -7210,7 +7265,7 @@ function renderInlinePrintBlock(stage, stageIndex, inline) {
       ? `R/ El troquelado en línea no agrega costo externo; consume ${num(inline.setupWasteFeet || 0, 2)} ft de merma de ajuste.`
       : `R/ El total a cobrar por ${inline.label.toLowerCase()} es ${money(inline.subtotal || 0)}`
   });
-  return `<details class="subprocess-card inline-process-card" data-open-key="${esc(scope)}"><summary class="inline-process-summary"><div class="inline-process-heading"><label class="inline-process-check"><input data-scope="printStages.${stageIndex}.inlineFinishes.${inline.key}" data-field="active" type="checkbox"${inline.active ? " checked" : ""}><span>${esc(inline.label)}</span></label></div><div class="process-summary-side"><em>${money(inline.subtotal)}</em>${info}</div></summary><div class="process-body"><div class="process-layout process-layout-inline"><div class="process-layout-main">${configZone}</div><div class="process-layout-side">${metricsZone}</div></div></div></details>`;
+  return `<details class="subprocess-card inline-process-card" data-open-key="${esc(scope)}"><summary class="inline-process-summary"><div class="inline-process-heading"><label class="inline-process-check"><input data-scope="printStages.${stageIndex}.inlineFinishes.${inline.key}" data-field="active" type="checkbox"${inline.active ? " checked" : ""}><span>${esc(inline.label)}</span></label></div><div class="process-summary-side"><em>${money(inline.subtotal)}</em>${info}</div></summary><div class="process-body"><div class="process-layout process-layout-inline"><div class="process-layout-main">${configZone}</div><div class="process-layout-side">${metricsZone}${issuesZone}</div></div></div></details>`;
 }
 
 function renderInlineToggleBar(stageIndex, inlineItems) {
