@@ -3162,30 +3162,8 @@ function dieShapeThumbForValue(value = "", image = "") {
 function dieMatchesShape(die = {}, shapeValue = "") {
   const target = dieShapeToken(shapeValue);
   if (!target) return true;
-  const fields = [
-    "dieShape", "clasificacion", "tipoTroquel", "tipoTroquel2",
-    "formato", "descripcion", "description"
-  ];
-  const metricsValue = resolveDieMetrics(die, {});
-  for (const f of fields) {
-    const val = f === "dieShape" ? metricsValue.dieShape : die[f];
-    if (!val) continue;
-    if (dieShapeToken(val) === target) return true;
-    const sv = String(val || "").trim().toLowerCase();
-    if (sv.startsWith("v-") || sv.startsWith("v ")) {
-      const stripped = sv.replace(/^v[- ]/, "");
-      if (dieShapeToken(stripped) === target) return true;
-    }
-  }
-  const targetWord = dieShapeOptionsFromConfig().find((o) => dieShapeToken(o.value) === target);
-  if (targetWord && targetWord.label) {
-    const targetLabel = targetWord.label.toLowerCase();
-    for (const f of fields) {
-      const val = f === "dieShape" ? metricsValue.dieShape : die[f];
-      if (val && String(val).toLowerCase().includes(targetLabel)) return true;
-    }
-  }
-  return false;
+  const val = first(die.clasificacion, die.tipoTroquel, die.tipoTroquel2, die.formato, die.dieShape);
+  return val ? dieShapeToken(val) === target : true;
 }
 
 function troquelDieOptions() {
@@ -3195,16 +3173,7 @@ function troquelDieOptions() {
     .filter((die) => !associate || !shapeValue || dieMatchesShape(die, shapeValue))
     .map((item) => ({
       id: first(item.codigoTroquel, item.codigo, item.id),
-      nombre: [
-        first(item.codigoTroquel, item.codigo, item.id),
-        first(
-          item.descripcionTroquel,
-          item.descripcionCotizaciones,
-          item.nombre,
-          item.descripcion,
-          item.description
-        )
-      ].filter(Boolean).join(" - ")
+      nombre: `${first(item.codigoTroquel, item.codigo, item.id) || ""} - ${item.descripcion || ""}`
     }));
 }
 
