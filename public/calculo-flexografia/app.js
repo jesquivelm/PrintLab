@@ -162,6 +162,7 @@ const els = {
   calcStatus: document.getElementById("calcStatus"),
   detailsLineBadge: document.getElementById("detailsLineBadge"),
   quoteTrackingMount: document.getElementById("quoteTrackingMount"),
+  quoteTrackingPanelMount: document.getElementById("quoteTrackingPanelMount"),
   detailsCostTable: document.getElementById("detailsCostTable"),
   detailsProformaButton: document.getElementById("detailsProformaButton"),
   contextRows: document.getElementById("contextRows"),
@@ -6272,10 +6273,6 @@ function renderQuoteTracking() {
     state.quoteTracking.milestones = loadQuoteTrackingMilestones();
   }
   const milestones = state.quoteTracking.milestones;
-  const quoteCode = String(state.form.header.quoteCode || "").trim() || "Sin base";
-  const lineCode = String(state.form.header.lineCode || "").trim();
-  const quoteRoute = state.form.header.quoteCode ? `/cotizaciones/documento?codigo=${encodeURIComponent(state.form.header.quoteCode)}` : "";
-  const customerName = String(state.form.header.customerName || "").trim() || "Cliente sin definir";
   const doneCount = quoteTrackingDoneCount();
   const panelOpen = Boolean(state.quoteTracking.panelOpen);
   const statusText = milestones[milestones.length - 1]?.done ? "Cerrada" : doneCount >= 4 ? "Proforma enviada" : doneCount >= 3 ? "Cotización finalizada" : "En proceso";
@@ -6326,8 +6323,29 @@ function renderQuoteTracking() {
     }
     return `<div style="display:grid;grid-template-columns:48px 1fr;gap:0 14px;opacity:${opacity};"><div style="display:flex;flex-direction:column;align-items:center;">${node}${line}</div>${content}</div>`;
   }).join("");
-  els.quoteTrackingMount.innerHTML = `<h2 class="sr-only">Panel de seguimiento con solicitudes de cambio por hito</h2><div class="quote-tracking-wrap"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 16px;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);margin-bottom:10px;"><div style="display:grid;gap:4px;min-width:0;flex:1;overflow:hidden;"><a class="quote-tracking-code summary-row-link" href="${esc(quoteRoute || "#")}"${quoteRoute ? ` data-route="${esc(quoteRoute)}" data-label="Cotización ${esc(quoteCode)}"` : ""} style="font-size:13px;font-weight:500;color:var(--color-text-primary);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(quoteCode)}</a><span style="font-size:13px;color:var(--color-text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(customerName)}</span><span style="font-size:11px;font-weight:500;padding:3px 10px;border-radius:999px;background:var(--color-background-info);color:var(--color-text-info);width:max-content;max-width:100%;">${esc(statusText)}</span></div><button type="button" id="tl-btn" data-tracking-toggle style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:var(--border-radius-md);border:0.5px solid ${panelOpen ? "var(--color-border-info)" : "var(--color-border-secondary)"};background:${panelOpen ? "var(--color-background-info)" : "var(--color-background-secondary)"};color:${panelOpen ? "var(--color-text-info)" : "var(--color-text-primary)"};font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;flex-shrink:0;"><i class="ti ti-route" style="font-size:16px;" aria-hidden="true"></i>Seguimiento</button></div><div id="tl-panel" style="display:${panelOpen ? "block" : "none"};background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden;"><div style="display:flex;align-items:center;justify-content:space-between;padding:15px 20px 13px;border-bottom:0.5px solid var(--color-border-tertiary);"><div><div style="font-size:15px;font-weight:500;color:var(--color-text-primary);">Historial de seguimiento</div><div style="font-size:12px;color:var(--color-text-secondary);margin-top:3px;">${esc(quoteCode)} · ${esc(customerName)}</div></div><span id="counter-badge" style="font-size:11px;font-weight:500;padding:4px 12px;border-radius:999px;background:${doneCount === milestones.length ? "var(--color-background-success)" : "var(--color-background-warning)"};color:${doneCount === milestones.length ? "var(--color-text-success)" : "var(--color-text-warning)"};">${doneCount} de ${milestones.length} completados</span></div><div id="tl-body" style="padding:20px 24px 4px;">${body}</div><div id="tl-footer" style="display:flex;align-items:center;gap:8px;padding:12px 24px 15px;border-top:0.5px solid var(--color-border-tertiary);margin-top:16px;"><i id="footer-icon" class="ti ${doneCount >= milestones.length ? "ti-circle-check" : "ti-arrow-right-circle"}" style="font-size:16px;color:${doneCount >= milestones.length ? "var(--color-text-success)" : "var(--color-text-info)"};" aria-hidden="true"></i><span id="next-step-text" style="font-size:12px;color:var(--color-text-secondary);">${doneCount >= milestones.length ? '<span style="font-weight:500;color:var(--color-text-success);">Cotización completamente cerrada</span>' : `Próximo paso: <span style="font-weight:500;color:var(--color-text-primary);">${esc(nextLabels[doneCount] || nextLabels[0])}</span>`}</span></div></div></div>`;
-  bindTrackingAvatarFallback(els.quoteTrackingMount);
+  els.quoteTrackingMount.innerHTML = `
+    <h2 class="sr-only">Panel de seguimiento con solicitudes de cambio por hito</h2>
+    <div class="quote-tracking-toolbar">
+      <span class="quote-tracking-status">${esc(statusText)}</span>
+      <button type="button" id="tl-btn" class="quote-tracking-toggle${panelOpen ? " is-open" : ""}" data-tracking-toggle aria-expanded="${panelOpen ? "true" : "false"}">
+        <i class="ti ti-route" aria-hidden="true"></i>Seguimiento
+      </button>
+    </div>`;
+  if (els.quoteTrackingPanelMount) {
+    els.quoteTrackingPanelMount.innerHTML = `
+      <div id="tl-panel" class="quote-tracking-panel" style="display:${panelOpen ? "block" : "none"};">
+        <div class="quote-tracking-panel-head">
+          <div class="quote-tracking-panel-title">Historial de seguimiento</div>
+          <span id="counter-badge" class="quote-tracking-counter ${doneCount === milestones.length ? "is-complete" : "is-pending"}">${doneCount} de ${milestones.length} completados</span>
+        </div>
+        <div id="tl-body" class="quote-tracking-body">${body}</div>
+        <div id="tl-footer" class="quote-tracking-footer">
+          <i id="footer-icon" class="ti ${doneCount >= milestones.length ? "ti-circle-check" : "ti-arrow-right-circle"} ${doneCount >= milestones.length ? "is-complete" : "is-pending"}" aria-hidden="true"></i>
+          <span id="next-step-text">${doneCount >= milestones.length ? '<span class="quote-tracking-next-complete">Cotización completamente cerrada</span>' : `Próximo paso: <span class="quote-tracking-next-label">${esc(nextLabels[doneCount] || nextLabels[0])}</span>`}</span>
+        </div>
+      </div>`;
+  }
+  bindTrackingAvatarFallback(els.quoteTrackingPanelMount || els.quoteTrackingMount);
 }
 
 function renderDetailsDemo(baseResult = totals()) {
@@ -6336,7 +6354,13 @@ function renderDetailsDemo(baseResult = totals()) {
   const quantities = detailQuantityValues();
   const quoteCode = String(state.form.header.quoteCode || "").trim();
   const lineCode = String(state.form.header.lineCode || "").trim();
-  if (els.detailsLineBadge) els.detailsLineBadge.textContent = lineCode ? `Línea ${lineCode}` : "Línea sin base";
+  if (els.detailsLineBadge) {
+    const quoteRoute = quoteCode ? `/cotizaciones/documento?codigo=${encodeURIComponent(quoteCode)}` : "";
+    const quoteMarkup = quoteCode
+      ? `<a class="details-quote-code summary-row-link" href="${esc(quoteRoute)}" data-route="${esc(quoteRoute)}" data-label="Cotización ${esc(quoteCode)}">${esc(quoteCode)}</a>`
+      : `<span class="details-quote-code">Cotización sin base</span>`;
+    els.detailsLineBadge.innerHTML = `<span class="details-line-code">${lineCode ? `Línea ${esc(lineCode)}` : "Línea sin base"}</span>${quoteMarkup}`;
+  }
   if (!quantities.length) {
     els.detailsCostTable.innerHTML = '<div class="details-empty">Agrega cantidades para ver el detalle.</div>';
     return;
@@ -6352,6 +6376,7 @@ function renderDetailsDemo(baseResult = totals()) {
     if (row.breakdown) classes.push("is-breakdown");
     if (row.total) classes.push("is-total");
     if (row.final) classes.push("is-final");
+    if (!row.expandKey && !row.child) classes.push("is-offset-label");
     const alertMessages = detailAlertMessagesForRow(row, validationState);
     const alertText = summarizeMessages(alertMessages, 2);
     if (alertMessages.length) classes.push("is-alert");
@@ -8025,7 +8050,7 @@ function bindDetailsDemo() {
     event.preventDefault();
     openDetailsCommercialEditor(trigger);
   });
-  els.quoteTrackingMount?.addEventListener("click", (event) => {
+  const handleTrackingClick = (event) => {
     const toggle = event.target.closest("[data-tracking-toggle]");
     if (toggle) {
       state.quoteTracking.panelOpen = !state.quoteTracking.panelOpen;
@@ -8099,11 +8124,15 @@ function bindDetailsDemo() {
         showCenterMessage("No fue posible enviar la solicitud de cambios.");
       }).finally(done);
     }
-  });
-  els.quoteTrackingMount?.addEventListener("input", (event) => {
+  };
+  els.quoteTrackingMount?.addEventListener("click", handleTrackingClick);
+  els.quoteTrackingPanelMount?.addEventListener("click", handleTrackingClick);
+  const handleTrackingInput = (event) => {
     if (event.target.matches("[data-tracking-textarea]")) event.target.classList.remove("error");
     if (event.target.matches("[data-tracking-close-input]")) event.target.classList.remove("error");
-  });
+  };
+  els.quoteTrackingMount?.addEventListener("input", handleTrackingInput);
+  els.quoteTrackingPanelMount?.addEventListener("input", handleTrackingInput);
 }
 
 function bindHeader() {
