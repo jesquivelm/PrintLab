@@ -2656,6 +2656,20 @@ async function applyDashboardConfig(configOverride = null) {
     applyDashboardConfigPayload(nextConfig);
 }
 
+function syncDashboardImageSource(image, nextUrl, altText = '') {
+    if (!image) return;
+    const cleanUrl = String(nextUrl || '').trim();
+    if (!cleanUrl) {
+        if (image.getAttribute('src')) image.removeAttribute('src');
+        if (image.style.display !== 'none') image.style.display = 'none';
+        if (altText && image.alt !== altText) image.alt = altText;
+        return;
+    }
+    if (image.getAttribute('src') !== cleanUrl) image.setAttribute('src', cleanUrl);
+    if (image.alt !== altText) image.alt = altText;
+    if (image.style.display !== 'block') image.style.display = 'block';
+}
+
 function applyDashboardConfigPayload(config) {
     loadedConfig = config || {};
     const presentation = getPresentationConfig(loadedConfig, 'dashboard');
@@ -2701,11 +2715,7 @@ function applyDashboardConfigPayload(config) {
     root.style.setProperty('--module-title-width', presentation.titleWidth ? `${presentation.titleWidth}px` : 'auto');
     root.style.setProperty('--footer-border-color', presentation.footerBorderColor);
 
-    if (companyLogo) {
-        companyLogo.src = presentation.brandLogoUrl;
-        companyLogo.alt = companyName;
-        companyLogo.style.display = presentation.brandLogoUrl ? 'block' : 'none';
-    }
+    syncDashboardImageSource(companyLogo, presentation.brandLogoUrl, companyName);
     if (brandFallback) {
         brandFallback.textContent = companyName;
         brandFallback.style.display = presentation.brandLogoUrl ? 'none' : 'flex';

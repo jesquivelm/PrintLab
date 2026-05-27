@@ -64,26 +64,36 @@ html[data-theme="dark"] .quote-request-product-type-trigger::after{background-im
 #requestProductTypePanel.quote-request-inline-panel{position:fixed;inset:auto;top:var(--quote-product-type-top,0);left:var(--quote-product-type-left,0);width:var(--quote-product-type-width,220px);max-height:var(--quote-product-type-max-height,min(52vh,460px));z-index:700;scrollbar-width:thin;scrollbar-color:rgba(92,115,132,.58) transparent}
 #requestFixedSizePanel.quote-request-inline-panel{position:fixed;inset:auto;top:var(--quote-fixed-size-top,0);left:var(--quote-fixed-size-left,0);width:var(--quote-fixed-size-width,320px);max-height:var(--quote-fixed-size-max-height,min(52vh,420px));z-index:700;scrollbar-width:thin;scrollbar-color:rgba(92,115,132,.58) transparent}
 #materialSuggestions.quote-request-inline-panel{position:fixed;inset:auto;top:var(--quote-material-panel-top,0);left:var(--quote-material-panel-left,0);width:var(--quote-material-panel-width,320px);max-height:var(--quote-material-panel-max-height,min(52vh,420px));z-index:700;scrollbar-width:thin;scrollbar-color:rgba(92,115,132,.58) transparent}
+#surfaceSuggestions.quote-request-inline-panel,
+#surfaceTypeSuggestions.quote-request-inline-panel{position:fixed;inset:auto;top:var(--quote-surface-panel-top,0);left:var(--quote-surface-panel-left,0);width:var(--quote-surface-panel-width,320px);max-height:var(--quote-surface-panel-max-height,min(52vh,420px));z-index:700;scrollbar-width:thin;scrollbar-color:rgba(92,115,132,.58) transparent}
 #quoteCustomerLookupPanel.quote-request-inline-panel::-webkit-scrollbar{width:8px}
 #newCalcCustomerLookupPanel.quote-request-inline-panel::-webkit-scrollbar{width:8px}
 #requestProductTypePanel.quote-request-inline-panel::-webkit-scrollbar{width:8px}
 #requestFixedSizePanel.quote-request-inline-panel::-webkit-scrollbar{width:8px}
 #materialSuggestions.quote-request-inline-panel::-webkit-scrollbar{width:8px}
+#surfaceSuggestions.quote-request-inline-panel::-webkit-scrollbar,
+#surfaceTypeSuggestions.quote-request-inline-panel::-webkit-scrollbar{width:8px}
 #quoteCustomerLookupPanel.quote-request-inline-panel::-webkit-scrollbar-track{background:transparent}
 #newCalcCustomerLookupPanel.quote-request-inline-panel::-webkit-scrollbar-track{background:transparent}
 #requestProductTypePanel.quote-request-inline-panel::-webkit-scrollbar-track{background:transparent}
 #requestFixedSizePanel.quote-request-inline-panel::-webkit-scrollbar-track{background:transparent}
 #materialSuggestions.quote-request-inline-panel::-webkit-scrollbar-track{background:transparent}
+#surfaceSuggestions.quote-request-inline-panel::-webkit-scrollbar-track,
+#surfaceTypeSuggestions.quote-request-inline-panel::-webkit-scrollbar-track{background:transparent}
 #quoteCustomerLookupPanel.quote-request-inline-panel::-webkit-scrollbar-thumb{background:rgba(92,115,132,.42);border-radius:999px}
 #newCalcCustomerLookupPanel.quote-request-inline-panel::-webkit-scrollbar-thumb{background:rgba(92,115,132,.42);border-radius:999px}
 #requestProductTypePanel.quote-request-inline-panel::-webkit-scrollbar-thumb{background:rgba(92,115,132,.42);border-radius:999px}
 #requestFixedSizePanel.quote-request-inline-panel::-webkit-scrollbar-thumb{background:rgba(92,115,132,.42);border-radius:999px}
 #materialSuggestions.quote-request-inline-panel::-webkit-scrollbar-thumb{background:rgba(92,115,132,.42);border-radius:999px}
+#surfaceSuggestions.quote-request-inline-panel::-webkit-scrollbar-thumb,
+#surfaceTypeSuggestions.quote-request-inline-panel::-webkit-scrollbar-thumb{background:rgba(92,115,132,.42);border-radius:999px}
 #quoteCustomerLookupPanel.quote-request-inline-panel::-webkit-scrollbar-thumb:hover{background:rgba(92,115,132,.6)}
 #newCalcCustomerLookupPanel.quote-request-inline-panel::-webkit-scrollbar-thumb:hover{background:rgba(92,115,132,.6)}
 #requestProductTypePanel.quote-request-inline-panel::-webkit-scrollbar-thumb:hover{background:rgba(92,115,132,.6)}
 #requestFixedSizePanel.quote-request-inline-panel::-webkit-scrollbar-thumb:hover{background:rgba(92,115,132,.6)}
 #materialSuggestions.quote-request-inline-panel::-webkit-scrollbar-thumb:hover{background:rgba(92,115,132,.6)}
+#surfaceSuggestions.quote-request-inline-panel::-webkit-scrollbar-thumb:hover,
+#surfaceTypeSuggestions.quote-request-inline-panel::-webkit-scrollbar-thumb:hover{background:rgba(92,115,132,.6)}
 .quote-request-lookup-item{width:100%;border:0;border-bottom:1px solid #e7eef3;background:#fff;padding:11px 12px;display:flex;justify-content:space-between;gap:12px;text-align:left;cursor:pointer}
 .quote-request-lookup-item:last-child{border-bottom:0}
 .quote-request-lookup-item:hover{background:#eff7fb}
@@ -457,11 +467,11 @@ html[data-theme="dark"] .quote-request-numbering-attachment-row{border-color:var
 </label>
 <div id="requestCustomSizeFields" class="quote-request-special-size" hidden>
 <label class="quote-request-field">
-<span>Ancho</span>
+<span id="requestCustomWidthLabel">Ancho</span>
 <span class="quote-request-unit-wrap"><input id="requestCustomWidth" class="quote-request-input" type="number" min="0" step="0.01" autocomplete="off"><span class="quote-request-unit">in</span></span>
 </label>
-<label class="quote-request-field">
-<span>Alto</span>
+<label id="requestCustomHeightField" class="quote-request-field">
+<span id="requestCustomHeightLabel">Alto</span>
 <span class="quote-request-unit-wrap"><input id="requestCustomHeight" class="quote-request-input" type="number" min="0" step="0.01" autocomplete="off"><span class="quote-request-unit">in</span></span>
 </label>
 </div>
@@ -554,10 +564,17 @@ html[data-theme="dark"] .quote-request-numbering-attachment-row{border-color:var
 <div class="quote-request-grid">
 <div class="quote-request-inline-wrap" data-inline-suggestions="surface">
 <label class="quote-request-field">
-<span>Superficie de Aplicación</span>
+<span>Aplicación</span>
 <input id="requestSurface" class="quote-request-input" type="text" autocomplete="off" required>
 </label>
 <div id="surfaceSuggestions" class="quote-request-inline-panel" data-term-source="requestSurface" hidden></div>
+</div>
+<div class="quote-request-inline-wrap" data-inline-suggestions="surface-type">
+<label class="quote-request-field">
+<span>Tipo de Superficie</span>
+<input id="requestSurfaceType" class="quote-request-input" type="text" autocomplete="off">
+</label>
+<div id="surfaceTypeSuggestions" class="quote-request-inline-panel" data-term-source="requestSurfaceType" hidden></div>
 </div>
 <div class="quote-request-field">
 <span>Colocación</span>

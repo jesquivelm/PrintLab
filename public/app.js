@@ -39,14 +39,17 @@ const attachmentsList = document.getElementById('attachmentsList');
 const closeAttachmentsPopoverButton = document.getElementById('closeAttachmentsPopoverButton');
 const attachmentFileInput = document.getElementById('attachmentFileInput');
 const attachmentFileName = document.getElementById('attachmentFileName');
+const attachmentClassificationInput = document.getElementById('attachmentClassificationInput');
 const pickAttachmentsButton = document.getElementById('pickAttachmentsButton');
+const pickAudioAttachmentButton = document.getElementById('pickAudioAttachmentButton');
 const uploadAttachmentsButton = document.getElementById('uploadAttachmentsButton');
+const quoteDetailLinesFooter = document.getElementById('quoteDetailLinesFooter');
 const quoteBrowserPopover = document.getElementById('quoteBrowserPopover');
 const quoteBrowserSearchInput = document.getElementById('quoteBrowserSearchInput');
 const quoteBrowserResults = document.getElementById('quoteBrowserResults');
 const closeQuoteBrowserButton = document.getElementById('closeQuoteBrowserButton');
-const MIN_VISIBLE_ROWS = 10;
-const MAX_VISIBLE_ROWS = 20;
+const MIN_VISIBLE_ROWS = 4;
+const MAX_VISIBLE_ROWS = 8;
 const PRESENTATION_KEY = 'cotizaciones';
 const CLIENT_LOCK_FIELDS = ['clienteCodigo', 'clienteNombre'];
 
@@ -74,7 +77,10 @@ let rowIcons = {
     actions: '\u22EF',
     duplicate: '\u2398',
     copy: '\u2398',
+    createProduct: '\u25A3',
     createQuote: '\u25A3',
+    frontBack: 'FD',
+    tracking: '\u25CE',
     export: '\u2B73',
     attachments: '📎',
     createOrder: '\u2692',
@@ -85,6 +91,7 @@ let rowIcons = {
     quoteNext: '\u203A',
     popoverClose: '\u2715',
     attachmentUpload: '\u21E7',
+    attachmentAudio: '\u25CF',
     attachmentDownload: '\u21E9',
     attachmentReplace: '\u21BB'
 };
@@ -95,7 +102,10 @@ let rowIconPalette = {
     actions: { primary: '#9ba2ab', secondary: '#ffffff', hover: '#0b81b8', size: 18 },
     duplicate: { primary: '#46515d', secondary: '#ffffff', hover: '#0b81b8', size: 18 },
     copy: { primary: '#46515d', secondary: '#ffffff', hover: '#0b81b8', size: 18 },
+    createProduct: { primary: '#46515d', secondary: '#ffffff', hover: '#0b81b8', size: 18 },
     createQuote: { primary: '#46515d', secondary: '#ffffff', hover: '#0b81b8', size: 18 },
+    frontBack: { primary: '#46515d', secondary: '#ffffff', hover: '#0b81b8', size: 18 },
+    tracking: { primary: '#46515d', secondary: '#ffffff', hover: '#0b81b8', size: 18 },
     export: { primary: '#46515d', secondary: '#ffffff', hover: '#0b81b8', size: 18 },
     attachments: { primary: '#46515d', secondary: '#ffffff', hover: '#0b81b8', size: 18 },
     createOrder: { primary: '#46515d', secondary: '#ffffff', hover: '#0b81b8', size: 18 },
@@ -106,6 +116,7 @@ let rowIconPalette = {
     ,quoteNext: { primary: '#9ba2ab', secondary: '#ffffff', hover: '#0b81b8', size: 18 }
     ,popoverClose: { primary: '#6b7580', secondary: '#ffffff', hover: '#0b81b8', size: 18 }
     ,attachmentUpload: { primary: '#0b81b8', secondary: '#ffffff', hover: '#07638c', size: 18 }
+    ,attachmentAudio: { primary: '#0b81b8', secondary: '#ffffff', hover: '#07638c', size: 18 }
     ,attachmentDownload: { primary: '#0b81b8', secondary: '#ffffff', hover: '#07638c', size: 18 }
     ,attachmentReplace: { primary: '#0b81b8', secondary: '#ffffff', hover: '#07638c', size: 18 }
 };
@@ -126,6 +137,7 @@ let trackingUserPhotos = new Map();
 let attachmentsRowId = null;
 let attachmentsRefreshTimer = null;
 let replaceAttachmentId = null;
+let frontBackDetailRowId = null;
 let dragPointerHandle = null;
 let dragGhostElement = null;
 let dragGhostOffsetX = 0;
@@ -1065,6 +1077,11 @@ function isQuoteLineNoPrint(row) {
     });
 }
 
+function isCircularQuoteRow(row = {}) {
+    const raw = row.rawData || {};
+    return String(raw['REQ | Forma'] || raw['GENERAL | TROQUEL | FORMA'] || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes('circular');
+}
+
 function renderLineSummary(row, index) {
     const raw = row.rawData || {};
     const lineCode = cleanQuoteDetail(row.linea || row.originalLinea || `LC${String(index + 1).padStart(5, '0')}`);
@@ -1166,18 +1183,15 @@ function renderBlankRow(isFirstBlank, subtotalColumnCount) {
     return `
         <tr class="draft-row">
             <td class="row-number"></td>
-            <td>
-                <div class="row-tools row-tools-compact row-tools-leading row-tools-add-row">
-                    ${isFirstBlank ? `
-                        <span class="row-action-divider is-ghost" aria-hidden="true"></span>
-                        <span class="row-tool-spacer" aria-hidden="true"></span>
-                        <button type="button" class="row-tool-btn row-tool-plus" data-action="add-row" aria-label="Agregar cálculo" style="${iconButtonStyle('plus', 18)}">${iconMarkup(rowIcons.plus, 'Agregar cálculo', 'table-icon-media')}</button>
-                    ` : ''}
-                </div>
-            </td>
+            <td><div class="row-tools row-tools-compact row-tools-leading row-tools-add-row"></div></td>
             <td></td><td></td><td></td><td></td>${blankSubtotalCells}<td></td>
         </tr>
     `;
+}
+
+function renderQuoteDetailLinesFooter() {
+    if (!quoteDetailLinesFooter) return;
+    quoteDetailLinesFooter.innerHTML = `<button type="button" class="quote-browser-action-btn quote-line-add-btn" data-action="add-row" title="Agregar línea de cálculo" style="${iconButtonStyle('plus', 18)}"><span class="quote-line-action-icon" aria-hidden="true">${iconMarkup(rowIcons.plus, 'Agregar línea', 'table-icon-media')}</span> Agregar línea</button>`;
 }
 
 function renderRows() {
@@ -1199,13 +1213,14 @@ function renderRows() {
     let markup = rows.map((row, index) => renderDataRow(row, index, subtotalKeys)).join('');
     const blankRowCount = Math.max(MIN_VISIBLE_ROWS - rows.length, 0);
     const visibleRowCount = Math.min(Math.max(rows.length, MIN_VISIBLE_ROWS), MAX_VISIBLE_ROWS);
-    const tableWrap = rowsBody?.closest('.table-wrap');
+    const tableWrap = rowsBody?.closest('.quote-browser-table-wrap, .table-wrap');
     tableWrap?.style.setProperty('--visible-table-rows', String(visibleRowCount));
     tableWrap?.classList.toggle('is-scrollable', rows.length > MAX_VISIBLE_ROWS);
     for (let index = 0; index < blankRowCount; index += 1) {
         markup += renderBlankRow(index === 0, subtotalKeys.length);
     }
     rowsBody.innerHTML = markup;
+    renderQuoteDetailLinesFooter();
     bindRowActions();
     publishBdfgContext();
 }
@@ -1268,13 +1283,15 @@ function getRowActionDefinitions() {
 function getRowActionDefinitionsForRow(row) {
     const canCreateOrder = Boolean(row?.finalizadaOrden);
     return [
-        ...(canCreateOrder ? [{ dividerBefore: true, key: 'createOrder', label: 'Crear orden de producción', icon: rowIcons.createOrder, action: 'create-production-order' }] : []),
         { key: 'duplicate', label: 'Duplicar Línea', icon: rowIcons.duplicate, action: 'duplicate-line' },
         { key: 'copy', label: 'Copiar Línea a Otra Cotización', icon: rowIcons.copy, action: 'copy-line' },
+        { key: 'createProduct', label: 'Convertir en Producto', icon: rowIcons.createProduct, action: 'create-product-from-line' },
         { key: 'createQuote', label: 'Crear Nueva Cotización a Partir de Esta Línea', icon: rowIcons.createQuote, action: 'create-quote-from-line' },
+        { key: 'frontBack', label: 'Crear Frente/Dorso', icon: rowIcons.frontBack, action: 'front-back-line' },
+        ...(canCreateOrder ? [{ key: 'createOrder', label: 'Crear orden de producción', icon: rowIcons.createOrder, action: 'create-production-order' }] : []),
         { key: 'export', label: 'Exportar Línea a Excel', icon: rowIcons.export, action: 'export-line' },
         { key: 'attachments', label: 'Ver Adjuntos', icon: rowIcons.attachments, action: 'view-attachments' },
-        { dividerBefore: true, key: 'finalize', label: 'Seguimiento', action: 'open-tracking' },
+        { dividerBefore: true, key: 'tracking', label: 'Seguimiento', icon: rowIcons.tracking, action: 'open-tracking' },
         { dividerBefore: true, key: 'delete', label: 'Eliminar Línea', icon: rowIcons.delete, action: 'delete-line', danger: true }
     ];
 }
@@ -1464,6 +1481,57 @@ async function copyLineToQuote(targetQuoteCode) {
 
 async function createQuoteFromLine(row) {
     return openCopyPopover(row.id);
+}
+
+async function createProductFromLine(row) {
+    throw new Error('Convertir a producto está desactivado: falta definir el flujo final de creación de productos desde cotizaciones.');
+}
+
+function openFrontBackDetailModal(row) {
+    const candidates = quoteRows.filter((item) => item.linea && item.id !== row.id);
+    if (candidates.length < 2) {
+        throw new Error('Agrega al menos dos líneas adicionales para crear frente/dorso.');
+    }
+    frontBackDetailRowId = row.id;
+    const body = `
+        <div class="line-tracking-head"><strong>${escapeHtml(row.linea || '')} · Frente/Dorso</strong><span>Selecciona frente y dorso</span></div>
+        <div class="front-back-detail-options">
+            ${candidates.map((item) => `
+                <label class="front-back-option">
+                    <input type="checkbox" name="detailFrontBackElement" value="${escapeHtml(item.linea)}">
+                    <span><strong>${escapeHtml(item.linea)} · ${escapeHtml(item.nombreTrabajo || 'Sin nombre')}</strong><span>${escapeHtml([item.material, item.machineName, item.medida].filter(Boolean).join(' · ') || 'Sin detalle técnico')}</span></span>
+                </label>
+            `).join('')}
+        </div>
+        <div class="tracking-close-actions">
+            <button type="button" class="btn-cancel" data-close-calc-message>Cancelar</button>
+            <button type="button" class="btn-submit" data-detail-front-back-save>Guardar frente/dorso</button>
+        </div>
+    `;
+    showCenterMessage(body, { html: true, duration: 300000 });
+}
+
+async function saveFrontBackDetailGroup() {
+    const groupRow = getRowById(frontBackDetailRowId);
+    if (!groupRow) return;
+    const modal = document.getElementById('calcCenterMessage');
+    const selected = Array.from(modal?.querySelectorAll('input[name="detailFrontBackElement"]:checked') || []).map((input) => input.value).filter(Boolean);
+    if (selected.length !== 2) throw new Error('Selecciona exactamente dos elementos: frente y dorso.');
+    const response = await fetch(`${QUOTES_ENDPOINT}/${encodeURIComponent(groupRow.quoteId)}/frente-dorso`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            groupLineCode: groupRow.linea,
+            elementLineCodes: selected,
+            label: 'Grupo Frente/Dorso'
+        })
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || 'No fue posible guardar frente/dorso.');
+    document.getElementById('calcCenterMessage')?.setAttribute('hidden', '');
+    frontBackDetailRowId = null;
+    await reloadCurrentQuote(groupRow.linea);
+    setStatus('Grupo frente/dorso guardado.', 'saved');
 }
 
 function exportLine(row) {
@@ -1677,7 +1745,7 @@ function bindRowActions() {
         };
     });
 
-    rowsBody?.querySelectorAll('[data-action="add-row"]').forEach((button) => {
+    document.querySelectorAll('[data-action="add-row"]').forEach((button) => {
         button.onclick = async (event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -1771,7 +1839,9 @@ function applyQuotePayload(payload) {
         nombreTrabajo: line.job_name || '',
         material: line.material_name || '',
       medidaFija: line.raw_data?.['REQ | Medida Fija'] || '',
-      medida: [line.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'], line.raw_data?.['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join(' x '),
+        medida: String(line.raw_data?.['REQ | Forma'] || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes('circular')
+            ? (line.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'] ? `Diámetro ${line.raw_data?.['DIMENSIONES ETIQUETA | ANCHO']}` : '')
+            : [line.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'], line.raw_data?.['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join(' x '),
       machineName: line.machine_name || line.raw_data?.['CONV | MAQUINA'] || line.raw_data?.['DIGITAL | MAQUINA'] || '',
       dieCode: line.die_code || line.raw_data?.['GENERAL | TROQUEL | ID'] || line.raw_data?.['REQ | Troquelado'] || '',
       quantity: line.quantity ?? line.raw_data?.['Cantidad Productos'] ?? '',
@@ -2083,7 +2153,9 @@ async function persistNewRow() {
         nombreTrabajo: linea.job_name || '',
         material: linea.material_name || '',
         medidaFija: linea.raw_data?.['REQ | Medida Fija'] || '',
-        medida: [linea.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'], linea.raw_data?.['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join(' x '),
+        medida: String(linea.raw_data?.['REQ | Forma'] || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes('circular')
+            ? (linea.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'] ? `Diámetro ${linea.raw_data?.['DIMENSIONES ETIQUETA | ANCHO']}` : '')
+            : [linea.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'], linea.raw_data?.['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join(' x '),
         machineName: linea.machine_name || linea.raw_data?.['CONV | MAQUINA'] || linea.raw_data?.['DIGITAL | MAQUINA'] || '',
         dieCode: linea.die_code || linea.raw_data?.['GENERAL | TROQUEL | ID'] || linea.raw_data?.['REQ | Troquelado'] || '',
         quantity: linea.quantity ?? linea.raw_data?.['Cantidad Productos'] ?? '',
@@ -2130,7 +2202,9 @@ async function saveRow(row) {
             nombreTrabajo: saved.job_name || item.nombreTrabajo,
             material: saved.material_name || item.material,
             medidaFija: saved.raw_data?.['REQ | Medida Fija'] || item.medidaFija,
-            medida: [saved.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'], saved.raw_data?.['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join(' x ') || item.medida,
+            medida: String(saved.raw_data?.['REQ | Forma'] || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes('circular')
+                ? (saved.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'] ? `Diámetro ${saved.raw_data?.['DIMENSIONES ETIQUETA | ANCHO']}` : item.medida)
+                : ([saved.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'], saved.raw_data?.['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join(' x ') || item.medida),
             machineName: saved.machine_name || saved.raw_data?.['CONV | MAQUINA'] || saved.raw_data?.['DIGITAL | MAQUINA'] || item.machineName,
             dieCode: saved.die_code || saved.raw_data?.['GENERAL | TROQUEL | ID'] || saved.raw_data?.['REQ | Troquelado'] || item.dieCode,
             quantity: saved.quantity ?? saved.raw_data?.['Cantidad Productos'] ?? item.quantity,
@@ -2219,6 +2293,20 @@ function toggleMenu(forceState) {
     menuToggle.setAttribute('aria-expanded', String(shouldOpen));
 }
 
+function syncImageSource(image, nextUrl, altText = '') {
+    if (!image) return;
+    const cleanUrl = String(nextUrl || '').trim();
+    if (!cleanUrl) {
+        if (image.getAttribute('src')) image.removeAttribute('src');
+        if (image.style.display !== 'none') image.style.display = 'none';
+        if (altText && image.alt !== altText) image.alt = altText;
+        return;
+    }
+    if (image.getAttribute('src') !== cleanUrl) image.setAttribute('src', cleanUrl);
+    if (image.alt !== altText) image.alt = altText;
+    if (image.style.display !== 'block') image.style.display = 'block';
+}
+
 function applyConfig(config) {
     window.__erpGeneralConfig = config;
     const presentation = getPresentationConfig(config, PRESENTATION_KEY);
@@ -2234,11 +2322,7 @@ function applyConfig(config) {
     const logoUrl = presentation.brandLogoUrl || globalLogoUrl;
     const companyName = config.branding?.companyName || 'PrintLab';
     
-    if (companyLogo) {
-        companyLogo.style.display = logoUrl ? 'block' : 'none';
-        companyLogo.src = logoUrl;
-        companyLogo.alt = companyName;
-    }
+    syncImageSource(companyLogo, logoUrl, companyName);
 
     if (typeof brandFallback !== 'undefined' && brandFallback) {
         brandFallback.textContent = companyName;
@@ -2302,7 +2386,10 @@ function applyConfig(config) {
         actions: config.icons?.lineMenu || config.icons?.tableActions || '\u22EF',
         duplicate: config.icons?.lineDuplicate || '\u2398',
         copy: config.icons?.lineCopy || '\u2398',
+        createProduct: config.icons?.lineCreateProduct || '\u25A3',
         createQuote: config.icons?.lineCreateQuote || '\u25A3',
+        frontBack: config.icons?.lineFrontBack || config.icons?.lineCreateQuote || 'FD',
+        tracking: config.icons?.lineTracking || '\u25CE',
         export: config.icons?.lineExport || '\u2B73',
         attachments: config.icons?.lineAttachments || '📎',
         createOrder: config.icons?.lineCreateProductionOrder || config.icons?.lineCreateOrder || '\u2692',
@@ -2313,6 +2400,7 @@ function applyConfig(config) {
         quoteNext: config.icons?.quoteNext || '\u203A',
         popoverClose: config.icons?.popoverClose || '\u2715',
         attachmentUpload: config.icons?.attachmentUpload || '\u21E7',
+        attachmentAudio: config.icons?.quoteRequestRecord || '\u25CF',
         attachmentDownload: config.icons?.attachmentDownload || '\u21E9',
         attachmentReplace: config.icons?.attachmentReplace || '\u21BB'
     };
@@ -2353,11 +2441,29 @@ function applyConfig(config) {
             hover: config.general?.iconColorHoverLineCopy || '#0b81b8',
             size: pxSize(config.general?.iconSizeLineCopy, presentation.iconSize)
         },
+        createProduct: {
+            primary: config.general?.iconColorLineCreateProduct || '#46515d',
+            secondary: config.general?.iconColor2LineCreateProduct || '#ffffff',
+            hover: config.general?.iconColorHoverLineCreateProduct || '#0b81b8',
+            size: pxSize(config.general?.iconSizeLineCreateProduct, presentation.iconSize)
+        },
         createQuote: {
             primary: config.general?.iconColorLineCreateQuote || '#46515d',
             secondary: config.general?.iconColor2LineCreateQuote || '#ffffff',
             hover: config.general?.iconColorHoverLineCreateQuote || '#0b81b8',
             size: pxSize(config.general?.iconSizeLineCreateQuote, presentation.iconSize)
+        },
+        frontBack: {
+            primary: config.general?.iconColorLineFrontBack || '#46515d',
+            secondary: config.general?.iconColor2LineFrontBack || '#ffffff',
+            hover: config.general?.iconColorHoverLineFrontBack || '#0b81b8',
+            size: pxSize(config.general?.iconSizeLineFrontBack, presentation.iconSize)
+        },
+        tracking: {
+            primary: config.general?.iconColorLineTracking || '#46515d',
+            secondary: config.general?.iconColor2LineTracking || '#ffffff',
+            hover: config.general?.iconColorHoverLineTracking || '#0b81b8',
+            size: pxSize(config.general?.iconSizeLineTracking, presentation.iconSize)
         },
         export: {
             primary: config.general?.iconColorLineExport || '#46515d',
@@ -2419,6 +2525,12 @@ function applyConfig(config) {
             hover: config.general?.iconColorHoverAttachmentUpload || '#07638c',
             size: pxSize(config.general?.iconSizeAttachmentUpload, presentation.iconSize)
         },
+        attachmentAudio: {
+            primary: config.general?.iconColorQuoteRequestRecord || config.general?.iconColorAttachmentUpload || '#0b81b8',
+            secondary: config.general?.iconColor2QuoteRequestRecord || config.general?.iconColor2AttachmentUpload || '#ffffff',
+            hover: config.general?.iconColorHoverQuoteRequestRecord || config.general?.iconColorHoverAttachmentUpload || '#07638c',
+            size: pxSize(config.general?.iconSizeQuoteRequestRecord || config.general?.iconSizeAttachmentUpload, presentation.iconSize)
+        },
         attachmentDownload: {
             primary: config.general?.iconColorAttachmentDownload || '#0b81b8',
             secondary: config.general?.iconColor2AttachmentDownload || '#ffffff',
@@ -2447,6 +2559,15 @@ function applyConfig(config) {
         pickAttachmentsButton.style.setProperty('--config-icon-size', `${palette.size}px`);
         pickAttachmentsButton.style.width = `${palette.size}px`;
         pickAttachmentsButton.style.height = `${palette.size}px`;
+    }
+    if (pickAudioAttachmentButton) {
+        pickAudioAttachmentButton.innerHTML = iconMarkup(rowIcons.attachmentAudio, 'Cargar audio', 'table-icon-media');
+        const palette = getRowPalette('attachmentAudio', 18);
+        pickAudioAttachmentButton.style.color = palette.primary;
+        pickAudioAttachmentButton.style.setProperty('--icon-hover-color', palette.hover);
+        pickAudioAttachmentButton.style.setProperty('--config-icon-size', `${palette.size}px`);
+        pickAudioAttachmentButton.style.width = `${palette.size}px`;
+        pickAudioAttachmentButton.style.height = `${palette.size}px`;
     }
     if (uploadAttachmentsButton) {
         uploadAttachmentsButton.innerHTML = iconMarkup(rowIcons.attachmentReplace, 'Subir archivo', 'table-icon-media');

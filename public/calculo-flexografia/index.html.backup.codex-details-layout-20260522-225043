@@ -153,13 +153,21 @@
                   <div class="panel-grid one-up">
                     <label>
                       <span>Aplicación</span>
-                      <input id="applicationEnvironment" type="text" autocomplete="off">
-                      <div id="applicationEnvironmentPanel" class="calc-inline-panel" hidden></div>
+                      <input id="applicationEnvironment" type="text" list="applicationEnvironmentOptions" autocomplete="off">
+                      <datalist id="applicationEnvironmentOptions">
+                        <option value="Botella"></option>
+                        <option value="Caja"></option>
+                        <option value="Carton"></option>
+                        <option value="Envase"></option>
+                        <option value="Frasco"></option>
+                        <option value="Pouch"></option>
+                        <option value="Tapa"></option>
+                        <option value="Vidrio"></option>
+                      </datalist>
                     </label>
                     <label>
                       <span>Tipo de Superficie</span>
-                      <input id="surfaceType" type="text" autocomplete="off">
-                      <div id="surfaceTypePanel" class="calc-inline-panel" hidden></div>
+                      <textarea id="surfaceType" rows="4"></textarea>
                     </label>
                   </div>
                 </section>
@@ -222,13 +230,12 @@
       <aside class="calc-sidebar">
         <section class="calc-card details-demo-card" aria-label="Detalles">
           <div class="card-head details-demo-head">
-            <div class="details-title-row">
+            <div>
               <h2>Detalles</h2>
-              <div id="detailsLineBadge" class="details-line-badge"></div>
             </div>
-            <div id="quoteTrackingMount" class="quote-tracking-mount" aria-label="Seguimiento de cotización"></div>
+            <div id="detailsLineBadge" class="details-line-badge"></div>
           </div>
-          <div id="quoteTrackingPanelMount" class="quote-tracking-panel-mount"></div>
+          <div id="quoteTrackingMount" class="quote-tracking-mount" aria-label="Seguimiento de cotización"></div>
           <div class="details-cost-shell">
             <div id="detailsCostTable" class="details-cost-table"></div>
           </div>

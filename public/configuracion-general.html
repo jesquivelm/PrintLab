@@ -5374,6 +5374,26 @@
                                             </table>
                                         </div>
                                     </section>
+                                    <section class="config-card quote-product-types-card quote-surface-options-card">
+                                        <input id="quoteSurfaceOptionsJson" name="general.quoteSurfaceOptionsJson" type="hidden">
+                                        <h2 class="config-section-title">Tipo de Superficie</h2>
+                                        <div class="quote-product-types-toolbar">
+                                            <p>Esta lista alimenta la solicitud y el cálculo.</p>
+                                            <button id="quoteSurfaceOptionAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
+                                        </div>
+                                        <div class="quote-product-types-table-wrap">
+                                            <table class="quote-product-types-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="width:72px;">#</th>
+                                                        <th>Valor</th>
+                                                        <th>Acción</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="quoteSurfaceOptionsTableBody"></tbody>
+                                            </table>
+                                        </div>
+                                    </section>
                                     <section class="config-card quote-product-types-card quote-application-options-card">
                                         <input id="quoteApplicationOptionsJson" name="general.quoteApplicationOptionsJson" type="hidden">
                                         <h2 class="config-section-title">Aplicación</h2>
@@ -7068,6 +7088,7 @@
         const PERMISSION_PRESENTATION_KEYS = ['dashboard', 'socios', 'productos', 'cotizaciones', 'ordenes', 'sap', 'planificacion', 'calculos', 'costos', 'inventario-mp', 'inventario-troqueles', 'inventario-maquinaria', 'configuracion-general', 'vendedores', 'seguimiento', 'solicitudes'];
         const ERP_SESSION_STORAGE_KEY = 'erp-user-session';
         const DEFAULT_QUOTE_APPLICATION_OPTIONS = ['Botella', 'Caja', 'Carton', 'Envase', 'Frasco', 'Pouch', 'Tapa', 'Vidrio'];
+        const DEFAULT_QUOTE_SURFACE_OPTIONS = ['Lisa', 'Rugosa', 'Porosa', 'Húmeda'];
         
         let loadedConfig = {};
         let presentationsData = {};
@@ -7125,6 +7146,9 @@
 
             const applicationOptionAddBtn = document.getElementById('quoteApplicationOptionAddButton');
             if (applicationOptionAddBtn) applicationOptionAddBtn.innerHTML = getIconHtml('quantity.add', '+', '#738196', 20);
+
+            const surfaceOptionAddBtn = document.getElementById('quoteSurfaceOptionAddButton');
+            if (surfaceOptionAddBtn) surfaceOptionAddBtn.innerHTML = getIconHtml('quantity.add', '+', '#738196', 20);
 
             const outputTypeAddBtn = document.getElementById('quoteOutputTypesAddButton');
             if (outputTypeAddBtn) outputTypeAddBtn.innerHTML = getIconHtml('quantity.add', '+', '#738196', 20);
@@ -7470,6 +7494,9 @@
         const quoteProductTypesJsonField = document.getElementById('quoteProductTypesJson');
         const quoteProductTypesTableBody = document.getElementById('quoteProductTypesTableBody');
         const quoteProductTypeAddButton = document.getElementById('quoteProductTypeAddButton');
+        const quoteSurfaceOptionsJsonField = document.getElementById('quoteSurfaceOptionsJson');
+        const quoteSurfaceOptionsTableBody = document.getElementById('quoteSurfaceOptionsTableBody');
+        const quoteSurfaceOptionAddButton = document.getElementById('quoteSurfaceOptionAddButton');
         const quoteApplicationOptionsJsonField = document.getElementById('quoteApplicationOptionsJson');
         const quoteApplicationOptionsTableBody = document.getElementById('quoteApplicationOptionsTableBody');
         const quoteApplicationOptionAddButton = document.getElementById('quoteApplicationOptionAddButton');
@@ -7652,6 +7679,8 @@
             { key: 'lineCopy', label: 'Copiar Linea', group: 'Acciones Documento', placeholder: '\u2398', color: '#46515d', size: 18 },
             { key: 'lineCreateProduct', label: 'Crear Producto', group: 'Acciones Documento', placeholder: '\u25A3', color: '#46515d', size: 18 },
             { key: 'lineCreateQuote', label: 'Nueva Cotizacion', group: 'Acciones Documento', placeholder: '\u25A3', color: '#46515d', size: 18 },
+            { key: 'lineFrontBack', label: 'Frente/Dorso', group: 'Acciones Documento', placeholder: 'FD', color: '#46515d', size: 18 },
+            { key: 'lineTracking', label: 'Seguimiento Linea', group: 'Acciones Documento', placeholder: '\u25CE', color: '#46515d', size: 18 },
             { key: 'lineExport', label: 'Exportar Linea', group: 'Acciones Documento', placeholder: '\u2B73', color: '#46515d', size: 18 },
             { key: 'lineAttachments', label: 'Adjuntos Linea', group: 'Acciones Documento', placeholder: '\uD83D\uDCCE', color: '#46515d', size: 18 },
             { key: 'lineCreateOrder', label: 'Orden Produccion', group: 'Acciones Documento', placeholder: '\u2692', color: '#46515d', size: 18 },
@@ -7756,7 +7785,7 @@
             if (['attachmentUpload', 'attachmentDownload', 'attachmentReplace', 'lineAttachments', 'proformaView'].includes(key)) return { tab: 'General', section: 'Adjuntos' };
             if (['lineDelete', 'copyQuoteSend', 'favoriteDocumentOff', 'favoriteDocumentOn', 'refreshCosts'].includes(key)) return { tab: 'General', section: 'Compartido' };
             if (['quoteRequestSubmit', 'quoteRequestAdvanced', 'quoteRequestAttachment', 'quoteRequestRecord', 'quoteRequestRecordStop', 'quoteRequestAttachmentDelete', 'quantity.add', 'quantity.delete'].includes(key)) return { tab: 'Cotizaciones', section: 'Solicitud' };
-            if (['lineDuplicate', 'lineCopy', 'lineCreateProduct', 'lineCreateQuote', 'lineExport', 'lineCreateOrder', 'lineCreateProductionOrder', 'quoteExpand', 'quoteCollapse', 'lineReorder', 'lineMenu'].includes(key)) return { tab: 'Cotizaciones', section: 'Líneas' };
+            if (['lineDuplicate', 'lineCopy', 'lineCreateProduct', 'lineCreateQuote', 'lineFrontBack', 'lineTracking', 'lineExport', 'lineCreateOrder', 'lineCreateProductionOrder', 'quoteExpand', 'quoteCollapse', 'lineReorder', 'lineMenu'].includes(key)) return { tab: 'Cotizaciones', section: 'Líneas' };
             if (key === 'fieldInfo') return { tab: 'Cálculo', section: 'Campos' };
             if (key.startsWith('order')) return { tab: 'Órdenes', section: 'Detalle' };
             if (key === 'proformaClose') return { tab: 'Proforma', section: 'Documento' };
@@ -8543,6 +8572,7 @@
                 }
             });
             renderQuoteProductTypesTable();
+            renderQuoteSurfaceOptionsTable();
             renderQuoteApplicationOptionsTable();
             renderConfigButtonsIcons();
             syncToggleButtons();
@@ -8601,6 +8631,29 @@
                     <td>${index + 1}</td>
                     <td><input type="text" value="${escapeHtml(item)}" data-quote-product-type-index="${index}" maxlength="80"></td>
                     <td><button type="button" class="icon-only-btn quote-product-types-remove" data-remove-quote-product-type="${index}" aria-label="Eliminar tipo de producto" title="Eliminar tipo de producto">${getIconHtml('quantity.delete', '&#128465;', '#b94848', 18)}</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function readQuoteSurfaceOptionsFromConfig() {
+            const items = normalizeQuoteProductTypeItems(quoteSurfaceOptionsJsonField?.value || loadedConfig?.general?.quoteSurfaceOptionsJson || '');
+            return items.length ? items : [...DEFAULT_QUOTE_SURFACE_OPTIONS];
+        }
+
+        function syncQuoteSurfaceOptionsField(items) {
+            if (!quoteSurfaceOptionsJsonField) return;
+            quoteSurfaceOptionsJsonField.value = JSON.stringify(normalizeQuoteProductTypeItems(items));
+        }
+
+        function renderQuoteSurfaceOptionsTable() {
+            if (!quoteSurfaceOptionsTableBody) return;
+            const items = readQuoteSurfaceOptionsFromConfig();
+            syncQuoteSurfaceOptionsField(items);
+            quoteSurfaceOptionsTableBody.innerHTML = items.map((item, index) => `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td><input type="text" value="${escapeHtml(item)}" data-quote-surface-option-index="${index}" maxlength="80"${item ? "" : " class=\"field-empty\""}></td>
+                    <td><button type="button" class="icon-only-btn quote-product-types-remove" data-remove-quote-surface-option="${index}" aria-label="Eliminar tipo de superficie" title="Eliminar tipo de superficie">${getIconHtml('quantity.delete', '&#128465;', '#b94848', 18)}</button></td>
                 </tr>
             `).join('');
         }
@@ -14667,6 +14720,52 @@
             renderQuoteProductTypesTable();
             queueConfigSave();
         });
+        quoteSurfaceOptionAddButton?.addEventListener('click', () => {
+            const items = readQuoteSurfaceOptionsFromConfig();
+            if (items.length >= 60) return;
+            items.push("");
+            syncQuoteSurfaceOptionsField(items);
+            renderQuoteSurfaceOptionsTable();
+            const inputs = quoteSurfaceOptionsTableBody?.querySelectorAll('input[data-quote-surface-option-index]') || [];
+            const input = inputs[inputs.length - 1];
+            input?.focus();
+            input?.select();
+            queueConfigSave();
+        });
+        quoteSurfaceOptionsTableBody?.addEventListener('input', (event) => {
+            const input = event.target.closest('input[data-quote-surface-option-index]');
+            if (!input) return;
+            input.classList.toggle('field-empty', input.value === '');
+            const items = readQuoteSurfaceOptionsFromConfig();
+            const index = Number(input.dataset.quoteSurfaceOptionIndex);
+            if (!Number.isInteger(index) || index < 0) return;
+            items[index] = input.value;
+            syncQuoteSurfaceOptionsField(items);
+            queueConfigSave();
+        });
+        quoteSurfaceOptionsTableBody?.addEventListener('change', (event) => {
+            const input = event.target.closest('input[data-quote-surface-option-index]');
+            if (!input) return;
+            input.classList.toggle('field-empty', input.value === '');
+            const items = readQuoteSurfaceOptionsFromConfig();
+            const index = Number(input.dataset.quoteSurfaceOptionIndex);
+            if (!Number.isInteger(index) || index < 0) return;
+            items[index] = input.value;
+            syncQuoteSurfaceOptionsField(items);
+            renderQuoteSurfaceOptionsTable();
+            queueConfigSave();
+        });
+        quoteSurfaceOptionsTableBody?.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-remove-quote-surface-option]');
+            if (!button) return;
+            const index = Number(button.dataset.removeQuoteSurfaceOption);
+            const items = readQuoteSurfaceOptionsFromConfig();
+            if (!Number.isInteger(index) || index < 0 || index >= items.length) return;
+            items.splice(index, 1);
+            syncQuoteSurfaceOptionsField(items);
+            renderQuoteSurfaceOptionsTable();
+            queueConfigSave();
+        });
         quoteApplicationOptionAddButton?.addEventListener('click', () => {
             const items = readQuoteApplicationOptionsFromConfig();
             if (items.length >= 60) return;
@@ -14873,11 +14972,15 @@
                 if (quoteApplicationOptionsJsonField) {
                     quoteApplicationOptionsJsonField.value = quoteApplicationOptionsJsonField.value || loadedConfig?.general?.quoteApplicationOptionsJson || JSON.stringify(DEFAULT_QUOTE_APPLICATION_OPTIONS);
                 }
+                if (quoteSurfaceOptionsJsonField) {
+                    quoteSurfaceOptionsJsonField.value = quoteSurfaceOptionsJsonField.value || loadedConfig?.general?.quoteSurfaceOptionsJson || JSON.stringify(DEFAULT_QUOTE_SURFACE_OPTIONS);
+                }
                 ensureIconLibraryFields();
                 applyIconPreviews();
                 bindIconUploadHandlers();
                 renderConfigButtonsIcons();
                 renderQuoteProductTypesTable();
+                renderQuoteSurfaceOptionsTable();
                 renderQuoteApplicationOptionsTable();
                 setInventoryClassificationStatus('Configura el campo SAP y luego mapea sus valores a categorías flexográficas.', false);
                 populateProformaConfigFields();

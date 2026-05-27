@@ -271,7 +271,6 @@ function normalizeRequestedShape(value = '') {
         .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase();
     if (!normalized) return '';
-    if (normalized.includes('butt') || normalized.includes('boot') || normalized.includes('book')) return 'butt cut';
     if (normalized.includes('redond') || normalized.includes('circular')) return 'circular';
     if (normalized.includes('cuadr')) return 'cuadrado';
     if (normalized.includes('rect')) return 'rectangular';
@@ -296,8 +295,7 @@ function resolveDieShape(die = {}) {
     if (code.startsWith('O-') || code === 'O') return 'ovalado';
     if (code.startsWith('CU-') || code === 'CU') return 'cuadrado';
     if (code.startsWith('E-') || code === 'E') return 'especial';
-    if (code.startsWith('BC-')) return 'butt cut';
-    if (code.startsWith('C-')) return 'rectangular';
+    if (code.startsWith('C-') || code.startsWith('BC-')) return 'rectangular';
     return '';
 }
 
@@ -651,7 +649,7 @@ async function resolveSmartQuoteLineSelection(payload = {}) {
     const catalogs = await loadFlexoCatalogsFromDb();
     const quantity = parseLegacyNumber(payload.quantity) ?? parseLegacyNumber(payload.quantityProducts) ?? 0;
     const threshold = Math.max(0, Number(generalConfig?.general?.quoteAutomaticDigitalMaxQuantity || 0)) || 100000;
-    const requestedShape = normalizeRequestedShape(payload?.request_meta?.['REQ | Forma'] || payload?.request_meta?.Estado_UI?.dieShape || '');
+    const requestedShape = normalizeRequestedShape(payload?.request_meta?.['REQ | Forma'] || payload?.request_meta?.CODEX_UI_STATE?.dieShape || '');
     const widthInches = parsePositiveNumber(payload.widthInches, 0);
     const lengthInches = parsePositiveNumber(payload.lengthInches, 0);
     const requestedFamily = normalizeCommercialMaterialFamily(payload.material_name || payload.material_code || '');
@@ -941,8 +939,6 @@ const DEFAULT_GENERAL_CONFIG = {
         lineCopy: '\u2398',
         lineCreateProduct: '\u25A3',
         lineCreateQuote: '\u25A3',
-        lineFrontBack: '/assets/bootstrap/icons-lineFrontBack.svg',
-        lineTracking: '/assets/bootstrap/icons-lineTracking.svg',
         lineExport: '\u2B73',
         lineAttachments: '📎',
         lineCreateOrder: '\u2692',
@@ -1016,22 +1012,6 @@ const DEFAULT_GENERAL_CONFIG = {
             'Código de Barras',
             'Números de Carrera'
         ]),
-        quoteApplicationOptionsJson: JSON.stringify([
-            'Botella',
-            'Caja',
-            'Carton',
-            'Envase',
-            'Frasco',
-            'Pouch',
-            'Tapa',
-            'Vidrio'
-        ]),
-        quoteSurfaceOptionsJson: JSON.stringify([
-            'Lisa',
-            'Rugosa',
-            'Porosa',
-            'Húmeda'
-        ]),
         quoteAutomaticDigitalMaxQuantity: 100000,
         quoteAutomaticLabelsPerRoll: 1000,
         inventorySourceMode: 'local',
@@ -1097,13 +1077,11 @@ const DEFAULT_GENERAL_CONFIG = {
         dieShapeLabel3: 'Rectangular',
         dieShapeLabel4: 'Ovalado',
         dieShapeLabel5: 'Especial',
-        dieShapeLabel6: 'Butt Cut',
         dieShapeImage1: '',
         dieShapeImage2: '',
         dieShapeImage3: '',
         dieShapeImage4: '',
         dieShapeImage5: '',
-        dieShapeImage6: '/assets/die-shapes/butt-cut.png',
         partnerCodePrefix: 'CL',
         quoteCodePrefix: 'C-',
         quoteLineCodePrefix: 'LC',
@@ -1272,12 +1250,6 @@ const DEFAULT_GENERAL_CONFIG = {
         iconColorLineCreateProduct: '#46515d',
         iconColor2LineCreateProduct: '#ffffff',
         iconColorHoverLineCreateProduct: '#0b81b8',
-        iconColorLineFrontBack: '#46515d',
-        iconColor2LineFrontBack: '#ffffff',
-        iconColorHoverLineFrontBack: '#0b81b8',
-        iconColorLineTracking: '#46515d',
-        iconColor2LineTracking: '#ffffff',
-        iconColorHoverLineTracking: '#0b81b8',
         iconColorLineExport: '#46515d',
         iconColor2LineExport: '#ffffff',
         iconColorHoverLineExport: '#0b81b8',
@@ -2694,8 +2666,6 @@ function normalizeGeneralConfigRecord(config, baseConfig = DEFAULT_GENERAL_CONFI
 
     normalized.general.moduleTitle = fixCommonTextArtifacts(normalized.general.moduleTitle);
     normalized.general.quoteProductTypesJson = JSON.stringify(normalizeQuoteProductTypes(normalized.general.quoteProductTypesJson, DEFAULT_GENERAL_CONFIG.general.quoteProductTypesJson));
-    normalized.general.quoteApplicationOptionsJson = JSON.stringify(normalizeQuoteProductTypes(normalized.general.quoteApplicationOptionsJson, DEFAULT_GENERAL_CONFIG.general.quoteApplicationOptionsJson));
-    normalized.general.quoteSurfaceOptionsJson = JSON.stringify(normalizeQuoteProductTypes(normalized.general.quoteSurfaceOptionsJson, DEFAULT_GENERAL_CONFIG.general.quoteSurfaceOptionsJson));
     normalized.general.inventorySourceMode = String(normalized.general.inventorySourceMode || DEFAULT_GENERAL_CONFIG.general.inventorySourceMode).trim().toLowerCase() === 'sap' ? 'sap' : 'local';
     normalized.general.inventoryImportedClassificationField = String(normalized.general.inventoryImportedClassificationField || DEFAULT_GENERAL_CONFIG.general.inventoryImportedClassificationField).trim() || DEFAULT_GENERAL_CONFIG.general.inventoryImportedClassificationField;
     normalized.branding.companyName = fixCommonTextArtifacts(normalized.branding.companyName);
@@ -3907,24 +3877,13 @@ function readErpSessionFromRequest(req) {
 function getRequestUserName(req, fallback = '') {
     const session = readErpSessionFromRequest(req);
     return pickFirstValue(
-        sanitizeAdminUserText(session?.fullName),
         sanitizeAdminUserText(session?.name),
+        sanitizeAdminUserText(session?.fullName),
         sanitizeAdminUserText(session?.user),
         sanitizeAdminUserText(session?.username),
         sanitizeAdminUserText(session?.email),
         sanitizeAdminUserText(fallback),
         getConfiguredCurrentUser()
-    );
-}
-
-function getRequestUserPhotoUrl(req, fallback = '') {
-    const session = readErpSessionFromRequest(req);
-    return pickFirstValue(
-        sanitizeAdminUserText(session?.photoUrl),
-        sanitizeAdminUserText(session?.photo_url),
-        sanitizeAdminUserText(session?.avatarUrl),
-        sanitizeAdminUserText(session?.avatar_url),
-        sanitizeAdminUserText(fallback)
     );
 }
 
@@ -4630,20 +4589,16 @@ function buildCalculationLineSummary(row = {}) {
     );
     const width = parseLegacyNumber(raw['DIMENSIONES ETIQUETA | ANCHO']);
     const length = parseLegacyNumber(raw['DIMENSIONES ETIQUETA | LARGO']);
-    const rawShape = pickFirstValue(raw['REQ | Forma'], raw['GENERAL | TROQUEL | FORMA']);
-    const isCircularMeasure = String(rawShape || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes('circular');
-    const measure = isCircularMeasure && width !== null
-        ? `Diámetro ${width}`
-        : width !== null && length !== null
+    const measure = width !== null && length !== null
         ? `${width} x ${length}`
         : pickFirstValue(raw['REQ | Medida Fija']);
     const frontBackGroup = normalizeFrontBackGroup(raw);
-    const processSnapshot = Array.isArray(raw['Secuencia_Procesos']) ? raw['Secuencia_Procesos'] : [];
+    const processSnapshot = Array.isArray(raw['CODEX_PROCESS_SNAPSHOT']) ? raw['CODEX_PROCESS_SNAPSHOT'] : [];
     return {
         version: 1,
         quote_code: pickFirstValue(row.quote_code, raw['ID COTIZACION']),
         line_code: pickFirstValue(row.line_code, raw['ID LINEA']),
-        line_order: normalizeLineOrder(raw['Orden_Linea']),
+        line_order: normalizeLineOrder(raw['CODEX_LINE_ORDER']),
         customer_code: pickFirstValue(row.customer_code, raw['ID CLIENTE']),
         customer_name: pickFirstValue(raw.CLIENTE, raw['CLIENTE NOMBRE']),
         salesperson_name: pickFirstValue(raw.VENDEDOR, raw['VENDEDOR | USUARIO']),
@@ -4656,7 +4611,7 @@ function buildCalculationLineSummary(row = {}) {
         machine_name: pickFirstValue(row.machine_name, raw['DIGITAL | MAQUINA'], raw['CONV | MAQUINA']),
         process_type: processType,
         status: pickFirstValue(raw['SOLICITUD ESTADO'], raw['ESTADO LINEA'], 'Cotizada'),
-        finalized_for_order: Boolean(row.finalized_for_order ?? raw['Finalizado_Para_Orden']),
+        finalized_for_order: Boolean(row.finalized_for_order ?? raw['CODEX_FINALIZED_FOR_ORDER']),
         quantity: pickFirstValue(parseLegacyNumber(row.quantity), parseLegacyNumber(raw['Cantidad Productos']), parseLegacyNumber(raw['CANTIDAD PRODUCTOS 1'])),
         subtotal_1: subtotal1,
         total_cost: pickFirstValue(parseLegacyNumber(row.total_cost), parseLegacyNumber(raw['PRECIO TOTAL AL FINALIZAR'])),
@@ -4664,7 +4619,7 @@ function buildCalculationLineSummary(row = {}) {
         measure,
         width_in: width,
         length_in: length,
-        process_sequence_text: pickFirstValue(raw['Texto_Secuencia_Procesos'], raw['BOT | Process Sequence']),
+        process_sequence_text: pickFirstValue(raw['CODEX_PROCESS_SEQUENCE_TEXT'], raw['BOT | Process Sequence']),
         processes: processSnapshot
             .map((item) => pickFirstValue(item?.processName, item?.name, item?.label))
             .filter(Boolean),
@@ -4763,7 +4718,7 @@ function normalizeFrontBackLineCode(value) {
 }
 
 function normalizeFrontBackGroup(rawOrGroup = {}) {
-    const group = rawOrGroup?.grupoFrenteDorso || rawOrGroup?.grupo_frente_dorso || rawOrGroup?.Grupo_Frente_Dorso || rawOrGroup?.frontBackGroup || rawOrGroup;
+    const group = rawOrGroup?.grupoFrenteDorso || rawOrGroup?.grupo_frente_dorso || rawOrGroup?.CODEX_FD_GROUP || rawOrGroup?.frontBackGroup || rawOrGroup;
     if (!group || typeof group !== 'object' || Array.isArray(group)) return null;
     const groupLineCode = normalizeFrontBackLineCode(group.groupLineCode || group.lineaGrupo || group.primaryLineCode);
     const explicitElements = Array.isArray(group.elementLineCodes)
@@ -4855,13 +4810,11 @@ async function getLatestQuoteCalculationRows(quoteCode, client = null) {
                 quantity, subtotal_cost, total_cost, unit_price, raw_data, created_at
            FROM (
                 SELECT DISTINCT ON (line_code)
-                       fc.calculation_code, fc.quote_code, fc.line_code, fc.product_code, fc.customer_code, fc.process_type, fc.machine_name, fc.die_code, fc.material_code,
-                       fc.quantity, fc.subtotal_cost, fc.total_cost, fc.unit_price, fc.raw_data, fc.created_at
-                  FROM flexo_calculations fc
-                  LEFT JOIN quotes q ON q.quote_code = fc.quote_code
-                 WHERE fc.quote_code = $1
-                   AND ${quoteOwnedCalculationPredicate('fc', 'q')}
-                 ORDER BY fc.line_code NULLS LAST, fc.created_at DESC NULLS LAST, fc.calculation_code DESC NULLS LAST
+                       calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name, die_code, material_code,
+                       quantity, subtotal_cost, total_cost, unit_price, raw_data, created_at
+                  FROM flexo_calculations
+                 WHERE quote_code = $1
+                 ORDER BY line_code NULLS LAST, created_at DESC NULLS LAST, calculation_code DESC NULLS LAST
            ) latest_lines
           ORDER BY line_code NULLS LAST`,
         [quoteCode]
@@ -4898,12 +4851,12 @@ function applyFrontBackQuantityToRawData(rawData = {}, quantity = 0) {
     const normalizedQuantity = parseLegacyNumber(quantity) ?? 0;
     rawData['Cantidad Productos'] = normalizedQuantity;
     rawData['CANTIDAD PRODUCTOS 1'] = normalizedQuantity;
-    const uiState = rawData.Estado_UI;
+    const uiState = rawData.CODEX_UI_STATE;
     if (uiState && typeof uiState === 'object' && !Array.isArray(uiState)) {
         const header = uiState.header && typeof uiState.header === 'object' && !Array.isArray(uiState.header)
             ? uiState.header
             : {};
-        rawData.Estado_UI = {
+        rawData.CODEX_UI_STATE = {
             ...uiState,
             header: {
                 ...header,
@@ -4987,27 +4940,23 @@ function normalizeLineOrder(value, fallback = null) {
 
 const SQL_LINE_ORDER_VALUE = `
     CASE
-        WHEN COALESCE(raw_data->>'Orden_Linea', '') ~ '^[0-9]+$'
-            THEN (raw_data->>'Orden_Linea')::integer
+        WHEN COALESCE(raw_data->>'CODEX_LINE_ORDER', '') ~ '^[0-9]+$'
+            THEN (raw_data->>'CODEX_LINE_ORDER')::integer
         ELSE NULL
     END
 `;
 
 async function getNextQuoteLineOrder(quoteCode) {
-    const lineOrderValue = SQL_LINE_ORDER_VALUE.replace(/\braw_data\b/g, 'fc.raw_data');
     const result = await pgQuery(
-        `SELECT COALESCE(MAX(${lineOrderValue}), 0) AS max_order
-           FROM flexo_calculations fc
-           LEFT JOIN quotes q ON q.quote_code = fc.quote_code
-          WHERE fc.quote_code = $1
-            AND ${quoteOwnedCalculationPredicate('fc', 'q')}`,
+        `SELECT COALESCE(MAX(${SQL_LINE_ORDER_VALUE}), 0) AS max_order
+           FROM flexo_calculations
+          WHERE quote_code = $1`,
         [quoteCode]
     );
     return Number(result.rows[0]?.max_order || 0) + 1;
 }
 
 function mapFlexoCalculationDetail(row) {
-    if (row.raw_data) normalizeCalculationKeys(row.raw_data);
     const raw = row.raw_data || {};
     const processType = pickFirstValue(row.process_type, raw['Proceso Productivo'], 'Convencional');
     const activePrefix = String(processType).toLowerCase().includes('digit') ? 'DIGITAL' : 'CONV';
@@ -5033,7 +4982,7 @@ function mapFlexoCalculationDetail(row) {
         processType,
         machineName: quotedMachine,
         dieCode: pickFirstValue(raw['GENERAL | TROQUEL | ID'], raw[`${activePrefix} | TROQUEL | ID`], row.die_code),
-        uiState: raw['Estado_UI'] || null
+        uiState: raw['CODEX_UI_STATE'] || null
     });
 
       return {
@@ -5050,7 +4999,7 @@ function mapFlexoCalculationDetail(row) {
         frontBackGroup: normalizeFrontBackGroup(raw),
         grupoFrenteDorso: normalizeFrontBackGroup(raw),
           orderType: pickFirstValue(raw['TIPO ORDEN']),
-          finalizedForOrder: Boolean(row.finalized_for_order ?? raw['Finalizado_Para_Orden']),
+          finalizedForOrder: Boolean(row.finalized_for_order ?? raw['CODEX_FINALIZED_FOR_ORDER']),
           lineStatus: pickFirstValue(raw['SOLICITUD ESTADO'], raw['ESTADO LINEA'], raw['FIN COTIZACION | ESTADO']),
         calculationType: pickFirstValue(raw['ESTADO LINEA | CALCULO'], raw['ESTADO LINEA | SEGUN CANTIDAD ELEMENTOS']),
         quantityProducts: pickFirstValue(
@@ -5121,7 +5070,7 @@ function mapFlexoCalculationDetail(row) {
             creationStatus: pickFirstValue(raw['CREACION ESTADO'])
         },
         processes: processSnapshot,
-        uiState: raw['Estado_UI'] || null,
+        uiState: raw['CODEX_UI_STATE'] || null,
         digitalPlatesDisabled,
         raw_data: raw
     };
@@ -5235,7 +5184,7 @@ async function getProformaConfigSnapshot(config = {}) {
 
 function buildProformaProductSummary(line = {}, currency = {}, displayMode = 'both') {
     const raw = line.raw_data || {};
-    const autoSelection = raw['Seleccion_Automatica'] || {};
+    const autoSelection = raw['CODEX_AUTO_SELECTION'] || {};
     const finishDetails = [];
     const visibleExtras = [];
     const normalizedUiStateFinishes = Array.isArray(raw?.ui_state?.finishes) ? raw.ui_state.finishes : [];
@@ -5453,11 +5402,7 @@ function buildQuoteProformaTechnicalSummary(lines = []) {
         pushUnique(summary.shapes, raw['REQ | Forma']);
         const width = parseLegacyNumber(raw['DIMENSIONES ETIQUETA | ANCHO']);
         const length = parseLegacyNumber(raw['DIMENSIONES ETIQUETA | LARGO']);
-        const shape = pickFirstValue(raw['REQ | Forma'], raw['GENERAL | TROQUEL | FORMA']);
-        const isCircular = String(shape || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes('circular');
-        if (isCircular && width) {
-            pushUnique(summary.measures, `Diámetro ${width}"`);
-        } else if (width && length) {
+        if (width && length) {
             pushUnique(summary.measures, `${width}" x ${length}"`);
         } else {
             pushUnique(summary.measures, raw['REQ | Medida Fija']);
@@ -5585,8 +5530,8 @@ function summarizeProformaBlockingMessages(messages = []) {
 }
 
 function proformaBlockingMessagesFromRaw(raw = {}) {
-    const messages = Array.isArray(raw.Mensajes_Validacion)
-        ? raw.Mensajes_Validacion.map((item) => stripNonBlockingSapAccountingWarnings(item)).filter(Boolean)
+    const messages = Array.isArray(raw.CODEX_VALIDATION_MESSAGES)
+        ? raw.CODEX_VALIDATION_MESSAGES.map((item) => stripNonBlockingSapAccountingWarnings(item)).filter(Boolean)
         : [];
     const fallback = stripNonBlockingSapAccountingWarnings(sanitizeAdminUserText(
         raw['ANALISIS CAMPOS PDF'],
@@ -5614,12 +5559,10 @@ async function assertQuoteReadyForProforma(quoteCode, client = null) {
         `SELECT line_code, raw_data
            FROM (
                 SELECT DISTINCT ON (line_code)
-                       fc.line_code, fc.raw_data, fc.created_at, fc.calculation_code
-                  FROM flexo_calculations fc
-                  LEFT JOIN quotes q ON q.quote_code = fc.quote_code
-                 WHERE fc.quote_code = $1
-                   AND ${quoteOwnedCalculationPredicate('fc', 'q')}
-                 ORDER BY fc.line_code NULLS LAST, fc.created_at DESC NULLS LAST, fc.calculation_code DESC NULLS LAST
+                       line_code, raw_data, created_at, calculation_code
+                  FROM flexo_calculations
+                 WHERE quote_code = $1
+                 ORDER BY line_code NULLS LAST, created_at DESC NULLS LAST, calculation_code DESC NULLS LAST
            ) latest_lines
           ORDER BY line_code NULLS LAST`,
         [quoteCode]
@@ -5645,13 +5588,11 @@ async function buildQuoteProformaPayload(quoteCode, client = null) {
                 quantity, subtotal_cost, total_cost, unit_price, raw_data, created_at
            FROM (
                 SELECT DISTINCT ON (line_code)
-                       fc.calculation_code, fc.quote_code, fc.line_code, fc.product_code, fc.customer_code, fc.process_type, fc.machine_name, fc.die_code, fc.material_code,
-                       fc.quantity, fc.subtotal_cost, fc.total_cost, fc.unit_price, fc.raw_data, fc.created_at
-                  FROM flexo_calculations fc
-                  LEFT JOIN quotes q ON q.quote_code = fc.quote_code
-                 WHERE fc.quote_code = $1
-                   AND ${quoteOwnedCalculationPredicate('fc', 'q')}
-                 ORDER BY fc.line_code NULLS LAST, fc.created_at DESC NULLS LAST, fc.calculation_code DESC NULLS LAST
+                       calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name, die_code, material_code,
+                       quantity, subtotal_cost, total_cost, unit_price, raw_data, created_at
+                  FROM flexo_calculations
+                 WHERE quote_code = $1
+                 ORDER BY line_code NULLS LAST, created_at DESC NULLS LAST, calculation_code DESC NULLS LAST
            ) latest_lines
           ORDER BY line_code NULLS LAST`,
         [quoteCode]
@@ -5805,46 +5746,16 @@ async function generateNextConfiguredCode({ client = null, tableName, columnName
     return `${safePrefix}${suffix}`;
 }
 
-function quoteOwnedCalculationPredicate(calcAlias = 'fc', quoteAlias = 'q') {
-    return `(
-        ${quoteAlias}.quote_code IS NULL
-        OR ${quoteAlias}.created_at IS NULL
-        OR ${calcAlias}.created_at IS NULL
-        OR ${calcAlias}.created_at >= ${quoteAlias}.created_at - INTERVAL '5 minutes'
-        OR (
-            COALESCE(${quoteAlias}.raw_data->>'Clave_Solicitud', '') <> ''
-            AND ${calcAlias}.raw_data->>'Clave_Solicitud' = ${quoteAlias}.raw_data->>'Clave_Solicitud'
-        )
-    )`;
-}
-
 async function generateNextQuoteCode(client = null) {
     const general = await loadGeneralNomenclature();
-    const executor = client || { query: pgQuery };
-    const safePrefix = String(general.quoteCodePrefix || 'C-').trim() || 'C-';
-    const regex = `^${escapeRegexLiteral(safePrefix)}[0-9]+$`;
-    const result = await executor.query(
-        `SELECT code
-           FROM (
-                SELECT quote_code AS code FROM quotes WHERE quote_code ~* $1
-                UNION
-                SELECT quote_code AS code FROM flexo_calculations WHERE quote_code ~* $1
-           ) used_codes`,
-        [regex]
-    );
-    let maxValue = 0;
-    let resolvedPad = 6;
-    const matcher = new RegExp(`^${escapeRegexLiteral(safePrefix)}(\\d+)$`, 'i');
-    for (const row of result.rows || []) {
-        const match = String(row.code || '').trim().match(matcher);
-        if (!match) continue;
-        const numeric = Number(match[1]);
-        if (Number.isFinite(numeric)) {
-            maxValue = Math.max(maxValue, numeric);
-            resolvedPad = Math.max(resolvedPad, match[1].length);
-        }
-    }
-    return `${safePrefix}${String(maxValue + 1).padStart(resolvedPad, '0')}`;
+    return generateNextConfiguredCode({
+        client,
+        tableName: 'quotes',
+        columnName: 'quote_code',
+        prefix: general.quoteCodePrefix,
+        fallbackPrefix: 'C-',
+        padLength: 6
+    });
 }
 
 async function generateNextLineCode(client = null) {
@@ -7024,7 +6935,7 @@ const PLANNING_BASE_PROCESS_KEYS = Object.freeze(['rebobinado', 'empaque']);
 const PLANNING_PROCESS_LABELS = Object.freeze({
     diseno: 'Diseño',
     preprensa: 'Preprensa',
-    visto_bueno: 'Visto Bueno',
+    visto_bueno: 'Visto bueno',
     planchas: 'Planchas',
     tintas: 'Tintas',
     impresion: 'Impresión',
@@ -7044,14 +6955,9 @@ const PRODUCTION_FLOW_SEQUENCE = Object.freeze([
     'preprensa',
     'visto_bueno',
     'planchas',
+    'tintas',
     'impresion',
     'acabados',
-    'barnizado',
-    'laminado',
-    'troquelado',
-    'estampado',
-    'embosado',
-    'numeracion',
     'rebobinado',
     'empaque'
 ]);
@@ -7059,34 +6965,20 @@ const PRODUCTION_FLOW_SEQUENCE = Object.freeze([
 const PRODUCTION_FLOW_LABELS = Object.freeze({
     diseno: 'Diseño',
     preprensa: 'Preprensa',
-    visto_bueno: 'Visto Bueno',
+    visto_bueno: 'Visto bueno',
     planchas: 'Planchas',
+    tintas: 'Tintas',
     impresion: 'Impresión',
     acabados: 'Acabados',
-    barnizado: 'Barnizado',
-    laminado: 'Laminado',
-    troquelado: 'Troquelado',
-    estampado: 'Estampado',
-    embosado: 'Embosado',
-    numeracion: 'Numeración',
     rebobinado: 'Rebobinado',
     empaque: 'Empaque'
 });
 
 function canonicalProductionFlowKey(value) {
     const key = canonicalPlanningProcessKey(value);
+    if (['laminado', 'troquelado', 'estampado', 'barnizado', 'embosado', 'numeracion'].includes(key)) return 'acabados';
     if (key === 'visto' || key === 'visto-bueno') return 'visto_bueno';
-    if (key === 'numerado') return 'numeracion';
     return key;
-}
-
-function normalizeOrderTrackingStepKey(value) {
-    const raw = normalizePlanningKey(value);
-    if (!raw) return '';
-    if (raw.includes('orden-creada') || raw.includes('creacion-de-orden') || raw.includes('orden-creacion')) return 'orden_creada';
-    if (raw.includes('solicitud-vendedor') || raw.includes('vendedor')) return 'solicitud_vendedor';
-    if (raw.includes('planeacion') || raw.includes('planificacion') || raw.includes('seguimiento')) return 'planeacion';
-    return canonicalProductionFlowKey(raw);
 }
 
 function canonicalPlanningProcessKey(value) {
@@ -7139,7 +7031,7 @@ function addPlanningProcessKey(target, key) {
 }
 
 function getUiStateProcessMeta(raw = {}) {
-    const uiState = raw?.['Estado_UI'];
+    const uiState = raw?.['CODEX_UI_STATE'];
     if (!uiState || typeof uiState !== 'object') {
         return {
             finishes: {},
@@ -7172,7 +7064,7 @@ function getQuotedPlanningProcessKeys(orderRow = {}) {
     const orderRaw = snapshot.raw || {};
     const lineSnapshot = orderRaw.line_snapshot || {};
     const raw = lineSnapshot.raw_data || orderRaw || {};
-    const result = raw['Datos_Cotizados'] || {};
+    const result = raw['CODEX_PROCESS_RESULT'] || {};
     const uiProcessMeta = getUiStateProcessMeta(raw);
     const keys = new Set();
     const noPrint = String(snapshot.processType || raw['Proceso Productivo'] || '').toLowerCase().includes('sin impresion')
@@ -7286,8 +7178,8 @@ function resolveRawProcessDetail(raw = {}, keys = []) {
 
 function buildCalculationProcessSnapshot({ raw = {}, processType = '', machineName = '', dieCode = '', uiState = null } = {}) {
     const declaredList = normalizeProcessDisplayList(
-        Array.isArray(raw['Secuencia_Procesos']) && raw['Secuencia_Procesos'].length
-            ? raw['Secuencia_Procesos']
+        Array.isArray(raw['CODEX_PROCESS_SNAPSHOT']) && raw['CODEX_PROCESS_SNAPSHOT'].length
+            ? raw['CODEX_PROCESS_SNAPSHOT']
             : Array.isArray(uiState?.processSequence) && uiState.processSequence.length
                 ? uiState.processSequence
                 : (() => {
@@ -7339,7 +7231,7 @@ function buildCalculationProcessSnapshot({ raw = {}, processType = '', machineNa
             processName = 'Preprensa';
             break;
         case 'visto_bueno':
-            processName = 'Visto Bueno';
+            processName = 'Visto bueno';
             break;
         case 'planchas':
             processName = 'Planchas';
@@ -7396,16 +7288,13 @@ function inferRouteProcessKeys(orderRow = {}) {
     const quotedKeys = getQuotedPlanningProcessKeys(orderRow);
     const finishKeys = new Set(['laminado', 'troquelado', 'estampado', 'barnizado', 'embosado', 'numeracion', 'acabados']);
     const keys = new Set([
-        ...quotedKeys.map((key) => finishKeys.has(key) ? canonicalProductionFlowKey(key) : key),
-        'preprensa',
-        'visto_bueno',
+        ...quotedKeys.map((key) => finishKeys.has(key) ? 'acabados' : key),
         ...PLANNING_BASE_PROCESS_KEYS
     ]);
     if (keys.has('impresion')) {
-        ['preprensa', 'visto_bueno', 'impresion'].forEach((key) => keys.add(key));
+        ['diseno', 'preprensa', 'visto_bueno', 'planchas', 'tintas', 'impresion'].forEach((key) => keys.add(key));
     }
-    if (!orderUsesInternalPlates(orderRow)) keys.delete('planchas');
-    keys.delete('tintas');
+    if (quotedKeys.some((key) => finishKeys.has(key))) keys.add('acabados');
     return normalizePlanningProcessKeys([...keys]);
 }
 
@@ -7416,10 +7305,8 @@ function orderTrackingProcessKeys(orderRow = {}, routeRows = []) {
     const sourceKeys = selected.length ? selected : quoted;
     const keys = new Set(sourceKeys.map(canonicalProductionFlowKey).filter((key) => PRODUCTION_FLOW_SEQUENCE.includes(key)));
     if (keys.has('impresion')) {
-        ['preprensa', 'visto_bueno', 'impresion'].forEach((key) => keys.add(key));
+        ['diseno', 'preprensa', 'visto_bueno', 'planchas', 'tintas', 'impresion'].forEach((key) => keys.add(key));
     }
-    if (!orderUsesInternalPlates(orderRow)) keys.delete('planchas');
-    keys.delete('tintas');
     if (!keys.size) {
         routeRows.forEach((row) => {
             const key = canonicalProductionFlowKey(row.process_key || row.process_name);
@@ -7433,205 +7320,11 @@ function processOrderFromCosts(costsConfig = {}) {
     const rows = Array.isArray(costsConfig?.general?.processDefaults) ? costsConfig.general.processDefaults : [];
     const order = new Map();
     rows.forEach((row, index) => {
-        const rawKey = String(row?.key || row?.label || '').trim().toLowerCase();
-        if (['macula', 'troquel', 'sustrato', 'adicionales'].includes(rawKey)) return;
-        const key = canonicalProductionFlowKey(rawKey || row?.label);
+        const key = canonicalProductionFlowKey(row?.key || row?.label);
         if (key && !order.has(key)) order.set(key, Number(row?.order || ((index + 1) * 10)));
     });
     if (order.has('preprensa') && !order.has('visto_bueno')) order.set('visto_bueno', order.get('preprensa') + 0.5);
     return order;
-}
-
-const ORDER_TRACKING_MANDATORY_PROCESS_KEYS = Object.freeze(['preprensa', 'visto_bueno', 'rebobinado', 'empaque']);
-const ORDER_TRACKING_HIDDEN_PROCESS_KEYS = new Set(['macula', 'troquel', 'sustrato', 'tintas']);
-const ORDER_TRACKING_EXTERNAL_FINISH_KEYS = new Set(['acabados', 'barnizado', 'laminado', 'troquelado', 'estampado', 'embosado', 'numeracion']);
-
-function orderLineRawData(orderRow = {}) {
-    const raw = orderRow?.raw_data || {};
-    return raw?.line_snapshot?.raw_data || raw;
-}
-
-function orderQuotedResult(orderRow = {}) {
-    const raw = orderRow?.raw_data || {};
-    const lineRaw = orderLineRawData(orderRow);
-    const lineSnapshot = raw?.line_snapshot && typeof raw.line_snapshot === 'object' ? raw.line_snapshot : {};
-    const lineSummary = raw?.line_summary && typeof raw.line_summary === 'object' ? raw.line_summary : {};
-    return [
-        lineRaw?.['Datos_Cotizados'],
-        lineRaw?.CODEX_PROCESS_RESULT,
-        lineRaw?.processResult,
-        lineSnapshot?.raw_data?.['Datos_Cotizados'],
-        lineSnapshot?.raw_data?.CODEX_PROCESS_RESULT,
-        lineSnapshot?.processResult,
-        lineSummary?.raw_data?.['Datos_Cotizados'],
-        lineSummary?.raw_data?.CODEX_PROCESS_RESULT,
-        raw?.['Datos_Cotizados'],
-        raw?.CODEX_PROCESS_RESULT,
-        raw?.processResult
-    ].find((item) => item && typeof item === 'object' && !Array.isArray(item)) || {};
-}
-
-function firstPositivePlanningNumber(...values) {
-    for (const value of values) {
-        const parsed = parseLegacyNumber(value);
-        const numeric = Number(parsed);
-        if (Number.isFinite(numeric) && numeric > 0) return numeric;
-    }
-    return 0;
-}
-
-function quotedDurationMinutesFrom(item = {}) {
-    if (!item || typeof item !== 'object') return 0;
-    const minutes = firstPositivePlanningNumber(
-        item.totalMinutes,
-        Number(item.setupAdjustmentMin || 0) + Number(item.runMinutes || 0),
-        Number(item.setupMinutes || 0) + Number(item.runMinutes || 0),
-        item.durationMinutes,
-        item.minutes
-    );
-    if (minutes > 0) return minutes;
-    const hours = firstPositivePlanningNumber(item.time, item.hours, item.durationHours, item.totalHours);
-    return hours > 0 ? hours * 60 : 0;
-}
-
-function quotedFinishDurationMinutesFrom(item = {}) {
-    if (!item || typeof item !== 'object') return 0;
-    const setupMinutes = firstPositivePlanningNumber(item.setupMinutes, item.setupAdjustmentMin);
-    const runMinutes = firstPositivePlanningNumber(item.runMinutes);
-    if (setupMinutes > 0 && runMinutes > 0) return setupMinutes + runMinutes;
-    return quotedDurationMinutesFrom(item);
-}
-
-function quotedProcessDurationMinutes(orderRow = {}, processKey = '') {
-    const key = canonicalProductionFlowKey(processKey);
-    const result = orderQuotedResult(orderRow);
-    if (!result || typeof result !== 'object') return 0;
-    if (key === 'diseno') return quotedDurationMinutesFrom(result.design);
-    if (key === 'preprensa') return quotedDurationMinutesFrom(result.prepress);
-    if (key === 'impresion') {
-        const direct = quotedDurationMinutesFrom(result.print);
-        if (direct > 0) return direct;
-        return (Array.isArray(result.print?.items) ? result.print.items : [])
-            .reduce((sum, item) => sum + quotedDurationMinutesFrom(item), 0);
-    }
-    if (key === 'empaque') return quotedDurationMinutesFrom(result.packaging);
-    if (key === 'planchas') {
-        const direct = quotedDurationMinutesFrom(result.plates);
-        if (direct > 0) return direct;
-        return (Array.isArray(result.plates?.items) ? result.plates.items : [])
-            .reduce((sum, item) => sum + quotedDurationMinutesFrom(item), 0);
-    }
-    const finishItems = Array.isArray(result.finishes?.items) ? result.finishes.items : [];
-    const matchingFinishes = finishItems.filter((item) => {
-        const candidates = [
-            item.processKey,
-            item.key,
-            item.slotKey,
-            item.label,
-            item.processName,
-            item.description,
-            item.name
-        ].map(canonicalProductionFlowKey);
-        return candidates.includes(key);
-    });
-    return matchingFinishes.reduce((sum, item) => sum + quotedFinishDurationMinutesFrom(item), 0);
-}
-
-function orderUiState(orderRow = {}) {
-    const raw = orderRow?.raw_data || {};
-    const lineRaw = orderLineRawData(orderRow);
-    return lineRaw?.['Estado_UI'] || raw?.['Estado_UI'] || {};
-}
-
-function orderHasNoPrint(orderRow = {}) {
-    const snapshot = inferPlanningOrderSnapshot(orderRow);
-    const lineRaw = orderLineRawData(orderRow);
-    const uiState = orderUiState(orderRow);
-    const text = String(snapshot.processType || lineRaw['Proceso Productivo'] || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-    return text.includes('sin impresion')
-        || isTruthyProcessFlag(lineRaw['NO IMPRESION'])
-        || isTruthyProcessFlag(lineRaw['SIN IMPRESION'])
-        || isTruthyProcessFlag(uiState?.header?.noPrint);
-}
-
-function orderHasQuotedDesign(orderRow = {}) {
-    const result = orderQuotedResult(orderRow);
-    return positivePlanningAmount(result?.design?.subtotal, result?.design?.rawSubtotal);
-}
-
-function orderHasQuotedPrint(orderRow = {}) {
-    if (orderHasNoPrint(orderRow)) return false;
-    const snapshot = inferPlanningOrderSnapshot(orderRow);
-    const result = orderQuotedResult(orderRow);
-    const lineSnapshot = orderRow?.raw_data?.line_snapshot || {};
-    const printItems = Array.isArray(result?.print?.items) ? result.print.items : [];
-    return positivePlanningAmount(
-        result?.print?.subtotal,
-        result?.print?.rawSubtotal,
-        lineSnapshot?.components?.print,
-        lineSnapshot?.components?.runCost
-    ) || printItems.some(processObjectLooksActive) || Boolean(snapshot.machineName);
-}
-
-function orderUsesInternalPlates(orderRow = {}, costsConfig = {}) {
-    const uiState = orderUiState(orderRow);
-    const plates = uiState?.plates && typeof uiState.plates === 'object' ? uiState.plates : {};
-    const plateMode = String(plates.plateMode || '').trim().toLowerCase();
-    const chargePlates = plates.chargePlates !== false;
-    const processDefault = findCostProcessDefault(costsConfig, 'planchas');
-    const createEnabled = processDefault ? processDefault.createEnabled === true : true;
-    return chargePlates && plateMode === 'create' && createEnabled;
-}
-
-function externalFinishProcessKeysForOrder(orderRow = {}) {
-    const keys = new Set();
-    const uiState = orderUiState(orderRow);
-    const result = orderQuotedResult(orderRow);
-    const add = (value) => {
-        const key = canonicalProductionFlowKey(value);
-        if (ORDER_TRACKING_EXTERNAL_FINISH_KEYS.has(key)) keys.add(key);
-    };
-    (Array.isArray(uiState?.finishes) ? uiState.finishes : []).forEach((finish) => {
-        if (finish?.active === false) return;
-        if (finish?.active === true || processObjectLooksActive(finish)) {
-            add(finish.processKey || finish.slotKey || finish.key || finish.label || finish.description);
-        }
-    });
-    (Array.isArray(result?.finishes?.items) ? result.finishes.items : []).forEach((finish) => {
-        if (!processObjectLooksActive(finish)) return;
-        add(finish.processKey || finish.key || finish.slotKey || finish.label || finish.description);
-    });
-    return [...keys];
-}
-
-function sortOrderTrackingProcessKeys(keys = [], costsConfig = {}) {
-    const costOrder = processOrderFromCosts(costsConfig);
-    const fallbackOrder = new Map(PRODUCTION_FLOW_SEQUENCE.map((key, index) => [key, (index + 1) * 10]));
-    const normalized = [...new Set(keys
-        .map(canonicalProductionFlowKey)
-        .filter((key) => key && PRODUCTION_FLOW_SEQUENCE.includes(key) && !ORDER_TRACKING_HIDDEN_PROCESS_KEYS.has(key)))];
-    return normalized.sort((left, right) => {
-        const leftOrder = costOrder.get(left) ?? fallbackOrder.get(left) ?? 999;
-        const rightOrder = costOrder.get(right) ?? fallbackOrder.get(right) ?? 999;
-        if (leftOrder !== rightOrder) return leftOrder - rightOrder;
-        return (fallbackOrder.get(left) ?? 999) - (fallbackOrder.get(right) ?? 999);
-    });
-}
-
-function resolveOrderTrackingProcessKeys(orderRow = {}, costsConfig = {}, routeRows = []) {
-    const keys = new Set(ORDER_TRACKING_MANDATORY_PROCESS_KEYS);
-    if (orderHasQuotedDesign(orderRow)) keys.add('diseno');
-    if (orderUsesInternalPlates(orderRow, costsConfig)) keys.add('planchas');
-    if (orderHasQuotedPrint(orderRow)) keys.add('impresion');
-    externalFinishProcessKeysForOrder(orderRow).forEach((key) => keys.add(key));
-
-    if (!orderRow?.raw_data && Array.isArray(routeRows)) {
-        routeRows.forEach((row) => {
-            const key = canonicalProductionFlowKey(row.process_key || row.process_name);
-            if (!ORDER_TRACKING_HIDDEN_PROCESS_KEYS.has(key)) keys.add(key);
-        });
-    }
-    return sortOrderTrackingProcessKeys([...keys], costsConfig);
 }
 
 async function listLiveOrders() {
@@ -7702,23 +7395,21 @@ function buildPlanningSnapshot(rawData = {}, processMap = new Map(), profileMap 
         const setupPerStationMinutes = Number(machineProfile?.setup_per_station_minutes || 0);
         const setupMinutes = setupBaseMinutes + ((processKey === 'impresion' ? tintCount : 0) * setupPerStationMinutes);
         const runMinutes = speed > 0 && baseFeet > 0 ? baseFeet / speed : 0;
-        const quotedMinutes = quotedProcessDurationMinutes(pseudoOrder, processKey);
-        const totalMinutes = quotedMinutes > 0 ? quotedMinutes : (setupMinutes + runMinutes);
-        const durationHours = totalMinutes > 0 ? Number((totalMinutes / 60).toFixed(4)) : 0;
+        const durationHours = Number((((setupMinutes + runMinutes) / 60) || 0.25).toFixed(4));
 
         return {
             processKey,
             processName: process?.process_name || processKey,
             sequenceOrder: index + 1,
             machineProfileId: machineProfile?.id || null,
-            machineName: machineProfile?.machine_name || (processKey === 'impresion' ? snapshot.machineName : ''),
+            machineName: machineProfile?.machine_name || snapshot.machineName || '',
             tintCount,
             baseFeet,
             speedFpm: speed,
             setupMinutes: Number(setupMinutes.toFixed(4)),
             runMinutes: Number(runMinutes.toFixed(4)),
             durationHours,
-            source: quotedMinutes > 0 ? 'quoted-calculation' : (machineProfile ? 'profile-estimate' : 'missing-duration')
+            source: machineProfile ? 'profile-estimate' : 'fallback-estimate'
         };
     });
 
@@ -7753,71 +7444,43 @@ async function ensurePlanningRoutesForLiveOrders() {
 
 async function ensurePlanningRoutesForOrder(order, references = null, options = {}) {
     if (!order?.order_code) return;
-    const executor = options.client || { query: pgQuery };
-    const resolvedReferences = references || await loadPlanningReferenceMaps(options.client || null);
+    const resolvedReferences = references || await loadPlanningReferenceMaps();
     const { processMap, profileMap } = resolvedReferences;
     const replaceExisting = options.replaceExisting === true;
-    const costsConfig = options.costsConfig || await loadCostsConfig();
-    const existingResult = await executor.query(
-        `SELECT id::text, sequence_order, process_key, process_name, route_status
-           FROM production_order_routes
-          WHERE order_code = $1
-          ORDER BY sequence_order`,
+    const existingResult = await pgQuery(
+        `SELECT id::text, sequence_order FROM production_order_routes WHERE order_code = $1 ORDER BY sequence_order`,
         [order.order_code]
     );
+    if (existingResult.rows.length && !replaceExisting) return;
     if (existingResult.rows.length && replaceExisting) {
-        await executor.query(`DELETE FROM production_order_routes WHERE order_code = $1`, [order.order_code]);
+        await pgQuery(`DELETE FROM production_order_routes WHERE order_code = $1`, [order.order_code]);
     }
 
     const snapshot = inferPlanningOrderSnapshot(order);
     const freshPlanningSnapshot = buildPlanningSnapshot(order.raw_data || {}, processMap, profileMap);
     const storedPlanningSnapshot = order.raw_data?.planning_snapshot || order.raw_data?.planningSnapshot || null;
-    const plannedByKey = new Map();
-    [
-        ...(Array.isArray(storedPlanningSnapshot?.processes) ? storedPlanningSnapshot.processes : []),
-        ...(Array.isArray(freshPlanningSnapshot?.processes) ? freshPlanningSnapshot.processes : [])
-    ].forEach((process) => {
-        const key = canonicalProductionFlowKey(process?.processKey || process?.processName);
-        if (key && !plannedByKey.has(key)) plannedByKey.set(key, process);
-    });
-    const existingKeys = replaceExisting
-        ? new Set()
-        : new Set(existingResult.rows.map((row) => canonicalProductionFlowKey(row.process_key || row.process_name)).filter(Boolean));
-    const targetKeys = resolveOrderTrackingProcessKeys(order, costsConfig, existingResult.rows);
-    const plannedProcesses = targetKeys
-        .filter((key) => !existingKeys.has(key))
-        .map((key, index) => {
-            const planned = plannedByKey.get(key) || {};
-            const process = processMap.get(key);
-            return {
-                ...planned,
-                processKey: key,
-                processName: planned.processName || process?.process_name || PRODUCTION_FLOW_LABELS[key] || key,
-                sequenceOrder: replaceExisting || !existingResult.rows.length
-                    ? index + 1
-                    : Math.max(...existingResult.rows.map((row) => Number(row.sequence_order || 0)), 0) + index + 1
-            };
-        });
-    if (!plannedProcesses.length) return;
+    const plannedProcesses = Array.isArray(freshPlanningSnapshot?.processes) && freshPlanningSnapshot.processes.length
+        ? freshPlanningSnapshot.processes
+        : Array.isArray(storedPlanningSnapshot?.processes) && storedPlanningSnapshot.processes.length
+            ? storedPlanningSnapshot.processes
+            : [];
 
     let startHour = 0;
     let previousRouteId = null;
 
     for (const plannedProcess of plannedProcesses) {
         const processKey = plannedProcess.processKey;
-        const process = processMap.get(processKey) || {
-            process_key: processKey,
-            process_name: plannedProcess.processName || PRODUCTION_FLOW_LABELS[processKey] || processKey
-        };
+        const process = processMap.get(processKey);
+        if (!process) continue;
 
         const machineProfile = plannedProcess.machineProfileId
             ? (profileMap.get(processKey) || []).find((row) => String(row.id) === String(plannedProcess.machineProfileId)) || selectMachineProfileForPlanning(processKey, snapshot, profileMap)
             : selectMachineProfileForPlanning(processKey, snapshot, profileMap);
         const durationHours = Number(plannedProcess.durationHours || 0) > 0
             ? Number(plannedProcess.durationHours)
-            : 0;
+            : 0.25;
 
-        const insertResult = await executor.query(`
+        const insertResult = await pgQuery(`
             INSERT INTO production_order_routes (
                 order_code, quote_code, line_code, sequence_order,
                 process_key, process_name, machine_profile_id,
@@ -7845,7 +7508,7 @@ async function ensurePlanningRoutesForOrder(order, references = null, options = 
                 setupMinutes: Number(plannedProcess.setupMinutes || 0),
                 runMinutes: Number(plannedProcess.runMinutes || 0),
                 speedFpm: Number(plannedProcess.speedFpm || 0),
-                source: plannedProcess.source || 'missing-duration'
+                source: plannedProcess.source || 'fallback-estimate'
             })
         ]);
 
@@ -8027,7 +7690,7 @@ async function ensurePlanningSchema() {
     const seededProcesses = [
         { processKey: 'diseno', processName: 'Diseño', sequenceOrder: 1, colorHex: '#8B5CF6', iconKey: '[D]', isParallel: false },
         { processKey: 'preprensa', processName: 'Preprensa', sequenceOrder: 2, colorHex: '#6366F1', iconKey: '[PP]', isParallel: false },
-        { processKey: 'visto_bueno', processName: 'Visto Bueno', sequenceOrder: 3, colorHex: '#22C55E', iconKey: '[VB]', isParallel: false },
+        { processKey: 'visto_bueno', processName: 'Visto bueno', sequenceOrder: 3, colorHex: '#22C55E', iconKey: '[VB]', isParallel: false },
         { processKey: 'planchas', processName: 'Planchas', sequenceOrder: 4, colorHex: '#64748B', iconKey: '[PL]', isParallel: false },
         { processKey: 'tintas', processName: 'Tintas', sequenceOrder: 5, colorHex: '#0EA5E9', iconKey: '[TIN]', isParallel: false },
         { processKey: 'impresion', processName: 'Impresión', sequenceOrder: 6, colorHex: '#1D9E75', iconKey: '[IMP]', isParallel: false },
@@ -8117,14 +7780,11 @@ async function getQuoteHeaderRow(quoteCode) {
 
 async function getLatestCalculationRow(quoteCode, lineCode) {
     const result = await pgQuery(
-        `SELECT fc.calculation_code, fc.quote_code, fc.line_code, fc.product_code, fc.customer_code, fc.process_type, fc.machine_name, fc.die_code, fc.material_code,
-                fc.quantity, fc.subtotal_cost, fc.total_cost, fc.unit_price, fc.raw_data
-           FROM flexo_calculations fc
-           LEFT JOIN quotes q ON q.quote_code = fc.quote_code
-          WHERE fc.quote_code = $1
-            AND fc.line_code = $2
-            AND ${quoteOwnedCalculationPredicate('fc', 'q')}
-          ORDER BY fc.created_at DESC NULLS LAST, fc.calculation_code DESC NULLS LAST
+        `SELECT calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name, die_code, material_code,
+                quantity, subtotal_cost, total_cost, unit_price, raw_data
+           FROM flexo_calculations
+          WHERE quote_code = $1 AND line_code = $2
+          ORDER BY created_at DESC NULLS LAST
           LIMIT 1`,
         [quoteCode, lineCode]
     );
@@ -8145,14 +7805,11 @@ async function getQuoteLineContext(quoteCode, lineCode, client = null) {
     const [quoteResult, calcResult] = await Promise.all([
         executor.query(`SELECT * FROM quotes WHERE quote_code = $1 LIMIT 1`, [quoteCode]),
         executor.query(
-            `SELECT fc.calculation_code, fc.quote_code, fc.line_code, fc.product_code, fc.customer_code, fc.process_type, fc.machine_name, fc.die_code, fc.material_code,
-                    fc.quantity, fc.subtotal_cost, fc.total_cost, fc.unit_price, fc.raw_data
-               FROM flexo_calculations fc
-               LEFT JOIN quotes q ON q.quote_code = fc.quote_code
-              WHERE fc.quote_code = $1
-                AND fc.line_code = $2
-                AND ${quoteOwnedCalculationPredicate('fc', 'q')}
-              ORDER BY fc.created_at DESC NULLS LAST, fc.calculation_code DESC NULLS LAST
+            `SELECT calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name, die_code, material_code,
+                    quantity, subtotal_cost, total_cost, unit_price, raw_data
+               FROM flexo_calculations
+              WHERE quote_code = $1 AND line_code = $2
+              ORDER BY created_at DESC NULLS LAST
               LIMIT 1`,
             [quoteCode, lineCode]
         )
@@ -8389,8 +8046,8 @@ function pushSapComponent(components = [], component = {}) {
 
 function appendSapComponentsFromLine(components = [], lineRow = {}, warehouse = '01') {
     const raw = lineRow?.raw_data || {};
-    const result = raw['Datos_Cotizados'] || {};
-    const uiState = raw['Estado_UI'] || {};
+    const result = raw['CODEX_PROCESS_RESULT'] || {};
+    const uiState = raw['CODEX_UI_STATE'] || {};
     const sourceLineCode = lineRow?.line_code || raw['ID LINEA'] || '';
     const materialCode = pickFirstValue(
         lineRow?.material_code,
@@ -8654,23 +8311,23 @@ function buildDuplicatedLineRawData(sourceRawData = {}) {
         'FIN COTIZACION | ESTADO',
         'RESPUESTA COTIZADOR | FECHA',
         'RESPUESTA COTIZADOR | USUARIO',
-        'Finalizado_Para_Orden'
+        'CODEX_FINALIZED_FOR_ORDER'
     ].forEach((key) => delete raw[key]);
     delete raw.grupoFrenteDorso;
     delete raw.grupo_frente_dorso;
-    delete raw.Grupo_Frente_Dorso;
+    delete raw.CODEX_FD_GROUP;
     raw['SOLICITUD ESTADO'] = 'Borrador';
     raw['ESTADO LINEA'] = 'Borrador';
     return raw;
 }
 
 function resetDuplicatedLineUiState(rawData = {}, { targetQuote = {}, lineCode = '' } = {}) {
-    const uiState = rawData.Estado_UI;
+    const uiState = rawData.CODEX_UI_STATE;
     if (!uiState || typeof uiState !== 'object' || Array.isArray(uiState)) return;
     const header = uiState.header && typeof uiState.header === 'object' && !Array.isArray(uiState.header)
         ? uiState.header
         : {};
-    rawData.Estado_UI = {
+    rawData.CODEX_UI_STATE = {
         ...uiState,
         header: {
             ...header,
@@ -8683,44 +8340,10 @@ function resetDuplicatedLineUiState(rawData = {}, { targetQuote = {}, lineCode =
             finalizedForOrder: false
         }
     };
-    delete rawData.Estado_UI.quoteTracking;
-    delete rawData.Estado_UI.tracking;
-    delete rawData.Estado_UI.timeline;
-    delete rawData.Estado_UI.milestones;
-}
-
-/**
- * Normalize legacy CODEX_* keys to new descriptive Spanish keys for backward compatibility
- * with existing data in the database. Converts in-place on the given object.
- */
-function normalizeCalculationKeys(obj) {
-    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
-    const MAP = {
-        'CODEX_UI_STATE': 'Estado_UI',
-        'CODEX_PROCESS_SNAPSHOT': 'Secuencia_Procesos',
-        'CODEX_PROCESS_SEQUENCE_TEXT': 'Texto_Secuencia_Procesos',
-        'CODEX_FINALIZED_FOR_ORDER': 'Finalizado_Para_Orden',
-        'CODEX_FD_GROUP': 'Grupo_Frente_Dorso',
-        'CODEX_AUTO_SELECTION': 'Seleccion_Automatica',
-        'CODEX_AUTO_PRICING': 'Precio_Automatico',
-        'CODEX_PLANNING_SNAPSHOT': 'Instantanea_Planificacion',
-        'CODEX_VALIDATION_MESSAGES': 'Mensajes_Validacion',
-        'CODEX_VALIDATION_BLOCKED': 'Validacion_Bloqueada',
-        'CODEX_QUOTE_CLOSURE': 'Cierre_Cotizacion',
-        'CODEX_REQUEST_KEY': 'Clave_Solicitud',
-        'CODEX_LINE_ORDER': 'Orden_Linea'
-    };
-    // Only add new key if old key exists AND new key doesn't already exist
-    for (const [oldKey, newKey] of Object.entries(MAP)) {
-        if (Object.prototype.hasOwnProperty.call(obj, oldKey) && !Object.prototype.hasOwnProperty.call(obj, newKey)) {
-            obj[newKey] = obj[oldKey];
-        }
-    }
-    // Normalize nested line_snapshot.raw_data if present
-    if (obj.line_snapshot && typeof obj.line_snapshot === 'object' && obj.line_snapshot.raw_data && typeof obj.line_snapshot.raw_data === 'object') {
-        normalizeCalculationKeys(obj.line_snapshot.raw_data);
-    }
-    return obj;
+    delete rawData.CODEX_UI_STATE.quoteTracking;
+    delete rawData.CODEX_UI_STATE.tracking;
+    delete rawData.CODEX_UI_STATE.timeline;
+    delete rawData.CODEX_UI_STATE.milestones;
 }
 
 async function cloneCalculationToQuote({ sourceRow, targetQuote, traceability = {} }) {
@@ -8840,9 +8463,6 @@ function buildProductionOrderRawData({ orderCode, quoteRow, lineRow, attachments
         salesperson_name: pickFirstValue(quoteRow?.salesperson_name, raw.VENDEDOR),
         status: 'Pendiente',
         created_on: new Date().toISOString(),
-        created_by: metadata.created_by,
-        createdBy: metadata.created_by,
-        created_at: metadata.created_at,
         planning_control: {
             salesReleased: false,
             salesReleasedAt: null,
@@ -8907,98 +8527,6 @@ function getOrderPlanningControl(rawData = {}, quoteRow = null) {
     };
 }
 
-/**
- * Centraliza todos los datos de impresión de una orden en un único bloque.
- * Lee desde line_snapshot, line_snapshot.raw_data, Datos_Cotizados, Estado_UI y campos planos.
- * Esto elimina la búsqueda fragmentada en múltiples fuentes.
- */
-function extractPrintingData(rawData = {}) {
-    const ls = rawData.line_snapshot || {};
-    const lr = (ls.raw_data || {});
-    const dc = lr['Datos_Cotizados'] || {};
-    const uiState = lr['Estado_UI'] || {};
-    const stages = Array.isArray(uiState.printStages) ? uiState.printStages : [];
-    const hasPrintInput = String(lr['SIN IMPRESION'] || '').toLowerCase() !== 'si';
-    const hasCmyk = String(lr['CMYK'] || '').toLowerCase() === 'si' || lr['GENERAL | CMYK'] === true;
-    const hasWhite = String(lr['TINTA BLANCA'] || '').toLowerCase() === 'si' || lr['GENERAL | TINTA BLANCA'] === true;
-    const hasDoubleWhite = String(lr['DOBLE PASADA BLANCA'] || '').toLowerCase() === 'si';
-    const tintCount = Number(ls.tintCount || lr['CANTIDAD TINTAS'] || 0);
-    const pantoneCount = Number(ls.pantoneCount || lr['CANTIDAD PANTONES'] || 0);
-    const inkNames = [];
-    const inkMaterialIds = [];
-    stages.forEach(function (s) {
-        if (s.inkMaterialDesc) { inkNames.push(s.inkMaterialDesc); }
-        if (s.inkMaterialId) { inkMaterialIds.push(s.inkMaterialId); }
-        if (hasWhite && s.whiteInkMaterialDesc && !inkNames.includes(s.whiteInkMaterialDesc)) {
-            inkNames.push(s.whiteInkMaterialDesc);
-        }
-        if (hasWhite && s.whiteInkMaterialId) {
-            inkMaterialIds.push(s.whiteInkMaterialId);
-        }
-    });
-    const pantones = [lr['PANTONE 1'], lr['PANTONE 2'], lr['PANTONE 3']].filter(Boolean);
-    const dieCode = ls.dieCode || lr['GENERAL | TROQUEL | ID'] || '';
-    const finishes = [];
-    (Array.isArray(dc?.print?.items) ? dc.print.items : []).forEach(function (pi) {
-        (Array.isArray(pi?.inlineItems) ? pi.inlineItems : []).forEach(function (inl) {
-            if (inl?.active && (inl.processKey || inl.key || inl.label)) {
-                finishes.push(inl.label || inl.materialName || inl.processKey || inl.key);
-            }
-        });
-    });
-    (Array.isArray(dc?.finishes?.items) ? dc.finishes.items : []).forEach(function (ext) {
-        if (ext?.active && (ext.processKey || ext.key || ext.label || ext.description)) {
-            finishes.push(ext.label || ext.description || ext.processKey || ext.key);
-        }
-    });
-    ['ACABADOS | BARNIZ', 'BARNIZ', 'ACABADOS | LAMINADO', 'LAMINADO', 'ACABADOS | FOIL', 'FOIL',
-     'ACABADOS | EMBOSADO', 'EMBOSADO', 'ACABADOS | NUMERADO', 'NUMERADO'].forEach(function (fk) {
-        var v = lr[fk];
-        if (v && !finishes.some(function (f) { return f === v || f.includes(String(v)); })) {
-            finishes.push(String(v).trim());
-        }
-    });
-    if (dieCode) finishes.push('Troquelado (' + dieCode + ')');
-    var uniqueFinishes = [];
-    finishes.forEach(function (f) { if (!uniqueFinishes.includes(f)) uniqueFinishes.push(f); });
-    const numbering = lr['ACABADOS | NUMERADO'] || lr['NUMERADO'] || '';
-    const machineName = ls.quotedMachine || lr['MAQUINA IMPRESION'] || lr['CONV | MAQUINA'] || '';
-    const materialName = ls.materialName || lr['GENERAL | MATERIAL'] || '';
-    const materialFeet = Number(ls.materialFeet || lr['GENERAL | SUSTRATO | CONSUMO PIES'] || 0);
-    const materialFeetWaste = Number(ls.materialFeetWaste || 0);
-    const coreWidth = ls.coreWidth || '';
-    const coreDiameter = ls.coreDiameter || '';
-    const labelsPerRoll = Number(ls.labelsPerRoll || 0);
-    const outputType = ls.outputType || lr['TIPO SALIDA'] || '';
-    const frontBackRun = rawData.production_run;
-    const fb = frontBackRun && frontBackRun.mode === 'frente_dorso'
-        ? { mode: 'frente_dorso', label: frontBackRun.label || 'Frente / Dorso', outputs: frontBackRun.outputs || [] }
-        : null;
-    return {
-        hasPrint: hasPrintInput,
-        machineName: machineName || '',
-        materialName: materialName || '',
-        materialFeet: materialFeet,
-        materialFeetWaste: materialFeetWaste,
-        tintCount: tintCount,
-        pantoneCount: pantoneCount,
-        hasCmyk: hasCmyk,
-        hasWhite: hasWhite,
-        hasDoubleWhite: hasDoubleWhite,
-        inkNames: inkNames,
-        inkMaterialIds: inkMaterialIds,
-        pantones: pantones,
-        finishes: uniqueFinishes,
-        dieCode: dieCode,
-        numbering: numbering,
-        coreWidth: coreWidth,
-        coreDiameter: coreDiameter,
-        labelsPerRoll: labelsPerRoll,
-        outputType: outputType,
-        frontBack: fb
-    };
-}
-
 function withUpdatedOrderPlanningControl(rawData = {}, updates = {}, quoteRow = null) {
     return {
         ...rawData,
@@ -9007,54 +8535,6 @@ function withUpdatedOrderPlanningControl(rawData = {}, updates = {}, quoteRow = 
             ...updates
         }
     };
-}
-
-function getOrderTrackingMarks(rawData = {}) {
-    const marks = rawData?.order_tracking_marks || rawData?.orderTrackingMarks || {};
-    return marks && typeof marks === 'object' && !Array.isArray(marks) ? marks : {};
-}
-
-function withUpdatedOrderTrackingMark(rawData = {}, processKey = '', mark = {}) {
-    const key = normalizeOrderTrackingStepKey(processKey);
-    if (!key) return rawData;
-    return {
-        ...rawData,
-        order_tracking_marks: {
-            ...getOrderTrackingMarks(rawData),
-            [key]: mark
-        }
-    };
-}
-
-function applyOrderTrackingMarks(steps = [], rawData = {}, resolveActorInfo = () => ({ name: '', photoUrl: '' })) {
-    const marks = getOrderTrackingMarks(rawData);
-    return steps.map((step) => {
-        const key = normalizeOrderTrackingStepKey(step.processKey);
-        const mark = key ? marks[key] : null;
-        if (!mark || typeof mark !== 'object') return step;
-        if (mark.marked === false) {
-            return {
-                ...step,
-                routeStatus: 'PENDIENTE',
-                completedBy: '',
-                completedByPhoto: '',
-                completedAt: null,
-                startedAt: null,
-                trackingOverride: mark
-            };
-        }
-        if (mark.marked !== true) return step;
-        const actor = resolveActorInfo(mark.markedBy || mark.userName || mark.user || '');
-        return {
-            ...step,
-            routeStatus: 'COMPLETADO',
-            completedBy: actor.name || pickFirstValue(sanitizeAdminUserText(mark.markedBy), sanitizeAdminUserText(mark.userName), sanitizeAdminUserText(mark.user)),
-            completedByPhoto: pickFirstValue(sanitizeAdminUserText(mark.markedByPhoto), sanitizeAdminUserText(mark.photoUrl), actor.photoUrl),
-            completedAt: mark.markedAt || null,
-            startedAt: mark.markedAt || step.startedAt || null,
-            trackingOverride: mark
-        };
-    });
 }
 
 function buildOrderPlanningSummary(orderRow = {}, quoteRow = null) {
@@ -9083,7 +8563,7 @@ function buildQuoteRawData(payload = {}, existingRawData = {}) {
 
     return {
         ...existingRawData,
-        'Clave_Solicitud': pickFirstValue(payload.request_key, existingRawData['Clave_Solicitud']),
+        'CODEX_REQUEST_KEY': pickFirstValue(payload.request_key, existingRawData['CODEX_REQUEST_KEY']),
         'ID CLIENTE': customerCode,
         'CLIENTE NOMBRE': customerName,
         'CLIENTE | CONTACTO NOMBRE COMPLETO': contactName,
@@ -9105,7 +8585,7 @@ function buildCalculationRawData(payload = {}, existingRawData = {}) {
     const activePrefix = isDigital ? 'DIGITAL' : 'CONV';
     const finalizedForOrder = hasOwn('finalized_for_order') || hasOwn('finalizedForOrder')
         ? Boolean(hasOwn('finalized_for_order') ? payload.finalized_for_order : payload.finalizedForOrder)
-        : Boolean(existingRawData['Finalizado_Para_Orden']);
+        : Boolean(existingRawData['CODEX_FINALIZED_FOR_ORDER']);
     const quantityProducts = hasOwn('quantityProducts') || hasOwn('quantity')
         ? (parseLegacyNumber(payload.quantity) ?? parseLegacyNumber(payload.quantityProducts))
         : parseLegacyNumber(existingRawData['Cantidad Productos']);
@@ -9176,11 +8656,9 @@ function buildCalculationRawData(payload = {}, existingRawData = {}) {
             : pickFirstValue(existingRawData['Material Digital | Id Material']),
           'SOLICITUD ESTADO': pickFirstValue(payload.status, existingRawData['SOLICITUD ESTADO'], 'Borrador'),
           'ESTADO LINEA': pickFirstValue(payload.status, existingRawData['ESTADO LINEA'], 'Borrador'),
-          'Finalizado_Para_Orden': finalizedForOrder,
+          'CODEX_FINALIZED_FOR_ORDER': finalizedForOrder,
           'Proceso Productivo': processType,
         'TIPO ETIQUETADO': hasOwn('applicationType') ? payload.applicationType : pickFirstValue(existingRawData['TIPO ETIQUETADO']),
-        'AMBIENTE APLICACION': hasOwn('applicationEnvironment') ? payload.applicationEnvironment : pickFirstValue(existingRawData['AMBIENTE APLICACION']),
-        'TIPO SUPERFICIE': hasOwn('surfaceType') ? payload.surfaceType : pickFirstValue(existingRawData['TIPO SUPERFICIE']),
         'TIPO SALIDA': hasOwn('outputType') ? payload.outputType : pickFirstValue(existingRawData['TIPO SALIDA']),
         'GENERAL | TROQUEL | ID': hasOwn('die_code') ? payload.die_code : pickFirstValue(existingRawData['GENERAL | TROQUEL | ID']),
         [`${activePrefix} | MAQUINA`]: hasOwn('machine_name') ? payload.machine_name : pickFirstValue(existingRawData[`${activePrefix} | MAQUINA`]),
@@ -9201,25 +8679,20 @@ function buildCalculationRawData(payload = {}, existingRawData = {}) {
         'GENERAL | 9 | Impuestos': taxAmount ?? existingRawData['GENERAL | 9 | Impuestos'],
         'PRECIO TOTAL AL FINALIZAR': total,
         'GENERAL | 9 | UNITARIO | DOL': unitPrice,
-        'Estado_UI': hasOwn('uiState') ? payload.uiState : (existingRawData['Estado_UI'] || null),
-        'Datos_Cotizados': hasOwn('processResult') ? payload.processResult : (existingRawData['Datos_Cotizados'] || null)
+        'CODEX_UI_STATE': hasOwn('uiState') ? payload.uiState : (existingRawData['CODEX_UI_STATE'] || null),
+        'CODEX_PROCESS_RESULT': hasOwn('processResult') ? payload.processResult : (existingRawData['CODEX_PROCESS_RESULT'] || null)
     };
 
-    const uiPrintState = rawData['Estado_UI']?.print || rawData['Estado_UI']?.printStages?.[0] || null;
+    const uiPrintState = rawData['CODEX_UI_STATE']?.print || rawData['CODEX_UI_STATE']?.printStages?.[0] || null;
     if (uiPrintState && typeof uiPrintState === 'object') {
-        const inlineBarnizState = uiPrintState.inlineFinishes?.barniz || {};
-        const varnishInkProfile = Array.isArray(uiPrintState.inkProfiles)
-            ? uiPrintState.inkProfiles.find((row) => String(row?.tipo || '').toLowerCase().includes('barniz'))
-            : null;
         rawData['CONV | PERFIL TINTA | TIPO'] = pickFirstValue(uiPrintState.profileLabel, existingRawData['CONV | PERFIL TINTA | TIPO']);
         rawData['CONV | PERFIL TINTA | COBERTURA %'] = parseLegacyNumber(uiPrintState.coveragePct);
         rawData['CONV | PERFIL TINTA | BCM ANILOX'] = parseLegacyNumber(uiPrintState.aniloxBcm);
         rawData['CONV | PERFIL TINTA | GSM'] = parseLegacyNumber(uiPrintState.inkGsm);
-        rawData['CONV | BARNIZ | ACTIVO'] = Boolean(inlineBarnizState.active);
-        rawData['CONV | BARNIZ | ZONIFICADO'] = Boolean(inlineBarnizState.sonified);
-        rawData['CONV | BARNIZ | BCM ANILOX'] = parseLegacyNumber(pickFirstValue(inlineBarnizState.varnishBcm, varnishInkProfile?.bcm, existingRawData['CONV | BARNIZ | BCM ANILOX']));
-        rawData['CONV | BARNIZ | COBERTURA %'] = parseLegacyNumber(inlineBarnizState.coveragePct);
-        rawData['CONV | BARNIZ | GSM'] = parseLegacyNumber(inlineBarnizState.layerGsm);
+        rawData['CONV | BARNIZ | ACTIVO'] = Boolean(uiPrintState.inlineFinishes?.barniz?.active);
+        rawData['CONV | BARNIZ | ZONIFICADO'] = Boolean(uiPrintState.inlineFinishes?.barniz?.sonified);
+        rawData['CONV | BARNIZ | COBERTURA %'] = parseLegacyNumber(uiPrintState.inlineFinishes?.barniz?.coveragePct);
+        rawData['CONV | BARNIZ | GSM'] = parseLegacyNumber(uiPrintState.inlineFinishes?.barniz?.layerGsm);
     }
 
     if (payload.request_meta && typeof payload.request_meta === 'object' && !Array.isArray(payload.request_meta)) {
@@ -9241,10 +8714,10 @@ function buildCalculationRawData(payload = {}, existingRawData = {}) {
         processType,
         machineName: rawData[`${activePrefix} | MAQUINA`],
         dieCode: rawData['GENERAL | TROQUEL | ID'],
-        uiState: rawData['Estado_UI'] || null
+        uiState: rawData['CODEX_UI_STATE'] || null
     });
-    rawData['Secuencia_Procesos'] = processSnapshot;
-    rawData['Texto_Secuencia_Procesos'] = processSnapshot.map((item) => item.processName).join(' -> ');
+    rawData['CODEX_PROCESS_SNAPSHOT'] = processSnapshot;
+    rawData['CODEX_PROCESS_SEQUENCE_TEXT'] = processSnapshot.map((item) => item.processName).join(' -> ');
     applyCalculationLineSummary(rawData, {
         quote_code: rawData['ID COTIZACION'],
         line_code: rawData['ID LINEA'],
@@ -10575,8 +10048,9 @@ app.get('/api/cotizaciones', async (req, res) => {
                 COALESCE(calc.quote_total, 0) AS quote_total,
                 COALESCE(calc.line_statuses, '') AS line_statuses
              FROM quotes q
-             LEFT JOIN LATERAL (
+             LEFT JOIN (
                 SELECT
+                    latest.quote_code,
                     COUNT(*) AS line_count,
                     COALESCE(SUM(
                         COALESCE(
@@ -10595,23 +10069,25 @@ app.get('/api/cotizaciones', async (req, res) => {
                         latest.raw_data->>'Estado Cotizacion'
                     ), ''), ' | ') AS line_statuses
                 FROM (
-                    SELECT DISTINCT ON (fc.line_code)
-                        fc.line_code,
-                        fc.total_cost,
-                        fc.unit_price,
-                        fc.quantity,
-                        fc.raw_data,
-                        fc.created_at,
-                        fc.calculation_code
-                    FROM flexo_calculations fc
-                    WHERE fc.quote_code = q.quote_code
-                      AND ${quoteOwnedCalculationPredicate('fc', 'q')}
+                    SELECT DISTINCT ON (quote_code, line_code)
+                        quote_code,
+                        line_code,
+                        total_cost,
+                        unit_price,
+                        quantity,
+                        raw_data,
+                        created_at,
+                        calculation_code
+                    FROM flexo_calculations
                     ORDER BY
-                        fc.line_code NULLS LAST,
-                        fc.created_at DESC NULLS LAST,
-                        fc.calculation_code DESC NULLS LAST
+                        quote_code,
+                        line_code NULLS LAST,
+                        created_at DESC NULLS LAST,
+                        calculation_code DESC NULLS LAST
                 ) latest
-             ) calc ON true
+                GROUP BY latest.quote_code
+             ) calc
+               ON calc.quote_code = q.quote_code
              ${whereClause}
              ORDER BY q.quote_code DESC
              LIMIT $${qIndex}`,
@@ -10671,18 +10147,16 @@ app.get('/api/cotizaciones/:codigo', async (req, res) => {
                     quantity, subtotal_cost, total_cost, unit_price, raw_data
                FROM (
                     SELECT DISTINCT ON (line_code)
-                           fc.calculation_code, fc.quote_code, fc.line_code, fc.product_code, fc.customer_code, fc.process_type, fc.machine_name, fc.die_code, fc.material_code,
-                           fc.quantity, fc.subtotal_cost, fc.total_cost, fc.unit_price, fc.raw_data, fc.created_at
-                      FROM flexo_calculations fc
-                      LEFT JOIN quotes q ON q.quote_code = fc.quote_code
-                     WHERE fc.quote_code = $1
-                       AND ${quoteOwnedCalculationPredicate('fc', 'q')}
-                     ORDER BY fc.line_code NULLS LAST, fc.created_at DESC NULLS LAST, fc.calculation_code DESC NULLS LAST
+                           calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name, die_code, material_code,
+                           quantity, subtotal_cost, total_cost, unit_price, raw_data, created_at
+                      FROM flexo_calculations
+                     WHERE quote_code = $1
+                     ORDER BY line_code NULLS LAST, created_at DESC NULLS LAST, calculation_code DESC NULLS LAST
                ) latest_lines
               ORDER BY
                     CASE
-                        WHEN COALESCE(latest_lines.raw_data->>'Orden_Linea', '') ~ '^[0-9]+$'
-                            THEN (latest_lines.raw_data->>'Orden_Linea')::integer
+                        WHEN COALESCE(latest_lines.raw_data->>'CODEX_LINE_ORDER', '') ~ '^[0-9]+$'
+                            THEN (latest_lines.raw_data->>'CODEX_LINE_ORDER')::integer
                         ELSE NULL
                     END NULLS LAST,
                     line_code NULLS LAST`,
@@ -11215,7 +10689,7 @@ app.post('/api/productos/:codigo/cotizar', async (req, res) => {
                     traceability: metadata
                 }
             );
-            rawData['Orden_Linea'] = await getNextQuoteLineOrder(targetQuote.quote_code);
+            rawData['CODEX_LINE_ORDER'] = await getNextQuoteLineOrder(targetQuote.quote_code);
 
             await client.query(
                 `INSERT INTO flexo_calculations (
@@ -12242,7 +11716,7 @@ app.post('/api/cotizaciones', async (req, res) => {
             const existing = await pgQuery(
                 `SELECT quote_code, customer_code, customer_name, contact_name, email, salesperson_name, phone, status, created_on, due_on, raw_data
                    FROM quotes
-                  WHERE raw_data->>'Clave_Solicitud' = $1
+                  WHERE raw_data->>'CODEX_REQUEST_KEY' = $1
                   ORDER BY created_on DESC NULLS LAST, quote_code DESC
                   LIMIT 1`,
                 [requestKey]
@@ -12374,14 +11848,14 @@ app.post('/api/cotizaciones/:codigo/lineas', async (req, res) => {
         }
 
         const quote = quoteResult.rows[0];
-        const requestKey = pickFirstValue(payload.request_meta?.Clave_Solicitud, payload.request_key);
+        const requestKey = pickFirstValue(payload.request_meta?.CODEX_REQUEST_KEY, payload.request_key);
         if (requestKey) {
             const existingLine = await pgQuery(
                 `SELECT calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name, die_code, material_code,
                         quantity, subtotal_cost, total_cost, unit_price, raw_data
                    FROM flexo_calculations
                   WHERE quote_code = $1
-                    AND raw_data->>'Clave_Solicitud' = $2
+                    AND raw_data->>'CODEX_REQUEST_KEY' = $2
                   ORDER BY created_at ASC NULLS LAST, calculation_code ASC
                   LIMIT 1`,
                 [codigo, requestKey]
@@ -12417,8 +11891,8 @@ app.post('/api/cotizaciones/:codigo/lineas', async (req, res) => {
             'REQ | Advertencias Automáticas': '',
             'REQ | Fallback de Ruta': autoSelection.fallbackApplied ? 'Sí' : 'No'
         };
-        if (payload.request_meta?.Estado_UI && typeof payload.request_meta.Estado_UI === 'object') {
-            payload.request_meta.Estado_UI.smartSelection = {
+        if (payload.request_meta?.CODEX_UI_STATE && typeof payload.request_meta.CODEX_UI_STATE === 'object') {
+            payload.request_meta.CODEX_UI_STATE.smartSelection = {
                 digitalThreshold: autoSelection.digitalThreshold,
                 processType: payload.process_type,
                 dieCode: '',
@@ -12447,7 +11921,7 @@ app.post('/api/cotizaciones/:codigo/lineas', async (req, res) => {
                 ? payload.cmyk
                 : String(costDefaults.defaultCmykEnabled ?? generalDefaults.defaultCmykEnabled ?? 'true').trim().toLowerCase() !== 'false'
         });
-        rawData['Seleccion_Automatica'] = {
+        rawData['CODEX_AUTO_SELECTION'] = {
             digitalThreshold: autoSelection.digitalThreshold,
             processType: payload.process_type,
             dieCode: '',
@@ -12459,7 +11933,7 @@ app.post('/api/cotizaciones/:codigo/lineas', async (req, res) => {
             fallbackApplied: autoSelection.fallbackApplied,
             warnings: []
         };
-        rawData['Orden_Linea'] = lineOrder;
+        rawData['CODEX_LINE_ORDER'] = lineOrder;
         const automaticPricing = await estimateAutomaticQuotePricing({
             rawData,
             processType: payload.process_type,
@@ -12481,7 +11955,7 @@ app.post('/api/cotizaciones/:codigo/lineas', async (req, res) => {
         rawData['PRECIO UNITARIO'] = automaticPricing.unitPriceWithTax;
         rawData['PRECIO TOTAL AL FINALIZAR'] = automaticPricing.totalAmount;
         rawData['GENERAL | SUSTRATO | CONSUMO PIES'] = Number(autoSelection.selectedMounting?.linearFeet || 0);
-        rawData['Precio_Automatico'] = {
+        rawData['CODEX_AUTO_PRICING'] = {
             materialCost: automaticPricing.materialCost,
             productionCost: automaticPricing.productionCost,
             baseCost: automaticPricing.baseCost,
@@ -12493,7 +11967,7 @@ app.post('/api/cotizaciones/:codigo/lineas', async (req, res) => {
             unitPriceWithTax: automaticPricing.unitPriceWithTax,
             processBreakdown: automaticPricing.processBreakdown
         };
-        rawData['Instantanea_Planificacion'] = automaticPricing.planningSnapshot;
+        rawData['CODEX_PLANNING_SNAPSHOT'] = automaticPricing.planningSnapshot;
         applyCurrencyFieldsToRawData(rawData, payload.exchange_rate ?? payload.exchangeRate);
         applyCalculationLineSummary(rawData, {
             quote_code: codigo,
@@ -12554,12 +12028,10 @@ app.patch('/api/cotizaciones/:codigo/lineas/orden', async (req, res) => {
         }
 
         const latestResult = await pgQuery(
-            `SELECT DISTINCT ON (fc.line_code) fc.calculation_code, fc.line_code, fc.raw_data
-               FROM flexo_calculations fc
-               LEFT JOIN quotes q ON q.quote_code = fc.quote_code
-              WHERE fc.quote_code = $1
-                AND ${quoteOwnedCalculationPredicate('fc', 'q')}
-              ORDER BY fc.line_code NULLS LAST, fc.created_at DESC NULLS LAST, fc.calculation_code DESC NULLS LAST`,
+            `SELECT DISTINCT ON (line_code) calculation_code, line_code, raw_data
+               FROM flexo_calculations
+              WHERE quote_code = $1
+              ORDER BY line_code NULLS LAST, created_at DESC NULLS LAST, calculation_code DESC NULLS LAST`,
             [codigo]
         );
         const latestByLine = new Map(latestResult.rows.map((row) => [String(row.line_code || '').trim(), row]));
@@ -12571,7 +12043,7 @@ app.patch('/api/cotizaciones/:codigo/lineas/orden', async (req, res) => {
             const current = latestByLine.get(lineCode);
             if (!current) continue;
             const rawData = { ...(current.raw_data || {}) };
-            rawData['Orden_Linea'] = lineOrder;
+            rawData['CODEX_LINE_ORDER'] = lineOrder;
             applyCalculationLineSummary(rawData, current);
             await pgQuery(
                 `UPDATE flexo_calculations
@@ -12586,18 +12058,16 @@ app.patch('/api/cotizaciones/:codigo/lineas/orden', async (req, res) => {
                     quantity, subtotal_cost, total_cost, unit_price, raw_data
                FROM (
                     SELECT DISTINCT ON (line_code)
-                           fc.calculation_code, fc.quote_code, fc.line_code, fc.product_code, fc.customer_code, fc.process_type, fc.machine_name, fc.die_code, fc.material_code,
-                           fc.quantity, fc.subtotal_cost, fc.total_cost, fc.unit_price, fc.raw_data, fc.created_at
-                      FROM flexo_calculations fc
-                      LEFT JOIN quotes q ON q.quote_code = fc.quote_code
-                     WHERE fc.quote_code = $1
-                       AND ${quoteOwnedCalculationPredicate('fc', 'q')}
-                     ORDER BY fc.line_code NULLS LAST, fc.created_at DESC NULLS LAST, fc.calculation_code DESC NULLS LAST
+                           calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name, die_code, material_code,
+                           quantity, subtotal_cost, total_cost, unit_price, raw_data, created_at
+                      FROM flexo_calculations
+                     WHERE quote_code = $1
+                     ORDER BY line_code NULLS LAST, created_at DESC NULLS LAST, calculation_code DESC NULLS LAST
                ) latest_lines
               ORDER BY
                     CASE
-                        WHEN COALESCE(latest_lines.raw_data->>'Orden_Linea', '') ~ '^[0-9]+$'
-                            THEN (latest_lines.raw_data->>'Orden_Linea')::integer
+                        WHEN COALESCE(latest_lines.raw_data->>'CODEX_LINE_ORDER', '') ~ '^[0-9]+$'
+                            THEN (latest_lines.raw_data->>'CODEX_LINE_ORDER')::integer
                         ELSE NULL
                     END NULLS LAST,
                     line_code NULLS LAST`,
@@ -12669,7 +12139,7 @@ app.post('/api/cotizaciones/:codigo/frente-dorso', async (req, res) => {
                 const rawData = { ...(row.raw_data || {}) };
                 delete rawData.grupoFrenteDorso;
                 delete rawData.grupo_frente_dorso;
-                delete rawData['Grupo_Frente_Dorso'];
+                delete rawData['CODEX_FD_GROUP'];
                 applyCalculationLineSummary(rawData, row);
                 await client.query(
                     `UPDATE flexo_calculations
@@ -12682,7 +12152,7 @@ app.post('/api/cotizaciones/:codigo/frente-dorso', async (req, res) => {
                 const lineCode = normalizeFrontBackLineCode(row.line_code);
                 const isGroupLine = lineCode === groupLineCode;
                 const rawData = applyFrontBackQuantityToRawData({ ...(row.raw_data || {}) }, groupQuantity);
-                delete rawData['Grupo_Frente_Dorso'];
+                delete rawData['CODEX_FD_GROUP'];
                 delete rawData.grupo_frente_dorso;
                 rawData.grupoFrenteDorso = {
                     ...baseGroup,
@@ -12722,7 +12192,7 @@ app.delete('/api/cotizaciones/:codigo/frente-dorso/:grupo', async (req, res) => 
                 if (!group || group.groupId !== groupId) continue;
                 delete rawData.grupoFrenteDorso;
                 delete rawData.grupo_frente_dorso;
-                delete rawData['Grupo_Frente_Dorso'];
+                delete rawData['CODEX_FD_GROUP'];
                 applyCalculationLineSummary(rawData, row);
                 await client.query(
                     `UPDATE flexo_calculations
@@ -12772,7 +12242,7 @@ app.patch('/api/cotizaciones/:codigo/lineas/:linea', async (req, res) => {
             rawPayload,
             existing.rows[0].raw_data || {}
         );
-        rawData['Orden_Linea'] = normalizeLineOrder(payload.line_order, normalizeLineOrder(existing.rows[0].raw_data?.['Orden_Linea']));
+        rawData['CODEX_LINE_ORDER'] = normalizeLineOrder(payload.line_order, normalizeLineOrder(existing.rows[0].raw_data?.['CODEX_LINE_ORDER']));
         try {
             const catalogs = await loadFlexoCatalogsFromDb();
             const processType = pickFirstValue(payload.process_type, rawData['Proceso Productivo'], 'Convencional');
@@ -12781,7 +12251,7 @@ app.patch('/api/cotizaciones/:codigo/lineas/:linea', async (req, res) => {
             const selectedMaterial = catalogs.materials.find((item) => String(item.code || '') === String(materialCode || '')) || null;
             const selectedDie = catalogs.dies.find((item) => String(item.code || '') === String(dieCode || '')) || null;
             const selectedMachine = catalogs.machines.find((item) => String(item.machineName || '') === String(machineName || rawData['DIGITAL | MAQUINA'] || rawData['CONV | MAQUINA'] || '')) || null;
-            const selectedMounting = rawData['Seleccion_Automatica']?.mounting || null;
+            const selectedMounting = rawData['CODEX_AUTO_SELECTION']?.mounting || null;
             const automaticPricing = await estimateAutomaticQuotePricing({
                 rawData,
                 processType,
@@ -12802,7 +12272,7 @@ app.patch('/api/cotizaciones/:codigo/lineas/:linea', async (req, res) => {
             rawData['GENERAL | 9 | UNITARIO | DOL'] = automaticPricing.unitPrice;
             rawData['PRECIO UNITARIO'] = automaticPricing.unitPriceWithTax;
             rawData['PRECIO TOTAL AL FINALIZAR'] = automaticPricing.totalAmount;
-            rawData['Precio_Automatico'] = {
+            rawData['CODEX_AUTO_PRICING'] = {
                 materialCost: automaticPricing.materialCost,
                 productionCost: automaticPricing.productionCost,
                 baseCost: automaticPricing.baseCost,
@@ -12814,17 +12284,17 @@ app.patch('/api/cotizaciones/:codigo/lineas/:linea', async (req, res) => {
                 unitPriceWithTax: automaticPricing.unitPriceWithTax,
                 processBreakdown: automaticPricing.processBreakdown
             };
-            rawData['Instantanea_Planificacion'] = automaticPricing.planningSnapshot;
+            rawData['CODEX_PLANNING_SNAPSHOT'] = automaticPricing.planningSnapshot;
         } catch (pricingError) {
         }
         applyCurrencyFieldsToRawData(rawData, payload.exchange_rate ?? payload.exchangeRate);
         if (Object.prototype.hasOwnProperty.call(payload, 'finalized_for_order') || Object.prototype.hasOwnProperty.call(payload, 'finalizedForOrder')) {
-            rawData['Finalizado_Para_Orden'] = Boolean(Object.prototype.hasOwnProperty.call(payload, 'finalized_for_order')
+            rawData['CODEX_FINALIZED_FOR_ORDER'] = Boolean(Object.prototype.hasOwnProperty.call(payload, 'finalized_for_order')
                 ? payload.finalized_for_order
                 : payload.finalizedForOrder);
         }
         const finalizeValidation = proformaBlockingMessagesFromRaw(rawData).join(' ');
-        if (Boolean(rawData['Finalizado_Para_Orden']) && finalizeValidation) {
+        if (Boolean(rawData['CODEX_FINALIZED_FOR_ORDER']) && finalizeValidation) {
             throw new Error(finalizeValidation);
         }
         const normalizedGroup = normalizeFrontBackGroup(rawData);
@@ -12891,7 +12361,7 @@ app.patch('/api/cotizaciones/:codigo/lineas/:linea', async (req, res) => {
         );
         let sapExport = null;
         const detailGroup = getFrontBackGroupFromLine(detail.rows[0]);
-        if (!Boolean(payload.skipSapExportStage) && Boolean(detail.rows[0]?.raw_data?.['Finalizado_Para_Orden']) && (!detailGroup || detailGroup.role === 'grupo')) {
+        if (!Boolean(payload.skipSapExportStage) && Boolean(detail.rows[0]?.raw_data?.['CODEX_FINALIZED_FOR_ORDER']) && (!detailGroup || detailGroup.role === 'grupo')) {
             const quoteResult = await pgQuery(`SELECT * FROM quotes WHERE quote_code = $1 LIMIT 1`, [codigo]);
             sapExport = await tryStageSapExportsForQuoteLine({
                 quoteRow: quoteResult.rows[0] || null,
@@ -13370,7 +12840,7 @@ app.delete('/api/cotizaciones/:codigo/lineas/:linea', async (req, res) => {
                     const rawData = { ...(row.raw_data || {}) };
                     delete rawData.grupoFrenteDorso;
                     delete rawData.grupo_frente_dorso;
-                    delete rawData['Grupo_Frente_Dorso'];
+                    delete rawData['CODEX_FD_GROUP'];
                     await client.query(
                         `UPDATE flexo_calculations
                             SET raw_data = $2::jsonb
@@ -13456,7 +12926,7 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/orden-produccion', async (req,
             if (createOrderValidation) {
                 throw new Error(createOrderValidation);
             }
-            if (!Boolean(context.line.finalized_for_order ?? context.line.raw_data?.['Finalizado_Para_Orden'])) {
+            if (!Boolean(context.line.finalized_for_order ?? context.line.raw_data?.['CODEX_FINALIZED_FOR_ORDER'])) {
                 throw new Error('La línea debe estar finalizada antes de crear una orden de producción.');
             }
 
@@ -13489,12 +12959,6 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/orden-produccion', async (req,
             });
             rawData = await enrichOrderRawDataWithPlanningSnapshot(rawData, client);
 
-            const selectedQuantity = parseLegacyNumber(req.body?.quantity);
-            if (selectedQuantity > 0) {
-                rawData.totals = rawData.totals || {};
-                rawData.totals.quantity = selectedQuantity;
-            }
-
             await client.query(
                 `INSERT INTO flexo_orders (
                     order_code, quote_code, line_code, product_code, machine_name, material_code, die_code, ordered_quantity, raw_data
@@ -13514,12 +12978,7 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/orden-produccion', async (req,
             await closeQuoteProforma(codigo, 'order_generated', client);
 
             const orderResult = await client.query(`SELECT * FROM flexo_orders WHERE order_code = $1 LIMIT 1`, [orderCode]);
-            const savedOrder = orderResult.rows[0];
-            await ensurePlanningRoutesForOrder(savedOrder, await loadPlanningReferenceMaps(client), {
-                client,
-                costsConfig: await loadCostsConfig()
-            });
-            return savedOrder;
+            return orderResult.rows[0];
         });
 
         res.json({
@@ -13537,15 +12996,7 @@ app.get('/api/ordenes-produccion/:codigo', async (req, res) => {
         if (!result.rows.length) {
             return res.status(404).json({ error: 'Orden de producción no encontrada.' });
         }
-        if (result.rows[0].raw_data) normalizeCalculationKeys(result.rows[0].raw_data);
-        const orden = result.rows[0];
-        if (orden.raw_data) {
-            normalizeCalculationKeys(orden.raw_data);
-            if (!orden.raw_data.printing) {
-                orden.raw_data.printing = extractPrintingData(orden.raw_data);
-            }
-        }
-        res.json({ orden });
+        res.json({ orden: result.rows[0] });
     } catch (error) {
         res.status(500).json({ error: error.message || 'No fue posible cargar la orden de producción.' });
     }
@@ -13560,7 +13011,6 @@ app.patch('/api/ordenes-produccion/:codigo/details', async (req, res) => {
 
         const payload = req.body || {};
         const current = orderResult.rows[0];
-        if (current.raw_data) normalizeCalculationKeys(current.raw_data);
         const rawData = { ...(current.raw_data || {}) };
         const lineSnapshot = { ...(rawData.line_snapshot || {}) };
         const lineRaw = { ...(lineSnapshot.raw_data || {}) };
@@ -13629,11 +13079,7 @@ app.patch('/api/ordenes-produccion/:codigo/details', async (req, res) => {
         );
 
         const updated = await pgQuery(`SELECT * FROM flexo_orders WHERE order_code = $1 LIMIT 1`, [req.params.codigo]);
-        const patched = updated.rows[0];
-        if (patched.raw_data && !patched.raw_data.printing) {
-            patched.raw_data.printing = extractPrintingData(patched.raw_data);
-        }
-        res.json({ ok: true, orden: patched });
+        res.json({ ok: true, orden: updated.rows[0] });
     } catch (error) {
         res.status(500).json({ error: error.message || 'No fue posible actualizar los datos de la orden.' });
     }
@@ -13860,7 +13306,7 @@ app.get('/api/planificacion/lanzamiento', async (req, res) => {
                 const selectedSet = new Set(processKeys);
                 const quotedSet = new Set(quotedProcessKeys);
                 const tintCount = Number(lineSnapshot.tintCount || lineSnapshot.pantoneCount || lineRaw['CANTIDAD TINTAS'] || 0);
-                const processResultRaw = lineRaw['Datos_Cotizados'] || {};
+                const processResultRaw = lineRaw['CODEX_PROCESS_RESULT'] || {};
                 const plannedFeet = Number(
                     processResultRaw?.sustrato?.totalLengthFeet
                     || processResultRaw?.sustrato?.linealFeet
@@ -14397,7 +13843,7 @@ app.get('/api/planificacion/preturno', async (req, res) => {
             const lineSnapshot = raw.line_snapshot || {};
             const lineSummary = raw.line_summary || {};
             const snapshotRaw = lineSnapshot.raw_data || {};
-            const uiState = snapshotRaw.Estado_UI || lineSnapshot.uiState || {};
+            const uiState = snapshotRaw.CODEX_UI_STATE || lineSnapshot.uiState || {};
             const headerState = uiState.header || {};
             const processKey = normalizePlanningKey(row.process_name);
             const materialCode = row.material_code || lineSnapshot.materialCode || snapshotRaw['GENERAL | MATERIAL'] || '';
@@ -14631,14 +14077,12 @@ app.get('/api/produccion/flujo', async (req, res) => {
 
 app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
     try {
+        await ensurePlanningRoutesForLiveOrders();
         const orderResult = await pgQuery(`SELECT * FROM flexo_orders WHERE order_code = $1 LIMIT 1`, [req.params.codigo]);
         if (!orderResult.rows.length) {
             return res.status(404).json({ ok: false, error: 'Orden de producción no encontrada.' });
         }
         const orderRow = orderResult.rows[0];
-        if (orderRow.raw_data) normalizeCalculationKeys(orderRow.raw_data);
-        const costsConfig = await loadCostsConfig();
-        await ensurePlanningRoutesForOrder(orderRow, null, { costsConfig });
         const routeResult = await pgQuery(`
             SELECT
                 r.id::text AS route_id,
@@ -14648,7 +14092,6 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
                 r.sequence_order,
                 r.duration_hours,
                 r.machine_profile_id::text AS machine_profile_id,
-                r.route_payload,
                 r.actual_start_at,
                 r.actual_end_at,
                 e.operator_name,
@@ -14679,80 +14122,13 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
             WHERE r.order_code = $1
             ORDER BY r.sequence_order, r.created_at
         `, [req.params.codigo]);
+        const costsConfig = await loadCostsConfig();
+        const orderMap = processOrderFromCosts(costsConfig);
+        const processKeys = orderTrackingProcessKeys(orderRow, routeResult.rows)
+            .sort((left, right) => (orderMap.get(left) ?? 999) - (orderMap.get(right) ?? 999));
         const raw = orderRow.raw_data || {};
-        const snapshot = raw.planning_snapshot || raw.planningSnapshot || {};
-        const processKeys = resolveOrderTrackingProcessKeys(orderRow, costsConfig, routeResult.rows);
         const control = getOrderPlanningControl(raw);
-        const trackingMarks = getOrderTrackingMarks(raw);
-        const session = readErpSessionFromRequest(req) || {};
-        const actorIdentities = [];
-        const addActorIdentity = (value) => {
-            const cleaned = sanitizeAdminUserText(value).toLowerCase();
-            if (cleaned) actorIdentities.push(cleaned);
-        };
-        [
-            raw.traceability?.created_by,
-            raw.traceability?.createdBy,
-            raw['TRAZABILIDAD | USUARIO'],
-            raw.created_by,
-            raw.createdBy,
-            raw.usuario_creacion,
-            control.salesReleasedBy,
-            control.launchedBy,
-            control.processSelectionUpdatedBy,
-            ...routeResult.rows.map((row) => row.operator_name),
-            ...Object.values(trackingMarks).flatMap((mark) => [mark?.markedBy, mark?.clearedBy, mark?.userName, mark?.user])
-        ].forEach(addActorIdentity);
-        const actorDisplayNames = new Map();
-        const actorPhotoUrls = new Map();
-        const registerActorAlias = (key, displayName, photoUrl = '', prefer = false) => {
-            const normalized = sanitizeAdminUserText(key).toLowerCase();
-            const cleanName = sanitizeAdminUserText(displayName);
-            const cleanPhoto = sanitizeAdminUserText(photoUrl);
-            if (!normalized) return;
-            if (cleanName && (prefer || !actorDisplayNames.has(normalized))) actorDisplayNames.set(normalized, cleanName);
-            if (cleanPhoto && (prefer || !actorPhotoUrls.has(normalized))) actorPhotoUrls.set(normalized, cleanPhoto);
-        };
-        const sessionDisplayName = pickFirstValue(
-            sanitizeAdminUserText(session?.fullName),
-            sanitizeAdminUserText(session?.name),
-            sanitizeAdminUserText(session?.displayName),
-            sanitizeAdminUserText(session?.user),
-            sanitizeAdminUserText(session?.username),
-            sanitizeAdminUserText(session?.email)
-        );
-        const sessionPhotoUrl = pickFirstValue(
-            sanitizeAdminUserText(session?.photoUrl),
-            sanitizeAdminUserText(session?.photo_url),
-            sanitizeAdminUserText(session?.avatarUrl),
-            sanitizeAdminUserText(session?.avatar_url)
-        );
-        [session?.username, session?.user, session?.name, session?.fullName, session?.displayName, session?.email]
-            .forEach((value) => registerActorAlias(value, sessionDisplayName, sessionPhotoUrl, true));
-        if (actorIdentities.length) {
-            const userResult = await pgQuery(
-                `SELECT full_name, username, photo_url
-                   FROM admin_users
-                  WHERE LOWER(TRIM(username)) = ANY($1::text[])
-                     OR LOWER(TRIM(full_name)) = ANY($1::text[])`,
-                [Array.from(new Set(actorIdentities))]
-            );
-            userResult.rows.forEach((row) => {
-                const displayName = sanitizeAdminUserText(row.full_name, row.username);
-                const photoUrl = sanitizeAdminUserText(row.photo_url);
-                [row.username, row.full_name].forEach((key) => {
-                    registerActorAlias(key, displayName, photoUrl);
-                });
-            });
-        }
-        const resolveActorInfo = (value) => {
-            const cleaned = sanitizeAdminUserText(value);
-            if (!cleaned) return { name: '', photoUrl: '' };
-            const normalized = cleaned.toLowerCase();
-            const name = actorDisplayNames.get(normalized) || cleaned;
-            const photoUrl = actorPhotoUrls.get(normalized) || actorPhotoUrls.get(sanitizeAdminUserText(name).toLowerCase()) || '';
-            return { name, photoUrl };
-        };
+        const snapshot = raw.planning_snapshot || raw.planningSnapshot || {};
         const snapshotByKey = new Map((Array.isArray(snapshot.processes) ? snapshot.processes : []).map((process) => [
             canonicalProductionFlowKey(process.processKey || process.processName),
             process
@@ -14768,7 +14144,6 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
                 routeId: row.route_id,
                 durationHours: Number(row.duration_hours || 0),
                 completedBy: '',
-                completedByPhoto: '',
                 completedAt: null,
                 startedAt: null,
                 notes: '',
@@ -14779,13 +14154,9 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
             };
             current.routeId = current.routeId || row.route_id;
             current.durationHours = Math.max(current.durationHours, Number(row.duration_hours || 0));
-            const routePayload = row.route_payload && typeof row.route_payload === 'object' ? row.route_payload : {};
-            current.durationSource = routePayload.source || current.durationSource || '';
             if (row.route_status === 'COMPLETADO' || current.routeStatus !== 'COMPLETADO') {
-                const routeActor = resolveActorInfo(row.operator_name);
                 current.routeStatus = row.route_status || current.routeStatus;
-                current.completedBy = row.route_status === 'COMPLETADO' ? (routeActor.name || current.completedBy) : current.completedBy;
-                current.completedByPhoto = row.route_status === 'COMPLETADO' ? (routeActor.photoUrl || current.completedByPhoto) : current.completedByPhoto;
+                current.completedBy = row.route_status === 'COMPLETADO' ? (row.operator_name || current.completedBy) : current.completedBy;
                 current.completedAt = row.actual_end_at || (row.event_type === 'completado' ? row.event_created_at : current.completedAt);
                 current.startedAt = row.actual_start_at || current.startedAt;
                 current.notes = row.notes || current.notes;
@@ -14801,80 +14172,54 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
             current.finalSpeedFpm = Math.max(current.finalSpeedFpm, Number(row.final_speed_fpm || 0));
             grouped.set(key, current);
         });
-        const createdActor = resolveActorInfo(pickFirstValue(
-            raw.traceability?.created_by,
-            raw.traceability?.createdBy,
-            raw['TRAZABILIDAD | USUARIO'],
-            raw.created_by,
-            raw.createdBy,
-            raw.usuario_creacion,
-            ''
-        ));
-        const salesActor = resolveActorInfo(control.salesReleasedBy || raw.salesperson_name || raw.quote_snapshot?.salesperson_name || '');
-        const planningActor = resolveActorInfo(control.launchedBy || control.processSelectionUpdatedBy || '');
         const fixedSteps = [
             {
                 processKey: 'orden_creada',
-                processName: 'Creación de Orden',
+                processName: 'Creación de orden',
                 sequenceOrder: 1,
                 routeStatus: 'COMPLETADO',
-                completedBy: createdActor.name,
-                completedByPhoto: createdActor.photoUrl,
-                completedAt: pickFirstValue(raw.traceability?.created_at, raw.traceability?.createdAt, raw['TRAZABILIDAD | FECHA'], raw.created_at, orderRow.created_at) || null,
-                startedAt: pickFirstValue(raw.traceability?.created_at, raw.traceability?.createdAt, raw['TRAZABILIDAD | FECHA'], raw.created_at, orderRow.created_at) || null,
+                completedBy: pickFirstValue(raw.created_by, raw.createdBy, 'Sistema'),
+                completedAt: orderRow.created_at || null,
+                startedAt: orderRow.created_at || null,
                 notes: ''
             },
             {
                 processKey: 'solicitud_vendedor',
-                processName: 'Solicitud de Vendedor',
+                processName: 'Solicitud del vendedor',
                 sequenceOrder: 2,
                 routeStatus: control.salesReleased ? 'COMPLETADO' : 'PENDIENTE',
-                completedBy: salesActor.name,
-                completedByPhoto: salesActor.photoUrl,
+                completedBy: control.salesReleasedBy || raw.salesperson_name || raw.quote_snapshot?.salesperson_name || '',
                 completedAt: control.salesReleasedAt || null,
                 startedAt: control.salesReleasedAt || null,
                 notes: control.returnReason || ''
             },
             {
                 processKey: 'planeacion',
-                processName: 'Seguimiento',
+                processName: 'Planeación',
                 sequenceOrder: 3,
                 routeStatus: control.launchedToGantt ? 'COMPLETADO' : (control.planningStatus === 'PENDIENTE_PLANIFICACION' ? 'RUN' : 'PENDIENTE'),
-                completedBy: planningActor.name,
-                completedByPhoto: planningActor.photoUrl,
+                completedBy: control.launchedBy || control.processSelectionUpdatedBy || '',
                 completedAt: control.launchedAt || null,
                 startedAt: control.processSelectionUpdatedAt || control.salesReleasedAt || null,
                 notes: control.returnReason || ''
             }
         ];
-        const machineProcessKeys = new Set(['planchas', 'impresion', 'acabados', 'barnizado', 'laminado', 'troquelado', 'estampado', 'embosado', 'numeracion', 'rebobinado']);
         const processSteps = processKeys.map((key, index) => {
             const item = grouped.get(key) || {};
             const planned = snapshotByKey.get(key) || {};
-            const quotedMinutes = quotedProcessDurationMinutes(orderRow, key);
-            const plannedSource = String(planned.source || '').toLowerCase();
-            const itemSource = String(item.durationSource || '').toLowerCase();
-            const plannedDurationMinutes = Number(planned.durationHours || 0) * 60;
-            const routeDurationMinutes = Number(item.durationHours || 0) * 60;
-            const plannedMinutes = firstPositivePlanningNumber(
-                quotedMinutes,
-                plannedSource === 'fallback-estimate' || plannedSource === 'missing-duration' ? 0 : plannedDurationMinutes,
-                itemSource === 'fallback-estimate' || itemSource === 'missing-duration' ? 0 : routeDurationMinutes
-            );
             return {
                 processKey: key,
-                processName: PRODUCTION_FLOW_LABELS[key] || planned.processName || item.processName,
+                processName: planned.processName || item.processName || PRODUCTION_FLOW_LABELS[key],
                 sequenceOrder: index + 4,
                 routeStatus: item.routeStatus || 'PENDIENTE',
                 completedBy: item.completedBy || '',
-                completedByPhoto: item.completedByPhoto || '',
                 completedAt: item.completedAt || null,
                 startedAt: item.startedAt || null,
                 notes: item.notes || '',
                 planned: {
-                    minutes: plannedMinutes,
+                    minutes: Number(planned.durationHours || item.durationHours || 0) * 60,
                     setupMinutes: Number(planned.setupMinutes || 0),
-                    machineName: machineProcessKeys.has(key) ? (planned.machineName || '') : '',
+                    machineName: planned.machineName || '',
                     quantity: Number(planned.baseFeet || snapshot.baseFeet || 0),
                     unit: 'ft'
                 },
@@ -14888,12 +14233,11 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
             };
         });
         const live = processSteps.some((step) => ['RUN', 'SETUP', 'PARO'].includes(String(step.routeStatus || '').toUpperCase()));
-        const steps = applyOrderTrackingMarks([...fixedSteps, ...processSteps], raw, resolveActorInfo);
         res.json({
             ok: true,
             order: orderRow,
             live,
-            steps,
+            steps: [...fixedSteps, ...processSteps],
             comparisons: processSteps
         });
     } catch (error) {
@@ -14901,132 +14245,6 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
     }
 });
 
-app.post('/api/ordenes-produccion/:codigo/seguimiento/marca', async (req, res) => {
-    try {
-        const codigo = req.params.codigo;
-        const processKey = normalizeOrderTrackingStepKey(req.body?.processKey);
-        const marked = req.body?.marked !== false;
-        if (!processKey) return res.status(400).json({ ok: false, error: 'Se requiere processKey.' });
-
-        const orderResult = await pgQuery(`SELECT * FROM flexo_orders WHERE order_code = $1 LIMIT 1`, [codigo]);
-        if (!orderResult.rows.length) return res.status(404).json({ ok: false, error: 'Orden no encontrada.' });
-
-        const rawData = orderResult.rows[0].raw_data || {};
-        const actor = getRequestUserName(req);
-        const actorPhoto = getRequestUserPhotoUrl(req);
-        const now = new Date().toISOString();
-        const mark = marked
-            ? { marked: true, markedAt: now, markedBy: actor, markedByPhoto: actorPhoto }
-            : { marked: false, clearedAt: now, clearedBy: actor, clearedByPhoto: actorPhoto };
-        const nextRawData = withUpdatedOrderTrackingMark(rawData, processKey, mark);
-
-        await pgQuery(`UPDATE flexo_orders SET raw_data = $2::jsonb WHERE order_code = $1`, [codigo, JSON.stringify(nextRawData)]);
-        res.json({ ok: true, processKey, marked, mark });
-    } catch (error) {
-        res.status(500).json({ ok: false, error: error.message || 'No fue posible actualizar la marca.' });
-    }
-});
-
-app.post('/api/ordenes-produccion/:codigo/seguimiento/completar', async (req, res) => {
-    try {
-        const codigo = req.params.codigo;
-        const processKey = String(req.body?.processKey || '').trim();
-        const notes = String(req.body?.notes || '').trim();
-        if (!processKey) return res.status(400).json({ ok: false, error: 'Se requiere processKey.' });
-
-        // Map special process keys to planning actions
-        if (processKey === 'solicitud_vendedor') {
-            // Trigger release-sales
-            const orderResult = await pgQuery(`SELECT * FROM flexo_orders WHERE order_code = $1 LIMIT 1`, [codigo]);
-            if (!orderResult.rows.length) return res.status(404).json({ ok: false, error: 'Orden no encontrada.' });
-            const rawData = orderResult.rows[0].raw_data || {};
-            const actor = getRequestUserName(req);
-            const nextRawData = withUpdatedOrderPlanningControl(rawData, {
-                salesReleased: true,
-                salesReleasedAt: new Date().toISOString(),
-                salesReleasedBy: actor,
-                planningStatus: 'PENDIENTE_PLANIFICACION',
-                launchedToGantt: false,
-                launchedAt: null, launchedBy: '',
-                returnedAt: null, returnedBy: '', returnReason: ''
-            });
-            await pgQuery(`UPDATE flexo_orders SET raw_data = $2::jsonb WHERE order_code = $1`, [codigo, JSON.stringify(nextRawData)]);
-            return res.json({ ok: true, message: 'Solicitud registrada. Orden enviada a planificación.', processKey });
-        }
-
-        if (processKey === 'planeacion') {
-            // Trigger launch-gantt
-            const orderResult = await pgQuery(`SELECT * FROM flexo_orders WHERE order_code = $1 LIMIT 1`, [codigo]);
-            if (!orderResult.rows.length) return res.status(404).json({ ok: false, error: 'Orden no encontrada.' });
-            const rawData = orderResult.rows[0].raw_data || {};
-            const control = getOrderPlanningControl(rawData);
-            if (control.planningStatus !== 'PENDIENTE_PLANIFICACION' && control.planningStatus !== 'EN_GANTT') {
-                return res.status(400).json({ ok: false, error: 'La orden debe estar pendiente de planificación.' });
-            }
-            const actor = getRequestUserName(req);
-            const nextRawData = withUpdatedOrderPlanningControl(rawData, {
-                salesReleased: true, planningStatus: 'EN_GANTT',
-                launchedToGantt: true, launchedAt: new Date().toISOString(), launchedBy: actor,
-                returnReason: ''
-            });
-            await pgQuery(`UPDATE flexo_orders SET raw_data = $2::jsonb WHERE order_code = $1`, [codigo, JSON.stringify(nextRawData)]);
-            const refreshedOrder = { ...orderResult.rows[0], raw_data: nextRawData };
-            try { await ensurePlanningRoutesForOrder(refreshedOrder, null, { replaceExisting: true }); } catch (e) { /* non-critical */ }
-            return res.json({ ok: true, message: 'Orden lanzada a Gantt.', processKey });
-        }
-
-        // Generic route step completion — record event on matching route
-        const routeResult = await pgQuery(
-            `SELECT id FROM production_order_routes WHERE order_code = $1 AND process_key = $2 ORDER BY sequence_order LIMIT 1`,
-            [codigo, processKey]
-        );
-        if (routeResult.rows.length) {
-            const routeId = routeResult.rows[0].id;
-            await pgQuery(
-                `INSERT INTO production_route_events (route_id, operator_name, event_type, notes, event_payload, created_at)
-                 VALUES ($1, $2, 'completado', $3, '{}'::jsonb, NOW())`,
-                [routeId, getRequestUserName(req), notes]
-            );
-            await pgQuery(
-                `UPDATE production_order_routes SET route_status = 'COMPLETADO', actual_end_at = NOW() WHERE id = $1`,
-                [routeId]
-            );
-        }
-        res.json({ ok: true, message: 'Paso completado.', processKey });
-    } catch (error) {
-        res.status(500).json({ ok: false, error: error.message || 'No fue posible completar el paso.' });
-    }
-});
-
-app.post('/api/ordenes-produccion/:codigo/seguimiento/vb-revert', async (req, res) => {
-    try {
-        const codigo = req.params.codigo;
-        const targetKey = String(req.body?.targetKey || '').trim();
-        const reason = String(req.body?.reason || '').trim();
-        if (!targetKey || !reason) return res.status(400).json({ ok: false, error: 'Se requiere targetKey y motivo.' });
-
-        // Find and reset the target route
-        const routeResult = await pgQuery(
-            `SELECT id FROM production_order_routes WHERE order_code = $1 AND process_key = $2 ORDER BY sequence_order LIMIT 1`,
-            [codigo, targetKey]
-        );
-        if (routeResult.rows.length) {
-            const routeId = routeResult.rows[0].id;
-            await pgQuery(
-                `INSERT INTO production_route_events (route_id, operator_name, event_type, notes, event_payload, created_at)
-                 VALUES ($1, $2, 'revertido', $3, '{}'::jsonb, NOW())`,
-                [routeId, getRequestUserName(req), 'VB solicitó correcciones: ' + reason]
-            );
-            await pgQuery(
-                `UPDATE production_order_routes SET route_status = 'PENDIENTE', actual_end_at = NULL WHERE id = $1`,
-                [routeId]
-            );
-        }
-        res.json({ ok: true, message: 'Paso revertido para correcciones.' });
-    } catch (error) {
-        res.status(500).json({ ok: false, error: error.message || 'No fue posible revertir el paso.' });
-    }
-});
 app.get('/api/mes/contexto', async (req, res) => {
     try {
         await ensurePlanningRoutesForLiveOrders();
@@ -15520,22 +14738,20 @@ app.get('/api/flexo/calculo', async (req, res) => {
 
         if (quoteId) {
             values.push(quoteId);
-            where.push(`fc.quote_code = $${values.length}`);
+            where.push(`quote_code = $${values.length}`);
         }
 
         if (lineId) {
             values.push(lineId);
-            where.push(`fc.line_code = $${values.length}`);
+            where.push(`line_code = $${values.length}`);
         }
 
         const currentResult = await pgQuery(
-            `SELECT fc.calculation_code, fc.quote_code, fc.line_code, fc.product_code, fc.customer_code, fc.process_type, fc.machine_name, fc.die_code, fc.material_code,
-                    fc.quantity, fc.subtotal_cost, fc.total_cost, fc.unit_price, fc.raw_data
-               FROM flexo_calculations fc
-               LEFT JOIN quotes q ON q.quote_code = fc.quote_code
+            `SELECT calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name, die_code, material_code,
+                    quantity, subtotal_cost, total_cost, unit_price, raw_data
+               FROM flexo_calculations
               WHERE ${where.join(' AND ')}
-                AND ${quoteOwnedCalculationPredicate('fc', 'q')}
-              ORDER BY fc.created_at DESC NULLS LAST, fc.calculation_code DESC NULLS LAST
+              ORDER BY quote_code DESC, line_code NULLS LAST
               LIMIT 1`,
             values
         );
@@ -15551,18 +14767,16 @@ app.get('/api/flexo/calculo', async (req, res) => {
                     quantity, subtotal_cost, total_cost, unit_price, raw_data
                FROM (
                     SELECT DISTINCT ON (line_code)
-                           fc.calculation_code, fc.quote_code, fc.line_code, fc.product_code, fc.customer_code, fc.process_type, fc.machine_name, fc.die_code, fc.material_code,
-                           fc.quantity, fc.subtotal_cost, fc.total_cost, fc.unit_price, fc.raw_data, fc.created_at
-                      FROM flexo_calculations fc
-                      LEFT JOIN quotes q ON q.quote_code = fc.quote_code
-                     WHERE fc.quote_code = $1
-                       AND ${quoteOwnedCalculationPredicate('fc', 'q')}
-                     ORDER BY fc.line_code NULLS LAST, fc.created_at DESC NULLS LAST, fc.calculation_code DESC NULLS LAST
+                           calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name, die_code, material_code,
+                           quantity, subtotal_cost, total_cost, unit_price, raw_data, created_at
+                      FROM flexo_calculations
+                     WHERE quote_code = $1
+                     ORDER BY line_code NULLS LAST, created_at DESC NULLS LAST, calculation_code DESC NULLS LAST
                ) latest_lines
               ORDER BY
                     CASE
-                        WHEN COALESCE(latest_lines.raw_data->>'Orden_Linea', '') ~ '^[0-9]+$'
-                            THEN (latest_lines.raw_data->>'Orden_Linea')::integer
+                        WHEN COALESCE(latest_lines.raw_data->>'CODEX_LINE_ORDER', '') ~ '^[0-9]+$'
+                            THEN (latest_lines.raw_data->>'CODEX_LINE_ORDER')::integer
                         ELSE NULL
                     END NULLS LAST,
                     line_code NULLS LAST`,
@@ -15607,7 +14821,7 @@ app.post('/api/flexo/sap-export/:quoteCode/:lineCode', async (req, res) => {
         if (!context.line) {
             return res.status(404).json({ error: 'No se encontró la línea origen.' });
         }
-        if (!Boolean(context.line.finalized_for_order ?? context.line.raw_data?.['Finalizado_Para_Orden'])) {
+        if (!Boolean(context.line.finalized_for_order ?? context.line.raw_data?.['CODEX_FINALIZED_FOR_ORDER'])) {
             return res.status(400).json({ error: 'La línea debe estar finalizada antes de preparar la salida SAP.' });
         }
         const accountingContext = await loadSapSalesOrderAccountingContext(pgQuery, {
@@ -16644,8 +15858,6 @@ app.post('/api/flexo/calculo/guardar', async (req, res) => {
             coreWidth: payload.uiState?.coreWidth ?? payload.coreWidth,
             coreDiameter: payload.uiState?.coreDiameter ?? payload.coreDiameter,
             applicationType: payload.applicationType,
-            applicationEnvironment: payload.applicationEnvironment,
-            surfaceType: payload.surfaceType,
             outputType: payload.outputType,
             cmyk: payload.cmyk,
             uiState: payload.uiState,
@@ -16665,19 +15877,19 @@ app.post('/api/flexo/calculo/guardar', async (req, res) => {
         rawData['ANALISIS CAMPOS FINALIZAR'] = validationBlocked ? validationSummary : '';
         rawData['ANALISIS CAMPOS CREAR ORDEN'] = validationBlocked ? validationSummary : '';
         rawData['ANALISIS CAMPOS PDF'] = validationBlocked ? validationSummary : '';
-        rawData['Mensajes_Validacion'] = validationMessages;
-        rawData['Validacion_Bloqueada'] = validationBlocked;
+        rawData['CODEX_VALIDATION_MESSAGES'] = validationMessages;
+        rawData['CODEX_VALIDATION_BLOCKED'] = validationBlocked;
         if (Object.prototype.hasOwnProperty.call(payload, 'trackingClosure')) {
-            rawData['Cierre_Cotizacion'] = payload.trackingClosure || null;
+            rawData['CODEX_QUOTE_CLOSURE'] = payload.trackingClosure || null;
         }
         applyCurrencyFieldsToRawData(rawData, payload.exchangeRate ?? payload.exchange_rate);
         if (Object.prototype.hasOwnProperty.call(payload, 'finalized_for_order') || Object.prototype.hasOwnProperty.call(payload, 'finalizedForOrder')) {
-            rawData['Finalizado_Para_Orden'] = Boolean(Object.prototype.hasOwnProperty.call(payload, 'finalized_for_order')
+            rawData['CODEX_FINALIZED_FOR_ORDER'] = Boolean(Object.prototype.hasOwnProperty.call(payload, 'finalized_for_order')
                 ? payload.finalized_for_order
                 : payload.finalizedForOrder);
         }
         const finalizeValidation = proformaBlockingMessagesFromRaw(rawData).join(' ');
-        if (Boolean(rawData['Finalizado_Para_Orden']) && finalizeValidation) {
+        if (Boolean(rawData['CODEX_FINALIZED_FOR_ORDER']) && finalizeValidation) {
             throw new Error(finalizeValidation);
         }
         const normalizedGroup = normalizeFrontBackGroup(rawData);

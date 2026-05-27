@@ -2,7 +2,6 @@ const params = new URLSearchParams(window.location.search);
 
 const DEFAULT_PRODUCT_TYPES = ["Etiquetas", "Cinta Continua", "Empaque Flexible", "Código de Barras", "Números de Carrera"];
 const DEFAULT_APPLICATION_OPTIONS = ["Botella", "Caja", "Carton", "Envase", "Frasco", "Pouch", "Tapa", "Vidrio"];
-const DEFAULT_SURFACE_OPTIONS = ["Lisa", "Rugosa", "Porosa", "Húmeda"];
 const WORK_TYPES = ["Nuevo", "Repetición", "Repetición con Cambio", "Validación", "Muestra", "Regalía", "Proyecto"];
 const DEFAULT_OUTPUT_TYPES = [
   { id: "A", name: "A", description: "Configuracion de salida tipo A" },
@@ -52,7 +51,6 @@ const INLINE_EXTERNAL_FINISH_KEY = {
   embosado: "embosado",
   troquelado: "troquelado"
 };
-const PRINT_DETAIL_FINISH_KEYS = new Set(["barnizado", "laminado", "estampado", "embosado", "troquelado", "numerado"]);
 const PROCESS_MENU = [
   { key: "troquel", label: "Troquel", locked: true, repeatable: false, helper: "Base tecnica obligatoria", order: 10 },
   { key: "sustrato", label: "Sustrato", locked: true, repeatable: false, helper: "Material base obligatorio", order: 20 },
@@ -115,9 +113,8 @@ const els = {
   labelsPerRollDisplay: document.getElementById("labelsPerRollDisplay"),
   applicationType: document.getElementById("applicationType"),
   applicationEnvironment: document.getElementById("applicationEnvironment"),
-  applicationEnvironmentPanel: document.getElementById("applicationEnvironmentPanel"),
+  applicationEnvironmentOptions: document.getElementById("applicationEnvironmentOptions"),
   surfaceType: document.getElementById("surfaceType"),
-  surfaceTypePanel: document.getElementById("surfaceTypePanel"),
   outputType: document.getElementById("outputType"),
   outputTypePreview: document.getElementById("outputTypePreview"),
   quantityRepeater: document.getElementById("quantityRepeater"),
@@ -164,7 +161,6 @@ const els = {
   calcStatus: document.getElementById("calcStatus"),
   detailsLineBadge: document.getElementById("detailsLineBadge"),
   quoteTrackingMount: document.getElementById("quoteTrackingMount"),
-  quoteTrackingPanelMount: document.getElementById("quoteTrackingPanelMount"),
   detailsCostTable: document.getElementById("detailsCostTable"),
   detailsProformaButton: document.getElementById("detailsProformaButton"),
   contextRows: document.getElementById("contextRows"),
@@ -196,7 +192,7 @@ const state = {
   saveTimer: null,
   saving: false,
   processOpen: {},
-  detailsOpen: { sustrato: false, impresion: false },
+  detailsOpen: { sustrato: false },
   quoteTracking: { id: "", panelOpen: false, formOpenKey: "", milestones: [], closure: null },
   trackingUserPhotos: new Map(),
   frontBackActiveElementLineCode: "",
@@ -288,7 +284,7 @@ function normalizePlateMode(value) {
 }
 
 function plateModeOptions() {
-  return PLATE_MODE_OPTIONS;
+  return processCreateEnabled("planchas") ? [PLATE_CREATE_MODE_OPTION, ...PLATE_MODE_OPTIONS] : PLATE_MODE_OPTIONS;
 }
 
 function emptyPlateBreakdown(reason = "Costo = 0.") {
@@ -2167,16 +2163,6 @@ function hasActiveProcess(key) {
   return isProcessAllowedForCurrentFrontBackContext(key) && Array.isArray(state.form.activeProcessKeys) && state.form.activeProcessKeys.includes(key);
 }
 
-function zeroProcessSubtotal(block = {}, overrides = {}) {
-  return {
-    ...block,
-    ...overrides,
-    rawSubtotal: 0,
-    subtotal: 0,
-    minimumApplied: false
-  };
-}
-
 function activePrintStages() {
   return Array.isArray(state.form.printStages) ? state.form.printStages : [];
 }
@@ -3851,7 +3837,6 @@ function buildCalculationValidationState(result = totals()) {
 
   if (hasActiveProcess("impresion")) {
     const stageWarnings = autoWarningsList();
-    const substrateTotalLengthFeet = firstPositiveNumber(calcSustrato().totalLengthFeet, 0);
     activePrintStages().forEach((stage, index) => {
       const key = `impresion-${stage.id || index + 1}`;
       addWhen(key, !String(stage.machineId || "").trim(), "Falta máquina de impresión.");
@@ -3876,24 +3861,6 @@ function buildCalculationValidationState(result = totals()) {
       const numbering = stage.inlineFinishes?.numerado;
       if (numbering?.active) {
         addWhen(key, !String(numbering.numberingType || "").trim(), "Falta tipo de numerado.");
-      }
-      const barniz = stage.inlineFinishes?.barniz;
-      if (barniz?.active) {
-        addWhen(key, substrateTotalLengthFeet <= 0, "Falta Longitud Total del sustrato para barniz.");
-        addWhen(key, n(barniz.varnishBcm, 0) <= 0, "Falta BCM Anilox de barniz.");
-        addWhen(key, n(barniz.coveragePct, 0) <= 0, "Falta cobertura de barniz.");
-        addWhen(key, n(barniz.costPerKg, 0) <= 0, "Falta costo por kilo de barniz.");
-      }
-      const laminado = stage.inlineFinishes?.laminado;
-      if (laminado?.active) {
-        addWhen(key, substrateTotalLengthFeet <= 0, "Falta Longitud Total del sustrato para laminado.");
-        addWhen(key, n(laminado.costPerFoot, 0) <= 0, "Falta costo por pie lineal de laminado.");
-      }
-      const estampado = stage.inlineFinishes?.estampado;
-      if (estampado?.active) {
-        addWhen(key, substrateTotalLengthFeet <= 0, "Falta Longitud Total del sustrato para estampado.");
-        addWhen(key, n(estampado.supplyWidthIn, 0) <= 0, "Falta ancho del rollo de estampado.");
-        addWhen(key, n(estampado.costPerFoot, 0) <= 0, "Falta costo por pie lineal de estampado.");
       }
       if (index === 0) stageWarnings.forEach((warning) => addIssue(key, warning));
     });
@@ -4067,21 +4034,6 @@ function applyRequiredHighlights(result = null) {
       if (numbering?.active) {
         markRequiredScoped(`${scope}.inlineFinishes.numerado`, "numberingType", !String(numbering.numberingType || "").trim());
       }
-      const barniz = stage.inlineFinishes?.barniz;
-      if (barniz?.active) {
-        markRequiredScoped(`${scope}.inlineFinishes.barniz`, "varnishBcm", n(barniz.varnishBcm, 0) <= 0);
-        markRequiredScoped(`${scope}.inlineFinishes.barniz`, "coveragePct", n(barniz.coveragePct, 0) <= 0);
-        markRequiredScoped(`${scope}.inlineFinishes.barniz`, "costPerKg", n(barniz.costPerKg, 0) <= 0);
-      }
-      const laminado = stage.inlineFinishes?.laminado;
-      if (laminado?.active) {
-        markRequiredScoped(`${scope}.inlineFinishes.laminado`, "costPerFoot", n(laminado.costPerFoot, 0) <= 0);
-      }
-      const estampado = stage.inlineFinishes?.estampado;
-      if (estampado?.active) {
-        markRequiredScoped(`${scope}.inlineFinishes.estampado`, "supplyWidthIn", n(estampado.supplyWidthIn, 0) <= 0);
-        markRequiredScoped(`${scope}.inlineFinishes.estampado`, "costPerFoot", n(estampado.costPerFoot, 0) <= 0);
-      }
       const emboss = stage.inlineFinishes?.embosado;
       markWarningScoped(`${scope}.inlineFinishes.embosado`, "plateCost", Boolean(emboss?.active) && n(emboss.plateCost, 0) <= 0);
     });
@@ -4243,8 +4195,7 @@ function inlineItemsForMacula(stage = {}) {
     return {
       key: slot.key,
       label: slot.label,
-      active: Boolean(inline.active),
-      setupWasteFeet: n(inline.setupWasteFeet, 0)
+      active: Boolean(inline.active)
     };
   });
 }
@@ -4606,7 +4557,7 @@ function buildForm() {
   if (form.printStages?.[0]) {
     ["barniz", "laminado", "estampado", "embosado", "troquelado", "numerado"].forEach((inlineKey) => {
       if (form.printStages[0].inlineFinishes?.[inlineKey]?.active) {
-        applyInlineFinishSetupDefaults(0, inlineKey, false);
+        applyInlineFinishSetupDefaults(0, inlineKey, true);
       }
     });
   }
@@ -4900,8 +4851,6 @@ function calcPlates() {
 
 function calcPrint() {
   const base = metrics();
-  const substrateTotal = calcSustrato();
-  const substrateTotalLengthFeet = firstPositiveNumber(substrateTotal.totalLengthFeet, substrateTotal.linealFeet, base.linealFeet, 0);
   const stages = activePrintStages();
   const items = stages.map((item) => {
     const machine = findMachine(item.machineId);
@@ -4943,27 +4892,25 @@ function calcPrint() {
       const inlineSpeedFtMin = n(inline.speed, 0) > 0
         ? n(inline.speed, 0)
         : (speedUnit === "m/min" ? r(n(speedMetersMin, 0) * 3.28084, 4) : n(speedMetersMin, 0));
-      const baseLengthFeet = n(base.linealFeet, 0);
+      const baseLengthFeet = n(base.totalLengthFeet, n(base.linealFeet, 0));
       const runBase = config.key === "troquelado" && n(inline.variableBase, 0) > 0
         ? n(inline.variableBase, 0) + n(inline.setupWasteFeet, 0)
         : baseLengthFeet + n(inline.setupWasteFeet, 0);
       const runMinutes = inlineSpeedFtMin > 0 ? r(runBase / inlineSpeedFtMin) : 0;
       const totalMinutes = r(n(inline.setupMinutes, 0) + runMinutes, 6);
       const isLinealInlineMaterial = ["laminado", "estampado"].includes(slot.key);
-      const usesSubstrateTotalLength = ["barniz", "laminado", "estampado"].includes(slot.key);
-      const calculationLengthFeet = usesSubstrateTotalLength ? substrateTotalLengthFeet : runBase;
       const materialCosts = materialUnitCosts(material, base.webWidthIn);
       const supplyWidthIn = slot.key === "estampado"
-        ? n(inline.supplyWidthIn, 0)
+        ? firstPositiveNumber(inline.supplyWidthIn, materialSupplyWidthIn(material, base.webWidthIn), base.webWidthIn)
         : config.usesUnitMaterial || config.usesWeightMaterial || slot.key === "laminado"
           ? n(base.webWidthIn, 0)
           : materialSupplyWidthIn(material, base.webWidthIn);
       const wastePct = config.usesUnitMaterial ? n(inline.operationWastePct, 0) : n(first(inline.operationWastePct, materialWastePct(material)), 0);
-      const netMaterialAreaFt2 = r(calculationLengthFeet * (supplyWidthIn / 12), 6);
+      const netMaterialAreaFt2 = r(runBase * (supplyWidthIn / 12), 6);
       const materialAreaFt2 = r(netMaterialAreaFt2 * (1 + (wastePct / 100)), 6);
       const materialBase = config.usesUnitMaterial
         ? Math.max(0, Math.ceil(n(base.rollCount, 0)))
-        : isLinealInlineMaterial ? calculationLengthFeet : materialAreaFt2;
+        : isLinealInlineMaterial ? runBase : materialAreaFt2;
       const areaCostFt2 = firstPositiveNumber(inline.costPerFt2, material?.costo_x_ft2, material?.costoPorFt2, 0);
       const weightCostKg = firstPositiveNumber(inline.costPerKg, material?.costo_x_kg, 0);
       const layerGft2 = firstPositiveNumber(inline.layerGft2, material?.rendimiento_g_ft2, material?.peso_capa_gsm, 0);
@@ -4985,7 +4932,7 @@ function calcPrint() {
       const varnishGsm = n(varnishProfile.gsm, 3);
       const varnishCostPerLb = n(inline.costPerLb, materialCostPerPound(material));
       const varnishConsumptionKg = slot.key === "barniz" && inline.active
-        ? r(calculationLengthFeet * n(base.webWidthIn, 0) * varnishBcm * varnishCoverage * 0.000012, 6)
+        ? r(runBase * n(base.webWidthIn, 0) * varnishBcm * varnishCoverage * 0.000012, 6)
         : 0;
       const materialConsumptionKg = slot.key === "barniz"
         ? varnishConsumptionKg
@@ -5003,20 +4950,6 @@ function calcPrint() {
       let plateCost = config.usesPlateCost && inline.active ? r(n(inline.plateCost, 0)) : 0;
       let linearSubtotal = isInlineDie ? r(runBase * n(inline.variableUnitCost, 0)) : 0;
       let rawSubtotal = r(machineSubtotal + operatorSubtotal + n(inline.fixedCost, 0) + linearSubtotal + materialSubtotal + plateCost);
-      const inlineIssues = [];
-      if (inline.active && inlineAllowed) {
-        if (usesSubstrateTotalLength && calculationLengthFeet <= 0) inlineIssues.push("Falta Longitud Total del sustrato.");
-        if (slot.key === "barniz") {
-          if (n(base.webWidthIn, 0) <= 0) inlineIssues.push("Falta Ancho de Banda.");
-          if (varnishBcm <= 0) inlineIssues.push("Falta BCM Anilox.");
-          if (varnishCoveragePct <= 0) inlineIssues.push("Falta Cobertura.");
-          if (weightCostKg <= 0) inlineIssues.push("Falta Costo por Kilo.");
-        }
-        if (isLinealInlineMaterial) {
-          if (linealCostPerFoot <= 0) inlineIssues.push("Falta Costo por Pie Lineal.");
-          if (slot.key === "estampado" && supplyWidthIn <= 0) inlineIssues.push("Falta Ancho del Rollo.");
-        }
-      }
       if (isInlineDie) {
         machineSubtotal = 0;
         operatorSubtotal = 0;
@@ -5034,8 +4967,7 @@ function calcPrint() {
         materialName: material?.descripcion || material?.nombre || "",
         unitCost,
         materialBase,
-        calcBase: calculationLengthFeet,
-        substrateTotalLengthFeet: calculationLengthFeet,
+        calcBase: runBase,
         runMinutes,
         totalMinutes,
         speed: inlineSpeedFtMin,
@@ -5062,8 +4994,7 @@ function calcPrint() {
         materialSubtotal,
         plateCost,
         rawSubtotal,
-        subtotal: inline.active && inlineAllowed ? rawSubtotal : 0,
-        issues: inlineIssues
+        subtotal: inline.active && inlineAllowed ? rawSubtotal : 0
       };
     });
     const inlineSubtotal = r(inlineItems.reduce((sum, inline) => sum + inline.subtotal, 0));
@@ -5292,20 +5223,18 @@ function totals() {
   const packaging = calcPackaging();
   const additional = calcAdditional();
   const frontBackElements = isFrontBackGroupContext() ? frontBackElementSubtotalSummary() : { items: [], subtotal: 0 };
-  const additionalHasRows = Array.isArray(state.form.additional)
-    && state.form.additional.some((item) => n(item.cost, 0) > 0 || String(item.description || item.comments || item.attachmentName || "").trim());
   if (!isProcessAllowedForCurrentFrontBackContext("troquel")) troquel.subtotal = 0;
   if (!isProcessAllowedForCurrentFrontBackContext("sustrato")) {
     sustrato.rawSubtotal = 0;
     sustrato.subtotal = 0;
     sustrato.minimumApplied = false;
   }
-  if (!hasActiveProcess("diseno")) Object.assign(design, zeroProcessSubtotal(design, { time: 0 }));
-  if (!hasActiveProcess("preprensa")) Object.assign(prepress, zeroProcessSubtotal(prepress, { time: 0 }));
-  if (!hasActiveProcess("planchas")) Object.assign(plates, zeroProcessSubtotal(plates));
-  if (!hasActiveProcess("impresion")) Object.assign(print, zeroProcessSubtotal(print, { items: [], machineSubtotal: 0, operatorSubtotal: 0, inkSubtotal: 0, inlineSubtotal: 0, digitalWashSubtotal: 0, premierSubtotal: 0 }));
-  if (!hasActiveProcess("empaque")) Object.assign(packaging, zeroProcessSubtotal(packaging, { rolls: 0, hours: 0 }));
-  if (!hasActiveProcess("adicionales") || !additionalHasRows) Object.assign(additional, zeroProcessSubtotal(additional, { rows: [] }));
+  if (!isProcessAllowedForCurrentFrontBackContext("impresion")) {
+    print.items = [];
+    print.rawSubtotal = 0;
+    print.subtotal = 0;
+    print.minimumApplied = false;
+  }
   const industrial = r(
     macula.subtotal
     + troquel.subtotal
@@ -5436,54 +5365,14 @@ function resolveProductTypes() {
 }
 
 function resolveApplicationOptions() {
-  return normalizeConfigTextList(state.config?.general?.quoteApplicationOptionsJson, DEFAULT_APPLICATION_OPTIONS);
+  const items = normalizeConfigTextList(state.config?.general?.quoteApplicationOptionsJson, DEFAULT_APPLICATION_OPTIONS);
+  const current = String(state.form?.header?.applicationEnvironment || "").trim();
+  return current && !items.some((item) => item.toLowerCase() === current.toLowerCase()) ? [...items, current] : items;
 }
 
-function resolveSurfaceOptions() {
-  return normalizeConfigTextList(state.config?.general?.quoteSurfaceOptionsJson, DEFAULT_SURFACE_OPTIONS);
-}
-
-function positionCalcInlinePanel(panel, input) {
-  if (!panel || !input || panel.hidden) return;
-  const rect = input.getBoundingClientRect();
-  const gap = 8;
-  const width = Math.min(rect.width, window.innerWidth - gap * 2);
-  const left = Math.min(Math.max(gap, rect.left), window.innerWidth - width - gap);
-  const top = rect.bottom + 2;
-  const maxHeight = Math.max(140, Math.min(420, window.innerHeight - top - gap));
-  panel.style.setProperty("--calc-inline-left", `${left}px`);
-  panel.style.setProperty("--calc-inline-top", `${top}px`);
-  panel.style.setProperty("--calc-inline-width", `${width}px`);
-  panel.style.setProperty("--calc-inline-max-height", `${maxHeight}px`);
-}
-
-function renderCalcTextSuggestions(input, panel, items, emptyMessage) {
-  if (!input || !panel) return;
-  const term = String(input.value || "").trim().toLowerCase();
-  const source = (items || []).map((item) => String(item || "").trim()).filter(Boolean);
-  const filtered = source.filter((item) => !term || item.toLowerCase().includes(term)).slice(0, 12);
-  if (term && !filtered.length) {
-    panel.hidden = true;
-    return;
-  }
-  panel.innerHTML = filtered.length
-    ? filtered.map((item) => `<button type="button" class="calc-inline-option" data-calc-inline-value="${esc(item)}">${esc(item)}</button>`).join("")
-    : `<div class="calc-inline-empty">${esc(emptyMessage)}</div>`;
-  panel.hidden = false;
-  positionCalcInlinePanel(panel, input);
-}
-
-function showApplicationEnvironmentPanel() {
-  renderCalcTextSuggestions(els.applicationEnvironment, els.applicationEnvironmentPanel, resolveApplicationOptions(), "No hay aplicaciones configuradas.");
-}
-
-function showSurfaceTypePanel() {
-  renderCalcTextSuggestions(els.surfaceType, els.surfaceTypePanel, resolveSurfaceOptions(), "No hay tipos de superficie configurados.");
-}
-
-function hideCalcInlinePanels() {
-  if (els.applicationEnvironmentPanel) els.applicationEnvironmentPanel.hidden = true;
-  if (els.surfaceTypePanel) els.surfaceTypePanel.hidden = true;
+function renderApplicationEnvironmentOptions() {
+  if (!els.applicationEnvironmentOptions) return;
+  els.applicationEnvironmentOptions.innerHTML = resolveApplicationOptions().map((item) => `<option value="${esc(item)}"></option>`).join("");
 }
 
 function renderHeader() {
@@ -5492,6 +5381,7 @@ function renderHeader() {
   fillSelect(els.workType, WORK_TYPES.map((item) => ({ value: item, label: item })), state.form.header.workType);
   fillSelect(els.outputType, outputTypesCatalog().map((item) => ({ value: item.id || item.codigo, label: item.name || item.nombre || item.id || item.codigo })), state.form.header.outputType);
   fillSelect(els.coreDiameter, coreDiameterSelectOptions(), state.form.header.coreDiameter);
+  renderApplicationEnvironmentOptions();
   [["customerCode", els.customerCode], ["customerName", els.customerName], ["jobName", els.jobName], ["salespersonName", els.salespersonName], ["labelWidthIn", els.labelWidthIn], ["labelHeightIn", els.labelHeightIn], ["rollWidthIn", els.rollWidthIn], ["coreDiameter", els.coreDiameter], ["labelsPerRoll", els.labelsPerRoll], ["applicationType", els.applicationType], ["applicationEnvironment", els.applicationEnvironment], ["surfaceType", els.surfaceType], ["quantityTypes", els.quantityTypes], ["quantityChanges", els.quantityChanges], ["pantoneCount", els.pantoneCount]].forEach(([key, element]) => { element.value = state.form.header[key] ?? ""; });
   els.useCmyk.checked = Boolean(state.form.header.useCmyk);
   els.useWhiteInk.checked = Boolean(state.form.header.useWhiteInk);
@@ -5680,7 +5570,7 @@ function totalsForQuantity(quantity) {
 function sumInlineFinish(result = {}, match = {}) {
   return r((result.print?.items || []).reduce((sum, item) => {
     return sum + (item.inlineItems || []).reduce((inner, inline) => {
-      if (!inline?.active || inline.allowedForMachine === false) return inner;
+      if (!inline?.subtotal) return inner;
       const sameKey = match.processKey ? inline.processKey === match.processKey : true;
       const sameLabel = match.label ? String(inline.label || "") === String(match.label || "") : true;
       return sameKey && sameLabel ? inner + n(inline.subtotal, 0) : inner;
@@ -5708,7 +5598,7 @@ function detailMinimumLine(block = {}) {
 
 function detailInlineMatches(result = {}, match = {}) {
   return (result.print?.items || []).flatMap((item) => item.inlineItems || []).filter((inline) => {
-    if (!inline?.active || inline.allowedForMachine === false) return false;
+    if (!inline?.subtotal) return false;
     const sameKey = match.processKey ? inline.processKey === match.processKey : true;
     const sameLabel = match.label ? String(inline.label || "") === String(match.label || "") : true;
     return sameKey && sameLabel;
@@ -5726,10 +5616,6 @@ function detailExternalMatches(result = {}, match = {}) {
 
 function detailSum(items = [], field = "") {
   return r(items.reduce((sum, item) => sum + n(item?.[field], 0), 0));
-}
-
-function detailPrintMetricSum(result = {}, field = "") {
-  return detailSum(result.print?.items || [], field);
 }
 
 function detailDisplayValue(row = {}, result = {}) {
@@ -5873,77 +5759,14 @@ function detailAmountTooltip(row = {}, result = {}, quantity = 0) {
       `Valor: ${detailDisplayValue(row, result)}.`
     ]);
   }
-  if (row.type === "printInk") {
-    const items = result.print?.items || [];
-    const sample = items[0] || {};
-    const usesClick = detailSum(items, "digitalClickSubtotal") > 0;
-    const isDigital = detailSum(items, "digitalInkKg") > 0 || usesClick;
-    return detailTooltipText(usesClick ? [
-      "Costo Tinta/Clics: cantidad x estaciones facturables x tarifa clic.",
-      `Estaciones: ${num(sample.digitalStations || 0, 0)} | Lavados: ${money(result.print?.digitalWashSubtotal || 0)}.`,
-      `Ejemplo: clics ${money(result.print?.inkSubtotal || 0)} + lavados ${money(result.print?.digitalWashSubtotal || 0)} = ${money(n(result.print?.inkSubtotal, 0) + n(result.print?.digitalWashSubtotal, 0))}.`
-    ] : isDigital ? [
-      "Costo Tinta: consumo kg x costo kg por tipo de tinta.",
-      `Consumo: CMYK ${num(detailSum(items, "digitalInkKg") - detailSum(items, "digitalWhiteKg") - detailSum(items, "digitalSpecialInkKg"), 4)} kg | Blanco ${num(detailSum(items, "digitalWhiteKg"), 4)} kg | Especial ${num(detailSum(items, "digitalSpecialInkKg"), 4)} kg.`,
-      `Total tinta: ${money(result.print?.inkSubtotal || 0)}.`
-    ] : [
-      "Costo Tinta: área impresa x cobertura x BCM x transferencia x densidad x tintas.",
-      `Consumo: ${num(result.print?.inkConsumption || 0, 6)} lb x ${money(sample.inkCostPerLb || 0)}.`,
-      `Total tinta: ${money(result.print?.inkSubtotal || 0)}.`
-    ]);
-  }
-  if (row.type === "printWaste") {
-    const setupFeet = detailPrintMetricSum(result, "maculaSetupFeet") || result.print?.maculaSetupFeet || 0;
-    const tirajeFeet = detailPrintMetricSum(result, "maculaTirajeFeet") || result.print?.maculaTirajeFeet || 0;
-    const totalFeet = detailPrintMetricSum(result, "startupWasteFeet") || result.print?.maculaTotalFeet || 0;
-    const wasteCost = detailPrintMetricSum(result, "maculaMaterialSubtotal");
-    return detailTooltipText([
-      "Merma de proceso: montaje + tiraje de impresión.",
-      `Montaje: ${num(setupFeet, 2)} ft | Tiraje: ${num(tirajeFeet, 2)} ft | Total: ${num(totalFeet, 2)} ft.`,
-      `Costo referencia: ${money(wasteCost)}.`,
-      "Este material se cobra dentro del sustrato; aquí se muestra como detalle operativo de impresión."
-    ]);
-  }
   if (row.type === "inlineFinish") {
     const items = detailInlineMatches(result, row.match || {});
-    const sample = items[0] || {};
-    if (sample.key === "barniz") {
-      return detailTooltipText([
-        "Barniz en línea: kg barniz x costo/kg.",
-        `Fórmula: longitud ${num(detailSum(items, "calcBase"), 2)} ft x ancho ${num(sample.supplyWidthIn || 0, 2)} in x BCM ${num(sample.varnishBcm || 0, 2)} x cobertura ${num(sample.coveragePct || 0, 2)}% x 0.000012.`,
-        `Consumo: ${num(detailSum(items, "materialConsumptionKg"), 4)} kg.`,
-        `Total barniz: ${money(row.value(result) || 0)}.`
-      ]);
-    }
-    if (sample.key === "laminado" || sample.key === "estampado") {
-      return detailTooltipText([
-        `${row.label} en línea: longitud total x costo por pie lineal.`,
-        `Base: ${num(detailSum(items, "materialBase"), 2)} ft | Costo pie: ${money(sample.costPerFoot || 0)}.`,
-        `Subtotal material: ${money(detailSum(items, "materialSubtotal"))}.`,
-        `Total ${row.label}: ${money(row.value(result) || 0)}.`
-      ]);
-    }
-    if (sample.key === "embosado") {
-      return detailTooltipText([
-        "Embosado en línea: costo de cliché.",
-        "El montaje se suma al tiempo de impresión.",
-        `Cliché: ${money(detailSum(items, "plateCost"))}.`,
-        `Total embosado: ${money(row.value(result) || 0)}.`
-      ]);
-    }
-    if (sample.key === "troquelado") {
-      return detailTooltipText([
-        "Troquelado en línea: no agrega costo externo.",
-        `Montaje: ${num(detailSum(items, "setupMinutes"), 2)} min | Merma ajuste: ${num(detailSum(items, "setupWasteFeet"), 2)} ft.`,
-        "El montaje y la merma se integran al proceso de impresión."
-      ]);
-    }
     const extras = r(detailSum(items, "materialSubtotal") + detailSum(items, "plateCost") + detailSum(items, "linearSubtotal") + detailSum(items, "fixedCost"));
     return detailTooltipText([
       `${row.label}: acabado dentro de impresión.`,
-      "Fórmula: insumos propios + fijos; el montaje queda en impresión.",
-      `Base: ${num(detailSum(items, "calcBase"), 2)} ft | Insumos: ${money(extras)}.`,
-      `Total ${row.label}: ${money(row.value(result) || 0)}.`
+      "Fórmula: máquina + operador + insumos + fijos.",
+      `Base: ${num(detailSum(items, "calcBase"), 2)} pies | Tiempo: ${num(detailSum(items, "totalMinutes"), 2)} min.`,
+      `Ejemplo: ${money(detailSum(items, "machineSubtotal"))} + ${money(detailSum(items, "operatorSubtotal"))} + ${money(extras)} = ${money(row.value(result) || 0)}.`
     ]);
   }
   if (row.type === "externalFinish") {
@@ -5999,18 +5822,10 @@ function detailAmountTooltip(row = {}, result = {}, quantity = 0) {
   }
   if (key === "impresion") {
     const p = result.print || {};
-    const printTerms = [
-      `Máquina ${money(p.machineSubtotal || 0)}`,
-      `operador ${money(p.operatorSubtotal || 0)}`,
-      `tinta ${money(p.inkSubtotal || 0)}`,
-      n(p.digitalWashSubtotal, 0) > 0 ? `lavados ${money(p.digitalWashSubtotal || 0)}` : "",
-      n(p.premierSubtotal, 0) > 0 ? `premier ${money(p.premierSubtotal || 0)}` : "",
-      `inline ${money(p.inlineSubtotal || 0)}`
-    ].filter(Boolean).join(" + ");
     return detailTooltipText([
-      "Fórmula: máquina + operador + tinta/clics + lavados/premier + acabados en línea.",
+      "Fórmula: máquina + operador + tinta + acabados en línea.",
       `Tiempo: ${num(p.totalMinutes || 0, 2)} min | Tinta: ${money(p.inkSubtotal || 0)}.`,
-      `Ejemplo: ${printTerms} = ${money(p.rawSubtotal ?? p.subtotal ?? 0)}.`,
+      `Ejemplo: ${money(p.machineSubtotal || 0)} + ${money(p.operatorSubtotal || 0)} + ${money(p.inkSubtotal || 0)} + ${money(p.inlineSubtotal || 0)} = ${money(p.rawSubtotal ?? p.subtotal ?? 0)}.`,
       detailMinimumLine(p)
     ]);
   }
@@ -6124,33 +5939,11 @@ function detailSubstrateRows() {
   ];
 }
 
-function detailExternalFinishRow(finish = {}, index = 0, child = false) {
-  const config = EXTERNAL_FINISH_BY_KEY[finish.processKey] || {};
-  return {
-    key: `${child ? "print" : "external"}-${finish.processKey || index}-${finish.sourceIndex ?? index}`,
-    type: "externalFinish",
-    label: config.label || finish.description || "Acabado",
-    detail: detailExternalFinishSummary(finish, config),
-    child,
-    jumpKey: finish.processKey || "",
-    match: { processKey: finish.processKey, sourceIndex: finish.sourceIndex },
-    value: (result) => sumExternalFinish(result, { processKey: finish.processKey, sourceIndex: finish.sourceIndex })
-  };
-}
-
-function detailPrintRows(baseResult = {}) {
+function detailCostRows(baseResult = {}) {
   const inlineFinishes = [];
-  const externalPrintFinishes = (baseResult.finishes?.items || []).filter((finish) => {
-    const key = String(finish?.processKey || "").trim();
-    return PRINT_DETAIL_FINISH_KEYS.has(key) && hasActiveProcess(key);
-  });
-  const externalInlineKeys = new Set(externalPrintFinishes.map((finish) => inlineKeyForExternalFinish(finish.processKey)).filter(Boolean));
   (baseResult.print?.items || []).forEach((item) => {
-    const allowedInlineKeys = new Set((item.availableInlineSlots || []).map((key) => String(key)));
     (item.inlineItems || []).forEach((inline) => {
-      if (!inline.active || inline.allowedForMachine === false) return;
-      if (allowedInlineKeys.size && !allowedInlineKeys.has(String(inline.key))) return;
-      if (externalInlineKeys.has(String(inline.key))) return;
+      if (!inline.active && !n(inline.subtotal, 0)) return;
       const key = `${inline.processKey || ""}|${inline.label || ""}`;
       if (inlineFinishes.some((row) => row.key === key)) return;
       inlineFinishes.push({
@@ -6165,19 +5958,19 @@ function detailPrintRows(baseResult = {}) {
       });
     });
   });
-  return [
-    { key: "impresionTinta", type: "printInk", label: "Costo Tinta", child: true, breakdown: true, jumpKey: "impresion", value: (result) => result.print?.inkSubtotal },
-    { key: "impresionMermaProceso", type: "printWaste", label: "Merma Proceso", child: true, breakdown: true, jumpKey: "impresion", value: (result) => detailPrintMetricSum(result, "maculaMaterialSubtotal") },
-    ...externalPrintFinishes.map((finish, index) => detailExternalFinishRow(finish, index, true)),
-    ...inlineFinishes
-  ];
-}
-
-function detailCostRows(baseResult = {}) {
   const externalFinishes = (baseResult.finishes?.items || [])
-    .filter((finish) => hasActiveProcess(String(finish?.processKey || "").trim()))
-    .filter((finish) => !(hasActiveProcess("impresion") && PRINT_DETAIL_FINISH_KEYS.has(String(finish?.processKey || "").trim())))
-    .map((finish, index) => detailExternalFinishRow(finish, index, false));
+    .map((finish, index) => {
+      const config = EXTERNAL_FINISH_BY_KEY[finish.processKey] || {};
+      return {
+        key: `external-${finish.processKey || index}-${finish.sourceIndex ?? index}`,
+        type: "externalFinish",
+        label: config.label || finish.description || "Acabado",
+        detail: detailExternalFinishSummary(finish, config),
+        jumpKey: finish.processKey || "",
+        match: { processKey: finish.processKey, sourceIndex: finish.sourceIndex },
+        value: (result) => sumExternalFinish(result, { processKey: finish.processKey, sourceIndex: finish.sourceIndex })
+      };
+    });
   const frontBackElementRows = isFrontBackGroupContext()
     ? (baseResult.frontBackElements?.items || []).map((item, index) => {
       const role = item.role ? `${item.role.charAt(0).toUpperCase()}${item.role.slice(1)}` : "Elemento";
@@ -6199,21 +5992,18 @@ function detailCostRows(baseResult = {}) {
     value: (result) => result.frontBackElements?.subtotal,
     total: true
   }] : [];
-  const optionalRow = (key, row) => hasActiveProcess(key) ? row : null;
-  const additionalRows = baseResult.additional?.rows || [];
-  const hasAdditionalRows = additionalRows.some((item) => n(item.subtotal, 0) > 0 || detailCleanText(item.description || item.comments || item.attachmentName));
   const rows = [
-    optionalRow("troquel", { key: "troquel", label: "Troquel", detail: detailDieSummary() || "Sin troquel", jumpKey: "troquel", value: (result) => result.troquel?.subtotal }),
-    optionalRow("sustrato", { key: "sustrato", label: "Sustrato", detail: detailSubstrateSummary(baseResult), jumpKey: "sustrato", expandKey: "sustrato", value: (result) => result.sustrato?.subtotal }),
-    ...(state.detailsOpen?.sustrato && hasActiveProcess("sustrato") ? detailSubstrateRows() : []),
-    optionalRow("diseno", { key: "diseno", label: "Diseño", jumpKey: "diseno", value: (result) => result.design?.subtotal }),
-    optionalRow("preprensa", { key: "preprensa", label: "Preprensa", jumpKey: "preprensa", value: (result) => result.prepress?.subtotal }),
-    optionalRow("planchas", { key: "planchas", label: "Planchas", jumpKey: "planchas", value: (result) => result.plates?.subtotal }),
-    optionalRow("impresion", { key: "impresion", label: "Impresión", detail: detailPrintSummary(baseResult), jumpKey: "impresion", expandKey: "impresion", value: (result) => result.print?.subtotal }),
-    ...(state.detailsOpen?.impresion && hasActiveProcess("impresion") ? detailPrintRows(baseResult) : []),
+    { key: "troquel", label: "Troquel", detail: detailDieSummary() || "Sin troquel", jumpKey: "troquel", value: (result) => result.troquel?.subtotal },
+    { key: "sustrato", label: "Sustrato", detail: detailSubstrateSummary(baseResult), jumpKey: "sustrato", expandKey: "sustrato", value: (result) => result.sustrato?.subtotal },
+    ...(state.detailsOpen?.sustrato ? detailSubstrateRows() : []),
+    { key: "diseno", label: "Diseño", jumpKey: "diseno", value: (result) => result.design?.subtotal },
+    { key: "preprensa", label: "Preprensa", jumpKey: "preprensa", value: (result) => result.prepress?.subtotal },
+    { key: "planchas", label: "Planchas", jumpKey: "planchas", value: (result) => result.plates?.subtotal },
+    { key: "impresion", label: "Impresión", detail: detailPrintSummary(baseResult), jumpKey: "impresion", value: (result) => result.print?.subtotal },
+    ...inlineFinishes,
     ...externalFinishes,
-    optionalRow("empaque", { key: "empaque", label: "Empaque", jumpKey: "empaque", value: (result) => result.packaging?.subtotal }),
-    hasActiveProcess("adicionales") && hasAdditionalRows ? { key: "adicionales", label: "Adicionales", jumpKey: "adicionales", value: (result) => result.additional?.subtotal } : null,
+    { key: "empaque", label: "Empaque", jumpKey: "empaque", value: (result) => result.packaging?.subtotal },
+    { key: "adicionales", label: "Adicionales", jumpKey: "adicionales", value: (result) => result.additional?.subtotal },
     ...frontBackElementRows,
     ...frontBackElementTotalRow,
     { key: "subtotal", label: "Subtotal", value: (result) => result.industrial, total: true },
@@ -6225,7 +6015,7 @@ function detailCostRows(baseResult = {}) {
     { key: "totalFinal", label: "Total Final", value: (result) => result.total, total: true, final: true },
     { key: "precioUnitario", label: "Precio Unitario", value: (result) => result.unit },
     { key: "precioMillar", label: "Precio por Millar", value: (result) => r(n(result.unit, 0) * 1000) }
-  ].filter(Boolean);
+  ];
   return rows;
 }
 
@@ -6314,6 +6104,10 @@ function renderQuoteTracking() {
     state.quoteTracking.milestones = loadQuoteTrackingMilestones();
   }
   const milestones = state.quoteTracking.milestones;
+  const quoteCode = String(state.form.header.quoteCode || "").trim() || "Sin base";
+  const lineCode = String(state.form.header.lineCode || "").trim();
+  const quoteRoute = state.form.header.quoteCode ? `/cotizaciones/documento?codigo=${encodeURIComponent(state.form.header.quoteCode)}` : "";
+  const customerName = String(state.form.header.customerName || "").trim() || "Cliente sin definir";
   const doneCount = quoteTrackingDoneCount();
   const panelOpen = Boolean(state.quoteTracking.panelOpen);
   const statusText = milestones[milestones.length - 1]?.done ? "Cerrada" : doneCount >= 4 ? "Proforma enviada" : doneCount >= 3 ? "Cotización finalizada" : "En proceso";
@@ -6364,29 +6158,8 @@ function renderQuoteTracking() {
     }
     return `<div style="display:grid;grid-template-columns:48px 1fr;gap:0 14px;opacity:${opacity};"><div style="display:flex;flex-direction:column;align-items:center;">${node}${line}</div>${content}</div>`;
   }).join("");
-  els.quoteTrackingMount.innerHTML = `
-    <h2 class="sr-only">Panel de seguimiento con solicitudes de cambio por hito</h2>
-    <div class="quote-tracking-toolbar">
-      <span class="quote-tracking-status">${esc(statusText)}</span>
-      <button type="button" id="tl-btn" class="quote-tracking-toggle${panelOpen ? " is-open" : ""}" data-tracking-toggle aria-expanded="${panelOpen ? "true" : "false"}">
-        <i class="ti ti-route" aria-hidden="true"></i>Seguimiento
-      </button>
-    </div>`;
-  if (els.quoteTrackingPanelMount) {
-    els.quoteTrackingPanelMount.innerHTML = `
-      <div id="tl-panel" class="quote-tracking-panel" style="display:${panelOpen ? "block" : "none"};">
-        <div class="quote-tracking-panel-head">
-          <div class="quote-tracking-panel-title">Historial de seguimiento</div>
-          <span id="counter-badge" class="quote-tracking-counter ${doneCount === milestones.length ? "is-complete" : "is-pending"}">${doneCount} de ${milestones.length} completados</span>
-        </div>
-        <div id="tl-body" class="quote-tracking-body">${body}</div>
-        <div id="tl-footer" class="quote-tracking-footer">
-          <i id="footer-icon" class="ti ${doneCount >= milestones.length ? "ti-circle-check" : "ti-arrow-right-circle"} ${doneCount >= milestones.length ? "is-complete" : "is-pending"}" aria-hidden="true"></i>
-          <span id="next-step-text">${doneCount >= milestones.length ? '<span class="quote-tracking-next-complete">Cotización completamente cerrada</span>' : `Próximo paso: <span class="quote-tracking-next-label">${esc(nextLabels[doneCount] || nextLabels[0])}</span>`}</span>
-        </div>
-      </div>`;
-  }
-  bindTrackingAvatarFallback(els.quoteTrackingPanelMount || els.quoteTrackingMount);
+  els.quoteTrackingMount.innerHTML = `<h2 class="sr-only">Panel de seguimiento con solicitudes de cambio por hito</h2><div class="quote-tracking-wrap"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 16px;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);margin-bottom:10px;"><div style="display:grid;gap:4px;min-width:0;flex:1;overflow:hidden;"><a class="quote-tracking-code summary-row-link" href="${esc(quoteRoute || "#")}"${quoteRoute ? ` data-route="${esc(quoteRoute)}" data-label="Cotización ${esc(quoteCode)}"` : ""} style="font-size:13px;font-weight:500;color:var(--color-text-primary);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(quoteCode)}</a><span style="font-size:13px;color:var(--color-text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(customerName)}</span><span style="font-size:11px;font-weight:500;padding:3px 10px;border-radius:999px;background:var(--color-background-info);color:var(--color-text-info);width:max-content;max-width:100%;">${esc(statusText)}</span></div><button type="button" id="tl-btn" data-tracking-toggle style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:var(--border-radius-md);border:0.5px solid ${panelOpen ? "var(--color-border-info)" : "var(--color-border-secondary)"};background:${panelOpen ? "var(--color-background-info)" : "var(--color-background-secondary)"};color:${panelOpen ? "var(--color-text-info)" : "var(--color-text-primary)"};font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;flex-shrink:0;"><i class="ti ti-route" style="font-size:16px;" aria-hidden="true"></i>Seguimiento</button></div><div id="tl-panel" style="display:${panelOpen ? "block" : "none"};background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden;"><div style="display:flex;align-items:center;justify-content:space-between;padding:15px 20px 13px;border-bottom:0.5px solid var(--color-border-tertiary);"><div><div style="font-size:15px;font-weight:500;color:var(--color-text-primary);">Historial de seguimiento</div><div style="font-size:12px;color:var(--color-text-secondary);margin-top:3px;">${esc(quoteCode)} · ${esc(customerName)}</div></div><span id="counter-badge" style="font-size:11px;font-weight:500;padding:4px 12px;border-radius:999px;background:${doneCount === milestones.length ? "var(--color-background-success)" : "var(--color-background-warning)"};color:${doneCount === milestones.length ? "var(--color-text-success)" : "var(--color-text-warning)"};">${doneCount} de ${milestones.length} completados</span></div><div id="tl-body" style="padding:20px 24px 4px;">${body}</div><div id="tl-footer" style="display:flex;align-items:center;gap:8px;padding:12px 24px 15px;border-top:0.5px solid var(--color-border-tertiary);margin-top:16px;"><i id="footer-icon" class="ti ${doneCount >= milestones.length ? "ti-circle-check" : "ti-arrow-right-circle"}" style="font-size:16px;color:${doneCount >= milestones.length ? "var(--color-text-success)" : "var(--color-text-info)"};" aria-hidden="true"></i><span id="next-step-text" style="font-size:12px;color:var(--color-text-secondary);">${doneCount >= milestones.length ? '<span style="font-weight:500;color:var(--color-text-success);">Cotización completamente cerrada</span>' : `Próximo paso: <span style="font-weight:500;color:var(--color-text-primary);">${esc(nextLabels[doneCount] || nextLabels[0])}</span>`}</span></div></div></div>`;
+  bindTrackingAvatarFallback(els.quoteTrackingMount);
 }
 
 function renderDetailsDemo(baseResult = totals()) {
@@ -6395,13 +6168,7 @@ function renderDetailsDemo(baseResult = totals()) {
   const quantities = detailQuantityValues();
   const quoteCode = String(state.form.header.quoteCode || "").trim();
   const lineCode = String(state.form.header.lineCode || "").trim();
-  if (els.detailsLineBadge) {
-    const quoteRoute = quoteCode ? `/cotizaciones/documento?codigo=${encodeURIComponent(quoteCode)}` : "";
-    const quoteMarkup = quoteCode
-      ? `<a class="details-quote-code summary-row-link" href="${esc(quoteRoute)}" data-route="${esc(quoteRoute)}" data-label="Cotización ${esc(quoteCode)}">${esc(quoteCode)}</a>`
-      : `<span class="details-quote-code">Cotización sin base</span>`;
-    els.detailsLineBadge.innerHTML = `<span class="details-line-code">${lineCode ? `Línea ${esc(lineCode)}` : "Línea sin base"}</span>${quoteMarkup}`;
-  }
+  if (els.detailsLineBadge) els.detailsLineBadge.textContent = lineCode ? `Línea ${lineCode}` : "Línea sin base";
   if (!quantities.length) {
     els.detailsCostTable.innerHTML = '<div class="details-empty">Agrega cantidades para ver el detalle.</div>';
     return;
@@ -6417,7 +6184,6 @@ function renderDetailsDemo(baseResult = totals()) {
     if (row.breakdown) classes.push("is-breakdown");
     if (row.total) classes.push("is-total");
     if (row.final) classes.push("is-final");
-    if (!row.expandKey && !row.child) classes.push("is-offset-label");
     const alertMessages = detailAlertMessagesForRow(row, validationState);
     const alertText = summarizeMessages(alertMessages, 2);
     if (alertMessages.length) classes.push("is-alert");
@@ -7138,7 +6904,7 @@ function renderPlateModeSelector() {
 }
 
 function renderPlatePendingPanel() {
-  return `<div class="plate-disabled-panel"><span>Selecciona planchas en inventario o costo externo.</span></div>`;
+  return `<div class="plate-disabled-panel"><label class="inline-process-check plate-virgin-check"><input type="checkbox" disabled><span>Inventario / Costo Externo</span></label></div>`;
 }
 
 function renderPlateExternalAttachmentTable(item = {}, index = 0) {
@@ -7379,7 +7145,7 @@ function renderInlinePrintBlock(stage, stageIndex, inline) {
   const numberingSummary = inline.key === "numerado"
     ? `${metric("Tipo", esc(normalizeNumberingType(inline.numberingType, inline.rangeFrom, inline.rangeTo) || "Sin definir"))}${isConsecutiveNumbering(normalizeNumberingType(inline.numberingType, inline.rangeFrom, inline.rangeTo)) ? metric("Rango", esc([inline.rangeFrom, inline.rangeTo].filter(Boolean).join(" - ") || "Sin rango")) : ""}${metric("Adjunto", esc(inline.attachmentName || "Sin adjunto"))}`
     : "";
-  const barnizSummary = `${inline.sonified ? metric("Zonificado", "Sí") : ""}${metric("Longitud Total", `${num(inline.substrateTotalLengthFeet || inline.calcBase || 0, 2)} pies`)}${metric("Consumo Barniz", `${num(inline.materialConsumptionKg || 0, 4)} kg`)}${metric("BCM Anilox", num(inline.varnishBcm || 0, 4))}${metric("Cobertura", `${num(inline.coveragePct || 0, 2)} %`)}${metric("Costo por Kilo", money(inline.costPerKg || 0))}${metric("Subtotal", money(inline.subtotal))}`;
+  const barnizSummary = `${inline.sonified ? metric("Zonificado", "Sí") : ""}${metric("Consumo Barniz", `${num(inline.materialConsumptionKg || 0, 4)} kg`)}${metric("BCM Anilox", num(inline.varnishBcm || 0, 4))}${metric("Cobertura", `${num(inline.coveragePct || 0, 2)} %`)}${metric("Costo por Kilo", money(inline.costPerKg || 0))}${metric("Subtotal", money(inline.subtotal))}`;
   const standardSummary = `${metric("Tiempo Montaje", `${num(inline.setupMinutes, 2)} min`)}${inline.usesMaterial ? metric("Material", esc(inline.materialName || "Sin definir")) : ""}${inline.usesMaterial ? metric("Subtotal Material", money(inline.materialSubtotal)) : ""}${inline.usesPlateCost ? metric("Costo Cliché", money(inline.plateCost)) : ""}${n(inline.fixedCost, 0) > 0 ? metric("Costo Fijo", money(inline.fixedCost)) : ""}${numberingSummary}${metric("Subtotal", money(inline.subtotal))}`;
   const inlineDieSummary = [
     metric("Tiempo Montaje", `${num(inline.setupMinutes || 0, 2)} min`),
@@ -7388,10 +7154,10 @@ function renderInlinePrintBlock(stage, stageIndex, inline) {
   ].join("");
   const isLinealInlineMaterial = ["laminado", "estampado"].includes(inline.key);
   const externalSummary = externalConfig ? (inline.key === "troquelado" ? inlineDieSummary : [
-    metric(isLinealInlineMaterial ? "Longitud Total" : "Base de Corrida", `${num(inline.calcBase || 0, 2)} pies`),
+    metric("Base de Corrida", `${num(inline.calcBase || 0, 2)} pies`),
     metric("Montaje a Impresión", `${num(inline.setupMinutes || 0, 2)} min`),
     inline.usesMaterial ? metric("Material", esc(inline.materialName || "Sin definir")) : "",
-    inline.usesMaterial && !isLinealInlineMaterial ? metric("Base Material", `${num(inline.materialBase || 0, 2)} ft²`) : "",
+    inline.usesMaterial ? metric(isLinealInlineMaterial ? "Pies Lineales" : "Base Material", isLinealInlineMaterial ? `${num(inline.materialBase || 0, 2)} pies` : `${num(inline.materialBase || 0, 2)} ft²`) : "",
     inline.usesWeightMaterial ? metric("Consumo Material", `${num(inline.materialConsumptionKg || 0, 4)} kg`) : "",
     isLinealInlineMaterial ? metric("Costo Pie Lineal", money(inline.costPerFoot || 0)) : "",
     inline.usesMaterial ? metric("Subtotal Material", money(inline.materialSubtotal)) : "",
@@ -7403,15 +7169,14 @@ function renderInlinePrintBlock(stage, stageIndex, inline) {
   const inlineFormulaPlateExample = externalConfig?.usesPlateCost || inline.usesPlateCost ? ` + Costo Cliché ${formulaValue(inline.plateCost || 0, 2)}` : "";
   const metricsContent = inline.key === "barniz" ? barnizSummary : externalConfig ? externalSummary : standardSummary;
   const metricsZone = `<div class="process-zone process-zone-accent"><div class="process-zone-head"><h4>Resumen</h4></div><div class="process-kpi-grid">${metricsContent}</div></div>`;
-  const issuesZone = issueList("Problemas detectados en la fórmula", inline.issues || []);
   const formulaText = externalConfig && inline.key === "troquelado"
     ? "Troquelado en línea = tiempo de montaje y merma de ajuste dentro del proceso de impresión."
     : inline.key === "barniz"
-    ? "Kilogramos de Barniz = Longitud Total del sustrato x Ancho de Banda (in) x BCM Anilox x Cobertura x 0.000012. Costo Total = Kilogramos de Barniz x Precio por Kilo."
+    ? "Kilogramos de Barniz = Pies Lineales x Ancho de Banda (in) x BCM Anilox x Cobertura x 0.000012. Costo Total = Kilogramos de Barniz x Precio por Kilo."
     : inline.key === "laminado"
-    ? "Laminado = Longitud Total del sustrato x costo por pie lineal del laminado seleccionado."
+    ? "Laminado = pies lineales de impresión x costo por pie lineal del laminado seleccionado."
     : inline.key === "estampado"
-    ? "Estampado = Longitud Total del sustrato x costo por pie lineal del rollo seleccionado."
+    ? "Estampado = pies lineales de impresión x costo por pie lineal del rollo seleccionado."
     : inline.key === "embosado"
     ? "Embosado = costo del cliché. El montaje se suma al tiempo de montaje de impresión."
     : externalConfig
@@ -7422,9 +7187,9 @@ function renderInlinePrintBlock(stage, stageIndex, inline) {
   const formulaExplanation = externalConfig && inline.key === "troquelado"
     ? "El troquelado en línea no agrega costo externo ni costo lineal; su tiempo se suma al montaje de impresión y su merma de ajuste al consumo de sustrato."
     : inline.key === "barniz"
-    ? "Barniz usa la Longitud Total del sustrato y el perfil Barniz UV configurado en Costos para tomar BCM y cobertura. La constante BCM convierte pies lineales y ancho de banda a kilogramos aplicados, considerando transferencia real y densidad estándar."
+    ? "Barniz usa el perfil Barniz UV configurado en Costos para tomar BCM y cobertura. La constante BCM convierte pies lineales y ancho de banda a kilogramos aplicados, considerando transferencia real y densidad estándar."
     : inline.key === "laminado" || inline.key === "estampado"
-    ? "El material se calcula por pie lineal sobre la Longitud Total del sustrato. El montaje se agrega al tiempo de montaje de la prensa porque el proceso es en línea."
+    ? "El material se calcula por pie lineal sobre la misma longitud que se imprime. El montaje se agrega al tiempo de montaje de la prensa porque el proceso es en línea."
     : inline.key === "embosado"
     ? "El tiempo de montaje se agrega a impresión; en el subtotal del embosado queda el costo del cliché."
     : externalConfig
@@ -7433,9 +7198,9 @@ function renderInlinePrintBlock(stage, stageIndex, inline) {
   const formulaExampleLine = inline.key === "troquelado"
     ? `Montaje ${formulaValue(inline.setupMinutes || 0, 2)} min + Merma Ajuste ${formulaValue(inline.setupWasteFeet || 0, 2)} ft`
     : inline.key === "barniz"
-      ? `Kg Barniz: Longitud Total ${formulaValue(inline.calcBase || 0, 2)} x ${formulaValue(inline.supplyWidthIn || 0, 2)} x ${formulaValue(inline.varnishBcm || 0, 2)} x ${formulaValue((inline.coveragePct || 0) / 100, 4)} x 0.000012 = ${formulaValue(inline.materialConsumptionKg || 0, 4)} kg`
+      ? `Kg Barniz: ${formulaValue(inline.calcBase || 0, 2)} x ${formulaValue(inline.supplyWidthIn || 0, 2)} x ${formulaValue(inline.varnishBcm || 0, 2)} x ${formulaValue((inline.coveragePct || 0) / 100, 4)} x 0.000012 = ${formulaValue(inline.materialConsumptionKg || 0, 4)} kg`
       : isLinealInlineMaterial
-        ? `Subtotal material: Longitud Total ${formulaValue(inline.materialBase || 0, 2)} pies x ${formulaValue(inline.costPerFoot || 0, 6)} = ${formulaValue(inline.materialSubtotal || 0, 2)}`
+        ? `Subtotal material: ${formulaValue(inline.materialBase || 0, 2)} pies x ${formulaValue(inline.costPerFoot || 0, 6)} = ${formulaValue(inline.materialSubtotal || 0, 2)}`
         : inline.key === "embosado"
           ? `Subtotal ${inline.label}: Costo Cliché ${formulaValue(inline.plateCost || 0, 2)} = ${formulaValue(inline.subtotal || 0, 2)}`
           : `Subtotal ${inline.label}: Subtotal Material ${formulaValue(inline.materialSubtotal || 0, 2)}${inlineFormulaPlateExample} + Costo Fijo ${formulaValue(inline.fixedCost || 0, 2)} = ${formulaValue(inline.subtotal || 0, 2)}`;
@@ -7445,7 +7210,7 @@ function renderInlinePrintBlock(stage, stageIndex, inline) {
       ? `R/ El troquelado en línea no agrega costo externo; consume ${num(inline.setupWasteFeet || 0, 2)} ft de merma de ajuste.`
       : `R/ El total a cobrar por ${inline.label.toLowerCase()} es ${money(inline.subtotal || 0)}`
   });
-  return `<details class="subprocess-card inline-process-card" data-open-key="${esc(scope)}"><summary class="inline-process-summary"><div class="inline-process-heading"><label class="inline-process-check"><input data-scope="printStages.${stageIndex}.inlineFinishes.${inline.key}" data-field="active" type="checkbox"${inline.active ? " checked" : ""}><span>${esc(inline.label)}</span></label></div><div class="process-summary-side"><em>${money(inline.subtotal)}</em>${info}</div></summary><div class="process-body"><div class="process-layout process-layout-inline"><div class="process-layout-main">${configZone}</div><div class="process-layout-side">${metricsZone}${issuesZone}</div></div></div></details>`;
+  return `<details class="subprocess-card inline-process-card" data-open-key="${esc(scope)}"><summary class="inline-process-summary"><div class="inline-process-heading"><label class="inline-process-check"><input data-scope="printStages.${stageIndex}.inlineFinishes.${inline.key}" data-field="active" type="checkbox"${inline.active ? " checked" : ""}><span>${esc(inline.label)}</span></label></div><div class="process-summary-side"><em>${money(inline.subtotal)}</em>${info}</div></summary><div class="process-body"><div class="process-layout process-layout-inline"><div class="process-layout-main">${configZone}</div><div class="process-layout-side">${metricsZone}</div></div></div></details>`;
 }
 
 function renderInlineToggleBar(stageIndex, inlineItems) {
@@ -7695,30 +7460,6 @@ function renderInkProfiles(scope, profiles = []) {
   return `<div class="ink-profile-table"><div class="ink-profile-head ink-profile-row"><span>Tipo de Trabajo</span><span>BCM</span><span>Cobertura %</span><span>GSM</span></div>${visibleProfiles.map(({ row, index }) => `<div class="ink-profile-row"><input data-scope="${scope}.inkProfiles.${index}" data-field="tipo" type="text" value="${esc(row.tipo || "")}"><input data-scope="${scope}.inkProfiles.${index}" data-field="bcm" type="number" step="0.01" value="${esc(row.bcm)}"><input data-scope="${scope}.inkProfiles.${index}" data-field="coveragePct" type="number" step="0.01" value="${esc(row.coveragePct)}"><input data-scope="${scope}.inkProfiles.${index}" data-field="gsm" type="number" step="0.01" value="${esc(row.gsm)}"></div>`).join("")}</div>`;
 }
 
-function dieDimensionMismatch() {
-  const productWidth = n(state.form?.header?.labelWidthIn, 0);
-  const productLength = n(state.form?.header?.labelHeightIn, 0);
-  const dieWidth = n(state.form?.troquel?.widthIn, 0);
-  const dieLength = n(state.form?.troquel?.lengthIn, 0);
-  if (productWidth <= 0 || productLength <= 0 || dieWidth <= 0 || dieLength <= 0) return null;
-  const tolerance = 0.01;
-  const direct = Math.abs(productWidth - dieWidth) <= tolerance && Math.abs(productLength - dieLength) <= tolerance;
-  const rotated = Math.abs(productWidth - dieLength) <= tolerance && Math.abs(productLength - dieWidth) <= tolerance;
-  if (direct || rotated) return null;
-  return {
-    product: `${num(productWidth, 3)} x ${num(productLength, 3)} in`,
-    die: `${num(dieWidth, 3)} x ${num(dieLength, 3)} in`
-  };
-}
-
-function dieDimensionWarningMarkup() {
-  const mismatch = dieDimensionMismatch();
-  if (!mismatch) return "";
-  return issueList("Advertencia de dimensiones", [
-    `Las medidas del troquel (${mismatch.die}) no corresponden con las dimensiones del producto (${mismatch.product}).`
-  ]);
-}
-
 function renderProcesses() {
   closeInfoPopover();
   closeCalcShapePanel();
@@ -7762,7 +7503,7 @@ function renderProcesses() {
       const recommendedLabel = recommendedDie ? `Recomendado: ${first(recommendedDie.codigoTroquel, recommendedDie.codigo, recommendedDie.id)}` : "Seleccionar...";
       const productDimension = `${num(state.form.header?.labelWidthIn || 0, 3)} x ${num(state.form.header?.labelHeightIn || 0, 3)} in`;
       const associateChecked = state.form.troquel.associateDieShape !== false ? " checked" : "";
-      return card("troquel", nextTitle("Troquel"), state.form.troquel.dieDescription, troquel.subtotal, `<div class="editable-grid die-association-row"><label><span>Forma</span><button type="button" class="calc-shape-trigger" data-calc-shape-trigger aria-expanded="false"><span class="calc-shape-trigger-copy"><span class="calc-shape-thumb" data-calc-shape-thumb>${dieShapeThumbForValue(shapeValue, shapeImage)}</span><span class="calc-shape-trigger-label" data-calc-shape-label>${esc(shapeValue || "Seleccionar...")}</span></span></button></label><label class="die-associate-field"><span>Asociar</span><span class="inline-process-check plate-virgin-check die-associate-check"><input data-scope="troquel" data-field="associateDieShape" type="checkbox"${associateChecked}></span></label><label><span>Troquel</span><select data-scope="troquel" data-field="dieCode">${processOptions(troquelDieOptions(), state.form.troquel.dieCode, recommendedLabel)}</select></label></div><div class="readonly-grid compact-top">${metricBox("Dimensión Producto", productDimension, false, Boolean(dieDimensionMismatch()))}${metric("Código Troquel", esc(state.form.troquel.dieCode || "No definido"))}${metric("Ancho Montaje", `${num(state.form.troquel.widthIn, 3)} in`)}${metric("Largo Montaje", `${num(state.form.troquel.lengthIn, 3)} in`)}${metric("Ancho Material", `${num(state.form.troquel.materialWidthIn || 0, 3)} in`)}${metric("Elongación", `${num(state.form.troquel.elongationPct || 0, 3)} %`)}${metric("Dientes", num(state.form.troquel.teeth, 0))}${metric("Repeticiones", num(state.form.troquel.repeats, 0))}${metric("Filas", num(state.form.troquel.rows, 0))}${metric("Etiquetas por Vuelta", num(troquel.labelsPerRepeat, 0))}${metric("Desarrollo Total", `${num(troquel.development, 3)} in`)}</div>${dieDimensionWarningMarkup()}${formula("Base del Troquel", troquel.formulaText, troquel.explanation, {
+      return card("troquel", nextTitle("Troquel"), state.form.troquel.dieDescription, troquel.subtotal, `<div class="editable-grid die-association-row"><label><span>Forma</span><button type="button" class="calc-shape-trigger" data-calc-shape-trigger aria-expanded="false"><span class="calc-shape-trigger-copy"><span class="calc-shape-thumb" data-calc-shape-thumb>${dieShapeThumbForValue(shapeValue, shapeImage)}</span><span class="calc-shape-trigger-label" data-calc-shape-label>${esc(shapeValue || "Seleccionar...")}</span></span></button></label><label class="die-associate-field"><span>Asociar</span><span class="inline-process-check plate-virgin-check die-associate-check"><input data-scope="troquel" data-field="associateDieShape" type="checkbox"${associateChecked}></span></label><label><span>Troquel</span><select data-scope="troquel" data-field="dieCode">${processOptions(troquelDieOptions(), state.form.troquel.dieCode, recommendedLabel)}</select></label></div><div class="readonly-grid compact-top">${metric("Dimensión Producto", productDimension)}${metric("Código Troquel", esc(state.form.troquel.dieCode || "No definido"))}${metric("Ancho Montaje", `${num(state.form.troquel.widthIn, 3)} in`)}${metric("Largo Montaje", `${num(state.form.troquel.lengthIn, 3)} in`)}${metric("Ancho Material", `${num(state.form.troquel.materialWidthIn || 0, 3)} in`)}${metric("Elongación", `${num(state.form.troquel.elongationPct || 0, 3)} %`)}${metric("Dientes", num(state.form.troquel.teeth, 0))}${metric("Repeticiones", num(state.form.troquel.repeats, 0))}${metric("Filas", num(state.form.troquel.rows, 0))}${metric("Etiquetas por Vuelta", num(troquel.labelsPerRepeat, 0))}${metric("Desarrollo Total", `${num(troquel.development, 3)} in`)}</div>${formula("Base del Troquel", troquel.formulaText, troquel.explanation, {
       exampleLines: [
         `Etiquetas por repetición: ${formulaValue(state.form.troquel.rows || 0, 0)} x ${formulaValue(state.form.troquel.repeats || 0, 0)} = ${formulaValue(troquel.labelsPerRepeat || 0, 0)}`,
         `Desarrollo total: ${formulaValue(state.form.troquel.lengthIn || 0, 2)} x ${formulaValue(state.form.troquel.repeats || 0, 0)} = ${formulaValue(troquel.development || 0, 2)} in`,
@@ -8115,7 +7856,7 @@ function bindDetailsDemo() {
     event.preventDefault();
     openDetailsCommercialEditor(trigger);
   });
-  const handleTrackingClick = (event) => {
+  els.quoteTrackingMount?.addEventListener("click", (event) => {
     const toggle = event.target.closest("[data-tracking-toggle]");
     if (toggle) {
       state.quoteTracking.panelOpen = !state.quoteTracking.panelOpen;
@@ -8189,15 +7930,11 @@ function bindDetailsDemo() {
         showCenterMessage("No fue posible enviar la solicitud de cambios.");
       }).finally(done);
     }
-  };
-  els.quoteTrackingMount?.addEventListener("click", handleTrackingClick);
-  els.quoteTrackingPanelMount?.addEventListener("click", handleTrackingClick);
-  const handleTrackingInput = (event) => {
+  });
+  els.quoteTrackingMount?.addEventListener("input", (event) => {
     if (event.target.matches("[data-tracking-textarea]")) event.target.classList.remove("error");
     if (event.target.matches("[data-tracking-close-input]")) event.target.classList.remove("error");
-  };
-  els.quoteTrackingMount?.addEventListener("input", handleTrackingInput);
-  els.quoteTrackingPanelMount?.addEventListener("input", handleTrackingInput);
+  });
 }
 
 function bindHeader() {
@@ -8220,26 +7957,6 @@ function bindHeader() {
       const route = storedLineRoute(target || { line_code: lineCode, quote_code: state.form?.header?.quoteCode });
       if (route && !openRouteInShell(route, `Cálculo ${lineCode}`)) window.location.href = route;
     }
-  });
-  els.applicationEnvironment?.addEventListener("focus", showApplicationEnvironmentPanel);
-  els.applicationEnvironment?.addEventListener("input", showApplicationEnvironmentPanel);
-  els.surfaceType?.addEventListener("focus", showSurfaceTypePanel);
-  els.surfaceType?.addEventListener("input", showSurfaceTypePanel);
-  els.applicationEnvironmentPanel?.addEventListener("click", (event) => {
-    const option = event.target.closest("[data-calc-inline-value]");
-    if (!option) return;
-    els.applicationEnvironment.value = option.dataset.calcInlineValue || "";
-    hideCalcInlinePanels();
-    els.applicationEnvironment.dispatchEvent(new Event("input", { bubbles: true }));
-    els.applicationEnvironment.dispatchEvent(new Event("change", { bubbles: true }));
-  });
-  els.surfaceTypePanel?.addEventListener("click", (event) => {
-    const option = event.target.closest("[data-calc-inline-value]");
-    if (!option) return;
-    els.surfaceType.value = option.dataset.calcInlineValue || "";
-    hideCalcInlinePanels();
-    els.surfaceType.dispatchEvent(new Event("input", { bubbles: true }));
-    els.surfaceType.dispatchEvent(new Event("change", { bubbles: true }));
   });
   [["customerCode", els.customerCode, "text"], ["customerName", els.customerName, "text"], ["productType", els.productType, "text"], ["jobName", els.jobName, "text"], ["salespersonName", els.salespersonName, "text"], ["workType", els.workType, "text"], ["labelWidthIn", els.labelWidthIn, "number"], ["labelHeightIn", els.labelHeightIn, "number"], ["rollWidthIn", els.rollWidthIn, "number"], ["coreDiameter", els.coreDiameter, "text"], ["labelsPerRoll", els.labelsPerRoll, "number"], ["applicationType", els.applicationType, "text"], ["applicationEnvironment", els.applicationEnvironment, "text"], ["surfaceType", els.surfaceType, "text"], ["outputType", els.outputType, "text"], ["quantityTypes", els.quantityTypes, "number"], ["quantityChanges", els.quantityChanges, "number"], ["pantoneCount", els.pantoneCount, "number"]].forEach(([key, element, type]) => {
     const updateState = () => {
@@ -8966,11 +8683,6 @@ document.addEventListener("pointerdown", (event) => {
   closeCalcShapePanel();
 }, true);
 
-document.addEventListener("pointerdown", (event) => {
-  if (event.target.closest?.("#applicationEnvironment, #applicationEnvironmentPanel, #surfaceType, #surfaceTypePanel")) return;
-  hideCalcInlinePanels();
-}, true);
-
 document.addEventListener("click", (event) => {
   const closeMessage = event.target.closest?.("[data-close-calc-message]");
   if (closeMessage) {
@@ -9063,14 +8775,10 @@ document.addEventListener("keydown", (event) => {
 
 window.addEventListener("resize", () => {
   if (state.infoPopover.trigger) positionInfoPopover();
-  positionCalcInlinePanel(els.applicationEnvironmentPanel, els.applicationEnvironment);
-  positionCalcInlinePanel(els.surfaceTypePanel, els.surfaceType);
 });
 
 window.addEventListener("scroll", () => {
   if (state.infoPopover.trigger) positionInfoPopover();
-  positionCalcInlinePanel(els.applicationEnvironmentPanel, els.applicationEnvironment);
-  positionCalcInlinePanel(els.surfaceTypePanel, els.surfaceType);
 }, true);
 
 init();

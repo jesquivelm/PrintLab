@@ -941,8 +941,6 @@ const DEFAULT_GENERAL_CONFIG = {
         lineCopy: '\u2398',
         lineCreateProduct: '\u25A3',
         lineCreateQuote: '\u25A3',
-        lineFrontBack: '/assets/bootstrap/icons-lineFrontBack.svg',
-        lineTracking: '/assets/bootstrap/icons-lineTracking.svg',
         lineExport: '\u2B73',
         lineAttachments: '📎',
         lineCreateOrder: '\u2692',
@@ -1025,12 +1023,6 @@ const DEFAULT_GENERAL_CONFIG = {
             'Pouch',
             'Tapa',
             'Vidrio'
-        ]),
-        quoteSurfaceOptionsJson: JSON.stringify([
-            'Lisa',
-            'Rugosa',
-            'Porosa',
-            'Húmeda'
         ]),
         quoteAutomaticDigitalMaxQuantity: 100000,
         quoteAutomaticLabelsPerRoll: 1000,
@@ -1272,12 +1264,6 @@ const DEFAULT_GENERAL_CONFIG = {
         iconColorLineCreateProduct: '#46515d',
         iconColor2LineCreateProduct: '#ffffff',
         iconColorHoverLineCreateProduct: '#0b81b8',
-        iconColorLineFrontBack: '#46515d',
-        iconColor2LineFrontBack: '#ffffff',
-        iconColorHoverLineFrontBack: '#0b81b8',
-        iconColorLineTracking: '#46515d',
-        iconColor2LineTracking: '#ffffff',
-        iconColorHoverLineTracking: '#0b81b8',
         iconColorLineExport: '#46515d',
         iconColor2LineExport: '#ffffff',
         iconColorHoverLineExport: '#0b81b8',
@@ -2695,7 +2681,6 @@ function normalizeGeneralConfigRecord(config, baseConfig = DEFAULT_GENERAL_CONFI
     normalized.general.moduleTitle = fixCommonTextArtifacts(normalized.general.moduleTitle);
     normalized.general.quoteProductTypesJson = JSON.stringify(normalizeQuoteProductTypes(normalized.general.quoteProductTypesJson, DEFAULT_GENERAL_CONFIG.general.quoteProductTypesJson));
     normalized.general.quoteApplicationOptionsJson = JSON.stringify(normalizeQuoteProductTypes(normalized.general.quoteApplicationOptionsJson, DEFAULT_GENERAL_CONFIG.general.quoteApplicationOptionsJson));
-    normalized.general.quoteSurfaceOptionsJson = JSON.stringify(normalizeQuoteProductTypes(normalized.general.quoteSurfaceOptionsJson, DEFAULT_GENERAL_CONFIG.general.quoteSurfaceOptionsJson));
     normalized.general.inventorySourceMode = String(normalized.general.inventorySourceMode || DEFAULT_GENERAL_CONFIG.general.inventorySourceMode).trim().toLowerCase() === 'sap' ? 'sap' : 'local';
     normalized.general.inventoryImportedClassificationField = String(normalized.general.inventoryImportedClassificationField || DEFAULT_GENERAL_CONFIG.general.inventoryImportedClassificationField).trim() || DEFAULT_GENERAL_CONFIG.general.inventoryImportedClassificationField;
     normalized.branding.companyName = fixCommonTextArtifacts(normalized.branding.companyName);
@@ -4630,11 +4615,7 @@ function buildCalculationLineSummary(row = {}) {
     );
     const width = parseLegacyNumber(raw['DIMENSIONES ETIQUETA | ANCHO']);
     const length = parseLegacyNumber(raw['DIMENSIONES ETIQUETA | LARGO']);
-    const rawShape = pickFirstValue(raw['REQ | Forma'], raw['GENERAL | TROQUEL | FORMA']);
-    const isCircularMeasure = String(rawShape || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes('circular');
-    const measure = isCircularMeasure && width !== null
-        ? `Diámetro ${width}`
-        : width !== null && length !== null
+    const measure = width !== null && length !== null
         ? `${width} x ${length}`
         : pickFirstValue(raw['REQ | Medida Fija']);
     const frontBackGroup = normalizeFrontBackGroup(raw);
@@ -5453,11 +5434,7 @@ function buildQuoteProformaTechnicalSummary(lines = []) {
         pushUnique(summary.shapes, raw['REQ | Forma']);
         const width = parseLegacyNumber(raw['DIMENSIONES ETIQUETA | ANCHO']);
         const length = parseLegacyNumber(raw['DIMENSIONES ETIQUETA | LARGO']);
-        const shape = pickFirstValue(raw['REQ | Forma'], raw['GENERAL | TROQUEL | FORMA']);
-        const isCircular = String(shape || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes('circular');
-        if (isCircular && width) {
-            pushUnique(summary.measures, `Diámetro ${width}"`);
-        } else if (width && length) {
+        if (width && length) {
             pushUnique(summary.measures, `${width}" x ${length}"`);
         } else {
             pushUnique(summary.measures, raw['REQ | Medida Fija']);
@@ -9207,19 +9184,14 @@ function buildCalculationRawData(payload = {}, existingRawData = {}) {
 
     const uiPrintState = rawData['Estado_UI']?.print || rawData['Estado_UI']?.printStages?.[0] || null;
     if (uiPrintState && typeof uiPrintState === 'object') {
-        const inlineBarnizState = uiPrintState.inlineFinishes?.barniz || {};
-        const varnishInkProfile = Array.isArray(uiPrintState.inkProfiles)
-            ? uiPrintState.inkProfiles.find((row) => String(row?.tipo || '').toLowerCase().includes('barniz'))
-            : null;
         rawData['CONV | PERFIL TINTA | TIPO'] = pickFirstValue(uiPrintState.profileLabel, existingRawData['CONV | PERFIL TINTA | TIPO']);
         rawData['CONV | PERFIL TINTA | COBERTURA %'] = parseLegacyNumber(uiPrintState.coveragePct);
         rawData['CONV | PERFIL TINTA | BCM ANILOX'] = parseLegacyNumber(uiPrintState.aniloxBcm);
         rawData['CONV | PERFIL TINTA | GSM'] = parseLegacyNumber(uiPrintState.inkGsm);
-        rawData['CONV | BARNIZ | ACTIVO'] = Boolean(inlineBarnizState.active);
-        rawData['CONV | BARNIZ | ZONIFICADO'] = Boolean(inlineBarnizState.sonified);
-        rawData['CONV | BARNIZ | BCM ANILOX'] = parseLegacyNumber(pickFirstValue(inlineBarnizState.varnishBcm, varnishInkProfile?.bcm, existingRawData['CONV | BARNIZ | BCM ANILOX']));
-        rawData['CONV | BARNIZ | COBERTURA %'] = parseLegacyNumber(inlineBarnizState.coveragePct);
-        rawData['CONV | BARNIZ | GSM'] = parseLegacyNumber(inlineBarnizState.layerGsm);
+        rawData['CONV | BARNIZ | ACTIVO'] = Boolean(uiPrintState.inlineFinishes?.barniz?.active);
+        rawData['CONV | BARNIZ | ZONIFICADO'] = Boolean(uiPrintState.inlineFinishes?.barniz?.sonified);
+        rawData['CONV | BARNIZ | COBERTURA %'] = parseLegacyNumber(uiPrintState.inlineFinishes?.barniz?.coveragePct);
+        rawData['CONV | BARNIZ | GSM'] = parseLegacyNumber(uiPrintState.inlineFinishes?.barniz?.layerGsm);
     }
 
     if (payload.request_meta && typeof payload.request_meta === 'object' && !Array.isArray(payload.request_meta)) {

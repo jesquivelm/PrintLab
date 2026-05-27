@@ -32,8 +32,7 @@ const DEFAULT_ICON_MAP = {
     lineProforma: { value: '\ud83d\udc41', color: '#1e516d', size: 16 },
     lineAdd: { value: '+', color: '#1e516d', size: 18 }
 };
-const DEFAULT_APPLICATION_OPTIONS = ['Botella', 'Caja', 'Carton', 'Envase', 'Frasco', 'Pouch', 'Tapa', 'Vidrio'];
-const DEFAULT_SURFACE_OPTIONS = ['Lisa', 'Rugosa', 'Porosa', 'Húmeda'];
+const DEFAULT_SURFACES = ['Botella', 'Caja', 'Carton', 'Envase', 'Frasco', 'Pouch', 'Tapa', 'Vidrio'];
 const DEFAULT_PRODUCT_TYPES = ['Etiquetas', 'Cinta Continua', 'Empaque Flexible', 'Código de Barras', 'Números de Carrera'];
 
 const rowsBody = document.getElementById('quotesTableBody');
@@ -72,14 +71,10 @@ const fixedSizePanel = document.getElementById('requestFixedSizePanel');
 const customSizeFields = document.getElementById('requestCustomSizeFields');
 const customWidthInput = document.getElementById('requestCustomWidth');
 const customHeightInput = document.getElementById('requestCustomHeight');
-const customWidthLabel = document.getElementById('requestCustomWidthLabel');
-const customHeightField = document.getElementById('requestCustomHeightField');
 const materialInput = document.getElementById('requestMaterial');
 const materialSuggestions = document.getElementById('materialSuggestions');
 const surfaceInput = document.getElementById('requestSurface');
 const surfaceSuggestions = document.getElementById('surfaceSuggestions');
-const surfaceTypeInput = document.getElementById('requestSurfaceType');
-const surfaceTypeSuggestions = document.getElementById('surfaceTypeSuggestions');
 const requestProductTypeSelect = document.getElementById('requestProductType');
 const requestProductTypeTrigger = document.getElementById('requestProductTypeTrigger');
 const requestProductTypePanel = document.getElementById('requestProductTypePanel');
@@ -274,8 +269,7 @@ let requestContactAbort = null;
 let newCalcPartnerLookupAbort = null;
 let newCalcContactAbort = null;
 let materialItems = [];
-let applicationItems = [...DEFAULT_APPLICATION_OPTIONS];
-let surfaceTypeItems = [...DEFAULT_SURFACE_OPTIONS];
+let surfaceItems = [...DEFAULT_SURFACES];
 let pendingAttachments = [];
 let mediaRecorder = null;
 let recordingChunks = [];
@@ -310,7 +304,8 @@ function createQuoteRequestId() {
     return `qr-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function normalizeConfiguredList(rawValue) {
+function resolveConfiguredProductTypes() {
+    const rawValue = loadedConfig?.general?.quoteProductTypesJson;
     let parsed = rawValue;
     if (typeof parsed === 'string') {
         const trimmed = parsed.trim();
@@ -338,22 +333,7 @@ function normalizeConfiguredList(rawValue) {
             seen.add(key);
             return true;
         });
-    return items;
-}
-
-function resolveConfiguredProductTypes() {
-    const items = normalizeConfiguredList(loadedConfig?.general?.quoteProductTypesJson);
     return items.length ? items : [...DEFAULT_PRODUCT_TYPES];
-}
-
-function resolveConfiguredApplicationOptions() {
-    const items = normalizeConfiguredList(loadedConfig?.general?.quoteApplicationOptionsJson);
-    return items.length ? items : [...DEFAULT_APPLICATION_OPTIONS];
-}
-
-function resolveConfiguredSurfaceOptions() {
-    const items = normalizeConfiguredList(loadedConfig?.general?.quoteSurfaceOptionsJson);
-    return items.length ? items : [...DEFAULT_SURFACE_OPTIONS];
 }
 
 function renderRequestProductTypeOptions() {
@@ -418,29 +398,6 @@ function positionMaterialSuggestionsPanel() {
     materialSuggestions.style.setProperty('--quote-material-panel-max-height', `${maxHeight}px`);
 }
 
-function positionSurfaceSuggestionsPanel(panel, input) {
-    if (!panel || !input || panel.hidden) return;
-    if (panel.parentElement !== document.body) {
-        document.body.appendChild(panel);
-    }
-    const rect = input.getBoundingClientRect();
-    const viewportGap = 8;
-    const width = Math.min(rect.width, window.innerWidth - viewportGap * 2);
-    const left = Math.min(Math.max(viewportGap, rect.left), window.innerWidth - width - viewportGap);
-    const top = rect.bottom + 2;
-    const maxHeight = Math.max(140, Math.min(420, window.innerHeight - top - viewportGap));
-
-    panel.style.setProperty('--quote-surface-panel-left', `${left}px`);
-    panel.style.setProperty('--quote-surface-panel-top', `${top}px`);
-    panel.style.setProperty('--quote-surface-panel-width', `${width}px`);
-    panel.style.setProperty('--quote-surface-panel-max-height', `${maxHeight}px`);
-}
-
-function positionSurfacePanels() {
-    positionSurfaceSuggestionsPanel(surfaceSuggestions, surfaceInput);
-    positionSurfaceSuggestionsPanel(surfaceTypeSuggestions, surfaceTypeInput);
-}
-
 function syncFixedSizeTrigger() {
     if (!fixedSizeSelect || !fixedSizeTrigger) return;
     const textNode = fixedSizeTrigger.querySelector('[data-fixed-size-text]');
@@ -452,7 +409,6 @@ function syncFixedSizeTrigger() {
 function toggleCustomSizeFields() {
     if (!customSizeFields || !fixedSizeSelect) return;
     customSizeFields.hidden = fixedSizeSelect.value !== 'custom';
-    syncCustomSizeForShape();
 }
 
 function renderFixedSizePanel() {
@@ -753,20 +709,10 @@ function toggleNumberingPopover(forceOpen) {
     else closeNumberingPopover();
 }
 
-function normalizeNetworkErrorMessage(message, fallback = 'No fue posible completar la solicitud.') {
-    const text = String(message || '').trim();
-    const lower = text.toLowerCase();
-    if (!text || (lower.includes('failed') && lower.includes('fetch')) || lower.includes('networkerror') || lower.includes('load failed')) {
-        return 'La información está tardando más de lo normal. Intenta abrirla de nuevo en unos segundos.';
-    }
-    return text || fallback;
-}
-
 function setStatus(message, tone = 'info') {
     if (!statusNode) return;
-    const safeMessage = normalizeNetworkErrorMessage(message, '');
     statusNode.hidden = !message;
-    statusNode.textContent = safeMessage || '';
+    statusNode.textContent = message || '';
     statusNode.dataset.tone = tone;
 }
 
@@ -792,34 +738,13 @@ function setButtonBusy(button, busy, busyText = 'Procesando...') {
     }
 }
 
-function sleep(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function fetchJson(url, options = {}, settings = {}) {
-    const method = String(options.method || 'GET').toUpperCase();
-    const retries = Number(settings.retries ?? (method === 'GET' ? 2 : 0));
-    const retryDelay = Number(settings.retryDelay ?? 700);
-    let lastError = null;
-    for (let attempt = 0; attempt <= retries; attempt += 1) {
-        try {
-            const response = await fetch(url, options);
-            const payload = await response.json().catch(() => ({}));
-            if (response.ok) return payload;
-            lastError = new Error(payload.error || 'No fue posible completar la solicitud.');
-            lastError.noRetry = response.status < 500;
-            if (response.status < 500 || attempt === retries) throw lastError;
-        } catch (error) {
-            if (error?.name === 'AbortError') throw error;
-            if (error?.noRetry) throw error;
-            lastError = error;
-            if (attempt === retries) {
-                throw new Error(normalizeNetworkErrorMessage(error?.message || lastError?.message));
-            }
-        }
-        await sleep(retryDelay * (attempt + 1));
+async function fetchJson(url, options) {
+    const response = await fetch(url, options);
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        throw new Error(payload.error || 'No fue posible completar la solicitud.');
     }
-    throw new Error(normalizeNetworkErrorMessage(lastError?.message));
+    return payload;
 }
 
 function readQuoteConfigCache() {
@@ -1258,8 +1183,7 @@ function renderIcon(target, iconValue, color, size) {
         return;
     }
     if (isImageValue(value)) {
-        const safeValue = escapeHtml(value);
-        target.innerHTML = `<span class="icon-image-wrap" role="img" aria-label="" style="--config-icon-size:${escapeHtml(String(size || 18))}px;width:${escapeHtml(String(size || 18))}px;height:${escapeHtml(String(size || 18))}px;"><span class="icon-image-fallback" aria-hidden="true">□</span><img src="${safeValue}" alt="" class="icon-image" onload="this.parentElement.classList.add('is-loaded')" onerror="this.remove()"></span>`;
+        target.innerHTML = `<img src="${value}" alt="" class="icon-image" style="width:${size}px;height:${size}px;object-fit:contain;">`;
         return;
     }
     target.innerHTML = `<span class="icon-glyph" style="font-size:${size}px;">${escapeHtml(value)}</span>`;
@@ -1271,7 +1195,7 @@ function iconMarkup(value, altText, extraClass = '') {
         return `<span class="icon-svg-mask ${extraClass}" role="img" aria-label="${escapeHtml(altText)}" style="-webkit-mask-image:url('${safeUrl}');mask-image:url('${safeUrl}');"></span>`;
     }
     if (isImageValue(value)) {
-        return `<span class="icon-image-wrap ${extraClass}" role="img" aria-label="${escapeHtml(altText)}"><span class="icon-image-fallback" aria-hidden="true">□</span><img src="${escapeHtml(value)}" alt="" class="icon-image" onload="this.parentElement.classList.add('is-loaded')" onerror="this.remove()"></span>`;
+        return `<img src="${escapeHtml(value)}" alt="${escapeHtml(altText)}" class="icon-image ${extraClass}">`;
     }
     return `<span class="icon-glyph ${extraClass}">${escapeHtml(value || '')}</span>`;
 }
@@ -1473,7 +1397,7 @@ function normalizeQuoteLine(line, quoteCode, index = 0) {
         || raw['ANALISIS CAMPOS PDF']
         || ''
     ).trim());
-    const autoSelection = raw.Seleccion_Automatica || {};
+    const autoSelection = raw.CODEX_AUTO_SELECTION || {};
     const autoWarnings = [];
     const fallbackTotal = pickFirstMeaningfulNumber(
         summary.subtotal_1,
@@ -1485,9 +1409,7 @@ function normalizeQuoteLine(line, quoteCode, index = 0) {
         raw['GENERAL | 7 | TOTAL | DOL'],
         raw['GENERAL | 9 | TOTAL | COL EXPORTAR REPORTE VENTAS']
     );
-    const measure = isCircularShapeValue(raw['REQ | Forma'])
-        ? (raw['DIMENSIONES ETIQUETA | ANCHO'] ? `Diámetro ${raw['DIMENSIONES ETIQUETA | ANCHO']}` : summary.measure)
-        : (summary.measure || [summary.width_in, summary.length_in].filter((value) => value || value === 0).join(' x '));
+    const measure = summary.measure || [summary.width_in, summary.length_in].filter((value) => value || value === 0).join(' x ');
     return {
         id: quoteTreeLineSequence,
         quoteId: quoteCode || line.quote_code || '',
@@ -1504,10 +1426,10 @@ function normalizeQuoteLine(line, quoteCode, index = 0) {
         machineName: summary.machine_name || line.machine_name || raw['CONV | MAQUINA'] || raw['DIGITAL | MAQUINA'] || '',
         dieCode: summary.die_code || line.die_code || raw['GENERAL | TROQUEL | ID'] || raw['REQ | Troquelado'] || '',
         processType: summary.process_type || line.process_type || raw['Proceso Productivo'] || '',
-        processSequenceText: summary.process_sequence_text || raw['Texto_Secuencia_Procesos'] || raw['BOT | Process Sequence'] || '',
+        processSequenceText: summary.process_sequence_text || raw['CODEX_PROCESS_SEQUENCE_TEXT'] || raw['BOT | Process Sequence'] || '',
         frontBackGroup: normalizeFrontBackGroupClient(line.grupo_frente_dorso || line.front_back_group || summary.grupo_frente_dorso || summary.front_back_group || raw),
         estado: summary.status || line.status || raw['SOLICITUD ESTADO'] || raw['ESTADO LINEA'] || 'Borrador',
-        finalizadaOrden: Boolean(summary.finalized_for_order || line.finalized_for_order || raw['Finalizado_Para_Orden']),
+        finalizadaOrden: Boolean(summary.finalized_for_order || line.finalized_for_order || raw['CODEX_FINALIZED_FOR_ORDER']),
         calculationBlockMessage,
         subtotal1: fallbackTotal ?? '',
         productId: summary.product_code || line.product_code || line.line_code || '',
@@ -1636,8 +1558,8 @@ function summarizeProformaIssuesByProcess(issues = []) {
 
 function proformaBlockIssuesFromLine(line = {}) {
     const raw = line.raw_data || line.rawData || {};
-    const messages = Array.isArray(raw.Mensajes_Validacion)
-        ? raw.Mensajes_Validacion.map((item) => String(item || '').trim()).filter(Boolean)
+    const messages = Array.isArray(raw.CODEX_VALIDATION_MESSAGES)
+        ? raw.CODEX_VALIDATION_MESSAGES.map((item) => String(item || '').trim()).filter(Boolean)
         : [];
     const fallback = String(raw['ANALISIS CAMPOS PDF'] || raw['ANALISIS CAMPOS CREAR ORDEN'] || raw['ANALISIS CAMPOS FINALIZAR'] || '').trim();
     return [...new Set(messages.length ? messages : (fallback ? [fallback] : []))]
@@ -1741,7 +1663,7 @@ function quoteTotalFromLines(lines = []) {
 }
 
 function normalizeFrontBackGroupClient(rowOrRaw = {}) {
-    const group = rowOrRaw?.grupoFrenteDorso || rowOrRaw?.grupo_frente_dorso || rowOrRaw?.frontBackGroup || rowOrRaw?.rawData?.grupoFrenteDorso || rowOrRaw?.rawData?.Grupo_Frente_Dorso || rowOrRaw?.Grupo_Frente_Dorso || rowOrRaw;
+    const group = rowOrRaw?.grupoFrenteDorso || rowOrRaw?.grupo_frente_dorso || rowOrRaw?.frontBackGroup || rowOrRaw?.rawData?.grupoFrenteDorso || rowOrRaw?.rawData?.CODEX_FD_GROUP || rowOrRaw?.CODEX_FD_GROUP || rowOrRaw;
     if (!group || typeof group !== 'object') return null;
     const explicitElements = Array.isArray(group.elementLineCodes)
         ? group.elementLineCodes.map(normalizeText).filter(Boolean)
@@ -1904,8 +1826,7 @@ function buildQuoteRealDetailItems(row) {
     const items = [];
     const width = formatQuoteDimension(raw['DIMENSIONES ETIQUETA | ANCHO']);
     const length = formatQuoteDimension(raw['DIMENSIONES ETIQUETA | LARGO']);
-    if (isCircularShapeValue(raw['REQ | Forma']) && width) items.push(`Diámetro ${width}`);
-    else if (width && length) items.push(`${width} x ${length}`);
+    if (width && length) items.push(`${width} x ${length}`);
     else if (row.medida) items.push(row.medida);
     if (row.quantity) items.push(`Cantidad ${formatNumber(row.quantity)}`);
     if (row.machineName) items.push(`Impresión ${row.machineName}`);
@@ -2075,8 +1996,7 @@ function lineMenuIconConfig(key, fallbackValue, fallbackColor = '#46515d', fallb
         copy: ['lineCopy'],
         product: ['lineCreateProduct', 'dashboardProducts'],
         createQuote: ['lineCreateQuote'],
-        frontBack: ['lineFrontBack', 'lineCreateQuote'],
-        tracking: ['lineTracking'],
+        frontBack: ['lineCreateQuote'],
         createOrder: ['lineCreateProductionOrder'],
         export: ['lineExport'],
         attachments: ['lineAttachments'],
@@ -2087,8 +2007,7 @@ function lineMenuIconConfig(key, fallbackValue, fallbackColor = '#46515d', fallb
         copy: 'lineCopy',
         product: 'lineCreateProduct',
         createQuote: 'lineCreateQuote',
-        frontBack: 'lineFrontBack',
-        tracking: 'lineTracking',
+        frontBack: 'lineCreateQuote',
         createOrder: 'lineCreateProductionOrder',
         export: 'lineExport',
         attachments: 'lineAttachments',
@@ -2100,8 +2019,7 @@ function lineMenuIconConfig(key, fallbackValue, fallbackColor = '#46515d', fallb
         copy: 'LineCopy',
         product: 'LineCreateProduct',
         createQuote: 'LineCreateQuote',
-        frontBack: 'LineFrontBack',
-        tracking: 'LineTracking',
+        frontBack: 'LineCreateQuote',
         createOrder: 'LineCreateProductionOrder',
         export: 'LineExport',
         attachments: 'LineAttachments',
@@ -2515,7 +2433,7 @@ function renderQuoteLineCard(row, index, totalLines, treeOptions = {}) {
                                 <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="export" data-line-id="${row.id}">${lineMenuIconMarkup('export', 'Exportar Línea a Excel', '⭳')}<span>Exportar Línea a Excel</span></button>
                                 <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="attachments" data-line-id="${row.id}">${lineMenuIconMarkup('attachments', 'Ver Adjuntos', '📎')}<span>Ver Adjuntos</span></button>
                                 <div class="row-action-menu-section-divider" aria-hidden="true"></div>
-                                <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="tracking" data-line-id="${row.id}">${lineMenuIconMarkup('tracking', 'Seguimiento', '◎')}<span>Seguimiento</span></button>
+                                <button type="button" class="row-action-menu-item quote-line-menu-item" data-line-action="tracking" data-line-id="${row.id}">${lineMenuIconMarkup('frontBack', 'Seguimiento', 'FD')}<span>Seguimiento</span></button>
                                 <div class="row-action-menu-section-divider" aria-hidden="true"></div>
                                 <button type="button" class="row-action-menu-item quote-line-menu-item is-danger" data-line-action="delete" data-line-id="${row.id}">${lineMenuIconMarkup('delete', 'Eliminar Línea', '×', true)}<span>Eliminar Línea</span></button>
                             </div>
@@ -2860,37 +2778,13 @@ async function createProductionOrder(row) {
     if (!row?.finalizadaOrden) {
         throw new Error('Debes marcar la línea como finalizada antes de crear la orden de producción.');
     }
-    var quantities = [];
-    try {
-        var uiState = row.raw_data && (row.raw_data['Estado_UI'] || row.raw_data.CODEX_UI_STATE || {});
-        var header = uiState.header || {};
-        var rawQty = Array.isArray(header.quantities) ? header.quantities : [];
-        if (rawQty.length > 1) {
-            quantities = rawQty.filter(function (q) { return q && Number(q.quantity) > 0; });
-        }
-    } catch (e) {}
-    var selectedQuantity = null;
-    if (quantities.length > 1) {
-        var qText = quantities.map(function (q, i) {
-            return (i + 1) + '. ' + parseNumber(q.quantity) + ' uds' + (q.unitPrice ? ' @ ' + q.unitPrice : '');
-        }).join('\n');
-        var choice = window.prompt('Selecciona la cantidad para la orden:\n' + qText + '\n\nIngresa el número de la opción (1-' + quantities.length + ') o acepta la cantidad actual:', '1');
-        var idx = parseInt(choice, 10);
-        if (!isNaN(idx) && idx >= 1 && idx <= quantities.length) {
-            selectedQuantity = Number(quantities[idx - 1].quantity);
-        }
-    }
-    var body = {};
-    if (selectedQuantity && selectedQuantity > 0) body.quantity = selectedQuantity;
-    var payload = await fetchJson(QUOTES_ENDPOINT + '/' + encodeURIComponent(row.quoteId) + '/lineas/' + encodeURIComponent(row.linea) + '/orden-produccion', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+    const payload = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}/orden-produccion`, {
+        method: 'POST'
     });
     if (payload.orden?.order_code) {
-        setStatus('Orden ' + payload.orden.order_code + ' creada.', 'saved');
-        var route = '/orden-produccion/' + encodeURIComponent(payload.orden.order_code);
-        if (!openRouteInShell(route, 'Orden ' + payload.orden.order_code)) {
+        setStatus(`Orden ${payload.orden.order_code} creada.`, 'saved');
+        const route = `/orden-produccion/${encodeURIComponent(payload.orden.order_code)}`;
+        if (!openRouteInShell(route, `Orden ${payload.orden.order_code}`)) {
             window.location.href = route;
         }
     }
@@ -3010,8 +2904,6 @@ async function loadConfig() {
 
 function applyQuoteConfig(config) {
     loadedConfig = config || {};
-    applicationItems = resolveConfiguredApplicationOptions();
-    surfaceTypeItems = resolveConfiguredSurfaceOptions();
     applyConfiguredIcons();
     renderRequestQuantityRepeater();
     syncFixedSizeTrigger();
@@ -3108,33 +3000,16 @@ function showMaterialSuggestions() {
     positionMaterialSuggestionsPanel();
 }
 
-function renderTextOptionSuggestions(panel, input, items, emptyMessage) {
-    if (!panel || !input) return;
-    const term = normalizeText(input.value).toLowerCase();
-    const source = (items || []).map((item) => normalizeText(item)).filter(Boolean);
-    const filtered = source
-        .filter((item) => !term || item.toLowerCase().includes(term))
-        .slice(0, 12);
-    if (term && !filtered.length) {
-        panel.hidden = true;
-        return;
-    }
-    renderInlineSuggestionList(panel, filtered.map((item) => ({ name: item, code: '' })), emptyMessage);
-    positionSurfaceSuggestionsPanel(panel, input);
-}
-
 function showSurfaceSuggestions() {
-    renderTextOptionSuggestions(surfaceSuggestions, surfaceInput, applicationItems, 'No hay aplicaciones disponibles.');
-}
-
-function showSurfaceTypeSuggestions() {
-    renderTextOptionSuggestions(surfaceTypeSuggestions, surfaceTypeInput, surfaceTypeItems, 'No hay tipos de superficie disponibles.');
+    const items = surfaceItems
+        .slice(0, 12)
+        .map((item) => ({ name: item, code: '' }));
+    renderInlineSuggestionList(surfaceSuggestions, items, 'No hay superficies disponibles.');
 }
 
 function hideInlinePanels() {
     if (materialSuggestions) materialSuggestions.hidden = true;
     if (surfaceSuggestions) surfaceSuggestions.hidden = true;
-    if (surfaceTypeSuggestions) surfaceTypeSuggestions.hidden = true;
     toggleFixedSizePanel(false);
     toggleRequestProductTypePanel(false);
 }
@@ -3607,8 +3482,7 @@ function getShapeOptions() {
         { value: 'Cuadrado', label: general.dieShapeLabel2 || 'Cuadrado', image: general.dieShapeImage2 || '' },
         { value: 'Rectangular', label: general.dieShapeLabel3 || 'Rectangular', image: general.dieShapeImage3 || '' },
         { value: 'Ovalado', label: general.dieShapeLabel4 || 'Ovalado', image: general.dieShapeImage4 || '' },
-        { value: 'Especial', label: general.dieShapeLabel5 || 'Especial', image: general.dieShapeImage5 || '' },
-        { value: 'Butt Cut', label: general.dieShapeLabel6 || 'Butt Cut', image: general.dieShapeImage6 || '/assets/die-shapes/butt-cut.png' }
+        { value: 'Especial', label: general.dieShapeLabel5 || 'Especial', image: general.dieShapeImage5 || '' }
     ];
 }
 
@@ -3622,21 +3496,6 @@ function getSelectedShapeInput() {
     return document.querySelector('[data-shape-panel] input[name="die_shape"]:checked')
         || shapePicker?.querySelector('input[name="die_shape"]:checked')
         || null;
-}
-
-function isCircularShapeValue(value) {
-    return normalizeText(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes('circular');
-}
-
-function isCircularRequestShape() {
-    return isCircularShapeValue(getSelectedShapeInput()?.value || '');
-}
-
-function syncCustomSizeForShape() {
-    const circular = isCircularRequestShape();
-    if (customWidthLabel) customWidthLabel.textContent = circular ? 'Diámetro' : 'Ancho';
-    if (customHeightField) customHeightField.hidden = circular;
-    if (circular && customHeightInput && customWidthInput) customHeightInput.value = customWidthInput.value;
 }
 
 function syncShapePickerState() {
@@ -3662,7 +3521,6 @@ function syncShapePickerState() {
     });
     if (trigger) trigger.setAttribute('aria-expanded', 'false');
     if (panel) panel.hidden = true;
-    syncCustomSizeForShape();
 }
 
 function markDieCutWhenShapeSelected() {
@@ -3742,14 +3600,11 @@ function collectRequestPayload() {
     const isCustomSize = fixedSizeSelect?.value === 'custom';
     const customWidth = Number(customWidthInput?.value || 0) || 0;
     const customHeight = Number(customHeightInput?.value || 0) || 0;
-    const isCircularShape = isCircularShapeValue(selectedShape);
     const widthInches = isCustomSize ? customWidth : (Number(selectedSize?.dataset.width || 0) || null);
-    const lengthInches = isCircularShape ? widthInches : (isCustomSize ? customHeight : (Number(selectedSize?.dataset.length || 0) || null));
-    const sizeLabel = isCircularShape
-        ? (widthInches ? `Diámetro: ${widthInches} in` : 'Diámetro')
-        : (isCustomSize
-            ? (widthInches && lengthInches ? `Medida especial: ${widthInches} in x ${lengthInches} in` : 'Medida especial')
-            : normalizeText(selectedSize?.textContent || fixedSizeSelect?.value));
+    const lengthInches = isCustomSize ? customHeight : (Number(selectedSize?.dataset.length || 0) || null);
+    const sizeLabel = isCustomSize
+        ? (widthInches && lengthInches ? `Medida especial: ${widthInches} in x ${lengthInches} in` : 'Medida especial')
+        : normalizeText(selectedSize?.textContent || fixedSizeSelect?.value);
     const numbering = getSelectedNumberingValue();
     const stamping = form.querySelector('input[name="stamping"]:checked')?.value || '';
     const lamination = form.querySelector('input[name="lamination"]:checked')?.value || '';
@@ -3785,8 +3640,6 @@ function collectRequestPayload() {
         material_name: normalizeText(materialInput?.value),
         material_code: normalizeText(materialInput?.dataset?.materialCode),
         applicationType: normalizeText(surfaceInput?.value),
-        applicationEnvironment: normalizeText(surfaceInput?.value),
-        surfaceType: normalizeText(surfaceTypeInput?.value),
         outputType: placement,
         widthInches,
         lengthInches,
@@ -3810,7 +3663,6 @@ function collectRequestPayload() {
             'REQ | Embosado': document.getElementById('finishEmbossed')?.checked ? 'Si' : 'No',
             'REQ | Troquelado': document.getElementById('finishDieCut')?.checked ? 'Si' : 'No',
             'REQ | Superficie': normalizeText(surfaceInput?.value),
-            'REQ | Tipo Superficie': normalizeText(surfaceTypeInput?.value),
             'REQ | Colocacion': placement,
             'REQ | Comentarios': normalizeText(document.getElementById('requestComments')?.value),
             'REQ | Medida Fija': sizeLabel,
@@ -3818,7 +3670,7 @@ function collectRequestPayload() {
             'TRAZABILIDAD | SOLICITUD VENDEDOR': 'Si',
             'TRAZABILIDAD | FECHA SOLICITUD VENDEDOR': new Date().toISOString(),
             'TRAZABILIDAD | USUARIO SOLICITUD VENDEDOR': currentUserName(),
-            'Estado_UI': {
+            'CODEX_UI_STATE': {
                 request: 'solicitud-vendedor',
                 productType: normalizeText(productType),
                 quantities,
@@ -3912,8 +3764,8 @@ function validateQuickRequestStep(stepNumber) {
     if (stepNumber === 2) {
         if (!fixedSizeSelect?.value) markQuickRequestInvalid(fixedSizeTrigger || fixedSizeSelect, errors, 'Medida');
         if (fixedSizeSelect?.value === 'custom') {
-            if (!payload.widthInches || payload.widthInches <= 0) markQuickRequestInvalid(customWidthInput, errors, isCircularRequestShape() ? 'Diámetro' : 'Ancho especial');
-            if (!isCircularRequestShape() && (!payload.lengthInches || payload.lengthInches <= 0)) markQuickRequestInvalid(customHeightInput, errors, 'Alto especial');
+            if (!payload.widthInches || payload.widthInches <= 0) markQuickRequestInvalid(customWidthInput, errors, 'Ancho especial');
+            if (!payload.lengthInches || payload.lengthInches <= 0) markQuickRequestInvalid(customHeightInput, errors, 'Alto especial');
         }
         const selectedShape = getSelectedShapeInput()?.value || '';
         if (!selectedShape) {
@@ -3923,7 +3775,7 @@ function validateQuickRequestStep(stepNumber) {
     }
 
     if (stepNumber === 4) {
-        if (!payload.applicationType) markQuickRequestInvalid(surfaceInput, errors, 'Aplicación');
+        if (!payload.applicationType) markQuickRequestInvalid(surfaceInput, errors, 'Superficie de aplicación');
         if (!payload.outputType) markQuickRequestInvalid(getPlacementField(), errors, 'Colocación');
     }
 
@@ -3965,11 +3817,11 @@ function validateQuickRequest(forAdvanced) {
     if (!forAdvanced) {
         check(selectedShape, shapePicker, 'Forma');
         check(payload.material_name, materialInput, 'Sustrato');
-        check(payload.applicationType, surfaceInput, 'Aplicación');
+        check(payload.applicationType, surfaceInput, 'Superficie de aplicación');
         check(fixedSizeSelect?.value, fixedSizeTrigger || fixedSizeSelect, 'Medida');
         if (fixedSizeSelect?.value === 'custom') {
-            check(payload.widthInches > 0, customWidthInput, isCircularRequestShape() ? 'Diámetro' : 'Ancho especial');
-            if (!isCircularRequestShape()) check(payload.lengthInches > 0, customHeightInput, 'Alto especial');
+            check(payload.widthInches > 0, customWidthInput, 'Ancho especial');
+            check(payload.lengthInches > 0, customHeightInput, 'Alto especial');
         }
     }
 
@@ -3991,7 +3843,6 @@ function buildQuickRequestFingerprint(payload) {
         quantity: payload.quantities || [],
         material: payload.material_name,
         surface: payload.applicationType,
-        surfaceType: payload.surfaceType,
         placement: payload.outputType,
         width: payload.widthInches,
         length: payload.lengthInches,
@@ -4025,9 +3876,9 @@ async function createQuickQuoteDraft(payload, options = {}) {
     const baseQuantity = parseRequestedQuantityValue(quantities[0]) || 0;
     const requestKey = options.requestKey || buildQuickRequestKey(payload);
     const requestMeta = { ...(payload.request_meta || {}) };
-    const uiState = requestMeta.Estado_UI;
+    const uiState = requestMeta.CODEX_UI_STATE;
     if (uiState && typeof uiState === 'object' && !Array.isArray(uiState)) {
-        requestMeta.Estado_UI = {
+        requestMeta.CODEX_UI_STATE = {
             ...uiState,
             header: {
                 ...(uiState.header || {}),
@@ -4068,8 +3919,6 @@ async function createQuickQuoteDraft(payload, options = {}) {
             material_name: payload.material_name,
             material_code: payload.material_code || payload.material_name,
             applicationType: payload.applicationType,
-            applicationEnvironment: payload.applicationEnvironment,
-            surfaceType: payload.surfaceType,
             outputType: payload.outputType,
             widthInches: payload.widthInches,
             lengthInches: payload.lengthInches,
@@ -4077,7 +3926,7 @@ async function createQuickQuoteDraft(payload, options = {}) {
             line_order: 1,
             request_meta: {
                 ...requestMeta,
-                'Clave_Solicitud': requestKey,
+                'CODEX_REQUEST_KEY': requestKey,
                 'SOLICITUD ESTADO': status,
                 'REQ | Cantidad Solicitada Original': String(baseQuantity),
                 'REQ | Grupo de Cantidades': quantities.join(', ')
@@ -4112,18 +3961,14 @@ function renderQuickRequestSummary(payload, proformaData) {
     const technical = proformaData?.technicalSummary || {};
     const currency = proformaData?.currency || {};
     const totals = proformaData?.totals || {};
-    const measureText = isCircularShapeValue(payload.request_meta?.['REQ | Forma'])
-        ? (payload.widthInches ? `Diámetro: ${payload.widthInches}"` : '')
-        : `${payload.widthInches || ''}" x ${payload.lengthInches || ''}"`;
     const summaryItems = [
         ['Cliente', payload.customer_name],
         ['Contacto', payload.contact_name],
         ['Producto', payload.job_name],
         ['Forma', technical.shapesText || payload.request_meta?.['REQ | Forma'] || ''],
-        ['Medida', technical.measuresText || measureText],
+        ['Medida', technical.measuresText || `${payload.widthInches || ''}" x ${payload.lengthInches || ''}"`],
         ['Material', technical.materialsText || payload.material_name],
         ['Aplicación', technical.applicationsText || payload.applicationType],
-        ['Tipo de Superficie', payload.surfaceType],
         ['Colocación', technical.placementsText || payload.outputType],
         ['Acabados', technical.finishesText || 'Sin acabados especiales'],
         ['Numeración', technical.numberingText || 'Sin numeración'],
@@ -4958,7 +4803,6 @@ function repositionOpenQuoteLineMenu() {
         positionRequestProductTypePanel();
         positionFixedSizePanel();
         positionMaterialSuggestionsPanel();
-        positionSurfacePanels();
         positionShapePickerPanel();
         renderRequestQuantityRepeater();
     });
@@ -4968,7 +4812,6 @@ function repositionOpenQuoteLineMenu() {
         positionRequestProductTypePanel();
         positionFixedSizePanel();
         positionMaterialSuggestionsPanel();
-        positionSurfacePanels();
         positionShapePickerPanel();
     }, true);
     customerLookupResults?.addEventListener('click', (e) => {
@@ -5029,19 +4872,6 @@ function repositionOpenQuoteLineMenu() {
             hideInlinePanels();
             invalidateQuickRequestPreview();
         }
-    });
-    surfaceTypeInput?.addEventListener('input', showSurfaceTypeSuggestions);
-    surfaceTypeInput?.addEventListener('focus', showSurfaceTypeSuggestions);
-    surfaceTypeSuggestions?.addEventListener('click', (e) => {
-        const item = e.target.closest('.quote-request-lookup-item');
-        if (item) {
-            surfaceTypeInput.value = item.dataset.value;
-            hideInlinePanels();
-            invalidateQuickRequestPreview();
-        }
-    });
-    customWidthInput?.addEventListener('input', () => {
-        if (isCircularRequestShape() && customHeightInput) customHeightInput.value = customWidthInput.value;
     });
 
     rowsBody?.addEventListener('click', (e) => {

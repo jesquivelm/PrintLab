@@ -103,6 +103,7 @@
                             <tbody id="quoteRows"></tbody>
                         </table>
                     </div>
+                    <div id="quoteDetailLinesFooter" class="quote-master-lines-footer quote-detail-lines-footer"></div>
                 </section>
             </section>
 
@@ -151,20 +152,25 @@
 
     <div id="attachmentsPopover" class="calc-popover" hidden>
         <div class="calc-popover-backdrop" data-action="close-attachments-popover"></div>
-        <section class="calc-popover-panel calc-popover-panel-narrow" role="dialog" aria-modal="true" aria-label="Adjuntos de la linea">
+        <section class="calc-popover-panel calc-popover-panel-narrow calc-popover-panel-attachments" role="dialog" aria-modal="true" aria-label="Adjuntos de la linea">
             <button type="button" id="closeAttachmentsPopoverButton" class="calc-popover-close" aria-label="Cerrar adjuntos">&times;</button>
             <div class="calc-popover-body attachments-popover-body">
                 <div class="copy-popover-header">
                     <h2>Adjuntos de la linea</h2>
                 </div>
-                <div class="attachment-upload-row">
-                    <input id="attachmentFileInput" type="file" multiple>
+                <div class="attachment-upload-row attachment-upload-row-compact">
+                    <input id="attachmentFileInput" type="file" multiple hidden>
+                    <label class="quote-request-field attachment-class-field">
+                        <span>Clasificación</span>
+                        <input id="attachmentClassificationInput" class="quote-request-input" type="text" placeholder="Arte, numerado, documento">
+                    </label>
                     <div class="attachment-upload-box">
                         <div class="attachment-upload-title">Archivo seleccionado</div>
                         <div id="attachmentFileName" class="attachment-upload-name">Ningun archivo seleccionado</div>
                     </div>
                     <div class="attachment-upload-actions">
                         <button type="button" id="pickAttachmentsButton" class="copy-popover-send" aria-label="Elegir archivo"></button>
+                        <button type="button" id="pickAudioAttachmentButton" class="copy-popover-send" aria-label="Cargar audio"></button>
                         <button type="button" id="uploadAttachmentsButton" class="copy-popover-send" aria-label="Cargar archivo"></button>
                     </div>
                 </div>
