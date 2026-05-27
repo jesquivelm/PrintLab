@@ -401,9 +401,22 @@
         }
         .quotes-general-split {
             display: grid;
-            grid-template-columns: minmax(220px, 0.82fr) minmax(220px, 0.82fr) minmax(320px, 1fr);
+            grid-template-columns: minmax(280px, 1fr) minmax(320px, 1fr);
             gap: 16px;
             align-items: start;
+        }
+        .quote-product-types-card {
+            grid-column: 1;
+        }
+        .quote-surface-options-card {
+            grid-column: 1;
+        }
+        .quote-application-options-card {
+            grid-column: 2;
+            grid-row: 1 / span 2;
+        }
+        .quotes-orders-compact-card {
+            grid-column: 1 / -1;
         }
         .quote-product-types-card,
         .quotes-orders-compact-card {
@@ -2124,6 +2137,13 @@
         @media (max-width: 980px) {
             .quotes-general-split {
                 grid-template-columns: 1fr;
+            }
+            .quote-product-types-card,
+            .quote-surface-options-card,
+            .quote-application-options-card,
+            .quotes-orders-compact-card {
+                grid-column: 1;
+                grid-row: auto;
             }
         }
         html[data-theme="dark"] .quote-output-types-table thead th {
@@ -8580,8 +8600,9 @@
             syncPresentationTabLayoutFields();
         }
 
-        function normalizeQuoteProductTypeItems(value) {
+        function normalizeQuoteProductTypeItems(value, options = {}) {
             let parsed = value;
+            const keepEmpty = options.keepEmpty === true;
             if (typeof parsed === 'string') {
                 const trimmed = parsed.trim();
                 if (!trimmed) return [];
@@ -8600,7 +8621,7 @@
                     return '';
                 })
                 .filter((item) => {
-                    if (!item) return false;
+                    if (!item) return keepEmpty;
                     const key = item.toLowerCase();
                     if (seen.has(key)) return false;
                     seen.add(key);
@@ -8610,12 +8631,12 @@
         }
 
         function readQuoteProductTypesFromConfig() {
-            return normalizeQuoteProductTypeItems(quoteProductTypesJsonField?.value || loadedConfig?.general?.quoteProductTypesJson || '');
+            return normalizeQuoteProductTypeItems(quoteProductTypesJsonField?.value || loadedConfig?.general?.quoteProductTypesJson || '', { keepEmpty: true });
         }
 
         function syncQuoteProductTypesField(items) {
             if (!quoteProductTypesJsonField) return;
-            quoteProductTypesJsonField.value = JSON.stringify(normalizeQuoteProductTypeItems(items));
+            quoteProductTypesJsonField.value = JSON.stringify(normalizeQuoteProductTypeItems(items, { keepEmpty: true }));
         }
 
         function renderQuoteProductTypesTable() {
@@ -8629,20 +8650,20 @@
             quoteProductTypesTableBody.innerHTML = items.map((item, index) => `
                 <tr>
                     <td>${index + 1}</td>
-                    <td><input type="text" value="${escapeHtml(item)}" data-quote-product-type-index="${index}" maxlength="80"></td>
+                    <td><input type="text" value="${escapeHtml(item)}" data-quote-product-type-index="${index}" maxlength="80"${item ? "" : " class=\"field-empty\""}></td>
                     <td><button type="button" class="icon-only-btn quote-product-types-remove" data-remove-quote-product-type="${index}" aria-label="Eliminar tipo de producto" title="Eliminar tipo de producto">${getIconHtml('quantity.delete', '&#128465;', '#b94848', 18)}</button></td>
                 </tr>
             `).join('');
         }
 
         function readQuoteSurfaceOptionsFromConfig() {
-            const items = normalizeQuoteProductTypeItems(quoteSurfaceOptionsJsonField?.value || loadedConfig?.general?.quoteSurfaceOptionsJson || '');
+            const items = normalizeQuoteProductTypeItems(quoteSurfaceOptionsJsonField?.value || loadedConfig?.general?.quoteSurfaceOptionsJson || '', { keepEmpty: true });
             return items.length ? items : [...DEFAULT_QUOTE_SURFACE_OPTIONS];
         }
 
         function syncQuoteSurfaceOptionsField(items) {
             if (!quoteSurfaceOptionsJsonField) return;
-            quoteSurfaceOptionsJsonField.value = JSON.stringify(normalizeQuoteProductTypeItems(items));
+            quoteSurfaceOptionsJsonField.value = JSON.stringify(normalizeQuoteProductTypeItems(items, { keepEmpty: true }));
         }
 
         function renderQuoteSurfaceOptionsTable() {
@@ -8659,13 +8680,13 @@
         }
 
         function readQuoteApplicationOptionsFromConfig() {
-            const items = normalizeQuoteProductTypeItems(quoteApplicationOptionsJsonField?.value || loadedConfig?.general?.quoteApplicationOptionsJson || '');
+            const items = normalizeQuoteProductTypeItems(quoteApplicationOptionsJsonField?.value || loadedConfig?.general?.quoteApplicationOptionsJson || '', { keepEmpty: true });
             return items.length ? items : [...DEFAULT_QUOTE_APPLICATION_OPTIONS];
         }
 
         function syncQuoteApplicationOptionsField(items) {
             if (!quoteApplicationOptionsJsonField) return;
-            quoteApplicationOptionsJsonField.value = JSON.stringify(normalizeQuoteProductTypeItems(items));
+            quoteApplicationOptionsJsonField.value = JSON.stringify(normalizeQuoteProductTypeItems(items, { keepEmpty: true }));
         }
 
         function renderQuoteApplicationOptionsTable() {
@@ -14679,7 +14700,7 @@
         quoteProductTypeAddButton?.addEventListener('click', () => {
             const items = readQuoteProductTypesFromConfig();
             if (items.length >= 60) return;
-            items.push(`Nuevo Tipo de Producto ${items.length + 1}`);
+            items.push("");
             syncQuoteProductTypesField(items);
             renderQuoteProductTypesTable();
             const inputs = quoteProductTypesTableBody?.querySelectorAll('input[data-quote-product-type-index]') || [];
@@ -14691,6 +14712,7 @@
         quoteProductTypesTableBody?.addEventListener('input', (event) => {
             const input = event.target.closest('input[data-quote-product-type-index]');
             if (!input) return;
+            input.classList.toggle('field-empty', input.value === '');
             const items = readQuoteProductTypesFromConfig();
             const index = Number(input.dataset.quoteProductTypeIndex);
             if (!Number.isInteger(index) || index < 0) return;
@@ -14701,6 +14723,7 @@
         quoteProductTypesTableBody?.addEventListener('change', (event) => {
             const input = event.target.closest('input[data-quote-product-type-index]');
             if (!input) return;
+            input.classList.toggle('field-empty', input.value === '');
             const items = readQuoteProductTypesFromConfig();
             const index = Number(input.dataset.quoteProductTypeIndex);
             if (!Number.isInteger(index) || index < 0) return;

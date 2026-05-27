@@ -3178,7 +3178,7 @@ function positionNewCalcCustomerLookupPanel() {
 async function searchPartners(term) {
     partnerLookupAbort?.abort();
     partnerLookupAbort = new AbortController();
-    const query = new URLSearchParams({ limit: '12' });
+    const query = new URLSearchParams({ limit: 'all' });
     if (term) query.set('q', term);
     const response = await fetch(`${PARTNERS_ENDPOINT}?${query.toString()}`, { signal: partnerLookupAbort.signal });
     const payload = await response.json().catch(() => ({ socios: [] }));
@@ -3199,7 +3199,7 @@ async function searchPartners(term) {
 async function searchNewCalcPartners(term) {
     newCalcPartnerLookupAbort?.abort();
     newCalcPartnerLookupAbort = new AbortController();
-    const query = new URLSearchParams({ limit: '12' });
+    const query = new URLSearchParams({ limit: 'all' });
     if (term) query.set('q', term);
     const response = await fetch(`${PARTNERS_ENDPOINT}?${query.toString()}`, { signal: newCalcPartnerLookupAbort.signal });
     const payload = await response.json().catch(() => ({ socios: [] }));
@@ -4716,6 +4716,9 @@ function bindEvents() {
         if (!event.target.closest('#nuevoCalculoClienteNombre') && !event.target.closest('#newCalcCustomerLookupPanel')) {
             if (newCalcCustomerLookupPanel) newCalcCustomerLookupPanel.hidden = true;
         }
+        if (!event.target.closest('#nuevoClienteNombre') && !event.target.closest('#quoteCustomerLookupPanel')) {
+            if (customerLookupPanel) customerLookupPanel.hidden = true;
+        }
         if (!event.target.closest('.quote-request-product-type-wrap') && !event.target.closest('#requestProductTypePanel')) {
             toggleRequestProductTypePanel(false);
         }
@@ -4740,6 +4743,15 @@ function bindEvents() {
         if (!event.target.closest('[data-line-menu-id]') && !event.target.closest('.quote-line-menu-panel')) {
             closeQuoteLineMenus();
         }
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape') return;
+        if (customerLookupPanel) customerLookupPanel.hidden = true;
+        if (newCalcCustomerLookupPanel) newCalcCustomerLookupPanel.hidden = true;
+        hideInlinePanels();
+        toggleFixedSizePanel(false);
+        toggleRequestProductTypePanel(false);
+        toggleShapePickerPanel(false);
     });
     form?.addEventListener('click', (event) => {
         const removeNumberingAttachment = event.target.closest('[data-remove-numbering-attachment]');
@@ -4934,8 +4946,13 @@ function repositionOpenQuoteLineMenu() {
         searchPartners(e.target.value).catch(console.error);
     });
     customerNameInput?.addEventListener('focus', () => {
-        if (!customerNameInput.value) return;
         searchPartners(customerNameInput.value).catch(console.error);
+    });
+    customerNameInput?.addEventListener('blur', () => {
+        setTimeout(() => {
+            if (customerLookupPanel?.contains(document.activeElement)) return;
+            if (customerLookupPanel) customerLookupPanel.hidden = true;
+        }, 120);
     });
     customerContactSelect?.addEventListener('change', () => customerContactSelect.classList.remove('is-invalid'));
     newCalcCustomerNameInput?.addEventListener('input', (event) => {
@@ -4946,10 +4963,15 @@ function repositionOpenQuoteLineMenu() {
         });
     });
     newCalcCustomerNameInput?.addEventListener('focus', () => {
-        if (!newCalcCustomerNameInput.value) return;
         searchNewCalcPartners(newCalcCustomerNameInput.value).catch((error) => {
             if (error.name !== 'AbortError') setNewCalcStatus(error.message, 'error');
         });
+    });
+    newCalcCustomerNameInput?.addEventListener('blur', () => {
+        setTimeout(() => {
+            if (newCalcCustomerLookupPanel?.contains(document.activeElement)) return;
+            if (newCalcCustomerLookupPanel) newCalcCustomerLookupPanel.hidden = true;
+        }, 120);
     });
     newCalcContactSelect?.addEventListener('change', () => newCalcContactSelect.classList.remove('is-invalid'));
     window.addEventListener('resize', () => {

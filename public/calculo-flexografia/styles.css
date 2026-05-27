@@ -467,6 +467,7 @@ body.is-front-back-embedded-element #technicalDataCard .technical-column-right {
   margin-bottom: 0;
 }
 
+.details-status-row,
 .details-title-row {
   display: flex;
   align-items: center;
@@ -488,15 +489,18 @@ body.is-front-back-embedded-element #technicalDataCard .technical-column-right {
   display: grid;
   gap: 1px;
   color: var(--text);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   line-height: 1.18;
-  text-align: left;
+  text-align: right;
   white-space: nowrap;
+  justify-items: end;
 }
 
 .details-line-code {
   color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .details-quote-code {
@@ -798,7 +802,7 @@ body.is-front-back-embedded-element #technicalDataCard .technical-column-right {
 .quote-tracking-mount {
   min-width: 0;
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-  justify-self: end;
+  justify-self: start;
 }
 
 .quote-tracking-panel-mount {
@@ -808,7 +812,7 @@ body.is-front-back-embedded-element #technicalDataCard .technical-column-right {
 .quote-tracking-toolbar {
   display: inline-flex;
   align-items: center;
-  justify-self: end;
+  justify-self: start;
   gap: 8px;
   min-width: 0;
 }
@@ -1362,7 +1366,7 @@ label span,
 
 .technical-panel-notes input#applicationEnvironment,
 .technical-panel-notes input#surfaceType {
-  min-height: 44px;
+  min-height: 76px;
 }
 
 .calc-inline-panel {
@@ -4408,17 +4412,23 @@ label:has(> input[data-scope="substrate"][data-field="costPerFoot"])::after {
   .details-demo-head {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
-      "details-title details-title"
-      "details-tracking details-tracking";
+      "details-status details-status"
+      "details-line details-line";
   }
 
+  .details-status-row,
   .details-title-row {
-    grid-area: details-title;
+    grid-area: details-status;
     justify-content: space-between;
   }
 
+  .details-line-badge {
+    grid-area: details-line;
+    justify-items: start;
+    text-align: left;
+  }
+
   .quote-tracking-mount {
-    grid-area: details-tracking;
     justify-self: stretch;
   }
 

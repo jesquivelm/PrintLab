@@ -26,6 +26,10 @@ const PLATE_MODE_OPTIONS = [
   { key: "inventory", label: "Planchas en Inventario" },
   { key: "external", label: "Costo Externo" }
 ];
+const DIE_MODE_OPTIONS = [
+  { key: "inventory", label: "Troquel de Inventario" },
+  { key: "external", label: "Costo Externo" }
+];
 const PLATE_CREATE_MODE_OPTION = { key: "create", label: "Crear" };
 const INLINE_PRINT_SLOTS = [
   { key: "barniz", label: "Barniz", keywords: ["barniz"], materialFamily: "barniz", materialKeywords: ["barniz"] },
@@ -291,6 +295,15 @@ function plateModeOptions() {
   return PLATE_MODE_OPTIONS;
 }
 
+function normalizeDieMode(value) {
+  const key = String(value || "").trim().toLowerCase();
+  return DIE_MODE_OPTIONS.some((item) => item.key === key) ? key : "";
+}
+
+function dieModeOptions() {
+  return DIE_MODE_OPTIONS;
+}
+
 function emptyPlateBreakdown(reason = "Costo = 0.") {
   const breakdown = {};
   PLATE_KEYS.forEach((entry) => {
@@ -316,6 +329,10 @@ function normalizePlateExternalRows(rows = []) {
     attachmentName: String(row?.attachmentName || "").trim()
   }));
   return normalized.length ? normalized : [{ description: "", cost: 0, comments: "", attachmentName: "" }];
+}
+
+function normalizeDieExternalRows(rows = []) {
+  return normalizePlateExternalRows(rows);
 }
 
 function applyIconToContainer(container, iconValue, label, className = "floating-action-icon-markup") {
@@ -1631,6 +1648,13 @@ function outputTypesCatalog() {
 function currentOutputTypeItem() {
   const types = outputTypesCatalog();
   return types.find((item) => String(item.id || item.codigo || "").toUpperCase() === String(state.form?.header?.outputType || "").toUpperCase()) || types[types.length - 1] || null;
+}
+
+function resolveOutputImageUrl(value) {
+  const source = String(value || "").trim();
+  if (!source) return "";
+  if (/^(data:image\/|https?:\/\/|blob:|\/)/i.test(source)) return source;
+  return `/${source.replace(/^\.?\//, "")}`;
 }
 
 function isSvgValue(value) {
@@ -3592,18 +3616,18 @@ function outputPreview() {
     return;
   }
   const displayId = current.shortName || current.code || current.codigo || current.id;
-  const imageUrl = first(current.imageUrl, current.image_url, "");
+  const imageUrl = resolveOutputImageUrl(first(current.imageUrl, current.image_url, ""));
   els.outputTypePreview.innerHTML = imageUrl
-    ? `<div class="output-image-frame"><img src="${esc(imageUrl)}" alt="${esc(current.name || current.nombre || displayId || "Tipo de salida")}" class="output-image"></div>`
+    ? `<div class="output-image-frame"><img src="${esc(imageUrl)}" alt="${esc(current.name || current.nombre || displayId || "Tipo de salida")}" class="output-image" loading="eager" decoding="async"></div>`
     : `<div class="output-tile"><div class="output-placeholder">${esc(displayId)}</div></div>`;
 }
 
 function outputPreviewContent(current = currentOutputTypeItem()) {
   if (!current) return "";
   const displayId = current.shortName || current.code || current.codigo || current.id || "";
-  const imageUrl = first(current.imageUrl, current.image_url, "");
+  const imageUrl = resolveOutputImageUrl(first(current.imageUrl, current.image_url, ""));
   return imageUrl
-    ? `<div class="output-image-frame"><img src="${esc(imageUrl)}" alt="${esc(current.name || current.nombre || displayId || "Tipo de salida")}" class="output-image"></div>`
+    ? `<div class="output-image-frame"><img src="${esc(imageUrl)}" alt="${esc(current.name || current.nombre || displayId || "Tipo de salida")}" class="output-image" loading="eager" decoding="async"></div>`
     : `<div class="output-tile"><div class="output-placeholder">${esc(displayId)}</div></div>`;
 }
 
@@ -3807,7 +3831,12 @@ function buildCalculationValidationState(result = totals()) {
   addWhen("troquel", n(form.header?.coreDiameter, 0) > 10, "Revisa el diámetro de core.");
   addWhen("troquel", currentQuantity(form) <= 0, "Falta cantidad a producir.");
   addWhen("troquel", n(form.header?.quantityTypes, 0) <= 0, "Falta cantidad de tipos.");
-  addWhen("troquel", !String(form.troquel?.dieCode || "").trim(), "Falta troquel.");
+  const dieMode = normalizeDieMode(form.troquel?.dieMode);
+  addWhen("troquel", dieMode !== "external" && !String(form.troquel?.dieCode || "").trim(), "Falta troquel.");
+  if (dieMode === "external") {
+    const rows = normalizeDieExternalRows(form.troquel?.external);
+    addWhen("troquel", rows.every((row) => n(row.cost, 0) <= 0), "Falta costo externo del troquel.");
+  }
   addWhen(primaryTarget, !String(form.header?.applicationType || "").trim(), "Falta tipo de etiquetado.");
   addWhen(packagingTarget, n(form.header?.labelsPerRoll, 0) <= 0, "Falta etiquetas por rollo.");
 
@@ -4006,7 +4035,13 @@ function applyRequiredHighlights(result = null) {
   markRequiredNode(els.quantityTypes, n(form.header?.quantityTypes, 0) <= 0);
   markRequiredNode(els.quantityRepeater?.querySelectorAll("input[data-quantity-index]"), quantityMissing);
 
-  markRequiredScoped("troquel", "dieCode", !String(form.troquel?.dieCode || "").trim());
+  const dieMode = normalizeDieMode(form.troquel?.dieMode);
+  markRequiredScoped("troquel", "dieCode", dieMode !== "external" && !String(form.troquel?.dieCode || "").trim());
+  if (dieMode === "external") {
+    normalizeDieExternalRows(form.troquel?.external).forEach((row, index) => {
+      markRequiredScoped(`troquel.external.${index}`, "cost", n(row.cost, 0) <= 0);
+    });
+  }
   const substrateMaterial = selectedSubstrateMaterial(form);
   markRequiredScoped("substrate", "materialId", !substrateMaterial);
   markRequiredScoped("substrate", "costPerFoot", Boolean(substrateMaterial) && n(form.substrate?.costPerFoot, 0) <= 0);
@@ -4383,7 +4418,9 @@ function buildForm() {
     troquel: {
       ...dieMetrics,
       dieShape: dieShapeOptionValue(first(savedUi?.troquel?.dieShape, dieMetrics.dieShape, raw["REQ | Forma"])),
-      associateDieShape: savedUi?.troquel?.associateDieShape !== false
+      associateDieShape: savedUi?.troquel?.associateDieShape !== false,
+      dieMode: normalizeDieMode(first(savedUi?.troquel?.dieMode, dieMetrics.dieCode ? "inventory" : "")),
+      external: normalizeDieExternalRows(savedUi?.troquel?.external)
     },
     substrate: {
       materialId,
@@ -4500,6 +4537,8 @@ function buildForm() {
   form.header.customerCode = first(quote?.customer_code, context?.customerCode, raw["ID CLIENTE"], form.header.customerCode);
   form.header.customerName = first(quote?.customer_name, context?.customerName, raw.CLIENTE, form.header.customerName);
   form.header.salespersonName = first(quote?.salesperson_name, context?.salespersonName, raw.VENDEDOR, form.header.salespersonName);
+  form.troquel.dieMode = normalizeDieMode(form.troquel.dieMode) || (String(form.troquel.dieCode || "").trim() ? "inventory" : "");
+  form.troquel.external = normalizeDieExternalRows(form.troquel.external);
   form.plates.chargePlates = form.plates.chargePlates !== false;
   form.plates.chargeVirginPlate = false;
   form.plates.plateMode = normalizePlateMode(form.plates.plateMode);
@@ -4616,13 +4655,24 @@ function buildForm() {
 
 function calcTroquel() {
   const base = metrics();
-  const pricing = { processKey: "troquel", rawSubtotal: 0, minimumCost: 0, minimumApplied: false, subtotal: 0 };
+  const dieMode = normalizeDieMode(state.form?.troquel?.dieMode);
+  const externalRows = normalizeDieExternalRows(state.form?.troquel?.external);
+  const rawSubtotal = dieMode === "external" ? r(externalRows.reduce((sum, item) => sum + n(item.cost, 0), 0)) : 0;
+  const pricing = applyProcessMinimum("troquel", rawSubtotal);
+  const formulaText = dieMode === "external"
+    ? "Subtotal troquel = suma de costos externos registrados."
+    : "Etiquetas por repetición = filas × repeticiones. Desarrollo del troquel = largo troquel × repeticiones.";
+  const explanation = dieMode === "external"
+    ? "Costo externo toma la descripción, costo, comentarios y adjunto indicado para fabricar el troquel."
+    : "Este bloque toma el troquel seleccionado del inventario para determinar cuántas etiquetas salen por vuelta y cuál es el desarrollo real que se usará en el resto del cálculo.";
   return {
     ...pricing,
     labelsPerRepeat: base.labelsPerRepeat,
     development: base.development,
-    formulaText: "Etiquetas por repetición = filas × repeticiones. Desarrollo del troquel = largo troquel × repeticiones.",
-    explanation: "Este bloque toma el troquel seleccionado del inventario para determinar cuántas etiquetas salen por vuelta y cuál es el desarrollo real que se usará en el resto del cálculo."
+    dieMode,
+    externalRows,
+    formulaText,
+    explanation
   };
 }
 
@@ -7137,8 +7187,17 @@ function renderPlateModeSelector() {
   return `<div class="front-back-element-tabs plate-mode-tabs" role="tablist" aria-label="Tipo de plancha">${plateModeOptions().map((option) => `<button type="button" class="front-back-element-tab plate-mode-tab${current === option.key ? " is-active" : ""}" data-action="set-plate-mode" data-plate-mode="${esc(option.key)}" role="tab" aria-selected="${current === option.key ? "true" : "false"}"><strong>${esc(option.label)}</strong></button>`).join("")}</div>`;
 }
 
+function renderDieModeSelector() {
+  const current = normalizeDieMode(state.form.troquel?.dieMode);
+  return `<div class="front-back-element-tabs plate-mode-tabs" role="tablist" aria-label="Tipo de troquel">${dieModeOptions().map((option) => `<button type="button" class="front-back-element-tab plate-mode-tab${current === option.key ? " is-active" : ""}" data-action="set-die-mode" data-die-mode="${esc(option.key)}" role="tab" aria-selected="${current === option.key ? "true" : "false"}"><strong>${esc(option.label)}</strong></button>`).join("")}</div>`;
+}
+
 function renderPlatePendingPanel() {
   return `<div class="plate-disabled-panel"><span>Selecciona planchas en inventario o costo externo.</span></div>`;
+}
+
+function renderDiePendingPanel() {
+  return `<div class="plate-disabled-panel"><span>Selecciona troquel de inventario o costo externo.</span></div>`;
 }
 
 function renderPlateExternalAttachmentTable(item = {}, index = 0) {
@@ -7163,8 +7222,47 @@ function renderPlateExternalPanel(plates) {
   })}`;
 }
 
+function renderDieExternalAttachmentTable(item = {}, index = 0) {
+  const fileName = String(item.attachmentName || "").trim();
+  const attachIcon = iconPresentation("quoteRequestAttachment", "📎", "#1e516d", 18);
+  const deleteIcon = iconPresentation("quoteRequestAttachmentDelete", "×", "#b94848", 18);
+  const extension = fileName.includes(".") ? fileName.split(".").pop().slice(0, 5).toUpperCase() : "FILE";
+  return `<div class="additional-attachments-card"><div class="additional-attachment-actions"><label class="additional-icon-action" title="Adjuntar archivo" aria-label="Adjuntar archivo" style="--icon-color:${esc(attachIcon.color)};--icon-hover-color:${esc(attachIcon.hover)};--config-icon-size:${attachIcon.size}px;">${renderIconMarkup(attachIcon.value, "Adjuntar archivo", "additional-attachment-icon")}<input data-scope="troquel.external.${index}" data-field="attachmentName" data-kind="file" type="file"></label></div><div class="additional-attachment-list">${fileName ? `<div class="additional-attachment-card"><div class="additional-attachment-filetile"><strong>${esc(extension)}</strong><span>Adjunto</span></div><div class="additional-attachment-body"><span class="additional-attachment-name" title="${esc(fileName)}">${esc(fileName)}</span><span class="additional-attachment-size">Archivo asociado al costo externo</span></div><button type="button" class="additional-attachment-remove" data-action="clear-die-external-attachment" data-index="${index}" aria-label="Eliminar adjunto" title="Eliminar adjunto" style="--icon-color:${esc(deleteIcon.color)};--icon-hover-color:${esc(deleteIcon.hover)};--config-icon-size:${deleteIcon.size}px;">${renderIconMarkup(deleteIcon.value, "Eliminar adjunto", "additional-attachment-delete-icon")}</button></div>` : `<div class="additional-attachment-empty">Sin adjuntos</div>`}</div></div>`;
+}
+
+function renderDieExternalRow(item = {}, index = 0) {
+  const deleteIcon = getProcessDeleteIconConfig();
+  return `<div class="additional-item"><div class="additional-row"><input data-scope="troquel.external.${index}" data-field="description" type="text" value="${esc(item.description || "")}" placeholder="Descripción">${displayInput(`troquel.external.${index}`, "cost", item.cost || 0, { prefix: "$", maximumFractionDigits: 2, step: "0.01" })}<input data-scope="troquel.external.${index}" data-field="comments" type="text" value="${esc(item.comments || "")}" placeholder="Comentarios"><button type="button" class="process-trash-button" data-action="remove-die-external" data-index="${index}" aria-label="Eliminar fila" title="Eliminar fila" style="--process-delete-icon-color:${esc(deleteIcon.primary)};--process-delete-icon-hover:${esc(deleteIcon.hover)};--process-delete-icon-size:${deleteIcon.size}px;">${renderIconMarkup(deleteIcon.value, "Eliminar fila", "process-delete-icon")}</button></div>${renderDieExternalAttachmentTable(item, index)}</div>`;
+}
+
+function renderDieExternalPanel(troquel) {
+  const rows = normalizeDieExternalRows(state.form.troquel.external);
+  state.form.troquel.external = rows;
+  return `<div class="table-toolbar"><button type="button" class="inline-button" data-action="add-die-external">Agregar fila</button></div><div class="additional-table plate-external-table"><div class="additional-head"><span>Descripción</span><span>Costo</span><span>Comentarios</span><span></span></div>${rows.map((item, index) => renderDieExternalRow(item, index)).join("")}</div><div class="readonly-grid compact-top subtotal-right">${metric("Subtotal Troquel", money(troquel.subtotal))}</div>${formula("Costo Externo", "Subtotal troquel = suma de costos externos registrados.", troquel.explanation, {
+    exampleLines: rows.map((row, index) => `Costo externo ${index + 1}: ${formulaValue(row.cost || 0, 2)}`),
+    answer: `R/ El total a cobrar por troquel externo es ${money(troquel.subtotal || 0)}`
+  })}`;
+}
+
 function renderPlateInventoryPanel(plates) {
   return `<div class="plate-disabled-panel"><label class="inline-process-check plate-virgin-check"><input type="checkbox" checked disabled><span>Planchas en Inventario</span></label></div>`;
+}
+
+function renderDieInventoryPanel(troquel) {
+  const shapeValue = dieShapeOptionValue(state.form.troquel.dieShape || state.context?.calculo?.raw_data?.["REQ | Forma"] || "");
+  const shapeImage = dieShapeImageForValue(shapeValue);
+  const recommendedDie = recommendedDieForCurrentForm();
+  const recommendedLabel = recommendedDie ? `Recomendado: ${first(recommendedDie.codigoTroquel, recommendedDie.codigo, recommendedDie.id)}` : "Seleccionar...";
+  const productDimension = `${num(state.form.header.labelWidthIn || 0, 3)} x ${num(state.form.header.labelHeightIn || 0, 3)} in`;
+  const associateChecked = state.form.troquel.associateDieShape !== false ? " checked" : "";
+  return `<div class="editable-grid die-association-row"><label><span>Forma</span><button type="button" class="calc-shape-trigger" data-calc-shape-trigger aria-expanded="false"><span class="calc-shape-trigger-copy"><span class="calc-shape-thumb" data-calc-shape-thumb>${dieShapeThumbForValue(shapeValue, shapeImage)}</span><span class="calc-shape-trigger-label" data-calc-shape-label>${esc(shapeValue || "Seleccionar...")}</span></span></button></label><label class="die-associate-field"><span>Asociar</span><span class="inline-process-check plate-virgin-check die-associate-check"><input data-scope="troquel" data-field="associateDieShape" type="checkbox"${associateChecked}></span></label><label><span>Troquel</span><select data-scope="troquel" data-field="dieCode">${processOptions(troquelDieOptions(), state.form.troquel.dieCode, recommendedLabel)}</select></label></div><div class="readonly-grid compact-top">${metricBox("Dimensión Producto", productDimension, false, Boolean(dieDimensionMismatch()))}${metric("Código Troquel", esc(state.form.troquel.dieCode || "No definido"))}${metric("Ancho Montaje", `${num(state.form.troquel.widthIn, 3)} in`)}${metric("Largo Montaje", `${num(state.form.troquel.lengthIn, 3)} in`)}${metric("Ancho Material", `${num(state.form.troquel.materialWidthIn || 0, 3)} in`)}${metric("Elongación", `${num(state.form.troquel.elongationPct || 0, 3)} %`)}${metric("Dientes", num(state.form.troquel.teeth, 0))}${metric("Repeticiones", num(state.form.troquel.repeats, 0))}${metric("Filas", num(state.form.troquel.rows, 0))}${metric("Etiquetas por Vuelta", num(troquel.labelsPerRepeat, 0))}${metric("Desarrollo Total", `${num(troquel.development, 3)} in`)}</div>${dieDimensionWarningMarkup()}${formula("Base del Troquel", troquel.formulaText, troquel.explanation, {
+    exampleLines: [
+      `Etiquetas por repetición: ${formulaValue(state.form.troquel.rows || 0, 0)} x ${formulaValue(state.form.troquel.repeats || 0, 0)} = ${formulaValue(troquel.labelsPerRepeat || 0, 0)}`,
+      `Desarrollo total: ${formulaValue(state.form.troquel.lengthIn || 0, 2)} x ${formulaValue(state.form.troquel.repeats || 0, 0)} = ${formulaValue(troquel.development || 0, 2)} in`,
+      ...minimumCostExampleLines(troquel, "Troquel")
+    ],
+    answer: `R/ El troquel actual entrega ${formulaValue(troquel.labelsPerRepeat || 0, 0)} etiquetas por vuelta y ${formulaValue(troquel.development || 0, 2)} in de desarrollo`
+  })}`;
 }
 
 function renderPlateCreatePanel(plates) {
@@ -7756,20 +7854,14 @@ function renderProcesses() {
       answer: `R/ La referencia actual de merma usa ${formulaValue(macula.montajeRows.length, 0)} filas de montaje y ${formulaValue(macula.tirajeRows.length, 0)} filas de tiraje`
     })}`),
     troquel: () => {
-      const shapeValue = dieShapeOptionValue(state.form.troquel.dieShape || state.context?.calculo?.raw_data?.["REQ | Forma"] || "");
-      const shapeImage = dieShapeImageForValue(shapeValue);
-      const recommendedDie = recommendedDieForCurrentForm();
-      const recommendedLabel = recommendedDie ? `Recomendado: ${first(recommendedDie.codigoTroquel, recommendedDie.codigo, recommendedDie.id)}` : "Seleccionar...";
-      const productDimension = `${num(state.form.header?.labelWidthIn || 0, 3)} x ${num(state.form.header?.labelHeightIn || 0, 3)} in`;
-      const associateChecked = state.form.troquel.associateDieShape !== false ? " checked" : "";
-      return card("troquel", nextTitle("Troquel"), state.form.troquel.dieDescription, troquel.subtotal, `<div class="editable-grid die-association-row"><label><span>Forma</span><button type="button" class="calc-shape-trigger" data-calc-shape-trigger aria-expanded="false"><span class="calc-shape-trigger-copy"><span class="calc-shape-thumb" data-calc-shape-thumb>${dieShapeThumbForValue(shapeValue, shapeImage)}</span><span class="calc-shape-trigger-label" data-calc-shape-label>${esc(shapeValue || "Seleccionar...")}</span></span></button></label><label class="die-associate-field"><span>Asociar</span><span class="inline-process-check plate-virgin-check die-associate-check"><input data-scope="troquel" data-field="associateDieShape" type="checkbox"${associateChecked}></span></label><label><span>Troquel</span><select data-scope="troquel" data-field="dieCode">${processOptions(troquelDieOptions(), state.form.troquel.dieCode, recommendedLabel)}</select></label></div><div class="readonly-grid compact-top">${metricBox("Dimensión Producto", productDimension, false, Boolean(dieDimensionMismatch()))}${metric("Código Troquel", esc(state.form.troquel.dieCode || "No definido"))}${metric("Ancho Montaje", `${num(state.form.troquel.widthIn, 3)} in`)}${metric("Largo Montaje", `${num(state.form.troquel.lengthIn, 3)} in`)}${metric("Ancho Material", `${num(state.form.troquel.materialWidthIn || 0, 3)} in`)}${metric("Elongación", `${num(state.form.troquel.elongationPct || 0, 3)} %`)}${metric("Dientes", num(state.form.troquel.teeth, 0))}${metric("Repeticiones", num(state.form.troquel.repeats, 0))}${metric("Filas", num(state.form.troquel.rows, 0))}${metric("Etiquetas por Vuelta", num(troquel.labelsPerRepeat, 0))}${metric("Desarrollo Total", `${num(troquel.development, 3)} in`)}</div>${dieDimensionWarningMarkup()}${formula("Base del Troquel", troquel.formulaText, troquel.explanation, {
-      exampleLines: [
-        `Etiquetas por repetición: ${formulaValue(state.form.troquel.rows || 0, 0)} x ${formulaValue(state.form.troquel.repeats || 0, 0)} = ${formulaValue(troquel.labelsPerRepeat || 0, 0)}`,
-        `Desarrollo total: ${formulaValue(state.form.troquel.lengthIn || 0, 2)} x ${formulaValue(state.form.troquel.repeats || 0, 0)} = ${formulaValue(troquel.development || 0, 2)} in`,
-        ...minimumCostExampleLines(troquel, "Troquel")
-      ],
-      answer: `R/ El troquel actual entrega ${formulaValue(troquel.labelsPerRepeat || 0, 0)} etiquetas por vuelta y ${formulaValue(troquel.development || 0, 2)} in de desarrollo`
-    })}`);
+      const dieMode = normalizeDieMode(state.form.troquel?.dieMode);
+      const selector = renderDieModeSelector();
+      const body = dieMode === "external"
+        ? `${selector}${renderDieExternalPanel(troquel)}`
+        : (dieMode === "inventory"
+          ? `${selector}${renderDieInventoryPanel(troquel)}`
+          : `${selector}${renderDiePendingPanel()}`);
+      return card("troquel", nextTitle("Troquel"), dieMode === "inventory" ? state.form.troquel.dieDescription : "", dieMode === "inventory" ? null : troquel.subtotal, body);
     },
     sustrato: () => card("sustrato", nextTitle("Sustrato"), sustrato.materialName || "Selecciona material", sustrato.subtotal, `<div class="editable-grid substrate-grid"><label class="span-2"><span>Material</span><select data-scope="substrate" data-field="materialId">${processOptions(substrateMaterialOptions().map((item) => ({ id: item.id, nombre: item.nombre || item.name || item.descripcion || item.id })), state.form.substrate.materialId)}</select></label><label><span>Costo/pie</span>${displayInput("substrate", "costPerFoot", state.form.substrate.costPerFoot, { prefix: "$", suffix: "/pie", maximumFractionDigits: 6, step: "0.000001" })}</label></div><div class="readonly-grid compact-top">${metricBox("Etiquetas al Través", sustrato.acrossCount > 0 ? num(sustrato.acrossCount, 0) : "Pendiente", n(sustrato.acrossCount, 0) <= 0)}${metricBox("Desarrollo del Cilindro", sustrato.cylinderDevelopmentIn > 0 ? `${num(sustrato.cylinderDevelopmentIn, 3)} in` : "Pendiente", n(sustrato.cylinderDevelopmentIn, 0) <= 0)}${metricBox("Merma Total", sustrato.startupWasteFeet > 0 ? `${num(sustrato.startupWasteFeet, 2)} pies` : "Pendiente", (sustrato.issues || []).some((issue) => String(issue).toLowerCase().includes("merma")))}${metricBox("Longitud Total", sustrato.totalLengthFeet > 0 ? `${num(sustrato.totalLengthFeet, 2)} pies` : "Pendiente", (sustrato.issues || []).length > 0)}${metricBox("Área Total Consumida", sustrato.totalAreaFt2 > 0 ? `${num(sustrato.totalAreaFt2, 2)} ft²` : "Pendiente", n(sustrato.webWidthIn, 0) <= 0 || (sustrato.issues || []).length > 0)}${metric("Costo por Pie", money(sustrato.unitCost))}${metric("Subtotal", money(sustrato.subtotal))}</div>${issueList("Problemas detectados en la fórmula", sustrato.issues || [])}${formula("Costo del Sustrato", sustrato.formulaCost, sustrato.explanation, {
       exampleLines: [
@@ -8409,6 +8501,11 @@ function bindProcesses() {
       const index = Number(scope.split(".")[2]);
       if (Number.isInteger(index) && !state.form.plates.external[index]) state.form.plates.external[index] = { description: "", cost: 0, attachmentName: "", comments: "" };
     }
+    if (scope.startsWith("troquel.external.")) {
+      state.form.troquel.external = normalizeDieExternalRows(state.form.troquel.external);
+      const index = Number(scope.split(".")[2]);
+      if (Number.isInteger(index) && !state.form.troquel.external[index]) state.form.troquel.external[index] = { description: "", cost: 0, attachmentName: "", comments: "" };
+    }
     if (target.dataset.kind === "file" && field === "numberingAttachment") {
       const file = target.files?.[0] || null;
       if (!file) return;
@@ -8543,7 +8640,10 @@ function bindProcesses() {
       }
       syncPrimaryPrintStage();
     }
-    if (scope === "troquel" && field === "dieCode") applyDieDefaults(value);
+    if (scope === "troquel" && field === "dieCode") {
+      if (String(value || "").trim()) state.form.troquel.dieMode = "inventory";
+      applyDieDefaults(value);
+    }
     if (scope === "print" && field === "machineId") applyPrintMachineDefaults(value);
     if (scope.startsWith("printStages.") && field === "machineId") applyPrintStageMachineDefaults(scope, value);
     if (scope.startsWith("plates.") && field === "processId") applyPlateMachineDefaults(scope, value);
@@ -8631,10 +8731,26 @@ function bindProcesses() {
       scheduleSave();
       return;
     }
+    if (button.dataset.action === "set-die-mode") {
+      state.form.troquel.dieMode = normalizeDieMode(button.dataset.dieMode);
+      state.form.troquel.external = normalizeDieExternalRows(state.form.troquel.external);
+      renderProcesses();
+      scheduleSave();
+      return;
+    }
     if (button.dataset.action === "clear-plate-external-attachment") {
       const index = Number(button.dataset.index);
       if (Number.isInteger(index) && state.form.plates?.external?.[index]) {
         state.form.plates.external[index].attachmentName = "";
+        renderProcesses();
+        scheduleSave();
+      }
+      return;
+    }
+    if (button.dataset.action === "clear-die-external-attachment") {
+      const index = Number(button.dataset.index);
+      if (Number.isInteger(index) && state.form.troquel?.external?.[index]) {
+        state.form.troquel.external[index].attachmentName = "";
         renderProcesses();
         scheduleSave();
       }
@@ -8648,6 +8764,15 @@ function bindProcesses() {
       state.form.plates.external = normalizePlateExternalRows(state.form.plates.external);
       state.form.plates.external.splice(Number(button.dataset.index), 1);
       state.form.plates.external = normalizePlateExternalRows(state.form.plates.external);
+    }
+    if (button.dataset.action === "add-die-external") {
+      state.form.troquel.external = normalizeDieExternalRows(state.form.troquel.external);
+      state.form.troquel.external.push({ description: "", cost: 0, attachmentName: "", comments: "" });
+    }
+    if (button.dataset.action === "remove-die-external") {
+      state.form.troquel.external = normalizeDieExternalRows(state.form.troquel.external);
+      state.form.troquel.external.splice(Number(button.dataset.index), 1);
+      state.form.troquel.external = normalizeDieExternalRows(state.form.troquel.external);
     }
     if (button.dataset.action === "add-additional") state.form.additional.push({ description: "", cost: 0, attachmentName: "", comments: "" });
     if (button.dataset.action === "remove-additional") state.form.additional.splice(Number(button.dataset.index), 1);

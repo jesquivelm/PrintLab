@@ -48,7 +48,7 @@ const quoteBrowserPopover = document.getElementById('quoteBrowserPopover');
 const quoteBrowserSearchInput = document.getElementById('quoteBrowserSearchInput');
 const quoteBrowserResults = document.getElementById('quoteBrowserResults');
 const closeQuoteBrowserButton = document.getElementById('closeQuoteBrowserButton');
-const MIN_VISIBLE_ROWS = 4;
+const MIN_VISIBLE_ROWS = 0;
 const MAX_VISIBLE_ROWS = 8;
 const PRESENTATION_KEY = 'cotizaciones';
 const CLIENT_LOCK_FIELDS = ['clienteCodigo', 'clienteNombre'];
@@ -1211,7 +1211,7 @@ function renderRows() {
         `;
     }
     let markup = rows.map((row, index) => renderDataRow(row, index, subtotalKeys)).join('');
-    const blankRowCount = Math.max(MIN_VISIBLE_ROWS - rows.length, 0);
+    const blankRowCount = 0;
     const visibleRowCount = Math.min(Math.max(rows.length, MIN_VISIBLE_ROWS), MAX_VISIBLE_ROWS);
     const tableWrap = rowsBody?.closest('.quote-browser-table-wrap, .table-wrap');
     tableWrap?.style.setProperty('--visible-table-rows', String(visibleRowCount));

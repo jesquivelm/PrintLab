@@ -9837,7 +9837,9 @@ async function loadFlexoCatalogsFromDb() {
 app.get('/api/socios', async (req, res) => {
     try {
         const search = String(req.query.q || '').trim();
-        const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
+        const rawLimit = String(req.query.limit || '').trim().toLowerCase();
+        const hasLimit = rawLimit !== 'all';
+        const limit = hasLimit ? Math.min(Math.max(Number(req.query.limit) || 50, 1), 2000) : 0;
         const values = [];
         let whereClause = '';
 
@@ -9847,7 +9849,8 @@ app.get('/api/socios', async (req, res) => {
             whereClause = 'WHERE partner_code ILIKE $1 OR partner_name ILIKE $2';
         }
 
-        values.push(limit);
+        const limitClause = hasLimit ? `LIMIT $${values.length + 1}` : '';
+        if (hasLimit) values.push(limit);
 
         const result = await pgQuery(
             `SELECT
@@ -9869,7 +9872,7 @@ app.get('/api/socios', async (req, res) => {
              FROM business_partners
              ${whereClause}
              ORDER BY partner_name NULLS LAST, partner_code NULLS LAST
-             LIMIT $${values.length}`,
+             ${limitClause}`,
             values
         );
 
