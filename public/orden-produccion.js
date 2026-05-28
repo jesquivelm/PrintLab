@@ -17,6 +17,13 @@ const artworkDeleteButton = document.getElementById('orderArtworkDeleteButton');
 const orderFlowBody = document.getElementById('orderFlowBody');
 const scheduledDateInput = document.getElementById('orderScheduledDateInput');
 const finishNotesInput = document.getElementById('orderFinishNotesInput');
+const sapConsumptionForm = document.getElementById('sapConsumptionForm');
+const sapConsumptionMaterial = document.getElementById('sapConsumptionMaterial');
+const sapConsumptionProcess = document.getElementById('sapConsumptionProcess');
+const sapConsumptionQuantity = document.getElementById('sapConsumptionQuantity');
+const sapConsumptionReason = document.getElementById('sapConsumptionReason');
+const sapConsumptionStatus = document.getElementById('sapConsumptionStatus');
+const sapConsumptionHistory = document.getElementById('sapConsumptionHistory');
 
 const planningStatusText = document.getElementById('orderPlanningStatusText');
 const planningMetaText = document.getElementById('orderPlanningMetaText');
@@ -72,6 +79,7 @@ let currentOrderAttachments = [];
 let currentArtworkAttachment = null;
 let currentOrderFlowSteps = [];
 let currentOrderFlowPayload = null;
+let currentSapConsumptionMaterials = [];
 let trackingUserPhotos = new Map();
 let artworkSectionBaseHeight = 0;
 let artworkSectionMaxHeight = 0;
@@ -1058,6 +1066,76 @@ async function refreshOrderAttachments() {
     return currentOrderAttachments;
 }
 
+function renderSapConsumptionHistory(items = []) {
+    if (!sapConsumptionHistory) return;
+    if (!items.length) {
+        sapConsumptionHistory.innerHTML = '<div class="production-summary-empty">Sin descargas solicitadas.</div>';
+        return;
+    }
+    sapConsumptionHistory.innerHTML = items.slice(0, 12).map((item) => `
+        <div class="sap-consumption-row">
+            <div>
+                <strong>${escapeHtml(item.material_name || item.sap_item_code || 'Material')}</strong>
+                <span>${escapeHtml(item.process_key || '')} · ${parseNumber(item.quantity)} ${escapeHtml(item.unit_code || '')} · ${escapeHtml(item.requested_by || '')}</span>
+            </div>
+            <div class="sap-consumption-status">${escapeHtml(item.sap_status || 'PENDIENTE')}</div>
+        </div>
+    `).join('');
+}
+
+async function loadSapConsumptionMaterials() {
+    if (!currentOrderCode || !sapConsumptionMaterial) return;
+    const processKey = sapConsumptionProcess?.value || 'impresion';
+    sapConsumptionStatus.textContent = 'Cargando materiales de descarga...';
+    const response = await fetch(`/api/ordenes-produccion/${encodeURIComponent(currentOrderCode)}/materiales-consumo?process=${encodeURIComponent(processKey)}`, {
+        headers: sessionHeader()
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.ok === false) throw new Error(payload.error || 'No fue posible cargar materiales.');
+    currentSapConsumptionMaterials = Array.isArray(payload.materials) ? payload.materials : [];
+    sapConsumptionMaterial.innerHTML = currentSapConsumptionMaterials.length
+        ? currentSapConsumptionMaterials.map((item, index) => `<option value="${index}">${escapeHtml(item.materialName || item.sapItemCode)}${item.sapItemCode ? ` (${escapeHtml(item.sapItemCode)})` : ''}</option>`).join('')
+        : '<option value="">Sin materiales autorizados</option>';
+    renderSapConsumptionHistory(payload.history || []);
+    sapConsumptionStatus.textContent = currentSapConsumptionMaterials.length
+        ? 'Materiales filtrados por orden/cotización y proceso.'
+        : 'No hay materiales autorizados para este proceso.';
+}
+
+async function submitSapConsumption(event) {
+    event.preventDefault();
+    const selected = currentSapConsumptionMaterials[Number(sapConsumptionMaterial?.value || -1)];
+    if (!selected) {
+        sapConsumptionStatus.textContent = 'Selecciona un material autorizado.';
+        return;
+    }
+    const quantity = Number(sapConsumptionQuantity?.value || 0);
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+        sapConsumptionStatus.textContent = 'Indica una cantidad mayor a cero.';
+        return;
+    }
+    sapConsumptionStatus.textContent = 'Registrando descarga pendiente para SAP...';
+    const response = await fetch(`/api/ordenes-produccion/${encodeURIComponent(currentOrderCode)}/materiales-consumo`, {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, sessionHeader()),
+        body: JSON.stringify({
+            processKey: sapConsumptionProcess?.value || 'impresion',
+            sapItemCode: selected.sapItemCode,
+            materialName: selected.materialName,
+            materialFamily: selected.materialFamily,
+            quantity,
+            unitCode: selected.unitCode,
+            reason: sapConsumptionReason?.value || ''
+        })
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.ok === false) throw new Error(payload.error || 'No fue posible registrar la descarga.');
+    if (sapConsumptionQuantity) sapConsumptionQuantity.value = '';
+    if (sapConsumptionReason) sapConsumptionReason.value = '';
+    await loadSapConsumptionMaterials();
+    sapConsumptionStatus.textContent = 'Descarga registrada como PENDIENTE para SAP.';
+}
+
 async function fileToBase64(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -1775,6 +1853,9 @@ function renderOrder(order) {
     `;
     renderAttachmentsPopover(currentOrderAttachments.length ? currentOrderAttachments : attachments);
     updateArtworkSectionConstraint();
+    loadSapConsumptionMaterials().catch((error) => {
+        if (sapConsumptionStatus) sapConsumptionStatus.textContent = error.message;
+    });
 }
 
 async function loadOrder() {
@@ -1813,6 +1894,16 @@ deliveryToggleButton?.addEventListener('click', () => toggleSection(deliverySumm
 deliveryForm?.addEventListener('submit', (event) => event.preventDefault());
 artToggleButton?.addEventListener('click', () => toggleSection(artSummary, artForm, artToggleButton, artForm.hidden));
 artForm?.addEventListener('submit', (event) => event.preventDefault());
+sapConsumptionProcess?.addEventListener('change', () => {
+    loadSapConsumptionMaterials().catch((error) => {
+        if (sapConsumptionStatus) sapConsumptionStatus.textContent = error.message;
+    });
+});
+sapConsumptionForm?.addEventListener('submit', (event) => {
+    submitSapConsumption(event).catch((error) => {
+        if (sapConsumptionStatus) sapConsumptionStatus.textContent = error.message;
+    });
+});
 
 let samplesSaveTimer = null;
 let deliverySaveTimer = null;
