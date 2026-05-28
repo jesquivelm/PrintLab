@@ -1218,7 +1218,7 @@ function renderRows() {
         `;
     }
     let markup = rows.map((row, index) => renderDataRow(row, index, subtotalKeys)).join('');
-    const blankRowCount = Math.max(MIN_VISIBLE_ROWS - rows.length, 0);
+    const blankRowCount = 0;
     const visibleRowCount = Math.min(Math.max(rows.length, MIN_VISIBLE_ROWS), MAX_VISIBLE_ROWS);
     const tableWrap = rowsBody?.closest('.quote-browser-table-wrap, .table-wrap');
     tableWrap?.style.setProperty('--visible-table-rows', String(visibleRowCount));
