@@ -419,6 +419,10 @@ body.popover-open { overflow: hidden; }
 .dashboard-card-icon .icon-image {
     width: var(--config-icon-size, 38px);
     height: var(--config-icon-size, 38px);
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
 }
 .dashboard-card:hover .dashboard-card-icon,
 .dashboard-card:focus-visible .dashboard-card-icon {
@@ -14526,7 +14530,6 @@ body.inventory-route-troqueles.inventory-view-detail .inventory-editor-panel {
 .dashboard-card-icon {
     align-self: end;
     justify-self: center;
-    max-width: 100%;
 }
 
 .dashboard-card-title,
