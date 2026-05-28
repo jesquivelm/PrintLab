@@ -2870,7 +2870,16 @@ window.addEventListener('storage', (event) => {
         renderBdfg();
     }
     if (event.key === BDFG_POSITION_STORAGE_KEY) {
-        loadBdfgPosition();
+document.getElementById('forceRefreshIcons')?.addEventListener('click', () => {
+    localStorage.removeItem(DASHBOARD_CONFIG_CACHE_KEY);
+    loadedConfig = null;
+    applyDashboardConfig().then(() => {
+        const btn = document.getElementById('forceRefreshIcons');
+        if (btn) btn.textContent = '✓';
+        setTimeout(() => { if (btn) btn.textContent = '🔄'; }, 1500);
+    }).catch(console.error);
+});
+loadBdfgPosition();
     }
     if (event.key === 'erp-general-config-updated') {
         bdfgPreviewGlobal = null;
