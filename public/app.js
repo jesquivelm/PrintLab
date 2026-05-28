@@ -48,7 +48,7 @@ const quoteBrowserPopover = document.getElementById('quoteBrowserPopover');
 const quoteBrowserSearchInput = document.getElementById('quoteBrowserSearchInput');
 const quoteBrowserResults = document.getElementById('quoteBrowserResults');
 const closeQuoteBrowserButton = document.getElementById('closeQuoteBrowserButton');
-const MIN_VISIBLE_ROWS = 0;
+const MIN_VISIBLE_ROWS = 4;
 const MAX_VISIBLE_ROWS = 8;
 const PRESENTATION_KEY = 'cotizaciones';
 const CLIENT_LOCK_FIELDS = ['clienteCodigo', 'clienteNombre'];
@@ -93,7 +93,8 @@ let rowIcons = {
     attachmentUpload: '\u21E7',
     attachmentAudio: '\u25CF',
     attachmentDownload: '\u21E9',
-    attachmentReplace: '\u21BB'
+    attachmentReplace: '\u21BB',
+    lineAdd: '+'
 };
 let rowIconPalette = {
     move: { primary: '#9ba2ab', secondary: '#ffffff', hover: '#0b81b8', size: 16 },
@@ -119,6 +120,7 @@ let rowIconPalette = {
     ,attachmentAudio: { primary: '#0b81b8', secondary: '#ffffff', hover: '#07638c', size: 18 }
     ,attachmentDownload: { primary: '#0b81b8', secondary: '#ffffff', hover: '#07638c', size: 18 }
     ,attachmentReplace: { primary: '#0b81b8', secondary: '#ffffff', hover: '#07638c', size: 18 }
+    ,lineAdd: { primary: '#1e516d', secondary: '#ffffff', hover: '#0b81b8', size: 18 }
 };
 let quoteRows = [];
 let currentQuote = null;
@@ -645,6 +647,11 @@ function getRowPalette(key, fallbackSize = 18) {
 function iconButtonStyle(key, fallbackSize = 18) {
     const palette = getRowPalette(key, fallbackSize);
     return `--config-icon-size:${palette.size}px;color:${escapeHtml(palette.primary)};--icon-hover-color:${escapeHtml(palette.hover)};--icon-secondary-color:${escapeHtml(palette.secondary)};width:${palette.size}px;height:${palette.size}px;flex:0 0 ${palette.size}px;`;
+}
+
+function actionButtonIconStyle(key, fallbackSize = 18) {
+    const palette = getRowPalette(key, fallbackSize);
+    return `--icon-color:${escapeHtml(palette.primary)};--icon-hover-color:${escapeHtml(palette.hover)};--config-icon-size:${escapeHtml(String(palette.size))}px;`;
 }
 
 function pxSize(value, fallback = 20) {
@@ -1191,7 +1198,7 @@ function renderBlankRow(isFirstBlank, subtotalColumnCount) {
 
 function renderQuoteDetailLinesFooter() {
     if (!quoteDetailLinesFooter) return;
-    quoteDetailLinesFooter.innerHTML = `<button type="button" class="quote-browser-action-btn quote-line-add-btn" data-action="add-row" title="Agregar línea de cálculo" style="${iconButtonStyle('plus', 18)}"><span class="quote-line-action-icon" aria-hidden="true">${iconMarkup(rowIcons.plus, 'Agregar línea', 'table-icon-media')}</span> Agregar línea</button>`;
+    quoteDetailLinesFooter.innerHTML = `<button type="button" class="quote-browser-action-btn quote-line-add-btn" data-action="add-row" title="Agregar línea de cálculo" style="${actionButtonIconStyle('lineAdd', 18)}"><span class="quote-line-action-icon" aria-hidden="true">${iconMarkup(rowIcons.lineAdd, 'Agregar línea', 'table-icon-media')}</span> Agregar línea</button>`;
 }
 
 function renderRows() {
@@ -1211,7 +1218,7 @@ function renderRows() {
         `;
     }
     let markup = rows.map((row, index) => renderDataRow(row, index, subtotalKeys)).join('');
-    const blankRowCount = 0;
+    const blankRowCount = Math.max(MIN_VISIBLE_ROWS - rows.length, 0);
     const visibleRowCount = Math.min(Math.max(rows.length, MIN_VISIBLE_ROWS), MAX_VISIBLE_ROWS);
     const tableWrap = rowsBody?.closest('.quote-browser-table-wrap, .table-wrap');
     tableWrap?.style.setProperty('--visible-table-rows', String(visibleRowCount));
@@ -2402,7 +2409,8 @@ function applyConfig(config) {
         attachmentUpload: config.icons?.attachmentUpload || '\u21E7',
         attachmentAudio: config.icons?.quoteRequestRecord || '\u25CF',
         attachmentDownload: config.icons?.attachmentDownload || '\u21E9',
-        attachmentReplace: config.icons?.attachmentReplace || '\u21BB'
+        attachmentReplace: config.icons?.attachmentReplace || '\u21BB',
+        lineAdd: config.icons?.lineAdd || config.icons?.tableAdd || '+'
     };
     rowIconPalette = {
         move: {
@@ -2542,6 +2550,12 @@ function applyConfig(config) {
             secondary: config.general?.iconColor2AttachmentReplace || '#ffffff',
             hover: config.general?.iconColorHoverAttachmentReplace || '#07638c',
             size: pxSize(config.general?.iconSizeAttachmentReplace, presentation.iconSize)
+        },
+        lineAdd: {
+            primary: config.general?.iconColorLineAdd || config.general?.iconColorTableAdd || config.general?.iconColor || '#1e516d',
+            secondary: config.general?.iconColor2LineAdd || config.general?.iconColor2TableAdd || '#ffffff',
+            hover: config.general?.iconColorHoverLineAdd || config.general?.iconColorHoverTableAdd || '#0b81b8',
+            size: pxSize(config.general?.iconSizeLineAdd || config.general?.iconSizeTableAdd, presentation.iconSize)
         }
     };
     setTopIcon(prevQuoteButton, rowIcons.quotePrev, 'Anterior');

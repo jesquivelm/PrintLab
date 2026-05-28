@@ -12109,12 +12109,6 @@ html[data-theme="dark"] .planning-queue-flag.miss {
 
 .workspace-quote > .quote-card-clean .quote-browser-table-wrap {
     box-shadow: none;
-    max-height: calc(var(--table-header-height) + (var(--visible-table-rows) * var(--table-row-height)) + 2px);
-    overflow-y: hidden;
-}
-
-.workspace-quote > .quote-card-clean .quote-browser-table-wrap.is-scrollable {
-    overflow-y: auto;
 }
 
 html[data-theme="dark"] .workspace-quote > .quote-card-clean,
