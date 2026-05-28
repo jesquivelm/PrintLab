@@ -36,7 +36,6 @@ const DASHBOARD_CARDS = [
 { route: '/productos', label: 'Productos', iconKey: 'dashboardProducts', modules: ['productos'] },
 { route: '/cotizaciones', label: 'Cotizaciones', iconKey: 'dashboardQuotes', modules: ['cotizaciones'] },
 { route: '/costos.html', label: 'Costos', iconKey: 'dashboardCosts', modules: ['costos'] },
-{ route: '/reporteria', label: 'Reporter\u00eda', iconKey: 'dashboardReports', modules: ['dashboard'] },
 { route: '/inventario-materiales', label: 'Inventarios', iconKey: 'dashboardInventory', modules: ['inventario-mp', 'inventario-troqueles', 'inventario-maquinaria'] },
 { route: '/configuracion-general', label: 'Configuraci\u00f3n', iconKey: 'dashboardSettings', modules: ['configuracion-general'] },
 { route: '/ordenes-produccion', label: '\u00d3rdenes', iconKey: 'dashboardOrders', modules: ['ordenes'] },
@@ -178,7 +177,6 @@ function getRoutePermissionKeys(route) {
     if (pathname === '/calculo-flexografia' || pathname === '/flexo-calculo' || pathname === '/flexo-calculo.html') return ['calculos'];
     if (pathname === '/ordenes-produccion' || pathname === '/ordenes-produccion.html' || pathname === '/orden-produccion.html' || pathname.startsWith('/orden-produccion')) return ['ordenes'];
     if (pathname === '/planificacion' || pathname.startsWith('/planificacion/')) return ['planificacion'];
-    if (pathname === '/reporteria' || pathname === '/reporteria.html') return ['dashboard'];
     if (pathname === '/costos' || pathname === '/costos.html') return ['costos'];
     if (pathname === '/configuracion-general' || pathname === '/configuracion-general.html') return ['configuracion-general'];
     if (pathname === '/vendedores' || pathname === '/vendedores-mobile.html') return ['vendedores'];
@@ -851,8 +849,7 @@ function renderCards() {
                 dashboardSettings: 'Settings',
                 dashboardOrders: 'Orders',
                 dashboardPlanning: 'Planning',
-                dashboardCosts: 'Costs',
-                dashboardReports: 'Reports'
+                dashboardCosts: 'Costs'
             };
             const family = familyMap[card.iconKey];
             if (family) {

@@ -10336,10 +10336,6 @@ html[data-theme="dark"] .dashboard-card {
 .dashboard-card-icon .icon-svg-mask {
     width: var(--config-icon-size, 38px);
     height: var(--config-icon-size, 38px);
-    display: block;
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
 }
 
 .dashboard-card-title {
@@ -10360,7 +10356,6 @@ html[data-theme="dark"] .dashboard-card {
 .dashboard-card[data-icon-key="dashboardOrders"] { --card-accent: #b7791f; }
 .dashboard-card[data-icon-key="dashboardPlanning"] { --card-accent: #16a34a; }
 .dashboard-card[data-icon-key="dashboardCosts"] { --card-accent: #dc2626; }
-.dashboard-card[data-icon-key="dashboardReports"] { --card-accent: #0f766e; }
 
 .dashboard-favorites {
     width: min(100%, 920px);
@@ -14523,26 +14518,6 @@ body.inventory-route-troqueles.inventory-view-detail .inventory-editor-panel {
 
 .quote-browser-main .quote-browser-search {
     max-width: none !important;
-}
-
-.quote-detail-page .quote-head-right,
-.quote-detail-page .products-area {
-    width: min(50%, 820px);
-    min-width: 620px;
-    margin-left: auto;
-}
-
-.quote-detail-page .products-area .quote-browser-table-wrap,
-.quote-detail-page .products-area .quote-browser-table {
-    width: 100%;
-}
-
-@media (max-width: 1180px) {
-    .quote-detail-page .quote-head-right,
-    .quote-detail-page .products-area {
-        width: 100%;
-        min-width: 0;
-    }
 }
 
 .quote-master-tree-table thead th:nth-child(4) {

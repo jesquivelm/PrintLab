@@ -901,7 +901,6 @@ const DEFAULT_GENERAL_CONFIG = {
         dashboardOrders: '\u2699',
         dashboardProduction: '\u{1F3ED}',
         dashboardCosts: '\u25A7',
-        dashboardReports: '\u25A4',
         dashboardSettings: '\u2692',
         mobileQuotes: '\u25A4',
         mobileOrders: '\u2699',
@@ -14774,34 +14773,13 @@ app.get('/api/reporterias/gerencial', async (req, res) => {
             }
             return { where: parts.length ? `WHERE ${parts.join(' AND ')}` : '', params };
         };
-        const withCondition = (filter, condition) => ({
-            where: filter.where ? `${filter.where} AND ${condition}` : `WHERE ${condition}`,
-            params: filter.params
-        });
         const quoteFilter = scopedDateFilter('q');
         const orderFilter = scopedDateFilter('o');
         const costFilter = scopedDateFilter('fc');
         const consumptionFilter = scopedDateFilter('pmcr', 'requested_at');
         const yieldFilter = scopedDateFilter('wl');
         const auditFilter = scopedDateFilter('al', 'changed_at');
-        const routeFilter = scopedDateFilter('r');
-        const dieFilter = withCondition(costFilter, `COALESCE(NULLIF(fc.die_code,''), NULLIF(fc.raw_data->>'TROQUEL',''), NULLIF(fc.raw_data->>'CODIGO TROQUEL','')) IS NOT NULL`);
-        const inkFilter = withCondition(consumptionFilter, `(LOWER(COALESCE(pmcr.material_family,'')) LIKE '%tinta%' OR LOWER(COALESCE(pmcr.material_name,'')) LIKE '%tinta%' OR LOWER(COALESCE(pmcr.material_name,'')) LIKE '%ink%')`);
-        const [
-            quotesResult,
-            productionResult,
-            costsResult,
-            consumptionResult,
-            yieldResult,
-            auditResult,
-            quoteTrendResult,
-            quoteStatusResult,
-            processLoadResult,
-            machineLoadResult,
-            dieUsageResult,
-            inkConsumptionResult,
-            materialFamilyResult
-        ] = await Promise.all([
+        const [quotesResult, productionResult, costsResult, consumptionResult, yieldResult, auditResult] = await Promise.all([
             pgQuery(`
                 SELECT
                     COUNT(*)::int AS total,
@@ -14858,73 +14836,7 @@ app.get('/api/reporterias/gerencial', async (req, res) => {
                 GROUP BY module_key
                 ORDER BY total DESC
                 LIMIT 10
-            `, auditFilter.params),
-            pgQuery(`
-                SELECT TO_CHAR(q.created_at::date, 'DD/MM') AS label, COUNT(*)::int AS total
-                FROM quotes q
-                ${quoteFilter.where}
-                GROUP BY q.created_at::date
-                ORDER BY q.created_at::date DESC
-                LIMIT 14
-            `, quoteFilter.params),
-            pgQuery(`
-                SELECT COALESCE(NULLIF(status,''), 'Sin estado') AS label, COUNT(*)::int AS total
-                FROM quotes q
-                ${quoteFilter.where}
-                GROUP BY COALESCE(NULLIF(status,''), 'Sin estado')
-                ORDER BY total DESC
-                LIMIT 8
-            `, quoteFilter.params),
-            pgQuery(`
-                SELECT r.process_name AS label, COUNT(*)::int AS orders, COALESCE(SUM(r.duration_hours),0) AS hours
-                FROM production_order_routes r
-                ${routeFilter.where}
-                GROUP BY r.process_name
-                ORDER BY hours DESC, orders DESC
-                LIMIT 10
-            `, routeFilter.params),
-            pgQuery(`
-                SELECT
-                    COALESCE(NULLIF(o.machine_name,''), NULLIF(r.route_payload->>'machineName',''), NULLIF(r.route_payload->>'machine_name',''), r.process_name, 'Sin máquina') AS label,
-                    COUNT(*)::int AS orders,
-                    COALESCE(SUM(r.duration_hours),0) AS hours
-                FROM production_order_routes r
-                LEFT JOIN flexo_orders o ON o.order_code = r.order_code
-                ${routeFilter.where}
-                GROUP BY COALESCE(NULLIF(o.machine_name,''), NULLIF(r.route_payload->>'machineName',''), NULLIF(r.route_payload->>'machine_name',''), r.process_name, 'Sin máquina')
-                ORDER BY hours DESC, orders DESC
-                LIMIT 10
-            `, routeFilter.params),
-            pgQuery(`
-                SELECT COALESCE(NULLIF(fc.die_code,''), NULLIF(fc.raw_data->>'TROQUEL',''), NULLIF(fc.raw_data->>'CODIGO TROQUEL',''), 'Sin troquel') AS label,
-                       COUNT(*)::int AS total,
-                       COALESCE(SUM(fc.total_cost),0) AS cost
-                FROM flexo_calculations fc
-                ${dieFilter.where}
-                GROUP BY COALESCE(NULLIF(fc.die_code,''), NULLIF(fc.raw_data->>'TROQUEL',''), NULLIF(fc.raw_data->>'CODIGO TROQUEL',''), 'Sin troquel')
-                ORDER BY total DESC
-                LIMIT 10
-            `, dieFilter.params),
-            pgQuery(`
-                SELECT COALESCE(NULLIF(pmcr.material_name,''), 'Tintas') AS label,
-                       COALESCE(SUM(pmcr.quantity),0) AS quantity,
-                       COUNT(*)::int AS requests
-                FROM production_material_consumption_requests pmcr
-                ${inkFilter.where}
-                GROUP BY COALESCE(NULLIF(pmcr.material_name,''), 'Tintas')
-                ORDER BY quantity DESC, requests DESC
-                LIMIT 10
-            `, inkFilter.params),
-            pgQuery(`
-                SELECT COALESCE(NULLIF(pmcr.material_family,''), 'Sin familia') AS label,
-                       COALESCE(SUM(pmcr.quantity),0) AS quantity,
-                       COUNT(*)::int AS requests
-                FROM production_material_consumption_requests pmcr
-                ${consumptionFilter.where}
-                GROUP BY COALESCE(NULLIF(pmcr.material_family,''), 'Sin familia')
-                ORDER BY quantity DESC, requests DESC
-                LIMIT 10
-            `, consumptionFilter.params)
+            `, auditFilter.params)
         ]);
         const quoteSummary = quotesResult.rows[0] || {};
         const productionSummary = productionResult.rows[0] || {};
@@ -14951,14 +14863,7 @@ app.get('/api/reporterias/gerencial', async (req, res) => {
                     yieldPct: feetConsumed > 0 ? Number(((Number(yieldSummary.useful_feet || 0) / feetConsumed) * 100).toFixed(2)) : 0
                 },
                 orderStatus: await buildOrderStatusReport(),
-                audit: auditResult.rows || [],
-                quoteTrend: (quoteTrendResult.rows || []).reverse(),
-                quoteStatus: quoteStatusResult.rows || [],
-                processLoad: processLoadResult.rows || [],
-                machineLoad: machineLoadResult.rows || [],
-                dieUsage: dieUsageResult.rows || [],
-                inkConsumption: inkConsumptionResult.rows || [],
-                materialFamily: materialFamilyResult.rows || []
+                audit: auditResult.rows || []
             }
         });
     } catch (error) {

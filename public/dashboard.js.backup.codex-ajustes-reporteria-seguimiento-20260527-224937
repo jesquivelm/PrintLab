@@ -36,7 +36,7 @@ const DASHBOARD_CARDS = [
 { route: '/productos', label: 'Productos', iconKey: 'dashboardProducts', modules: ['productos'] },
 { route: '/cotizaciones', label: 'Cotizaciones', iconKey: 'dashboardQuotes', modules: ['cotizaciones'] },
 { route: '/costos.html', label: 'Costos', iconKey: 'dashboardCosts', modules: ['costos'] },
-{ route: '/reporteria', label: 'Reporter\u00eda', iconKey: 'dashboardReports', modules: ['dashboard'] },
+{ route: '/reporteria', label: 'Reporter\u00eda', iconKey: 'dashboardCosts', modules: ['dashboard'] },
 { route: '/inventario-materiales', label: 'Inventarios', iconKey: 'dashboardInventory', modules: ['inventario-mp', 'inventario-troqueles', 'inventario-maquinaria'] },
 { route: '/configuracion-general', label: 'Configuraci\u00f3n', iconKey: 'dashboardSettings', modules: ['configuracion-general'] },
 { route: '/ordenes-produccion', label: '\u00d3rdenes', iconKey: 'dashboardOrders', modules: ['ordenes'] },
@@ -851,8 +851,7 @@ function renderCards() {
                 dashboardSettings: 'Settings',
                 dashboardOrders: 'Orders',
                 dashboardPlanning: 'Planning',
-                dashboardCosts: 'Costs',
-                dashboardReports: 'Reports'
+                dashboardCosts: 'Costs'
             };
             const family = familyMap[card.iconKey];
             if (family) {

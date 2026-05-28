@@ -120,9 +120,167 @@ html[data-theme="dark"] .report-body {
     grid-column: 1 / -1;
 }
 
-.report-panel h2 {
-    margin: 0 0 10px;
+.report-panel-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.report-panel-head h2 {
+    margin: 0;
     font-size: 16px;
+}
+
+.report-panel-head span {
+    color: #64748b;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.report-chart {
+    --report-accent-1: #0b81b8;
+    --report-accent-2: #16a34a;
+    --report-accent-3: #d97706;
+    --report-accent-4: #7c3aed;
+    --report-accent-5: #dc2626;
+    --report-accent-6: #0f766e;
+    display: grid;
+    gap: 9px;
+    min-height: 150px;
+    margin-bottom: 12px;
+}
+
+.report-chart-bars {
+    display: flex;
+    align-items: end;
+    gap: 8px;
+    min-height: 190px;
+    padding: 8px 4px 0;
+    border-bottom: 1px solid #dbe3ee;
+}
+
+.report-column {
+    display: grid;
+    grid-template-rows: 18px 1fr 18px;
+    align-items: end;
+    justify-items: center;
+    flex: 1 1 0;
+    min-width: 0;
+    height: 170px;
+}
+
+.report-column span,
+.report-column small {
+    max-width: 100%;
+    overflow: hidden;
+    color: #64748b;
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.report-column i {
+    width: 100%;
+    min-height: 5px;
+    height: var(--bar-pct);
+    border-radius: 5px 5px 0 0;
+    background: var(--bar-accent);
+}
+
+.report-bar-row {
+    display: grid;
+    grid-template-columns: minmax(120px, .95fr) minmax(120px, 1.5fr) minmax(62px, auto);
+    align-items: center;
+    gap: 10px;
+    min-height: 26px;
+}
+
+.report-bar-label,
+.report-bar-row strong {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.report-bar-row strong {
+    color: #1f2a37;
+    text-align: right;
+}
+
+.report-bar-track {
+    height: 10px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #e8eef6;
+}
+
+.report-bar-fill {
+    display: block;
+    width: var(--bar-pct);
+    height: 100%;
+    border-radius: inherit;
+    background: var(--bar-accent);
+}
+
+.report-empty {
+    display: grid;
+    place-items: center;
+    min-height: 120px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
+    color: #64748b;
+    font-size: 13px;
+}
+
+.report-metric-stack {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.report-metric-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 10px;
+    border: 1px solid #e5eaf2;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.report-metric-row span {
+    color: #64748b;
+    font-size: 12px;
+}
+
+.report-metric-row strong {
+    font-size: 15px;
+}
+
+.report-meter-wrap {
+    display: grid;
+    gap: 9px;
+    margin-bottom: 12px;
+}
+
+.report-meter {
+    height: 16px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #e8eef6;
+}
+
+.report-meter span {
+    display: block;
+    width: var(--meter-pct);
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #16a34a, #0b81b8);
 }
 
 .report-table table {
@@ -149,15 +307,30 @@ html[data-theme="dark"] .report-header p,
 html[data-theme="dark"] .report-status,
 html[data-theme="dark"] .report-filters label,
 html[data-theme="dark"] .report-kpi span,
+html[data-theme="dark"] .report-panel-head span,
+html[data-theme="dark"] .report-column span,
+html[data-theme="dark"] .report-column small,
+html[data-theme="dark"] .report-empty,
+html[data-theme="dark"] .report-metric-row span,
 html[data-theme="dark"] .report-table th {
     color: #9aa8bb;
 }
 
 html[data-theme="dark"] .report-kpi,
 html[data-theme="dark"] .report-panel,
-html[data-theme="dark"] .report-filters input {
+html[data-theme="dark"] .report-filters input,
+html[data-theme="dark"] .report-metric-row {
     background: #172233;
     border-color: #2b3a4f;
+    color: #e5edf7;
+}
+
+html[data-theme="dark"] .report-bar-track,
+html[data-theme="dark"] .report-meter {
+    background: #223149;
+}
+
+html[data-theme="dark"] .report-bar-row strong {
     color: #e5edf7;
 }
 

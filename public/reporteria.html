@@ -26,32 +26,49 @@
         <section id="kpiGrid" class="report-kpis"></section>
 
         <section class="report-grid">
-            <article class="report-panel">
-                <h2>Cotizaciones</h2>
-                <div id="quotesReport" class="report-table"></div>
+            <article class="report-panel report-panel-wide report-panel-chart">
+                <div class="report-panel-head"><h2>Ventas y Cotizaciones</h2><span>Actividad reciente</span></div>
+                <div id="salesTrendChart" class="report-chart report-chart-bars"></div>
+                <div id="quotesReport" class="report-table report-table-compact"></div>
             </article>
-            <article class="report-panel">
-                <h2>Producci&oacute;n</h2>
+            <article class="report-panel report-panel-chart">
+                <div class="report-panel-head"><h2>Estado Comercial</h2><span>Cotizaciones por estado</span></div>
+                <div id="quoteStatusChart" class="report-chart"></div>
+            </article>
+            <article class="report-panel report-panel-chart">
+                <div class="report-panel-head"><h2>Producci&oacute;n</h2><span>Carga por proceso</span></div>
+                <div id="productionLoadChart" class="report-chart"></div>
                 <div id="productionReport" class="report-table"></div>
             </article>
-            <article class="report-panel">
-                <h2>Costos</h2>
+            <article class="report-panel report-panel-chart">
+                <div class="report-panel-head"><h2>Carga de M&aacute;quinas</h2><span>Horas planificadas</span></div>
+                <div id="machineLoadChart" class="report-chart"></div>
+            </article>
+            <article class="report-panel report-panel-chart">
+                <div class="report-panel-head"><h2>Costos</h2><span>Resumen financiero</span></div>
+                <div id="costSummaryPanel" class="report-metric-stack"></div>
                 <div id="costReport" class="report-table"></div>
             </article>
-            <article class="report-panel">
-                <h2>Consumos SAP</h2>
+            <article class="report-panel report-panel-chart">
+                <div class="report-panel-head"><h2>Consumos SAP</h2><span>Materiales y tintas</span></div>
+                <div id="inkConsumptionChart" class="report-chart"></div>
                 <div id="consumptionReport" class="report-table"></div>
             </article>
-            <article class="report-panel">
-                <h2>Rendimientos</h2>
+            <article class="report-panel report-panel-chart">
+                <div class="report-panel-head"><h2>Rendimientos</h2><span>Utilidad vs merma</span></div>
+                <div id="yieldMeter" class="report-meter-wrap"></div>
                 <div id="yieldReport" class="report-table"></div>
             </article>
+            <article class="report-panel report-panel-chart">
+                <div class="report-panel-head"><h2>Troqueles</h2><span>Uso por cotizaci&oacute;n</span></div>
+                <div id="dieUsageChart" class="report-chart"></div>
+            </article>
             <article class="report-panel report-panel-wide">
-                <h2>&Oacute;rdenes por Estado / Proceso</h2>
+                <div class="report-panel-head"><h2>&Oacute;rdenes por Estado / Proceso</h2><span>Seguimiento productivo</span></div>
                 <div id="orderStatusReport" class="report-table"></div>
             </article>
             <article class="report-panel report-panel-wide">
-                <h2>Auditor&iacute;a Operativa</h2>
+                <div class="report-panel-head"><h2>Auditor&iacute;a Operativa</h2><span>Actividad por m&oacute;dulo</span></div>
                 <div id="auditReport" class="report-table"></div>
             </article>
         </section>

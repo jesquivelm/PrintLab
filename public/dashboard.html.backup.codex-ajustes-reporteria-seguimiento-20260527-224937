@@ -42,8 +42,8 @@
                         <span class="dashboard-card-icon" data-icon-target="dashboardCosts"></span>
                         <span class="dashboard-card-title">Costos</span>
                     </button>
-                    <button type="button" class="dashboard-card" data-route="/reporteria" data-label="Reporter&iacute;a" data-icon-key="dashboardReports">
-                        <span class="dashboard-card-icon" data-icon-target="dashboardReports"></span>
+                    <button type="button" class="dashboard-card" data-route="/reporteria" data-label="Reporter&iacute;a" data-icon-key="dashboardCosts">
+                        <span class="dashboard-card-icon" data-icon-target="dashboardCosts"></span>
                         <span class="dashboard-card-title">Reporter&iacute;a</span>
                     </button>
                     <button type="button" class="dashboard-card" data-route="/inventario-materiales" data-label="Inventarios" data-icon-key="dashboardInventory">
