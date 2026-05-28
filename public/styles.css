@@ -14486,6 +14486,17 @@ body.inventory-route-troqueles.inventory-view-detail .inventory-editor-panel {
     justify-self: stretch;
 }
 
+.dashboard-card[data-icon-key="dashboardInventory"] {
+    align-content: center;
+    align-items: center;
+    grid-template-rows: auto auto;
+}
+
+.dashboard-card[data-icon-key="dashboardInventory"] .dashboard-card-icon,
+.dashboard-card[data-icon-key="dashboardInventory"] .dashboard-card-title {
+    align-self: center;
+}
+
 .quote-browser-main.workspace-quote {
     padding-right: clamp(12px, 2.2vw, 26px) !important;
     padding-left: clamp(12px, 2.2vw, 26px) !important;
