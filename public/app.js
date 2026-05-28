@@ -1236,6 +1236,36 @@ function getRowById(rowId) {
     return quoteRows.find((row) => row.id === rowId) || null;
 }
 
+function setDetailActionFeedback(button, rowId, busy) {
+    if (button) {
+        if (busy) {
+            button.dataset.wasDisabled = button.disabled ? 'true' : 'false';
+            button.disabled = true;
+            button.classList.add('is-action-busy');
+            button.setAttribute('aria-busy', 'true');
+        } else {
+            button.disabled = button.dataset.wasDisabled === 'true';
+            delete button.dataset.wasDisabled;
+            button.classList.remove('is-action-busy');
+            button.removeAttribute('aria-busy');
+        }
+    }
+    if (!rowId) return;
+    document.querySelector(`tr[data-id="${rowId}"]`)?.classList.toggle('is-line-action-busy', busy);
+}
+
+async function runDetailActionWithFeedback(button, rowId, task) {
+    const started = Date.now();
+    setDetailActionFeedback(button, rowId, true);
+    try {
+        return await task();
+    } finally {
+        const remaining = 180 - (Date.now() - started);
+        if (remaining > 0) await sleep(remaining);
+        setDetailActionFeedback(button, rowId, false);
+    }
+}
+
 function closeRowMenu() {
     actionMenuRowId = null;
     if (rowActionMenu) {
@@ -1487,7 +1517,18 @@ async function copyLineToQuote(targetQuoteCode) {
 }
 
 async function createQuoteFromLine(row) {
-    return openCopyPopover(row.id);
+    const confirmed = window.confirm(`¿Quieres crear una nueva cotización a partir de la línea ${row.linea}?`);
+    if (!confirmed) return;
+    const payload = await fetchJsonWithRetry(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}/nueva-cotizacion`, {
+        method: 'POST'
+    }, { errorMessage: 'No fue posible crear una nueva cotización desde la línea.' });
+    const newQuoteCode = payload?.cotizacion?.quote_code || '';
+    if (newQuoteCode) {
+        await navigateToQuote(newQuoteCode);
+    } else {
+        await reloadCurrentQuote();
+    }
+    setStatus(`Cotización ${newQuoteCode} creada desde la línea ${row.linea}.`, 'saved');
 }
 
 async function createProductFromLine(row) {
@@ -1694,6 +1735,7 @@ async function handleRowMenuAction(action, rowId) {
     if (action === 'open-tracking') return openRowTracking(row);
     if (action === 'duplicate-line') return duplicateLine(row);
     if (action === 'copy-line') return openCopyPopover(rowId);
+    if (action === 'create-product-from-line') return createProductFromLine(row);
     if (action === 'create-quote-from-line') return createQuoteFromLine(row);
     if (action === 'export-line') return exportLine(row);
     if (action === 'view-attachments') return openAttachments(row);
@@ -1756,12 +1798,10 @@ function bindRowActions() {
         button.onclick = async (event) => {
             event.preventDefault();
             event.stopPropagation();
-            try {
+            runDetailActionWithFeedback(button, null, async () => {
                 const row = await persistNewRow();
                 if (row) openCalc(row.id);
-            } catch (error) {
-                setStatus(error.message, 'error');
-            }
+            }).catch((error) => setStatus(error.message, 'error'));
         };
     });
 
@@ -2874,7 +2914,10 @@ openConfigButton?.addEventListener('click', () => {
     toggleMenu(false);
     openConfigPopover();
 });
-viewProformaButton?.addEventListener('click', openProformaForCurrentQuote);
+viewProformaButton?.addEventListener('click', () => {
+    runDetailActionWithFeedback(viewProformaButton, activeRowId || 0, openProformaForCurrentQuote)
+        .catch((error) => setStatus(error.message, 'error'));
+});
 Object.keys(headerFieldMap).forEach((id) => {
     const element = document.getElementById(id);
     if (!element || id === 'numeroCotizacion') return;
@@ -2900,7 +2943,8 @@ rowActionMenu?.addEventListener('click', (event) => {
     if (!actionButton) return;
     event.preventDefault();
     const rowId = Number(actionButton.dataset.id);
-    handleRowMenuAction(actionButton.dataset.rowAction, rowId).catch((error) => setStatus(error.message, 'error'));
+    runDetailActionWithFeedback(actionButton, rowId, () => handleRowMenuAction(actionButton.dataset.rowAction, rowId))
+        .catch((error) => setStatus(error.message, 'error'));
 });
 
 configPopover?.addEventListener('click', (event) => {
@@ -2995,7 +3039,8 @@ copyQuoteSearchInput?.addEventListener('input', () => {
 copyQuoteResults?.addEventListener('click', (event) => {
     const button = event.target.closest('[data-action="send-copy-line"]');
     if (!button) return;
-    copyLineToQuote(button.dataset.quoteCode).catch((error) => setStatus(error.message, 'error'));
+    runDetailActionWithFeedback(button, copySourceRowId || 0, () => copyLineToQuote(button.dataset.quoteCode))
+        .catch((error) => setStatus(error.message, 'error'));
 });
 
 quoteBrowserSearchInput?.addEventListener('input', async () => {

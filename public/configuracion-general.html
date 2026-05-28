@@ -776,6 +776,102 @@
             font-size: 12px;
             line-height: 1.45;
         }
+        .exchange-rate-calc-result-main {
+            display: block;
+            color: #17354a;
+            font-size: 16px;
+            font-weight: 400;
+        }
+        .exchange-rate-calc-result-meta {
+            display: block;
+            margin-top: 6px;
+            color: #6b8192;
+            font-size: 12px;
+        }
+        html[data-theme="dark"] .exchange-rate-subtab {
+            border-color: var(--app-border,#24364b);
+            background: var(--app-surface-soft,#17243a);
+            color: var(--app-text-muted,#9aa7b4);
+        }
+        html[data-theme="dark"] .exchange-rate-subtab.active {
+            border-color: #38bdf8;
+            background: color-mix(in srgb,var(--app-primary-soft,#0f3654) 68%,var(--app-surface,#111c31));
+            color: var(--app-text,#e5eef8);
+            box-shadow: none;
+        }
+        html[data-theme="dark"] .exchange-rate-card,
+        html[data-theme="dark"] .exchange-rate-summary-card,
+        html[data-theme="dark"] .exchange-rate-calc-result,
+        html[data-theme="dark"] .exchange-rate-empty,
+        html[data-theme="dark"] .exchange-rate-table-wrap {
+            border-color: var(--app-border,#24364b);
+            background: var(--app-surface,#111c31);
+            color: var(--app-text,#e5eef8);
+        }
+        html[data-theme="dark"] .exchange-rate-summary-card strong,
+        html[data-theme="dark"] .exchange-rate-card strong,
+        html[data-theme="dark"] .exchange-rate-card-value,
+        html[data-theme="dark"] .exchange-rate-calc-result-main {
+            color: var(--app-text,#e5eef8);
+        }
+        html[data-theme="dark"] .exchange-rate-summary-card span,
+        html[data-theme="dark"] .exchange-rate-card span,
+        html[data-theme="dark"] .exchange-rate-status-meta,
+        html[data-theme="dark"] .exchange-rate-log-message,
+        html[data-theme="dark"] .exchange-rate-calc-result-meta {
+            color: var(--app-text-muted,#9aa7b4);
+        }
+        html[data-theme="dark"] .exchange-rate-status-pill {
+            background: var(--app-surface-soft,#17243a);
+            color: var(--app-text,#e5eef8);
+        }
+        html[data-theme="dark"] .exchange-rate-status-pill.is-error {
+            background: rgba(220,38,38,.14);
+            color: #fca5a5;
+        }
+        html[data-theme="dark"] .exchange-rate-status-pill.is-success {
+            background: rgba(34,197,94,.14);
+            color: #86efac;
+        }
+        html[data-theme="dark"] .exchange-rate-status-pill.is-running {
+            background: rgba(245,158,11,.14);
+            color: #fcd34d;
+        }
+        html[data-theme="dark"] .exchange-rate-config-grid label span,
+        html[data-theme="dark"] .exchange-rate-calc-grid label span {
+            color: var(--app-text,#e5eef8);
+        }
+        html[data-theme="dark"] .exchange-rate-config-grid input,
+        html[data-theme="dark"] .exchange-rate-config-grid select,
+        html[data-theme="dark"] .exchange-rate-calc-grid input,
+        html[data-theme="dark"] .exchange-rate-calc-grid select {
+            border-color: var(--app-border,#24364b);
+            background: var(--app-surface-soft,#17243a);
+            color: var(--app-text,#e5eef8);
+        }
+        html[data-theme="dark"] .exchange-rate-chip {
+            border-color: var(--app-border,#24364b);
+            background: var(--app-surface-soft,#17243a);
+        }
+        html[data-theme="dark"] .exchange-rate-chip span {
+            color: var(--app-text-muted,#9aa7b4);
+        }
+        html[data-theme="dark"] .exchange-rate-chip.is-selected {
+            border-color: #38bdf8;
+            background: color-mix(in srgb,var(--app-primary-soft,#0f3654) 58%,var(--app-surface,#111c31));
+        }
+        html[data-theme="dark"] .exchange-rate-chip.is-selected span {
+            color: var(--app-text,#e5eef8);
+        }
+        html[data-theme="dark"] .exchange-rate-table th,
+        html[data-theme="dark"] .exchange-rate-table td {
+            border-bottom-color: var(--app-border,#24364b);
+            color: var(--app-text,#e5eef8);
+        }
+        html[data-theme="dark"] .exchange-rate-table thead th {
+            background: var(--app-surface-soft,#17243a);
+            color: var(--app-text-muted,#9aa7b4);
+        }
         @media (max-width: 1100px) {
             .exchange-rate-grid,
             .exchange-rate-summary-grid,
@@ -11035,8 +11131,8 @@
             const amountInBase = from === baseCurrency ? amount : (amount / fromRate);
             const result = to === baseCurrency ? amountInBase : (amountInBase * toRate);
             exchangeRateCalcResult.innerHTML = `
-                <span style="display:block; color:#17354a; font-size:16px; font-weight:400;">${escapeHtml(amount.toLocaleString('es-CR', { maximumFractionDigits: 4 }))} ${escapeHtml(from)} = ${escapeHtml(result.toLocaleString('es-CR', { maximumFractionDigits: 4 }))} ${escapeHtml(to)}</span>
-                <span style="display:block; margin-top:6px; color:#6b8192; font-size:12px;">Base usada: ${escapeHtml(baseCurrency)} · Fecha: ${escapeHtml(exchangeRateState?.today?.rateDate || 'Sin datos')}</span>
+                <span class="exchange-rate-calc-result-main">${escapeHtml(amount.toLocaleString('es-CR', { maximumFractionDigits: 4 }))} ${escapeHtml(from)} = ${escapeHtml(result.toLocaleString('es-CR', { maximumFractionDigits: 4 }))} ${escapeHtml(to)}</span>
+                <span class="exchange-rate-calc-result-meta">Base usada: ${escapeHtml(baseCurrency)} · Fecha: ${escapeHtml(exchangeRateState?.today?.rateDate || 'Sin datos')}</span>
             `;
         }
 

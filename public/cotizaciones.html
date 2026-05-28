@@ -106,8 +106,10 @@ html[data-theme="dark"] .quote-request-product-type-trigger::after{background-im
 .quote-request-special-size{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .quote-request-special-size[hidden]{display:none}
 .quote-request-unit-wrap{position:relative;display:block}
-.quote-request-unit-wrap .quote-request-input{padding-right:34px;text-align:right;font-variant-numeric:tabular-nums}
-.quote-request-unit{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:700;color:#688095;pointer-events:none}
+.quote-request-unit-wrap .quote-request-input{padding-right:12px;text-align:right;font-variant-numeric:tabular-nums}
+.quote-request-unit-mask{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-end;padding:10px 12px;border:1px solid transparent;border-radius:12px;color:#17354a;font:inherit;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+.quote-request-unit-wrap.has-value .quote-request-input:not(:focus){color:transparent;caret-color:#17354a}
+.quote-request-unit-wrap.has-value .quote-request-input:focus + .quote-request-unit-mask,.quote-request-unit-wrap:not(.has-value) .quote-request-unit-mask{opacity:0}
 .quote-status-chip{font-size:11px;font-weight:700;border-radius:4px;padding:1px 6px;white-space:nowrap;background:#eef6fb;color:#0b75a4}
 .quote-status-chip[data-state="unsent"]{background:#f1f5f9;color:#64748b}
 .quote-status-chip[data-state="pending"]{background:#fff7d6;color:#9a6700}
@@ -145,7 +147,8 @@ html[data-theme="dark"] .quote-request-shape-option{border-color:var(--app-borde
 html[data-theme="dark"] .quote-request-shape-option:hover{border-color:#38bdf8;background:color-mix(in srgb,var(--app-primary-soft,#0f3654) 44%,var(--app-surface,#111c31))}
 html[data-theme="dark"] .quote-request-shape-option.is-selected{border-color:#38bdf8;background:color-mix(in srgb,var(--app-primary-soft,#0f3654) 58%,var(--app-surface,#111c31));box-shadow:0 0 0 3px rgba(56,189,248,.16)}
 html[data-theme="dark"] .quote-request-shape-panel{border-color:var(--app-border,#24364b);background:var(--app-surface,#111c31)}
-html[data-theme="dark"] .quote-request-unit{color:#92a4b4}
+html[data-theme="dark"] .quote-request-unit-mask{color:var(--app-text,#e5eef8)}
+html[data-theme="dark"] .quote-request-unit-wrap.has-value .quote-request-input:not(:focus){caret-color:var(--app-text,#e5eef8)}
 html[data-theme="dark"] .quote-status-chip[data-state="unsent"]{background:#1d2938;color:#94a3b8}
 html[data-theme="dark"] .quote-status-chip[data-state="pending"]{background:#3a2f12;color:#facc15}
 html[data-theme="dark"] .quote-status-chip[data-state="quoted"]{background:#123321;color:#86efac}
@@ -255,6 +258,12 @@ html[data-theme="dark"] .quote-request-numbering-attachment-row{border-color:var
 .front-back-actions{display:flex;justify-content:flex-end;gap:10px;padding:0 20px 18px}
 .front-back-remove{margin-right:auto}
 .front-back-warning[hidden]{display:none}
+html[data-theme="dark"] .quote-request-preview-modal{background:rgba(7,14,26,.82)}
+html[data-theme="dark"] .front-back-panel{border-color:var(--app-border,#24364b);background:var(--app-surface,#111c31);color:var(--app-text,#e5eef8);box-shadow:0 24px 60px rgba(0,0,0,.38)}
+html[data-theme="dark"] .front-back-head{border-bottom-color:var(--app-border,#24364b)}
+html[data-theme="dark"] .front-back-head h3,.front-back-option strong,.front-back-current strong{color:var(--app-text,#e5eef8)}
+html[data-theme="dark"] .front-back-head p,html[data-theme="dark"] .front-back-option span,html[data-theme="dark"] .front-back-current span,html[data-theme="dark"] .front-back-warning{color:var(--app-text-muted,#9aa7b4)}
+html[data-theme="dark"] .front-back-current,html[data-theme="dark"] .front-back-option,html[data-theme="dark"] .front-back-warning{border-color:var(--app-border,#24364b);background:var(--app-surface-soft,#17243a)}
 .quote-request-preview-panel{width:var(--preview-panel-width,min(960px,calc(100vw - 32px)));max-height:calc(100vh - 32px);display:grid;grid-template-rows:auto minmax(0,1fr);gap:14px;padding:18px;border-radius:22px;background:#fff;box-shadow:0 26px 50px rgba(15,23,42,.24)}
 .quote-request-preview-head{display:flex;align-items:center;justify-content:space-between;gap:16px}
 .quote-request-preview-head h3{margin:0;font-size:16px;color:#1d3c52;font-weight:600}
@@ -452,7 +461,8 @@ html[data-theme="dark"] .quote-request-numbering-attachment-row{border-color:var
 <label class="quote-request-field">
 <span>Medidas Fijas (Pulgadas)</span>
 <select id="requestFixedSize" class="quote-request-select quote-request-native-select" required>
-<option value="">Selecciona una medida</option>
+<option value="" selected disabled hidden>Selecciona una medida</option>
+<option value="custom">Medida especial</option>
 <option value="2x2" data-width="2" data-length="2">2″ x 2″</option>
 <option value="2.5x2.5" data-width="2.5" data-length="2.5">2.5″ x 2.5″</option>
 <option value="3x3" data-width="3" data-length="3">3″ x 3″</option>
@@ -461,7 +471,6 @@ html[data-theme="dark"] .quote-request-numbering-attachment-row{border-color:var
 <option value="4.5x4.5" data-width="4.5" data-length="4.5">4.5″ x 4.5″</option>
 <option value="5x5" data-width="5" data-length="5">5″ x 5″</option>
 <option value="5.5x5.5" data-width="5.5" data-length="5.5">5.5″ x 5.5″</option>
-<option value="custom">Medida especial</option>
 </select>
 <button id="requestFixedSizeTrigger" type="button" class="quote-request-input quote-request-fixed-size-trigger" aria-haspopup="listbox" aria-expanded="false">
 <span data-fixed-size-text>Selecciona una medida</span>
@@ -471,11 +480,11 @@ html[data-theme="dark"] .quote-request-numbering-attachment-row{border-color:var
 <div id="requestCustomSizeFields" class="quote-request-special-size" hidden>
 <label class="quote-request-field">
 <span id="requestCustomWidthLabel">Ancho</span>
-<span class="quote-request-unit-wrap"><input id="requestCustomWidth" class="quote-request-input" type="number" min="0" step="0.01" autocomplete="off"><span class="quote-request-unit">in</span></span>
+<span class="quote-request-unit-wrap"><input id="requestCustomWidth" class="quote-request-input" type="number" min="0" step="0.01" autocomplete="off"><span class="quote-request-unit-mask" aria-hidden="true"></span></span>
 </label>
 <label id="requestCustomHeightField" class="quote-request-field">
 <span id="requestCustomHeightLabel">Alto</span>
-<span class="quote-request-unit-wrap"><input id="requestCustomHeight" class="quote-request-input" type="number" min="0" step="0.01" autocomplete="off"><span class="quote-request-unit">in</span></span>
+<span class="quote-request-unit-wrap"><input id="requestCustomHeight" class="quote-request-input" type="number" min="0" step="0.01" autocomplete="off"><span class="quote-request-unit-mask" aria-hidden="true"></span></span>
 </label>
 </div>
 <div class="quote-request-inline-wrap" data-inline-suggestions="material">

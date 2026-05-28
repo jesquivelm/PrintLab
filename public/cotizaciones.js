@@ -449,16 +449,34 @@ function syncFixedSizeTrigger() {
     toggleCustomSizeFields();
 }
 
+function syncCustomUnitMask(input) {
+    if (!input) return;
+    const wrap = input.closest('.quote-request-unit-wrap');
+    const mask = wrap?.querySelector('.quote-request-unit-mask');
+    const value = String(input.value || '').trim();
+    if (mask) mask.textContent = value ? `${value}in` : '';
+    wrap?.classList.toggle('has-value', Boolean(value));
+}
+
+function syncCustomSizeUnitMasks() {
+    syncCustomUnitMask(customWidthInput);
+    syncCustomUnitMask(customHeightInput);
+}
+
 function toggleCustomSizeFields() {
     if (!customSizeFields || !fixedSizeSelect) return;
     customSizeFields.hidden = fixedSizeSelect.value !== 'custom';
     syncCustomSizeForShape();
+    syncCustomSizeUnitMasks();
 }
 
 function renderFixedSizePanel() {
     if (!fixedSizePanel || !fixedSizeSelect) return;
     const selected = fixedSizeSelect.value || '';
-    fixedSizePanel.innerHTML = Array.from(fixedSizeSelect.options).map((option) => `
+    const options = Array.from(fixedSizeSelect.options)
+        .filter((option) => option.value)
+        .sort((a, b) => (a.value === 'custom' ? -1 : b.value === 'custom' ? 1 : 0));
+    fixedSizePanel.innerHTML = options.map((option) => `
         <button type="button" class="quote-request-lookup-item${option.value === selected ? ' is-selected' : ''}" data-fixed-size-value="${escapeHtml(option.value)}" role="option" aria-selected="${option.value === selected ? 'true' : 'false'}">
             <span class="quote-request-lookup-name">${escapeHtml(option.textContent || '')}</span>
         </button>
@@ -2221,14 +2239,21 @@ async function copyLineToDestinationQuote(targetQuoteCode) {
     setStatus(`Línea ${row.linea} copiada a ${targetQuoteCode}.`, 'saved');
 }
 
-async function createNewQuoteFromLine(row) {
+async function createNewQuoteFromLine(row, options = {}) {
+    const shouldConfirm = options.confirm !== false;
+    if (shouldConfirm) {
+        const confirmed = window.confirm(`¿Quieres crear una nueva cotización a partir de la línea ${row.linea}?`);
+        if (!confirmed) return;
+    }
     const payload = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}/nueva-cotizacion`, {
         method: 'POST',
         headers: sessionHeader()
     });
+    const newQuoteCode = payload?.cotizacion?.quote_code || '';
     closeLineActionModal();
     await loadQuotes();
-    setStatus(`Cotización ${payload?.cotizacion?.quote_code || ''} creada desde la línea ${row.linea}.`, 'saved');
+    setStatus(`Cotización ${newQuoteCode} creada desde la línea ${row.linea}.`, 'saved');
+    if (newQuoteCode && options.openQuote !== false) openQuoteDocument(newQuoteCode);
 }
 
 function attachmentRowsMarkup(items = []) {
@@ -2438,12 +2463,15 @@ function handleLineActionModalClick(event) {
     const selectQuote = event.target.closest('[data-select-destination-quote]');
     if (selectQuote) {
         event.preventDefault();
-        copyLineToDestinationQuote(selectQuote.dataset.selectDestinationQuote).catch((error) => setStatus(error.message, 'error'));
+        runQuoteActionWithFeedback(selectQuote, lineActionState.row, () => copyLineToDestinationQuote(selectQuote.dataset.selectDestinationQuote))
+            .catch((error) => setStatus(error.message, 'error'));
         return;
     }
-    if (event.target.closest('[data-create-new-quote-from-line]')) {
+    const createQuoteButton = event.target.closest('[data-create-new-quote-from-line]');
+    if (createQuoteButton) {
         event.preventDefault();
-        createNewQuoteFromLine(lineActionState.row).catch((error) => setStatus(error.message, 'error'));
+        runQuoteActionWithFeedback(createQuoteButton, lineActionState.row, () => createNewQuoteFromLine(lineActionState.row))
+            .catch((error) => setStatus(error.message, 'error'));
         return;
     }
     if (event.target.closest('[data-pick-line-attachment]')) {
@@ -2451,9 +2479,11 @@ function handleLineActionModalClick(event) {
         document.getElementById('lineActionAttachmentFile')?.click();
         return;
     }
-    if (event.target.closest('[data-upload-line-attachment]')) {
+    const uploadButton = event.target.closest('[data-upload-line-attachment]');
+    if (uploadButton) {
         event.preventDefault();
-        uploadLineActionAttachments().catch((error) => setStatus(error.message, 'error'));
+        runQuoteActionWithFeedback(uploadButton, lineActionState.row, uploadLineActionAttachments)
+            .catch((error) => setStatus(error.message, 'error'));
     }
 }
 
@@ -2484,8 +2514,11 @@ function renderQuoteLineCard(row, index, totalLines, treeOptions = {}) {
     const treeAttrs = isTreeGroup
         ? ` data-front-back-group-key="${escapeHtml(treeOptions.groupKey || '')}" aria-expanded="${treeOptions.expanded ? 'true' : 'false'}"`
         : (isTreeChild ? ` data-front-back-parent-key="${escapeHtml(treeOptions.groupKey || '')}"` : '');
+    const treeIconKey = treeOptions.expanded ? 'quoteCollapse' : 'quoteExpand';
+    const treeToggleConf = getResolvedIcon([treeIconKey], treeIconKey);
+    const treeToggleLabel = treeOptions.expanded ? 'Contraer grupo frente/dorso' : 'Desplegar grupo frente/dorso';
     const groupToggle = isTreeGroup
-        ? `<button type="button" class="quote-master-line-tree-toggle" data-front-back-toggle="${escapeHtml(treeOptions.groupKey || '')}" aria-expanded="${treeOptions.expanded ? 'true' : 'false'}" aria-label="${treeOptions.expanded ? 'Contraer grupo frente/dorso' : 'Desplegar grupo frente/dorso'}">${treeOptions.expanded ? '▾' : '▸'}</button>`
+        ? `<button type="button" class="quote-master-line-tree-toggle" data-front-back-toggle="${escapeHtml(treeOptions.groupKey || '')}" aria-expanded="${treeOptions.expanded ? 'true' : 'false'}" aria-label="${treeToggleLabel}" style="--icon-color:${escapeHtml(treeToggleConf.color)};--icon-hover-color:${escapeHtml(treeToggleConf.hover)};--config-icon-size:${escapeHtml(String(treeToggleConf.size || 18))}px;">${iconMarkup(treeToggleConf.value, treeToggleLabel, 'table-icon-media')}</button>`
         : '<span class="quote-master-line-tree-spacer" aria-hidden="true"></span>';
     return `
         <article class="quote-master-line${treeClass}" data-line-id="${row.id}" data-line-index="${displayIndex}" data-quote-id="${escapeHtml(row.quoteId)}"${treeAttrs} draggable="true">
@@ -2534,10 +2567,10 @@ function renderQuoteLinesPanel(quoteCode) {
     const escapedCode = escapeHtml(quoteCode);
     const footer = `
         <div class="quote-master-lines-footer">
-            ${canCreateQuoteLines ? `<button type="button" class="quote-browser-action-btn quote-line-add-btn" data-add-line="${escapedCode}" title="Agregar línea de cálculo" style="--icon-color:${escapeHtml(addConf.color)};--icon-hover-color:${escapeHtml(addConf.hover)};--config-icon-size:${escapeHtml(String(addConf.size || 18))}px;" onclick="this.disabled=true;this.querySelector('span').textContent='Cargando...';createQuoteLineAndOpenCalculation('${escapedCode}').catch(e=>setStatus(e.message,'error')).finally(()=>{this.disabled=false;this.querySelector('span').innerHTML='${escapeHtml(iconMarkup(addConf.value, 'Agregar línea', 'table-icon-media'))} Agregar línea'})">
+            ${canCreateQuoteLines ? `<button type="button" class="quote-browser-action-btn quote-line-add-btn" data-add-line="${escapedCode}" title="Agregar línea de cálculo" style="--icon-color:${escapeHtml(addConf.color)};--icon-hover-color:${escapeHtml(addConf.hover)};--config-icon-size:${escapeHtml(String(addConf.size || 18))}px;">
                 <span class="quote-line-action-icon" aria-hidden="true">${iconMarkup(addConf.value, 'Agregar línea', 'table-icon-media')}</span> Agregar línea
             </button>` : ''}
-            <button type="button" class="quote-browser-action-btn quote-line-proforma-btn" data-print-proforma="${escapedCode}" title="Ver Proforma" style="--icon-color:${escapeHtml(proformaConf.color)};--icon-hover-color:${escapeHtml(proformaConf.hover)};--config-icon-size:${escapeHtml(String(proformaConf.size || 16))}px;" onclick="openProformaIfReady('${escapedCode}').catch(e=>setStatus(e.message,'error'))">
+            <button type="button" class="quote-browser-action-btn quote-line-proforma-btn" data-print-proforma="${escapedCode}" title="Ver Proforma" style="--icon-color:${escapeHtml(proformaConf.color)};--icon-hover-color:${escapeHtml(proformaConf.hover)};--config-icon-size:${escapeHtml(String(proformaConf.size || 16))}px;">
                 <span class="quote-line-action-icon" aria-hidden="true">${iconMarkup(proformaConf.value, 'Ver Proforma', 'table-icon-media')}</span> Ver Proforma
             </button>
         </div>
@@ -2737,6 +2770,37 @@ function quoteLineActionLockKey(action, row) {
     return `${action}:${row?.quoteId || ''}:${row?.linea || row?.id || ''}`;
 }
 
+function setQuoteLineActionFeedback(button, row, busy) {
+    if (button) {
+        if (busy) {
+            button.dataset.wasDisabled = button.disabled ? 'true' : 'false';
+            button.disabled = true;
+            button.classList.add('is-action-busy');
+            button.setAttribute('aria-busy', 'true');
+        } else {
+            button.disabled = button.dataset.wasDisabled === 'true';
+            delete button.dataset.wasDisabled;
+            button.classList.remove('is-action-busy');
+            button.removeAttribute('aria-busy');
+        }
+    }
+    const lineId = row?.id || Number(button?.dataset?.lineId || 0);
+    if (!lineId || !rowsBody) return;
+    rowsBody.querySelector(`.quote-master-line[data-line-id="${lineId}"]`)?.classList.toggle('is-line-action-busy', busy);
+}
+
+async function runQuoteActionWithFeedback(button, row, task) {
+    const started = Date.now();
+    setQuoteLineActionFeedback(button, row, true);
+    try {
+        return await task();
+    } finally {
+        const remaining = 180 - (Date.now() - started);
+        if (remaining > 0) await sleep(remaining);
+        setQuoteLineActionFeedback(button, row, false);
+    }
+}
+
 async function runQuoteLineActionLocked(action, row, task) {
     const key = quoteLineActionLockKey(action, row);
     if (quoteLineActionLocks.has(key)) return;
@@ -2756,7 +2820,7 @@ async function duplicateQuoteLine(row) {
 }
 
 async function createQuoteFromLine(row) {
-    return openQuoteDestinationModal(row, 'create-quote');
+    return runQuoteLineActionLocked('create-quote', row, () => createNewQuoteFromLine(row));
 }
 
 async function createProductFromLine(row) {
@@ -3558,6 +3622,7 @@ function resetFormState() {
     if (materialInput) materialInput.dataset.materialCode = '';
     if (customWidthInput) customWidthInput.value = '';
     if (customHeightInput) customHeightInput.value = '';
+    syncCustomSizeUnitMasks();
     pendingAttachments.forEach((item) => {
         if (item.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(item.previewUrl);
     });
@@ -3637,6 +3702,7 @@ function syncCustomSizeForShape() {
     if (customWidthLabel) customWidthLabel.textContent = circular ? 'Diámetro' : 'Ancho';
     if (customHeightField) customHeightField.hidden = circular;
     if (circular && customHeightInput && customWidthInput) customHeightInput.value = customWidthInput.value;
+    syncCustomSizeUnitMasks();
 }
 
 function syncShapePickerState() {
@@ -4737,7 +4803,8 @@ function bindEvents() {
                 selectedQuoteContextLineId = Number(portalLineAction.dataset.lineId) || 0;
             }
             closeQuoteLineMenus();
-            handleQuoteLineAction(portalLineAction.dataset.lineAction, row).catch((error) => setStatus(error.message, 'error'));
+            runQuoteActionWithFeedback(portalLineAction, row, () => handleQuoteLineAction(portalLineAction.dataset.lineAction, row))
+                .catch((error) => setStatus(error.message, 'error'));
             return;
         }
         if (!event.target.closest('[data-line-menu-id]') && !event.target.closest('.quote-line-menu-panel')) {
@@ -5014,6 +5081,7 @@ function repositionOpenQuoteLineMenu() {
     });
     fixedSizeSelect?.addEventListener('change', () => {
         syncFixedSizeTrigger();
+        syncCustomSizeUnitMasks();
         invalidateQuickRequestPreview();
     });
     requestProductTypeTrigger?.addEventListener('click', () => toggleRequestProductTypePanel());
@@ -5064,6 +5132,12 @@ function repositionOpenQuoteLineMenu() {
     });
     customWidthInput?.addEventListener('input', () => {
         if (isCircularRequestShape() && customHeightInput) customHeightInput.value = customWidthInput.value;
+        syncCustomSizeUnitMasks();
+        invalidateQuickRequestPreview();
+    });
+    customHeightInput?.addEventListener('input', () => {
+        syncCustomSizeUnitMasks();
+        invalidateQuickRequestPreview();
     });
 
     rowsBody?.addEventListener('click', (e) => {
@@ -5124,7 +5198,8 @@ if (menuToggle) {
         if (proformaButton) {
             const code = proformaButton.dataset.printProforma;
             if (!code) return;
-            openProformaIfReady(code).catch((error) => setStatus(error.message, 'error'));
+            runQuoteActionWithFeedback(proformaButton, null, () => openProformaIfReady(code))
+                .catch((error) => setStatus(error.message, 'error'));
             return;
         }
         // Add line button
@@ -5132,10 +5207,8 @@ if (menuToggle) {
         if (addLineButton) {
             const code = addLineButton.dataset.addLine;
             if (!code) return;
-            addLineButton.disabled = true;
-            createQuoteLineAndOpenCalculation(code)
-                .catch((error) => setStatus(error.message, 'error'))
-                .finally(() => { addLineButton.disabled = false; });
+            runQuoteActionWithFeedback(addLineButton, null, () => createQuoteLineAndOpenCalculation(code))
+                .catch((error) => setStatus(error.message, 'error'));
             return;
         }
         const lineActionButton = e.target.closest('[data-line-action]');
@@ -5148,7 +5221,8 @@ if (menuToggle) {
                 selectedQuoteContextLineId = Number(lineActionButton.dataset.lineId) || 0;
             }
             closeQuoteLineMenus();
-            handleQuoteLineAction(lineActionButton.dataset.lineAction, row).catch((error) => setStatus(error.message, 'error'));
+            runQuoteActionWithFeedback(lineActionButton, row, () => handleQuoteLineAction(lineActionButton.dataset.lineAction, row))
+                .catch((error) => setStatus(error.message, 'error'));
             return;
         }
         const deleteButton = e.target.closest('[data-delete-quote]');

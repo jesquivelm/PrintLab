@@ -332,11 +332,14 @@ function buildProviderUrl(config) {
 async function fetchExchangeRatesFromProvider(config) {
     const baseCurrency = normalizeCurrencyCode(config.baseCurrency, 'USD');
     const url = buildProviderUrl(config);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
     const response = await fetch(url, {
+        signal: controller.signal,
         headers: {
             accept: 'application/json'
         }
-    });
+    }).finally(() => clearTimeout(timeout));
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
         throw new Error(payload?.error || `No fue posible consultar el proveedor de tipo de cambio (${response.status}).`);
@@ -498,7 +501,11 @@ async function refreshExchangeRates(pgQuery, options = {}) {
     try {
         const providerResult = await fetchExchangeRatesFromProvider(config);
         const batchKey = `${providerResult.rateDate}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-        const rows = providerResult.rows;
+        const enabledCurrencies = new Set(normalizeEnabledCurrencies(config.enabledCurrencies, providerResult.baseCurrency));
+        const rows = providerResult.rows.filter((row) => enabledCurrencies.has(row.currencyCode));
+        if (!rows.some((row) => row.currencyCode === providerResult.baseCurrency)) {
+            rows.unshift({ baseCurrency: providerResult.baseCurrency, currencyCode: providerResult.baseCurrency, rateValue: 1 });
+        }
         await pgQuery(`DELETE FROM exchange_rate_current WHERE base_currency = $1`, [providerResult.baseCurrency]);
         for (const row of rows) {
             await pgQuery(`
@@ -534,7 +541,10 @@ async function refreshExchangeRates(pgQuery, options = {}) {
             ]);
         }
         const finishedAt = new Date().toISOString();
-        const summary = summarizeRefreshResult(providerResult);
+        const summary = {
+            ...summarizeRefreshResult(providerResult),
+            currenciesCount: rows.length
+        };
         await updateExchangeRateSyncState(pgQuery, {
             lastSyncStatus: 'success',
             lastSyncMessage: `${summary.currenciesCount} tasas recibidas correctamente.`,

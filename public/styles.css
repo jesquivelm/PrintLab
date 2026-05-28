@@ -3987,6 +3987,55 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     align-items: center;
     line-height: 1;
 }
+
+@keyframes quote-action-spin {
+    to { transform: rotate(360deg); }
+}
+
+.quote-browser-action-btn.is-action-busy,
+.quote-line-icon-btn.is-action-busy,
+.row-tool-btn.is-action-busy,
+.row-action-menu-item.is-action-busy,
+.copy-popover-send.is-action-busy,
+.line-action-select.is-action-busy {
+    position: relative;
+    opacity: 0.78;
+    cursor: progress !important;
+    pointer-events: none;
+}
+
+.quote-browser-action-btn.is-action-busy::after,
+.row-action-menu-item.is-action-busy::after,
+.line-action-select.is-action-busy::after {
+    content: "";
+    width: 14px;
+    height: 14px;
+    margin-left: 8px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 999px;
+    flex: 0 0 14px;
+    animation: quote-action-spin 0.72s linear infinite;
+}
+
+.quote-line-icon-btn.is-action-busy::after,
+.row-tool-btn.is-action-busy::after,
+.copy-popover-send.is-action-busy::after {
+    content: "";
+    position: absolute;
+    inset: calc(50% - 7px) auto auto calc(50% - 7px);
+    width: 14px;
+    height: 14px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 999px;
+    animation: quote-action-spin 0.72s linear infinite;
+}
+
+.quote-master-line.is-line-action-busy,
+.quote-browser-table tbody tr.is-line-action-busy {
+    opacity: 0.72;
+}
 .socios-import-status {
     margin: 0;
     padding: 10px 14px;
@@ -14341,7 +14390,7 @@ body.inventory-route-troqueles.inventory-view-detail .inventory-editor-panel {
 }
 
 .quote-master-lines-row > td {
-    padding: 0 0 12px 12px !important;
+    padding: 0 0 12px 0 !important;
 }
 
 .quote-master-lines {
@@ -14374,7 +14423,7 @@ body.inventory-route-troqueles.inventory-view-detail .inventory-editor-panel {
     gap: 6px !important;
     justify-items: start !important;
     text-align: left !important;
-    padding-left: 140px !important;
+    padding-left: 0 !important;
     box-sizing: border-box !important;
 }
 
@@ -14405,7 +14454,7 @@ body.inventory-route-troqueles.inventory-view-detail .inventory-editor-panel {
 }
 
 .quote-master-lines .quote-master-line-add .quote-master-line-body {
-    padding-left: 140px !important;
+    padding-left: 0 !important;
 }
 
 .quote-master-lines .quote-master-line-badges {
@@ -14670,7 +14719,7 @@ html[data-theme="dark"] .quote-master-line-measure {
     justify-content: center;
     border: 0;
     background: transparent;
-    color: var(--app-text-soft, #607286);
+    color: var(--icon-color, var(--app-text-soft, #607286));
     font-size: 13px;
     line-height: 1;
     cursor: pointer;
@@ -14679,8 +14728,14 @@ html[data-theme="dark"] .quote-master-line-measure {
 
 .quote-master-line-tree-toggle:hover,
 .quote-master-line-tree-toggle:focus-visible {
-    color: var(--app-primary, #0b81b8);
+    color: var(--icon-hover-color, var(--app-primary, #0b81b8));
     outline: none;
+}
+
+.quote-master-line-tree-toggle .table-icon-media,
+.quote-master-line-tree-toggle .icon-image {
+    width: var(--config-icon-size, 16px);
+    height: var(--config-icon-size, 16px);
 }
 
 .quote-master-line.is-front-back-parent {
