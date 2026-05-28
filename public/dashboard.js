@@ -1,7 +1,7 @@
 const CONFIG_ENDPOINT = '/api/config/shell';
 const SESSION_STORAGE_KEY = 'erp-user-session';
 const DASHBOARD_CONFIG_CACHE_KEY = 'erp-dashboard-config-cache';
-const DASHBOARD_CONFIG_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+const DASHBOARD_CONFIG_CACHE_TTL_MS = 60 * 1000;
 const DASHBOARD_CONFIG_CACHE_TEXT_LIMIT = 24000;
 const tabsContainer = document.getElementById('dashboardTabs');
 const tabsBar = document.querySelector('.dashboard-tabs-bar');
@@ -338,8 +338,6 @@ function readDashboardConfigCache() {
         const raw = localStorage.getItem(DASHBOARD_CONFIG_CACHE_KEY);
         if (!raw) return null;
         const parsed = JSON.parse(raw);
-        const storedAt = Number(parsed?.storedAt || 0);
-        if (!storedAt || Date.now() - storedAt > DASHBOARD_CONFIG_CACHE_TTL_MS) return null;
         return parsed.data || null;
     } catch (error) {
         return null;
@@ -360,8 +358,9 @@ function writeDashboardConfigCache(config) {
 function compactDashboardConfigForCache(value, key = '') {
     if (typeof value === 'string') {
         const text = value.trim();
+        if (text.startsWith('/assets/') || text.startsWith('data:image') || text.startsWith('http')) return value;
         const keyText = String(key || '').toLowerCase();
-        const assetLike = /(image|imagen|logo|icon|foto|photo|font|background|screensaver|repositorio|repository)/.test(keyText);
+        const assetLike = /(image|imagen|logo|foto|photo|font|background|screensaver|repositorio|repository)/.test(keyText);
         if ((assetLike && text.length > DASHBOARD_CONFIG_CACHE_TEXT_LIMIT) || text.length > DASHBOARD_CONFIG_CACHE_TEXT_LIMIT * 4) {
             return '';
         }
@@ -2639,24 +2638,26 @@ async function runDashboardSearch(term) {
 
 async function applyDashboardConfig(configOverride = null) {
     const hasOverride = configOverride && typeof configOverride === 'object';
-    let cachedConfig = null;
-    if (!hasOverride) {
-        cachedConfig = readDashboardConfigCache();
-        if (cachedConfig) {
-            applyDashboardConfigPayload(cachedConfig);
-        }
+    if (hasOverride) {
+        applyDashboardConfigPayload(configOverride);
+        const cacheableConfig = compactDashboardConfigForCache(configOverride);
+        writeDashboardConfigCache(cacheableConfig);
+        return;
     }
-    let nextConfig = hasOverride ? configOverride : null;
-    if (!hasOverride) {
+    const cachedConfig = readDashboardConfigCache();
+    if (cachedConfig) {
+        applyDashboardConfigPayload(cachedConfig);
+    }
+    try {
         const response = await fetch(CONFIG_ENDPOINT, { cache: 'no-cache' });
         if (!response.ok) return;
-        nextConfig = await response.json();
-    }
-    const cacheableConfig = compactDashboardConfigForCache(nextConfig);
-    if (!areDashboardConfigsEqual(cacheableConfig, cachedConfig)) {
-        writeDashboardConfigCache(cacheableConfig);
-    }
-    applyDashboardConfigPayload(nextConfig);
+        const nextConfig = await response.json();
+        const cacheableConfig = compactDashboardConfigForCache(nextConfig);
+        if (!areDashboardConfigsEqual(cacheableConfig, cachedConfig)) {
+            writeDashboardConfigCache(cacheableConfig);
+            applyDashboardConfigPayload(nextConfig);
+        }
+    } catch (_) {}
 }
 
 function syncDashboardImageSource(image, nextUrl, altText = '') {
@@ -2957,6 +2958,7 @@ bindBdfg();
 loadBdfgPosition();
 loadBdfgNotifications().catch(() => {});
 setInterval(() => loadBdfgNotifications().catch(() => {}), 45000);
+setInterval(() => applyDashboardConfig().catch(() => {}), 30000);
 loadBdfgUserProfile().catch(() => {});
 applyDashboardConfig().catch(console.error);
 renderTabs();

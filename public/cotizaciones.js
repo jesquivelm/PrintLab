@@ -867,8 +867,9 @@ function writeQuoteConfigCache(config) {
 function compactQuoteConfigForCache(value, key = '') {
     if (typeof value === 'string') {
         const text = value.trim();
+        if (text.startsWith('/assets/') || text.startsWith('data:image') || text.startsWith('http')) return value;
         const keyText = String(key || '').toLowerCase();
-        const assetLike = /(image|imagen|logo|icon|foto|photo|font|background|screensaver|repositorio|repository)/.test(keyText);
+        const assetLike = /(image|imagen|logo|foto|photo|font|background|screensaver|repositorio|repository)/.test(keyText);
         if ((assetLike && text.length > QUOTE_CONFIG_CACHE_TEXT_LIMIT) || text.length > QUOTE_CONFIG_CACHE_TEXT_LIMIT * 4) {
             return '';
         }
