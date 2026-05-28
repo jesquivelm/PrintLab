@@ -901,7 +901,7 @@ const DEFAULT_GENERAL_CONFIG = {
         dashboardOrders: '\u2699',
         dashboardProduction: '\u{1F3ED}',
         dashboardCosts: '\u25A7',
-        dashboardReports: '\u25A4',
+        dashboardReports: '/assets/bootstrap/icons-dashboardReports.svg',
         dashboardSettings: '\u2692',
         mobileQuotes: '\u25A4',
         mobileOrders: '\u2699',
@@ -1421,6 +1421,8 @@ const DEFAULT_GENERAL_CONFIG = {
     },
     presentations: EMPTY_PRESENTATIONS
 };
+
+const SHELL_ICON_ASSET_KEYS = new Set(Object.keys(DEFAULT_GENERAL_CONFIG.icons || {}));
 
 const DEFAULT_COSTS_CONFIG = {
     general: {
@@ -11340,7 +11342,7 @@ app.get('/api/config/general/icons/:version/:file', async (req, res) => {
 
 app.post('/api/config/general/icon', async (req, res) => {
     try {
-        const orderIconKeys = new Set(['orderArtworkDelete', 'orderStatus', 'orderNumbering', 'orderFlow']);
+        const orderIconKeys = new Set(['orderArtworkDelete', 'orderStatus', 'orderNumbering', 'orderFlow', 'dashboardBusinessPartners', 'dashboardProducts', 'dashboardQuotes', 'dashboardNotifications', 'dashboardInventory', 'dashboardOrders', 'dashboardProduction', 'dashboardCosts', 'dashboardReports', 'dashboardSettings', 'dashboardPlanning']);
         const iconKey = String(req.body?.key || '').trim();
         const iconValue = String(req.body?.value || '').trim();
         const general = req.body?.general && typeof req.body.general === 'object' && !Array.isArray(req.body.general)
