@@ -2939,8 +2939,21 @@ async function compressIconsOnSave(config) {
             const buf = Buffer.from(meta.data, 'base64');
             const info = await sharp(buf).metadata();
             const maxDim = /^dashboard|^order|^line|^quoteRequest|^attachment|^table|^top/i.test(key) ? 192 : 256;
-            const pipeline = sharp(buf).rotate();
-            if ((info.width || 0) > maxDim || (info.height || 0) > maxDim) {
+
+            // Recortar fondo negro/transparente antes de redimensionar
+            // trim() detecta y elimina bordes con color uniforme (negro o transparente)
+            const trimmed = await sharp(buf).rotate().trim({ background: '#000000', threshold: 20 }).toBuffer();
+            const trimmedInfo = await sharp(trimmed).metadata();
+
+            // Agregar margen uniforme del 10% para que el ícono quede centrado igual que los demás
+            const marginPct = 0.10;
+            const margin = Math.round(Math.max(trimmedInfo.width || 0, trimmedInfo.height || 0) * marginPct);
+            const pipeline = sharp(trimmed).extend({
+                top: margin, bottom: margin, left: margin, right: margin,
+                background: { r: 0, g: 0, b: 0, a: 0 }
+            });
+
+            if ((trimmedInfo.width || 0) + margin * 2 > maxDim || (trimmedInfo.height || 0) + margin * 2 > maxDim) {
                 pipeline.resize({ width: maxDim, height: maxDim, fit: 'inside', withoutEnlargement: true });
             }
             const webp = await pipeline.clone().webp({ quality: 82, effort: 5 }).toBuffer();
