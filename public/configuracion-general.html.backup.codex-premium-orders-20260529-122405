@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/styles.css">
     <script src="/access-control.js"></script>
     <style>
-        .config-tabs { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; width: 100%; min-width: 0; margin-bottom: 20px; padding: 4px; border: 1px solid #d8e2ea; border-radius: 14px; background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.75); }
+        .config-tabs { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 6px; width: 100%; min-width: 0; margin-bottom: 20px; padding: 4px; border: 1px solid #d8e2ea; border-radius: 14px; background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.75); }
         .topbar.topbar-quote {
             display: flex;
             align-items: center;
@@ -4671,7 +4671,6 @@
                     <div class="config-tabs">
                         <button type="button" class="config-tab active" data-tab="diseno">Diseño</button>
                         <button type="button" class="config-tab" data-tab="cotizaciones">Cotizaciones</button>
-                        <button type="button" class="config-tab" data-tab="entregas">Entregas</button>
                         <button type="button" class="config-tab" data-tab="mapeo-sap">Mapeo SAP</button>
                         <button type="button" class="config-tab" data-tab="seguridad">Seguridad</button>
                         <button type="button" id="configTabSap" class="config-tab" data-tab="sap">SAP</button>
@@ -5951,56 +5950,6 @@
                                 </section>
                             </div>
 
-                        </section>
-                    </div>
-
-                    <div id="tab-entregas" class="config-tab-content">
-                        <section class="config-card">
-                            <h2 class="config-section-title">Entregas</h2>
-                            <div class="quotes-general-split">
-                                <section class="config-card quote-product-types-card">
-                                    <input id="deliverySampleModesJson" name="general.deliverySampleModesJson" type="hidden">
-                                    <h3>Envío de Muestras</h3>
-                                    <div class="quote-product-types-toolbar">
-                                        <p>Lista usada en órdenes para muestras.</p>
-                                        <button id="deliverySampleModeAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
-                                    </div>
-                                    <div class="quote-product-types-table-wrap">
-                                        <table class="quote-product-types-table">
-                                            <thead><tr><th style="width:72px;">#</th><th>Valor</th><th>Acción</th></tr></thead>
-                                            <tbody id="deliverySampleModesTableBody"></tbody>
-                                        </table>
-                                    </div>
-                                </section>
-                                <section class="config-card quote-product-types-card">
-                                    <input id="deliveryApprovalRecipientsJson" name="general.deliveryApprovalRecipientsJson" type="hidden">
-                                    <h3>Destinatario Visto Bueno</h3>
-                                    <div class="quote-product-types-toolbar">
-                                        <p>Lista usada para aprobaciones del cliente.</p>
-                                        <button id="deliveryApprovalRecipientAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
-                                    </div>
-                                    <div class="quote-product-types-table-wrap">
-                                        <table class="quote-product-types-table">
-                                            <thead><tr><th style="width:72px;">#</th><th>Valor</th><th>Acción</th></tr></thead>
-                                            <tbody id="deliveryApprovalRecipientsTableBody"></tbody>
-                                        </table>
-                                    </div>
-                                </section>
-                                <section class="config-card quote-product-types-card">
-                                    <input id="deliveryMethodsJson" name="general.deliveryMethodsJson" type="hidden">
-                                    <h3>Forma de Entrega</h3>
-                                    <div class="quote-product-types-toolbar">
-                                        <p>Lista usada en tipo de entrega.</p>
-                                        <button id="deliveryMethodAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
-                                    </div>
-                                    <div class="quote-product-types-table-wrap">
-                                        <table class="quote-product-types-table">
-                                            <thead><tr><th style="width:72px;">#</th><th>Valor</th><th>Acción</th></tr></thead>
-                                            <tbody id="deliveryMethodsTableBody"></tbody>
-                                        </table>
-                                    </div>
-                                </section>
-                            </div>
                         </section>
                     </div>
 

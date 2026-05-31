@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/styles.css">
     <script src="/access-control.js"></script>
     <style>
-        .config-tabs { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; width: 100%; min-width: 0; margin-bottom: 20px; padding: 4px; border: 1px solid #d8e2ea; border-radius: 14px; background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.75); }
+        .config-tabs { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 6px; width: 100%; min-width: 0; margin-bottom: 20px; padding: 4px; border: 1px solid #d8e2ea; border-radius: 14px; background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.75); }
         .topbar.topbar-quote {
             display: flex;
             align-items: center;
@@ -775,102 +775,6 @@
             color: #6f8293;
             font-size: 12px;
             line-height: 1.45;
-        }
-        .exchange-rate-calc-result-main {
-            display: block;
-            color: #17354a;
-            font-size: 16px;
-            font-weight: 400;
-        }
-        .exchange-rate-calc-result-meta {
-            display: block;
-            margin-top: 6px;
-            color: #6b8192;
-            font-size: 12px;
-        }
-        html[data-theme="dark"] .exchange-rate-subtab {
-            border-color: var(--app-border,#24364b);
-            background: var(--app-surface-soft,#17243a);
-            color: var(--app-text-muted,#9aa7b4);
-        }
-        html[data-theme="dark"] .exchange-rate-subtab.active {
-            border-color: #38bdf8;
-            background: color-mix(in srgb,var(--app-primary-soft,#0f3654) 68%,var(--app-surface,#111c31));
-            color: var(--app-text,#e5eef8);
-            box-shadow: none;
-        }
-        html[data-theme="dark"] .exchange-rate-card,
-        html[data-theme="dark"] .exchange-rate-summary-card,
-        html[data-theme="dark"] .exchange-rate-calc-result,
-        html[data-theme="dark"] .exchange-rate-empty,
-        html[data-theme="dark"] .exchange-rate-table-wrap {
-            border-color: var(--app-border,#24364b);
-            background: var(--app-surface,#111c31);
-            color: var(--app-text,#e5eef8);
-        }
-        html[data-theme="dark"] .exchange-rate-summary-card strong,
-        html[data-theme="dark"] .exchange-rate-card strong,
-        html[data-theme="dark"] .exchange-rate-card-value,
-        html[data-theme="dark"] .exchange-rate-calc-result-main {
-            color: var(--app-text,#e5eef8);
-        }
-        html[data-theme="dark"] .exchange-rate-summary-card span,
-        html[data-theme="dark"] .exchange-rate-card span,
-        html[data-theme="dark"] .exchange-rate-status-meta,
-        html[data-theme="dark"] .exchange-rate-log-message,
-        html[data-theme="dark"] .exchange-rate-calc-result-meta {
-            color: var(--app-text-muted,#9aa7b4);
-        }
-        html[data-theme="dark"] .exchange-rate-status-pill {
-            background: var(--app-surface-soft,#17243a);
-            color: var(--app-text,#e5eef8);
-        }
-        html[data-theme="dark"] .exchange-rate-status-pill.is-error {
-            background: rgba(220,38,38,.14);
-            color: #fca5a5;
-        }
-        html[data-theme="dark"] .exchange-rate-status-pill.is-success {
-            background: rgba(34,197,94,.14);
-            color: #86efac;
-        }
-        html[data-theme="dark"] .exchange-rate-status-pill.is-running {
-            background: rgba(245,158,11,.14);
-            color: #fcd34d;
-        }
-        html[data-theme="dark"] .exchange-rate-config-grid label span,
-        html[data-theme="dark"] .exchange-rate-calc-grid label span {
-            color: var(--app-text,#e5eef8);
-        }
-        html[data-theme="dark"] .exchange-rate-config-grid input,
-        html[data-theme="dark"] .exchange-rate-config-grid select,
-        html[data-theme="dark"] .exchange-rate-calc-grid input,
-        html[data-theme="dark"] .exchange-rate-calc-grid select {
-            border-color: var(--app-border,#24364b);
-            background: var(--app-surface-soft,#17243a);
-            color: var(--app-text,#e5eef8);
-        }
-        html[data-theme="dark"] .exchange-rate-chip {
-            border-color: var(--app-border,#24364b);
-            background: var(--app-surface-soft,#17243a);
-        }
-        html[data-theme="dark"] .exchange-rate-chip span {
-            color: var(--app-text-muted,#9aa7b4);
-        }
-        html[data-theme="dark"] .exchange-rate-chip.is-selected {
-            border-color: #38bdf8;
-            background: color-mix(in srgb,var(--app-primary-soft,#0f3654) 58%,var(--app-surface,#111c31));
-        }
-        html[data-theme="dark"] .exchange-rate-chip.is-selected span {
-            color: var(--app-text,#e5eef8);
-        }
-        html[data-theme="dark"] .exchange-rate-table th,
-        html[data-theme="dark"] .exchange-rate-table td {
-            border-bottom-color: var(--app-border,#24364b);
-            color: var(--app-text,#e5eef8);
-        }
-        html[data-theme="dark"] .exchange-rate-table thead th {
-            background: var(--app-surface-soft,#17243a);
-            color: var(--app-text-muted,#9aa7b4);
         }
         @media (max-width: 1100px) {
             .exchange-rate-grid,
@@ -4671,7 +4575,6 @@
                     <div class="config-tabs">
                         <button type="button" class="config-tab active" data-tab="diseno">Diseño</button>
                         <button type="button" class="config-tab" data-tab="cotizaciones">Cotizaciones</button>
-                        <button type="button" class="config-tab" data-tab="entregas">Entregas</button>
                         <button type="button" class="config-tab" data-tab="mapeo-sap">Mapeo SAP</button>
                         <button type="button" class="config-tab" data-tab="seguridad">Seguridad</button>
                         <button type="button" id="configTabSap" class="config-tab" data-tab="sap">SAP</button>
@@ -5951,56 +5854,6 @@
                                 </section>
                             </div>
 
-                        </section>
-                    </div>
-
-                    <div id="tab-entregas" class="config-tab-content">
-                        <section class="config-card">
-                            <h2 class="config-section-title">Entregas</h2>
-                            <div class="quotes-general-split">
-                                <section class="config-card quote-product-types-card">
-                                    <input id="deliverySampleModesJson" name="general.deliverySampleModesJson" type="hidden">
-                                    <h3>Envío de Muestras</h3>
-                                    <div class="quote-product-types-toolbar">
-                                        <p>Lista usada en órdenes para muestras.</p>
-                                        <button id="deliverySampleModeAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
-                                    </div>
-                                    <div class="quote-product-types-table-wrap">
-                                        <table class="quote-product-types-table">
-                                            <thead><tr><th style="width:72px;">#</th><th>Valor</th><th>Acción</th></tr></thead>
-                                            <tbody id="deliverySampleModesTableBody"></tbody>
-                                        </table>
-                                    </div>
-                                </section>
-                                <section class="config-card quote-product-types-card">
-                                    <input id="deliveryApprovalRecipientsJson" name="general.deliveryApprovalRecipientsJson" type="hidden">
-                                    <h3>Destinatario Visto Bueno</h3>
-                                    <div class="quote-product-types-toolbar">
-                                        <p>Lista usada para aprobaciones del cliente.</p>
-                                        <button id="deliveryApprovalRecipientAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
-                                    </div>
-                                    <div class="quote-product-types-table-wrap">
-                                        <table class="quote-product-types-table">
-                                            <thead><tr><th style="width:72px;">#</th><th>Valor</th><th>Acción</th></tr></thead>
-                                            <tbody id="deliveryApprovalRecipientsTableBody"></tbody>
-                                        </table>
-                                    </div>
-                                </section>
-                                <section class="config-card quote-product-types-card">
-                                    <input id="deliveryMethodsJson" name="general.deliveryMethodsJson" type="hidden">
-                                    <h3>Forma de Entrega</h3>
-                                    <div class="quote-product-types-toolbar">
-                                        <p>Lista usada en tipo de entrega.</p>
-                                        <button id="deliveryMethodAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
-                                    </div>
-                                    <div class="quote-product-types-table-wrap">
-                                        <table class="quote-product-types-table">
-                                            <thead><tr><th style="width:72px;">#</th><th>Valor</th><th>Acción</th></tr></thead>
-                                            <tbody id="deliveryMethodsTableBody"></tbody>
-                                        </table>
-                                    </div>
-                                </section>
-                            </div>
                         </section>
                     </div>
 
@@ -7822,7 +7675,6 @@
 { key: 'dashboardProduction', label: 'Dashboard Producción', group: 'Dashboard', placeholder: '\u{1F3ED}', color: '#0b81b8', size: 38 },
 { key: 'dashboardPlanning', label: 'Dashboard Planificación', group: 'Dashboard', placeholder: '\u25F3', color: '#0b81b8', size: 38 },
 { key: 'dashboardCosts', label: 'Dashboard Costos', group: 'Dashboard', placeholder: '\u25A7', color: '#0b81b8', size: 38 },
-            { key: 'dashboardReports', label: 'Dashboard Reportes', group: 'Dashboard', placeholder: '\u25A4', color: '#0f766e', size: 38 },
             { key: 'dashboardSettings', label: 'Dashboard Configuración', group: 'Dashboard', placeholder: '\u2692', color: '#0b81b8', size: 38 },
             { key: 'mobileQuotes', label: 'Móvil Cotizaciones', group: 'Modulo Movil', placeholder: '\u25A4', color: '#0fb9b1', size: 24 },
             { key: 'mobileOrders', label: 'Móvil Órdenes', group: 'Modulo Movil', placeholder: '\u2699', color: '#7c3aed', size: 24 },
@@ -11183,8 +11035,8 @@
             const amountInBase = from === baseCurrency ? amount : (amount / fromRate);
             const result = to === baseCurrency ? amountInBase : (amountInBase * toRate);
             exchangeRateCalcResult.innerHTML = `
-                <span class="exchange-rate-calc-result-main">${escapeHtml(amount.toLocaleString('es-CR', { maximumFractionDigits: 4 }))} ${escapeHtml(from)} = ${escapeHtml(result.toLocaleString('es-CR', { maximumFractionDigits: 4 }))} ${escapeHtml(to)}</span>
-                <span class="exchange-rate-calc-result-meta">Base usada: ${escapeHtml(baseCurrency)} · Fecha: ${escapeHtml(exchangeRateState?.today?.rateDate || 'Sin datos')}</span>
+                <span style="display:block; color:#17354a; font-size:16px; font-weight:400;">${escapeHtml(amount.toLocaleString('es-CR', { maximumFractionDigits: 4 }))} ${escapeHtml(from)} = ${escapeHtml(result.toLocaleString('es-CR', { maximumFractionDigits: 4 }))} ${escapeHtml(to)}</span>
+                <span style="display:block; margin-top:6px; color:#6b8192; font-size:12px;">Base usada: ${escapeHtml(baseCurrency)} · Fecha: ${escapeHtml(exchangeRateState?.today?.rateDate || 'Sin datos')}</span>
             `;
         }
 

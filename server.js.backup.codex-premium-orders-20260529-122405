@@ -1033,28 +1033,6 @@ const DEFAULT_GENERAL_CONFIG = {
             'Porosa',
             'Húmeda'
         ]),
-        deliverySampleModesJson: JSON.stringify([
-            'Vendedor / Cliente',
-            'Vendedor',
-            'Cliente',
-            'Agencia',
-            'Agencia / Cliente',
-            'No necesita'
-        ]),
-        deliveryApprovalRecipientsJson: JSON.stringify([
-            'Cliente',
-            'Vendedor',
-            'Email',
-            'No necesita'
-        ]),
-        deliveryMethodsJson: JSON.stringify([
-            'Tráfico',
-            'Servicio de entregas - Dirección cliente',
-            'Servicio de entregas - Dirección opcional',
-            'Enviar al vendedor',
-            'Cliente recoge',
-            'Exportación'
-        ]),
         quoteAutomaticDigitalMaxQuantity: 100000,
         quoteAutomaticLabelsPerRoll: 1000,
         inventorySourceMode: 'local',
@@ -1580,10 +1558,6 @@ app.use(express.static(path.join(__dirname, 'public'), {
         const normalized = String(filePath || '').replace(/\\/g, '/').toLowerCase();
         if (normalized.match(/\.(html|js|css)$/)) {
             res.setHeader('Cache-Control', 'no-cache');
-            return;
-        }
-        if (normalized.includes('/assets/bootstrap/icons/')) {
-            res.setHeader('Cache-Control', 'no-cache, must-revalidate');
             return;
         }
         if (normalized.includes('/uploads/') || normalized.match(/\.(png|jpg|jpeg|webp|gif|svg|ico)$/)) {
@@ -2726,9 +2700,6 @@ function normalizeGeneralConfigRecord(config, baseConfig = DEFAULT_GENERAL_CONFI
     normalized.general.quoteProductTypesJson = JSON.stringify(normalizeQuoteProductTypes(normalized.general.quoteProductTypesJson, DEFAULT_GENERAL_CONFIG.general.quoteProductTypesJson));
     normalized.general.quoteApplicationOptionsJson = JSON.stringify(normalizeQuoteProductTypes(normalized.general.quoteApplicationOptionsJson, DEFAULT_GENERAL_CONFIG.general.quoteApplicationOptionsJson));
     normalized.general.quoteSurfaceOptionsJson = JSON.stringify(normalizeQuoteProductTypes(normalized.general.quoteSurfaceOptionsJson, DEFAULT_GENERAL_CONFIG.general.quoteSurfaceOptionsJson));
-    normalized.general.deliverySampleModesJson = JSON.stringify(normalizeQuoteProductTypes(normalized.general.deliverySampleModesJson, DEFAULT_GENERAL_CONFIG.general.deliverySampleModesJson));
-    normalized.general.deliveryApprovalRecipientsJson = JSON.stringify(normalizeQuoteProductTypes(normalized.general.deliveryApprovalRecipientsJson, DEFAULT_GENERAL_CONFIG.general.deliveryApprovalRecipientsJson));
-    normalized.general.deliveryMethodsJson = JSON.stringify(normalizeQuoteProductTypes(normalized.general.deliveryMethodsJson, DEFAULT_GENERAL_CONFIG.general.deliveryMethodsJson));
     normalized.general.inventorySourceMode = String(normalized.general.inventorySourceMode || DEFAULT_GENERAL_CONFIG.general.inventorySourceMode).trim().toLowerCase() === 'sap' ? 'sap' : 'local';
     normalized.general.inventoryImportedClassificationField = String(normalized.general.inventoryImportedClassificationField || DEFAULT_GENERAL_CONFIG.general.inventoryImportedClassificationField).trim() || DEFAULT_GENERAL_CONFIG.general.inventoryImportedClassificationField;
     normalized.branding.companyName = fixCommonTextArtifacts(normalized.branding.companyName);
@@ -2896,8 +2867,7 @@ function buildShellIconValue(key, value) {
     const ext = meta.extension;
     const filePath = path.join(ICONS_DISK_DIR, key + '.' + ext);
     if (fs.existsSync(filePath)) {
-        const version = Math.max(1, Math.floor(fs.statSync(filePath).mtimeMs));
-        return '/assets/bootstrap/icons/' + encodeURIComponent(key) + '.' + ext + '?v=' + version;
+        return '/assets/bootstrap/icons/' + encodeURIComponent(key) + '.' + ext;
     }
     return value;
 }
@@ -2928,23 +2898,13 @@ async function compressIconsOnSave(config) {
     const keys = Object.keys(icons);
     for (const key of keys) {
         const val = icons[key];
-        if (typeof val !== 'string') continue;
-        const meta = getDataImageIconMeta(val);
-        if (!meta || meta.mime === 'image/svg+xml' || !meta.isBase64) continue;
+        if (typeof val !== 'string' || !val.startsWith('data:image/png;base64,')) continue;
         try {
-            const buf = Buffer.from(meta.data, 'base64');
-            const info = await sharp(buf).metadata();
-            const maxDim = /^dashboard|^order|^line|^quoteRequest|^attachment|^table|^top/i.test(key) ? 192 : 256;
-            const pipeline = sharp(buf).rotate();
-            if ((info.width || 0) > maxDim || (info.height || 0) > maxDim) {
-                pipeline.resize({ width: maxDim, height: maxDim, fit: 'inside', withoutEnlargement: true });
-            }
-            const webp = await pipeline.clone().webp({ quality: 82, effort: 5 }).toBuffer();
-            const png = await pipeline.clone().png({ compressionLevel: 9, adaptiveFiltering: true }).toBuffer();
-            const bestMime = webp.length <= png.length ? 'image/webp' : 'image/png';
-            const best = webp.length <= png.length ? webp : png;
-            if (best.length < buf.length || (info.width || 0) > maxDim || (info.height || 0) > maxDim) {
-                icons[key] = `data:${bestMime};base64,${best.toString('base64')}`;
+            const raw = val.split(',')[1];
+            const buf = Buffer.from(raw, 'base64');
+            const compressed = await sharp(buf).png({ quality: 90, compressionLevel: 9 }).toBuffer();
+            if (compressed.length < buf.length) {
+                icons[key] = 'data:image/png;base64,' + compressed.toString('base64');
             }
         } catch (e) {
             console.error('Error compressing icon ' + key + ':', e.message);
@@ -11352,7 +11312,7 @@ app.get('/api/config/general', async (req, res) => {
 
 app.get('/api/config/shell', async (req, res) => {
     try {
-        res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+        res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
         res.json(await loadShellConfig());
     } catch (error) {
         res.status(500).json({ error: 'No fue posible cargar la configuración visual.' });

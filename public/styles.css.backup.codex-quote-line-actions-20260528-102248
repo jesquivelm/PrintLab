@@ -419,10 +419,6 @@ body.popover-open { overflow: hidden; }
 .dashboard-card-icon .icon-image {
     width: var(--config-icon-size, 38px);
     height: var(--config-icon-size, 38px);
-    display: block;
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
 }
 .dashboard-card:hover .dashboard-card-icon,
 .dashboard-card:focus-visible .dashboard-card-icon {
@@ -3991,55 +3987,6 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     align-items: center;
     line-height: 1;
 }
-
-@keyframes quote-action-spin {
-    to { transform: rotate(360deg); }
-}
-
-.quote-browser-action-btn.is-action-busy,
-.quote-line-icon-btn.is-action-busy,
-.row-tool-btn.is-action-busy,
-.row-action-menu-item.is-action-busy,
-.copy-popover-send.is-action-busy,
-.line-action-select.is-action-busy {
-    position: relative;
-    opacity: 0.78;
-    cursor: progress !important;
-    pointer-events: none;
-}
-
-.quote-browser-action-btn.is-action-busy::after,
-.row-action-menu-item.is-action-busy::after,
-.line-action-select.is-action-busy::after {
-    content: "";
-    width: 14px;
-    height: 14px;
-    margin-left: 8px;
-    border: 2px solid currentColor;
-    border-right-color: transparent;
-    border-radius: 999px;
-    flex: 0 0 14px;
-    animation: quote-action-spin 0.72s linear infinite;
-}
-
-.quote-line-icon-btn.is-action-busy::after,
-.row-tool-btn.is-action-busy::after,
-.copy-popover-send.is-action-busy::after {
-    content: "";
-    position: absolute;
-    inset: calc(50% - 7px) auto auto calc(50% - 7px);
-    width: 14px;
-    height: 14px;
-    border: 2px solid currentColor;
-    border-right-color: transparent;
-    border-radius: 999px;
-    animation: quote-action-spin 0.72s linear infinite;
-}
-
-.quote-master-line.is-line-action-busy,
-.quote-browser-table tbody tr.is-line-action-busy {
-    opacity: 0.72;
-}
 .socios-import-status {
     margin: 0;
     padding: 10px 14px;
@@ -4814,11 +4761,8 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     grid-column: 1 / -1;
 }
 .production-order-card .socios-section .field label {
-    font-size: 13px;
+    font-size: 11px;
     color: #70808d;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 .production-order-card .socios-grid input,
 .production-order-card .socios-grid textarea {
@@ -4829,7 +4773,7 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     background: #fbfcfd;
     border-color: #d7e1e8;
     box-shadow: none;
-    font-size: 14px;
+    font-size: 12px;
 }
 .production-order-card .socios-grid textarea {
     min-height: 78px;
@@ -4880,18 +4824,15 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
 }
 .production-summary-label {
     display: block;
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.03em;
     color: #70808d;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 .production-summary-value {
     display: block;
     min-height: 18px;
-    font-size: 15px;
+    font-size: 13px;
     line-height: 1.45;
     color: #203746;
     word-break: break-word;
@@ -4936,7 +4877,7 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     gap: 12px;
 }
 .production-subgroup-title {
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 700;
     color: #577086;
     letter-spacing: 0.04em;
@@ -4954,7 +4895,7 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     border-radius: 999px;
     background: #eff6fa;
     color: #335167;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 600;
 }
 .production-chip-muted {
@@ -5084,67 +5025,6 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     border-radius: 10px;
     pointer-events: auto;
 }
-.production-sap-popover-panel {
-    width: min(760px, calc(100vw - 32px));
-    min-height: 0;
-    max-height: min(520px, calc(100vh - 48px));
-    top: 78px;
-    left: 50%;
-    right: auto;
-    bottom: auto;
-    transform: translateX(-50%);
-    border-radius: 10px;
-    background: var(--app-surface, #ffffff);
-    color: var(--app-text, #203746);
-}
-.production-sap-popover .calc-popover-body {
-    display: grid;
-    gap: 12px;
-    padding: 16px;
-    overflow: auto;
-}
-.production-sap-popover .copy-popover-header h2 {
-    margin: 0;
-    font-size: 17px;
-    color: var(--app-text, #203746);
-}
-.sap-consumption-form {
-    grid-template-columns: minmax(220px, 1.7fr) minmax(136px, .82fr) minmax(110px, .64fr) auto;
-    gap: 12px;
-    align-items: end;
-}
-.sap-consumption-form .field-full {
-    grid-column: 1 / span 3;
-}
-.sap-consumption-form .field label {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--app-text-soft, #70808d);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.sap-consumption-form select,
-.sap-consumption-form input {
-    min-height: 38px;
-    width: 100%;
-    border: 1px solid var(--app-border, #d4e1ea);
-    border-radius: 10px;
-    background: var(--app-surface-raised, #fcfeff);
-    color: var(--app-text, #203746);
-    padding: 8px 11px;
-    font: inherit;
-    font-size: 14px;
-}
-.sap-consumption-submit {
-    min-height: 38px;
-    align-self: end;
-    white-space: nowrap;
-}
-.sap-consumption-message {
-    min-height: 18px;
-    padding: 0;
-}
 .production-deliveries-popover .calc-popover-body {
     display: flex;
     flex-direction: column;
@@ -5193,78 +5073,6 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
 .production-deliveries-message {
     font-size: 11px;
     color: #b94848;
-}
-.sap-consumption-history {
-    margin-top: 0;
-    display: grid;
-    gap: 8px;
-}
-.sap-consumption-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 12px;
-    padding: 10px 12px;
-    border: 1px solid var(--app-border, #dbe5ec);
-    border-radius: 8px;
-    background: var(--app-surface-raised, #fbfdff);
-    color: var(--app-text, #203746);
-    font-size: 13px;
-}
-.sap-consumption-row strong {
-    color: var(--app-text, #203746);
-}
-.sap-consumption-row span {
-    display: block;
-    margin-top: 3px;
-    color: var(--app-text-muted, #70808d);
-}
-.sap-consumption-status {
-    align-self: center;
-    font-family: var(--mono);
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--app-warning, #b7791f);
-}
-.order-attachments-actions {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 10px;
-    margin-top: 12px;
-}
-.quote-request-icon-action.order-attachment-icon-action {
-    width: 34px;
-    height: 34px;
-    min-width: 34px;
-    border: 0;
-    border-radius: 8px;
-    background: transparent;
-    color: var(--icon-color, #1e516d);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    padding: 0;
-}
-.quote-request-icon-action.order-attachment-icon-action:hover,
-.quote-request-icon-action.order-attachment-icon-action:focus-visible {
-    color: var(--icon-hover-color, #0b81b8);
-    outline: none;
-}
-.quote-request-audio-status {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    color: #0f766e;
-}
-.quote-request-audio-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 999px;
-    background: #ef4444;
-    box-shadow: 0 0 0 0 rgba(239,68,68,.5);
-    animation: pulse 1.2s infinite;
 }
 .production-art-preview {
     min-height: 300px;
@@ -9350,7 +9158,6 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
 #orderAttachmentsButton,
 #orderDeliveriesButton,
 #orderStateButton,
-#orderSapButton,
 #orderFlowToggleButton,
 #orderArtworkDeleteButton {
     width: calc(var(--config-icon-size, 18px) + 12px);
@@ -9383,9 +9190,6 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
 }
 .production-state-corner-toggle {
     right: 90px;
-}
-.production-sap-corner-toggle {
-    right: 140px;
 }
 .production-deliveries-corner-toggle {
     right: 52px;
@@ -9706,7 +9510,7 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
     border-radius: 12px;
     background: linear-gradient(180deg, #fcfeff 0%, #f6fafc 100%);
     padding: 0 12px;
-    font-size: 14px;
+    font-size: 12px;
     color: #203746;
     box-sizing: border-box;
     min-width: 0;
@@ -9717,13 +9521,6 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
     max-height: 122px;
     resize: vertical;
     padding: 10px 12px;
-}
-.production-art-comments-field textarea {
-    min-height: 38px;
-    height: 38px;
-    max-height: 118px;
-    resize: none;
-    overflow: hidden;
 }
 .production-observations-section {
     margin-top: 8px;
@@ -10586,12 +10383,6 @@ html[data-theme="dark"] .dashboard-card {
 }
 
 @media (max-width: 720px) {
-    .sap-consumption-form {
-        grid-template-columns: 1fr;
-    }
-    .sap-consumption-form .field-full {
-        grid-column: 1;
-    }
     .dashboard-app-shell {
         grid-template-rows: 64px auto 1fr;
     }
@@ -14550,7 +14341,7 @@ body.inventory-route-troqueles.inventory-view-detail .inventory-editor-panel {
 }
 
 .quote-master-lines-row > td {
-    padding: 0 0 12px 0 !important;
+    padding: 0 0 12px 12px !important;
 }
 
 .quote-master-lines {
@@ -14583,7 +14374,7 @@ body.inventory-route-troqueles.inventory-view-detail .inventory-editor-panel {
     gap: 6px !important;
     justify-items: start !important;
     text-align: left !important;
-    padding-left: 0 !important;
+    padding-left: 140px !important;
     box-sizing: border-box !important;
 }
 
@@ -14614,7 +14405,7 @@ body.inventory-route-troqueles.inventory-view-detail .inventory-editor-panel {
 }
 
 .quote-master-lines .quote-master-line-add .quote-master-line-body {
-    padding-left: 0 !important;
+    padding-left: 140px !important;
 }
 
 .quote-master-lines .quote-master-line-badges {
@@ -14686,6 +14477,7 @@ body.inventory-route-troqueles.inventory-view-detail .inventory-editor-panel {
 .dashboard-card-icon {
     align-self: end;
     justify-self: center;
+    max-width: 100%;
 }
 
 .dashboard-card-title,
@@ -14878,7 +14670,7 @@ html[data-theme="dark"] .quote-master-line-measure {
     justify-content: center;
     border: 0;
     background: transparent;
-    color: var(--icon-color, var(--app-text-soft, #607286));
+    color: var(--app-text-soft, #607286);
     font-size: 13px;
     line-height: 1;
     cursor: pointer;
@@ -14887,14 +14679,8 @@ html[data-theme="dark"] .quote-master-line-measure {
 
 .quote-master-line-tree-toggle:hover,
 .quote-master-line-tree-toggle:focus-visible {
-    color: var(--icon-hover-color, var(--app-primary, #0b81b8));
+    color: var(--app-primary, #0b81b8);
     outline: none;
-}
-
-.quote-master-line-tree-toggle .table-icon-media,
-.quote-master-line-tree-toggle .icon-image {
-    width: var(--config-icon-size, 16px);
-    height: var(--config-icon-size, 16px);
 }
 
 .quote-master-line.is-front-back-parent {
@@ -15139,7 +14925,7 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
     border-radius: 999px;
     background: var(--order-pill-bg);
     color: var(--order-pill-text);
-    font-size: 13px;
+    font-size: 11px;
     line-height: 20px;
     white-space: nowrap;
     overflow: hidden;
@@ -15218,14 +15004,13 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 .production-output-preview {
     min-height: 104px;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: center;
     padding-top: 0;
-    text-align: left;
 }
 
 .production-output-image {
     max-height: 98px;
-    object-position: left center;
+    object-position: center center;
 }
 
 .production-tracking-card {
@@ -15248,10 +15033,6 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
     right: 140px;
 }
 
-.production-tracking-card #orderSapButton {
-    right: 202px;
-}
-
 .production-tracking-grid {
     gap: 14px 20px;
     margin-top: 16px;
@@ -15263,10 +15044,10 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 
 .production-tracking-card .production-state-pill,
 .production-tracking-card .production-schedule-pill {
-    min-width: 72px;
+    min-width: 128px;
     min-height: 28px;
     justify-content: center;
-    padding: 0 10px;
+    padding: 0 14px;
 }
 
 .production-tracking-card .production-order-code {
@@ -15276,9 +15057,7 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 .production-date-field input {
     min-height: 34px;
     height: 34px;
-    width: 136px;
-    max-width: 100%;
-    text-align: left;
+    text-align: center;
 }
 
 .production-section-head-inline {
@@ -15316,23 +15095,18 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 }
 
 .production-art-comments-field textarea {
-    min-height: 38px;
-    height: 38px;
-    max-height: 118px;
-    resize: none;
-    overflow: hidden;
+    min-height: 92px;
+    height: 92px;
+    max-height: 92px;
 }
 
 .production-art-dropzone {
-    min-height: 178px;
+    min-height: 134px;
     margin-top: 2px;
 }
 
 .production-art-preview {
     border-radius: 8px;
-    height: clamp(178px, 28vh, 270px);
-    max-height: 270px;
-    overflow: hidden;
 }
 
 .production-notes-box {
@@ -15411,26 +15185,6 @@ html[data-theme="dark"] .production-order-card .production-chip {
     background: #16415b !important;
     color: #b7e3f8 !important;
     border-color: transparent !important;
-}
-
-html[data-theme="dark"] .production-sap-popover-panel,
-html[data-theme="dark"] .production-sap-popover .calc-popover-body,
-html[data-theme="dark"] .sap-consumption-row {
-    background: var(--app-surface, #152033) !important;
-    border-color: var(--app-border, #26364d) !important;
-    color: var(--app-text, #e5edf7) !important;
-}
-
-html[data-theme="dark"] .sap-consumption-form select,
-html[data-theme="dark"] .sap-consumption-form input {
-    background: var(--app-surface-raised, #111c30) !important;
-    border-color: var(--app-border, #26364d) !important;
-    color: var(--app-text, #e5edf7) !important;
-}
-
-html[data-theme="dark"] .sap-consumption-row strong,
-html[data-theme="dark"] .production-sap-popover .copy-popover-header h2 {
-    color: var(--app-text, #e5edf7) !important;
 }
 
 html[data-theme="dark"] .production-order-card .production-summary-label,

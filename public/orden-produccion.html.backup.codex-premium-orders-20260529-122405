@@ -130,8 +130,8 @@
     .production-flow-planning-tab .action-btn:disabled { opacity:.5; cursor:default; }
     .cmp-real-input { width:72px; padding:3px 7px; font-size:11px; border:1px solid var(--ink-5); border-radius:var(--radius-sm); font-family:var(--font); outline:none; }
     .cmp-real-input:focus { border-color:var(--flow-blue); }
-    .sap-consumption-form { display:grid; grid-template-columns:minmax(220px,1.7fr) minmax(136px,.82fr) minmax(110px,.64fr) auto; gap:12px; align-items:end; }
-    .sap-consumption-form .field-full { grid-column:1 / span 3; }
+    .sap-consumption-form { display:grid; grid-template-columns:1.4fr .65fr .65fr; gap:8px; align-items:end; }
+    .sap-consumption-form .field-full { grid-column:1 / -1; }
     .sap-consumption-history { margin-top:10px; display:grid; gap:6px; }
     .sap-consumption-row { display:grid; grid-template-columns:1fr auto; gap:8px; padding:8px 10px; border:1px solid var(--ink-6); border-radius:var(--radius-sm); background:var(--ink-7); font-size:12px; }
     .sap-consumption-row strong { color:var(--ink-2); }
@@ -218,7 +218,7 @@
                                             </div>
                                             <div class="field">
                                                 <label for="orderSamplesContactInput">Contacto de Visto Bueno</label>
-                                                <input id="orderSamplesContactInput" type="text" list="orderCustomerContactOptions" placeholder="Nombre del contacto">
+                                                <input id="orderSamplesContactInput" type="text" placeholder="Nombre del contacto">
                                             </div>
                                             <div class="field">
                                                 <label for="orderSamplesPhoneInput">Teléfono</label>
@@ -248,19 +248,11 @@
                                         <div class="production-summary-grid production-summary-grid-two">
                                             <div class="field">
                                                 <label for="orderDeliveryModeInput">Tipo de Entrega</label>
-                                                <select id="orderDeliveryModeInput"></select>
+                                                <input id="orderDeliveryModeInput" type="text" placeholder="Definir entrega">
                                             </div>
                                             <div class="field">
                                                 <label for="orderDeliveryContactInput">Contacto de Entrega</label>
-                                                <input id="orderDeliveryContactInput" type="text" list="orderCustomerContactOptions" placeholder="Responsable de entrega">
-                                            </div>
-                                            <div class="field">
-                                                <label for="orderDeliveryPhoneInput">Teléfono</label>
-                                                <input id="orderDeliveryPhoneInput" type="text" placeholder="Teléfono de entrega">
-                                            </div>
-                                            <div class="field">
-                                                <label for="orderDeliveryEmailInput">Correo</label>
-                                                <input id="orderDeliveryEmailInput" type="text" placeholder="Correo de entrega">
+                                                <input id="orderDeliveryContactInput" type="text" placeholder="Responsable de entrega">
                                             </div>
                                             <div class="field field-full">
                                                 <label for="orderDeliveryDetailInput">Detalle de Entrega</label>
@@ -381,7 +373,6 @@
                         <div class="production-order-column production-order-column-secondary">
                             <section class="socios-section production-tracking-card">
                                 <div class="section-caption production-tracking-title">Seguimiento de la Orden</div>
-                                <button type="button" id="orderSapButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small production-section-corner-toggle production-sap-corner-toggle" aria-label="Descargas SAP" title="Descargas SAP"></button>
                                 <button type="button" id="orderStateButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small production-section-corner-toggle production-state-corner-toggle" aria-label="Control de planificación y flujo productivo"></button>
                                 <button type="button" id="orderDeliveriesButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small production-section-corner-toggle production-deliveries-corner-toggle" aria-label="Detalle de entregas" title="Detalle de entregas"></button>
                                 <button type="button" id="orderAttachmentsButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small production-section-corner-toggle" aria-label="Ver adjuntos"></button>
@@ -391,12 +382,12 @@
                                             <span class="production-summary-label">Estado</span>
                                             <strong id="orderStateText" class="production-order-state production-state-pill"></strong>
                                         </div>
-                                        <label class="production-summary-item production-date-field">
-                                            <span class="production-summary-label">Fecha de Entrega</span>
-                                            <input id="orderScheduledDateInput" type="date">
-                                        </label>
                                         <div class="production-summary-item">
-                                            <span class="production-summary-label">Fecha Estimada</span>
+                                            <span class="production-summary-label">Entrada a Proceso</span>
+                                            <span id="orderCreatedText" class="production-summary-value"></span>
+                                        </div>
+                                        <div class="production-summary-item">
+                                            <span class="production-summary-label">Fecha Producción</span>
                                             <span id="orderScheduledDateText" class="production-summary-value production-schedule-pill"></span>
                                         </div>
                                     </div>
@@ -406,6 +397,14 @@
                                             <strong id="orderCodeText" class="production-order-code"></strong>
                                             <div id="openSourceQuoteButton" class="production-source-link-group" aria-label="Ver cálculo origen"></div>
                                         </div>
+                                        <div class="production-summary-item">
+                                            <span class="production-summary-label">Estimado Vendedor</span>
+                                            <span id="orderPromisedDateText" class="production-summary-value production-schedule-pill"></span>
+                                        </div>
+                                        <label class="production-summary-item production-date-field">
+                                            <span class="production-summary-label">Entrega Cliente</span>
+                                            <input id="orderScheduledDateInput" type="date">
+                                        </label>
                                     </div>
                                 </div>
                             </section>
@@ -417,6 +416,38 @@
                                 </div>
                             </section>
 
+                            <section class="socios-section">
+                                <div class="section-caption">Descargas SAP</div>
+                                <form id="sapConsumptionForm" class="sap-consumption-form">
+                                    <div class="field">
+                                        <label for="sapConsumptionMaterial">Material</label>
+                                        <select id="sapConsumptionMaterial"></select>
+                                    </div>
+                                    <div class="field">
+                                        <label for="sapConsumptionProcess">Proceso</label>
+                                        <select id="sapConsumptionProcess">
+                                            <option value="impresion">Impresión</option>
+                                            <option value="barnizado">Barniz</option>
+                                            <option value="laminado">Laminado</option>
+                                            <option value="estampado">Foil</option>
+                                            <option value="rebobinado">Rebobinado</option>
+                                            <option value="empaque">Empaque</option>
+                                        </select>
+                                    </div>
+                                    <div class="field">
+                                        <label for="sapConsumptionQuantity">Cantidad</label>
+                                        <input id="sapConsumptionQuantity" type="number" min="0" step="0.0001">
+                                    </div>
+                                    <div class="field field-full">
+                                        <label for="sapConsumptionReason">Razón</label>
+                                        <input id="sapConsumptionReason" type="text" placeholder="Motivo de solicitud">
+                                    </div>
+                                    <button type="submit" class="browser-open-link">Solicitar descarga</button>
+                                </form>
+                                <div id="sapConsumptionStatus" class="production-summary-empty"></div>
+                                <div id="sapConsumptionHistory" class="sap-consumption-history"></div>
+                            </section>
+
                             <section class="socios-section production-art-section">
                                 <div class="section-caption">Información de Arte</div>
                                 <button type="button" id="orderArtToggleButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-section-corner-toggle" aria-label="Expandir información de arte"></button>
@@ -425,7 +456,7 @@
                                     <div class="production-summary-grid production-summary-grid-art">
                                         <div class="field production-art-comments-field">
                                             <label for="orderSellerCommentsInput">Comentarios</label>
-                                            <textarea id="orderSellerCommentsInput" rows="1" placeholder="Comentarios de arte"></textarea>
+                                            <textarea id="orderSellerCommentsInput" rows="4" placeholder="Comentarios de arte"></textarea>
                                         </div>
                                         <div class="production-art-meta-stack">
                                             <div class="field production-art-holder-field">
@@ -528,61 +559,9 @@
                     <h2>Adjuntos Relacionados</h2>
                 </div>
                 <div id="orderAttachmentsPopoverBody" class="attachments-popover-body"></div>
-                <div class="order-attachments-actions">
-                    <input id="orderAttachmentFileInput" type="file" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ai,.eps" hidden>
-                    <label id="orderAttachmentUploadButton" class="quote-request-icon-action order-attachment-icon-action" for="orderAttachmentFileInput" title="Adjuntar Archivos" aria-label="Adjuntar Archivos">
-                        <span data-order-inline-icon="attachment"></span>
-                    </label>
-                    <button type="button" id="orderAudioRecordButton" class="quote-request-icon-action order-attachment-icon-action" title="Grabar Audio" aria-label="Grabar Audio" data-recording="false">
-                        <span data-order-inline-icon="record"></span>
-                    </button>
-                    <div id="orderAudioRecordIndicator" class="quote-request-audio-status" hidden><span class="quote-request-audio-dot"></span><span>Grabando</span></div>
-                </div>
             </div>
         </div>
     </div>
-
-    <div id="orderSapPopover" class="calc-popover production-sap-popover" hidden>
-        <div class="calc-popover-backdrop" data-close-popover="orderSapPopover"></div>
-        <div class="calc-popover-panel production-sap-popover-panel">
-            <button type="button" class="calc-popover-close" data-close-popover="orderSapPopover" aria-label="Cerrar">×</button>
-            <div class="calc-popover-body">
-                <div class="copy-popover-header">
-                    <h2>Descargas SAP</h2>
-                </div>
-                <form id="sapConsumptionForm" class="sap-consumption-form">
-                    <div class="field">
-                        <label for="sapConsumptionMaterial">Material</label>
-                        <select id="sapConsumptionMaterial"></select>
-                    </div>
-                    <div class="field">
-                        <label for="sapConsumptionProcess">Proceso</label>
-                        <select id="sapConsumptionProcess">
-                            <option value="impresion">Impresión</option>
-                            <option value="barnizado">Barniz</option>
-                            <option value="laminado">Laminado</option>
-                            <option value="estampado">Foil</option>
-                            <option value="rebobinado">Rebobinado</option>
-                            <option value="empaque">Empaque</option>
-                        </select>
-                    </div>
-                    <div class="field">
-                        <label for="sapConsumptionQuantity">Cantidad</label>
-                        <input id="sapConsumptionQuantity" type="number" min="0" step="0.0001">
-                    </div>
-                    <div class="field field-full">
-                        <label for="sapConsumptionReason">Razón</label>
-                        <input id="sapConsumptionReason" type="text" placeholder="Motivo de solicitud">
-                    </div>
-                    <button type="submit" class="browser-open-link sap-consumption-submit">Solicitar descarga</button>
-                </form>
-                <div id="sapConsumptionStatus" class="production-summary-empty sap-consumption-message"></div>
-                <div id="sapConsumptionHistory" class="sap-consumption-history"></div>
-            </div>
-        </div>
-    </div>
-
-    <datalist id="orderCustomerContactOptions"></datalist>
 
     <div id="orderSourceQuotePopover" class="calc-popover" hidden>
         <div class="calc-popover-backdrop" data-close-popover="orderSourceQuotePopover"></div>

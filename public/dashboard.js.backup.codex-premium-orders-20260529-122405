@@ -338,11 +338,6 @@ function readDashboardConfigCache() {
         const raw = localStorage.getItem(DASHBOARD_CONFIG_CACHE_KEY);
         if (!raw) return null;
         const parsed = JSON.parse(raw);
-        const age = Date.now() - (parsed.storedAt || 0);
-        if (age > DASHBOARD_CONFIG_CACHE_TTL_MS) {
-            localStorage.removeItem(DASHBOARD_CONFIG_CACHE_KEY);
-            return null;
-        }
         return parsed.data || null;
     } catch (error) {
         return null;
@@ -365,7 +360,7 @@ function compactDashboardConfigForCache(value, key = '') {
         const text = value.trim();
         if (text.startsWith('/assets/') || text.startsWith('data:image') || text.startsWith('http')) return value;
         const keyText = String(key || '').toLowerCase();
-        const assetLike = /(image|imagen|logo|foto|photo|font|background|screensaver|repositorio|repository|icon|icono|dashboard)/.test(keyText);
+        const assetLike = /(image|imagen|logo|foto|photo|font|background|screensaver|repositorio|repository)/.test(keyText);
         if ((assetLike && text.length > DASHBOARD_CONFIG_CACHE_TEXT_LIMIT) || text.length > DASHBOARD_CONFIG_CACHE_TEXT_LIMIT * 4) {
             return '';
         }
