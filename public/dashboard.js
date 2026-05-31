@@ -2964,7 +2964,7 @@ bindBdfg();
 loadBdfgPosition();
 loadBdfgNotifications().catch(() => {});
 setInterval(() => loadBdfgNotifications().catch(() => {}), 45000);
-setInterval(() => applyDashboardConfig().catch(() => {}), 30000);
+
 loadBdfgUserProfile().catch(() => {});
 applyDashboardConfig().catch(console.error);
 renderTabs();

@@ -1586,8 +1586,12 @@ app.use(express.static(path.join(__dirname, 'public'), {
             res.setHeader('Cache-Control', 'no-cache, must-revalidate');
             return;
         }
-        if (normalized.includes('/uploads/') || normalized.match(/\.(png|jpg|jpeg|webp|gif|svg|ico)$/)) {
-            res.setHeader('Cache-Control', `public, max-age=${Math.floor(THIRTY_DAYS_MS / 1000)}, immutable`);
+        if (normalized.includes('/uploads/')) {
+           res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+        return;
+      }
+        if (normalized.match(/\.(png|jpg|jpeg|webp|gif|svg|ico)$/)) {
+          res.setHeader('Cache-Control', `public, max-age=${Math.floor(THIRTY_DAYS_MS / 1000)}, immutable`);
             return;
         }
         res.setHeader('Cache-Control', `public, max-age=${Math.floor(ONE_DAY_MS / 1000)}`);

@@ -282,6 +282,7 @@ async function saveConfig() {
         if (!response.ok) throw new Error('Error al guardar');
         
         configState = payload;
+        window.parent?.postMessage({ type: 'erp-general-config-updated' }, window.location.origin);
         saveStatus.textContent = 'Guardado correctamente.';
         setTimeout(() => { saveStatus.textContent = 'Listo para editar.'; }, 2000);
     } catch (error) {
