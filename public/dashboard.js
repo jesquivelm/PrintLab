@@ -2658,10 +2658,11 @@ async function applyDashboardConfig(configOverride = null) {
         if (!response.ok) return;
         const nextConfig = await response.json();
         const cacheableConfig = compactDashboardConfigForCache(nextConfig);
-        if (!areDashboardConfigsEqual(cacheableConfig, cachedConfig)) {
-            writeDashboardConfigCache(cacheableConfig);
-            applyDashboardConfigPayload(nextConfig);
-        }
+        // ANTES: solo repintaba si cacheableConfig !== cachedConfig
+        // PROBLEMA: si el ícono grande se elimina en ambos, siempre parecen iguales
+        // FIX: siempre aplicar nextConfig completo y actualizar caché
+        writeDashboardConfigCache(cacheableConfig);
+        applyDashboardConfigPayload(nextConfig);   // ← siempre repintar con datos frescos
     } catch (_) {}
 }
 
