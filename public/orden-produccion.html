@@ -380,24 +380,25 @@
 
                         <div class="production-order-column production-order-column-secondary">
                             <section class="socios-section production-tracking-card">
-                                <div class="section-caption production-tracking-title">Seguimiento de la Orden</div>
+                                <div class="production-tracking-head-row">
+                                    <div class="section-caption production-tracking-title">Seguimiento de la Orden</div>
+                                    <strong id="orderStateText" class="production-order-state production-state-pill production-state-pill-inline"></strong>
+                                </div>
                                 <button type="button" id="orderSapButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small production-section-corner-toggle production-sap-corner-toggle" aria-label="Descargas SAP" title="Descargas SAP"></button>
                                 <button type="button" id="orderStateButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small production-section-corner-toggle production-state-corner-toggle" aria-label="Control de planificación y flujo productivo"></button>
                                 <button type="button" id="orderDeliveriesButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small production-section-corner-toggle production-deliveries-corner-toggle" aria-label="Detalle de entregas" title="Detalle de entregas"></button>
                                 <button type="button" id="orderAttachmentsButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small production-section-corner-toggle" aria-label="Ver adjuntos"></button>
                                 <div class="production-tracking-grid">
                                     <div class="production-tracking-column">
-                                        <div class="production-summary-item">
-                                            <span class="production-summary-label">Estado</span>
-                                            <strong id="orderStateText" class="production-order-state production-state-pill"></strong>
-                                        </div>
-                                        <label class="production-summary-item production-date-field">
-                                            <span class="production-summary-label">Fecha de Entrega</span>
-                                            <input id="orderScheduledDateInput" type="date">
-                                        </label>
-                                        <div class="production-summary-item">
-                                            <span class="production-summary-label">Fecha Estimada</span>
-                                            <span id="orderScheduledDateText" class="production-summary-value production-schedule-pill"></span>
+                                        <div class="production-summary-grid production-summary-grid-two production-dates-row">
+                                            <label class="production-summary-item production-date-field">
+                                                <span class="production-summary-label">Fecha de Entrega</span>
+                                                <input id="orderScheduledDateInput" type="date">
+                                            </label>
+                                            <div class="production-summary-item production-date-field">
+                                                <span class="production-summary-label">Fecha Estimada</span>
+                                                <span id="orderScheduledDateText" class="production-summary-value production-schedule-pill production-date-field-value"></span>
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="production-tracking-column production-tracking-column-right">
@@ -521,13 +522,26 @@
 
     <div id="orderAttachmentsPopover" class="calc-popover" hidden>
         <div class="calc-popover-backdrop" data-close-popover="orderAttachmentsPopover"></div>
-        <div class="calc-popover-panel">
+        <div class="calc-popover-panel calc-popover-panel-compact">
             <button type="button" class="calc-popover-close" data-close-popover="orderAttachmentsPopover" aria-label="Cerrar">×</button>
             <div class="calc-popover-body">
                 <div class="copy-popover-header">
-                    <h2>Adjuntos Relacionados</h2>
+                    <h2>Adjuntos</h2>
                 </div>
-                <div id="orderAttachmentsPopoverBody" class="attachments-popover-body"></div>
+                <div id="orderAttachmentsPopoverBody" class="attachments-popover-body">
+                    <table class="copy-popover-table attachments-table">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Categoría</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="orderAttachmentsTableBody">
+                            <tr><td colspan="3">Cargando adjuntos...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
                 <div class="order-attachments-actions">
                     <input id="orderAttachmentFileInput" type="file" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ai,.eps" hidden>
                     <label id="orderAttachmentUploadButton" class="quote-request-icon-action order-attachment-icon-action" for="orderAttachmentFileInput" title="Adjuntar Archivos" aria-label="Adjuntar Archivos">
