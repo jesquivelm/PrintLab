@@ -14676,33 +14676,22 @@ body.inventory-route-troqueles.inventory-view-detail .inventory-editor-panel {
 }
 
 .dashboard-card {
-    align-content: stretch;
-    align-items: start;
-    grid-template-rows: minmax(0, 1fr) auto;
+    align-content: center;
+    align-items: center;
+    grid-template-rows: auto auto;
     gap: 14px;
     min-height: 184px;
 }
 
 .dashboard-card-icon {
-    align-self: end;
+    align-self: center;
     justify-self: center;
 }
 
 .dashboard-card-title,
 .dashboard-card .dashboard-card-title {
-    align-self: start;
-    justify-self: stretch;
-}
-
-.dashboard-card[data-icon-key="dashboardInventory"] {
-    align-content: center;
-    align-items: center;
-    grid-template-rows: auto auto;
-}
-
-.dashboard-card[data-icon-key="dashboardInventory"] .dashboard-card-icon,
-.dashboard-card[data-icon-key="dashboardInventory"] .dashboard-card-title {
     align-self: center;
+    justify-self: stretch;
 }
 
 .quote-browser-main.workspace-quote {
