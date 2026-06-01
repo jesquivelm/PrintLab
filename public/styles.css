@@ -15106,7 +15106,7 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 }
 
 .production-order-card .production-order-layout-refined {
-    grid-template-columns: minmax(0, 1.36fr) minmax(300px, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 16px 22px;
     align-items: start;
 }
@@ -15118,7 +15118,11 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 #orderContent .production-order-column-primary > .production-client-section {
     grid-column: 1;
     grid-row: 1;
-    min-height: 126px;
+}
+
+#orderContent .production-order-column-primary > .production-tracking-card-standalone {
+    grid-column: 2;
+    grid-row: 1;
 }
 
 #orderContent .production-order-column-primary > .production-product-section {
@@ -15127,7 +15131,7 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 }
 
 #orderContent .production-order-column-primary > .production-info-pair {
-    grid-column: 1;
+    grid-column: 1 / -1;
     grid-row: 3;
 }
 
@@ -15139,8 +15143,53 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 
 #orderContent .production-order-column-secondary {
     grid-column: 2;
-    grid-row: 1;
+    grid-row: 2;
     gap: 14px;
+}
+
+.production-tracking-card-standalone {
+    display: grid;
+    gap: 12px;
+    align-content: start;
+}
+
+.production-tracking-card-standalone .production-tracking-head-row {
+    align-items: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+}
+
+.production-tracking-card-standalone .production-tracking-head-row .section-caption {
+    margin: 0;
+}
+
+.production-tracking-card-standalone .production-state-pill-inline {
+    height: 20px;
+    min-height: 20px;
+    padding: 0 12px;
+    font-size: 13px;
+    line-height: 20px;
+    white-space: nowrap;
+}
+
+.production-tracking-card-standalone .production-tracking-order-stack {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+}
+
+.production-tracking-card-standalone .production-tracking-date-stack {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+}
+
+.production-tracking-card-standalone .production-summary-item {
+    max-width: 100%;
+}
+
+.production-tracking-card-standalone .production-source-link-group {
+    justify-content: flex-start;
 }
 
 .production-order-card .socios-section {
@@ -15752,6 +15801,7 @@ html[data-theme="dark"] .production-order-card .production-summary-line-label {
     }
 
     #orderContent .production-order-column-primary > .production-client-section,
+    #orderContent .production-order-column-primary > .production-tracking-card-standalone,
     #orderContent .production-order-column-primary > .production-product-section,
     #orderContent .production-order-column-primary > .production-info-pair,
     #orderContent .production-order-column-primary > .production-observations-section {
@@ -15759,27 +15809,10 @@ html[data-theme="dark"] .production-order-card .production-summary-line-label {
         grid-row: auto;
     }
 
-    .production-client-tracking-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .production-tracking-card-embedded {
-        grid-template-columns: 1fr;
-    }
-
     .production-client-info-grid {
         grid-template-columns: 1fr;
     }
 
-    .production-tracking-card-embedded .production-tracking-date-stack,
-    .production-tracking-card-embedded .production-tracking-order-stack {
-        grid-column: 1;
-        grid-row: auto;
-        justify-items: start;
-        text-align: left;
-    }
-
-    .production-tracking-card-embedded .production-source-link-group,
     .production-tracking-icons-row {
         justify-content: flex-start;
     }
