@@ -15156,9 +15156,29 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 }
 
 .production-tracking-section {
+    display: block;
+}
+
+.production-tracking-body {
     display: grid;
-    gap: 12px;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 12px;
+    align-items: start;
+}
+
+.production-tracking-left {
+    display: grid;
+    gap: 10px;
     align-content: start;
+}
+
+.production-tracking-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    text-align: right;
+    min-width: 0;
 }
 
 .production-tracking-section .production-tracking-head-row {
@@ -15180,18 +15200,19 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
     white-space: nowrap;
 }
 
-.production-tracking-section .production-tracking-order-row {
+.production-tracking-quote-row {
     display: flex;
     align-items: baseline;
+    gap: 4px;
     justify-content: flex-end;
-    gap: 6px;
-    min-width: 0;
 }
 
-.production-tracking-section .production-tracking-date-stack {
-    display: grid;
-    gap: 8px;
-    min-width: 0;
+.production-tracking-quote-value {
+    white-space: nowrap;
+}
+
+.production-tracking-quote-sep {
+    color: #667480;
 }
 
 .production-tracking-section .production-summary-item {
@@ -15199,7 +15220,7 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 }
 
 .production-tracking-section .production-source-link-group {
-    justify-content: flex-start;
+    justify-content: flex-end;
 }
 
 .production-order-card .socios-section {
@@ -15814,6 +15835,25 @@ html[data-theme="dark"] .production-order-card .production-summary-line-label {
     }
 
     .production-tracking-icons-row {
+        justify-content: flex-start;
+    }
+
+    .production-tracking-body {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .production-tracking-right {
+        align-items: flex-start;
+        text-align: left;
+        justify-content: flex-start;
+    }
+
+    .production-tracking-quote-row {
+        justify-content: flex-start;
+    }
+
+    .production-tracking-section .production-source-link-group {
         justify-content: flex-start;
     }
 

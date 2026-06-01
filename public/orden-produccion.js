@@ -1844,6 +1844,8 @@ function renderOrder(order) {
         : '';
 
     setText('orderCodeText', order.order_code, 'Sin orden');
+    setText('orderQuoteText', sourceQuoteCode || 'Sin cotización');
+    setText('orderLineText', sourceLineCode || 'Sin línea');
     setText('orderStateText', stateText, 'Pendiente');
     applyOrderState(document.getElementById('orderStateText'), stateText);
     setText('orderCreatedText', formatDate(order.created_at || raw.created_on, true), 'Sin fecha');

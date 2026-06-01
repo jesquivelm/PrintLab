@@ -185,30 +185,37 @@
                         </section>
 
                         <section class="socios-section production-tracking-section">
-                            <div class="production-tracking-head-row">
-                                <div class="section-caption production-tracking-title">Seguimiento de la Orden</div>
-                                <strong id="orderStateText" class="production-order-state production-state-pill production-state-pill-inline"></strong>
-                            </div>
-                            <div class="production-tracking-order-row">
-                                <span class="production-summary-label">Orden</span>
-                                <strong id="orderCodeText" class="production-order-code"></strong>
-                                <div id="openSourceQuoteButton" class="production-source-link-group" aria-label="Ver cálculo origen"></div>
-                            </div>
-                            <div class="production-tracking-icons-row">
-                                <button type="button" id="orderSapButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Descargas SAP" title="Descargas SAP"></button>
-                                <button type="button" id="orderStateButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Control de planificación y flujo productivo"></button>
-                                <button type="button" id="orderDeliveriesButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Detalle de entregas" title="Detalle de entregas"></button>
-                                <button type="button" id="orderAttachmentsButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Ver adjuntos"></button>
-                            </div>
-                            <div class="production-tracking-date-stack">
-                                <label class="production-summary-item production-date-field">
-                                    <span class="production-summary-label">Fecha de Entrega</span>
-                                    <input id="orderScheduledDateInput" type="date">
-                                </label>
-                                <label class="production-summary-item production-date-field">
-                                    <span class="production-summary-label">Fecha Estimada</span>
-                                    <input id="orderScheduledDateText" type="date">
-                                </label>
+                            <div class="production-tracking-body">
+                                <div class="production-tracking-left">
+                                    <div class="production-tracking-head-row">
+                                        <div class="section-caption production-tracking-title">Seguimiento de la Orden</div>
+                                        <strong id="orderStateText" class="production-order-state production-state-pill production-state-pill-inline"></strong>
+                                    </div>
+                                    <label class="production-summary-item production-date-field">
+                                        <span class="production-summary-label">Fecha de Entrega</span>
+                                        <input id="orderScheduledDateInput" type="date">
+                                    </label>
+                                    <label class="production-summary-item production-date-field">
+                                        <span class="production-summary-label">Fecha Estimada</span>
+                                        <input id="orderScheduledDateText" type="date">
+                                    </label>
+                                </div>
+                                <div class="production-tracking-right">
+                                    <span class="production-summary-label">Orden</span>
+                                    <strong id="orderCodeText" class="production-order-code"></strong>
+                                    <div class="production-tracking-quote-row">
+                                        <span id="orderQuoteText" class="production-tracking-quote-value"></span>
+                                        <span class="production-tracking-quote-sep">/</span>
+                                        <span id="orderLineText" class="production-tracking-quote-value"></span>
+                                    </div>
+                                    <div id="openSourceQuoteButton" class="production-source-link-group" aria-label="Ver cálculo origen"></div>
+                                    <div class="production-tracking-icons-row">
+                                        <button type="button" id="orderSapButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Descargas SAP" title="Descargas SAP"></button>
+                                        <button type="button" id="orderStateButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Control de planificación y flujo productivo"></button>
+                                        <button type="button" id="orderDeliveriesButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Detalle de entregas" title="Detalle de entregas"></button>
+                                        <button type="button" id="orderAttachmentsButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Ver adjuntos"></button>
+                                    </div>
+                                </div>
                             </div>
                         </section>
 
