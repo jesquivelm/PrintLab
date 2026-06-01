@@ -13656,6 +13656,25 @@ app.get('/api/ordenes-produccion/:codigo', async (req, res) => {
                     }
                 } catch (_) {}
             }
+            if (needsContact && !orden.raw_data.contact_name && !orden.raw_data.phone && !orden.raw_data.email && orden.customer_code) {
+                try {
+                    const partnerResult = await pgQuery(
+                        `SELECT raw_data FROM business_partners WHERE partner_code = $1 LIMIT 1`,
+                        [orden.customer_code]
+                    );
+                    if (partnerResult.rows.length) {
+                        const pRaw = partnerResult.rows[0].raw_data || {};
+                        orden.raw_data.contact_name = orden.raw_data.contact_name || pRaw.contact_name || pRaw['CLIENTE | CONTACTO NOMBRE COMPLETO'] || null;
+                        orden.raw_data.phone = orden.raw_data.phone || pRaw.phone || pRaw['CLIENTE | CONTACTO TELEFONO'] || null;
+                        orden.raw_data.email = orden.raw_data.email || pRaw.email || pRaw['CLIENTE | CONTACTO EMAIL'] || null;
+                        if (orden.raw_data.quote_snapshot) {
+                            orden.raw_data.quote_snapshot.contact_name = orden.raw_data.quote_snapshot.contact_name || orden.raw_data.contact_name;
+                            orden.raw_data.quote_snapshot.phone = orden.raw_data.quote_snapshot.phone || orden.raw_data.phone;
+                            orden.raw_data.quote_snapshot.email = orden.raw_data.quote_snapshot.email || orden.raw_data.email;
+                        }
+                    }
+                } catch (_) {}
+            }
             if (!orden.raw_data.contact_name && !orden.raw_data.phone && !orden.raw_data.email && orden.source_quote_code) {
                 try {
                     const quoteResult = await pgQuery(`SELECT raw_data FROM cotizaciones WHERE quote_code = $1 LIMIT 1`, [orden.source_quote_code]);
