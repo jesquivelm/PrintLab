@@ -15375,6 +15375,11 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
     width: 100%;
 }
 
+.production-tracking-card-embedded .production-date-field {
+    min-width: 0;
+    overflow: hidden;
+}
+
 .production-section-head-inline {
     min-height: 26px;
 }
@@ -15529,12 +15534,60 @@ html[data-theme="dark"] .production-tracking-card .production-schedule-pill.is-a
     white-space: nowrap;
 }
 
-.production-header-contact-name {
-    margin-bottom: 4px;
+.production-client-info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 16px;
+    align-items: start;
+    min-width: 0;
 }
 
-.production-header-seller-name {
-    padding-left: 46%;
+.production-client-info-grid:empty,
+.production-client-info-grid[hidden] {
+    display: none;
+}
+
+.production-client-contact-col,
+.production-client-seller-col {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+
+.production-client-contact-col:empty,
+.production-client-contact-col[hidden],
+.production-client-seller-col:empty,
+.production-client-seller-col[hidden] {
+    display: none;
+}
+
+.production-client-info-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    font-size: 13px;
+    line-height: 1.4;
+    color: #4d687a;
+}
+
+.production-client-info-line span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.production-client-info-icon {
+    flex: 0 0 14px;
+    width: 14px;
+    height: 14px;
+    color: #86a0b1;
+}
+
+.production-client-seller-name {
+    font-weight: 600;
+    color: #334155;
 }
 
 .production-tracking-card-embedded {
@@ -15713,6 +15766,10 @@ html[data-theme="dark"] .production-order-card .production-summary-line-label {
     }
 
     .production-tracking-card-embedded {
+        grid-template-columns: 1fr;
+    }
+
+    .production-client-info-grid {
         grid-template-columns: 1fr;
     }
 

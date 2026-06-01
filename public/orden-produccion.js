@@ -1728,14 +1728,26 @@ function renderOrder(order) {
     populateEditableForms(raw);
 
     setOptionalText('orderCustomerSummaryText', [customerId ? `(${customerId})` : '', customerName].filter(Boolean).join(' '));
-    setOptionalHtml('orderCustomerContactText', [
-        customerContact ? `<span class="production-header-contact-line production-header-contact-name">${escapeHtml(customerContact)}</span>` : '',
-        customerPhone ? `<span class="production-header-contact-line">${escapeHtml(customerPhone)}</span>` : '',
-        customerEmail ? `<span class="production-header-contact-line">${escapeHtml(customerEmail)}</span>` : ''
-    ].filter(Boolean).join(''));
-    setOptionalText('orderCustomerAddressText', customerAddress);
-    setOptionalHtml('orderSellerText', sellerName ? `<span class="production-header-seller-name">${escapeHtml(sellerName)}</span>` : '');
-    document.getElementById('orderCustomerContactRow').hidden = ![customerContact, customerPhone, customerEmail].some(Boolean);
+    const contactCol = document.getElementById('orderCustomerContactCol');
+    if (customerContact || customerPhone || customerEmail) {
+        contactCol.innerHTML = [
+            customerPhone ? `<div class="production-client-info-line"><svg class="production-client-info-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M3.654 1.328a.678.678 0 0 0-1.015-.063L1.605 2.3c-.483.484-.661 1.169-.45 1.77a17.568 17.568 0 0 0 4.168 6.608 17.569 17.569 0 0 0 6.608 4.168c.601.211 1.286.033 1.77-.45l1.034-1.034a.678.678 0 0 0-.063-1.015l-2.307-1.794a.678.678 0 0 0-.58-.122l-2.19.547a1.745 1.745 0 0 1-1.657-.459L5.482 8.062a1.745 1.745 0 0 1-.46-1.657l.548-2.19a.678.678 0 0 0-.122-.58L3.654 1.328z"/><path d="M1 8.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm4-3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1zm4-3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1z"/></svg><span>${escapeHtml(customerPhone)}</span></div>` : '',
+            customerEmail ? `<div class="production-client-info-line"><svg class="production-client-info-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1H2zm13 2.383-4.708 2.825L15 11.105V5.383zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741zM1 11.105l4.708-2.897L1 5.383v5.722z"/></svg><span>${escapeHtml(customerEmail)}</span></div>` : ''
+        ].filter(Boolean).join('');
+        contactCol.hidden = false;
+    } else {
+        contactCol.hidden = true;
+    }
+    document.getElementById('orderClientInfoGrid').hidden = ![customerContact, customerPhone, customerEmail, sellerName].some(Boolean);
+
+    const sellerCol = document.getElementById('orderSellerCol');
+    if (sellerName) {
+        sellerCol.innerHTML = `<div class="production-client-info-line"><svg class="production-client-info-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z"/></svg><span class="production-client-seller-name">${escapeHtml(sellerName)}</span></div>`;
+        sellerCol.hidden = false;
+    } else {
+        sellerCol.hidden = true;
+    }
+
     document.getElementById('orderCustomerAddressRow').hidden = !customerAddress;
     const sourceQuoteCode = pickFirst(raw.source_quote_code, quote.quote_code);
     const sourceLineCode = pickFirst(raw.source_line_code, detail.lineCode);
