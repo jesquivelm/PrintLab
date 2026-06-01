@@ -13636,6 +13636,23 @@ app.get('/api/ordenes-produccion/:codigo', async (req, res) => {
             if (!orden.raw_data.printing) {
                 orden.raw_data.printing = extractPrintingData(orden.raw_data);
             }
+            const needsContact = !orden.raw_data.contact_name && !orden.raw_data.phone && !orden.raw_data.email;
+            if (needsContact && orden.source_quote_code) {
+                try {
+                    const quoteResult = await pgQuery(`SELECT raw_data FROM cotizaciones WHERE quote_code = $1 LIMIT 1`, [orden.source_quote_code]);
+                    if (quoteResult.rows.length) {
+                        const qRaw = quoteResult.rows[0].raw_data || {};
+                        orden.raw_data.contact_name = orden.raw_data.contact_name || pickFirstValue(qRaw['CLIENTE | CONTACTO NOMBRE COMPLETO'], qRaw.contact_name);
+                        orden.raw_data.phone = orden.raw_data.phone || pickFirstValue(qRaw['CLIENTE | CONTACTO TELEFONO'], qRaw.phone);
+                        orden.raw_data.email = orden.raw_data.email || pickFirstValue(qRaw['CLIENTE | CONTACTO EMAIL'], qRaw.email);
+                        if (orden.raw_data.quote_snapshot) {
+                            orden.raw_data.quote_snapshot.contact_name = orden.raw_data.quote_snapshot.contact_name || orden.raw_data.contact_name;
+                            orden.raw_data.quote_snapshot.phone = orden.raw_data.quote_snapshot.phone || orden.raw_data.phone;
+                            orden.raw_data.quote_snapshot.email = orden.raw_data.quote_snapshot.email || orden.raw_data.email;
+                        }
+                    }
+                } catch (_) {}
+            }
         }
         res.json({ orden });
     } catch (error) {

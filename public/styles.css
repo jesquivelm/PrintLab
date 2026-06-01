@@ -15554,9 +15554,7 @@ html[data-theme="dark"] .production-tracking-card .production-schedule-pill.is-a
     min-width: 0;
 }
 
-.production-client-contact-col:empty,
 .production-client-contact-col[hidden],
-.production-client-seller-col:empty,
 .production-client-seller-col[hidden] {
     display: none;
 }
