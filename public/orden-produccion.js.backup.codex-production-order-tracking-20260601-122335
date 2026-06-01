@@ -191,19 +191,11 @@ function escapeHtml(value) {
 
 function formatDate(value, withTime = false) {
     if (!value) return '';
-    const dateOnly = !withTime && String(value || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})(?:$|[T\s])/);
-    if (dateOnly) return `${dateOnly[3]}/${dateOnly[2]}/${dateOnly[1]}`;
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return String(value);
     return date.toLocaleString('es-CR', withTime
         ? { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }
         : { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-
-function dateForSchedule(value) {
-    const dateOnly = String(value || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})(?:$|[T\s])/);
-    if (dateOnly) return new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]));
-    return new Date(value);
 }
 
 function parseNumber(value, suffix = '') {
@@ -273,12 +265,6 @@ function setOptionalText(id, value) {
     const node = document.getElementById(id);
     if (!node) return;
     node.textContent = String(value || '').trim();
-}
-
-function setOptionalHtml(id, html) {
-    const node = document.getElementById(id);
-    if (!node) return;
-    node.innerHTML = html || '';
 }
 
 function setHtml(id, value) {
@@ -555,7 +541,6 @@ function renderOrderTracking(payload) {
     var steps = Array.isArray(payload && payload.steps) ? payload.steps : [];
     orderFlowBody.innerHTML = renderFlowTimeline(steps);
     bindTrackingAvatarFallback(orderFlowBody);
-    if (document.getElementById('orderFlowPopover')?.classList.contains('is-visible')) positionHeaderTabPopover('orderFlowPopover');
 }
 
 function renderFlowTimeline(steps, order) {
@@ -1224,28 +1209,6 @@ function renderAttachmentsPopover(attachments = []) {
         : '<div class="attachments-empty">Esta orden no tiene adjuntos relacionados todavía.</div>';
 }
 
-function isHeaderTabPopover(popover) {
-    return Boolean(popover?.classList?.contains('production-header-tab-popover'));
-}
-
-function headerTabButtonFor(id) {
-    return {
-        orderFlowPopover: stateButton,
-        orderDeliveriesPopover: deliveriesButton,
-        orderAttachmentsPopover: attachmentsButton
-    }[id] || null;
-}
-
-function syncHeaderTabButtons(activeId = '') {
-    ['orderFlowPopover', 'orderDeliveriesPopover', 'orderAttachmentsPopover'].forEach((id) => {
-        const button = headerTabButtonFor(id);
-        if (!button) return;
-        const active = id === activeId;
-        button.classList.toggle('is-active', active);
-        button.setAttribute('aria-pressed', active ? 'true' : 'false');
-    });
-}
-
 function updateArtworkSectionConstraint() {
     if (!artSection || !observationsSection) return;
     const artRect = artSection.getBoundingClientRect();
@@ -1276,16 +1239,9 @@ function buildPantones(raw = {}, detail = {}) {
 function openPopover(id) {
     const popover = document.getElementById(id);
     if (!popover) return;
-    if (isHeaderTabPopover(popover)) {
-        document.querySelectorAll('.production-header-tab-popover').forEach((node) => {
-            if (node.id && node.id !== id) closePopover(node.id);
-        });
-        syncHeaderTabButtons(id);
-    }
     popover.hidden = false;
     popover.classList.add('is-visible');
-    if (!isHeaderTabPopover(popover)) document.body.classList.add('popover-open');
-    if (isHeaderTabPopover(popover)) positionHeaderTabPopover(id);
+    document.body.classList.add('popover-open');
     if (id === 'orderDeliveriesPopover') positionDeliveriesPopover();
 }
 
@@ -1294,28 +1250,19 @@ function closePopover(id) {
     if (!popover) return;
     popover.hidden = true;
     popover.classList.remove('is-visible');
-    if (isHeaderTabPopover(popover)) syncHeaderTabButtons('');
-    if (![...document.querySelectorAll('.calc-popover:not(.production-header-tab-popover)')].some((node) => !node.hidden)) document.body.classList.remove('popover-open');
-}
-
-function positionHeaderTabPopover(id) {
-    const popover = document.getElementById(id);
-    const button = headerTabButtonFor(id);
-    const panel = popover?.querySelector?.('.calc-popover-panel');
-    if (!popover || !button || !panel) return;
-    const rect = button.getBoundingClientRect();
-    const margin = 12;
-    const width = Math.min(panel.offsetWidth || 620, window.innerWidth - margin * 2);
-    const height = Math.min(panel.offsetHeight || 420, window.innerHeight - margin * 2);
-    const left = Math.max(margin, Math.min(window.innerWidth - width - margin, rect.right - width + 18));
-    const top = Math.max(margin, Math.min(window.innerHeight - height - margin, rect.bottom + 8));
-    panel.style.left = `${left}px`;
-    panel.style.top = `${top}px`;
+    if (![...document.querySelectorAll('.calc-popover')].some((node) => !node.hidden)) document.body.classList.remove('popover-open');
 }
 
 function positionDeliveriesPopover() {
     if (!deliveriesButton || !deliveriesPanel) return;
-    positionHeaderTabPopover('orderDeliveriesPopover');
+    const rect = deliveriesButton.getBoundingClientRect();
+    const width = 300;
+    const margin = 12;
+    const height = Math.min(550, Math.max(334, deliveriesPanel.offsetHeight || 334));
+    const left = Math.max(margin, Math.min(window.innerWidth - width - margin, rect.right - width));
+    const top = Math.max(margin, Math.min(window.innerHeight - height - margin, rect.bottom + 10));
+    deliveriesPanel.style.left = `${left}px`;
+    deliveriesPanel.style.top = `${top}px`;
 }
 
 function iconSuffix(key) {
@@ -1427,7 +1374,7 @@ function applyScheduleState(node, dateValue) {
     if (!node) return;
     node.classList.remove('is-warning', 'is-alert');
     if (!dateValue) return;
-    const target = dateForSchedule(dateValue);
+    const target = new Date(dateValue);
     if (Number.isNaN(target.getTime())) return;
     const diffDays = (target.getTime() - Date.now()) / 86400000;
     if (diffDays <= 2) node.classList.add('is-alert');
@@ -1727,14 +1674,10 @@ function renderOrder(order) {
     renderArtwork(currentOrderAttachments.length ? currentOrderAttachments : attachments);
     populateEditableForms(raw);
 
-    setOptionalText('orderCustomerSummaryText', [customerId ? `(${customerId})` : '', customerName].filter(Boolean).join(' '));
-    setOptionalHtml('orderCustomerContactText', [
-        customerContact ? `<span class="production-header-contact-line production-header-contact-name">${escapeHtml(customerContact)}</span>` : '',
-        customerPhone ? `<span class="production-header-contact-line">${escapeHtml(customerPhone)}</span>` : '',
-        customerEmail ? `<span class="production-header-contact-line">${escapeHtml(customerEmail)}</span>` : ''
-    ].filter(Boolean).join(''));
+    setOptionalText('orderCustomerSummaryText', [customerName, customerId ? `(${customerId})` : ''].filter(Boolean).join(' '));
+    setOptionalText('orderCustomerContactText', [customerContact, customerPhone, customerEmail].filter(Boolean).join(' · '));
     setOptionalText('orderCustomerAddressText', customerAddress);
-    setOptionalHtml('orderSellerText', sellerName ? `<span class="production-header-seller-name">${escapeHtml(sellerName)}</span>` : '');
+    setOptionalText('orderSellerText', sellerName);
     document.getElementById('orderCustomerContactRow').hidden = ![customerContact, customerPhone, customerEmail].some(Boolean);
     document.getElementById('orderCustomerAddressRow').hidden = !customerAddress;
     const sourceQuoteCode = pickFirst(raw.source_quote_code, quote.quote_code);
@@ -1842,7 +1785,7 @@ function renderOrder(order) {
     applyScheduleState(document.getElementById('orderPromisedDateText'), promisedDateRaw);
     setText('orderScheduledDateText', formatDate(scheduledDateRaw), 'Pendiente');
     applyScheduleState(document.getElementById('orderScheduledDateText'), scheduledDateRaw);
-    if (scheduledDateInput) scheduledDateInput.value = normalizeDateInputValue(scheduledDateRaw);
+    if (scheduledDateInput) scheduledDateInput.value = scheduledDateRaw ? String(scheduledDateRaw).slice(0, 10) : '';
 
     setText('orderQuantityText', quantity, 'Sin cantidad');
     artSummary.innerHTML = buildSummaryLinesOptional([
@@ -2067,9 +2010,7 @@ deliveriesBody?.addEventListener('change', (event) => {
     if (event.target?.matches?.('[data-delivery-field]')) queueDeliverySave();
 });
 window.addEventListener('resize', () => {
-    document.querySelectorAll('.production-header-tab-popover').forEach((popover) => {
-        if (!popover.hidden) positionHeaderTabPopover(popover.id);
-    });
+    if (deliveriesPopover && !deliveriesPopover.hidden) positionDeliveriesPopover();
 });
 [sellerCommentsInput, artworkHolderInput]
     .forEach((field) => field?.addEventListener('input', queueArtSave));

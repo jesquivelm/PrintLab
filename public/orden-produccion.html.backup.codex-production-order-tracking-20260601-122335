@@ -27,7 +27,7 @@
       --red: #fb7185; --red-light: rgba(251,113,133,.14); --red-mid: rgba(251,113,133,.32);
       --connector-color: #334155;
     }
-    #orderFlowPopover .calc-popover-panel { right: auto !important; transform: none !important; max-width: 820px !important; width: min(760px, calc(100vw - 48px)) !important; }
+    #orderFlowPopover .calc-popover-panel { left: 50% !important; right: auto !important; transform: translateX(-50%) !important; max-width: 680px !important; width: calc(100vw - 48px) !important; }
     #orderFlowPopover .calc-popover-body { padding: 0; background: transparent; }
     #orderFlowPopover .calc-popover-close { width:32px; height:32px; top:10px; right:12px; border:0 !important; background:transparent !important; box-shadow:none !important; color:var(--ink-3); font-size:24px; line-height:1; }
     #orderFlowPopover .calc-popover-close:hover,
@@ -170,52 +170,19 @@
                     <div class="production-order-layout production-order-layout-refined">
                         <div class="production-order-column production-order-column-primary">
                             <section class="socios-section production-client-section">
-                                <div class="production-client-tracking-grid">
-                                    <div class="production-client-details">
-                                        <div class="section-caption">Cliente</div>
-                                        <div class="production-summary-stack">
-                                            <div class="production-summary-item">
-                                                <strong id="orderCustomerSummaryText" class="production-summary-value"></strong>
-                                            </div>
-                                            <div id="orderCustomerContactRow" class="production-summary-item" hidden>
-                                                <span id="orderCustomerContactText" class="production-summary-value"></span>
-                                            </div>
-                                            <div id="orderCustomerAddressRow" class="production-summary-item" hidden>
-                                                <span id="orderCustomerAddressText" class="production-summary-value"></span>
-                                            </div>
-                                            <div class="production-summary-item">
-                                                <span id="orderSellerText" class="production-summary-value"></span>
-                                            </div>
-                                        </div>
+                                <div class="section-caption">Cliente</div>
+                                <div class="production-summary-stack">
+                                    <div class="production-summary-item">
+                                        <strong id="orderCustomerSummaryText" class="production-summary-value"></strong>
                                     </div>
-                                    <div class="production-tracking-card production-tracking-card-embedded">
-                                        <div class="production-tracking-head-row">
-                                            <div class="section-caption production-tracking-title">Seguimiento de la Orden</div>
-                                            <strong id="orderStateText" class="production-order-state production-state-pill production-state-pill-inline"></strong>
-                                        </div>
-                                        <div class="production-tracking-order-stack">
-                                            <div class="production-summary-item">
-                                                <span class="production-summary-label">Orden</span>
-                                                <strong id="orderCodeText" class="production-order-code"></strong>
-                                                <div id="openSourceQuoteButton" class="production-source-link-group" aria-label="Ver cálculo origen"></div>
-                                            </div>
-                                            <div class="production-tracking-icons-row">
-                                                <button type="button" id="orderSapButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Descargas SAP" title="Descargas SAP"></button>
-                                                <button type="button" id="orderStateButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Control de planificación y flujo productivo"></button>
-                                                <button type="button" id="orderDeliveriesButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Detalle de entregas" title="Detalle de entregas"></button>
-                                                <button type="button" id="orderAttachmentsButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Ver adjuntos"></button>
-                                            </div>
-                                        </div>
-                                        <div class="production-tracking-date-stack">
-                                            <label class="production-summary-item production-date-field">
-                                                <span class="production-summary-label">Fecha de Entrega</span>
-                                                <input id="orderScheduledDateInput" type="date">
-                                            </label>
-                                            <div class="production-summary-item production-date-field">
-                                                <span class="production-summary-label">Fecha Estimada</span>
-                                                <span id="orderScheduledDateText" class="production-summary-value production-schedule-pill production-date-field-value"></span>
-                                            </div>
-                                        </div>
+                                    <div id="orderCustomerContactRow" class="production-summary-item" hidden>
+                                        <span id="orderCustomerContactText" class="production-summary-value"></span>
+                                    </div>
+                                    <div id="orderCustomerAddressRow" class="production-summary-item" hidden>
+                                        <span id="orderCustomerAddressText" class="production-summary-value"></span>
+                                    </div>
+                                    <div class="production-summary-item">
+                                        <span id="orderSellerText" class="production-summary-value"></span>
                                     </div>
                                 </div>
                             </section>
@@ -412,6 +379,38 @@
                         </div>
 
                         <div class="production-order-column production-order-column-secondary">
+                            <section class="socios-section production-tracking-card">
+                                <div class="production-tracking-head-row">
+                                    <div class="section-caption production-tracking-title">Seguimiento de la Orden</div>
+                                    <strong id="orderStateText" class="production-order-state production-state-pill production-state-pill-inline"></strong>
+                                </div>
+                                <button type="button" id="orderSapButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small production-section-corner-toggle production-sap-corner-toggle" aria-label="Descargas SAP" title="Descargas SAP"></button>
+                                <button type="button" id="orderStateButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small production-section-corner-toggle production-state-corner-toggle" aria-label="Control de planificación y flujo productivo"></button>
+                                <button type="button" id="orderDeliveriesButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small production-section-corner-toggle production-deliveries-corner-toggle" aria-label="Detalle de entregas" title="Detalle de entregas"></button>
+                                <button type="button" id="orderAttachmentsButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small production-section-corner-toggle" aria-label="Ver adjuntos"></button>
+                                <div class="production-tracking-grid">
+                                    <div class="production-tracking-column">
+                                        <div class="production-summary-grid production-summary-grid-two production-dates-row">
+                                            <label class="production-summary-item production-date-field">
+                                                <span class="production-summary-label">Fecha de Entrega</span>
+                                                <input id="orderScheduledDateInput" type="date">
+                                            </label>
+                                            <div class="production-summary-item production-date-field">
+                                                <span class="production-summary-label">Fecha Estimada</span>
+                                                <span id="orderScheduledDateText" class="production-summary-value production-schedule-pill production-date-field-value"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="production-tracking-column production-tracking-column-right">
+                                        <div class="production-summary-item">
+                                            <span class="production-summary-label">Orden</span>
+                                            <strong id="orderCodeText" class="production-order-code"></strong>
+                                            <div id="openSourceQuoteButton" class="production-source-link-group" aria-label="Ver cálculo origen"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
                             <section class="socios-section">
                                 <div class="production-section-head-inline">
                                     <div class="section-caption">Cantidad de Productos</div>
@@ -457,7 +456,7 @@
         </main>
     </div>
 
-    <div id="orderFlowPopover" class="calc-popover production-header-tab-popover production-flow-tab-popover" hidden>
+    <div id="orderFlowPopover" class="calc-popover" hidden>
         <div class="calc-popover-backdrop" data-close-popover="orderFlowPopover"></div>
         <div class="calc-popover-panel production-flow-popover-panel">
             <button type="button" class="calc-popover-close" data-close-popover="orderFlowPopover" aria-label="Cerrar">×</button>
@@ -480,7 +479,7 @@
         </div>
     </div>
 
-    <div id="orderDeliveriesPopover" class="calc-popover production-header-tab-popover production-deliveries-popover" hidden>
+    <div id="orderDeliveriesPopover" class="calc-popover production-deliveries-popover" hidden>
         <div class="calc-popover-backdrop" data-close-popover="orderDeliveriesPopover"></div>
         <div class="calc-popover-panel production-deliveries-popover-panel">
             <button type="button" class="calc-popover-close" data-close-popover="orderDeliveriesPopover" aria-label="Cerrar">×</button>
@@ -521,9 +520,9 @@
         </div>
     </div>
 
-    <div id="orderAttachmentsPopover" class="calc-popover production-header-tab-popover production-attachments-popover" hidden>
+    <div id="orderAttachmentsPopover" class="calc-popover" hidden>
         <div class="calc-popover-backdrop" data-close-popover="orderAttachmentsPopover"></div>
-        <div class="calc-popover-panel calc-popover-panel-compact production-attachments-popover-panel">
+        <div class="calc-popover-panel calc-popover-panel-compact">
             <button type="button" class="calc-popover-close" data-close-popover="orderAttachmentsPopover" aria-label="Cerrar">×</button>
             <div class="calc-popover-body">
                 <div class="copy-popover-header">

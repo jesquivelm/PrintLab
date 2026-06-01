@@ -15116,7 +15116,7 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 }
 
 #orderContent .production-order-column-primary > .production-client-section {
-    grid-column: 1 / -1;
+    grid-column: 1;
     grid-row: 1;
     min-height: 126px;
 }
@@ -15139,7 +15139,7 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 
 #orderContent .production-order-column-secondary {
     grid-column: 2;
-    grid-row: 2 / span 2;
+    grid-row: 1 / span 3;
     gap: 14px;
 }
 
@@ -15181,63 +15181,6 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 
 .production-client-section .production-summary-stack {
     gap: 14px;
-}
-
-.production-client-tracking-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 14px;
-    align-items: start;
-}
-
-.production-client-details,
-.production-tracking-card-embedded {
-    min-width: 0;
-}
-
-.production-tracking-card-embedded {
-    display: grid;
-    gap: 12px;
-    align-content: start;
-    position: relative;
-}
-
-.production-tracking-card-embedded .production-tracking-head-row {
-    align-items: center;
-    gap: 6px;
-    flex-wrap: nowrap;
-}
-
-.production-tracking-card-embedded .section-caption {
-    margin: 0;
-}
-
-.production-tracking-card-embedded .production-state-pill-inline {
-    height: 20px;
-    min-height: 20px;
-    padding: 0 12px;
-    font-size: 13px;
-    line-height: 20px;
-    white-space: nowrap;
-}
-
-.production-tracking-order-stack {
-    display: grid;
-    gap: 6px;
-    min-width: 0;
-}
-
-.production-tracking-icons-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
-}
-
-.production-tracking-date-stack {
-    display: grid;
-    gap: 8px;
-    min-width: 0;
 }
 
 .production-product-section .production-summary-stack {
@@ -15310,10 +15253,6 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
     min-height: 228px;
 }
 
-.production-tracking-card.production-tracking-card-embedded {
-    min-height: 0;
-}
-
 .production-tracking-card .production-section-corner-toggle {
     top: 14px;
 }
@@ -15351,14 +15290,6 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
     padding: 0 10px;
 }
 
-.production-tracking-card.production-tracking-card-embedded .production-state-pill-inline {
-    height: 20px;
-    min-height: 20px;
-    padding: 0 12px;
-    font-size: 13px;
-    line-height: 20px;
-}
-
 .production-tracking-card .production-order-code {
     font-size: 24px;
 }
@@ -15369,10 +15300,6 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
     width: 136px;
     max-width: 100%;
     text-align: left;
-}
-
-.production-tracking-card-embedded .production-date-field input {
-    width: 100%;
 }
 
 .production-section-head-inline {
@@ -15501,162 +15428,6 @@ html[data-theme="dark"] .production-tracking-card .production-schedule-pill.is-a
     color: #fecaca !important;
 }
 
-.production-order-card .production-client-section {
-    padding: 0;
-    border: 0;
-    background: transparent;
-}
-
-.production-order-card .production-client-details,
-.production-order-card .production-tracking-card-embedded {
-    min-height: 126px;
-    padding: 16px 18px;
-    border: 1px solid var(--order-panel-border);
-    border-radius: 12px;
-    background: var(--order-panel-bg);
-}
-
-.production-order-card .production-client-details .section-caption {
-    margin-bottom: 14px;
-}
-
-.production-header-contact-line,
-.production-header-seller-name {
-    display: block;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.production-header-contact-name {
-    margin-bottom: 4px;
-}
-
-.production-header-seller-name {
-    padding-left: 46%;
-}
-
-.production-tracking-card-embedded {
-    grid-template-columns: minmax(150px, .72fr) minmax(170px, .64fr);
-    gap: 8px 18px;
-}
-
-.production-tracking-card-embedded .production-tracking-head-row {
-    grid-column: 1 / -1;
-}
-
-.production-tracking-card-embedded .production-tracking-date-stack {
-    grid-column: 1;
-    grid-row: 2;
-}
-
-.production-tracking-card-embedded .production-tracking-order-stack {
-    grid-column: 2;
-    grid-row: 2;
-    align-content: start;
-    justify-items: end;
-    text-align: right;
-}
-
-.production-tracking-card-embedded .production-summary-item {
-    max-width: 100%;
-}
-
-.production-tracking-card-embedded .production-source-link-group {
-    justify-content: flex-end;
-}
-
-.production-tracking-icons-row {
-    justify-content: flex-end;
-    gap: 10px;
-    padding-top: 4px;
-}
-
-.production-tracking-icons-row #orderSapButton {
-    display: none;
-}
-
-.production-tracking-icons-row .production-inline-icon {
-    width: 38px;
-    height: 38px;
-    border: 1px solid transparent !important;
-    border-radius: 12px;
-    background: transparent !important;
-    box-shadow: none !important;
-}
-
-.production-tracking-icons-row .production-inline-icon.is-active {
-    background: var(--order-panel-bg) !important;
-    border-color: var(--order-panel-border) !important;
-    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04) !important;
-    z-index: 1002;
-}
-
-.production-header-tab-popover {
-    pointer-events: none;
-}
-
-.production-header-tab-popover .calc-popover-backdrop {
-    background: transparent;
-    pointer-events: none;
-}
-
-.production-header-tab-popover .calc-popover-panel {
-    position: fixed;
-    right: auto;
-    bottom: auto;
-    transform: none;
-    border: 1px solid var(--order-panel-border);
-    border-radius: 18px;
-    background: var(--order-panel-bg);
-    box-shadow: 0 18px 34px rgba(15, 23, 42, 0.14);
-    pointer-events: auto;
-}
-
-.production-flow-tab-popover .production-flow-popover-panel {
-    width: min(760px, calc(100vw - 32px));
-    max-height: min(680px, calc(100vh - 24px));
-}
-
-.production-deliveries-popover-panel {
-    width: 320px;
-    min-height: 334px;
-}
-
-.production-attachments-popover-panel {
-    width: min(760px, calc(100vw - 32px));
-    max-height: min(520px, calc(100vh - 24px));
-}
-
-.production-attachments-popover .calc-popover-body {
-    padding: 18px 20px;
-    overflow: auto;
-}
-
-html[data-theme="dark"] .production-order-card .production-client-section {
-    background: transparent !important;
-    border-color: transparent !important;
-}
-
-html[data-theme="dark"] .production-order-card .production-client-details,
-html[data-theme="dark"] .production-order-card .production-tracking-card-embedded,
-html[data-theme="dark"] .production-header-tab-popover .calc-popover-panel {
-    background: var(--order-panel-bg) !important;
-    border-color: var(--order-panel-border) !important;
-}
-
-html[data-theme="dark"] .production-tracking-icons-row .production-inline-icon {
-    background: transparent !important;
-    border-color: transparent !important;
-    box-shadow: none !important;
-}
-
-html[data-theme="dark"] .production-tracking-icons-row .production-inline-icon.is-active {
-    background: var(--order-panel-bg) !important;
-    border-color: var(--order-panel-border) !important;
-}
-
 html[data-theme="dark"] .production-order-card .production-chip {
     background: #16415b !important;
     color: #b7e3f8 !important;
@@ -15706,30 +15477,5 @@ html[data-theme="dark"] .production-order-card .production-summary-line-label {
     #orderContent .production-order-column-primary > .production-observations-section {
         grid-column: 1;
         grid-row: auto;
-    }
-
-    .production-client-tracking-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .production-tracking-card-embedded {
-        grid-template-columns: 1fr;
-    }
-
-    .production-tracking-card-embedded .production-tracking-date-stack,
-    .production-tracking-card-embedded .production-tracking-order-stack {
-        grid-column: 1;
-        grid-row: auto;
-        justify-items: start;
-        text-align: left;
-    }
-
-    .production-tracking-card-embedded .production-source-link-group,
-    .production-tracking-icons-row {
-        justify-content: flex-start;
-    }
-
-    .production-header-seller-name {
-        padding-left: 0;
     }
 }

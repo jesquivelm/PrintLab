@@ -1,373 +1,172 @@
-# GENERAL INSTRUCTIONS (GLOBAL RULES FOR ANY PROJECT)
+# GENERAL INSTRUCTIONS
 
-# CORE PRINCIPLE
+## CORE PRINCIPLE
 
-Before modifying any file:
-
-1. Minimize token usage at all costs. Do not waste tokens on tasks, explanations, refactors, or analyses that were not explicitly requested.
-2. Create a timestamped backup of the exact file that will be modified.
-3. Verify that the backup was successfully created before proceeding.
-4. Only after backup verification, apply the requested change.
-5. At task completion, report the exact backup path created.
-6. If the project is connected to Git, always commit and push the changes to keep the repository updated.
-7. Final formatting must remain fully human-readable. Always verify spacing, margins, alignment, and font visibility for both light and dark themes.
-
-Work with extreme caution and respect the existing system architecture. Do not modify anything outside the requested scope.
+* Minimize token usage.
+* Stay strictly within the requested scope.
+* Do not modify unrelated files, code, layouts, or logic.
+* If requirements are unclear, stop and ask.
 
 ---
 
-# WORK RULES
+## ENCODING RULES
 
-Before editing any file, strictly verify and preserve UTF-8 encoding.
+Before editing any file:
 
-Never corrupt accented characters, ñ, opening punctuation, currency symbols, or special characters into mojibake sequences such as:
+* Preserve UTF-8 encoding.
+* Do not corrupt accented characters or special symbols.
 
-- Ã¡
-- Ã©
-- Ã±
-- â
-- Â
-- �
+Preserve:
 
-If corrupted text already exists:
-- Report it first.
-- Specify exactly which files contain corruption.
-- Do NOT automatically fix encoding issues unless explicitly authorized.
+á, é, í, ó, ú, ñ, ¿, ¡, ₡, $, °
 
-When editing visible application text, forms, labels, quotations, or documents:
+If corrupted text is found:
 
-- Preserve real Spanish characters:
-  á, é, í, ó, ú, ñ, ¿, ¡, ₡, $, °
-- Do not change file encoding.
-- Do not perform mass encoding conversions.
-- Do not create global “text repair” functions without authorization.
-- Only modify the exact requested text.
-- After editing, scan for residual corruption characters:
-  Ã, Â, â, �
-  and report if any remain.
-
-Before finishing, explicitly validate and report:
-- Which texts were modified.
-- Which files were modified.
-- Whether corrupted characters were found.
-- Whether anything remains pending.
+* Report it before making changes.
+* Do not perform global encoding repairs unless explicitly authorized.
 
 ---
 
-# LAYOUT AND FORMAT RULES
-
-Apply formatting fixes only when explicitly requested.
-
-Strictly preserve:
-- Layout
-- Widths
-- Heights
-- Margins
-- Padding
-- Alignment
-- Existing structure
-
-Do not redesign or restructure existing UI components.
-
-All labels must remain on a single line.
-Never allow line wrapping.
-
-If text does not fit:
-- Visually truncate it, or
-- Abbreviate it intelligently,
-but NEVER expand containers or alter layout height.
-
-Abbreviations must remain semantically clear.
-Prefer concise labels of 1–2 words whenever possible.
-
-Maintain perfectly consistent:
-- Horizontal alignment
-- Vertical alignment
-- Spacing
-- Field positioning
-
-No element should:
-- Shift unexpectedly
-- Overlap
-- Trigger layout reflow
-- Resize neighboring components
-
-Label content must NEVER modify container dimensions.
-
----
-
-# NUMERIC AND CURRENCY FIELD RULES
-
-For numeric fields, measurement units, and currency symbols:
-
-STRICT REQUIREMENTS:
-
-- Do not create extra fields.
-- Do not place units outside the input.
-- Do not use side elements beside the field.
-- Do not alter existing field structure.
-
-You MUST follow the existing system pattern where:
-- Units and currency symbols appear as visual overlays INSIDE the field.
-
-This applies to:
-- Units (kg, m, %, etc.)
-- Currency symbols (₡, $, etc.)
-
-The symbol or unit must:
-- Stay visually inside the field
-- Align correctly left or right
-- Never interfere with numeric values
-- Remain purely visual
-
-The input itself must remain numerically pure.
-
-Maintain complete consistency with existing fields already using this pattern.
-Do not reinvent the solution.
-Do not create alternative implementations.
-
-If an equivalent field already exists in the system:
-- Find it first.
-- Copy its exact:
-  - Structure
-  - Classes
-  - Behavior
-  - Visual formatting
-
-If suffix rendering requires overlays/masks:
-- Reuse the same existing implementation.
-- Never improvise similar alternatives.
-
-Before approving a change:
-- Compare visually against the original reference.
-- Self-correct until identical.
-
----
-
-# FIELD FORMAT CONSISTENCY
-
-All fields must follow the system's established formatting rules.
-
-If unsure:
-- Inspect nearby fields.
-- Replicate their behavior exactly.
-
-Numeric fields:
-- Preserve the existing thousands separator format.
-- Maintain spacing conventions already used by the system.
-
-Currency fields:
-- Always display the currency symbol.
-- Respect the same numeric formatting standards.
-
----
-
-# UI / UX RULES
-
-Avoid meaningless comments or summaries that provide no value.
-
-Separate information containers properly.
-Avoid cramped layouts.
-Proper spacing and breathing room are mandatory.
-
-Minimize token usage aggressively.
-Use the smallest possible amount of tokens required to complete the requested task.
-This rule is mandatory.
-
-For visual/UI/layout/icon work, token savings must never replace the required visual validation.
-
-When the request includes screenshots, exact positioning, sizes, colors, spacing, icons, light/dark themes, or layout fidelity:
-- Treat the visual reference as the source of truth.
-- Identify the affected screen and the exact files before editing.
-- Keep the mandatory backup, UTF-8, and scope rules unchanged.
-- Validate in a real rendered view whenever the app can be run locally.
-- Use screenshots or browser inspection to check alignment, clipping, overflow, spacing, icon size, colors, and light/dark behavior.
-- Self-correct visible regressions before declaring the task complete.
-- If visual validation cannot be performed, report it explicitly as not tested and do not claim the result is perfect.
-- Do not commit or push visual work as complete unless visual validation passed or the blocker was clearly reported.
-
-Buttons already have established design patterns.
-If uncertain:
-- Reference existing screens such as:
-  - Member search
-  - Quotations
-  - Existing system forms
-
-Dark mode rules:
-- Standardize scrollbar colors to discreet tones.
-- Avoid bright or visually aggressive scrollbars.
-- Avoid unnecessary shadows or background panels.
-- Especially avoid artificial backgrounds under comments unless requested.
-
-
-# ICON SYSTEM RULES (MANDATORY)
-
-All newly requested icons MUST be created and registered through the official icon system/database used by the project.
-
-Do not create temporary inline icons, hardcoded icon objects, duplicated local icon definitions, or isolated icon implementations outside the centralized icon registry.
-
-Before considering the task complete, verify that:
-- The icon was successfully stored in the database/configuration source.
-- The icon can be retrieved correctly by the system.
-- The icon renders correctly in both light and dark mode.
-
-All icons MUST strictly respect their assigned configuration values, including:
-- Color
-- Size
-- Stroke width
-- Background behavior
-- Hover behavior
-- Border rules
-- Visual alignment
-- Dark/light mode variants
-
-Never override icon styles locally unless explicitly authorized.
-
-When rendering icons:
-- Reuse the existing icon rendering pipeline.
-- Preserve the exact visual consistency already defined by the system.
-- Avoid introducing custom wrappers, backgrounds, containers, or ad-hoc styling.
-
-If an equivalent icon configuration pattern already exists in the system:
-- Reuse it exactly.
-- Do not invent alternative implementations.
-
-Always validate visually that the icon matches the existing system behavior before declaring the task complete.
-
-- Avoid icon borders or background fills.
-- Respect the existing icon system configuration.
-- If a new icon is required:
-  - Add it through the existing icon catalog/configuration system.
-
-Field sizing:
-- Allocate space logically.
-- Small fields should not consume excessive width.
-- Large text areas (comments, observations) should receive proportionally more space.
-
-Improve spacing between objects to avoid visual collisions.
-
----
-
-# DEVELOPMENT RULES
-
-Always:
-- Analyze impact before modifying.
-- Warn if changes may affect the system.
-- Ask when uncertain.
-- Never assume requirements.
-- Never improvise solutions.
-- Never alter formats without authorization.
-- Respect existing design and logic.
-- Avoid breaking existing functionality.
-- Never modify outside the requested scope.
-- Never skip steps.
-- Report incomplete tasks.
-- Admit limitations before proceeding.
-- Recommend backups for risky operations.
-- Validate functionality after changes.
-- Close connections, processes, and temporary resources used.
-- Avoid unnecessary resource consumption.
-- Warn before impacting users or live services.
-- Never add dependencies without authorization.
-- Never remove working code without justification.
-
----
-
-# CODE COMMENTS
-
-- Do not add unnecessary comments.
-- Do not leave commented-out code.
-- Do not leave temporary notes.
-- Only comment code if explicitly requested or absolutely necessary.
-
----
-
-# TEXT AND CONTENT RULES
-
-- Use correct and consistent language.
-- Maintain proper spelling.
-- Never improvise texts.
-- Do not rename labels without authorization.
-- Avoid problematic characters.
-
----
-
-# DESIGN RULES
-
-- Preserve existing formatting.
-- Maintain visual consistency.
-- Never redesign without authorization.
-- Follow existing patterns.
-- If no clear reference exists, stop and ask.
-
----
-
-# SECURITY RULES
-
-- Recommend backups before critical changes.
-- Never execute destructive actions without warning.
-- Never delete data without authorization.
-- Stop immediately if critical risks are detected.
-
----
-
-# TESTING AND VALIDATION
-
-- Test every implemented change.
-- Verify related functionality was not broken.
-- Never claim functionality without validation.
-- Clearly state what could not be tested.
-
----
-
-# TASK COMPLETION (MANDATORY FORMAT)
-
-Always report:
-
-- What was modified
-- What was tested
-- Test results
-- What could not be tested
-- Blockers encountered
-- Modified files
-- Additional required steps
-
----
-
-# EXISTING FORMAT RULE
+## EXISTING PATTERNS
 
 Before implementing anything:
 
-- Search for existing references inside the system.
-- Reuse established patterns.
-- Maintain complete consistency.
-- Never invent a new solution if one already exists.
-- Stop and ask if clarity is insufficient.
+* Search for existing references and similar implementations.
+* Reuse established system patterns whenever possible.
+* Do not create alternative solutions when a standard already exists.
+* Maintain consistency with the surrounding code and UI.
 
 ---
 
-# REAL VALIDATION
+## UI AND LAYOUT
 
-- Never declare tasks complete without validation.
-- Never assume outcomes.
-- Report failures immediately.
-- Never hide errors.
-- Clearly report blockers.
+Apply visual changes only when requested.
+
+Preserve:
+
+* Existing structure
+* Alignment
+* Margins
+* Padding
+* Component sizing
+
+Do not redesign screens without authorization.
+
+Avoid:
+
+* Unexpected layout shifts
+* Element overlap
+* Container resizing caused by labels
+* Visual inconsistencies
 
 ---
 
-# HONESTY AND SCOPE
+## NUMERIC AND CURRENCY FIELDS
 
-- Never claim full compliance if partial.
-- Explicitly state what was completed and what was not.
-- Never change scope silently.
-- Prioritize explicit user instructions above assumptions.
-- Verify before confirming success.
+Follow the existing system pattern.
+
+* Do not create additional fields.
+* Do not place units outside inputs.
+* Reuse existing currency and unit rendering behavior.
+* Maintain existing formatting standards.
 
 ---
 
-# FINAL PRINCIPLE
+## ICONS
 
-It is better to report real failures than fake solutions.
-It is better to admit blockers than hide them.
+Use the centralized icon system.
+
+* Do not create temporary or isolated icon implementations.
+* Reuse existing icon rendering mechanisms.
+* Respect existing icon configuration and styling rules.
+
+---
+
+## DEVELOPMENT RULES
+
+Always:
+
+* Analyze impact before modifying.
+* Avoid breaking existing functionality.
+* Avoid assumptions.
+* Do not add dependencies without authorization.
+* Do not remove working code without justification.
+* Do not modify anything outside the requested scope.
+
+If a requirement is unclear:
+
+* Stop and ask.
+
+---
+
+## TESTING
+
+Testing is mandatory whenever testing is possible.
+
+Testing depth must match the size and risk of the change.
+
+Examples:
+
+* Text change → basic verification.
+* UI change → visual verification.
+* Logic change → functional verification.
+* Data or workflow change → affected workflow verification.
+
+Before completion:
+
+* Verify the requested change works.
+* Verify related functionality was not obviously broken.
+* Report exactly what was tested.
+* Report test results.
+* Report what could not be tested.
+
+If testing cannot be performed:
+
+* Explicitly report it.
+* Do not assume success.
+* Do not claim validation.
+
+---
+
+## CODE COMMENTS
+
+* Do not add unnecessary comments.
+* Do not leave commented-out code.
+* Only add comments when explicitly requested or truly necessary.
+
+---
+
+## HONESTY
+
+Always:
+
+* Report failures immediately.
+* Report blockers clearly.
+* Report limitations honestly.
+* Never claim completion without evidence.
+* Never claim validation without testing.
+* Never silently change scope.
+
+---
+
+## TASK COMPLETION
+
+Always report:
+
+* Modified files
+* What was changed
+* What was tested
+* Test results
+* What could not be tested
+* Blockers encountered
+* Additional required actions, if any
+
+---
+
+## FINAL PRINCIPLE
+
+It is better to report a real limitation than provide a false confirmation.
+
+It is better to report a blocker than hide it.
+
 Never declare success without evidence.
