@@ -1849,8 +1849,13 @@ function renderOrder(order) {
     setText('orderCreatedText', formatDate(order.created_at || raw.created_on, true), 'Sin fecha');
     setText('orderPromisedDateText', formatDate(promisedDateRaw), 'Pendiente');
     applyScheduleState(document.getElementById('orderPromisedDateText'), promisedDateRaw);
-    setText('orderScheduledDateText', formatDate(scheduledDateRaw), 'Pendiente');
-    applyScheduleState(document.getElementById('orderScheduledDateText'), scheduledDateRaw);
+    const scheduledDateText = document.getElementById('orderScheduledDateText');
+    if (scheduledDateText && scheduledDateText.type === 'date') {
+        scheduledDateText.value = normalizeDateInputValue(scheduledDateRaw);
+    } else {
+        setText('orderScheduledDateText', formatDate(scheduledDateRaw), 'Pendiente');
+        applyScheduleState(scheduledDateText, scheduledDateRaw);
+    }
     if (scheduledDateInput) scheduledDateInput.value = normalizeDateInputValue(scheduledDateRaw);
 
     setText('orderQuantityText', quantity, 'Sin cantidad');

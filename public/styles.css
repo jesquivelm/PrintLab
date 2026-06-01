@@ -15111,59 +15111,60 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
     align-items: start;
 }
 
-#orderContent .production-order-column-primary {
-    display: contents;
-}
-
-#orderContent .production-order-column-primary > .production-client-section {
+#orderContent > .production-order-layout-refined > .production-client-section {
     grid-column: 1;
     grid-row: 1;
 }
 
-#orderContent .production-order-column-primary > .production-tracking-card-standalone {
+#orderContent > .production-order-layout-refined > .production-tracking-section {
     grid-column: 2;
     grid-row: 1;
 }
 
-#orderContent .production-order-column-primary > .production-product-section {
+#orderContent > .production-order-layout-refined > .production-product-section {
     grid-column: 1;
     grid-row: 2;
 }
 
-#orderContent .production-order-column-primary > .production-info-pair {
-    grid-column: 1 / -1;
-    grid-row: 3;
-}
-
-#orderContent .production-order-column-primary > .production-observations-section {
-    grid-column: 1 / -1;
-    grid-row: 4;
-    margin-top: 0;
-}
-
-#orderContent .production-order-column-secondary {
+#orderContent > .production-order-layout-refined > .production-order-column-secondary {
     grid-column: 2;
     grid-row: 2;
     gap: 14px;
 }
 
-.production-tracking-card-standalone {
+#orderContent > .production-order-layout-refined > .production-samples-section {
+    grid-column: 1;
+    grid-row: 3;
+}
+
+#orderContent > .production-order-layout-refined > .production-delivery-section {
+    grid-column: 2;
+    grid-row: 3;
+}
+
+#orderContent > .production-order-layout-refined > .production-observations-section {
+    grid-column: 1 / -1;
+    grid-row: 4;
+    margin-top: 0;
+}
+
+.production-tracking-section {
     display: grid;
     gap: 12px;
     align-content: start;
 }
 
-.production-tracking-card-standalone .production-tracking-head-row {
+.production-tracking-section .production-tracking-head-row {
     align-items: center;
     gap: 6px;
     flex-wrap: nowrap;
 }
 
-.production-tracking-card-standalone .production-tracking-head-row .section-caption {
+.production-tracking-section .production-tracking-head-row .section-caption {
     margin: 0;
 }
 
-.production-tracking-card-standalone .production-state-pill-inline {
+.production-tracking-section .production-state-pill-inline {
     height: 20px;
     min-height: 20px;
     padding: 0 12px;
@@ -15172,23 +15173,23 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
     white-space: nowrap;
 }
 
-.production-tracking-card-standalone .production-tracking-order-stack {
+.production-tracking-section .production-tracking-order-stack {
     display: grid;
     gap: 6px;
     min-width: 0;
 }
 
-.production-tracking-card-standalone .production-tracking-date-stack {
+.production-tracking-section .production-tracking-date-stack {
     display: grid;
     gap: 8px;
     min-width: 0;
 }
 
-.production-tracking-card-standalone .production-summary-item {
+.production-tracking-section .production-summary-item {
     max-width: 100%;
 }
 
-.production-tracking-card-standalone .production-source-link-group {
+.production-tracking-section .production-source-link-group {
     justify-content: flex-start;
 }
 
@@ -15793,20 +15794,9 @@ html[data-theme="dark"] .production-order-card .production-summary-line-label {
         grid-template-columns: 1fr;
     }
 
-    #orderContent .production-order-column-primary,
-    #orderContent .production-order-column-secondary {
-        display: grid;
-        grid-column: 1;
-        grid-row: auto;
-    }
-
-    #orderContent .production-order-column-primary > .production-client-section,
-    #orderContent .production-order-column-primary > .production-tracking-card-standalone,
-    #orderContent .production-order-column-primary > .production-product-section,
-    #orderContent .production-order-column-primary > .production-info-pair,
-    #orderContent .production-order-column-primary > .production-observations-section {
-        grid-column: 1;
-        grid-row: auto;
+    #orderContent > .production-order-layout-refined > * {
+        grid-column: 1 !important;
+        grid-row: auto !important;
     }
 
     .production-client-info-grid {

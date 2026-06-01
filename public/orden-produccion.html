@@ -168,336 +168,157 @@
                 <div id="orderStatus" class="calc-popover-notice production-order-status">Cargando orden...</div>
                 <section id="orderContent" hidden>
                     <div class="production-order-layout production-order-layout-refined">
-                        <div class="production-order-column production-order-column-primary">
-                            <section class="socios-section production-client-section">
-                                <div class="section-caption">Cliente</div>
-                                <div class="production-summary-stack">
-                                    <div class="production-summary-item">
-                                        <strong id="orderCustomerSummaryText" class="production-summary-value"></strong>
-                                    </div>
-                                    <div id="orderClientInfoGrid" class="production-client-info-grid">
-                                        <div id="orderCustomerContactCol" class="production-client-contact-col"></div>
-                                        <div id="orderSellerCol" class="production-client-seller-col"></div>
-                                    </div>
-                                    <div id="orderCustomerAddressRow" class="production-summary-item" hidden>
-                                        <span id="orderCustomerAddressText" class="production-summary-value"></span>
-                                    </div>
+                        <section class="socios-section production-client-section">
+                            <div class="section-caption">Cliente</div>
+                            <div class="production-summary-stack">
+                                <div class="production-summary-item">
+                                    <strong id="orderCustomerSummaryText" class="production-summary-value"></strong>
                                 </div>
-                            </section>
-
-                            <section class="socios-section production-tracking-card-standalone">
-                                <div class="production-tracking-head-row">
-                                    <div class="section-caption production-tracking-title">Seguimiento de la Orden</div>
-                                    <strong id="orderStateText" class="production-order-state production-state-pill production-state-pill-inline"></strong>
+                                <div id="orderClientInfoGrid" class="production-client-info-grid">
+                                    <div id="orderCustomerContactCol" class="production-client-contact-col"></div>
+                                    <div id="orderSellerCol" class="production-client-seller-col"></div>
                                 </div>
-                                <div class="production-tracking-order-stack">
-                                    <div class="production-summary-item">
-                                        <span class="production-summary-label">Orden</span>
-                                        <strong id="orderCodeText" class="production-order-code"></strong>
-                                        <div id="openSourceQuoteButton" class="production-source-link-group" aria-label="Ver cálculo origen"></div>
-                                    </div>
-                                    <div class="production-tracking-icons-row">
-                                        <button type="button" id="orderSapButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Descargas SAP" title="Descargas SAP"></button>
-                                        <button type="button" id="orderStateButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Control de planificación y flujo productivo"></button>
-                                        <button type="button" id="orderDeliveriesButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Detalle de entregas" title="Detalle de entregas"></button>
-                                        <button type="button" id="orderAttachmentsButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Ver adjuntos"></button>
-                                    </div>
+                                <div id="orderCustomerAddressRow" class="production-summary-item" hidden>
+                                    <span id="orderCustomerAddressText" class="production-summary-value"></span>
                                 </div>
-                                <div class="production-tracking-date-stack">
-                                    <label class="production-summary-item production-date-field">
-                                        <span class="production-summary-label">Fecha de Entrega</span>
-                                        <input id="orderScheduledDateInput" type="date">
-                                    </label>
-                                    <div class="production-summary-item production-date-field">
-                                        <span class="production-summary-label">Fecha Estimada</span>
-                                        <span id="orderScheduledDateText" class="production-summary-value production-schedule-pill production-date-field-value"></span>
-                                    </div>
-                                </div>
-                            </section>
-
-                            <section class="socios-section production-product-section">
-                                <section class="socios-section">
-                                    <div class="section-caption">Muestras y Visto Bueno</div>
-                                    <button type="button" id="orderSamplesToggleButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-section-corner-toggle" aria-label="Expandir muestras y visto bueno"></button>
-                                    <div id="orderSamplesSummary" class="production-summary-stack"></div>
-                                    <form id="orderSamplesForm" class="production-inline-form" hidden>
-                                        <div class="production-summary-grid production-summary-grid-two">
-                                            <div class="field">
-                                                <label for="orderSamplesModeInput">Envío de Muestras</label>
-                                                <select id="orderSamplesModeInput">
-                                                    <option value=""></option>
-                                                    <option value="Vendedor y Cliente">Vendedor y Cliente</option>
-                                                    <option value="Vendedor">Vendedor</option>
-                                                    <option value="Cliente">Cliente</option>
-                                                    <option value="Agencia">Agencia</option>
-                                                    <option value="Agencia y Cliente">Agencia y Cliente</option>
-                                                    <option value="No necesita">No necesita</option>
-                                                </select>
-                                            </div>
-                                            <div class="field">
-                                                <label for="orderSamplesApprovalInput">Destinatario de Visto Bueno</label>
-                                                <select id="orderSamplesApprovalInput">
-                                                    <option value=""></option>
-                                                    <option value="Cliente">Cliente</option>
-                                                    <option value="Vendedor">Vendedor</option>
-                                                    <option value="Email">Email</option>
-                                                    <option value="No necesita">No necesita</option>
-                                                </select>
-                                            </div>
-                                            <div class="field">
-                                                <label for="orderSamplesContactInput">Contacto de Visto Bueno</label>
-                                                <input id="orderSamplesContactInput" type="text" list="orderCustomerContactOptions" placeholder="Nombre del contacto">
-                                            </div>
-                                            <div class="field">
-                                                <label for="orderSamplesPhoneInput">Teléfono</label>
-                                                <input id="orderSamplesPhoneInput" type="text" placeholder="Teléfono del contacto">
-                                            </div>
-                                            <div class="field">
-                                                <label for="orderSamplesEmailInput">Correo</label>
-                                                <input id="orderSamplesEmailInput" type="text" placeholder="Correo del contacto">
-                                            </div>
-                                            <div class="field">
-                                                <label for="orderSamplesAddressInput">Dirección</label>
-                                                <input id="orderSamplesAddressInput" type="text" placeholder="Dirección del visto bueno">
-                                            </div>
-                                            <div class="field field-full">
-                                                <label for="orderSamplesDetailInput">Detalle</label>
-                                                <textarea id="orderSamplesDetailInput" rows="3" placeholder="Instrucciones o detalle de muestras"></textarea>
-                                            </div>
-                                        </div>
-                                    </form>
-                                </section>
-
-                                <section class="socios-section">
-                                    <div class="section-caption">Entrega</div>
-                                    <button type="button" id="orderDeliveryToggleButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-section-corner-toggle" aria-label="Expandir entrega"></button>
-                                    <div id="orderDeliverySummary" class="production-summary-stack"></div>
-                                    <form id="orderDeliveryForm" class="production-inline-form" hidden>
-                                        <div class="production-summary-grid production-summary-grid-two">
-                                            <div class="field">
-                                                <label for="orderDeliveryModeInput">Tipo de Entrega</label>
-                                                <select id="orderDeliveryModeInput"></select>
-                                            </div>
-                                            <div class="field">
-                                                <label for="orderDeliveryContactInput">Contacto de Entrega</label>
-                                                <input id="orderDeliveryContactInput" type="text" list="orderCustomerContactOptions" placeholder="Responsable de entrega">
-                                            </div>
-                                            <div class="field">
-                                                <label for="orderDeliveryPhoneInput">Teléfono</label>
-                                                <input id="orderDeliveryPhoneInput" type="text" placeholder="Teléfono de entrega">
-                                            </div>
-                                            <div class="field">
-                                                <label for="orderDeliveryEmailInput">Correo</label>
-                                                <input id="orderDeliveryEmailInput" type="text" placeholder="Correo de entrega">
-                                            </div>
-                                            <div class="field field-full">
-                                                <label for="orderDeliveryDetailInput">Detalle de Entrega</label>
-                                                <textarea id="orderDeliveryDetailInput" rows="3" placeholder="Detalle de entrega"></textarea>
-                                            </div>
-                                        </div>
-                                    </form>
-                                </section>
                             </div>
+                        </section>
 
-                            <section class="socios-section production-product-section">
-                                <div class="section-caption">Producto</div>
-                                <div class="production-summary-stack">
-                                    <div class="production-product-hero">
-                                        <div class="production-product-hero-main">
-                                            <div class="production-product-hero-copy">
-                                                <span id="orderProductCodesText" class="production-product-codes"></span>
-                                                <strong id="orderJobText" class="production-product-name"></strong>
-                                            </div>
-                                            <span id="orderDimensionsText" class="production-product-dimensions"></span>
+                        <section class="socios-section production-tracking-section">
+                            <div class="production-tracking-head-row">
+                                <div class="section-caption production-tracking-title">Seguimiento de la Orden</div>
+                                <strong id="orderStateText" class="production-order-state production-state-pill production-state-pill-inline"></strong>
+                            </div>
+                            <div class="production-tracking-order-stack">
+                                <div class="production-summary-item">
+                                    <span class="production-summary-label">Orden</span>
+                                    <strong id="orderCodeText" class="production-order-code"></strong>
+                                    <div id="openSourceQuoteButton" class="production-source-link-group" aria-label="Ver cálculo origen"></div>
+                                </div>
+                                <div class="production-tracking-icons-row">
+                                    <button type="button" id="orderSapButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Descargas SAP" title="Descargas SAP"></button>
+                                    <button type="button" id="orderStateButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Control de planificación y flujo productivo"></button>
+                                    <button type="button" id="orderDeliveriesButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Detalle de entregas" title="Detalle de entregas"></button>
+                                    <button type="button" id="orderAttachmentsButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Ver adjuntos"></button>
+                                </div>
+                            </div>
+                            <div class="production-tracking-date-stack">
+                                <label class="production-summary-item production-date-field">
+                                    <span class="production-summary-label">Fecha de Entrega</span>
+                                    <input id="orderScheduledDateInput" type="date">
+                                </label>
+                                <label class="production-summary-item production-date-field">
+                                    <span class="production-summary-label">Fecha Estimada</span>
+                                    <input id="orderScheduledDateText" type="date">
+                                </label>
+                            </div>
+                        </section>
+
+                        <section class="socios-section production-product-section">
+                            <div class="section-caption">Producto</div>
+                            <div class="production-summary-stack">
+                                <div class="production-product-hero">
+                                    <div class="production-product-hero-main">
+                                        <div class="production-product-hero-copy">
+                                            <span id="orderProductCodesText" class="production-product-codes"></span>
+                                            <strong id="orderJobText" class="production-product-name"></strong>
+                                        </div>
+                                        <span id="orderDimensionsText" class="production-product-dimensions"></span>
+                                    </div>
+                                </div>
+                                <div id="orderFrontBackBlock" class="production-order-frontback" style="display:none">
+                                    <div class="production-order-frontback-badge"></div>
+                                    <div id="orderFrontBackMembers" class="production-order-frontback-members"></div>
+                                </div>
+                                <div id="orderPrintingBlock" class="production-subgroup">
+                                    <div class="production-subgroup-title">Impresión</div>
+                                    <div id="orderPrintingAlert" class="production-order-alert" hidden></div>
+                                    <div id="orderPrintingGrid" class="production-summary-grid production-summary-grid-two">
+                                        <div class="production-summary-item">
+                                            <span class="production-summary-label">Máquina</span>
+                                            <span id="orderMachineText" class="production-summary-value"></span>
+                                        </div>
+                                        <div class="production-summary-item">
+                                            <span class="production-summary-label">Sustrato</span>
+                                            <span id="orderMaterialText" class="production-summary-value"></span>
+                                        </div>
+                                        <div class="production-summary-item">
+                                            <span class="production-summary-label">Total de Pies</span>
+                                            <span id="orderFeetText" class="production-summary-value"></span>
+                                        </div>
+                                        <div class="production-summary-item">
+                                            <span class="production-summary-label">Cantidad de Rollos</span>
+                                            <span id="orderRollCountText" class="production-summary-value"></span>
                                         </div>
                                     </div>
-                                    <div id="orderFrontBackBlock" class="production-order-frontback" style="display:none">
-                                        <div class="production-order-frontback-badge"></div>
-                                        <div id="orderFrontBackMembers" class="production-order-frontback-members"></div>
-                                    </div>
-                                    <div id="orderPrintingBlock" class="production-subgroup">
-                                        <div class="production-subgroup-title">Impresión</div>
-                                        <div id="orderPrintingAlert" class="production-order-alert" hidden></div>
-                                        <div id="orderPrintingGrid" class="production-summary-grid production-summary-grid-two">
-                                            <div class="production-summary-item">
-                                                <span class="production-summary-label">Máquina</span>
-                                                <span id="orderMachineText" class="production-summary-value"></span>
-                                            </div>
-                                            <div class="production-summary-item">
-                                                <span class="production-summary-label">Sustrato</span>
-                                                <span id="orderMaterialText" class="production-summary-value"></span>
-                                            </div>
-                                            <div class="production-summary-item">
-                                                <span class="production-summary-label">Total de Pies</span>
-                                                <span id="orderFeetText" class="production-summary-value"></span>
-                                            </div>
-                                            <div class="production-summary-item">
-                                                <span class="production-summary-label">Cantidad de Rollos</span>
-                                                <span id="orderRollCountText" class="production-summary-value"></span>
+                                </div>
+                                <div class="production-product-pair">
+                                    <div id="orderInkBlock" class="production-subgroup" hidden>
+                                        <div class="production-subgroup-head">
+                                            <div class="production-subgroup-title">Tintas</div>
+                                            <button type="button" id="orderPantonesButton" class="browser-open-link production-inline-icon" aria-label="Ver detalle de pantones" hidden></button>
+                                        </div>
+                                        <div class="production-summary-grid production-summary-grid-two">
+                                            <div class="production-summary-item production-summary-item-full">
+                                                <span class="production-summary-label">Tintas</span>
+                                                <span id="orderInkConfigText" class="production-summary-value"></span>
                                             </div>
                                         </div>
                                     </div>
-
-                                    <div class="production-product-pair">
-                                        <div id="orderInkBlock" class="production-subgroup" hidden>
-                                            <div class="production-subgroup-head">
-                                                <div class="production-subgroup-title">Tintas</div>
-                                                <button type="button" id="orderPantonesButton" class="browser-open-link production-inline-icon" aria-label="Ver detalle de pantones" hidden></button>
-                                            </div>
+                                    <div class="production-subgroup">
+                                        <div class="production-subgroup-title">Acabados</div>
+                                        <div class="production-summary-stack">
+                                            <div id="orderFinishList" class="production-chip-list"></div>
                                             <div class="production-summary-grid production-summary-grid-two">
-                                                <div class="production-summary-item production-summary-item-full">
-                                                    <span class="production-summary-label">Tintas</span>
-                                                    <span id="orderInkConfigText" class="production-summary-value"></span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="production-subgroup">
-                                            <div class="production-subgroup-title">Acabados</div>
-                                            <div class="production-summary-stack">
-                                                <div id="orderFinishList" class="production-chip-list"></div>
-                                                <div class="production-summary-grid production-summary-grid-two">
-                                                    <div id="orderNumberingWrap" class="production-summary-item" hidden>
-                                                        <span class="production-summary-label">Numerado</span>
-                                                        <div class="production-inline-link">
-                                                            <span id="orderNumberingSummaryText" class="production-summary-value"></span>
-                                                            <button type="button" id="orderNumberingButton" class="browser-open-link production-inline-icon production-inline-icon-small" aria-label="Ver numerado"></button>
-                                                        </div>
+                                                <div id="orderNumberingWrap" class="production-summary-item" hidden>
+                                                    <span class="production-summary-label">Numerado</span>
+                                                    <div class="production-inline-link">
+                                                        <span id="orderNumberingSummaryText" class="production-summary-value"></span>
+                                                        <button type="button" id="orderNumberingButton" class="browser-open-link production-inline-icon production-inline-icon-small" aria-label="Ver numerado"></button>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div id="orderRollBlock" class="production-subgroup">
-                                        <div class="production-subgroup-title">Información del Rollo</div>
-                                        <div class="production-summary-grid production-summary-grid-two production-roll-grid">
-                                            <div class="production-roll-grid-left">
-                                                <div class="production-summary-grid production-summary-grid-single">
-                                                    <div class="production-summary-item">
-                                                        <span class="production-summary-label">Ancho de Core</span>
-                                                        <span id="orderCoreWidthText" class="production-summary-value"></span>
-                                                    </div>
-                                                    <div class="production-summary-item">
-                                                        <span class="production-summary-label">Diámetro de Core</span>
-                                                        <span id="orderCoreDiameterText" class="production-summary-value"></span>
-                                                    </div>
-                                                    <div class="production-summary-item">
-                                                        <span class="production-summary-label">Etiquetas por Rollo</span>
-                                                        <span id="orderRollLabelsText" class="production-summary-value"></span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="production-roll-grid-right">
-                                                <div class="production-summary-item">
-                                                    <span class="production-summary-label">Tipo de Salida</span>
-                                                    <span id="orderOutputTypeText" class="production-summary-value"></span>
-                                                </div>
-                                                <div id="orderOutputTypeImage" class="production-output-preview">Sin imagen</div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                            </section>
-
-                            <div class="production-info-pair">
-                                <section class="socios-section">
-                                    <div class="section-caption">Muestras y Visto Bueno</div>
-                                    <button type="button" id="orderSamplesToggleButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-section-corner-toggle" aria-label="Expandir muestras y visto bueno"></button>
-                                    <div id="orderSamplesSummary" class="production-summary-stack"></div>
-                                    <form id="orderSamplesForm" class="production-inline-form" hidden>
-                                        <div class="production-summary-grid production-summary-grid-two">
-                                            <div class="field">
-                                                <label for="orderSamplesModeInput">Envío de Muestras</label>
-                                                <select id="orderSamplesModeInput">
-                                                    <option value=""></option>
-                                                    <option value="Vendedor y Cliente">Vendedor y Cliente</option>
-                                                    <option value="Vendedor">Vendedor</option>
-                                                    <option value="Cliente">Cliente</option>
-                                                    <option value="Agencia">Agencia</option>
-                                                    <option value="Agencia y Cliente">Agencia y Cliente</option>
-                                                    <option value="No necesita">No necesita</option>
-                                                </select>
-                                            </div>
-                                            <div class="field">
-                                                <label for="orderSamplesApprovalInput">Destinatario de Visto Bueno</label>
-                                                <select id="orderSamplesApprovalInput">
-                                                    <option value=""></option>
-                                                    <option value="Cliente">Cliente</option>
-                                                    <option value="Vendedor">Vendedor</option>
-                                                    <option value="Email">Email</option>
-                                                    <option value="No necesita">No necesita</option>
-                                                </select>
-                                            </div>
-                                            <div class="field">
-                                                <label for="orderSamplesContactInput">Contacto de Visto Bueno</label>
-                                                <input id="orderSamplesContactInput" type="text" list="orderCustomerContactOptions" placeholder="Nombre del contacto">
-                                            </div>
-                                            <div class="field">
-                                                <label for="orderSamplesPhoneInput">Teléfono</label>
-                                                <input id="orderSamplesPhoneInput" type="text" placeholder="Teléfono del contacto">
-                                            </div>
-                                            <div class="field">
-                                                <label for="orderSamplesEmailInput">Correo</label>
-                                                <input id="orderSamplesEmailInput" type="text" placeholder="Correo del contacto">
-                                            </div>
-                                            <div class="field">
-                                                <label for="orderSamplesAddressInput">Dirección</label>
-                                                <input id="orderSamplesAddressInput" type="text" placeholder="Dirección del visto bueno">
-                                            </div>
-                                            <div class="field field-full">
-                                                <label for="orderSamplesDetailInput">Detalle</label>
-                                                <textarea id="orderSamplesDetailInput" rows="3" placeholder="Instrucciones o detalle de muestras"></textarea>
+                                <div id="orderRollBlock" class="production-subgroup">
+                                    <div class="production-subgroup-title">Información del Rollo</div>
+                                    <div class="production-summary-grid production-summary-grid-two production-roll-grid">
+                                        <div class="production-roll-grid-left">
+                                            <div class="production-summary-grid production-summary-grid-single">
+                                                <div class="production-summary-item">
+                                                    <span class="production-summary-label">Ancho de Core</span>
+                                                    <span id="orderCoreWidthText" class="production-summary-value"></span>
+                                                </div>
+                                                <div class="production-summary-item">
+                                                    <span class="production-summary-label">Diámetro de Core</span>
+                                                    <span id="orderCoreDiameterText" class="production-summary-value"></span>
+                                                </div>
+                                                <div class="production-summary-item">
+                                                    <span class="production-summary-label">Etiquetas por Rollo</span>
+                                                    <span id="orderRollLabelsText" class="production-summary-value"></span>
+                                                </div>
                                             </div>
                                         </div>
-                                    </form>
-                                </section>
-
-                                <section class="socios-section">
-                                    <div class="section-caption">Entrega</div>
-                                    <button type="button" id="orderDeliveryToggleButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-section-corner-toggle" aria-label="Expandir entrega"></button>
-                                    <div id="orderDeliverySummary" class="production-summary-stack"></div>
-                                    <form id="orderDeliveryForm" class="production-inline-form" hidden>
-                                        <div class="production-summary-grid production-summary-grid-two">
-                                            <div class="field">
-                                                <label for="orderDeliveryModeInput">Tipo de Entrega</label>
-                                                <select id="orderDeliveryModeInput"></select>
+                                        <div class="production-roll-grid-right">
+                                            <div class="production-summary-item">
+                                                <span class="production-summary-label">Tipo de Salida</span>
+                                                <span id="orderOutputTypeText" class="production-summary-value"></span>
                                             </div>
-                                            <div class="field">
-                                                <label for="orderDeliveryContactInput">Contacto de Entrega</label>
-                                                <input id="orderDeliveryContactInput" type="text" list="orderCustomerContactOptions" placeholder="Responsable de entrega">
-                                            </div>
-                                            <div class="field">
-                                                <label for="orderDeliveryPhoneInput">Teléfono</label>
-                                                <input id="orderDeliveryPhoneInput" type="text" placeholder="Teléfono de entrega">
-                                            </div>
-                                            <div class="field">
-                                                <label for="orderDeliveryEmailInput">Correo</label>
-                                                <input id="orderDeliveryEmailInput" type="text" placeholder="Correo de entrega">
-                                            </div>
-                                            <div class="field field-full">
-                                                <label for="orderDeliveryDetailInput">Detalle de Entrega</label>
-                                                <textarea id="orderDeliveryDetailInput" rows="3" placeholder="Detalle de entrega"></textarea>
-                                            </div>
+                                            <div id="orderOutputTypeImage" class="production-output-preview">Sin imagen</div>
                                         </div>
-                                    </form>
-                                </section>
+                                    </div>
+                                </div>
                             </div>
+                        </section>
 
-                            <section class="socios-section production-observations-section">
-                                <div class="section-caption">Observaciones</div>
-                                <textarea id="orderFinishNotesInput" class="production-notes-box production-notes-input" rows="3" placeholder="Observaciones"></textarea>
-                            </section>
-                        </div>
-
-                        <div class="production-order-column production-order-column-secondary">
+                        <div class="production-order-column-secondary">
                             <section class="socios-section">
                                 <div class="production-section-head-inline">
                                     <div class="section-caption">Cantidad de Productos</div>
                                     <strong id="orderQuantityText" class="production-quantity-highlight"></strong>
                                 </div>
                             </section>
-
                             <section class="socios-section production-art-section">
                                 <div class="section-caption">Información de Arte</div>
                                 <button type="button" id="orderArtToggleButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-section-corner-toggle" aria-label="Expandir información de arte"></button>
@@ -530,6 +351,93 @@
                                 </form>
                             </section>
                         </div>
+
+                        <section class="socios-section production-samples-section">
+                            <div class="section-caption">Muestras y Visto Bueno</div>
+                            <button type="button" id="orderSamplesToggleButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-section-corner-toggle" aria-label="Expandir muestras y visto bueno"></button>
+                            <div id="orderSamplesSummary" class="production-summary-stack"></div>
+                            <form id="orderSamplesForm" class="production-inline-form" hidden>
+                                <div class="production-summary-grid production-summary-grid-two">
+                                    <div class="field">
+                                        <label for="orderSamplesModeInput">Envío de Muestras</label>
+                                        <select id="orderSamplesModeInput">
+                                            <option value=""></option>
+                                            <option value="Vendedor y Cliente">Vendedor y Cliente</option>
+                                            <option value="Vendedor">Vendedor</option>
+                                            <option value="Cliente">Cliente</option>
+                                            <option value="Agencia">Agencia</option>
+                                            <option value="Agencia y Cliente">Agencia y Cliente</option>
+                                            <option value="No necesita">No necesita</option>
+                                        </select>
+                                    </div>
+                                    <div class="field">
+                                        <label for="orderSamplesApprovalInput">Destinatario de Visto Bueno</label>
+                                        <select id="orderSamplesApprovalInput">
+                                            <option value=""></option>
+                                            <option value="Cliente">Cliente</option>
+                                            <option value="Vendedor">Vendedor</option>
+                                            <option value="Email">Email</option>
+                                            <option value="No necesita">No necesita</option>
+                                        </select>
+                                    </div>
+                                    <div class="field">
+                                        <label for="orderSamplesContactInput">Contacto de Visto Bueno</label>
+                                        <input id="orderSamplesContactInput" type="text" list="orderCustomerContactOptions" placeholder="Nombre del contacto">
+                                    </div>
+                                    <div class="field">
+                                        <label for="orderSamplesPhoneInput">Teléfono</label>
+                                        <input id="orderSamplesPhoneInput" type="text" placeholder="Teléfono del contacto">
+                                    </div>
+                                    <div class="field">
+                                        <label for="orderSamplesEmailInput">Correo</label>
+                                        <input id="orderSamplesEmailInput" type="text" placeholder="Correo del contacto">
+                                    </div>
+                                    <div class="field">
+                                        <label for="orderSamplesAddressInput">Dirección</label>
+                                        <input id="orderSamplesAddressInput" type="text" placeholder="Dirección del visto bueno">
+                                    </div>
+                                    <div class="field field-full">
+                                        <label for="orderSamplesDetailInput">Detalle</label>
+                                        <textarea id="orderSamplesDetailInput" rows="3" placeholder="Instrucciones o detalle de muestras"></textarea>
+                                    </div>
+                                </div>
+                            </form>
+                        </section>
+
+                        <section class="socios-section production-delivery-section">
+                            <div class="section-caption">Entrega</div>
+                            <button type="button" id="orderDeliveryToggleButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-section-corner-toggle" aria-label="Expandir entrega"></button>
+                            <div id="orderDeliverySummary" class="production-summary-stack"></div>
+                            <form id="orderDeliveryForm" class="production-inline-form" hidden>
+                                <div class="production-summary-grid production-summary-grid-two">
+                                    <div class="field">
+                                        <label for="orderDeliveryModeInput">Tipo de Entrega</label>
+                                        <select id="orderDeliveryModeInput"></select>
+                                    </div>
+                                    <div class="field">
+                                        <label for="orderDeliveryContactInput">Contacto de Entrega</label>
+                                        <input id="orderDeliveryContactInput" type="text" list="orderCustomerContactOptions" placeholder="Responsable de entrega">
+                                    </div>
+                                    <div class="field">
+                                        <label for="orderDeliveryPhoneInput">Teléfono</label>
+                                        <input id="orderDeliveryPhoneInput" type="text" placeholder="Teléfono de entrega">
+                                    </div>
+                                    <div class="field">
+                                        <label for="orderDeliveryEmailInput">Correo</label>
+                                        <input id="orderDeliveryEmailInput" type="text" placeholder="Correo de entrega">
+                                    </div>
+                                    <div class="field field-full">
+                                        <label for="orderDeliveryDetailInput">Detalle de Entrega</label>
+                                        <textarea id="orderDeliveryDetailInput" rows="3" placeholder="Detalle de entrega"></textarea>
+                                    </div>
+                                </div>
+                            </form>
+                        </section>
+
+                        <section class="socios-section production-observations-section">
+                            <div class="section-caption">Observaciones</div>
+                            <textarea id="orderFinishNotesInput" class="production-notes-box production-notes-input" rows="3" placeholder="Observaciones"></textarea>
+                        </section>
                     </div>
                 </section>
             </section>
