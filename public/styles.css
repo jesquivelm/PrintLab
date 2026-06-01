@@ -15108,7 +15108,7 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 .production-order-card .production-order-layout-refined {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 16px 22px;
-    align-items: start;
+    align-items: stretch;
 }
 
 #orderContent > .production-order-layout-refined > .production-client-section {
@@ -15130,6 +15130,13 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
     grid-column: 2;
     grid-row: 2;
     gap: 14px;
+    display: flex;
+    flex-direction: column;
+}
+
+#orderContent > .production-order-layout-refined > .production-order-column-secondary > .production-art-section {
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 #orderContent > .production-order-layout-refined > .production-samples-section {
@@ -15173,8 +15180,10 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
     white-space: nowrap;
 }
 
-.production-tracking-section .production-tracking-order-stack {
-    display: grid;
+.production-tracking-section .production-tracking-order-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: flex-end;
     gap: 6px;
     min-width: 0;
 }
@@ -15444,7 +15453,7 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 }
 
 .production-art-section {
-    min-height: 404px;
+    min-height: auto;
 }
 
 .production-art-section .production-summary-grid-art {
@@ -15479,9 +15488,10 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 
 .production-art-preview {
     border-radius: 8px;
-    height: clamp(178px, 28vh, 270px);
-    max-height: 270px;
     overflow: hidden;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .production-notes-box {
