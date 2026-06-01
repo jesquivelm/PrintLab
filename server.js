@@ -13637,7 +13637,26 @@ app.get('/api/ordenes-produccion/:codigo', async (req, res) => {
                 orden.raw_data.printing = extractPrintingData(orden.raw_data);
             }
             const needsContact = !orden.raw_data.contact_name && !orden.raw_data.phone && !orden.raw_data.email;
-            if (needsContact && orden.source_quote_code) {
+            if (needsContact && orden.customer_code) {
+                try {
+                    const contactResult = await pgQuery(
+                        `SELECT contact_name, email, phone, mobile FROM business_partner_contacts WHERE partner_code = $1 ORDER BY is_legal_representative DESC, created_at ASC NULLS LAST LIMIT 1`,
+                        [orden.customer_code]
+                    );
+                    if (contactResult.rows.length) {
+                        const c = contactResult.rows[0];
+                        orden.raw_data.contact_name = orden.raw_data.contact_name || c.contact_name || null;
+                        orden.raw_data.phone = orden.raw_data.phone || c.phone || c.mobile || null;
+                        orden.raw_data.email = orden.raw_data.email || c.email || null;
+                        if (orden.raw_data.quote_snapshot) {
+                            orden.raw_data.quote_snapshot.contact_name = orden.raw_data.quote_snapshot.contact_name || orden.raw_data.contact_name;
+                            orden.raw_data.quote_snapshot.phone = orden.raw_data.quote_snapshot.phone || orden.raw_data.phone;
+                            orden.raw_data.quote_snapshot.email = orden.raw_data.quote_snapshot.email || orden.raw_data.email;
+                        }
+                    }
+                } catch (_) {}
+            }
+            if (!orden.raw_data.contact_name && !orden.raw_data.phone && !orden.raw_data.email && orden.source_quote_code) {
                 try {
                     const quoteResult = await pgQuery(`SELECT raw_data FROM cotizaciones WHERE quote_code = $1 LIMIT 1`, [orden.source_quote_code]);
                     if (quoteResult.rows.length) {
@@ -13653,6 +13672,19 @@ app.get('/api/ordenes-produccion/:codigo', async (req, res) => {
                     }
                 } catch (_) {}
             }
+        }
+        if (orden.raw_data && (orden.raw_data.contact_name || orden.raw_data.phone || orden.raw_data.email)) {
+            try {
+                await pgQuery(
+                    `UPDATE flexo_orders
+                        SET raw_data = raw_data
+                            || jsonb_build_object('contact_name', to_jsonb($2::text))
+                            || jsonb_build_object('phone', to_jsonb($3::text))
+                            || jsonb_build_object('email', to_jsonb($4::text))
+                      WHERE order_code = $1`,
+                    [req.params.codigo, orden.raw_data.contact_name || null, orden.raw_data.phone || null, orden.raw_data.email || null]
+                );
+            } catch (_) {}
         }
         res.json({ orden });
     } catch (error) {
