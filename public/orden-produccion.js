@@ -1390,19 +1390,21 @@ function renderIcon(target, iconValue, color, size) {
     if (!target) return;
     const host = target.closest('.attachment-action-btn, .quote-request-icon-action, .quote-request-attachment-remove');
     const value = String(iconValue || '').trim();
+    const iconSize = Number(size) || 18;
     if (host) {
         host.style.setProperty('--icon-color', color || '');
         host.style.setProperty('--icon-hover-color', color || '');
+        host.style.setProperty('--config-icon-size', `${iconSize}px`);
     }
     target.style.color = host ? 'currentColor' : (color || '');
     const isSvg = /^data:image\/svg\+xml/i.test(value) || /\.svg(\?|#|$)/i.test(value);
     const isImage = /^data:image\//i.test(value) || /\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(value);
     if (isSvg) {
-        target.innerHTML = `<span class="icon-svg-mask table-icon-media" style="width:${size || 18}px;height:${size || 18}px;-webkit-mask-image:url('${escapeHtml(value)}');mask-image:url('${escapeHtml(value)}');"></span>`;
+        target.innerHTML = `<span class="icon-svg-mask table-icon-media" style="width:${iconSize}px;height:${iconSize}px;-webkit-mask-image:url('${escapeHtml(value)}');mask-image:url('${escapeHtml(value)}');"></span>`;
     } else if (isImage) {
-        target.innerHTML = `<span class="icon-image-wrap table-icon-media" role="img" aria-label=""><span class="icon-image-fallback" aria-hidden="true">□</span><img src="${escapeHtml(value)}" alt="" class="icon-image" onload="this.parentElement.classList.add('is-loaded')" onerror="this.remove()"></span>`;
+        target.innerHTML = `<span class="icon-image-wrap table-icon-media" role="img" aria-label="" style="width:${iconSize}px;height:${iconSize}px;"><span class="icon-image-fallback" aria-hidden="true">□</span><img src="${escapeHtml(value)}" alt="" class="icon-image" onload="this.parentElement.classList.add('is-loaded')" onerror="this.remove()"></span>`;
     } else {
-        target.innerHTML = `<span class="icon-glyph" style="font-size:${size || 18}px;">${escapeHtml(value)}</span>`;
+        target.innerHTML = `<span class="icon-glyph" style="font-size:${iconSize}px;">${escapeHtml(value)}</span>`;
     }
 }
 

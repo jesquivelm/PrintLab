@@ -7209,9 +7209,9 @@ body.shell-embedded .summary-footer {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: var(--config-icon-size, 20px);
-    height: var(--config-icon-size, 20px);
-    flex: 0 0 var(--config-icon-size, 20px);
+    width: calc(var(--config-icon-size, 20px) + 10px);
+    height: calc(var(--config-icon-size, 20px) + 10px);
+    flex: 0 0 calc(var(--config-icon-size, 20px) + 10px);
     border: 0;
     background: transparent;
     padding: 0;

@@ -521,6 +521,16 @@
                 <div class="copy-popover-header">
                     <h2>Adjuntos</h2>
                 </div>
+                <div class="order-attachments-actions">
+                    <input id="orderAttachmentFileInput" type="file" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ai,.eps" hidden>
+                    <label id="orderAttachmentUploadButton" class="quote-request-icon-action order-attachment-icon-action" for="orderAttachmentFileInput" title="Adjuntar Archivos" aria-label="Adjuntar Archivos">
+                        <span data-order-inline-icon="attachment"></span>
+                    </label>
+                    <button type="button" id="orderAudioRecordButton" class="quote-request-icon-action order-attachment-icon-action" title="Grabar Audio" aria-label="Grabar Audio" data-recording="false">
+                        <span data-order-inline-icon="record"></span>
+                    </button>
+                    <div id="orderAudioRecordIndicator" class="quote-request-audio-status" hidden><span class="quote-request-audio-dot"></span><span>Grabando</span></div>
+                </div>
                 <div id="orderAttachmentsPopoverBody" class="attachments-popover-body">
                     <table class="copy-popover-table attachments-table">
                         <thead>
@@ -534,16 +544,6 @@
                             <tr><td colspan="3">Cargando adjuntos...</td></tr>
                         </tbody>
                     </table>
-                </div>
-                <div class="order-attachments-actions">
-                    <input id="orderAttachmentFileInput" type="file" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ai,.eps" hidden>
-                    <label id="orderAttachmentUploadButton" class="quote-request-icon-action order-attachment-icon-action" for="orderAttachmentFileInput" title="Adjuntar Archivos" aria-label="Adjuntar Archivos">
-                        <span data-order-inline-icon="attachment"></span>
-                    </label>
-                    <button type="button" id="orderAudioRecordButton" class="quote-request-icon-action order-attachment-icon-action" title="Grabar Audio" aria-label="Grabar Audio" data-recording="false">
-                        <span data-order-inline-icon="record"></span>
-                    </button>
-                    <div id="orderAudioRecordIndicator" class="quote-request-audio-status" hidden><span class="quote-request-audio-dot"></span><span>Grabando</span></div>
                 </div>
             </div>
         </div>
