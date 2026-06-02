@@ -15560,6 +15560,11 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
     object-fit: contain;
 }
 
+.production-art-preview .production-art-image:not([src]),
+.production-art-preview .production-art-image[src=""] {
+    display: none;
+}
+
 .production-notes-box {
     min-height: 68px;
     max-height: 68px;

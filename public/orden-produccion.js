@@ -1474,12 +1474,12 @@ function renderArtwork(attachments) {
     const value = String(artwork.value || '').trim();
     artworkPreview.classList.remove('production-art-preview-compact');
     if (/^data:image\//i.test(value)) {
-        artworkPreview.innerHTML = `<img src="${escapeHtml(value)}" alt="Arte del producto" class="production-art-image" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'attachments-empty',textContent:'Arrastra el Arte'}))">`;
+        artworkPreview.innerHTML = `<img src="${escapeHtml(value)}" alt="Arte del producto" class="production-art-image">`;
         updateArtworkSectionConstraint();
         return;
     }
     if (artwork.id && /^image\//i.test(String(artwork.mime_type || ''))) {
-        artworkPreview.innerHTML = `<img src="/api/adjuntos/${encodeURIComponent(artwork.id)}/download" alt="Arte del producto" class="production-art-image" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'attachments-empty',textContent:'Arrastra el Arte'}))">`;
+        artworkPreview.innerHTML = `<img src="/api/adjuntos/${encodeURIComponent(artwork.id)}/download" alt="Arte del producto" class="production-art-image">`;
         updateArtworkSectionConstraint();
         return;
     }
