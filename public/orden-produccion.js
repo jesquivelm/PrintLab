@@ -1942,6 +1942,86 @@ function buildSamplesSummary(lineRaw) {
     `;
 }
 
+let customerContactSaveTimer = null;
+
+function renderCustomerContact(col, data) {
+    var customerContact = data.customerContact || '';
+    var customerPhone   = data.customerPhone   || '';
+    var customerEmail   = data.customerEmail   || '';
+    var hasData = !!(customerContact || customerPhone || customerEmail);
+    var ICON_PHONE = '<svg class="production-client-info-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M3.654 1.328a.678.678 0 0 0-1.015-.063L1.605 2.3c-.483.484-.661 1.169-.45 1.77a17.568 17.568 0 0 0 4.168 6.608 17.569 17.569 0 0 0 6.608 4.168c.601.211 1.286.033 1.77-.45l1.034-1.034a.678.678 0 0 0-.063-1.015l-2.307-1.794a.678.678 0 0 0-.58-.122l-2.19.547a1.745 1.745 0 0 1-1.657-.459L5.482 8.062a1.745 1.745 0 0 1-.46-1.657l.548-2.19a.678.678 0 0 0-.122-.58L3.654 1.328z"/></svg>';
+    var ICON_EMAIL = '<svg class="production-client-info-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1H2zm13 2.383-4.708 2.825L15 11.105V5.383zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741zM1 11.105l4.708-2.897L1 5.383v5.722z"/></svg>';
+    var ICON_EDIT  = '<svg class="production-client-info-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>';
+
+    var displayLines = [];
+    if (customerContact) displayLines.push('<div class="production-client-info-line production-client-contact-name"><strong>' + escapeHtml(customerContact) + '</strong></div>');
+    if (customerPhone)   displayLines.push('<div class="production-client-info-line">' + ICON_PHONE + '<span>' + escapeHtml(customerPhone) + '</span></div>');
+    if (customerEmail)   displayLines.push('<div class="production-client-info-line">' + ICON_EMAIL + '<span>' + escapeHtml(customerEmail) + '</span></div>');
+    if (!hasData)        displayLines.push('<div class="production-client-info-line production-contact-missing"><span class="production-contact-missing-label">&#9888; Sin contacto asignado</span></div>');
+
+    col.innerHTML =
+        '<div class="production-customer-contact-display">' +
+            displayLines.join('') +
+            '<button type="button" class="production-contact-edit-btn" title="Editar contacto del cliente" aria-label="Editar contacto del cliente">' +
+                ICON_EDIT + '<span>' + (hasData ? 'Editar' : 'Asignar contacto') + '</span>' +
+            '</button>' +
+        '</div>' +
+        '<div class="production-customer-contact-form" hidden>' +
+            '<div class="production-contact-form-fields">' +
+                '<input class="production-contact-input" data-contact-field="name"  type="text"  placeholder="Nombre del contacto"  value="' + escapeHtml(customerContact) + '">' +
+                '<input class="production-contact-input" data-contact-field="phone" type="tel"   placeholder="Telefono"              value="' + escapeHtml(customerPhone)   + '">' +
+                '<input class="production-contact-input" data-contact-field="email" type="email" placeholder="Correo electronico"    value="' + escapeHtml(customerEmail)   + '">' +
+            '</div>' +
+            '<div class="production-contact-form-actions">' +
+                '<button type="button" class="production-contact-save-btn">Guardar</button>' +
+                '<button type="button" class="production-contact-cancel-btn">Cancelar</button>' +
+            '</div>' +
+            '<div class="production-contact-form-status" hidden></div>' +
+        '</div>';
+
+    var displayDiv = col.querySelector('.production-customer-contact-display');
+    var formDiv    = col.querySelector('.production-customer-contact-form');
+    var editBtn    = col.querySelector('.production-contact-edit-btn');
+    var cancelBtn  = col.querySelector('.production-contact-cancel-btn');
+    var saveBtn    = col.querySelector('.production-contact-save-btn');
+    var statusDiv  = col.querySelector('.production-contact-form-status');
+
+    editBtn.addEventListener('click', function () {
+        displayDiv.hidden = true;
+        formDiv.hidden = false;
+        col.querySelector('[data-contact-field="name"]').focus();
+    });
+
+    cancelBtn.addEventListener('click', function () {
+        displayDiv.hidden = false;
+        formDiv.hidden = true;
+        statusDiv.hidden = true;
+    });
+
+    saveBtn.addEventListener('click', function () {
+        clearTimeout(customerContactSaveTimer);
+        var nameVal  = col.querySelector('[data-contact-field="name"]').value.trim();
+        var phoneVal = col.querySelector('[data-contact-field="phone"]').value.trim();
+        var emailVal = col.querySelector('[data-contact-field="email"]').value.trim();
+        saveBtn.disabled = true;
+        statusDiv.hidden = true;
+        customerContactSaveTimer = setTimeout(function () {
+            saveOrderDetails({ customer: { contact_name: nameVal, phone: phoneVal, email: emailVal } })
+                .then(function () {
+                    displayDiv.hidden = false;
+                    formDiv.hidden = true;
+                })
+                .catch(function (error) {
+                    statusDiv.textContent = error.message || 'No se pudo guardar.';
+                    statusDiv.hidden = false;
+                })
+                .finally(function () {
+                    saveBtn.disabled = false;
+                });
+        }, 200);
+    });
+}
+
 function renderOrder(order) {
     const raw = order.raw_data || {};
     const quote = raw.quote_snapshot || {};
@@ -2038,13 +2118,8 @@ function renderOrder(order) {
 
     setOptionalText('orderCustomerSummaryText', [customerId ? `(${customerId})` : '', customerName].filter(Boolean).join(' '));
     const contactCol = document.getElementById('orderCustomerContactCol');
-    if (customerContact || customerPhone || customerEmail) {
-        contactCol.innerHTML = [
-            customerPhone ? `<div class="production-client-info-line"><svg class="production-client-info-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M3.654 1.328a.678.678 0 0 0-1.015-.063L1.605 2.3c-.483.484-.661 1.169-.45 1.77a17.568 17.568 0 0 0 4.168 6.608 17.569 17.569 0 0 0 6.608 4.168c.601.211 1.286.033 1.77-.45l1.034-1.034a.678.678 0 0 0-.063-1.015l-2.307-1.794a.678.678 0 0 0-.58-.122l-2.19.547a1.745 1.745 0 0 1-1.657-.459L5.482 8.062a1.745 1.745 0 0 1-.46-1.657l.548-2.19a.678.678 0 0 0-.122-.58L3.654 1.328z"/></svg><span>${escapeHtml(customerPhone)}</span></div>` : '',
-            customerEmail ? `<div class="production-client-info-line"><svg class="production-client-info-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1H2zm13 2.383-4.708 2.825L15 11.105V5.383zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741zM1 11.105l4.708-2.897L1 5.383v5.722z"/></svg><span>${escapeHtml(customerEmail)}</span></div>` : ''
-        ].filter(Boolean).join('');
-    }
-    document.getElementById('orderClientInfoGrid').hidden = ![customerContact, customerPhone, customerEmail, sellerName].some(Boolean);
+    renderCustomerContact(contactCol, { customerContact, customerPhone, customerEmail });
+    document.getElementById('orderClientInfoGrid').hidden = false;
 
     const sellerCol = document.getElementById('orderSellerCol');
     if (sellerName) {

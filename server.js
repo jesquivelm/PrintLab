@@ -13772,6 +13772,18 @@ app.patch('/api/ordenes-produccion/:codigo/details', async (req, res) => {
             }
         }
 
+        if (payload.customer && typeof payload.customer === 'object') {
+            if (Object.prototype.hasOwnProperty.call(payload.customer, 'contact_name')) {
+                lineRaw['CLIENTE | CONTACTO NOMBRE COMPLETO'] = pickFirstValue(payload.customer.contact_name);
+            }
+            if (Object.prototype.hasOwnProperty.call(payload.customer, 'phone')) {
+                lineRaw['CLIENTE | CONTACTO TELEFONO'] = pickFirstValue(payload.customer.phone);
+            }
+            if (Object.prototype.hasOwnProperty.call(payload.customer, 'email')) {
+                lineRaw['CLIENTE | CONTACTO EMAIL'] = pickFirstValue(payload.customer.email);
+            }
+        }
+
         if (payload.art && typeof payload.art === 'object') {
             lineRaw['COMENTARIOS VENDEDOR'] = pickFirstValue(payload.art.comments);
             lineRaw['ARTE EN PODER DE'] = pickFirstValue(payload.art.artworkHolder);

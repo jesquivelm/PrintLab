@@ -15814,6 +15814,156 @@ html[data-theme="dark"] .production-tracking-card .production-schedule-pill.is-a
     color: #334155;
 }
 
+/* --- Customer contact editable block --- */
+.production-client-contact-name strong {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--order-panel-text, #1e293b);
+}
+
+.production-contact-missing {
+    opacity: .75;
+}
+
+.production-contact-missing-label {
+    font-size: 12px;
+    color: #b45309;
+    font-weight: 500;
+}
+
+.production-contact-edit-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 6px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    border: 1px solid #cbd5e1;
+    background: transparent;
+    color: #64748b;
+    transition: background .15s, color .15s;
+}
+
+.production-contact-edit-btn:hover {
+    background: #f1f5f9;
+    color: #1e293b;
+}
+
+.production-contact-edit-btn .production-client-info-icon {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+}
+
+.production-contact-form-fields {
+    display: grid;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.production-contact-input {
+    width: 100%;
+    padding: 5px 9px;
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    font-size: 12px;
+    font-family: inherit;
+    background: #fff;
+    color: #1e293b;
+    outline: none;
+    transition: border-color .15s;
+    box-sizing: border-box;
+}
+
+.production-contact-input:focus {
+    border-color: #3b82f6;
+}
+
+.production-contact-form-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.production-contact-save-btn,
+.production-contact-cancel-btn {
+    padding: 4px 14px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    transition: opacity .15s;
+}
+
+.production-contact-save-btn {
+    background: #2563eb;
+    color: #fff;
+}
+
+.production-contact-save-btn:disabled {
+    opacity: .55;
+    cursor: default;
+}
+
+.production-contact-cancel-btn {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+}
+
+.production-contact-save-btn:hover:not(:disabled),
+.production-contact-cancel-btn:hover {
+    opacity: .82;
+}
+
+.production-contact-form-status {
+    margin-top: 5px;
+    font-size: 11px;
+    color: #dc2626;
+}
+
+/* dark mode */
+html[data-theme="dark"] .production-contact-missing-label {
+    color: #fbbf24;
+}
+
+html[data-theme="dark"] .production-contact-edit-btn {
+    border-color: #3a506b;
+    color: #8fa8bd;
+}
+
+html[data-theme="dark"] .production-contact-edit-btn:hover {
+    background: #1d2a3d;
+    color: #c9d8eb;
+}
+
+html[data-theme="dark"] .production-contact-input {
+    background: #152033;
+    border-color: #3a506b;
+    color: #c9d8eb;
+}
+
+html[data-theme="dark"] .production-contact-input:focus {
+    border-color: #38bdf8;
+}
+
+html[data-theme="dark"] .production-contact-cancel-btn {
+    background: #1d2a3d;
+    color: #8fa8bd;
+    border-color: #3a506b;
+}
+
+html[data-theme="dark"] .production-client-contact-name strong {
+    color: #c9d8eb;
+}
+/* --- end customer contact editable block --- */
+
 .production-tracking-card-embedded {
     grid-template-columns: minmax(150px, .72fr) minmax(170px, .64fr);
     gap: 8px 18px;
