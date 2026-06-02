@@ -15863,11 +15863,11 @@ html[data-theme="dark"] .production-tracking-card .production-schedule-pill.is-a
 }
 
 .production-tracking-icons-row .production-inline-icon.is-active {
-    background: transparent !important;
+    background: var(--order-panel-bg) !important;
     border: 1px solid var(--order-panel-border) !important;
     border-bottom-color: transparent !important;
     border-radius: 12px 12px 0 0 !important;
-    box-shadow: none !important;
+    box-shadow: 0 -2px 6px rgba(15, 23, 42, 0.06), 0 2px 8px rgba(15, 23, 42, 0.08) !important;
     z-index: 1002;
 }
 
@@ -15885,13 +15885,13 @@ html[data-theme="dark"] .production-tracking-card .production-schedule-pill.is-a
 .production-header-tab-popover .calc-popover-panel {
     transform: none !important;
     border: 1px solid var(--order-panel-border) !important;
-    border-radius: 12px 12px 18px 18px !important;
+    border-top: none !important;
+    border-radius: 0 0 18px 18px !important;
     background: var(--order-panel-bg) !important;
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08), 0 8px 24px rgba(15, 23, 42, 0.10) !important;
     pointer-events: auto;
     max-height: min(680px, calc(100vh - 200px));
     overflow: auto;
-    padding-top: 42px;
 }
 
 .production-flow-tab-popover .production-flow-popover-panel {
@@ -15940,10 +15940,10 @@ html[data-theme="dark"] .production-tracking-icons-row .production-inline-icon {
 }
 
 html[data-theme="dark"] .production-tracking-icons-row .production-inline-icon.is-active {
-    background: transparent !important;
+    background: var(--order-panel-bg) !important;
     border: 1px solid var(--order-panel-border) !important;
     border-bottom-color: transparent !important;
-    box-shadow: none !important;
+    box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.20), 0 2px 8px rgba(0, 0, 0, 0.30) !important;
 }
 
 html[data-theme="dark"] .production-client-info-line {
