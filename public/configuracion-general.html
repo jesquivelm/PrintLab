@@ -5966,8 +5966,8 @@
                                         <button id="deliverySampleModeAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
                                     </div>
                                     <div class="quote-product-types-table-wrap">
-                                        <table class="quote-product-types-table">
-                                            <thead><tr><th style="width:72px;">#</th><th>Valor</th><th>Acción</th></tr></thead>
+                                        <table class="quote-product-types-table config-table">
+                                            <thead><tr><th style="width:28px;"></th><th style="width:72px;">#</th><th>Valor</th><th>Acción</th></tr></thead>
                                             <tbody id="deliverySampleModesTableBody"></tbody>
                                         </table>
                                     </div>
@@ -5980,8 +5980,8 @@
                                         <button id="deliveryApprovalRecipientAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
                                     </div>
                                     <div class="quote-product-types-table-wrap">
-                                        <table class="quote-product-types-table">
-                                            <thead><tr><th style="width:72px;">#</th><th>Valor</th><th>Acción</th></tr></thead>
+                                        <table class="quote-product-types-table config-table">
+                                            <thead><tr><th style="width:28px;"></th><th style="width:72px;">#</th><th>Valor</th><th>Acción</th></tr></thead>
                                             <tbody id="deliveryApprovalRecipientsTableBody"></tbody>
                                         </table>
                                     </div>
@@ -5994,8 +5994,8 @@
                                         <button id="deliveryMethodAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
                                     </div>
                                     <div class="quote-product-types-table-wrap">
-                                        <table class="quote-product-types-table">
-                                            <thead><tr><th style="width:72px;">#</th><th>Valor</th><th>Acción</th></tr></thead>
+                                        <table class="quote-product-types-table config-table">
+                                            <thead><tr><th style="width:28px;"></th><th style="width:72px;">#</th><th>Valor</th><th>Acción</th></tr></thead>
                                             <tbody id="deliveryMethodsTableBody"></tbody>
                                         </table>
                                     </div>
@@ -8876,11 +8876,12 @@
             const items = readDeliverySampleModesFromConfig();
             syncDeliverySampleModesField(items);
             if (!items.length) {
-                deliverySampleModesTableBody.innerHTML = '<tr><td colspan="3" class="quote-product-types-empty">No hay opciones configuradas.</td></tr>';
+                deliverySampleModesTableBody.innerHTML = '<tr><td colspan="4" class="quote-product-types-empty">No hay opciones configuradas.</td></tr>';
                 return;
             }
             deliverySampleModesTableBody.innerHTML = items.map((item, index) => `
-                <tr>
+                <tr draggable="true" data-item-index="${index}" data-table-key="sampleModes">
+                    <td class="config-drag-cell"><span class="config-drag-handle" title="Arrastrar para reordenar">⋮⋮</span></td>
                     <td>${index + 1}</td>
                     <td><input type="text" value="${escapeHtml(item)}" data-delivery-sample-mode-index="${index}" maxlength="80"${item ? "" : " class=\"field-empty\""}></td>
                     <td><button type="button" class="icon-only-btn quote-product-types-remove" data-remove-delivery-sample-mode="${index}" aria-label="Eliminar" title="Eliminar">${getIconHtml('quantity.delete', '&#128465;', '#b94848', 18)}</button></td>
@@ -8902,11 +8903,12 @@
             const items = readDeliveryApprovalRecipientsFromConfig();
             syncDeliveryApprovalRecipientsField(items);
             if (!items.length) {
-                deliveryApprovalRecipientsTableBody.innerHTML = '<tr><td colspan="3" class="quote-product-types-empty">No hay opciones configuradas.</td></tr>';
+                deliveryApprovalRecipientsTableBody.innerHTML = '<tr><td colspan="4" class="quote-product-types-empty">No hay opciones configuradas.</td></tr>';
                 return;
             }
             deliveryApprovalRecipientsTableBody.innerHTML = items.map((item, index) => `
-                <tr>
+                <tr draggable="true" data-item-index="${index}" data-table-key="approvalRecipients">
+                    <td class="config-drag-cell"><span class="config-drag-handle" title="Arrastrar para reordenar">⋮⋮</span></td>
                     <td>${index + 1}</td>
                     <td><input type="text" value="${escapeHtml(item)}" data-delivery-approval-recipient-index="${index}" maxlength="80"${item ? "" : " class=\"field-empty\""}></td>
                     <td><button type="button" class="icon-only-btn quote-product-types-remove" data-remove-delivery-approval-recipient="${index}" aria-label="Eliminar" title="Eliminar">${getIconHtml('quantity.delete', '&#128465;', '#b94848', 18)}</button></td>
@@ -8928,11 +8930,12 @@
             const items = readDeliveryMethodsFromConfig();
             syncDeliveryMethodsField(items);
             if (!items.length) {
-                deliveryMethodsTableBody.innerHTML = '<tr><td colspan="3" class="quote-product-types-empty">No hay opciones configuradas.</td></tr>';
+                deliveryMethodsTableBody.innerHTML = '<tr><td colspan="4" class="quote-product-types-empty">No hay opciones configuradas.</td></tr>';
                 return;
             }
             deliveryMethodsTableBody.innerHTML = items.map((item, index) => `
-                <tr>
+                <tr draggable="true" data-item-index="${index}" data-table-key="deliveryMethods">
+                    <td class="config-drag-cell"><span class="config-drag-handle" title="Arrastrar para reordenar">⋮⋮</span></td>
                     <td>${index + 1}</td>
                     <td><input type="text" value="${escapeHtml(item)}" data-delivery-method-index="${index}" maxlength="80"${item ? "" : " class=\"field-empty\""}></td>
                     <td><button type="button" class="icon-only-btn quote-product-types-remove" data-remove-delivery-method="${index}" aria-label="Eliminar" title="Eliminar">${getIconHtml('quantity.delete', '&#128465;', '#b94848', 18)}</button></td>
@@ -15860,6 +15863,88 @@
         }
         loadConfig();
         document.getElementById('mobileSellerTheme')?.addEventListener('change', updateMobilePreviewLink);
+
+        /* ===== Config table drag-and-drop reordering (cotizaciones pattern) ===== */
+        (function initConfigTableDragDrop() {
+            const TABLE_MAP = {
+                sampleModes: { body: deliverySampleModesTableBody, read: readDeliverySampleModesFromConfig, sync: syncDeliverySampleModesField, render: renderDeliverySampleModesTable },
+                approvalRecipients: { body: deliveryApprovalRecipientsTableBody, read: readDeliveryApprovalRecipientsFromConfig, sync: syncDeliveryApprovalRecipientsField, render: renderDeliveryApprovalRecipientsTable },
+                deliveryMethods: { body: deliveryMethodsTableBody, read: readDeliveryMethodsFromConfig, sync: syncDeliveryMethodsField, render: renderDeliveryMethodsTable }
+            };
+            let dragState = null;
+
+            document.addEventListener('dragstart', (e) => {
+                const handle = e.target.closest('.config-drag-handle');
+                if (!handle) return;
+                const tr = handle.closest('tr[draggable]');
+                if (!tr) return;
+                const tableKey = tr.dataset.tableKey;
+                dragState = { sourceIndex: Number(tr.dataset.itemIndex), tableKey };
+                tr.classList.add('is-dragging');
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', tableKey);
+            });
+
+            document.addEventListener('dragend', () => {
+                document.querySelectorAll('.config-table tbody tr').forEach((el) => {
+                    el.classList.remove('is-dragging', 'drag-over-top', 'drag-over-bottom');
+                });
+                dragState = null;
+            });
+
+            document.addEventListener('dragover', (e) => {
+                if (!dragState) return;
+                const tr = e.target.closest('tr[draggable]');
+                if (!tr || tr.dataset.tableKey !== dragState.tableKey) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                const tbody = tr.closest('tbody');
+                tbody.querySelectorAll('tr').forEach((el) => {
+                    el.classList.remove('drag-over-top', 'drag-over-bottom');
+                });
+                const rect = tr.getBoundingClientRect();
+                const midY = rect.top + rect.height / 2;
+                tr.classList.add(e.clientY < midY ? 'drag-over-top' : 'drag-over-bottom');
+            });
+
+            document.addEventListener('dragleave', (e) => {
+                const tr = e.target.closest('tr[draggable]');
+                if (tr) tr.classList.remove('drag-over-top', 'drag-over-bottom');
+            });
+
+            document.addEventListener('drop', (e) => {
+                if (!dragState) return;
+                const tr = e.target.closest('tr[draggable]');
+                if (!tr || tr.dataset.tableKey !== dragState.tableKey) return;
+                e.preventDefault();
+
+                const targetIndex = Number(tr.dataset.itemIndex);
+                const sourceIndex = dragState.sourceIndex;
+                const tableKey = dragState.tableKey;
+
+                document.querySelectorAll('.config-table tbody tr').forEach((el) => {
+                    el.classList.remove('is-dragging', 'drag-over-top', 'drag-over-bottom');
+                });
+                dragState = null;
+
+                if (sourceIndex === targetIndex) return;
+
+                const config = TABLE_MAP[tableKey];
+                if (!config) return;
+
+                const rect = tr.getBoundingClientRect();
+                const insertBefore = e.clientY < rect.top + rect.height / 2;
+                let destIndex = insertBefore ? targetIndex : targetIndex + 1;
+                if (sourceIndex < destIndex) destIndex -= 1;
+
+                const items = config.read();
+                const [moved] = items.splice(sourceIndex, 1);
+                items.splice(destIndex, 0, moved);
+                config.sync(items);
+                config.render();
+                queueConfigSave();
+            });
+        })();
 </script>
 <script src="/topbar-tools.js"></script>
 </body>
