@@ -1376,7 +1376,7 @@ function positionHeaderTabPopover(id) {
     if (left > maxLeft) left = maxLeft;
     if (left < margin) left = margin;
     panel.style.position = 'fixed';
-    panel.style.top = `${rect.bottom}px`;
+    panel.style.top = `${rect.top}px`;
     panel.style.left = `${left}px`;
     panel.style.right = 'auto';
     panel.style.bottom = 'auto';
