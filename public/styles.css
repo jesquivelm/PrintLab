@@ -15915,6 +15915,12 @@ html[data-theme="dark"] .production-tracking-icons-row .production-inline-icon:f
     background: transparent !important;
 }
 
+html[data-theme="dark"] .production-summary-empty {
+    background: var(--order-panel-soft, #1d2a3d) !important;
+    border-color: var(--order-panel-border, #26364d) !important;
+    color: #8fa8bd !important;
+}
+
 html[data-theme="dark"] .production-order-card .production-chip {
     background: #16415b !important;
     color: #b7e3f8 !important;
