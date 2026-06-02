@@ -13301,7 +13301,7 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/adjuntos', async (req, res) =>
             insert = await pgQuery(
                 `INSERT INTO quote_line_attachments (
                     id, quote_code, line_code, file_name, mime_type, file_ext, content_base64, storage_path, size_bytes, content_sha256, notes, uploaded_by
-                 ) VALUES ($1,$2,$3,$4,$5,$6,NULL,$7,$8,$9,$10,$11)
+                 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
                  RETURNING id, quote_code, line_code, file_name, mime_type, file_ext, notes, uploaded_by, created_at,
                            COALESCE(size_bytes, 0) AS size_bytes`,
                 [
@@ -13311,6 +13311,7 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/adjuntos', async (req, res) =>
                     fileName,
                     pickFirstValue(payload.mimeType, 'application/octet-stream'),
                     pickFirstValue(payload.fileExt, path.extname(fileName).replace('.', '')),
+                    contentBase64,
                     stored.storagePath,
                     stored.sizeBytes,
                     stored.contentSha256,
