@@ -1042,7 +1042,7 @@ function extractAttachments(raw = {}) {
     if (direct.length) return direct;
     const lineRaw = raw.line_snapshot?.raw_data || {};
     return Object.entries(lineRaw)
-        .filter(([key, value]) => typeof value === 'string' && /(adjunt|arte|pdf|imagen|archivo|url|link)/i.test(key) && value.trim())
+        .filter(([key, value]) => typeof value === 'string' && /(adjunt|arte|pdf|imagen|archivo|url|link)/i.test(key) && !/en poder/i.test(key) && value.trim())
         .map(([key, value]) => ({ label: key, value }));
 }
 

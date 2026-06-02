@@ -8354,9 +8354,10 @@ function extractLineAttachments(row) {
         const text = value.trim();
         if (!text) return;
         const keyNorm = key.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-        const looksLikeAttachment = /(adjunt|arte|manual|archivo|pdf|imagen|img|link|url|document)/.test(keyNorm)
+        const looksLikeAttachment = (/(adjunt|arte|manual|archivo|pdf|imagen|img|link|url|document)/.test(keyNorm)
             || /(\.pdf|\.ai|\.psd|\.cdr|\.png|\.jpg|\.jpeg|\.svg|\.zip|\.doc|\.docx|\.xls|\.xlsx)$/i.test(text)
-            || /^https?:\/\//i.test(text);
+            || /^https?:\/\//i.test(text))
+            && !/en poder/.test(keyNorm);
         if (!looksLikeAttachment) return;
         attachments.push({
             key,

@@ -4147,6 +4147,12 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
 .browser-open-link.browser-open-link-danger:focus-visible {
     box-shadow: 0 0 0 3px rgba(167, 67, 67, 0.14);
 }
+.quote-browser-card-orders .browser-open-link,
+.quote-browser-card-orders .browser-open-link:hover,
+.quote-browser-card-orders .browser-open-link:focus,
+.quote-browser-card-orders .browser-open-link:focus-visible {
+    background: transparent !important;
+}
 .socios-workspace {
     max-width: 1280px;
     margin: 0 auto;
@@ -13817,6 +13823,16 @@ html[data-theme="dark"] .quote-browser-actions .browser-open-link,
 html[data-theme="dark"] .quote-line-icon-btn {
     background: transparent !important;
     color: var(--icon-color, var(--app-text-muted, #9fb0c4)) !important;
+}
+
+html[data-theme="dark"] .quote-browser-card-orders .browser-open-link {
+    background: transparent !important;
+    color: var(--icon-color, var(--app-text-muted, #9fb0c4)) !important;
+}
+html[data-theme="dark"] .quote-browser-card-orders .browser-open-link:hover,
+html[data-theme="dark"] .quote-browser-card-orders .browser-open-link:focus-visible {
+    background: transparent !important;
+    color: var(--icon-hover-color, var(--app-primary, #0b81b8)) !important;
 }
 
 html[data-theme="dark"] .quote-line-menu-panel {
