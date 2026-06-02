@@ -1371,7 +1371,7 @@ function positionHeaderTabPopover(id) {
     const rect = button.getBoundingClientRect();
     const margin = 12;
     const panelWidth = panel.offsetWidth || 320;
-    let left = rect.left;
+    let left = rect.right - panelWidth;
     const maxLeft = window.innerWidth - panelWidth - margin;
     if (left > maxLeft) left = maxLeft;
     if (left < margin) left = margin;
