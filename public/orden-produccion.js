@@ -118,10 +118,19 @@ function isVisibleOrderProcess(value) {
     return ORDER_VISIBLE_PROCESSES.some((item) => name.includes(item));
 }
 
+function parseJsonString(value) {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') {
+        try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : []; } catch { return []; }
+    }
+    return [];
+}
+
 function populateDeliverySelects(config) {
-    const sampleModes = Array.isArray(config?.deliverySampleModesJson) ? config.deliverySampleModesJson : [];
-    const approvalRecipients = Array.isArray(config?.deliveryApprovalRecipientsJson) ? config.deliveryApprovalRecipientsJson : [];
-    const deliveryMethods = Array.isArray(config?.deliveryMethodsJson) ? config.deliveryMethodsJson : [];
+    const general = config?.general || config || {};
+    const sampleModes = parseJsonString(general.deliverySampleModesJson);
+    const approvalRecipients = parseJsonString(general.deliveryApprovalRecipientsJson);
+    const deliveryMethods = parseJsonString(general.deliveryMethodsJson);
 
     const samplesModeInput = document.getElementById('orderSamplesModeInput');
     const samplesApprovalInput = document.getElementById('orderSamplesApprovalInput');
