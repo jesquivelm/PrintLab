@@ -1205,6 +1205,8 @@ async function uploadArtworkFile(file) {
 }
 
 function renderAttachmentsPopover(attachments = []) {
+    const deleteConf = getOrderIcon(['quoteRequestAttachmentDelete', 'eliminar adjunto solicitud'], 'quoteRequestAttachmentDelete', '×', '#b94848', 18);
+    const downloadConf = getOrderIcon(['attachmentDownload'], 'attachmentDownload', '⇩', '#0b81b8', 18);
     attachmentsPopoverBody.innerHTML = attachments.length
         ? attachments.map((item, index) => {
             const label = item.label || item.file_name || item.key || 'Adjunto';
@@ -1213,16 +1215,13 @@ function renderAttachmentsPopover(attachments = []) {
             const mimeType = String(item.mime_type || '').toLowerCase();
             const isImage = mimeType.startsWith('image/') || /^data:image\//i.test(String(value));
             const isAudio = mimeType.startsWith('audio/');
-            const preview = isImage
-                ? `<div class="attachment-card-preview"><img src="${escapeHtml(value || `/api/adjuntos/${encodeURIComponent(item.id)}/download`)}" alt="${escapeHtml(label)}" class="attachment-card-thumb"></div>`
-                : isAudio
-                    ? `<div class="attachment-card-preview attachment-card-preview-audio"><audio controls src="${escapeHtml(value || `/api/adjuntos/${encodeURIComponent(item.id)}/download`)}" class="attachment-card-audio"></audio></div>`
+            const imageSrc = isImage ? (value.startsWith('data:') ? value : (item.id ? `/api/adjuntos/${encodeURIComponent(item.id)}/download` : '')) : '';
+            const audioSrc = isAudio ? (value.startsWith('data:') ? value : (item.id ? `/api/adjuntos/${encodeURIComponent(item.id)}/download` : '')) : '';
+            const preview = isImage && imageSrc
+                ? `<div class="attachment-card-preview"><img src="${escapeHtml(imageSrc)}" alt="${escapeHtml(label)}" class="attachment-card-thumb"></div>`
+                : isAudio && audioSrc
+                    ? `<div class="attachment-card-preview attachment-card-preview-audio"><audio controls src="${escapeHtml(audioSrc)}" class="attachment-card-audio"></audio></div>`
                     : '';
-            const actions = [];
-            if (item.id) {
-                actions.push(`<a class="attachment-action-btn" href="/api/adjuntos/${encodeURIComponent(item.id)}/download" target="_blank" rel="noopener noreferrer" aria-label="Descargar adjunto" title="Descargar"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg></a>`);
-            }
-            actions.push(`<button type="button" class="attachment-action-btn attachment-action-delete" data-delete-attachment="${index}" aria-label="Eliminar adjunto" title="Eliminar"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/><path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H5.5l1-1h3l1 1h2.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/></svg></button>`);
             return `
                 <article class="attachment-card" data-attachment-index="${index}">
                     ${preview}
@@ -1231,11 +1230,20 @@ function renderAttachmentsPopover(attachments = []) {
                         ${!isImage && !isAudio ? `<div class="attachment-card-meta">${escapeHtml(String(value))}</div>` : ''}
                         ${notes}
                     </div>
-                    <div class="attachment-card-actions">${actions.join('')}</div>
+                    <div class="attachment-card-actions">
+                        ${item.id ? `<a class="attachment-action-btn" href="/api/adjuntos/${encodeURIComponent(item.id)}/download" target="_blank" rel="noopener noreferrer" aria-label="Descargar adjunto" title="Descargar" data-icon-role="download"></a>` : ''}
+                        <button type="button" class="attachment-action-btn attachment-action-delete" data-delete-attachment="${index}" aria-label="Eliminar adjunto" title="Eliminar" data-icon-role="delete"></button>
+                    </div>
                 </article>
             `;
         }).join('')
         : '<div class="attachments-empty">Esta orden no tiene adjuntos relacionados todavía.</div>';
+    attachmentsPopoverBody.querySelectorAll('[data-icon-role="download"]').forEach((el) => {
+        renderIcon(el, downloadConf.value, downloadConf.color, downloadConf.size);
+    });
+    attachmentsPopoverBody.querySelectorAll('[data-icon-role="delete"]').forEach((el) => {
+        renderIcon(el, deleteConf.value, deleteConf.color, deleteConf.size);
+    });
     attachmentsPopoverBody.querySelectorAll('[data-delete-attachment]').forEach((btn) => {
         btn.addEventListener('click', () => {
             const idx = Number(btn.dataset.deleteAttachment);
@@ -1378,8 +1386,36 @@ function renderIconButton(button, iconValue) {
     }
 }
 
+function renderIcon(target, iconValue, color, size) {
+    if (!target) return;
+    const host = target.closest('.attachment-action-btn, .quote-request-icon-action, .quote-request-attachment-remove');
+    const value = String(iconValue || '').trim();
+    if (host) {
+        host.style.setProperty('--icon-color', color || '');
+        host.style.setProperty('--icon-hover-color', color || '');
+    }
+    target.style.color = host ? 'currentColor' : (color || '');
+    const isSvg = /^data:image\/svg\+xml/i.test(value) || /\.svg(\?|#|$)/i.test(value);
+    const isImage = /^data:image\//i.test(value) || /\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(value);
+    if (isSvg) {
+        target.innerHTML = `<span class="icon-svg-mask table-icon-media" style="width:${size || 18}px;height:${size || 18}px;-webkit-mask-image:url('${escapeHtml(value)}');mask-image:url('${escapeHtml(value)}');"></span>`;
+    } else if (isImage) {
+        target.innerHTML = `<span class="icon-image-wrap table-icon-media" role="img" aria-label=""><span class="icon-image-fallback" aria-hidden="true">□</span><img src="${escapeHtml(value)}" alt="" class="icon-image" onload="this.parentElement.classList.add('is-loaded')" onerror="this.remove()"></span>`;
+    } else {
+        target.innerHTML = `<span class="icon-glyph" style="font-size:${size || 18}px;">${escapeHtml(value)}</span>`;
+    }
+}
+
 function setToggleIcon(button, expanded) {
     renderIconButton(button, expanded ? (currentConfig.icons?.orderToggleOpen || DEFAULT_ICONS.toggleOpen) : (currentConfig.icons?.orderToggleClosed || DEFAULT_ICONS.toggleClosed));
+}
+
+function getOrderIcon(keys, canonicalKey, fallbackValue, fallbackColor, fallbackSize) {
+    const icons = currentConfig.icons || {};
+    for (const key of keys) {
+        if (icons[key]) return iconConfigFor(key, icons[key], fallbackColor, fallbackSize);
+    }
+    return iconConfigFor(canonicalKey, fallbackValue, fallbackColor, fallbackSize);
 }
 
 function applyHeaderConfig(config) {
@@ -1418,6 +1454,10 @@ function applyHeaderConfig(config) {
     setToggleIcon(samplesToggleButton, false);
     setToggleIcon(deliveryToggleButton, false);
     setToggleIcon(artToggleButton, false);
+    const attachmentConf = getOrderIcon(['quoteRequestAttachment', 'lineAttachments'], 'quoteRequestAttachment', '📎', '#1e516d', 18);
+    renderIcon(document.querySelector('[data-order-inline-icon="attachment"]'), attachmentConf.value, attachmentConf.color, attachmentConf.size);
+    const recordConf = getOrderIcon(['quoteRequestRecord'], 'quoteRequestRecord', '●', '#1e516d', 18);
+    renderIcon(document.querySelector('[data-order-inline-icon="record"]'), recordConf.value, recordConf.color, recordConf.size);
 }
 
 function buildSummaryLines(entries = [], emptyLabel = 'Sin definir') {
