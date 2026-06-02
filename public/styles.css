@@ -15895,6 +15895,10 @@ html[data-theme="dark"] .production-tracking-card .production-schedule-pill.is-a
     overflow: auto;
 }
 
+.production-header-tab-popover .calc-popover-body {
+    background: var(--order-panel-bg) !important;
+}
+
 .production-flow-tab-popover .production-flow-popover-panel {
     width: min(760px, calc(100vw - 32px));
     max-height: min(680px, calc(100vh - 24px));
