@@ -15852,6 +15852,7 @@ html[data-theme="dark"] .production-tracking-card .production-schedule-pill.is-a
 
 .production-tracking-icons-row {
     position: relative;
+    background: var(--order-panel-bg);
 }
 .production-tracking-icons-row .production-inline-icon {
     width: 38px;
