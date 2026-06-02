@@ -15908,8 +15908,8 @@ html[data-theme="dark"] .production-tracking-card .production-schedule-pill.is-a
 }
 
 html[data-theme="dark"] .production-order-card .production-client-section {
-    background: transparent !important;
-    border-color: transparent !important;
+    background: var(--order-panel-bg) !important;
+    border-color: var(--order-panel-border) !important;
 }
 
 html[data-theme="dark"] .production-order-card .production-client-details,
