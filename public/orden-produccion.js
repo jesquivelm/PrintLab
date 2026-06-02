@@ -83,6 +83,9 @@ let currentSapConsumptionMaterials = [];
 let trackingUserPhotos = new Map();
 let artworkSectionBaseHeight = 0;
 let artworkSectionMaxHeight = 0;
+let isRecording = false;
+let mediaRecorder = null;
+let recordingChunks = [];
 const SESSION_STORAGE_KEY = 'erp-user-session';
 
 const DEFAULT_ICONS = {
@@ -1203,25 +1206,43 @@ async function uploadArtworkFile(file) {
 
 function renderAttachmentsPopover(attachments = []) {
     attachmentsPopoverBody.innerHTML = attachments.length
-        ? attachments.map((item) => {
+        ? attachments.map((item, index) => {
             const label = item.label || item.file_name || item.key || 'Adjunto';
             const value = item.value || item.file_name || '';
             const notes = item.notes ? `<div class="attachment-card-meta">${escapeHtml(String(item.notes))}</div>` : '';
-            const download = item.id
-                ? `<a class="browser-open-link production-inline-icon production-inline-icon-small" href="/api/adjuntos/${encodeURIComponent(item.id)}/download" target="_blank" rel="noopener noreferrer" aria-label="Descargar adjunto"></a>`
-                : '';
+            const mimeType = String(item.mime_type || '').toLowerCase();
+            const isImage = mimeType.startsWith('image/') || /^data:image\//i.test(String(value));
+            const isAudio = mimeType.startsWith('audio/');
+            const preview = isImage
+                ? `<div class="attachment-card-preview"><img src="${escapeHtml(value || `/api/adjuntos/${encodeURIComponent(item.id)}/download`)}" alt="${escapeHtml(label)}" class="attachment-card-thumb"></div>`
+                : isAudio
+                    ? `<div class="attachment-card-preview attachment-card-preview-audio"><audio controls src="${escapeHtml(value || `/api/adjuntos/${encodeURIComponent(item.id)}/download`)}" class="attachment-card-audio"></audio></div>`
+                    : '';
+            const actions = [];
+            if (item.id) {
+                actions.push(`<a class="attachment-action-btn" href="/api/adjuntos/${encodeURIComponent(item.id)}/download" target="_blank" rel="noopener noreferrer" aria-label="Descargar adjunto" title="Descargar"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg></a>`);
+            }
+            actions.push(`<button type="button" class="attachment-action-btn attachment-action-delete" data-delete-attachment="${index}" aria-label="Eliminar adjunto" title="Eliminar"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/><path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H5.5l1-1h3l1 1h2.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/></svg></button>`);
             return `
-                <article class="attachment-card">
+                <article class="attachment-card" data-attachment-index="${index}">
+                    ${preview}
                     <div class="attachment-card-main">
                         <strong>${escapeHtml(label)}</strong>
-                        <div class="attachment-card-meta">${escapeHtml(String(value))}</div>
+                        ${!isImage && !isAudio ? `<div class="attachment-card-meta">${escapeHtml(String(value))}</div>` : ''}
                         ${notes}
                     </div>
-                    ${download}
+                    <div class="attachment-card-actions">${actions.join('')}</div>
                 </article>
             `;
         }).join('')
         : '<div class="attachments-empty">Esta orden no tiene adjuntos relacionados todavía.</div>';
+    attachmentsPopoverBody.querySelectorAll('[data-delete-attachment]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const idx = Number(btn.dataset.deleteAttachment);
+            if (!Number.isInteger(idx)) return;
+            deleteAttachment(idx);
+        });
+    });
 }
 
 function isHeaderTabPopover(popover) {
@@ -1503,6 +1524,135 @@ async function deleteArtwork() {
     if (!response.ok) throw new Error(payload.error || 'No se pudo eliminar el arte.');
     await refreshOrderAttachments();
     renderArtwork(currentOrderAttachments);
+}
+
+async function deleteAttachment(index) {
+    const item = currentOrderAttachments[index];
+    if (!item) return;
+    if (!item.id) {
+        currentOrderAttachments = currentOrderAttachments.filter((_, i) => i !== index);
+        renderAttachmentsPopover(currentOrderAttachments);
+        renderArtwork(currentOrderAttachments);
+        return;
+    }
+    const response = await fetch(`/api/adjuntos/${encodeURIComponent(item.id)}`, {
+        method: 'DELETE',
+        headers: sessionHeader()
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || 'No se pudo eliminar el adjunto.');
+    await refreshOrderAttachments();
+    renderAttachmentsPopover(currentOrderAttachments);
+    renderArtwork(currentOrderAttachments);
+}
+
+async function toggleOrderAudioRecording() {
+    const audioRecordButton = document.getElementById('orderAudioRecordButton');
+    const audioRecordIndicator = document.getElementById('orderAudioRecordIndicator');
+    if (isRecording && mediaRecorder) {
+        mediaRecorder.stop();
+        return;
+    }
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        recordingChunks = [];
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size) recordingChunks.push(event.data);
+        };
+        mediaRecorder.onstop = async () => {
+            const blob = new Blob(recordingChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+            const fileName = `audio-${new Date().toISOString().replace(/[:.]/g, '-')}.webm`;
+            const dataUrl = await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(String(reader.result || ''));
+                reader.readAsDataURL(blob);
+            });
+            const { quoteCode, lineCode } = getSourceQuoteContext();
+            if (quoteCode && lineCode) {
+                try {
+                    statusBox.hidden = false;
+                    statusBox.textContent = 'Guardando audio...';
+                    const response = await fetch(`/api/cotizaciones/${encodeURIComponent(quoteCode)}/lineas/${encodeURIComponent(lineCode)}/adjuntos`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            fileName,
+                            contentBase64: String(dataUrl).split(',').pop() || '',
+                            mimeType: blob.type || 'audio/webm',
+                            fileExt: 'webm',
+                            notes: 'audio_orden',
+                            uploadedBy: 'admin'
+                        })
+                    });
+                    const payload = await response.json();
+                    if (!response.ok) throw new Error(payload.error || 'No se pudo guardar el audio.');
+                    await refreshOrderAttachments();
+                    renderAttachmentsPopover(currentOrderAttachments);
+                    renderArtwork(currentOrderAttachments);
+                } catch (error) {
+                    console.error('Error guardando audio:', error);
+                }
+            }
+            stream.getTracks().forEach((track) => track.stop());
+            isRecording = false;
+            if (audioRecordButton) audioRecordButton.dataset.recording = 'false';
+            if (audioRecordIndicator) audioRecordIndicator.hidden = true;
+            statusBox.hidden = true;
+        };
+        mediaRecorder.start();
+        isRecording = true;
+        if (audioRecordButton) audioRecordButton.dataset.recording = 'true';
+        if (audioRecordIndicator) audioRecordIndicator.hidden = false;
+    } catch (error) {
+        console.error('Error accediendo al microfono:', error);
+        statusBox.hidden = false;
+        statusBox.textContent = 'No se pudo acceder al micrófono.';
+    }
+}
+
+async function handleOrderAttachmentUpload(event) {
+    const files = event.target?.files;
+    if (!files || !files.length) return;
+    const { quoteCode, lineCode } = getSourceQuoteContext();
+    if (!quoteCode || !lineCode) {
+        statusBox.hidden = false;
+        statusBox.textContent = 'La orden no tiene cotización/línea origen.';
+        return;
+    }
+    statusBox.hidden = false;
+    for (const file of Array.from(files)) {
+        statusBox.textContent = `Cargando ${file.name}...`;
+        try {
+            const contentBase64 = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(String(reader.result || '').split(',').pop() || '');
+                reader.onerror = () => reject(new Error('No se pudo leer el archivo.'));
+                reader.readAsDataURL(file);
+            });
+            const response = await fetch(`/api/cotizaciones/${encodeURIComponent(quoteCode)}/lineas/${encodeURIComponent(lineCode)}/adjuntos`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    fileName: file.name,
+                    contentBase64,
+                    mimeType: file.type || 'application/octet-stream',
+                    fileExt: (file.name.split('.').pop() || '').toLowerCase(),
+                    notes: 'adjunto_orden',
+                    uploadedBy: 'admin'
+                })
+            });
+            const payload = await response.json();
+            if (!response.ok) throw new Error(payload.error || 'No se pudo subir el adjunto.');
+        } catch (error) {
+            console.error('Error subiendo adjunto:', error);
+        }
+    }
+    await refreshOrderAttachments();
+    renderAttachmentsPopover(currentOrderAttachments);
+    renderArtwork(currentOrderAttachments);
+    event.target.value = '';
+    statusBox.hidden = true;
 }
 
 function readDeliveryRows(raw = {}, defaultQuantity = '', defaultDate = '') {
@@ -2102,6 +2252,8 @@ pantonesButton?.addEventListener('click', () => openPopover('orderPantonesPopove
     }
 numberingButton?.addEventListener('click', () => openPopover('orderNumberingPopover'));
 attachmentsButton?.addEventListener('click', () => openPopover('orderAttachmentsPopover'));
+document.getElementById('orderAudioRecordButton')?.addEventListener('click', toggleOrderAudioRecording);
+document.getElementById('orderAttachmentFileInput')?.addEventListener('change', handleOrderAttachmentUpload);
 orderFlowBody?.addEventListener('click', (event) => {
     const button = event.target?.closest?.('[data-tracking-toggle-index]');
     if (!button) return;
