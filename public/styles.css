@@ -15890,6 +15890,31 @@ html[data-theme="dark"] .production-tracking-icons-row .production-inline-icon.i
     border-color: var(--order-panel-border) !important;
 }
 
+html[data-theme="dark"] .production-client-info-line {
+    color: #c9d8eb !important;
+}
+
+html[data-theme="dark"] .production-client-info-icon {
+    color: #8fa8bd !important;
+}
+
+html[data-theme="dark"] .production-client-seller-name {
+    color: #e5edf7 !important;
+}
+
+html[data-theme="dark"] .production-quantity-highlight {
+    color: #c9d8eb !important;
+}
+
+html[data-theme="dark"] .production-art-delete {
+    background: transparent !important;
+}
+
+html[data-theme="dark"] .production-tracking-icons-row .production-inline-icon:hover,
+html[data-theme="dark"] .production-tracking-icons-row .production-inline-icon:focus-visible {
+    background: transparent !important;
+}
+
 html[data-theme="dark"] .production-order-card .production-chip {
     background: #16415b !important;
     color: #b7e3f8 !important;

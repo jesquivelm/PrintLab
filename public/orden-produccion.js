@@ -2357,7 +2357,18 @@ window.addEventListener('resize', updateArtworkSectionConstraint);
 
 document.addEventListener('click', (event) => {
     const closeTarget = event.target.closest('[data-close-popover]');
-    if (closeTarget) closePopover(closeTarget.dataset.closePopover);
+    if (closeTarget) {
+        closePopover(closeTarget.dataset.closePopover);
+        return;
+    }
+    document.querySelectorAll('.production-header-tab-popover').forEach((popover) => {
+        if (popover.hidden) return;
+        const panel = popover.querySelector('.calc-popover-panel');
+        const button = headerTabButtonFor(popover.id);
+        if (panel && panel.contains(event.target)) return;
+        if (button && button.contains(event.target)) return;
+        closePopover(popover.id);
+    });
 });
 
 document.addEventListener('keydown', (event) => {
