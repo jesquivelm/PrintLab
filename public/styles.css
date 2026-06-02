@@ -15284,6 +15284,10 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
     margin-top: 0;
 }
 
+.production-order-card .production-tracking-section {
+    overflow: visible;
+}
+
 .production-tracking-section {
     display: block;
 }
