@@ -15872,11 +15872,15 @@
                 deliveryMethods: { body: deliveryMethodsTableBody, read: readDeliveryMethodsFromConfig, sync: syncDeliveryMethodsField, render: renderDeliveryMethodsTable }
             };
             let dragState = null;
+            let handleMousedown = false;
+
+            document.addEventListener('mousedown', (e) => {
+                handleMousedown = !!e.target.closest('.config-drag-handle');
+            });
 
             document.addEventListener('dragstart', (e) => {
-                const handle = e.target.closest('.config-drag-handle');
-                if (!handle) return;
-                const tr = handle.closest('tr[draggable]');
+                if (!handleMousedown) { e.preventDefault(); return; }
+                const tr = e.target.closest('tr[draggable]');
                 if (!tr) return;
                 const tableKey = tr.dataset.tableKey;
                 dragState = { sourceIndex: Number(tr.dataset.itemIndex), tableKey };
