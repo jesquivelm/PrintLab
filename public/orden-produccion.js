@@ -1096,8 +1096,8 @@ function getSourceQuoteContext(order = currentLoadedOrder) {
 function isArtworkAttachment(item = {}) {
     const note = String(item.notes || '').toLowerCase();
     const label = String(item.label || item.key || item.file_name || '').toLowerCase();
-    const mimeType = String(item.mime_type || '').toLowerCase();
-    return note.includes('arte') || label.includes('arte') || mimeType.startsWith('image/');
+    if (note.includes('adjunto_orden')) return false;
+    return note.includes('arte') || label.includes('arte');
 }
 
 async function refreshOrderAttachments() {
