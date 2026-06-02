@@ -4461,7 +4461,7 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
 .production-order-card {
     max-width: 1040px;
     margin: 0 auto;
-    overflow: hidden;
+    overflow: visible;
 }
 .production-order-status {
     position: static;
@@ -9327,7 +9327,6 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
     max-width: 100%;
     box-sizing: border-box;
 }
-.production-order-card,
 .production-order-layout,
 .production-order-layout-refined,
 .production-order-column,
