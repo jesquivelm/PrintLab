@@ -13739,6 +13739,8 @@ app.patch('/api/ordenes-produccion/:codigo/details', async (req, res) => {
         if (payload.delivery && typeof payload.delivery === 'object') {
             lineRaw['ENTREGA | TIPO'] = pickFirstValue(payload.delivery.mode);
             lineRaw['ENTREGA | CONTACTO'] = pickFirstValue(payload.delivery.contact);
+            lineRaw['ENTREGA | TELEFONO'] = pickFirstValue(payload.delivery.phone);
+            lineRaw['ENTREGA | EMAIL'] = pickFirstValue(payload.delivery.email);
             lineRaw['ENTREGA | DETALLE'] = pickFirstValue(payload.delivery.detail);
             if (Object.prototype.hasOwnProperty.call(payload.delivery, 'schedule')) {
                 lineRaw['ENTREGA | PROGRAMACION'] = Array.isArray(payload.delivery.schedule)

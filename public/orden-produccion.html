@@ -362,31 +362,18 @@
                             <button type="button" id="orderSamplesToggleButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-section-corner-toggle" aria-label="Expandir muestras y visto bueno"></button>
                             <div id="orderSamplesSummary" class="production-summary-stack"></div>
                             <form id="orderSamplesForm" class="production-inline-form" hidden>
+                                <div class="production-form-divider">
+                                    <span class="production-form-divider-label">Envío de Muestras</span>
+                                </div>
                                 <div class="production-summary-grid production-summary-grid-two">
                                     <div class="field">
-                                        <label for="orderSamplesModeInput">Envío de Muestras</label>
+                                        <label for="orderSamplesModeInput">Tipo de Envío</label>
                                         <select id="orderSamplesModeInput">
                                             <option value=""></option>
-                                            <option value="Vendedor y Cliente">Vendedor y Cliente</option>
-                                            <option value="Vendedor">Vendedor</option>
-                                            <option value="Cliente">Cliente</option>
-                                            <option value="Agencia">Agencia</option>
-                                            <option value="Agencia y Cliente">Agencia y Cliente</option>
-                                            <option value="No necesita">No necesita</option>
                                         </select>
                                     </div>
                                     <div class="field">
-                                        <label for="orderSamplesApprovalInput">Destinatario de Visto Bueno</label>
-                                        <select id="orderSamplesApprovalInput">
-                                            <option value=""></option>
-                                            <option value="Cliente">Cliente</option>
-                                            <option value="Vendedor">Vendedor</option>
-                                            <option value="Email">Email</option>
-                                            <option value="No necesita">No necesita</option>
-                                        </select>
-                                    </div>
-                                    <div class="field">
-                                        <label for="orderSamplesContactInput">Contacto de Visto Bueno</label>
+                                        <label for="orderSamplesContactInput">Contacto</label>
                                         <input id="orderSamplesContactInput" type="text" list="orderCustomerContactOptions" placeholder="Nombre del contacto">
                                     </div>
                                     <div class="field">
@@ -397,14 +384,27 @@
                                         <label for="orderSamplesEmailInput">Correo</label>
                                         <input id="orderSamplesEmailInput" type="text" placeholder="Correo del contacto">
                                     </div>
-                                    <div class="field">
-                                        <label for="orderSamplesAddressInput">Dirección</label>
-                                        <input id="orderSamplesAddressInput" type="text" placeholder="Dirección del visto bueno">
-                                    </div>
                                     <div class="field field-full">
-                                        <label for="orderSamplesDetailInput">Detalle</label>
-                                        <textarea id="orderSamplesDetailInput" rows="3" placeholder="Instrucciones o detalle de muestras"></textarea>
+                                        <label for="orderSamplesAddressInput">Dirección</label>
+                                        <input id="orderSamplesAddressInput" type="text" placeholder="Dirección del contacto">
                                     </div>
+                                </div>
+                                <div class="production-form-divider">
+                                    <span class="production-form-divider-label">Destinatario de Visto Bueno</span>
+                                </div>
+                                <div class="production-summary-grid production-summary-grid-two">
+                                    <div class="field">
+                                        <label for="orderSamplesApprovalInput">Destinatario</label>
+                                        <select id="orderSamplesApprovalInput">
+                                            <option value=""></option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="production-form-divider">
+                                    <span class="production-form-divider-label">Detalle</span>
+                                </div>
+                                <div class="field">
+                                    <textarea id="orderSamplesDetailInput" rows="3" placeholder="Instrucciones o detalle de muestras"></textarea>
                                 </div>
                             </form>
                         </section>
@@ -414,10 +414,15 @@
                             <button type="button" id="orderDeliveryToggleButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-section-corner-toggle" aria-label="Expandir entrega"></button>
                             <div id="orderDeliverySummary" class="production-summary-stack"></div>
                             <form id="orderDeliveryForm" class="production-inline-form" hidden>
+                                <div class="production-form-divider">
+                                    <span class="production-form-divider-label">Forma de Entrega</span>
+                                </div>
                                 <div class="production-summary-grid production-summary-grid-two">
                                     <div class="field">
                                         <label for="orderDeliveryModeInput">Tipo de Entrega</label>
-                                        <select id="orderDeliveryModeInput"></select>
+                                        <select id="orderDeliveryModeInput">
+                                            <option value=""></option>
+                                        </select>
                                     </div>
                                     <div class="field">
                                         <label for="orderDeliveryContactInput">Contacto de Entrega</label>
@@ -431,10 +436,12 @@
                                         <label for="orderDeliveryEmailInput">Correo</label>
                                         <input id="orderDeliveryEmailInput" type="text" placeholder="Correo de entrega">
                                     </div>
-                                    <div class="field field-full">
-                                        <label for="orderDeliveryDetailInput">Detalle de Entrega</label>
-                                        <textarea id="orderDeliveryDetailInput" rows="3" placeholder="Detalle de entrega"></textarea>
-                                    </div>
+                                </div>
+                                <div class="production-form-divider">
+                                    <span class="production-form-divider-label">Detalle de Entrega</span>
+                                </div>
+                                <div class="field">
+                                    <textarea id="orderDeliveryDetailInput" rows="3" placeholder="Detalle de entrega"></textarea>
                                 </div>
                             </form>
                         </section>

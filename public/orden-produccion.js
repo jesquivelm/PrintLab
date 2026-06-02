@@ -60,6 +60,8 @@ const deliveryForm = document.getElementById('orderDeliveryForm');
 const deliveryToggleButton = document.getElementById('orderDeliveryToggleButton');
 const deliveryModeInput = document.getElementById('orderDeliveryModeInput');
 const deliveryContactInput = document.getElementById('orderDeliveryContactInput');
+const deliveryPhoneInput = document.getElementById('orderDeliveryPhoneInput');
+const deliveryEmailInput = document.getElementById('orderDeliveryEmailInput');
 const deliveryDetailInput = document.getElementById('orderDeliveryDetailInput');
 
 const artSummary = document.getElementById('orderArtSummary');
@@ -114,6 +116,32 @@ function isVisibleOrderProcess(value) {
     const name = normalizeProcessName(value);
     if (!name || /plancha|acabado/.test(name)) return false;
     return ORDER_VISIBLE_PROCESSES.some((item) => name.includes(item));
+}
+
+function populateDeliverySelects(config) {
+    const sampleModes = Array.isArray(config?.deliverySampleModesJson) ? config.deliverySampleModesJson : [];
+    const approvalRecipients = Array.isArray(config?.deliveryApprovalRecipientsJson) ? config.deliveryApprovalRecipientsJson : [];
+    const deliveryMethods = Array.isArray(config?.deliveryMethodsJson) ? config.deliveryMethodsJson : [];
+
+    const samplesModeInput = document.getElementById('orderSamplesModeInput');
+    const samplesApprovalInput = document.getElementById('orderSamplesApprovalInput');
+    const deliveryModeInput = document.getElementById('orderDeliveryModeInput');
+
+    if (samplesModeInput) {
+        const currentVal = samplesModeInput.value;
+        samplesModeInput.innerHTML = '<option value=""></option>' + sampleModes.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('');
+        if (currentVal) samplesModeInput.value = currentVal;
+    }
+    if (samplesApprovalInput) {
+        const currentVal = samplesApprovalInput.value;
+        samplesApprovalInput.innerHTML = '<option value=""></option>' + approvalRecipients.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('');
+        if (currentVal) samplesApprovalInput.value = currentVal;
+    }
+    if (deliveryModeInput) {
+        const currentVal = deliveryModeInput.value;
+        deliveryModeInput.innerHTML = '<option value=""></option>' + deliveryMethods.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('');
+        if (currentVal) deliveryModeInput.value = currentVal;
+    }
 }
 
 function formatRouteStatus(value) {
@@ -1796,7 +1824,9 @@ function populateEditableForms(raw = {}) {
     samplesDetailInput.value = pickFirst(lineRaw['MUESTRAS | DETALLE']);
     deliveryModeInput.value = pickFirst(lineRaw['ENTREGA | TIPO']);
     deliveryContactInput.value = pickFirst(lineRaw['ENTREGA | CONTACTO']);
-    deliveryDetailInput.value = pickFirst(lineRaw['ENTREGA | DETALLE'], [lineRaw['ENTREGA | EMAIL'], lineRaw['ENTREGA | TELEFONO'], lineRaw['ENTREGA | DIRECCION'], lineRaw['ENTREGA | COMENTARIOS']].filter(Boolean).join(' / '));
+    deliveryPhoneInput.value = pickFirst(lineRaw['ENTREGA | TELEFONO']);
+    deliveryEmailInput.value = pickFirst(lineRaw['ENTREGA | EMAIL']);
+    deliveryDetailInput.value = pickFirst(lineRaw['ENTREGA | DETALLE'], lineRaw['ENTREGA | DIRECCION'], lineRaw['ENTREGA | COMENTARIOS']);
     sellerCommentsInput.value = pickFirst(lineRaw['COMENTARIOS VENDEDOR'], lineRaw['OBSERVACIONES VENTAS']);
     artworkHolderInput.value = pickFirst(lineRaw['ARTE EN PODER DE']);
     if (finishNotesInput) finishNotesInput.value = pickFirst(lineRaw['ACABADOS | OBSERVACIONES']);
@@ -1821,6 +1851,78 @@ async function saveOrderDetails(payload) {
     currentLoadedOrder = data.orden;
     renderOrder(currentLoadedOrder);
     populateEditableForms(currentLoadedOrder.raw_data || {});
+}
+
+function buildDeliverySummary(lineRaw, quote) {
+    const tipo = pickFirst(lineRaw['ENTREGA | TIPO'], quote.delivery_time);
+    const contacto = pickFirst(lineRaw['ENTREGA | CONTACTO'], quote.contact_name);
+    const telefono = pickFirst(lineRaw['ENTREGA | TELEFONO']);
+    const email = pickFirst(lineRaw['ENTREGA | EMAIL']);
+    const direccion = pickFirst(lineRaw['ENTREGA | DIRECCION']);
+    const detalle = pickFirst(lineRaw['ENTREGA | DETALLE']);
+    const comentarios = pickFirst(lineRaw['ENTREGA | COMENTARIOS']);
+
+    if (!tipo && !contacto && !detalle) return '';
+
+    const leftLines = [];
+    if (tipo) leftLines.push(`<div class="production-summary-item"><span class="production-summary-label">Tipo</span><span class="production-summary-value">${escapeHtml(tipo)}</span></div>`);
+    if (contacto) leftLines.push(`<div class="production-summary-item"><span class="production-summary-label">Contacto</span><span class="production-summary-value">${escapeHtml(contacto)}</span></div>`);
+    if (telefono) leftLines.push(`<div class="production-summary-item"><span class="production-summary-label">Teléfono</span><span class="production-summary-value">${escapeHtml(telefono)}</span></div>`);
+    if (email) leftLines.push(`<div class="production-summary-item"><span class="production-summary-label">Correo</span><span class="production-summary-value">${escapeHtml(email)}</span></div>`);
+    if (direccion) leftLines.push(`<div class="production-summary-item"><span class="production-summary-label">Dirección</span><span class="production-summary-value">${escapeHtml(direccion)}</span></div>`);
+
+    const rightLines = [];
+    if (detalle) rightLines.push(`<div class="production-summary-item"><span class="production-summary-label">Detalle</span><span class="production-summary-value">${escapeHtml(detalle)}</span></div>`);
+    if (comentarios) rightLines.push(`<div class="production-summary-item"><span class="production-summary-label">Comentarios</span><span class="production-summary-value">${escapeHtml(comentarios)}</span></div>`);
+
+    return `
+        <div class="production-summary-two-col">
+            <div class="production-summary-subsection">
+                <div class="production-summary-subsection-title">Forma de Entrega</div>
+                ${leftLines.join('')}
+            </div>
+            <div class="production-summary-subsection">
+                <div class="production-summary-subsection-title">Detalle de Entrega</div>
+                ${rightLines.join('')}
+            </div>
+        </div>
+    `;
+}
+
+function buildSamplesSummary(lineRaw) {
+    const envioTipo = pickFirst(lineRaw['MUESTRAS | TIPO']);
+    const envioContacto = pickFirst(lineRaw['MUESTRAS | CONTACTO']);
+    const envioTelefono = pickFirst(lineRaw['MUESTRAS | TELEFONO']);
+    const envioEmail = pickFirst(lineRaw['MUESTRAS | EMAIL']);
+    const envioDireccion = pickFirst(lineRaw['MUESTRAS | DIRECCION']);
+    const destinoTipo = pickFirst(lineRaw['MUESTRAS | VISTO BUENO']);
+    const detalle = pickFirst(lineRaw['MUESTRAS | DETALLE']);
+
+    if (!envioTipo && !destinoTipo && !detalle) return '';
+
+    const leftLines = [];
+    if (envioTipo) leftLines.push(`<div class="production-summary-item"><span class="production-summary-label">Tipo</span><span class="production-summary-value">${escapeHtml(envioTipo)}</span></div>`);
+    if (envioContacto) leftLines.push(`<div class="production-summary-item"><span class="production-summary-label">Contacto</span><span class="production-summary-value">${escapeHtml(envioContacto)}</span></div>`);
+    if (envioTelefono) leftLines.push(`<div class="production-summary-item"><span class="production-summary-label">Teléfono</span><span class="production-summary-value">${escapeHtml(envioTelefono)}</span></div>`);
+    if (envioEmail) leftLines.push(`<div class="production-summary-item"><span class="production-summary-label">Correo</span><span class="production-summary-value">${escapeHtml(envioEmail)}</span></div>`);
+    if (envioDireccion) leftLines.push(`<div class="production-summary-item"><span class="production-summary-label">Dirección</span><span class="production-summary-value">${escapeHtml(envioDireccion)}</span></div>`);
+
+    const rightLines = [];
+    if (destinoTipo) rightLines.push(`<div class="production-summary-item"><span class="production-summary-label">Destinatario</span><span class="production-summary-value">${escapeHtml(destinoTipo)}</span></div>`);
+    if (detalle) rightLines.push(`<div class="production-summary-item"><span class="production-summary-label">Detalle</span><span class="production-summary-value">${escapeHtml(detalle)}</span></div>`);
+
+    return `
+        <div class="production-summary-two-col">
+            <div class="production-summary-subsection">
+                <div class="production-summary-subsection-title">Envío de Muestras</div>
+                ${leftLines.join('')}
+            </div>
+            <div class="production-summary-subsection">
+                <div class="production-summary-subsection-title">Destinatario de Visto Bueno</div>
+                ${rightLines.join('')}
+            </div>
+        </div>
+    `;
 }
 
 function renderOrder(order) {
@@ -1946,12 +2048,7 @@ function renderOrder(order) {
         ].filter(Boolean).join('');
     }
 
-    samplesSummary.innerHTML = buildSummaryLinesOptional([
-        { label: 'Muestras', value: pickFirst(lineRaw['MUESTRAS | TIPO']) },
-        { label: 'Visto Bueno', value: pickFirst(lineRaw['MUESTRAS | VISTO BUENO']) },
-        { label: 'Contacto', value: pickFirst(lineRaw['MUESTRAS | CONTACTO']) },
-        { label: 'Detalle', value: [pickFirst(lineRaw['MUESTRAS | DETALLE']), pickFirst(lineRaw['MUESTRAS | TELEFONO']), pickFirst(lineRaw['MUESTRAS | EMAIL']), pickFirst(lineRaw['MUESTRAS | DIRECCION'])].filter(Boolean).join(' · ') }
-    ]);
+    samplesSummary.innerHTML = buildSamplesSummary(lineRaw);
 
     setHtml('orderProductCodesText', productCodes);
     var frontBackBlock = document.getElementById('orderFrontBackBlock');
@@ -2023,15 +2120,7 @@ function renderOrder(order) {
         </div>
     `;
 
-    const deliveryText = [
-        pickFirst(lineRaw['ENTREGA | TIPO'], quote.delivery_time),
-        pickFirst(lineRaw['ENTREGA | CONTACTO'], quote.contact_name),
-        pickFirst(lineRaw['ENTREGA | DETALLE']),
-        [lineRaw['ENTREGA | EMAIL'], lineRaw['ENTREGA | TELEFONO'], lineRaw['ENTREGA | DIRECCION'], lineRaw['ENTREGA | COMENTARIOS']].filter(Boolean).join(' / ')
-    ].filter(Boolean).join(' · ');
-    deliverySummary.innerHTML = deliveryText
-        ? `<div class="production-summary-line production-delivery-summary-line"><span class="production-summary-line-value">${escapeHtml(deliveryText)}</span></div>`
-        : '';
+    deliverySummary.innerHTML = buildDeliverySummary(lineRaw, quote);
 
     setText('orderCodeText', order.order_code, 'Sin orden');
     setText('orderQuoteText', sourceQuoteCode || 'Sin cotización');
@@ -2136,6 +2225,7 @@ async function loadOrder() {
     currentOutputTypes = Array.isArray(catalogs.outputTypes) ? catalogs.outputTypes : [];
     applyHeaderConfig(config);
     if (!orderResponse.ok) throw new Error(payload.error || 'No se pudo cargar la orden.');
+    currentConfig = config;
 
     currentLoadedOrder = payload.orden;
     try {
@@ -2144,6 +2234,7 @@ async function loadOrder() {
         currentOrderAttachments = extractAttachments(currentLoadedOrder?.raw_data || {});
     }
     renderOrder(currentLoadedOrder);
+    populateDeliverySelects(config);
 
     const raw = currentLoadedOrder.raw_data || {};
     const quote = raw.quote_snapshot || {};
@@ -2151,9 +2242,17 @@ async function loadOrder() {
     const detail = raw.line_snapshot || {};
 }
 
-samplesToggleButton?.addEventListener('click', () => toggleSection(samplesSummary, samplesForm, samplesToggleButton, samplesForm.hidden));
+samplesToggleButton?.addEventListener('click', () => {
+    const opening = samplesForm.hidden;
+    toggleSection(samplesSummary, samplesForm, samplesToggleButton, opening);
+    if (opening) populateDeliverySelects(currentConfig);
+});
 samplesForm?.addEventListener('submit', (event) => event.preventDefault());
-deliveryToggleButton?.addEventListener('click', () => toggleSection(deliverySummary, deliveryForm, deliveryToggleButton, deliveryForm.hidden));
+deliveryToggleButton?.addEventListener('click', () => {
+    const opening = deliveryForm.hidden;
+    toggleSection(deliverySummary, deliveryForm, deliveryToggleButton, opening);
+    if (opening) populateDeliverySelects(currentConfig);
+});
 deliveryForm?.addEventListener('submit', (event) => event.preventDefault());
 artToggleButton?.addEventListener('click', () => toggleSection(artSummary, artForm, artToggleButton, artForm.hidden));
 artForm?.addEventListener('submit', (event) => event.preventDefault());
@@ -2230,6 +2329,8 @@ function queueDeliverySave() {
             delivery: {
                 mode: deliveryModeInput.value,
                 contact: deliveryContactInput.value,
+                phone: deliveryPhoneInput.value,
+                email: deliveryEmailInput.value,
                 detail: deliveryDetailInput.value,
                 schedule: schedule.rows
             }
@@ -2266,9 +2367,15 @@ function queueNotesSave() {
 }
 
 [samplesModeInput, samplesApprovalInput, samplesContactInput, samplesPhoneInput, samplesEmailInput, samplesAddressInput, samplesDetailInput]
-    .forEach((field) => field?.addEventListener('input', queueSamplesSave));
-[deliveryModeInput, deliveryContactInput, deliveryDetailInput]
-    .forEach((field) => field?.addEventListener('input', queueDeliverySave));
+    .forEach((field) => {
+        field?.addEventListener('input', queueSamplesSave);
+        field?.addEventListener('change', queueSamplesSave);
+    });
+[deliveryModeInput, deliveryContactInput, deliveryPhoneInput, deliveryEmailInput, deliveryDetailInput]
+    .forEach((field) => {
+        field?.addEventListener('input', queueDeliverySave);
+        field?.addEventListener('change', queueDeliverySave);
+    });
 deliveriesBody?.addEventListener('change', (event) => {
     if (event.target?.matches?.('[data-delivery-field]')) queueDeliverySave();
 });

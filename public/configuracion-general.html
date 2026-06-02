@@ -7667,6 +7667,15 @@
         const quoteApplicationOptionsJsonField = document.getElementById('quoteApplicationOptionsJson');
         const quoteApplicationOptionsTableBody = document.getElementById('quoteApplicationOptionsTableBody');
         const quoteApplicationOptionAddButton = document.getElementById('quoteApplicationOptionAddButton');
+        const deliverySampleModesJsonField = document.getElementById('deliverySampleModesJson');
+        const deliverySampleModesTableBody = document.getElementById('deliverySampleModesTableBody');
+        const deliverySampleModeAddButton = document.getElementById('deliverySampleModeAddButton');
+        const deliveryApprovalRecipientsJsonField = document.getElementById('deliveryApprovalRecipientsJson');
+        const deliveryApprovalRecipientsTableBody = document.getElementById('deliveryApprovalRecipientsTableBody');
+        const deliveryApprovalRecipientAddButton = document.getElementById('deliveryApprovalRecipientAddButton');
+        const deliveryMethodsJsonField = document.getElementById('deliveryMethodsJson');
+        const deliveryMethodsTableBody = document.getElementById('deliveryMethodsTableBody');
+        const deliveryMethodAddButton = document.getElementById('deliveryMethodAddButton');
         const inventoryClassificationSourceValue = document.getElementById('inventoryClassificationSourceValue');
         const inventoryClassificationCategory = document.getElementById('inventoryClassificationCategory');
         const inventoryClassificationDisplayLabel = document.getElementById('inventoryClassificationDisplayLabel');
@@ -8742,6 +8751,9 @@
             renderQuoteProductTypesTable();
             renderQuoteSurfaceOptionsTable();
             renderQuoteApplicationOptionsTable();
+            renderDeliverySampleModesTable();
+            renderDeliveryApprovalRecipientsTable();
+            renderDeliveryMethodsTable();
             renderConfigButtonsIcons();
             syncToggleButtons();
             syncTabColorSwatches();
@@ -8846,6 +8858,84 @@
                     <td>${index + 1}</td>
                     <td><input type="text" value="${escapeHtml(item)}" data-quote-application-option-index="${index}" maxlength="80"${item ? "" : " class=\"field-empty\""}></td>
                     <td><button type="button" class="icon-only-btn quote-product-types-remove" data-remove-quote-application-option="${index}" aria-label="Eliminar aplicación" title="Eliminar aplicación">${getIconHtml('quantity.delete', '&#128465;', '#b94848', 18)}</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function readDeliverySampleModesFromConfig() {
+            return normalizeQuoteProductTypeItems(deliverySampleModesJsonField?.value || loadedConfig?.general?.deliverySampleModesJson || '', { keepEmpty: true });
+        }
+
+        function syncDeliverySampleModesField(items) {
+            if (!deliverySampleModesJsonField) return;
+            deliverySampleModesJsonField.value = JSON.stringify(normalizeQuoteProductTypeItems(items, { keepEmpty: true }));
+        }
+
+        function renderDeliverySampleModesTable() {
+            if (!deliverySampleModesTableBody) return;
+            const items = readDeliverySampleModesFromConfig();
+            syncDeliverySampleModesField(items);
+            if (!items.length) {
+                deliverySampleModesTableBody.innerHTML = '<tr><td colspan="3" class="quote-product-types-empty">No hay opciones configuradas.</td></tr>';
+                return;
+            }
+            deliverySampleModesTableBody.innerHTML = items.map((item, index) => `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td><input type="text" value="${escapeHtml(item)}" data-delivery-sample-mode-index="${index}" maxlength="80"${item ? "" : " class=\"field-empty\""}></td>
+                    <td><button type="button" class="icon-only-btn quote-product-types-remove" data-remove-delivery-sample-mode="${index}" aria-label="Eliminar" title="Eliminar">${getIconHtml('quantity.delete', '&#128465;', '#b94848', 18)}</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function readDeliveryApprovalRecipientsFromConfig() {
+            return normalizeQuoteProductTypeItems(deliveryApprovalRecipientsJsonField?.value || loadedConfig?.general?.deliveryApprovalRecipientsJson || '', { keepEmpty: true });
+        }
+
+        function syncDeliveryApprovalRecipientsField(items) {
+            if (!deliveryApprovalRecipientsJsonField) return;
+            deliveryApprovalRecipientsJsonField.value = JSON.stringify(normalizeQuoteProductTypeItems(items, { keepEmpty: true }));
+        }
+
+        function renderDeliveryApprovalRecipientsTable() {
+            if (!deliveryApprovalRecipientsTableBody) return;
+            const items = readDeliveryApprovalRecipientsFromConfig();
+            syncDeliveryApprovalRecipientsField(items);
+            if (!items.length) {
+                deliveryApprovalRecipientsTableBody.innerHTML = '<tr><td colspan="3" class="quote-product-types-empty">No hay opciones configuradas.</td></tr>';
+                return;
+            }
+            deliveryApprovalRecipientsTableBody.innerHTML = items.map((item, index) => `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td><input type="text" value="${escapeHtml(item)}" data-delivery-approval-recipient-index="${index}" maxlength="80"${item ? "" : " class=\"field-empty\""}></td>
+                    <td><button type="button" class="icon-only-btn quote-product-types-remove" data-remove-delivery-approval-recipient="${index}" aria-label="Eliminar" title="Eliminar">${getIconHtml('quantity.delete', '&#128465;', '#b94848', 18)}</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function readDeliveryMethodsFromConfig() {
+            return normalizeQuoteProductTypeItems(deliveryMethodsJsonField?.value || loadedConfig?.general?.deliveryMethodsJson || '', { keepEmpty: true });
+        }
+
+        function syncDeliveryMethodsField(items) {
+            if (!deliveryMethodsJsonField) return;
+            deliveryMethodsJsonField.value = JSON.stringify(normalizeQuoteProductTypeItems(items, { keepEmpty: true }));
+        }
+
+        function renderDeliveryMethodsTable() {
+            if (!deliveryMethodsTableBody) return;
+            const items = readDeliveryMethodsFromConfig();
+            syncDeliveryMethodsField(items);
+            if (!items.length) {
+                deliveryMethodsTableBody.innerHTML = '<tr><td colspan="3" class="quote-product-types-empty">No hay opciones configuradas.</td></tr>';
+                return;
+            }
+            deliveryMethodsTableBody.innerHTML = items.map((item, index) => `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td><input type="text" value="${escapeHtml(item)}" data-delivery-method-index="${index}" maxlength="80"${item ? "" : " class=\"field-empty\""}></td>
+                    <td><button type="button" class="icon-only-btn quote-product-types-remove" data-remove-delivery-method="${index}" aria-label="Eliminar" title="Eliminar">${getIconHtml('quantity.delete', '&#128465;', '#b94848', 18)}</button></td>
                 </tr>
             `).join('');
         }
@@ -14981,6 +15071,144 @@
             items.splice(index, 1);
             syncQuoteApplicationOptionsField(items);
             renderQuoteApplicationOptionsTable();
+            queueConfigSave();
+        });
+        deliverySampleModeAddButton?.addEventListener('click', () => {
+            const items = readDeliverySampleModesFromConfig();
+            if (items.length >= 60) return;
+            items.push("");
+            syncDeliverySampleModesField(items);
+            renderDeliverySampleModesTable();
+            const inputs = deliverySampleModesTableBody?.querySelectorAll('input[data-delivery-sample-mode-index]') || [];
+            const input = inputs[inputs.length - 1];
+            input?.focus();
+            input?.select();
+            queueConfigSave();
+        });
+        deliverySampleModesTableBody?.addEventListener('input', (event) => {
+            const input = event.target.closest('input[data-delivery-sample-mode-index]');
+            if (!input) return;
+            input.classList.toggle('field-empty', input.value === '');
+            const items = readDeliverySampleModesFromConfig();
+            const index = Number(input.dataset.deliverySampleModeIndex);
+            if (!Number.isInteger(index) || index < 0) return;
+            items[index] = input.value;
+            syncDeliverySampleModesField(items);
+            queueConfigSave();
+        });
+        deliverySampleModesTableBody?.addEventListener('change', (event) => {
+            const input = event.target.closest('input[data-delivery-sample-mode-index]');
+            if (!input) return;
+            input.classList.toggle('field-empty', input.value === '');
+            const items = readDeliverySampleModesFromConfig();
+            const index = Number(input.dataset.deliverySampleModeIndex);
+            if (!Number.isInteger(index) || index < 0) return;
+            items[index] = input.value;
+            syncDeliverySampleModesField(items);
+            renderDeliverySampleModesTable();
+            queueConfigSave();
+        });
+        deliverySampleModesTableBody?.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-remove-delivery-sample-mode]');
+            if (!button) return;
+            const index = Number(button.dataset.removeDeliverySampleMode);
+            const items = readDeliverySampleModesFromConfig();
+            if (!Number.isInteger(index) || index < 0 || index >= items.length) return;
+            items.splice(index, 1);
+            syncDeliverySampleModesField(items);
+            renderDeliverySampleModesTable();
+            queueConfigSave();
+        });
+        deliveryApprovalRecipientAddButton?.addEventListener('click', () => {
+            const items = readDeliveryApprovalRecipientsFromConfig();
+            if (items.length >= 60) return;
+            items.push("");
+            syncDeliveryApprovalRecipientsField(items);
+            renderDeliveryApprovalRecipientsTable();
+            const inputs = deliveryApprovalRecipientsTableBody?.querySelectorAll('input[data-delivery-approval-recipient-index]') || [];
+            const input = inputs[inputs.length - 1];
+            input?.focus();
+            input?.select();
+            queueConfigSave();
+        });
+        deliveryApprovalRecipientsTableBody?.addEventListener('input', (event) => {
+            const input = event.target.closest('input[data-delivery-approval-recipient-index]');
+            if (!input) return;
+            input.classList.toggle('field-empty', input.value === '');
+            const items = readDeliveryApprovalRecipientsFromConfig();
+            const index = Number(input.dataset.deliveryApprovalRecipientIndex);
+            if (!Number.isInteger(index) || index < 0) return;
+            items[index] = input.value;
+            syncDeliveryApprovalRecipientsField(items);
+            queueConfigSave();
+        });
+        deliveryApprovalRecipientsTableBody?.addEventListener('change', (event) => {
+            const input = event.target.closest('input[data-delivery-approval-recipient-index]');
+            if (!input) return;
+            input.classList.toggle('field-empty', input.value === '');
+            const items = readDeliveryApprovalRecipientsFromConfig();
+            const index = Number(input.dataset.deliveryApprovalRecipientIndex);
+            if (!Number.isInteger(index) || index < 0) return;
+            items[index] = input.value;
+            syncDeliveryApprovalRecipientsField(items);
+            renderDeliveryApprovalRecipientsTable();
+            queueConfigSave();
+        });
+        deliveryApprovalRecipientsTableBody?.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-remove-delivery-approval-recipient]');
+            if (!button) return;
+            const index = Number(button.dataset.removeDeliveryApprovalRecipient);
+            const items = readDeliveryApprovalRecipientsFromConfig();
+            if (!Number.isInteger(index) || index < 0 || index >= items.length) return;
+            items.splice(index, 1);
+            syncDeliveryApprovalRecipientsField(items);
+            renderDeliveryApprovalRecipientsTable();
+            queueConfigSave();
+        });
+        deliveryMethodAddButton?.addEventListener('click', () => {
+            const items = readDeliveryMethodsFromConfig();
+            if (items.length >= 60) return;
+            items.push("");
+            syncDeliveryMethodsField(items);
+            renderDeliveryMethodsTable();
+            const inputs = deliveryMethodsTableBody?.querySelectorAll('input[data-delivery-method-index]') || [];
+            const input = inputs[inputs.length - 1];
+            input?.focus();
+            input?.select();
+            queueConfigSave();
+        });
+        deliveryMethodsTableBody?.addEventListener('input', (event) => {
+            const input = event.target.closest('input[data-delivery-method-index]');
+            if (!input) return;
+            input.classList.toggle('field-empty', input.value === '');
+            const items = readDeliveryMethodsFromConfig();
+            const index = Number(input.dataset.deliveryMethodIndex);
+            if (!Number.isInteger(index) || index < 0) return;
+            items[index] = input.value;
+            syncDeliveryMethodsField(items);
+            queueConfigSave();
+        });
+        deliveryMethodsTableBody?.addEventListener('change', (event) => {
+            const input = event.target.closest('input[data-delivery-method-index]');
+            if (!input) return;
+            input.classList.toggle('field-empty', input.value === '');
+            const items = readDeliveryMethodsFromConfig();
+            const index = Number(input.dataset.deliveryMethodIndex);
+            if (!Number.isInteger(index) || index < 0) return;
+            items[index] = input.value;
+            syncDeliveryMethodsField(items);
+            renderDeliveryMethodsTable();
+            queueConfigSave();
+        });
+        deliveryMethodsTableBody?.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-remove-delivery-method]');
+            if (!button) return;
+            const index = Number(button.dataset.removeDeliveryMethod);
+            const items = readDeliveryMethodsFromConfig();
+            if (!Number.isInteger(index) || index < 0 || index >= items.length) return;
+            items.splice(index, 1);
+            syncDeliveryMethodsField(items);
+            renderDeliveryMethodsTable();
             queueConfigSave();
         });
         inventoryClassificationNewButton?.addEventListener('click', () => {

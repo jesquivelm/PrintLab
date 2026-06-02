@@ -9369,6 +9369,46 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
     font-size: 12px;
     color: #778693;
 }
+.production-form-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 12px 0 8px;
+}
+.production-form-divider::before,
+.production-form-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #e2e8f0;
+}
+.production-form-divider-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: #70808d;
+    white-space: nowrap;
+}
+.production-summary-two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+.production-summary-subsection {
+    display: grid;
+    gap: 4px;
+}
+.production-summary-subsection-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: #70808d;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 4px;
+}
 .production-inline-link-right {
     justify-content: flex-end;
 }
@@ -15919,6 +15959,17 @@ html[data-theme="dark"] .production-summary-empty {
     background: var(--order-panel-soft, #1d2a3d) !important;
     border-color: var(--order-panel-border, #26364d) !important;
     color: #8fa8bd !important;
+}
+html[data-theme="dark"] .production-form-divider::before,
+html[data-theme="dark"] .production-form-divider::after {
+    background: #26364d;
+}
+html[data-theme="dark"] .production-form-divider-label {
+    color: #8fa8bd;
+}
+html[data-theme="dark"] .production-summary-subsection-title {
+    color: #8fa8bd;
+    border-bottom-color: #26364d;
 }
 
 html[data-theme="dark"] .production-order-card .production-chip {
