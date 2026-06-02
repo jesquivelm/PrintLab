@@ -15945,9 +15945,11 @@ html[data-theme="dark"] .production-tracking-icons-row .production-inline-icon {
 }
 
 html[data-theme="dark"] .production-tracking-icons-row .production-inline-icon.is-active {
+    --order-panel-border: #3a506b;
     background: var(--order-panel-bg) !important;
     border: 1px solid var(--order-panel-border) !important;
     border-bottom-color: transparent !important;
+    border-radius: 12px 12px 0 0 !important;
     box-shadow: none !important;
 }
 
