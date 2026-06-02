@@ -15857,6 +15857,8 @@ html[data-theme="dark"] .production-tracking-card .production-schedule-pill.is-a
 .production-tracking-icons-row {
     position: relative;
     background: var(--order-panel-bg);
+    --order-panel-bg: #ffffff;
+    --order-panel-border: #dbe5ec;
 }
 .production-tracking-icons-row .production-inline-icon {
     width: 38px;
@@ -15940,6 +15942,14 @@ html[data-theme="dark"] .production-header-tab-popover .calc-popover-panel {
     background: var(--order-panel-bg) !important;
     border-color: var(--order-panel-border) !important;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.30), 0 8px 24px rgba(0, 0, 0, 0.40) !important;
+}
+
+html[data-theme="dark"] .production-tracking-icons-row {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    --order-panel-bg: #152033;
+    --order-panel-border: #3a506b;
 }
 
 html[data-theme="dark"] .production-tracking-icons-row .production-inline-icon {
