@@ -1364,21 +1364,16 @@ function closePopover(id) {
 
 function positionHeaderTabPopover(id) {
     const popover = document.getElementById(id);
-    const button = headerTabButtonFor(id);
     const panel = popover?.querySelector?.('.calc-popover-panel');
-    if (!popover || !button || !panel) return;
-    const rect = button.getBoundingClientRect();
+    if (!popover || !panel) return;
     const margin = 12;
-    const width = Math.min(panel.offsetWidth || 620, window.innerWidth - margin * 2);
-    const height = Math.min(panel.offsetHeight || 420, window.innerHeight - margin * 2);
-    const left = Math.max(margin, Math.min(window.innerWidth - width - margin, rect.right - width + 18));
-    const top = Math.max(margin, Math.min(window.innerHeight - height - margin, rect.bottom + 8));
-    panel.style.left = `${left}px`;
-    panel.style.top = `${top}px`;
+    const maxWidth = window.innerWidth - margin * 2;
+    if (panel.offsetWidth > maxWidth) {
+        panel.style.width = `${maxWidth}px`;
+    }
 }
 
 function positionDeliveriesPopover() {
-    if (!deliveriesButton || !deliveriesPanel) return;
     positionHeaderTabPopover('orderDeliveriesPopover');
 }
 

@@ -15850,6 +15850,10 @@ html[data-theme="dark"] .production-tracking-card .production-schedule-pill.is-a
     display: none;
 }
 
+.production-tracking-icons-row {
+    position: relative;
+    overflow: visible;
+}
 .production-tracking-icons-row .production-inline-icon {
     width: 38px;
     height: 38px;
@@ -15862,12 +15866,18 @@ html[data-theme="dark"] .production-tracking-card .production-schedule-pill.is-a
 .production-tracking-icons-row .production-inline-icon.is-active {
     background: var(--order-panel-bg) !important;
     border-color: var(--order-panel-border) !important;
-    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04) !important;
+    border-bottom-color: transparent !important;
+    border-radius: 12px 12px 0 0 !important;
+    box-shadow: 0 -1px 0 rgba(15, 23, 42, 0.04) !important;
     z-index: 1002;
 }
 
 .production-header-tab-popover {
     pointer-events: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 1001;
 }
 
 .production-header-tab-popover .calc-popover-backdrop {
@@ -15876,14 +15886,15 @@ html[data-theme="dark"] .production-tracking-card .production-schedule-pill.is-a
 }
 
 .production-header-tab-popover .calc-popover-panel {
-    position: fixed;
+    position: relative;
     right: auto;
     bottom: auto;
     transform: none;
     border: 1px solid var(--order-panel-border);
-    border-radius: 18px;
+    border-top: none;
+    border-radius: 0 0 18px 18px;
     background: var(--order-panel-bg);
-    box-shadow: 0 18px 34px rgba(15, 23, 42, 0.14);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.10);
     pointer-events: auto;
 }
 
@@ -15928,6 +15939,7 @@ html[data-theme="dark"] .production-tracking-icons-row .production-inline-icon {
 html[data-theme="dark"] .production-tracking-icons-row .production-inline-icon.is-active {
     background: var(--order-panel-bg) !important;
     border-color: var(--order-panel-border) !important;
+    border-bottom-color: transparent !important;
 }
 
 html[data-theme="dark"] .production-client-info-line {
