@@ -1366,9 +1366,22 @@ function positionHeaderTabPopover(id) {
     const popover = document.getElementById(id);
     const panel = popover?.querySelector?.('.calc-popover-panel');
     if (!popover || !panel) return;
+    const button = headerTabButtonFor(id);
+    if (!button) return;
+    const rect = button.getBoundingClientRect();
     const margin = 12;
+    const panelWidth = panel.offsetWidth || 320;
+    let left = rect.left;
+    const maxLeft = window.innerWidth - panelWidth - margin;
+    if (left > maxLeft) left = maxLeft;
+    if (left < margin) left = margin;
+    panel.style.position = 'fixed';
+    panel.style.top = `${rect.bottom + 2}px`;
+    panel.style.left = `${left}px`;
+    panel.style.right = 'auto';
+    panel.style.bottom = 'auto';
     const maxWidth = window.innerWidth - margin * 2;
-    if (panel.offsetWidth > maxWidth) {
+    if (panelWidth > maxWidth) {
         panel.style.width = `${maxWidth}px`;
     }
 }

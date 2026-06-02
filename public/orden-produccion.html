@@ -214,80 +214,6 @@
                                         <button type="button" id="orderStateButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Control de planificación y flujo productivo"></button>
                                         <button type="button" id="orderDeliveriesButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Detalle de entregas" title="Detalle de entregas"></button>
                                         <button type="button" id="orderAttachmentsButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Ver adjuntos"></button>
-
-                                        <div id="orderFlowPopover" class="calc-popover production-header-tab-popover production-flow-tab-popover" hidden>
-                                            <div class="calc-popover-backdrop" data-close-popover="orderFlowPopover"></div>
-                                            <div class="calc-popover-panel production-flow-popover-panel">
-                                                <button type="button" class="calc-popover-close" data-close-popover="orderFlowPopover" aria-label="Cerrar">×</button>
-                                                <div class="calc-popover-body">
-                                                    <div id="orderFlowBody" class="production-flow-body"></div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div id="orderDeliveriesPopover" class="calc-popover production-header-tab-popover production-deliveries-popover" hidden>
-                                            <div class="calc-popover-backdrop" data-close-popover="orderDeliveriesPopover"></div>
-                                            <div class="calc-popover-panel production-deliveries-popover-panel">
-                                                <button type="button" class="calc-popover-close" data-close-popover="orderDeliveriesPopover" aria-label="Cerrar">×</button>
-                                                <div class="calc-popover-body">
-                                                    <div class="copy-popover-header">
-                                                        <h2>Detalle de Entregas</h2>
-                                                    </div>
-                                                    <div class="production-deliveries-total">
-                                                        <span>Cantidad a entregar</span>
-                                                        <strong id="orderDeliveriesQuantityText">Pendiente</strong>
-                                                    </div>
-                                                    <div class="socios-table-wrap production-mini-table">
-                                                        <table class="quote-table socios-table">
-                                                            <thead>
-                                                                <tr>
-                                                                    <th>Cantidad</th>
-                                                                    <th>Fecha</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody id="orderDeliveriesBody"></tbody>
-                                                        </table>
-                                                    </div>
-                                                    <div id="orderDeliveriesMessage" class="production-deliveries-message" hidden></div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div id="orderAttachmentsPopover" class="calc-popover production-header-tab-popover production-attachments-popover" hidden>
-                                            <div class="calc-popover-backdrop" data-close-popover="orderAttachmentsPopover"></div>
-                                            <div class="calc-popover-panel calc-popover-panel-compact production-attachments-popover-panel">
-                                                <button type="button" class="calc-popover-close" data-close-popover="orderAttachmentsPopover" aria-label="Cerrar">×</button>
-                                                <div class="calc-popover-body">
-                                                    <div class="copy-popover-header">
-                                                        <h2>Adjuntos</h2>
-                                                    </div>
-                                                    <div class="order-attachments-actions">
-                                                        <input id="orderAttachmentFileInput" type="file" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ai,.eps" hidden>
-                                                        <label id="orderAttachmentUploadButton" class="quote-request-icon-action order-attachment-icon-action" for="orderAttachmentFileInput" title="Adjuntar Archivos" aria-label="Adjuntar Archivos">
-                                                            <span data-order-inline-icon="attachment"></span>
-                                                        </label>
-                                                        <button type="button" id="orderAudioRecordButton" class="quote-request-icon-action order-attachment-icon-action" title="Grabar Audio" aria-label="Grabar Audio" data-recording="false">
-                                                            <span data-order-inline-icon="record"></span>
-                                                        </button>
-                                                        <div id="orderAudioRecordIndicator" class="quote-request-audio-status" hidden><span class="quote-request-audio-dot"></span><span>Grabando</span></div>
-                                                    </div>
-                                                    <div id="orderAttachmentsPopoverBody" class="attachments-popover-body">
-                                                        <table class="copy-popover-table attachments-table">
-                                                            <thead>
-                                                                <tr>
-                                                                    <th>Nombre</th>
-                                                                    <th>Categoría</th>
-                                                                    <th></th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody id="orderAttachmentsTableBody">
-                                                                <tr><td colspan="3">Cargando adjuntos...</td></tr>
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -607,6 +533,80 @@
                     <h2>Cálculo Relacionado</h2>
                 </div>
                 <div id="orderSourceQuotePopoverBody" class="attachments-popover-body"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="orderFlowPopover" class="calc-popover production-header-tab-popover production-flow-tab-popover" hidden>
+        <div class="calc-popover-backdrop" data-close-popover="orderFlowPopover"></div>
+        <div class="calc-popover-panel production-flow-popover-panel">
+            <button type="button" class="calc-popover-close" data-close-popover="orderFlowPopover" aria-label="Cerrar">×</button>
+            <div class="calc-popover-body">
+                <div id="orderFlowBody" class="production-flow-body"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="orderDeliveriesPopover" class="calc-popover production-header-tab-popover production-deliveries-popover" hidden>
+        <div class="calc-popover-backdrop" data-close-popover="orderDeliveriesPopover"></div>
+        <div class="calc-popover-panel production-deliveries-popover-panel">
+            <button type="button" class="calc-popover-close" data-close-popover="orderDeliveriesPopover" aria-label="Cerrar">×</button>
+            <div class="calc-popover-body">
+                <div class="copy-popover-header">
+                    <h2>Detalle de Entregas</h2>
+                </div>
+                <div class="production-deliveries-total">
+                    <span>Cantidad a entregar</span>
+                    <strong id="orderDeliveriesQuantityText">Pendiente</strong>
+                </div>
+                <div class="socios-table-wrap production-mini-table">
+                    <table class="quote-table socios-table">
+                        <thead>
+                            <tr>
+                                <th>Cantidad</th>
+                                <th>Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody id="orderDeliveriesBody"></tbody>
+                    </table>
+                </div>
+                <div id="orderDeliveriesMessage" class="production-deliveries-message" hidden></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="orderAttachmentsPopover" class="calc-popover production-header-tab-popover production-attachments-popover" hidden>
+        <div class="calc-popover-backdrop" data-close-popover="orderAttachmentsPopover"></div>
+        <div class="calc-popover-panel calc-popover-panel-compact production-attachments-popover-panel">
+            <button type="button" class="calc-popover-close" data-close-popover="orderAttachmentsPopover" aria-label="Cerrar">×</button>
+            <div class="calc-popover-body">
+                <div class="copy-popover-header">
+                    <h2>Adjuntos</h2>
+                </div>
+                <div class="order-attachments-actions">
+                    <input id="orderAttachmentFileInput" type="file" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ai,.eps" hidden>
+                    <label id="orderAttachmentUploadButton" class="quote-request-icon-action order-attachment-icon-action" for="orderAttachmentFileInput" title="Adjuntar Archivos" aria-label="Adjuntar Archivos">
+                        <span data-order-inline-icon="attachment"></span>
+                    </label>
+                    <button type="button" id="orderAudioRecordButton" class="quote-request-icon-action order-attachment-icon-action" title="Grabar Audio" aria-label="Grabar Audio" data-recording="false">
+                        <span data-order-inline-icon="record"></span>
+                    </button>
+                    <div id="orderAudioRecordIndicator" class="quote-request-audio-status" hidden><span class="quote-request-audio-dot"></span><span>Grabando</span></div>
+                </div>
+                <div id="orderAttachmentsPopoverBody" class="attachments-popover-body">
+                    <table class="copy-popover-table attachments-table">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Categoría</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="orderAttachmentsTableBody">
+                            <tr><td colspan="3">Cargando adjuntos...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>

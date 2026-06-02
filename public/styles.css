@@ -15284,10 +15284,6 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
     margin-top: 0;
 }
 
-.production-order-card .production-tracking-section {
-    overflow: visible;
-}
-
 .production-tracking-section {
     display: block;
 }
@@ -15856,7 +15852,6 @@ html[data-theme="dark"] .production-tracking-card .production-schedule-pill.is-a
 
 .production-tracking-icons-row {
     position: relative;
-    overflow: visible;
 }
 .production-tracking-icons-row .production-inline-icon {
     width: 38px;
@@ -15876,28 +15871,12 @@ html[data-theme="dark"] .production-tracking-card .production-schedule-pill.is-a
     z-index: 1002;
 }
 
-.production-header-tab-popover {
-    pointer-events: none;
-    position: absolute !important;
-    top: 100% !important;
-    left: 0 !important;
-    right: auto !important;
-    bottom: auto !important;
-    inset: auto !important;
-    z-index: 1001;
-}
-
 .production-header-tab-popover .calc-popover-backdrop {
     background: transparent !important;
     pointer-events: none;
 }
 
 .production-header-tab-popover .calc-popover-panel {
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: auto !important;
-    bottom: auto !important;
     transform: none !important;
     border: 1px solid var(--order-panel-border) !important;
     border-top: none !important;
