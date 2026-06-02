@@ -1248,22 +1248,20 @@ function syncHeaderTabButtons(activeId = '') {
 
 function updateArtworkSectionConstraint() {
     if (!artSection || !observationsSection) return;
-    const artRect = artSection.getBoundingClientRect();
-    const observationsRect = observationsSection.getBoundingClientRect();
-    if (!artworkSectionBaseHeight) {
-        artworkSectionBaseHeight = Math.ceil(artRect.height);
-    }
-    const gap = 12;
-    const available = Math.floor(observationsRect.top - artRect.top - gap);
-    if ((artForm.hidden || !artworkSectionMaxHeight) && available > artworkSectionBaseHeight) {
-        artworkSectionMaxHeight = available;
-    }
-    if (!artForm.hidden && artworkSectionMaxHeight > artworkSectionBaseHeight) {
-        artSection.style.height = `${artworkSectionMaxHeight}px`;
-        artSection.style.maxHeight = `${artworkSectionMaxHeight}px`;
-    } else {
+    if (artForm.hidden) {
         artSection.style.height = '';
         artSection.style.maxHeight = '';
+        artworkSectionBaseHeight = 0;
+        artworkSectionMaxHeight = 0;
+        return;
+    }
+    const artRect = artSection.getBoundingClientRect();
+    const observationsRect = observationsSection.getBoundingClientRect();
+    const gap = 12;
+    const available = Math.floor(observationsRect.top - artRect.top - gap);
+    if (available > 0) {
+        artSection.style.height = `${available}px`;
+        artSection.style.maxHeight = `${available}px`;
     }
 }
 
