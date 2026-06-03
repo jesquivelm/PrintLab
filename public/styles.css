@@ -16284,3 +16284,7 @@ html[data-theme="dark"] .config-drag-handle:hover {
     overflow: auto;
     max-height: min(680px, calc(100vh - 200px));
 }
+
+.production-order-layout-refined {
+    overflow-x: visible;
+}
