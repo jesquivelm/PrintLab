@@ -16101,8 +16101,9 @@ html[data-theme="dark"] .production-tracking-icons-row {
 
 html[data-theme="dark"] .production-tracking-icons-row .production-inline-icon {
     background: transparent !important;
-    border-color: var(--order-panel-border) !important;
+    border: none !important;
     box-shadow: none !important;
+    color: #86a0b1 !important;
 }
 
 html[data-theme="dark"] .production-tracking-icons-row .production-inline-icon.is-active {
