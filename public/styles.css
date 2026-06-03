@@ -16271,11 +16271,8 @@ html[data-theme="dark"] .config-drag-handle:hover {
     overflow: visible !important;
 }
 
-/* ── FIX: Panel del header-tab-popover — cambiar overflow del panel a
-         visible evita el recorte del borde superior. El scroll se mueve
-         al .calc-popover-body interno que ya es flex: 1 / min-height: 0. ── */
 .production-header-tab-popover .calc-popover-panel {
-    overflow: visible !important;
+    overflow: hidden !important;
 }
 
 .production-header-tab-popover .calc-popover-body {
