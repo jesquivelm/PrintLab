@@ -147,6 +147,22 @@
     @keyframes toast-in { from{opacity:0;transform:translateX(30px) scale(.95)} to{opacity:1;transform:translateX(0) scale(1)} }
     @keyframes ring-pulse { 0%{box-shadow:0 0 0 0 rgba(37,99,235,.35)} 60%{box-shadow:0 0 0 8px rgba(37,99,235,0)} 100%{box-shadow:0 0 0 0 rgba(37,99,235,0)} }
     @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(5,150,105,.4)} 70%{box-shadow:0 0 0 8px rgba(5,150,105,0)} 100%{box-shadow:0 0 0 0 rgba(5,150,105,0)} }
+
+    /* Bordes visibles en los 3 botones de íconos (estado normal y activo) */
+    .production-tracking-icons-row .production-inline-icon {
+        border: 1px solid var(--order-panel-border, #dbe5ec) !important;
+        border-radius: 12px !important;
+    }
+    .production-tracking-icons-row .production-inline-icon.is-active {
+        border-bottom-color: var(--order-panel-bg, #ffffff) !important;
+        border-radius: 12px 12px 0 0 !important;
+    }
+    html[data-theme="dark"] .production-tracking-icons-row .production-inline-icon {
+        border-color: var(--order-panel-border, #3a506b) !important;
+    }
+    html[data-theme="dark"] .production-tracking-icons-row .production-inline-icon.is-active {
+        border-bottom-color: var(--order-panel-bg, #152033) !important;
+    }
     </style>
 </head>
 <body>
