@@ -209,7 +209,10 @@
                                         <span id="orderLineText" class="production-tracking-quote-value"></span>
                                     </div>
                                     <div id="openSourceQuoteButton" class="production-source-link-group" aria-label="Ver cálculo origen"></div>
-                                    <div class="production-tracking-icons-row">
+                                    <!-- Botones ocultos — conservan los IDs que usa orden-produccion.js
+                                         para renderIconButton() y syncHeaderTabButtons().
+                                         Los íconos se copian a los tabs visibles por JS. -->
+                                    <div hidden aria-hidden="true">
                                         <button type="button" id="orderSapButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Descargas SAP" title="Descargas SAP"></button>
                                         <button type="button" id="orderStateButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Control de planificación y flujo productivo"></button>
                                         <button type="button" id="orderDeliveriesButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Detalle de entregas" title="Detalle de entregas"></button>
@@ -217,6 +220,92 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- ── TABS INLINE ────────────────────────────────────── -->
+                            <div class="otw-root" id="orderTabsWidget">
+                                <ul class="otw-tablist" role="tablist" aria-label="Información de la orden">
+                                    <li role="none">
+                                        <button class="otw-tab is-active" id="otw-tab-flow" role="tab"
+                                            aria-selected="true" aria-controls="otw-panel-flow"
+                                            data-otw-tab="flow" title="Flujo de producción">
+                                            <span class="otw-tab-icon" id="otwIconFlow">≋</span>
+                                            <span class="otw-tab-label">Flujo</span>
+                                        </button>
+                                    </li>
+                                    <li role="none">
+                                        <button class="otw-tab" id="otw-tab-deliveries" role="tab"
+                                            aria-selected="false" aria-controls="otw-panel-deliveries"
+                                            data-otw-tab="deliveries" title="Detalle de entregas">
+                                            <span class="otw-tab-icon" id="otwIconDeliveries">⇄</span>
+                                            <span class="otw-tab-label">Entregas</span>
+                                        </button>
+                                    </li>
+                                    <li role="none">
+                                        <button class="otw-tab" id="otw-tab-attachments" role="tab"
+                                            aria-selected="false" aria-controls="otw-panel-attachments"
+                                            data-otw-tab="attachments" title="Adjuntos">
+                                            <span class="otw-tab-icon" id="otwIconAttachments">📎</span>
+                                            <span class="otw-tab-label">Adjuntos</span>
+                                        </button>
+                                    </li>
+                                </ul>
+                                <div class="otw-panel-wrap">
+                                    <!-- Panel Flujo: el JS mueve #orderFlowBody aquí -->
+                                    <div class="otw-panel otw-panel-flow is-active" id="otw-panel-flow"
+                                        role="tabpanel" aria-labelledby="otw-tab-flow">
+                                        <div id="orderFlowBody" class="production-flow-body"></div>
+                                    </div>
+                                    <!-- Panel Entregas: mismos IDs que usaba el popover -->
+                                    <div class="otw-panel otw-panel-deliveries" id="otw-panel-deliveries"
+                                        role="tabpanel" aria-labelledby="otw-tab-deliveries" hidden>
+                                        <div class="copy-popover-header"><h2>Detalle de Entregas</h2></div>
+                                        <div class="production-deliveries-total">
+                                            <span>Cantidad a entregar</span>
+                                            <strong id="orderDeliveriesQuantityText">Pendiente</strong>
+                                        </div>
+                                        <div class="socios-table-wrap production-mini-table">
+                                            <table class="quote-table socios-table">
+                                                <thead><tr><th>Cantidad</th><th>Fecha</th></tr></thead>
+                                                <tbody id="orderDeliveriesBody"></tbody>
+                                            </table>
+                                        </div>
+                                        <div id="orderDeliveriesMessage" class="production-deliveries-message" hidden></div>
+                                    </div>
+                                    <!-- Panel Adjuntos: mismos IDs que usaba el popover -->
+                                    <div class="otw-panel otw-panel-attachments" id="otw-panel-attachments"
+                                        role="tabpanel" aria-labelledby="otw-tab-attachments" hidden>
+                                        <div class="copy-popover-header"><h2>Adjuntos</h2></div>
+                                        <div class="order-attachments-actions">
+                                            <input id="orderAttachmentFileInput" type="file" multiple
+                                                accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ai,.eps" hidden>
+                                            <label id="orderAttachmentUploadButton"
+                                                class="quote-request-icon-action order-attachment-icon-action"
+                                                for="orderAttachmentFileInput"
+                                                title="Adjuntar Archivos" aria-label="Adjuntar Archivos">
+                                                <span data-order-inline-icon="attachment"></span>
+                                            </label>
+                                            <button type="button" id="orderAudioRecordButton"
+                                                class="quote-request-icon-action order-attachment-icon-action"
+                                                title="Grabar Audio" aria-label="Grabar Audio" data-recording="false">
+                                                <span data-order-inline-icon="record"></span>
+                                            </button>
+                                            <div id="orderAudioRecordIndicator" class="quote-request-audio-status" hidden>
+                                                <span class="quote-request-audio-dot"></span><span>Grabando</span>
+                                            </div>
+                                        </div>
+                                        <div id="orderAttachmentsPopoverBody" class="attachments-popover-body">
+                                            <table class="copy-popover-table attachments-table">
+                                                <thead><tr><th>Nombre</th><th>Categoría</th><th></th></tr></thead>
+                                                <tbody id="orderAttachmentsTableBody">
+                                                    <tr><td colspan="3">Cargando adjuntos...</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- ── FIN TABS ───────────────────────────────────────── -->
+
                         </section>
 
                         <section class="socios-section production-product-section">
@@ -537,81 +626,181 @@
         </div>
     </div>
 
-    <div id="orderFlowPopover" class="calc-popover production-header-tab-popover production-flow-tab-popover" hidden>
-        <div class="calc-popover-backdrop" data-close-popover="orderFlowPopover"></div>
-        <div class="calc-popover-panel production-flow-popover-panel">
-            <button type="button" class="calc-popover-close" data-close-popover="orderFlowPopover" aria-label="Cerrar">×</button>
-            <div class="calc-popover-body">
-                <div id="orderFlowBody" class="production-flow-body"></div>
-            </div>
-        </div>
-    </div>
+    <!-- Popovers de flujo/entregas/adjuntos eliminados — reemplazados por tabs inline.
+         Los IDs orderFlowPopover / orderDeliveriesPopover / orderAttachmentsPopover
+         se mantienen como divs vacíos hidden para que el JS no rompa al buscarlos. -->
+    <div id="orderFlowPopover" hidden></div>
+    <div id="orderDeliveriesPopover" hidden></div>
+    <div id="orderAttachmentsPopover" hidden></div>
 
-    <div id="orderDeliveriesPopover" class="calc-popover production-header-tab-popover production-deliveries-popover" hidden>
-        <div class="calc-popover-backdrop" data-close-popover="orderDeliveriesPopover"></div>
-        <div class="calc-popover-panel production-deliveries-popover-panel">
-            <button type="button" class="calc-popover-close" data-close-popover="orderDeliveriesPopover" aria-label="Cerrar">×</button>
-            <div class="calc-popover-body">
-                <div class="copy-popover-header">
-                    <h2>Detalle de Entregas</h2>
-                </div>
-                <div class="production-deliveries-total">
-                    <span>Cantidad a entregar</span>
-                    <strong id="orderDeliveriesQuantityText">Pendiente</strong>
-                </div>
-                <div class="socios-table-wrap production-mini-table">
-                    <table class="quote-table socios-table">
-                        <thead>
-                            <tr>
-                                <th>Cantidad</th>
-                                <th>Fecha</th>
-                            </tr>
-                        </thead>
-                        <tbody id="orderDeliveriesBody"></tbody>
-                    </table>
-                </div>
-                <div id="orderDeliveriesMessage" class="production-deliveries-message" hidden></div>
-            </div>
-        </div>
-    </div>
-
-    <div id="orderAttachmentsPopover" class="calc-popover production-header-tab-popover production-attachments-popover" hidden>
-        <div class="calc-popover-backdrop" data-close-popover="orderAttachmentsPopover"></div>
-        <div class="calc-popover-panel calc-popover-panel-compact production-attachments-popover-panel">
-            <button type="button" class="calc-popover-close" data-close-popover="orderAttachmentsPopover" aria-label="Cerrar">×</button>
-            <div class="calc-popover-body">
-                <div class="copy-popover-header">
-                    <h2>Adjuntos</h2>
-                </div>
-                <div class="order-attachments-actions">
-                    <input id="orderAttachmentFileInput" type="file" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ai,.eps" hidden>
-                    <label id="orderAttachmentUploadButton" class="quote-request-icon-action order-attachment-icon-action" for="orderAttachmentFileInput" title="Adjuntar Archivos" aria-label="Adjuntar Archivos">
-                        <span data-order-inline-icon="attachment"></span>
-                    </label>
-                    <button type="button" id="orderAudioRecordButton" class="quote-request-icon-action order-attachment-icon-action" title="Grabar Audio" aria-label="Grabar Audio" data-recording="false">
-                        <span data-order-inline-icon="record"></span>
-                    </button>
-                    <div id="orderAudioRecordIndicator" class="quote-request-audio-status" hidden><span class="quote-request-audio-dot"></span><span>Grabando</span></div>
-                </div>
-                <div id="orderAttachmentsPopoverBody" class="attachments-popover-body">
-                    <table class="copy-popover-table attachments-table">
-                        <thead>
-                            <tr>
-                                <th>Nombre</th>
-                                <th>Categoría</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="orderAttachmentsTableBody">
-                            <tr><td colspan="3">Cargando adjuntos...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
+    <style>
+    /* ── Tabs inline de orden (otw = order-tabs-widget) ── */
+    .otw-root {
+        --otw-bg: var(--order-panel-bg, #ffffff);
+        --otw-border: var(--order-panel-border, #dbe5ec);
+        --otw-tab-text: #5a6a78;
+        --otw-tab-active-text: #1a2a38;
+        --otw-tab-radius: 10px;
+        --otw-shadow: 0 2px 8px rgba(15,23,42,0.08), 0 8px 24px rgba(15,23,42,0.10);
+        margin-top: 12px;
+        position: relative;
+        z-index: 10;
+    }
+    html[data-theme="dark"] .otw-root {
+        --otw-tab-text: #8fa8bd;
+        --otw-tab-active-text: #e5edf7;
+        --otw-bg: #152033;
+        --otw-border: #3a506b;
+        --otw-shadow: 0 2px 8px rgba(0,0,0,0.30), 0 8px 24px rgba(0,0,0,0.40);
+    }
+    .otw-tablist {
+        display: flex;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        position: relative;
+        z-index: 2;
+    }
+    .otw-tablist li { margin: 0; padding: 0; }
+    .otw-tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 34px;
+        padding: 0 14px;
+        border: 1px solid var(--otw-border);
+        border-bottom: none;
+        border-radius: var(--otw-tab-radius) var(--otw-tab-radius) 0 0;
+        background: transparent;
+        color: var(--otw-tab-text);
+        font-family: var(--field-font-family, 'Segoe UI', sans-serif);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s;
+        position: relative;
+        margin-right: -1px;
+        /* SIN overflow: hidden — ese era el problema original */
+    }
+    .otw-tab:hover { color: var(--otw-tab-active-text); background: color-mix(in srgb, var(--otw-bg) 50%, transparent); }
+    .otw-tab.is-active {
+        background: var(--otw-bg);
+        color: var(--otw-tab-active-text);
+        z-index: 3;
+        margin-bottom: -1px;
+        height: 35px;
+    }
+    .otw-tab-icon { font-size: 16px; line-height: 1; flex-shrink: 0; display: flex; align-items: center; }
+    .otw-tab-icon .icon-svg-mask,
+    .otw-tab-icon .icon-image-wrap { width: 18px !important; height: 18px !important; }
+    .otw-tab-label { white-space: nowrap; }
+    .otw-panel-wrap {
+        border: 1px solid var(--otw-border);
+        border-radius: 0 var(--otw-tab-radius) var(--otw-tab-radius) var(--otw-tab-radius);
+        background: var(--otw-bg);
+        box-shadow: var(--otw-shadow);
+        position: relative;
+        z-index: 1;
+        overflow: hidden;
+    }
+    .otw-panel {
+        display: none;
+        padding: 14px 16px;
+        max-height: min(480px, calc(100vh - 260px));
+        overflow-y: auto;
+    }
+    .otw-panel.is-active { display: block; }
+    /* Quitar padding al panel de flujo (tiene su propio padding interno) */
+    .otw-panel-flow { padding: 0; }
+    .otw-panel-flow .fp-panel { border-radius: 0; }
+    </style>
 
     <script src="/access-control.js"></script>
     <script src="/orden-produccion.js"></script>
+    <script>
+    /* ── Tab widget JS ── */
+    (function () {
+        'use strict';
+
+        function initTabs() {
+            const widget = document.getElementById('orderTabsWidget');
+            if (!widget) return;
+            const tabs = [...widget.querySelectorAll('.otw-tab[data-otw-tab]')];
+            const panels = [...widget.querySelectorAll('.otw-panel[id^="otw-panel-"]')];
+
+            function activateTab(tab) {
+                tabs.forEach(t => {
+                    const on = t === tab;
+                    t.classList.toggle('is-active', on);
+                    t.setAttribute('aria-selected', on ? 'true' : 'false');
+                });
+                panels.forEach(p => {
+                    const on = p.id === 'otw-panel-' + tab.dataset.otwTab;
+                    p.classList.toggle('is-active', on);
+                    p.hidden = !on;
+                });
+            }
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => activateTab(tab));
+                tab.addEventListener('keydown', e => {
+                    const idx = tabs.indexOf(e.currentTarget);
+                    if (e.key === 'ArrowRight') { e.preventDefault(); tabs[(idx + 1) % tabs.length].focus(); }
+                    if (e.key === 'ArrowLeft')  { e.preventDefault(); tabs[(idx - 1 + tabs.length) % tabs.length].focus(); }
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activateTab(e.currentTarget); }
+                });
+            });
+        }
+
+        /* Copia el icono renderizado por orden-produccion.js al tab correspondiente */
+        function syncIcons() {
+            [
+                ['orderStateButton',       'otwIconFlow'],
+                ['orderDeliveriesButton',  'otwIconDeliveries'],
+                ['orderAttachmentsButton', 'otwIconAttachments'],
+            ].forEach(([srcId, tgtId]) => {
+                const src = document.getElementById(srcId);
+                const tgt = document.getElementById(tgtId);
+                if (src && tgt && src.innerHTML.trim()) tgt.innerHTML = src.innerHTML;
+            });
+        }
+
+        /* Parchea openPopover para que los clicks en los botones ocultos
+           activen el tab correcto en vez de intentar abrir un popover inexistente */
+        function patchPopoverFunctions() {
+            const tabMap = {
+                orderFlowPopover:        'flow',
+                orderDeliveriesPopover:  'deliveries',
+                orderAttachmentsPopover: 'attachments',
+            };
+            const widget = document.getElementById('orderTabsWidget');
+            if (!widget) return;
+            const origOpen = window.openPopover;
+            if (typeof origOpen === 'function') {
+                window.openPopover = function(id) {
+                    const tabKey = tabMap[id];
+                    if (tabKey) {
+                        const tab = widget.querySelector('[data-otw-tab="' + tabKey + '"]');
+                        if (tab) tab.click();
+                        return;
+                    }
+                    origOpen.call(this, id);
+                };
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                initTabs();
+                setTimeout(syncIcons, 400);
+                setTimeout(patchPopoverFunctions, 0);
+            });
+        } else {
+            initTabs();
+            setTimeout(syncIcons, 400);
+            setTimeout(patchPopoverFunctions, 0);
+        }
+    })();
+    </script>
 </body>
 </html>

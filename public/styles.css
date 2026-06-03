@@ -274,7 +274,7 @@ body.popover-open { overflow: hidden; }
 }
 .dashboard-tab.family-quotes.level-root {
     --tab-accent: #ee8b2d;
-}
+
     --tab-bg-active: linear-gradient(180deg, rgba(255, 194, 140, 0.42) 0%, rgba(255, 255, 255, 0.98) 100%);
     --tab-text: #8f4f12;
     --tab-text-active: #6f3d10;
