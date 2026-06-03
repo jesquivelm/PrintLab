@@ -16264,3 +16264,23 @@ html[data-theme="dark"] .config-drag-handle {
 html[data-theme="dark"] .config-drag-handle:hover {
     color: var(--app-primary, #38bdf8);
 }
+/* ── FIX: Botón tab activo — el socios-section de la sección de tracking
+         necesita overflow: visible para que las esquinas superiores del
+         botón activo (border-radius: 12px 12px 0 0) no sean recortadas.
+         El override anterior en .production-tracking-section no era suficiente
+         porque el padre .socios-section tiene overflow: hidden. ── */
+.production-tracking-section.socios-section {
+    overflow: visible !important;
+}
+
+/* ── FIX: Panel del header-tab-popover — cambiar overflow del panel a
+         visible evita el recorte del borde superior. El scroll se mueve
+         al .calc-popover-body interno que ya es flex: 1 / min-height: 0. ── */
+.production-header-tab-popover .calc-popover-panel {
+    overflow: visible !important;
+}
+
+.production-header-tab-popover .calc-popover-body {
+    overflow: auto;
+    max-height: min(680px, calc(100vh - 200px));
+}
