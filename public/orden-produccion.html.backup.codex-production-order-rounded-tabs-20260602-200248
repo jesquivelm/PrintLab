@@ -154,15 +154,14 @@
         border-radius: 12px !important;
     }
     .production-tracking-icons-row .production-inline-icon.is-active {
-        background: var(--order-panel-bg, #ffffff) !important;
-        border-color: var(--order-panel-border, #dbe5ec) !important;
-        border-radius: 12px !important;
+        border-bottom-color: var(--order-panel-bg, #ffffff) !important;
+        border-radius: 12px 12px 0 0 !important;
     }
     html[data-theme="dark"] .production-tracking-icons-row .production-inline-icon {
         border-color: var(--order-panel-border, #3a506b) !important;
     }
     html[data-theme="dark"] .production-tracking-icons-row .production-inline-icon.is-active {
-        border-color: var(--order-panel-border, #3a506b) !important;
+        border-bottom-color: var(--order-panel-bg, #152033) !important;
     }
     </style>
 </head>
@@ -220,7 +219,11 @@
                                 <div class="production-tracking-right">
                                     <span class="production-summary-label">Orden</span>
                                     <strong id="orderCodeText" class="production-order-code"></strong>
-
+                                    <div class="production-tracking-quote-row">
+                                        <span id="orderQuoteText" class="production-tracking-quote-value"></span>
+                                        <span class="production-tracking-quote-sep">/</span>
+                                        <span id="orderLineText" class="production-tracking-quote-value"></span>
+                                    </div>
                                     <div id="openSourceQuoteButton" class="production-source-link-group" aria-label="Ver cálculo origen"></div>
                                     <div class="production-tracking-icons-row">
                                         <button type="button" id="orderSapButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Descargas SAP" title="Descargas SAP"></button>
