@@ -1362,31 +1362,6 @@ function closePopover(id) {
     if (![...document.querySelectorAll('.calc-popover:not(.production-header-tab-popover)')].some((node) => !node.hidden)) document.body.classList.remove('popover-open');
 }
 
-function generateTabClipPath(width) {
-    const w = width || 320;
-    const r = 18;
-    const tw = 38;
-    const th = 38;
-    const tr = 12;
-    const tx = w - tw;
-    return `polygon(` +
-        `0% ${r}px, ` +
-        `${r}px 0%, ` +
-        `${tx}px 0%, ` +
-        `${tx}px ${tr}px, ` +
-        `${tx + tr}px ${tr}px, ` +
-        `${tx + tr}px ${tr + tr}px, ` +
-        `${tx + tw}px ${tr + tr}px, ` +
-        `${tx + tw}px ${th}px, ` +
-        `${w}px ${th}px, ` +
-        `${w}px ${r}px, ` +
-        `${w}px calc(100% - ${r}px), ` +
-        `calc(100% - ${r}px) 100%, ` +
-        `${r}px 100%, ` +
-        `0% calc(100% - ${r}px)` +
-        `)`;
-}
-
 function positionHeaderTabPopover(id) {
     const popover = document.getElementById(id);
     const panel = popover?.querySelector?.('.calc-popover-panel');
@@ -1396,31 +1371,35 @@ function positionHeaderTabPopover(id) {
     const rect = button.getBoundingClientRect();
     const margin = 12;
     const panelWidth = panel.offsetWidth || 320;
-    const panelHeight = panel.offsetHeight || 400;
+    const panelHeight = panel.scrollHeight || panel.offsetHeight || 400;
     const spaceBelow = window.innerHeight - rect.bottom;
-    const spaceLeft = rect.left;
+    const gap = 2;
     panel.style.position = 'fixed';
     panel.style.right = 'auto';
     panel.style.bottom = 'auto';
-    if (spaceBelow >= panelHeight + 16 || spaceBelow >= 400) {
+    panel.style.removeProperty('--tab-left');
+    panel.style.removeProperty('--tab-width');
+    panel.classList.remove('panel-left-side');
+    if (spaceBelow >= panelHeight + gap + 16) {
         let left = rect.right - panelWidth;
         const maxLeft = window.innerWidth - panelWidth - margin;
         if (left > maxLeft) left = maxLeft;
         if (left < margin) left = margin;
-        panel.style.top = `${rect.bottom + 8}px`;
+        panel.style.top = `${rect.bottom + gap}px`;
         panel.style.left = `${left}px`;
+        panel.style.setProperty('--tab-left', `${rect.left - left}px`);
+        panel.style.setProperty('--tab-width', `${rect.width}px`);
     } else {
         let left = rect.left - panelWidth - 8;
         if (left < margin) left = margin;
-        const top = rect.top;
-        panel.style.top = `${top}px`;
+        panel.style.top = `${rect.top}px`;
         panel.style.left = `${left}px`;
+        panel.classList.add('panel-left-side');
     }
     const maxWidth = window.innerWidth - margin * 2;
     if (panelWidth > maxWidth) {
         panel.style.width = `${maxWidth}px`;
     }
-    panel.style.clipPath = generateTabClipPath(panel.offsetWidth);
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
     if (isDark) {
         panel.style.filter = 'drop-shadow(0 2px 8px rgba(0, 0, 0, 0.30)) drop-shadow(0 8px 24px rgba(0, 0, 0, 0.40))';
