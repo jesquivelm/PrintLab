@@ -731,26 +731,37 @@
     <script src="/access-control.js"></script>
     <script src="/orden-produccion.js"></script>
     <script>
-    /* ── Tab widget JS (v2) ──────────────────────────────────────────────────
-       Arquitectura:
-       - Los 3 íconos (flujo/entregas/adjuntos) están en .production-tracking-right
-         con atributo data-otw-trigger="flow|deliveries|attachments"
-       - El panel #orderTabsWidget está oculto por defecto (hidden)
-       - Click en ícono → mostrar panel y activar el tab correspondiente
-       - Click en mismo ícono activo → cerrar panel (toggle)
-       - Click fuera del panel + sección tracking → cerrar panel
-       - Escape → cerrar panel
+    /* ── Tab widget JS (v3) ──────────────────────────────────────────────────
+       DIAGNÓSTICO DEL PROBLEMA ANTERIOR:
+       El JS de orden-produccion.js define openPopover() y openOrderFlowPopover()
+       como funciones de scope de módulo (no dentro de un IIFE), por lo que son
+       propiedades del window. Sin embargo, los listeners internos del JS llaman
+       a esas funciones por referencia directa — no por window.openPopover().
+       Sobreescribir window.openPopover no servía de nada.
+
+       SOLUCIÓN CORRECTA:
+       1. Sobreescribir openOrderFlowPopover, openPopover en window ANTES de que
+          el JS de orden registre sus listeners → imposible (carga sincrónica).
+       2. Usar addEventListener con { capture: true } para interceptar el click
+          EN FASE DE CAPTURA (corre antes que los listeners de burbuja del JS) y
+          llamar stopImmediatePropagation() para bloquear los handlers del JS.
+          Luego nosotros abrimos el panel OTW correspondiente.
+       3. Para el flujo (que necesita fetch de datos), llamamos directamente
+          a window.fetchOrderFlowSteps() y window.renderOrderTracking() que sí
+          son accesibles globalmente.
        ─────────────────────────────────────────────────────────────────────── */
     (function () {
         'use strict';
 
-        var _activeTabKey = null; // tab activo al abrir el panel
+        var _activeTabKey = null;
 
         function getWidget()  { return document.getElementById('orderTabsWidget'); }
         function getSection() { return document.querySelector('.production-tracking-section'); }
 
         /* ── Activar un tab dentro del panel ── */
-        function activateTab(widget, key) {
+        function activateTab(key) {
+            var widget = getWidget();
+            if (!widget) return;
             var tabs   = [].slice.call(widget.querySelectorAll('.otw-tab[data-otw-tab]'));
             var panels = [].slice.call(widget.querySelectorAll('.otw-panel[id^="otw-panel-"]'));
             tabs.forEach(function(t) {
@@ -765,15 +776,40 @@
             });
         }
 
+        /* ── Marcar/desmarcar visualmente el botón trigger ── */
+        function syncTriggerState(key, active) {
+            document.querySelectorAll('[data-otw-trigger]').forEach(function(btn) {
+                var isThis = btn.dataset.otwTrigger === key;
+                btn.classList.toggle('is-active', !!(isThis && active));
+                if (isThis && active) btn.setAttribute('aria-expanded', 'true');
+                else btn.removeAttribute('aria-expanded');
+            });
+        }
+
         /* ── Abrir panel en el tab indicado ── */
         function openPanel(key) {
             var widget = getWidget();
             if (!widget) return;
             _activeTabKey = key;
-            activateTab(widget, key);
+            activateTab(key);
             widget.hidden = false;
-            // Marcar el botón trigger como activo
             syncTriggerState(key, true);
+
+            /* Si es el tab de flujo, disparar el fetch+render igual que hacía
+               openOrderFlowPopover() del JS de orden */
+            if (key === 'flow') {
+                var flowBody = document.getElementById('orderFlowBody');
+                if (flowBody && typeof window.fetchOrderFlowSteps === 'function') {
+                    flowBody.innerHTML = '<div class="production-summary-empty" style="padding:40px;text-align:center;">Cargando seguimiento...</div>';
+                    window.fetchOrderFlowSteps().then(function() {
+                        if (typeof window.renderOrderTracking === 'function') {
+                            window.renderOrderTracking(window.currentOrderFlowPayload);
+                        }
+                    }).catch(function() {
+                        flowBody.innerHTML = '<div class="production-summary-empty">No se pudo cargar el seguimiento.</div>';
+                    });
+                }
+            }
         }
 
         /* ── Cerrar panel ── */
@@ -785,37 +821,40 @@
             _activeTabKey = null;
         }
 
-        /* ── Marcar/desmarcar visualmente el botón trigger ── */
-        function syncTriggerState(key, active) {
-            document.querySelectorAll('[data-otw-trigger]').forEach(function(btn) {
-                if (btn.dataset.otwTrigger === key) {
-                    btn.classList.toggle('is-active', !!active);
-                    btn.setAttribute('aria-expanded', active ? 'true' : 'false');
-                } else {
-                    btn.classList.remove('is-active');
-                    btn.removeAttribute('aria-expanded');
+        /* ── INTERCEPTAR en fase CAPTURA los botones del JS de orden ──────────
+           Esto corre ANTES que los addEventListener del JS de orden (burbuja).
+           stopImmediatePropagation() bloquea todos los handlers restantes. */
+        var TRIGGER_MAP = {
+            orderStateButton:      'flow',
+            orderDeliveriesButton: 'deliveries',
+            orderAttachmentsButton:'attachments'
+        };
+
+        function handleTriggerCapture(e) {
+            var btn = e.currentTarget;
+            var key = TRIGGER_MAP[btn.id] || btn.dataset.otwTrigger;
+            if (!key) return;
+            e.stopImmediatePropagation(); // bloquear handlers del JS de orden
+            var widget = getWidget();
+            if (!widget) return;
+            if (!widget.hidden && _activeTabKey === key) {
+                closePanel();
+            } else {
+                openPanel(key);
+            }
+        }
+
+        function initTriggers() {
+            Object.keys(TRIGGER_MAP).forEach(function(id) {
+                var btn = document.getElementById(id);
+                if (btn) {
+                    /* capture: true → interceptamos antes que los listeners de burbuja del JS */
+                    btn.addEventListener('click', handleTriggerCapture, true);
                 }
             });
         }
 
-        /* ── Inicializar clicks en los botones trigger ── */
-        function initTriggers() {
-            document.querySelectorAll('[data-otw-trigger]').forEach(function(btn) {
-                btn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    var key = btn.dataset.otwTrigger;
-                    var widget = getWidget();
-                    if (!widget) return;
-                    if (!widget.hidden && _activeTabKey === key) {
-                        closePanel(); // toggle: mismo ícono cierra
-                    } else {
-                        openPanel(key);
-                    }
-                });
-            });
-        }
-
-        /* ── Clicks dentro del panel cambian el tab activo ── */
+        /* ── Clicks en las pestañas del panel ── */
         function initTabClicks() {
             var widget = getWidget();
             if (!widget) return;
@@ -823,11 +862,26 @@
             tabs.forEach(function(tab) {
                 tab.addEventListener('click', function() {
                     _activeTabKey = tab.dataset.otwTab;
-                    activateTab(widget, _activeTabKey);
+                    activateTab(_activeTabKey);
                     syncTriggerState(_activeTabKey, true);
+
+                    /* Igual que arriba: fetch de datos si se activa el tab de flujo */
+                    if (_activeTabKey === 'flow') {
+                        var flowBody = document.getElementById('orderFlowBody');
+                        if (flowBody && typeof window.fetchOrderFlowSteps === 'function') {
+                            flowBody.innerHTML = '<div class="production-summary-empty" style="padding:40px;text-align:center;">Cargando seguimiento...</div>';
+                            window.fetchOrderFlowSteps().then(function() {
+                                if (typeof window.renderOrderTracking === 'function') {
+                                    window.renderOrderTracking(window.currentOrderFlowPayload);
+                                }
+                            }).catch(function() {
+                                flowBody.innerHTML = '<div class="production-summary-empty">No se pudo cargar el seguimiento.</div>';
+                            });
+                        }
+                    }
                 });
                 tab.addEventListener('keydown', function(e) {
-                    var idx = tabs.indexOf(e.currentTarget);
+                    var idx = tabs.indexOf(tab);
                     if (e.key === 'ArrowRight') { e.preventDefault(); tabs[(idx + 1) % tabs.length].focus(); }
                     if (e.key === 'ArrowLeft')  { e.preventDefault(); tabs[(idx - 1 + tabs.length) % tabs.length].focus(); }
                     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tab.click(); }
@@ -835,13 +889,13 @@
             });
         }
 
-        /* ── Cierre al click fuera (document) ── */
+        /* ── Cierre al click fuera ── */
         function initOutsideClose() {
             document.addEventListener('click', function(e) {
                 var widget  = getWidget();
                 var section = getSection();
                 if (!widget || widget.hidden) return;
-                if (section && section.contains(e.target)) return; // dentro de la sección → no cerrar
+                if (section && section.contains(e.target)) return;
                 closePanel();
             });
             document.addEventListener('keydown', function(e) {
@@ -849,7 +903,7 @@
             });
         }
 
-        /* ── Copia el ícono renderizado por orden-produccion.js al tab correspondiente ── */
+        /* ── Copiar íconos renderizados por el JS de orden a los tabs ── */
         function syncIcons() {
             [
                 ['orderStateButton',       'otwIconFlow'],
@@ -862,30 +916,12 @@
             });
         }
 
-        /* ── Parchea openPopover para los clicks del JS de orden ── */
-        function patchPopoverFunctions() {
-            var tabMap = {
-                orderFlowPopover:        'flow',
-                orderDeliveriesPopover:  'deliveries',
-                orderAttachmentsPopover: 'attachments',
-            };
-            var origOpen = window.openPopover;
-            if (typeof origOpen === 'function') {
-                window.openPopover = function(id) {
-                    var tabKey = tabMap[id];
-                    if (tabKey) { openPanel(tabKey); return; }
-                    origOpen.call(this, id);
-                };
-            }
-        }
-
         function init() {
             initTriggers();
             initTabClicks();
             initOutsideClose();
-            setTimeout(syncIcons, 400);          // esperar a que el JS de orden renderice íconos
-            setTimeout(syncIcons, 1200);         // segundo intento por si tarda más
-            setTimeout(patchPopoverFunctions, 0);
+            setTimeout(syncIcons, 400);
+            setTimeout(syncIcons, 1400);
         }
 
         if (document.readyState === 'loading') {
