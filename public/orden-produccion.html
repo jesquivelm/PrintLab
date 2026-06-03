@@ -209,20 +209,20 @@
                                         <span id="orderLineText" class="production-tracking-quote-value"></span>
                                     </div>
                                     <div id="openSourceQuoteButton" class="production-source-link-group" aria-label="Ver cálculo origen"></div>
-                                    <!-- Botones ocultos — conservan los IDs que usa orden-produccion.js
-                                         para renderIconButton() y syncHeaderTabButtons().
-                                         Los íconos se copian a los tabs visibles por JS. -->
-                                    <div hidden aria-hidden="true">
+                                    <!-- Botones visibles — mismos IDs que usa orden-produccion.js.
+                                         Al hacer click abren el panel OTW en el tab correspondiente. -->
+                                    <div class="production-tracking-icons-row">
                                         <button type="button" id="orderSapButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Descargas SAP" title="Descargas SAP"></button>
-                                        <button type="button" id="orderStateButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Control de planificación y flujo productivo"></button>
-                                        <button type="button" id="orderDeliveriesButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Detalle de entregas" title="Detalle de entregas"></button>
-                                        <button type="button" id="orderAttachmentsButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Ver adjuntos"></button>
+                                        <button type="button" id="orderStateButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Control de planificación y flujo productivo" data-otw-trigger="flow"></button>
+                                        <button type="button" id="orderDeliveriesButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Detalle de entregas" title="Detalle de entregas" data-otw-trigger="deliveries"></button>
+                                        <button type="button" id="orderAttachmentsButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Ver adjuntos" data-otw-trigger="attachments"></button>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- ── TABS INLINE ────────────────────────────────────── -->
-                            <div class="otw-root" id="orderTabsWidget">
+                            <!-- El panel está oculto por defecto; se abre al pulsar un ícono -->
+                            <div class="otw-root" id="orderTabsWidget" hidden>
                                 <ul class="otw-tablist" role="tablist" aria-label="Información de la orden">
                                     <li role="none">
                                         <button class="otw-tab is-active" id="otw-tab-flow" role="tab"
@@ -635,23 +635,36 @@
 
     <style>
     /* ── Tabs inline de orden (otw = order-tabs-widget) ── */
+    /* La sección de tracking necesita position:relative para anclar el panel absoluto */
+    .production-tracking-section { position: relative; }
     .otw-root {
         --otw-bg: var(--order-panel-bg, #ffffff);
         --otw-border: var(--order-panel-border, #dbe5ec);
         --otw-tab-text: #5a6a78;
         --otw-tab-active-text: #1a2a38;
         --otw-tab-radius: 10px;
-        --otw-shadow: 0 2px 8px rgba(15,23,42,0.08), 0 8px 24px rgba(15,23,42,0.10);
-        margin-top: 12px;
-        position: relative;
-        z-index: 10;
+        --otw-shadow: 0 4px 16px rgba(15,23,42,0.12), 0 12px 32px rgba(15,23,42,0.14);
+        /* Panel flotante: no empuja el layout */
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 100%;
+        z-index: 100;
+        margin-top: 4px;
+    }
+    .otw-root[hidden] { display: none !important; }
+    /* Botón trigger activo — mismo efecto que production-inline-icon presionado */
+    [data-otw-trigger].is-active {
+        background: var(--brand-primary-light, #eff4ff) !important;
+        color: var(--brand-primary, #2563eb) !important;
+        border-color: var(--brand-primary-mid, #bfcffe) !important;
     }
     html[data-theme="dark"] .otw-root {
         --otw-tab-text: #8fa8bd;
         --otw-tab-active-text: #e5edf7;
         --otw-bg: #152033;
         --otw-border: #3a506b;
-        --otw-shadow: 0 2px 8px rgba(0,0,0,0.30), 0 8px 24px rgba(0,0,0,0.40);
+        --otw-shadow: 0 4px 16px rgba(0,0,0,0.40), 0 12px 32px rgba(0,0,0,0.50);
     }
     .otw-tablist {
         display: flex;
@@ -718,87 +731,167 @@
     <script src="/access-control.js"></script>
     <script src="/orden-produccion.js"></script>
     <script>
-    /* ── Tab widget JS ── */
+    /* ── Tab widget JS (v2) ──────────────────────────────────────────────────
+       Arquitectura:
+       - Los 3 íconos (flujo/entregas/adjuntos) están en .production-tracking-right
+         con atributo data-otw-trigger="flow|deliveries|attachments"
+       - El panel #orderTabsWidget está oculto por defecto (hidden)
+       - Click en ícono → mostrar panel y activar el tab correspondiente
+       - Click en mismo ícono activo → cerrar panel (toggle)
+       - Click fuera del panel + sección tracking → cerrar panel
+       - Escape → cerrar panel
+       ─────────────────────────────────────────────────────────────────────── */
     (function () {
         'use strict';
 
-        function initTabs() {
-            const widget = document.getElementById('orderTabsWidget');
+        var _activeTabKey = null; // tab activo al abrir el panel
+
+        function getWidget()  { return document.getElementById('orderTabsWidget'); }
+        function getSection() { return document.querySelector('.production-tracking-section'); }
+
+        /* ── Activar un tab dentro del panel ── */
+        function activateTab(widget, key) {
+            var tabs   = [].slice.call(widget.querySelectorAll('.otw-tab[data-otw-tab]'));
+            var panels = [].slice.call(widget.querySelectorAll('.otw-panel[id^="otw-panel-"]'));
+            tabs.forEach(function(t) {
+                var on = t.dataset.otwTab === key;
+                t.classList.toggle('is-active', on);
+                t.setAttribute('aria-selected', on ? 'true' : 'false');
+            });
+            panels.forEach(function(p) {
+                var on = p.id === 'otw-panel-' + key;
+                p.classList.toggle('is-active', on);
+                p.hidden = !on;
+            });
+        }
+
+        /* ── Abrir panel en el tab indicado ── */
+        function openPanel(key) {
+            var widget = getWidget();
             if (!widget) return;
-            const tabs = [...widget.querySelectorAll('.otw-tab[data-otw-tab]')];
-            const panels = [...widget.querySelectorAll('.otw-panel[id^="otw-panel-"]')];
+            _activeTabKey = key;
+            activateTab(widget, key);
+            widget.hidden = false;
+            // Marcar el botón trigger como activo
+            syncTriggerState(key, true);
+        }
 
-            function activateTab(tab) {
-                tabs.forEach(t => {
-                    const on = t === tab;
-                    t.classList.toggle('is-active', on);
-                    t.setAttribute('aria-selected', on ? 'true' : 'false');
-                });
-                panels.forEach(p => {
-                    const on = p.id === 'otw-panel-' + tab.dataset.otwTab;
-                    p.classList.toggle('is-active', on);
-                    p.hidden = !on;
-                });
-            }
+        /* ── Cerrar panel ── */
+        function closePanel() {
+            var widget = getWidget();
+            if (!widget || widget.hidden) return;
+            widget.hidden = true;
+            syncTriggerState(_activeTabKey, false);
+            _activeTabKey = null;
+        }
 
-            tabs.forEach(tab => {
-                tab.addEventListener('click', () => activateTab(tab));
-                tab.addEventListener('keydown', e => {
-                    const idx = tabs.indexOf(e.currentTarget);
-                    if (e.key === 'ArrowRight') { e.preventDefault(); tabs[(idx + 1) % tabs.length].focus(); }
-                    if (e.key === 'ArrowLeft')  { e.preventDefault(); tabs[(idx - 1 + tabs.length) % tabs.length].focus(); }
-                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activateTab(e.currentTarget); }
+        /* ── Marcar/desmarcar visualmente el botón trigger ── */
+        function syncTriggerState(key, active) {
+            document.querySelectorAll('[data-otw-trigger]').forEach(function(btn) {
+                if (btn.dataset.otwTrigger === key) {
+                    btn.classList.toggle('is-active', !!active);
+                    btn.setAttribute('aria-expanded', active ? 'true' : 'false');
+                } else {
+                    btn.classList.remove('is-active');
+                    btn.removeAttribute('aria-expanded');
+                }
+            });
+        }
+
+        /* ── Inicializar clicks en los botones trigger ── */
+        function initTriggers() {
+            document.querySelectorAll('[data-otw-trigger]').forEach(function(btn) {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    var key = btn.dataset.otwTrigger;
+                    var widget = getWidget();
+                    if (!widget) return;
+                    if (!widget.hidden && _activeTabKey === key) {
+                        closePanel(); // toggle: mismo ícono cierra
+                    } else {
+                        openPanel(key);
+                    }
                 });
             });
         }
 
-        /* Copia el icono renderizado por orden-produccion.js al tab correspondiente */
+        /* ── Clicks dentro del panel cambian el tab activo ── */
+        function initTabClicks() {
+            var widget = getWidget();
+            if (!widget) return;
+            var tabs = [].slice.call(widget.querySelectorAll('.otw-tab[data-otw-tab]'));
+            tabs.forEach(function(tab) {
+                tab.addEventListener('click', function() {
+                    _activeTabKey = tab.dataset.otwTab;
+                    activateTab(widget, _activeTabKey);
+                    syncTriggerState(_activeTabKey, true);
+                });
+                tab.addEventListener('keydown', function(e) {
+                    var idx = tabs.indexOf(e.currentTarget);
+                    if (e.key === 'ArrowRight') { e.preventDefault(); tabs[(idx + 1) % tabs.length].focus(); }
+                    if (e.key === 'ArrowLeft')  { e.preventDefault(); tabs[(idx - 1 + tabs.length) % tabs.length].focus(); }
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tab.click(); }
+                });
+            });
+        }
+
+        /* ── Cierre al click fuera (document) ── */
+        function initOutsideClose() {
+            document.addEventListener('click', function(e) {
+                var widget  = getWidget();
+                var section = getSection();
+                if (!widget || widget.hidden) return;
+                if (section && section.contains(e.target)) return; // dentro de la sección → no cerrar
+                closePanel();
+            });
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') closePanel();
+            });
+        }
+
+        /* ── Copia el ícono renderizado por orden-produccion.js al tab correspondiente ── */
         function syncIcons() {
             [
                 ['orderStateButton',       'otwIconFlow'],
                 ['orderDeliveriesButton',  'otwIconDeliveries'],
                 ['orderAttachmentsButton', 'otwIconAttachments'],
-            ].forEach(([srcId, tgtId]) => {
-                const src = document.getElementById(srcId);
-                const tgt = document.getElementById(tgtId);
+            ].forEach(function(pair) {
+                var src = document.getElementById(pair[0]);
+                var tgt = document.getElementById(pair[1]);
                 if (src && tgt && src.innerHTML.trim()) tgt.innerHTML = src.innerHTML;
             });
         }
 
-        /* Parchea openPopover para que los clicks en los botones ocultos
-           activen el tab correcto en vez de intentar abrir un popover inexistente */
+        /* ── Parchea openPopover para los clicks del JS de orden ── */
         function patchPopoverFunctions() {
-            const tabMap = {
+            var tabMap = {
                 orderFlowPopover:        'flow',
                 orderDeliveriesPopover:  'deliveries',
                 orderAttachmentsPopover: 'attachments',
             };
-            const widget = document.getElementById('orderTabsWidget');
-            if (!widget) return;
-            const origOpen = window.openPopover;
+            var origOpen = window.openPopover;
             if (typeof origOpen === 'function') {
                 window.openPopover = function(id) {
-                    const tabKey = tabMap[id];
-                    if (tabKey) {
-                        const tab = widget.querySelector('[data-otw-tab="' + tabKey + '"]');
-                        if (tab) tab.click();
-                        return;
-                    }
+                    var tabKey = tabMap[id];
+                    if (tabKey) { openPanel(tabKey); return; }
                     origOpen.call(this, id);
                 };
             }
         }
 
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => {
-                initTabs();
-                setTimeout(syncIcons, 400);
-                setTimeout(patchPopoverFunctions, 0);
-            });
-        } else {
-            initTabs();
-            setTimeout(syncIcons, 400);
+        function init() {
+            initTriggers();
+            initTabClicks();
+            initOutsideClose();
+            setTimeout(syncIcons, 400);          // esperar a que el JS de orden renderice íconos
+            setTimeout(syncIcons, 1200);         // segundo intento por si tarda más
             setTimeout(patchPopoverFunctions, 0);
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
         }
     })();
     </script>
