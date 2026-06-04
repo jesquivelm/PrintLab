@@ -16046,6 +16046,7 @@ html[data-theme="dark"] .production-client-contact-name strong {
     max-height: min(680px, calc(100vh - 200px));
     overflow: auto;
     position: relative;
+    isolation: isolate;
 }
 
 .production-header-tab-popover .calc-popover-panel::before {
@@ -16056,9 +16057,9 @@ html[data-theme="dark"] .production-client-contact-name strong {
     width: var(--tab-width, 38px);
     height: var(--tab-bridge-height, 40px);
     background: var(--order-panel-bg);
-    border: 1px solid var(--order-panel-border);
-    border-bottom: none;
+    border: none;
     border-radius: 12px 12px 0 0;
+    pointer-events: none;
     z-index: 1;
 }
 
@@ -16068,6 +16069,7 @@ html[data-theme="dark"] .production-client-contact-name strong {
 
 .production-header-tab-popover .calc-popover-body {
     background: var(--order-panel-bg) !important;
+    border-radius: inherit;
 }
 
 .production-flow-tab-popover .production-flow-popover-panel {
@@ -16110,7 +16112,6 @@ html[data-theme="dark"] .production-header-tab-popover .calc-popover-panel {
 
 html[data-theme="dark"] .production-header-tab-popover .calc-popover-panel::before {
     background: var(--order-panel-bg);
-    border-color: var(--order-panel-border);
 }
 
 html[data-theme="dark"] .production-tracking-icons-row {
@@ -16298,7 +16299,8 @@ html[data-theme="dark"] .config-drag-handle:hover {
 }
 
 .production-header-tab-popover .calc-popover-body {
-    overflow: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
     max-height: min(680px, calc(100vh - 200px));
 }
 
