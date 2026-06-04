@@ -16063,7 +16063,7 @@ html[data-theme="dark"] .production-client-contact-name strong {
     position: absolute;
     top: var(--tab-offset, -40px);
     left: auto;
-    right: calc(100% - var(--tab-left, 0px) - var(--tab-width, 38px) + 2px);
+    right: calc(100% - var(--tab-left, 0px) - var(--tab-width, 38px) + 1px);
     width: var(--tab-width, 38px);
     height: calc(var(--tab-bridge-height, 40px) - 20px);
     background: var(--order-panel-bg);
