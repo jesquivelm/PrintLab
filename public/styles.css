@@ -5218,11 +5218,17 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     width: 100%;
     min-height: 30px;
     padding: 5px 8px;
-    border: 1px solid #d8e3ea;
+    border: 1px solid transparent;
     border-radius: 8px;
-    background: #ffffff;
+    background: transparent;
     color: #203746;
     font: inherit;
+    transition: border-color 0.15s ease, background 0.15s ease;
+    outline: none;
+}
+.production-mini-table input:focus {
+    border-color: #d8e3ea;
+    background: #ffffff;
 }
 .production-mini-table input.is-invalid {
     border-color: #d03535;
@@ -11775,8 +11781,12 @@ html[data-theme="dark"] .socios-table {
 }
 html[data-theme="dark"] .production-deliveries-total,
 html[data-theme="dark"] .production-mini-table input {
-    background: #101a2b;
+    background: transparent;
     color: var(--app-text);
+    border-color: transparent;
+}
+html[data-theme="dark"] .production-mini-table input:focus {
+    background: #101a2b;
     border-color: var(--app-border);
 }
 html[data-theme="dark"] .production-deliveries-total strong {
@@ -14729,7 +14739,7 @@ body.inventory-route-troqueles.inventory-view-detail .inventory-editor-panel {
 .quote-master-lines .quote-master-line {
     width: 100% !important;
     display: grid !important;
-    grid-template-columns: 44px minmax(0, 1fr) auto !important;
+    grid-template-columns: calc(var(--quote-toggle-col) + var(--quote-code-col)) minmax(0, 1fr) auto !important;
     align-items: center !important;
     gap: 10px !important;
     padding: 10px 12px !important;
@@ -14902,11 +14912,17 @@ body.inventory-route-troqueles.inventory-view-detail .inventory-editor-panel {
     max-width: none !important;
 }
 
-.quote-detail-page .quote-head-right,
-.quote-detail-page .products-area {
+.quote-detail-page .quote-head-right {
     width: min(50%, 820px);
     min-width: 620px;
     margin-left: auto;
+}
+
+.quote-detail-page .products-area {
+    width: min(100%, 1320px);
+    min-width: min(1120px, 100%);
+    margin-left: 0;
+    margin-right: auto;
 }
 
 .quote-detail-page .products-area .quote-browser-table-wrap,
