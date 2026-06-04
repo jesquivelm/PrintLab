@@ -9460,11 +9460,20 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
 #orderAttachmentsButton,
 #orderDeliveriesButton,
 #orderStateButton,
+#orderSvgTestButton,
 #orderSapButton,
 #orderFlowToggleButton,
 #orderArtworkDeleteButton {
     width: calc(var(--config-icon-size, 18px) + 12px);
     height: calc(var(--config-icon-size, 18px) + 12px);
+}
+
+.production-svg-test-image {
+    width: var(--config-icon-size, 18px);
+    height: var(--config-icon-size, 18px);
+    display: block;
+    object-fit: contain;
+    pointer-events: none;
 }
 .production-inline-icon-tiny {
     width: 24px;
@@ -16039,13 +16048,12 @@ html[data-theme="dark"] .production-client-contact-name strong {
 
 .production-header-tab-popover .calc-popover-panel {
     transform: none !important;
-    border: none !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
+    border: 1px solid var(--order-panel-border) !important;
+    border-radius: 18px !important;
+    background: var(--order-panel-bg) !important;
     pointer-events: auto;
     max-height: min(680px, calc(100vh - 200px));
-    overflow: visible;
+    overflow: auto;
     position: relative;
     isolation: isolate;
 }
@@ -16053,31 +16061,29 @@ html[data-theme="dark"] .production-client-contact-name strong {
 .production-header-tab-popover .calc-popover-panel::before {
     content: '';
     position: absolute;
-    top: calc(var(--tab-shell-height, 60px) * -1);
-    left: 0;
-    width: 100%;
-    height: calc(100% + var(--tab-shell-height, 60px));
-    background-image: var(--tab-shell-image);
-    background-repeat: no-repeat;
-    background-size: 100% 100%;
-    filter: var(--tab-shell-shadow, drop-shadow(0 8px 24px rgba(15, 23, 42, 0.12)));
+    top: var(--tab-offset, -40px);
+    left: auto;
+    right: calc(100% - var(--tab-left, 0px) - var(--tab-width, 38px));
+    width: var(--tab-width, 38px);
+    height: calc(var(--tab-bridge-height, 40px) - 20px);
+    background: var(--order-panel-bg);
+    border: none;
+    border-radius: 12px 12px 0 0;
+    box-shadow:
+        inset 0 1px 0 var(--order-panel-border),
+        inset 1px 0 0 var(--order-panel-border),
+        inset -1px 0 0 var(--order-panel-border);
     pointer-events: none;
-    z-index: 0;
-}
-
-.production-header-tab-popover .calc-popover-panel.panel-left-side::before {
-    display: block;
-}
-
-.production-header-tab-popover .calc-popover-body {
-    background: transparent !important;
-    border-radius: 18px;
-    position: relative;
     z-index: 1;
 }
 
-.production-header-tab-popover .calc-popover-close {
-    z-index: 2;
+.production-header-tab-popover .calc-popover-panel.panel-left-side::before {
+    display: none;
+}
+
+.production-header-tab-popover .calc-popover-body {
+    background: var(--order-panel-bg) !important;
+    border-radius: inherit;
 }
 
 .production-flow-tab-popover .production-flow-popover-panel {
@@ -16114,12 +16120,12 @@ html[data-theme="dark"] .production-header-tab-popover {
 }
 
 html[data-theme="dark"] .production-header-tab-popover .calc-popover-panel {
-    background: transparent !important;
-    border-color: transparent !important;
+    background: var(--order-panel-bg) !important;
+    border-color: var(--order-panel-border) !important;
 }
 
 html[data-theme="dark"] .production-header-tab-popover .calc-popover-panel::before {
-    background-color: transparent;
+    background: var(--order-panel-bg);
 }
 
 html[data-theme="dark"] .production-tracking-icons-row {
@@ -16309,7 +16315,7 @@ html[data-theme="dark"] .config-drag-handle:hover {
 .production-header-tab-popover .calc-popover-body {
     overflow-x: hidden;
     overflow-y: auto;
-    max-height: var(--header-tab-body-max-height, min(680px, calc(100vh - 200px)));
+    max-height: min(680px, calc(100vh - 200px));
 }
 
 .production-order-layout-refined {
