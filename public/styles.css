@@ -16049,7 +16049,7 @@ html[data-theme="dark"] .production-client-contact-name strong {
 .production-header-tab-popover .calc-popover-panel {
     transform: none !important;
     border: 1px solid var(--order-panel-border) !important;
-    border-radius: 18px !important;
+    border-radius: 18px 0 18px 18px !important;
     background: var(--order-panel-bg) !important;
     pointer-events: auto;
     max-height: min(680px, calc(100vh - 200px));
