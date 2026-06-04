@@ -9460,11 +9460,20 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
 #orderAttachmentsButton,
 #orderDeliveriesButton,
 #orderStateButton,
+#orderSvgTestButton,
 #orderSapButton,
 #orderFlowToggleButton,
 #orderArtworkDeleteButton {
     width: calc(var(--config-icon-size, 18px) + 12px);
     height: calc(var(--config-icon-size, 18px) + 12px);
+}
+
+.production-svg-test-image {
+    width: var(--config-icon-size, 18px);
+    height: var(--config-icon-size, 18px);
+    display: block;
+    object-fit: contain;
+    pointer-events: none;
 }
 .production-inline-icon-tiny {
     width: 24px;

@@ -13,6 +13,7 @@ const pantonesButton = document.getElementById('orderPantonesButton');
 const deliveriesButton = document.getElementById('orderDeliveriesButton');
 const numberingButton = document.getElementById('orderNumberingButton');
 const stateButton = document.getElementById('orderStateButton');
+const svgTestButton = document.getElementById('orderSvgTestButton');
 const artworkDeleteButton = document.getElementById('orderArtworkDeleteButton');
 const orderFlowBody = document.getElementById('orderFlowBody');
 const scheduledDateInput = document.getElementById('orderScheduledDateInput');
@@ -1525,6 +1526,12 @@ function applyHeaderConfig(config) {
     attachmentsButton?.setAttribute('title', 'Ver adjuntos');
     renderIconButton(stateButton, iconConfigFor('orderStatus', DEFAULT_ICONS.status));
     stateButton?.setAttribute('title', 'Control de planificación');
+    if (svgTestButton) {
+        const testIconSize = stateButton?.style.getPropertyValue('--config-icon-size') || `${Number(currentConfig.general?.iconSizeOrderStatus) || 40}px`;
+        svgTestButton.style.setProperty('--config-icon-size', testIconSize.trim());
+        svgTestButton.style.fontSize = testIconSize.trim();
+        svgTestButton.innerHTML = '<img src="/assets/download.svg" alt="" class="production-svg-test-image">';
+    }
     renderIconButton(artworkDeleteButton, iconConfigFor('orderArtworkDelete', DEFAULT_ICONS.deleteArtwork, '#b94848'));
     setToggleIcon(samplesToggleButton, false);
     setToggleIcon(deliveryToggleButton, false);
