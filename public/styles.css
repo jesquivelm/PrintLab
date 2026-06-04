@@ -16019,7 +16019,7 @@ html[data-theme="dark"] .production-client-contact-name strong {
 }
 
 .production-tracking-icons-row .production-inline-icon.is-active {
-    background: var(--order-panel-bg) !important;
+    background: transparent !important;
     border: none !important;
     border-radius: 12px !important;
     box-shadow: none !important;
@@ -16135,7 +16135,7 @@ html[data-theme="dark"] .production-tracking-icons-row .production-inline-icon {
 
 html[data-theme="dark"] .production-tracking-icons-row .production-inline-icon.is-active {
     --order-panel-border: #3a506b;
-    background: var(--order-panel-bg) !important;
+    background: transparent !important;
     border: none !important;
     border-radius: 12px !important;
     box-shadow: none !important;
