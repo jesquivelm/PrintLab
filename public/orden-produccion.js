@@ -1365,9 +1365,9 @@ function closePopover(id) {
 function buildHeaderTabShellSvg(width, height, tabLeft, tabWidth, tabHeight, isDark) {
     const w = Math.max(1, Math.round(width));
     const h = Math.max(1, Math.round(height + tabHeight));
-    const y = Math.max(64, Math.round(tabHeight));
+    const y = Math.max(1, Math.round(tabHeight));
     const radius = 18;
-    const tabRadius = 16;
+    const tabRadius = 14;
     const tw = Math.max(48, Math.round(tabWidth));
     const tx = Math.max(radius, Math.min(Math.round(tabLeft), w - tw - radius));
     const tr = tx + tw;
@@ -1402,9 +1402,9 @@ function applyHeaderTabShell(panel, buttonRect) {
     const panelRect = panel.getBoundingClientRect();
     const width = panelRect.width || panel.offsetWidth || 320;
     const height = panelRect.height || panel.offsetHeight || 320;
-    const tabPadding = 12;
+    const tabPadding = 6;
     const tabWidth = buttonRect.width + tabPadding * 2;
-    const tabHeight = Math.max(78, Math.min(118, buttonRect.height + 36));
+    const tabHeight = Math.max(54, Math.min(64, buttonRect.height + 6));
     const tabLeft = buttonRect.left - panelRect.left - tabPadding;
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
     panel.style.setProperty('--tab-shell-height', `${tabHeight}px`);

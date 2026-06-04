@@ -16053,10 +16053,10 @@ html[data-theme="dark"] .production-client-contact-name strong {
 .production-header-tab-popover .calc-popover-panel::before {
     content: '';
     position: absolute;
-    top: calc(var(--tab-shell-height, 86px) * -1);
+    top: calc(var(--tab-shell-height, 60px) * -1);
     left: 0;
     width: 100%;
-    height: calc(100% + var(--tab-shell-height, 86px));
+    height: calc(100% + var(--tab-shell-height, 60px));
     background-image: var(--tab-shell-image);
     background-repeat: no-repeat;
     background-size: 100% 100%;
