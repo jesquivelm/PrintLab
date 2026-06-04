@@ -16012,7 +16012,7 @@ html[data-theme="dark"] .production-client-contact-name strong {
 .production-tracking-icons-row .production-inline-icon {
     width: 38px;
     height: 38px;
-    border: none !important;
+    border: 1px solid var(--order-panel-border) !important;
     border-radius: 12px !important;
     background: transparent !important;
     box-shadow: none !important;
@@ -16020,7 +16020,7 @@ html[data-theme="dark"] .production-client-contact-name strong {
 
 .production-tracking-icons-row .production-inline-icon.is-active {
     background: var(--order-panel-bg) !important;
-    border: none !important;
+    border: 1px solid var(--order-panel-border) !important;
     border-radius: 12px !important;
     box-shadow: none !important;
     z-index: 1002;
@@ -16051,14 +16051,14 @@ html[data-theme="dark"] .production-client-contact-name strong {
 .production-header-tab-popover .calc-popover-panel::before {
     content: '';
     position: absolute;
-    top: -8px;
+    top: var(--tab-offset, -40px);
     left: var(--tab-left, 0px);
     width: var(--tab-width, 38px);
-    height: 10px;
+    height: var(--tab-bridge-height, 40px);
     background: var(--order-panel-bg);
     border: 1px solid var(--order-panel-border);
     border-bottom: none;
-    border-radius: 8px 8px 0 0;
+    border-radius: 12px 12px 0 0;
     z-index: 1;
 }
 
@@ -16123,7 +16123,7 @@ html[data-theme="dark"] .production-tracking-icons-row {
 
 html[data-theme="dark"] .production-tracking-icons-row .production-inline-icon {
     background: transparent !important;
-    border: none !important;
+    border: 1px solid var(--order-panel-border) !important;
     box-shadow: none !important;
     color: #86a0b1 !important;
 }
@@ -16131,7 +16131,7 @@ html[data-theme="dark"] .production-tracking-icons-row .production-inline-icon {
 html[data-theme="dark"] .production-tracking-icons-row .production-inline-icon.is-active {
     --order-panel-border: #3a506b;
     background: var(--order-panel-bg) !important;
-    border: none !important;
+    border: 1px solid var(--order-panel-border) !important;
     border-radius: 12px !important;
     box-shadow: none !important;
 }

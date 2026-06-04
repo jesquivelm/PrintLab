@@ -1371,7 +1371,7 @@ function positionHeaderTabPopover(id) {
     const rect = button.getBoundingClientRect();
     const margin = 12;
     const panelWidth = panel.offsetWidth || 320;
-    const panelHeight = panel.scrollHeight || panel.offsetHeight || 400;
+    const panelHeight = panel.offsetHeight || 320;
     const spaceBelow = window.innerHeight - rect.bottom;
     const gap = 2;
     panel.style.position = 'fixed';
@@ -1379,6 +1379,8 @@ function positionHeaderTabPopover(id) {
     panel.style.bottom = 'auto';
     panel.style.removeProperty('--tab-left');
     panel.style.removeProperty('--tab-width');
+    panel.style.removeProperty('--tab-offset');
+    panel.style.removeProperty('--tab-bridge-height');
     panel.classList.remove('panel-left-side');
     if (spaceBelow >= panelHeight + gap + 16) {
         let left = rect.right - panelWidth;
@@ -1389,6 +1391,8 @@ function positionHeaderTabPopover(id) {
         panel.style.left = `${left}px`;
         panel.style.setProperty('--tab-left', `${rect.left - left}px`);
         panel.style.setProperty('--tab-width', `${rect.width}px`);
+        panel.style.setProperty('--tab-offset', `${-(rect.height + gap)}px`);
+        panel.style.setProperty('--tab-bridge-height', `${rect.height + gap + 1}px`);
     } else {
         let left = rect.left - panelWidth - 8;
         if (left < margin) left = margin;
