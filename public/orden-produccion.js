@@ -13,7 +13,6 @@ const pantonesButton = document.getElementById('orderPantonesButton');
 const deliveriesButton = document.getElementById('orderDeliveriesButton');
 const numberingButton = document.getElementById('orderNumberingButton');
 const stateButton = document.getElementById('orderStateButton');
-const svgTestButton = document.getElementById('orderSvgTestButton');
 const artworkDeleteButton = document.getElementById('orderArtworkDeleteButton');
 const orderFlowBody = document.getElementById('orderFlowBody');
 const scheduledDateInput = document.getElementById('orderScheduledDateInput');
@@ -1363,6 +1362,58 @@ function closePopover(id) {
     if (![...document.querySelectorAll('.calc-popover:not(.production-header-tab-popover)')].some((node) => !node.hidden)) document.body.classList.remove('popover-open');
 }
 
+function buildHeaderTabShellSvg(width, height, tabLeft, tabWidth, tabHeight, isDark) {
+    const w = Math.max(1, Math.round(width));
+    const h = Math.max(1, Math.round(height + tabHeight));
+    const y = Math.max(64, Math.round(tabHeight));
+    const radius = 18;
+    const tabRadius = 16;
+    const tw = Math.max(48, Math.round(tabWidth));
+    const tx = Math.max(radius, Math.min(Math.round(tabLeft), w - tw - radius));
+    const tr = tx + tw;
+    const fill = isDark ? '#152033' : '#ffffff';
+    const stroke = isDark ? '#3a506b' : '#cfe0f5';
+    const d = [
+        `M ${radius} ${y}`,
+        `H ${tx - tabRadius}`,
+        `Q ${tx} ${y} ${tx} ${y - tabRadius}`,
+        `V ${tabRadius}`,
+        `Q ${tx} 0 ${tx + tabRadius} 0`,
+        `H ${tr - tabRadius}`,
+        `Q ${tr} 0 ${tr} ${tabRadius}`,
+        `V ${y - tabRadius}`,
+        `Q ${tr} ${y} ${tr + tabRadius} ${y}`,
+        `H ${w - radius}`,
+        `Q ${w} ${y} ${w} ${y + radius}`,
+        `V ${h - radius}`,
+        `Q ${w} ${h} ${w - radius} ${h}`,
+        `H ${radius}`,
+        `Q 0 ${h} 0 ${h - radius}`,
+        `V ${y + radius}`,
+        `Q 0 ${y} ${radius} ${y}`,
+        'Z'
+    ].join(' ');
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><path fill="${fill}" stroke="${stroke}" stroke-width="1.4" d="${d}"/></svg>`;
+    return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+}
+
+function applyHeaderTabShell(panel, buttonRect) {
+    if (!panel || !buttonRect) return;
+    const panelRect = panel.getBoundingClientRect();
+    const width = panelRect.width || panel.offsetWidth || 320;
+    const height = panelRect.height || panel.offsetHeight || 320;
+    const tabPadding = 12;
+    const tabWidth = buttonRect.width + tabPadding * 2;
+    const tabHeight = Math.max(78, Math.min(118, buttonRect.height + 36));
+    const tabLeft = buttonRect.left - panelRect.left - tabPadding;
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    panel.style.setProperty('--tab-shell-height', `${tabHeight}px`);
+    panel.style.setProperty('--tab-shell-image', buildHeaderTabShellSvg(width, height, tabLeft, tabWidth, tabHeight, isDark));
+    panel.style.setProperty('--tab-shell-shadow', isDark
+        ? 'drop-shadow(0 2px 8px rgba(0, 0, 0, 0.30)) drop-shadow(0 8px 24px rgba(0, 0, 0, 0.40))'
+        : 'drop-shadow(0 2px 8px rgba(15, 23, 42, 0.08)) drop-shadow(0 8px 24px rgba(15, 23, 42, 0.12))');
+}
+
 function positionHeaderTabPopover(id) {
     const popover = document.getElementById(id);
     const panel = popover?.querySelector?.('.calc-popover-panel');
@@ -1372,47 +1423,26 @@ function positionHeaderTabPopover(id) {
     const rect = button.getBoundingClientRect();
     const margin = 12;
     const panelWidth = panel.offsetWidth || 320;
-    const panelHeight = panel.offsetHeight || 320;
-    const spaceBelow = window.innerHeight - rect.bottom;
     const gap = 2;
-    const tabExtension = 20;
-    const tabBridge = Math.max(1, rect.height + gap + tabExtension);
     panel.style.position = 'fixed';
     panel.style.right = 'auto';
     panel.style.bottom = 'auto';
-    panel.style.removeProperty('--tab-left');
-    panel.style.removeProperty('--tab-width');
-    panel.style.removeProperty('--tab-offset');
-    panel.style.removeProperty('--tab-bridge-height');
+    panel.style.removeProperty('--tab-shell-image');
+    panel.style.removeProperty('--tab-shell-height');
+    panel.style.removeProperty('--tab-shell-shadow');
+    panel.style.setProperty('--header-tab-body-max-height', `${Math.max(220, window.innerHeight - rect.bottom - gap - margin)}px`);
     panel.classList.remove('panel-left-side');
-    if (spaceBelow >= panelHeight + gap + 16) {
-        let left = rect.right - panelWidth;
-        const maxLeft = window.innerWidth - panelWidth - margin;
-        if (left > maxLeft) left = maxLeft;
-        if (left < margin) left = margin;
-        panel.style.top = `${rect.bottom + gap}px`;
-        panel.style.left = `${left}px`;
-        panel.style.setProperty('--tab-left', `${rect.left - left}px`);
-        panel.style.setProperty('--tab-width', `${rect.width}px`);
-        panel.style.setProperty('--tab-offset', `${-(rect.height + gap)}px`);
-        panel.style.setProperty('--tab-bridge-height', `${tabBridge}px`);
-    } else {
-        let left = rect.left - panelWidth - 8;
-        if (left < margin) left = margin;
-        panel.style.top = `${rect.top}px`;
-        panel.style.left = `${left}px`;
-        panel.classList.add('panel-left-side');
-    }
+    let left = rect.right - panelWidth;
+    const maxLeft = window.innerWidth - panelWidth - margin;
+    if (left > maxLeft) left = maxLeft;
+    if (left < margin) left = margin;
+    panel.style.top = `${rect.bottom + gap}px`;
+    panel.style.left = `${left}px`;
     const maxWidth = window.innerWidth - margin * 2;
     if (panelWidth > maxWidth) {
         panel.style.width = `${maxWidth}px`;
     }
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    if (isDark) {
-        panel.style.filter = 'drop-shadow(0 2px 8px rgba(0, 0, 0, 0.30)) drop-shadow(0 8px 24px rgba(0, 0, 0, 0.40))';
-    } else {
-        panel.style.filter = 'drop-shadow(0 2px 8px rgba(15, 23, 42, 0.08)) drop-shadow(0 8px 24px rgba(15, 23, 42, 0.10))';
-    }
+    applyHeaderTabShell(panel, rect);
 }
 
 function positionDeliveriesPopover() {
@@ -1526,12 +1556,6 @@ function applyHeaderConfig(config) {
     attachmentsButton?.setAttribute('title', 'Ver adjuntos');
     renderIconButton(stateButton, iconConfigFor('orderStatus', DEFAULT_ICONS.status));
     stateButton?.setAttribute('title', 'Control de planificación');
-    if (svgTestButton) {
-        const testIconSize = stateButton?.style.getPropertyValue('--config-icon-size') || `${Number(currentConfig.general?.iconSizeOrderStatus) || 40}px`;
-        svgTestButton.style.setProperty('--config-icon-size', testIconSize.trim());
-        svgTestButton.style.fontSize = testIconSize.trim();
-        svgTestButton.innerHTML = '<img src="/assets/download.svg" alt="" class="production-svg-test-image">';
-    }
     renderIconButton(artworkDeleteButton, iconConfigFor('orderArtworkDelete', DEFAULT_ICONS.deleteArtwork, '#b94848'));
     setToggleIcon(samplesToggleButton, false);
     setToggleIcon(deliveryToggleButton, false);
