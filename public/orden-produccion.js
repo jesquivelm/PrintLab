@@ -1374,6 +1374,8 @@ function positionHeaderTabPopover(id) {
     const panelHeight = panel.offsetHeight || 320;
     const spaceBelow = window.innerHeight - rect.bottom;
     const gap = 2;
+    const tabOverlap = Math.min(20, Math.max(0, rect.height - 2));
+    const tabBridge = Math.max(1, rect.height + gap - tabOverlap);
     panel.style.position = 'fixed';
     panel.style.right = 'auto';
     panel.style.bottom = 'auto';
@@ -1387,12 +1389,12 @@ function positionHeaderTabPopover(id) {
         const maxLeft = window.innerWidth - panelWidth - margin;
         if (left > maxLeft) left = maxLeft;
         if (left < margin) left = margin;
-        panel.style.top = `${rect.bottom + gap}px`;
+        panel.style.top = `${rect.bottom + gap - tabOverlap}px`;
         panel.style.left = `${left}px`;
         panel.style.setProperty('--tab-left', `${rect.left - left}px`);
         panel.style.setProperty('--tab-width', `${rect.width}px`);
-        panel.style.setProperty('--tab-offset', `${-(rect.height + gap)}px`);
-        panel.style.setProperty('--tab-bridge-height', `${rect.height + gap + 1}px`);
+        panel.style.setProperty('--tab-offset', `${-tabBridge}px`);
+        panel.style.setProperty('--tab-bridge-height', `${tabBridge + 1}px`);
     } else {
         let left = rect.left - panelWidth - 8;
         if (left < margin) left = margin;
