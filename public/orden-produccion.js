@@ -2180,17 +2180,71 @@ function renderOrder(order) {
     setHtml('orderProductCodesText', productCodes);
     var frontBackBlock = document.getElementById('orderFrontBackBlock');
     var frontBackMembers = document.getElementById('orderFrontBackMembers');
+    var frontBackProductCards = document.getElementById('orderFrontBackProductCards');
+    var quantitySection = document.getElementById('orderQuantitySection');
+    var artSection = document.getElementById('orderArtSection');
     if (frontBackObj) {
-        frontBackBlock.style.display = 'flex';
-        frontBackBlock.querySelector('.production-order-frontback-badge').textContent = frontBackObj.label || 'Frente / Dorso';
+        frontBackBlock.style.display = 'none';
+        frontBackProductCards.hidden = false;
+        quantitySection.hidden = true;
+        artSection.hidden = true;
         var outputs = Array.isArray(frontBackObj.outputs) ? frontBackObj.outputs : [];
-        frontBackMembers.innerHTML = outputs.map(function (o) {
-            var sideClass = String(o.side || o.lineCode || '').toLowerCase().includes('dorso') ? 'production-order-frontback-member-dorso' : 'production-order-frontback-member-frente';
-            var label = o.side || o.lineCode || o.productCode || 'Producto';
-            return '<span class="production-order-frontback-member ' + sideClass + '">' + escapeHtml(label) + ' (' + parseNumber(o.quantity) + ' uds)</span>';
+        var memberLineCodes = frontBackObj.memberLineCodes || frontBackObj.elementLineCodes || [];
+        var relatedLines = raw.related_lines || [];
+        var memberData = {};
+        relatedLines.forEach(function (rl) {
+            var lc = rl.summary?.line_code || rl.detail?.lineCode || '';
+            if (lc) memberData[lc] = rl;
+        });
+        var cardsHtml = outputs.map(function (o, idx) {
+            var side = '';
+            var lc = String(o.lineCode || '').toLowerCase();
+            var roles = frontBackObj.elementRoles || {};
+            if (roles[o.lineCode]) side = roles[o.lineCode];
+            else if (lc.includes('dorso') || lc.includes('back')) side = 'dorso';
+            else side = 'frente';
+            var sideLabel = side === 'dorso' ? 'Dorso' : 'Frente';
+            var productName = o.itemName || 'Producto';
+            var qty = parseNumber(o.quantity);
+            var memberInfo = memberData[o.lineCode] || {};
+            var memberDetail = memberInfo.detail || {};
+            var memberLineRaw = memberDetail.raw_data || {};
+            var memberLine = memberInfo.summary || {};
+            var artHolder = pickFirst(memberLineRaw['ARTE EN PODER DE'], '');
+            var artComments = pickFirst(memberLineRaw['COMENTARIOS VENDEDOR'], memberLineRaw['OBSERVACIONES VENTAS'], '');
+            var artOrder = pickFirst(memberLineRaw['ORDEN DE ARTE'], '');
+            var quoteCode = sourceQuoteCode;
+            var lineCodeForArt = o.lineCode || '';
+            return '<div class="production-frontback-card" data-side="' + escapeHtml(side) + '">' +
+                '<div class="production-frontback-card-header">' +
+                    '<div class="production-frontback-card-title">' +
+                        '<span class="production-frontback-card-side">' + escapeHtml(sideLabel) + '</span>' +
+                        '<span class="production-frontback-card-name">' + escapeHtml(productName) + '</span>' +
+                    '</div>' +
+                    '<div class="production-frontback-card-qty">' + qty + '</div>' +
+                '</div>' +
+                '<div class="production-frontback-card-art">' +
+                    '<div class="production-frontback-art-col">' +
+                        '<div class="production-frontback-art-dropzone production-art-dropzone" data-quote="' + escapeHtml(quoteCode) + '" data-line="' + escapeHtml(lineCodeForArt) + '">' +
+                            '<span class="production-frontback-art-dropzone-text">Arrastrar arte aquí</span>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="production-frontback-art-col">' +
+                        '<div class="production-frontback-art-info">' +
+                            '<div class="production-frontback-art-field"><span class="production-frontback-art-label">Arte en Poder de</span><span class="production-frontback-art-value">' + escapeHtml(artHolder || 'Sin asignar') + '</span></div>' +
+                            (artOrder ? '<div class="production-frontback-art-field"><span class="production-frontback-art-label">Orden de Arte</span><span class="production-frontback-art-value">' + escapeHtml(artOrder) + '</span></div>' : '') +
+                            (artComments ? '<div class="production-frontback-art-field"><span class="production-frontback-art-label">Comentarios</span><span class="production-frontback-art-value">' + escapeHtml(artComments) + '</span></div>' : '') +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
         }).join('');
+        frontBackProductCards.innerHTML = cardsHtml;
     } else {
         frontBackBlock.style.display = 'none';
+        frontBackProductCards.hidden = true;
+        quantitySection.hidden = false;
+        artSection.hidden = false;
     }
     setText('orderJobText', [pickFirst(line.job_name, detail.jobName), dimensions ? '(' + dimensions + ')' : ''].filter(Boolean).join(' '), 'Trabajo sin nombre');
     setOptionalText('orderDimensionsText', '');
@@ -2254,6 +2308,14 @@ function renderOrder(order) {
     setText('orderLineText', sourceLineCode || 'Sin línea');
     setText('orderStateText', stateText, 'Pendiente');
     applyOrderState(document.getElementById('orderStateText'), stateText);
+    var groupPill = document.getElementById('orderGroupPill');
+    if (frontBackObj) {
+        groupPill.hidden = false;
+        groupPill.textContent = frontBackObj.label || 'Grupo Frente/Dorso';
+    } else {
+        groupPill.hidden = true;
+        groupPill.textContent = '';
+    }
     setText('orderCreatedText', formatDate(order.created_at || raw.created_on, true), 'Sin fecha');
     setText('orderPromisedDateText', formatDate(promisedDateRaw), 'Pendiente');
     applyScheduleState(document.getElementById('orderPromisedDateText'), promisedDateRaw);

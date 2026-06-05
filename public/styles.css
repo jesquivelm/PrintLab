@@ -16337,3 +16337,178 @@ html[data-theme="dark"] .config-drag-handle:hover {
 .production-order-layout-refined {
     overflow-x: visible;
 }
+
+.production-tracking-state-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.production-group-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    padding: 0 14px;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 15px;
+    background: #ede9fe;
+    color: #6d28d9;
+}
+html[data-theme="dark"] .production-group-pill {
+    background: #2e1065;
+    color: #c4b5fd;
+}
+
+.production-frontback-product-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.production-frontback-card {
+    background: var(--order-panel-bg, #ffffff);
+    border: 1px solid var(--order-panel-border, #dbe5ec);
+    border-radius: 14px;
+    overflow: hidden;
+}
+html[data-theme="dark"] .production-frontback-card {
+    --order-panel-bg: #152033;
+    --order-panel-border: #3a506b;
+}
+
+.production-frontback-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--order-panel-border, #dbe5ec);
+    background: var(--order-panel-soft, #fbfdff);
+}
+html[data-theme="dark"] .production-frontback-card-header {
+    --order-panel-soft: #1d2a3d;
+}
+
+.production-frontback-card-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.production-frontback-card-side {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: #ede9fe;
+    color: #6d28d9;
+    flex-shrink: 0;
+}
+html[data-theme="dark"] .production-frontback-card-side {
+    background: #2e1065;
+    color: #c4b5fd;
+}
+.production-frontback-card[data-side="dorso"] .production-frontback-card-side {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+html[data-theme="dark"] .production-frontback-card[data-side="dorso"] .production-frontback-card-side {
+    background: #1e3a5f;
+    color: #93c5fd;
+}
+
+.production-frontback-card-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1f2937;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+html[data-theme="dark"] .production-frontback-card-name {
+    color: #e5e7eb;
+}
+
+.production-frontback-card-qty {
+    font-size: 20px;
+    font-weight: 700;
+    color: #163e56;
+    flex-shrink: 0;
+    padding-left: 12px;
+}
+html[data-theme="dark"] .production-frontback-card-qty {
+    color: #93c5fd;
+}
+
+.production-frontback-card-art {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 12px 16px;
+}
+@media (max-width: 500px) {
+    .production-frontback-card-art {
+        grid-template-columns: 1fr;
+    }
+}
+
+.production-frontback-art-dropzone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 80px;
+    border: 2px dashed var(--order-panel-border, #dbe5ec);
+    border-radius: 10px;
+    background: var(--order-panel-soft, #fbfdff);
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+.production-frontback-art-dropzone:hover {
+    border-color: #6d28d9;
+    background: #f5f3ff;
+}
+html[data-theme="dark"] .production-frontback-art-dropzone:hover {
+    border-color: #a78bfa;
+    background: #1e1b4b;
+}
+
+.production-frontback-art-dropzone-text {
+    font-size: 13px;
+    color: #9ca3af;
+    font-weight: 500;
+}
+
+.production-frontback-art-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.production-frontback-art-field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.production-frontback-art-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6b7280;
+}
+
+.production-frontback-art-value {
+    font-size: 13px;
+    color: #1f2937;
+    font-weight: 500;
+}
+html[data-theme="dark"] .production-frontback-art-value {
+    color: #d1d5db;
+}

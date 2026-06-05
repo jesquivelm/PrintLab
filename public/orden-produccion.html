@@ -188,9 +188,12 @@
                         <section class="socios-section production-tracking-section">
                             <div class="production-tracking-body">
                                 <div class="production-tracking-left">
-                                    <div class="production-tracking-head-row">
+                                        <div class="production-tracking-head-row">
                                         <div class="section-caption production-tracking-title">Seguimiento de la Orden</div>
-                                        <strong id="orderStateText" class="production-order-state production-state-pill production-state-pill-inline"></strong>
+                                        <div class="production-tracking-state-row">
+                                            <strong id="orderStateText" class="production-order-state production-state-pill production-state-pill-inline"></strong>
+                                            <span id="orderGroupPill" class="production-group-pill" hidden></span>
+                                        </div>
                                     </div>
                                     <label class="production-summary-item production-date-field">
                                         <span class="production-summary-label">Fecha de Entrega</span>
@@ -315,13 +318,15 @@
                         </section>
 
                         <div class="production-order-column-secondary">
-                            <section class="socios-section">
+                            <div id="orderFrontBackProductCards" class="production-frontback-product-cards" hidden>
+                            </div>
+                            <section id="orderQuantitySection" class="socios-section">
                                 <div class="production-section-head-inline">
                                     <div class="section-caption">Cantidad de Productos</div>
                                     <strong id="orderQuantityText" class="production-quantity-highlight"></strong>
                                 </div>
                             </section>
-                            <section class="socios-section production-art-section">
+                            <section id="orderArtSection" class="socios-section production-art-section">
                                 <div class="section-caption">Información de Arte</div>
                                 <button type="button" id="orderArtToggleButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-section-corner-toggle" aria-label="Expandir información de arte"></button>
                                 <div id="orderArtSummary" class="production-summary-stack"></div>
