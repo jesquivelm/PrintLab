@@ -12129,6 +12129,12 @@ html[data-theme="dark"] .row-action-menu-item {
     border-color: var(--app-border) !important;
 }
 
+html[data-theme="dark"] .production-inline-icon-ghost,
+html[data-theme="dark"] .production-contact-edit-btn,
+html[data-theme="dark"] .production-frontback-art-edit-btn {
+    background: transparent !important;
+}
+
 html[data-theme="dark"] .costs-mini-action {
     background: rgba(34, 211, 238, 0.1) !important;
     color: #cfeeff !important;
@@ -15873,6 +15879,9 @@ html[data-theme="dark"] .production-tracking-card .production-schedule-pill.is-a
 .production-contact-edit-btn {
     flex-shrink: 0;
     margin-top: 0;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
 }
 
 .production-contact-form-fields {
@@ -16604,6 +16613,9 @@ html[data-theme="dark"] .production-frontback-art-edit-form textarea:focus {
 .production-frontback-art-edit-btn {
     flex-shrink: 0;
     margin-top: 0;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
 }
 
 .production-frontback-art-edit-actions {

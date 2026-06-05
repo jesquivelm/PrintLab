@@ -15291,10 +15291,6 @@
                 const response = await fetch('/api/config/general');
                 loadedConfig = await response.json();
                 
-                console.log('=== LOAD CONFIG ===');
-                console.log('layout:', loadedConfig.layout);
-                console.log('branding:', loadedConfig.branding);
-                
                 if (loadedConfig.presentations) {
                     presentationsData = {
                         ...createEmptyPresentationState(),
