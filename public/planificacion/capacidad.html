@@ -324,9 +324,12 @@ function renderOrders() {
       <div class="order-card">
         <div class="order-card-hdr">
           <div class="order-code">${esc(o.orderCode)}</div>
-          <div class="order-dates">
-            ${o.earliestStart ? 'Inicio: ' + o.earliestStart : ''}
-            ${o.latestEnd ? ' · Fin: ' + o.latestEnd : ''}
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="order-dates">
+              ${o.earliestStart ? 'Inicio: ' + o.earliestStart : ''}
+              ${o.latestEnd ? ' · Fin: ' + o.latestEnd : ''}
+            </div>
+            <a href="timeline.html?codigo=${encodeURIComponent(o.orderCode)}" class="btn sm">📋 Timeline</a>
           </div>
         </div>
         <div class="order-timeline">${routeSteps}</div>

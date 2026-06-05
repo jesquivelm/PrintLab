@@ -15741,6 +15741,95 @@ app.get('/api/planificacion/gantt-capacidad', async (req, res) => {
     }
 });
 
+app.get('/api/planificacion/capacidad-finita/timeline/:orderCode', async (req, res) => {
+    try {
+        const { orderCode } = req.params;
+        const engine = await runFiniteCapacityEngine();
+        const orderData = engine.orders.find(o => o.orderCode === orderCode);
+        if (!orderData) return res.status(404).json({ ok: false, error: 'Orden no encontrada.' });
+
+        const routesRes = await pgQuery(`
+            SELECT r.*, o.customer_name, o.job_name, o.delivered_on
+            FROM production_order_routes r
+            JOIN flexo_orders o ON o.order_code = r.order_code
+            WHERE r.order_code = $1
+            ORDER BY r.sequence_order
+        `, [orderCode]);
+        const allRoutes = routesRes.rows;
+
+        const steps = [];
+        for (let i = 0; i < allRoutes.length; i++) {
+            const route = allRoutes[i];
+            const engineRoute = orderData.routes.find(r => r.routeId === route.id);
+            const resource = engine.resources.find(res => res.processKey === route.process_key);
+
+            let queueHours = 0;
+            let queueDays = 0;
+            if (i > 0) {
+                const prevRoute = allRoutes[i - 1];
+                const prevEngine = orderData.routes.find(r => r.routeId === prevRoute.id);
+                if (prevEngine && engineRoute) {
+                    const prevEnd = new Date(prevEngine.projectedEnd + 'T12:00:00');
+                    const thisStart = new Date(engineRoute.projectedStart + 'T12:00:00');
+                    const diffMs = thisStart - prevEnd;
+                    if (diffMs > 0) {
+                        queueHours = Math.round(diffMs / 3600000 * 10) / 10;
+                        queueDays = Math.round(diffMs / 86400000 * 10) / 10;
+                    }
+                }
+            }
+
+            const routeLoad = resource ? (resource.dailyLoad || []) : [];
+            const projectedDate = engineRoute?.projectedStart || null;
+            const dayLoad = routeLoad.find(d => d.date === projectedDate);
+            const dayCapacity = dayLoad?.capacity || 0;
+            const dayHoursUsed = dayLoad?.hours || 0;
+
+            steps.push({
+                routeId: route.id,
+                sequenceOrder: route.sequence_order,
+                processKey: route.process_key,
+                processName: route.process_name,
+                machineName: resource?.machineName || route.machine_profile_id || 'Sin asignar',
+                durationHours: Number(route.duration_hours) || 0,
+                projectedStart: engineRoute?.projectedStart || null,
+                projectedEnd: engineRoute?.projectedEnd || null,
+                queueHours,
+                queueDays,
+                isBottleneck: resource?.isBottleneck || false,
+                utilizationAtResource: resource?.utilizationPct || 0,
+                dayCapacity,
+                dayHoursUsed,
+                status: route.route_status,
+                routePayload: route.route_payload || {}
+            });
+        }
+
+        const totalQueueDays = steps.reduce((s, st) => s + st.queueDays, 0);
+        const totalProcessDays = steps.reduce((s, st) => s + (st.durationHours / 8), 0);
+        const bottleneckSteps = steps.filter(s => s.isBottleneck);
+
+        res.json({
+            ok: true,
+            data: {
+                orderCode,
+                customerName: allRoutes[0]?.customer_name || '',
+                jobName: allRoutes[0]?.job_name || '',
+                promisedDate: allRoutes[0]?.delivered_on || null,
+                earliestStart: orderData.earliestStart,
+                latestEnd: orderData.latestEnd,
+                totalDays: Math.round((totalQueueDays + totalProcessDays) * 10) / 10,
+                totalQueueDays: Math.round(totalQueueDays * 10) / 10,
+                totalProcessDays: Math.round(totalProcessDays * 10) / 10,
+                bottleneckCount: bottleneckSteps.length,
+                steps
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible generar el timeline.' });
+    }
+});
+
 app.get('/api/mes/motivos-paro', async (req, res) => {
     try {
         const result = await pgQuery(`
