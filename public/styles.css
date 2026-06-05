@@ -16699,3 +16699,36 @@ html[data-theme="dark"] .production-frontback-art-dropzone:hover {
 html[data-theme="dark"] .production-frontback-art-value {
     color: #d1d5db;
 }
+
+.production-frontback-art-display {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.production-frontback-art-display .production-summary-item {
+    margin: 0;
+}
+.production-frontback-art-edit-btn {
+    margin-left: auto;
+}
+.production-frontback-art-edit-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 8px;
+}
+.production-frontback-art-cancel-btn {
+    padding: 6px 16px;
+    border: 1px solid var(--order-panel-border, #dbe5ec);
+    border-radius: 8px;
+    background: var(--order-panel-bg, #fff);
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+}
+html[data-theme="dark"] .production-frontback-art-cancel-btn {
+    border-color: #3a506b;
+    background: #152033;
+    color: #9ca3af;
+}

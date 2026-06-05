@@ -1791,14 +1791,16 @@ function renderFrontBackProductCard({ frontBackObj, output, memberInfo, index, s
                 <div class="production-frontback-art-section">
                     <div class="production-section-head-inline">
                         <div class="section-caption">Arte</div>
-                        <button type="button" class="browser-open-link production-inline-icon production-inline-icon-ghost production-section-corner-toggle production-frontback-art-toggle" aria-label="Expandir arte"></button>
                     </div>
-                    <div class="production-frontback-art-summary production-summary-stack">
-                        ${artHolder ? '<div class="production-summary-item"><span class="production-summary-label">Arte en Poder de</span><span class="production-summary-value">' + escapeHtml(artHolder) + '</span></div>' : ''}
+                    <div class="production-frontback-art-display">
+                        ${artHolder ? '<div class="production-summary-item"><span class="production-summary-label">Arte en Poder de</span><span class="production-summary-value">' + escapeHtml(artHolder) + '</span></div>' : '<div class="production-summary-item"><span class="production-summary-label">Arte en Poder de</span><span class="production-summary-value production-contact-missing-label">Sin asignar</span></div>'}
                         ${artComments ? '<div class="production-summary-item"><span class="production-summary-label">Comentarios</span><span class="production-summary-value">' + escapeHtml(artComments) + '</span></div>' : ''}
-                        ${!artHolder && !artComments ? '<span class="production-chip production-chip-muted">Sin información de arte</span>' : ''}
+                        <button type="button" class="production-frontback-art-edit-btn browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Editar arte">
+                            <svg class="production-client-info-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>
+                            <span>Editar</span>
+                        </button>
                     </div>
-                    <form class="production-inline-form production-frontback-art-form" hidden>
+                    <div class="production-frontback-art-edit-form" hidden>
                         <button type="button" class="production-art-preview production-art-preview-compact production-art-dropzone production-frontback-art-dropzone" data-frontback-art-target data-quote="${escapeHtml(sourceQuoteCode)}" data-line="${escapeHtml(lineCode)}" aria-label="Adjuntar arte ${escapeHtml(frontBackSideLabel(side))}">
                             <div class="attachments-empty">Selecciona el Arte</div>
                         </button>
@@ -1812,7 +1814,10 @@ function renderFrontBackProductCard({ frontBackObj, output, memberInfo, index, s
                                 <textarea rows="1" placeholder="Comentarios de arte">${escapeHtml(artComments)}</textarea>
                             </div>
                         </div>
-                    </form>
+                        <div class="production-frontback-art-edit-actions">
+                            <button type="button" class="production-frontback-art-cancel-btn">Cancelar</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -2739,13 +2744,25 @@ deliveryForm?.addEventListener('submit', (event) => event.preventDefault());
 artToggleButton?.addEventListener('click', () => toggleSection(artSummary, artForm, artToggleButton, artForm.hidden));
 artForm?.addEventListener('submit', (event) => event.preventDefault());
 document.addEventListener('click', function (e) {
-    var toggle = e.target.closest('.production-frontback-art-toggle');
-    if (!toggle) return;
-    var section = toggle.closest('.production-frontback-art-section');
-    if (!section) return;
-    var summary = section.querySelector('.production-frontback-art-summary');
-    var form = section.querySelector('.production-frontback-art-form');
-    toggleSection(summary, form, toggle, form.hidden);
+    var editBtn = e.target.closest('.production-frontback-art-edit-btn');
+    if (editBtn) {
+        var section = editBtn.closest('.production-frontback-art-section');
+        if (!section) return;
+        var display = section.querySelector('.production-frontback-art-display');
+        var form = section.querySelector('.production-frontback-art-edit-form');
+        if (display) display.hidden = true;
+        if (form) form.hidden = false;
+        return;
+    }
+    var cancelBtn = e.target.closest('.production-frontback-art-cancel-btn');
+    if (cancelBtn) {
+        var section = cancelBtn.closest('.production-frontback-art-section');
+        if (!section) return;
+        var display = section.querySelector('.production-frontback-art-display');
+        var form = section.querySelector('.production-frontback-art-edit-form');
+        if (display) display.hidden = false;
+        if (form) form.hidden = true;
+    }
 });
 sapConsumptionProcess?.addEventListener('change', () => {
     loadSapConsumptionMaterials().catch((error) => {
