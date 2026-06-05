@@ -28,7 +28,7 @@ body{background:#f6f8fb}
 .planning-queue-pill{display:inline-flex;align-items:center;min-height:30px;padding:0 10px;border:0;border-radius:999px;background:#eef4f8;color:#577086;font-size:12px;font-family:inherit;cursor:default}
 button.planning-queue-pill{cursor:pointer}
 button.planning-queue-pill:hover{background:#e2eef6;color:#215a82}
-.planning-queue-body{display:grid;grid-template-columns:minmax(420px,1.18fr) minmax(320px,.9fr) minmax(240px,.7fr);gap:16px;align-items:stretch}
+.planning-queue-body{display:grid;grid-template-columns:1fr;gap:16px;align-items:stretch}
 .planning-queue-panel{padding:14px;border:1px solid #e3ebf1;border-radius:14px;background:#fbfdff;display:flex;flex-direction:column;min-height:0}
 .planning-queue-panel-compact{padding:12px 14px}
 .planning-queue-panel h3{font-size:14px;text-transform:none;letter-spacing:0;color:#111827;margin:0;font-weight:700;line-height:30px}
@@ -80,7 +80,7 @@ button.planning-queue-pill:hover{background:#e2eef6;color:#215a82}
 .planning-queue-material-main{min-width:0}
 .planning-queue-material-main strong{display:block;font-size:14px;color:#111827;font-weight:500}
 .planning-queue-material-main span{display:block;font-size:13px;color:#777;margin-top:5px;line-height:1.35}
-.planning-queue-material-tag{padding:5px 8px;border-radius:999px;background:#eef4f8;color:#577086;font-size:10px;font-weight:700}
+.planning-queue-material-tag{padding:3px 8px;border-radius:999px;background:#eef4f8;color:#577086;font-size:10px;font-weight:700;display:inline-block;margin-top:4px}
 .planning-queue-material-ink{grid-template-columns:auto minmax(0,1fr) auto;align-items:center}
 .planning-queue-ink-swatches{display:grid;grid-template-columns:repeat(4,minmax(38px,1fr));gap:8px;align-items:center}
 .planning-queue-ink-swatch{display:grid;justify-items:center;gap:5px;font-size:12px;color:#777}
@@ -124,15 +124,25 @@ button.planning-queue-pill:hover{background:#e2eef6;color:#215a82}
 .planning-queue-return-textarea{width:100%;min-height:92px;padding:12px 14px;border-radius:14px;border:1px solid #dbe5ec;background:#fff;font-size:12px;color:#304453;resize:vertical}
 .planning-queue-return-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
 @media (max-width:1100px){
-  .planning-queue-summary,.planning-queue-body{grid-template-columns:1fr 1fr}
+  .planning-queue-summary{grid-template-columns:1fr 1fr}
 }
 @media (max-width:820px){
   .planning-queue-page{padding:16px}
   .planning-queue-hero,.planning-queue-toolbar,.planning-queue-head{flex-direction:column;align-items:stretch}
-  .planning-queue-summary,.planning-queue-body{grid-template-columns:1fr}
+  .planning-queue-summary{grid-template-columns:1fr}
   .planning-queue-card-actions{justify-content:stretch}
   .planning-queue-flip,.planning-queue-flip-inner{min-height:360px}
 }
+html[data-theme="dark"] .planning-queue-material-item{background:#111c30!important;color:var(--app-text)!important;border-color:var(--app-border)!important}
+html[data-theme="dark"] .planning-queue-material-main strong{color:var(--app-text)!important}
+html[data-theme="dark"] .planning-queue-material-main span{color:var(--app-text-muted)!important}
+html[data-theme="dark"] .planning-queue-material-tag{background:rgba(56,189,248,.13)!important;color:#bae6fd!important}
+html[data-theme="dark"] .planning-queue-material-empty{color:var(--app-text-muted)!important}
+html[data-theme="dark"] .planning-queue-ink-swatch em{color:var(--app-text-muted)!important}
+html[data-theme="dark"] .planning-queue-ink-swatch i{border-color:rgba(255,255,255,.1)!important}
+html[data-theme="dark"] .planning-queue-process-toggle{background:#111c30!important;color:#c9d8eb!important;border-color:var(--app-border)!important}
+html[data-theme="dark"] .planning-queue-process-toggle.was-quoted{background:rgba(154,100,15,.15)!important;color:#fbbf24!important;border-color:rgba(154,100,15,.25)!important}
+html[data-theme="dark"] .planning-queue-process-warning{background:rgba(154,100,15,.12)!important;color:#fbbf24!important}
 </style>
 <link rel="stylesheet" href="/theme-extensions.css">
 </head>

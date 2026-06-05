@@ -287,16 +287,18 @@ function artworkSlot(item) {
     const artwork = item.artwork || null;
     const imageSrc = artwork && artwork.isImage ? (artwork.downloadUrl || artwork.value || '') : '';
     const fallbackLabel = artwork ? (artwork.label || 'Arte adjunto') : 'Arte pendiente';
+    const escapedOrder = escapeHtml(item.orderCode);
+    const escapedFallback = escapeHtml(fallbackLabel);
     return `
         <section class="planning-queue-art-slot" aria-label="Arte de la orden">
             <div class="planning-queue-art-head">
                 <span>Arte</span>
-                <button type="button" class="planning-queue-icon-btn" data-action="refresh-art" data-order="${escapeHtml(item.orderCode)}" title="Actualizar arte" aria-label="Actualizar arte"${iconButtonStyle('planningRefresh')}>${iconMarkup('planningRefresh', '↻', 'Actualizar arte')}</button>
+                <button type="button" class="planning-queue-icon-btn" data-action="refresh-art" data-order="${escapedOrder}" title="Actualizar arte" aria-label="Actualizar arte"${iconButtonStyle('planningRefresh')}>${iconMarkup('planningRefresh', '↻', 'Actualizar arte')}</button>
             </div>
             <div class="planning-queue-art-preview">
                 ${imageSrc
-                    ? `<img src="${escapeHtml(imageSrc)}" alt="Arte de ${escapeHtml(item.orderCode)}"><div class="planning-queue-art-placeholder" hidden>${escapeHtml(fallbackLabel)}</div>`
-                    : `<div class="planning-queue-art-placeholder">${escapeHtml(fallbackLabel)}</div>`}
+                    ? `<img src="${escapeHtml(imageSrc)}" alt="Arte de ${escapedOrder}" onerror="this.onerror=null;this.remove();var p=this.parentNode;var ph=p.querySelector('.planning-queue-art-placeholder');if(ph){ph.hidden=false;ph.textContent='No se pudo cargar la imagen del arte.'}"><div class="planning-queue-art-placeholder" hidden>${escapedFallback}</div>`
+                    : `<div class="planning-queue-art-placeholder">${escapedFallback}</div>`}
             </div>
         </section>
     `;
@@ -329,7 +331,7 @@ function materialChecklist(item) {
                 <input type="checkbox" data-material-group="tinta" data-order="${escapeHtml(item.orderCode)}" data-material-keys="${escapeHtml(encodeURIComponent(JSON.stringify(approvalKeys)))}"${inkRows.every((row) => row.checked) ? ' checked' : ''}>
                 <span class="planning-queue-material-main">
                     <strong>Tinta</strong>
-                    <span>Impresión</span>
+                    <span class="planning-queue-material-tag">Tinta</span>
                 </span>
                 <span class="planning-queue-ink-swatches">
                     ${palette.map((ink, index) => {
@@ -348,8 +350,8 @@ function materialChecklist(item) {
                 const qty = Number(material.plannedQuantity || 0) > 0
                     ? `${formatNumber(material.plannedQuantity, 2)} ${material.unitCode || ''}`.trim()
                     : 'Cantidad por definir';
+                const familyLabel = material.materialFamily || '';
                 const meta = [
-                    processLabel(material.processKey, material.processKey),
                     qty,
                     material.sapStatus ? `SAP: ${material.sapStatus}` : '',
                     material.requestedAt ? formatDate(material.requestedAt, true) : ''
@@ -357,11 +359,12 @@ function materialChecklist(item) {
                 return `
                     <label class="planning-queue-material-item">
                         <input type="checkbox" data-material-toggle data-order="${escapeHtml(item.orderCode)}" data-material-key="${escapeHtml(material.approvalKey)}"${material.checked ? ' checked' : ''}>
-                        <span class="planning-queue-material-main">
-                            <strong>${escapeHtml(material.materialName || material.sapItemCode || 'Material')}</strong>
-                            <span>${escapeHtml(meta)}</span>
-                            ${material.reason ? `<span>${escapeHtml(material.reason)}</span>` : ''}
-                        </span>
+                    <span class="planning-queue-material-main">
+                        <strong>${escapeHtml(material.materialName || material.sapItemCode || 'Material')}</strong>
+                        ${familyLabel ? `<span class="planning-queue-material-tag">${escapeHtml(familyLabel)}</span>` : ''}
+                        <span>${escapeHtml(meta)}</span>
+                        ${material.reason ? `<span>${escapeHtml(material.reason)}</span>` : ''}
+                    </span>
                     </label>
                 `;
             }).join('')}
@@ -636,14 +639,6 @@ listBox?.addEventListener('change', async (event) => {
         await refreshQueue().catch(() => {});
     }
 });
-
-listBox?.addEventListener('error', (event) => {
-    const image = event.target?.closest?.('.planning-queue-art-preview img');
-    if (!image) return;
-    const fallback = image.nextElementSibling;
-    image.remove();
-    if (fallback) fallback.hidden = false;
-}, true);
 
 listBox?.addEventListener('click', async (event) => {
     const docLink = event.target.closest('.planning-queue-doc-link[data-route]');

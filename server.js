@@ -16040,9 +16040,14 @@ function collectOrderConsumptionMaterials(orderRow, processKey = 'impresion') {
     const addFinish = (finish) => {
         const family = normalizeConsumptionFamily(finish.key || finish.processKey || finish.label || finish.materialName);
         if (!['barniz', 'laminado', 'foil'].includes(family)) return;
+        const detail = sanitizeAdminUserText(finish.detail || finish.varnish || finish.laminate || finish.foil || finish.type || '');
+        const baseName = finish.materialName || finish.processLabel || finish.label || finish.processName || finish.materialId || '';
+        const materialName = detail && baseName && !baseName.toLowerCase().includes(detail.toLowerCase())
+            ? `${baseName} (${detail})`
+            : baseName || detail || family;
         addConsumptionMaterial(materials, {
             sapItemCode: finish.sapItemCode || finish.materialCode || finish.materialId || finish.itemCode,
-            materialName: finish.materialName || finish.processLabel || finish.label || finish.processName || finish.materialId,
+            materialName,
             family,
             plannedQuantity: finish.materialConsumptionLb || finish.materialConsumptionKg || finish.materialFeet || finish.quantity,
             unitCode: finish.unit || (family === 'barniz' ? 'lb' : 'ft'),
