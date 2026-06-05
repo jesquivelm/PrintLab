@@ -1789,34 +1789,24 @@ function renderFrontBackProductCard({ frontBackObj, output, memberInfo, index, s
                     </div>
                 </div>
                 <div class="production-frontback-art-section">
-                    <div class="production-section-head-inline">
-                        <div class="section-caption">Arte</div>
-                    </div>
-                    <div class="production-frontback-art-display">
-                        ${artHolder ? '<div class="production-summary-item"><span class="production-summary-label">Arte en Poder de</span><span class="production-summary-value">' + escapeHtml(artHolder) + '</span></div>' : '<div class="production-summary-item"><span class="production-summary-label">Arte en Poder de</span><span class="production-summary-value production-contact-missing-label">Sin asignar</span></div>'}
-                        ${artComments ? '<div class="production-summary-item"><span class="production-summary-label">Comentarios</span><span class="production-summary-value">' + escapeHtml(artComments) + '</span></div>' : ''}
-                        <button type="button" class="production-frontback-art-edit-btn browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Editar arte">
-                            <svg class="production-client-info-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>
-                            <span>Editar</span>
-                        </button>
-                    </div>
-                    <div class="production-frontback-art-edit-form" hidden>
-                        <button type="button" class="production-art-preview production-art-preview-compact production-art-dropzone production-frontback-art-dropzone" data-frontback-art-target data-quote="${escapeHtml(sourceQuoteCode)}" data-line="${escapeHtml(lineCode)}" aria-label="Adjuntar arte ${escapeHtml(frontBackSideLabel(side))}">
-                            <div class="attachments-empty">Selecciona el Arte</div>
-                        </button>
-                        <div class="production-summary-grid production-summary-grid-two">
-                            <div class="field production-art-holder-field">
-                                <label>Arte en Poder de</label>
-                                <input type="text" list="orderArtworkHolderOptions" value="${escapeHtml(artHolder)}" placeholder="Seleccionar o escribir">
-                            </div>
-                            <div class="field production-art-comments-field">
-                                <label>Comentarios</label>
-                                <textarea rows="1" placeholder="Comentarios de arte">${escapeHtml(artComments)}</textarea>
+                    <div class="production-frontback-art-row">
+                        <div class="production-frontback-art-preview-col">
+                            <div class="production-art-preview production-art-preview-compact production-art-dropzone production-frontback-art-dropzone" data-frontback-art-target data-quote="${escapeHtml(sourceQuoteCode)}" data-line="${escapeHtml(lineCode)}" aria-label="Adjuntar arte ${escapeHtml(frontBackSideLabel(side))}">
+                                <div class="attachments-empty">Arrastrar arte aquí</div>
                             </div>
                         </div>
-                        <div class="production-frontback-art-edit-actions">
-                            <button type="button" class="production-frontback-art-cancel-btn">Cancelar</button>
+                        <div class="production-frontback-art-meta-col">
+                            <div class="production-frontback-art-display">
+                                <div class="production-frontback-art-field"><span class="production-frontback-art-label">Arte en Poder de</span><span class="production-frontback-art-value">${escapeHtml(artHolder || 'Sin asignar')}</span></div>
+                                ${artComments ? '<div class="production-frontback-art-field"><span class="production-frontback-art-label">Comentarios</span><span class="production-frontback-art-value">' + escapeHtml(artComments) + '</span></div>' : ''}
+                            </div>
+                            <div class="production-frontback-art-edit-form" hidden>
+                                <div class="production-frontback-art-field"><label class="production-frontback-art-label">Arte en Poder de</label><input type="text" list="orderArtworkHolderOptions" value="${escapeHtml(artHolder)}" placeholder="Seleccionar o escribir"></div>
+                                <div class="production-frontback-art-field"><label class="production-frontback-art-label">Comentarios</label><textarea rows="2" placeholder="Comentarios de arte">${escapeHtml(artComments)}</textarea></div>
+                                <div class="production-frontback-art-edit-actions"><button type="button" class="production-frontback-art-cancel-btn">Cancelar</button></div>
+                            </div>
                         </div>
+                        <button type="button" class="production-frontback-art-edit-btn production-inline-icon production-inline-icon-ghost" title="Editar arte" aria-label="Editar arte"></button>
                     </div>
                 </div>
             </div>
@@ -2253,10 +2243,10 @@ function renderCustomerContact(col, data) {
 
     col.innerHTML =
         '<div class="production-customer-contact-display">' +
-            displayLines.join('') +
-            '<button type="button" class="production-contact-edit-btn" title="Editar contacto del cliente" aria-label="Editar contacto del cliente">' +
-                ICON_EDIT + '<span>' + (hasData ? 'Editar' : 'Asignar contacto') + '</span>' +
-            '</button>' +
+            '<div class="production-customer-contact-info">' +
+                displayLines.join('') +
+            '</div>' +
+            '<button type="button" class="production-contact-edit-btn production-inline-icon production-inline-icon-ghost" title="Editar contacto del cliente" aria-label="Editar contacto del cliente"></button>' +
         '</div>' +
         '<div class="production-customer-contact-form" hidden>' +
             '<div class="production-contact-form-fields">' +
@@ -2426,6 +2416,8 @@ function renderOrder(order) {
     setOptionalText('orderCustomerSummaryText', [customerId ? `(${customerId})` : '', customerName].filter(Boolean).join(' '));
     const contactCol = document.getElementById('orderCustomerContactCol');
     renderCustomerContact(contactCol, { customerContact, customerPhone, customerEmail });
+    var contactEditBtn = contactCol?.querySelector('.production-contact-edit-btn');
+    if (contactEditBtn) renderIconButton(contactEditBtn, iconConfigFor('orderEdit', '✏', '#64748b', 16));
     document.getElementById('orderClientInfoGrid').hidden = false;
 
     const sellerCol = document.getElementById('orderSellerCol');
@@ -2521,6 +2513,8 @@ function renderOrder(order) {
         }).join('');
         frontBackProductCards.innerHTML = cardsHtml;
         renderFrontBackLayout({ raw, frontBackObj, sourceQuoteCode, order });
+        var artEditIconConf = iconConfigFor('orderEdit', '✏', '#64748b', 16);
+        document.querySelectorAll('.production-frontback-art-edit-btn').forEach(function (btn) { renderIconButton(btn, artEditIconConf); });
     } else {
         orderLayout?.classList.remove('is-frontback-order');
         if (productSection) productSection.hidden = false;
