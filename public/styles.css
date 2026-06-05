@@ -16357,6 +16357,8 @@ html[data-theme="dark"] .config-drag-handle:hover {
     justify-items: end;
     gap: 6px;
     padding-top: 2px;
+    min-width: 170px;
+    text-align: right;
 }
 
 .production-frontback-total-quantity[hidden] {
@@ -16365,6 +16367,9 @@ html[data-theme="dark"] .config-drag-handle:hover {
 
 .production-frontback-total-quantity .section-caption {
     margin: 0;
+    width: auto;
+    max-width: none;
+    white-space: nowrap;
 }
 
 .production-frontback-total-quantity .production-quantity-highlight {
@@ -16376,10 +16381,10 @@ html[data-theme="dark"] .config-drag-handle:hover {
     display: inline-flex;
     align-items: center;
     min-height: 20px;
-    padding: 0 6px;
+    padding: 0 12px;
     border-radius: 999px;
     font-weight: 700;
-    font-size: 10px;
+    font-size: 13px;
     line-height: 20px;
     background: #ede9fe;
     color: #6d28d9;
@@ -16428,17 +16433,28 @@ html[data-theme="dark"] .production-group-pill {
     margin-bottom: 8px;
 }
 
+.production-frontback-product-head > div:first-child {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.production-frontback-product-head > div:first-child .section-caption {
+    margin: 0;
+}
+
 .production-frontback-side-chip {
     display: inline-flex;
     align-items: center;
-    min-height: 24px;
-    padding: 0 14px;
+    min-height: 20px;
+    padding: 0 10px;
     border-radius: 999px;
     background: #ede9fe;
     color: #6d28d9;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 800;
-    line-height: 1;
+    line-height: 20px;
 }
 
 .production-frontback-quantity {
@@ -16474,13 +16490,34 @@ html[data-theme="dark"] .production-group-pill {
 }
 
 .production-frontback-art-section .production-summary-grid-art {
-    grid-template-columns: minmax(220px, .95fr) minmax(180px, .7fr);
-    gap: 12px 20px;
-    align-items: center;
+    grid-template-columns: minmax(170px, .9fr) minmax(150px, .65fr) minmax(190px, .9fr);
+    gap: 10px 14px;
+    align-items: end;
 }
 
 .production-frontback-art-dropzone {
     min-height: 82px;
+}
+
+.production-frontback-art-section .production-frontback-art-dropzone {
+    min-height: 70px;
+}
+
+.production-frontback-art-section .field {
+    margin: 0;
+}
+
+.production-frontback-art-section input,
+.production-frontback-art-section textarea {
+    width: 100%;
+}
+
+.production-frontback-art-section textarea {
+    min-height: 34px;
+    height: 34px;
+    max-height: 68px;
+    resize: none;
+    overflow: hidden;
 }
 
 .production-frontback-art-dropzone .production-art-image {

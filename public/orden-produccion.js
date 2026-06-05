@@ -1795,9 +1795,12 @@ function renderFrontBackProductCard({ frontBackObj, output, memberInfo, index, s
                             <div class="attachments-empty">Selecciona el Arte</div>
                         </button>
                         <div class="field production-art-holder-field">
-                            <label>Arte en poder de</label>
-                            <input type="text" value="${escapeHtml(artHolder)}" readonly>
-                            ${artComments ? `<span class="production-frontback-art-note">${escapeHtml(artComments)}</span>` : ''}
+                            <label>Arte en Poder de</label>
+                            <input type="text" list="orderArtworkHolderOptions" value="${escapeHtml(artHolder)}" placeholder="Seleccionar o escribir">
+                        </div>
+                        <div class="field production-art-comments-field">
+                            <label>Comentarios</label>
+                            <textarea rows="1" placeholder="Comentarios de arte">${escapeHtml(artComments)}</textarea>
                         </div>
                     </div>
                 </div>
