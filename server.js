@@ -7011,11 +7011,9 @@ function isCompletedOrderRecord(row = {}) {
         row.delivered_on ? 'entregada' : '',
         raw.status,
         raw.order_status,
-        raw['Estado Cotizacion'],
-        raw['ESTADO LINEA'],
-        raw['SOLICITUD ESTADO'],
-        raw.line_summary?.status,
-        raw.line_summary?.line_status
+        raw.production_status,
+        raw['ESTADO ORDEN'],
+        raw['ORDEN ESTADO']
     ].filter(Boolean).map((value) => String(value).trim().toLowerCase());
 
     return row.delivered_on || statuses.some((value) => [
@@ -9174,8 +9172,10 @@ function withUpdatedOrderTrackingMark(rawData = {}, processKey = '', mark = {}) 
 
 function applyOrderTrackingMarks(steps = [], rawData = {}, resolveActorInfo = () => ({ name: '', photoUrl: '' })) {
     const marks = getOrderTrackingMarks(rawData);
+    const controlManagedKeys = new Set(['orden_creada', 'solicitud_vendedor', 'planeacion']);
     return steps.map((step) => {
         const key = normalizeOrderTrackingStepKey(step.processKey);
+        if (controlManagedKeys.has(key)) return step;
         const mark = key ? marks[key] : null;
         if (!mark || typeof mark !== 'object') return step;
         if (mark.marked === false) {
@@ -15722,6 +15722,11 @@ app.get('/api/mes/contexto', async (req, res) => {
         }
         filters.push(`r.route_status <> 'COMPLETADO'`);
         filters.push(`(r.dependency_route_id IS NULL OR dep.route_status = 'COMPLETADO')`);
+        filters.push(`(
+            NOT (o.raw_data ? 'planning_control' OR o.raw_data ? 'planningControl')
+            OR LOWER(COALESCE(o.raw_data->'planning_control'->>'planningStatus', o.raw_data->'planningControl'->>'planningStatus', '')) = 'en_gantt'
+            OR LOWER(COALESCE(o.raw_data->'planning_control'->>'launchedToGantt', o.raw_data->'planningControl'->>'launchedToGantt', '')) = 'true'
+        )`);
 
         const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
         const priorityList = targetPlateArea ? platePriority : productionPriority;
