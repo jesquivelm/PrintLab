@@ -8398,15 +8398,14 @@ body.inventory-route-maquinas.inventory-has-selection .inventory-editor-panel {
     justify-content: center;
     text-align: center;
 }
-.inventory-form.inventory-form-materiales ~ .section-caption,
-.inventory-form-materiales #editorTitle {
+.inventory-editor-panel .section-caption#editorTitle {
     font-size: 22px;
     font-weight: 800;
     color: #000000;
     margin-bottom: 20px;
     letter-spacing: -0.02em;
 }
-html[data-theme="dark"] .inventory-form-materiales #editorTitle {
+html[data-theme="dark"] .inventory-editor-panel .section-caption#editorTitle {
     color: #ffffff;
 }
 .inventory-form.inventory-form-materiales .inventory-material-tab-panels {
