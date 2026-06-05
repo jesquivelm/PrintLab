@@ -854,41 +854,27 @@ function getFormFields() {
         { key: 'activo', label: 'Activo', type: 'checkbox', className: 'inventory-material-field' },
         { type: 'section', label: 'Parámetros Generales', span: 2, tabKey: 'parametros' },
         { key: 'ancho_mm', label: 'Ancho mm', type: 'number', step: '0.001', className: 'inventory-material-field' },
-        { key: 'comentario_ancho_mm', label: 'Comentario', type: 'textarea', rows: 2, className: 'inventory-material-comment' },
         { key: 'largo_mm', label: 'Largo mm', type: 'number', step: '0.001', className: 'inventory-material-field' },
-        { key: 'comentario_largo_mm', label: 'Comentario', type: 'textarea', rows: 2, className: 'inventory-material-comment' },
         { key: 'gramaje_g_m2', label: 'Gramaje g/m²', type: 'number', step: '0.001', className: 'inventory-material-field' },
-        { key: 'comentario_gramaje_g_m2', label: 'Comentario', type: 'textarea', rows: 2, className: 'inventory-material-comment' },
         { key: 'calibre_micras', label: 'Calibre micras', type: 'number', step: '0.001', className: 'inventory-material-field' },
-        { key: 'comentario_calibre_micras', label: 'Comentario', type: 'textarea', rows: 2, className: 'inventory-material-comment' },
+        { key: 'peso_capa_gsm', label: 'GSM Tinta', type: 'number', step: '0.0001', className: 'inventory-material-field' },
+        { key: 'rendimiento_g_ft2', label: 'Rendimiento g/ft²', type: 'number', step: '0.0001', className: 'inventory-material-field' },
         { key: 'compatible_convencional', label: 'Compatible Convencional', type: 'checkbox', className: 'inventory-material-field' },
         { key: 'compatible_digital', label: 'Compatible Digital', type: 'checkbox', className: 'inventory-material-field' },
-        { key: 'rendimiento_g_ft2', label: 'Rendimiento g/ft²', type: 'number', step: '0.0001', className: 'inventory-material-field' },
-        { key: 'comentario_rendimiento_g_ft2', label: 'Comentario', type: 'textarea', rows: 2, className: 'inventory-material-comment' },
-        { key: 'merma_pct', label: 'Merma %', type: 'number', step: '0.0001', className: 'inventory-material-field' },
-        { key: 'temperatura_aplicacion_c', label: 'Temperatura C', type: 'number', step: '0.0001', className: 'inventory-material-field' },
-        { key: 'tipo_transferencia', label: 'Tipo Transferencia', type: 'text', className: 'inventory-material-field' },
         { type: 'section', label: 'Tratamiento Digital de Sustrato', span: 2, tabKey: 'digital' },
         { key: 'tipo_superficie', label: 'Tipo Superficie', type: 'select', options: [['', 'Sin definir'], ['poroso', 'Poroso'], ['no_poroso', 'No poroso']] },
-        { key: 'requiere_premier', label: 'Requiere Premier', type: 'checkbox', className: 'inventory-material-field' },
-        { key: 'premier_preaplicado', label: 'Premier Preaplicado', type: 'checkbox', className: 'inventory-material-field' },
         { key: 'premier_consumo_g_m2', label: 'Premier g/m²', type: 'number', step: '0.0001', className: 'inventory-material-field' },
         { key: 'premier_costo_x_kg', label: 'Premier Costo kg', type: 'number', step: '0.000001', className: 'inventory-material-field' },
         { key: 'premier_costo_x_m2', label: 'Premier Costo m²', type: 'number', step: '0.000001', className: 'inventory-material-field' },
+        { key: 'premier_preaplicado', label: 'Premier Preaplicado', type: 'checkbox', className: 'inventory-material-field' },
+        { key: 'requiere_premier', label: 'Requiere Premier', type: 'checkbox', className: 'inventory-material-field' },
         { type: 'section', label: 'Costos', span: 2, tabKey: 'costos' },
         { key: 'costo_x_lamina', label: 'Costo Lámina', type: 'number', step: '0.000001', className: 'inventory-material-field' },
-        { key: 'comentario_costo_x_lamina', label: 'Comentario', type: 'textarea', rows: 2, className: 'inventory-material-comment' },
         { key: 'costo_x_libra', label: 'Costo Libra', type: 'number', step: '0.000001', className: 'inventory-material-field' },
-        { key: 'comentario_costo_x_libra', label: 'Comentario', type: 'textarea', rows: 2, className: 'inventory-material-comment' },
-        { key: 'peso_capa_gsm', label: 'GSM Tinta', type: 'number', step: '0.0001', className: 'inventory-material-field' },
-        { key: 'comentario_peso_capa_gsm', label: 'Comentario', type: 'textarea', rows: 2, className: 'inventory-material-comment' },
         { key: 'costo_x_unidad', label: 'Costo Unidad', type: 'number', step: '0.000001', className: 'inventory-material-field' },
-        { key: 'costo_x_msi', label: 'Costo MSI', type: 'number', step: '0.000001', className: 'inventory-material-field' },
-        { key: 'comentario_costo_x_msi', label: 'Comentario', type: 'textarea', rows: 2, className: 'inventory-material-comment' },
+        { key: 'costo_x_msi', label: 'Costo MCI', type: 'number', step: '0.000001', className: 'inventory-material-field' },
         { key: 'costo_x_m2', label: 'Costo m²', type: 'number', step: '0.000001', className: 'inventory-material-field' },
-        { key: 'comentario_costo_x_m2', label: 'Comentario', type: 'textarea', rows: 2, className: 'inventory-material-comment' },
-        { key: 'costo_x_kg', label: 'Costo kg', type: 'number', step: '0.000001', className: 'inventory-material-field' },
-        { key: 'comentario_costo_x_kg', label: 'Comentario', type: 'textarea', rows: 2, className: 'inventory-material-comment' }
+        { key: 'costo_x_kg', label: 'Costo kg', type: 'number', step: '0.000001', className: 'inventory-material-field' }
     ];
     if (!isTroquelesInventory()) return page.formFields;
     return [
@@ -1725,7 +1711,7 @@ function renderForm(item) {
     }
     editorTitle.textContent = page.inventoryKey === 'troqueles'
         ? (item.codigo || 'Nuevo troquel')
-        : (item.id ? `Editor | ${item.nombre || item.codigo || item.descripcion || 'Registro'}` : 'Editor | Nuevo registro');
+        : (item.id ? (item.nombre || item.codigo || item.descripcion || 'Registro') : 'Nuevo registro');
     editorTitle.hidden = page.inventoryKey === 'maquinas';
     catalogForm.classList.toggle('inventory-form-troqueles', page.inventoryKey === 'troqueles');
     catalogForm.classList.toggle('inventory-form-materiales', page.inventoryKey === 'materiales');

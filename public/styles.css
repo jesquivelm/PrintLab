@@ -8393,6 +8393,22 @@ body.inventory-route-maquinas.inventory-has-selection .inventory-editor-panel {
     grid-column: 1 / -1;
     margin-bottom: 12px;
 }
+.inventory-form.inventory-form-materiales .standard-module-tabs .standard-module-tab {
+    flex: 1 1 0;
+    justify-content: center;
+    text-align: center;
+}
+.inventory-form.inventory-form-materiales ~ .section-caption,
+.inventory-form-materiales #editorTitle {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--app-text, #1e293b);
+    margin-bottom: 12px;
+    letter-spacing: -0.01em;
+}
+html[data-theme="dark"] .inventory-form-materiales #editorTitle {
+    color: #e5e7eb;
+}
 .inventory-form.inventory-form-materiales .inventory-material-tab-panels {
     grid-column: 1 / -1;
 }
@@ -8403,6 +8419,15 @@ body.inventory-route-maquinas.inventory-has-selection .inventory-editor-panel {
 }
 .inventory-form.inventory-form-materiales .inventory-material-tab-panel[hidden] {
     display: none;
+}
+.inventory-form.inventory-form-materiales .inventory-material-comment {
+    display: none !important;
+}
+.inventory-form.inventory-form-materiales .inventory-material-tab-panel .field:has(input[name="merma_pct"]),
+.inventory-form.inventory-form-materiales .inventory-material-tab-panel .field:has(input[name="temperatura_aplicacion_c"]),
+.inventory-form.inventory-form-materiales .inventory-material-tab-panel .field:has(input[name="tipo_transferencia"]),
+.inventory-form.inventory-form-materiales .inventory-material-tab-panel .field:has(input[name="comentario_tipo_proforma"]) {
+    display: none !important;
 }
 .inventory-form.inventory-form-materiales .inventory-material-tab-panel .inventory-form-section {
     display: none;
