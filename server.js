@@ -15575,7 +15575,45 @@ app.post('/api/ordenes-produccion/:codigo/seguimiento/marca', async (req, res) =
         const mark = marked
             ? { marked: true, markedAt: now, markedBy: actor, markedByPhoto: actorPhoto }
             : { marked: false, clearedAt: now, clearedBy: actor, clearedByPhoto: actorPhoto };
-        const nextRawData = withUpdatedOrderTrackingMark(rawData, processKey, mark);
+        let nextRawData = withUpdatedOrderTrackingMark(rawData, processKey, mark);
+        if (processKey === 'solicitud_vendedor') {
+            nextRawData = withUpdatedOrderPlanningControl(nextRawData, marked ? {
+                salesReleased: true,
+                salesReleasedAt: now,
+                salesReleasedBy: actor,
+                planningStatus: 'PENDIENTE_PLANIFICACION',
+                launchedToGantt: false,
+                launchedAt: null,
+                launchedBy: '',
+                returnedAt: null,
+                returnedBy: '',
+                returnReason: ''
+            } : {
+                salesReleased: false,
+                salesReleasedAt: null,
+                salesReleasedBy: '',
+                planningStatus: 'PENDIENTE_VENTAS',
+                launchedToGantt: false,
+                launchedAt: null,
+                launchedBy: ''
+            });
+        } else if (processKey === 'planeacion') {
+            const control = getOrderPlanningControl(nextRawData);
+            nextRawData = withUpdatedOrderPlanningControl(nextRawData, marked ? {
+                salesReleased: true,
+                planningStatus: 'EN_GANTT',
+                launchedToGantt: true,
+                launchedAt: now,
+                launchedBy: actor,
+                returnReason: ''
+            } : {
+                salesReleased: true,
+                planningStatus: control.salesReleased ? 'PENDIENTE_PLANIFICACION' : 'PENDIENTE_VENTAS',
+                launchedToGantt: false,
+                launchedAt: null,
+                launchedBy: ''
+            });
+        }
 
         await pgQuery(`UPDATE flexo_orders SET raw_data = $2::jsonb WHERE order_code = $1`, [codigo, JSON.stringify(nextRawData)]);
         res.json({ ok: true, processKey, marked, mark });
