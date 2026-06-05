@@ -1789,20 +1789,30 @@ function renderFrontBackProductCard({ frontBackObj, output, memberInfo, index, s
                     </div>
                 </div>
                 <div class="production-frontback-art-section">
-                    <div class="section-caption">Arte</div>
-                    <div class="production-summary-grid production-summary-grid-art">
+                    <div class="production-section-head-inline">
+                        <div class="section-caption">Arte</div>
+                        <button type="button" class="browser-open-link production-inline-icon production-inline-icon-ghost production-section-corner-toggle production-frontback-art-toggle" aria-label="Expandir arte"></button>
+                    </div>
+                    <div class="production-frontback-art-summary production-summary-stack">
+                        ${artHolder ? '<div class="production-summary-item"><span class="production-summary-label">Arte en Poder de</span><span class="production-summary-value">' + escapeHtml(artHolder) + '</span></div>' : ''}
+                        ${artComments ? '<div class="production-summary-item"><span class="production-summary-label">Comentarios</span><span class="production-summary-value">' + escapeHtml(artComments) + '</span></div>' : ''}
+                        ${!artHolder && !artComments ? '<span class="production-chip production-chip-muted">Sin información de arte</span>' : ''}
+                    </div>
+                    <form class="production-inline-form production-frontback-art-form" hidden>
                         <button type="button" class="production-art-preview production-art-preview-compact production-art-dropzone production-frontback-art-dropzone" data-frontback-art-target data-quote="${escapeHtml(sourceQuoteCode)}" data-line="${escapeHtml(lineCode)}" aria-label="Adjuntar arte ${escapeHtml(frontBackSideLabel(side))}">
                             <div class="attachments-empty">Selecciona el Arte</div>
                         </button>
-                        <div class="field production-art-holder-field">
-                            <label>Arte en Poder de</label>
-                            <input type="text" list="orderArtworkHolderOptions" value="${escapeHtml(artHolder)}" placeholder="Seleccionar o escribir">
+                        <div class="production-summary-grid production-summary-grid-two">
+                            <div class="field production-art-holder-field">
+                                <label>Arte en Poder de</label>
+                                <input type="text" list="orderArtworkHolderOptions" value="${escapeHtml(artHolder)}" placeholder="Seleccionar o escribir">
+                            </div>
+                            <div class="field production-art-comments-field">
+                                <label>Comentarios</label>
+                                <textarea rows="1" placeholder="Comentarios de arte">${escapeHtml(artComments)}</textarea>
+                            </div>
                         </div>
-                        <div class="field production-art-comments-field">
-                            <label>Comentarios</label>
-                            <textarea rows="1" placeholder="Comentarios de arte">${escapeHtml(artComments)}</textarea>
-                        </div>
-                    </div>
+                    </form>
                 </div>
             </div>
         </section>
@@ -2728,6 +2738,15 @@ deliveryToggleButton?.addEventListener('click', () => {
 deliveryForm?.addEventListener('submit', (event) => event.preventDefault());
 artToggleButton?.addEventListener('click', () => toggleSection(artSummary, artForm, artToggleButton, artForm.hidden));
 artForm?.addEventListener('submit', (event) => event.preventDefault());
+document.addEventListener('click', function (e) {
+    var toggle = e.target.closest('.production-frontback-art-toggle');
+    if (!toggle) return;
+    var section = toggle.closest('.production-frontback-art-section');
+    if (!section) return;
+    var summary = section.querySelector('.production-frontback-art-summary');
+    var form = section.querySelector('.production-frontback-art-form');
+    toggleSection(summary, form, toggle, form.hidden);
+});
 sapConsumptionProcess?.addEventListener('change', () => {
     loadSapConsumptionMaterials().catch((error) => {
         if (sapConsumptionStatus) sapConsumptionStatus.textContent = error.message;
