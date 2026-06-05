@@ -76,7 +76,8 @@ function resolveRouteConfig() {
             columns: [
                 { key: 'codigo', label: 'Código', width: '148px', className: 'inventory-col-code inventory-col-code-material' },
                 { key: 'nombre', label: 'Nombre', className: 'inventory-col-name inventory-col-name-material' },
-                { key: 'familia_proceso', label: 'Proceso', width: '320px', className: 'inventory-col-process inventory-col-process-material' }
+                { key: 'familia_proceso', label: 'Proceso', width: '180px', className: 'inventory-col-process inventory-col-process-material' },
+                { key: 'clasificacion', label: 'Clasificación', width: '180px', className: 'inventory-col-process inventory-col-classification-material' }
             ],
             formFields: [
                 { key: 'id', type: 'hidden' },
@@ -112,6 +113,7 @@ function resolveRouteConfig() {
                     comentario_compatible_digital: '',
                     comentario_tipo_proforma: '',
                     familia_proceso: '',
+                    clasificacion: '',
                     costo_x_unidad: '',
                     merma_pct: '',
                     rendimiento_g_ft2: '',
@@ -543,6 +545,8 @@ let capabilitiesState = [];
 let machineCatalogOptions = [];
 let currentView = routeState.get('view') === 'detail' ? 'detail' : 'list';
 let searchTimer = null;
+let catalogAutosaveTimer = null;
+let catalogAutosaveRunning = false;
 
 function isShellEmbedded() {
     return new URLSearchParams(window.location.search).get('shell') === '1' || window !== window.parent;
@@ -706,6 +710,14 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
+function normalizeKey(value) {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase();
+}
+
 function iconMarkup(value, altText, extraClass = '') {
     if (isSvgValue(value)) {
         const safeUrl = escapeHtml(value);
@@ -832,10 +844,15 @@ function getTableColumns() {
 function getFormFields() {
     if (page.inventoryKey === 'materiales') return [
         { key: 'id', type: 'hidden' },
-        { type: 'section', label: 'Datos del Material', span: 2 },
+        { type: 'section', label: 'Datos del Material', span: 2, tabKey: 'datos' },
         { key: 'codigo', label: 'Código', type: 'text' },
         { key: 'nombre', label: 'Nombre', type: 'text' },
         { key: 'familia_proceso', label: 'Proceso', type: 'select', options: [['', 'Sin definir'], ['sustrato', 'Sustrato'], ['tinta', 'Tinta'], ['barniz', 'Barniz'], ['laminado', 'Laminado'], ['foil', 'Foil'], ['core', 'Core'], ['plancha', 'Plancha']] },
+        { key: 'clasificacion', label: 'Clasificación', type: 'select', options: [['', 'Sin definir'], ['sustrato', 'Sustrato'], ['tinta', 'Tinta'], ['barniz', 'Barniz'], ['laminado', 'Laminado'], ['foil', 'Foil'], ['core', 'Core'], ['plancha', 'Plancha'], ['otro', 'Otro']] },
+        { key: 'tipo_proforma', label: 'Familia Comercial', type: 'text', className: 'inventory-material-field' },
+        { key: 'comentario_tipo_proforma', label: 'Comentario', type: 'textarea', rows: 2, className: 'inventory-material-comment' },
+        { key: 'activo', label: 'Activo', type: 'checkbox', className: 'inventory-material-field' },
+        { type: 'section', label: 'Parámetros Generales', span: 2, tabKey: 'parametros' },
         { key: 'ancho_mm', label: 'Ancho mm', type: 'number', step: '0.001', className: 'inventory-material-field' },
         { key: 'comentario_ancho_mm', label: 'Comentario', type: 'textarea', rows: 2, className: 'inventory-material-comment' },
         { key: 'largo_mm', label: 'Largo mm', type: 'number', step: '0.001', className: 'inventory-material-field' },
@@ -844,32 +861,28 @@ function getFormFields() {
         { key: 'comentario_gramaje_g_m2', label: 'Comentario', type: 'textarea', rows: 2, className: 'inventory-material-comment' },
         { key: 'calibre_micras', label: 'Calibre micras', type: 'number', step: '0.001', className: 'inventory-material-field' },
         { key: 'comentario_calibre_micras', label: 'Comentario', type: 'textarea', rows: 2, className: 'inventory-material-comment' },
-        { key: 'tipo_proforma', label: 'Familia Comercial', type: 'text', className: 'inventory-material-field' },
-        { key: 'comentario_tipo_proforma', label: 'Comentario', type: 'textarea', rows: 2, className: 'inventory-material-comment' },
-        { key: 'activo', label: 'Activo', type: 'checkbox', className: 'inventory-material-field' },
-                { key: 'compatible_convencional', label: 'Compatible Convencional', type: 'checkbox', className: 'inventory-material-field' },
-                { key: 'compatible_digital', label: 'Compatible Digital', type: 'checkbox', className: 'inventory-material-field' },
-                { type: 'section', label: 'Tratamiento Digital de Sustrato', span: 2 },
-                { key: 'tipo_superficie', label: 'Tipo Superficie', type: 'select', options: [['', 'Sin definir'], ['poroso', 'Poroso'], ['no_poroso', 'No poroso']] },
-                { key: 'requiere_premier', label: 'Requiere Premier', type: 'checkbox', className: 'inventory-material-field' },
-                { key: 'premier_preaplicado', label: 'Premier Preaplicado', type: 'checkbox', className: 'inventory-material-field' },
-                { key: 'premier_consumo_g_m2', label: 'Premier g/m²', type: 'number', step: '0.0001', className: 'inventory-material-field' },
-                { key: 'premier_costo_x_kg', label: 'Premier Costo kg', type: 'number', step: '0.000001', className: 'inventory-material-field' },
-                { key: 'premier_costo_x_m2', label: 'Premier Costo m²', type: 'number', step: '0.000001', className: 'inventory-material-field' },
-                { type: 'section', label: 'Datos para Cotización', span: 2 },
+        { key: 'compatible_convencional', label: 'Compatible Convencional', type: 'checkbox', className: 'inventory-material-field' },
+        { key: 'compatible_digital', label: 'Compatible Digital', type: 'checkbox', className: 'inventory-material-field' },
+        { key: 'rendimiento_g_ft2', label: 'Rendimiento g/ft²', type: 'number', step: '0.0001', className: 'inventory-material-field' },
+        { key: 'comentario_rendimiento_g_ft2', label: 'Comentario', type: 'textarea', rows: 2, className: 'inventory-material-comment' },
+        { key: 'merma_pct', label: 'Merma %', type: 'number', step: '0.0001', className: 'inventory-material-field' },
+        { key: 'temperatura_aplicacion_c', label: 'Temperatura C', type: 'number', step: '0.0001', className: 'inventory-material-field' },
+        { key: 'tipo_transferencia', label: 'Tipo Transferencia', type: 'text', className: 'inventory-material-field' },
+        { type: 'section', label: 'Tratamiento Digital de Sustrato', span: 2, tabKey: 'digital' },
+        { key: 'tipo_superficie', label: 'Tipo Superficie', type: 'select', options: [['', 'Sin definir'], ['poroso', 'Poroso'], ['no_poroso', 'No poroso']] },
+        { key: 'requiere_premier', label: 'Requiere Premier', type: 'checkbox', className: 'inventory-material-field' },
+        { key: 'premier_preaplicado', label: 'Premier Preaplicado', type: 'checkbox', className: 'inventory-material-field' },
+        { key: 'premier_consumo_g_m2', label: 'Premier g/m²', type: 'number', step: '0.0001', className: 'inventory-material-field' },
+        { key: 'premier_costo_x_kg', label: 'Premier Costo kg', type: 'number', step: '0.000001', className: 'inventory-material-field' },
+        { key: 'premier_costo_x_m2', label: 'Premier Costo m²', type: 'number', step: '0.000001', className: 'inventory-material-field' },
+        { type: 'section', label: 'Costos', span: 2, tabKey: 'costos' },
         { key: 'costo_x_lamina', label: 'Costo Lámina', type: 'number', step: '0.000001', className: 'inventory-material-field' },
         { key: 'comentario_costo_x_lamina', label: 'Comentario', type: 'textarea', rows: 2, className: 'inventory-material-comment' },
         { key: 'costo_x_libra', label: 'Costo Libra', type: 'number', step: '0.000001', className: 'inventory-material-field' },
         { key: 'comentario_costo_x_libra', label: 'Comentario', type: 'textarea', rows: 2, className: 'inventory-material-comment' },
         { key: 'peso_capa_gsm', label: 'GSM Tinta', type: 'number', step: '0.0001', className: 'inventory-material-field' },
         { key: 'comentario_peso_capa_gsm', label: 'Comentario', type: 'textarea', rows: 2, className: 'inventory-material-comment' },
-        { key: 'rendimiento_g_ft2', label: 'Rendimiento g/ft²', type: 'number', step: '0.0001', className: 'inventory-material-field' },
-        { key: 'comentario_rendimiento_g_ft2', label: 'Comentario', type: 'textarea', rows: 2, className: 'inventory-material-comment' },
-        { key: 'merma_pct', label: 'Merma %', type: 'number', step: '0.0001', className: 'inventory-material-field' },
         { key: 'costo_x_unidad', label: 'Costo Unidad', type: 'number', step: '0.000001', className: 'inventory-material-field' },
-        { key: 'temperatura_aplicacion_c', label: 'Temperatura C', type: 'number', step: '0.0001', className: 'inventory-material-field' },
-        { key: 'tipo_transferencia', label: 'Tipo Transferencia', type: 'text', className: 'inventory-material-field' },
-        { type: 'section', label: 'Campos en Revisión', span: 2 },
         { key: 'costo_x_msi', label: 'Costo MSI', type: 'number', step: '0.000001', className: 'inventory-material-field' },
         { key: 'comentario_costo_x_msi', label: 'Comentario', type: 'textarea', rows: 2, className: 'inventory-material-comment' },
         { key: 'costo_x_m2', label: 'Costo m²', type: 'number', step: '0.000001', className: 'inventory-material-field' },
@@ -1460,6 +1473,77 @@ function buildMachineTabbedForm(viewItem) {
     syncTabsByType();
 }
 
+function buildMaterialTabbedForm(viewItem) {
+    const tabs = [
+        { key: 'datos', label: 'Datos del Material' },
+        { key: 'parametros', label: 'Parámetros Generales' },
+        { key: 'digital', label: 'Tratamiento Digital de Sustrato' },
+        { key: 'costos', label: 'Costos' }
+    ];
+    const tabBar = document.createElement('div');
+    tabBar.className = 'standard-module-tabs inventory-material-tabs';
+    const panels = document.createElement('div');
+    panels.className = 'inventory-material-tab-panels';
+    const panelMap = new Map();
+
+    tabs.forEach((tab) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'standard-module-tab inventory-material-tab';
+        button.dataset.materialTab = tab.key;
+        button.textContent = tab.label;
+        tabBar.appendChild(button);
+
+        const panel = document.createElement('div');
+        panel.className = 'inventory-material-tab-panel';
+        panel.dataset.materialTab = tab.key;
+        panels.appendChild(panel);
+        panelMap.set(tab.key, panel);
+    });
+
+    let currentTab = 'datos';
+    getFormFields().forEach((field) => {
+        const control = createInput(field, viewItem[field.key]);
+        if (field.type === 'section' && field.tabKey) {
+            currentTab = field.tabKey;
+        }
+        const targetTab = field.tab || currentTab || 'datos';
+        panelMap.get(targetTab)?.appendChild(control);
+    });
+
+    catalogForm.appendChild(tabBar);
+    catalogForm.appendChild(panels);
+
+    const setActiveTab = (tabKey) => {
+        Array.from(tabBar.querySelectorAll('.inventory-material-tab')).forEach((button) => {
+            button.classList.toggle('is-active', button.dataset.materialTab === tabKey);
+        });
+        Array.from(panels.querySelectorAll('.inventory-material-tab-panel')).forEach((panel) => {
+            panel.hidden = panel.dataset.materialTab !== tabKey;
+        });
+    };
+
+    const syncTabsByClassification = () => {
+        const classification = normalizeKey(catalogForm.elements.namedItem('clasificacion')?.value || catalogForm.elements.namedItem('familia_proceso')?.value || '');
+        const isSubstrate = classification === 'sustrato';
+        const digitalButton = tabBar.querySelector('[data-material-tab="digital"]');
+        if (digitalButton) digitalButton.hidden = !isSubstrate;
+        const active = tabBar.querySelector('.inventory-material-tab.is-active');
+        if (!isSubstrate && active?.dataset.materialTab === 'digital') setActiveTab('datos');
+    };
+
+    tabBar.addEventListener('click', (event) => {
+        const button = event.target.closest('.inventory-material-tab');
+        if (!button || button.hidden) return;
+        setActiveTab(button.dataset.materialTab || 'datos');
+    });
+
+    catalogForm.elements.namedItem('clasificacion')?.addEventListener('change', syncTabsByClassification);
+    catalogForm.elements.namedItem('familia_proceso')?.addEventListener('change', syncTabsByClassification);
+    setActiveTab('datos');
+    syncTabsByClassification();
+}
+
 function ensureMachinePrimaryCapability() {
     if (!Array.isArray(capabilitiesState)) capabilitiesState = [];
     if (!capabilitiesState.length) {
@@ -1631,6 +1715,8 @@ function renderForm(item) {
     }
     if (page.inventoryKey === 'maquinas') {
         buildMachineTabbedForm(viewItem);
+    } else if (page.inventoryKey === 'materiales') {
+        buildMaterialTabbedForm(viewItem);
     } else {
         getFormFields().forEach((field) => {
             const control = createInput(field, viewItem[field.key]);
@@ -1891,6 +1977,27 @@ async function saveCurrentRecord() {
     await loadCatalog(result.id);
     catalogStatus.textContent = 'Registro guardado correctamente.';
     publishBdfgContext();
+}
+
+function scheduleCatalogAutosave(reason = '') {
+    if (isOutputTypesInventory() || !selectedId) return;
+    window.clearTimeout(catalogAutosaveTimer);
+    catalogStatus.textContent = 'Guardando cambios...';
+    catalogAutosaveTimer = window.setTimeout(async () => {
+        if (catalogAutosaveRunning) {
+            scheduleCatalogAutosave(reason);
+            return;
+        }
+        catalogAutosaveRunning = true;
+        try {
+            await saveCurrentRecord();
+            catalogStatus.textContent = 'Cambios guardados automáticamente.';
+        } catch (error) {
+            catalogStatus.textContent = error.message || 'No fue posible guardar automáticamente.';
+        } finally {
+            catalogAutosaveRunning = false;
+        }
+    }, 1200);
 }
 
 async function exportCurrentInventory() {
@@ -2206,6 +2313,16 @@ catalogSaveButton.addEventListener('click', () => {
         catalogStatus.textContent = error.message;
     });
 });
+catalogForm.addEventListener('input', (event) => {
+    if (!event.target?.name) return;
+    renderDetailPreview(buildPayloadFromForm());
+    scheduleCatalogAutosave('form-input');
+});
+catalogForm.addEventListener('change', (event) => {
+    if (!event.target?.name) return;
+    renderDetailPreview(buildPayloadFromForm());
+    scheduleCatalogAutosave('form-change');
+});
 catalogRefreshButton?.addEventListener('click', () => {
     loadCatalog(selectedId).catch((error) => {
         catalogStatus.textContent = error.message;
@@ -2253,6 +2370,7 @@ addCapabilityButton?.addEventListener('click', () => {
         activa: true
     });
     renderCapabilities();
+    scheduleCatalogAutosave('capacity-add');
 });
 
 machineCapabilitiesList?.addEventListener('input', (event) => {
@@ -2262,6 +2380,7 @@ machineCapabilitiesList?.addEventListener('input', (event) => {
     if (!Number.isInteger(capacityIndex) || !key || !capabilitiesState[capacityIndex]) return;
     capacitiesStateSanity();
     capabilitiesState[capacityIndex][key] = input.type === 'checkbox' ? input.checked : input.value;
+    scheduleCatalogAutosave('capacity-input');
 });
 
 machineCapabilitiesList?.addEventListener('click', (event) => {
@@ -2271,6 +2390,7 @@ machineCapabilitiesList?.addEventListener('click', (event) => {
     if (!Number.isInteger(index)) return;
     capabilitiesState.splice(index, 1);
     renderCapabilities();
+    scheduleCatalogAutosave('capacity-remove');
 });
 
 document.addEventListener('click', (event) => {

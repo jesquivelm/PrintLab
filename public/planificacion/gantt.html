@@ -1166,7 +1166,7 @@ function showTT(e, id_ruta) {
     <div class="tt-row"><span>Entrega</span><span class="tt-val">${formatPromisedDate(op.fecha_entrega_prometida)}</span></div>
     <div class="tt-row"><span>Setup</span><span class="tt-val">${Number(op.route_payload?.setupMinutes || 0).toLocaleString('es-CR')} min</span></div>
     <div class="tt-row"><span>Corrida</span><span class="tt-val">${Number(op.route_payload?.runMinutes || 0).toLocaleString('es-CR')} min</span></div>
-    <div class="tt-row"><span>Colchón</span><span class="tt-val">${Number(op.route_payload?.bufferMinutes || 0).toLocaleString('es-CR')} min</span></div>
+    <div class="tt-row"><span>Buffer</span><span class="tt-val">${Number(op.route_payload?.bufferMinutes || 0).toLocaleString('es-CR')} min</span></div>
     <div class="tt-row"><span>Velocidad</span><span class="tt-val">${Number(op.route_payload?.speedFpm || 0).toLocaleString('es-CR')} fpm</span></div>
     <div class="tt-row"><span>Modo</span><span class="tt-val">${op.manual_lock ? 'Fijo' : op.schedule_mode === 'backward' ? 'Programada hacia atrás' : op.schedule_mode === 'forward' ? 'Programada hacia adelante' : 'Sin definir'}</span></div>
     <div class="tt-row"><span>Pies</span><span class="tt-val">${Number(op.pies).toLocaleString()}</span></div>
@@ -1258,7 +1258,7 @@ function openDP(id_ruta) {
     <div class="dp-field"><div class="dp-lbl">Fin producción</div><div class="dp-val">${formatPromisedDate(op.fecha_fin_produccion)}</div></div>
     <div class="dp-field"><div class="dp-lbl">Setup estimado</div><div class="dp-val">${Number(op.route_payload?.setupMinutes || 0).toLocaleString('es-CR')} min</div></div>
     <div class="dp-field"><div class="dp-lbl">Corrida estimada</div><div class="dp-val">${Number(op.route_payload?.runMinutes || 0).toLocaleString('es-CR')} min</div></div>
-    <div class="dp-field"><div class="dp-lbl">Colchón de tiempo</div><div class="dp-val">${Number(op.route_payload?.bufferMinutes || 0).toLocaleString('es-CR')} min</div></div>
+    <div class="dp-field"><div class="dp-lbl">Buffer</div><div class="dp-val">${Number(op.route_payload?.bufferMinutes || 0).toLocaleString('es-CR')} min</div></div>
     <div class="dp-field"><div class="dp-lbl">Velocidad base</div><div class="dp-val">${Number(op.route_payload?.speedFpm || 0).toLocaleString('es-CR')} fpm</div></div>
     <div class="dp-field"><div class="dp-lbl">Origen del tiempo</div><div class="dp-val">${op.route_payload?.source || 'Sin definir'}</div></div>
     <div class="dp-field"><div class="dp-lbl">Modo de acomodo</div><div class="dp-val">${op.manual_lock ? 'Fijo manual' : op.schedule_mode === 'backward' ? 'Programada hacia atrás' : op.schedule_mode === 'forward' ? 'Programada hacia adelante' : 'Sin definir'}</div></div>

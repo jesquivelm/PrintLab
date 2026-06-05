@@ -515,6 +515,7 @@ await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS costo_x_lamina
 await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS costo_x_libra DECIMAL(12,6)`);
 await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS peso_capa_gsm DECIMAL(10,4)`);
 await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS familia_proceso VARCHAR(60)`);
+await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS clasificacion VARCHAR(60)`);
 await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS costo_x_unidad DECIMAL(12,6)`);
 await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS merma_pct DECIMAL(10,4)`);
 await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS rendimiento_g_ft2 DECIMAL(12,6)`);
@@ -813,6 +814,7 @@ async function listMaterials({ q = '', limit = 300 } = {}) {
             costo_x_libra,
             peso_capa_gsm,
             familia_proceso,
+            clasificacion,
             costo_x_unidad,
             merma_pct,
             rendimiento_g_ft2,
@@ -846,6 +848,8 @@ async function listMaterials({ q = '', limit = 300 } = {}) {
          WHERE $1 = '%%'
             OR codigo ILIKE $1
             OR nombre ILIKE $1
+            OR COALESCE(clasificacion, '') ILIKE $1
+            OR COALESCE(familia_proceso, '') ILIKE $1
             OR COALESCE(tipo_proforma, '') ILIKE $1
          ORDER BY nombre, codigo
          LIMIT $2`,
@@ -1171,6 +1175,7 @@ async function saveMaterial(payload) {
             asNullableNumber(payload.costo_x_libra),
             asNullableNumber(payload.peso_capa_gsm),
             normalizeMaterialFamily(payload.familia_proceso || inferMaterialFamily(payload)),
+            asText(payload.clasificacion),
             asNullableNumber(payload.costo_x_unidad),
             asNullableNumber(payload.merma_pct),
             asNullableNumber(payload.rendimiento_g_ft2) ?? gsmToGPerFt2(payload.peso_capa_gsm),
@@ -1222,35 +1227,36 @@ async function saveMaterial(payload) {
                         costo_x_libra = $12,
                         peso_capa_gsm = $13,
                         familia_proceso = $14,
-                        costo_x_unidad = $15,
-                        merma_pct = $16,
-                        rendimiento_g_ft2 = $17,
-                        temperatura_aplicacion_c = $18,
-                        tipo_transferencia = $19,
-                        tipo_superficie = $20,
-                        requiere_premier = $21,
-                        premier_preaplicado = $22,
-                        premier_consumo_g_m2 = $23,
-                        premier_costo_x_kg = $24,
-                        premier_costo_x_m2 = $25,
-                        comentario_ancho_mm = $26,
-                        comentario_largo_mm = $27,
-                        comentario_gramaje_g_m2 = $28,
-                        comentario_calibre_micras = $29,
-                        comentario_costo_x_lamina = $30,
-                        comentario_costo_x_msi = $31,
-                        comentario_costo_x_m2 = $32,
-                        comentario_costo_x_kg = $33,
-                        comentario_costo_x_libra = $34,
-                        comentario_peso_capa_gsm = $35,
-                        comentario_rendimiento_g_ft2 = $36,
-                        comentario_compatible_convencional = $37,
-                        comentario_compatible_digital = $38,
-                        comentario_tipo_proforma = $39,
-                        compatible_convencional = $40,
-                        compatible_digital = $41,
-                        tipo_proforma = $42,
-                        activo = $43,
+                        clasificacion = $15,
+                        costo_x_unidad = $16,
+                        merma_pct = $17,
+                        rendimiento_g_ft2 = $18,
+                        temperatura_aplicacion_c = $19,
+                        tipo_transferencia = $20,
+                        tipo_superficie = $21,
+                        requiere_premier = $22,
+                        premier_preaplicado = $23,
+                        premier_consumo_g_m2 = $24,
+                        premier_costo_x_kg = $25,
+                        premier_costo_x_m2 = $26,
+                        comentario_ancho_mm = $27,
+                        comentario_largo_mm = $28,
+                        comentario_gramaje_g_m2 = $29,
+                        comentario_calibre_micras = $30,
+                        comentario_costo_x_lamina = $31,
+                        comentario_costo_x_msi = $32,
+                        comentario_costo_x_m2 = $33,
+                        comentario_costo_x_kg = $34,
+                        comentario_costo_x_libra = $35,
+                        comentario_peso_capa_gsm = $36,
+                        comentario_rendimiento_g_ft2 = $37,
+                        comentario_compatible_convencional = $38,
+                        comentario_compatible_digital = $39,
+                        comentario_tipo_proforma = $40,
+                        compatible_convencional = $41,
+                        compatible_digital = $42,
+                        tipo_proforma = $43,
+                        activo = $44,
                         actualizado_en = NOW()
                   WHERE id = $1::uuid
                   RETURNING id::text`,
@@ -1266,7 +1272,7 @@ async function saveMaterial(payload) {
         const result = await client.query(
             `INSERT INTO material (
                 tenant_id, codigo, nombre, ancho_mm, largo_mm, gramaje_g_m2, calibre_micras, costo_x_lamina, costo_x_msi,
-                costo_x_m2, costo_x_kg, costo_x_libra, peso_capa_gsm, familia_proceso, costo_x_unidad, merma_pct,
+                costo_x_m2, costo_x_kg, costo_x_libra, peso_capa_gsm, familia_proceso, clasificacion, costo_x_unidad, merma_pct,
                 rendimiento_g_ft2, temperatura_aplicacion_c, tipo_transferencia,
                 tipo_superficie, requiere_premier, premier_preaplicado, premier_consumo_g_m2, premier_costo_x_kg,
                 premier_costo_x_m2, comentario_ancho_mm, comentario_largo_mm, comentario_gramaje_g_m2, comentario_calibre_micras,
@@ -1275,7 +1281,7 @@ async function saveMaterial(payload) {
                 comentario_compatible_convencional, comentario_compatible_digital, comentario_tipo_proforma,
                 compatible_convencional, compatible_digital, tipo_proforma, activo
              ) VALUES (
-                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43
+                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44
              )
              ON CONFLICT (tenant_id, codigo) DO UPDATE SET
                 nombre = EXCLUDED.nombre,
@@ -1290,6 +1296,7 @@ async function saveMaterial(payload) {
                 costo_x_libra = EXCLUDED.costo_x_libra,
                 peso_capa_gsm = EXCLUDED.peso_capa_gsm,
                 familia_proceso = EXCLUDED.familia_proceso,
+                clasificacion = EXCLUDED.clasificacion,
                 costo_x_unidad = EXCLUDED.costo_x_unidad,
                 merma_pct = EXCLUDED.merma_pct,
                 rendimiento_g_ft2 = EXCLUDED.rendimiento_g_ft2,
@@ -1953,6 +1960,7 @@ function mapMaterialRow(row) {
         costo_x_libra: asNullableNumber(pickValue(index, 'costo_x_libra', 'costo libra', 'costo por libra', 'precio por libra')),
         peso_capa_gsm: asNullableNumber(pickValue(index, 'peso_capa_gsm', 'gsm', 'peso capa gsm', 'peso de capa', 'peso capa')),
         familia_proceso: normalizeMaterialFamily(pickValue(index, 'familia_proceso', 'familia proceso', 'familia de proceso', 'clasificacion proceso', 'clasificacion')),
+        clasificacion: asText(pickValue(index, 'clasificacion', 'tipo material', 'tipo de material')),
         costo_x_unidad: asNullableNumber(pickValue(index, 'costo_x_unidad', 'costo unidad', 'costo por unidad')),
         merma_pct: asNullableNumber(pickValue(index, 'merma_pct', 'merma %', 'merma', 'desperdicio %')),
         rendimiento_g_ft2: asNullableNumber(pickValue(index, 'rendimiento_g_ft2', 'rendimiento g/ft2', 'rendimiento g ft2', 'g/ft2', 'g ft2')),
@@ -2225,6 +2233,8 @@ function flattenExportRows(kind, items) {
             costo_x_kg: item.costo_x_kg,
             costo_x_libra: item.costo_x_libra,
             peso_capa_gsm: item.peso_capa_gsm,
+            familia_proceso: item.familia_proceso,
+            clasificacion: item.clasificacion,
             comentario_ancho_mm: item.comentario_ancho_mm,
             comentario_largo_mm: item.comentario_largo_mm,
             comentario_gramaje_g_m2: item.comentario_gramaje_g_m2,

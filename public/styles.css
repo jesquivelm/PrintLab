@@ -3464,9 +3464,9 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
 }
 
 .costs-process-table.costs-table colgroup col.costs-process-col-number { width: 4% !important; }
-.costs-process-table.costs-table colgroup col.costs-process-col-process { width: 29% !important; }
+.costs-process-table.costs-table colgroup col.costs-process-col-process { width: 25% !important; }
 .costs-process-table.costs-table colgroup col.costs-process-col-check { width: 7% !important; }
-.costs-process-table.costs-table colgroup col.costs-process-col-cost { width: 32% !important; }
+.costs-process-table.costs-table colgroup col.costs-process-col-cost { width: 14% !important; }
 
 .costs-process-table th:first-child,
 .costs-process-table td:first-child {
@@ -3554,6 +3554,16 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     background: #ffffff;
     color: #203746;
     font: inherit;
+}
+
+.costs-process-default-cost.has-suffix input {
+    padding: 0 36px 0 10px;
+}
+
+.costs-process-default-suffix {
+    left: auto;
+    right: 10px;
+    width: auto;
 }
 
 .costs-core-options-table-wrap {
@@ -8377,6 +8387,24 @@ body.inventory-route-maquinas.inventory-has-selection .inventory-editor-panel {
     gap: 12px 18px;
 }
 .inventory-form.inventory-form-maquinas .inventory-machine-tab-panel[hidden] {
+    display: none;
+}
+.inventory-form.inventory-form-materiales .standard-module-tabs {
+    grid-column: 1 / -1;
+    margin-bottom: 12px;
+}
+.inventory-form.inventory-form-materiales .inventory-material-tab-panels {
+    grid-column: 1 / -1;
+}
+.inventory-form.inventory-form-materiales .inventory-material-tab-panel {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 18px;
+}
+.inventory-form.inventory-form-materiales .inventory-material-tab-panel[hidden] {
+    display: none;
+}
+.inventory-form.inventory-form-materiales .inventory-material-tab-panel .inventory-form-section {
     display: none;
 }
 .inventory-form.inventory-form-maquinas .inventory-machine-tab-panel .inventory-form-section {
@@ -15717,6 +15745,8 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 
 .production-art-section {
     min-height: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .production-art-section .production-summary-grid-art {
@@ -15734,6 +15764,9 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 
 .production-art-section .production-art-preview-wrap {
     order: 3;
+    flex: 1 1 auto;
+    min-height: 220px;
+    display: flex;
 }
 
 .production-art-comments-field textarea {
@@ -15747,6 +15780,7 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 .production-art-dropzone {
     min-height: 120px;
     margin-top: 2px;
+    flex: 1 1 auto;
 }
 
 .production-art-preview {
@@ -15822,6 +15856,51 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
     height: var(--config-icon-size, 18px);
     object-fit: contain;
     flex: 0 0 auto;
+}
+
+.planning-queue-doc-link {
+    color: #2f80c9;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    font-weight: 700;
+}
+
+.planning-queue-doc-link:hover,
+.planning-queue-doc-link:focus-visible {
+    color: #145ea8;
+}
+
+html[data-theme="dark"] .planning-queue-doc-link {
+    color: #7db8ff;
+}
+
+.planning-queue-process-load {
+    display: grid;
+    gap: 3px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(120, 141, 160, .34);
+}
+
+.planning-queue-process-load:last-child {
+    border-bottom: 0;
+}
+
+.planning-queue-process-load-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 12px;
+}
+
+.planning-queue-process-load-head strong {
+    color: var(--text-primary, #1c2f3f);
+}
+
+.planning-queue-process-load-head span,
+.planning-queue-process-load-line {
+    color: var(--text-muted, #687986);
+    font-size: 11px;
 }
 
 html[data-theme="dark"] .production-order-card {
@@ -15996,7 +16075,7 @@ html[data-theme="dark"] .production-tracking-card .production-schedule-pill.is-a
 }
 
 .production-customer-contact-info {
-    flex: 1;
+    flex: 0 1 auto;
     min-width: 0;
 }
 

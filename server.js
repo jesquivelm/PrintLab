@@ -1469,22 +1469,22 @@ const DEFAULT_COSTS_CONFIG = {
         defaultQuantityTypes: 1,
         defaultCmykEnabled: 'true',
         processDefaults: [
-            { key: 'macula', label: 'Merma', active: true, createEnabled: true, locked: true, repeatable: false, order: 5, minimumCost: 0 },
-            { key: 'troquel', label: 'Troquel', active: true, createEnabled: false, locked: true, repeatable: false, order: 10, minimumCost: 0 },
-            { key: 'sustrato', label: 'Sustrato', active: true, createEnabled: false, locked: true, repeatable: false, order: 20, minimumCost: 0 },
-            { key: 'diseno', label: 'Diseño', active: false, createEnabled: true, locked: false, repeatable: false, order: 30, minimumCost: 0, timeBufferMinutes: 0 },
-            { key: 'preprensa', label: 'Preprensa', active: true, createEnabled: true, locked: true, repeatable: false, order: 40, minimumCost: 0, timeBufferMinutes: 0 },
-            { key: 'planchas', label: 'Planchas', active: false, createEnabled: false, locked: false, repeatable: false, order: 50, minimumCost: 0, timeBufferMinutes: 0 },
-            { key: 'impresion', label: 'Impresión', active: false, createEnabled: true, locked: false, repeatable: false, order: 60, minimumCost: 0, timeBufferMinutes: 0 },
-            { key: 'barnizado', label: 'Barnizado', active: false, createEnabled: true, locked: false, repeatable: false, order: 69, minimumCost: 0, timeBufferMinutes: 0 },
-            { key: 'laminado', label: 'Laminado', active: false, createEnabled: true, locked: false, repeatable: false, order: 70, minimumCost: 0, timeBufferMinutes: 0 },
-            { key: 'estampado', label: 'Estampado', active: false, createEnabled: true, locked: false, repeatable: false, order: 71, minimumCost: 0, timeBufferMinutes: 0 },
-            { key: 'embosado', label: 'Embosado', active: false, createEnabled: true, locked: false, repeatable: false, order: 72, minimumCost: 0, timeBufferMinutes: 0 },
-            { key: 'troquelado', label: 'Troquelado', active: false, createEnabled: false, locked: false, repeatable: false, order: 73, minimumCost: 0, timeBufferMinutes: 0 },
-            { key: 'rebobinado', label: 'Rebobinado', active: false, createEnabled: true, locked: false, repeatable: false, order: 74, minimumCost: 0, timeBufferMinutes: 0 },
-            { key: 'empaque', label: 'Empaque', active: false, createEnabled: true, locked: false, repeatable: false, order: 80, minimumCost: 0, timeBufferMinutes: 0 },
-            { key: 'inventario_salida', label: 'Salida de inventario', active: true, createEnabled: true, locked: false, repeatable: false, order: 85, minimumCost: 0, timeBufferMinutes: 0 },
-            { key: 'adicionales', label: 'Procesos adicionales', active: false, createEnabled: false, locked: false, repeatable: false, order: 90, minimumCost: 0, timeBufferMinutes: 0 }
+            { key: 'macula', label: 'Merma', active: true, createEnabled: true, locked: true, repeatable: false, order: 5, minimumCost: 0, capacityMinutes: 480 },
+            { key: 'troquel', label: 'Troquel', active: true, createEnabled: false, locked: true, repeatable: false, order: 10, minimumCost: 0, capacityMinutes: 480 },
+            { key: 'sustrato', label: 'Sustrato', active: true, createEnabled: false, locked: true, repeatable: false, order: 20, minimumCost: 0, capacityMinutes: 480 },
+            { key: 'diseno', label: 'Diseño', active: false, createEnabled: true, locked: false, repeatable: false, order: 30, minimumCost: 0, timeBufferMinutes: 0, capacityMinutes: 480 },
+            { key: 'preprensa', label: 'Preprensa', active: true, createEnabled: true, locked: true, repeatable: false, order: 40, minimumCost: 0, timeBufferMinutes: 0, capacityMinutes: 480 },
+            { key: 'planchas', label: 'Planchas', active: false, createEnabled: false, locked: false, repeatable: false, order: 50, minimumCost: 0, timeBufferMinutes: 0, capacityMinutes: 480 },
+            { key: 'impresion', label: 'Impresión', active: false, createEnabled: true, locked: false, repeatable: false, order: 60, minimumCost: 0, timeBufferMinutes: 0, capacityMinutes: 480 },
+            { key: 'barnizado', label: 'Barnizado', active: false, createEnabled: true, locked: false, repeatable: false, order: 69, minimumCost: 0, timeBufferMinutes: 0, capacityMinutes: 480 },
+            { key: 'laminado', label: 'Laminado', active: false, createEnabled: true, locked: false, repeatable: false, order: 70, minimumCost: 0, timeBufferMinutes: 0, capacityMinutes: 480 },
+            { key: 'estampado', label: 'Estampado', active: false, createEnabled: true, locked: false, repeatable: false, order: 71, minimumCost: 0, timeBufferMinutes: 0, capacityMinutes: 480 },
+            { key: 'embosado', label: 'Embosado', active: false, createEnabled: true, locked: false, repeatable: false, order: 72, minimumCost: 0, timeBufferMinutes: 0, capacityMinutes: 480 },
+            { key: 'troquelado', label: 'Troquelado', active: false, createEnabled: false, locked: false, repeatable: false, order: 73, minimumCost: 0, timeBufferMinutes: 0, capacityMinutes: 480 },
+            { key: 'rebobinado', label: 'Rebobinado', active: false, createEnabled: true, locked: false, repeatable: false, order: 74, minimumCost: 0, timeBufferMinutes: 0, capacityMinutes: 480 },
+            { key: 'empaque', label: 'Empaque', active: false, createEnabled: true, locked: false, repeatable: false, order: 80, minimumCost: 0, timeBufferMinutes: 0, capacityMinutes: 480 },
+            { key: 'inventario_salida', label: 'Salida de inventario', active: true, createEnabled: true, locked: false, repeatable: false, order: 85, minimumCost: 0, timeBufferMinutes: 0, capacityMinutes: 480 },
+            { key: 'adicionales', label: 'Procesos adicionales', active: false, createEnabled: false, locked: false, repeatable: false, order: 90, minimumCost: 0, timeBufferMinutes: 0, capacityMinutes: 480 }
         ]
     },
     convencional: {
@@ -2247,6 +2247,7 @@ function buildSapMaterialImportPayload(row = {}) {
         costo_x_libra: null,
         peso_capa_gsm: null,
         familia_proceso: familia,
+        clasificacion: '',
         costo_x_unidad: unitCost || null,
         merma_pct: null,
         rendimiento_g_ft2: null,
@@ -2649,7 +2650,7 @@ async function importMaterialesFromSap(options = {}) {
             await client.query(
                 `INSERT INTO material (
                     tenant_id, codigo, nombre, ancho_mm, largo_mm, gramaje_g_m2, calibre_micras, costo_x_lamina, costo_x_msi,
-                    costo_x_m2, costo_x_kg, costo_x_libra, peso_capa_gsm, familia_proceso, costo_x_unidad, merma_pct,
+                    costo_x_m2, costo_x_kg, costo_x_libra, peso_capa_gsm, familia_proceso, clasificacion, costo_x_unidad, merma_pct,
                     rendimiento_g_ft2, temperatura_aplicacion_c, tipo_transferencia,
                     comentario_ancho_mm, comentario_largo_mm, comentario_gramaje_g_m2, comentario_calibre_micras,
                     comentario_costo_x_lamina, comentario_costo_x_msi, comentario_costo_x_m2, comentario_costo_x_kg,
@@ -2657,8 +2658,8 @@ async function importMaterialesFromSap(options = {}) {
                     comentario_compatible_convencional, comentario_compatible_digital, comentario_tipo_proforma,
                     compatible_convencional, compatible_digital, tipo_proforma, activo
                  ) VALUES (
-                    $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,
-                    $20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37
+                    $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
+                    $21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38
                  )`,
                 [
                     tenantId,
@@ -2675,6 +2676,7 @@ async function importMaterialesFromSap(options = {}) {
                     material.costo_x_libra,
                     material.peso_capa_gsm,
                     material.familia_proceso,
+                    material.clasificacion,
                     material.costo_x_unidad,
                     material.merma_pct,
                     material.rendimiento_g_ft2,
@@ -3147,7 +3149,8 @@ function normalizeCostsConfigRecord(config) {
                 ganttEnabled,
                 order: Number(row?.order || fallback.order || ((index + 1) * 10)),
                 minimumCost: Math.max(0, Number(row?.minimumCost || 0)),
-                timeBufferMinutes: Math.max(0, Number(row?.timeBufferMinutes ?? row?.bufferMinutes ?? fallback.timeBufferMinutes ?? 0))
+                timeBufferMinutes: Math.max(0, Number(row?.timeBufferMinutes ?? row?.bufferMinutes ?? fallback.timeBufferMinutes ?? 0)),
+                capacityMinutes: Math.max(0, Number(row?.capacityMinutes ?? row?.capacity ?? fallback.capacityMinutes ?? 480))
             };
         }).filter(Boolean);
         fallbackRows.forEach((item, index) => {
@@ -3164,7 +3167,8 @@ function normalizeCostsConfigRecord(config) {
                 ganttEnabled: mandatoryGantt ? true : (item.ganttEnabled === undefined ? Boolean(item.active) : Boolean(item.ganttEnabled)),
                 order: Number(item.order || ((index + 1) * 10)),
                 minimumCost: Math.max(0, Number(item.minimumCost || 0)),
-                timeBufferMinutes: Math.max(0, Number(item.timeBufferMinutes || 0))
+                timeBufferMinutes: Math.max(0, Number(item.timeBufferMinutes || 0)),
+                capacityMinutes: Math.max(0, Number(item.capacityMinutes || 480))
             });
         });
         return normalized
@@ -7226,6 +7230,63 @@ function processObjectLooksActive(item = {}) {
         || positivePlanningAmount(item?.subtotal, item?.rawSubtotal, item?.materialSubtotal, item?.machineSubtotal, item?.operatorSubtotal, item?.linearSubtotal, item?.plateCost);
 }
 
+function planningVisibleText(value) {
+    const text = String(value ?? '').trim();
+    const normalized = text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    if (!text || ['no', 'false', '0', 'ninguno', 'sin', 'sin barniz', 'sin laminado', 'sin estampado', 'sin embosado', 'null'].includes(normalized)) {
+        return '';
+    }
+    return text;
+}
+
+function planningFinishLabelsFromOrder(row = {}) {
+    const raw = row.raw_data || {};
+    const lineRaw = raw.line_snapshot?.raw_data || {};
+    const result = lineRaw['Datos_Cotizados'] || raw.process_result || raw.processResult || {};
+    const uiState = lineRaw['Estado_UI'] || raw['Estado_UI'] || raw.ui_state || {};
+    const labels = [];
+    const add = (value) => {
+        const text = planningVisibleText(value);
+        if (text && !labels.includes(text)) labels.push(text);
+    };
+    const detail = (...keys) => planningVisibleText(keys.map((key) => lineRaw[key] ?? raw[key]).find((value) => planningVisibleText(value)));
+
+    (Array.isArray(result?.print?.items) ? result.print.items : []).forEach((printItem) => {
+        (Array.isArray(printItem?.inlineItems) ? printItem.inlineItems : []).forEach((inline) => {
+            if (!processObjectLooksActive(inline)) return;
+            const key = canonicalPlanningProcessKey(inline.processKey || inline.key || inline.label);
+            add(inline.materialName || inline.processLabel || inline.label || PLANNING_PROCESS_LABELS[key] || key);
+        });
+    });
+    (Array.isArray(result?.finishes?.items) ? result.finishes.items : []).forEach((finish) => {
+        if (!processObjectLooksActive(finish)) return;
+        const key = canonicalPlanningProcessKey(finish.processKey || finish.key || finish.label);
+        add(finish.materialName || finish.processLabel || finish.label || finish.description || PLANNING_PROCESS_LABELS[key] || key);
+    });
+    Object.entries(uiState?.finishes || {}).forEach(([key, value]) => {
+        if (typeof value !== 'object' && !planningVisibleText(value)) return;
+        if (typeof value === 'object' && !processObjectLooksActive(value)) return;
+        const detailText = planningVisibleText(value?.materialName || value?.material || value?.foil || value?.laminate || value?.varnish || value?.label || value?.type);
+        add(detailText || (typeof value === 'string' ? value : '') || PLANNING_PROCESS_LABELS[canonicalPlanningProcessKey(key)] || key);
+    });
+
+    const varnish = detail('REQ | Barniz', 'BARNIZ', 'CONV | BARNIZ | TIPO');
+    if (varnish) add(`Barniz ${varnish}`.replace(/\s+/g, ' '));
+    const laminate = detail('REQ | Laminado', 'LAMINADO', 'CONV | LAMINADO | TIPO');
+    if (laminate) add(`Laminado ${laminate}`.replace(/\s+/g, ' '));
+    const foil = detail('REQ | Estampado', 'ESTAMPADO', 'CONV | ESTAMPADO | FOIL');
+    if (foil) add(`Estampado ${foil}`.replace(/\s+/g, ' '));
+    const emboss = detail('REQ | Embosado', 'EMBOSADO | TIPO', 'EMBOSADO');
+    if (emboss) add(/^si$/i.test(emboss) ? 'Embosado' : `Embosado ${emboss}`.replace(/\s+/g, ' '));
+    if (planningVisibleText(lineRaw['REQ | Troquelado'] || raw['REQ | Troquelado']) || row.die_code || raw.line_snapshot?.dieCode) {
+        const dieCode = row.die_code || raw.line_snapshot?.dieCode || '';
+        add(dieCode ? `Troquelado (${dieCode})` : 'Troquelado');
+    }
+    if (planningVisibleText(lineRaw['ACABADOS | NUMERADO'] || lineRaw['NUMERADO'] || raw['ACABADOS | NUMERADO'])) add('Numerado');
+
+    return labels;
+}
+
 function addPlanningProcessKey(target, key) {
     const canonical = canonicalPlanningProcessKey(key);
     if (PLANNING_CLASSIFICATION_PROCESS_KEYS.includes(canonical)) target.add(canonical);
@@ -7896,6 +7957,40 @@ async function updateOrderProductionEndFromRoutes(orderCode, executor = { query:
     return nextRawData.planning_control;
 }
 
+function buildPlanningProcessLoadSummary(orderRow = {}, routes = [], costsConfig = {}) {
+    const orderCode = orderRow.order_code || '';
+    const orderRoutes = routes.filter((route) => route.order_code === orderCode);
+    if (!orderRoutes.length) return [];
+    const control = getOrderPlanningControl(orderRow.raw_data || {});
+    const baseDate = control.promisedDeliveryDate || control.scheduledDeliveryDate || orderRow.raw_data?.quote_snapshot?.due_on || orderRow.created_at;
+    return orderRoutes
+        .filter((route) => canonicalProductionFlowKey(route.process_key || route.process_name) !== 'acabados')
+        .map((route) => {
+            const processKey = canonicalProductionFlowKey(route.process_key || route.process_name);
+            const sameResourceRoutes = routes.filter((candidate) => {
+                if (candidate.order_code === orderCode) return false;
+                if (canonicalProductionFlowKey(candidate.process_key || candidate.process_name) !== processKey) return false;
+                if (route.machine_profile_id && candidate.machine_profile_id && String(route.machine_profile_id) !== String(candidate.machine_profile_id)) return false;
+                const candidateEnd = Number(candidate.start_turn_hour || 0) + Number(candidate.duration_hours || 0);
+                return candidateEnd <= Number(route.start_turn_hour || 0);
+            });
+            const queuedMinutes = sameResourceRoutes.reduce((sum, candidate) => sum + (Number(candidate.duration_hours || 0) * 60), 0);
+            const capacityMinutes = Math.max(1, Number(findCostProcessDefault(costsConfig, processKey)?.capacityMinutes || 480));
+            const endHours = Number(route.start_turn_hour || 0) + Number(route.duration_hours || 0);
+            const endDate = addHoursToBaseProductionDate(baseDate, endHours);
+            return {
+                processKey,
+                processName: PLANNING_PROCESS_LABELS[processKey] || route.process_name || processKey,
+                machineName: route.machine_name || '',
+                endDate: endDate ? endDate.toISOString() : '',
+                ordersAhead: sameResourceRoutes.length,
+                daysAhead: Number((queuedMinutes / capacityMinutes).toFixed(1)),
+                capacityAvailablePct: Math.max(0, Math.round(100 - Math.min(100, (queuedMinutes / capacityMinutes) * 100))),
+                bufferMinutes: Number(route.route_payload?.bufferMinutes || 0)
+            };
+        });
+}
+
 async function ensurePlanningRoutesForOrder(order, references = null, options = {}) {
     if (!order?.order_code) return;
     const executor = options.client || { query: pgQuery };
@@ -7965,6 +8060,7 @@ async function ensurePlanningRoutesForOrder(order, references = null, options = 
             ? Number(plannedProcess.durationHours)
             : 0;
         const bufferMinutes = Math.max(0, Number(findCostProcessDefault(costsConfig, processKey)?.timeBufferMinutes || 0));
+        const capacityMinutes = Math.max(0, Number(findCostProcessDefault(costsConfig, processKey)?.capacityMinutes || 480));
         const durationHours = Number((baseDurationHours + (bufferMinutes / 60)).toFixed(4));
 
         const insertResult = await executor.query(`
@@ -7995,6 +8091,7 @@ async function ensurePlanningRoutesForOrder(order, references = null, options = 
                 setupMinutes: Number(plannedProcess.setupMinutes || 0),
                 runMinutes: Number(plannedProcess.runMinutes || 0),
                 bufferMinutes,
+                capacityMinutes,
                 quotedDurationHours: baseDurationHours,
                 speedFpm: Number(plannedProcess.speedFpm || 0),
                 source: plannedProcess.source || 'missing-duration'
@@ -14245,6 +14342,33 @@ app.get('/api/planificacion/lanzamiento', async (req, res) => {
             if (!materialHistoryByOrder.has(row.order_code)) materialHistoryByOrder.set(row.order_code, []);
             materialHistoryByOrder.get(row.order_code).push(row);
         });
+        const [costsConfig, routeLoadResult] = await Promise.all([
+            loadCostsConfig(),
+            pgQuery(`
+                SELECT r.order_code,
+                       r.process_key,
+                       r.process_name,
+                       r.machine_profile_id::text,
+                       COALESCE(mp.machine_name, '') AS machine_name,
+                       COALESCE(r.start_turn_hour, 0) AS start_turn_hour,
+                       COALESCE(r.duration_hours, 0) AS duration_hours,
+                       COALESCE(r.route_payload, '{}'::jsonb) AS route_payload
+                  FROM production_order_routes r
+                  JOIN flexo_orders o ON o.order_code = r.order_code
+                  LEFT JOIN production_machine_profiles mp ON mp.id = r.machine_profile_id
+                 WHERE NOT EXISTS (
+                    SELECT 1
+                      FROM flexo_orders ox
+                     WHERE ox.order_code = o.order_code
+                       AND (
+                        ox.delivered_on IS NOT NULL
+                        OR lower(COALESCE(ox.raw_data->>'status','')) IN ('entregada','completada','cerrada','cancelada')
+                       )
+                 )
+                 ORDER BY r.sequence_order, r.start_turn_hour
+            `)
+        ]);
+        const routeLoadRows = routeLoadResult.rows || [];
 
         const items = (await Promise.all(result.rows
             .filter((row) => !isCompletedOrderRecord(row))
@@ -14269,7 +14393,7 @@ app.get('/api/planificacion/lanzamiento', async (req, res) => {
                 );
                 const widthInches = Number(lineSnapshot.widthInches || lineRaw['DIMENSIONES ETIQUETA | ANCHO'] || 0);
                 const lengthInches = Number(lineSnapshot.lengthInches || lineRaw['DIMENSIONES ETIQUETA | LARGO'] || 0);
-                const finishLabels = [];
+                const finishLabels = planningFinishLabelsFromOrder(row);
                 (Array.isArray(processResultRaw?.print?.items) ? processResultRaw.print.items : []).forEach((printItem) => {
                     (Array.isArray(printItem?.inlineItems) ? printItem.inlineItems : []).forEach((inline) => {
                         if (!processObjectLooksActive(inline)) return;
@@ -14334,6 +14458,7 @@ app.get('/api/planificacion/lanzamiento', async (req, res) => {
                     attachmentCount: attachments.length,
                     materialChecklist,
                     pendingMaterials,
+                    processLoadSummary: buildPlanningProcessLoadSummary(row, routeLoadRows, costsConfig),
                     returnReason: planning.returnReason || '',
                     missingItems: pendingMaterials ? [...missing, 'Materiales pendientes'] : missing
                 };

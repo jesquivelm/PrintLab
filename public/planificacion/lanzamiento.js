@@ -129,12 +129,12 @@ function operationalRows(item) {
     const linked = (label, value, route) => `
         <div class="planning-queue-row">
             <span>${escapeHtml(label)}</span>
-            <strong>${route && value ? `<a href="${escapeHtml(route)}">${escapeHtml(value)}</a>` : escapeHtml(value || '')}</strong>
+            <strong>${route && value ? `<a class="planning-queue-doc-link" href="${escapeHtml(route)}" target="_blank" rel="noopener noreferrer">${escapeHtml(value)}</a>` : escapeHtml(value || '')}</strong>
         </div>`;
     return [
         linked('Orden', item.orderCode || '', `/orden-produccion/${encodeURIComponent(item.orderCode || '')}`),
         linked('Cotización', item.quoteCode || '', item.quoteCode ? `/cotizaciones/documento?codigo=${encodeURIComponent(item.quoteCode)}` : ''),
-        linked('Línea', item.lineCode || '', item.quoteCode && item.lineCode ? `/calculo-flexografia?quoteCode=${encodeURIComponent(item.quoteCode)}&lineCode=${encodeURIComponent(item.lineCode)}` : ''),
+        linked('Línea', item.lineCode || '', item.quoteCode && item.lineCode ? `/calculo-flexografia?quoteId=${encodeURIComponent(item.quoteCode)}&lineId=${encodeURIComponent(item.lineCode)}` : ''),
         ['Producto', product],
         ['Cantidad', formatNumber(item.orderedQuantity || 0)],
         ['Pies estim.', `${formatNumber(item.plannedFeet || 0, 2)} ft`],
@@ -167,6 +167,25 @@ function processChecklist(item) {
                 <span>${escapeHtml(label)}</span>
                 ${process.quoted ? '<em>Cobrado</em>' : ''}
             </label>
+        `;
+    }).join('');
+}
+
+function processLoadSummary(item) {
+    const rows = Array.isArray(item.processLoadSummary) ? item.processLoadSummary : [];
+    if (!rows.length) return processChecklist(item);
+    return rows.map((row) => {
+        const title = [processLabel(row.processKey, row.processName), row.machineName].filter(Boolean).join(' - ');
+        return `
+            <article class="planning-queue-process-load">
+                <div class="planning-queue-process-load-head">
+                    <strong>${escapeHtml(title || 'Proceso')}</strong>
+                    <span>${escapeHtml(formatDate(row.endDate))}</span>
+                </div>
+                <div class="planning-queue-process-load-line">${escapeHtml(formatNumber(row.ordersAhead || 0))} órdenes delante</div>
+                <div class="planning-queue-process-load-line">${escapeHtml(formatNumber(row.daysAhead || 0, 1))} días</div>
+                <div class="planning-queue-process-load-line">Capacidad disponible: ${escapeHtml(formatNumber(row.capacityAvailablePct || 0))}%</div>
+            </article>
         `;
     }).join('');
 }
@@ -276,7 +295,7 @@ function queueCard(item) {
             <div class="planning-queue-body">
                 <section class="planning-queue-panel planning-queue-panel-compact">
                     <div class="planning-queue-panel-head">
-                        <h3>Base Operativa</h3>
+                        <h3>Resumen</h3>
                         <button type="button" class="planning-queue-icon-btn" data-action="flip-processes" data-order="${escapeHtml(item.orderCode)}" title="Ver procesos" aria-label="Ver procesos">${iconMarkup('planningProcessFlip', '↔', 'Ver procesos')}</button>
                     </div>
                     <div class="planning-queue-flip" data-flip-card>
@@ -288,7 +307,7 @@ function queueCard(item) {
                             </div>
                             <div class="planning-queue-flip-face planning-queue-flip-back">
                                 <div class="planning-queue-processes planning-queue-process-selector">
-                                    ${processChecklist(item)}
+                                    ${processLoadSummary(item)}
                                 </div>
                                 ${processWarnings(item)}
                             </div>
@@ -297,7 +316,7 @@ function queueCard(item) {
                 </section>
 
                 <section class="planning-queue-panel">
-                    <h3>Inventario de materia prima</h3>
+                    <h3>Inventario Materia Prima</h3>
                     ${materialChecklist(item)}
                     ${missing.length ? `<div class="planning-queue-process-warning">Pendiente de revisar: ${escapeHtml(missing.join(', '))}.</div>` : ''}
                 </section>

@@ -31,7 +31,7 @@ const DEFAULT_COSTS_CONFIG = {
         coreDiameterOptions: ["1", "1.5", "3", "6"],
         defaultQuantityTypes: 1,
         defaultCmykEnabled: "true",
-        processDefaults: PROCESS_DEFAULTS.map((item) => ({ ...item, minimumCost: 0, timeBufferMinutes: 0 }))
+        processDefaults: PROCESS_DEFAULTS.map((item) => ({ ...item, minimumCost: 0, timeBufferMinutes: 0, capacityMinutes: 480 }))
     },
     convencional: {
         tintaGeneral: {
@@ -310,7 +310,8 @@ function normalizeProcessDefaults(value) {
             ganttEnabled: mandatoryGantt ? true : booleanValue(row?.ganttEnabled, row?.ganttEnabled == null ? active : false),
             order: numberValue(row?.order, fallback.order ?? ((index + 1) * 10)),
             minimumCost: Math.max(0, numberValue(row?.minimumCost, 0)),
-            timeBufferMinutes: Math.max(0, numberValue(row?.timeBufferMinutes ?? row?.bufferMinutes, 0))
+            timeBufferMinutes: Math.max(0, numberValue(row?.timeBufferMinutes ?? row?.bufferMinutes, 0)),
+            capacityMinutes: Math.max(0, numberValue(row?.capacityMinutes ?? row?.capacity, 480))
         };
     }).filter(Boolean);
     PROCESS_DEFAULTS.forEach((item, index) => {
@@ -325,7 +326,8 @@ function normalizeProcessDefaults(value) {
             ganttEnabled: Boolean(item.active),
             order: item.order ?? ((index + 1) * 10),
             minimumCost: 0,
-            timeBufferMinutes: 0
+            timeBufferMinutes: 0,
+            capacityMinutes: 480
         });
     });
     return normalized
@@ -739,8 +741,15 @@ function renderProcessDefaultRows() {
                 </label>
             </td>
             <td>
-                <label class="costs-process-default-cost" aria-label="Colchón de tiempo">
+                <label class="costs-process-default-cost has-suffix" aria-label="Buffer de tiempo">
                     <input type="number" min="0" step="1" inputmode="numeric" data-process-field="timeBufferMinutes" data-index="${index}" value="${escapeHtml(Math.round(Number(row.timeBufferMinutes || 0)))}" placeholder="0">
+                    <span class="costs-process-default-currency costs-process-default-suffix">min</span>
+                </label>
+            </td>
+            <td>
+                <label class="costs-process-default-cost has-suffix" aria-label="Capacidad">
+                    <input type="number" min="0" step="1" inputmode="numeric" data-process-field="capacityMinutes" data-index="${index}" value="${escapeHtml(Math.round(Number(row.capacityMinutes || 480)))}" placeholder="480">
+                    <span class="costs-process-default-currency costs-process-default-suffix">min</span>
                 </label>
             </td>
         </tr>
@@ -869,6 +878,9 @@ processDefaultsList?.addEventListener("input", (event) => {
     }
     if (target.dataset.processField === "timeBufferMinutes") {
         row.timeBufferMinutes = Math.max(0, numberValue(target.value, 0));
+    }
+    if (target.dataset.processField === "capacityMinutes") {
+        row.capacityMinutes = Math.max(0, numberValue(target.value, 0));
     }
     queueCostsSave();
 });
