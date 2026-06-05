@@ -2178,11 +2178,10 @@ function buildDeliverySummary(lineRaw, quote) {
         <div class="production-summary-two-col">
             <div class="production-summary-subsection">
                 <div class="production-summary-subsection-title">Forma de Entrega</div>
-                ${leftLines.join('')}
+                ${leftLines.length ? leftLines.join('') : '<div class="production-summary-item"><span class="production-summary-value production-contact-missing-label">&#9888; Sin información de entrega</span></div>'}
             </div>
             <div class="production-summary-subsection">
-                <div class="production-summary-subsection-title">Detalle de Entrega</div>
-                ${rightLines.join('')}
+                ${rightLines.length ? '<div class="production-summary-subsection-title">Detalle de Entrega</div>' + rightLines.join('') : ''}
             </div>
         </div>
     `;
@@ -2197,16 +2196,16 @@ function buildSamplesSummary(lineRaw) {
     const destinoTipo = pickFirst(lineRaw['MUESTRAS | VISTO BUENO']);
     const detalle = pickFirst(lineRaw['MUESTRAS | DETALLE']);
 
-    if (!envioTipo && !destinoTipo && !detalle) return '';
+    if (!envioTipo && !destinoTipo && !detalle && !envioContacto && !envioTelefono && !envioEmail && !envioDireccion) return '';
 
     const leftLines = [];
     if (envioTipo) leftLines.push(`<div class="production-summary-item"><span class="production-summary-label">Tipo</span><span class="production-summary-value">${escapeHtml(envioTipo)}</span></div>`);
-    if (envioContacto) leftLines.push(`<div class="production-summary-item"><span class="production-summary-label">Contacto</span><span class="production-summary-value">${escapeHtml(envioContacto)}</span></div>`);
-    if (envioTelefono) leftLines.push(`<div class="production-summary-item"><span class="production-summary-label">Teléfono</span><span class="production-summary-value">${escapeHtml(envioTelefono)}</span></div>`);
-    if (envioEmail) leftLines.push(`<div class="production-summary-item"><span class="production-summary-label">Correo</span><span class="production-summary-value">${escapeHtml(envioEmail)}</span></div>`);
-    if (envioDireccion) leftLines.push(`<div class="production-summary-item"><span class="production-summary-label">Dirección</span><span class="production-summary-value">${escapeHtml(envioDireccion)}</span></div>`);
 
     const rightLines = [];
+    if (envioContacto) rightLines.push(`<div class="production-summary-item"><span class="production-summary-label">Contacto</span><span class="production-summary-value">${escapeHtml(envioContacto)}</span></div>`);
+    if (envioTelefono) rightLines.push(`<div class="production-summary-item"><span class="production-summary-label">Teléfono</span><span class="production-summary-value">${escapeHtml(envioTelefono)}</span></div>`);
+    if (envioEmail) rightLines.push(`<div class="production-summary-item"><span class="production-summary-label">Correo</span><span class="production-summary-value">${escapeHtml(envioEmail)}</span></div>`);
+    if (envioDireccion) rightLines.push(`<div class="production-summary-item"><span class="production-summary-label">Dirección</span><span class="production-summary-value">${escapeHtml(envioDireccion)}</span></div>`);
     if (destinoTipo) rightLines.push(`<div class="production-summary-item"><span class="production-summary-label">Destinatario</span><span class="production-summary-value">${escapeHtml(destinoTipo)}</span></div>`);
     if (detalle) rightLines.push(`<div class="production-summary-item"><span class="production-summary-label">Detalle</span><span class="production-summary-value">${escapeHtml(detalle)}</span></div>`);
 
