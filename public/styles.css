@@ -6012,15 +6012,23 @@ body.shell-embedded .summary-footer {
 .inline-fields { display: grid; gap: 6px; }
 .inline-fields-contact { grid-template-columns: 128px minmax(0, 1fr); }
 .field-cliente,
-.field-contacto,
-.field-vendedor {
+.field-contacto {
     width: min(100%, 620px);
 }
+.field-vendedor {
+    width: min(100%, 320px);
+}
 .field-cliente input,
-.field-contacto input,
+.field-contacto input {
+    font-size: 15px;
+    padding: 8px 10px;
+    font-weight: 500;
+    border-radius: 6px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
 .field-vendedor input {
-    font-size: 14px;
-    padding: 6px 8px;
+    font-size: 13px;
+    padding: 5px 8px;
     font-weight: 500;
     border-radius: 6px;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -13011,7 +13019,7 @@ html[data-theme="dark"] .workspace-quote > .quote-card-clean .quote-meta {
 }
 
 .quote-line-menu-panel .row-action-menu-item:nth-of-type(-n+5) {
-    margin-bottom: 10px;
+    margin-bottom: 5px;
 }
 
 .quote-line-menu-panel .row-action-menu-section-divider {
@@ -13902,12 +13910,12 @@ html[data-theme="dark"] .quote-browser-actions .browser-open-link-danger:focus-v
 
 .quote-line-menu-panel .row-action-menu-list {
     display: grid;
-    gap: 2px;
+    gap: 1px;
 }
 
 .quote-line-menu-panel .row-action-menu-item {
     min-height: auto !important;
-    padding: 11px 30px !important;
+    padding: 5px 30px !important;
     border-radius: 10px !important;
     font-size: 13px !important;
     font-weight: 600 !important;
@@ -14975,8 +14983,8 @@ body.inventory-route-troqueles.inventory-view-detail .inventory-editor-panel {
 }
 
 .quote-detail-page .quote-head-right {
-    width: min(50%, 820px);
-    min-width: 620px;
+    width: auto;
+    min-width: 0;
     margin-left: auto;
 }
 

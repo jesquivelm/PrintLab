@@ -628,7 +628,7 @@ async function syncProformaButtonState(code) {
         const response = await fetch(`/api/proformas/${encodeURIComponent(code)}`);
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(payload?.error || 'No fue posible cargar la proforma.');
-        viewProformaButton.textContent = payload?.status === 'closed' ? 'Ver Proforma Cerrada' : 'Ver Proforma';
+        viewProformaButton.textContent = 'Ver Proforma';
     } catch (error) {
         viewProformaButton.textContent = 'Ver Proforma';
     }
