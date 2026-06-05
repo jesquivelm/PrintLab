@@ -18,6 +18,7 @@ const PROCESS_DEFAULTS = [
     { key: "troquelado", label: "Troquelado", active: false, createEnabled: false, locked: false, repeatable: false, order: 73 },
     { key: "rebobinado", label: "Rebobinado", active: false, createEnabled: true, locked: false, repeatable: false, order: 74 },
     { key: "empaque", label: "Empaque", active: false, createEnabled: true, locked: false, repeatable: false, order: 80 },
+    { key: "inventario_salida", label: "Salida de inventario", active: true, createEnabled: true, locked: false, repeatable: false, order: 85 },
     { key: "adicionales", label: "Procesos adicionales", active: false, createEnabled: false, locked: false, repeatable: false, order: 90 }
 ];
 
@@ -30,7 +31,7 @@ const DEFAULT_COSTS_CONFIG = {
         coreDiameterOptions: ["1", "1.5", "3", "6"],
         defaultQuantityTypes: 1,
         defaultCmykEnabled: "true",
-        processDefaults: PROCESS_DEFAULTS.map((item) => ({ ...item, minimumCost: 0 }))
+        processDefaults: PROCESS_DEFAULTS.map((item) => ({ ...item, minimumCost: 0, timeBufferMinutes: 0 }))
     },
     convencional: {
         tintaGeneral: {
@@ -295,7 +296,8 @@ function normalizeProcessDefaults(value) {
         if (!fallback || seen.has(key)) return null;
         seen.add(key);
         const locked = ["macula", "troquel"].includes(key) ? true : booleanValue(row?.locked, fallback.locked);
-        const active = locked ? true : booleanValue(row?.active, fallback.active);
+        const mandatoryGantt = key === "inventario_salida";
+        const active = (locked || mandatoryGantt) ? true : booleanValue(row?.active, fallback.active);
         const createEnabled = key === "macula" ? true : booleanValue(row?.createEnabled ?? row?.create, fallback.createEnabled);
         const repeatable = booleanValue(row?.repeatable, fallback.repeatable);
         return {
@@ -305,9 +307,10 @@ function normalizeProcessDefaults(value) {
             createEnabled: active ? createEnabled : false,
             locked,
             repeatable,
-            ganttEnabled: booleanValue(row?.ganttEnabled, row?.ganttEnabled == null ? active : false),
+            ganttEnabled: mandatoryGantt ? true : booleanValue(row?.ganttEnabled, row?.ganttEnabled == null ? active : false),
             order: numberValue(row?.order, fallback.order ?? ((index + 1) * 10)),
-            minimumCost: Math.max(0, numberValue(row?.minimumCost, 0))
+            minimumCost: Math.max(0, numberValue(row?.minimumCost, 0)),
+            timeBufferMinutes: Math.max(0, numberValue(row?.timeBufferMinutes ?? row?.bufferMinutes, 0))
         };
     }).filter(Boolean);
     PROCESS_DEFAULTS.forEach((item, index) => {
@@ -321,7 +324,8 @@ function normalizeProcessDefaults(value) {
             repeatable: item.repeatable,
             ganttEnabled: Boolean(item.active),
             order: item.order ?? ((index + 1) * 10),
-            minimumCost: 0
+            minimumCost: 0,
+            timeBufferMinutes: 0
         });
     });
     return normalized
@@ -734,6 +738,11 @@ function renderProcessDefaultRows() {
                     <input type="number" min="0" step="1" inputmode="numeric" data-process-field="minimumCost" data-index="${index}" value="${escapeHtml(Math.round(Number(row.minimumCost || 0)))}" placeholder="0">
                 </label>
             </td>
+            <td>
+                <label class="costs-process-default-cost" aria-label="Colchón de tiempo">
+                    <input type="number" min="0" step="1" inputmode="numeric" data-process-field="timeBufferMinutes" data-index="${index}" value="${escapeHtml(Math.round(Number(row.timeBufferMinutes || 0)))}" placeholder="0">
+                </label>
+            </td>
         </tr>
     `).join("");
 }
@@ -857,6 +866,9 @@ processDefaultsList?.addEventListener("input", (event) => {
     if (!row) return;
     if (target.dataset.processField === "minimumCost") {
         row.minimumCost = Math.max(0, numberValue(target.value, 0));
+    }
+    if (target.dataset.processField === "timeBufferMinutes") {
+        row.timeBufferMinutes = Math.max(0, numberValue(target.value, 0));
     }
     queueCostsSave();
 });

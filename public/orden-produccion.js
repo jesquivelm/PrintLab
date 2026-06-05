@@ -2363,6 +2363,7 @@ function renderOrder(order) {
     const stateText = pickFirst(raw.status, 'Pendiente');
     const promisedDateRaw = raw.planning_control?.promisedDeliveryDate || quote.due_on;
     const scheduledDateRaw = raw.planning_control?.scheduledDeliveryDate || raw.scheduled_on;
+    const productionEndDateRaw = raw.planning_control?.productionEndDate || null;
     const customerId = pickFirst(raw.customer_code, quote.customer_code);
     const customerName = pickFirst(raw.customer_name, quote.customer_name);
     const customerContact = pickFirst(raw.contact_name, quote.contact_name, lineRaw['CLIENTE | CONTACTO NOMBRE COMPLETO']);
@@ -2648,6 +2649,11 @@ function renderOrder(order) {
     setText('orderPromisedDateText', formatDate(promisedDateRaw), 'Pendiente');
     applyScheduleState(document.getElementById('orderPromisedDateText'), promisedDateRaw);
     const scheduledDateText = document.getElementById('orderScheduledDateText');
+    const productionEndDateInput = document.getElementById('orderProductionEndDateInput');
+    if (productionEndDateInput) {
+        productionEndDateInput.value = normalizeDateInputValue(productionEndDateRaw);
+        productionEndDateInput.classList.toggle('is-alert', Boolean(raw.planning_control?.productionScheduleAlert));
+    }
     if (scheduledDateText && scheduledDateText.type === 'date') {
         scheduledDateText.value = normalizeDateInputValue(scheduledDateRaw);
     } else {

@@ -240,7 +240,9 @@ function displayProcessName(value) {
     barniz: 'Barniz',
     numeracion: 'Numeración',
     rebobinado: 'Rebobinado',
-    empaque: 'Empaque'
+    empaque: 'Empaque',
+    inventario_salida: 'Salida de inventario',
+    'salida de inventario': 'Salida de inventario'
   };
   return labels[key] || raw || 'Sin proceso';
 }
@@ -291,6 +293,7 @@ async function loadFromAPI() {
       estado:      r.estado,
       alerta:      !!r.alerta,
       alerta_tipo: r.alerta || null,
+      fecha_fin_produccion: r.fecha_fin_produccion || null,
       fecha_entrega_prometida: r.fecha_entrega_prometida || null,
       route_payload: r.route_payload || {},
       planning_snapshot: r.planning_snapshot || null,
@@ -443,6 +446,7 @@ function getOrderChainBounds(orderCode) {
 
 function promisedHourSlot(value) {
   if (!value) return null;
+  if (!String(value).includes('T')) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
   const hour = date.getHours() + (date.getMinutes() / 60);
@@ -457,6 +461,22 @@ function detectScheduleAlerts() {
   orders.forEach(op => {
     if (seen.has(op.id)) return;
     seen.add(op.id);
+
+    const productionEnd = firstOrderValue(op.id, 'fecha_fin_produccion');
+    const promisedDate = firstOrderValue(op.id, 'fecha_entrega_prometida');
+    if (productionEnd && promisedDate) {
+      const endDay = dateKey(productionEnd);
+      const promisedDay = dateKey(promisedDate);
+      if (endDay && promisedDay && endDay > promisedDay) {
+        alerts.push({
+          type: 'late',
+          orderCode: op.id,
+          slack: -24,
+          message: `${op.id} termina producción después de la fecha estimada`
+        });
+        return;
+      }
+    }
 
     const dueSlot = promisedHourSlot(op.fecha_entrega_prometida);
     if (dueSlot === null) return;
@@ -486,6 +506,17 @@ function detectScheduleAlerts() {
   });
 
   return alerts;
+}
+
+function firstOrderValue(orderCode, field) {
+  const item = orders.find(o => o.id === orderCode && o[field]);
+  return item ? item[field] : null;
+}
+
+function dateKey(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toISOString().slice(0, 10);
 }
 
 function orderOverlapsVisible(op) {
@@ -1131,9 +1162,11 @@ function showTT(e, id_ruta) {
     <div class="tt-row"><span>Proceso</span><span class="tt-val">${op.proceso}</span></div>
     <div class="tt-row"><span>Inicio</span><span class="tt-val">${formatHora(op.inicio)}</span></div>
     <div class="tt-row"><span>Duración</span><span class="tt-val">${op.dur}h</span></div>
+    <div class="tt-row"><span>Fin producción</span><span class="tt-val">${formatPromisedDate(op.fecha_fin_produccion)}</span></div>
     <div class="tt-row"><span>Entrega</span><span class="tt-val">${formatPromisedDate(op.fecha_entrega_prometida)}</span></div>
     <div class="tt-row"><span>Setup</span><span class="tt-val">${Number(op.route_payload?.setupMinutes || 0).toLocaleString('es-CR')} min</span></div>
     <div class="tt-row"><span>Corrida</span><span class="tt-val">${Number(op.route_payload?.runMinutes || 0).toLocaleString('es-CR')} min</span></div>
+    <div class="tt-row"><span>Colchón</span><span class="tt-val">${Number(op.route_payload?.bufferMinutes || 0).toLocaleString('es-CR')} min</span></div>
     <div class="tt-row"><span>Velocidad</span><span class="tt-val">${Number(op.route_payload?.speedFpm || 0).toLocaleString('es-CR')} fpm</span></div>
     <div class="tt-row"><span>Modo</span><span class="tt-val">${op.manual_lock ? 'Fijo' : op.schedule_mode === 'backward' ? 'Programada hacia atrás' : op.schedule_mode === 'forward' ? 'Programada hacia adelante' : 'Sin definir'}</span></div>
     <div class="tt-row"><span>Pies</span><span class="tt-val">${Number(op.pies).toLocaleString()}</span></div>
@@ -1222,8 +1255,10 @@ function openDP(id_ruta) {
     <div class="dp-field"><div class="dp-lbl">Saidel</div><div class="dp-val">${op.saidel}</div></div>
     <div class="dp-field"><div class="dp-lbl">Pies planificados</div><div class="dp-val">${Number(op.pies).toLocaleString()}</div></div>
     <div class="dp-field"><div class="dp-lbl">Entrega prometida</div><div class="dp-val">${formatPromisedDate(op.fecha_entrega_prometida)}</div></div>
+    <div class="dp-field"><div class="dp-lbl">Fin producción</div><div class="dp-val">${formatPromisedDate(op.fecha_fin_produccion)}</div></div>
     <div class="dp-field"><div class="dp-lbl">Setup estimado</div><div class="dp-val">${Number(op.route_payload?.setupMinutes || 0).toLocaleString('es-CR')} min</div></div>
     <div class="dp-field"><div class="dp-lbl">Corrida estimada</div><div class="dp-val">${Number(op.route_payload?.runMinutes || 0).toLocaleString('es-CR')} min</div></div>
+    <div class="dp-field"><div class="dp-lbl">Colchón de tiempo</div><div class="dp-val">${Number(op.route_payload?.bufferMinutes || 0).toLocaleString('es-CR')} min</div></div>
     <div class="dp-field"><div class="dp-lbl">Velocidad base</div><div class="dp-val">${Number(op.route_payload?.speedFpm || 0).toLocaleString('es-CR')} fpm</div></div>
     <div class="dp-field"><div class="dp-lbl">Origen del tiempo</div><div class="dp-val">${op.route_payload?.source || 'Sin definir'}</div></div>
     <div class="dp-field"><div class="dp-lbl">Modo de acomodo</div><div class="dp-val">${op.manual_lock ? 'Fijo manual' : op.schedule_mode === 'backward' ? 'Programada hacia atrás' : op.schedule_mode === 'forward' ? 'Programada hacia adelante' : 'Sin definir'}</div></div>

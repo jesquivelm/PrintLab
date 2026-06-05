@@ -2931,19 +2931,18 @@ async function createProductionOrder(row) {
         var header = uiState.header || {};
         var rawQty = Array.isArray(header.quantities) ? header.quantities : [];
         if (rawQty.length > 1) {
-            quantities = rawQty.filter(function (q) { return q && Number(q.quantity) > 0; });
+            quantities = rawQty
+                .map(function (q) {
+                    var quantity = Number(q?.quantity ?? q?.value ?? q?.qty ?? 0);
+                    return { ...q, quantity: quantity };
+                })
+                .filter(function (q) { return q && Number(q.quantity) > 0; });
         }
     } catch (e) {}
     var selectedQuantity = null;
     if (quantities.length > 1) {
-        var qText = quantities.map(function (q, i) {
-            return (i + 1) + '. ' + parseNumber(q.quantity) + ' uds' + (q.unitPrice ? ' @ ' + q.unitPrice : '');
-        }).join('\n');
-        var choice = window.prompt('Selecciona la cantidad para la orden:\n' + qText + '\n\nIngresa el número de la opción (1-' + quantities.length + ') o acepta la cantidad actual:', '1');
-        var idx = parseInt(choice, 10);
-        if (!isNaN(idx) && idx >= 1 && idx <= quantities.length) {
-            selectedQuantity = Number(quantities[idx - 1].quantity);
-        }
+        selectedQuantity = await askProductionOrderQuantity(row, quantities);
+        if (!selectedQuantity) return;
     }
     var body = {};
     if (selectedQuantity && selectedQuantity > 0) body.quantity = selectedQuantity;
@@ -2959,6 +2958,56 @@ async function createProductionOrder(row) {
             window.location.href = route;
         }
     }
+}
+
+function askProductionOrderQuantity(row, quantities) {
+    return new Promise((resolve) => {
+        const existing = document.querySelector('.quote-order-quantity-dialog');
+        if (existing) existing.remove();
+        document.body.classList.add('popover-open');
+        const overlay = document.createElement('div');
+        overlay.className = 'quote-order-quantity-dialog';
+        const options = quantities.map((q, i) => `
+            <label class="quote-order-quantity-option${i === 0 ? ' is-selected' : ''}">
+                <input type="radio" name="quoteOrderQuantity" value="${escapeHtml(String(q.quantity))}"${i === 0 ? ' checked' : ''}>
+                <span class="quote-order-quantity-value">${escapeHtml(parseNumber(q.quantity))} uds</span>
+                ${q.unitPrice ? `<span class="quote-order-quantity-price">${escapeHtml(String(q.unitPrice))}</span>` : ''}
+            </label>
+        `).join('');
+        overlay.innerHTML = `
+            <div class="quote-order-quantity-panel" role="dialog" aria-modal="true" aria-label="Seleccionar cantidad de producción">
+                <div class="quote-order-quantity-title">Crear orden de producción</div>
+                <div class="quote-order-quantity-copy">Escoge la cantidad que se va a producir para la línea ${escapeHtml(row?.linea || '')}.</div>
+                <div class="quote-order-quantity-options">${options}</div>
+                <div class="quote-order-quantity-actions">
+                    <button type="button" class="action-btn" data-quantity-action="cancel">Cancelar</button>
+                    <button type="button" class="action-btn action-btn-primary" data-quantity-action="confirm">Continuar</button>
+                </div>
+            </div>
+        `;
+        const close = (value) => {
+            overlay.remove();
+            document.body.classList.remove('popover-open');
+            resolve(value);
+        };
+        overlay.addEventListener('click', (event) => {
+            if (event.target === overlay) close(null);
+            const option = event.target.closest('.quote-order-quantity-option');
+            if (option) {
+                overlay.querySelectorAll('.quote-order-quantity-option').forEach((item) => item.classList.remove('is-selected'));
+                option.classList.add('is-selected');
+                option.querySelector('input')?.click();
+            }
+            const action = event.target.closest('[data-quantity-action]')?.dataset.quantityAction;
+            if (action === 'cancel') close(null);
+            if (action === 'confirm') {
+                const selected = Number(overlay.querySelector('input[name="quoteOrderQuantity"]:checked')?.value || 0);
+                close(selected > 0 ? selected : null);
+            }
+        });
+        document.body.appendChild(overlay);
+        overlay.querySelector('[data-quantity-action="confirm"]')?.focus();
+    });
 }
 
 async function toggleLineFinalized(row) {

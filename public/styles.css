@@ -15255,6 +15255,82 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
     font-weight: 600;
 }
 
+.quote-order-quantity-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 5200;
+    display: grid;
+    place-items: center;
+    padding: 18px;
+    background: rgba(15, 23, 42, 0.34);
+}
+
+.quote-order-quantity-panel {
+    width: min(390px, 100%);
+    padding: 18px;
+    border: 1px solid var(--app-border, #dbe5ec);
+    border-radius: 8px;
+    background: var(--app-surface-raised, #ffffff);
+    color: var(--app-text, #0f172a);
+    box-shadow: var(--app-shadow-md, 0 18px 50px rgba(15, 23, 42, 0.18));
+}
+
+.quote-order-quantity-title {
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.quote-order-quantity-copy {
+    margin-top: 6px;
+    color: var(--app-text-muted, #64748b);
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.quote-order-quantity-options {
+    display: grid;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.quote-order-quantity-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 40px;
+    padding: 8px 10px;
+    border: 1px solid var(--app-border, #dbe5ec);
+    border-radius: 8px;
+    background: var(--app-surface, #ffffff);
+    cursor: pointer;
+}
+
+.quote-order-quantity-option.is-selected {
+    border-color: var(--app-primary, #0b81b8);
+    background: color-mix(in srgb, var(--app-primary, #0b81b8) 9%, var(--app-surface, #ffffff));
+}
+
+.quote-order-quantity-option input {
+    flex: 0 0 auto;
+}
+
+.quote-order-quantity-value {
+    font-weight: 700;
+}
+
+.quote-order-quantity-price {
+    margin-left: auto;
+    color: var(--app-text-muted, #64748b);
+    font-size: 12px;
+}
+
+.quote-order-quantity-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+}
+
 .production-order-card {
     --order-panel-bg: #ffffff;
     --order-panel-soft: #fbfdff;
@@ -15700,6 +15776,54 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
     resize: none;
 }
 
+.production-samples-section .production-form-divider,
+.production-delivery-section .production-form-divider {
+    margin: 12px 0 10px;
+}
+
+.production-samples-section .production-form-divider::before,
+.production-samples-section .production-form-divider::after,
+.production-delivery-section .production-form-divider::before,
+.production-delivery-section .production-form-divider::after {
+    content: '';
+    height: 1px;
+    background: var(--order-panel-border, #dbe5ec);
+}
+
+.production-samples-section .production-summary-grid-two,
+.production-delivery-section .production-summary-grid-two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 14px;
+}
+
+.production-samples-section .field-full,
+.production-delivery-section .field-full,
+.production-samples-section .production-inline-form > .field,
+.production-delivery-section .production-inline-form > .field {
+    grid-column: 1 / -1;
+}
+
+.production-samples-section textarea,
+.production-delivery-section textarea {
+    min-height: 74px;
+    resize: vertical;
+}
+
+.production-date-field input.is-alert {
+    border-color: #dc2626 !important;
+    color: #b91c1c !important;
+}
+
+.planning-queue-btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--config-icon-size, 18px);
+    height: var(--config-icon-size, 18px);
+    object-fit: contain;
+    flex: 0 0 auto;
+}
+
 html[data-theme="dark"] .production-order-card {
     --order-panel-bg: #152033;
     --order-panel-soft: #1d2a3d;
@@ -15867,8 +15991,8 @@ html[data-theme="dark"] .production-tracking-card .production-schedule-pill.is-a
 .production-customer-contact-display {
     display: flex;
     align-items: flex-start;
-    justify-content: space-between;
-    gap: 8px;
+    justify-content: flex-start;
+    gap: 6px;
 }
 
 .production-customer-contact-info {
@@ -16490,13 +16614,14 @@ html[data-theme="dark"] .production-group-pill {
 }
 
 .production-frontback-art-preview-col {
-    flex: 0 0 140px;
+    flex: 1 1 50%;
     min-width: 0;
+    max-width: 50%;
 }
 
 .production-frontback-art-preview-col .production-art-dropzone {
-    width: 140px;
-    height: 100px;
+    width: 100%;
+    height: 120px;
     min-height: 100px;
     display: flex;
     align-items: center;

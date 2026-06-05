@@ -6,6 +6,8 @@
 * Stay strictly within the requested scope.
 * Do not modify unrelated files, code, layouts, or logic.
 * If requirements are unclear, stop and ask.
+* User for login: jesquiv and password: 1234
+* Always push after finish
 
 ---
 

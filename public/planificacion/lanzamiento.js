@@ -24,10 +24,12 @@ const PROCESS_LABELS = {
     embosado: 'Embosado',
     numeracion: 'Numeración',
     rebobinado: 'Rebobinado',
-    empaque: 'Empaque'
+    empaque: 'Empaque',
+    inventario_salida: 'Salida de inventario'
 };
 
 let planningItems = [];
+let planningConfig = { icons: {}, general: {} };
 
 function escapeHtml(value) {
     return String(value || '')
@@ -36,6 +38,14 @@ function escapeHtml(value) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+}
+
+function iconMarkup(key, fallback, altText) {
+    const value = planningConfig.icons?.[key] || fallback;
+    if (/^(\/|data:image\/)/i.test(String(value || ''))) {
+        return `<img class="planning-queue-btn-icon" src="${escapeHtml(value)}" alt="${escapeHtml(altText || '')}">`;
+    }
+    return `<span class="planning-queue-btn-icon" aria-hidden="true">${escapeHtml(value)}</span>`;
 }
 
 function formatDate(value, withTime = false) {
@@ -116,27 +126,35 @@ function renderSummary(items) {
 function operationalRows(item) {
     const product = [item.productName || item.jobName || 'Sin producto', item.dimensionsText].filter(Boolean).join(' · ');
     const finishSummary = item.finishSummary || 'Sin acabados declarados';
+    const linked = (label, value, route) => `
+        <div class="planning-queue-row">
+            <span>${escapeHtml(label)}</span>
+            <strong>${route && value ? `<a href="${escapeHtml(route)}">${escapeHtml(value)}</a>` : escapeHtml(value || '')}</strong>
+        </div>`;
     return [
-        ['Cotización', item.quoteCode || ''],
-        ['Línea', item.lineCode || ''],
+        linked('Orden', item.orderCode || '', `/orden-produccion/${encodeURIComponent(item.orderCode || '')}`),
+        linked('Cotización', item.quoteCode || '', item.quoteCode ? `/cotizaciones/documento?codigo=${encodeURIComponent(item.quoteCode)}` : ''),
+        linked('Línea', item.lineCode || '', item.quoteCode && item.lineCode ? `/calculo-flexografia?quoteCode=${encodeURIComponent(item.quoteCode)}&lineCode=${encodeURIComponent(item.lineCode)}` : ''),
         ['Producto', product],
         ['Cantidad', formatNumber(item.orderedQuantity || 0)],
         ['Pies estim.', `${formatNumber(item.plannedFeet || 0, 2)} ft`],
         ['Sustrato', item.materialName || 'Sin definir'],
-        ['Sustrato qty.', `${formatNumber(item.materialQuantity || item.plannedFeet || 0, 2)} ft`],
         ['Tintas', formatNumber(item.tintCount || 0)],
+        ['Troquel', item.dieCode || 'Sin definir'],
         ['Máquina', item.machineName || 'Sin definir'],
         ['Acabados', finishSummary]
-    ].map(([label, value]) => `
+    ].map((row) => Array.isArray(row) ? `
         <div class="planning-queue-row">
-            <span>${escapeHtml(label)}</span>
-            <strong>${escapeHtml(value)}</strong>
+            <span>${escapeHtml(row[0])}</span>
+            <strong>${escapeHtml(row[1])}</strong>
         </div>
-    `).join('');
+    ` : row).join('');
 }
 
 function processChecklist(item) {
-    const processes = Array.isArray(item.processChecklist) ? item.processChecklist : [];
+    const processes = (Array.isArray(item.processChecklist) ? item.processChecklist : [])
+        .filter((process) => process.key !== 'acabados')
+        .filter((process) => process.quoted || process.selected || process.base);
     if (!processes.length) {
         return '<div class="planning-queue-text">No hay procesos configurados para planificación.</div>';
     }
@@ -188,7 +206,7 @@ function artworkSlot(item) {
         <section class="planning-queue-art-slot" aria-label="Arte de la orden">
             <div class="planning-queue-art-head">
                 <span>Arte</span>
-                <button type="button" class="planning-queue-icon-btn" data-action="refresh-art" data-order="${escapeHtml(item.orderCode)}" title="Actualizar arte" aria-label="Actualizar arte">↻</button>
+                <button type="button" class="planning-queue-icon-btn" data-action="refresh-art" data-order="${escapeHtml(item.orderCode)}" title="Actualizar arte" aria-label="Actualizar arte">${iconMarkup('planningRefresh', '↻', 'Actualizar arte')}</button>
             </div>
             <div class="planning-queue-art-preview">
                 ${imageSrc
@@ -243,6 +261,8 @@ function queueCard(item) {
                     <div class="planning-queue-meta">
                         <span class="planning-queue-pill">Entrega: ${escapeHtml(formatDate(item.promisedDeliveryDate))}</span>
                         <span class="planning-queue-pill">Trabajo: ${escapeHtml(item.jobName || 'Sin nombre')}</span>
+                        ${item.customerCode ? `<span class="planning-queue-pill">Cliente: ${escapeHtml(item.customerCode)}</span>` : ''}
+                        ${item.quoteStatus ? `<span class="planning-queue-pill">Cotización: ${escapeHtml(item.quoteStatus)}</span>` : ''}
                         <span class="planning-queue-pill">Vendedor: ${escapeHtml(item.salespersonName || 'Sin asignar')}</span>
                         <button type="button" class="planning-queue-pill" data-action="toggle-attachments" data-order="${escapeHtml(item.orderCode)}">Adjuntos: ${escapeHtml(formatNumber(item.attachmentCount || 0))}</button>
                     </div>
@@ -257,7 +277,7 @@ function queueCard(item) {
                 <section class="planning-queue-panel planning-queue-panel-compact">
                     <div class="planning-queue-panel-head">
                         <h3>Base Operativa</h3>
-                        <button type="button" class="planning-queue-icon-btn" data-action="flip-processes" data-order="${escapeHtml(item.orderCode)}" title="Ver procesos" aria-label="Ver procesos">↻</button>
+                        <button type="button" class="planning-queue-icon-btn" data-action="flip-processes" data-order="${escapeHtml(item.orderCode)}" title="Ver procesos" aria-label="Ver procesos">${iconMarkup('planningProcessFlip', '↔', 'Ver procesos')}</button>
                     </div>
                     <div class="planning-queue-flip" data-flip-card>
                         <div class="planning-queue-flip-inner">
@@ -395,6 +415,19 @@ async function updatePlanning(orderCode, action, reason = '') {
     }
 }
 
+async function withButtonBusy(button, label, task) {
+    if (!button) return task();
+    const previousText = button.textContent;
+    button.disabled = true;
+    button.textContent = label;
+    try {
+        return await task();
+    } finally {
+        button.disabled = false;
+        button.textContent = previousText;
+    }
+}
+
 async function updatePlanningProcesses(orderCode, selectedProcessKeys) {
     const response = await fetch(`/api/ordenes-produccion/${encodeURIComponent(orderCode)}/planning-control`, {
         method: 'PATCH',
@@ -482,22 +515,22 @@ listBox?.addEventListener('click', async (event) => {
             return;
         }
         if (action === 'refresh-art') {
-            button.disabled = true;
-            await refreshQueue();
+            await withButtonBusy(button, 'Actualizando...', () => refreshQueue());
             return;
         }
         if (action === 'open-order') {
+            button.textContent = 'Abriendo...';
             shellOpen(`/orden-produccion/${encodeURIComponent(order)}`, `Orden ${order}`);
             return;
         }
         if (action === 'return-sales') {
             const reason = await askReturnReason(order);
             if (reason === null) return;
-            await updatePlanning(order, 'return-sales', reason);
+            await withButtonBusy(button, 'Devolviendo...', () => updatePlanning(order, 'return-sales', reason));
             return;
         }
         if (action === 'launch-gantt') {
-            await updatePlanning(order, 'launch-gantt');
+            await withButtonBusy(button, 'Enviando a Gantt...', () => updatePlanning(order, 'launch-gantt'));
         }
     } catch (error) {
         subtitleBox.textContent = error.message;
@@ -505,9 +538,21 @@ listBox?.addEventListener('click', async (event) => {
 });
 
 searchInput?.addEventListener('input', renderList);
-openGanttButton?.addEventListener('click', () => shellOpen('/planificacion/gantt', 'Gantt'));
+openGanttButton?.addEventListener('click', () => {
+    const previous = openGanttButton.textContent;
+    openGanttButton.textContent = 'Abriendo Gantt...';
+    shellOpen('/planificacion/gantt', 'Gantt');
+    setTimeout(() => { openGanttButton.textContent = previous; }, 1200);
+});
 
-refreshQueue().catch((error) => {
+Promise.all([
+    fetch('/api/config/shell').then((res) => res.ok ? res.json() : {}).catch(() => ({})),
+    refreshQueue()
+]).then(([config]) => {
+    planningConfig = config || planningConfig;
+    if (openGanttButton) openGanttButton.innerHTML = `${iconMarkup('planningOpenGantt', '◳', 'Ir a Gantt')} <span>Ir a Gantt</span>`;
+    renderList();
+}).catch((error) => {
     summaryBox.innerHTML = '';
     subtitleBox.textContent = error.message;
     listBox.innerHTML = `<div class="planning-queue-empty">${escapeHtml(error.message)}</div>`;

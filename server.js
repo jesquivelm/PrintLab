@@ -973,6 +973,9 @@ const DEFAULT_GENERAL_CONFIG = {
         orderFlow: '\u226B',
         orderArtworkDelete: '\u00D7',
         orderEdit: '\u270F\uFE0F',
+        planningRefresh: '\u21BB',
+        planningProcessFlip: '\u21C4',
+        planningOpenGantt: '\u25F3',
         proformaCurrencyAdd: '+',
         proformaCurrencyDelete: '\u{1F5D1}',
         proformaView: '\u{1F441}',
@@ -1110,6 +1113,15 @@ const DEFAULT_GENERAL_CONFIG = {
         iconColorOrderArtworkDelete: '#b94848',
         iconColorHoverOrderArtworkDelete: '#8f2f2f',
         iconSizeOrderArtworkDelete: '40',
+        iconColorPlanningRefresh: '#1e516d',
+        iconColorHoverPlanningRefresh: '#0b81b8',
+        iconSizePlanningRefresh: '18',
+        iconColorPlanningProcessFlip: '#1e516d',
+        iconColorHoverPlanningProcessFlip: '#0b81b8',
+        iconSizePlanningProcessFlip: '18',
+        iconColorPlanningOpenGantt: '#1e516d',
+        iconColorHoverPlanningOpenGantt: '#0b81b8',
+        iconSizePlanningOpenGantt: '18',
         proformaPaymentTerms: '',
         proformaDeliveryTime: '',
         proformaTechnicalSpecs: '',
@@ -1460,18 +1472,19 @@ const DEFAULT_COSTS_CONFIG = {
             { key: 'macula', label: 'Merma', active: true, createEnabled: true, locked: true, repeatable: false, order: 5, minimumCost: 0 },
             { key: 'troquel', label: 'Troquel', active: true, createEnabled: false, locked: true, repeatable: false, order: 10, minimumCost: 0 },
             { key: 'sustrato', label: 'Sustrato', active: true, createEnabled: false, locked: true, repeatable: false, order: 20, minimumCost: 0 },
-            { key: 'diseno', label: 'Diseño', active: false, createEnabled: true, locked: false, repeatable: false, order: 30, minimumCost: 0 },
-            { key: 'preprensa', label: 'Preprensa', active: true, createEnabled: true, locked: true, repeatable: false, order: 40, minimumCost: 0 },
-            { key: 'planchas', label: 'Planchas', active: false, createEnabled: false, locked: false, repeatable: false, order: 50, minimumCost: 0 },
-            { key: 'impresion', label: 'Impresión', active: false, createEnabled: true, locked: false, repeatable: false, order: 60, minimumCost: 0 },
-            { key: 'barnizado', label: 'Barnizado', active: false, createEnabled: true, locked: false, repeatable: false, order: 69, minimumCost: 0 },
-            { key: 'laminado', label: 'Laminado', active: false, createEnabled: true, locked: false, repeatable: false, order: 70, minimumCost: 0 },
-            { key: 'estampado', label: 'Estampado', active: false, createEnabled: true, locked: false, repeatable: false, order: 71, minimumCost: 0 },
-            { key: 'embosado', label: 'Embosado', active: false, createEnabled: true, locked: false, repeatable: false, order: 72, minimumCost: 0 },
-            { key: 'troquelado', label: 'Troquelado', active: false, createEnabled: false, locked: false, repeatable: false, order: 73, minimumCost: 0 },
-            { key: 'rebobinado', label: 'Rebobinado', active: false, createEnabled: true, locked: false, repeatable: false, order: 74, minimumCost: 0 },
-            { key: 'empaque', label: 'Empaque', active: false, createEnabled: true, locked: false, repeatable: false, order: 80, minimumCost: 0 },
-            { key: 'adicionales', label: 'Procesos adicionales', active: false, createEnabled: false, locked: false, repeatable: false, order: 90, minimumCost: 0 }
+            { key: 'diseno', label: 'Diseño', active: false, createEnabled: true, locked: false, repeatable: false, order: 30, minimumCost: 0, timeBufferMinutes: 0 },
+            { key: 'preprensa', label: 'Preprensa', active: true, createEnabled: true, locked: true, repeatable: false, order: 40, minimumCost: 0, timeBufferMinutes: 0 },
+            { key: 'planchas', label: 'Planchas', active: false, createEnabled: false, locked: false, repeatable: false, order: 50, minimumCost: 0, timeBufferMinutes: 0 },
+            { key: 'impresion', label: 'Impresión', active: false, createEnabled: true, locked: false, repeatable: false, order: 60, minimumCost: 0, timeBufferMinutes: 0 },
+            { key: 'barnizado', label: 'Barnizado', active: false, createEnabled: true, locked: false, repeatable: false, order: 69, minimumCost: 0, timeBufferMinutes: 0 },
+            { key: 'laminado', label: 'Laminado', active: false, createEnabled: true, locked: false, repeatable: false, order: 70, minimumCost: 0, timeBufferMinutes: 0 },
+            { key: 'estampado', label: 'Estampado', active: false, createEnabled: true, locked: false, repeatable: false, order: 71, minimumCost: 0, timeBufferMinutes: 0 },
+            { key: 'embosado', label: 'Embosado', active: false, createEnabled: true, locked: false, repeatable: false, order: 72, minimumCost: 0, timeBufferMinutes: 0 },
+            { key: 'troquelado', label: 'Troquelado', active: false, createEnabled: false, locked: false, repeatable: false, order: 73, minimumCost: 0, timeBufferMinutes: 0 },
+            { key: 'rebobinado', label: 'Rebobinado', active: false, createEnabled: true, locked: false, repeatable: false, order: 74, minimumCost: 0, timeBufferMinutes: 0 },
+            { key: 'empaque', label: 'Empaque', active: false, createEnabled: true, locked: false, repeatable: false, order: 80, minimumCost: 0, timeBufferMinutes: 0 },
+            { key: 'inventario_salida', label: 'Salida de inventario', active: true, createEnabled: true, locked: false, repeatable: false, order: 85, minimumCost: 0, timeBufferMinutes: 0 },
+            { key: 'adicionales', label: 'Procesos adicionales', active: false, createEnabled: false, locked: false, repeatable: false, order: 90, minimumCost: 0, timeBufferMinutes: 0 }
         ]
     },
     convencional: {
@@ -3112,13 +3125,16 @@ function normalizeCostsConfigRecord(config) {
             if (!key || !fallback || seen.has(key)) return null;
             seen.add(key);
             const locked = ['macula', 'troquel'].includes(key) ? true : (row?.locked === true || String(row?.locked || '').trim().toLowerCase() === 'true');
-            const active = locked ? true : (row?.active === true || String(row?.active || '').trim().toLowerCase() === 'true');
+            const mandatoryGantt = key === 'inventario_salida';
+            const active = (locked || mandatoryGantt) ? true : (row?.active === true || String(row?.active || '').trim().toLowerCase() === 'true');
             const createEnabled = key === 'macula'
                 ? true
                 : (row?.createEnabled === true || row?.create === true || String(row?.createEnabled ?? row?.create ?? fallback.createEnabled ?? '').trim().toLowerCase() === 'true');
             const repeatable = row?.repeatable === true || String(row?.repeatable || '').trim().toLowerCase() === 'true';
             const hasGanttEnabled = row?.ganttEnabled !== undefined && row?.ganttEnabled !== null;
-            const ganttEnabled = hasGanttEnabled
+            const ganttEnabled = mandatoryGantt
+                ? true
+                : hasGanttEnabled
                 ? (row?.ganttEnabled === true || String(row?.ganttEnabled || '').trim().toLowerCase() === 'true')
                 : active;
             return {
@@ -3130,22 +3146,25 @@ function normalizeCostsConfigRecord(config) {
                 repeatable,
                 ganttEnabled,
                 order: Number(row?.order || fallback.order || ((index + 1) * 10)),
-                minimumCost: Math.max(0, Number(row?.minimumCost || 0))
+                minimumCost: Math.max(0, Number(row?.minimumCost || 0)),
+                timeBufferMinutes: Math.max(0, Number(row?.timeBufferMinutes ?? row?.bufferMinutes ?? fallback.timeBufferMinutes ?? 0))
             };
         }).filter(Boolean);
         fallbackRows.forEach((item, index) => {
             const key = String(item.key || '').trim().toLowerCase();
             if (!key || seen.has(key)) return;
+            const mandatoryGantt = key === 'inventario_salida';
             normalized.push({
                 key,
                 label: String(item.label || '').trim(),
-                active: item.locked ? true : Boolean(item.active),
-                createEnabled: key === 'macula' ? true : Boolean(item.createEnabled && (item.locked || item.active)),
+                active: (item.locked || mandatoryGantt) ? true : Boolean(item.active),
+                createEnabled: key === 'macula' ? true : Boolean(item.createEnabled && (item.locked || item.active || mandatoryGantt)),
                 locked: Boolean(item.locked),
                 repeatable: Boolean(item.repeatable),
-                ganttEnabled: item.ganttEnabled === undefined ? Boolean(item.active) : Boolean(item.ganttEnabled),
+                ganttEnabled: mandatoryGantt ? true : (item.ganttEnabled === undefined ? Boolean(item.active) : Boolean(item.ganttEnabled)),
                 order: Number(item.order || ((index + 1) * 10)),
-                minimumCost: Math.max(0, Number(item.minimumCost || 0))
+                minimumCost: Math.max(0, Number(item.minimumCost || 0)),
+                timeBufferMinutes: Math.max(0, Number(item.timeBufferMinutes || 0))
             });
         });
         return normalized
@@ -7085,7 +7104,8 @@ const PLANNING_CLASSIFICATION_PROCESS_KEYS = Object.freeze([
     'embosado',
     'numeracion',
     'rebobinado',
-    'empaque'
+    'empaque',
+    'inventario_salida'
 ]);
 
 const PLANNING_BASE_PROCESS_KEYS = Object.freeze(['rebobinado', 'empaque']);
@@ -7105,7 +7125,8 @@ const PLANNING_PROCESS_LABELS = Object.freeze({
     embosado: 'Embosado',
     numeracion: 'Numeración',
     rebobinado: 'Rebobinado',
-    empaque: 'Empaque'
+    empaque: 'Empaque',
+    inventario_salida: 'Salida de inventario'
 });
 
 const PRODUCTION_FLOW_SEQUENCE = Object.freeze([
@@ -7122,7 +7143,8 @@ const PRODUCTION_FLOW_SEQUENCE = Object.freeze([
     'embosado',
     'numeracion',
     'rebobinado',
-    'empaque'
+    'empaque',
+    'inventario_salida'
 ]);
 
 const PRODUCTION_FLOW_LABELS = Object.freeze({
@@ -7139,7 +7161,8 @@ const PRODUCTION_FLOW_LABELS = Object.freeze({
     embosado: 'Embosado',
     numeracion: 'Numeración',
     rebobinado: 'Rebobinado',
-    empaque: 'Empaque'
+    empaque: 'Empaque',
+    inventario_salida: 'Salida de inventario'
 });
 
 function canonicalProductionFlowKey(value) {
@@ -7176,6 +7199,7 @@ function canonicalPlanningProcessKey(value) {
     if (key.includes('numer')) return 'numeracion';
     if (key.includes('rebobin')) return 'rebobinado';
     if (key.includes('empaque') || key.includes('packing')) return 'empaque';
+    if (key.includes('inventario') || key.includes('despacho')) return 'inventario_salida';
     return key;
 }
 
@@ -7511,8 +7535,8 @@ function processOrderFromCosts(costsConfig = {}) {
     return order;
 }
 
-const ORDER_TRACKING_MANDATORY_PROCESS_KEYS = Object.freeze(['preprensa', 'visto_bueno', 'rebobinado', 'empaque']);
-const ORDER_TRACKING_HIDDEN_PROCESS_KEYS = new Set(['macula', 'troquel', 'sustrato', 'tintas']);
+const ORDER_TRACKING_MANDATORY_PROCESS_KEYS = Object.freeze(['preprensa', 'visto_bueno', 'rebobinado', 'empaque', 'inventario_salida']);
+const ORDER_TRACKING_HIDDEN_PROCESS_KEYS = new Set(['macula', 'troquel', 'sustrato', 'tintas', 'acabados']);
 const ORDER_TRACKING_EXTERNAL_FINISH_KEYS = new Set(['acabados', 'barnizado', 'laminado', 'troquelado', 'estampado', 'embosado', 'numeracion']);
 
 function orderLineRawData(orderRow = {}) {
@@ -7820,6 +7844,58 @@ async function ensurePlanningRoutesForLiveOrders() {
     }
 }
 
+function addHoursToBaseProductionDate(baseValue, hours) {
+    const base = baseValue ? new Date(baseValue) : new Date();
+    if (Number.isNaN(base.getTime())) return null;
+    base.setHours(6, 0, 0, 0);
+    base.setMinutes(base.getMinutes() + Math.round(Number(hours || 0) * 60));
+    return base;
+}
+
+function dateOnly(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toISOString().slice(0, 10);
+}
+
+async function updateOrderProductionEndFromRoutes(orderCode, executor = { query: pgQuery }) {
+    if (!orderCode) return null;
+    const result = await executor.query(`
+        SELECT o.raw_data, o.created_at,
+               MAX(CASE WHEN r.process_key = 'empaque' THEN COALESCE(r.start_turn_hour,0) + COALESCE(r.duration_hours,0) END) AS packaging_end_hour,
+               MAX(COALESCE(r.start_turn_hour,0) + COALESCE(r.duration_hours,0)) AS last_end_hour
+          FROM flexo_orders o
+          LEFT JOIN production_order_routes r ON r.order_code = o.order_code
+         WHERE o.order_code = $1
+         GROUP BY o.order_code, o.raw_data, o.created_at
+         LIMIT 1
+    `, [orderCode]);
+    const row = result.rows[0];
+    if (!row) return null;
+    const rawData = row.raw_data || {};
+    const control = getOrderPlanningControl(rawData);
+    const endHour = Number(row.packaging_end_hour || row.last_end_hour || 0);
+    if (!Number.isFinite(endHour) || endHour <= 0) return null;
+    const baseValue = control.promisedDeliveryDate || control.scheduledDeliveryDate || rawData?.quote_snapshot?.due_on || row.created_at;
+    const productionEnd = addHoursToBaseProductionDate(baseValue, endHour);
+    if (!productionEnd) return null;
+    const productionEndDate = productionEnd.toISOString();
+    const scheduledDate = control.scheduledDeliveryDate || control.promisedDeliveryDate || null;
+    const scheduleAlert = Boolean(scheduledDate && dateOnly(productionEndDate) > dateOnly(scheduledDate));
+    const nextRawData = {
+        ...rawData,
+        planning_control: {
+            ...control,
+            productionEndDate,
+            productionScheduleAlert: scheduleAlert,
+            productionEndUpdatedAt: new Date().toISOString()
+        }
+    };
+    await executor.query(`UPDATE flexo_orders SET raw_data = $2::jsonb WHERE order_code = $1`, [orderCode, JSON.stringify(nextRawData)]);
+    return nextRawData.planning_control;
+}
+
 async function ensurePlanningRoutesForOrder(order, references = null, options = {}) {
     if (!order?.order_code) return;
     const executor = options.client || { query: pgQuery };
@@ -7867,7 +7943,10 @@ async function ensurePlanningRoutesForOrder(order, references = null, options = 
                     : Math.max(...existingResult.rows.map((row) => Number(row.sequence_order || 0)), 0) + index + 1
             };
         });
-    if (!plannedProcesses.length) return;
+    if (!plannedProcesses.length) {
+        await updateOrderProductionEndFromRoutes(order.order_code, executor).catch(() => null);
+        return;
+    }
 
     let startHour = 0;
     let previousRouteId = null;
@@ -7882,9 +7961,11 @@ async function ensurePlanningRoutesForOrder(order, references = null, options = 
         const machineProfile = plannedProcess.machineProfileId
             ? (profileMap.get(processKey) || []).find((row) => String(row.id) === String(plannedProcess.machineProfileId)) || selectMachineProfileForPlanning(processKey, snapshot, profileMap)
             : selectMachineProfileForPlanning(processKey, snapshot, profileMap);
-        const durationHours = Number(plannedProcess.durationHours || 0) > 0
+        const baseDurationHours = Number(plannedProcess.durationHours || 0) > 0
             ? Number(plannedProcess.durationHours)
             : 0;
+        const bufferMinutes = Math.max(0, Number(findCostProcessDefault(costsConfig, processKey)?.timeBufferMinutes || 0));
+        const durationHours = Number((baseDurationHours + (bufferMinutes / 60)).toFixed(4));
 
         const insertResult = await executor.query(`
             INSERT INTO production_order_routes (
@@ -7913,6 +7994,8 @@ async function ensurePlanningRoutesForOrder(order, references = null, options = 
                 sourceMachineName: plannedProcess.machineName || snapshot.machineName,
                 setupMinutes: Number(plannedProcess.setupMinutes || 0),
                 runMinutes: Number(plannedProcess.runMinutes || 0),
+                bufferMinutes,
+                quotedDurationHours: baseDurationHours,
                 speedFpm: Number(plannedProcess.speedFpm || 0),
                 source: plannedProcess.source || 'missing-duration'
             })
@@ -7921,6 +8004,7 @@ async function ensurePlanningRoutesForOrder(order, references = null, options = 
         previousRouteId = insertResult.rows[0]?.id || null;
         startHour = Number((startHour + durationHours).toFixed(4));
     }
+    await updateOrderProductionEndFromRoutes(order.order_code, executor).catch(() => null);
 }
 
 async function ensurePlanningSchema() {
@@ -8108,7 +8192,8 @@ async function ensurePlanningSchema() {
         { processKey: 'embosado', processName: 'Embosado', sequenceOrder: 12, colorHex: '#A855F7', iconKey: '[EMB]', isParallel: false },
         { processKey: 'numeracion', processName: 'Numeración', sequenceOrder: 13, colorHex: '#D97706', iconKey: '[NUM]', isParallel: false },
         { processKey: 'rebobinado', processName: 'Rebobinado', sequenceOrder: 14, colorHex: '#F97316', iconKey: '[R]', isParallel: false },
-        { processKey: 'empaque', processName: 'Empaque', sequenceOrder: 15, colorHex: '#10B981', iconKey: '[EMP]', isParallel: false }
+        { processKey: 'empaque', processName: 'Empaque', sequenceOrder: 15, colorHex: '#10B981', iconKey: '[EMP]', isParallel: false },
+        { processKey: 'inventario_salida', processName: 'Salida de inventario', sequenceOrder: 16, colorHex: '#64748B', iconKey: '[INV]', isParallel: false }
     ];
     seededProcesses.forEach((row) => {
         if (!processRegistry.has(row.processKey)) {
@@ -11456,7 +11541,7 @@ app.get('/api/config/general/icons/:version/:file', async (req, res) => {
 
 app.post('/api/config/general/icon', async (req, res) => {
     try {
-        const orderIconKeys = new Set(['orderArtworkDelete', 'orderStatus', 'orderNumbering', 'orderFlow', 'orderEdit', 'dashboardBusinessPartners', 'dashboardProducts', 'dashboardQuotes', 'dashboardNotifications', 'dashboardInventory', 'dashboardOrders', 'dashboardProduction', 'dashboardCosts', 'dashboardReports', 'dashboardSettings', 'dashboardPlanning']);
+        const orderIconKeys = new Set(['orderArtworkDelete', 'orderStatus', 'orderNumbering', 'orderFlow', 'orderEdit', 'planningRefresh', 'planningProcessFlip', 'planningOpenGantt', 'dashboardBusinessPartners', 'dashboardProducts', 'dashboardQuotes', 'dashboardNotifications', 'dashboardInventory', 'dashboardOrders', 'dashboardProduction', 'dashboardCosts', 'dashboardReports', 'dashboardSettings', 'dashboardPlanning']);
         const iconKey = String(req.body?.key || '').trim();
         const iconValue = String(req.body?.value || '').trim();
         const general = req.body?.general && typeof req.body.general === 'object' && !Array.isArray(req.body.general)
@@ -14213,6 +14298,8 @@ app.get('/api/planificacion/lanzamiento', async (req, res) => {
                     orderCode: row.order_code,
                     quoteCode: row.quote_code || '',
                     lineCode: row.line_code || '',
+                    customerCode: raw.customer_code || raw.quote_snapshot?.customer_code || '',
+                    quoteStatus: raw.quote_snapshot?.status || raw.quote_snapshot?.estado || '',
                     customerName: snapshot.customerName || '',
                     salespersonName: raw.salesperson_name || lineSnapshot.salespersonName || '',
                     jobName: snapshot.jobName || snapshot.productName || row.product_code || '',
@@ -14576,7 +14663,12 @@ app.get('/api/planificacion/gantt-agrupado', async (req, res) => {
                     r.route_status AS estado,
                     r.route_payload,
                     o.raw_data->'planning_snapshot' AS planning_snapshot,
-                    NULL::text AS alerta,
+                    CASE
+                        WHEN COALESCE((o.raw_data->'planning_control'->>'productionScheduleAlert')::boolean, FALSE)
+                        THEN 'FIN_PRODUCCION_TARDE'
+                        ELSE NULL::text
+                    END AS alerta,
+                    o.raw_data->'planning_control'->>'productionEndDate' AS fecha_fin_produccion,
                     COALESCE(
                         NULLIF(o.raw_data->'planning_control'->>'scheduledDeliveryDate', '')::timestamptz,
                         NULLIF(o.raw_data->'planning_control'->>'promisedDeliveryDate', '')::timestamptz,
@@ -14587,7 +14679,9 @@ app.get('/api/planificacion/gantt-agrupado', async (req, res) => {
                 JOIN flexo_orders o ON o.order_code = r.order_code
                 LEFT JOIN production_machine_profiles mp ON mp.id = r.machine_profile_id
                 LEFT JOIN production_order_routes dep ON dep.id = r.dependency_route_id
-                WHERE NOT EXISTS (
+                WHERE COALESCE(r.process_key, '') <> 'acabados'
+                  AND lower(COALESCE(r.process_name, '')) <> 'acabados'
+                  AND NOT EXISTS (
                     SELECT 1
                     FROM flexo_orders ox
                     WHERE ox.order_code = o.order_code
@@ -14616,7 +14710,7 @@ app.patch('/api/planificacion/gantt/mover', async (req, res) => {
         if (!id_ruta) {
             return res.status(400).json({ ok: false, error: 'Debes indicar id_ruta.' });
         }
-        await pgQuery(`
+        const routeResult = await pgQuery(`
             UPDATE production_order_routes
             SET start_turn_hour = COALESCE($1, start_turn_hour),
                 duration_hours = COALESCE($2, duration_hours),
@@ -14627,6 +14721,7 @@ app.patch('/api/planificacion/gantt/mover', async (req, res) => {
                 END,
                 updated_at = NOW()
             WHERE id = $5::uuid
+            RETURNING order_code
         `, [
             inicio !== undefined ? Number(inicio) : null,
             duracion !== undefined ? Number(duracion) : null,
@@ -14634,7 +14729,9 @@ app.patch('/api/planificacion/gantt/mover', async (req, res) => {
             route_payload_updates ? JSON.stringify(route_payload_updates) : null,
             id_ruta
         ]);
-        res.json({ ok: true });
+        const orderCode = routeResult.rows[0]?.order_code || '';
+        const planningControl = orderCode ? await updateOrderProductionEndFromRoutes(orderCode).catch(() => null) : null;
+        res.json({ ok: true, planningControl });
     } catch (error) {
         res.status(500).json({ ok: false, error: error.message || 'No fue posible mover la ruta.' });
     }
@@ -15032,16 +15129,31 @@ function collectOrderConsumptionMaterials(orderRow, processKey = 'impresion') {
         if (!['barniz', 'laminado', 'foil'].includes(family)) return;
         addConsumptionMaterial(materials, {
             sapItemCode: finish.sapItemCode || finish.materialCode || finish.materialId || finish.itemCode,
-            materialName: finish.materialName || finish.label || finish.processName,
+            materialName: finish.materialName || finish.processLabel || finish.label || finish.processName || finish.materialId,
             family,
             plannedQuantity: finish.materialConsumptionLb || finish.materialConsumptionKg || finish.materialFeet || finish.quantity,
             unitCode: finish.unit || (family === 'barniz' ? 'lb' : 'ft'),
             source: 'acabados'
         });
     };
+    const addPrintInline = (inline) => {
+        if (!inline || !processObjectLooksActive(inline)) return;
+        addFinish(inline);
+    };
+    const calcResult = orderQuotedResult(orderRow) || raw.calculation_result || raw.result || raw.calculationResult || {};
+    (Array.isArray(calcResult.print?.items) ? calcResult.print.items : []).forEach((printItem) => {
+        (Array.isArray(printItem?.inlineItems) ? printItem.inlineItems : []).forEach(addPrintInline);
+    });
     (Array.isArray(printing.finishes) ? printing.finishes : []).forEach(addFinish);
-    const calcResult = raw.calculation_result || raw.result || raw.calculationResult || {};
     (Array.isArray(calcResult.finishes?.items) ? calcResult.finishes.items : []).forEach(addFinish);
+    (Array.isArray(raw.sapExport?.bom?.payload?.Components) ? raw.sapExport.bom.payload.Components : []).forEach((component) => addConsumptionMaterial(materials, {
+        sapItemCode: component.ItemCode,
+        materialName: component.ItemName,
+        family: component.Source,
+        plannedQuantity: component.Quantity,
+        unitCode: component.UnitHint,
+        source: 'bom'
+    }));
     return materials.filter((item) => processAllowsConsumption(processKey, item.materialFamily));
 }
 
