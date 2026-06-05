@@ -15356,6 +15356,336 @@ app.get('/api/planificacion/calendarios/:id/capacidad', async (req, res) => {
     }
 });
 
+// ═══════════════════════════════════════════════════════════════════
+// MOTOR DE CAPACIDAD FINITA — Finite Capacity Planning Engine
+// ═══════════════════════════════════════════════════════════════════
+
+async function getCalendarCapacityHours(calendarId, fromDate, toDate) {
+    const [shiftsRes, excRes] = await Promise.all([
+        pgQuery(`SELECT * FROM resource_shifts WHERE calendar_id = $1 AND is_active = TRUE`, [calendarId]),
+        pgQuery(`SELECT * FROM resource_calendar_exceptions WHERE calendar_id = $1 AND exception_date BETWEEN $2 AND $3 AND is_active = TRUE`, [calendarId, fromDate, toDate])
+    ]);
+    const shifts = shiftsRes.rows;
+    const exceptions = excRes.rows;
+    const capacityByDate = {};
+    const current = new Date(fromDate + 'T00:00:00');
+    const end = new Date(toDate + 'T23:59:59');
+    while (current <= end) {
+        const dateStr = current.toISOString().slice(0, 10);
+        const dow = current.getDay();
+        const exception = exceptions.find(e => e.exception_date?.toISOString?.() === dateStr || e.exception_date === dateStr);
+        if (exception && exception.exception_type === 'closure') {
+            capacityByDate[dateStr] = 0;
+        } else if (exception && exception.override_start_hour !== null && exception.override_end_hour !== null) {
+            capacityByDate[dateStr] = Math.max(0, Number(exception.override_end_hour) - Number(exception.override_start_hour));
+        } else {
+            const dayShifts = shifts.filter(s => s.day_of_week === dow);
+            capacityByDate[dateStr] = dayShifts.reduce((sum, s) => sum + Math.max(0, Number(s.end_hour) - Number(s.start_hour)), 0);
+        }
+        current.setDate(current.getDate() + 1);
+    }
+    return capacityByDate;
+}
+
+function getDefaultCapacityPerDay(processKey) {
+    return 8;
+}
+
+async function runFiniteCapacityEngine() {
+    const [routesRes, calendarsRes, machinesRes] = await Promise.all([
+        pgQuery(`
+            SELECT r.id, r.order_code, r.quote_code, r.line_code, r.sequence_order,
+                   r.process_key, r.process_name, r.machine_profile_id,
+                   r.duration_hours, r.route_status, r.route_payload,
+                   r.planned_start_at, r.planned_end_at,
+                   o.delivered_on, o.customer_name, o.job_name
+            FROM production_order_routes r
+            JOIN flexo_orders o ON o.order_code = r.order_code
+            WHERE r.route_status IN ('PENDIENTE', 'EN COLA')
+            ORDER BY r.machine_profile_id, r.sequence_order
+        `),
+        pgQuery(`SELECT * FROM resource_calendars WHERE is_active = TRUE`),
+        pgQuery(`SELECT id, machine_name, process_key FROM production_machine_profiles WHERE is_active = TRUE`)
+    ]);
+
+    const routes = routesRes.rows;
+    const calendars = calendarsRes.rows;
+    const machines = machinesRes.rows;
+
+    const calendarMap = new Map();
+    calendars.forEach(c => {
+        const key = `${c.resource_type}:${c.resource_id || c.resource_name}`;
+        calendarMap.set(key, c);
+        if (c.resource_id) calendarMap.set(`machine:${c.resource_id}`, c);
+    });
+
+    const machineCalendarMap = new Map();
+    machines.forEach(m => {
+        const cal = calendarMap.get(`machine:${m.id}`) || calendarMap.get(`machine:${m.machine_name}`) || null;
+        machineCalendarMap.set(m.id, cal);
+    });
+
+    const today = new Date().toISOString().slice(0, 10);
+    const horizonDate = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
+
+    const calendarCapacityCache = new Map();
+
+    async function getCapacityForMachine(machineProfileId, fromDate, toDate) {
+        const cacheKey = `${machineProfileId}:${fromDate}:${toDate}`;
+        if (calendarCapacityCache.has(cacheKey)) return calendarCapacityCache.get(cacheKey);
+        const cal = machineCalendarMap.get(machineProfileId);
+        let capacityByDate;
+        if (cal) {
+            capacityByDate = await getCalendarCapacityHours(cal.id, fromDate, toDate);
+        } else {
+            capacityByDate = {};
+            const current = new Date(fromDate + 'T00:00:00');
+            const end = new Date(toDate + 'T23:59:59');
+            while (current <= end) {
+                const dateStr = current.toISOString().slice(0, 10);
+                const dow = current.getDay();
+                capacityByDate[dateStr] = (dow >= 1 && dow <= 5) ? 8 : 0;
+                current.setDate(current.getDate() + 1);
+            }
+        }
+        calendarCapacityCache.set(cacheKey, capacityByDate);
+        return capacityByDate;
+    }
+
+    const routesByMachine = new Map();
+    routes.forEach(r => {
+        const key = r.machine_profile_id || `process:${r.process_key}`;
+        if (!routesByMachine.has(key)) routesByMachine.set(key, []);
+        routesByMachine.get(key).push(r);
+    });
+
+    const resourceResults = [];
+    const routeSchedules = new Map();
+
+    for (const [machineKey, machineRoutes] of routesByMachine) {
+        const sortedRoutes = machineRoutes.sort((a, b) => {
+            const aDep = a.route_status === 'PENDIENTE' ? 0 : 1;
+            const bDep = b.route_status === 'PENDIENTE' ? 0 : 1;
+            return aDep - bDep || (a.sequence_order || 0) - (b.sequence_order || 0);
+        });
+
+        let capacityByDate = {};
+        try {
+            capacityByDate = await getCapacityForMachine(machineKey, today, horizonDate);
+        } catch (e) {
+            const current = new Date(today);
+            const end = new Date(horizonDate);
+            while (current <= end) {
+                const dow = current.getDay();
+                capacityByDate[current.toISOString().slice(0, 10)] = (dow >= 1 && dow <= 5) ? 8 : 0;
+                current.setDate(current.getDate() + 1);
+            }
+        }
+
+        const loadByDate = {};
+        let currentDate = today;
+        let currentHourInDay = 0;
+        let totalCapacity = 0;
+        let totalLoad = 0;
+
+        for (const route of sortedRoutes) {
+            let remainingHours = Number(route.duration_hours) || 0;
+            if (remainingHours <= 0) {
+                routeSchedules.set(route.id, {
+                    routeId: route.id,
+                    orderCode: route.order_code,
+                    processKey: route.process_key,
+                    processName: route.process_name,
+                    projectedStart: null,
+                    projectedEnd: null,
+                    waitDays: 0,
+                    status: 'no-duration'
+                });
+                continue;
+            }
+
+            const routeStart = currentDate;
+            const routeStartHour = currentHourInDay;
+            let firstSegmentDate = currentDate;
+
+            while (remainingHours > 0 && currentDate <= horizonDate) {
+                if (!loadByDate[currentDate]) loadByDate[currentDate] = 0;
+                const availToday = (capacityByDate[currentDate] || 0) - loadByDate[currentDate];
+                if (availToday <= 0) {
+                    currentDate = new Date(currentDate);
+                    currentDate.setDate(currentDate.getDate() + 1);
+                    currentDate = currentDate.toISOString().slice(0, 10);
+                    currentHourInDay = 0;
+                    continue;
+                }
+                const assignHours = Math.min(remainingHours, availToday);
+                loadByDate[currentDate] += assignHours;
+                totalLoad += assignHours;
+                remainingHours -= assignHours;
+                if (remainingHours > 0) {
+                    currentDate = new Date(currentDate);
+                    currentDate.setDate(currentDate.getDate() + 1);
+                    currentDate = currentDate.toISOString().slice(0, 10);
+                    currentHourInDay = 0;
+                }
+            }
+
+            totalCapacity = Object.values(capacityByDate).reduce((s, h) => s + h, 0);
+
+            const projectedEnd = currentDate;
+            const depRoute = routes.find(r => r.id === route.dependency_route_id);
+            let waitDays = 0;
+            if (depRoute && routeSchedules.has(depRoute.id)) {
+                const depEnd = routeSchedules.get(depRoute.id)?.projectedEnd;
+                if (depEnd && depEnd > routeStart) {
+                    waitDays = Math.ceil((new Date(depEnd) - new Date(routeStart)) / 86400000);
+                }
+            }
+
+            routeSchedules.set(route.id, {
+                routeId: route.id,
+                orderCode: route.order_code,
+                processKey: route.process_key,
+                processName: route.process_name,
+                projectedStart: routeStart,
+                projectedEnd: projectedEnd,
+                waitDays,
+                status: 'scheduled'
+            });
+        }
+
+        const utilization = totalCapacity > 0 ? (totalLoad / totalCapacity * 100) : 0;
+        const queueHours = Math.max(0, totalLoad - totalCapacity);
+        const queueDays = totalCapacity > 0 ? Math.ceil(queueHours / (totalCapacity / Math.max(1, Object.keys(capacityByDate).filter(d => capacityByDate[d] > 0).length))) : 0;
+
+        const machine = machines.find(m => String(m.id) === String(machineKey));
+        resourceResults.push({
+            machineProfileId: machineKey,
+            machineName: machine?.machine_name || machineKey,
+            processKey: machine?.process_key || 'unknown',
+            totalCapacityHours: Math.round(totalCapacity * 100) / 100,
+            totalLoadHours: Math.round(totalLoad * 100) / 100,
+            utilizationPct: Math.round(utilization * 10) / 10,
+            queueHours: Math.round(queueHours * 100) / 100,
+            queueDays,
+            isBottleneck: utilization > 100,
+            routeCount: machineRoutes.length,
+            calendarId: machineCalendarMap.get(machineKey)?.id || null,
+            dailyLoad: Object.entries(loadByDate).map(([date, hours]) => ({ date, hours: Math.round(hours * 100) / 100, capacity: capacityByDate[date] || 0 }))
+        });
+    }
+
+    const orderSummaries = new Map();
+    for (const [routeId, schedule] of routeSchedules) {
+        if (!orderSummaries.has(schedule.orderCode)) {
+            orderSummaries.set(schedule.orderCode, {
+                orderCode: schedule.orderCode,
+                routes: [],
+                earliestStart: schedule.projectedStart,
+                latestEnd: schedule.projectedEnd,
+                totalWaitDays: 0
+            });
+        }
+        const summary = orderSummaries.get(schedule.orderCode);
+        summary.routes.push(schedule);
+        if (schedule.projectedStart && (!summary.earliestStart || schedule.projectedStart < summary.earliestStart)) summary.earliestStart = schedule.projectedStart;
+        if (schedule.projectedEnd && (!summary.latestEnd || schedule.projectedEnd > summary.latestEnd)) summary.latestEnd = schedule.projectedEnd;
+        summary.totalWaitDays += schedule.waitDays || 0;
+    }
+
+    resourceResults.sort((a, b) => b.utilizationPct - a.utilizationPct);
+
+    const bottlenecks = resourceResults.filter(r => r.isBottleneck);
+
+    return {
+        computedAt: new Date().toISOString(),
+        fromDate: today,
+        horizonDate,
+        totalResources: resourceResults.length,
+        totalPendingRoutes: routes.length,
+        resources: resourceResults,
+        orders: Array.from(orderSummaries.values()),
+        bottlenecks,
+        summary: {
+            avgUtilization: resourceResults.length > 0
+                ? Math.round(resourceResults.reduce((s, r) => s + r.utilizationPct, 0) / resourceResults.length * 10) / 10
+                : 0,
+            bottleneckCount: bottlenecks.length,
+            totalQueueHours: Math.round(resourceResults.reduce((s, r) => s + r.queueHours, 0) * 100) / 100,
+            maxQueueDays: resourceResults.length > 0 ? Math.max(...resourceResults.map(r => r.queueDays)) : 0
+        }
+    };
+}
+
+app.get('/api/planificacion/capacidad-finita', async (req, res) => {
+    try {
+        const result = await runFiniteCapacityEngine();
+        res.json({ ok: true, data: result });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible calcular la capacidad finita.' });
+    }
+});
+
+app.get('/api/planificacion/capacidad-finita/resumen', async (req, res) => {
+    try {
+        const result = await runFiniteCapacityEngine();
+        res.json({
+            ok: true,
+            data: {
+                computedAt: result.computedAt,
+                summary: result.summary,
+                bottlenecks: result.bottlenecks.map(b => ({
+                    machineName: b.machineName,
+                    processKey: b.processKey,
+                    utilizationPct: b.utilizationPct,
+                    queueDays: b.queueDays,
+                    routeCount: b.routeCount
+                })),
+                resources: result.resources.map(r => ({
+                    machineName: r.machineName,
+                    processKey: r.processKey,
+                    utilizationPct: r.utilizationPct,
+                    queueDays: r.queueDays,
+                    totalCapacityHours: r.totalCapacityHours,
+                    totalLoadHours: r.totalLoadHours
+                }))
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible calcular el resumen de capacidad.' });
+    }
+});
+
+app.get('/api/planificacion/capacidad-finita/orden/:orderCode', async (req, res) => {
+    try {
+        const { orderCode } = req.params;
+        const result = await runFiniteCapacityEngine();
+        const orderData = result.orders.find(o => o.orderCode === orderCode);
+        if (!orderData) return res.status(404).json({ ok: false, error: 'Orden no encontrada en los resultados de capacidad.' });
+        const resourceDetails = orderData.routes.map(r => {
+            const resource = result.resources.find(res => res.processKey === r.processKey);
+            return {
+                ...r,
+                machineName: resource?.machineName || r.processName,
+                utilizationAtResource: resource?.utilizationPct || 0,
+                isBottleneck: resource?.isBottleneck || false
+            };
+        });
+        res.json({
+            ok: true,
+            data: {
+                orderCode,
+                earliestStart: orderData.earliestStart,
+                latestEnd: orderData.latestEnd,
+                totalWaitDays: orderData.totalWaitDays,
+                routes: resourceDetails
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible calcular la capacidad para la orden.' });
+    }
+});
+
 app.get('/api/mes/motivos-paro', async (req, res) => {
     try {
         const result = await pgQuery(`
