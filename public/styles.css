@@ -12450,6 +12450,8 @@ html[data-theme="dark"] .sap-security-log-item strong,
 html[data-theme="dark"] .planning-queue-title,
 html[data-theme="dark"] .planning-queue-code,
 html[data-theme="dark"] .planning-queue-row strong,
+html[data-theme="dark"] .planning-queue-summary-line strong,
+html[data-theme="dark"] .planning-queue-finish-list em,
 html[data-theme="dark"] .planning-queue-process-name,
 html[data-theme="dark"] .planning-queue-process-line strong,
 html[data-theme="dark"] .planning-queue-return-title {
@@ -12481,7 +12483,9 @@ html[data-theme="dark"] .sap-security-log-item span,
 html[data-theme="dark"] .planning-queue-subtitle,
 html[data-theme="dark"] .planning-queue-customer,
 html[data-theme="dark"] .planning-queue-panel h3,
+html[data-theme="dark"] .planning-queue-art-head,
 html[data-theme="dark"] .planning-queue-row span:first-child,
+html[data-theme="dark"] .planning-queue-summary-line span,
 html[data-theme="dark"] .planning-queue-process-line span:first-child,
 html[data-theme="dark"] .planning-queue-text,
 html[data-theme="dark"] .planning-queue-return-copy {
@@ -15838,6 +15842,34 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 .production-samples-section .production-form-divider,
 .production-delivery-section .production-form-divider {
     margin: 12px 0 10px;
+}
+
+.production-samples-section .production-form-divider-label,
+.production-delivery-section .production-form-divider-label,
+.production-samples-section .production-summary-subsection-title,
+.production-delivery-section .production-summary-subsection-title {
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.production-samples-section .production-summary-two-col,
+.production-delivery-section .production-summary-two-col {
+    align-items: start;
+}
+
+.production-samples-section .production-summary-subsection,
+.production-delivery-section .production-summary-subsection {
+    align-content: start;
+    gap: 6px;
+}
+
+.production-samples-section .production-summary-subsection-title,
+.production-delivery-section .production-summary-subsection-title {
+    min-height: 24px;
+    line-height: 18px;
+    padding: 0 0 6px;
+    margin: 0 0 8px;
+    font-size: 11px;
 }
 
 .production-samples-section .production-form-divider::before,

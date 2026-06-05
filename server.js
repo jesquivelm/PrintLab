@@ -7239,15 +7239,57 @@ function planningVisibleText(value) {
     return text;
 }
 
+function planningFinishTrait(text = '') {
+    const normalized = String(text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    if (normalized.includes('brillante') || normalized.includes('gloss')) return 'Brillante';
+    if (normalized.includes('mate') || normalized.includes('matte')) return 'Mate';
+    if (normalized.includes('holograf')) return 'Holográfico';
+    if (normalized.includes('oro') || normalized.includes('gold')) return 'Oro';
+    if (normalized.includes('plata') || normalized.includes('silver')) return 'Plata';
+    if (normalized.includes('transparente')) return 'Transparente';
+    return planningVisibleText(text);
+}
+
+function planningFinishName(kind, detail = '', options = {}) {
+    const prefix = planningVisibleText(kind);
+    const trait = planningFinishTrait(detail);
+    const parts = [prefix];
+    if (options.zoned && !parts.includes('Zonificado')) parts.push('Zonificado');
+    if (trait && !parts.some((part) => part.toLowerCase() === trait.toLowerCase()) && trait.toLowerCase() !== prefix.toLowerCase()) parts.push(trait);
+    let label = parts.join(' ').replace(/\s+/g, ' ').trim();
+    if (options.widthIn) label += ` (${options.widthIn}")`;
+    return label;
+}
+
+function planningFinishNameForObject(processKey, item = {}) {
+    const key = canonicalPlanningProcessKey(processKey || item.processKey || item.key || item.label);
+    const detail = planningVisibleText(item.materialName || item.processLabel || item.label || item.description || item.material || item.foil || item.laminate || item.varnish || item.type);
+    if (key === 'barnizado' || key === 'barniz') {
+        return planningFinishName('Barniz', detail, { zoned: item.sonified === true || item.zonificado === true || item.zoned === true });
+    }
+    if (key === 'laminado') return planningFinishName('Laminado', detail);
+    if (key === 'estampado') return planningFinishName('Estampado', detail, { widthIn: planningVisibleText(item.supplyWidthIn || item.widthIn || item.ancho) });
+    if (key === 'embosado') return planningFinishName('Embosado', detail);
+    if (key === 'numeracion' || key === 'numerado') return planningFinishName('Numerado', detail);
+    if (key === 'troquelado') return planningFinishName('Troquelado', detail);
+    return '';
+}
+
 function planningFinishLabelsFromOrder(row = {}) {
     const raw = row.raw_data || {};
     const lineRaw = raw.line_snapshot?.raw_data || {};
     const result = lineRaw['Datos_Cotizados'] || raw.process_result || raw.processResult || {};
-    const uiState = lineRaw['Estado_UI'] || raw['Estado_UI'] || raw.ui_state || {};
+    const uiState = lineRaw['Estado_UI'] || lineRaw['CODEX_UI_STATE'] || raw['Estado_UI'] || raw.ui_state || raw.line_snapshot?.uiState || {};
     const labels = [];
     const add = (value) => {
         const text = planningVisibleText(value);
-        if (text && !labels.includes(text)) labels.push(text);
+        if (!text) return;
+        if (/^troquelado$/i.test(text) && labels.some((label) => /^troquelado\s*\(/i.test(label))) return;
+        if (/^troquelado\s*\(/i.test(text)) {
+            const genericIndex = labels.findIndex((label) => /^troquelado$/i.test(label));
+            if (genericIndex >= 0) labels.splice(genericIndex, 1);
+        }
+        if (!labels.includes(text)) labels.push(text);
     };
     const detail = (...keys) => planningVisibleText(keys.map((key) => lineRaw[key] ?? raw[key]).find((value) => planningVisibleText(value)));
 
@@ -7255,27 +7297,37 @@ function planningFinishLabelsFromOrder(row = {}) {
         (Array.isArray(printItem?.inlineItems) ? printItem.inlineItems : []).forEach((inline) => {
             if (!processObjectLooksActive(inline)) return;
             const key = canonicalPlanningProcessKey(inline.processKey || inline.key || inline.label);
-            add(inline.materialName || inline.processLabel || inline.label || PLANNING_PROCESS_LABELS[key] || key);
+            add(planningFinishNameForObject(key, inline));
         });
     });
     (Array.isArray(result?.finishes?.items) ? result.finishes.items : []).forEach((finish) => {
         if (!processObjectLooksActive(finish)) return;
         const key = canonicalPlanningProcessKey(finish.processKey || finish.key || finish.label);
-        add(finish.materialName || finish.processLabel || finish.label || finish.description || PLANNING_PROCESS_LABELS[key] || key);
+        add(planningFinishNameForObject(key, finish));
     });
     Object.entries(uiState?.finishes || {}).forEach(([key, value]) => {
         if (typeof value !== 'object' && !planningVisibleText(value)) return;
         if (typeof value === 'object' && !processObjectLooksActive(value)) return;
-        const detailText = planningVisibleText(value?.materialName || value?.material || value?.foil || value?.laminate || value?.varnish || value?.label || value?.type);
-        add(detailText || (typeof value === 'string' ? value : '') || PLANNING_PROCESS_LABELS[canonicalPlanningProcessKey(key)] || key);
+        add(typeof value === 'object'
+            ? planningFinishNameForObject(key, value)
+            : planningFinishNameForObject(key, { label: value }));
+    });
+    const inlineFinishes = uiState?.print?.inlineFinishes || uiState?.printStages?.[0]?.inlineFinishes || {};
+    Object.entries(inlineFinishes || {}).forEach(([key, value]) => {
+        if (!value || typeof value !== 'object' || !processObjectLooksActive(value)) return;
+        add(planningFinishNameForObject(key, value));
     });
 
-    const varnish = detail('REQ | Barniz', 'BARNIZ', 'CONV | BARNIZ | TIPO');
-    if (varnish) add(`Barniz ${varnish}`.replace(/\s+/g, ' '));
-    const laminate = detail('REQ | Laminado', 'LAMINADO', 'CONV | LAMINADO | TIPO');
-    if (laminate) add(`Laminado ${laminate}`.replace(/\s+/g, ' '));
-    const foil = detail('REQ | Estampado', 'ESTAMPADO', 'CONV | ESTAMPADO | FOIL');
-    if (foil) add(`Estampado ${foil}`.replace(/\s+/g, ' '));
+    const varnish = detail('REQ | Barniz', 'BARNIZ', 'CONV | BARNIZ | TIPO', 'CONV | BARNIZ | MATERIAL');
+    if (varnish || isTruthyProcessFlag(lineRaw['CONV | BARNIZ | ACTIVO'] ?? raw['CONV | BARNIZ | ACTIVO'])) {
+        add(planningFinishName('Barniz', varnish, { zoned: isTruthyProcessFlag(lineRaw['CONV | BARNIZ | ZONIFICADO'] ?? raw['CONV | BARNIZ | ZONIFICADO']) }));
+    }
+    const laminate = detail('REQ | Laminado', 'LAMINADO', 'CONV | LAMINADO | TIPO', 'CONV | LAMINADO | MATERIAL');
+    if (laminate || isTruthyProcessFlag(lineRaw['CONV | LAMINADO | ACTIVO'] ?? raw['CONV | LAMINADO | ACTIVO'])) add(planningFinishName('Laminado', laminate));
+    const foil = detail('REQ | Estampado', 'ESTAMPADO', 'CONV | ESTAMPADO | FOIL', 'CONV | ESTAMPADO | MATERIAL');
+    if (foil || isTruthyProcessFlag(lineRaw['CONV | ESTAMPADO | ACTIVO'] ?? raw['CONV | ESTAMPADO | ACTIVO'])) {
+        add(planningFinishName('Estampado', foil, { widthIn: detail('CONV | ESTAMPADO | ANCHO', 'ESTAMPADO | ANCHO') }));
+    }
     const emboss = detail('REQ | Embosado', 'EMBOSADO | TIPO', 'EMBOSADO');
     if (emboss) add(/^si$/i.test(emboss) ? 'Embosado' : `Embosado ${emboss}`.replace(/\s+/g, ' '));
     if (planningVisibleText(lineRaw['REQ | Troquelado'] || raw['REQ | Troquelado']) || row.die_code || raw.line_snapshot?.dieCode) {
@@ -9217,6 +9269,8 @@ function getOrderPlanningControl(rawData = {}, quoteRow = null) {
         returnReason: existing.returnReason || '',
         promisedDeliveryDate,
         scheduledDeliveryDate: existing.scheduledDeliveryDate || null,
+        productionEndDate: existing.productionEndDate || null,
+        productionScheduleAlert: Boolean(existing.productionScheduleAlert),
         selectedProcessKeys: normalizePlanningProcessKeys(existing.selectedProcessKeys || existing.selectedProcesses || []),
         processSelectionUpdatedAt: existing.processSelectionUpdatedAt || null,
         processSelectionUpdatedBy: existing.processSelectionUpdatedBy || ''
@@ -14394,20 +14448,6 @@ app.get('/api/planificacion/lanzamiento', async (req, res) => {
                 const widthInches = Number(lineSnapshot.widthInches || lineRaw['DIMENSIONES ETIQUETA | ANCHO'] || 0);
                 const lengthInches = Number(lineSnapshot.lengthInches || lineRaw['DIMENSIONES ETIQUETA | LARGO'] || 0);
                 const finishLabels = planningFinishLabelsFromOrder(row);
-                (Array.isArray(processResultRaw?.print?.items) ? processResultRaw.print.items : []).forEach((printItem) => {
-                    (Array.isArray(printItem?.inlineItems) ? printItem.inlineItems : []).forEach((inline) => {
-                        if (!processObjectLooksActive(inline)) return;
-                        const key = canonicalPlanningProcessKey(inline.processKey || inline.key || inline.label);
-                        const label = PLANNING_PROCESS_LABELS[key] || inline.label || key;
-                        if (label && !finishLabels.includes(label)) finishLabels.push(label);
-                    });
-                });
-                (Array.isArray(processResultRaw?.finishes?.items) ? processResultRaw.finishes.items : []).forEach((finish) => {
-                    if (!processObjectLooksActive(finish)) return;
-                    const key = canonicalPlanningProcessKey(finish.processKey || finish.key || finish.label);
-                    const label = PLANNING_PROCESS_LABELS[key] || finish.label || finish.description || key;
-                    if (label && !finishLabels.includes(label)) finishLabels.push(label);
-                });
                 const missing = [];
                 if (!snapshot.machineName && processKeys.some((key) => !['preprensa', 'planchas', 'diseno'].includes(key))) missing.push('Máquina');
                 if (!snapshot.materialName && processKeys.some((key) => ['impresion', 'barnizado', 'laminado', 'rebobinado', 'empaque'].includes(key))) missing.push('Sustrato');
@@ -14436,7 +14476,10 @@ app.get('/api/planificacion/lanzamiento', async (req, res) => {
                     orderedQuantity: Number(row.ordered_quantity || 0),
                     plannedFeet,
                     tintCount,
+                    tintDescription: tintCount > 0 ? `${tintCount} (${lineSnapshot.cmyk || lineRaw['GENERAL | CMYK'] === true || String(lineRaw.CMYK || '').toLowerCase() === 'si' ? 'CMYK' : 'tintas'})` : '',
                     promisedDeliveryDate: planning.promisedDeliveryDate,
+                    scheduledDeliveryDate: planning.scheduledDeliveryDate,
+                    productionEndDate: planning.productionEndDate,
                     salesReleasedAt: planning.salesReleasedAt,
                     salesReleasedBy: planning.salesReleasedBy,
                     planningStatus: planning.planningStatus,
@@ -15227,14 +15270,33 @@ function collectOrderConsumptionMaterials(orderRow, processKey = 'impresion') {
     const materials = [];
     const printing = raw.printing || {};
     const lineSnapshot = raw.line_snapshot || raw.lineSnapshot || {};
+    const calcResult = orderQuotedResult(orderRow) || raw.calculation_result || raw.result || raw.calculationResult || {};
     addConsumptionMaterial(materials, {
         sapItemCode: orderRow.material_code || lineSnapshot.materialCode || printing.materialCode,
         materialName: lineSnapshot.materialName || printing.materialName || orderRow.material_code,
         family: 'sustrato',
-        plannedQuantity: printing.materialFeet || lineSnapshot.materialFeet || raw.totals?.total_feet,
+        plannedQuantity: calcResult?.sustrato?.totalLengthFeet || calcResult?.sustrato?.linealFeet || printing.materialFeet || lineSnapshot.materialFeet || raw.totals?.total_feet,
         unitCode: 'ft',
         source: 'orden'
     });
+    const inkTotalKg = Number(calcResult?.print?.inkConsumption || 0);
+    const hasCmyk = printing.hasCmyk === true || lineSnapshot.cmyk === true || raw.line_snapshot?.raw_data?.['GENERAL | CMYK'] === true || String(raw.line_snapshot?.raw_data?.CMYK || '').toLowerCase() === 'si';
+    if (hasCmyk && inkTotalKg > 0) {
+        const perColorKg = Number((inkTotalKg / 4).toFixed(6));
+        [
+            ['Tinta Cian', 'C'],
+            ['Tinta Magenta', 'M'],
+            ['Tinta Amarilla', 'Y'],
+            ['Tinta Negra', 'K']
+        ].forEach(([name, code]) => addConsumptionMaterial(materials, {
+            sapItemCode: code,
+            materialName: name,
+            family: 'tinta',
+            plannedQuantity: perColorKg,
+            unitCode: 'kg',
+            source: 'tintas'
+        }));
+    }
     (Array.isArray(printing.inks) ? printing.inks : []).forEach((ink) => addConsumptionMaterial(materials, {
         sapItemCode: ink.sapItemCode || ink.materialCode || ink.code,
         materialName: ink.materialName || ink.name,
@@ -15265,7 +15327,6 @@ function collectOrderConsumptionMaterials(orderRow, processKey = 'impresion') {
         if (!inline || !processObjectLooksActive(inline)) return;
         addFinish(inline);
     };
-    const calcResult = orderQuotedResult(orderRow) || raw.calculation_result || raw.result || raw.calculationResult || {};
     (Array.isArray(calcResult.print?.items) ? calcResult.print.items : []).forEach((printItem) => {
         (Array.isArray(printItem?.inlineItems) ? printItem.inlineItems : []).forEach(addPrintInline);
     });

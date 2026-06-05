@@ -48,6 +48,24 @@ function iconMarkup(key, fallback, altText) {
     return `<span class="planning-queue-btn-icon" aria-hidden="true">${escapeHtml(value)}</span>`;
 }
 
+function iconButtonStyle(key) {
+    const suffix = {
+        planningRefresh: 'PlanningRefresh',
+        planningProcessFlip: 'PlanningProcessFlip',
+        planningOpenGantt: 'PlanningOpenGantt'
+    }[key] || '';
+    if (!suffix) return '';
+    const general = planningConfig.general || {};
+    const color = general[`iconColor${suffix}`] || '#1e516d';
+    const hover = general[`iconColorHover${suffix}`] || '#0b81b8';
+    const size = Number(general[`iconSize${suffix}`] || 18) || 18;
+    return ` style="--planning-icon-color:${escapeHtml(color)};--planning-icon-hover:${escapeHtml(hover)};--config-icon-size:${escapeHtml(size)}px;"`;
+}
+
+function iconStyleValue(key) {
+    return iconButtonStyle(key).replace(/^ style="/, '').replace(/"$/, '');
+}
+
 function formatDate(value, withTime = false) {
     if (!value) return 'Sin fecha';
     const date = new Date(value);
@@ -74,12 +92,57 @@ function normalizeKey(value) {
         .toLowerCase();
 }
 
+function withShellParam(route) {
+    try {
+        const url = new URL(route, window.location.origin);
+        url.searchParams.set('shell', '1');
+        return `${url.pathname}${url.search}${url.hash}`;
+    } catch (error) {
+        return route.includes('?') ? `${route}&shell=1` : `${route}?shell=1`;
+    }
+}
+
 function shellOpen(route, label) {
     if (window === window.parent || new URLSearchParams(window.location.search).get('shell') !== '1') {
         window.location.href = route;
         return;
     }
-    window.parent.postMessage({ type: 'erp-open-tab', route, label }, window.location.origin);
+    window.parent.postMessage({ type: 'erp-open-tab', route: withShellParam(route), label }, window.location.origin);
+}
+
+function planningLink(label, value, route) {
+    if (!route || !value) return escapeHtml(value || '');
+    return `<a class="planning-queue-doc-link" href="${escapeHtml(route)}" data-route="${escapeHtml(route)}" data-label="${escapeHtml(label)}">${escapeHtml(value)}</a>`;
+}
+
+function substrateMaterialFromItem(item) {
+    const materials = [
+        ...(Array.isArray(item.consumptionMaterials) ? item.consumptionMaterials : []),
+        ...(Array.isArray(item.materialChecklist) ? item.materialChecklist : [])
+    ];
+    return materials.find((material) => {
+        const family = normalizeKey(material.materialFamily);
+        const name = normalizeKey(material.materialName);
+        const unit = normalizeKey(material.unit || material.unitCode || '');
+        return family.includes('sustrato') || family.includes('substrato') || unit === 'ft' || (!name.includes('tinta') && unit.includes('pie'));
+    }) || null;
+}
+
+function substrateNameForItem(item) {
+    const material = substrateMaterialFromItem(item);
+    const current = String(item.materialName || '').trim();
+    if (material?.materialName && (!current || /^\d+$/.test(current))) return material.materialName;
+    return current || material?.materialName || 'Sin definir';
+}
+
+function substrateFeetForItem(item) {
+    const material = substrateMaterialFromItem(item);
+    if (Number(item.plannedFeet || 0) > 0) return `${formatNumber(item.plannedFeet, 2)} ft`;
+    if (material?.quantityDisplay) return material.quantityDisplay;
+    if (Number(material?.plannedQuantity || 0) > 0) return `${formatNumber(material.plannedQuantity, 2)} ${material.unitCode || material.unit || 'ft'}`;
+    if (Number(material?.quantity || 0) > 0) return `${formatNumber(material.quantity, 2)} ${material.unit || material.unitCode || 'ft'}`;
+    if (Number(item.materialQuantity || 0) > 0) return `${formatNumber(item.materialQuantity, 2)} ft`;
+    return 'Pendiente';
 }
 
 function processLabel(key, fallback = '') {
@@ -124,31 +187,34 @@ function renderSummary(items) {
 }
 
 function operationalRows(item) {
-    const product = [item.productName || item.jobName || 'Sin producto', item.dimensionsText].filter(Boolean).join(' · ');
-    const finishSummary = item.finishSummary || 'Sin acabados declarados';
-    const linked = (label, value, route) => `
-        <div class="planning-queue-row">
-            <span>${escapeHtml(label)}</span>
-            <strong>${route && value ? `<a class="planning-queue-doc-link" href="${escapeHtml(route)}" target="_blank" rel="noopener noreferrer">${escapeHtml(value)}</a>` : escapeHtml(value || '')}</strong>
+    const line = (label, value, options = {}) => `
+        <div class="planning-queue-summary-line${options.multiline ? ' is-multiline' : ''}">
+            <span>${escapeHtml(label)}:</span>
+            <strong>${options.html ? value : escapeHtml(value || 'Pendiente')}</strong>
         </div>`;
-    return [
-        linked('Orden', item.orderCode || '', `/orden-produccion/${encodeURIComponent(item.orderCode || '')}`),
-        linked('Cotización', item.quoteCode || '', item.quoteCode ? `/cotizaciones/documento?codigo=${encodeURIComponent(item.quoteCode)}` : ''),
-        linked('Línea', item.lineCode || '', item.quoteCode && item.lineCode ? `/calculo-flexografia?quoteId=${encodeURIComponent(item.quoteCode)}&lineId=${encodeURIComponent(item.lineCode)}` : ''),
-        ['Producto', product],
-        ['Cantidad', formatNumber(item.orderedQuantity || 0)],
-        ['Pies estim.', `${formatNumber(item.plannedFeet || 0, 2)} ft`],
-        ['Sustrato', item.materialName || 'Sin definir'],
-        ['Tintas', formatNumber(item.tintCount || 0)],
-        ['Troquel', item.dieCode || 'Sin definir'],
-        ['Máquina', item.machineName || 'Sin definir'],
-        ['Acabados', finishSummary]
-    ].map((row) => Array.isArray(row) ? `
-        <div class="planning-queue-row">
-            <span>${escapeHtml(row[0])}</span>
-            <strong>${escapeHtml(row[1])}</strong>
+    const finishes = String(item.finishSummary || '').split(/\s+·\s+|\n/).map((value) => value.trim()).filter(Boolean);
+    const finishHtml = finishes.length
+        ? `<span class="planning-queue-finish-list">${finishes.map((value) => `<em>${escapeHtml(value)}</em>`).join('')}</span>`
+        : 'Pendiente';
+    return `
+        <div class="planning-queue-summary-lines">
+            ${line('Orden', planningLink(`Orden ${item.orderCode || ''}`, item.orderCode || '', `/orden-produccion/${encodeURIComponent(item.orderCode || '')}`), { html: true })}
+            ${line('Cotización', planningLink(`Cotización ${item.quoteCode || ''}`, item.quoteCode || '', item.quoteCode ? `/cotizaciones/documento?codigo=${encodeURIComponent(item.quoteCode)}` : ''), { html: true })}
+            ${line('Línea', planningLink(`Línea ${item.lineCode || ''}`, item.lineCode || '', item.quoteCode && item.lineCode ? `/calculo-flexografia?quoteId=${encodeURIComponent(item.quoteCode)}&lineId=${encodeURIComponent(item.lineCode)}` : ''), { html: true })}
+            ${line('Nombre Producto', item.jobName || item.productName || 'Sin producto')}
+            ${line('Dimensiones', item.dimensionsText || 'Pendiente')}
+            ${line('Fin Producción', item.productionEndDate ? formatDate(item.productionEndDate) : 'Pendiente')}
+            ${line('Fecha Estimada', item.scheduledDeliveryDate ? formatDate(item.scheduledDeliveryDate) : (item.promisedDeliveryDate ? formatDate(item.promisedDeliveryDate) : 'Pendiente'))}
+            <div class="planning-queue-summary-spacer"></div>
+            ${line('Máquina', item.machineName || 'Sin definir')}
+            ${line('Cantidad', formatNumber(item.orderedQuantity || 0))}
+            ${line('Sustrato', substrateNameForItem(item))}
+            ${line('Pies', substrateFeetForItem(item))}
+            ${line('Tintas', item.tintDescription || `${formatNumber(item.tintCount || 0)}${Number(item.tintCount || 0) === 4 ? ' (CMYK)' : ''}`)}
+            <div class="planning-queue-summary-spacer"></div>
+            ${line('Acabados', finishHtml, { html: true, multiline: true })}
         </div>
-    ` : row).join('');
+    `;
 }
 
 function processChecklist(item) {
@@ -225,7 +291,7 @@ function artworkSlot(item) {
         <section class="planning-queue-art-slot" aria-label="Arte de la orden">
             <div class="planning-queue-art-head">
                 <span>Arte</span>
-                <button type="button" class="planning-queue-icon-btn" data-action="refresh-art" data-order="${escapeHtml(item.orderCode)}" title="Actualizar arte" aria-label="Actualizar arte">${iconMarkup('planningRefresh', '↻', 'Actualizar arte')}</button>
+                <button type="button" class="planning-queue-icon-btn" data-action="refresh-art" data-order="${escapeHtml(item.orderCode)}" title="Actualizar arte" aria-label="Actualizar arte"${iconButtonStyle('planningRefresh')}>${iconMarkup('planningRefresh', '↻', 'Actualizar arte')}</button>
             </div>
             <div class="planning-queue-art-preview">
                 ${imageSrc
@@ -236,12 +302,49 @@ function artworkSlot(item) {
     `;
 }
 
+function isCmykInkGroup(inkRows, item) {
+    if (inkRows.length !== 4) return false;
+    if (normalizeKey(item.tintDescription).includes('cmyk')) return true;
+    const names = inkRows.map((row) => normalizeKey(row.materialName));
+    return ['cian', 'magenta', 'amarilla', 'negra'].every((token) => names.some((name) => name.includes(token)));
+}
+
 function materialChecklist(item) {
     const materials = Array.isArray(item.materialChecklist) ? item.materialChecklist : [];
     if (!materials.length) return '<div class="planning-queue-material-empty">No hay materiales de inventario registrados para validar.</div>';
+    const inkRows = materials.filter((material) => normalizeKey(material.materialFamily) === 'tinta' || normalizeKey(material.materialName).includes('tinta'));
+    const groupInkRows = isCmykInkGroup(inkRows, item);
+    const otherRows = materials.filter((material) => !groupInkRows || !inkRows.includes(material));
+    const rows = [];
+    if (groupInkRows) {
+        const palette = [
+            { key: 'C', token: 'cian', color: '#61dce8' },
+            { key: 'M', token: 'magenta', color: '#d84aab' },
+            { key: 'Y', token: 'amarilla', color: '#f4d735' },
+            { key: 'K', token: 'negra', color: '#050505' }
+        ];
+        const approvalKeys = inkRows.map((row) => row.approvalKey).filter(Boolean);
+        rows.push(`
+            <label class="planning-queue-material-item planning-queue-material-ink">
+                <input type="checkbox" data-material-group="tinta" data-order="${escapeHtml(item.orderCode)}" data-material-keys="${escapeHtml(encodeURIComponent(JSON.stringify(approvalKeys)))}"${inkRows.every((row) => row.checked) ? ' checked' : ''}>
+                <span class="planning-queue-material-main">
+                    <strong>Tinta</strong>
+                    <span>Impresión</span>
+                </span>
+                <span class="planning-queue-ink-swatches">
+                    ${palette.map((ink, index) => {
+                        const row = inkRows.find((candidate) => normalizeKey(candidate.materialName).includes(ink.token)) || inkRows[index] || {};
+                        const qty = Number(row.plannedQuantity || 0) > 0 ? `${formatNumber(row.plannedQuantity, 2)} ${row.unitCode || 'kg'}` : 'Pendiente';
+                        return `<span class="planning-queue-ink-swatch"><i style="background:${ink.color}"></i><em>${escapeHtml(qty)}</em></span>`;
+                    }).join('')}
+                </span>
+            </label>
+        `);
+    }
     return `
         <div class="planning-queue-material-list">
-            ${materials.map((material) => {
+            ${rows.join('')}
+            ${otherRows.map((material) => {
                 const qty = Number(material.plannedQuantity || 0) > 0
                     ? `${formatNumber(material.plannedQuantity, 2)} ${material.unitCode || ''}`.trim()
                     : 'Cantidad por definir';
@@ -259,7 +362,6 @@ function materialChecklist(item) {
                             <span>${escapeHtml(meta)}</span>
                             ${material.reason ? `<span>${escapeHtml(material.reason)}</span>` : ''}
                         </span>
-                        <span class="planning-queue-material-tag">${escapeHtml(sourceLabel(material.sourceType))}</span>
                     </label>
                 `;
             }).join('')}
@@ -296,7 +398,7 @@ function queueCard(item) {
                 <section class="planning-queue-panel planning-queue-panel-compact">
                     <div class="planning-queue-panel-head">
                         <h3>Resumen</h3>
-                        <button type="button" class="planning-queue-icon-btn" data-action="flip-processes" data-order="${escapeHtml(item.orderCode)}" title="Ver procesos" aria-label="Ver procesos">${iconMarkup('planningProcessFlip', '↔', 'Ver procesos')}</button>
+                        <button type="button" class="planning-queue-icon-btn" data-action="flip-processes" data-order="${escapeHtml(item.orderCode)}" title="Ver procesos" aria-label="Ver procesos"${iconButtonStyle('planningProcessFlip')}>${iconMarkup('planningProcessFlip', '↔', 'Ver procesos')}</button>
                     </div>
                     <div class="planning-queue-flip" data-flip-card>
                         <div class="planning-queue-flip-inner">
@@ -315,7 +417,7 @@ function queueCard(item) {
                     </div>
                 </section>
 
-                <section class="planning-queue-panel">
+                <section class="planning-queue-panel planning-queue-material-panel">
                     <h3>Inventario Materia Prima</h3>
                     ${materialChecklist(item)}
                     ${missing.length ? `<div class="planning-queue-process-warning">Pendiente de revisar: ${escapeHtml(missing.join(', '))}.</div>` : ''}
@@ -461,6 +563,11 @@ async function updatePlanningProcesses(orderCode, selectedProcessKeys) {
 }
 
 async function updateMaterialApproval(orderCode, approvalKey, checked) {
+    await patchMaterialApproval(orderCode, approvalKey, checked);
+    await refreshQueue();
+}
+
+async function patchMaterialApproval(orderCode, approvalKey, checked) {
     const response = await fetch(`/api/ordenes-produccion/${encodeURIComponent(orderCode)}/materiales-aprobacion`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -470,7 +577,6 @@ async function updateMaterialApproval(orderCode, approvalKey, checked) {
     if (!response.ok || !payload.ok) {
         throw new Error(payload.error || 'No se pudo actualizar el material.');
     }
-    await refreshQueue();
 }
 
 function selectedProcessesForCard(card) {
@@ -480,6 +586,29 @@ function selectedProcessesForCard(card) {
 }
 
 listBox?.addEventListener('change', async (event) => {
+    const materialGroupInput = event.target.closest('[data-material-group]');
+    if (materialGroupInput) {
+        const card = materialGroupInput.closest('[data-order-card]');
+        const orderCode = materialGroupInput.dataset.order || card?.dataset.orderCard;
+        let approvalKeys = [];
+        try {
+            approvalKeys = JSON.parse(decodeURIComponent(materialGroupInput.dataset.materialKeys || '%5B%5D'));
+        } catch (error) {
+            approvalKeys = [];
+        }
+        if (!card || !orderCode || !approvalKeys.length) return;
+        try {
+            for (const approvalKey of approvalKeys) {
+                await patchMaterialApproval(orderCode, approvalKey, materialGroupInput.checked);
+            }
+            await refreshQueue();
+        } catch (error) {
+            subtitleBox.textContent = error.message;
+            await refreshQueue().catch(() => {});
+        }
+        return;
+    }
+
     const materialInput = event.target.closest('[data-material-toggle]');
     if (materialInput) {
         const card = materialInput.closest('[data-order-card]');
@@ -517,6 +646,12 @@ listBox?.addEventListener('error', (event) => {
 }, true);
 
 listBox?.addEventListener('click', async (event) => {
+    const docLink = event.target.closest('.planning-queue-doc-link[data-route]');
+    if (docLink) {
+        event.preventDefault();
+        shellOpen(docLink.dataset.route, docLink.dataset.label || docLink.textContent.trim());
+        return;
+    }
     const button = event.target.closest('[data-action]');
     if (!button) return;
     const { action, order } = button.dataset;
@@ -569,7 +704,10 @@ Promise.all([
     refreshQueue()
 ]).then(([config]) => {
     planningConfig = config || planningConfig;
-    if (openGanttButton) openGanttButton.innerHTML = `${iconMarkup('planningOpenGantt', '◳', 'Ir a Gantt')} <span>Ir a Gantt</span>`;
+    if (openGanttButton) {
+        openGanttButton.setAttribute('style', iconStyleValue('planningOpenGantt'));
+        openGanttButton.innerHTML = `${iconMarkup('planningOpenGantt', '◳', 'Ir a Gantt')} <span>Ir a Gantt</span>`;
+    }
     renderList();
 }).catch((error) => {
     summaryBox.innerHTML = '';

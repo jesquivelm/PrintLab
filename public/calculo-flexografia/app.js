@@ -1561,9 +1561,24 @@ function elongationFactor(value) {
 }
 
 function resolveDieMetrics(die = {}, context = {}) {
+  const productWidthIn = firstPositiveNumber(
+    die.ancho_etiqueta_in,
+    die.anchoEtiquetaIn,
+    die.labelWidthIn,
+    die.label_width_in,
+    die.productWidthIn,
+    die.product_width_in
+  ) || mmToInches(firstPositiveNumber(die.anchoEtiquetaMm, die.ancho_etiqueta_mm));
+  const productLengthIn = firstPositiveNumber(
+    die.largo_etiqueta_in,
+    die.largoEtiquetaIn,
+    die.labelLengthIn,
+    die.label_length_in,
+    die.productLengthIn,
+    die.product_length_in
+  ) || mmToInches(firstPositiveNumber(die.largoEtiquetaMm, die.largo_etiqueta_mm));
   const mountWidthIn = firstPositiveNumber(
     die.ancho_total_troquel_in,
-    die.anchoEtiquetaIn,
     die.anchoMontaje,
     die.ancho_montaje,
     die.mountWidthIn,
@@ -1574,7 +1589,6 @@ function resolveDieMetrics(die = {}, context = {}) {
   ) || mmToInches(firstPositiveNumber(die.ancho_mm, die.widthMm));
   const mountLengthIn = firstPositiveNumber(
     die.largo_total_troquel_in,
-    die.largoEtiquetaIn,
     die.largoMontaje,
     die.largo_montaje,
     die.mountLengthIn,
@@ -1623,6 +1637,8 @@ function resolveDieMetrics(die = {}, context = {}) {
     dieShape: first(die.shapeType, die.shape_type, die.clasificacion, die.classification, die.formaTroquel, die.forma_troquel, die.tipoTroquel2, die.tipo_troquel_2, context?.raw_data?.["REQ | Forma"], context?.dieShape, ""),
     widthIn: r(mountWidthIn, 4),
     lengthIn: r(mountLengthIn, 4),
+    productWidthIn: r(productWidthIn || 0, 4),
+    productLengthIn: r(productLengthIn || 0, 4),
     mountWidthIn: r(mountWidthIn, 4),
     mountLengthIn: r(mountLengthIn, 4),
     cylinderDevelopmentIn: r(cylinderDevelopmentIn, 4),
@@ -7796,8 +7812,8 @@ function renderInkProfiles(scope, profiles = []) {
 function dieDimensionMismatch() {
   const productWidth = n(state.form?.header?.labelWidthIn, 0);
   const productLength = n(state.form?.header?.labelHeightIn, 0);
-  const dieWidth = n(state.form?.troquel?.widthIn, 0);
-  const dieLength = n(state.form?.troquel?.lengthIn, 0);
+  const dieWidth = n(first(state.form?.troquel?.productWidthIn, state.form?.troquel?.labelWidthIn), 0);
+  const dieLength = n(first(state.form?.troquel?.productLengthIn, state.form?.troquel?.labelLengthIn), 0);
   if (productWidth <= 0 || productLength <= 0 || dieWidth <= 0 || dieLength <= 0) return null;
   const tolerance = 0.01;
   const direct = Math.abs(productWidth - dieWidth) <= tolerance && Math.abs(productLength - dieLength) <= tolerance;
