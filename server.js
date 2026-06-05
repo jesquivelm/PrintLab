@@ -15396,6 +15396,7 @@ async function runFiniteCapacityEngine() {
         pgQuery(`
             SELECT r.id, r.order_code, r.quote_code, r.line_code, r.sequence_order,
                    r.process_key, r.process_name, r.machine_profile_id,
+                   r.dependency_route_id,
                    r.duration_hours, r.route_status, r.route_payload,
                    r.planned_start_at, r.planned_end_at,
                    o.delivered_on, o.customer_name, o.job_name
