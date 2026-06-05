@@ -972,6 +972,7 @@ const DEFAULT_GENERAL_CONFIG = {
         orderStatus: '\u25C9',
         orderFlow: '\u226B',
         orderArtworkDelete: '\u00D7',
+        orderEdit: '\u270F\uFE0F',
         proformaCurrencyAdd: '+',
         proformaCurrencyDelete: '\u{1F5D1}',
         proformaView: '\u{1F441}',
