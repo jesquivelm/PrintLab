@@ -713,8 +713,8 @@ body.popover-open { overflow: hidden; }
     align-items: center;
     justify-content: center;
     touch-action: none;
-    width: var(--dashboard-bdfg-main-size, 86px);
-    height: var(--dashboard-bdfg-main-size, 86px);
+    width: var(--dashboard-bdfg-main-size, 40px);
+    height: var(--dashboard-bdfg-main-size, 40px);
 }
 
 .dashboard-bdfg-shell.dragging {
@@ -763,10 +763,10 @@ body.popover-open { overflow: hidden; }
 .dashboard-bdfg-button {
     position: relative;
     z-index: 2;
-    width: var(--dashboard-bdfg-main-size, 86px);
-    min-width: var(--dashboard-bdfg-main-size, 86px);
-    height: var(--dashboard-bdfg-main-size, 86px);
-    min-height: var(--dashboard-bdfg-main-size, 86px);
+    width: var(--dashboard-bdfg-main-size, 40px);
+    min-width: var(--dashboard-bdfg-main-size, 40px);
+    height: var(--dashboard-bdfg-main-size, 40px);
+    min-height: var(--dashboard-bdfg-main-size, 40px);
     padding: 0;
     border: 0;
     border-radius: 50%;
@@ -861,8 +861,8 @@ body.popover-open { overflow: hidden; }
 /* Radial Deployment Styles (Dashboard specific) */
 .process-launcher-stack {
     position: relative;
-    width: var(--dashboard-bdfg-main-size, 86px);
-    height: var(--dashboard-bdfg-main-size, 86px);
+    width: var(--dashboard-bdfg-main-size, 40px);
+    height: var(--dashboard-bdfg-main-size, 40px);
     display: flex;
     align-items: center;
     justify-content: center;

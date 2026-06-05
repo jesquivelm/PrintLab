@@ -15,19 +15,19 @@
     };
 
     const DEFAULT_CONFIG = {
-        theme: 'executive',
+        theme: 'minimal',
         colorMode: 'auto',
-        mainSize: 86,
-        menuDistance: 108,
+        mainSize: 40,
+        menuDistance: 75,
         miniShape: 'round',
         layout: 'radial',
-        mainDay: THEME_PRESETS.executive.day,
-        mainNight: THEME_PRESETS.executive.night,
-        miniBg: THEME_PRESETS.executive.miniBg,
-        miniBgAlpha: THEME_PRESETS.executive.miniBgAlpha,
-        miniBgNight: THEME_PRESETS.executive.miniBgNight,
-        miniBgNightAlpha: THEME_PRESETS.executive.miniBgNightAlpha,
-        miniColor: THEME_PRESETS.executive.miniColor
+        mainDay: THEME_PRESETS.minimal.day,
+        mainNight: THEME_PRESETS.minimal.night,
+        miniBg: THEME_PRESETS.minimal.miniBg,
+        miniBgAlpha: 20,
+        miniBgNight: THEME_PRESETS.minimal.miniBgNight,
+        miniBgNightAlpha: 20,
+        miniColor: THEME_PRESETS.minimal.miniColor
     };
 
     function clampNumber(value, fallback, min, max) {
