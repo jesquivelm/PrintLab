@@ -76,6 +76,13 @@ function processLabel(key, fallback = '') {
     return PROCESS_LABELS[key] || fallback || key || 'Proceso';
 }
 
+function sourceLabel(value) {
+    const key = normalizeKey(value);
+    if (key === 'base') return 'BOM';
+    if (key === 'registro') return 'Registro';
+    return value || 'Material';
+}
+
 function getOrderHealth(item) {
     const missing = Array.isArray(item.missingItems) ? item.missingItems : [];
     if (missing.length) return { key: 'warn', label: 'Revisar' };
@@ -139,7 +146,7 @@ function processChecklist(item) {
         return `
             <label class="planning-queue-process-toggle${process.quoted ? ' was-quoted' : ''}">
                 <input type="checkbox" data-process-toggle data-order="${escapeHtml(item.orderCode)}" data-process="${escapeHtml(key)}"${process.selected ? ' checked' : ''}>
-                <span>${escapeHtml(label.toUpperCase())}</span>
+                <span>${escapeHtml(label)}</span>
                 ${process.quoted ? '<em>Cobrado</em>' : ''}
             </label>
         `;
@@ -155,9 +162,78 @@ function processWarnings(item) {
     return `<div class="planning-queue-process-warning">El proceso fue cobrado y quedó desactivado: ${escapeHtml(disabledQuoted.join(', '))}.</div>`;
 }
 
+function attachmentList(item) {
+    const attachments = Array.isArray(item.attachments) ? item.attachments : [];
+    if (!attachments.length) return '<div class="planning-queue-text">Esta orden no tiene adjuntos relacionados todavía.</div>';
+    return attachments.map((attachment) => {
+        const href = attachment.downloadUrl || attachment.value || '';
+        const meta = [attachment.notes, attachment.uploadedBy, formatDate(attachment.createdAt, true)].filter(Boolean).join(' · ');
+        return `
+            <article class="planning-queue-attachment">
+                <div class="planning-queue-attachment-main">
+                    <strong>${escapeHtml(attachment.label || 'Adjunto')}</strong>
+                    ${meta ? `<span>${escapeHtml(meta)}</span>` : ''}
+                </div>
+                ${href ? `<a class="action-btn" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">Abrir</a>` : ''}
+            </article>
+        `;
+    }).join('');
+}
+
+function artworkSlot(item) {
+    const artwork = item.artwork || null;
+    const imageSrc = artwork && artwork.isImage ? (artwork.downloadUrl || artwork.value || '') : '';
+    const fallbackLabel = artwork ? (artwork.label || 'Arte adjunto') : 'Arte pendiente';
+    return `
+        <section class="planning-queue-art-slot" aria-label="Arte de la orden">
+            <div class="planning-queue-art-head">
+                <span>Arte</span>
+                <button type="button" class="planning-queue-icon-btn" data-action="refresh-art" data-order="${escapeHtml(item.orderCode)}" title="Actualizar arte" aria-label="Actualizar arte">↻</button>
+            </div>
+            <div class="planning-queue-art-preview">
+                ${imageSrc
+                    ? `<img src="${escapeHtml(imageSrc)}" alt="Arte de ${escapeHtml(item.orderCode)}"><div class="planning-queue-art-placeholder" hidden>${escapeHtml(fallbackLabel)}</div>`
+                    : `<div class="planning-queue-art-placeholder">${escapeHtml(fallbackLabel)}</div>`}
+            </div>
+        </section>
+    `;
+}
+
+function materialChecklist(item) {
+    const materials = Array.isArray(item.materialChecklist) ? item.materialChecklist : [];
+    if (!materials.length) return '<div class="planning-queue-material-empty">No hay materiales de inventario registrados para validar.</div>';
+    return `
+        <div class="planning-queue-material-list">
+            ${materials.map((material) => {
+                const qty = Number(material.plannedQuantity || 0) > 0
+                    ? `${formatNumber(material.plannedQuantity, 2)} ${material.unitCode || ''}`.trim()
+                    : 'Cantidad por definir';
+                const meta = [
+                    processLabel(material.processKey, material.processKey),
+                    qty,
+                    material.sapStatus ? `SAP: ${material.sapStatus}` : '',
+                    material.requestedAt ? formatDate(material.requestedAt, true) : ''
+                ].filter(Boolean).join(' · ');
+                return `
+                    <label class="planning-queue-material-item">
+                        <input type="checkbox" data-material-toggle data-order="${escapeHtml(item.orderCode)}" data-material-key="${escapeHtml(material.approvalKey)}"${material.checked ? ' checked' : ''}>
+                        <span class="planning-queue-material-main">
+                            <strong>${escapeHtml(material.materialName || material.sapItemCode || 'Material')}</strong>
+                            <span>${escapeHtml(meta)}</span>
+                            ${material.reason ? `<span>${escapeHtml(material.reason)}</span>` : ''}
+                        </span>
+                        <span class="planning-queue-material-tag">${escapeHtml(sourceLabel(material.sourceType))}</span>
+                    </label>
+                `;
+            }).join('')}
+        </div>
+    `;
+}
+
 function queueCard(item) {
     const missing = Array.isArray(item.missingItems) ? item.missingItems : [];
     const health = getOrderHealth(item);
+    const pendingMaterials = Number(item.pendingMaterials || 0);
     return `
         <article class="planning-queue-card" data-order-card="${escapeHtml(item.orderCode)}">
             <div class="planning-queue-head">
@@ -168,38 +244,51 @@ function queueCard(item) {
                         <span class="planning-queue-pill">Entrega: ${escapeHtml(formatDate(item.promisedDeliveryDate))}</span>
                         <span class="planning-queue-pill">Trabajo: ${escapeHtml(item.jobName || 'Sin nombre')}</span>
                         <span class="planning-queue-pill">Vendedor: ${escapeHtml(item.salespersonName || 'Sin asignar')}</span>
-                        <span class="planning-queue-pill">Adjuntos: ${escapeHtml(formatNumber(item.attachmentCount || 0))}</span>
+                        <button type="button" class="planning-queue-pill" data-action="toggle-attachments" data-order="${escapeHtml(item.orderCode)}">Adjuntos: ${escapeHtml(formatNumber(item.attachmentCount || 0))}</button>
                     </div>
                 </div>
                 <span class="planning-queue-health-badge ${health.key}">${escapeHtml(health.label)}</span>
             </div>
+            <div class="planning-queue-attachments" data-attachments-panel hidden>
+                ${attachmentList(item)}
+            </div>
 
             <div class="planning-queue-body">
                 <section class="planning-queue-panel planning-queue-panel-compact">
-                    <h3>Base Operativa</h3>
-                    <div class="planning-queue-grid planning-queue-grid-compact">
-                        ${operationalRows(item)}
+                    <div class="planning-queue-panel-head">
+                        <h3>Base Operativa</h3>
+                        <button type="button" class="planning-queue-icon-btn" data-action="flip-processes" data-order="${escapeHtml(item.orderCode)}" title="Ver procesos" aria-label="Ver procesos">↻</button>
+                    </div>
+                    <div class="planning-queue-flip" data-flip-card>
+                        <div class="planning-queue-flip-inner">
+                            <div class="planning-queue-flip-face planning-queue-flip-front">
+                                <div class="planning-queue-grid planning-queue-grid-compact">
+                                    ${operationalRows(item)}
+                                </div>
+                            </div>
+                            <div class="planning-queue-flip-face planning-queue-flip-back">
+                                <div class="planning-queue-processes planning-queue-process-selector">
+                                    ${processChecklist(item)}
+                                </div>
+                                ${processWarnings(item)}
+                            </div>
+                        </div>
                     </div>
                 </section>
 
                 <section class="planning-queue-panel">
-                    <h3>Procesos</h3>
-                    <div class="planning-queue-processes planning-queue-process-selector">
-                        ${processChecklist(item)}
-                    </div>
-                    ${processWarnings(item)}
+                    <h3>Inventario de materia prima</h3>
+                    ${materialChecklist(item)}
                     ${missing.length ? `<div class="planning-queue-process-warning">Pendiente de revisar: ${escapeHtml(missing.join(', '))}.</div>` : ''}
                 </section>
 
-                <section class="planning-queue-art-slot" aria-label="Espacio pendiente para arte">
-                    <div class="planning-queue-art-placeholder">Arte pendiente</div>
-                </section>
+                ${artworkSlot(item)}
             </div>
 
             <div class="planning-queue-card-actions">
                 <button type="button" class="action-btn" data-action="open-order" data-order="${escapeHtml(item.orderCode)}">Abrir orden</button>
                 <button type="button" class="action-btn" data-action="return-sales" data-order="${escapeHtml(item.orderCode)}">Devolver a ventas</button>
-                <button type="button" class="action-btn action-btn-primary" data-action="launch-gantt" data-order="${escapeHtml(item.orderCode)}">Lanzar al Gantt</button>
+                <button type="button" class="action-btn action-btn-primary" data-action="launch-gantt" data-order="${escapeHtml(item.orderCode)}"${pendingMaterials ? ' disabled title="Aprueba los materiales antes de lanzar"' : ''}>Lanzar al Gantt</button>
             </div>
         </article>
     `;
@@ -319,6 +408,19 @@ async function updatePlanningProcesses(orderCode, selectedProcessKeys) {
     await refreshQueue();
 }
 
+async function updateMaterialApproval(orderCode, approvalKey, checked) {
+    const response = await fetch(`/api/ordenes-produccion/${encodeURIComponent(orderCode)}/materiales-aprobacion`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ approvalKey, checked })
+    });
+    const payload = await response.json();
+    if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || 'No se pudo actualizar el material.');
+    }
+    await refreshQueue();
+}
+
 function selectedProcessesForCard(card) {
     return Array.from(card.querySelectorAll('[data-process-toggle]:checked'))
         .map((input) => input.dataset.process)
@@ -326,6 +428,21 @@ function selectedProcessesForCard(card) {
 }
 
 listBox?.addEventListener('change', async (event) => {
+    const materialInput = event.target.closest('[data-material-toggle]');
+    if (materialInput) {
+        const card = materialInput.closest('[data-order-card]');
+        const orderCode = materialInput.dataset.order || card?.dataset.orderCard;
+        const approvalKey = materialInput.dataset.materialKey || '';
+        if (!card || !orderCode || !approvalKey) return;
+        try {
+            await updateMaterialApproval(orderCode, approvalKey, materialInput.checked);
+        } catch (error) {
+            subtitleBox.textContent = error.message;
+            await refreshQueue().catch(() => {});
+        }
+        return;
+    }
+
     const input = event.target.closest('[data-process-toggle]');
     if (!input) return;
     const card = input.closest('[data-order-card]');
@@ -339,6 +456,14 @@ listBox?.addEventListener('change', async (event) => {
     }
 });
 
+listBox?.addEventListener('error', (event) => {
+    const image = event.target?.closest?.('.planning-queue-art-preview img');
+    if (!image) return;
+    const fallback = image.nextElementSibling;
+    image.remove();
+    if (fallback) fallback.hidden = false;
+}, true);
+
 listBox?.addEventListener('click', async (event) => {
     const button = event.target.closest('[data-action]');
     if (!button) return;
@@ -346,6 +471,21 @@ listBox?.addEventListener('click', async (event) => {
     if (!order) return;
 
     try {
+        if (action === 'toggle-attachments') {
+            const panel = button.closest('[data-order-card]')?.querySelector('[data-attachments-panel]');
+            if (panel) panel.hidden = !panel.hidden;
+            return;
+        }
+        if (action === 'flip-processes') {
+            const flip = button.closest('[data-order-card]')?.querySelector('[data-flip-card]');
+            if (flip) flip.classList.toggle('is-flipped');
+            return;
+        }
+        if (action === 'refresh-art') {
+            button.disabled = true;
+            await refreshQueue();
+            return;
+        }
         if (action === 'open-order') {
             shellOpen(`/orden-produccion/${encodeURIComponent(order)}`, `Orden ${order}`);
             return;

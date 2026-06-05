@@ -13988,6 +13988,23 @@ app.patch('/api/ordenes-produccion/:codigo/planning-control', async (req, res) =
             if (control.planningStatus !== 'PENDIENTE_PLANIFICACION' && control.planningStatus !== 'EN_GANTT') {
                 return res.status(400).json({ ok: false, error: 'La orden debe estar pendiente de planificación antes de lanzarla al Gantt.' });
             }
+            const historyResult = await pgQuery(
+                `SELECT id::text, process_key, sap_item_code, material_name, material_family,
+                        quantity, unit_code, reason, sap_status, requested_by, requested_at
+                   FROM production_material_consumption_requests
+                  WHERE order_code = $1
+                  ORDER BY requested_at DESC`,
+                [req.params.codigo]
+            );
+            const materialChecklist = collectPlanningMaterialChecklist(
+                orderRow,
+                inferRouteProcessKeys({ ...orderRow, raw_data: rawData }),
+                historyResult.rows || []
+            );
+            const pendingMaterials = materialChecklist.filter((material) => !material.checked);
+            if (pendingMaterials.length) {
+                return res.status(400).json({ ok: false, error: 'Debes aprobar los materiales de inventario antes de lanzar al Gantt.' });
+            }
             nextRawData = withUpdatedOrderPlanningControl(rawData, {
                 salesReleased: true,
                 planningStatus: 'EN_GANTT',
@@ -14044,6 +14061,46 @@ app.patch('/api/ordenes-produccion/:codigo/planning-control', async (req, res) =
     }
 });
 
+app.patch('/api/ordenes-produccion/:codigo/materiales-aprobacion', async (req, res) => {
+    try {
+        const approvalKey = sanitizeAdminUserText(req.body?.approvalKey || req.body?.key || '');
+        const checked = req.body?.checked === true;
+        if (!approvalKey) {
+            return res.status(400).json({ ok: false, error: 'Debes indicar el material a validar.' });
+        }
+        const orderResult = await pgQuery(`SELECT * FROM flexo_orders WHERE order_code = $1 LIMIT 1`, [req.params.codigo]);
+        if (!orderResult.rows.length) {
+            return res.status(404).json({ ok: false, error: 'Orden no encontrada.' });
+        }
+        const rawData = orderResult.rows[0].raw_data || {};
+        const approvals = {
+            ...getPlanningMaterialApprovals(rawData),
+            [approvalKey]: checked
+                ? {
+                    checked: true,
+                    checkedAt: new Date().toISOString(),
+                    checkedBy: getRequestUserName(req)
+                }
+                : {
+                    checked: false,
+                    checkedAt: null,
+                    checkedBy: ''
+                }
+        };
+        const nextRawData = {
+            ...rawData,
+            planning_control: {
+                ...getOrderPlanningControl(rawData),
+                materialApprovals: approvals
+            }
+        };
+        await pgQuery(`UPDATE flexo_orders SET raw_data = $2::jsonb WHERE order_code = $1`, [req.params.codigo, JSON.stringify(nextRawData)]);
+        res.json({ ok: true, approvalKey, checked });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible actualizar la validación de materiales.' });
+    }
+});
+
 app.get('/api/planificacion/lanzamiento', async (req, res) => {
     try {
         const [result, processResult] = await Promise.all([
@@ -14071,7 +14128,12 @@ app.get('/api/planificacion/lanzamiento', async (req, res) => {
             }))
             .filter((row, index, rows) => row.key
                 && PLANNING_CLASSIFICATION_PROCESS_KEYS.includes(row.key)
-                && rows.findIndex((item) => item.key === row.key) === index);
+                && rows.findIndex((item) => item.key === row.key) === index)
+            .sort((left, right) => {
+                const leftOrder = PLANNING_CLASSIFICATION_PROCESS_KEYS.indexOf(left.key);
+                const rightOrder = PLANNING_CLASSIFICATION_PROCESS_KEYS.indexOf(right.key);
+                return leftOrder - rightOrder;
+            });
         const planningProcesses = configuredProcesses.length
             ? configuredProcesses
             : PLANNING_CLASSIFICATION_PROCESS_KEYS.map((key, index) => ({
@@ -14082,9 +14144,26 @@ app.get('/api/planificacion/lanzamiento', async (req, res) => {
                 order: index + 1
             }));
 
-        const items = result.rows
+        const orderCodes = result.rows.map((row) => row.order_code).filter(Boolean);
+        const materialHistoryResult = orderCodes.length
+            ? await pgQuery(
+                `SELECT id::text, order_code, process_key, sap_item_code, material_name, material_family,
+                        quantity, unit_code, reason, sap_status, requested_by, requested_at
+                   FROM production_material_consumption_requests
+                  WHERE order_code = ANY($1::text[])
+                  ORDER BY requested_at DESC`,
+                [orderCodes]
+            )
+            : { rows: [] };
+        const materialHistoryByOrder = new Map();
+        (materialHistoryResult.rows || []).forEach((row) => {
+            if (!materialHistoryByOrder.has(row.order_code)) materialHistoryByOrder.set(row.order_code, []);
+            materialHistoryByOrder.get(row.order_code).push(row);
+        });
+
+        const items = (await Promise.all(result.rows
             .filter((row) => !isCompletedOrderRecord(row))
-            .map((row) => {
+            .map(async (row) => {
                 const raw = row.raw_data || {};
                 const planning = getOrderPlanningControl(raw);
                 const snapshot = inferPlanningOrderSnapshot(row);
@@ -14125,6 +14204,10 @@ app.get('/api/planificacion/lanzamiento', async (req, res) => {
                 if (!snapshot.materialName && processKeys.some((key) => ['impresion', 'barnizado', 'laminado', 'rebobinado', 'empaque'].includes(key))) missing.push('Sustrato');
                 if (!snapshot.dieCode && processKeys.some((key) => ['preprensa', 'planchas', 'impresion', 'troquelado', 'estampado', 'embosado'].includes(key))) missing.push('Troquel / plancha');
                 if (processKeys.includes('impresion') && tintCount <= 0) missing.push('Tintas');
+                const attachments = await collectPlanningOrderAttachments(row);
+                const artwork = attachments.find(isPlanningArtworkAttachment) || attachments.find((item) => item.isImage) || null;
+                const materialChecklist = collectPlanningMaterialChecklist(row, processKeys, materialHistoryByOrder.get(row.order_code) || []);
+                const pendingMaterials = materialChecklist.filter((material) => !material.checked).length;
 
                 return {
                     orderCode: row.order_code,
@@ -14159,11 +14242,15 @@ app.get('/api/planificacion/lanzamiento', async (req, res) => {
                     printSummary: pickFirstValue(lineSnapshot.notes?.printSummary, lineRaw['INFORMACION IMPRESION COTIZACION | MOSTRAR'], lineRaw['INFORMACION IMPRESION COTIZACION | CALCULO']),
                     createOrderValidation: pickFirstValue(lineSnapshot.validations?.crearOrden, lineRaw['ANALISIS CAMPOS CREAR ORDEN']),
                     observations: pickFirstValue(lineSnapshot.notes?.observations, lineRaw['OBSERVACIONES SOLICITUD']),
-                    attachmentCount: Array.isArray(raw.attachments) ? raw.attachments.length : 0,
+                    attachments,
+                    artwork,
+                    attachmentCount: attachments.length,
+                    materialChecklist,
+                    pendingMaterials,
                     returnReason: planning.returnReason || '',
-                    missingItems: missing
+                    missingItems: pendingMaterials ? [...missing, 'Materiales pendientes'] : missing
                 };
-            })
+            })))
             .filter((item) => item.planningStatus === 'PENDIENTE_PLANIFICACION')
             .sort((a, b) => {
                 const aTime = a.promisedDeliveryDate ? new Date(a.promisedDeliveryDate).getTime() : Number.MAX_SAFE_INTEGER;
@@ -14956,6 +15043,116 @@ function collectOrderConsumptionMaterials(orderRow, processKey = 'impresion') {
     const calcResult = raw.calculation_result || raw.result || raw.calculationResult || {};
     (Array.isArray(calcResult.finishes?.items) ? calcResult.finishes.items : []).forEach(addFinish);
     return materials.filter((item) => processAllowsConsumption(processKey, item.materialFamily));
+}
+
+function planningMaterialApprovalKey(item = {}) {
+    return [
+        sanitizeAdminUserText(item.kind || item.sourceType || 'base'),
+        sanitizeAdminUserText(item.processKey || item.process_key || ''),
+        sanitizeAdminUserText(item.sapItemCode || item.sap_item_code || item.materialCode || ''),
+        sanitizeAdminUserText(item.materialName || item.material_name || ''),
+        sanitizeAdminUserText(item.materialFamily || item.material_family || '')
+    ].join('|');
+}
+
+function getPlanningMaterialApprovals(rawData = {}) {
+    const control = getOrderPlanningControl(rawData);
+    const approvals = rawData?.planning_control?.materialApprovals
+        || rawData?.planningControl?.materialApprovals
+        || control.materialApprovals
+        || {};
+    return approvals && typeof approvals === 'object' && !Array.isArray(approvals) ? approvals : {};
+}
+
+function collectPlanningMaterialChecklist(orderRow = {}, processKeys = [], historyRows = []) {
+    const raw = orderRow.raw_data || {};
+    const approvals = getPlanningMaterialApprovals(raw);
+    const rows = [];
+    const addRow = (item = {}, sourceType = 'base') => {
+        const normalized = {
+            sourceType,
+            processKey: canonicalProductionFlowKey(item.processKey || item.process_key || ''),
+            sapItemCode: sanitizeAdminUserText(item.sapItemCode || item.sap_item_code || item.materialCode || ''),
+            materialName: sanitizeAdminUserText(item.materialName || item.material_name || item.itemName || ''),
+            materialFamily: normalizeConsumptionFamily(item.materialFamily || item.material_family || item.family || item.materialName || item.material_name),
+            plannedQuantity: Number(item.plannedQuantity || item.quantity || 0),
+            unitCode: sanitizeAdminUserText(item.unitCode || item.unit_code || ''),
+            reason: sanitizeAdminUserText(item.reason || ''),
+            requestedBy: sanitizeAdminUserText(item.requestedBy || item.requested_by || ''),
+            requestedAt: item.requestedAt || item.requested_at || null,
+            sapStatus: sanitizeAdminUserText(item.sapStatus || item.sap_status || ''),
+            source: sanitizeAdminUserText(item.source || '')
+        };
+        if (!normalized.materialName && !normalized.sapItemCode) return;
+        normalized.approvalKey = planningMaterialApprovalKey(normalized);
+        const approval = approvals[normalized.approvalKey] || {};
+        normalized.checked = approval.checked === true;
+        normalized.checkedAt = approval.checkedAt || null;
+        normalized.checkedBy = approval.checkedBy || '';
+        if (rows.some((row) => row.approvalKey === normalized.approvalKey)) return;
+        rows.push(normalized);
+    };
+
+    processKeys.forEach((processKey) => {
+        collectOrderConsumptionMaterials(orderRow, processKey).forEach((material) => addRow({ ...material, processKey }, 'base'));
+    });
+    historyRows.forEach((row) => addRow(row, 'registro'));
+    return rows;
+}
+
+function normalizePlanningAttachment(item = {}, fallback = {}) {
+    const id = item.id ? String(item.id) : '';
+    const label = sanitizeAdminUserText(item.file_name || item.fileName || item.label || item.key || fallback.label || 'Adjunto');
+    const mimeType = sanitizeAdminUserText(item.mime_type || item.mimeType || '');
+    const value = sanitizeAdminUserText(item.value || item.url || '');
+    return {
+        id,
+        label,
+        value,
+        mimeType,
+        notes: sanitizeAdminUserText(item.notes || ''),
+        uploadedBy: sanitizeAdminUserText(item.uploaded_by || item.uploadedBy || ''),
+        createdAt: item.created_at || item.createdAt || null,
+        sizeBytes: Number(item.size_bytes || item.sizeBytes || 0),
+        downloadUrl: id ? `/api/adjuntos/${encodeURIComponent(id)}/download` : value,
+        isImage: mimeType.startsWith('image/') || /^data:image\//i.test(value)
+    };
+}
+
+function isPlanningArtworkAttachment(item = {}) {
+    const text = [
+        item.notes,
+        item.label,
+        item.value,
+        item.mimeType
+    ].map((value) => String(value || '').toLowerCase()).join(' ');
+    return text.includes('arte_orden') || text.includes('arte') || text.includes('artwork');
+}
+
+async function collectPlanningOrderAttachments(orderRow = {}) {
+    const raw = orderRow.raw_data || {};
+    const quoteCode = orderRow.quote_code || raw.source_quote_code || raw.quote_snapshot?.quote_code || '';
+    const lineCodes = new Set([orderRow.line_code, raw.source_line_code].filter(Boolean));
+    (Array.isArray(raw.related_lines) ? raw.related_lines : []).forEach((line) => {
+        const code = line?.summary?.line_code || line?.detail?.lineCode;
+        if (code) lineCodes.add(code);
+    });
+
+    const attachments = [];
+    (Array.isArray(raw.attachments) ? raw.attachments : []).forEach((item) => {
+        attachments.push(normalizePlanningAttachment(item));
+    });
+    for (const lineCode of lineCodes) {
+        const stored = quoteCode && lineCode ? await getStoredAttachments(quoteCode, lineCode) : [];
+        stored.forEach((item) => attachments.push(normalizePlanningAttachment(item, { label: lineCode })));
+    }
+    const seen = new Set();
+    return attachments.filter((item) => {
+        const key = item.id || `${item.label}|${item.value}|${item.createdAt || ''}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
 }
 
 app.get('/api/reporterias/gerencial', async (req, res) => {
