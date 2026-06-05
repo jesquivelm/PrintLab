@@ -103,3 +103,48 @@ CREATE TABLE IF NOT EXISTS production_waste_logs (
 CREATE INDEX IF NOT EXISTS idx_production_order_routes_order ON production_order_routes(order_code, sequence_order);
 CREATE INDEX IF NOT EXISTS idx_production_route_events_route ON production_route_events(route_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_production_waste_logs_route ON production_waste_logs(route_id, created_at DESC);
+
+-- ═══════════════════════════════════════════════════════════════════
+-- FASE 1: CALENDARIO DE RECURSOS (Finite Capacity Planning)
+-- ═══════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS resource_calendars (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    calendar_name TEXT NOT NULL,
+    description TEXT,
+    resource_type TEXT NOT NULL DEFAULT 'machine',
+    resource_id UUID,
+    resource_name TEXT NOT NULL,
+    timezone TEXT NOT NULL DEFAULT 'America/Costa_Rica',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS resource_shifts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    calendar_id UUID NOT NULL REFERENCES resource_calendars(id) ON DELETE CASCADE,
+    shift_name TEXT NOT NULL,
+    day_of_week INTEGER NOT NULL CHECK (day_of_week >= 0 AND day_of_week <= 6),
+    start_hour NUMERIC(5,2) NOT NULL CHECK (start_hour >= 0 AND start_hour < 24),
+    end_hour NUMERIC(5,2) NOT NULL CHECK (end_hour > 0 AND end_hour <= 24),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (calendar_id, shift_name, day_of_week)
+);
+
+CREATE TABLE IF NOT EXISTS resource_calendar_exceptions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    calendar_id UUID NOT NULL REFERENCES resource_calendars(id) ON DELETE CASCADE,
+    exception_date DATE NOT NULL,
+    exception_type TEXT NOT NULL DEFAULT 'closure',
+    description TEXT,
+    override_start_hour NUMERIC(5,2),
+    override_end_hour NUMERIC(5,2),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (calendar_id, exception_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_resource_shifts_calendar ON resource_shifts(calendar_id, day_of_week);
+CREATE INDEX IF NOT EXISTS idx_resource_calendar_exceptions_calendar ON resource_calendar_exceptions(calendar_id, exception_date);

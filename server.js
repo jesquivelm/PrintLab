@@ -15105,6 +15105,257 @@ app.get('/api/planificacion/resumen', async (req, res) => {
     }
 });
 
+// ═══════════════════════════════════════════════════════════════════
+// CALENDARIO DE RECURSOS — Finite Capacity Planning
+// ═══════════════════════════════════════════════════════════════════
+
+app.get('/api/planificacion/calendarios', async (req, res) => {
+    try {
+        const result = await pgQuery(`
+            SELECT c.*,
+                   COALESCE(s.shift_count, 0)::int AS shift_count,
+                   COALESCE(e.exception_count, 0)::int AS exception_count
+            FROM resource_calendars c
+            LEFT JOIN (
+                SELECT calendar_id, COUNT(DISTINCT shift_name)::int AS shift_count
+                FROM resource_shifts WHERE is_active = TRUE
+                GROUP BY calendar_id
+            ) s ON s.calendar_id = c.id
+            LEFT JOIN (
+                SELECT calendar_id, COUNT(*)::int AS exception_count
+                FROM resource_calendar_exceptions WHERE is_active = TRUE
+                GROUP BY calendar_id
+            ) e ON e.calendar_id = c.id
+            ORDER BY c.calendar_name
+        `);
+        res.json({ ok: true, data: result.rows });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible cargar los calendarios.' });
+    }
+});
+
+app.get('/api/planificacion/calendarios/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const [calResult, shiftsResult, exceptionsResult] = await Promise.all([
+            pgQuery(`SELECT * FROM resource_calendars WHERE id = $1`, [id]),
+            pgQuery(`SELECT * FROM resource_shifts WHERE calendar_id = $1 ORDER BY day_of_week, start_hour`, [id]),
+            pgQuery(`SELECT * FROM resource_calendar_exceptions WHERE calendar_id = $1 ORDER BY exception_date`, [id])
+        ]);
+        if (!calResult.rows.length) return res.status(404).json({ ok: false, error: 'Calendario no encontrado.' });
+        res.json({
+            ok: true,
+            data: {
+                ...calResult.rows[0],
+                shifts: shiftsResult.rows,
+                exceptions: exceptionsResult.rows
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible cargar el calendario.' });
+    }
+});
+
+app.post('/api/planificacion/calendarios', async (req, res) => {
+    try {
+        const { calendar_name, description, resource_type, resource_id, resource_name, timezone } = req.body;
+        if (!calendar_name || !resource_name) {
+            return res.status(400).json({ ok: false, error: 'calendar_name y resource_name son requeridos.' });
+        }
+        const result = await pgQuery(`
+            INSERT INTO resource_calendars (calendar_name, description, resource_type, resource_id, resource_name, timezone)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING *
+        `, [calendar_name, description || '', resource_type || 'machine', resource_id || null, resource_name, timezone || 'America/Costa_Rica']);
+        res.json({ ok: true, data: result.rows[0] });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible crear el calendario.' });
+    }
+});
+
+app.put('/api/planificacion/calendarios/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { calendar_name, description, resource_type, resource_id, resource_name, timezone, is_active } = req.body;
+        const result = await pgQuery(`
+            UPDATE resource_calendars
+            SET calendar_name = COALESCE($2, calendar_name),
+                description = COALESCE($3, description),
+                resource_type = COALESCE($4, resource_type),
+                resource_id = COALESCE($5, resource_id),
+                resource_name = COALESCE($6, resource_name),
+                timezone = COALESCE($7, timezone),
+                is_active = COALESCE($8, is_active),
+                updated_at = NOW()
+            WHERE id = $1
+            RETURNING *
+        `, [id, calendar_name, description, resource_type, resource_id, resource_name, timezone, is_active]);
+        if (!result.rows.length) return res.status(404).json({ ok: false, error: 'Calendario no encontrado.' });
+        res.json({ ok: true, data: result.rows[0] });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible actualizar el calendario.' });
+    }
+});
+
+app.delete('/api/planificacion/calendarios/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await pgQuery(`DELETE FROM resource_calendars WHERE id = $1 RETURNING id`, [id]);
+        if (!result.rows.length) return res.status(404).json({ ok: false, error: 'Calendario no encontrado.' });
+        res.json({ ok: true });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible eliminar el calendario.' });
+    }
+});
+
+app.post('/api/planificacion/calendarios/:id/turnos', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { shift_name, day_of_week, start_hour, end_hour } = req.body;
+        if (!shift_name || day_of_week === undefined || start_hour === undefined || end_hour === undefined) {
+            return res.status(400).json({ ok: false, error: 'shift_name, day_of_week, start_hour y end_hour son requeridos.' });
+        }
+        const result = await pgQuery(`
+            INSERT INTO resource_shifts (calendar_id, shift_name, day_of_week, start_hour, end_hour)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (calendar_id, shift_name, day_of_week) DO UPDATE
+            SET start_hour = EXCLUDED.start_hour, end_hour = EXCLUDED.end_hour, is_active = TRUE
+            RETURNING *
+        `, [id, shift_name, day_of_week, start_hour, end_hour]);
+        res.json({ ok: true, data: result.rows[0] });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible crear el turno.' });
+    }
+});
+
+app.put('/api/planificacion/calendarios/:id/turnos/:shiftId', async (req, res) => {
+    try {
+        const { shiftId } = req.params;
+        const { shift_name, day_of_week, start_hour, end_hour, is_active } = req.body;
+        const result = await pgQuery(`
+            UPDATE resource_shifts
+            SET shift_name = COALESCE($2, shift_name),
+                day_of_week = COALESCE($3, day_of_week),
+                start_hour = COALESCE($4, start_hour),
+                end_hour = COALESCE($5, end_hour),
+                is_active = COALESCE($6, is_active)
+            WHERE id = $1
+            RETURNING *
+        `, [shiftId, shift_name, day_of_week, start_hour, end_hour, is_active]);
+        if (!result.rows.length) return res.status(404).json({ ok: false, error: 'Turno no encontrado.' });
+        res.json({ ok: true, data: result.rows[0] });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible actualizar el turno.' });
+    }
+});
+
+app.delete('/api/planificacion/calendarios/:id/turnos/:shiftId', async (req, res) => {
+    try {
+        const { shiftId } = req.params;
+        const result = await pgQuery(`DELETE FROM resource_shifts WHERE id = $1 RETURNING id`, [shiftId]);
+        if (!result.rows.length) return res.status(404).json({ ok: false, error: 'Turno no encontrado.' });
+        res.json({ ok: true });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible eliminar el turno.' });
+    }
+});
+
+app.post('/api/planificacion/calendarios/:id/excepciones', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { exception_date, exception_type, description, override_start_hour, override_end_hour } = req.body;
+        if (!exception_date) {
+            return res.status(400).json({ ok: false, error: 'exception_date es requerido.' });
+        }
+        const result = await pgQuery(`
+            INSERT INTO resource_calendar_exceptions (calendar_id, exception_date, exception_type, description, override_start_hour, override_end_hour)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (calendar_id, exception_date) DO UPDATE
+            SET exception_type = EXCLUDED.exception_type,
+                description = EXCLUDED.description,
+                override_start_hour = EXCLUDED.override_start_hour,
+                override_end_hour = EXCLUDED.override_end_hour,
+                is_active = TRUE
+            RETURNING *
+        `, [id, exception_date, exception_type || 'closure', description || '', override_start_hour || null, override_end_hour || null]);
+        res.json({ ok: true, data: result.rows[0] });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible crear la excepción.' });
+    }
+});
+
+app.put('/api/planificacion/calendarios/:id/excepciones/:exceptionId', async (req, res) => {
+    try {
+        const { exceptionId } = req.params;
+        const { exception_date, exception_type, description, override_start_hour, override_end_hour, is_active } = req.body;
+        const result = await pgQuery(`
+            UPDATE resource_calendar_exceptions
+            SET exception_date = COALESCE($2, exception_date),
+                exception_type = COALESCE($3, exception_type),
+                description = COALESCE($4, description),
+                override_start_hour = COALESCE($5, override_start_hour),
+                override_end_hour = COALESCE($6, override_end_hour),
+                is_active = COALESCE($7, is_active)
+            WHERE id = $1
+            RETURNING *
+        `, [exceptionId, exception_date, exception_type, description, override_start_hour, override_end_hour, is_active]);
+        if (!result.rows.length) return res.status(404).json({ ok: false, error: 'Excepción no encontrada.' });
+        res.json({ ok: true, data: result.rows[0] });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible actualizar la excepción.' });
+    }
+});
+
+app.delete('/api/planificacion/calendarios/:id/excepciones/:exceptionId', async (req, res) => {
+    try {
+        const { exceptionId } = req.params;
+        const result = await pgQuery(`DELETE FROM resource_calendar_exceptions WHERE id = $1 RETURNING id`, [exceptionId]);
+        if (!result.rows.length) return res.status(404).json({ ok: false, error: 'Excepción no encontrada.' });
+        res.json({ ok: true });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible eliminar la excepción.' });
+    }
+});
+
+app.get('/api/planificacion/calendarios/:id/capacidad', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { desde, hasta } = req.query;
+        const fromDate = desde || new Date().toISOString().slice(0, 10);
+        const toDate = hasta || new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+        const [shiftsResult, exceptionsResult] = await Promise.all([
+            pgQuery(`SELECT * FROM resource_shifts WHERE calendar_id = $1 AND is_active = TRUE`, [id]),
+            pgQuery(`SELECT * FROM resource_calendar_exceptions WHERE calendar_id = $1 AND exception_date BETWEEN $2 AND $3 AND is_active = TRUE`, [id, fromDate, toDate])
+        ]);
+        const shifts = shiftsResult.rows;
+        const exceptions = exceptionsResult.rows;
+        const capacityByDate = {};
+        const current = new Date(fromDate);
+        const end = new Date(toDate);
+        while (current <= end) {
+            const dateStr = current.toISOString().slice(0, 10);
+            const dow = current.getDay();
+            const exception = exceptions.find(e => e.exception_date === dateStr);
+            if (exception && exception.exception_type === 'closure') {
+                capacityByDate[dateStr] = { hours: 0, type: 'closure', description: exception.description };
+            } else if (exception && exception.override_start_hour !== null && exception.override_end_hour !== null) {
+                const hours = Math.max(0, exception.override_end_hour - exception.override_start_hour);
+                capacityByDate[dateStr] = { hours, type: 'override', description: exception.description };
+            } else {
+                const dayShifts = shifts.filter(s => s.day_of_week === dow);
+                const totalHours = dayShifts.reduce((sum, s) => sum + Math.max(0, s.end_hour - s.start_hour), 0);
+                capacityByDate[dateStr] = { hours: totalHours, type: 'regular', shifts: dayShifts.length };
+            }
+            current.setDate(current.getDate() + 1);
+        }
+        const totalHours = Object.values(capacityByDate).reduce((sum, d) => sum + d.hours, 0);
+        const workDays = Object.values(capacityByDate).filter(d => d.hours > 0).length;
+        res.json({ ok: true, data: { calendarId: id, fromDate, toDate, totalHours, workDays, daily: capacityByDate } });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible calcular la capacidad.' });
+    }
+});
+
 app.get('/api/mes/motivos-paro', async (req, res) => {
     try {
         const result = await pgQuery(`
