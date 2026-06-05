@@ -155,6 +155,43 @@ function populateDeliverySelects(config) {
     }
 }
 
+let cachedClientContacts = [];
+
+async function loadClientContacts(partnerCode) {
+    if (!partnerCode) return [];
+    try {
+        const response = await fetch(`/api/socios/${encodeURIComponent(partnerCode)}/contactos`, { headers: sessionHeader() });
+        if (!response.ok) return [];
+        const data = await response.json();
+        return Array.isArray(data.contactos) ? data.contactos : [];
+    } catch (_) {
+        return [];
+    }
+}
+
+function populateSamplesContactDropdown(contacts) {
+    cachedClientContacts = contacts;
+    if (!samplesApprovalInput) return;
+    const currentVal = samplesApprovalInput.value;
+    const options = contacts.map(c => {
+        const name = c.contact_name || [c.first_name, c.last_name].filter(Boolean).join(' ') || '';
+        return `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`;
+    }).join('');
+    samplesApprovalInput.innerHTML = '<option value=""></option>' + options;
+    if (currentVal) samplesApprovalInput.value = currentVal;
+}
+
+function fillSamplesContactFields(contactName) {
+    if (!contactName) return;
+    const contact = cachedClientContacts.find(c => {
+        const name = c.contact_name || [c.first_name, c.last_name].filter(Boolean).join(' ');
+        return name === contactName;
+    });
+    if (!contact) return;
+    if (samplesPhoneInput && !samplesPhoneInput.value) samplesPhoneInput.value = contact.phone || contact.mobile || '';
+    if (samplesEmailInput && !samplesEmailInput.value) samplesEmailInput.value = contact.email || '';
+}
+
 function formatRouteStatus(value) {
     const normalized = String(value || '').trim().toUpperCase();
     const labels = {
@@ -2720,6 +2757,10 @@ async function loadOrder() {
     const quote = raw.quote_snapshot || {};
     const line = raw.line_summary || {};
     const detail = raw.line_snapshot || {};
+    const partnerCode = pickFirst(raw.customer_code, quote.customer_code);
+    if (partnerCode) {
+        loadClientContacts(partnerCode).then(populateSamplesContactDropdown).catch(function () {});
+    }
 }
 
 samplesToggleButton?.addEventListener('click', () => {
@@ -2728,6 +2769,7 @@ samplesToggleButton?.addEventListener('click', () => {
     if (opening) populateDeliverySelects(currentConfig);
 });
 samplesForm?.addEventListener('submit', (event) => event.preventDefault());
+samplesApprovalInput?.addEventListener('change', () => fillSamplesContactFields(samplesApprovalInput.value));
 deliveryToggleButton?.addEventListener('click', () => {
     const opening = deliveryForm.hidden;
     toggleSection(deliverySummary, deliveryForm, deliveryToggleButton, opening);
