@@ -379,6 +379,16 @@ function showError(msg) {
   document.getElementById('error-bar').style.display = 'flex';
 }
 
+function showCenterMessage(msg) {
+  const el = document.getElementById('error-msg');
+  const bar = document.getElementById('error-bar');
+  if (el && bar) {
+    el.textContent = msg;
+    bar.style.display = 'flex';
+    setTimeout(() => { bar.style.display = 'none'; }, 5000);
+  }
+}
+
 // ── DETECCIÓN DE CONFLICTOS ────────────────────────────────
 
 // Detecta todos los conflictos actuales en el tablero
@@ -772,6 +782,7 @@ function render() {
       <button class="btn conflict-toggle-btn ${allConflicts.length ? 'has-conflicts' : ''}" onclick="toggleConflicts()">Conflictos (${allConflicts.length})</button>
       <button class="btn" onclick="resolveAllConflicts()">Resolver</button>
       <button class="btn" onclick="autoSeq()">Optimizar ↺</button>
+      <button class="btn primary" onclick="autoSeqCapacidad()" title="Re-secuenciar usando capacidad finita (calendarios + cola real)">⚡ Capacidad Finita</button>
       <button class="btn" onclick="loadFromAPI()">Actualizar ↻</button>
     </div>
   </div>
@@ -1553,6 +1564,39 @@ function autoSeq() {
       apiPatch(`${API}/gantt/mover`, { id_ruta: o.id_ruta, inicio: o.inicio })
     )
   ).then(() => loadFromAPI()).catch(e => showError('Error al optimizar: ' + e.message));
+}
+
+async function autoSeqCapacidad() {
+  try {
+    const res = await fetch(`${API}/gantt-capacidad`);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Error al calcular capacidad finita.');
+    const positions = data.data.positions || {};
+    let updatedCount = 0;
+    orders.forEach(op => {
+      const pos = positions[op.id_ruta];
+      if (pos) {
+        op.inicio = pos.inicio;
+        op.dur = pos.dur;
+        op.schedule_mode = 'capacity';
+        updatedCount++;
+      }
+    });
+    render();
+    if (data.data.bottlenecks && data.data.bottlenecks.length) {
+      const bnNames = data.data.bottlenecks.map(b => `${b.machineName} (${b.utilizationPct}%)`).join(', ');
+      showCenterMessage(`⚠ Cuellos de botella detectados: ${bnNames}`);
+    } else {
+      showCenterMessage(`✓ ${updatedCount} rutas re-secuenciadas por capacidad finita.`);
+    }
+    Promise.all(
+      orders.map(o =>
+        apiPatch(`${API}/gantt/mover`, { id_ruta: o.id_ruta, inicio: o.inicio })
+      )
+    ).then(() => loadFromAPI()).catch(e => showError('Error al guardar: ' + e.message));
+  } catch (e) {
+    showError('Error en capacidad finita: ' + e.message);
+  }
 }
 
 // ── USUARIO ACTIVO ─────────────────────────────────────────

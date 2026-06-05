@@ -15686,6 +15686,61 @@ app.get('/api/planificacion/capacidad-finita/orden/:orderCode', async (req, res)
     }
 });
 
+app.get('/api/planificacion/gantt-capacidad', async (req, res) => {
+    try {
+        const engine = await runFiniteCapacityEngine();
+        const ganttBaseDate = new Date();
+        ganttBaseDate.setHours(6, 0, 0, 0);
+        const baseMs = ganttBaseDate.getTime();
+
+        const routePositions = new Map();
+        for (const order of engine.orders) {
+            for (const route of order.routes) {
+                if (!route.projectedStart || !route.projectedEnd) continue;
+                const startMs = new Date(route.projectedStart + 'T06:00:00').getTime();
+                const endMs = new Date(route.projectedEnd + 'T06:00:00').getTime();
+                const dayOffset = Math.floor((startMs - baseMs) / 86400000);
+                const startHourOfDay = 6;
+                const endHourOfDay = 14;
+                const inicio = dayOffset * 14 + startHourOfDay;
+                const dur = Number(route.duration_hours) || 1;
+                routePositions.set(route.routeId, {
+                    inicio: Math.round(inicio * 100) / 100,
+                    dur: Math.round(dur * 100) / 100,
+                    projectedStart: route.projectedStart,
+                    projectedEnd: route.projectedEnd,
+                    dayOffset,
+                    isBottleneck: route.isBottleneck || false,
+                    waitDays: route.waitDays || 0,
+                    schedule_mode: 'capacity'
+                });
+            }
+        }
+
+        const positions = {};
+        for (const [routeId, pos] of routePositions) {
+            positions[routeId] = pos;
+        }
+
+        res.json({
+            ok: true,
+            data: {
+                computedAt: engine.computedAt,
+                summary: engine.summary,
+                bottlenecks: engine.bottlenecks.map(b => ({
+                    machineName: b.machineName,
+                    utilizationPct: b.utilizationPct,
+                    queueDays: b.queueDays
+                })),
+                positions,
+                totalRoutes: routePositions.size
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible calcular posiciones para el Gantt.' });
+    }
+});
+
 app.get('/api/mes/motivos-paro', async (req, res) => {
     try {
         const result = await pgQuery(`
