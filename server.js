@@ -5043,6 +5043,7 @@ function buildFrontBackProductionRun(lineRow = {}, members = []) {
         outputs,
         totals: {
             quantity,
+            outputQuantity: outputs.reduce((sum, item) => sum + (parseLegacyNumber(item.quantity) || 0), 0),
             totalCost,
             unitCost: quantity > 0 ? roundCurrency(totalCost / quantity) : totalCost
         }
@@ -8961,20 +8962,56 @@ function buildProductionOrderRawData({ orderCode, quoteRow, lineRow, attachments
         front_back_group: frontBackGroup,
         grupo_frente_dorso: frontBackGroup,
         production_run: productionRun,
-        related_lines: members.map((row) => ({
-            summary: mapCalculationLine(row),
-            detail: mapFlexoCalculationDetail(row)
-        })),
+        related_lines: members.map(buildProductionOrderRelatedLine),
         attachments,
         traceability: metadata,
         totals: {
             quantity: productionRun?.totals?.quantity ?? parseLegacyNumber(lineRow?.quantity),
+            front_back_total_quantity: productionRun?.totals?.outputQuantity ?? null,
             total_feet: totalFeet,
             subtotal_cost: parseLegacyNumber(lineRow?.subtotal_cost),
             total_cost: productionRun?.totals?.totalCost ?? parseLegacyNumber(lineRow?.total_cost),
             unit_price: productionRun?.totals?.unitCost ?? parseLegacyNumber(lineRow?.unit_price)
         }
     };
+}
+
+function buildProductionOrderRelatedLine(row = {}) {
+    return {
+        summary: mapCalculationLine(row),
+        detail: mapFlexoCalculationDetail(row)
+    };
+}
+
+async function refreshFrontBackOrderRawData(rawData = {}, client = null) {
+    const group = normalizeFrontBackGroup(rawData.front_back_group || rawData.grupo_frente_dorso || rawData.production_run || {});
+    const quoteCode = pickFirstValue(rawData.source_quote_code, rawData.quote_snapshot?.quote_code);
+    if (!group || !quoteCode) return rawData;
+
+    const carrier = {
+        quote_code: quoteCode,
+        line_code: group.groupLineCode || rawData.source_line_code,
+        raw_data: { grupoFrenteDorso: group }
+    };
+    const context = await loadFrontBackGroupContext(quoteCode, carrier, client);
+    if (!context.group || !Array.isArray(context.members) || !context.members.length) return rawData;
+
+    const groupLine = context.groupLine || carrier;
+    const productionRun = buildFrontBackProductionRun(groupLine, context.members);
+    rawData.front_back_group = context.group;
+    rawData.grupo_frente_dorso = context.group;
+    rawData.related_lines = context.members.map(buildProductionOrderRelatedLine);
+    if (productionRun) {
+        rawData.production_run = productionRun;
+        rawData.totals = {
+            ...(rawData.totals || {}),
+            quantity: productionRun.totals?.quantity ?? rawData.totals?.quantity,
+            front_back_total_quantity: productionRun.totals?.outputQuantity ?? rawData.totals?.front_back_total_quantity,
+            total_cost: productionRun.totals?.totalCost ?? rawData.totals?.total_cost,
+            unit_price: productionRun.totals?.unitCost ?? rawData.totals?.unit_price
+        };
+    }
+    return rawData;
 }
 
 function getOrderPlanningControl(rawData = {}, quoteRow = null) {
@@ -13652,7 +13689,11 @@ app.get('/api/ordenes-produccion/:codigo', async (req, res) => {
         const orden = result.rows[0];
         if (orden.raw_data) {
             normalizeCalculationKeys(orden.raw_data);
-            if (!orden.raw_data.printing) {
+            const frontBackBeforeRefresh = normalizeFrontBackGroup(orden.raw_data.front_back_group || orden.raw_data.grupo_frente_dorso || orden.raw_data.production_run || {});
+            if (frontBackBeforeRefresh) {
+                await refreshFrontBackOrderRawData(orden.raw_data);
+                orden.raw_data.printing = extractPrintingData(orden.raw_data);
+            } else if (!orden.raw_data.printing) {
                 orden.raw_data.printing = extractPrintingData(orden.raw_data);
             }
             const needsContact = !orden.raw_data.contact_name && !orden.raw_data.phone && !orden.raw_data.email;

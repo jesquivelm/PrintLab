@@ -1643,20 +1643,51 @@ function frontBackSideLabel(side) {
     return String(side || '').toLowerCase() === 'dorso' ? 'DORSO' : 'FRENTE';
 }
 
-function frontBackLineData(memberInfo = {}, output = {}, order = {}) {
+function positiveValue(value) {
+    const num = Number(value);
+    return Number.isFinite(num) && num > 0 ? value : '';
+}
+
+function nonCodeName(value, lineCode) {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    return text.toLowerCase() === String(lineCode || '').trim().toLowerCase() ? '' : text;
+}
+
+function frontBackLineData(memberInfo = {}, output = {}, order = {}, fallbackDetail = {}) {
     const summary = memberInfo.summary || {};
     const detail = memberInfo.detail || {};
     const raw = detail.raw_data || {};
+    const fallbackRaw = fallbackDetail.raw_data || {};
+    const lineCode = pickFirst(output.lineCode, summary.line_code, detail.lineCode, raw['ID LINEA']);
     const quantity = Number(output.quantity || summary.quantity || detail.quantityProducts || raw['Cantidad Productos'] || order.ordered_quantity || 0);
-    const labelsPerRoll = Number(detail.labelsPerRoll || raw['CANTIDAD ETIQUETAS X ROLLO'] || 0);
+    const labelsPerRoll = Number(detail.labelsPerRoll || raw['CANTIDAD ETIQUETAS X ROLLO'] || fallbackDetail.labelsPerRoll || fallbackRaw['CANTIDAD ETIQUETAS X ROLLO'] || 0);
     const rollCount = labelsPerRoll > 0 && quantity > 0 ? Math.ceil(quantity / labelsPerRoll) : '';
-    const linearFeet = Number(detail.materialFeet || raw['GENERAL | SUSTRATO | CONSUMO PIES'] || 0);
-    const wasteFeet = Number(detail.materialFeetWaste || 0);
-    const dieCode = pickFirst(detail.dieCode, raw['GENERAL | TROQUEL | ID'], output.dieCode);
+    const linearFeet = Number(detail.materialFeet || raw['GENERAL | SUSTRATO | CONSUMO PIES'] || fallbackDetail.materialFeet || fallbackRaw['GENERAL | SUSTRATO | CONSUMO PIES'] || 0);
+    const wasteFeet = Number(detail.materialFeetWaste || fallbackDetail.materialFeetWaste || 0);
+    const dieCode = pickFirst(detail.dieCode, raw['GENERAL | TROQUEL | ID'], output.dieCode, fallbackDetail.dieCode, fallbackRaw['GENERAL | TROQUEL | ID']);
     const finishes = buildFinishTags(raw, detail, dieCode);
+    const widthInches = positiveValue(detail.widthInches) || positiveValue(raw['DIMENSIONES ETIQUETA | ANCHO']) || positiveValue(fallbackDetail.widthInches);
+    const lengthInches = positiveValue(detail.lengthInches) || positiveValue(raw['DIMENSIONES ETIQUETA | LARGO']) || positiveValue(fallbackDetail.lengthInches);
+    const productName = pickFirst(
+        nonCodeName(summary.job_name, lineCode),
+        nonCodeName(detail.jobName, lineCode),
+        nonCodeName(raw['NOMBRE TRABAJO'], lineCode),
+        nonCodeName(raw?.Estado_UI?.header?.jobName, lineCode),
+        nonCodeName(output.itemName, lineCode),
+        output.itemName,
+        lineCode,
+        'Producto'
+    );
     return {
         summary,
-        detail,
+        detail: {
+            ...detail,
+            widthInches,
+            lengthInches,
+            coreWidth: pickFirst(detail.coreWidth, raw['ANCHO CORE'], fallbackDetail.coreWidth, fallbackRaw['ANCHO CORE']),
+            coreDiameter: pickFirst(detail.coreDiameter, raw['DIAMETRO CORE'], fallbackDetail.coreDiameter, fallbackRaw['DIAMETRO CORE'])
+        },
         raw,
         quantity,
         labelsPerRoll,
@@ -1666,25 +1697,29 @@ function frontBackLineData(memberInfo = {}, output = {}, order = {}) {
         totalFeet: linearFeet + wasteFeet,
         dieCode,
         noPrint: isNoPrint(detail, raw),
-        machineName: pickFirst(detail.quotedMachine, summary.machine_name, output.machineName),
-        materialName: pickFirst(detail.materialName, summary.material_name, output.materialCode),
+        machineName: pickFirst(detail.quotedMachine, raw['CONV | MAQUINA'], raw['DIGITAL | MAQUINA'], summary.machine_name, output.machineName, fallbackDetail.quotedMachine, fallbackRaw['CONV | MAQUINA'], fallbackRaw['DIGITAL | MAQUINA']),
+        materialName: pickFirst(detail.materialName, summary.material_name, raw['GENERAL | MATERIAL'], raw['Material | Tipo Según Proceso Productivo'], output.materialCode, fallbackDetail.materialName, fallbackRaw['GENERAL | MATERIAL'], fallbackRaw['Material | Tipo Según Proceso Productivo']),
         inkConfig: buildInkConfig(detail, raw),
         finishes,
-        outputType: pickFirst(detail.outputType, raw['TIPO SALIDA']),
+        outputType: pickFirst(detail.outputType, raw['TIPO SALIDA'], fallbackDetail.outputType, fallbackRaw['TIPO SALIDA']),
         productCode: pickFirst(raw['ID PRODUCTO CLIENTE'], raw['CODIGO PRODUCTO CLIENTE'], summary.product_code, detail.productCode, output.itemCode),
-        productName: pickFirst(output.itemName, summary.job_name, detail.jobName, 'Producto')
+        productName
     };
 }
 
-function renderFrontBackProductCard({ frontBackObj, output, memberInfo, index, sourceQuoteCode, order }) {
+function renderFrontBackProductCard({ frontBackObj, output, memberInfo, index, sourceQuoteCode, order, fallbackDetail }) {
     const side = frontBackSide(frontBackObj, output, index);
     const lineCode = pickFirst(output.lineCode, memberInfo.summary?.line_code, memberInfo.detail?.lineCode);
-    const data = frontBackLineData(memberInfo, output, order);
+    const data = frontBackLineData(memberInfo, output, order, fallbackDetail);
     const dimensions = pickFirst(data.detail.widthInches, data.detail.lengthInches) ? buildDimensionsText(data.detail) : '';
-    const productRoute = data.productCode ? `/producto-documento?codigo=${encodeURIComponent(data.productCode)}` : '';
-    const repeatsProductCode = String(data.productName || '').trim().toLowerCase() === String(data.productCode || '').trim().toLowerCase();
-    const productCodeHtml = data.productCode && !repeatsProductCode
-        ? `(${productRoute ? buildOrderDataLink(productRoute, data.productCode, `Producto ${data.productCode}`) : escapeHtml(data.productCode)}) - `
+    const lineRoute = buildCalcRoute({
+        quoteCode: sourceQuoteCode,
+        lineCode,
+        productCode: data.productCode,
+        department: pickFirst(data.summary.department, data.detail.department, data.raw.DEPARTAMENTO)
+    });
+    const lineCodeHtml = lineCode
+        ? `(${buildOrderDataLink(lineRoute, lineCode, `Cálculo ${lineCode}`)}) - `
         : '';
     const feetText = data.totalFeet > 0
         ? `${parseNumber(data.linearFeet, ' ft')} + ${parseNumber(data.wasteFeet, ' ft')} = ${parseNumber(data.totalFeet, ' ft')}`
@@ -1711,7 +1746,7 @@ function renderFrontBackProductCard({ frontBackObj, output, memberInfo, index, s
                 <div class="production-product-hero">
                     <div class="production-product-hero-main">
                         <div class="production-product-hero-copy">
-                            <strong class="production-product-name">${productCodeHtml}${escapeHtml(data.productName)}${dimensions ? ` - ${escapeHtml(dimensions)}` : ''}</strong>
+                            <strong class="production-product-name">${lineCodeHtml}${escapeHtml(data.productName)}${dimensions ? ` - ${escapeHtml(dimensions)}` : ''}</strong>
                         </div>
                     </div>
                 </div>
@@ -1775,6 +1810,7 @@ function renderFrontBackLayout({ raw, frontBackObj, sourceQuoteCode, order }) {
     const layout = document.getElementById('orderFrontBackLayout');
     if (!layout) return;
     const memberData = frontBackMemberMap(raw);
+    const fallbackDetail = raw.line_snapshot || {};
     const outputs = Array.isArray(frontBackObj.outputs) ? frontBackObj.outputs : [];
     const sortedOutputs = outputs.slice().sort(function (left, right) {
         const leftSide = frontBackSide(frontBackObj, left, outputs.indexOf(left));
@@ -1790,9 +1826,21 @@ function renderFrontBackLayout({ raw, frontBackObj, sourceQuoteCode, order }) {
             memberInfo: memberData[lineCode] || { summary: {}, detail: { raw_data: {} } },
             index,
             sourceQuoteCode,
-            order
+            order,
+            fallbackDetail
         });
     }).join('');
+}
+
+function frontBackTotalQuantity(frontBackObj = {}, raw = {}) {
+    const outputs = Array.isArray(frontBackObj.outputs) ? frontBackObj.outputs : [];
+    const outputTotal = outputs.reduce((sum, item) => {
+        const qty = Number(item?.quantity || 0);
+        return sum + (Number.isFinite(qty) ? qty : 0);
+    }, 0);
+    if (outputTotal > 0) return outputTotal;
+    const stored = Number(raw.totals?.front_back_total_quantity || raw.production_run?.totals?.outputQuantity || 0);
+    return Number.isFinite(stored) ? stored : 0;
 }
 
 function renderArtwork(attachments) {
@@ -2531,12 +2579,22 @@ function renderOrder(order) {
     setText('orderStateText', stateText, 'Pendiente');
     applyOrderState(document.getElementById('orderStateText'), stateText);
     var groupPill = document.getElementById('orderGroupPill');
+    var frontBackTotalQuantityBox = document.getElementById('orderFrontBackTotalQuantity');
     if (frontBackObj) {
         groupPill.hidden = false;
         groupPill.textContent = frontBackObj.label || 'Grupo Frente/Dorso';
+        if (frontBackTotalQuantityBox) {
+            const totalQuantity = frontBackTotalQuantity(frontBackObj, raw);
+            frontBackTotalQuantityBox.hidden = totalQuantity <= 0;
+            setText('orderFrontBackTotalQuantityText', totalQuantity > 0 ? parseNumber(totalQuantity) : '', '');
+        }
     } else {
         groupPill.hidden = true;
         groupPill.textContent = '';
+        if (frontBackTotalQuantityBox) {
+            frontBackTotalQuantityBox.hidden = true;
+            setText('orderFrontBackTotalQuantityText', '', '');
+        }
     }
     setText('orderCreatedText', formatDate(order.created_at || raw.created_on, true), 'Sin fecha');
     setText('orderPromisedDateText', formatDate(promisedDateRaw), 'Pendiente');

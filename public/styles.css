@@ -15318,7 +15318,7 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 
 .production-tracking-body {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(410px, 1fr) minmax(118px, .3fr);
     gap: 0 12px;
     align-items: start;
 }
@@ -15339,13 +15339,16 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 }
 
 .production-tracking-section .production-tracking-head-row {
-    align-items: center;
-    gap: 6px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
     flex-wrap: nowrap;
 }
 
 .production-tracking-section .production-tracking-head-row .section-caption {
     margin: 0;
+    flex: 0 0 auto;
+    white-space: nowrap;
 }
 
 .production-tracking-section .production-state-pill-inline {
@@ -16277,6 +16280,10 @@ html[data-theme="dark"] .production-order-card .production-summary-line-label {
         justify-content: flex-start;
     }
 
+    .production-frontback-total-quantity {
+        justify-items: start;
+    }
+
     .production-header-seller-name {
         padding-left: 0;
     }
@@ -16340,25 +16347,54 @@ html[data-theme="dark"] .config-drag-handle:hover {
 
 .production-tracking-state-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 8px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+}
+
+.production-frontback-total-quantity {
+    display: grid;
+    justify-items: end;
+    gap: 6px;
+    padding-top: 2px;
+}
+
+.production-frontback-total-quantity[hidden] {
+    display: none;
+}
+
+.production-frontback-total-quantity .section-caption {
+    margin: 0;
+}
+
+.production-frontback-total-quantity .production-quantity-highlight {
+    font-size: 24px;
+    line-height: 1;
 }
 
 .production-group-pill {
     display: inline-flex;
     align-items: center;
-    min-height: 34px;
-    padding: 0 14px;
+    min-height: 20px;
+    padding: 0 6px;
     border-radius: 999px;
     font-weight: 700;
-    font-size: 15px;
+    font-size: 10px;
+    line-height: 20px;
     background: #ede9fe;
     color: #6d28d9;
+    white-space: nowrap;
 }
 html[data-theme="dark"] .production-group-pill {
     background: #2e1065;
     color: #c4b5fd;
+}
+
+@media (max-width: 980px) {
+    .production-tracking-section .production-tracking-head-row,
+    .production-tracking-state-row {
+        flex-wrap: wrap;
+    }
 }
 
 .production-frontback-product-cards {
