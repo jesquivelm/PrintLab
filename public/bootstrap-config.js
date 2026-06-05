@@ -107,6 +107,7 @@
         "orderStatus": "\u25C9",
         "orderFlow": "\u226B",
         "orderArtworkDelete": "\u00D7",
+        "orderEdit": "\u270F\uFE0F",
         "quantity.delete": "/assets/bootstrap/icons-quantity.delete.png",
         "dashboardFabMain": "/assets/bootstrap/icons-dashboardFabMain.png",
         "orderAttachments": "/assets/bootstrap/icons-orderAttachments.png",

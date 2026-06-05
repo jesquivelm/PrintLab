@@ -2417,7 +2417,7 @@ function renderOrder(order) {
     const contactCol = document.getElementById('orderCustomerContactCol');
     renderCustomerContact(contactCol, { customerContact, customerPhone, customerEmail });
     var contactEditBtn = contactCol?.querySelector('.production-contact-edit-btn');
-    if (contactEditBtn) renderIconButton(contactEditBtn, iconConfigFor('lineEdit', '✏️', '#64748b', 16));
+    if (contactEditBtn) renderIconButton(contactEditBtn, iconConfigFor('orderEdit', '✏️', '#64748b', 16));
     document.getElementById('orderClientInfoGrid').hidden = false;
 
     const sellerCol = document.getElementById('orderSellerCol');
@@ -2513,7 +2513,7 @@ function renderOrder(order) {
         }).join('');
         frontBackProductCards.innerHTML = cardsHtml;
         renderFrontBackLayout({ raw, frontBackObj, sourceQuoteCode, order });
-        var artEditIconConf = iconConfigFor('lineEdit', '✏️', '#64748b', 16);
+        var artEditIconConf = iconConfigFor('orderEdit', '✏️', '#64748b', 16);
         document.querySelectorAll('.production-frontback-art-edit-btn').forEach(function (btn) { renderIconButton(btn, artEditIconConf); });
     } else {
         orderLayout?.classList.remove('is-frontback-order');
