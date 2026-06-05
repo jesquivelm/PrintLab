@@ -5016,7 +5016,12 @@ function summarizeFrontBackOutputLine(lineRow = {}) {
 function buildFrontBackProductionRun(lineRow = {}, members = []) {
     const group = getFrontBackGroupFromLine(lineRow);
     if (!group) return null;
-    const outputs = members.map(summarizeFrontBackOutputLine);
+    const outputs = members.map((member, index) => {
+        const output = summarizeFrontBackOutputLine(member);
+        const lineCode = normalizeFrontBackLineCode(output.lineCode || member?.line_code);
+        output.side = sanitizeAdminUserText(group.elementRoles?.[lineCode] || (lineCode === group.backLineCode ? 'dorso' : lineCode === group.frontLineCode ? 'frente' : (index === 1 ? 'dorso' : 'frente')));
+        return output;
+    });
     const totalCost = roundCurrency(outputs.reduce((sum, item) => sum + Number(item.totalCost || 0), 0));
     const primaryOutput = outputs.find((item) => item.lineCode === group.primaryLineCode) || outputs[0] || {};
     const groupLineQuantity = normalizeFrontBackLineCode(lineRow.line_code) === group.groupLineCode
@@ -5031,6 +5036,9 @@ function buildFrontBackProductionRun(lineRow = {}, members = []) {
         commercialLineCode: group.groupLineCode,
         memberLineCodes: group.memberLineCodes,
         elementLineCodes: group.elementLineCodes,
+        frontLineCode: group.frontLineCode,
+        backLineCode: group.backLineCode,
+        elementRoles: group.elementRoles,
         warnings: group.warnings,
         outputs,
         totals: {
@@ -9062,7 +9070,17 @@ function extractPrintingData(rawData = {}) {
     const outputType = ls.outputType || lr['TIPO SALIDA'] || '';
     const frontBackRun = rawData.production_run;
     const fb = frontBackRun && frontBackRun.mode === 'frente_dorso'
-        ? { mode: 'frente_dorso', label: frontBackRun.label || 'Frente / Dorso', outputs: frontBackRun.outputs || [] }
+        ? {
+            mode: 'frente_dorso',
+            label: frontBackRun.label || 'Frente / Dorso',
+            commercialLineCode: frontBackRun.commercialLineCode || '',
+            memberLineCodes: frontBackRun.memberLineCodes || [],
+            elementLineCodes: frontBackRun.elementLineCodes || [],
+            frontLineCode: frontBackRun.frontLineCode || '',
+            backLineCode: frontBackRun.backLineCode || '',
+            elementRoles: frontBackRun.elementRoles || {},
+            outputs: frontBackRun.outputs || []
+        }
         : null;
     return {
         hasPrint: hasPrintInput,

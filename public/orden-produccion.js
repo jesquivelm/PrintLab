@@ -86,6 +86,7 @@ let currentSapConsumptionMaterials = [];
 let trackingUserPhotos = new Map();
 let artworkSectionBaseHeight = 0;
 let artworkSectionMaxHeight = 0;
+let pendingArtworkTarget = null;
 let isRecording = false;
 let mediaRecorder = null;
 let recordingChunks = [];
@@ -1205,9 +1206,11 @@ async function fileToBase64(file) {
     });
 }
 
-async function uploadArtworkFile(file) {
+async function uploadArtworkFile(file, target = null) {
     if (!file) return;
-    const { quoteCode, lineCode } = getSourceQuoteContext();
+    const sourceContext = getSourceQuoteContext();
+    const quoteCode = target?.quoteCode || sourceContext.quoteCode;
+    const lineCode = target?.lineCode || sourceContext.lineCode;
     if (!quoteCode || !lineCode) throw new Error('La orden no tiene una cotización/línea origen válida para guardar el arte.');
     if (!/^image\//i.test(file.type || '')) throw new Error('Solo se permiten imágenes para el arte de la orden.');
     statusBox.hidden = false;
@@ -1228,6 +1231,12 @@ async function uploadArtworkFile(file) {
     });
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || 'No se pudo subir el arte.');
+    if (target?.dropzone) {
+        target.dropzone.innerHTML = `<img src="${escapeHtml(previewValue)}" alt="Arte del producto" class="production-art-image">`;
+        target.dropzone.classList.remove('is-dragover');
+        statusBox.hidden = true;
+        return;
+    }
     await refreshOrderAttachments();
     if (payload.adjunto?.id) {
         currentOrderAttachments = currentOrderAttachments.map((item) =>
@@ -1602,6 +1611,188 @@ function renderOutputTypePreview(outputType) {
         return;
     }
     outputTypeImage.textContent = 'Sin imagen';
+}
+
+function outputTypePreviewHtml(outputType) {
+    const match = getOutputTypeImage(outputType);
+    const imageUrl = pickFirst(match?.image_url, match?.imageUrl);
+    return imageUrl
+        ? `<img src="${escapeHtml(imageUrl)}" alt="Tipo de salida" class="production-output-image">`
+        : 'Sin imagen';
+}
+
+function frontBackMemberMap(raw = {}) {
+    const map = {};
+    (Array.isArray(raw.related_lines) ? raw.related_lines : []).forEach(function (item) {
+        const lineCode = pickFirst(item.summary?.line_code, item.detail?.lineCode);
+        if (lineCode) map[lineCode] = item;
+    });
+    return map;
+}
+
+function frontBackSide(frontBackObj = {}, output = {}, index = 0) {
+    const lineCode = String(output.lineCode || '').trim();
+    const roles = frontBackObj.elementRoles || {};
+    const side = String(output.side || roles[lineCode] || '').trim().toLowerCase();
+    if (side === 'dorso' || lineCode === String(frontBackObj.backLineCode || '').trim()) return 'dorso';
+    if (side === 'frente' || lineCode === String(frontBackObj.frontLineCode || '').trim()) return 'frente';
+    return index === 1 ? 'dorso' : 'frente';
+}
+
+function frontBackSideLabel(side) {
+    return String(side || '').toLowerCase() === 'dorso' ? 'DORSO' : 'FRENTE';
+}
+
+function frontBackLineData(memberInfo = {}, output = {}, order = {}) {
+    const summary = memberInfo.summary || {};
+    const detail = memberInfo.detail || {};
+    const raw = detail.raw_data || {};
+    const quantity = Number(output.quantity || summary.quantity || detail.quantityProducts || raw['Cantidad Productos'] || order.ordered_quantity || 0);
+    const labelsPerRoll = Number(detail.labelsPerRoll || raw['CANTIDAD ETIQUETAS X ROLLO'] || 0);
+    const rollCount = labelsPerRoll > 0 && quantity > 0 ? Math.ceil(quantity / labelsPerRoll) : '';
+    const linearFeet = Number(detail.materialFeet || raw['GENERAL | SUSTRATO | CONSUMO PIES'] || 0);
+    const wasteFeet = Number(detail.materialFeetWaste || 0);
+    const dieCode = pickFirst(detail.dieCode, raw['GENERAL | TROQUEL | ID'], output.dieCode);
+    const finishes = buildFinishTags(raw, detail, dieCode);
+    return {
+        summary,
+        detail,
+        raw,
+        quantity,
+        labelsPerRoll,
+        rollCount,
+        linearFeet,
+        wasteFeet,
+        totalFeet: linearFeet + wasteFeet,
+        dieCode,
+        noPrint: isNoPrint(detail, raw),
+        machineName: pickFirst(detail.quotedMachine, summary.machine_name, output.machineName),
+        materialName: pickFirst(detail.materialName, summary.material_name, output.materialCode),
+        inkConfig: buildInkConfig(detail, raw),
+        finishes,
+        outputType: pickFirst(detail.outputType, raw['TIPO SALIDA']),
+        productCode: pickFirst(raw['ID PRODUCTO CLIENTE'], raw['CODIGO PRODUCTO CLIENTE'], summary.product_code, detail.productCode, output.itemCode),
+        productName: pickFirst(output.itemName, summary.job_name, detail.jobName, 'Producto')
+    };
+}
+
+function renderFrontBackProductCard({ frontBackObj, output, memberInfo, index, sourceQuoteCode, order }) {
+    const side = frontBackSide(frontBackObj, output, index);
+    const lineCode = pickFirst(output.lineCode, memberInfo.summary?.line_code, memberInfo.detail?.lineCode);
+    const data = frontBackLineData(memberInfo, output, order);
+    const dimensions = pickFirst(data.detail.widthInches, data.detail.lengthInches) ? buildDimensionsText(data.detail) : '';
+    const productRoute = data.productCode ? `/producto-documento?codigo=${encodeURIComponent(data.productCode)}` : '';
+    const repeatsProductCode = String(data.productName || '').trim().toLowerCase() === String(data.productCode || '').trim().toLowerCase();
+    const productCodeHtml = data.productCode && !repeatsProductCode
+        ? `(${productRoute ? buildOrderDataLink(productRoute, data.productCode, `Producto ${data.productCode}`) : escapeHtml(data.productCode)}) - `
+        : '';
+    const feetText = data.totalFeet > 0
+        ? `${parseNumber(data.linearFeet, ' ft')} + ${parseNumber(data.wasteFeet, ' ft')} = ${parseNumber(data.totalFeet, ' ft')}`
+        : 'Sin consumo registrado';
+    const finishHtml = data.finishes.length
+        ? data.finishes.map((item) => `<span class="production-chip">${escapeHtml(item)}</span>`).join('')
+        : '<span class="production-chip production-chip-muted">Sin acabados adicionales</span>';
+    const artHolder = pickFirst(data.raw['ARTE EN PODER DE'], '');
+    const artComments = pickFirst(data.raw['COMENTARIOS VENDEDOR'], data.raw['OBSERVACIONES VENTAS'], '');
+
+    return `
+        <section class="socios-section production-product-section production-frontback-product" data-side="${escapeHtml(side)}">
+            <div class="production-frontback-product-head">
+                <div>
+                    <div class="section-caption">Producto</div>
+                    <span class="production-frontback-side-chip">${escapeHtml(frontBackSideLabel(side))}</span>
+                </div>
+                <div class="production-frontback-quantity">
+                    <span>Cantidad</span>
+                    <strong>${escapeHtml(parseNumber(data.quantity) || 'Sin cantidad')}</strong>
+                </div>
+            </div>
+            <div class="production-summary-stack">
+                <div class="production-product-hero">
+                    <div class="production-product-hero-main">
+                        <div class="production-product-hero-copy">
+                            <strong class="production-product-name">${productCodeHtml}${escapeHtml(data.productName)}${dimensions ? ` - ${escapeHtml(dimensions)}` : ''}</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="production-subgroup">
+                    <div class="production-subgroup-title">Impresión</div>
+                    ${data.noPrint ? '<div class="production-order-alert">Sin Impresión</div>' : `
+                    <div class="production-summary-grid production-summary-grid-two">
+                        <div class="production-summary-item"><span class="production-summary-label">Máquina</span><span class="production-summary-value">${escapeHtml(data.machineName || 'Sin máquina')}</span></div>
+                        <div class="production-summary-item"><span class="production-summary-label">Sustrato</span><span class="production-summary-value">${escapeHtml(data.materialName || 'Sin sustrato')}</span></div>
+                        <div class="production-summary-item"><span class="production-summary-label">Total de Pies</span><span class="production-summary-value">${escapeHtml(feetText)}</span></div>
+                        <div class="production-summary-item"><span class="production-summary-label">Cantidad de Rollos</span><span class="production-summary-value">${escapeHtml(data.rollCount ? parseNumber(data.rollCount) : 'Por definir')}</span></div>
+                    </div>`}
+                </div>
+                <div class="production-product-pair">
+                    <div class="production-subgroup">
+                        <div class="production-subgroup-title">Tintas</div>
+                        <div class="production-summary-grid production-summary-grid-two">
+                            <div class="production-summary-item production-summary-item-full"><span class="production-summary-label">Tintas</span><span class="production-summary-value">${escapeHtml(data.noPrint ? 'Sin Impresión' : (data.inkConfig || 'Sin configuración'))}</span></div>
+                        </div>
+                    </div>
+                    <div class="production-subgroup">
+                        <div class="production-subgroup-title">Acabados</div>
+                        <div class="production-chip-list">${finishHtml}</div>
+                    </div>
+                </div>
+                <div class="production-subgroup">
+                    <div class="production-subgroup-title">Información del Rollo</div>
+                    <div class="production-summary-grid production-summary-grid-two production-roll-grid">
+                        <div class="production-roll-grid-left">
+                            <div class="production-summary-grid production-summary-grid-single">
+                                <div class="production-summary-item"><span class="production-summary-label">Ancho de Core</span><span class="production-summary-value">${escapeHtml(parseNumber(data.detail.coreWidth) || 'Sin dato')}</span></div>
+                                <div class="production-summary-item"><span class="production-summary-label">Diámetro de Core</span><span class="production-summary-value">${escapeHtml(pickFirst(data.detail.coreDiameter, 'Sin dato'))}</span></div>
+                                <div class="production-summary-item"><span class="production-summary-label">Etiquetas por Rollo</span><span class="production-summary-value">${escapeHtml(parseNumber(data.labelsPerRoll) || 'Sin dato')}</span></div>
+                            </div>
+                        </div>
+                        <div class="production-roll-grid-right">
+                            <div class="production-summary-item"><span class="production-summary-label">Tipo de Salida</span><span class="production-summary-value">${escapeHtml(data.outputType || '')}</span></div>
+                            <div class="production-output-preview">${outputTypePreviewHtml(data.outputType)}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="production-frontback-art-section">
+                    <div class="section-caption">Arte</div>
+                    <div class="production-summary-grid production-summary-grid-art">
+                        <button type="button" class="production-art-preview production-art-preview-compact production-art-dropzone production-frontback-art-dropzone" data-frontback-art-target data-quote="${escapeHtml(sourceQuoteCode)}" data-line="${escapeHtml(lineCode)}" aria-label="Adjuntar arte ${escapeHtml(frontBackSideLabel(side))}">
+                            <div class="attachments-empty">Selecciona el Arte</div>
+                        </button>
+                        <div class="field production-art-holder-field">
+                            <label>Arte en poder de</label>
+                            <input type="text" value="${escapeHtml(artHolder)}" readonly>
+                            ${artComments ? `<span class="production-frontback-art-note">${escapeHtml(artComments)}</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    `;
+}
+
+function renderFrontBackLayout({ raw, frontBackObj, sourceQuoteCode, order }) {
+    const layout = document.getElementById('orderFrontBackLayout');
+    if (!layout) return;
+    const memberData = frontBackMemberMap(raw);
+    const outputs = Array.isArray(frontBackObj.outputs) ? frontBackObj.outputs : [];
+    const sortedOutputs = outputs.slice().sort(function (left, right) {
+        const leftSide = frontBackSide(frontBackObj, left, outputs.indexOf(left));
+        const rightSide = frontBackSide(frontBackObj, right, outputs.indexOf(right));
+        if (leftSide === rightSide) return 0;
+        return leftSide === 'frente' ? -1 : 1;
+    });
+    layout.innerHTML = sortedOutputs.map(function (output, index) {
+        const lineCode = output.lineCode || '';
+        return renderFrontBackProductCard({
+            frontBackObj,
+            output,
+            memberInfo: memberData[lineCode] || { summary: {}, detail: { raw_data: {} } },
+            index,
+            sourceQuoteCode,
+            order
+        });
+    }).join('');
 }
 
 function renderArtwork(attachments) {
@@ -2140,6 +2331,21 @@ function renderOrder(order) {
         frontBackObj = (raw.production_run && raw.production_run.mode === 'frente_dorso') ? raw.production_run : null;
     }
     const pantonesCount = inkPantoneCount + (pantoneList.length > 0 ? 0 : 0);
+    const frontBackSource = raw.production_run && raw.production_run.mode === 'frente_dorso' ? raw.production_run : null;
+    const frontBackGroup = raw.front_back_group || raw.grupo_frente_dorso || {};
+    if (frontBackObj || frontBackSource) {
+        frontBackObj = {
+            ...(frontBackGroup || {}),
+            ...(frontBackSource || {}),
+            ...(frontBackObj || {}),
+            elementRoles: {
+                ...((frontBackGroup || {}).elementRoles || {}),
+                ...((frontBackSource || {}).elementRoles || {}),
+                ...((frontBackObj || {}).elementRoles || {})
+            },
+            outputs: (frontBackSource?.outputs || frontBackObj?.outputs || [])
+        };
+    }
     /* --- end printing data block --- */
 
     statusBox.hidden = true;
@@ -2181,9 +2387,17 @@ function renderOrder(order) {
     var frontBackBlock = document.getElementById('orderFrontBackBlock');
     var frontBackMembers = document.getElementById('orderFrontBackMembers');
     var frontBackProductCards = document.getElementById('orderFrontBackProductCards');
+    var frontBackLayout = document.getElementById('orderFrontBackLayout');
+    var productSection = document.querySelector('#orderContent > .production-order-layout-refined > .production-product-section');
+    var secondaryColumn = document.querySelector('#orderContent > .production-order-layout-refined > .production-order-column-secondary');
+    var orderLayout = document.querySelector('#orderContent > .production-order-layout-refined');
     var quantitySection = document.getElementById('orderQuantitySection');
     var artSection = document.getElementById('orderArtSection');
     if (frontBackObj) {
+        orderLayout?.classList.add('is-frontback-order');
+        if (productSection) productSection.hidden = true;
+        if (secondaryColumn) secondaryColumn.hidden = true;
+        if (frontBackLayout) frontBackLayout.hidden = false;
         frontBackBlock.style.display = 'none';
         frontBackProductCards.hidden = false;
         quantitySection.hidden = true;
@@ -2240,7 +2454,15 @@ function renderOrder(order) {
             '</div>';
         }).join('');
         frontBackProductCards.innerHTML = cardsHtml;
+        renderFrontBackLayout({ raw, frontBackObj, sourceQuoteCode, order });
     } else {
+        orderLayout?.classList.remove('is-frontback-order');
+        if (productSection) productSection.hidden = false;
+        if (secondaryColumn) secondaryColumn.hidden = false;
+        if (frontBackLayout) {
+            frontBackLayout.hidden = true;
+            frontBackLayout.innerHTML = '';
+        }
         frontBackBlock.style.display = 'none';
         frontBackProductCards.hidden = true;
         quantitySection.hidden = false;
@@ -2624,10 +2846,12 @@ artworkFileInput?.addEventListener('change', async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
     try {
-        await uploadArtworkFile(file);
+        await uploadArtworkFile(file, pendingArtworkTarget);
     } catch (error) {
         statusBox.hidden = false;
         statusBox.textContent = error.message;
+    } finally {
+        pendingArtworkTarget = null;
     }
 });
 artworkPreview?.addEventListener('dragover', (event) => {
@@ -2644,6 +2868,44 @@ artworkPreview?.addEventListener('drop', async (event) => {
     if (!file) return;
     try {
         await uploadArtworkFile(file);
+    } catch (error) {
+        statusBox.hidden = false;
+        statusBox.textContent = error.message;
+    }
+});
+document.addEventListener('click', (event) => {
+    const dropzone = event.target.closest('[data-frontback-art-target]');
+    if (!dropzone) return;
+    pendingArtworkTarget = {
+        quoteCode: dropzone.dataset.quote || '',
+        lineCode: dropzone.dataset.line || '',
+        dropzone
+    };
+    artworkFileInput?.click();
+});
+document.addEventListener('dragover', (event) => {
+    const dropzone = event.target.closest('[data-frontback-art-target]');
+    if (!dropzone) return;
+    event.preventDefault();
+    dropzone.classList.add('is-dragover');
+});
+document.addEventListener('dragleave', (event) => {
+    const dropzone = event.target.closest('[data-frontback-art-target]');
+    if (dropzone) dropzone.classList.remove('is-dragover');
+});
+document.addEventListener('drop', async (event) => {
+    const dropzone = event.target.closest('[data-frontback-art-target]');
+    if (!dropzone) return;
+    event.preventDefault();
+    dropzone.classList.remove('is-dragover');
+    const file = event.dataTransfer?.files?.[0];
+    if (!file) return;
+    try {
+        await uploadArtworkFile(file, {
+            quoteCode: dropzone.dataset.quote || '',
+            lineCode: dropzone.dataset.line || '',
+            dropzone
+        });
     } catch (error) {
         statusBox.hidden = false;
         statusBox.textContent = error.message;
