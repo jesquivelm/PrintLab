@@ -312,64 +312,69 @@ function isCmykInkGroup(inkRows, item) {
 }
 
 function materialChecklist(item) {
-    const materials = Array.isArray(item.materialChecklist) ? item.materialChecklist : [];
-    if (!materials.length) return '<div class="planning-queue-material-empty">No hay materiales de inventario registrados para validar.</div>';
-    const inkRows = materials.filter((material) => normalizeKey(material.materialFamily) === 'tinta' || normalizeKey(material.materialName).includes('tinta'));
-    const groupInkRows = isCmykInkGroup(inkRows, item);
-    const otherRows = materials.filter((material) => !groupInkRows || !inkRows.includes(material));
+    const materials = (Array.isArray(item.materialChecklist) ? item.materialChecklist : [])
+        .filter((material) => normalizeKey(material.materialFamily) !== 'tinta');
+    const dieCode = item.dieCode || '';
+    const dieDescription = item.dieDescription || (dieCode ? `Troquel ${dieCode}` : '');
+    const hasPlate = Boolean(item.plateMaterialId || item.plateArea);
     const rows = [];
-    if (groupInkRows) {
-        const palette = [
-            { key: 'C', token: 'cian', color: '#61dce8' },
-            { key: 'M', token: 'magenta', color: '#d84aab' },
-            { key: 'Y', token: 'amarilla', color: '#f4d735' },
-            { key: 'K', token: 'negra', color: '#050505' }
-        ];
-        const approvalKeys = inkRows.map((row) => row.approvalKey).filter(Boolean);
+    rows.push(`
+        <label class="planning-queue-material-item planning-queue-material-fixed">
+            <input type="checkbox" data-material-fixed="planchas" data-order="${escapeHtml(item.orderCode)}"${item.plateChecked ? ' checked' : ''}>
+            <span class="planning-queue-material-main">
+                <strong>Planchas</strong>
+                <span class="planning-queue-material-tag">Producción</span>
+                <span>${hasPlate ? `${escapeHtml(item.plateMaterialId || '')}${item.plateArea ? ` · ${formatNumber(item.plateArea, 1)} in²` : ''}` : 'Pendiente de confirmar'}</span>
+            </span>
+        </label>
+    `);
+    if (dieCode) {
+        const dieMeta = [
+            dieDescription,
+            item.dieShape ? `Forma: ${escapeHtml(item.dieShape)}` : '',
+            item.dieWidthIn && item.dieLengthIn ? `${formatNumber(item.dieWidthIn, 1)}"${item.dieWidthIn !== item.dieLengthIn ? ` x ${formatNumber(item.dieLengthIn, 1)}"` : '"'}` : ''
+        ].filter(Boolean).join(' · ');
         rows.push(`
-            <label class="planning-queue-material-item planning-queue-material-ink">
-                <input type="checkbox" data-material-group="tinta" data-order="${escapeHtml(item.orderCode)}" data-material-keys="${escapeHtml(encodeURIComponent(JSON.stringify(approvalKeys)))}"${inkRows.every((row) => row.checked) ? ' checked' : ''}>
+            <label class="planning-queue-material-item">
+                <input type="checkbox" data-material-toggle data-order="${escapeHtml(item.orderCode)}" data-material-key="${escapeHtml(`base||${dieCode}|troquel`)}"${item.troquelChecked ? ' checked' : ''}>
                 <span class="planning-queue-material-main">
-                    <strong>Tinta</strong>
-                    <span class="planning-queue-material-tag">Tinta</span>
-                </span>
-                <span class="planning-queue-ink-swatches">
-                    ${palette.map((ink, index) => {
-                        const row = inkRows.find((candidate) => normalizeKey(candidate.materialName).includes(ink.token)) || inkRows[index] || {};
-                        const qty = Number(row.plannedQuantity || 0) > 0 ? `${formatNumber(row.plannedQuantity, 2)} ${row.unitCode || 'kg'}` : 'Pendiente';
-                        return `<span class="planning-queue-ink-swatch"><i style="background:${ink.color}"></i><em>${escapeHtml(qty)}</em></span>`;
-                    }).join('')}
+                    <strong>Troquel: ${escapeHtml(dieCode)}</strong>
+                    <span class="planning-queue-material-tag">Troquelado</span>
+                    <span>${escapeHtml(dieMeta)}</span>
                 </span>
             </label>
         `);
     }
-    return `
-        <div class="planning-queue-material-list">
-            ${rows.join('')}
-            ${otherRows.map((material) => {
-                const qty = Number(material.plannedQuantity || 0) > 0
-                    ? `${formatNumber(material.plannedQuantity, 2)} ${material.unitCode || ''}`.trim()
-                    : 'Cantidad por definir';
-                const familyLabel = material.materialFamily || '';
-                const meta = [
-                    qty,
-                    material.sapStatus ? `SAP: ${material.sapStatus}` : '',
-                    material.requestedAt ? formatDate(material.requestedAt, true) : ''
-                ].filter(Boolean).join(' · ');
-                return `
-                    <label class="planning-queue-material-item">
-                        <input type="checkbox" data-material-toggle data-order="${escapeHtml(item.orderCode)}" data-material-key="${escapeHtml(material.approvalKey)}"${material.checked ? ' checked' : ''}>
-                    <span class="planning-queue-material-main">
-                        <strong>${escapeHtml(material.materialName || material.sapItemCode || 'Material')}</strong>
-                        ${familyLabel ? `<span class="planning-queue-material-tag">${escapeHtml(familyLabel)}</span>` : ''}
-                        <span>${escapeHtml(meta)}</span>
-                        ${material.reason ? `<span>${escapeHtml(material.reason)}</span>` : ''}
-                    </span>
-                    </label>
-                `;
-            }).join('')}
-        </div>
-    `;
+    materials.forEach((material) => {
+        const family = normalizeKey(material.materialFamily);
+        const qty = Number(material.plannedQuantity || 0) > 0
+            ? `${formatNumber(material.plannedQuantity, 2)} ${material.unitCode || ''}`.trim()
+            : 'Cantidad por definir';
+        const extra = [];
+        if (family === 'foil' && material.supplyWidthIn) {
+            extra.push(`Ancho: ${formatNumber(material.supplyWidthIn, 1)}"`);
+        }
+        const meta = [
+            ...extra,
+            qty,
+            material.sapStatus ? `SAP: ${material.sapStatus}` : '',
+            material.requestedAt ? formatDate(material.requestedAt, true) : ''
+        ].filter(Boolean).join(' · ');
+        const familyLabel = material.materialFamily || '';
+        rows.push(`
+            <label class="planning-queue-material-item">
+                <input type="checkbox" data-material-toggle data-order="${escapeHtml(item.orderCode)}" data-material-key="${escapeHtml(material.approvalKey)}">
+                <span class="planning-queue-material-main">
+                    <strong>${escapeHtml(material.materialName || material.sapItemCode || 'Material')}</strong>
+                    ${familyLabel ? `<span class="planning-queue-material-tag">${escapeHtml(familyLabel)}</span>` : ''}
+                    <span>${escapeHtml(meta)}</span>
+                    ${material.reason ? `<span>${escapeHtml(material.reason)}</span>` : ''}
+                </span>
+            </label>
+        `);
+    });
+    if (!rows.length) return '<div class="planning-queue-material-empty">No hay materiales de inventario registrados para validar.</div>';
+    return `<div class="planning-queue-material-list">${rows.join('')}</div>`;
 }
 
 function queueCard(item) {
@@ -454,6 +459,7 @@ function renderList() {
             })
             .map(queueCard).join('')
         : '<div class="planning-queue-empty">No hay órdenes pendientes en la cola de planificación.</div>';
+    requestAnimationFrame(updateLaunchButtons);
 }
 
 function askReturnReason(orderCode) {
@@ -589,6 +595,12 @@ function selectedProcessesForCard(card) {
 }
 
 listBox?.addEventListener('change', async (event) => {
+    const fixedInput = event.target.closest('[data-material-fixed]');
+    if (fixedInput) {
+        updateLaunchButtons();
+        return;
+    }
+
     const materialGroupInput = event.target.closest('[data-material-group]');
     if (materialGroupInput) {
         const card = materialGroupInput.closest('[data-order-card]');
@@ -679,12 +691,70 @@ listBox?.addEventListener('click', async (event) => {
             return;
         }
         if (action === 'launch-gantt') {
+            const card = button.closest('[data-order-card]');
+            if (card) {
+                const { unchecked } = getUncheckedMaterials(card);
+                if (unchecked.length > 0) {
+                    showMissingMaterialsModal(order, unchecked);
+                    return;
+                }
+            }
             await withButtonBusy(button, 'Enviando a Gantt...', () => updatePlanning(order, 'launch-gantt'));
         }
     } catch (error) {
         subtitleBox.textContent = error.message;
     }
 });
+
+function showMissingMaterialsModal(orderCode, missingItems) {
+    const overlay = document.createElement('div');
+    overlay.className = 'planning-queue-modal-overlay';
+    overlay.innerHTML = `
+        <div class="planning-queue-modal">
+            <h3>Materiales pendientes</h3>
+            <p>La orden <strong>${escapeHtml(orderCode)}</strong> tiene los siguientes materiales sin confirmar:</p>
+            <ul>${missingItems.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>
+            <p style="font-size:12px;color:#6b7280">Debes marcar todos los materiales antes de lanzar al Gantt.</p>
+            <button type="button" class="planning-queue-modal-close">Entendido</button>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.querySelector('.planning-queue-modal-close').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (event) => { if (event.target === overlay) overlay.remove(); });
+}
+
+function getUncheckedMaterials(card) {
+    const orderCode = card.dataset.orderCard || '';
+    const unchecked = [];
+    const allCheckboxes = card.querySelectorAll('[data-material-toggle], [data-material-group], [data-material-fixed]');
+    allCheckboxes.forEach((cb) => {
+        if (!cb.checked) {
+            if (cb.dataset.materialFixed) {
+                unchecked.push(cb.dataset.materialFixed === 'planchas' ? 'Planchas' : cb.dataset.materialFixed);
+            } else {
+                const main = cb.closest('.planning-queue-material-item')?.querySelector('.planning-queue-material-main strong');
+                unchecked.push(main?.textContent?.trim() || 'Material');
+            }
+        }
+    });
+    return { orderCode, unchecked };
+}
+
+function updateLaunchButtons() {
+    const cards = document.querySelectorAll('[data-order-card]');
+    cards.forEach((card) => {
+        const launchBtn = card.querySelector('[data-action="launch-gantt"]');
+        if (!launchBtn) return;
+        const { unchecked } = getUncheckedMaterials(card);
+        if (unchecked.length > 0) {
+            launchBtn.disabled = true;
+            launchBtn.title = `Faltan ${unchecked.length} material(es) por marcar`;
+        } else {
+            launchBtn.disabled = false;
+            launchBtn.title = 'Lanzar al Gantt';
+        }
+    });
+}
 
 searchInput?.addEventListener('input', renderList);
 openGanttButton?.addEventListener('click', () => {

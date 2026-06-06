@@ -14457,6 +14457,12 @@ app.get('/api/planificacion/lanzamiento', async (req, res) => {
                 const artwork = attachments.find(isPlanningArtworkAttachment) || attachments.find((item) => item.isImage) || null;
                 const materialChecklist = collectPlanningMaterialChecklist(row, processKeys, materialHistoryByOrder.get(row.order_code) || []);
                 const pendingMaterials = materialChecklist.filter((material) => !material.checked).length;
+                const uiState = raw.Estado_UI || lineSnapshot.uiState || {};
+                const uiPlates = uiState.plates || {};
+                const uiTroquel = uiState.troquel || {};
+                const plateMaterialId = pickFirstValue(uiPlates.inventory?.materialId, uiPlates.virgin?.materialId, '');
+                const plateArea = pickFirstMeaningfulNumber(uiPlates.laser?.area, uiPlates.virgin?.area, 0);
+                const plateChecked = materialChecklist.some((m) => m.checked && normalizeKey(m.materialFamily) === 'plancha');
 
                 return {
                     orderCode: row.order_code,
@@ -14472,7 +14478,15 @@ app.get('/api/planificacion/lanzamiento', async (req, res) => {
                     machineName: snapshot.machineName || '',
                     materialName: snapshot.materialName || '',
                     materialQuantity: plannedFeet,
-                    dieCode: snapshot.dieCode || '',
+                    dieCode: uiTroquel.dieCode || snapshot.dieCode || '',
+                    dieDescription: uiTroquel.dieDescription || '',
+                    dieShape: uiTroquel.dieShape || '',
+                    dieWidthIn: Number(uiTroquel.widthIn || 0),
+                    dieLengthIn: Number(uiTroquel.lengthIn || 0),
+                    plateMaterialId,
+                    plateArea,
+                    plateChecked,
+                    troquelChecked: materialChecklist.some((m) => m.checked && normalizeKey(m.materialFamily) === 'troquel'),
                     orderedQuantity: Number(row.ordered_quantity || 0),
                     plannedFeet,
                     tintCount,
@@ -15959,12 +15973,14 @@ function normalizeConsumptionFamily(value) {
     if (text.includes('foil') || text.includes('estamp')) return 'foil';
     if (text.includes('tinta') || text.includes('ink') || text.includes('pantone') || text.includes('cmyk')) return 'tinta';
     if (text.includes('sustrat') || text.includes('film') || text.includes('papel') || text.includes('bopp') || text.includes('pet') || text.includes('opp')) return 'sustrato';
+    if (text.includes('troquel')) return 'troquel';
     return text.trim() || 'material';
 }
 
 function processAllowsConsumption(processKey, family) {
     const process = canonicalProductionFlowKey(processKey);
     const itemFamily = normalizeConsumptionFamily(family);
+    if (itemFamily === 'troquel') return true;
     if (process === 'impresion') return ['sustrato', 'tinta', 'barniz', 'laminado', 'foil'].includes(itemFamily);
     if (process === 'barnizado') return itemFamily === 'barniz';
     if (process === 'laminado') return itemFamily === 'laminado';
@@ -16071,6 +16087,97 @@ function collectOrderConsumptionMaterials(orderRow, processKey = 'impresion') {
         unitCode: component.UnitHint,
         source: 'bom'
     }));
+
+    if (!materials.length) {
+        const uiState = raw.Estado_UI || raw.line_snapshot?.uiState || {};
+        const uiSubstrate = uiState.substrate || {};
+        if (uiSubstrate.materialId) {
+            const substrateQty = pickFirstMeaningfulNumber(
+                calcResult?.sustrato?.totalLengthFeet,
+                calcResult?.sustrato?.linealFeet,
+                raw['GENERAL | SUSTRATO | CONSUMO PIES'],
+                raw['Material | Pies Segun Proceso Productivo'],
+                raw.totals?.total_feet,
+                lineSnapshot?.materialFeet
+            );
+            addConsumptionMaterial(materials, {
+                sapItemCode: uiSubstrate.materialId,
+                materialName: pickFirstValue(raw['GENERAL | MATERIAL'], raw['Material | Tipo Segun Proceso Productivo'], uiSubstrate.materialId),
+                family: 'sustrato',
+                plannedQuantity: substrateQty,
+                unitCode: 'ft',
+                source: 'estado_ui'
+            });
+        }
+        const uiStages = Array.isArray(uiState.printStages) ? uiState.printStages : [];
+        uiStages.forEach((stage) => {
+            const inlineFinishes = stage.inlineFinishes || {};
+            Object.keys(inlineFinishes).forEach((key) => {
+                const finish = inlineFinishes[key];
+                if (!finish?.active) return;
+                const family = normalizeConsumptionFamily(key);
+                if (!['barniz', 'laminado', 'foil'].includes(family)) return;
+                let materialId = finish.materialId || '';
+                let materialName = finish.materialName || '';
+                if (!materialId && family === 'barniz') {
+                    materialId = pickFirstValue(raw['CONV | BARNIZ | MATERIAL ID'], raw['BARNIZ | MATERIAL ID'], '');
+                    materialName = pickFirstValue(raw['CONV | BARNIZ | MATERIAL'], raw['BARNIZ | MATERIAL'], 'Barniz');
+                }
+                if (!materialId) return;
+                const consumptionKg = pickFirstMeaningfulNumber(finish.materialConsumptionKg, finish.materialConsumptionLb, finish.materialBase, 0);
+                addConsumptionMaterial(materials, {
+                    sapItemCode: materialId,
+                    materialName: materialName || materialId,
+                    family,
+                    plannedQuantity: consumptionKg,
+                    unitCode: finish.materialConsumptionKg ? 'kg' : 'lb',
+                    source: 'estado_ui'
+                });
+            });
+        });
+        const uiFinishes = Array.isArray(uiState.finishes) ? uiState.finishes : [];
+        uiFinishes.forEach((finish) => {
+            if (!finish?.active) return;
+            const family = normalizeConsumptionFamily(finish.processKey || finish.slotKey || finish.key);
+            if (!['barniz', 'laminado', 'foil'].includes(family)) return;
+            let materialId = finish.materialId || '';
+            let materialName = finish.materialName || finish.description || '';
+            if (!materialId && family === 'barniz') {
+                materialId = pickFirstValue(raw['CONV | BARNIZ | MATERIAL ID'], raw['BARNIZ | MATERIAL ID'], '');
+                materialName = pickFirstValue(raw['CONV | BARNIZ | MATERIAL'], raw['BARNIZ | MATERIAL'], 'Barniz');
+            }
+            if (!materialId) return;
+            const consumptionKg = pickFirstMeaningfulNumber(finish.materialConsumptionKg, finish.materialConsumptionLb, finish.materialBase, 0);
+            const consumptionQty = family === 'laminado'
+                ? pickFirstMeaningfulNumber(calcResult?.sustrato?.totalLengthFeet, calcResult?.sustrato?.linealFeet, raw.totals?.total_feet, lineSnapshot?.materialFeet, 0)
+                : consumptionKg;
+            const consumptionUnit = family === 'laminado' ? 'ft' : (finish.materialConsumptionKg ? 'kg' : 'lb');
+            const extra = {};
+            if (family === 'foil' && finish.supplyWidthIn) {
+                extra.supplyWidthIn = finish.supplyWidthIn;
+            }
+            addConsumptionMaterial(materials, {
+                sapItemCode: materialId,
+                materialName: materialName || materialId,
+                family,
+                plannedQuantity: consumptionQty,
+                unitCode: consumptionUnit,
+                source: 'estado_ui',
+                ...extra
+            });
+        });
+        const uiTroquel = uiState.troquel || {};
+        if (uiTroquel.dieCode) {
+            addConsumptionMaterial(materials, {
+                sapItemCode: uiTroquel.dieCode,
+                materialName: pickFirstValue(uiTroquel.dieDescription, `Troquel ${uiTroquel.dieCode}`),
+                family: 'troquel',
+                plannedQuantity: 1,
+                unitCode: 'pz',
+                source: 'estado_ui'
+            });
+        }
+    }
     return materials.filter((item) => processAllowsConsumption(processKey, item.materialFamily));
 }
 
