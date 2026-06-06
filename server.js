@@ -14783,6 +14783,142 @@ app.get('/api/planificacion/lanzamiento', async (req, res) => {
     }
 });
 
+app.get('/api/planificacion/seguimiento', async (req, res) => {
+    try {
+        await ensurePlanningRoutesForLiveOrders();
+        const result = await pgQuery(`
+            SELECT order_code, quote_code, line_code, product_code, machine_name, material_code, die_code,
+                   ordered_quantity, delivered_on, raw_data, created_at
+              FROM flexo_orders
+             WHERE delivered_on IS NULL
+               AND lower(COALESCE(raw_data->>'status','')) NOT IN ('entregada','completada','cerrada','cancelada')
+               AND (
+                    LOWER(COALESCE(raw_data->'planning_control'->>'planningStatus', raw_data->'planningControl'->>'planningStatus', '')) = 'en_gantt'
+                 OR LOWER(COALESCE(raw_data->'planning_control'->>'launchedToGantt', raw_data->'planningControl'->>'launchedToGantt', '')) = 'true'
+               )
+             ORDER BY created_at DESC
+        `);
+        const costsConfig = await loadCostsConfig();
+        const items = await Promise.all((result.rows || []).map(async (row) => {
+            if (row.raw_data) normalizeCalculationKeys(row.raw_data);
+            await ensurePlanningRoutesForOrder(row, null, { costsConfig });
+            const routesResult = await pgQuery(`
+                SELECT r.id::text AS route_id,
+                       r.process_key,
+                       r.process_name,
+                       r.route_status,
+                       r.sequence_order,
+                       r.duration_hours,
+                       r.route_payload,
+                       r.actual_start_at,
+                       r.actual_end_at,
+                       COALESCE(mp.machine_name, '') AS machine_name,
+                       e.operator_name,
+                       e.notes,
+                       e.created_at AS event_created_at
+                  FROM production_order_routes r
+                  LEFT JOIN production_machine_profiles mp ON mp.id = r.machine_profile_id
+                  LEFT JOIN LATERAL (
+                      SELECT *
+                        FROM production_route_events ev
+                       WHERE ev.route_id = r.id
+                       ORDER BY ev.created_at DESC
+                       LIMIT 1
+                  ) e ON TRUE
+                 WHERE r.order_code = $1
+                 ORDER BY r.sequence_order, r.created_at
+            `, [row.order_code]);
+            const raw = row.raw_data || {};
+            const planning = getOrderPlanningControl(raw);
+            const snapshot = inferPlanningOrderSnapshot(row);
+            const lineSnapshot = raw.line_snapshot || {};
+            const lineRaw = lineSnapshot.raw_data || {};
+            const processKeys = resolveOrderTrackingProcessKeys(row, costsConfig, routesResult.rows);
+            const routeByKey = new Map();
+            routesResult.rows.forEach((route) => {
+                const key = canonicalProductionFlowKey(route.process_key || route.process_name);
+                if (!key || routeByKey.has(key)) return;
+                routeByKey.set(key, route);
+            });
+            const fixedSteps = [
+                {
+                    processKey: 'orden_creada',
+                    processName: 'Creación de Orden',
+                    routeStatus: 'COMPLETADO',
+                    startedAt: pickFirstValue(raw.traceability?.created_at, raw.traceability?.createdAt, raw['TRAZABILIDAD | FECHA'], raw.created_at, row.created_at),
+                    completedAt: pickFirstValue(raw.traceability?.created_at, raw.traceability?.createdAt, raw['TRAZABILIDAD | FECHA'], raw.created_at, row.created_at)
+                },
+                {
+                    processKey: 'solicitud_vendedor',
+                    processName: 'Solicitud de Vendedor',
+                    routeStatus: planning.salesReleased ? 'COMPLETADO' : 'PENDIENTE',
+                    startedAt: planning.salesReleasedAt || null,
+                    completedAt: planning.salesReleasedAt || null
+                },
+                {
+                    processKey: 'planeacion',
+                    processName: 'Seguimiento',
+                    routeStatus: planning.launchedToGantt ? 'COMPLETADO' : 'RUN',
+                    startedAt: planning.processSelectionUpdatedAt || planning.salesReleasedAt || null,
+                    completedAt: planning.launchedAt || null
+                }
+            ];
+            const processSteps = processKeys.map((key) => {
+                const route = routeByKey.get(key) || {};
+                return {
+                    processKey: key,
+                    processName: PRODUCTION_FLOW_LABELS[key] || route.process_name || PLANNING_PROCESS_LABELS[key] || key,
+                    routeStatus: route.route_status || 'PENDIENTE',
+                    startedAt: route.actual_start_at || null,
+                    completedAt: route.actual_end_at || null,
+                    notes: route.notes || '',
+                    planned: {
+                        minutes: Number(route.duration_hours || 0) * 60,
+                        machineName: route.machine_name || (key === 'impresion' ? snapshot.machineName : ''),
+                        quantity: Number(snapshot.baseFeet || 0),
+                        unit: 'ft'
+                    },
+                    real: {
+                        minutes: route.actual_start_at
+                            ? Math.max(0, Math.round(((route.actual_end_at ? new Date(route.actual_end_at) : new Date()).getTime() - new Date(route.actual_start_at).getTime()) / 60000))
+                            : 0,
+                        unit: 'ft'
+                    }
+                };
+            });
+            const steps = applyOrderTrackingMarks([...fixedSteps, ...processSteps], raw, () => ({ name: '', photoUrl: '' }));
+            const widthInches = Number(lineSnapshot.widthInches || lineRaw['DIMENSIONES ETIQUETA | ANCHO'] || 0);
+            const lengthInches = Number(lineSnapshot.lengthInches || lineRaw['DIMENSIONES ETIQUETA | LARGO'] || 0);
+            const tintCount = Number(lineSnapshot.tintCount || lineSnapshot.pantoneCount || lineRaw['CANTIDAD TINTAS'] || 0);
+            return {
+                orderCode: row.order_code,
+                quoteCode: row.quote_code || '',
+                lineCode: row.line_code || '',
+                customerCode: raw.customer_code || raw.quote_snapshot?.customer_code || '',
+                customerName: snapshot.customerName || '',
+                salespersonName: raw.salesperson_name || lineSnapshot.salespersonName || '',
+                jobName: snapshot.jobName || snapshot.productName || row.product_code || '',
+                productName: snapshot.productName || row.product_code || '',
+                dimensionsText: widthInches && lengthInches ? `${widthInches} x ${lengthInches} in` : '',
+                machineName: snapshot.machineName || row.machine_name || '',
+                materialName: snapshot.materialName || '',
+                orderedQuantity: Number(row.ordered_quantity || 0),
+                tintCount,
+                tintDescription: tintCount > 0 ? `${tintCount} (${lineSnapshot.cmyk || lineRaw['GENERAL | CMYK'] === true || String(lineRaw.CMYK || '').toLowerCase() === 'si' ? 'CMYK' : 'tintas'})` : '',
+                promisedDeliveryDate: planning.promisedDeliveryDate,
+                scheduledDeliveryDate: planning.scheduledDeliveryDate,
+                productionEndDate: planning.productionEndDate,
+                planningStatus: planning.planningStatus,
+                finishSummary: planningFinishLabelsFromOrder(row).join(' · '),
+                steps
+            };
+        }));
+        res.json({ ok: true, items });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible cargar seguimiento de producción.' });
+    }
+});
+
 app.get('/api/planificacion/procesos', async (req, res) => {
     try {
         const result = await pgQuery(`

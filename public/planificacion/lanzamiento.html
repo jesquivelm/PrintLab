@@ -4,7 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/theme.js"></script>
-    <title>Cola de Planificación</title>
+<title>Cola de Planificación</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/styles.css">
 <style>
 body{background:#f6f8fb}
@@ -13,6 +16,10 @@ body{background:#f6f8fb}
 .planning-queue-title{font-size:30px;font-weight:700;color:#203746}
 .planning-queue-subtitle{font-size:13px;color:#70808d;margin-top:6px}
 .planning-queue-actions{display:flex;gap:10px;flex-wrap:wrap}
+.planning-queue-tabs{display:flex;gap:8px;margin:0 0 16px;flex-wrap:wrap}
+.planning-queue-tab{padding:8px 14px;border:1px solid #dbe5ec;border-radius:999px;background:#fff;color:#577086;font-size:12px;font-family:inherit;font-weight:700;cursor:pointer}
+.planning-queue-tab.is-active{background:#203746;border-color:#203746;color:#fff}
+.planning-queue-view[hidden]{display:none!important}
 .planning-queue-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}
 .planning-queue-metric{padding:16px 18px;border:1px solid #dbe5ec;border-radius:16px;background:#fff;box-shadow:0 8px 22px rgba(18,38,54,.05)}
 .planning-queue-metric-label{font-size:11px;color:#70808d;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}
@@ -113,6 +120,111 @@ button.planning-queue-pill:hover{background:#e2eef6;color:#215a82}
 .planning-queue-return-option.is-selected{border-color:#1f8bd8;background:#eaf4fb;color:#1f5e88;font-weight:700}
 .planning-queue-return-textarea{width:100%;min-height:92px;padding:12px 14px;border-radius:14px;border:1px solid #dbe5ec;background:#fff;font-size:12px;color:#304453;resize:vertical}
 .planning-queue-return-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+.planning-tracking-view{--bg:#f4f3f0;--surface:#ffffff;--surface2:#f9f8f6;--border:#e4e2dc;--border2:#d4d2cc;--text:#1a1916;--text2:#6b6a66;--text3:#9e9c98;--accent:#1D9E75;--accent-bg:#edf7f3;--accent-border:#b3dece;--blue:#185FA5;--blue-bg:#eaf1fb;--amber:#854F0B;--amber-bg:#fef3e2;--amber-border:#f5c77e;--red:#A32D2D;--red-bg:#fceaea;--red-border:#f0b5b5;--radius:10px;--radius-lg:16px;--shadow:0 1px 3px rgba(0,0,0,.06),0 4px 12px rgba(0,0,0,.04);--shadow-md:0 2px 8px rgba(0,0,0,.08),0 8px 24px rgba(0,0,0,.06);font-family:'DM Sans',system-ui,sans-serif;font-size:13px;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:18px;overflow:hidden}
+html[data-theme="dark"] .planning-tracking-view{--bg:#161614;--surface:#1e1d1b;--surface2:#242320;--border:#2e2d2a;--border2:#3a3936;--text:#e8e6e0;--text2:#9a9892;--text3:#606060;--accent-bg:rgba(29,158,117,.12);--accent-border:rgba(29,158,117,.3);--blue-bg:rgba(24,95,165,.14);--amber-bg:rgba(133,79,11,.14);--amber-border:rgba(133,79,11,.3);--red-bg:rgba(163,45,45,.14);--red-border:rgba(163,45,45,.3)}
+.planning-tracking-summary-bar{display:flex;align-items:center;gap:0;padding:0 24px;background:var(--surface);border-bottom:1px solid var(--border);overflow-x:auto}
+.summary-stat{display:flex;flex-direction:column;padding:14px 24px 14px 0;min-width:120px}
+.summary-stat+.summary-stat{border-left:1px solid var(--border);padding-left:24px}
+.summary-stat-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;font-weight:500}
+.summary-stat-value{font-size:22px;font-weight:600;color:var(--text);line-height:1}
+.summary-stat-value.accent{color:var(--accent)}
+.summary-stat-value.red{color:var(--red)}
+.summary-stat-value.amber{color:var(--amber)}
+.tracking-toolbar{display:flex;align-items:center;gap:8px;padding:12px 24px}
+.toolbar-filters{display:flex;gap:6px;flex-wrap:wrap}
+.filter-pill{padding:5px 12px;border-radius:99px;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-size:11px;font-weight:500;font-family:inherit;cursor:pointer;transition:all .12s;display:flex;align-items:center;gap:5px}
+.filter-pill:hover{background:var(--surface2);border-color:var(--border2);color:var(--text)}
+.filter-pill.active{background:var(--text);border-color:var(--text);color:var(--surface)}
+.filter-pill .count{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:16px;padding:0 4px;border-radius:99px;background:rgba(255,255,255,.2);font-size:10px;font-weight:600}
+.filter-pill:not(.active) .count{background:var(--surface2);color:var(--text3)}
+.toolbar-right{margin-left:auto;display:flex;align-items:center;gap:6px}
+.sort-label{font-size:11px;color:var(--text3)}
+.sort-select{padding:5px 8px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:11px;font-family:inherit;cursor:pointer;outline:none}
+.planning-tracking-view .hdr-btn{padding:4px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:11px;font-family:inherit;cursor:pointer;font-weight:500;transition:background .12s,border-color .12s,color .12s;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
+.planning-tracking-view .hdr-btn:hover{background:var(--surface2);color:var(--text);border-color:var(--border2)}
+.order-list{padding:0 24px 24px;display:grid;gap:8px}
+.order-row{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;transition:border-color .15s,box-shadow .15s;box-shadow:var(--shadow)}
+.order-row:hover{border-color:var(--border2);box-shadow:var(--shadow-md)}
+.order-row.is-late{border-left:3px solid var(--red)}
+.order-row.is-risk{border-left:3px solid #F5A623}
+.order-row.is-ok{border-left:3px solid var(--accent)}
+.order-head{display:grid;grid-template-columns:200px 1fr auto auto auto;align-items:center;gap:16px;padding:14px 20px;cursor:pointer;user-select:none}
+.order-head:hover .order-toggle{opacity:1}
+.order-code{font-size:14px;font-weight:600;color:var(--text);font-family:'DM Mono',monospace;letter-spacing:.01em}
+.order-customer,.order-product{font-size:11px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.order-product{font-size:12px;color:var(--text2)}
+.order-job{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.order-eta{text-align:right;white-space:nowrap}
+.order-eta-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em}
+.order-eta-date{font-size:13px;font-weight:600;color:var(--text);margin-top:2px}
+.order-eta-date.late{color:var(--red)}
+.order-eta-date.risk{color:var(--amber)}
+.order-status-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:600;white-space:nowrap}
+.order-status-badge.ok,.order-status-badge.done{background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-border)}
+.order-status-badge.running{background:var(--blue-bg);color:var(--blue);border:1px solid rgba(24,95,165,.2)}
+.order-status-badge.risk{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+.order-status-badge.late{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.order-toggle{width:24px;height:24px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);display:flex;align-items:center;justify-content:center;opacity:.6;transition:opacity .15s,transform .15s;cursor:pointer}
+.order-row.is-open .order-toggle{transform:rotate(180deg);opacity:1}
+.order-progress-row{padding:0 20px 14px;display:flex;align-items:center;gap:10px}
+.order-progress-track{flex:1;height:6px;border-radius:99px;background:var(--surface2);border:1px solid var(--border);overflow:hidden;position:relative}
+.order-progress-fill{position:absolute;left:0;top:0;height:100%;border-radius:99px;transition:width .5s ease}
+.order-progress-fill.ok,.order-progress-fill.done{background:var(--accent)}
+.order-progress-fill.running{background:var(--blue)}
+.order-progress-fill.risk{background:#F5A623}
+.order-progress-fill.late{background:var(--red)}
+.order-progress-steps{display:flex;gap:3px;align-items:center}
+.step-pip{width:8px;height:8px;border-radius:3px;flex-shrink:0}
+.step-pip.done{background:var(--accent)}
+.step-pip.active{background:var(--blue)}
+.step-pip.pending{background:var(--border2)}
+.step-pip.late{background:var(--red)}
+.order-pct{font-size:11px;font-weight:600;color:var(--text2);min-width:28px;text-align:right}
+.order-detail{display:none;border-top:1px solid var(--border)}
+.order-row.is-open .order-detail{display:block}
+.process-timeline{padding:20px;display:grid;gap:0}
+.process-timeline-header,.process-row{display:grid;grid-template-columns:160px 1fr 100px 100px 90px;gap:12px}
+.process-timeline-header{padding:0 0 10px;border-bottom:1px solid var(--border);margin-bottom:8px}
+.pt-col-head{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+.process-row{align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
+.process-row:last-child{border-bottom:none}
+.process-name-cell{display:flex;align-items:center;gap:8px}
+.process-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.process-icon.done{background:var(--accent-bg)}
+.process-icon.active,.process-icon.running{background:var(--blue-bg)}
+.process-icon.pending{background:var(--surface2)}
+.process-icon.late{background:var(--red-bg)}
+.process-label{font-size:12px;font-weight:500;color:var(--text)}
+.process-sublabel{font-size:10px;color:var(--text3);margin-top:1px}
+.duration-cell{position:relative;height:24px;display:flex;align-items:center}
+.duration-track{position:absolute;left:0;right:0;height:6px;border-radius:99px;background:var(--surface2);border:1px solid var(--border);overflow:hidden}
+.duration-fill{height:100%;border-radius:99px;transition:width .4s ease}
+.duration-fill.done{background:var(--accent)}
+.duration-fill.active,.duration-fill.running{background:var(--blue);position:relative;overflow:hidden}
+.duration-fill.pending{background:var(--border2)}
+.duration-fill.late{background:var(--red)}
+.duration-hours{position:absolute;right:0;font-size:10px;color:var(--text3);top:-14px}
+.process-date-cell{font-size:11px;color:var(--text2)}
+.process-date-cell.late{color:var(--red);font-weight:600}
+.process-date-cell.pending{color:var(--text3)}
+.process-machine-cell{font-size:11px;color:var(--text2)}
+.ps-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:99px;font-size:10px;font-weight:600}
+.ps-badge.done{background:var(--accent-bg);color:var(--accent)}
+.ps-badge.active,.ps-badge.running{background:var(--blue-bg);color:var(--blue)}
+.ps-badge.pending{background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
+.ps-badge.late{background:var(--red-bg);color:var(--red)}
+.ps-dot{width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0}
+.order-info-bar{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:0;border-top:1px solid var(--border);background:var(--surface2)}
+.info-cell{padding:12px 20px;border-right:1px solid var(--border)}
+.info-cell:last-child{border-right:none}
+.info-cell-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.info-cell-value{font-size:12px;font-weight:500;color:var(--text)}
+.empty-state{padding:60px 24px;text-align:center;color:var(--text3)}
+.empty-state-icon{font-size:36px;margin-bottom:12px;opacity:.4}
+.empty-state-text{font-size:14px}
+.loading-state{display:flex;align-items:center;justify-content:center;gap:10px;padding:48px;color:var(--text3)}
+.spinner{width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 @media (max-width:1100px){
   .planning-queue-summary{grid-template-columns:1fr 1fr}
 }
@@ -123,6 +235,10 @@ button.planning-queue-pill:hover{background:#e2eef6;color:#215a82}
   .planning-queue-body{grid-template-columns:1fr}
   .planning-queue-card-actions{justify-content:stretch}
   .planning-queue-flip,.planning-queue-flip-inner{min-height:360px}
+  .order-head{grid-template-columns:1fr auto auto}
+  .order-job,.order-progress-row{display:none}
+  .process-timeline-header,.process-row{grid-template-columns:120px 1fr auto}
+  .process-date-cell,.pt-col-head:nth-child(3),.process-machine-cell,.pt-col-head:nth-child(4){display:none}
 }
 html[data-theme="dark"] .planning-queue-ink-swatch em{color:var(--app-text-muted)!important}
 html[data-theme="dark"] .planning-queue-ink-swatch i{border-color:rgba(255,255,255,.1)!important}
@@ -143,15 +259,53 @@ html[data-theme="dark"] .planning-queue-process-toggle.was-quoted{background:rgb
     </div>
   </section>
 
-  <section id="planningQueueSummary" class="planning-queue-summary"></section>
-
-  <section class="planning-queue-toolbar">
-    <div class="planning-queue-subtitle">Revisa información crítica antes de lanzar la orden al Gantt o devolverla a ventas.</div>
-    <input id="planningQueueSearchInput" class="planning-queue-search" type="search" placeholder="Buscar por orden, cliente o trabajo">
+  <section class="planning-queue-tabs" aria-label="Vistas de planificación">
+    <button type="button" class="planning-queue-tab is-active" data-planning-view="queue">Por entrar</button>
+    <button type="button" class="planning-queue-tab" data-planning-view="tracking">En producción</button>
   </section>
 
-  <section id="planningQueueList" class="planning-queue-list">
-    <div class="planning-queue-empty">Cargando cola de planificación...</div>
+  <section id="planningQueuePanel" class="planning-queue-view">
+    <section id="planningQueueSummary" class="planning-queue-summary"></section>
+
+    <section class="planning-queue-toolbar">
+      <div class="planning-queue-subtitle">Revisa información crítica antes de lanzar la orden al Gantt o devolverla a ventas.</div>
+      <input id="planningQueueSearchInput" class="planning-queue-search" type="search" placeholder="Buscar por orden, cliente o trabajo">
+    </section>
+
+    <section id="planningQueueList" class="planning-queue-list">
+      <div class="planning-queue-empty">Cargando cola de planificación...</div>
+    </section>
+  </section>
+
+  <section id="planningTrackingPanel" class="planning-queue-view planning-tracking-view" hidden>
+    <div class="planning-tracking-summary-bar">
+      <div class="summary-stat"><div class="summary-stat-label">Órdenes activas</div><div class="summary-stat-value" id="trackingStatTotal">—</div></div>
+      <div class="summary-stat"><div class="summary-stat-label">En proceso</div><div class="summary-stat-value accent" id="trackingStatRunning">—</div></div>
+      <div class="summary-stat"><div class="summary-stat-label">En riesgo</div><div class="summary-stat-value amber" id="trackingStatRisk">—</div></div>
+      <div class="summary-stat"><div class="summary-stat-label">Atrasadas</div><div class="summary-stat-value red" id="trackingStatLate">—</div></div>
+      <div class="summary-stat"><div class="summary-stat-label">Completadas hoy</div><div class="summary-stat-value" id="trackingStatDone">—</div></div>
+    </div>
+    <div class="tracking-toolbar">
+      <div class="toolbar-filters" id="trackingFilterPills">
+        <button type="button" class="filter-pill active" data-tracking-filter="all">Todas <span class="count" id="trackingCountAll">0</span></button>
+        <button type="button" class="filter-pill" data-tracking-filter="late">Atrasadas <span class="count" id="trackingCountLate">0</span></button>
+        <button type="button" class="filter-pill" data-tracking-filter="risk">Riesgo <span class="count" id="trackingCountRisk">0</span></button>
+        <button type="button" class="filter-pill" data-tracking-filter="running">En proceso <span class="count" id="trackingCountRunning">0</span></button>
+        <button type="button" class="filter-pill" data-tracking-filter="done">Listas <span class="count" id="trackingCountDone">0</span></button>
+      </div>
+      <div class="toolbar-right">
+        <span class="sort-label">Ordenar:</span>
+        <select class="sort-select" id="trackingSortSelect">
+          <option value="eta">Fecha entrega</option>
+          <option value="status">Estado</option>
+          <option value="progress">Progreso</option>
+          <option value="code">Código</option>
+        </select>
+      </div>
+    </div>
+    <div class="order-list" id="planningTrackingList">
+      <div class="loading-state"><div class="spinner"></div> Cargando órdenes...</div>
+    </div>
   </section>
 </main>
 <script src="/access-control.js"></script>

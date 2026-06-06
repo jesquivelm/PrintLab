@@ -3,6 +3,10 @@ const listBox = document.getElementById('planningQueueList');
 const subtitleBox = document.getElementById('planningQueueSubtitle');
 const searchInput = document.getElementById('planningQueueSearchInput');
 const openGanttButton = document.getElementById('planningQueueOpenGanttButton');
+const queuePanel = document.getElementById('planningQueuePanel');
+const trackingPanel = document.getElementById('planningTrackingPanel');
+const trackingListBox = document.getElementById('planningTrackingList');
+const trackingSortSelect = document.getElementById('trackingSortSelect');
 const RETURN_REASONS = [
     'Falta definir recursos',
     'Faltan tiempos de proceso',
@@ -29,7 +33,12 @@ const PROCESS_LABELS = {
 };
 
 let planningItems = [];
+let trackingItems = [];
 let planningConfig = { icons: {}, general: {} };
+let activePlanningView = 'queue';
+let trackingFilter = 'all';
+let trackingLoaded = false;
+const trackingOpenRows = new Set();
 
 function escapeHtml(value) {
     return String(value || '')
@@ -82,6 +91,16 @@ function formatNumber(value, decimals = 0) {
     const [intPart, decimalPart] = fixed.split('.');
     const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
     return decimalPart && Number(decimalPart) ? `${grouped}.${decimalPart}` : grouped;
+}
+
+function daysUntil(value) {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    date.setHours(0, 0, 0, 0);
+    return Math.round((date.getTime() - today.getTime()) / 86400000);
 }
 
 function normalizeKey(value) {
@@ -385,6 +404,233 @@ function renderList() {
         : '<div class="planning-queue-empty">No hay órdenes pendientes en la cola de planificación.</div>';
 }
 
+const TRACKING_PROCESS_ICONS = {
+    orden_creada: '•',
+    solicitud_vendedor: '›',
+    planeacion: '◎',
+    diseno: '✎',
+    preprensa: '■',
+    visto_bueno: '✓',
+    impresion: '▣',
+    rebobinado: '↻',
+    empaque: '□',
+    inventario_salida: '↑'
+};
+const TRACKING_HIDDEN_PROCESS_KEYS = new Set(['inventario_salida', 'planchas', 'tintas']);
+
+function visibleTrackingSteps(steps = []) {
+    return steps.filter((step) => !TRACKING_HIDDEN_PROCESS_KEYS.has(step.processKey));
+}
+
+function trackingStepStatus(step = {}) {
+    const status = normalizeKey(step.routeStatus || step.status);
+    if (status.includes('complet')) return 'done';
+    if (status === 'run' || status.includes('proceso') || status === 'setup' || status === 'paro') return 'running';
+    return 'pending';
+}
+
+function trackingOrderStatus(order = {}) {
+    const steps = visibleTrackingSteps(Array.isArray(order.steps) ? order.steps : []);
+    const productionSteps = steps.filter((step) => !['orden_creada', 'solicitud_vendedor', 'planeacion'].includes(step.processKey));
+    const late = daysUntil(order.promisedDeliveryDate || order.scheduledDeliveryDate || order.productionEndDate) < 0;
+    if (late && productionSteps.some((step) => trackingStepStatus(step) !== 'done')) return 'late';
+    if (productionSteps.length && productionSteps.every((step) => trackingStepStatus(step) === 'done')) return 'done';
+    if (productionSteps.some((step) => trackingStepStatus(step) === 'running')) return 'running';
+    const days = daysUntil(order.promisedDeliveryDate || order.scheduledDeliveryDate || order.productionEndDate);
+    if (days !== null && days <= 2) return 'risk';
+    return 'ok';
+}
+
+function trackingProgress(steps = []) {
+    const visible = visibleTrackingSteps(steps);
+    if (!visible.length) return 0;
+    const done = visible.filter((step) => trackingStepStatus(step) === 'done').length;
+    const running = visible.filter((step) => trackingStepStatus(step) === 'running').length;
+    return Math.round(((done + (running * 0.5)) / visible.length) * 100);
+}
+
+function trackingCurrentProcess(order = {}) {
+    const steps = visibleTrackingSteps(Array.isArray(order.steps) ? order.steps : []);
+    const running = steps.find((step) => trackingStepStatus(step) === 'running');
+    if (running) return running.processName || processLabel(running.processKey);
+    const pending = steps.find((step) => trackingStepStatus(step) === 'pending');
+    if (pending) return `Siguiente: ${pending.processName || processLabel(pending.processKey)}`;
+    return 'Terminada';
+}
+
+function renderTrackingProcessRow(step = {}) {
+    const status = trackingStepStatus(step);
+    const plannedMinutes = Number(step.planned?.minutes || 0);
+    const realMinutes = Number(step.real?.minutes || 0);
+    const minutes = Math.max(plannedMinutes, realMinutes);
+    const pct = status === 'done' ? 100 : status === 'running' ? 55 : 0;
+    const dateValue = step.completedAt || step.startedAt || '';
+    const dateText = dateValue ? formatDate(dateValue) : '—';
+    const machine = step.planned?.machineName || '';
+    const statusLabel = { done: 'Listo', running: 'En proceso', pending: 'Pendiente' }[status] || status;
+    const icon = TRACKING_PROCESS_ICONS[step.processKey] || '·';
+    return `
+        <div class="process-row">
+            <div class="process-name-cell">
+                <div class="process-icon ${status}">${escapeHtml(icon)}</div>
+                <div>
+                    <div class="process-label">${escapeHtml(step.processName || processLabel(step.processKey))}</div>
+                    ${step.notes ? `<div class="process-sublabel">${escapeHtml(step.notes)}</div>` : ''}
+                </div>
+            </div>
+            <div class="duration-cell">
+                <div class="duration-track"><div class="duration-fill ${status}" style="width:${pct}%"></div></div>
+                ${minutes ? `<div class="duration-hours">${escapeHtml(formatNumber(minutes / 60, 1))}h</div>` : ''}
+            </div>
+            <div class="process-date-cell${dateValue ? '' : ' pending'}">${escapeHtml(dateText)}</div>
+            <div class="process-machine-cell">${escapeHtml(machine || '—')}</div>
+            <div class="process-status-cell"><span class="ps-badge ${status}"><span class="ps-dot"></span>${escapeHtml(statusLabel)}</span></div>
+        </div>
+    `;
+}
+
+function renderTrackingOrderCard(order = {}) {
+    const steps = visibleTrackingSteps(Array.isArray(order.steps) ? order.steps : []);
+    const status = trackingOrderStatus(order);
+    const pct = trackingProgress(steps);
+    const days = daysUntil(order.promisedDeliveryDate || order.scheduledDeliveryDate || order.productionEndDate);
+    const etaDate = formatDate(order.promisedDeliveryDate || order.scheduledDeliveryDate || order.productionEndDate);
+    const etaCls = status === 'late' ? 'late' : status === 'risk' ? 'risk' : '';
+    const statusLabel = { done: 'Lista', running: 'En proceso', ok: 'En cola', risk: 'En riesgo', late: 'Atrasada' }[status] || status;
+    const rowCls = status === 'late' ? 'is-late' : status === 'risk' ? 'is-risk' : 'is-ok';
+    const daysLabel = days === null ? '' : days < 0 ? `hace ${Math.abs(days)}d` : days === 0 ? 'Hoy' : `${days}d`;
+    const pips = steps.slice(0, 8).map((step) => {
+        const state = trackingStepStatus(step);
+        const cls = state === 'done' ? 'done' : state === 'running' ? 'active' : status === 'late' ? 'late' : 'pending';
+        return `<div class="step-pip ${cls}" title="${escapeHtml(step.processName || processLabel(step.processKey))}"></div>`;
+    }).join('');
+    const finishes = String(order.finishSummary || '').trim();
+    return `
+        <div class="order-row ${rowCls}" id="tracking-row-${escapeHtml(order.orderCode)}" data-tracking-row="${escapeHtml(order.orderCode)}">
+            <div class="order-head" data-action="toggle-tracking-row" data-order="${escapeHtml(order.orderCode)}">
+                <div class="order-code-block">
+                    <div class="order-code">${escapeHtml(order.orderCode)}</div>
+                    <div class="order-customer">${escapeHtml(order.customerName || 'Sin cliente')}</div>
+                    <div class="order-product">${escapeHtml(order.jobName || order.productName || 'Sin producto')}</div>
+                </div>
+                <div class="order-job">${escapeHtml(trackingCurrentProcess(order))}</div>
+                <div class="order-eta">
+                    <div class="order-eta-label">Entrega${daysLabel ? ` · ${escapeHtml(daysLabel)}` : ''}</div>
+                    <div class="order-eta-date ${etaCls}">${escapeHtml(etaDate || 'Sin fecha')}</div>
+                </div>
+                <span class="order-status-badge ${status}">${escapeHtml(statusLabel)}</span>
+                <div class="order-toggle">⌄</div>
+            </div>
+            <div class="order-progress-row">
+                <div class="order-progress-track"><div class="order-progress-fill ${status}" style="width:${pct}%"></div></div>
+                <div class="order-progress-steps">${pips}</div>
+                <div class="order-pct">${pct}%</div>
+            </div>
+            <div class="order-detail">
+                <div class="process-timeline">
+                    <div class="process-timeline-header">
+                        <div class="pt-col-head">Proceso</div>
+                        <div class="pt-col-head">Progreso</div>
+                        <div class="pt-col-head">Fecha fin</div>
+                        <div class="pt-col-head">Máquina</div>
+                        <div class="pt-col-head">Estado</div>
+                    </div>
+                    ${steps.length ? steps.map(renderTrackingProcessRow).join('') : '<div class="empty-state">No hay procesos configurados.</div>'}
+                </div>
+                <div class="order-info-bar">
+                    <div class="info-cell"><div class="info-cell-label">Trabajo / Producto</div><div class="info-cell-value">${escapeHtml(order.jobName || order.productName || '—')}</div></div>
+                    <div class="info-cell"><div class="info-cell-label">Cliente</div><div class="info-cell-value">${escapeHtml(order.customerName || '—')}</div></div>
+                    <div class="info-cell"><div class="info-cell-label">Cantidad</div><div class="info-cell-value">${escapeHtml(order.orderedQuantity ? formatNumber(order.orderedQuantity) : '—')}</div></div>
+                    <div class="info-cell"><div class="info-cell-label">Máquina principal</div><div class="info-cell-value">${escapeHtml(order.machineName || '—')}</div></div>
+                    <div class="info-cell"><div class="info-cell-label">Sustrato</div><div class="info-cell-value">${escapeHtml(order.materialName || '—')}</div></div>
+                    <div class="info-cell"><div class="info-cell-label">Acabados</div><div class="info-cell-value">${escapeHtml(finishes || '—')}</div></div>
+                    <div class="info-cell"><div class="info-cell-label">Acciones</div><div class="info-cell-value"><a class="hdr-btn" href="/orden-produccion/${escapeHtml(order.orderCode)}" data-route="/orden-produccion/${escapeHtml(order.orderCode)}" data-label="Orden ${escapeHtml(order.orderCode)}">Ver orden</a></div></div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function updateTrackingSummary() {
+    const counts = {
+        total: trackingItems.length,
+        running: trackingItems.filter((item) => trackingOrderStatus(item) === 'running').length,
+        risk: trackingItems.filter((item) => trackingOrderStatus(item) === 'risk').length,
+        late: trackingItems.filter((item) => trackingOrderStatus(item) === 'late').length,
+        done: trackingItems.filter((item) => trackingOrderStatus(item) === 'done').length
+    };
+    const set = (id, value) => {
+        const node = document.getElementById(id);
+        if (node) node.textContent = value;
+    };
+    set('trackingStatTotal', counts.total);
+    set('trackingStatRunning', counts.running);
+    set('trackingStatRisk', counts.risk);
+    set('trackingStatLate', counts.late);
+    set('trackingStatDone', counts.done);
+    set('trackingCountAll', counts.total);
+    set('trackingCountRunning', counts.running);
+    set('trackingCountRisk', counts.risk);
+    set('trackingCountLate', counts.late);
+    set('trackingCountDone', counts.done);
+}
+
+function renderTrackingList() {
+    if (!trackingListBox) return;
+    const term = String(searchInput?.value || '').trim().toLowerCase();
+    const sort = trackingSortSelect?.value || 'eta';
+    let visible = trackingItems.filter((item) => {
+        const matches = !term || [item.orderCode, item.customerName, item.jobName, item.productName].join(' ').toLowerCase().includes(term);
+        if (!matches) return false;
+        return trackingFilter === 'all' || trackingOrderStatus(item) === trackingFilter;
+    });
+    visible = visible.sort((a, b) => {
+        if (sort === 'status') {
+            const rank = { late: 0, risk: 1, running: 2, ok: 3, done: 4 };
+            return (rank[trackingOrderStatus(a)] ?? 9) - (rank[trackingOrderStatus(b)] ?? 9);
+        }
+        if (sort === 'progress') return trackingProgress(b.steps || []) - trackingProgress(a.steps || []);
+        if (sort === 'code') return String(a.orderCode || '').localeCompare(String(b.orderCode || ''));
+        return String(a.promisedDeliveryDate || a.scheduledDeliveryDate || '').localeCompare(String(b.promisedDeliveryDate || b.scheduledDeliveryDate || ''));
+    });
+    trackingListBox.innerHTML = visible.length
+        ? visible.map(renderTrackingOrderCard).join('')
+        : '<div class="empty-state"><div class="empty-state-icon">◎</div><div class="empty-state-text">No hay órdenes que coincidan.</div></div>';
+    trackingOpenRows.forEach((code) => {
+        const row = document.getElementById(`tracking-row-${code}`);
+        if (row) row.classList.add('is-open');
+    });
+}
+
+async function refreshTracking() {
+    if (!trackingListBox) return;
+    const response = await fetch('/api/planificacion/seguimiento');
+    const payload = await response.json();
+    if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || 'No se pudo cargar seguimiento de producción.');
+    }
+    trackingItems = payload.items || [];
+    trackingLoaded = true;
+    updateTrackingSummary();
+    renderTrackingList();
+}
+
+async function setPlanningView(view) {
+    activePlanningView = view === 'tracking' ? 'tracking' : 'queue';
+    document.querySelectorAll('[data-planning-view]').forEach((button) => {
+        button.classList.toggle('is-active', button.dataset.planningView === activePlanningView);
+    });
+    if (queuePanel) queuePanel.hidden = activePlanningView !== 'queue';
+    if (trackingPanel) trackingPanel.hidden = activePlanningView !== 'tracking';
+    if (activePlanningView === 'tracking' && !trackingLoaded) {
+        trackingListBox.innerHTML = '<div class="loading-state"><div class="spinner"></div> Cargando órdenes...</div>';
+        await refreshTracking().catch((error) => {
+            trackingListBox.innerHTML = `<div class="empty-state"><div class="empty-state-icon">!</div><div class="empty-state-text">${escapeHtml(error.message)}</div></div>`;
+        });
+    }
+    if (activePlanningView === 'tracking') renderTrackingList();
+}
+
 function askReturnReason(orderCode) {
     return new Promise((resolve) => {
         const overlay = document.createElement('div');
@@ -560,7 +806,42 @@ listBox?.addEventListener('click', async (event) => {
     }
 });
 
-searchInput?.addEventListener('input', renderList);
+searchInput?.addEventListener('input', () => {
+    if (activePlanningView === 'tracking') {
+        renderTrackingList();
+        return;
+    }
+    renderList();
+});
+document.querySelectorAll('[data-planning-view]').forEach((button) => {
+    button.addEventListener('click', () => {
+        setPlanningView(button.dataset.planningView || 'queue');
+    });
+});
+document.getElementById('trackingFilterPills')?.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-tracking-filter]');
+    if (!button) return;
+    trackingFilter = button.dataset.trackingFilter || 'all';
+    document.querySelectorAll('[data-tracking-filter]').forEach((item) => item.classList.toggle('active', item === button));
+    renderTrackingList();
+});
+trackingSortSelect?.addEventListener('change', renderTrackingList);
+trackingListBox?.addEventListener('click', (event) => {
+    const link = event.target.closest('[data-route]');
+    if (link) {
+        event.preventDefault();
+        shellOpen(link.dataset.route, link.dataset.label || link.textContent.trim());
+        return;
+    }
+    const head = event.target.closest('[data-action="toggle-tracking-row"]');
+    if (!head) return;
+    const orderCode = head.dataset.order || '';
+    const row = head.closest('[data-tracking-row]');
+    if (!row || !orderCode) return;
+    const open = row.classList.toggle('is-open');
+    if (open) trackingOpenRows.add(orderCode);
+    else trackingOpenRows.delete(orderCode);
+});
 openGanttButton?.addEventListener('click', () => {
     const previous = openGanttButton.textContent;
     openGanttButton.textContent = 'Abriendo Gantt...';
