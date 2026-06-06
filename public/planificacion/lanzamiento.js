@@ -157,8 +157,6 @@ function sourceLabel(value) {
 }
 
 function getOrderHealth(item) {
-    const missing = Array.isArray(item.missingItems) ? item.missingItems : [];
-    if (missing.length) return { key: 'warn', label: 'Revisar' };
     return { key: 'ok', label: 'Lista' };
 }
 
@@ -297,7 +295,7 @@ function artworkSlot(item) {
             </div>
             <div class="planning-queue-art-preview">
                 ${imageSrc
-                    ? `<img src="${escapeHtml(imageSrc)}" alt="Arte de ${escapedOrder}" onerror="this.onerror=null;this.remove();var p=this.parentNode;var ph=p.querySelector('.planning-queue-art-placeholder');if(ph){ph.hidden=false;ph.textContent='No se pudo cargar la imagen del arte.'}"><div class="planning-queue-art-placeholder" hidden>${escapedFallback}</div>`
+                    ? `<img src="${escapeHtml(imageSrc)}" alt="Arte de ${escapedOrder}" onerror="this.onerror=null;var p=this.parentNode;this.remove();var ph=p&&p.querySelector('.planning-queue-art-placeholder');if(ph){ph.hidden=false;ph.textContent='No se pudo cargar la imagen del arte.'}"><div class="planning-queue-art-placeholder" hidden>${escapedFallback}</div>`
                     : `<div class="planning-queue-art-placeholder">${escapedFallback}</div>`}
             </div>
         </section>
@@ -311,76 +309,8 @@ function isCmykInkGroup(inkRows, item) {
     return ['cian', 'magenta', 'amarilla', 'negra'].every((token) => names.some((name) => name.includes(token)));
 }
 
-function materialChecklist(item) {
-    const materials = (Array.isArray(item.materialChecklist) ? item.materialChecklist : [])
-        .filter((material) => normalizeKey(material.materialFamily) !== 'tinta');
-    const dieCode = item.dieCode || '';
-    const dieDescription = item.dieDescription || (dieCode ? `Troquel ${dieCode}` : '');
-    const hasPlate = Boolean(item.plateMaterialId || item.plateArea);
-    const rows = [];
-    rows.push(`
-        <label class="planning-queue-material-item planning-queue-material-fixed">
-            <input type="checkbox" data-material-fixed="planchas" data-order="${escapeHtml(item.orderCode)}"${item.plateChecked ? ' checked' : ''}>
-            <span class="planning-queue-material-main">
-                <strong>Planchas</strong>
-                <span class="planning-queue-material-tag">Producción</span>
-                <span>${hasPlate ? `${escapeHtml(item.plateMaterialId || '')}${item.plateArea ? ` · ${formatNumber(item.plateArea, 1)} in²` : ''}` : 'Pendiente de confirmar'}</span>
-            </span>
-        </label>
-    `);
-    if (dieCode) {
-        const dieMeta = [
-            dieDescription,
-            item.dieShape ? `Forma: ${escapeHtml(item.dieShape)}` : '',
-            item.dieWidthIn && item.dieLengthIn ? `${formatNumber(item.dieWidthIn, 1)}"${item.dieWidthIn !== item.dieLengthIn ? ` x ${formatNumber(item.dieLengthIn, 1)}"` : '"'}` : ''
-        ].filter(Boolean).join(' · ');
-        rows.push(`
-            <label class="planning-queue-material-item">
-                <input type="checkbox" data-material-toggle data-order="${escapeHtml(item.orderCode)}" data-material-key="${escapeHtml(`base||${dieCode}|troquel`)}"${item.troquelChecked ? ' checked' : ''}>
-                <span class="planning-queue-material-main">
-                    <strong>Troquel: ${escapeHtml(dieCode)}</strong>
-                    <span class="planning-queue-material-tag">Troquelado</span>
-                    <span>${escapeHtml(dieMeta)}</span>
-                </span>
-            </label>
-        `);
-    }
-    materials.forEach((material) => {
-        const family = normalizeKey(material.materialFamily);
-        const qty = Number(material.plannedQuantity || 0) > 0
-            ? `${formatNumber(material.plannedQuantity, 2)} ${material.unitCode || ''}`.trim()
-            : 'Cantidad por definir';
-        const extra = [];
-        if (family === 'foil' && material.supplyWidthIn) {
-            extra.push(`Ancho: ${formatNumber(material.supplyWidthIn, 1)}"`);
-        }
-        const meta = [
-            ...extra,
-            qty,
-            material.sapStatus ? `SAP: ${material.sapStatus}` : '',
-            material.requestedAt ? formatDate(material.requestedAt, true) : ''
-        ].filter(Boolean).join(' · ');
-        const familyLabel = material.materialFamily || '';
-        rows.push(`
-            <label class="planning-queue-material-item">
-                <input type="checkbox" data-material-toggle data-order="${escapeHtml(item.orderCode)}" data-material-key="${escapeHtml(material.approvalKey)}">
-                <span class="planning-queue-material-main">
-                    <strong>${escapeHtml(material.materialName || material.sapItemCode || 'Material')}</strong>
-                    ${familyLabel ? `<span class="planning-queue-material-tag">${escapeHtml(familyLabel)}</span>` : ''}
-                    <span>${escapeHtml(meta)}</span>
-                    ${material.reason ? `<span>${escapeHtml(material.reason)}</span>` : ''}
-                </span>
-            </label>
-        `);
-    });
-    if (!rows.length) return '<div class="planning-queue-material-empty">No hay materiales de inventario registrados para validar.</div>';
-    return `<div class="planning-queue-material-list">${rows.join('')}</div>`;
-}
-
 function queueCard(item) {
-    const missing = Array.isArray(item.missingItems) ? item.missingItems : [];
     const health = getOrderHealth(item);
-    const pendingMaterials = Number(item.pendingMaterials || 0);
     return `
         <article class="planning-queue-card" data-order-card="${escapeHtml(item.orderCode)}">
             <div class="planning-queue-head">
@@ -425,19 +355,13 @@ function queueCard(item) {
                     </div>
                 </section>
 
-                <section class="planning-queue-panel planning-queue-material-panel">
-                    <h3>Inventario Materia Prima</h3>
-                    ${materialChecklist(item)}
-                    ${missing.length ? `<div class="planning-queue-process-warning">Pendiente de revisar: ${escapeHtml(missing.join(', '))}.</div>` : ''}
-                </section>
-
                 ${artworkSlot(item)}
             </div>
 
             <div class="planning-queue-card-actions">
                 <button type="button" class="action-btn" data-action="open-order" data-order="${escapeHtml(item.orderCode)}">Abrir orden</button>
                 <button type="button" class="action-btn" data-action="return-sales" data-order="${escapeHtml(item.orderCode)}">Devolver a ventas</button>
-                <button type="button" class="action-btn action-btn-primary" data-action="launch-gantt" data-order="${escapeHtml(item.orderCode)}"${pendingMaterials ? ' disabled title="Aprueba los materiales antes de lanzar"' : ''}>Lanzar al Gantt</button>
+                <button type="button" class="action-btn action-btn-primary" data-action="launch-gantt" data-order="${escapeHtml(item.orderCode)}">Lanzar al Gantt</button>
             </div>
         </article>
     `;
@@ -459,7 +383,6 @@ function renderList() {
             })
             .map(queueCard).join('')
         : '<div class="planning-queue-empty">No hay órdenes pendientes en la cola de planificación.</div>';
-    requestAnimationFrame(updateLaunchButtons);
 }
 
 function askReturnReason(orderCode) {
@@ -571,23 +494,6 @@ async function updatePlanningProcesses(orderCode, selectedProcessKeys) {
     await refreshQueue();
 }
 
-async function updateMaterialApproval(orderCode, approvalKey, checked) {
-    await patchMaterialApproval(orderCode, approvalKey, checked);
-    await refreshQueue();
-}
-
-async function patchMaterialApproval(orderCode, approvalKey, checked) {
-    const response = await fetch(`/api/ordenes-produccion/${encodeURIComponent(orderCode)}/materiales-aprobacion`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ approvalKey, checked })
-    });
-    const payload = await response.json();
-    if (!response.ok || !payload.ok) {
-        throw new Error(payload.error || 'No se pudo actualizar el material.');
-    }
-}
-
 function selectedProcessesForCard(card) {
     return Array.from(card.querySelectorAll('[data-process-toggle]:checked'))
         .map((input) => input.dataset.process)
@@ -595,50 +501,6 @@ function selectedProcessesForCard(card) {
 }
 
 listBox?.addEventListener('change', async (event) => {
-    const fixedInput = event.target.closest('[data-material-fixed]');
-    if (fixedInput) {
-        updateLaunchButtons();
-        return;
-    }
-
-    const materialGroupInput = event.target.closest('[data-material-group]');
-    if (materialGroupInput) {
-        const card = materialGroupInput.closest('[data-order-card]');
-        const orderCode = materialGroupInput.dataset.order || card?.dataset.orderCard;
-        let approvalKeys = [];
-        try {
-            approvalKeys = JSON.parse(decodeURIComponent(materialGroupInput.dataset.materialKeys || '%5B%5D'));
-        } catch (error) {
-            approvalKeys = [];
-        }
-        if (!card || !orderCode || !approvalKeys.length) return;
-        try {
-            for (const approvalKey of approvalKeys) {
-                await patchMaterialApproval(orderCode, approvalKey, materialGroupInput.checked);
-            }
-            await refreshQueue();
-        } catch (error) {
-            subtitleBox.textContent = error.message;
-            await refreshQueue().catch(() => {});
-        }
-        return;
-    }
-
-    const materialInput = event.target.closest('[data-material-toggle]');
-    if (materialInput) {
-        const card = materialInput.closest('[data-order-card]');
-        const orderCode = materialInput.dataset.order || card?.dataset.orderCard;
-        const approvalKey = materialInput.dataset.materialKey || '';
-        if (!card || !orderCode || !approvalKey) return;
-        try {
-            await updateMaterialApproval(orderCode, approvalKey, materialInput.checked);
-        } catch (error) {
-            subtitleBox.textContent = error.message;
-            await refreshQueue().catch(() => {});
-        }
-        return;
-    }
-
     const input = event.target.closest('[data-process-toggle]');
     if (!input) return;
     const card = input.closest('[data-order-card]');
@@ -691,70 +553,12 @@ listBox?.addEventListener('click', async (event) => {
             return;
         }
         if (action === 'launch-gantt') {
-            const card = button.closest('[data-order-card]');
-            if (card) {
-                const { unchecked } = getUncheckedMaterials(card);
-                if (unchecked.length > 0) {
-                    showMissingMaterialsModal(order, unchecked);
-                    return;
-                }
-            }
             await withButtonBusy(button, 'Enviando a Gantt...', () => updatePlanning(order, 'launch-gantt'));
         }
     } catch (error) {
         subtitleBox.textContent = error.message;
     }
 });
-
-function showMissingMaterialsModal(orderCode, missingItems) {
-    const overlay = document.createElement('div');
-    overlay.className = 'planning-queue-modal-overlay';
-    overlay.innerHTML = `
-        <div class="planning-queue-modal">
-            <h3>Materiales pendientes</h3>
-            <p>La orden <strong>${escapeHtml(orderCode)}</strong> tiene los siguientes materiales sin confirmar:</p>
-            <ul>${missingItems.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>
-            <p style="font-size:12px;color:#6b7280">Debes marcar todos los materiales antes de lanzar al Gantt.</p>
-            <button type="button" class="planning-queue-modal-close">Entendido</button>
-        </div>
-    `;
-    document.body.appendChild(overlay);
-    overlay.querySelector('.planning-queue-modal-close').addEventListener('click', () => overlay.remove());
-    overlay.addEventListener('click', (event) => { if (event.target === overlay) overlay.remove(); });
-}
-
-function getUncheckedMaterials(card) {
-    const orderCode = card.dataset.orderCard || '';
-    const unchecked = [];
-    const allCheckboxes = card.querySelectorAll('[data-material-toggle], [data-material-group], [data-material-fixed]');
-    allCheckboxes.forEach((cb) => {
-        if (!cb.checked) {
-            if (cb.dataset.materialFixed) {
-                unchecked.push(cb.dataset.materialFixed === 'planchas' ? 'Planchas' : cb.dataset.materialFixed);
-            } else {
-                const main = cb.closest('.planning-queue-material-item')?.querySelector('.planning-queue-material-main strong');
-                unchecked.push(main?.textContent?.trim() || 'Material');
-            }
-        }
-    });
-    return { orderCode, unchecked };
-}
-
-function updateLaunchButtons() {
-    const cards = document.querySelectorAll('[data-order-card]');
-    cards.forEach((card) => {
-        const launchBtn = card.querySelector('[data-action="launch-gantt"]');
-        if (!launchBtn) return;
-        const { unchecked } = getUncheckedMaterials(card);
-        if (unchecked.length > 0) {
-            launchBtn.disabled = true;
-            launchBtn.title = `Faltan ${unchecked.length} material(es) por marcar`;
-        } else {
-            launchBtn.disabled = false;
-            launchBtn.title = 'Lanzar al Gantt';
-        }
-    });
-}
 
 searchInput?.addEventListener('input', renderList);
 openGanttButton?.addEventListener('click', () => {
