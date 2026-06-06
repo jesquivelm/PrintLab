@@ -7,6 +7,8 @@ const queuePanel = document.getElementById('planningQueuePanel');
 const trackingPanel = document.getElementById('planningTrackingPanel');
 const trackingListBox = document.getElementById('planningTrackingList');
 const trackingSortSelect = document.getElementById('trackingSortSelect');
+const trackingSearchInput = document.getElementById('planningTrackingSearchInput');
+const trackingSearchClear = document.getElementById('planningTrackingSearchClear');
 const RETURN_REASONS = [
     'Falta definir recursos',
     'Faltan tiempos de proceso',
@@ -37,6 +39,7 @@ let trackingItems = [];
 let planningConfig = { icons: {}, general: {} };
 let activePlanningView = 'queue';
 let trackingFilter = 'all';
+let trackingProcessFilter = '';
 let trackingLoaded = false;
 const trackingOpenRows = new Set();
 
@@ -454,8 +457,27 @@ function trackingCurrentProcess(order = {}) {
     const running = steps.find((step) => trackingStepStatus(step) === 'running');
     if (running) return running.processName || processLabel(running.processKey);
     const pending = steps.find((step) => trackingStepStatus(step) === 'pending');
-    if (pending) return `Siguiente: ${pending.processName || processLabel(pending.processKey)}`;
+    if (pending) return pending.processName || processLabel(pending.processKey);
     return 'Terminada';
+}
+
+function trackingHasPendingProcess(order = {}, processKey = '') {
+    if (!processKey) return true;
+    return visibleTrackingSteps(Array.isArray(order.steps) ? order.steps : [])
+        .some((step) => step.processKey === processKey && trackingStepStatus(step) === 'pending');
+}
+
+function trackingSearchText(order = {}) {
+    return [
+        order.orderCode,
+        order.customerName,
+        order.jobName,
+        order.productName,
+        order.salespersonName,
+        substrateNameForItem(order),
+        order.materialName,
+        order.finishSummary
+    ].join(' ').toLowerCase();
 }
 
 function renderTrackingProcessRow(step = {}) {
@@ -504,7 +526,8 @@ function renderTrackingOrderCard(order = {}) {
         const cls = state === 'done' ? 'done' : state === 'running' ? 'active' : status === 'late' ? 'late' : 'pending';
         return `<div class="step-pip ${cls}" title="${escapeHtml(step.processName || processLabel(step.processKey))}"></div>`;
     }).join('');
-    const finishes = String(order.finishSummary || '').trim();
+    const finishes = String(order.finishSummary || '').split(/\s+·\s+|\n/).map((value) => value.trim()).filter(Boolean);
+    const finishHtml = finishes.length ? finishes.map((value) => `<div>${escapeHtml(value)}</div>`).join('') : '—';
     return `
         <div class="order-row ${rowCls}" id="tracking-row-${escapeHtml(order.orderCode)}" data-tracking-row="${escapeHtml(order.orderCode)}">
             <div class="order-head" data-action="toggle-tracking-row" data-order="${escapeHtml(order.orderCode)}">
@@ -537,14 +560,13 @@ function renderTrackingOrderCard(order = {}) {
                     </div>
                     ${steps.length ? steps.map(renderTrackingProcessRow).join('') : '<div class="empty-state">No hay procesos configurados.</div>'}
                 </div>
-                <div class="order-info-bar">
-                    <div class="info-cell"><div class="info-cell-label">Trabajo / Producto</div><div class="info-cell-value">${escapeHtml(order.jobName || order.productName || '—')}</div></div>
-                    <div class="info-cell"><div class="info-cell-label">Cliente</div><div class="info-cell-value">${escapeHtml(order.customerName || '—')}</div></div>
-                    <div class="info-cell"><div class="info-cell-label">Cantidad</div><div class="info-cell-value">${escapeHtml(order.orderedQuantity ? formatNumber(order.orderedQuantity) : '—')}</div></div>
-                    <div class="info-cell"><div class="info-cell-label">Máquina principal</div><div class="info-cell-value">${escapeHtml(order.machineName || '—')}</div></div>
-                    <div class="info-cell"><div class="info-cell-label">Sustrato</div><div class="info-cell-value">${escapeHtml(order.materialName || '—')}</div></div>
-                    <div class="info-cell"><div class="info-cell-label">Acabados</div><div class="info-cell-value">${escapeHtml(finishes || '—')}</div></div>
-                    <div class="info-cell"><div class="info-cell-label">Acciones</div><div class="info-cell-value"><a class="hdr-btn" href="/orden-produccion/${escapeHtml(order.orderCode)}" data-route="/orden-produccion/${escapeHtml(order.orderCode)}" data-label="Orden ${escapeHtml(order.orderCode)}">Ver orden</a></div></div>
+                <div class="order-info-bar is-production">
+                    <div class="info-cell info-cell-job"><div class="info-cell-label">Trabajo / Producto</div><div class="info-cell-value">${escapeHtml(order.jobName || order.productName || '—')}</div></div>
+                    <div class="info-cell info-cell-machine"><div class="info-cell-label">Máquina</div><div class="info-cell-value">${escapeHtml(order.machineName || '—')}</div></div>
+                    <div class="info-cell is-finishes"><div class="info-cell-label">Acabados</div><div class="info-cell-value">${finishHtml}</div></div>
+                    <div class="info-cell info-cell-quantity"><div class="info-cell-label">Cantidad</div><div class="info-cell-value">${escapeHtml(order.orderedQuantity ? formatNumber(order.orderedQuantity) : '—')}</div></div>
+                    <div class="info-cell info-cell-substrate"><div class="info-cell-label">Sustrato</div><div class="info-cell-value">${escapeHtml(substrateNameForItem(order) || '—')}</div></div>
+                    <div class="info-cell info-cell-action"><div class="info-cell-label">Acciones</div><div class="info-cell-value info-cell-actions"><a class="hdr-btn" href="/orden-produccion/${escapeHtml(order.orderCode)}" data-route="/orden-produccion/${escapeHtml(order.orderCode)}" data-label="Orden ${escapeHtml(order.orderCode)}">Ver orden</a></div></div>
                 </div>
             </div>
         </div>
@@ -577,11 +599,12 @@ function updateTrackingSummary() {
 
 function renderTrackingList() {
     if (!trackingListBox) return;
-    const term = String(searchInput?.value || '').trim().toLowerCase();
+    const term = String(trackingSearchInput?.value || '').trim().toLowerCase();
     const sort = trackingSortSelect?.value || 'eta';
     let visible = trackingItems.filter((item) => {
-        const matches = !term || [item.orderCode, item.customerName, item.jobName, item.productName].join(' ').toLowerCase().includes(term);
+        const matches = !term || trackingSearchText(item).includes(term);
         if (!matches) return false;
+        if (!trackingHasPendingProcess(item, trackingProcessFilter)) return false;
         return trackingFilter === 'all' || trackingOrderStatus(item) === trackingFilter;
     });
     visible = visible.sort((a, b) => {
@@ -619,6 +642,10 @@ async function setPlanningView(view) {
     activePlanningView = view === 'tracking' ? 'tracking' : 'queue';
     document.querySelectorAll('[data-planning-view]').forEach((button) => {
         button.classList.toggle('is-active', button.dataset.planningView === activePlanningView);
+    });
+    document.querySelectorAll('[data-tracking-process]').forEach((button) => {
+        button.classList.toggle('is-visible', activePlanningView === 'tracking');
+        button.classList.toggle('is-active', activePlanningView === 'tracking' && button.dataset.trackingProcess === trackingProcessFilter);
     });
     if (queuePanel) queuePanel.hidden = activePlanningView !== 'queue';
     if (trackingPanel) trackingPanel.hidden = activePlanningView !== 'tracking';
@@ -807,15 +834,23 @@ listBox?.addEventListener('click', async (event) => {
 });
 
 searchInput?.addEventListener('input', () => {
-    if (activePlanningView === 'tracking') {
-        renderTrackingList();
-        return;
-    }
     renderList();
+});
+trackingSearchInput?.addEventListener('input', renderTrackingList);
+trackingSearchClear?.addEventListener('click', () => {
+    if (trackingSearchInput) trackingSearchInput.value = '';
+    renderTrackingList();
 });
 document.querySelectorAll('[data-planning-view]').forEach((button) => {
     button.addEventListener('click', () => {
+        if ((button.dataset.planningView || 'queue') === 'tracking') trackingProcessFilter = '';
         setPlanningView(button.dataset.planningView || 'queue');
+    });
+});
+document.querySelectorAll('[data-tracking-process]').forEach((button) => {
+    button.addEventListener('click', () => {
+        trackingProcessFilter = trackingProcessFilter === button.dataset.trackingProcess ? '' : (button.dataset.trackingProcess || '');
+        setPlanningView('tracking');
     });
 });
 document.getElementById('trackingFilterPills')?.addEventListener('click', (event) => {
