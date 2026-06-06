@@ -73,6 +73,7 @@ body{font-family:var(--font-sans);font-size:13px;color:var(--color-text-primary)
     <div class="tab" onclick="showTab('otd')">Cumplimiento OTD</div>
     <div class="tab" onclick="showTab('desv')">Plan vs. Real</div>
     <div class="tab" onclick="showTab('paros')">Análisis de paros</div>
+    <div class="tab" onclick="showTab('capacidad')">Capacidad Finita</div>
   </div>
 
   <div class="panel active" id="tab-oee">
@@ -106,6 +107,13 @@ body{font-family:var(--font-sans);font-size:13px;color:var(--color-text-primary)
     <div class="section-title">Paros por máquina</div>
     <div class="chart-wrap" style="height:200px"><canvas id="chart-paros"></canvas></div>
   </div>
+
+  <div class="panel" id="tab-capacidad">
+    <div class="kpi-grid" id="capacity-grid"></div>
+    <div class="section-title">Utilización, cola y cuellos de botella</div>
+    <div class="card" style="padding:0;overflow:hidden" id="capacity-list"></div>
+    <button class="btn" onclick="window.location.href='/planificacion/capacidad'">Abrir Análisis de Capacidad</button>
+  </div>
 </div>
 
 <script src="/access-control.js"></script>
@@ -123,7 +131,7 @@ function oeeColor(v){ return v >= 80 ? '#1D9E75' : v >= 65 ? '#BA7517' : '#E24B4
 
 function showTab(id){
   document.querySelectorAll('.tab').forEach((t,i)=>{
-    const ids=['oee','otd','desv','paros'];
+    const ids=['oee','otd','desv','paros','capacidad'];
     t.classList.toggle('active', ids[i]===id);
   });
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
@@ -153,7 +161,24 @@ function renderAll() {
   renderOTD();
   renderVariance();
   renderStops();
+  renderCapacity();
   renderOEEChart();
+}
+
+function renderCapacity() {
+  const capacity = dashboardData.capacity;
+  const summary = capacity?.summary || {};
+  document.getElementById('capacity-grid').innerHTML = `
+    <div class="kpi-card"><div class="kpi-label">Utilización Promedio</div><div class="kpi-val">${pct(summary.avgUtilization)}</div><div class="kpi-sub">Horas cargadas / disponibles</div></div>
+    <div class="kpi-card"><div class="kpi-label">Cuellos de Botella</div><div class="kpi-val">${fmt(summary.bottleneckCount)}</div><div class="kpi-sub">Recursos saturados</div></div>
+    <div class="kpi-card"><div class="kpi-label">Cola Acumulada</div><div class="kpi-val">${fmt(summary.totalQueueHours)} h</div><div class="kpi-sub">Carga pendiente</div></div>
+    <div class="kpi-card"><div class="kpi-label">Órdenes en Riesgo</div><div class="kpi-val">${fmt(summary.projectedLateOrders)}</div><div class="kpi-sub">Fin posterior a entrega</div></div>
+  `;
+  const resources = [...(capacity?.resources || [])].sort((a,b)=>b.utilizationPct-a.utilizationPct);
+  document.getElementById('capacity-list').innerHTML = resources.length ? `
+    <table class="machine-table"><thead><tr><th>Recurso</th><th>Proceso</th><th>Capacidad</th><th>Carga</th><th>Utilización</th><th>Cola</th></tr></thead>
+    <tbody>${resources.map(r=>`<tr><td style="font-weight:500">${r.resourceName}</td><td>${r.processKey}</td><td>${r.totalCapacityHours} h</td><td>${r.totalLoadHours} h</td><td><span class="pill ${pillCls(100-Math.max(0,r.utilizationPct-80))}">${r.utilizationPct}%</span></td><td>${r.queueDays} días</td></tr>`).join('')}</tbody></table>
+  ` : '<div class="empty">No hay resultados de capacidad disponibles.</div>';
 }
 
 function renderSummary() {

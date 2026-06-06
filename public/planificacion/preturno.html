@@ -273,6 +273,13 @@ function render() {
               <div class="process-info">
                 <div class="line"><span>Maquina</span><span><strong>${cleanValue(process.machineLabel)}</strong>${process.machineLabel && cleanValue(process.machineLabel) !== 'Sin definir' ? process.machineRegistered ? '' : ' | fuera de inventario' : ''}</span></div>
                 <div class="line"><span>Ruta</span><span>${process.routeId}</span></div>
+                ${process.capacity ? `
+                  <div class="line"><span>Recurso Programado</span><strong>${cleanValue(process.capacity.resourceName)}</strong></div>
+                  <div class="line"><span>Inicio Proyectado</span><strong>${new Date(process.capacity.projectedStart).toLocaleString('es-CR')}</strong></div>
+                  <div class="line"><span>Fin Proyectado</span><strong>${new Date(process.capacity.projectedEnd).toLocaleString('es-CR')}</strong></div>
+                  <div class="line"><span>Cola</span><strong>${Number(process.capacity.waitHours || 0).toFixed(1)} h</strong></div>
+                  <div class="line"><span>Utilización</span><strong style="color:${process.capacity.isBottleneck ? 'var(--danger)' : 'var(--success)'}">${Number(process.capacity.utilizationPct || 0).toFixed(0)}%</strong></div>
+                ` : ''}
               </div>
               <div class="resource-flags">
                 ${Array.isArray(process.readyItems) && process.readyItems.length

@@ -6,6 +6,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Timeline de Orden — Capacidad Finita</title>
 <style>
+:root{--font-sans:"Segoe UI",system-ui,sans-serif;--color-text-primary:#1f2b3d;--color-text-secondary:#66758b;--color-background-primary:#f4f7fb;--color-background-secondary:#fff;--color-background-tertiary:#edf2f7;--color-border-secondary:#d8e4ef;--color-border-tertiary:#e4ebf3;--border-radius-md:6px}
+html[data-theme="dark"]{--color-text-primary:#e5eefb;--color-text-secondary:#9fb0c8;--color-background-primary:#0f172a;--color-background-secondary:#162033;--color-background-tertiary:#1e293b;--color-border-secondary:#334155;--color-border-tertiary:#26364f}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:var(--font-sans);font-size:13px;color:var(--color-text-primary);background:var(--color-background-primary);min-height:100vh}
 .top-bar{padding:12px 16px;border-bottom:0.5px solid var(--color-border-tertiary);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
@@ -72,6 +74,7 @@ html[data-theme="dark"] .tl-bar.process.bottleneck{background:#c0392b;border-col
 .daily-bar:hover{filter:brightness(1.1)}
 .daily-bar-label{position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);font-size:8px;color:var(--color-text-secondary);white-space:nowrap}
 .daily-cap-line{position:absolute;left:0;right:0;height:1px;border-top:1px dashed var(--color-border-secondary)}
+.theme-toggle{width:32px;height:30px;border:1px solid var(--color-border-secondary);border-radius:6px;background:var(--color-background-secondary);color:var(--color-text-primary);cursor:pointer}.theme-toggle-icon-sun::before{content:"☀"}.theme-toggle-icon-moon::before{content:"☾"}.theme-toggle-icon-moon{display:none}html[data-theme="dark"] .theme-toggle-icon-sun{display:none}html[data-theme="dark"] .theme-toggle-icon-moon{display:inline}
 </style>
 </head>
 <body>
@@ -82,8 +85,9 @@ html[data-theme="dark"] .tl-bar.process.bottleneck{background:#c0392b;border-col
     <div class="top-sub" id="order-subtitle">Cargando...</div>
   </div>
   <div class="top-actions">
-    <a href="capacidad.html"><button class="btn">← Capacidad</button></a>
-    <a href="gantt.html"><button class="btn">Gantt</button></a>
+    <span data-theme-toggle-slot></span>
+    <a class="btn" href="/planificacion/capacidad">← Capacidad</a>
+    <a class="btn" href="/planificacion/gantt">Gantt</a>
   </div>
 </div>
 
@@ -107,14 +111,14 @@ function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt
 
 function formatDate(d) {
   if (!d) return '—';
-  const date = new Date(d + 'T12:00:00');
+  const date = new Date(d.includes('T') ? d : `${d}T12:00:00`);
   return date.toLocaleDateString('es-CR', { weekday: 'short', day: '2-digit', month: 'short' });
 }
 
 function formatDateTime(d) {
   if (!d) return '—';
-  const date = new Date(d + (d.includes('T') ? '' : 'T12:00:00'));
-  return date.toLocaleDateString('es-CR', { day: '2-digit', month: 'short' });
+  const date = new Date(d.includes('T') ? d : `${d}T12:00:00`);
+  return date.toLocaleString('es-CR', { day: '2-digit', month: 'short', hour:'2-digit', minute:'2-digit' });
 }
 
 async function loadTimeline() {

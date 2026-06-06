@@ -101,6 +101,7 @@ CREATE TABLE IF NOT EXISTS production_waste_logs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_production_order_routes_order ON production_order_routes(order_code, sequence_order);
+CREATE INDEX IF NOT EXISTS idx_production_order_routes_capacity ON production_order_routes(route_status, process_key, machine_profile_id);
 CREATE INDEX IF NOT EXISTS idx_production_route_events_route ON production_route_events(route_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_production_waste_logs_route ON production_waste_logs(route_id, created_at DESC);
 
@@ -148,3 +149,60 @@ CREATE TABLE IF NOT EXISTS resource_calendar_exceptions (
 
 CREATE INDEX IF NOT EXISTS idx_resource_shifts_calendar ON resource_shifts(calendar_id, day_of_week);
 CREATE INDEX IF NOT EXISTS idx_resource_calendar_exceptions_calendar ON resource_calendar_exceptions(calendar_id, exception_date);
+
+CREATE TABLE IF NOT EXISTS production_resources (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    resource_code TEXT NOT NULL UNIQUE,
+    resource_name TEXT NOT NULL,
+    resource_type TEXT NOT NULL DEFAULT 'process',
+    process_key TEXT NOT NULL DEFAULT '',
+    machine_profile_id UUID REFERENCES production_machine_profiles(id) ON DELETE SET NULL,
+    calendar_id UUID REFERENCES resource_calendars(id) ON DELETE SET NULL,
+    capacity_units NUMERIC(8,2) NOT NULL DEFAULT 1,
+    efficiency_factor NUMERIC(8,4) NOT NULL DEFAULT 1,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    source_payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS production_resource_skills (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    resource_id UUID NOT NULL REFERENCES production_resources(id) ON DELETE CASCADE,
+    process_key TEXT NOT NULL,
+    proficiency NUMERIC(8,4) NOT NULL DEFAULT 1,
+    max_parallel_jobs INTEGER NOT NULL DEFAULT 1,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (resource_id, process_key)
+);
+
+CREATE TABLE IF NOT EXISTS production_capacity_scenarios (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    scenario_name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    adjustments JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_by TEXT NOT NULL DEFAULT '',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS production_capacity_snapshots (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    snapshot_type TEXT NOT NULL DEFAULT 'automatic',
+    scenario_id UUID REFERENCES production_capacity_scenarios(id) ON DELETE SET NULL,
+    from_date DATE NOT NULL,
+    to_date DATE NOT NULL,
+    input_hash TEXT NOT NULL DEFAULT '',
+    summary JSONB NOT NULL DEFAULT '{}'::jsonb,
+    result_payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_by TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_production_resources_process ON production_resources(process_key, is_active);
+CREATE INDEX IF NOT EXISTS idx_production_resource_skills_process ON production_resource_skills(process_key, is_active);
+CREATE INDEX IF NOT EXISTS idx_capacity_snapshots_created ON production_capacity_snapshots(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_capacity_snapshots_period ON production_capacity_snapshots(from_date, to_date);

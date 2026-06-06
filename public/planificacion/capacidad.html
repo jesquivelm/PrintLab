@@ -6,6 +6,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Capacidad Finita — Planificación</title>
 <style>
+:root{--font-sans:"Segoe UI",system-ui,sans-serif;--color-text-primary:#1f2b3d;--color-text-secondary:#66758b;--color-background-primary:#f4f7fb;--color-background-secondary:#fff;--color-background-tertiary:#edf2f7;--color-border-secondary:#d8e4ef;--color-border-tertiary:#e4ebf3;--border-radius-md:6px}
+html[data-theme="dark"]{--color-text-primary:#e5eefb;--color-text-secondary:#9fb0c8;--color-background-primary:#0f172a;--color-background-secondary:#162033;--color-background-tertiary:#1e293b;--color-border-secondary:#334155;--color-border-tertiary:#26364f}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:var(--font-sans);font-size:13px;color:var(--color-text-primary);background:var(--color-background-primary);min-height:100vh}
 .top-bar{padding:12px 16px;border-bottom:0.5px solid var(--color-border-tertiary);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
@@ -79,6 +81,7 @@ html[data-theme="dark"] .bottleneck-badge{background:rgba(164,67,67,0.15);border
 .summary-mini{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px}
 .summary-mini-item{display:flex;align-items:center;gap:6px;font-size:12px}
 .summary-mini-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.theme-toggle{width:32px;height:30px;border:1px solid var(--color-border-secondary);border-radius:6px;background:var(--color-background-secondary);color:var(--color-text-primary);cursor:pointer}.theme-toggle-icon-sun::before{content:"☀"}.theme-toggle-icon-moon::before{content:"☾"}.theme-toggle-icon-moon{display:none}html[data-theme="dark"] .theme-toggle-icon-sun{display:none}html[data-theme="dark"] .theme-toggle-icon-moon{display:inline}
 </style>
 </head>
 <body>
@@ -89,9 +92,18 @@ html[data-theme="dark"] .bottleneck-badge{background:rgba(164,67,67,0.15);border
     <div class="top-sub">Análisis de capacidad, cola y cuellos de botella por recurso</div>
   </div>
   <div class="top-actions">
+    <label for="horizon" style="font-size:11px;color:var(--color-text-secondary)">Horizonte</label>
+    <select id="horizon" class="btn" onchange="loadCapacity()">
+      <option value="7">7 días</option>
+      <option value="30" selected>30 días</option>
+      <option value="90">90 días</option>
+    </select>
     <span id="last-computed" style="font-size:11px;color:var(--color-text-secondary)"></span>
-    <button class="btn primary" onclick="loadCapacity()">↻ Recalcular</button>
-    <a href="gantt.html"><button class="btn">← Gantt</button></a>
+    <a class="btn" href="/planificacion/simulador">Simular</a>
+    <a class="btn" href="/planificacion/recursos">Recursos</a>
+    <span data-theme-toggle-slot></span>
+    <button id="recalculate" class="btn primary" onclick="recalculateCapacity()">↻ Recalcular</button>
+    <a class="btn" href="/planificacion/gantt">← Gantt</a>
   </div>
 </div>
 
@@ -159,7 +171,8 @@ async function loadCapacity() {
   document.getElementById('loading').style.display = 'block';
   document.getElementById('panel-general').style.display = 'none';
   try {
-    const res = await fetch(`${API}/capacidad-finita`);
+    const days = document.getElementById('horizon').value;
+    const res = await fetch(`${API}/capacidad-finita?dias=${days}`);
     const data = await res.json();
     if (!data.ok) throw new Error(data.error);
     capacityData = data.data;
@@ -173,6 +186,29 @@ async function loadCapacity() {
     renderOrders();
   } catch (e) {
     document.getElementById('loading').innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div>Error al calcular capacidad.<br>${esc(e.message)}</div>`;
+  }
+}
+
+async function recalculateCapacity() {
+  const button = document.getElementById('recalculate');
+  button.disabled = true;
+  button.textContent = 'Recalculando...';
+  try {
+    const res = await fetch(`${API}/capacidad-finita/recalcular`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ horizonDays: Number(document.getElementById('horizon').value) })
+    });
+    const payload = await res.json();
+    if (!payload.ok) throw new Error(payload.error);
+    capacityData = payload.data;
+    document.getElementById('last-computed').textContent = `Actualizado: ${new Date(capacityData.computedAt).toLocaleString('es-CR')}`;
+    renderKPIs(); renderBottlenecks(); renderResourceBars(); renderResourceDetail(); renderOrders();
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = '↻ Recalcular';
   }
 }
 
@@ -329,7 +365,7 @@ function renderOrders() {
               ${o.earliestStart ? 'Inicio: ' + o.earliestStart : ''}
               ${o.latestEnd ? ' · Fin: ' + o.latestEnd : ''}
             </div>
-            <a href="timeline.html?codigo=${encodeURIComponent(o.orderCode)}" class="btn sm">📋 Timeline</a>
+            <a href="/planificacion/timeline?codigo=${encodeURIComponent(o.orderCode)}" class="btn sm">📋 Timeline</a>
           </div>
         </div>
         <div class="order-timeline">${routeSteps}</div>

@@ -210,8 +210,8 @@ html[data-theme="dark"] .dp-val{color:var(--app-text,#e5edf6)}
 
 <script>
 const API = '/api/planificacion';
-const HOURS = ['6am','7am','8am','9am','10am','11am','12pm','1pm','2pm','3pm','4pm','5pm','6pm','7pm','8pm'];
-const SLOTS = HOURS.length;
+let HOURS = [];
+let SLOTS = 15;
 const searchParams = new URLSearchParams(window.location.search);
 const autoPlanRequested = searchParams.get('autoplan') === '1';
 
@@ -226,6 +226,21 @@ let hasAutoPlanned = false;
 let conflictDrawerOpen = false;
 const expandedProcessIds = new Set();
 const ROUTE_COLORS = ['#378ADD', '#1D9E75', '#BA7517', '#E24B4A', '#639922', '#8B5CF6', '#0EA5E9', '#F59E0B', '#64748B', ''];
+
+function configureTimelineHorizon() {
+  const maxEnd = Math.max(15, ...orders.map((order) => Number(order.inicio || 0) + Number(order.dur || 0)));
+  SLOTS = Math.max(15, Math.min(24 * 7, Math.ceil(maxEnd) + 2));
+  const base = new Date();
+  base.setHours(6, 0, 0, 0);
+  HOURS = Array.from({ length: SLOTS }, (_, index) => {
+    const stamp = new Date(base.getTime() + (index * 3600000));
+    const hour = stamp.toLocaleTimeString('es-CR', { hour: 'numeric', hour12: true });
+    if (index === 0 || stamp.getHours() === 0) {
+      return `${stamp.toLocaleDateString('es-CR', { day: '2-digit', month: '2-digit' })} ${hour}`;
+    }
+    return hour;
+  });
+}
 
 function displayProcessName(value) {
   const raw = String(value || '').trim();
@@ -300,6 +315,7 @@ async function loadFromAPI() {
       manual_lock: Boolean(r.route_payload?.manualLock),
       schedule_mode: r.route_payload?.scheduleMode || r.route_payload?.schedule_mode || '',
     }));
+    configureTimelineHorizon();
 
     // Agrupar máquinas por proceso para el render
     // Usar el orden del cálculo de costos si está disponible, filtrar por ganttEnabled
@@ -810,7 +826,7 @@ function render() {
       ? '<span style="font-size:11px;color:#aaa">Sin alertas activas</span>' : ''}
   </div>
 
-  <div class="gantt-wrap"><div class="gantt-inner" id="gantt-inner">
+  <div class="gantt-wrap"><div class="gantt-inner" id="gantt-inner" style="min-width:${175 + (SLOTS * 52)}px">
     <div class="g-header">
       <div class="res-col">Proceso / Recurso</div>
       <div class="time-hdr">${HOURS.map(h => `<div class="t-slot">${h}</div>`).join('')}</div>
@@ -1578,10 +1594,16 @@ async function autoSeqCapacidad() {
       if (pos) {
         op.inicio = pos.inicio;
         op.dur = pos.dur;
+        op.projectedStart = pos.projectedStart;
+        op.projectedEnd = pos.projectedEnd;
+        op.maquina = pos.machineProfileId || pos.resourceId || op.maquina;
+        op.capacityResourceId = pos.resourceId || null;
+        op.capacityResourceName = pos.resourceName || '';
         op.schedule_mode = 'capacity';
         updatedCount++;
       }
     });
+    configureTimelineHorizon();
     render();
     if (data.data.bottlenecks && data.data.bottlenecks.length) {
       const bnNames = data.data.bottlenecks.map(b => `${b.machineName} (${b.utilizationPct}%)`).join(', ');
@@ -1591,7 +1613,18 @@ async function autoSeqCapacidad() {
     }
     Promise.all(
       orders.map(o =>
-        apiPatch(`${API}/gantt/mover`, { id_ruta: o.id_ruta, inicio: o.inicio })
+        apiPatch(`${API}/gantt/mover`, {
+          id_ruta: o.id_ruta,
+          inicio: o.inicio,
+          id_maquina: o.maquina,
+          planned_start_at: o.projectedStart || null,
+          planned_end_at: o.projectedEnd || null,
+          route_payload_updates: {
+            scheduleMode: 'capacity',
+            capacityResourceId: o.capacityResourceId || null,
+            capacityResourceName: o.capacityResourceName || ''
+          }
+        })
       )
     ).then(() => loadFromAPI()).catch(e => showError('Error al guardar: ' + e.message));
   } catch (e) {
