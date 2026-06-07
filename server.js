@@ -976,6 +976,8 @@ const DEFAULT_GENERAL_CONFIG = {
         planningRefresh: '\u21BB',
         planningProcessFlip: '\u21C4',
         planningOpenGantt: '\u25F3',
+        planningEstimate: '\u25CE',
+        planningExpand: '\u2304',
         proformaCurrencyAdd: '+',
         proformaCurrencyDelete: '\u{1F5D1}',
         proformaView: '\u{1F441}',
@@ -1122,6 +1124,12 @@ const DEFAULT_GENERAL_CONFIG = {
         iconColorPlanningOpenGantt: '#1e516d',
         iconColorHoverPlanningOpenGantt: '#0b81b8',
         iconSizePlanningOpenGantt: '18',
+        iconColorPlanningEstimate: '#1e516d',
+        iconColorHoverPlanningEstimate: '#0b81b8',
+        iconSizePlanningEstimate: '18',
+        iconColorPlanningExpand: '#1e516d',
+        iconColorHoverPlanningExpand: '#0b81b8',
+        iconSizePlanningExpand: '18',
         proformaPaymentTerms: '',
         proformaDeliveryTime: '',
         proformaTechnicalSpecs: '',
@@ -11950,7 +11958,7 @@ app.get('/api/config/general/icons/:version/:file', async (req, res) => {
 
 app.post('/api/config/general/icon', async (req, res) => {
     try {
-        const orderIconKeys = new Set(['orderArtworkDelete', 'orderStatus', 'orderNumbering', 'orderFlow', 'orderEdit', 'planningRefresh', 'planningProcessFlip', 'planningOpenGantt', 'dashboardBusinessPartners', 'dashboardProducts', 'dashboardQuotes', 'dashboardNotifications', 'dashboardInventory', 'dashboardOrders', 'dashboardProduction', 'dashboardCosts', 'dashboardReports', 'dashboardSettings', 'dashboardPlanning']);
+        const orderIconKeys = new Set(['orderArtworkDelete', 'orderStatus', 'orderNumbering', 'orderFlow', 'orderEdit', 'planningRefresh', 'planningProcessFlip', 'planningOpenGantt', 'planningEstimate', 'planningExpand', 'dashboardBusinessPartners', 'dashboardProducts', 'dashboardQuotes', 'dashboardNotifications', 'dashboardInventory', 'dashboardOrders', 'dashboardProduction', 'dashboardCosts', 'dashboardReports', 'dashboardSettings', 'dashboardPlanning']);
         const iconKey = String(req.body?.key || '').trim();
         const iconValue = String(req.body?.value || '').trim();
         const general = req.body?.general && typeof req.body.general === 'object' && !Array.isArray(req.body.general)

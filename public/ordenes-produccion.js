@@ -3,11 +3,20 @@ const PRESENTATION_KEY = 'ordenes-produccion';
 const WORK_HOURS = 8;
 const QUEUE_DAYS = { normal: 2, cliente_a: 1, urgente: 0 };
 const PRIORITY_LABELS = { normal: 'Normal', cliente_a: 'Cliente A', urgente: 'Urgente' };
+const ICON_DEFAULTS = {
+    planningRefresh: { value: '↻', color: '#1e516d', hover: '#0b81b8', size: 18 },
+    planningEstimate: { value: '◎', color: '#1e516d', hover: '#0b81b8', size: 18 },
+    planningExpand: { value: '⌄', color: '#1e516d', hover: '#0b81b8', size: 18 },
+    planningProcessFlip: { value: '⇄', color: '#1e516d', hover: '#0b81b8', size: 18 },
+    browserOpen: { value: '↗', color: '#0b81b8', hover: '#07638c', size: 18 }
+};
 
 const ordersSearchInput = document.getElementById('ordersSearchInput');
 const ordersSortSelect = document.getElementById('ordersSortSelect');
 const ordersSummary = document.getElementById('ordersSummary');
 const ordersTableBody = document.getElementById('ordersTableBody');
+const ordersRefreshButton = document.getElementById('ordersRefreshButton');
+const ordersRefreshStatus = document.getElementById('ordersRefreshStatus');
 const listView = document.getElementById('ordersListView');
 const semaforoView = document.getElementById('ordersSemaforoView');
 const kanbanView = document.getElementById('ordersKanbanView');
@@ -26,9 +35,10 @@ let selectedPriority = 'normal';
 let selectedBuffer = 2;
 let currentEstimate = null;
 const openRows = new Set();
+const flowCache = new Map();
 
 function escapeHtml(value) {
-    return String(value || '')
+    return String(value ?? '')
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
@@ -154,14 +164,34 @@ function iconMarkup(value, altText, extraClass = '') {
 }
 
 function getOpenIconConfig() {
+    return getIconConfig('browserOpen', 'tableOpen');
+}
+
+function pascalKey(key = '') {
+    return String(key).split(/[^a-zA-Z0-9]+/).filter(Boolean).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join('');
+}
+
+function getIconConfig(key, fallbackKey = '') {
     const general = browserConfig?.general || {};
     const presentation = getPresentationConfig(browserConfig || {}, PRESENTATION_KEY);
+    const main = pascalKey(key);
+    const fallback = pascalKey(fallbackKey);
+    const defaults = ICON_DEFAULTS[key] || ICON_DEFAULTS[fallbackKey] || { value: '', color: '#1e516d', hover: '#0b81b8', size: 18 };
     return {
-        value: browserConfig?.icons?.browserOpen || browserConfig?.icons?.tableOpen || '↗',
-        color: firstFilled(general.iconColorBrowserOpen, general.iconColorTableOpen, general.iconColor, '#0b81b8'),
-        hover: firstFilled(general.iconColorHoverBrowserOpen, general.iconColorHoverTableOpen, '#07638c'),
-        size: Number(firstFilled(general.iconSizeBrowserOpen, general.iconSizeTableOpen, presentation.iconSize, 18)) || 18
+        value: browserConfig?.icons?.[key] || (fallbackKey ? browserConfig?.icons?.[fallbackKey] : '') || defaults.value,
+        color: firstFilled(general[`iconColor${main}`], fallback ? general[`iconColor${fallback}`] : '', general.iconColor, defaults.color),
+        hover: firstFilled(general[`iconColorHover${main}`], fallback ? general[`iconColorHover${fallback}`] : '', defaults.hover),
+        size: Number(firstFilled(general[`iconSize${main}`], fallback ? general[`iconSize${fallback}`] : '', presentation.iconSize, defaults.size)) || defaults.size
     };
+}
+
+function iconButtonMarkup(iconKey, label, fallbackKey = '') {
+    const icon = getIconConfig(iconKey, fallbackKey);
+    return `<span class="orders-config-icon" aria-hidden="true" style="--icon-color:${escapeHtml(icon.color)};--icon-hover-color:${escapeHtml(icon.hover)};--config-icon-size:${escapeHtml(String(icon.size))}px;">${iconMarkup(icon.value, label, 'orders-config-icon-media')}</span><span>${escapeHtml(label)}</span>`;
+}
+
+function refreshButtonContent(loading = false) {
+    return iconButtonMarkup('planningRefresh', loading ? 'Actualizando' : 'Actualizar');
 }
 
 function openRouteInShell(route, label) {
@@ -174,6 +204,7 @@ function applyBrowserConfig(config) {
     browserConfig = config || {};
     const presentation = getPresentationConfig(browserConfig, PRESENTATION_KEY);
     document.documentElement.style.setProperty('--tab-color', presentation.tabColor);
+    if (ordersRefreshButton) ordersRefreshButton.innerHTML = refreshButtonContent(false);
 }
 
 async function loadConfig() {
@@ -196,8 +227,8 @@ function orderSteps(order) {
 
 function stepStatus(step = {}) {
     const status = String(step.routeStatus || '').toUpperCase();
-    if (status === 'COMPLETADO') return 'done';
-    if (['RUN', 'SETUP', 'PARO'].includes(status)) return 'running';
+    if (['COMPLETADO', 'DONE', 'COMPLETE', 'LISTO'].includes(status)) return 'done';
+    if (['RUN', 'SETUP', 'PARO', 'RUNNING', 'ACTIVE', 'EN_PROCESO'].includes(status)) return 'running';
     return 'pending';
 }
 
@@ -207,6 +238,11 @@ function orderProgress(order) {
     const done = steps.filter((step) => stepStatus(step) === 'done').length;
     const running = steps.filter((step) => stepStatus(step) === 'running').length;
     return Math.round(((done + running * 0.5) / steps.length) * 100);
+}
+
+function stepDurationHours(step = {}) {
+    const plannedMinutes = Number(step.planned?.minutes || 0);
+    return Math.max(0, Number(step.durationHours || 0) || plannedMinutes / 60 || 0);
 }
 
 function currentProcess(order) {
@@ -223,13 +259,18 @@ function preferredDeliveryDate(order) {
     return planning.estimatedDeliveryDateLate || planning.scheduledDeliveryDate || planning.promisedDeliveryDate || planning.productionEndDate || order.created_at;
 }
 
+function committedDeliveryDate(order) {
+    const planning = order.planning || {};
+    return planning.scheduledDeliveryDate || planning.promisedDeliveryDate || planning.productionEndDate || order.created_at;
+}
+
 function orderStatus(order) {
     const steps = orderSteps(order);
     if (steps.length && steps.every((step) => stepStatus(step) === 'done')) return 'done';
-    if (steps.some((step) => stepStatus(step) === 'running')) return 'running';
-    const days = daysUntil(preferredDeliveryDate(order));
+    const days = daysUntil(committedDeliveryDate(order));
     if (days !== null && days < 0) return 'late';
     if (days !== null && days <= 2) return 'risk';
+    if (steps.some((step) => stepStatus(step) === 'running')) return 'running';
     return 'ok';
 }
 
@@ -303,16 +344,18 @@ function renderSummary() {
 }
 
 function renderPips(order, max = 8) {
+    const orderLate = orderStatus(order) === 'late';
     return orderSteps(order).slice(0, max).map((step) => {
         const status = stepStatus(step);
-        const cls = status === 'done' ? 'done' : status === 'running' ? 'active' : 'pending';
+        const cls = status === 'done' ? 'done' : status === 'running' ? (orderLate ? 'late' : 'active') : 'pending';
         return `<span class="orders-step-pip ${cls}" title="${escapeHtml(step.processName || '')}"></span>`;
     }).join('');
 }
 
 function estimateButton(order, short = false) {
     const hasEstimate = Boolean(order.planning?.estimatedDeliveryDateLate);
-    return `<button type="button" class="orders-estimate-btn${hasEstimate ? ' has-estimate' : ''}" data-action="estimate" data-order="${escapeHtml(order.order_code)}">${hasEstimate ? (short ? 'Est.' : 'Estimada') : 'Estimar'}</button>`;
+    const label = hasEstimate ? (short ? 'Est.' : 'Estimada') : 'Estimar';
+    return `<button type="button" class="orders-estimate-btn${hasEstimate ? ' has-estimate' : ''}" data-action="estimate" data-order="${escapeHtml(order.order_code)}">${iconButtonMarkup('planningEstimate', label)}</button>`;
 }
 
 function openLink(order) {
@@ -324,7 +367,7 @@ function openLink(order) {
 function renderOrderCard(order) {
     const status = orderStatus(order);
     const pct = orderProgress(order);
-    const delivery = preferredDeliveryDate(order);
+    const delivery = committedDeliveryDate(order);
     const days = daysUntil(delivery);
     const daysLabel = days === null ? '' : days < 0 ? `hace ${Math.abs(days)}d` : days === 0 ? 'Hoy' : `${days}d`;
     const estimated = order.planning?.estimatedDeliveryDateLate ? `<div class="orders-estimated-note">Rango estimado: ${escapeHtml(formatShortDate(order.planning.estimatedDeliveryDateEarly))} - ${escapeHtml(formatShortDate(order.planning.estimatedDeliveryDateLate))}</div>` : '';
@@ -345,15 +388,30 @@ function renderOrderCard(order) {
                 <span class="orders-status-badge ${escapeHtml(status)}">${escapeHtml(statusLabel(status))}</span>
                 ${estimateButton(order)}
                 ${openLink(order)}
-                <button type="button" class="orders-toggle-btn" aria-label="Expandir orden">⌄</button>
+                <button type="button" class="orders-toggle-btn" aria-label="Desplegar orden">${iconButtonMarkup('planningExpand', 'Desplegar')}</button>
             </div>
             <div class="orders-progress-row">
                 <div class="orders-progress-track"><div class="orders-progress-fill ${escapeHtml(status)}" style="width:${pct}%"></div></div>
                 <div class="orders-progress-steps">${renderPips(order)}</div>
-                <strong>${pct}%</strong>
+                <strong class="${escapeHtml(status)}">${pct}%</strong>
             </div>
             <div class="orders-order-detail">
-                ${renderProcessRows(order)}
+                <div class="orders-process-panel" data-flow-wrap="${escapeHtml(order.order_code)}">
+                    <div class="orders-process-panel-head">
+                        <span>Procesos planificados</span>
+                        <button type="button" class="orders-flow-toggle" data-action="flip-flow" data-order="${escapeHtml(order.order_code)}">${iconButtonMarkup('planningProcessFlip', 'Ver flujo real')}</button>
+                    </div>
+                    <div class="orders-flip-stage">
+                        <div class="orders-flip-inner">
+                            <div class="orders-flip-face orders-flip-front">${renderProcessRows(order)}</div>
+                            <div class="orders-flip-face orders-flip-back">
+                                <div class="orders-flow-panel" data-flow-panel="${escapeHtml(order.order_code)}">
+                                    <div class="orders-flow-loading"><span class="orders-spinner"></span> Cargando flujo...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </article>
     `;
@@ -369,13 +427,148 @@ function renderProcessRows(order) {
                 const status = stepStatus(step);
                 return `<div class="orders-process-row">
                     <strong>${escapeHtml(step.processName || step.processKey || 'Proceso')}</strong>
-                    <span>${escapeHtml(step.durationHours ? `${Number(step.durationHours).toLocaleString('es-CR', { maximumFractionDigits: 1 })} h` : 'Pendiente')}</span>
+                    <span>${escapeHtml(stepDurationHours(step) ? `${stepDurationHours(step).toLocaleString('es-CR', { maximumFractionDigits: 1 })} h` : 'Pendiente')}</span>
                     <span>${escapeHtml(step.machineName || '—')}</span>
                     <em class="${escapeHtml(status)}">${escapeHtml({ done: 'Listo', running: 'En proceso', pending: 'Pendiente' }[status])}</em>
                 </div>`;
             }).join('')}
         </div>
     `;
+}
+
+function flowDate(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleDateString('es-CR', { day: '2-digit', month: 'short' }) + ' ' + date.toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function flowMinutes(minutes) {
+    const total = Math.round(Number(minutes || 0));
+    if (!Number.isFinite(total) || total <= 0) return '';
+    if (total < 60) return `${total} min`;
+    const hours = Math.floor(total / 60);
+    const rest = total % 60;
+    return `${hours} h${rest ? ` ${rest} min` : ''}`;
+}
+
+function flowStatusClass(step = {}) {
+    const status = String(step.routeStatus || '').toUpperCase();
+    if (status === 'COMPLETADO') return 'done';
+    if (['RUN', 'SETUP'].includes(status)) return 'active';
+    if (status === 'PARO') return 'stopped';
+    return 'pending';
+}
+
+function fallbackFlowSteps(order) {
+    return orderSteps(order).map((step, index) => ({
+        processKey: step.processKey,
+        processName: step.processName || step.processKey || 'Proceso',
+        routeStatus: step.routeStatus || 'PENDIENTE',
+        sequenceOrder: index + 1,
+        startedAt: step.startedAt || step.actualStartAt || '',
+        completedAt: step.completedAt || step.actualEndAt || '',
+        completedBy: step.completedBy || '',
+        completedByPhoto: step.completedByPhoto || '',
+        startedBy: step.startedBy || '',
+        startedByPhoto: step.startedByPhoto || '',
+        planned: {
+            minutes: Math.round(stepDurationHours(step) * 60),
+            machineName: step.machineName || step.planned?.machineName || ''
+        }
+    }));
+}
+
+function renderFlowPanel(steps = [], history = []) {
+    if (!steps.length) return '<div class="orders-flow-empty">No hay flujo de producción registrado para esta orden.</div>';
+    const doneCount = steps.filter((step) => flowStatusClass(step) === 'done').length;
+    const total = steps.length;
+    const pct = Math.round((doneCount / total) * 100);
+    const rows = steps.map((step, index) => {
+        const state = flowStatusClass(step);
+        const isLast = index === steps.length - 1;
+        const nextDone = !isLast && flowStatusClass(steps[index + 1]) === 'done';
+        const markerName = String(step.completedBy || step.startedBy || '').trim();
+        const markerPhoto = String(step.completedByPhoto || step.startedByPhoto || '').trim();
+        const initials = markerName ? markerName.split(' ').map((part) => part.charAt(0)).join('').slice(0, 2).toUpperCase() : '';
+        const markerDate = step.completedAt || step.startedAt || '';
+        const metaParts = [];
+        if (markerName) metaParts.push(escapeHtml(markerName));
+        if (markerDate) metaParts.push(escapeHtml(flowDate(markerDate)));
+        const machine = step.planned?.machineName || step.machineName || '';
+        const minutes = step.planned?.minutes || Math.round(stepDurationHours(step) * 60);
+        const nodeContent = markerPhoto
+            ? `<img src="${escapeHtml(markerPhoto)}" alt="${escapeHtml(markerName)}" onerror="this.remove()">`
+            : (initials || (state === 'done' ? '✓' : state === 'active' ? '▶' : String(index + 1)));
+        return `
+            <div class="orders-flow-row">
+                <div class="orders-flow-left">
+                    <div class="orders-flow-node ${escapeHtml(state)}${markerName ? ' has-avatar' : ''}">
+                        ${nodeContent}
+                        ${markerName || state === 'done' ? '<span class="orders-flow-badge">✓</span>' : ''}
+                    </div>
+                    ${isLast ? '' : `<div class="orders-flow-connector ${nextDone && state === 'done' ? 'solid' : 'dashed'}"></div>`}
+                </div>
+                <div class="orders-flow-content">
+                    <strong class="${escapeHtml(state)}">${escapeHtml(step.processName || 'Proceso')}</strong>
+                    ${metaParts.length ? `<span>${metaParts.join(' · ')}</span>` : ''}
+                    ${machine ? `<em>Máquina: ${escapeHtml(machine)}</em>` : ''}
+                    ${minutes ? `<em>Tiempo planificado: ${escapeHtml(flowMinutes(minutes))}</em>` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+    const historyRows = Array.isArray(history) && history.length
+        ? `<div class="orders-flow-history"><strong>Historial</strong>${history.slice(0, 6).map((item) => `<span><em>${escapeHtml(item.ts || item.date || '')}</em>${escapeHtml(item.msg || item.message || '')}</span>`).join('')}</div>`
+        : '';
+    return `
+        <div class="orders-flow-panel-head">
+            <div>
+                <strong>Flujo de producción</strong>
+                <span>${doneCount} de ${total} etapas completas</span>
+            </div>
+            <em>${doneCount}/${total}</em>
+        </div>
+        <div class="orders-flow-progress"><div style="width:${pct}%"></div></div>
+        <div class="orders-flow-timeline">${rows}</div>
+        ${historyRows}
+    `;
+}
+
+async function loadFlowPanel(orderCode, panel) {
+    if (!panel) return;
+    if (flowCache.has(orderCode)) {
+        const cached = flowCache.get(orderCode);
+        panel.innerHTML = renderFlowPanel(cached.steps, cached.history);
+        return;
+    }
+    panel.innerHTML = '<div class="orders-flow-loading"><span class="orders-spinner"></span> Cargando flujo...</div>';
+    try {
+        const response = await fetch(`/api/ordenes-produccion/${encodeURIComponent(orderCode)}/seguimiento`);
+        const payload = await response.json();
+        if (!response.ok || payload.ok === false) throw new Error(payload.error || 'No se pudo cargar el flujo de producción.');
+        const data = { steps: payload.steps || payload.items || [], history: payload.history || [] };
+        flowCache.set(orderCode, data);
+        panel.innerHTML = renderFlowPanel(data.steps, data.history);
+    } catch (error) {
+        const order = orders.find((item) => item.order_code === orderCode);
+        const data = { steps: order ? fallbackFlowSteps(order) : [], history: [] };
+        flowCache.set(orderCode, data);
+        panel.innerHTML = data.steps.length ? renderFlowPanel(data.steps, []) : `<div class="orders-flow-empty">${escapeHtml(error.message || 'No se pudo cargar el flujo de producción.')}</div>`;
+    }
+}
+
+function flipFlowPanel(orderCode) {
+    const row = document.querySelector(`[data-row="${CSS.escape(orderCode)}"]`);
+    const wrap = row?.querySelector('[data-flow-wrap]');
+    if (!wrap) return;
+    const flipped = wrap.classList.toggle('is-flipped');
+    const button = wrap.querySelector('[data-action="flip-flow"]');
+    if (button) {
+        button.classList.toggle('is-active', flipped);
+        button.innerHTML = iconButtonMarkup('planningProcessFlip', flipped ? 'Ver planificado' : 'Ver flujo real');
+    }
+    if (flipped) loadFlowPanel(orderCode, wrap.querySelector('[data-flow-panel]'));
 }
 
 function renderList() {
@@ -396,14 +589,18 @@ function renderSemaforo() {
     if (!semaforoView) return;
     semaforoView.innerHTML = visible.length ? visible.map((order) => {
         const status = orderStatus(order);
-        const delivery = preferredDeliveryDate(order);
+        const delivery = committedDeliveryDate(order);
+        const estimated = order.planning?.estimatedDeliveryDateLate;
+        const days = daysUntil(delivery);
+        const daysLabel = days === null ? '' : days < 0 ? `Hace ${Math.abs(days)}d` : days === 0 ? 'Hoy' : `En ${days}d`;
         return `
             <article class="orders-semaforo-row is-${escapeHtml(status === 'late' ? 'late' : status === 'risk' ? 'risk' : 'ok')}" data-action="estimate" data-order="${escapeHtml(order.order_code)}">
                 <span class="orders-semaforo-dot ${escapeHtml(status)}"></span>
-                <strong>${escapeHtml(order.order_code)}</strong>
-                <span>${escapeHtml(order.customer_name || 'Sin cliente')}</span>
-                <em>${escapeHtml(currentProcess(order))}</em>
-                <span>${escapeHtml(formatShortDate(delivery) || 'Sin fecha')}</span>
+                <strong>${escapeHtml(order.order_code)}<small>${escapeHtml(order.customer_name || 'Sin cliente')}</small></strong>
+                <span>${escapeHtml(currentProcess(order))}</span>
+                <div class="orders-semaforo-pips">${renderPips(order, 12)}</div>
+                <em><i class="orders-semaforo-dot ${escapeHtml(status)}"></i>${escapeHtml(statusLabel(status))}</em>
+                <span class="orders-semaforo-date">${escapeHtml(formatShortDate(delivery) || 'Sin fecha')}<small>${escapeHtml(daysLabel)}</small>${estimated ? `<small class="accent">Est. ${escapeHtml(formatShortDate(estimated))}</small>` : ''}</span>
                 ${estimateButton(order, true)}
             </article>
         `;
@@ -428,12 +625,16 @@ function renderKanban() {
         if (!box) return;
         box.innerHTML = items.length ? items.map((order) => {
             const status = orderStatus(order);
+            const estimated = order.planning?.estimatedDeliveryDateLate;
+            const delivery = committedDeliveryDate(order);
             return `
                 <article class="orders-kanban-card is-${escapeHtml(status === 'late' ? 'late' : status === 'risk' ? 'risk' : 'ok')}" data-action="estimate" data-order="${escapeHtml(order.order_code)}">
                     <strong>${escapeHtml(order.order_code)}</strong>
                     <span>${escapeHtml(order.customer_name || 'Sin cliente')}</span>
                     <em>${escapeHtml(currentProcess(order))}</em>
-                    <div class="orders-kanban-meta"><span>${escapeHtml(formatShortDate(preferredDeliveryDate(order)) || 'Sin fecha')}</span>${estimateButton(order, true)}</div>
+                    <div class="orders-kanban-pips">${renderPips(order, 8)}</div>
+                    ${estimated ? `<div class="orders-kanban-estimate">Est. ${escapeHtml(formatShortDate(estimated))}</div>` : ''}
+                    <div class="orders-kanban-meta"><span>${escapeHtml(formatShortDate(delivery) || 'Sin fecha')}</span>${estimateButton(order, true)}</div>
                 </article>
             `;
         }).join('') : '<div class="orders-empty-state compact">Sin órdenes</div>';
@@ -455,12 +656,15 @@ function renderAll() {
 function calculateEstimate(order, priority, bufferDays) {
     const steps = orderSteps(order);
     const remaining = steps.filter((step) => stepStatus(step) !== 'done');
-    const processHours = remaining.reduce((sum, step) => sum + Math.max(0, Number(step.durationHours || 0)), 0) || Math.max(8, steps.length * 4);
+    const processHours = remaining.reduce((sum, step) => sum + stepDurationHours(step), 0) || Math.max(8, steps.length * 4);
     const queueHours = (QUEUE_DAYS[priority] ?? QUEUE_DAYS.normal) * WORK_HOURS;
     const planning = order.planning || {};
     const plannedBase = planning.productionEndDate || planning.estimatedProductionEndDate;
-    const productionEnd = plannedBase ? new Date(plannedBase) : addWorkHours(new Date(), processHours + queueHours);
-    const earlyEnd = plannedBase ? new Date(plannedBase) : productionEnd;
+    const plannedDate = plannedBase ? new Date(plannedBase) : null;
+    const productionEnd = plannedDate && Number.isFinite(plannedDate.getTime()) && plannedDate > new Date()
+        ? plannedDate
+        : addWorkHours(new Date(), processHours + queueHours);
+    const earlyEnd = productionEnd;
     const lateEnd = addBusinessDays(earlyEnd, bufferDays);
     return {
         priority,
@@ -469,7 +673,8 @@ function calculateEstimate(order, priority, bufferDays) {
         queueHours,
         earlyEnd,
         lateEnd,
-        confidence: steps.length ? 'Alta' : 'Media'
+        confidence: steps.length ? 'Alta' : 'Media',
+        remainingCount: remaining.length || steps.length
     };
 }
 
@@ -485,6 +690,7 @@ function renderEstimate() {
                 <span>Prioridad: <strong>${escapeHtml(priorityLabel)}</strong></span>
                 <span>Cola considerada: <strong>${escapeHtml((currentEstimate.queueHours / WORK_HOURS).toLocaleString('es-CR'))} días hábiles</strong></span>
                 <span>Producción pendiente: <strong>${escapeHtml(currentEstimate.processHours.toLocaleString('es-CR', { maximumFractionDigits: 1 }))} h</strong></span>
+                <span>Procesos considerados: <strong>${escapeHtml(currentEstimate.remainingCount)}</strong></span>
                 <span>Colchón posterior: <strong>${escapeHtml(selectedBuffer)} días hábiles</strong></span>
                 <span>Confianza: <strong>${escapeHtml(currentEstimate.confidence)}</strong></span>
             </div>
@@ -541,7 +747,7 @@ async function saveEstimate() {
         });
         const payload = await response.json();
         if (!response.ok || !payload.ok) throw new Error(payload.error || 'No se pudo guardar la estimación.');
-        await loadOrders(ordersSearchInput?.value || '');
+        await loadOrders();
         closeEstimate();
     } catch (error) {
         if (resultBox) resultBox.innerHTML = `<div class="orders-estimate-error">${escapeHtml(error.message)}</div>`;
@@ -551,19 +757,88 @@ async function saveEstimate() {
     }
 }
 
-async function loadOrders(search = '') {
-    const params = new URLSearchParams({ limit: '300' });
-    if (search) params.set('q', search);
-    const response = await fetch(`/api/ordenes-produccion?${params.toString()}`);
+function normalizeOrderRecord(item = {}) {
+    const planning = item.planning || {};
+    const rawSteps = Array.isArray(item.steps) ? item.steps : [];
+    return {
+        ...item,
+        order_code: item.order_code || item.orderCode || '',
+        quote_code: item.quote_code || item.quoteCode || '',
+        line_code: item.line_code || item.lineCode || '',
+        customer_name: item.customer_name || item.customerName || '',
+        job_name: item.job_name || item.jobName || item.productName || '',
+        product_name: item.product_name || item.productName || '',
+        salesperson_name: item.salesperson_name || item.salespersonName || '',
+        machine_name: item.machine_name || item.machineName || '',
+        material_name: item.material_name || item.materialName || '',
+        ordered_quantity: item.ordered_quantity || item.orderedQuantity || 0,
+        created_at: item.created_at || item.createdAt || new Date().toISOString(),
+        planning: {
+            ...planning,
+            promisedDeliveryDate: planning.promisedDeliveryDate || item.promisedDeliveryDate || '',
+            scheduledDeliveryDate: planning.scheduledDeliveryDate || item.scheduledDeliveryDate || '',
+            productionEndDate: planning.productionEndDate || item.productionEndDate || '',
+            estimatedProductionEndDate: planning.estimatedProductionEndDate || item.estimatedProductionEndDate || '',
+            estimatedDeliveryDateEarly: planning.estimatedDeliveryDateEarly || item.estimatedDeliveryDateEarly || '',
+            estimatedDeliveryDateLate: planning.estimatedDeliveryDateLate || item.estimatedDeliveryDateLate || '',
+            estimatePriority: planning.estimatePriority || item.estimatePriority || 'normal',
+            deliveryBufferBusinessDays: planning.deliveryBufferBusinessDays ?? item.deliveryBufferBusinessDays ?? 2
+        },
+        steps: rawSteps.map((step) => ({
+            ...step,
+            processKey: step.processKey || step.key || '',
+            processName: step.processName || step.label || step.processKey || step.key || 'Proceso',
+            routeStatus: step.routeStatus || step.status || 'PENDIENTE',
+            durationHours: step.durationHours || (Number(step.planned?.minutes || 0) / 60) || 0,
+            machineName: step.machineName || step.planned?.machineName || ''
+        }))
+    };
+}
+
+async function fetchPlanningOrders() {
+    const response = await fetch('/api/planificacion/seguimiento');
+    const payload = await response.json();
+    if (!response.ok || payload.ok === false) throw new Error(payload.error || 'No se pudo cargar el seguimiento de planificación.');
+    return (payload.items || []).map(normalizeOrderRecord);
+}
+
+async function fetchProductionOrders() {
+    const response = await fetch('/api/ordenes-produccion?limit=300');
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || 'No se pudieron cargar las órdenes.');
-    orders = payload.items || [];
+    return (payload.items || []).map(normalizeOrderRecord);
+}
+
+async function loadOrders() {
+    if (ordersRefreshButton) {
+        ordersRefreshButton.disabled = true;
+        ordersRefreshButton.innerHTML = refreshButtonContent(true);
+    }
+    if (ordersRefreshStatus) ordersRefreshStatus.textContent = 'Actualizando...';
+    try {
+        try {
+            orders = await fetchPlanningOrders();
+        } catch (planningError) {
+            orders = await fetchProductionOrders();
+            console.warn(planningError);
+        }
+        flowCache.clear();
+        if (ordersRefreshStatus) ordersRefreshStatus.textContent = `Actualizado ${new Date().toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' })}`;
+    } finally {
+        if (ordersRefreshButton) {
+            ordersRefreshButton.disabled = false;
+            ordersRefreshButton.innerHTML = refreshButtonContent(false);
+        }
+    }
     if (ordersTableBody) ordersTableBody.innerHTML = '';
     renderAll();
 }
 
 ordersSearchInput?.addEventListener('input', () => renderAll());
 ordersSortSelect?.addEventListener('change', renderAll);
+ordersRefreshButton?.addEventListener('click', () => loadOrders().catch((error) => {
+    if (ordersRefreshStatus) ordersRefreshStatus.textContent = error.message;
+}));
 
 document.addEventListener('click', (event) => {
     const link = event.target.closest('a[data-route]');
@@ -597,6 +872,12 @@ document.addEventListener('click', (event) => {
     }
     const actionTarget = event.target.closest('[data-action]');
     if (!actionTarget) return;
+    if (actionTarget.dataset.action === 'flip-flow') {
+        event.preventDefault();
+        event.stopPropagation();
+        flipFlowPanel(actionTarget.dataset.order || '');
+        return;
+    }
     if (actionTarget.dataset.action === 'toggle') {
         const code = actionTarget.dataset.order || '';
         const row = document.querySelector(`[data-row="${CSS.escape(code)}"]`);
@@ -630,3 +911,9 @@ async function init() {
 }
 
 init();
+setInterval(() => {
+    if (document.hidden) return;
+    loadOrders().catch((error) => {
+        if (ordersRefreshStatus) ordersRefreshStatus.textContent = error.message;
+    });
+}, 60000);

@@ -7900,9 +7900,11 @@
             { key: 'quoteRequestAttachmentDelete', label: 'Eliminar Adjunto Solicitud', group: 'Acciones Documento', placeholder: '\u2573', color: '#b94848', size: 18 },
             { key: 'orderPlanning', label: 'Órdenes Control de Planificación', group: 'Órdenes', placeholder: '\u25F3', color: '#1e516d', size: 18 },
             { key: 'orderPlanningRoute', label: 'Órdenes Ruta de Planificación', group: 'Órdenes', placeholder: '\u25F3', color: '#1e516d', size: 18 },
-            { key: 'planningProcessFlip', label: 'Planificación Ver Procesos', group: 'Órdenes', placeholder: '\u21C4', color: '#1e516d', size: 18 },
-            { key: 'planningRefresh', label: 'Planificación Actualizar Arte', group: 'Órdenes', placeholder: '\u21BB', color: '#1e516d', size: 18 },
-            { key: 'planningOpenGantt', label: 'Planificación Ir a Gantt', group: 'Órdenes', placeholder: '\u25F3', color: '#1e516d', size: 18 },
+            { key: 'planningProcessFlip', label: 'Planificación Ver Procesos', group: 'Planificación', tab: 'Planificación', section: 'Lanzamiento', placeholder: '\u21C4', color: '#1e516d', size: 18 },
+            { key: 'planningRefresh', label: 'Planificación Actualizar Seguimiento', group: 'Planificación', tab: 'Planificación', section: 'Seguimiento', placeholder: '\u21BB', color: '#1e516d', size: 18 },
+            { key: 'planningOpenGantt', label: 'Planificación Ir a Gantt', group: 'Planificación', tab: 'Planificación', section: 'Lanzamiento', placeholder: '\u25F3', color: '#1e516d', size: 18 },
+            { key: 'planningEstimate', label: 'Planificación Estimar Tiempo', group: 'Planificación', tab: 'Planificación', section: 'Seguimiento', placeholder: '\u25CE', color: '#1e516d', size: 18 },
+            { key: 'planningExpand', label: 'Planificación Desplegar Orden', group: 'Planificación', tab: 'Planificación', section: 'Seguimiento', placeholder: '\u2304', color: '#1e516d', size: 18 },
             { key: 'orderPantones', label: 'Órdenes Pantones', group: 'Órdenes', placeholder: '\u25CC', color: '#1e516d', size: 18 },
             { key: 'orderDeliveries', label: 'Órdenes Entregas', group: 'Órdenes', placeholder: '\u21C4', color: '#1e516d', size: 18 },
             { key: 'orderNumbering', label: 'Órdenes Numerado', group: 'Órdenes', placeholder: '#', color: '#1e516d', size: 40 },
@@ -7946,6 +7948,7 @@
             'Notificaciones',
             'Botón flotante',
             'Modulo Movil',
+            'Planificación',
             'General',
             'Cotizaciones',
             'Órdenes',
@@ -7968,6 +7971,7 @@
             if (['quoteRequestSubmit', 'quoteRequestAdvanced', 'quoteRequestAttachment', 'quoteRequestRecord', 'quoteRequestRecordStop', 'quoteRequestAttachmentDelete', 'quantity.add', 'quantity.delete'].includes(key)) return { tab: 'Cotizaciones', section: 'Solicitud' };
             if (['lineDuplicate', 'lineCopy', 'lineCreateProduct', 'lineCreateQuote', 'lineFrontBack', 'lineTracking', 'lineExport', 'lineCreateOrder', 'lineCreateProductionOrder', 'quoteExpand', 'quoteCollapse', 'lineReorder', 'lineMenu'].includes(key)) return { tab: 'Cotizaciones', section: 'Líneas' };
             if (key === 'fieldInfo') return { tab: 'Cálculo', section: 'Campos' };
+            if (key.startsWith('planning')) return { tab: 'Planificación', section: icon.section || 'Seguimiento' };
             if (key.startsWith('order')) return { tab: 'Órdenes', section: 'Detalle' };
             if (key === 'proformaClose') return { tab: 'Proforma', section: 'Documento' };
             if (key.startsWith('adminUser') || key.startsWith('adminPermission')) return { tab: 'Configuración', section: 'Usuarios y permisos' };

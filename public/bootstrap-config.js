@@ -89,6 +89,8 @@
         "planningRefresh": "↻",
         "planningProcessFlip": "⇄",
         "planningOpenGantt": "◳",
+        "planningEstimate": "◎",
+        "planningExpand": "⌄",
         "browserOpen": "/assets/bootstrap/icons-browserOpen.png",
         "lineCreateProductionOrder": "/assets/bootstrap/icons-lineCreateProductionOrder.png",
         "quoteRequestSubmit": "➤",
