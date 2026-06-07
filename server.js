@@ -4683,7 +4683,7 @@ function pickFirstMeaningfulNumber(...values) {
         if (value === null || typeof value === 'undefined' || Number.isNaN(value)) {
             continue;
         }
-        const numericValue = Number(value);
+        const numericValue = parsePlanningQuantityNumber(value);
         if (!Number.isFinite(numericValue)) {
             continue;
         }
@@ -4695,6 +4695,38 @@ function pickFirstMeaningfulNumber(...values) {
         }
     }
     return firstNumeric;
+}
+
+function parsePlanningQuantityNumber(value) {
+    if (value === '' || value === null || typeof value === 'undefined') return null;
+    if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+    const rawText = String(value).trim();
+    if (!rawText) return null;
+    const candidates = rawText.includes('=')
+        ? [rawText.split('=').pop(), rawText]
+        : [rawText];
+    for (const candidate of candidates) {
+        const tokens = String(candidate || '').match(/-?\d[\d.,]*/g) || [];
+        if (!tokens.length) continue;
+        const token = rawText.includes('=') ? tokens[tokens.length - 1] : tokens[0];
+        let normalized = token.replace(/\s+/g, '');
+        const hasComma = normalized.includes(',');
+        const hasDot = normalized.includes('.');
+        if (hasComma && hasDot) {
+            normalized = normalized.lastIndexOf(',') > normalized.lastIndexOf('.')
+                ? normalized.replace(/\./g, '').replace(',', '.')
+                : normalized.replace(/,/g, '');
+        } else if (hasComma) {
+            normalized = /^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(normalized)
+                ? normalized.replace(/,/g, '')
+                : normalized.replace(',', '.');
+        } else if (hasDot && /^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(normalized)) {
+            normalized = normalized.replace(/\./g, '').replace(',', '.');
+        }
+        const parsed = Number(normalized);
+        if (Number.isFinite(parsed)) return parsed;
+    }
+    return null;
 }
 
 function buildCalculationLineSummary(row = {}) {
@@ -9489,6 +9521,14 @@ function getOrderPlanningControl(rawData = {}, quoteRow = null) {
         scheduledDeliveryDate: existing.scheduledDeliveryDate || null,
         productionEndDate: existing.productionEndDate || null,
         productionScheduleAlert: Boolean(existing.productionScheduleAlert),
+        estimatePriority: existing.estimatePriority || 'normal',
+        deliveryBufferBusinessDays: Number(existing.deliveryBufferBusinessDays || 0),
+        estimatedProductionEndDate: existing.estimatedProductionEndDate || null,
+        estimatedDeliveryDateEarly: existing.estimatedDeliveryDateEarly || null,
+        estimatedDeliveryDateLate: existing.estimatedDeliveryDateLate || null,
+        estimatedAt: existing.estimatedAt || null,
+        estimatedBy: existing.estimatedBy || '',
+        estimationConfidence: existing.estimationConfidence || '',
         selectedProcessKeys: normalizePlanningProcessKeys(existing.selectedProcessKeys || existing.selectedProcesses || []),
         processSelectionUpdatedAt: existing.processSelectionUpdatedAt || null,
         processSelectionUpdatedBy: existing.processSelectionUpdatedBy || ''
@@ -14276,6 +14316,20 @@ app.patch('/api/ordenes-produccion/:codigo/details', async (req, res) => {
             if (Object.prototype.hasOwnProperty.call(payload.planningControl, 'promisedDeliveryDate')) {
                 controlUpdates.promisedDeliveryDate = payload.planningControl.promisedDeliveryDate || null;
             }
+            [
+                'estimatePriority',
+                'deliveryBufferBusinessDays',
+                'estimatedProductionEndDate',
+                'estimatedDeliveryDateEarly',
+                'estimatedDeliveryDateLate',
+                'estimatedAt',
+                'estimatedBy',
+                'estimationConfidence'
+            ].forEach((key) => {
+                if (Object.prototype.hasOwnProperty.call(payload.planningControl, key)) {
+                    controlUpdates[key] = payload.planningControl[key] ?? null;
+                }
+            });
             if (Object.keys(controlUpdates).length) {
                 rawData.planning_control = {
                     ...getOrderPlanningControl(rawData),
@@ -14363,7 +14417,9 @@ app.get('/api/ordenes-produccion', async (req, res) => {
                     q.salesperson_name,
                     fc.process_type,
                     fc.product_code,
-                    fp.product_name
+                    fp.product_name,
+                    o.raw_data,
+                    COALESCE(routes.routes, '[]'::jsonb) AS production_routes
                FROM flexo_orders o
           LEFT JOIN quotes q
                  ON q.quote_code = o.quote_code
@@ -14378,28 +14434,75 @@ app.get('/api/ordenes-produccion', async (req, res) => {
           LEFT JOIN flexo_products fp
                  ON fp.quote_code = o.quote_code
                 AND fp.line_code = o.line_code
+          LEFT JOIN LATERAL (
+                    SELECT jsonb_agg(jsonb_build_object(
+                        'processKey', r.process_key,
+                        'processName', r.process_name,
+                        'routeStatus', r.route_status,
+                        'sequenceOrder', r.sequence_order,
+                        'durationHours', r.duration_hours,
+                        'actualStartAt', r.actual_start_at,
+                        'actualEndAt', r.actual_end_at,
+                        'plannedStartAt', r.planned_start_at,
+                        'plannedEndAt', r.planned_end_at,
+                        'machineName', COALESCE(mp.machine_name, '')
+                    ) ORDER BY r.sequence_order, r.created_at) AS routes
+                      FROM production_order_routes r
+                 LEFT JOIN production_machine_profiles mp ON mp.id = r.machine_profile_id
+                     WHERE r.order_code = o.order_code
+               ) routes ON TRUE
                ${whereClause}
               ORDER BY o.created_at DESC
               LIMIT $${values.length}`,
             values
         );
+        const costsConfig = await loadCostsConfig().catch(() => ({}));
         res.json({
-            items: result.rows.map((row) => ({
-                planning: buildOrderPlanningSummary({ ...row, raw_data: {} }),
+            items: result.rows.map((row) => {
+                if (row.raw_data) normalizeCalculationKeys(row.raw_data);
+                const raw = row.raw_data || {};
+                const snapshot = inferPlanningOrderSnapshot(row);
+                const planning = buildOrderPlanningSummary(row);
+                const routeRows = Array.isArray(row.production_routes) ? row.production_routes : [];
+                const routeKeys = routeRows.map((route) => canonicalProductionFlowKey(route.processKey || route.processName)).filter(Boolean);
+                const processKeys = routeKeys.length ? routeKeys : resolveOrderTrackingProcessKeys(row, costsConfig, []);
+                const routeByKey = new Map();
+                routeRows.forEach((route) => {
+                    const key = canonicalProductionFlowKey(route.processKey || route.processName);
+                    if (key && !routeByKey.has(key)) routeByKey.set(key, route);
+                });
+                const steps = processKeys.map((key) => {
+                    const route = routeByKey.get(key) || {};
+                    return {
+                        processKey: key,
+                        processName: PRODUCTION_FLOW_LABELS[key] || route.processName || PLANNING_PROCESS_LABELS[key] || key,
+                        routeStatus: route.routeStatus || 'PENDIENTE',
+                        durationHours: Number(route.durationHours || 0),
+                        actualStartAt: route.actualStartAt || null,
+                        actualEndAt: route.actualEndAt || null,
+                        plannedStartAt: route.plannedStartAt || null,
+                        plannedEndAt: route.plannedEndAt || null,
+                        machineName: route.machineName || ''
+                    };
+                });
+                return {
+                planning,
                 order_code: row.order_code,
                 quote_code: row.quote_code,
                 line_code: row.line_code,
-                customer_name: row.customer_name || '',
-                job_name: row.product_name || row.product_code || '',
-                product_name: row.product_name || row.product_code || '',
-                salesperson_name: row.salesperson_name || '',
-                machine_name: row.machine_name || '',
+                customer_name: row.customer_name || snapshot.customerName || raw.customer_name || '',
+                job_name: row.product_name || snapshot.jobName || snapshot.productName || row.product_code || '',
+                product_name: row.product_name || snapshot.productName || row.product_code || '',
+                salesperson_name: row.salesperson_name || raw.salesperson_name || '',
+                machine_name: row.machine_name || snapshot.machineName || '',
                 process_type: row.process_type || '',
-                material_name: row.material_code || '',
+                material_name: snapshot.materialName || row.material_code || '',
                 die_code: row.die_code || '',
                 ordered_quantity: row.ordered_quantity,
-                created_at: row.created_at
-            }))
+                created_at: row.created_at,
+                steps
+            };
+            })
         });
     } catch (error) {
         res.status(500).json({ error: error.message || 'No fue posible cargar las órdenes de producción.' });

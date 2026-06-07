@@ -3,11 +3,13 @@
 ## CORE PRINCIPLE
 
 * Minimize token usage.
+* Report the estimated percentage of token usage attributable to each section of these instructions whenever possible, for evaluation purposes.
+* Always create field names, labels, and user-facing text in Spanish. Avoid English unless technically required.
 * Stay strictly within the requested scope.
 * Do not modify unrelated files, code, layouts, or logic.
 * If requirements are unclear, stop and ask.
 * User for login: jesquiv and password: 1234
-* Always push after finish
+* Always push after finish.
 
 ---
 
@@ -76,11 +78,11 @@ Follow the existing system pattern.
 
 ## ICONS
 
-Use the centralized icon system.
+Use the centralized icon system on Configuration - Design - Icons.
 
 * Do not create temporary or isolated icon implementations.
 * Reuse existing icon rendering mechanisms.
-* Respect existing icon configuration and styling rules.
+* Respect existing icon configuration and styling rules on Configuration - Design - Icons for every icon.
 
 ---
 
