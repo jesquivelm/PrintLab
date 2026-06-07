@@ -20418,6 +20418,10 @@ app.get('/planificacion/timeline', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'planificacion', 'timeline.html'));
 });
 
+app.get('/planificacion/seguimiento', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'planificacion', 'seguimiento.html'));
+});
+
 app.get('/planificacion/simulador', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'planificacion', 'simulador.html'));
 });
