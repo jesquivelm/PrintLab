@@ -56,7 +56,7 @@ function orderStatus(o){
 function buildSteps(o){
   const cl=Array.isArray(o.processChecklist)?o.processChecklist:[];
   const lr=Array.isArray(o.processLoadSummary)?o.processLoadSummary:[];
-  const sel=cl.filter(p=>p.selected||p.base||p.quoted);
+  const sel=cl.filter(p=>p.selected||p.base||p.quoted).filter(p=>p.key!=='acabados');
   return sel.map((p,i)=>{
     const l=lr.find(r=>r.processKey===p.key)||{};
     return{key:p.key,label:LABELS[p.key]||p.label||p.key,icon:ICONS[p.key]||'·',
@@ -302,22 +302,27 @@ function openDrawer(code){
       </div>`).join('')
     :`<div style="color:var(--text3);font-size:12px;padding:8px">No hay procesos configurados en esta orden.</div>`;
 
+  const drawer=document.getElementById('drawer');
   document.getElementById('drawerOverlay').classList.add('open');
-  document.getElementById('drawer').classList.add('open');
+  drawer.classList.add('open');
+  drawer.style.transform='translateX(0)';
   document.body.style.overflow='hidden';
   setTimeout(runCalc, 200);
 }
 
 function closeDrawer(){
   document.getElementById('drawerOverlay').classList.remove('open');
-  document.getElementById('drawer').classList.remove('open');
+  const drawer=document.getElementById('drawer');
+  drawer.classList.remove('open');
+  drawer.style.transform='';
   document.body.style.overflow='';
 }
 
 function setPriority(p){
   drawerPriority=p;
   ['normal','premium','urgent'].forEach(id=>{
-    document.getElementById(`opt-${id}`).className='priority-opt'+(id===p?` sel-${id}`:'');
+    const el=document.getElementById(`opt-${id}`)||document.querySelector(`.priority-opt[data-priority="${id}"]`);
+    if(el)el.className='priority-opt'+(id===p?` sel-${id}`:'');
   });
 }
 
@@ -648,6 +653,13 @@ document.getElementById('ganttLink').addEventListener('click',e=>{
   }
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer()});
+document.querySelectorAll('.priority-opt[data-priority]').forEach(opt=>{
+  opt.addEventListener('click',()=>setPriority(opt.dataset.priority));
+});
+document.getElementById('bufferSlider')?.addEventListener('input',updateBuffer);
+document.getElementById('lockToggle')?.addEventListener('change',updateLock);
+document.getElementById('drawerClose')?.addEventListener('click',closeDrawer);
+document.getElementById('drawerOverlay')?.addEventListener('click',closeDrawer);
 document.getElementById('calcBtn')?.addEventListener('click',runCalc);
 document.getElementById('btnCopy')?.addEventListener('click',copyResult);
 document.getElementById('refreshBtn')?.addEventListener('click',loadData);

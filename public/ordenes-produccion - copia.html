@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/theme.js"></script>
+    <title>Ordenes de Produccion</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <main class="workspace workspace-quote quote-browser-main">
+        <section class="quote-card quote-card-clean quote-browser-card quote-browser-card-orders">
+            <div class="quote-browser-search-row">
+                <div class="quote-browser-search-wrap">
+                    <input id="ordersSearchInput" class="copy-popover-search quote-browser-search" type="search" placeholder="Buscar por orden, cotizacion o cliente">
+                </div>
+            </div>
+            <div class="copy-popover-table-wrap quote-browser-table-wrap">
+                <table class="copy-popover-table quote-browser-table">
+                    <thead>
+                        <tr>
+                            <th>Orden</th>
+                            <th>Cotizacion</th>
+                            <th>Linea</th>
+                            <th>Cliente</th>
+                            <th>Trabajo</th>
+                            <th>Fecha</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordersTableBody"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+    <script src="/access-control.js"></script>
+    <script src="/ordenes-produccion.js"></script>
+</body>
+</html>
