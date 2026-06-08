@@ -370,6 +370,10 @@ body{font-family:'DM Sans',system-ui,sans-serif;font-size:13px;color:var(--text)
 .sem-header{display:grid;grid-template-columns:130px minmax(0,1fr) 200px 90px 110px;gap:14px;padding:6px 16px;margin-bottom:2px}
 .sem-col-head{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
 
+.process-tabs{display:flex;gap:8px;padding:8px 24px;background:var(--surface);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.process-tab{padding:7px 14px;border:1px solid var(--border);border-radius:999px;background:var(--surface);color:var(--text2);font-size:12px;font-family:inherit;font-weight:600;cursor:pointer;transition:all .12s}
+.process-tab:hover{background:var(--surface2);border-color:var(--border2);color:var(--text)}
+.process-tab.is-active{background:var(--text);border-color:var(--text);color:var(--surface)}
 .empty-state{padding:60px 24px;text-align:center;color:var(--text3)}
 .empty-state-icon{font-size:36px;margin-bottom:12px;opacity:.4}
 .loading-state{display:flex;align-items:center;justify-content:center;gap:10px;padding:48px;color:var(--text3)}
@@ -409,7 +413,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;font-size:13px;color:var(--text)
   <span class="hdr-page">Seguimiento</span>
   <div class="hdr-right">
     <input class="hdr-search" type="search" id="searchInput" placeholder="Buscar orden, cliente...">
-    <a class="hdr-btn" id="ganttLink" href="/planificacion/gantt" data-route="/planificacion/gantt" data-label="Gantt">Ver Gantt</a>
+    <a class="hdr-btn" id="ganttLink" href="/planificacion/gantt" target="_blank">Ver Gantt</a>
     <button type="button" class="hdr-btn primary" id="refreshBtn">Actualizar</button>
   </div>
 </header>
@@ -418,6 +422,16 @@ body{font-family:'DM Sans',system-ui,sans-serif;font-size:13px;color:var(--text)
   <div class="alert-count-badge" id="alertCount">0</div>
   <div><strong id="alertTitle">Ordenes desplazadas por urgencia</strong> — <span id="alertMsg">Revisa las ordenes marcadas en rojo.</span></div>
   <button type="button" class="alert-banner-close" id="alertBannerClose">×</button>
+</div>
+
+<div class="process-tabs">
+  <button type="button" class="process-tab is-active" data-process-filter="all">Todos</button>
+  <button type="button" class="process-tab" data-process-filter="diseno">Diseño</button>
+  <button type="button" class="process-tab" data-process-filter="preprensa">Preprensa</button>
+  <button type="button" class="process-tab" data-process-filter="visto_bueno">Visto Bueno</button>
+  <button type="button" class="process-tab" data-process-filter="impresion">Impresión</button>
+  <button type="button" class="process-tab" data-process-filter="rebobinado">Rebobinado</button>
+  <button type="button" class="process-tab" data-process-filter="empaque">Empaque</button>
 </div>
 
 <div class="summary-bar">

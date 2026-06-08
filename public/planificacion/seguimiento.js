@@ -10,6 +10,7 @@ const impacts = {};
 
 let allOrders = [];
 let currentFilter = 'all';
+let processFilter = '';
 let searchTerm = '';
 let drawerOrder = null;
 let drawerPriority = 'normal';
@@ -270,12 +271,23 @@ function updateSummary() {
     set('countAll', t); set('countLate', late); set('countRisk', risk); set('countRunning', run); set('countDone', done); set('countImpact', imp);
 }
 
+function hasPendingStep(order, processKey) {
+    if (!processKey) return true;
+    const steps = buildSteps(order);
+    return steps.some(s => {
+        const key = (s.processKey || '').toLowerCase().trim();
+        const status = (s.routeStatus || '').toUpperCase();
+        return key === processKey && status !== 'COMPLETADO';
+    });
+}
+
 function renderAll() {
     const term = norm(searchTerm);
     const sort = sortSelect.value;
     let filtered = allOrders.filter(o => {
         const match = !term || norm([o.orderCode, o.customerName, o.jobName, o.productName].join(' ')).includes(term);
         if (!match) return false;
+        if (!hasPendingStep(o, processFilter)) return false;
         if (currentFilter === 'all') return true;
         if (currentFilter === 'impact') return !!impacts[o.orderCode];
         return orderStatus(o) === currentFilter;
@@ -707,6 +719,15 @@ document.getElementById('filterPills')?.addEventListener('click', (e) => {
     renderAll();
 });
 
+document.querySelectorAll('.process-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.process-tab').forEach(t => t.classList.remove('is-active'));
+        tab.classList.add('is-active');
+        processFilter = tab.dataset.processFilter === 'all' ? '' : tab.dataset.processFilter;
+        renderAll();
+    });
+});
+
 document.querySelectorAll('.view-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         currentView = btn.dataset.view;
@@ -762,9 +783,12 @@ searchInput?.addEventListener('input', (e) => { searchTerm = e.target.value; ren
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
 
 document.getElementById('ganttLink')?.addEventListener('click', (e) => {
-    if (window.parent && window.location.search.includes('shell=1')) {
+    if (new URLSearchParams(window.location.search).get('shell') === '1') {
         e.preventDefault();
         window.parent.postMessage({ type: 'erp-open-tab', route: '/planificacion/gantt?shell=1', label: 'Gantt' }, '*');
+    } else {
+        e.preventDefault();
+        window.open('/planificacion/gantt', '_blank', 'noopener');
     }
 });
 

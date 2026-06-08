@@ -36,8 +36,12 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 .gantt-inner{min-width:900px;position:relative}
 .g-header{display:flex;border-bottom:1px solid #e0e0da;background:#fafaf8}
 .res-col{width:176px;min-width:176px;padding:8px 12px;font-size:11px;font-weight:500;color:#888;border-right:1px solid #e0e0da;flex-shrink:0}
+.time-col{display:flex;flex-direction:column;flex:1;min-width:0}
+.day-hdr{display:flex;border-bottom:1px solid #e0e0da;background:#f5f5f2}
+.day-hdr-item{padding:6px 4px 4px 8px;font-size:10px;font-weight:600;color:#555;border-right:1px solid #e0e0da;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:capitalize;flex-shrink:0}
 .time-hdr{display:flex;flex:1}
 .t-slot{flex:1;min-width:52px;padding:8px 4px;text-align:center;font-size:11px;color:#888;border-right:1px solid #e0e0da}
+.day-sep{position:absolute;top:0;bottom:0;width:2px;background:rgba(0,0,0,.07);pointer-events:none;z-index:2}
 .g-row{display:flex;border-bottom:1px solid #e0e0da;min-height:64px;align-items:stretch;position:relative;background:#fff}
 .g-row:hover{background:#fafaf8}
 .g-row.drag-over .timeline{outline:2px dashed #378ADD;outline-offset:-2px}
@@ -143,6 +147,9 @@ html[data-theme="dark"] .task-progress-fill{background:rgba(255,255,255,.35)}
 .gantt-toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:900;max-width:min(560px,calc(100vw - 32px));padding:9px 13px;border-radius:8px;background:#1f2937;color:#fff;font-size:12px;box-shadow:0 8px 28px rgba(0,0,0,.18)}
 .gantt-toast.error{background:#A32D2D}
 .gantt-toast.ok{background:#0F6E56}
+.zoom-group{display:flex;gap:2px}
+.zoom-btn{font-size:11px!important;padding:3px 8px!important;border:1px solid #d0d0ca!important;background:#fff!important;color:#555!important;border-radius:4px!important;cursor:pointer!important}
+.zoom-btn.zoom-active{background:#378ADD!important;border-color:#378ADD!important;color:#fff!important}
 html[data-theme="dark"] body{background:var(--app-bg,#0f172a);color:var(--app-text,#e5edf6)}
 html[data-theme="dark"] .hdr,
 html[data-theme="dark"] .stats,
@@ -151,6 +158,11 @@ html[data-theme="dark"] .gantt-wrap,
 html[data-theme="dark"] .legend,
 html[data-theme="dark"] .dp,
 html[data-theme="dark"] .tt{background:var(--app-surface,#111827);border-color:var(--app-border,#334155);color:var(--app-text,#e5edf6)}
+html[data-theme="dark"] .day-hdr{background:var(--app-surface-soft,#172033);border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .day-hdr-item{color:var(--app-text,#e5edf6);border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .day-sep{background:rgba(255,255,255,.06)}
+html[data-theme="dark"] .zoom-btn{background:var(--app-surface-raised,#1f2937)!important;border-color:var(--app-border,#334155)!important;color:var(--app-text,#e5edf6)!important}
+html[data-theme="dark"] .zoom-btn.zoom-active{background:#378ADD!important;border-color:#378ADD!important;color:#fff!important}
 html[data-theme="dark"] .stat,
 html[data-theme="dark"] .g-row,
 html[data-theme="dark"] .proceso-hdr,
@@ -212,6 +224,14 @@ html[data-theme="dark"] .dp-val{color:var(--app-text,#e5edf6)}
 const API = '/api/planificacion';
 let HOURS = [];
 let SLOTS = 15;
+let DAYS = []; // day markers for headers
+let zoomLevel = 'week';
+const ZOOM_CONFIG = {
+  day:  { label: '1 día',  hours: 24, slotW: 120, btnCls: '' },
+  '3day': { label: '3 días', hours: 72, slotW: 72,  btnCls: '' },
+  week: { label: '1 sem',  hours: 168,slotW: 48,  btnCls: 'zoom-active' },
+  '2week': { label: '15 días',hours: 360,slotW: 30,  btnCls: '' }
+};
 const searchParams = new URLSearchParams(window.location.search);
 const autoPlanRequested = searchParams.get('autoplan') === '1';
 
@@ -239,6 +259,30 @@ function configureTimelineHorizon() {
       return `${stamp.toLocaleDateString('es-CR', { day: '2-digit', month: '2-digit' })} ${hour}`;
     }
     return hour;
+  });
+  // Build day markers
+  const dayMap = {};
+  DAYS = [];
+  for (let i = 0; i < SLOTS; i++) {
+    const stamp = new Date(base.getTime() + (i * 3600000));
+    const dayKey = stamp.toLocaleDateString('es-CR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    if (!dayMap[dayKey]) {
+      dayMap[dayKey] = { key: dayKey, label: stamp.toLocaleDateString('es-CR', { weekday: 'long', day: 'numeric', month: 'short' }), slot: i };
+      DAYS.push(dayMap[dayKey]);
+    }
+  }
+}
+
+function setZoom(level) {
+  if (!ZOOM_CONFIG[level]) return;
+  zoomLevel = level;
+  if (orders.length) {
+    configureTimelineHorizon();
+    render();
+    drawArrows();
+  }
+  document.querySelectorAll('.zoom-btn').forEach(b => {
+    b.classList.toggle('zoom-active', b.dataset.zoom === level);
   });
 }
 
@@ -799,6 +843,12 @@ function render() {
       <button class="btn" onclick="resolveAllConflicts()">Resolver</button>
       <button class="btn" onclick="autoSeq()">Optimizar ↺</button>
       <button class="btn primary" onclick="autoSeqCapacidad()" title="Re-secuenciar usando capacidad finita (calendarios + cola real)">⚡ Capacidad Finita</button>
+      <div class="zoom-group">
+        <button class="btn zoom-btn" data-zoom="day" onclick="setZoom('day')">1 día</button>
+        <button class="btn zoom-btn" data-zoom="3day" onclick="setZoom('3day')">3 días</button>
+        <button class="btn zoom-btn zoom-active" data-zoom="week" onclick="setZoom('week')">1 sem</button>
+        <button class="btn zoom-btn" data-zoom="2week" onclick="setZoom('2week')">15 días</button>
+      </div>
       <button class="btn" onclick="loadFromAPI()">Actualizar ↻</button>
     </div>
   </div>
@@ -826,10 +876,17 @@ function render() {
       ? '<span style="font-size:11px;color:#aaa">Sin alertas activas</span>' : ''}
   </div>
 
-  <div class="gantt-wrap"><div class="gantt-inner" id="gantt-inner" style="min-width:${175 + (SLOTS * 52)}px">
+  <div class="gantt-wrap"><div class="gantt-inner" id="gantt-inner" style="min-width:${175 + (SLOTS * ZOOM_CONFIG[zoomLevel].slotW)}px">
     <div class="g-header">
       <div class="res-col">Proceso / Recurso</div>
-      <div class="time-hdr">${HOURS.map(h => `<div class="t-slot">${h}</div>`).join('')}</div>
+      <div class="time-col">
+        <div class="day-hdr">${DAYS.map((d, di, arr) => {
+          const nextSlot = di < arr.length - 1 ? arr[di + 1].slot : SLOTS;
+          const dayWidth = (nextSlot - d.slot) * ZOOM_CONFIG[zoomLevel].slotW;
+          return `<div class="day-hdr-item" style="width:${dayWidth}px">${d.label}</div>`;
+        }).join('')}</div>
+        <div class="time-hdr">${HOURS.map(h => `<div class="t-slot" style="min-width:${ZOOM_CONFIG[zoomLevel].slotW}px">${h}</div>`).join('')}</div>
+      </div>
     </div>`;
 
   procesos.forEach(proc => {
@@ -862,6 +919,7 @@ function render() {
         </div>
         <div class="timeline" data-machine="${m.id_maquina}">
           ${HOURS.map((_, i) => `<div class="grid-ln" style="left:${pct(i)}"></div>`).join('')}
+          ${DAYS.filter(d => d.slot > 0).map(d => `<div class="day-sep" style="left:${pct(d.slot)}"></div>`).join('')}
           ${mOps.map(op => taskBar(op, machineConflictRutas, sequenceConflictRutas)).join('')}
         </div>
       </div>`;
@@ -1213,12 +1271,35 @@ function showTT(e, id_ruta) {
   tt.style.top  = (e.clientY - 16) + 'px';
 }
 function hideTT() { document.getElementById('tt').style.display = 'none'; }
+// ── DRAG TO PAN ────────────────────────────────────────────
+let panning = false, panStartX = 0, panStartScroll = 0;
+function initPan(e) {
+  const wrap = document.querySelector('.gantt-wrap');
+  if (!wrap) return;
+  if (!e.target.closest('.gantt-wrap')) return;
+  if (e.target.closest('.task-bar,.btn,button,a,input,select,textarea,label,.color-toggle,.proceso-toggle')) return;
+  panning = true;
+  panStartX = e.clientX;
+  panStartScroll = wrap.scrollLeft;
+  document.body.style.cursor = 'grabbing';
+  document.body.style.userSelect = 'none';
+}
+document.addEventListener('mousedown', initPan);
 document.addEventListener('mousemove', e => {
   const tt = document.getElementById('tt');
   if (tt.style.display === 'block') {
     tt.style.left = (e.clientX + 14) + 'px';
     tt.style.top  = (e.clientY - 16) + 'px';
   }
+  if (panning) {
+    const wrap = document.querySelector('.gantt-wrap');
+    if (wrap) wrap.scrollLeft = panStartScroll - (e.clientX - panStartX);
+  }
+});
+document.addEventListener('mouseup', () => {
+  panning = false;
+  document.body.style.cursor = '';
+  document.body.style.userSelect = '';
 });
 
 function formatHora(h) {
