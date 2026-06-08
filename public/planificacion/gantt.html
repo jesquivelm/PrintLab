@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -8,20 +8,26 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f5f5f3}
-.hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #e0e0da;background:#fff;gap:8px;flex-wrap:wrap}
-.hdr-title{font-size:15px;font-weight:500;display:flex;align-items:center;gap:8px}
-.dot{width:8px;height:8px;border-radius:50%;background:#1D9E75;display:inline-block}
+
+/* ── HEADER & TOOLBAR ── */
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #e0e0da;background:#fff;gap:8px;flex-wrap:wrap}
+.hdr-title{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+.dot{width:8px;height:8px;border-radius:50%;background:#1D9E75;display:inline-block;flex-shrink:0}
 .dot.offline{background:#E24B4A}
 .toolbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.btn{font-size:11px;padding:5px 11px;border-radius:6px;border:1px solid #d0d0ca;background:#fff;color:#1a1a1a;cursor:pointer}
+.btn{font-size:11px;padding:5px 11px;border-radius:6px;border:1px solid #d0d0ca;background:#fff;color:#1a1a1a;cursor:pointer;white-space:nowrap}
 .btn:hover{background:#f0f0ea}
 .btn.primary{background:#e8f0fb;border-color:#b5d0f0;color:#185FA5}
+.btn.primary:hover{background:#d5e7f9}
 .btn.danger{background:#fceaea;border-color:#f0b5b5;color:#A32D2D}
+.btn.active-view{background:#185FA5;border-color:#185FA5;color:#fff}
 .badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:5px}
 .badge.crit{background:#fceaea;color:#A32D2D}
 .badge.ok{background:#e8f7f1;color:#0F6E56}
 .badge.warn{background:#fef3e2;color:#854F0B}
 .badge.info{background:#e8f0fb;color:#185FA5}
+
+/* ── STATS BAR ── */
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px 16px;border-bottom:1px solid #e0e0da;background:#fff}
 .stat{background:#f5f5f3;border-radius:6px;padding:8px 12px}
 .stat-lbl{font-size:11px;color:#888;margin-bottom:2px}
@@ -31,112 +37,176 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 .conflict-drawer.open{display:flex}
 .conflict-toggle-btn.has-conflicts{background:#fceaea;border-color:#f0b5b5;color:#A32D2D}
 
-/* Gantt */
+/* ── VIEW TOGGLE TAB BAR ── */
+.view-tabs{display:flex;gap:0;border-bottom:2px solid #e0e0da;background:#fafaf8;padding:0 16px}
+.view-tab{font-size:12px;font-weight:500;padding:9px 16px;border:none;background:none;color:#888;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;display:flex;align-items:center;gap:6px;transition:color .15s,border-color .15s}
+.view-tab:hover{color:#378ADD}
+.view-tab.active{color:#185FA5;border-bottom-color:#185FA5}
+.view-tab .tab-count{font-size:10px;background:#e0e0da;color:#666;border-radius:10px;padding:1px 6px;font-weight:600}
+.view-tab.active .tab-count{background:#d5e7f9;color:#185FA5}
+
+/* ── GANTT ── */
 .gantt-wrap{overflow-x:auto;background:#fff}
 .gantt-inner{min-width:900px;position:relative}
 .g-header{display:flex;border-bottom:1px solid #e0e0da;background:#fafaf8}
-.res-col{width:176px;min-width:176px;padding:8px 12px;font-size:11px;font-weight:500;color:#888;border-right:1px solid #e0e0da;flex-shrink:0}
+.res-col{width:190px;min-width:190px;padding:8px 12px;font-size:11px;font-weight:500;color:#888;border-right:1px solid #e0e0da;flex-shrink:0}
 .time-col{display:flex;flex-direction:column;flex:1;min-width:0}
-.day-hdr{display:flex;border-bottom:1px solid #e0e0da;background:#f5f5f2}
-.day-hdr-item{padding:6px 4px 4px 8px;font-size:10px;font-weight:600;color:#555;border-right:1px solid #e0e0da;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:capitalize;flex-shrink:0}
+.day-hdr{display:flex;border-bottom:1px solid #e0e0da;background:#f0f4f8}
+.day-hdr-item{padding:6px 8px 4px;font-size:11px;font-weight:600;color:#445;border-right:1px solid #d8e0e8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:capitalize;flex-shrink:0}
 .time-hdr{display:flex;flex:1}
-.t-slot{flex:1;min-width:52px;padding:8px 4px;text-align:center;font-size:11px;color:#888;border-right:1px solid #e0e0da}
-.day-sep{position:absolute;top:0;bottom:0;width:2px;background:rgba(0,0,0,.07);pointer-events:none;z-index:2}
-.g-row{display:flex;border-bottom:1px solid #e0e0da;min-height:64px;align-items:stretch;position:relative;background:#fff}
+.t-slot{flex:1;min-width:52px;padding:6px 4px;text-align:center;font-size:10px;color:#aaa;border-right:1px solid #e8e8e4}
+.day-sep{position:absolute;top:0;bottom:0;width:2px;background:rgba(0,0,0,.06);pointer-events:none;z-index:2}
+.g-row{display:flex;border-bottom:1px solid #e0e0da;min-height:72px;align-items:stretch;position:relative;background:#fff}
 .g-row:hover{background:#fafaf8}
-.g-row.drag-over .timeline{outline:2px dashed #378ADD;outline-offset:-2px}
-.res-lbl{width:176px;min-width:176px;padding:8px 12px;border-right:1px solid #e0e0da;flex-shrink:0;display:flex;flex-direction:column;justify-content:center;gap:2px}
-.res-name{font-weight:500;font-size:12px}
-.res-sub{font-size:10px;color:#888}
+.g-row.drag-over .timeline{outline:2px dashed #378ADD;outline-offset:-2px;background:rgba(55,138,221,0.04)}
+.res-lbl{width:190px;min-width:190px;padding:8px 12px;border-right:1px solid #e0e0da;flex-shrink:0;display:flex;flex-direction:column;justify-content:center;gap:3px}
+.res-name{font-weight:600;font-size:12px}
+.res-sub{font-size:10px;color:#999}
+.res-count{font-size:10px;color:#378ADD;font-weight:500}
 
-/* Encabezado de proceso (agrupa máquinas) */
+/* Proceso header */
 .proceso-hdr{display:flex;align-items:center;border-bottom:1px solid #e0e0da;border-top:3px solid transparent;background:#f7f7f5}
-.proceso-hdr-lbl{width:176px;min-width:176px;padding:7px 12px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-right:1px solid #e0e0da;display:flex;align-items:center;gap:6px;flex-shrink:0}
+.proceso-hdr-lbl{width:190px;min-width:190px;padding:8px 12px;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border-right:1px solid #e0e0da;display:flex;align-items:center;gap:6px;flex-shrink:0}
 .proceso-hdr-timeline{flex:1;padding:4px 10px;font-size:10px;color:#aaa;display:flex;align-items:center;gap:8px;justify-content:space-between}
-.proceso-empty-note{color:#999;font-size:10px}
+.proceso-empty-note{color:#bbb;font-size:10px}
 .proceso-toggle{font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid #d0d0ca;background:#fff;color:#666;cursor:pointer}
-.timeline{flex:1;position:relative;display:flex;align-items:center}
-.grid-ln{position:absolute;top:0;bottom:0;width:1px;background:#e8e8e4}
+.timeline{flex:1;position:relative;display:flex;align-items:center;min-height:72px}
+.grid-ln{position:absolute;top:0;bottom:0;width:1px;background:#ebebea}
 
-/* Task bars */
-.task-bar{position:absolute;height:48px;border-radius:7px;display:flex;flex-direction:column;justify-content:center;padding:0 26px 0 9px;cursor:grab;border:2px solid transparent;overflow:hidden;white-space:nowrap;user-select:none;transition:box-shadow .15s,opacity .15s,filter .15s}
-.task-bar:hover{filter:brightness(1.06);z-index:20}
+/* ── TASK BARS (mejoradas) ── */
+.task-bar{
+  position:absolute;
+  height:56px;
+  border-radius:8px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  padding:0 28px 0 10px;
+  cursor:grab;
+  border:2px solid transparent;
+  overflow:hidden;
+  white-space:nowrap;
+  user-select:none;
+  transition:box-shadow .15s,opacity .15s,filter .15s,height .15s;
+  min-width:48px;
+}
+.task-bar:hover{filter:brightness(1.07);z-index:20;box-shadow:0 4px 14px rgba(0,0,0,.18)}
 .task-bar.dragging{opacity:0.4;cursor:grabbing}
-.task-bar.chain-active{box-shadow:0 0 0 3px rgba(255,214,0,.55),0 0 20px rgba(255,214,0,.35);z-index:30;filter:brightness(1.08);border-color:#FFD600!important}
-.task-bar.chain-dim{opacity:0.18}
-.task-cliente{font-size:9px;opacity:0.88;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
-.task-lbl{font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
-.task-sub{font-size:9.5px;opacity:0.82;overflow:hidden;text-overflow:ellipsis}
-.task-mode{display:inline-flex;align-items:center;justify-content:center;min-width:42px;height:16px;padding:0 6px;border-radius:999px;font-size:9px;font-weight:700;background:rgba(255,255,255,0.22);margin-left:6px}
-.task-config-btn{position:absolute;right:5px;top:5px;width:18px;height:18px;border:0;border-radius:4px;background:rgba(255,255,255,.2);color:#fff;font-size:12px;line-height:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2}
+.task-bar.drag-target{outline:2.5px dashed rgba(255,255,255,.7);outline-offset:-3px}
+.task-bar.chain-active{box-shadow:0 0 0 3px rgba(255,214,0,.6),0 0 20px rgba(255,214,0,.3);z-index:30;filter:brightness(1.08);border-color:#FFD600!important}
+.task-bar.chain-dim{opacity:0.15}
+.task-cliente{font-size:9.5px;opacity:0.85;overflow:hidden;text-overflow:ellipsis;line-height:1.2;font-weight:500}
+.task-lbl{font-size:11.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
+.task-sub{font-size:9.5px;opacity:0.80;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:4px}
+.task-mode-pill{display:inline-flex;align-items:center;padding:1px 5px;border-radius:999px;font-size:8.5px;font-weight:700;background:rgba(255,255,255,.22)}
+.task-config-btn{position:absolute;right:5px;top:50%;transform:translateY(-50%);width:20px;height:20px;border:0;border-radius:5px;background:rgba(255,255,255,.18);color:#fff;font-size:13px;line-height:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;flex-shrink:0}
 .task-config-btn:hover{background:rgba(255,255,255,.34)}
-.task-progress-track{position:absolute;bottom:0;left:0;right:0;height:4px;background:rgba(0,0,0,.15);border-radius:0 0 6px 6px;overflow:hidden;z-index:1}
-.task-progress-fill{height:100%;background:rgba(255,255,255,.55);border-radius:0 0 6px;transition:width .6s ease}
-.task-bar.is-running::after{content:'';position:absolute;inset:0;border-radius:7px;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.08) 50%,transparent 100%);background-size:200% 100%;animation:shine 2.2s ease-in-out infinite;pointer-events:none;z-index:0}
+.task-progress-track{position:absolute;bottom:0;left:0;right:0;height:4px;background:rgba(0,0,0,.12);border-radius:0 0 7px 7px;overflow:hidden;z-index:1}
+.task-progress-fill{height:100%;background:rgba(255,255,255,.55);border-radius:0 0 7px;transition:width .6s ease}
+.task-bar.is-running::after{content:'';position:absolute;inset:0;border-radius:8px;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.07) 50%,transparent 100%);background-size:200% 100%;animation:shine 2.5s ease-in-out infinite;pointer-events:none;z-index:0}
 @keyframes shine{0%{background-position:200% 0}100%{background-position:-200% 0}}
-.task-late-icon{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:#E24B4A;color:#fff;font-size:11px;line-height:18px;text-align:center;z-index:5;box-shadow:0 1px 4px rgba(0,0,0,.25);animation:pulse-warn 1.5s ease-in-out infinite}
-@keyframes pulse-warn{0%,100%{box-shadow:0 0 0 0 rgba(226,75,74,0.6)}50%{box-shadow:0 0 0 6px rgba(226,75,74,0)}}
-html[data-theme="dark"] .task-progress-track{background:rgba(0,0,0,.3)}
-html[data-theme="dark"] .task-progress-fill{background:rgba(255,255,255,.35)}
+.task-late-icon{position:absolute;top:-7px;right:-7px;width:18px;height:18px;border-radius:50%;background:#E24B4A;color:#fff;font-size:10px;line-height:18px;text-align:center;z-index:5;box-shadow:0 1px 4px rgba(0,0,0,.25);animation:pulse-warn 1.6s ease-in-out infinite}
+@keyframes pulse-warn{0%,100%{box-shadow:0 0 0 0 rgba(226,75,74,.6)}50%{box-shadow:0 0 0 6px rgba(226,75,74,0)}}
 .task-color-menu{position:fixed;z-index:800;background:#fff;border:1px solid #d0d0ca;border-radius:8px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.14);display:grid;grid-template-columns:repeat(5,22px);gap:6px}
 .task-color-dot{width:22px;height:22px;border-radius:50%;border:1px solid rgba(0,0,0,.16);cursor:pointer}
-
 .maint-bar{position:absolute;height:40px;background:#f0f0ea;border:1px dashed #c0c0ba;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#888}
 .legend{display:flex;gap:14px;padding:8px 16px;border-top:1px solid #e0e0da;background:#fff;flex-wrap:wrap}
 .leg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:#888}
 .leg-dot{width:11px;height:11px;border-radius:3px}
 
-/* SVG arrows */
+/* ── SVG ARROWS ── */
 #arrows-svg{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:50;overflow:visible}
 
-/* Conflictos */
+/* ── CONFLICTS ── */
 .task-bar.conflict-machine{outline:2.5px solid #E24B4A;outline-offset:1px;animation:pulse-red 1.2s ease-in-out infinite}
 .task-bar.conflict-sequence{outline:2.5px solid #FF8C00;outline-offset:1px;animation:pulse-orange 1.2s ease-in-out infinite}
-@keyframes pulse-red{0%,100%{box-shadow:0 0 0 0 rgba(226,75,74,0.5)}50%{box-shadow:0 0 0 5px rgba(226,75,74,0)}}
-@keyframes pulse-orange{0%,100%{box-shadow:0 0 0 0 rgba(255,140,0,0.5)}50%{box-shadow:0 0 0 5px rgba(255,140,0,0)}}
+@keyframes pulse-red{0%,100%{box-shadow:0 0 0 0 rgba(226,75,74,.5)}50%{box-shadow:0 0 0 5px rgba(226,75,74,0)}}
+@keyframes pulse-orange{0%,100%{box-shadow:0 0 0 0 rgba(255,140,0,.5)}50%{box-shadow:0 0 0 5px rgba(255,140,0,0)}}
 .conflict-badge{background:#fceaea;color:#A32D2D;border:1px solid #f0b5b5;font-size:10px;padding:2px 7px;border-radius:4px;display:inline-flex;align-items:center;gap:4px}
 .conflict-panel{background:#fef8f0;border:1px solid #f5c77e;border-radius:6px;padding:10px;margin-bottom:10px;font-size:11px}
 .conflict-panel-title{font-weight:600;color:#854F0B;margin-bottom:6px}
 .conflict-row{display:flex;align-items:flex-start;gap:6px;padding:3px 0;color:#5a3a00;border-bottom:1px solid #f5e4c0;font-size:11px}
 .conflict-row:last-child{border-bottom:none}
 
-/* Tooltip */
-.tt{position:fixed;background:#fff;border:1px solid #d0d0ca;border-radius:8px;padding:10px 13px;font-size:12px;pointer-events:none;z-index:600;min-width:210px;display:none;box-shadow:0 4px 16px rgba(0,0,0,0.10)}
+/* ── TOOLTIP ── */
+.tt{position:fixed;background:#fff;border:1px solid #d0d0ca;border-radius:8px;padding:10px 13px;font-size:12px;pointer-events:none;z-index:600;min-width:220px;display:none;box-shadow:0 6px 20px rgba(0,0,0,.12)}
 .tt-title{font-weight:600;font-size:13px;margin-bottom:4px}
 .tt-cliente{font-size:11px;color:#378ADD;margin-bottom:7px;border-bottom:1px solid #e8e8e4;padding-bottom:6px}
 .tt-row{display:flex;justify-content:space-between;gap:14px;margin-bottom:3px;color:#888}
 .tt-val{color:#1a1a1a;font-weight:500}
 
-/* Panel lateral */
-.dp{position:fixed;top:0;right:0;width:310px;height:100%;background:#fff;border-left:1px solid #d0d0ca;padding:16px;z-index:500;display:none;overflow-y:auto;box-shadow:-4px 0 24px rgba(0,0,0,0.08)}
+/* ── DETAIL PANEL ── */
+.dp{position:fixed;top:0;right:0;width:320px;height:100%;background:#fff;border-left:1px solid #d0d0ca;padding:16px;z-index:500;display:none;overflow-y:auto;box-shadow:-4px 0 24px rgba(0,0,0,.10)}
 .dp-title{font-size:14px;font-weight:600;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center}
 .dp-subtitle{font-size:11px;color:#378ADD;margin-bottom:14px}
-.dp-close{cursor:pointer;font-size:18px;color:#888;line-height:1}
+.dp-close{cursor:pointer;font-size:18px;color:#888;line-height:1;padding:2px 6px;border-radius:4px}
+.dp-close:hover{background:#f0f0ea}
 .dp-field{margin-bottom:10px}
 .dp-lbl{font-size:11px;color:#888;margin-bottom:3px}
 .dp-val{font-size:13px;font-weight:500}
 .dp-input{width:100%;font-size:12px;padding:6px 8px;border:1px solid #d0d0ca;border-radius:6px;background:#fafaf8;color:#1a1a1a}
 .dp-section{font-size:10px;font-weight:600;color:#888;margin:14px 0 6px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #e8e8e4;padding-bottom:4px}
-
-/* Cadena de procesos en panel */
 .chain-list{margin-bottom:12px}
 .chain-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;margin-bottom:3px;font-size:11px;background:#f5f5f3;border:1px solid #e8e8e4}
 .chain-item.active{background:#e8f0fb;border-color:#b5d0f0;font-weight:600}
 .chain-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-.chain-arrow{color:#aaa;font-size:10px;margin-left:auto}
 .dp-color-row{display:flex;gap:7px;flex-wrap:wrap}
 .dp-color-row label{display:flex;align-items:center}
 .dp-color-row input{position:absolute;opacity:0;pointer-events:none}
 .dp-color-swatch{width:24px;height:24px;border-radius:50%;border:2px solid transparent;box-shadow:0 0 0 1px #d0d0ca;cursor:pointer}
 .dp-color-row input:checked + .dp-color-swatch{border-color:#1a1a1a}
-
 .save-btn{width:100%;padding:8px;background:#e8f0fb;border:1px solid #b5d0f0;color:#185FA5;border-radius:6px;cursor:pointer;font-size:12px;margin-top:10px;font-weight:500}
 .save-btn:hover{background:#d0e4f8}
 .save-btn.saving{opacity:0.6;cursor:not-allowed}
 .impact-box{background:#fef3e2;border:1px solid #f5c77e;border-radius:6px;padding:10px;margin-top:10px;font-size:11px;color:#854F0B}
 .impact-title{font-weight:600;margin-bottom:4px}
 
-/* Loading / Error */
+/* ── PIPELINE VIEW ── */
+#pipeline-view{display:none;padding:16px;overflow-x:auto;min-height:400px}
+.pipeline-board{display:flex;gap:12px;min-width:max-content;align-items:flex-start;padding-bottom:8px}
+.pipeline-col{width:240px;flex-shrink:0}
+.pipeline-col-header{border-radius:8px 8px 0 0;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;border-bottom:3px solid transparent}
+.pipeline-col-title{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;display:flex;align-items:center;gap:7px}
+.pipeline-col-count{font-size:13px;font-weight:700;border-radius:12px;padding:2px 9px;min-width:28px;text-align:center}
+.pipeline-cards{display:flex;flex-direction:column;gap:7px;min-height:60px;padding:4px 0}
+.pipeline-card{background:#fff;border:1px solid #e0e0da;border-radius:8px;padding:10px 12px;cursor:pointer;transition:box-shadow .14s,transform .14s,border-color .14s;position:relative;border-left-width:4px}
+.pipeline-card:hover{box-shadow:0 3px 12px rgba(0,0,0,.10);transform:translateY(-1px);border-color:#b5cce0}
+.pipeline-card.is-late{border-right:3px solid #E24B4A}
+.pipeline-card.is-tight{border-right:3px solid #BA7517}
+.pipeline-card.is-running{border-right:3px solid #1D9E75}
+.pc-order{font-size:12px;font-weight:700;color:#1a1a1a;margin-bottom:2px;display:flex;justify-content:space-between;align-items:flex-start}
+.pc-cliente{font-size:11px;color:#378ADD;font-weight:500;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pc-articulo{font-size:11px;color:#555;margin-bottom:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pc-meta{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.pc-chip{font-size:10px;padding:2px 6px;border-radius:4px;font-weight:500;white-space:nowrap}
+.pc-chip.estado-RUN{background:#e8f7f1;color:#0F6E56}
+.pc-chip.estado-SETUP{background:#fef3e2;color:#854F0B}
+.pc-chip.estado-PENDIENTE{background:#e8f0fb;color:#185FA5}
+.pc-chip.estado-PARO{background:#fceaea;color:#A32D2D}
+.pc-chip.estado-COMPLETADO{background:#eaf3de;color:#3B6D11}
+.pc-chip.dur{background:#f0f0ea;color:#555}
+.pc-chip.late{background:#fceaea;color:#A32D2D;font-weight:700}
+.pc-chip.tight{background:#fef3e2;color:#854F0B}
+.pc-chip.maq{background:#f5f0fb;color:#534AB7;max-width:90px;overflow:hidden;text-overflow:ellipsis}
+.pc-due{font-size:10px;color:#aaa;margin-top:5px;display:flex;align-items:center;gap:4px}
+.pc-due.overdue{color:#A32D2D;font-weight:600}
+.pc-progress{margin-top:5px;height:3px;background:#f0f0ea;border-radius:2px;overflow:hidden}
+.pc-progress-fill{height:100%;border-radius:2px;transition:width .5s ease}
+.pipeline-empty{text-align:center;padding:24px 8px;color:#ccc;font-size:12px}
+
+/* Pipeline filter bar */
+.pipeline-filters{display:flex;gap:8px;padding:8px 16px;border-bottom:1px solid #e0e0da;background:#fafaf8;align-items:center;flex-wrap:wrap}
+.pipeline-search{font-size:12px;padding:5px 10px;border:1px solid #d0d0ca;border-radius:6px;background:#fff;color:#1a1a1a;width:200px}
+.pipeline-search:focus{outline:none;border-color:#378ADD}
+.filter-lbl{font-size:11px;color:#888}
+.filter-btn{font-size:11px;padding:3px 9px;border-radius:5px;border:1px solid #d0d0ca;background:#fff;color:#666;cursor:pointer}
+.filter-btn.active{background:#e8f0fb;border-color:#b5d0f0;color:#185FA5;font-weight:600}
+
+/* ── DRAG GHOST INDICATOR ── */
+.drop-hint{position:absolute;top:0;bottom:0;width:3px;background:#378ADD;border-radius:2px;pointer-events:none;z-index:100;opacity:0;transition:opacity .1s}
+.timeline.drag-over .drop-hint{opacity:1}
+
+/* ── LOADING / ERROR ── */
 .loading{display:flex;align-items:center;justify-content:center;padding:40px;gap:10px;color:#888;font-size:13px}
 .spinner{width:16px;height:16px;border:2px solid #e0e0da;border-top-color:#378ADD;border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -144,12 +214,15 @@ html[data-theme="dark"] .task-progress-fill{background:rgba(255,255,255,.35)}
 .conn-status{font-size:11px;padding:3px 8px;border-radius:5px;display:flex;align-items:center;gap:5px}
 .conn-status.online{background:#e8f7f1;color:#0F6E56}
 .conn-status.offline{background:#fceaea;color:#A32D2D}
-.gantt-toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:900;max-width:min(560px,calc(100vw - 32px));padding:9px 13px;border-radius:8px;background:#1f2937;color:#fff;font-size:12px;box-shadow:0 8px 28px rgba(0,0,0,.18)}
+.gantt-toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:900;max-width:min(560px,calc(100vw - 32px));padding:10px 16px;border-radius:8px;background:#1f2937;color:#fff;font-size:12px;box-shadow:0 8px 28px rgba(0,0,0,.2);animation:toast-in .2s ease}
+@keyframes toast-in{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 .gantt-toast.error{background:#A32D2D}
 .gantt-toast.ok{background:#0F6E56}
 .zoom-group{display:flex;gap:2px}
-.zoom-btn{font-size:11px!important;padding:3px 8px!important;border:1px solid #d0d0ca!important;background:#fff!important;color:#555!important;border-radius:4px!important;cursor:pointer!important}
-.zoom-btn.zoom-active{background:#378ADD!important;border-color:#378ADD!important;color:#fff!important}
+.zoom-btn{font-size:11px!important;padding:4px 9px!important;border:1px solid #d0d0ca!important;background:#fff!important;color:#555!important;border-radius:4px!important;cursor:pointer!important}
+.zoom-btn.zoom-active{background:#185FA5!important;border-color:#185FA5!important;color:#fff!important}
+
+/* ── DARK MODE ── */
 html[data-theme="dark"] body{background:var(--app-bg,#0f172a);color:var(--app-text,#e5edf6)}
 html[data-theme="dark"] .hdr,
 html[data-theme="dark"] .stats,
@@ -157,12 +230,14 @@ html[data-theme="dark"] .alerts,
 html[data-theme="dark"] .gantt-wrap,
 html[data-theme="dark"] .legend,
 html[data-theme="dark"] .dp,
-html[data-theme="dark"] .tt{background:var(--app-surface,#111827);border-color:var(--app-border,#334155);color:var(--app-text,#e5edf6)}
+html[data-theme="dark"] .tt,
+html[data-theme="dark"] #pipeline-view,
+html[data-theme="dark"] .pipeline-filters{background:var(--app-surface,#111827);border-color:var(--app-border,#334155);color:var(--app-text,#e5edf6)}
 html[data-theme="dark"] .day-hdr{background:var(--app-surface-soft,#172033);border-color:var(--app-border,#334155)}
 html[data-theme="dark"] .day-hdr-item{color:var(--app-text,#e5edf6);border-color:var(--app-border,#334155)}
-html[data-theme="dark"] .day-sep{background:rgba(255,255,255,.06)}
+html[data-theme="dark"] .day-sep{background:rgba(255,255,255,.05)}
 html[data-theme="dark"] .zoom-btn{background:var(--app-surface-raised,#1f2937)!important;border-color:var(--app-border,#334155)!important;color:var(--app-text,#e5edf6)!important}
-html[data-theme="dark"] .zoom-btn.zoom-active{background:#378ADD!important;border-color:#378ADD!important;color:#fff!important}
+html[data-theme="dark"] .zoom-btn.zoom-active{background:#185FA5!important;border-color:#185FA5!important;color:#fff!important}
 html[data-theme="dark"] .stat,
 html[data-theme="dark"] .g-row,
 html[data-theme="dark"] .proceso-hdr,
@@ -171,17 +246,17 @@ html[data-theme="dark"] .impact-box,
 html[data-theme="dark"] .conflict-panel{background:var(--app-surface-soft,#172033);border-color:var(--app-border,#334155);color:var(--app-text,#e5edf6)}
 html[data-theme="dark"] .g-header,
 html[data-theme="dark"] .btn,
+html[data-theme="dark"] .filter-btn,
 html[data-theme="dark"] .proceso-toggle,
 html[data-theme="dark"] .dp-input,
+html[data-theme="dark"] .pipeline-search,
 html[data-theme="dark"] .task-color-menu{background:var(--app-surface-raised,#1f2937);border-color:var(--app-border,#334155);color:var(--app-text,#e5edf6)}
-html[data-theme="dark"] .g-row:hover{background:rgba(14,165,233,.08)}
+html[data-theme="dark"] .g-row:hover{background:rgba(14,165,233,.07)}
 html[data-theme="dark"] .res-col,
 html[data-theme="dark"] .t-slot,
 html[data-theme="dark"] .res-lbl,
 html[data-theme="dark"] .proceso-hdr-lbl,
-html[data-theme="dark"] .grid-ln,
-html[data-theme="dark"] .tt-cliente,
-html[data-theme="dark"] .dp-section{border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .grid-ln{border-color:var(--app-border,#334155)}
 html[data-theme="dark"] .stat-lbl,
 html[data-theme="dark"] .res-sub,
 html[data-theme="dark"] .t-slot,
@@ -192,6 +267,14 @@ html[data-theme="dark"] .tt-row{color:var(--app-text-muted,#94a3b8)}
 html[data-theme="dark"] .tt-val,
 html[data-theme="dark"] .res-name,
 html[data-theme="dark"] .dp-val{color:var(--app-text,#e5edf6)}
+html[data-theme="dark"] .pipeline-card{background:var(--app-surface-soft,#172033);border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .pipeline-card:hover{border-color:#378ADD;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+html[data-theme="dark"] .pc-order{color:var(--app-text,#e5edf6)}
+html[data-theme="dark"] .pc-articulo{color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .view-tabs{background:var(--app-surface,#111827);border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .view-tab{color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .view-tab:hover{color:#378ADD}
+html[data-theme="dark"] .view-tab.active{color:#60a5fa;border-bottom-color:#60a5fa}
 </style>
 <link rel="stylesheet" href="/theme-extensions.css">
 </head>
@@ -224,50 +307,97 @@ html[data-theme="dark"] .dp-val{color:var(--app-text,#e5edf6)}
 const API = '/api/planificacion';
 let HOURS = [];
 let SLOTS = 15;
-let DAYS = []; // day markers for headers
+let DAYS = [];
 let zoomLevel = 'week';
 const ZOOM_CONFIG = {
-  day:  { label: '1 día',  hours: 24, slotW: 120, btnCls: '' },
-  '3day': { label: '3 días', hours: 72, slotW: 72,  btnCls: '' },
-  week: { label: '1 sem',  hours: 168,slotW: 48,  btnCls: 'zoom-active' },
-  '2week': { label: '15 días',hours: 360,slotW: 30,  btnCls: '' }
+  day:    { label: '1 día',   hours: 24,  slotW: 120, granularity: 'hour'  },
+  '3day': { label: '3 días',  hours: 72,  slotW: 72,  granularity: 'hour'  },
+  week:   { label: '1 sem',   hours: 168, slotW: 52,  granularity: 'day'   },
+  '2week':{ label: '15 días', hours: 360, slotW: 36,  granularity: 'day'   }
 };
 const searchParams = new URLSearchParams(window.location.search);
 const autoPlanRequested = searchParams.get('autoplan') === '1';
 
 let orders    = [];
 let machines  = [];
-let procesos  = [];   // lista de procesos con sus máquinas agrupadas
+let procesos  = [];
 let dragOp    = null;
 let currentDP = null;
 let activeChainIds = null;
 let isOnline  = false;
 let hasAutoPlanned = false;
 let conflictDrawerOpen = false;
+let currentView = 'pipeline'; // 'pipeline' | 'gantt'
+let pipelineFilter = '';
+let pipelineFilterEstado = '';
 const expandedProcessIds = new Set();
-const ROUTE_COLORS = ['#378ADD', '#1D9E75', '#BA7517', '#E24B4A', '#639922', '#8B5CF6', '#0EA5E9', '#F59E0B', '#64748B', ''];
+const ROUTE_COLORS = ['#378ADD','#1D9E75','#BA7517','#E24B4A','#639922','#8B5CF6','#0EA5E9','#F59E0B','#64748B',''];
+
+// Pipeline process definitions — el orden importa
+const PIPELINE_PROCESSES = [
+  { key: 'seguimiento',  label: 'Seguimiento',  icon: '📋', color: '#64748B', bgLight: '#f1f5f9', bgHeader: '#e2e8f0', textColor: '#334155' },
+  { key: 'diseno',       label: 'Diseño',        icon: '🎨', color: '#8B5CF6', bgLight: '#f5f3ff', bgHeader: '#ede9fe', textColor: '#5b21b6' },
+  { key: 'preprensa',    label: 'Preprensa',     icon: '🖥',  color: '#0EA5E9', bgLight: '#f0f9ff', bgHeader: '#e0f2fe', textColor: '#0369a1' },
+  { key: 'visto_bueno',  label: 'Visto Bueno',   icon: '✅', color: '#1D9E75', bgLight: '#f0fdf4', bgHeader: '#dcfce7', textColor: '#15803d' },
+  { key: 'impresion',    label: 'Impresión',     icon: '🖨',  color: '#185FA5', bgLight: '#eff6ff', bgHeader: '#dbeafe', textColor: '#1d4ed8' },
+  { key: 'rebobinado',   label: 'Rebobinado',    icon: '🔄', color: '#BA7517', bgLight: '#fffbeb', bgHeader: '#fef3c7', textColor: '#92400e' },
+  { key: 'empaque',      label: 'Empaque',       icon: '📦', color: '#639922', bgLight: '#f7fee7', bgHeader: '#ecfccb', textColor: '#3f6212' },
+];
+
+function normalizeProcessKey(raw) {
+  return String(raw || '').trim()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, '_');
+}
+
+function getPipelineProc(processKey) {
+  const k = normalizeProcessKey(processKey);
+  const found = PIPELINE_PROCESSES.find(p =>
+    k === p.key || k.includes(p.key) || p.key.includes(k)
+  );
+  return found || PIPELINE_PROCESSES[0];
+}
 
 function configureTimelineHorizon() {
-  const maxEnd = Math.max(15, ...orders.map((order) => Number(order.inicio || 0) + Number(order.dur || 0)));
-  SLOTS = Math.max(15, Math.min(24 * 7, Math.ceil(maxEnd) + 2));
+  const cfg = ZOOM_CONFIG[zoomLevel];
+  const maxEnd = Math.max(cfg.hours, ...orders.map(o => Number(o.inicio || 0) + Number(o.dur || 0)));
+  SLOTS = Math.max(cfg.hours, Math.min(cfg.hours * 2, Math.ceil(maxEnd) + 2));
   const base = new Date();
   base.setHours(6, 0, 0, 0);
-  HOURS = Array.from({ length: SLOTS }, (_, index) => {
-    const stamp = new Date(base.getTime() + (index * 3600000));
-    const hour = stamp.toLocaleTimeString('es-CR', { hour: 'numeric', hour12: true });
-    if (index === 0 || stamp.getHours() === 0) {
-      return `${stamp.toLocaleDateString('es-CR', { day: '2-digit', month: '2-digit' })} ${hour}`;
-    }
-    return hour;
-  });
-  // Build day markers
+
+  const granularity = cfg.granularity;
+
+  if (granularity === 'hour') {
+    HOURS = Array.from({ length: SLOTS }, (_, i) => {
+      const stamp = new Date(base.getTime() + i * 3600000);
+      if (i === 0 || stamp.getHours() === 0) {
+        return stamp.toLocaleDateString('es-CR', { day: '2-digit', month: '2-digit' });
+      }
+      return stamp.toLocaleTimeString('es-CR', { hour: 'numeric', hour12: true });
+    });
+  } else {
+    // For week+ views: group by day — show one label per day, empty string for subsequent hours of that day
+    HOURS = Array.from({ length: SLOTS }, (_, i) => {
+      const stamp = new Date(base.getTime() + i * 3600000);
+      if (stamp.getHours() === 6 || i === 0) {
+        return stamp.toLocaleDateString('es-CR', { weekday: 'short', day: 'numeric' });
+      }
+      return '';
+    });
+  }
+
   const dayMap = {};
   DAYS = [];
   for (let i = 0; i < SLOTS; i++) {
-    const stamp = new Date(base.getTime() + (i * 3600000));
+    const stamp = new Date(base.getTime() + i * 3600000);
     const dayKey = stamp.toLocaleDateString('es-CR', { day: '2-digit', month: '2-digit', year: 'numeric' });
     if (!dayMap[dayKey]) {
-      dayMap[dayKey] = { key: dayKey, label: stamp.toLocaleDateString('es-CR', { weekday: 'long', day: 'numeric', month: 'short' }), slot: i };
+      dayMap[dayKey] = {
+        key: dayKey,
+        label: stamp.toLocaleDateString('es-CR', { weekday: 'long', day: 'numeric', month: 'short' }),
+        slot: i
+      };
       DAYS.push(dayMap[dayKey]);
     }
   }
@@ -278,7 +408,7 @@ function setZoom(level) {
   zoomLevel = level;
   if (orders.length) {
     configureTimelineHorizon();
-    render();
+    renderGantt();
     drawArrows();
   }
   document.querySelectorAll('.zoom-btn').forEach(b => {
@@ -288,23 +418,18 @@ function setZoom(level) {
 
 function displayProcessName(value) {
   const raw = String(value || '').trim();
-  const key = raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const k = normalizeProcessKey(raw);
   const labels = {
-    diseno: 'Diseño',
-    preprensa: 'Preprensa',
-    impresion: 'Impresión',
-    'impresion convencional': 'Impresión Convencional',
-    'impresion digital': 'Impresión Digital',
-    barnizado: 'Barniz',
-    barniz: 'Barniz',
-    numeracion: 'Numeración',
-    rebobinado: 'Rebobinado',
-    empaque: 'Empaque'
+    diseno:'Diseño', preprensa:'Preprensa', impresion:'Impresión',
+    impresion_convencional:'Impresión Convencional', impresion_digital:'Impresión Digital',
+    barnizado:'Barniz', barniz:'Barniz', numeracion:'Numeración',
+    rebobinado:'Rebobinado', empaque:'Empaque', seguimiento:'Seguimiento',
+    visto_bueno:'Visto Bueno'
   };
-  return labels[key] || raw || 'Sin proceso';
+  return labels[k] || raw || 'Sin proceso';
 }
 
-// ── API ────────────────────────────────────────────────────
+// ── API ──────────────────────────────────────────────────────
 async function loadFromAPI() {
   try {
     const [res, costsRes] = await Promise.all([
@@ -329,10 +454,8 @@ async function loadFromAPI() {
       });
     }
 
-    // data.maquinas = máquinas con proceso_nombre, color_hex, orden_secuencia
-    // data.rutas    = órdenes con sus datos completos
     machines = data.maquinas;
-    orders   = data.rutas.map(r => ({
+    orders = data.rutas.map(r => ({
       id:          r.codigo_op,
       id_ruta:     r.id_ruta,
       cliente:     r.cliente,
@@ -341,6 +464,7 @@ async function loadFromAPI() {
       colores:     r.colores,
       pies:        r.pies,
       proceso:     displayProcessName(r.proceso),
+      proceso_key: normalizeProcessKey(r.proceso),
       maquina:     r.maquina,
       inicio:      parseFloat(r.inicio),
       dur:         parseFloat(r.dur),
@@ -350,36 +474,33 @@ async function loadFromAPI() {
       estado:      r.estado,
       alerta:      !!r.alerta,
       alerta_tipo: r.alerta || null,
-      fecha_fin_produccion: r.fecha_fin_produccion || null,
-      fecha_entrega_prometida: r.fecha_entrega_prometida || null,
-      route_payload: r.route_payload || {},
+      fecha_fin_produccion:     r.fecha_fin_produccion || null,
+      fecha_entrega_prometida:  r.fecha_entrega_prometida || null,
+      route_payload:    r.route_payload || {},
       planning_snapshot: r.planning_snapshot || null,
-      manual_lock: Boolean(r.route_payload?.manualLock),
+      manual_lock:  Boolean(r.route_payload?.manualLock),
       schedule_mode: r.route_payload?.scheduleMode || r.route_payload?.schedule_mode || '',
     }));
     configureTimelineHorizon();
 
-    // Agrupar máquinas por proceso para el render
-    // Usar el orden del cálculo de costos si está disponible, filtrar por ganttEnabled
     const grupos = {};
     machines.forEach(m => {
       const processKey = (m.process_key || '').toLowerCase().trim();
       const costCfg = costsProcessOrder[processKey];
-      // Si existe config de costos y ganttEnabled es false, omitir esta máquina
       if (costCfg && !costCfg.ganttEnabled) return;
       const key = m.id_proceso || processKey || 0;
       if (!grupos[key]) grupos[key] = {
-        id_proceso:      m.id_proceso,
-        process_key:     processKey,
-        nombre:          displayProcessName(m.proceso_nombre),
-        color:           m.color_hex      || '#888',
-        icono:           m.proceso_icono  || '⚙',
-        orden:           costCfg ? costCfg.order : (m.orden_secuencia || 99),
-        maquinas:        []
+        id_proceso:   m.id_proceso,
+        process_key:  processKey,
+        nombre:       displayProcessName(m.proceso_nombre),
+        color:        m.color_hex      || '#888',
+        icono:        m.proceso_icono  || '⚙',
+        orden:        costCfg ? costCfg.order : (m.orden_secuencia || 99),
+        maquinas:     []
       };
       grupos[key].maquinas.push(m);
     });
-    procesos = Object.values(grupos).sort((a,b) => a.orden - b.orden);
+    procesos = Object.values(grupos).sort((a, b) => a.orden - b.orden);
 
     setOnline(true);
     render();
@@ -394,7 +515,7 @@ async function loadFromAPI() {
       document.getElementById('app').innerHTML =
         `<div class="loading" style="flex-direction:column;gap:8px">
           <span style="font-size:22px">⚡</span>
-          <span>API offline. Asegúrate que el servidor Express esté corriendo.</span>
+          <span>API offline. Asegurate que el servidor Express esté corriendo.</span>
           <code style="font-size:11px;background:#f0f0ea;padding:4px 8px;border-radius:4px">node server.js</code>
          </div>`;
     }
@@ -409,12 +530,12 @@ const COLORS = {
   COMPLETADO:{bg:'#639922', bd:'#3B6D11', tx:'#fff'},
 };
 
-function pct(v){ return (v / SLOTS * 100).toFixed(4) + '%'; }
+function pct(v) { return (v / SLOTS * 100).toFixed(4) + '%'; }
 
 async function apiPatch(url, body) {
   const res = await fetch(url, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(body)
   });
   const payload = await res.json();
@@ -447,51 +568,32 @@ function showCenterMessage(msg) {
   }
 }
 
-// ── DETECCIÓN DE CONFLICTOS ────────────────────────────────
-
-// Detecta todos los conflictos actuales en el tablero
+// ── CONFLICT DETECTION ──────────────────────────────────────
 function detectAllConflicts() {
-  const conflicts = []; // { type, ruta_a, ruta_b, message }
-
+  const conflicts = [];
   for (let i = 0; i < orders.length; i++) {
     const a = orders[i];
     const aEnd = a.inicio + a.dur;
-
     for (let j = i + 1; j < orders.length; j++) {
       const b = orders[j];
       const bEnd = b.inicio + b.dur;
-
-      // ── Regla 1: Misma máquina, órdenes distintas → no solapar ──
       if (a.maquina === b.maquina && a.id_ruta !== b.id_ruta) {
         if (a.inicio < bEnd && aEnd > b.inicio) {
-          conflicts.push({
-            type: 'machine',
-            ruta_a: a.id_ruta, ruta_b: b.id_ruta,
-            message: `Máquina ${a.maquina}: "${a.id}" (${a.proceso}) y "${b.id}" (${b.proceso}) se superponen`
-          });
+          conflicts.push({ type:'machine', ruta_a:a.id_ruta, ruta_b:b.id_ruta,
+            message:`Máquina ${a.maquina}: "${a.id}" y "${b.id}" se superponen`});
         }
       }
-
-      // ── Regla 2: Misma OP → sus procesos deben ser secuenciales ──
       if (a.id === b.id) {
-        // Si b depende de a, b debe empezar después de que a termine
         if (b.dep_ruta_id === a.id_ruta || (b.dep === a.id && b.id_ruta !== a.id_ruta)) {
           if (b.inicio < aEnd) {
-            conflicts.push({
-              type: 'sequence',
-              ruta_a: a.id_ruta, ruta_b: b.id_ruta,
-              message: `Orden ${a.id}: "${b.proceso}" empieza antes de que "${a.proceso}" termine`
-            });
+            conflicts.push({ type:'sequence', ruta_a:a.id_ruta, ruta_b:b.id_ruta,
+              message:`Orden ${a.id}: "${b.proceso}" empieza antes de que "${a.proceso}" termine`});
           }
         }
-        // Inverso
         if (a.dep_ruta_id === b.id_ruta || (a.dep === b.id && a.id_ruta !== b.id_ruta)) {
           if (a.inicio < bEnd) {
-            conflicts.push({
-              type: 'sequence',
-              ruta_a: b.id_ruta, ruta_b: a.id_ruta,
-              message: `Orden ${b.id}: "${a.proceso}" empieza antes de que "${b.proceso}" termine`
-            });
+            conflicts.push({ type:'sequence', ruta_a:b.id_ruta, ruta_b:a.id_ruta,
+              message:`Orden ${b.id}: "${a.proceso}" empieza antes de que "${b.proceso}" termine`});
           }
         }
       }
@@ -505,74 +607,43 @@ function getOrderChainBounds(orderCode) {
   if (!ops.length) return null;
   return ops.reduce((acc, op) => {
     const end = op.inicio + op.dur;
-    return {
-      minStart: Math.min(acc.minStart, op.inicio),
-      maxEnd: Math.max(acc.maxEnd, end)
-    };
-  }, { minStart: Number.POSITIVE_INFINITY, maxEnd: 0 });
+    return { minStart: Math.min(acc.minStart, op.inicio), maxEnd: Math.max(acc.maxEnd, end) };
+  }, { minStart: Infinity, maxEnd: 0 });
 }
 
 function promisedHourSlot(value) {
-  if (!value) return null;
-  if (!String(value).includes('T')) return null;
+  if (!value || !String(value).includes('T')) return null;
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  const hour = date.getHours() + (date.getMinutes() / 60);
-  const slot = hour - 6;
-  return Number.isFinite(slot) ? Math.max(0, Math.min(SLOTS, slot)) : null;
+  if (isNaN(date.getTime())) return null;
+  const slot = (date.getHours() + date.getMinutes() / 60) - 6;
+  return isFinite(slot) ? Math.max(0, Math.min(SLOTS, slot)) : null;
 }
 
 function detectScheduleAlerts() {
   const alerts = [];
   const seen = new Set();
-
   orders.forEach(op => {
     if (seen.has(op.id)) return;
     seen.add(op.id);
-
     const productionEnd = firstOrderValue(op.id, 'fecha_fin_produccion');
-    const promisedDate = firstOrderValue(op.id, 'fecha_entrega_prometida');
+    const promisedDate  = firstOrderValue(op.id, 'fecha_entrega_prometida');
     if (productionEnd && promisedDate) {
-      const endDay = dateKey(productionEnd);
-      const promisedDay = dateKey(promisedDate);
-      if (endDay && promisedDay && endDay > promisedDay) {
-        alerts.push({
-          type: 'late',
-          orderCode: op.id,
-          slack: -24,
-          message: `${op.id} termina producción después de la fecha estimada`
-        });
+      if (dateKey(productionEnd) > dateKey(promisedDate)) {
+        alerts.push({ type:'late', orderCode:op.id, slack:-24, message:`${op.id} termina producción después de fecha estimada` });
         return;
       }
     }
-
     const dueSlot = promisedHourSlot(op.fecha_entrega_prometida);
     if (dueSlot === null) return;
-
     const bounds = getOrderChainBounds(op.id);
     if (!bounds) return;
-
     const slack = Number((dueSlot - bounds.maxEnd).toFixed(2));
     if (slack < 0) {
-      alerts.push({
-        type: 'late',
-        orderCode: op.id,
-        slack,
-        message: `${op.id} termina ${Math.abs(slack).toFixed(2)}h después de la entrega prometida`
-      });
-      return;
-    }
-
-    if (slack <= 1) {
-      alerts.push({
-        type: 'tight',
-        orderCode: op.id,
-        slack,
-        message: `${op.id} queda con solo ${slack.toFixed(2)}h de margen antes de entrega`
-      });
+      alerts.push({ type:'late', orderCode:op.id, slack, message:`${op.id} termina ${Math.abs(slack).toFixed(2)}h después de entrega prometida` });
+    } else if (slack <= 1) {
+      alerts.push({ type:'tight', orderCode:op.id, slack, message:`${op.id} queda con solo ${slack.toFixed(2)}h de margen` });
     }
   });
-
   return alerts;
 }
 
@@ -583,7 +654,7 @@ function firstOrderValue(orderCode, field) {
 
 function dateKey(value) {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
+  if (isNaN(date.getTime())) return '';
   return date.toISOString().slice(0, 10);
 }
 
@@ -603,13 +674,13 @@ function machineVisibleOps(machineId) {
 
 function toggleConflicts() {
   conflictDrawerOpen = !conflictDrawerOpen;
-  render();
+  renderHeader();
 }
 
 function toggleProcessMachines(key) {
   if (expandedProcessIds.has(key)) expandedProcessIds.delete(key);
   else expandedProcessIds.add(key);
-  render();
+  renderGantt();
 }
 
 function showToast(message, type = '') {
@@ -621,58 +692,42 @@ function showToast(message, type = '') {
   setTimeout(() => toast.remove(), 3600);
 }
 
-// Verifica si colocar id_ruta en newStart/newDur/newMaq genera conflictos
 function checkMove(id_ruta, newStart, newDur, newMaq) {
-  const op   = orders.find(o => o.id_ruta === id_ruta);
+  const op = orders.find(o => o.id_ruta === id_ruta);
   if (!op) return [];
   const newEnd = newStart + newDur;
   const issues = [];
-
-  // Regla 1: Máquina — ningún otro proceso en la misma máquina puede solapar
   orders.filter(o => o.id_ruta !== id_ruta && o.maquina === newMaq).forEach(o => {
     const oEnd = o.inicio + o.dur;
     if (newStart < oEnd && newEnd > o.inicio) {
-      issues.push({
-        type: 'machine',
-        id_ruta: o.id_ruta,
-        message: `Máquina ${newMaq}: conflicto con "${o.id}" · ${o.proceso} (${formatHora(o.inicio)}–${formatHora(oEnd)})`
-      });
+      issues.push({ type:'machine', id_ruta:o.id_ruta,
+        message:`Máquina ${newMaq}: conflicto con "${o.id}" · ${o.proceso} (${formatHora(o.inicio)}–${formatHora(oEnd)})` });
     }
   });
-
-  // Regla 2: Secuencia de la misma OP — predecesor debe terminar antes
   const pred = orders.find(o =>
     op.dep_ruta_id === o.id_ruta || (op.dep && op.dep === o.id && o.id_ruta !== id_ruta)
   );
   if (pred) {
     const predEnd = pred.inicio + pred.dur;
     if (newStart < predEnd) {
-      issues.push({
-        type: 'sequence',
-        id_ruta: pred.id_ruta,
-        message: `"${pred.proceso}" de ${pred.id} termina a las ${formatHora(predEnd)} — no puede empezar antes`
-      });
+      issues.push({ type:'sequence', id_ruta:pred.id_ruta,
+        message:`"${pred.proceso}" de ${pred.id} termina a las ${formatHora(predEnd)} — no puede empezar antes` });
     }
   }
-
-  // Regla 2b: Sucesores de la misma OP deben empezar después de que este termine
   orders.filter(o => o.dep_ruta_id === id_ruta || (o.dep === op.id && o.id !== op.id)).forEach(succ => {
     if (succ.inicio < newEnd) {
-      issues.push({
-        type: 'sequence',
-        id_ruta: succ.id_ruta,
-        message: `"${succ.proceso}" de ${succ.id} empieza a las ${formatHora(succ.inicio)}, antes de que este proceso termine`
-      });
+      issues.push({ type:'sequence', id_ruta:succ.id_ruta,
+        message:`"${succ.proceso}" empieza a las ${formatHora(succ.inicio)}, antes de que este proceso termine` });
     }
   });
-
   return issues;
 }
 
-// Intenta corregir automáticamente: empuja sucesores
 function autoFix(id_ruta, newEnd) {
   function push(rid, mustStartAfter) {
-    orders.filter(o => o.dep_ruta_id === rid || (o.dep && orders.find(x=>x.id_ruta===rid)?.id === o.dep)).forEach(succ => {
+    orders.filter(o =>
+      o.dep_ruta_id === rid || (o.dep && orders.find(x => x.id_ruta === rid)?.id === o.dep)
+    ).forEach(succ => {
       if (succ.inicio < mustStartAfter) {
         succ.inicio = parseFloat(mustStartAfter.toFixed(2));
         push(succ.id_ruta, succ.inicio + succ.dur);
@@ -692,15 +747,13 @@ function getDirectSuccessors(id_ruta) {
     .filter(o => o.dep_ruta_id === id_ruta || (o.dep && current && o.dep === current.id && o.id !== current.id))
     .sort((a, b) => {
       const dueDiff = parsePromisedTime(a.fecha_entrega_prometida) - parsePromisedTime(b.fecha_entrega_prometida);
-      if (dueDiff !== 0) return dueDiff;
-      return a.inicio - b.inicio;
+      return dueDiff !== 0 ? dueDiff : a.inicio - b.inicio;
     });
 }
 
 function getChainOpsOrdered(rootId) {
   const ordered = [];
   const visited = new Set();
-
   function walk(routeId) {
     if (visited.has(routeId)) return;
     const op = orders.find(o => o.id_ruta === routeId);
@@ -709,7 +762,6 @@ function getChainOpsOrdered(rootId) {
     ordered.push(op);
     getDirectSuccessors(routeId).forEach(succ => walk(succ.id_ruta));
   }
-
   walk(rootId);
   return ordered;
 }
@@ -722,29 +774,18 @@ function getChainDuration(chain) {
   return chain.reduce((sum, op) => sum + op.dur, 0);
 }
 
-// ── CADENA DE DEPENDENCIAS ─────────────────────────────────
-// Dado un id_ruta, devuelve todos los id_ruta de la misma OP
-// más los de sus dependencias aguas arriba y abajo
 function getChain(id_ruta) {
   const op = orders.find(o => o.id_ruta === id_ruta);
   if (!op) return new Set();
-
-  const codigoOp = op.id; // codigo_op
+  const codigoOp = op.id;
   const chain = new Set();
-
-  // 1. Todos los procesos de la misma OP
   orders.filter(o => o.id === codigoOp).forEach(o => chain.add(o.id_ruta));
-
-  // 2. Dependencias directas que esta OP declara (dep_ruta_id hacia atrás)
   function addUpstream(rutaId) {
     const o = orders.find(x => x.id_ruta === rutaId);
-    if (!o || !o.dep_ruta_id) return;
-    if (chain.has(o.dep_ruta_id)) return;
+    if (!o || !o.dep_ruta_id || chain.has(o.dep_ruta_id)) return;
     chain.add(o.dep_ruta_id);
     addUpstream(o.dep_ruta_id);
   }
-
-  // 3. Órdenes que dependen de esta OP (hacia adelante)
   function addDownstream(rutaId) {
     orders.filter(o => o.dep_ruta_id === rutaId).forEach(o => {
       if (chain.has(o.id_ruta)) return;
@@ -752,45 +793,48 @@ function getChain(id_ruta) {
       addDownstream(o.id_ruta);
     });
   }
-
   chain.forEach(rid => { addUpstream(rid); addDownstream(rid); });
   return chain;
 }
 
-// ── HELPER: genera HTML de una barra de tarea ─────────────
+// ── TASK BAR HTML ────────────────────────────────────────────
 function taskBar(op, machineConflictRutas, sequenceConflictRutas) {
   const baseColor = op.alerta ? COLORS.PARO : (COLORS[op.estado] || COLORS.PENDIENTE);
   const customColor = String(op.route_payload?.colorHex || '').trim();
   const c = customColor ? { bg: customColor, bd: customColor, tx: '#fff' } : baseColor;
-  const routeArg = String(op.id_ruta).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const routeArg = String(op.id_ruta).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   let chainClass = '';
   if (activeChainIds) {
     chainClass = activeChainIds.has(op.id_ruta) ? ' chain-active' : ' chain-dim';
   }
   let conflictClass = '';
   if (!activeChainIds) {
-    if (machineConflictRutas.has(op.id_ruta))       conflictClass = ' conflict-machine';
+    if (machineConflictRutas.has(op.id_ruta)) conflictClass = ' conflict-machine';
     else if (sequenceConflictRutas.has(op.id_ruta)) conflictClass = ' conflict-sequence';
   }
-  const scheduleAlert = detectScheduleAlerts().find(entry => entry.orderCode === op.id);
+  const scheduleAlert = detectScheduleAlerts().find(e => e.orderCode === op.id);
   const scheduleClass = scheduleAlert
-    ? (scheduleAlert.type === 'late' ? ' conflict-machine' : ' conflict-sequence')
-    : '';
+    ? (scheduleAlert.type === 'late' ? ' conflict-machine' : ' conflict-sequence') : '';
   const modeLabel = op.manual_lock ? 'Fijo' : op.schedule_mode === 'backward' ? 'Atrás' : op.schedule_mode === 'forward' ? 'Adelante' : '';
-
-  // Production progress indicators
   const isRunning = op.estado === 'RUN' || op.estado === 'SETUP';
   const isLate = scheduleAlert?.type === 'late';
   const planningSnapshot = op.planning_snapshot || op.route_payload;
-  const progressPct = isRunning ? Math.min(100, Math.round((Number(planningSnapshot?.progressPct || 0)))) : 0;
+  const progressPct = isRunning ? Math.min(100, Math.round(Number(planningSnapshot?.progressPct || 0))) : 0;
   const hasProgress = progressPct > 0;
-
   const runningClass = isRunning ? ' is-running' : '';
+
+  // For very narrow bars: show minimal content
+  const barWidthPct = (op.dur / SLOTS) * 100;
+  const slotW = ZOOM_CONFIG[zoomLevel].slotW;
+  const estPx = (op.dur / SLOTS) * (SLOTS * slotW);
+  const isNarrow = estPx < 70;
+  const isVeryNarrow = estPx < 36;
+
   return `<div class="task-bar${chainClass}${conflictClass}${scheduleClass}${runningClass}"
     id="bar-${op.id_ruta}"
     data-id="${op.id}"
     data-ruta="${op.id_ruta}"
-    style="left:${pct(op.inicio)};width:${pct(op.dur)};background:${c.bg};border-color:${c.bd}"
+    style="left:${pct(op.inicio)};width:${pct(op.dur)};background:${c.bg};border-color:${c.bd};${isVeryNarrow?'padding:0 4px;min-width:24px':''}"
     draggable="true"
     onmouseenter="showTT(event,'${routeArg}')"
     onmouseleave="hideTT()"
@@ -798,92 +842,304 @@ function taskBar(op, machineConflictRutas, sequenceConflictRutas) {
     ondragstart="dragStart(event,'${routeArg}')"
     ondragend="dragEnd(event)"
     onclick="openDP('${routeArg}')"
+    title="${op.id} · ${op.cliente} · ${op.proceso} · ${op.dur}h"
   >
     ${isLate ? '<div class="task-late-icon" title="Fuera de fecha prometida">⚠</div>' : ''}
-    ${hasProgress ? `<div class="task-progress-track"><div class="task-progress-fill" style="width:${progressPct}%"></div></div>` : ''}
-    <button type="button" class="task-config-btn" onclick="event.stopPropagation();openDP('${routeArg}')" title="Configurar">⋯</button>
-    <div class="task-cliente" style="color:${c.tx}">${op.cliente}</div>
-    <div class="task-lbl"    style="color:${c.tx}">${op.id} · ${op.articulo}${op.manual_lock ? ' [Fijo]' : ''}</div>
-    <div class="task-sub"    style="color:${c.tx}">${op.proceso}${op.colores > 0 ? ' · ' + op.colores + 'C' : ''}${modeLabel ? `<span class="task-mode">${modeLabel}</span>` : ''}</div>
+    ${hasProgress ? `<div class="task-progress-track"><div class="task-progress-fill" style="width:${progressPct}%;background:rgba(255,255,255,.55)"></div></div>` : ''}
+    ${!isVeryNarrow ? `<button type="button" class="task-config-btn" onclick="event.stopPropagation();openDP('${routeArg}')" title="Configurar">⋯</button>` : ''}
+    ${isVeryNarrow
+      ? `<div style="width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.5);margin:auto"></div>`
+      : isNarrow
+        ? `<div class="task-lbl" style="color:${c.tx};font-size:10px">${op.id}</div>`
+        : `<div class="task-cliente" style="color:${c.tx}">${op.cliente}</div>
+           <div class="task-lbl" style="color:${c.tx}">${op.id} · ${op.articulo}${op.manual_lock?' [Fijo]':''}</div>
+           <div class="task-sub" style="color:${c.tx}">${op.proceso}${op.colores > 0 ? ' · '+op.colores+'C' : ''}${modeLabel?`<span class="task-mode-pill">${modeLabel}</span>`:''}</div>`
+    }
   </div>`;
 }
 
-// ── RENDER ─────────────────────────────────────────────────
-function render() {
-  const criticas    = orders.filter(o => o.alerta).length;
-  const enRun       = orders.filter(o => o.estado === 'RUN').length;
-  const transTot    = orders.reduce((a, o) => a + (o.trans_costo || 0), 0);
-  const allConflicts = detectAllConflicts();
+// ── HEADER RENDER (shared between views) ────────────────────
+function renderHeader() {
+  const criticas      = orders.filter(o => o.alerta).length;
+  const enRun         = orders.filter(o => o.estado === 'RUN').length;
+  const allConflicts  = detectAllConflicts();
   const scheduleAlerts = detectScheduleAlerts();
-  const lateAlerts = scheduleAlerts.filter(entry => entry.type === 'late');
-  const tightAlerts = scheduleAlerts.filter(entry => entry.type === 'tight');
-  const conflictRutas = new Set(allConflicts.flatMap(c => [c.ruta_a, c.ruta_b]));
-  const machineConflictRutas   = new Set(allConflicts.filter(c=>c.type==='machine').flatMap(c=>[c.ruta_a,c.ruta_b]));
-  const sequenceConflictRutas  = new Set(allConflicts.filter(c=>c.type==='sequence').flatMap(c=>[c.ruta_a,c.ruta_b]));
+  const lateAlerts    = scheduleAlerts.filter(e => e.type === 'late');
+  const tightAlerts   = scheduleAlerts.filter(e => e.type === 'tight');
+  const pendientes    = orders.filter(o => o.estado === 'PENDIENTE').length;
 
-  let html = `
+  // Count pipeline stats for tabs
+  const pipelineCounts = {};
+  PIPELINE_PROCESSES.forEach(pp => {
+    pipelineCounts[pp.key] = orders.filter(o => normalizeProcessKey(o.proceso_key) === pp.key || getPipelineProc(o.proceso_key).key === pp.key).length;
+  });
+  const pipelineTotal = orders.length;
+  const ganttTotal = orders.length;
+
+  const headerEl = document.getElementById('hdr-section');
+  if (!headerEl) return;
+
+  headerEl.innerHTML = `
   <div class="hdr">
     <span class="hdr-title">
       <span class="dot${isOnline?'':' offline'}" id="conn-dot" title="${isOnline?'API conectada':'API desconectada'}"></span>
       Consola APS — Flexografía
     </span>
     <div class="toolbar">
-      <span class="badge info" id="gantt-user-badge" style="font-weight:500">👤 <span id="ganttUserName">Cargando...</span></span>
+      <span class="badge info" style="font-weight:500">👤 <span id="ganttUserName">Sin sesión</span></span>
       <span class="badge ok">● ${enRun} en ejecución</span>
       ${criticas > 0 ? `<span class="badge crit">▲ ${criticas} crítica(s)</span>` : ''}
       ${lateAlerts.length > 0 ? `<span class="badge crit">⏰ ${lateAlerts.length} fuera de fecha</span>` : ''}
       ${tightAlerts.length > 0 ? `<span class="badge warn">⌛ ${tightAlerts.length} justas</span>` : ''}
-      <span class="badge info">Prioridad por fecha prometida</span>
-      <span class="conn-status ${isOnline?'online':'offline'}">${isOnline?'● API online':'● API offline'}</span>
-      <button class="btn" onclick="window.location.href='/planificacion/lanzamiento'">Cola de planificación</button>
-      <button class="btn" onclick="clearChain()">Limpiar selección</button>
-      <button class="btn conflict-toggle-btn ${allConflicts.length ? 'has-conflicts' : ''}" onclick="toggleConflicts()">Conflictos (${allConflicts.length})</button>
+      <span class="conn-status ${isOnline?'online':'offline'}">${isOnline?'● Online':'● Offline'}</span>
+      <button class="btn" onclick="window.location.href='/planificacion/lanzamiento'">Cola</button>
+      <button class="btn conflict-toggle-btn ${allConflicts.length?'has-conflicts':''}" onclick="toggleConflicts()">Conflictos (${allConflicts.length})</button>
       <button class="btn" onclick="resolveAllConflicts()">Resolver</button>
       <button class="btn" onclick="autoSeq()">Optimizar ↺</button>
-      <button class="btn primary" onclick="autoSeqCapacidad()" title="Re-secuenciar usando capacidad finita (calendarios + cola real)">⚡ Capacidad Finita</button>
-      <div class="zoom-group">
-        <button class="btn zoom-btn" data-zoom="day" onclick="setZoom('day')">1 día</button>
-        <button class="btn zoom-btn" data-zoom="3day" onclick="setZoom('3day')">3 días</button>
-        <button class="btn zoom-btn zoom-active" data-zoom="week" onclick="setZoom('week')">1 sem</button>
-        <button class="btn zoom-btn" data-zoom="2week" onclick="setZoom('2week')">15 días</button>
-      </div>
-      <button class="btn" onclick="loadFromAPI()">Actualizar ↻</button>
+      <button class="btn primary" onclick="autoSeqCapacidad()" title="Capacidad finita">⚡ Cap. Finita</button>
+      <button class="btn" onclick="loadFromAPI()">↻</button>
     </div>
   </div>
 
   <div class="stats">
     <div class="stat"><div class="stat-lbl">Órdenes activas</div><div class="stat-val">${orders.length}</div></div>
-    <div class="stat"><div class="stat-lbl">Alertas críticas</div><div class="stat-val" style="color:#A32D2D">${criticas}</div></div>
-    <div class="stat"><div class="stat-lbl">Conflictos activos</div><div class="stat-val" style="color:${allConflicts.length?'#E24B4A':'#1D9E75'}">${allConflicts.length}</div></div>
-    <div class="stat"><div class="stat-lbl">Riesgo por fecha</div><div class="stat-val" style="color:${lateAlerts.length?'#E24B4A':tightAlerts.length?'#BA7517':'#1D9E75'}">${lateAlerts.length + tightAlerts.length}</div></div>
+    <div class="stat"><div class="stat-lbl">Pendientes</div><div class="stat-val" style="color:#185FA5">${pendientes}</div></div>
+    <div class="stat"><div class="stat-lbl">Conflictos</div><div class="stat-val" style="color:${allConflicts.length?'#E24B4A':'#1D9E75'}">${allConflicts.length}</div></div>
+    <div class="stat"><div class="stat-lbl">Riesgo fecha</div><div class="stat-val" style="color:${lateAlerts.length?'#E24B4A':tightAlerts.length?'#BA7517':'#1D9E75'}">${lateAlerts.length + tightAlerts.length}</div></div>
   </div>
 
-  <div id="conflict-drawer" class="alerts conflict-drawer ${conflictDrawerOpen ? 'open' : ''}">
+  <div id="conflict-drawer" class="alerts conflict-drawer ${conflictDrawerOpen?'open':''}">
     ${allConflicts.slice(0,4).map(c =>
       `<span class="conflict-badge">${c.type==='machine'?'⊗ Máquina':'⧗ Secuencia'}: ${c.message}</span>`).join('')}
     ${allConflicts.length > 4 ? `<span class="badge warn">+${allConflicts.length-4} más…</span>` : ''}
     ${orders.filter(o => o.alerta).map(o =>
-      `<span class="badge crit">⚠ ${o.id} — ${o.alerta_tipo || 'ALERTA'}</span>`).join('')}
-    ${lateAlerts.map(entry =>
-      `<span class="badge crit">⏰ ${entry.message}</span>`).join('')}
-    ${tightAlerts.map(entry =>
-      `<span class="badge warn">⌛ ${entry.message}</span>`).join('')}
-    ${orders.filter(o => o.trans_costo >= 120).map(o =>
-      `<span class="badge warn">⟳ ${o.id} — Lavado: ${o.trans_costo} min</span>`).join('')}
+      `<span class="badge crit">⚠ ${o.id} — ${o.alerta_tipo||'ALERTA'}</span>`).join('')}
+    ${lateAlerts.map(e => `<span class="badge crit">⏰ ${e.message}</span>`).join('')}
+    ${tightAlerts.map(e => `<span class="badge warn">⌛ ${e.message}</span>`).join('')}
     ${!allConflicts.length && !orders.filter(o=>o.alerta||o.trans_costo>=120).length && !scheduleAlerts.length
       ? '<span style="font-size:11px;color:#aaa">Sin alertas activas</span>' : ''}
   </div>
 
-  <div class="gantt-wrap"><div class="gantt-inner" id="gantt-inner" style="min-width:${175 + (SLOTS * ZOOM_CONFIG[zoomLevel].slotW)}px">
+  <div class="view-tabs">
+    <button class="view-tab${currentView==='pipeline'?' active':''}" onclick="switchView('pipeline')">
+      📋 Vista Pipeline
+      <span class="tab-count">${pipelineTotal}</span>
+    </button>
+    <button class="view-tab${currentView==='gantt'?' active':''}" onclick="switchView('gantt')">
+      📊 Gantt
+      <span class="tab-count">${ganttTotal}</span>
+    </button>
+  </div>`;
+
+  syncGanttUserName();
+}
+
+// ── MAIN RENDER ─────────────────────────────────────────────
+function render() {
+  const app = document.getElementById('app');
+
+  // First render: build skeleton
+  if (!document.getElementById('hdr-section')) {
+    app.innerHTML = `
+      <div id="hdr-section"></div>
+      <div id="pipeline-view" style="display:none"></div>
+      <div id="gantt-view" style="display:none"></div>`;
+  }
+
+  renderHeader();
+
+  if (currentView === 'pipeline') {
+    document.getElementById('pipeline-view').style.display = 'block';
+    document.getElementById('gantt-view').style.display = 'none';
+    renderPipeline();
+  } else {
+    document.getElementById('pipeline-view').style.display = 'none';
+    document.getElementById('gantt-view').style.display = 'block';
+    renderGantt();
+    requestAnimationFrame(() => drawArrows());
+  }
+}
+
+function switchView(view) {
+  currentView = view;
+  render();
+}
+
+// ── PIPELINE VIEW ────────────────────────────────────────────
+function renderPipeline() {
+  const container = document.getElementById('pipeline-view');
+  const scheduleAlerts = detectScheduleAlerts();
+  const allConflicts   = detectAllConflicts();
+  const conflictRutaSet = new Set(allConflicts.flatMap(c => [c.ruta_a, c.ruta_b]));
+
+  // Filter orders
+  let filteredOrders = orders;
+  if (pipelineFilter) {
+    const q = pipelineFilter.toLowerCase();
+    filteredOrders = filteredOrders.filter(o =>
+      o.id.toLowerCase().includes(q) ||
+      o.cliente.toLowerCase().includes(q) ||
+      o.articulo.toLowerCase().includes(q)
+    );
+  }
+  if (pipelineFilterEstado) {
+    filteredOrders = filteredOrders.filter(o => o.estado === pipelineFilterEstado);
+  }
+
+  // Group by pipeline process
+  const groups = {};
+  PIPELINE_PROCESSES.forEach(pp => { groups[pp.key] = []; });
+
+  filteredOrders.forEach(op => {
+    const pp = getPipelineProc(op.proceso_key);
+    if (!groups[pp.key]) groups[pp.key] = [];
+    groups[pp.key].push(op);
+  });
+
+  // Sort each column by priority: late → tight → by date
+  PIPELINE_PROCESSES.forEach(pp => {
+    groups[pp.key].sort((a, b) => {
+      const aAlert = scheduleAlerts.find(e => e.orderCode === a.id);
+      const bAlert = scheduleAlerts.find(e => e.orderCode === b.id);
+      const aPrio = aAlert?.type === 'late' ? 0 : aAlert?.type === 'tight' ? 1 : 2;
+      const bPrio = bAlert?.type === 'late' ? 0 : bAlert?.type === 'tight' ? 1 : 2;
+      if (aPrio !== bPrio) return aPrio - bPrio;
+      return parsePromisedTime(a.fecha_entrega_prometida) - parsePromisedTime(b.fecha_entrega_prometida);
+    });
+  });
+
+  const estados = ['PENDIENTE','SETUP','RUN','PARO','COMPLETADO'];
+
+  let html = `
+  <div class="pipeline-filters">
+    <input class="pipeline-search" type="text" placeholder="Buscar orden, cliente, artículo…"
+      value="${escHtml(pipelineFilter)}"
+      oninput="pipelineFilter=this.value;renderPipeline()"
+    >
+    <span class="filter-lbl">Estado:</span>
+    <button class="filter-btn${!pipelineFilterEstado?' active':''}" onclick="pipelineFilterEstado='';renderPipeline()">Todos</button>
+    ${estados.map(e => `<button class="filter-btn${pipelineFilterEstado===e?' active':''}" onclick="pipelineFilterEstado='${e}';renderPipeline()">${e}</button>`).join('')}
+    <button class="btn" style="margin-left:auto" onclick="pipelineFilter='';pipelineFilterEstado='';renderPipeline()">Limpiar</button>
+  </div>
+  <div style="padding:12px 16px 0">
+  <div class="pipeline-board">`;
+
+  PIPELINE_PROCESSES.forEach(pp => {
+    const colOrders = groups[pp.key] || [];
+    const runCount = colOrders.filter(o => o.estado === 'RUN').length;
+    const lateCount = colOrders.filter(o => scheduleAlerts.find(e => e.orderCode === o.id && e.type === 'late')).length;
+
+    html += `
+    <div class="pipeline-col">
+      <div class="pipeline-col-header" style="background:${pp.bgHeader};border-bottom-color:${pp.color}">
+        <div class="pipeline-col-title" style="color:${pp.textColor}">
+          <span>${pp.icon}</span>
+          ${pp.label}
+        </div>
+        <div style="display:flex;gap:5px;align-items:center">
+          ${lateCount > 0 ? `<span style="font-size:10px;background:#fceaea;color:#A32D2D;border-radius:4px;padding:1px 5px;font-weight:700">⏰${lateCount}</span>` : ''}
+          ${runCount > 0  ? `<span style="font-size:10px;background:#e8f7f1;color:#0F6E56;border-radius:4px;padding:1px 5px;font-weight:700">▶${runCount}</span>` : ''}
+          <span class="pipeline-col-count" style="background:${pp.color};color:#fff">${colOrders.length}</span>
+        </div>
+      </div>
+      <div class="pipeline-cards">`;
+
+    if (colOrders.length === 0) {
+      html += `<div class="pipeline-empty">Sin órdenes</div>`;
+    } else {
+      colOrders.forEach(op => {
+        const alert     = scheduleAlerts.find(e => e.orderCode === op.id);
+        const isLate    = alert?.type === 'late';
+        const isTight   = alert?.type === 'tight';
+        const isRunning = op.estado === 'RUN' || op.estado === 'SETUP';
+        const hasConflict = conflictRutaSet.has(op.id_ruta);
+        const progressPct = isRunning ? Math.min(100, Math.round(Number(op.route_payload?.progressPct || op.planning_snapshot?.progressPct || 0))) : 0;
+        const maquinaNombre = machines.find(m => m.id_maquina === op.maquina || m.id === op.maquina)?.nombre_recurso || op.maquina || '';
+        const routeArg = String(op.id_ruta).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+
+        let cardExtra = '';
+        if (isLate) cardExtra = ' is-late';
+        else if (isTight) cardExtra = ' is-tight';
+        else if (isRunning) cardExtra = ' is-running';
+
+        html += `
+        <div class="pipeline-card${cardExtra}"
+          style="border-left-color:${pp.color}"
+          onclick="openDP('${routeArg}')"
+          title="${op.id} — ${op.cliente}"
+        >
+          <div class="pc-order">
+            <span>${op.id}</span>
+            <div style="display:flex;gap:3px">
+              ${isLate    ? '<span title="Fuera de fecha" style="color:#E24B4A;font-size:12px">⏰</span>' : ''}
+              ${isTight   ? '<span title="Margen justo"   style="color:#BA7517;font-size:12px">⌛</span>' : ''}
+              ${hasConflict ? '<span title="Tiene conflicto" style="color:#E24B4A;font-size:11px">⊗</span>' : ''}
+              ${op.manual_lock ? '<span title="Fijo" style="color:#888;font-size:11px">🔒</span>' : ''}
+            </div>
+          </div>
+          <div class="pc-cliente">${escHtml(op.cliente)}</div>
+          <div class="pc-articulo" title="${escHtml(op.articulo)}">${escHtml(op.articulo)}</div>
+          <div class="pc-meta">
+            <span class="pc-chip estado-${op.estado}">${op.estado}</span>
+            <span class="pc-chip dur">${op.dur}h</span>
+            ${op.colores > 0 ? `<span class="pc-chip dur">${op.colores}C</span>` : ''}
+            ${maquinaNombre ? `<span class="pc-chip maq" title="${escHtml(maquinaNombre)}">${escHtml(maquinaNombre)}</span>` : ''}
+            ${isLate  ? `<span class="pc-chip late">+${Math.abs(alert.slack).toFixed(1)}h tarde</span>` : ''}
+            ${isTight ? `<span class="pc-chip tight">${alert.slack.toFixed(1)}h margen</span>` : ''}
+          </div>
+          ${op.fecha_entrega_prometida ? `
+          <div class="pc-due${isLate?' overdue':''}">
+            📅 ${formatPromisedDate(op.fecha_entrega_prometida)}
+          </div>` : ''}
+          ${progressPct > 0 ? `
+          <div class="pc-progress">
+            <div class="pc-progress-fill" style="width:${progressPct}%;background:${pp.color}"></div>
+          </div>` : ''}
+        </div>`;
+      });
+    }
+
+    html += `</div></div>`;
+  });
+
+  html += `</div></div>`;
+  container.innerHTML = html;
+}
+
+// ── GANTT VIEW ───────────────────────────────────────────────
+function renderGantt() {
+  const container = document.getElementById('gantt-view');
+  const allConflicts = detectAllConflicts();
+  const machineConflictRutas   = new Set(allConflicts.filter(c=>c.type==='machine').flatMap(c=>[c.ruta_a,c.ruta_b]));
+  const sequenceConflictRutas  = new Set(allConflicts.filter(c=>c.type==='sequence').flatMap(c=>[c.ruta_a,c.ruta_b]));
+
+  const slotW = ZOOM_CONFIG[zoomLevel].slotW;
+
+  let html = `
+  <div style="padding:6px 16px 4px;display:flex;gap:6px;align-items:center;border-bottom:1px solid #e0e0da;background:#fafaf8;flex-wrap:wrap">
+    <span style="font-size:11px;color:#888">Zoom:</span>
+    <div class="zoom-group">
+      <button class="btn zoom-btn${zoomLevel==='day'?' zoom-active':''}"    data-zoom="day"   onclick="setZoom('day')">1 día</button>
+      <button class="btn zoom-btn${zoomLevel==='3day'?' zoom-active':''}"   data-zoom="3day"  onclick="setZoom('3day')">3 días</button>
+      <button class="btn zoom-btn${zoomLevel==='week'?' zoom-active':''}"   data-zoom="week"  onclick="setZoom('week')">1 sem</button>
+      <button class="btn zoom-btn${zoomLevel==='2week'?' zoom-active':''}"  data-zoom="2week" onclick="setZoom('2week')">15 días</button>
+    </div>
+    <button class="btn" style="margin-left:auto" onclick="clearChain()">Limpiar selección</button>
+    <span style="font-size:11px;color:#aaa">Arrastrá para mover · Click para ver cadena</span>
+  </div>
+  <div class="gantt-wrap"><div class="gantt-inner" id="gantt-inner" style="min-width:${190 + SLOTS * slotW}px">
     <div class="g-header">
       <div class="res-col">Proceso / Recurso</div>
       <div class="time-col">
         <div class="day-hdr">${DAYS.map((d, di, arr) => {
-          const nextSlot = di < arr.length - 1 ? arr[di + 1].slot : SLOTS;
-          const dayWidth = (nextSlot - d.slot) * ZOOM_CONFIG[zoomLevel].slotW;
+          const nextSlot = di < arr.length - 1 ? arr[di+1].slot : SLOTS;
+          const dayWidth = (nextSlot - d.slot) * slotW;
           return `<div class="day-hdr-item" style="width:${dayWidth}px">${d.label}</div>`;
         }).join('')}</div>
-        <div class="time-hdr">${HOURS.map(h => `<div class="t-slot" style="min-width:${ZOOM_CONFIG[zoomLevel].slotW}px">${h}</div>`).join('')}</div>
+        <div class="time-hdr">${HOURS.map((h, i) => {
+          if (!h) return `<div class="t-slot" style="min-width:${slotW}px"></div>`;
+          return `<div class="t-slot" style="min-width:${slotW}px">${h}</div>`;
+        }).join('')}</div>
       </div>
     </div>`;
 
@@ -891,31 +1147,37 @@ function render() {
     const procKey = processDomKey(proc);
     const expanded = expandedProcessIds.has(procKey);
     const assignedMachines = proc.maquinas.filter(m => machineVisibleOps(m.id_maquina).length > 0);
-    const visibleMachines = expanded ? proc.maquinas : assignedMachines;
+    const visibleMachines  = expanded ? proc.maquinas : assignedMachines;
     const hiddenCount = proc.maquinas.length - visibleMachines.length;
+
     html += `
     <div class="proceso-hdr" style="border-top-color:${proc.color}">
       <div class="proceso-hdr-lbl" style="color:${proc.color}">
-        <span style="font-size:15px">${proc.icono}</span>
+        <span style="font-size:14px">${proc.icono}</span>
         ${displayProcessName(proc.nombre).toUpperCase()}
-        <span style="font-weight:400;font-size:10px;color:#aaa;margin-left:4px">(${assignedMachines.length}/${proc.maquinas.length})</span>
+        <span style="font-weight:400;font-size:10px;color:#bbb;margin-left:4px">(${assignedMachines.length}/${proc.maquinas.length})</span>
       </div>
       <div class="proceso-hdr-timeline">
-        <span class="proceso-empty-note">${assignedMachines.length ? 'Mostrando recursos asignados en esta vista' : 'Sin recursos asignados en esta vista'}</span>
-        ${hiddenCount > 0 || expanded ? `<button type="button" class="proceso-toggle" onclick='toggleProcessMachines(${JSON.stringify(procKey)})'>${expanded ? 'Ocultar vacías' : `Ver todas (${proc.maquinas.length})`}</button>` : ''}
+        <span class="proceso-empty-note">${assignedMachines.length ? 'Recursos con órdenes asignadas' : 'Sin recursos asignados'}</span>
+        ${hiddenCount > 0 || expanded
+          ? `<button type="button" class="proceso-toggle" onclick='toggleProcessMachines(${JSON.stringify(procKey)})'>${expanded?'Ocultar vacías':`Ver todas (${proc.maquinas.length})`}</button>`
+          : ''}
       </div>
     </div>`;
 
     visibleMachines.forEach(m => {
       const mOps = machineVisibleOps(m.id_maquina);
-      const machineSub = [m.sub_descripcion || '', mOps.length ? `Asignadas ${mOps.length}` : ''].filter(Boolean).join(' · ');
+      const machineSub = [m.sub_descripcion || '', mOps.length ? `${mOps.length} asignadas` : ''].filter(Boolean).join(' · ');
+
       html += `
       <div class="g-row" data-machine="${m.id_maquina}" style="border-left:3px solid ${proc.color}">
         <div class="res-lbl">
           <span class="res-name">${m.nombre_recurso}</span>
           ${machineSub ? `<span class="res-sub">${machineSub}</span>` : ''}
+          ${mOps.length > 0 ? `<span class="res-count">${mOps.length} orden${mOps.length>1?'es':''}</span>` : ''}
         </div>
         <div class="timeline" data-machine="${m.id_maquina}">
+          <div class="drop-hint"></div>
           ${HOURS.map((_, i) => `<div class="grid-ln" style="left:${pct(i)}"></div>`).join('')}
           ${DAYS.filter(d => d.slot > 0).map(d => `<div class="day-sep" style="left:${pct(d.slot)}"></div>`).join('')}
           ${mOps.map(op => taskBar(op, machineConflictRutas, sequenceConflictRutas)).join('')}
@@ -924,7 +1186,6 @@ function render() {
     });
   });
 
-  // Si no hay procesos configurados, mostrar aviso
   if (procesos.length === 0) {
     html += `<div style="padding:32px;text-align:center;color:#aaa">
       ⚙ No hay procesos configurados. <a href="configuracion.html" style="color:#378ADD">Ir a Configuración →</a>
@@ -936,149 +1197,108 @@ function render() {
     <span class="leg-item"><span class="leg-dot" style="background:#1D9E75"></span>En ejecución</span>
     <span class="leg-item"><span class="leg-dot" style="background:#BA7517"></span>Setup</span>
     <span class="leg-item"><span class="leg-dot" style="background:#378ADD"></span>Pendiente</span>
-    <span class="leg-item"><span class="leg-dot" style="background:#E24B4A"></span>Alerta / Paro</span>
+    <span class="leg-item"><span class="leg-dot" style="background:#E24B4A"></span>Alerta</span>
     <span class="leg-item"><span class="leg-dot" style="background:#639922"></span>Completado</span>
-    <span class="leg-item" style="font-size:11px;color:#aaa;margin-left:auto">
-      Click para ver cadena · Drag para mover · <span style="background:#FFD600;padding:1px 5px;border-radius:3px;color:#1a1a1a">⬤</span> Cadena activa
+    <span class="leg-item" style="font-size:10px;color:#aaa;margin-left:auto">
+      <span style="background:#FFD600;padding:1px 5px;border-radius:3px;color:#1a1a1a">⬤</span> Cadena activa
     </span>
   </div>`;
 
-  document.getElementById('app').innerHTML = html;
+  container.innerHTML = html;
   setupDropZones();
-
-  // Dibujar flechas después de que el DOM esté listo
-  requestAnimationFrame(() => drawArrows());
 }
 
-// ── FLECHAS SVG ────────────────────────────────────────────
+// ── SVG ARROWS ───────────────────────────────────────────────
 function drawArrows() {
   const ganttEl = document.getElementById('gantt-inner');
   if (!ganttEl) return;
-
-  // Eliminar SVG anterior
-  const old = document.getElementById('arrows-svg');
-  if (old) old.remove();
-
-  // Solo dibujar si hay dependencias
+  document.getElementById('arrows-svg')?.remove();
   const depsOrders = orders.filter(o => o.dep_ruta_id || o.dep);
   if (!depsOrders.length) return;
 
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
   svg.id = 'arrows-svg';
   ganttEl.appendChild(svg);
 
-  // Definir marcadores de flecha
-  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-
+  const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
   [
-    { id: 'arr-normal', color: '#8a97a6' },
-    { id: 'arr-active', color: '#FFD600' },
-    { id: 'arr-dim',    color: '#ddd' },
-  ].forEach(({id, color}) => {
-    const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
-    marker.setAttribute('id', id);
-    marker.setAttribute('markerWidth', '9');
-    marker.setAttribute('markerHeight', '9');
-    marker.setAttribute('refX', '7');
-    marker.setAttribute('refY', '4');
-    marker.setAttribute('orient', 'auto');
-    const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-    poly.setAttribute('points', '0 1, 8 4, 0 7');
-    poly.setAttribute('fill', color);
-    marker.appendChild(poly);
-    defs.appendChild(marker);
+    {id:'arr-normal',color:'#8a97a6'},
+    {id:'arr-active',color:'#FFD600'},
+    {id:'arr-dim',   color:'#ddd'},
+  ].forEach(({id,color}) => {
+    const marker = document.createElementNS('http://www.w3.org/2000/svg','marker');
+    marker.setAttribute('id',id); marker.setAttribute('markerWidth','9');
+    marker.setAttribute('markerHeight','9'); marker.setAttribute('refX','7');
+    marker.setAttribute('refY','4'); marker.setAttribute('orient','auto');
+    const poly = document.createElementNS('http://www.w3.org/2000/svg','polygon');
+    poly.setAttribute('points','0 1, 8 4, 0 7'); poly.setAttribute('fill',color);
+    marker.appendChild(poly); defs.appendChild(marker);
   });
   svg.appendChild(defs);
 
   const ganttRect = ganttEl.getBoundingClientRect();
 
   orders.forEach(op => {
-    // Buscar dependencia: primero por dep_ruta_id, luego por dep (codigo_op)
     let srcRutaId = op.dep_ruta_id;
     if (!srcRutaId && op.dep) {
       const srcOp = orders.find(o => o.id === op.dep);
       if (srcOp) srcRutaId = srcOp.id_ruta;
     }
     if (!srcRutaId) return;
+    const srcBar = document.getElementById('bar-' + srcRutaId);
+    const dstBar = document.getElementById('bar-' + op.id_ruta);
+    if (!srcBar || !dstBar) return;
+    const sRect = srcBar.getBoundingClientRect();
+    const dRect = dstBar.getBoundingClientRect();
+    const x1 = sRect.right  - ganttRect.left;
+    const y1 = sRect.top    - ganttRect.top + sRect.height / 2;
+    const x2 = dRect.left   - ganttRect.left;
+    const y2 = dRect.top    - ganttRect.top + dRect.height / 2;
 
-    const srcEl = document.getElementById('bar-' + srcRutaId);
-    const tgtEl = document.getElementById('bar-' + op.id_ruta);
-    if (!srcEl || !tgtEl) return;
-
-    const srcRect = srcEl.getBoundingClientRect();
-    const tgtRect = tgtEl.getBoundingClientRect();
-
-    const x1 = srcRect.right  - ganttRect.left;
-    const y1 = srcRect.top    + srcRect.height / 2 - ganttRect.top;
-    const x2 = tgtRect.left   - ganttRect.left;
-    const y2 = tgtRect.top    + tgtRect.height / 2 - ganttRect.top;
-
-    // Determinar estilo según cadena activa
-    let markerId = 'arr-normal';
-    let strokeColor = '#8a97a6';
-    let strokeWidth = 2.2;
-    let strokeDash = '';
-
+    let arrowClass = 'arr-normal';
     if (activeChainIds) {
-      const inChain = activeChainIds.has(op.id_ruta) && activeChainIds.has(srcRutaId);
-      if (inChain) {
-        markerId   = 'arr-active';
-        strokeColor = '#FFD600';
-        strokeWidth = 3;
-        strokeDash  = 'none';
-      } else {
-        markerId    = 'arr-dim';
-        strokeColor = '#ddd';
-        strokeWidth = 1;
-      }
+      arrowClass = (activeChainIds.has(srcRutaId) && activeChainIds.has(op.id_ruta)) ? 'arr-active' : 'arr-dim';
     }
 
-    // Control points para curva bezier
-    const dx = Math.abs(x2 - x1);
-    const cp = Math.max(40, Math.min(dx * 0.5, 100));
-    const d  = `M${x1},${y1} C${x1+cp},${y1} ${x2-cp},${y2} ${x2},${y2}`;
-
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', d);
-    path.setAttribute('stroke', strokeColor);
-    path.setAttribute('stroke-width', strokeWidth);
-    path.setAttribute('stroke-dasharray', strokeDash === 'none' ? '' : strokeDash);
-    path.setAttribute('fill', 'none');
-    path.setAttribute('marker-end', `url(#${markerId})`);
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    const cx = (x1 + x2) / 2;
+    path.setAttribute('d', `M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2},${y2}`);
+    path.setAttribute('fill','none');
+    path.setAttribute('stroke', arrowClass==='arr-active' ? '#FFD600' : arrowClass==='arr-dim' ? '#ddd' : '#8a97a6');
+    path.setAttribute('stroke-width', arrowClass==='arr-active' ? '2' : '1.5');
+    path.setAttribute('stroke-dasharray', arrowClass==='arr-normal' ? '4 3' : 'none');
+    path.setAttribute('marker-end', `url(#${arrowClass})`);
+    path.setAttribute('opacity', arrowClass==='arr-dim' ? '0.4' : '0.85');
     svg.appendChild(path);
   });
 }
 
 function clearChain() {
   activeChainIds = null;
-  render();
+  renderGantt();
+  drawArrows();
 }
 
-// ── DRAG & DROP ────────────────────────────────────────────
+// ── DRAG & DROP ──────────────────────────────────────────────
 function dragStart(e, id_ruta) {
   const el = document.getElementById('bar-' + id_ruta);
   if (!el) return;
   dragOp = orders.find(o => o.id_ruta === id_ruta);
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/plain', String(id_ruta));
-  // Store bar dimensions for visual feedback
-  if (el) {
-    el.style.opacity = '0.5';
-    el.style.transform = 'scale(0.97)';
-  }
+  if (el) { el.classList.add('dragging'); }
+  // Highlight all timelines as potential drop targets
   requestAnimationFrame(() => {
-    document.querySelectorAll('.timeline').forEach(tl => tl.style.outline = '2px dashed transparent');
+    document.querySelectorAll('.timeline').forEach(tl => tl.style.cursor = 'copy');
   });
 }
 
 function dragEnd(e) {
   document.querySelectorAll('.g-row').forEach(r => r.classList.remove('drag-over'));
+  document.querySelectorAll('.timeline').forEach(tl => tl.style.cursor = '');
   if (dragOp) {
     const el = document.getElementById('bar-' + dragOp.id_ruta);
-    if (el) {
-      el.style.opacity = '';
-      el.style.transform = '';
-    }
+    if (el) { el.classList.remove('dragging'); }
   }
   dragOp = null;
 }
@@ -1106,49 +1326,55 @@ async function handleDrop(e, tl) {
   const newMaq   = getMachineFromTimeline(tl);
 
   if (newStart === movedOp.inicio && newMaq === movedOp.maquina) return;
-  const before = new Map(orders.map(o => [o.id_ruta, { inicio: o.inicio, maquina: o.maquina }]));
 
-  const issues = checkMove(movedOp.id_ruta, newStart, movedOp.dur, newMaq);
-  if (issues.length > 0) {
-    const machineIssues = issues.filter(i => i.type === 'machine');
-    let msg = `Este movimiento genera ${issues.length} conflicto(s):\n\n`;
-    issues.forEach(i => { msg += `• ${i.message}\n`; });
-    if (machineIssues.length > 0) {
-      showToast(machineIssues[0].message, 'error');
-      return;
-    }
-    msg += '\n¿Deseas ajustar automáticamente los procesos afectados?';
+  const before = new Map(orders.map(o => [o.id_ruta, { inicio: o.inicio, maquina: o.maquina }]));
+  const issues  = checkMove(movedOp.id_ruta, newStart, movedOp.dur, newMaq);
+
+  // Machine conflicts: block with clear toast (no silent fail)
+  const machineIssues = issues.filter(i => i.type === 'machine');
+  if (machineIssues.length > 0) {
+    showToast(`⊗ Conflicto de máquina: ${machineIssues[0].message}`, 'error');
+    return;
+  }
+
+  // Sequence conflicts: ask for auto-fix
+  const seqIssues = issues.filter(i => i.type === 'sequence');
+  if (seqIssues.length > 0) {
+    const msg = `Este movimiento genera ${seqIssues.length} conflicto(s) de secuencia:\n\n` +
+      seqIssues.map(i => '• ' + i.message).join('\n') +
+      '\n\n¿Ajustar automáticamente los procesos afectados?';
     if (!confirm(msg)) return;
   }
 
+  // Downstream cascade warning
   const downstream = getDownstreamOps(movedOp.id_ruta);
-  if (downstream.length > 0 && issues.length === 0) {
+  if (downstream.length > 0 && seqIssues.length === 0) {
     const delta = newStart - movedOp.inicio;
     if (Math.abs(delta) > 0.01) {
       const nombres = downstream.slice(0,3).map(o => o.id).join(', ');
-      if (!confirm(`Mover "${movedOp.id}" ${delta>0?'+':''}${delta.toFixed(2)}h desplazará:\n${nombres}${downstream.length>3?'…':''}\n\n¿Confirmar?`)) return;
+      const more = downstream.length > 3 ? `… (+${downstream.length-3} más)` : '';
+      if (!confirm(`Mover "${movedOp.id}" ${delta>0?'+':''}${delta.toFixed(2)}h desplazará:\n${nombres}${more}\n\n¿Confirmar?`)) return;
     }
   }
 
   movedOp.inicio  = newStart;
   movedOp.maquina = newMaq;
-
   const newEnd = newStart + movedOp.dur;
   autoFix(movedOp.id_ruta, newEnd);
+
   const changedOps = orders.filter(o => {
     const prev = before.get(o.id_ruta) || {};
     return prev.inicio !== o.inicio || prev.maquina !== o.maquina;
   });
 
-  render();
+  renderGantt();
+  requestAnimationFrame(() => drawArrows());
 
   try {
     await Promise.all(changedOps.map(op => apiPatch(`${API}/gantt/mover`, {
-      id_ruta: op.id_ruta,
-      inicio: op.inicio,
-      id_maquina: op.maquina
+      id_ruta: op.id_ruta, inicio: op.inicio, id_maquina: op.maquina
     })));
-    showToast('Movimiento guardado.', 'ok');
+    showToast(`✓ Movimiento guardado (${changedOps.length} ruta${changedOps.length>1?'s':''})`, 'ok');
     await loadFromAPI();
   } catch (err) {
     showError('Error guardando movimiento: ' + err.message);
@@ -1159,10 +1385,20 @@ function setupDropZones() {
   document.querySelectorAll('.timeline').forEach(tl => {
     tl.addEventListener('dragover', e => {
       e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
       tl.closest('.g-row')?.classList.add('drag-over');
+
+      // Update drop hint position
+      const hint = tl.querySelector('.drop-hint');
+      if (hint && dragOp) {
+        const slot = getDropSlot(tl, e.clientX);
+        hint.style.left = pct(slot);
+      }
     });
-    tl.addEventListener('dragleave', () => {
-      tl.closest('.g-row')?.classList.remove('drag-over');
+    tl.addEventListener('dragleave', (e) => {
+      if (!tl.contains(e.relatedTarget)) {
+        tl.closest('.g-row')?.classList.remove('drag-over');
+      }
     });
     tl.addEventListener('drop', e => handleDrop(e, tl));
   });
@@ -1179,7 +1415,7 @@ function openColorMenu(event, id_ruta) {
   const menu = document.createElement('div');
   menu.className = 'task-color-menu';
   menu.style.left = `${event.clientX}px`;
-  menu.style.top = `${event.clientY}px`;
+  menu.style.top  = `${event.clientY}px`;
   ROUTE_COLORS.forEach(color => {
     const button = document.createElement('button');
     button.type = 'button';
@@ -1188,7 +1424,7 @@ function openColorMenu(event, id_ruta) {
     button.style.background = color || 'linear-gradient(135deg,#378ADD 0 50%,#1D9E75 50% 100%)';
     button.addEventListener('click', () => {
       closeColorMenu();
-      setRouteColor(id_ruta, color).catch(error => showToast(error.message, 'error'));
+      setRouteColor(id_ruta, color).catch(error => showToast(error.message,'error'));
     });
     menu.appendChild(button);
   });
@@ -1199,18 +1435,14 @@ async function setRouteColor(id_ruta, color) {
   const op = orders.find(o => String(o.id_ruta) === String(id_ruta));
   if (!op) return;
   op.route_payload = { ...(op.route_payload || {}), colorHex: color || null };
-  render();
-  await apiPatch(`${API}/gantt/mover`, {
-    id_ruta,
-    route_payload_updates: { colorHex: color || null }
-  });
+  renderGantt();
+  await apiPatch(`${API}/gantt/mover`, { id_ruta, route_payload_updates: { colorHex: color || null } });
   showToast(color ? 'Color actualizado.' : 'Color por estado restaurado.', 'ok');
   await loadFromAPI();
 }
 
 document.addEventListener('click', closeColorMenu);
 
-// Devuelve órdenes que dependen (aguas abajo) de un id_ruta
 function getDownstreamOps(id_ruta) {
   const result = [];
   function walk(rid) {
@@ -1232,36 +1464,29 @@ function getDownstreamOps(id_ruta) {
   return result;
 }
 
-// ── TOOLTIP ────────────────────────────────────────────────
+// ── TOOLTIP ──────────────────────────────────────────────────
 function showTT(e, id_ruta) {
   const op = orders.find(o => o.id_ruta === id_ruta);
   if (!op) return;
   document.getElementById('tt-t').textContent = op.id + ' — ' + op.articulo;
   document.getElementById('tt-c').textContent = '👤 ' + op.cliente;
   const isRunning = op.estado === 'RUN' || op.estado === 'SETUP';
-  const scheduleAlert = detectScheduleAlerts().find(entry => entry.orderCode === op.id);
+  const scheduleAlert = detectScheduleAlerts().find(e => e.orderCode === op.id);
   const progPct = Number(op.route_payload?.progressPct || op.planning_snapshot?.progressPct || 0);
   document.getElementById('tt-b').innerHTML = `
-    <div class="tt-row"><span>Proceso</span><span class="tt-val">${op.proceso}</span></div>
-    <div class="tt-row"><span>Inicio</span><span class="tt-val">${formatHora(op.inicio)}</span></div>
-    <div class="tt-row"><span>Duración</span><span class="tt-val">${op.dur}h</span></div>
-    <div class="tt-row"><span>Fin producción</span><span class="tt-val">${formatPromisedDate(op.fecha_fin_produccion)}</span></div>
-    <div class="tt-row"><span>Entrega</span><span class="tt-val">${formatPromisedDate(op.fecha_entrega_prometida)}</span></div>
-    <div class="tt-row"><span>Setup</span><span class="tt-val">${Number(op.route_payload?.setupMinutes || 0).toLocaleString('es-CR')} min</span></div>
-    <div class="tt-row"><span>Corrida</span><span class="tt-val">${Number(op.route_payload?.runMinutes || 0).toLocaleString('es-CR')} min</span></div>
-    <div class="tt-row"><span>Buffer</span><span class="tt-val">${Number(op.route_payload?.bufferMinutes || 0).toLocaleString('es-CR')} min</span></div>
-    <div class="tt-row"><span>Velocidad</span><span class="tt-val">${Number(op.route_payload?.speedFpm || 0).toLocaleString('es-CR')} fpm</span></div>
-    <div class="tt-row"><span>Modo</span><span class="tt-val">${op.manual_lock ? 'Fijo' : op.schedule_mode === 'backward' ? 'Programada hacia atrás' : op.schedule_mode === 'forward' ? 'Programada hacia adelante' : 'Sin definir'}</span></div>
-    <div class="tt-row"><span>Pies</span><span class="tt-val">${Number(op.pies).toLocaleString()}</span></div>
-    <div class="tt-row"><span>Saidel</span><span class="tt-val">${op.saidel}</span></div>
-    <div class="tt-row"><span>Estado</span><span class="tt-val" style="${isRunning ? 'color:#1D9E75;font-weight:600' : scheduleAlert?.type === 'late' ? 'color:#E24B4A;font-weight:600' : ''}">${op.estado}${isRunning ? ' ▶' : ''}${scheduleAlert?.type === 'late' ? ' ⚠' : ''}</span></div>
+    <div class="tt-row"><span>Proceso</span>  <span class="tt-val">${op.proceso}</span></div>
+    <div class="tt-row"><span>Inicio</span>   <span class="tt-val">${formatHora(op.inicio)}</span></div>
+    <div class="tt-row"><span>Duración</span> <span class="tt-val">${op.dur}h</span></div>
+    <div class="tt-row"><span>Fin prod.</span><span class="tt-val">${formatPromisedDate(op.fecha_fin_produccion)}</span></div>
+    <div class="tt-row"><span>Entrega</span>  <span class="tt-val">${formatPromisedDate(op.fecha_entrega_prometida)}</span></div>
+    <div class="tt-row"><span>Pies</span>     <span class="tt-val">${Number(op.pies).toLocaleString()}</span></div>
+    <div class="tt-row"><span>Estado</span>   <span class="tt-val" style="${isRunning?'color:#1D9E75;font-weight:600':scheduleAlert?.type==='late'?'color:#E24B4A;font-weight:600':''}">${op.estado}${isRunning?' ▶':''}${scheduleAlert?.type==='late'?' ⚠':''}</span></div>
     ${isRunning && progPct > 0 ? `<div class="tt-row"><span>Progreso</span><span class="tt-val" style="color:#1D9E75">${progPct}%</span></div>` : ''}
-    ${scheduleAlert?.type === 'late' ? `<div class="tt-row" style="color:#E24B4A"><span>⚠ Atraso</span><span class="tt-val" style="color:#E24B4A">${Math.abs(scheduleAlert.slack).toFixed(1)}h</span></div>` : ''}
-    ${scheduleAlert?.type === 'tight' ? `<div class="tt-row" style="color:#BA7517"><span>⌛ Justo</span><span class="tt-val" style="color:#BA7517">${scheduleAlert.slack.toFixed(1)}h margen</span></div>` : ''}
+    ${scheduleAlert?.type==='late'  ? `<div class="tt-row" style="color:#E24B4A"><span>⚠ Atraso</span><span class="tt-val" style="color:#E24B4A">${Math.abs(scheduleAlert.slack).toFixed(1)}h</span></div>` : ''}
+    ${scheduleAlert?.type==='tight' ? `<div class="tt-row" style="color:#BA7517"><span>⌛ Margen</span><span class="tt-val" style="color:#BA7517">${scheduleAlert.slack.toFixed(1)}h</span></div>` : ''}
     ${op.dep ? `<div class="tt-row"><span>Depende de</span><span class="tt-val">${op.dep}</span></div>` : ''}
-    ${op.trans_costo ? `<div class="tt-row"><span>Lavado</span><span class="tt-val" style="color:#854F0B">${op.trans_costo} min</span></div>` : ''}
-    ${op.alerta ? `<div class="tt-row"><span>Alerta</span><span class="tt-val" style="color:#A32D2D">⚠ ${op.alerta_tipo}</span></div>` : ''}
-    <div style="font-size:10px;color:#aaa;margin-top:6px">Click para ver cadena completa</div>
+    ${op.trans_costo ? `<div class="tt-row"><span>Lavado</span><span class="tt-val" style="color:#854F0B">${op.trans_costo}min</span></div>` : ''}
+    <div style="font-size:10px;color:#bbb;margin-top:6px">Click → ver cadena completa</div>
   `;
   const tt = document.getElementById('tt');
   tt.style.display = 'block';
@@ -1269,13 +1494,13 @@ function showTT(e, id_ruta) {
   tt.style.top  = (e.clientY - 16) + 'px';
 }
 function hideTT() { document.getElementById('tt').style.display = 'none'; }
-// ── DRAG TO PAN ────────────────────────────────────────────
+
+// ── DRAG TO PAN ──────────────────────────────────────────────
 let panning = false, panStartX = 0, panStartScroll = 0;
 function initPan(e) {
   const wrap = document.querySelector('.gantt-wrap');
-  if (!wrap) return;
-  if (!e.target.closest('.gantt-wrap')) return;
-  if (e.target.closest('.task-bar,.btn,button,a,input,select,textarea,label,.color-toggle,.proceso-toggle')) return;
+  if (!wrap || !e.target.closest('.gantt-wrap')) return;
+  if (e.target.closest('.task-bar,.btn,button,a,input,select,textarea,label,.proceso-toggle')) return;
   panning = true;
   panStartX = e.clientX;
   panStartScroll = wrap.scrollLeft;
@@ -1285,7 +1510,7 @@ function initPan(e) {
 document.addEventListener('mousedown', initPan);
 document.addEventListener('mousemove', e => {
   const tt = document.getElementById('tt');
-  if (tt.style.display === 'block') {
+  if (tt && tt.style.display === 'block') {
     tt.style.left = (e.clientX + 14) + 'px';
     tt.style.top  = (e.clientY - 16) + 'px';
   }
@@ -1301,44 +1526,42 @@ document.addEventListener('mouseup', () => {
 });
 
 function formatHora(h) {
-  const base = 6; // 6am
+  const base = 6;
   const total = base + h;
   const hh = Math.floor(total);
   const mm = Math.round((total - hh) * 60);
   const ampm = hh >= 12 ? 'pm' : 'am';
-  return `${hh > 12 ? hh-12 : hh}:${mm.toString().padStart(2,'0')}${ampm}`;
+  return `${hh > 12 ? hh - 12 : hh}:${mm.toString().padStart(2,'0')}${ampm}`;
 }
 
 function parsePromisedTime(value) {
-  if (!value) return Number.POSITIVE_INFINITY;
+  if (!value) return Infinity;
   const parsed = new Date(value).getTime();
-  return Number.isFinite(parsed) ? parsed : Number.POSITIVE_INFINITY;
+  return isFinite(parsed) ? parsed : Infinity;
 }
 
 function formatPromisedDate(value) {
-  if (!value) return 'Sin fecha prometida';
+  if (!value) return 'Sin fecha';
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value);
-  return date.toLocaleDateString('es-CR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  });
+  if (isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString('es-CR', { day:'2-digit', month:'2-digit', year:'numeric' });
 }
 
-// ── PANEL DE DETALLE ───────────────────────────────────────
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── DETAIL PANEL ─────────────────────────────────────────────
 function openDP(id_ruta) {
   const op = orders.find(o => o.id_ruta === id_ruta);
   if (!op) return;
   currentDP = op;
 
-  // Activar cadena en el Gantt
   activeChainIds = getChain(id_ruta);
-  render();
+  if (currentView === 'gantt') { renderGantt(); drawArrows(); }
 
   const allConflicts = detectAllConflicts();
-  const chainOps = orders.filter(o => activeChainIds.has(o.id_ruta))
-    .sort((a, b) => a.inicio - b.inicio);
+  const chainOps = orders.filter(o => activeChainIds.has(o.id_ruta)).sort((a,b) => a.inicio - b.inicio);
   const downstream = getDownstreamOps(id_ruta);
 
   document.getElementById('dp-title-txt').textContent = op.id;
@@ -1349,7 +1572,7 @@ function openDP(id_ruta) {
     <div class="chain-list">
       ${chainOps.map(o => {
         const c = COLORS[o.estado] || COLORS.PENDIENTE;
-        return `<div class="chain-item${o.id_ruta === id_ruta ? ' active' : ''}">
+        return `<div class="chain-item${o.id_ruta===id_ruta?' active':''}">
           <span class="chain-dot" style="background:${c.bg}"></span>
           <span><strong>${o.id}</strong> · ${o.proceso}</span>
           <span style="margin-left:auto;font-size:10px;color:#888">${formatHora(o.inicio)} · ${o.dur}h</span>
@@ -1357,24 +1580,25 @@ function openDP(id_ruta) {
       }).join('')}
     </div>
 
-    <div class="dp-field"><div class="dp-lbl">Artículo</div><div class="dp-val">${op.articulo}</div></div>
+    <div class="dp-field"><div class="dp-lbl">Artículo</div><div class="dp-val">${escHtml(op.articulo)}</div></div>
     <div class="dp-field"><div class="dp-lbl">Saidel</div><div class="dp-val">${op.saidel}</div></div>
     <div class="dp-field"><div class="dp-lbl">Pies planificados</div><div class="dp-val">${Number(op.pies).toLocaleString()}</div></div>
     <div class="dp-field"><div class="dp-lbl">Entrega prometida</div><div class="dp-val">${formatPromisedDate(op.fecha_entrega_prometida)}</div></div>
     <div class="dp-field"><div class="dp-lbl">Fin producción</div><div class="dp-val">${formatPromisedDate(op.fecha_fin_produccion)}</div></div>
-    <div class="dp-field"><div class="dp-lbl">Setup estimado</div><div class="dp-val">${Number(op.route_payload?.setupMinutes || 0).toLocaleString('es-CR')} min</div></div>
-    <div class="dp-field"><div class="dp-lbl">Corrida estimada</div><div class="dp-val">${Number(op.route_payload?.runMinutes || 0).toLocaleString('es-CR')} min</div></div>
-    <div class="dp-field"><div class="dp-lbl">Buffer</div><div class="dp-val">${Number(op.route_payload?.bufferMinutes || 0).toLocaleString('es-CR')} min</div></div>
-    <div class="dp-field"><div class="dp-lbl">Velocidad base</div><div class="dp-val">${Number(op.route_payload?.speedFpm || 0).toLocaleString('es-CR')} fpm</div></div>
-    <div class="dp-field"><div class="dp-lbl">Origen del tiempo</div><div class="dp-val">${op.route_payload?.source || 'Sin definir'}</div></div>
-    <div class="dp-field"><div class="dp-lbl">Modo de acomodo</div><div class="dp-val">${op.manual_lock ? 'Fijo manual' : op.schedule_mode === 'backward' ? 'Programada hacia atrás' : op.schedule_mode === 'forward' ? 'Programada hacia adelante' : 'Sin definir'}</div></div>
+    <div class="dp-field"><div class="dp-lbl">Setup estimado</div><div class="dp-val">${Number(op.route_payload?.setupMinutes||0).toLocaleString('es-CR')} min</div></div>
+    <div class="dp-field"><div class="dp-lbl">Corrida estimada</div><div class="dp-val">${Number(op.route_payload?.runMinutes||0).toLocaleString('es-CR')} min</div></div>
+    <div class="dp-field"><div class="dp-lbl">Buffer</div><div class="dp-val">${Number(op.route_payload?.bufferMinutes||0).toLocaleString('es-CR')} min</div></div>
+    <div class="dp-field"><div class="dp-lbl">Velocidad base</div><div class="dp-val">${Number(op.route_payload?.speedFpm||0).toLocaleString('es-CR')} fpm</div></div>
+    <div class="dp-field"><div class="dp-lbl">Modo de acomodo</div>
+      <div class="dp-val">${op.manual_lock?'Fijo manual':op.schedule_mode==='backward'?'Prog. hacia atrás':op.schedule_mode==='forward'?'Prog. hacia adelante':'Sin definir'}</div>
+    </div>
     <div class="dp-field">
       <div class="dp-lbl">Color</div>
       <div class="dp-color-row">
         ${ROUTE_COLORS.map(color => `
-          <label title="${color ? color : 'Color por estado'}">
-            <input type="radio" name="dp-color" value="${color}" ${String(op.route_payload?.colorHex || '') === color ? 'checked' : ''}>
-            <span class="dp-color-swatch" style="background:${color || 'linear-gradient(135deg,#378ADD 0 50%,#1D9E75 50% 100%)'}"></span>
+          <label title="${color||'Color por estado'}">
+            <input type="radio" name="dp-color" value="${color}" ${String(op.route_payload?.colorHex||'')===color?'checked':''}>
+            <span class="dp-color-swatch" style="background:${color||'linear-gradient(135deg,#378ADD 0 50%,#1D9E75 50% 100%)'}"></span>
           </label>
         `).join('')}
       </div>
@@ -1382,18 +1606,17 @@ function openDP(id_ruta) {
     <div class="dp-field">
       <div class="dp-lbl">Bloqueo manual</div>
       <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#46515d">
-        <input type="checkbox" id="dp-lock" ${op.manual_lock ? 'checked' : ''}>
-        Mantener fijo este proceso cuando se optimice
+        <input type="checkbox" id="dp-lock" ${op.manual_lock?'checked':''}>
+        Mantener fijo este proceso al optimizar
       </label>
     </div>
     <div class="dp-field">
       <div class="dp-lbl">Bloqueo de orden</div>
       <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#46515d">
-        <input type="checkbox" id="dp-lock-order" ${chainOps.every(item => item.manual_lock) ? 'checked' : ''}>
-        Mantener fija toda la orden ${op.id} cuando se optimice
+        <input type="checkbox" id="dp-lock-order" ${chainOps.every(i=>i.manual_lock)?'checked':''}>
+        Mantener fija toda la orden ${escHtml(op.id)}
       </label>
     </div>
-
     <div class="dp-section">Planificación</div>
     <div class="dp-field">
       <div class="dp-lbl">Inicio (horas desde 6am)</div>
@@ -1406,14 +1629,14 @@ function openDP(id_ruta) {
     <div class="dp-field">
       <div class="dp-lbl">Máquina</div>
       <select class="dp-input" id="dp-maq">
-        ${machines.map(m => `<option value="${m.id}"${m.id === op.maquina ? ' selected' : ''}>${m.name}</option>`).join('')}
+        ${machines.map(m => `<option value="${m.id}"${m.id===op.maquina?' selected':''}>${m.name||m.nombre_recurso||m.id}</option>`).join('')}
       </select>
     </div>
     <div class="dp-section">Estado</div>
     <div class="dp-field">
       <select class="dp-input" id="dp-estado">
         ${['PENDIENTE','SETUP','RUN','PARO','COMPLETADO'].map(s =>
-          `<option value="${s}"${s === op.estado ? ' selected' : ''}>${s}</option>`).join('')}
+          `<option value="${s}"${s===op.estado?' selected':''}>${s}</option>`).join('')}
       </select>
     </div>
     ${op.dep ? `<div class="dp-field"><div class="dp-lbl">Depende de</div><div class="dp-val">${op.dep}</div></div>` : ''}
@@ -1421,13 +1644,13 @@ function openDP(id_ruta) {
 
     ${downstream.length ? `
     <div class="impact-box">
-      <div class="impact-title">⚠ Impacto si mueves esta orden</div>
+      <div class="impact-title">⚠ Impacto si movés esta orden</div>
       Se desplazarán ${downstream.length} proceso(s) aguas abajo:<br>
       ${downstream.map(o => `<strong>${o.id}</strong> (${o.proceso})`).join(', ')}
     </div>` : ''}
 
     ${(() => {
-      const myConflicts = allConflicts.filter(c => c.ruta_a === op.id_ruta || c.ruta_b === op.id_ruta);
+      const myConflicts = allConflicts.filter(c => c.ruta_a===op.id_ruta || c.ruta_b===op.id_ruta);
       if (!myConflicts.length) return '';
       return `<div class="conflict-panel">
         <div class="conflict-panel-title">⊗ Conflictos de esta barra</div>
@@ -1446,7 +1669,8 @@ function closeDP() {
   document.getElementById('dp').style.display = 'none';
   currentDP = null;
   activeChainIds = null;
-  render();
+  if (currentView === 'gantt') { renderGantt(); drawArrows(); }
+  else { renderPipeline(); }
 }
 
 async function saveDP() {
@@ -1461,15 +1685,13 @@ async function saveDP() {
   const newEstado = document.getElementById('dp-estado').value;
   const newLock   = Boolean(document.getElementById('dp-lock')?.checked);
   const newOrderLock = Boolean(document.getElementById('dp-lock-order')?.checked);
-  const newColor = document.querySelector('input[name="dp-color"]:checked')?.value || '';
+  const newColor  = document.querySelector('input[name="dp-color"]:checked')?.value || '';
 
-  // Advertir sobre impacto si cambió inicio
   if (newInicio !== currentDP.inicio) {
     const downstream = getDownstreamOps(currentDP.id_ruta);
     if (downstream.length > 0) {
       const delta = newInicio - currentDP.inicio;
-      const msg = `Mover "${currentDP.id}" ${delta > 0 ? '+' : ''}${delta.toFixed(2)}h desplazará ${downstream.length} proceso(s) aguas abajo.\n\n¿Confirmar?`;
-      if (!confirm(msg)) {
+      if (!confirm(`Mover "${currentDP.id}" ${delta>0?'+':''}${delta.toFixed(2)}h desplazará ${downstream.length} proceso(s) aguas abajo.\n\n¿Confirmar?`)) {
         btn.textContent = 'Guardar cambios';
         btn.classList.remove('saving');
         return;
@@ -1479,40 +1701,23 @@ async function saveDP() {
 
   try {
     if (newInicio !== currentDP.inicio || newDur !== currentDP.dur || newMaq !== currentDP.maquina) {
-      await apiPatch(`${API}/gantt/mover`, {
-        id_ruta:    currentDP.id_ruta,
-        inicio:     newInicio,
-        duracion:   newDur,
-        id_maquina: newMaq
-      });
+      await apiPatch(`${API}/gantt/mover`, { id_ruta:currentDP.id_ruta, inicio:newInicio, duracion:newDur, id_maquina:newMaq });
     }
     if (newLock !== Boolean(currentDP.manual_lock)) {
-      await apiPatch(`${API}/gantt/mover`, {
-        id_ruta: currentDP.id_ruta,
-        route_payload_updates: { manualLock: newLock }
-      });
+      await apiPatch(`${API}/gantt/mover`, { id_ruta:currentDP.id_ruta, route_payload_updates:{ manualLock:newLock } });
     }
-    if (newColor !== String(currentDP.route_payload?.colorHex || '')) {
-      await apiPatch(`${API}/gantt/mover`, {
-        id_ruta: currentDP.id_ruta,
-        route_payload_updates: { colorHex: newColor || null }
-      });
+    if (newColor !== String(currentDP.route_payload?.colorHex||'')) {
+      await apiPatch(`${API}/gantt/mover`, { id_ruta:currentDP.id_ruta, route_payload_updates:{ colorHex:newColor||null } });
     }
     const orderOps = getOrderOps(currentDP.id);
     const orderIsLocked = orderOps.length > 0 && orderOps.every(op => Boolean(op.manual_lock));
     if (newOrderLock !== orderIsLocked) {
       await Promise.all(orderOps.map(op =>
-        apiPatch(`${API}/gantt/mover`, {
-          id_ruta: op.id_ruta,
-          route_payload_updates: { manualLock: newOrderLock }
-        })
+        apiPatch(`${API}/gantt/mover`, { id_ruta:op.id_ruta, route_payload_updates:{ manualLock:newOrderLock } })
       ));
     }
     if (newEstado !== currentDP.estado) {
-      await apiPatch(`${API}/gantt/estado`, {
-        codigo_op: currentDP.id,
-        estado:    newEstado
-      });
+      await apiPatch(`${API}/gantt/estado`, { codigo_op:currentDP.id, estado:newEstado });
     }
     closeDP();
     await loadFromAPI();
@@ -1523,142 +1728,116 @@ async function saveDP() {
   }
 }
 
-// ── RESOLVER TODOS LOS CONFLICTOS ─────────────────────────
+// ── RESOLVER CONFLICTOS ──────────────────────────────────────
 function resolveAllConflicts() {
   const conflicts = detectAllConflicts();
   if (!conflicts.length) { alert('✓ No hay conflictos en el tablero.'); return; }
-
   const machineConflicts  = conflicts.filter(c => c.type === 'machine');
   const sequenceConflicts = conflicts.filter(c => c.type === 'sequence');
-
   let msg = `Se encontraron ${conflicts.length} conflicto(s):\n`;
   if (machineConflicts.length)  msg += `• ${machineConflicts.length} de máquina (requieren reubicación manual)\n`;
   if (sequenceConflicts.length) msg += `• ${sequenceConflicts.length} de secuencia (se pueden ajustar automáticamente)\n`;
   msg += '\n¿Ajustar automáticamente los conflictos de secuencia?';
-
   if (!confirm(msg)) return;
-
-  // Resolver secuencias: ordenar por inicio y empujar sucesores
   sequenceConflicts.forEach(c => {
     const pred = orders.find(o => o.id_ruta === c.ruta_a);
     if (pred) autoFix(pred.id_ruta, pred.inicio + pred.dur);
   });
-
   render();
-
-  // Persistir todos los cambios en la API
   Promise.all(orders.map(o =>
-    apiPatch(`${API}/gantt/mover`, { id_ruta: o.id_ruta, inicio: o.inicio })
+    apiPatch(`${API}/gantt/mover`, { id_ruta:o.id_ruta, inicio:o.inicio })
   )).then(() => loadFromAPI()).catch(e => showError('Error al resolver: ' + e.message));
 }
 
-// ── OPTIMIZAR SECUENCIA ────────────────────────────────────
+// ── OPTIMIZAR SECUENCIA ──────────────────────────────────────
 function autoSeq() {
   const machineReservations = new Map();
-  function ensureReservations(machineKey) {
-    if (!machineReservations.has(machineKey)) machineReservations.set(machineKey, []);
-    return machineReservations.get(machineKey);
+  function ensureReservations(k) {
+    if (!machineReservations.has(k)) machineReservations.set(k,[]);
+    return machineReservations.get(k);
   }
-  function reserve(machineKey, start, end) {
-    if (!machineKey) return;
-    const list = ensureReservations(machineKey);
-    list.push({ start, end });
-    list.sort((a, b) => a.start - b.start);
+  function reserve(k, start, end) {
+    if (!k) return;
+    const list = ensureReservations(k);
+    list.push({start,end});
+    list.sort((a,b) => a.start - b.start);
   }
-  function findNextMachineSlot(machineKey, desiredStart, duration) {
-    if (!machineKey) return desiredStart;
-    const reservations = ensureReservations(machineKey);
-    let cursor = desiredStart;
+  function findNextSlot(k, desired, dur) {
+    if (!k) return desired;
+    const reservations = ensureReservations(k);
+    let cursor = desired;
     reservations.forEach(slot => {
-      if ((cursor + duration) <= slot.start || cursor >= slot.end) return;
+      if ((cursor+dur) <= slot.start || cursor >= slot.end) return;
       cursor = slot.end;
     });
     return cursor;
   }
-  function findPrevMachineSlot(machineKey, latestEnd, duration) {
-    if (!machineKey) return Math.max(0, latestEnd - duration);
-    const reservations = ensureReservations(machineKey);
+  function findPrevSlot(k, latestEnd, dur) {
+    if (!k) return Math.max(0, latestEnd - dur);
+    const reservations = ensureReservations(k);
     let candidateEnd = latestEnd;
-
-    for (let i = reservations.length - 1; i >= 0; i -= 1) {
+    for (let i = reservations.length - 1; i >= 0; i--) {
       const slot = reservations[i];
-      const candidateStart = candidateEnd - duration;
+      const candidateStart = candidateEnd - dur;
       if (candidateEnd <= slot.start) continue;
       if (candidateStart >= slot.end) continue;
       candidateEnd = slot.start;
     }
-
-    return Math.max(0, candidateEnd - duration);
+    return Math.max(0, candidateEnd - dur);
   }
   function reserveChain(chain) {
-    chain.forEach(op => reserve(String(op.maquina || ''), op.inicio, op.inicio + op.dur));
+    chain.forEach(op => reserve(String(op.maquina||''), op.inicio, op.inicio+op.dur));
   }
-  function scheduleChainBackward(chain, dueSlot) {
+  function scheduleBackward(chain, dueSlot) {
     let latestEnd = dueSlot;
-    for (let i = chain.length - 1; i >= 0; i -= 1) {
+    for (let i = chain.length - 1; i >= 0; i--) {
       const op = chain[i];
-      const machineKey = String(op.maquina || '');
-      const start = findPrevMachineSlot(machineKey, latestEnd, op.dur);
+      const k = String(op.maquina||'');
+      const start = findPrevSlot(k, latestEnd, op.dur);
       op.inicio = parseFloat(start.toFixed(2));
       op.schedule_mode = 'backward';
       latestEnd = op.inicio;
     }
     reserveChain(chain);
   }
-  function scheduleChainForward(chain, initialStart = 0) {
-    let predecessorEnd = initialStart;
+  function scheduleForward(chain, initialStart = 0) {
+    let predEnd = initialStart;
     chain.forEach(op => {
-      if (op.manual_lock) {
-        op.schedule_mode = 'manual';
-        predecessorEnd = op.inicio + op.dur;
-        return;
-      }
-      const machineKey = String(op.maquina || '');
-      const start = findNextMachineSlot(machineKey, predecessorEnd, op.dur);
+      if (op.manual_lock) { op.schedule_mode='manual'; predEnd=op.inicio+op.dur; return; }
+      const k = String(op.maquina||'');
+      const start = findNextSlot(k, predEnd, op.dur);
       op.inicio = parseFloat(start.toFixed(2));
       op.schedule_mode = 'forward';
       const end = op.inicio + op.dur;
-      reserve(machineKey, op.inicio, end);
-      predecessorEnd = end;
+      reserve(k, op.inicio, end);
+      predEnd = end;
     });
   }
 
-  orders.filter(o => o.manual_lock).forEach(o => reserve(String(o.maquina || ''), o.inicio, o.inicio + o.dur));
-
-  const roots = orders
-    .filter(o => !o.dep_ruta_id && !o.dep)
-    .sort((a, b) => {
-      const dueDiff = parsePromisedTime(a.fecha_entrega_prometida) - parsePromisedTime(b.fecha_entrega_prometida);
-      if (dueDiff !== 0) return dueDiff;
-      const washDiff = (a.trans_costo || 0) - (b.trans_costo || 0);
-      if (washDiff !== 0) return washDiff;
-      return a.inicio - b.inicio;
-    });
+  orders.filter(o => o.manual_lock).forEach(o => reserve(String(o.maquina||''), o.inicio, o.inicio+o.dur));
+  const roots = orders.filter(o => !o.dep_ruta_id && !o.dep).sort((a,b) => {
+    const dueDiff = parsePromisedTime(a.fecha_entrega_prometida) - parsePromisedTime(b.fecha_entrega_prometida);
+    if (dueDiff !== 0) return dueDiff;
+    return (a.trans_costo||0) - (b.trans_costo||0);
+  });
 
   roots.forEach(root => {
     const chain = getChainOpsOrdered(root.id_ruta);
     const hasManualLocks = chain.some(op => op.manual_lock);
     const dueSlot = promisedHourSlot(root.fecha_entrega_prometida);
-    const canBackSchedule = !hasManualLocks && dueSlot !== null && Number.isFinite(dueSlot);
-
-    if (canBackSchedule) {
-      const chainDuration = getChainDuration(chain);
-      const desiredStart = dueSlot - chainDuration;
-      if (desiredStart >= 0) {
-        scheduleChainBackward(chain, dueSlot);
-        return;
-      }
+    const canBack = !hasManualLocks && dueSlot !== null && isFinite(dueSlot);
+    if (canBack) {
+      const chainDur = getChainDuration(chain);
+      const desiredStart = dueSlot - chainDur;
+      if (desiredStart >= 0) { scheduleBackward(chain, dueSlot); return; }
     }
-
-    scheduleChainForward(chain, 0);
+    scheduleForward(chain, 0);
   });
 
   render();
-  Promise.all(
-    orders.map(o =>
-      apiPatch(`${API}/gantt/mover`, { id_ruta: o.id_ruta, inicio: o.inicio })
-    )
-  ).then(() => loadFromAPI()).catch(e => showError('Error al optimizar: ' + e.message));
+  Promise.all(orders.map(o => apiPatch(`${API}/gantt/mover`, { id_ruta:o.id_ruta, inicio:o.inicio })))
+    .then(() => loadFromAPI())
+    .catch(e => showError('Error al optimizar: ' + e.message));
 }
 
 async function autoSeqCapacidad() {
@@ -1671,10 +1850,8 @@ async function autoSeqCapacidad() {
     orders.forEach(op => {
       const pos = positions[op.id_ruta];
       if (pos) {
-        op.inicio = pos.inicio;
-        op.dur = pos.dur;
-        op.projectedStart = pos.projectedStart;
-        op.projectedEnd = pos.projectedEnd;
+        op.inicio = pos.inicio; op.dur = pos.dur;
+        op.projectedStart = pos.projectedStart; op.projectedEnd = pos.projectedEnd;
         op.maquina = pos.machineProfileId || pos.resourceId || op.maquina;
         op.capacityResourceId = pos.resourceId || null;
         op.capacityResourceName = pos.resourceName || '';
@@ -1684,34 +1861,23 @@ async function autoSeqCapacidad() {
     });
     configureTimelineHorizon();
     render();
-    if (data.data.bottlenecks && data.data.bottlenecks.length) {
+    if (data.data.bottlenecks?.length) {
       const bnNames = data.data.bottlenecks.map(b => `${b.machineName} (${b.utilizationPct}%)`).join(', ');
-      showCenterMessage(`⚠ Cuellos de botella detectados: ${bnNames}`);
+      showCenterMessage(`⚠ Cuellos de botella: ${bnNames}`);
     } else {
       showCenterMessage(`✓ ${updatedCount} rutas re-secuenciadas por capacidad finita.`);
     }
-    Promise.all(
-      orders.map(o =>
-        apiPatch(`${API}/gantt/mover`, {
-          id_ruta: o.id_ruta,
-          inicio: o.inicio,
-          id_maquina: o.maquina,
-          planned_start_at: o.projectedStart || null,
-          planned_end_at: o.projectedEnd || null,
-          route_payload_updates: {
-            scheduleMode: 'capacity',
-            capacityResourceId: o.capacityResourceId || null,
-            capacityResourceName: o.capacityResourceName || ''
-          }
-        })
-      )
-    ).then(() => loadFromAPI()).catch(e => showError('Error al guardar: ' + e.message));
+    Promise.all(orders.map(o => apiPatch(`${API}/gantt/mover`, {
+      id_ruta: o.id_ruta, inicio: o.inicio, id_maquina: o.maquina,
+      planned_start_at: o.projectedStart||null, planned_end_at: o.projectedEnd||null,
+      route_payload_updates: { scheduleMode:'capacity', capacityResourceId:o.capacityResourceId||null, capacityResourceName:o.capacityResourceName||'' }
+    }))).then(() => loadFromAPI()).catch(e => showError('Error al guardar: ' + e.message));
   } catch (e) {
     showError('Error en capacidad finita: ' + e.message);
   }
 }
 
-// ── USUARIO ACTIVO ─────────────────────────────────────────
+// ── USER SESSION ─────────────────────────────────────────────
 function syncGanttUserName() {
   const el = document.getElementById('ganttUserName');
   if (!el) return;
@@ -1726,15 +1892,12 @@ function syncGanttUserName() {
   } catch (_) {}
   el.textContent = 'Sin sesión';
 }
-syncGanttUserName();
 
-// ── POLLING (refresh cada 30s) ─────────────────────────────
+// ── POLLING ──────────────────────────────────────────────────
 setInterval(() => { if (!currentDP) loadFromAPI(); }, 30000);
 
-// ── INICIO ─────────────────────────────────────────────────
+// ── INIT ─────────────────────────────────────────────────────
 loadFromAPI();
 </script>
 </body>
 </html>
-
-

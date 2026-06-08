@@ -3,6 +3,7 @@
 ## CORE PRINCIPLE
 
 * Minimize token usage.
+* All backups goes to \Backups folder with respective name and timestamp. 
 * Report the estimated percentage of token usage attributable to each section of these instructions whenever possible, for evaluation purposes.
 * Always create field names, labels, and user-facing text in Spanish. Avoid English unless technically required.
 * Stay strictly within the requested scope.
