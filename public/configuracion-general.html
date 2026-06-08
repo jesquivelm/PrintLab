@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/styles.css">
     <script src="/access-control.js"></script>
     <style>
-        .config-tabs { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; width: 100%; min-width: 0; margin-bottom: 20px; padding: 4px; border: 1px solid #d8e2ea; border-radius: 14px; background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.75); }
+        .config-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 6px; width: 100%; min-width: 0; margin-bottom: 20px; padding: 4px; border: 1px solid #d8e2ea; border-radius: 14px; background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.75); }
         .topbar.topbar-quote {
             display: flex;
             align-items: center;
@@ -398,6 +398,62 @@
         }
         .quotes-orders-general-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .calculo-subtabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 16px;
+            padding: 3px;
+            background: #f5f5f3;
+            border-radius: 8px;
+        }
+        .calculo-subtab {
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            cursor: pointer;
+            color: #666;
+            border: none;
+            background: transparent;
+            font-weight: 500;
+            white-space: nowrap;
+            transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+        }
+        .calculo-subtab:hover {
+            background: rgba(11,129,184,0.08);
+            color: #23516a;
+        }
+        .calculo-subtab.active {
+            background: #fff;
+            color: #1a1a1a;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+        .calculo-subpanel {
+            display: flex;
+            justify-content: center;
+        }
+        .calculo-subpanel[hidden] {
+            display: none;
+        }
+        .calculo-subpanel > .config-card {
+            width: 100%;
+            max-width: 380px;
+            min-width: 0;
+        }
+        .calculo-subpanel .quote-product-types-card,
+        .calculo-subpanel .quote-surface-options-card,
+        .calculo-subpanel .quote-application-options-card {
+            max-width: 380px;
+        }
+        .calculo-subpanel > .config-card.quotes-orders-compact-card {
+            max-width: 380px;
+        }
+        .calculo-subpanel .config-form-grid {
+            grid-template-columns: 1fr;
+        }
+        .calculo-subpanel .config-help {
+            max-width: 100%;
         }
         .quotes-general-split {
             display: grid;
@@ -4669,20 +4725,19 @@
                     
                     <!-- Tabs -->
                     <div class="config-tabs">
-                        <button type="button" class="config-tab active" data-tab="diseno">Diseño</button>
-                        <button type="button" class="config-tab" data-tab="cotizaciones">Cotizaciones</button>
+                        <button type="button" class="config-tab active" data-tab="cotizaciones">Cotizaciones</button>
                         <button type="button" class="config-tab" data-tab="entregas">Entregas</button>
-                        <button type="button" class="config-tab" data-tab="mapeo-sap">Mapeo SAP</button>
                         <button type="button" class="config-tab" data-tab="seguridad">Seguridad</button>
                         <button type="button" id="configTabSap" class="config-tab" data-tab="sap">SAP</button>
                         <button type="button" id="configTabNotificaciones" class="config-tab" data-tab="notificaciones">Notificaciones</button>
                         <button type="button" class="config-tab" data-tab="nomenclaturas">Nomenclaturas</button>
                         <button type="button" class="config-tab" data-tab="tipo-cambio">Tipo de Cambio</button>
                         <button type="button" class="config-tab" data-tab="auditoria">Auditoría</button>
+                        <button type="button" class="config-tab" data-tab="diseno">Diseño</button>
                     </div>
 
                     <!-- DISEÑO -->
-                    <div id="tab-diseno" class="config-tab-content active">
+                    <div id="tab-diseno" class="config-tab-content">
                         <div class="design-subtabs">
                             <button type="button" class="design-subtab active" data-design-tab="datos-generales">Presentación General</button>
                             <button type="button" class="design-subtab" data-design-tab="repositorio">Repositorio</button>
@@ -5465,12 +5520,21 @@
                             <div class="quotes-subtabs">
                                 <button type="button" class="quotes-subtab active" data-quotes-tab="calculo">Cálculo</button>
                                 <button type="button" class="quotes-subtab" data-quotes-tab="proforma">Proforma</button>
-                                <button type="button" class="quotes-subtab" data-quotes-tab="salidas">Tipos de Salida</button>
-                                <button type="button" class="quotes-subtab" data-quotes-tab="formas-troquel">Formas de Troquel</button>
                             </div>
 
-                            <div id="quotes-panel-general" class="quotes-subpanel">
-                                <div class="quotes-general-split">
+                            <div id="quotes-panel-calculo" class="quotes-subpanel">
+                                <div class="calculo-subtabs">
+                                    <button type="button" class="calculo-subtab active" data-calculo-tab="tipos-producto">Tipos de Producto</button>
+                                    <button type="button" class="calculo-subtab" data-calculo-tab="aplicacion">Aplicación</button>
+                                    <button type="button" class="calculo-subtab" data-calculo-tab="superficie">Tipo de Superficie</button>
+                                    <button type="button" class="calculo-subtab" data-calculo-tab="ordenes">Config. Creación de Órdenes</button>
+                                    <button type="button" class="calculo-subtab" data-calculo-tab="valores">Valores Estándar del Cálculo</button>
+                                    <button type="button" class="calculo-subtab" data-calculo-tab="inventario">Origen de Inventario</button>
+                                    <button type="button" class="calculo-subtab" data-calculo-tab="salidas">Tipos de Salida</button>
+                                    <button type="button" class="calculo-subtab" data-calculo-tab="formas-troquel">Formas de Troquel</button>
+                                </div>
+
+                                <div id="calculo-panel-tipos-producto" class="calculo-subpanel">
                                     <section class="config-card quote-product-types-card">
                                         <input id="quoteProductTypesJson" name="general.quoteProductTypesJson" type="hidden">
                                         <h2 class="config-section-title">Tipos de Producto</h2>
@@ -5491,26 +5555,9 @@
                                             </table>
                                         </div>
                                     </section>
-                                    <section class="config-card quote-product-types-card quote-surface-options-card">
-                                        <input id="quoteSurfaceOptionsJson" name="general.quoteSurfaceOptionsJson" type="hidden">
-                                        <h2 class="config-section-title">Tipo de Superficie</h2>
-                                        <div class="quote-product-types-toolbar">
-                                            <p>Esta lista alimenta la solicitud y el cálculo.</p>
-                                            <button id="quoteSurfaceOptionAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
-                                        </div>
-                                        <div class="quote-product-types-table-wrap">
-                                            <table class="quote-product-types-table">
-                                                <thead>
-                                                    <tr>
-                                                        <th style="width:72px;">#</th>
-                                                        <th>Valor</th>
-                                                        <th>Acción</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody id="quoteSurfaceOptionsTableBody"></tbody>
-                                            </table>
-                                        </div>
-                                    </section>
+                                </div>
+
+                                <div id="calculo-panel-aplicacion" class="calculo-subpanel" hidden>
                                     <section class="config-card quote-product-types-card quote-application-options-card">
                                         <input id="quoteApplicationOptionsJson" name="general.quoteApplicationOptionsJson" type="hidden">
                                         <h2 class="config-section-title">Aplicación</h2>
@@ -5531,9 +5578,35 @@
                                             </table>
                                         </div>
                                     </section>
-                                    <section id="ordersGeneralSection" class="config-card quotes-orders-compact-card">
+                                </div>
+
+                                <div id="calculo-panel-superficie" class="calculo-subpanel" hidden>
+                                    <section class="config-card quote-product-types-card quote-surface-options-card">
+                                        <input id="quoteSurfaceOptionsJson" name="general.quoteSurfaceOptionsJson" type="hidden">
+                                        <h2 class="config-section-title">Tipo de Superficie</h2>
+                                        <div class="quote-product-types-toolbar">
+                                            <p>Esta lista alimenta la solicitud y el cálculo.</p>
+                                            <button id="quoteSurfaceOptionAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
+                                        </div>
+                                        <div class="quote-product-types-table-wrap">
+                                            <table class="quote-product-types-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="width:72px;">#</th>
+                                                        <th>Valor</th>
+                                                        <th>Acción</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="quoteSurfaceOptionsTableBody"></tbody>
+                                            </table>
+                                        </div>
+                                    </section>
+                                </div>
+
+                                <div id="calculo-panel-ordenes" class="calculo-subpanel" hidden>
+                                    <section id="ordersGeneralSection" class="config-card">
                                         <h2 class="config-section-title">Configuración de Creación de Órdenes</h2>
-                                        <div class="config-form-grid quotes-orders-general-grid">
+                                        <div class="config-form-grid">
                                             <label>
                                                 <span>Día Máximo</span>
                                                 <select name="general.ordersCutoffDay">
@@ -5563,40 +5636,80 @@
                                         <p class="config-help">Define el corte para solicitudes tardías de orden y la fecha/hora efectiva con la que deben entrar a producción.</p>
                                     </section>
                                 </div>
-                            </div>
 
-                            <div id="quotes-panel-calculo" class="quotes-subpanel" hidden>
-                                <section class="config-card">
-                                    <h2 class="config-section-title">Automatización de Cotización</h2>
-                                    <div class="config-form-grid quotes-orders-general-grid">
-                                        <label>
-                                            <span>Cantidad Máxima Automática para Digital</span>
-                                            <input name="general.quoteAutomaticDigitalMaxQuantity" type="number" min="1" step="1" value="100000">
-                                        </label>
-                                        <label>
-                                            <span>Etiquetas por Rollo por Defecto</span>
-                                            <input name="general.quoteAutomaticLabelsPerRoll" type="number" min="1" step="1" value="1000">
-                                        </label>
-                                    </div>
-                                    <p class="config-help">Si la cantidad solicitada es menor o igual a este valor, la cotización automática intentará digital primero. Si no encuentra troquel, material o máquina compatible, hará fallback controlado y dejará advertencia técnica. La cantidad por rollo servirá como base automática para el cálculo inicial cuando el vendedor no la defina.</p>
-                                </section>
-                                <section class="config-card">
-                                    <h2 class="config-section-title">Origen de Inventario</h2>
-                                    <div class="config-form-grid quotes-orders-general-grid">
-                                        <label>
-                                            <span>Fuente para Cotización y Cálculo</span>
-                                            <select name="general.inventorySourceMode">
-                                                <option value="local">Inventario Local</option>
-                                                <option value="sap">Inventario Importado SAP</option>
-                                            </select>
-                                        </label>
-                                        <label>
-                                            <span>Campo SAP para Clasificar</span>
-                                            <input name="general.inventoryImportedClassificationField" type="text" placeholder="ItemsGroupCode, U_CategoriaFlexo, etc.">
-                                        </label>
-                                    </div>
-                                    <p class="config-help">Aquí defines si el cálculo usará el inventario local o el inventario importado desde SAP. También puedes indicar el nombre del campo SAP o UDF que servirá como base de clasificación.</p>
-                                </section>
+                                <div id="calculo-panel-valores" class="calculo-subpanel" hidden>
+                                    <section class="config-card">
+                                        <h2 class="config-section-title">Valores Estándar del Cálculo</h2>
+                                        <div class="config-form-grid">
+                                            <label>
+                                                <span>Cantidad Máxima Automática para Digital</span>
+                                                <input name="general.quoteAutomaticDigitalMaxQuantity" type="number" min="1" step="1" value="100000">
+                                            </label>
+                                            <label>
+                                                <span>Etiquetas por Rollo por Defecto</span>
+                                                <input name="general.quoteAutomaticLabelsPerRoll" type="number" min="1" step="1" value="1000">
+                                            </label>
+                                        </div>
+                                        <p class="config-help">Si la cantidad solicitada es menor o igual a este valor, la cotización automática intentará digital primero. Si no encuentra troquel, material o máquina compatible, hará fallback controlado y dejará advertencia técnica. La cantidad por rollo servirá como base automática para el cálculo inicial cuando el vendedor no la defina.</p>
+                                    </section>
+                                </div>
+
+                                <div id="calculo-panel-inventario" class="calculo-subpanel" hidden>
+                                    <section class="config-card">
+                                        <h2 class="config-section-title">Origen de Inventario</h2>
+                                        <div class="config-form-grid">
+                                            <label>
+                                                <span>Fuente para Cotización y Cálculo</span>
+                                                <select name="general.inventorySourceMode">
+                                                    <option value="local">Inventario Local</option>
+                                                    <option value="sap">Inventario Importado SAP</option>
+                                                </select>
+                                            </label>
+                                            <label>
+                                                <span>Campo SAP para Clasificar</span>
+                                                <input name="general.inventoryImportedClassificationField" type="text" placeholder="ItemsGroupCode, U_CategoriaFlexo, etc.">
+                                            </label>
+                                        </div>
+                                        <p class="config-help">Aquí defines si el cálculo usará el inventario local o el inventario importado desde SAP. También puedes indicar el nombre del campo SAP o UDF que servirá como base de clasificación.</p>
+                                    </section>
+                                </div>
+
+                                <div id="calculo-panel-salidas" class="calculo-subpanel" hidden>
+                                    <section class="config-card" style="max-width:100%">
+                                        <div class="quote-output-types-head">
+                                            <div>
+                                                <h2>Tipos de Salida</h2>
+                                            </div>
+                                            <div class="quote-output-types-actions">
+                                                <button type="button" id="quoteOutputTypesAddButton" class="icon-only-btn" aria-label="Agregar línea" title="Agregar línea"></button>
+                                                <p id="quoteOutputTypesStatus" class="quote-output-types-status">Listo para editar.</p>
+                                            </div>
+                                        </div>
+                                        <div class="quote-output-types-wrap">
+                                            <table class="quote-output-types-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th class="inventory-output-code-cell">Código</th>
+                                                        <th class="inventory-output-image-cell">Imagen</th>
+                                                        <th class="inventory-output-description-cell">Descripción</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="quoteOutputTypesTableBody">
+                                                    <tr>
+                                                        <td colspan="3" class="quote-output-empty">Cargando tipos de salida...</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </section>
+                                </div>
+
+                                <div id="calculo-panel-formas-troquel" class="calculo-subpanel" hidden>
+                                    <section id="dieShapesGeneralSection" class="config-card" style="max-width:100%">
+                                        <h2 class="config-section-title">Formas de Troquel</h2>
+                                        <div id="dieShapeConfigGrid" class="die-shape-config-grid"></div>
+                                    </section>
+                                </div>
                             </div>
 
                             <div id="quotes-panel-proforma" class="quotes-subpanel" hidden>
@@ -5914,43 +6027,6 @@
                         </section>
                     </div>
 
-                            <div id="quotes-panel-salidas" class="quotes-subpanel" hidden>
-                                <section class="config-card">
-                                    <div class="quote-output-types-head">
-                                        <div>
-                                            <h2>Tipos de Salida</h2>
-                                        </div>
-                                        <div class="quote-output-types-actions">
-                                            <button type="button" id="quoteOutputTypesAddButton" class="icon-only-btn" aria-label="Agregar línea" title="Agregar línea"></button>
-                                            <p id="quoteOutputTypesStatus" class="quote-output-types-status">Listo para editar.</p>
-                                        </div>
-                                    </div>
-                                    <div class="quote-output-types-wrap">
-                                        <table class="quote-output-types-table">
-                                            <thead>
-                                                <tr>
-                                                    <th class="inventory-output-code-cell">Código</th>
-                                                    <th class="inventory-output-image-cell">Imagen</th>
-                                                    <th class="inventory-output-description-cell">Descripción</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="quoteOutputTypesTableBody">
-                                                <tr>
-                                                    <td colspan="3" class="quote-output-empty">Cargando tipos de salida...</td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </section>
-                            </div>
-
-                            <div id="quotes-panel-formas-troquel" class="quotes-subpanel" hidden>
-                                <section id="dieShapesGeneralSection" class="config-card">
-                                    <h2 class="config-section-title">Formas de Troquel</h2>
-                                    <div id="dieShapeConfigGrid" class="die-shape-config-grid"></div>
-                                </section>
-                            </div>
-
                         </section>
                     </div>
 
@@ -6000,64 +6076,6 @@
                                         </table>
                                     </div>
                                 </section>
-                            </div>
-                        </section>
-                    </div>
-
-                    <div id="tab-mapeo-sap" class="config-tab-content">
-                        <section class="config-card">
-                            <div class="sap-records-toolbar">
-                                <div>
-                                    <h2 class="config-section-title">Mapeo de Clasificación de Inventario SAP</h2>
-                                    <p class="section-caption">Relaciona el valor real del campo SAP con la categoría flexográfica que el proyecto necesita.</p>
-                                </div>
-                            </div>
-                            <div class="config-form-grid quotes-orders-general-grid">
-                                <label>
-                                    <span>Valor Origen</span>
-                                    <input id="inventoryClassificationSourceValue" type="text" placeholder="Código o valor del campo SAP">
-                                </label>
-                                <label>
-                                    <span>Categoría Flexo</span>
-                                    <input id="inventoryClassificationCategory" type="text" placeholder="sustrato, tinta, foil, laminante...">
-                                </label>
-                                <label>
-                                    <span>Etiqueta Visible</span>
-                                    <input id="inventoryClassificationDisplayLabel" type="text" placeholder="Nombre amigable">
-                                </label>
-                                <label>
-                                    <span>Notas</span>
-                                    <input id="inventoryClassificationNotes" type="text" placeholder="Detalle opcional">
-                                </label>
-                                <label>
-                                    <span>Activo</span>
-                                    <select id="inventoryClassificationIsActive">
-                                        <option value="true">Sí</option>
-                                        <option value="false">No</option>
-                                    </select>
-                                </label>
-                            </div>
-                            <div class="sap-security-actions">
-                                <button type="button" id="inventoryClassificationNewButton" class="action-btn">Nuevo</button>
-                                <button type="button" id="inventoryClassificationSaveButton" class="action-btn action-btn-primary">Guardar</button>
-                            </div>
-                            <div id="inventoryClassificationStatus" class="sap-security-empty">Cargando mapeo de clasificación...</div>
-                            <div class="audit-table-wrap sap-records-table-wrap">
-                                <table class="audit-table sap-records-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Valor Origen</th>
-                                            <th>Categoría</th>
-                                            <th>Etiqueta</th>
-                                            <th>Activo</th>
-                                            <th>Notas</th>
-                                            <th>Acción</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="inventoryClassificationTableBody">
-                                        <tr><td colspan="6" class="audit-empty">Todavía no hay mapeos configurados.</td></tr>
-                                    </tbody>
-                                </table>
                             </div>
                         </section>
                     </div>
@@ -6394,6 +6412,7 @@
                                     <button type="button" class="sap-security-subtab" data-sap-tab="registros">Importación</button>
                                     <button type="button" class="sap-security-subtab" data-sap-tab="automatizacion">Automatización</button>
                                     <button type="button" class="sap-security-subtab" data-sap-tab="tablas">Tablas</button>
+                                    <button type="button" class="sap-security-subtab" data-sap-tab="mapeo">Mapeo SAP</button>
                                     <button type="button" class="sap-security-subtab" data-sap-tab="config">Configuración</button>
                                 </div>
 
@@ -6838,6 +6857,64 @@
                                                     <div class="notification-alert-routing-item">Sin destinatarios activos.</div>
                                                 </div>
                                             </section>
+                                        </div>
+                                    </section>
+                                </div>
+
+                                <div id="sap-tab-mapeo" class="sap-security-tabpanel" hidden>
+                                    <section class="sap-security-card">
+                                        <div class="sap-records-toolbar">
+                                            <div>
+                                                <h2 class="config-section-title">Mapeo de Clasificación de Inventario SAP</h2>
+                                                <p class="section-caption">Relaciona el valor real del campo SAP con la categoría flexográfica que el proyecto necesita.</p>
+                                            </div>
+                                        </div>
+                                        <div class="config-form-grid">
+                                            <label>
+                                                <span>Valor Origen</span>
+                                                <input id="inventoryClassificationSourceValue" type="text" placeholder="Código o valor del campo SAP">
+                                            </label>
+                                            <label>
+                                                <span>Categoría Flexo</span>
+                                                <input id="inventoryClassificationCategory" type="text" placeholder="sustrato, tinta, foil, laminante...">
+                                            </label>
+                                            <label>
+                                                <span>Etiqueta Visible</span>
+                                                <input id="inventoryClassificationDisplayLabel" type="text" placeholder="Nombre amigable">
+                                            </label>
+                                            <label>
+                                                <span>Notas</span>
+                                                <input id="inventoryClassificationNotes" type="text" placeholder="Detalle opcional">
+                                            </label>
+                                            <label>
+                                                <span>Activo</span>
+                                                <select id="inventoryClassificationIsActive">
+                                                    <option value="true">Sí</option>
+                                                    <option value="false">No</option>
+                                                </select>
+                                            </label>
+                                        </div>
+                                        <div class="sap-security-actions">
+                                            <button type="button" id="inventoryClassificationNewButton" class="action-btn">Nuevo</button>
+                                            <button type="button" id="inventoryClassificationSaveButton" class="action-btn action-btn-primary">Guardar</button>
+                                        </div>
+                                        <div id="inventoryClassificationStatus" class="sap-security-empty">Cargando mapeo de clasificación...</div>
+                                        <div class="audit-table-wrap sap-records-table-wrap">
+                                            <table class="audit-table sap-records-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Valor Origen</th>
+                                                        <th>Categoría</th>
+                                                        <th>Etiqueta</th>
+                                                        <th>Activo</th>
+                                                        <th>Notas</th>
+                                                        <th>Acción</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="inventoryClassificationTableBody">
+                                                    <tr><td colspan="6" class="audit-empty">Todavía no hay mapeos configurados.</td></tr>
+                                                </tbody>
+                                            </table>
                                         </div>
                                     </section>
                                 </div>
@@ -7658,6 +7735,8 @@
         const designSubpanels = [...document.querySelectorAll('.design-subpanel')];
         const quotesSubtabs = [...document.querySelectorAll('.quotes-subtab')];
         const quotesSubpanels = [...document.querySelectorAll('.quotes-subpanel')];
+        const calculoSubtabs = [...document.querySelectorAll('.calculo-subtab')];
+        const calculoSubpanels = [...document.querySelectorAll('.calculo-subpanel')];
         const quoteProductTypesJsonField = document.getElementById('quoteProductTypesJson');
         const quoteProductTypesTableBody = document.getElementById('quoteProductTypesTableBody');
         const quoteProductTypeAddButton = document.getElementById('quoteProductTypeAddButton');
@@ -10191,6 +10270,11 @@
                     setSapConfigStatus(error.message || 'No fue posible cargar las tablas SAP.', true);
                 });
             }
+            if (tabKey === 'mapeo') {
+                loadInventoryClassificationMappings().catch((error) => {
+                    setInventoryClassificationStatus(error.message || 'No fue posible cargar el mapeo de clasificación.', true);
+                });
+            }
         }
 
         async function loadSapConnectorState(force = false) {
@@ -11004,24 +11088,37 @@
         }
 
         function activateQuotesTab(tabKey = 'calculo') {
-            const normalizedTabKey = tabKey === 'general' ? 'calculo' : tabKey;
             quotesSubtabs.forEach((tab) => {
-                tab.classList.toggle('active', tab.dataset.quotesTab === normalizedTabKey);
+                tab.classList.toggle('active', tab.dataset.quotesTab === tabKey);
             });
             quotesSubpanels.forEach((panel) => {
-                const panelKey = panel.id.replace('quotes-panel-', '');
-                if (normalizedTabKey === 'calculo') {
-                    panel.hidden = !['general', 'calculo'].includes(panelKey);
-                    return;
-                }
-                panel.hidden = panelKey !== normalizedTabKey;
+                panel.hidden = panel.id !== `quotes-panel-${tabKey}`;
             });
-            if (normalizedTabKey === 'salidas') {
+            if (tabKey === 'calculo') {
+                activateCalculoTab(getActiveCalculoTabKey());
+            }
+            syncConfigTabHeights();
+        }
+
+        function getActiveCalculoTabKey() {
+            return document.querySelector('.calculo-subtab.active')?.dataset.calculoTab || 'tipos-producto';
+        }
+
+        function activateCalculoTab(tabKey = 'tipos-producto') {
+            calculoSubtabs.forEach((tab) => {
+                tab.classList.toggle('active', tab.dataset.calculoTab === tabKey);
+            });
+            calculoSubpanels.forEach((panel) => {
+                panel.hidden = panel.id !== `calculo-panel-${tabKey}`;
+            });
+            if (tabKey === 'salidas') {
                 loadQuoteOutputTypes().catch((error) => {
                     setQuoteOutputTypesStatus(error.message || 'No fue posible cargar los tipos de salida.', 'error');
                 });
             }
-            syncConfigTabHeights();
+            if (tabKey === 'formas-troquel') {
+                ensureDieShapeConfigFields();
+            }
         }
 
         function getActiveDesignTabKey() {
@@ -14661,11 +14758,6 @@
                     const activeQuotesTab = document.querySelector('.quotes-subtab.active')?.dataset.quotesTab || 'calculo';
                     activateQuotesTab(activeQuotesTab);
                 }
-                if (requestedTabKey === 'mapeo-sap') {
-                    loadInventoryClassificationMappings().catch((error) => {
-                        setInventoryClassificationStatus(error.message || 'No fue posible cargar el mapeo de clasificación.', true);
-                    });
-                }
                 if (requestedTabKey === 'tipo-cambio') {
                     loadExchangeRateModule().catch((error) => {
                         setExchangeRateConfigStatus(error.message || 'No fue posible cargar el tipo de cambio.', 'error');
@@ -15533,6 +15625,12 @@
             });
         });
 
+        calculoSubtabs.forEach((tab) => {
+            tab.addEventListener('click', () => {
+                activateCalculoTab(tab.dataset.calculoTab || 'tipos-producto');
+            });
+        });
+
         exchangeRateSubtabs.forEach((tab) => {
             tab.addEventListener('click', () => {
                 activateExchangeRateTab(tab.dataset.exchangeRateTab || 'tasas');
@@ -15952,6 +16050,25 @@
                 config.render();
                 queueConfigSave();
             });
+        })();
+
+        (function restrictDesignTab() {
+            const session = readStoredErpSession();
+            const hasImplementadorPermission = /implementador(?:es)?/i.test(String(session?.permissionName || '').trim());
+            if (hasImplementadorPermission) return;
+            const designTab = document.querySelector('.config-tab[data-tab="diseno"]');
+            const designContent = document.getElementById('tab-diseno');
+            if (designTab) designTab.style.display = 'none';
+            if (designContent) designContent.classList.remove('active');
+            if (document.querySelector('.config-tab.active')?.dataset.tab === 'diseno') {
+                const firstVisible = document.querySelector('.config-tab:not([style*="display: none"])');
+                if (firstVisible) {
+                    firstVisible.classList.add('active');
+                    const panelId = 'tab-' + (firstVisible.dataset.tab === 'sap' ? 'seguridad' : firstVisible.dataset.tab);
+                    const panel = document.getElementById(panelId);
+                    if (panel) panel.classList.add('active');
+                }
+            }
         })();
 </script>
 <script src="/topbar-tools.js"></script>
