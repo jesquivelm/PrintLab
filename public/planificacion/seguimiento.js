@@ -72,7 +72,12 @@ function orderStatus(o) {
 
 function buildSteps(o) {
     const steps = Array.isArray(o.steps) ? o.steps : [];
-    return steps.filter(s => s.processKey !== 'orden_creada' && s.processKey !== 'solicitud_vendedor' && s.processKey !== 'planeacion');
+    return steps.filter(s => {
+        if (!s || !s.processKey) return false;
+        const key = norm(s.processKey);
+        if (key === 'orden_creada' || key === 'solicitud_vendedor' || key === 'planeacion') return false;
+        return true;
+    });
 }
 
 function calcPct(steps) {
@@ -274,10 +279,11 @@ function updateSummary() {
 function hasPendingStep(order, processKey) {
     if (!processKey) return true;
     const steps = buildSteps(order);
+    const filterKey = processKey.replace(/[\s_]+/g, '').toLowerCase();
     return steps.some(s => {
-        const key = (s.processKey || '').toLowerCase().trim();
+        const key = norm(s.processKey || '').replace(/[\s_]+/g, '');
         const status = (s.routeStatus || '').toUpperCase();
-        return key === processKey && status !== 'COMPLETADO';
+        return key === filterKey && status !== 'COMPLETADO';
     });
 }
 
