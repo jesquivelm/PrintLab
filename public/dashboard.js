@@ -41,7 +41,6 @@ const DASHBOARD_CARDS = [
 { route: '/configuracion-general', label: 'Configuraci\u00f3n', iconKey: 'dashboardSettings', modules: ['configuracion-general'] },
 { route: '/ordenes-produccion', label: '\u00d3rdenes', iconKey: 'dashboardOrders', modules: ['ordenes'] },
 { route: '/planificacion/lanzamiento', label: 'Planificaci\u00f3n', iconKey: 'dashboardPlanning', modules: ['planificacion'] },
-{ route: '/planificacion/seguimiento', label: 'Seguimiento', iconKey: 'dashboardPlanning', modules: ['planificacion'] },
 { route: '/produccion.html', label: 'Producci\u00f3n', iconKey: 'dashboardProduction', modules: ['dashboard'], fallbackIcon: '\u25A1' },
 { route: '/notificaciones.html', label: 'Notificaciones', iconKey: 'dashboardNotifications', modules: ['dashboard'] }
 ];
