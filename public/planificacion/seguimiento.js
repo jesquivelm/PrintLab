@@ -815,11 +815,4 @@ function toggleTheme() {
     root.dataset.themeMode = next;
     root.dataset.theme = next;
     root.style.colorScheme = next;
-    document.getElementById('themeFloatingBtn').querySelector('.dashboard-bdfg-icon').textContent = next === 'dark' ? '☾' : '☀';
 }
-// Init icon on page load
-(function() {
-    const isDark = document.documentElement.dataset.themeMode === 'dark' || document.documentElement.dataset.theme === 'dark';
-    const icon = document.getElementById('themeFloatingBtn')?.querySelector('.dashboard-bdfg-icon');
-    if (icon) icon.textContent = isDark ? '☾' : '☀';
-})();
