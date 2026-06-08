@@ -805,3 +805,21 @@ document.getElementById('ganttLink')?.addEventListener('click', (e) => {
 
 setInterval(loadData, 60000);
 loadData();
+
+// ── Floating theme toggle ──────────────────────────────────
+function toggleTheme() {
+    const root = document.documentElement;
+    const current = root.dataset.themeMode === 'dark' ? 'dark' : 'light';
+    const next = current === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem('printlab-theme-mode', next); } catch (_) {}
+    root.dataset.themeMode = next;
+    root.dataset.theme = next;
+    root.style.colorScheme = next;
+    document.getElementById('themeFloatingBtn').querySelector('.dashboard-bdfg-icon').textContent = next === 'dark' ? '☾' : '☀';
+}
+// Init icon on page load
+(function() {
+    const isDark = document.documentElement.dataset.themeMode === 'dark' || document.documentElement.dataset.theme === 'dark';
+    const icon = document.getElementById('themeFloatingBtn')?.querySelector('.dashboard-bdfg-icon');
+    if (icon) icon.textContent = isDark ? '☾' : '☀';
+})();
