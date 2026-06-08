@@ -789,12 +789,16 @@ searchInput?.addEventListener('input', (e) => { searchTerm = e.target.value; ren
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
 
 document.getElementById('ganttLink')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    // Copiar sesión a localStorage para que el Gantt en ventana nueva la encuentre
+    try {
+        const sessionData = sessionStorage.getItem('erp-user-session') || localStorage.getItem('erp-user-session');
+        if (sessionData) localStorage.setItem('erp-user-session', sessionData);
+    } catch (_) {}
     if (new URLSearchParams(window.location.search).get('shell') === '1') {
-        e.preventDefault();
         window.parent.postMessage({ type: 'erp-open-tab', route: '/planificacion/gantt?shell=1', label: 'Gantt' }, '*');
     } else {
-        e.preventDefault();
-        window.open('/planificacion/gantt', '_blank', 'noopener');
+        window.open('/planificacion/gantt', '_blank');
     }
 });
 

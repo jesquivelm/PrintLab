@@ -23,15 +23,15 @@
   --shadow-lg:0 8px 32px rgba(0,0,0,.12),0 24px 64px rgba(0,0,0,.08);
 }
 html[data-theme="dark"]{
-  --bg:#161614;--surface:#1e1d1b;--surface2:#242320;--border:#2e2d2a;--border2:#3a3936;
-  --text:#e8e6e0;--text2:#9a9892;--text3:#606060;
-  --accent-bg:rgba(29,158,117,.12);--accent-border:rgba(29,158,117,.3);
-  --blue-bg:rgba(24,95,165,.14);
-  --amber-bg:rgba(133,79,11,.14);--amber-border:rgba(133,79,11,.3);
-  --gold-bg:rgba(122,80,16,.14);--gold-border:rgba(122,80,16,.3);
-  --red-bg:rgba(163,45,45,.14);--red-border:rgba(163,45,45,.3);
+  --bg:#161614;--surface:#252321;--surface2:#2a2825;--border:#363432;--border2:#454341;
+  --text:#ece9e2;--text2:#bbb8b0;--text3:#8a8882;
+  --accent-bg:rgba(29,158,117,.18);--accent-border:rgba(29,158,117,.4);
+  --blue-bg:rgba(24,95,165,.2);
+  --amber-bg:rgba(133,79,11,.2);--amber-border:rgba(133,79,11,.4);
+  --gold-bg:rgba(122,80,16,.2);--gold-border:rgba(122,80,16,.4);
+  --red-bg:rgba(163,45,45,.2);--red-border:rgba(163,45,45,.4);
 }
-body{font-family:'DM Sans',system-ui,sans-serif;font-size:13px;color:var(--text);background:var(--bg);min-height:100vh;margin:0}
+body{font-family:'DM Sans',system-ui,sans-serif;font-size:14px;color:var(--text);background:var(--bg);min-height:100vh;margin:0}
 
 .hdr{position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:12px;padding:0 24px;height:56px;background:var(--surface);border-bottom:1px solid var(--border);backdrop-filter:blur(8px)}
 .hdr-logo{font-size:14px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px;text-decoration:none}
@@ -379,6 +379,15 @@ body{font-family:'DM Sans',system-ui,sans-serif;font-size:13px;color:var(--text)
 .loading-state{display:flex;align-items:center;justify-content:center;gap:10px;padding:48px;color:var(--text3)}
 .spinner{width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
 
+/* Floating theme toggle */
+.theme-toggle-floating{position:fixed;top:16px;right:16px;z-index:5000;display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;padding:0;border:1px solid var(--border);border-radius:999px;background:var(--surface);color:var(--text2);cursor:pointer;transition:all .15s;box-shadow:var(--shadow-md)}
+.theme-toggle-floating:hover{color:var(--accent);border-color:var(--accent-border);background:var(--accent-bg);transform:translateY(-1px)}
+.theme-toggle-icon{width:16px;height:16px;border-radius:999px;position:relative;flex:0 0 auto}
+.theme-toggle-icon-sun{border:2px solid currentColor;box-shadow:0 0 0 3px color-mix(in srgb,currentColor 18%,transparent)}
+.theme-toggle-icon-moon{display:none;background:currentColor;box-shadow:inset -5px 0 0 var(--surface)}
+html[data-theme="dark"] .theme-toggle-icon-sun{display:none}
+html[data-theme="dark"] .theme-toggle-icon-moon{display:inline-block}
+
 @media(max-width:1100px){
   .order-head{grid-template-columns:160px 1fr auto auto auto}
   .order-progress-row{display:none}
@@ -404,6 +413,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;font-size:13px;color:var(--text)
 </head>
 <body>
 
+<div data-theme-toggle-slot></div>
 <header class="hdr">
   <a class="hdr-logo" href="/planificacion/lanzamiento" data-route="/planificacion/lanzamiento" data-label="Planificación">
     <div class="hdr-logo-dot" id="liveIndicator"></div>
