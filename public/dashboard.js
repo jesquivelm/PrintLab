@@ -40,7 +40,7 @@ const DASHBOARD_CARDS = [
 { route: '/inventario-materiales', label: 'Inventarios', iconKey: 'dashboardInventory', modules: ['inventario-mp', 'inventario-troqueles', 'inventario-maquinaria'] },
 { route: '/configuracion-general', label: 'Configuraci\u00f3n', iconKey: 'dashboardSettings', modules: ['configuracion-general'] },
 { route: '/ordenes-produccion', label: '\u00d3rdenes', iconKey: 'dashboardOrders', modules: ['ordenes'] },
-{ route: '/planificacion/lanzamiento', label: 'Planificaci\u00f3n', iconKey: 'dashboardPlanning', modules: ['planificacion'] },
+{ route: '/planificacion/seguimiento', label: 'Planificaci\u00f3n', iconKey: 'dashboardPlanning', modules: ['planificacion'] },
 { route: '/produccion.html', label: 'Producci\u00f3n', iconKey: 'dashboardProduction', modules: ['dashboard'], fallbackIcon: '\u25A1' },
 { route: '/notificaciones.html', label: 'Notificaciones', iconKey: 'dashboardNotifications', modules: ['dashboard'] }
 ];
@@ -1290,12 +1290,12 @@ function getBdfgActions() {
             }
             break;
         case 'planning':
-            if (canViewRoute('/planificacion/lanzamiento') && !isCurrentTabRoute('/planificacion/lanzamiento')) {
+            if (canViewRoute('/planificacion/seguimiento') && !isCurrentTabRoute('/planificacion/seguimiento')) {
                 contextualActions.push({
                     id: 'open-planning',
                     label: 'Ir a Planificación',
-                    description: 'Abrir el módulo principal de planificación',
-                    route: '/planificacion/lanzamiento',
+                    description: 'Abrir el módulo de planificación y producción',
+                    route: '/planificacion/seguimiento',
                     routeLabel: 'Planificación'
                 });
             }

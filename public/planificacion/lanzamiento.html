@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="/styles.css">
 <style>
 body{background:#f6f8fb}
-.planning-queue-page{max-width:1480px;margin:0 auto;padding:24px;--tracking-bg:#f4f3f0;--tracking-surface:#ffffff;--tracking-surface2:#f9f8f6;--tracking-border:#e4e2dc;--tracking-border2:#d4d2cc;--tracking-text:#1a1916;--tracking-text2:#6b6a66;--tracking-text3:#9e9c98;--tracking-blue:#185FA5;--tracking-blue-bg:rgba(24,95,165,.14);--tracking-red:#A32D2D;--tracking-red-bg:rgba(163,45,45,.1);--tracking-red-border:rgba(163,45,45,.3)}
+.planning-queue-page{max-width:1480px;margin:0 auto;padding:24px}
 .planning-queue-hero{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:20px}
 .planning-queue-title{font-size:30px;font-weight:700;color:#203746}
 .planning-queue-subtitle{font-size:13px;color:#70808d;margin-top:6px}
@@ -252,250 +252,10 @@ html[data-theme="dark"] .planning-tracking-view{--bg:#161614;--surface:#1e1d1b;-
   .order-info-bar.is-production{grid-template-columns:1fr}
   .info-cell-job,.info-cell-substrate,.info-cell-machine,.info-cell.is-finishes,.info-cell-quantity,.info-cell-action{grid-column:auto;grid-row:auto}
 }
-html[data-theme="dark"] .planning-queue-page{--tracking-bg:#161614;--tracking-surface:#1e1d1b;--tracking-surface2:#242320;--tracking-border:#2e2d2a;--tracking-border2:#3a3936;--tracking-text:#e8e6e0;--tracking-text2:#9a9892;--tracking-text3:#606060;--tracking-blue-bg:rgba(24,95,165,.14);--tracking-red-bg:rgba(163,45,45,.14);--tracking-red-border:rgba(163,45,45,.3)}
 html[data-theme="dark"] .planning-queue-ink-swatch em{color:var(--app-text-muted)!important}
 html[data-theme="dark"] .planning-queue-ink-swatch i{border-color:rgba(255,255,255,.1)!important}
 html[data-theme="dark"] .planning-queue-process-toggle{background:#111c30!important;color:#c9d8eb!important;border-color:var(--app-border)!important}
 html[data-theme="dark"] .planning-queue-process-toggle.was-quoted{background:rgba(154,100,15,.15)!important;color:#fbbf24!important;border-color:rgba(154,100,15,.25)!important}
-
-/* ── Tracking Summary Bar ── */
-.tracking-summary-bar{display:flex;align-items:center;padding:0 24px;background:var(--tracking-surface,#fff);border-bottom:1px solid var(--tracking-border,#e4e2dc);overflow-x:auto}
-.tracking-summary-stat{display:flex;flex-direction:column;padding:14px 24px 14px 0;min-width:120px}
-.tracking-summary-stat+.tracking-summary-stat{border-left:1px solid var(--tracking-border,#e4e2dc);padding-left:24px}
-.tracking-summary-label{font-size:11px;color:var(--tracking-text3,#9e9c98);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;font-weight:500}
-.tracking-summary-value{font-size:22px;font-weight:600;color:var(--tracking-text,#1a1916);line-height:1}
-.tracking-summary-value.accent{color:var(--accent)}
-.tracking-summary-value.amber{color:#854F0B}
-.tracking-summary-value.red{color:#A32D2D}
-
-/* ── Alert Banner ── */
-.planning-tracking-alert{display:none;align-items:center;gap:12px;padding:10px 24px;background:var(--tracking-red-bg,rgba(163,45,45,.1));border-bottom:1px solid var(--tracking-red-border,rgba(163,45,45,.3));font-size:12px;color:#A32D2D}
-.planning-tracking-alert.visible{display:flex}
-.planning-tracking-alert[hidden]:not(.visible){display:none}
-.planning-tracking-alert strong{font-weight:600}
-.planning-tracking-alert-close{margin-left:auto;background:none;border:none;color:#A32D2D;cursor:pointer;font-size:16px;padding:0 4px;opacity:.7}
-.planning-tracking-alert-close:hover{opacity:1}
-.planning-tracking-alert-count{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#A32D2D;color:#fff;font-size:10px;font-weight:700;flex-shrink:0}
-
-/* ── View Switcher ── */
-.tracking-view-switcher{display:flex;gap:3px;padding:3px;border-radius:9px;background:var(--tracking-surface2,#f9f8f6);border:1px solid var(--tracking-border,#e4e2dc)}
-.tracking-view-btn{display:flex;align-items:center;gap:5px;padding:5px 11px;border-radius:7px;border:none;background:transparent;color:var(--tracking-text3,#9e9c98);font-size:11px;font-weight:500;font-family:inherit;cursor:pointer;transition:all .14s;white-space:nowrap}
-.tracking-view-btn:hover{color:var(--tracking-text2,#6b6a66)}
-.tracking-view-btn.active{background:var(--tracking-surface,#fff);color:var(--tracking-text,#1a1916);box-shadow:0 1px 3px rgba(0,0,0,.08)}
-.tracking-view-btn svg{flex-shrink:0}
-
-/* ── Semaforo ── */
-.tracking-semaforo-header{display:grid;grid-template-columns:130px minmax(0,1fr) 200px 90px 110px;gap:14px;padding:6px 24px;margin-bottom:2px}
-.tracking-sem-col-head{font-size:10px;font-weight:600;color:var(--tracking-text3,#9e9c98);text-transform:uppercase;letter-spacing:.06em}
-.tracking-semaforo-list{padding:0 24px 24px;display:grid;gap:6px}
-.tracking-sem-row{display:grid;grid-template-columns:130px minmax(0,1fr) 200px 90px 110px;align-items:center;gap:14px;padding:10px 16px;background:var(--tracking-surface,#fff);border:1px solid var(--tracking-border,#e4e2dc);border-radius:10px;cursor:pointer;transition:border-color .14s,box-shadow .14s}
-.tracking-sem-row:hover{border-color:var(--tracking-border2,#d4d2cc);box-shadow:0 1px 3px rgba(0,0,0,.06)}
-.tracking-sem-row.is-late{border-left:3px solid #A32D2D}
-.tracking-sem-row.is-risk{border-left:3px solid #F5A623}
-.tracking-sem-row.is-ok{border-left:3px solid var(--accent)}
-.tracking-sem-row.has-impact{border-left:3px solid #A32D2D}
-.tracking-sem-code{font-size:12px;font-weight:600;color:var(--tracking-text,#1a1916);font-family:'DM Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tracking-sem-customer{font-size:10px;color:var(--tracking-text3,#9e9c98);margin-top:1px}
-.tracking-sem-process{font-size:11px;color:var(--tracking-text2,#6b6a66);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tracking-sem-stages{display:flex;gap:3px;align-items:center}
-.tracking-sem-stage{height:8px;border-radius:3px;flex:1;min-width:6px;transition:opacity .2s}
-.tracking-sem-stage.done{background:var(--accent)}
-.tracking-sem-stage.active{background:var(--tracking-blue,#185FA5)}
-.tracking-sem-stage.pending{background:var(--tracking-border2,#d4d2cc)}
-.tracking-sem-stage.late{background:#A32D2D}
-.tracking-sem-light{display:flex;align-items:center;gap:7px}
-.tracking-sem-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
-.tracking-sem-dot.ok{background:var(--accent)}
-.tracking-sem-dot.running{background:var(--tracking-blue,#185FA5)}
-.tracking-sem-dot.risk{background:#F5A623}
-.tracking-sem-dot.late{background:#A32D2D}
-.tracking-sem-dot.done{background:var(--accent)}
-.tracking-sem-label{font-size:11px;font-weight:600;color:var(--tracking-text2,#6b6a66)}
-.tracking-sem-dates{text-align:right}
-.tracking-sem-eta{font-size:12px;font-weight:600;color:var(--tracking-text,#1a1916)}
-.tracking-sem-eta.late{color:#A32D2D}
-.tracking-sem-eta.risk{color:#F5A623}
-.tracking-sem-days{font-size:10px;color:var(--tracking-text3,#9e9c98);margin-top:1px}
-.tracking-sem-est{font-size:10px;color:var(--accent);font-weight:500}
-.tracking-sem-btn{padding:4px 10px;border-radius:7px;border:1px solid var(--tracking-border,#e4e2dc);background:var(--tracking-surface2,#f9f8f6);color:var(--tracking-text3,#9e9c98);font-size:10px;font-weight:500;font-family:inherit;cursor:pointer;white-space:nowrap;transition:all .12s;justify-self:end}
-.tracking-sem-btn:hover{background:var(--accent-bg,#edf7f3);color:var(--accent)}
-.tracking-sem-btn.has-estimate{background:var(--accent-bg,#edf7f3);color:var(--accent)}
-
-/* ── Kanban ── */
-.tracking-kanban-board{padding:0 24px 24px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:start}
-.tracking-kanban-col{background:var(--tracking-surface2,#f9f8f6);border:1px solid var(--tracking-border,#e4e2dc);border-radius:16px;overflow:hidden}
-.tracking-kanban-col-head{display:flex;align-items:center;gap:8px;padding:14px 16px 12px;border-bottom:1px solid var(--tracking-border,#e4e2dc)}
-.tracking-kanban-col-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.tracking-kanban-col-title{font-size:12px;font-weight:600;color:var(--tracking-text,#1a1916);flex:1}
-.tracking-kanban-col-count{font-size:11px;font-weight:600;color:var(--tracking-text3,#9e9c98);background:var(--tracking-surface,#fff);border:1px solid var(--tracking-border,#e4e2dc);padding:2px 7px;border-radius:99px}
-.tracking-kanban-cards{padding:10px;display:flex;flex-direction:column;gap:8px;min-height:80px}
-.tracking-kanban-card{background:var(--tracking-surface,#fff);border:1px solid var(--tracking-border,#e4e2dc);border-radius:10px;padding:12px 14px;cursor:pointer;transition:border-color .14s,box-shadow .14s;position:relative}
-.tracking-kanban-card:hover{border-color:var(--tracking-border2,#d4d2cc);box-shadow:0 2px 8px rgba(0,0,0,.08)}
-.tracking-kanban-card.is-late{border-left:3px solid #A32D2D}
-.tracking-kanban-card.is-risk{border-left:3px solid #F5A623}
-.tracking-kanban-card.is-ok{border-left:3px solid var(--accent)}
-.tracking-kanban-card.has-impact{border-left:3px solid #A32D2D}
-.tracking-kc-code{font-size:13px;font-weight:600;color:var(--tracking-text,#1a1916);font-family:'DM Mono',monospace;letter-spacing:.01em}
-.tracking-kc-customer{font-size:11px;color:var(--tracking-text3,#9e9c98);margin-top:2px;margin-bottom:8px}
-.tracking-kc-process{font-size:11px;color:var(--tracking-text2,#6b6a66);margin-bottom:8px}
-.tracking-kc-bottom{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
-.tracking-kc-eta{font-size:11px;font-weight:600}
-.tracking-kc-eta.late{color:#A32D2D}
-.tracking-kc-eta.risk{color:#F5A623}
-.tracking-kc-eta.ok{color:var(--tracking-text2,#6b6a66)}
-.tracking-kc-pips{display:flex;gap:3px;flex-wrap:wrap}
-.tracking-kc-pip{width:7px;height:5px;border-radius:2px}
-.tracking-kc-pip.done{background:var(--accent)}
-.tracking-kc-pip.active{background:var(--tracking-blue,#185FA5)}
-.tracking-kc-pip.pending{background:var(--tracking-border2,#d4d2cc)}
-.tracking-kc-est{font-size:10px;color:var(--accent);margin-top:4px;font-weight:500}
-.tracking-kc-impact{font-size:10px;color:#A32D2D;font-weight:600;margin-top:4px}
-.tracking-kc-btn{display:flex;align-items:center;gap:3px;padding:3px 8px;border-radius:6px;border:1px solid var(--tracking-border,#e4e2dc);background:var(--tracking-surface2,#f9f8f6);color:var(--tracking-text3,#9e9c98);font-size:10px;font-weight:500;font-family:inherit;cursor:pointer;white-space:nowrap;transition:all .12s}
-.tracking-kc-btn:hover{background:var(--accent-bg,#edf7f3);color:var(--accent)}
-.tracking-kanban-empty{padding:24px;text-align:center;color:var(--tracking-text3,#9e9c98);font-size:12px}
-
-/* ── Impact Tag ── */
-.tracking-impact-tag{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:99px;background:var(--tracking-red-bg,rgba(163,45,45,.1));color:#A32D2D;font-size:10px;font-weight:700;border:1px solid var(--tracking-red-border,rgba(163,45,45,.3));margin-left:6px}
-
-/* ── Estimate Button ── */
-.tracking-btn-estimate{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:8px;border:1px solid var(--tracking-border2,#d4d2cc);background:var(--tracking-surface2,#f9f8f6);color:var(--tracking-text2,#6b6a66);font-size:11px;font-weight:500;font-family:inherit;cursor:pointer;white-space:nowrap;transition:all .12s}
-.tracking-btn-estimate:hover{background:var(--accent-bg,#edf7f3);border-color:var(--accent-border,#b3dece);color:var(--accent)}
-.tracking-btn-estimate.has-estimate{background:var(--accent-bg,#edf7f3);border-color:var(--accent-border,#b3dece);color:var(--accent)}
-
-/* ── Flip Card (Proc Panel) ── */
-.tracking-proc-panel{position:relative;min-height:200px}
-.tracking-proc-panel-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 0;margin-bottom:12px}
-.tracking-proc-panel-title{font-size:12px;font-weight:600;color:var(--tracking-text3,#9e9c98);text-transform:uppercase;letter-spacing:.07em}
-.tracking-proc-flip-btn{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:8px;border:1px solid var(--tracking-border,#e4e2dc);background:var(--tracking-surface2,#f9f8f6);color:var(--tracking-text2,#6b6a66);font-size:11px;font-weight:500;font-family:inherit;cursor:pointer;transition:all .14s}
-.tracking-proc-flip-btn:hover{background:var(--tracking-blue-bg,rgba(24,95,165,.14));color:var(--tracking-blue,#185FA5)}
-.tracking-proc-flip-btn.active{background:var(--tracking-blue-bg,rgba(24,95,165,.14));color:var(--tracking-blue,#185FA5)}
-.tracking-flip-wrap{perspective:1200px;height:auto}
-.tracking-flip-inner{position:relative;transform-style:preserve-3d;transition:transform .38s cubic-bezier(.4,0,.2,1);height:auto}
-.tracking-flip-wrap.flipped .tracking-flip-inner{transform:rotateY(180deg)}
-.tracking-flip-face{position:relative;backface-visibility:hidden;-webkit-backface-visibility:hidden}
-.tracking-flip-face.back{position:absolute;top:0;left:0;right:0;transform:rotateY(180deg)}
-
-/* ── Flow Panel (Back of flip card) ── */
-.tracking-flow-panel{padding:16px 20px 20px;background:var(--tracking-surface,#fff)}
-.tracking-flow-panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.tracking-flow-panel-title{font-size:13px;font-weight:600;color:var(--tracking-text,#1a1916)}
-.tracking-flow-panel-counter{font-size:11px;font-weight:600;padding:3px 10px;border-radius:99px;font-family:'DM Mono',monospace}
-.tracking-flow-progress{height:4px;border-radius:2px;background:var(--tracking-border,#e4e2dc);margin-bottom:16px;overflow:hidden}
-.tracking-flow-progress-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent),#34d399);transition:width .5s ease}
-.tracking-flow-tl{display:grid;gap:0}
-.tracking-flow-tl-row{display:grid;grid-template-columns:36px 1fr;gap:0 10px}
-.tracking-flow-tl-left{display:flex;flex-direction:column;align-items:center}
-.tracking-flow-tl-connector{width:2px;flex:1;min-height:10px;margin:2px 0;border-radius:1px}
-.tracking-flow-tl-connector.solid{background:var(--accent-border,#b3dece)}
-.tracking-flow-tl-connector.dashed{background:repeating-linear-gradient(to bottom,var(--tracking-border2,#d4d2cc) 0,var(--tracking-border2,#d4d2cc) 4px,transparent 4px,transparent 8px)}
-.tracking-flow-tl-node{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:600;border:1.5px solid var(--tracking-border2,#d4d2cc);background:var(--tracking-surface2,#f9f8f6);color:var(--tracking-text3,#9e9c98);position:relative;overflow:visible;cursor:default}
-.tracking-flow-tl-node.done{background:var(--accent-bg,#edf7f3);border-color:var(--accent-border,#b3dece);color:var(--accent)}
-.tracking-flow-tl-node.active{background:var(--tracking-blue-bg,rgba(24,95,165,.14));border-color:rgba(24,95,165,.35);color:var(--tracking-blue,#185FA5)}
-.tracking-flow-tl-node.stopped{background:rgba(133,79,11,.1);border-color:rgba(133,79,11,.3);color:#854F0B}
-.tracking-flow-tl-node.has-avatar{background:linear-gradient(135deg,var(--tracking-blue,#185FA5),var(--accent));border-color:transparent;color:#fff;overflow:hidden}
-.tracking-flow-tl-node img{width:100%;height:100%;object-fit:cover;border-radius:50%}
-.tracking-flow-tl-badge{position:absolute;right:-3px;bottom:-3px;width:13px;height:13px;border-radius:50%;background:var(--accent);color:#fff;font-size:9px;display:flex;align-items:center;justify-content:center;border:2px solid var(--tracking-surface,#fff)}
-.tracking-flow-tl-content{padding-bottom:12px;min-width:0}
-.tracking-flow-step-name{font-size:12px;font-weight:600;color:var(--tracking-text,#1a1916);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tracking-flow-step-name.done{color:var(--accent)}
-.tracking-flow-step-name.active{color:var(--tracking-blue,#185FA5)}
-.tracking-flow-step-name.stopped{color:#854F0B}
-.tracking-flow-step-name.pending{color:var(--tracking-text3,#9e9c98)}
-.tracking-flow-step-meta{font-size:11px;color:var(--tracking-text3,#9e9c98);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tracking-flow-step-machine{font-size:10px;color:var(--tracking-text3,#9e9c98);margin-top:2px}
-.tracking-flow-step-hint{font-size:11px;color:var(--tracking-text3,#9e9c98);margin-top:2px}
-.tracking-flow-hist{margin-top:12px;padding-top:10px;border-top:1px solid var(--tracking-border,#e4e2dc)}
-.tracking-flow-hist-title{font-size:10px;font-weight:600;color:var(--tracking-text3,#9e9c98);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
-.tracking-flow-hist-row{display:flex;gap:8px;font-size:11px;color:var(--tracking-text2,#6b6a66);padding:3px 0;border-bottom:1px solid var(--tracking-border,#e4e2dc)}
-.tracking-flow-hist-row:last-child{border-bottom:none}
-.tracking-flow-hist-date{color:var(--tracking-text3,#9e9c98);font-family:'DM Mono',monospace;font-size:10px;flex-shrink:0;white-space:nowrap}
-.tracking-flow-loading{display:flex;align-items:center;justify-content:center;gap:8px;padding:32px;color:var(--tracking-text3,#9e9c98);font-size:12px}
-.tracking-flow-empty{padding:24px;text-align:center;color:var(--tracking-text3,#9e9c98);font-size:12px}
-
-/* ── Drawer ── */
-.tracking-drawer-overlay{position:fixed;inset:0;background:rgba(20,18,14,.45);z-index:200;opacity:0;pointer-events:none;transition:opacity .22s ease;backdrop-filter:blur(2px)}
-.tracking-drawer-overlay.open{opacity:1;pointer-events:all}
-.tracking-drawer{position:fixed;top:0;right:0;bottom:0;width:min(520px,100vw);background:var(--tracking-surface,#fff);border-left:1px solid var(--tracking-border,#e4e2dc);box-shadow:0 8px 32px rgba(0,0,0,.12),0 24px 64px rgba(0,0,0,.08);z-index:201;transform:translateX(100%);transition:transform .26s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;overflow:hidden}
-.tracking-drawer.open{transform:translateX(0)}
-.tracking-drawer-header{display:flex;align-items:center;gap:10px;padding:18px 20px;border-bottom:1px solid var(--tracking-border,#e4e2dc);flex-shrink:0}
-.tracking-drawer-title{font-size:15px;font-weight:600;color:var(--tracking-text,#1a1916);flex:1}
-.tracking-drawer-code{font-size:12px;color:var(--tracking-text3,#9e9c98);font-family:'DM Mono',monospace}
-.tracking-drawer-close{width:28px;height:28px;border-radius:7px;border:1px solid var(--tracking-border,#e4e2dc);background:var(--tracking-surface2,#f9f8f6);color:var(--tracking-text2,#6b6a66);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all .12s}
-.tracking-drawer-close:hover{background:var(--tracking-border,#e4e2dc);color:var(--tracking-text,#1a1916)}
-.tracking-drawer-body{flex:1;overflow-y:auto;padding:20px}
-.tracking-drawer-footer{padding:16px 20px;border-top:1px solid var(--tracking-border,#e4e2dc);flex-shrink:0;display:flex;flex-direction:column;gap:8px}
-.tracking-drw-section{margin-bottom:20px}
-.tracking-drw-section-title{font-size:10px;font-weight:600;color:var(--tracking-text3,#9e9c98);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px}
-
-/* ── Priority Grid ── */
-.tracking-priority-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.tracking-priority-opt{display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 8px;border-radius:10px;border:1.5px solid var(--tracking-border,#e4e2dc);background:var(--tracking-surface2,#f9f8f6);cursor:pointer;transition:all .14s;text-align:center}
-.tracking-priority-opt:hover{border-color:var(--tracking-border2,#d4d2cc)}
-.tracking-priority-opt.sel-normal{border-color:var(--accent);background:var(--accent-bg,#edf7f3)}
-.tracking-priority-opt.sel-premium{border-color:#7a5010;background:rgba(122,80,16,.08)}
-.tracking-priority-opt.sel-urgent{border-color:#A32D2D;background:var(--tracking-red-bg,rgba(163,45,45,.1))}
-.tracking-priority-icon{font-size:20px;line-height:1}
-.tracking-priority-name{font-size:11px;font-weight:600;color:var(--tracking-text,#1a1916)}
-.tracking-priority-desc{font-size:10px;color:var(--tracking-text3,#9e9c98);line-height:1.4}
-
-/* ── Buffer / Result ── */
-.tracking-buffer-row{display:flex;align-items:center;gap:10px;margin-top:6px}
-.tracking-buffer-slider{flex:1;accent-color:var(--accent)}
-.tracking-buffer-val{font-size:13px;font-weight:600;color:var(--tracking-text,#1a1916);font-family:'DM Mono',monospace;min-width:32px;text-align:center}
-.tracking-buffer-hint{font-size:11px;color:var(--tracking-text3,#9e9c98);margin-top:6px;line-height:1.5}
-.tracking-result-box{border-radius:12px;overflow:hidden;border:1px solid var(--tracking-border,#e4e2dc);margin-bottom:16px}
-.tracking-result-hero{padding:20px;background:var(--tracking-surface2,#f9f8f6)}
-.tracking-result-label{font-size:10px;font-weight:600;color:var(--tracking-text3,#9e9c98);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px}
-.tracking-result-date-big{font-size:28px;font-weight:600;color:var(--tracking-text,#1a1916);line-height:1;margin-bottom:4px}
-.tracking-result-date-big.premium{color:#7a5010}
-.tracking-result-date-big.urgent{color:#A32D2D}
-.tracking-result-range{font-size:12px;color:var(--tracking-text2,#6b6a66);margin-bottom:10px}
-.tracking-result-confidence{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:600}
-.tracking-result-confidence.high{background:var(--accent-bg,#edf7f3);color:var(--accent);border:1px solid var(--accent-border,#b3dece)}
-.tracking-result-confidence.med{background:rgba(133,79,11,.1);color:#854F0B;border:1px solid rgba(133,79,11,.3)}
-.tracking-result-breakdown{padding:14px 20px;border-top:1px solid var(--tracking-border,#e4e2dc);display:grid;gap:8px}
-.tracking-breakdown-item{display:flex;align-items:center;gap:8px;font-size:12px}
-.tracking-breakdown-dot{width:8px;height:8px;border-radius:3px;flex-shrink:0}
-.tracking-breakdown-label{flex:1;color:var(--tracking-text2,#6b6a66)}
-.tracking-breakdown-hrs{font-size:11px;font-weight:600;color:var(--tracking-text,#1a1916);font-family:'DM Mono',monospace}
-.tracking-queue-warning{padding:10px 12px;border-radius:8px;background:rgba(133,79,11,.1);border:1px solid rgba(133,79,11,.3);font-size:11px;color:#854F0B;line-height:1.5;margin-top:10px}
-.tracking-premium-note{padding:10px 12px;border-radius:8px;background:rgba(122,80,16,.08);border:1px solid rgba(122,80,16,.3);font-size:11px;color:#7a5010;line-height:1.5;margin-top:10px}
-.tracking-queue-warning strong,.tracking-premium-note strong{display:block;font-weight:600;margin-bottom:2px}
-
-/* ── Lock / Buttons ── */
-.tracking-lock-section{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:10px;border:1px solid var(--tracking-border,#e4e2dc);background:var(--tracking-surface2,#f9f8f6);margin-top:10px}
-.tracking-lock-toggle{position:relative;width:36px;height:20px;flex-shrink:0}
-.tracking-lock-toggle input{position:absolute;opacity:0;width:100%;height:100%;cursor:pointer;margin:0;z-index:1}
-.tracking-lock-track{position:absolute;inset:0;border-radius:10px;background:var(--tracking-border2,#d4d2cc);transition:background .2s}
-.tracking-lock-toggle input:checked~.tracking-lock-track{background:var(--accent)}
-.tracking-lock-thumb{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .2s;pointer-events:none}
-.tracking-lock-toggle input:checked~.tracking-lock-thumb{transform:translateX(16px)}
-.tracking-lock-text{flex:1}
-.tracking-lock-title{font-size:12px;font-weight:500;color:var(--tracking-text,#1a1916)}
-.tracking-lock-desc{font-size:10px;color:var(--tracking-text3,#9e9c98);margin-top:2px}
-.tracking-lock-icon{font-size:16px;color:var(--tracking-text3,#9e9c98)}
-.tracking-btn-copy{width:100%;padding:12px;border-radius:10px;border:none;background:var(--tracking-text,#1a1916);color:#fff;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:opacity .12s;display:flex;align-items:center;justify-content:center;gap:7px}
-.tracking-btn-copy:hover{opacity:.85}
-.tracking-btn-copy:disabled{opacity:.4;cursor:not-allowed}
-.tracking-calc-btn{width:100%;padding:12px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:opacity .12s;display:flex;align-items:center;justify-content:center;gap:8px}
-.tracking-calc-btn:hover{opacity:.88}
-.tracking-calc-btn:disabled{opacity:.5;cursor:not-allowed}
-.tracking-calc-spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:none}
-
-/* ── Tracking Dark Mode ── */
-html[data-theme="dark"] .tracking-summary-bar{background:var(--tracking-surface);border-color:var(--tracking-border)}
-html[data-theme="dark"] .tracking-summary-stat+.tracking-summary-stat{border-color:var(--tracking-border)}
-html[data-theme="dark"] .tracking-drawer{background:var(--tracking-surface);border-color:var(--tracking-border)}
-html[data-theme="dark"] .tracking-flow-panel{background:var(--tracking-surface)}
-html[data-theme="dark"] .tracking-kanban-col{background:var(--tracking-surface2);border-color:var(--tracking-border)}
-html[data-theme="dark"] .tracking-kanban-card{background:var(--tracking-surface);border-color:var(--tracking-border)}
-html[data-theme="dark"] .tracking-sem-row{background:var(--tracking-surface);border-color:var(--tracking-border)}
-html[data-theme="dark"] .tracking-proc-flip-btn{background:var(--tracking-surface2);border-color:var(--tracking-border);color:var(--tracking-text2)}
-html[data-theme="dark"] .tracking-proc-flip-btn:hover,.tracking-proc-flip-btn.active{background:var(--tracking-blue-bg);color:var(--tracking-blue)}
-html[data-theme="dark"] .tracking-flow-tl-connector.dashed{background:repeating-linear-gradient(to bottom,var(--tracking-border2) 0,var(--tracking-border2) 4px,transparent 4px,transparent 8px)}
-html[data-theme="dark"] .tracking-kc-btn{background:var(--tracking-surface2);border-color:var(--tracking-border)}
-html[data-theme="dark"] .tracking-sem-btn{background:var(--tracking-surface2);border-color:var(--tracking-border)}
-html[data-theme="dark"] .planning-tracking-alert{background:var(--tracking-red-bg);border-color:var(--tracking-red-border);color:#f0b5b5}
 </style>
 <link rel="stylesheet" href="/theme-extensions.css">
 </head>
@@ -535,27 +295,13 @@ html[data-theme="dark"] .planning-tracking-alert{background:var(--tracking-red-b
   </section>
 
   <section id="planningTrackingPanel" class="planning-queue-view planning-tracking-view" hidden>
-    <div class="planning-tracking-alert" id="planningTrackingAlert" hidden>
-      <div class="planning-tracking-alert-count" id="trackingAlertCount">0</div>
-      <div><strong id="trackingAlertTitle">Ordenes desplazadas por urgencia</strong> — <span id="trackingAlertMsg">Revisa las ordenes marcadas en rojo.</span></div>
-      <button type="button" class="planning-tracking-alert-close" id="trackingAlertClose">×</button>
-    </div>
-    <div class="tracking-summary-bar" id="trackingSummaryBar">
-      <div class="tracking-summary-stat"><div class="tracking-summary-label">Activas</div><div class="tracking-summary-value" id="trackingStatTotal">0</div></div>
-      <div class="tracking-summary-stat"><div class="tracking-summary-label">En proceso</div><div class="tracking-summary-value accent" id="trackingStatRunning">0</div></div>
-      <div class="tracking-summary-stat"><div class="tracking-summary-label">En riesgo</div><div class="tracking-summary-value amber" id="trackingStatRisk">0</div></div>
-      <div class="tracking-summary-stat"><div class="tracking-summary-label">Atrasadas</div><div class="tracking-summary-value red" id="trackingStatLate">0</div></div>
-      <div class="tracking-summary-stat"><div class="tracking-summary-label">Completadas</div><div class="tracking-summary-value" id="trackingStatDone">0</div></div>
-    </div>
     <div class="tracking-toolbar">
       <div class="toolbar-filters" id="trackingFilterPills">
         <button type="button" class="filter-pill active" data-tracking-filter="all">Todas <span class="count" id="trackingCountAll">0</span></button>
-        <button type="button" class="filter-pill" data-tracking-filter="pending">Pendientes <span class="count" id="trackingCountPending">0</span></button>
         <button type="button" class="filter-pill" data-tracking-filter="late">Atrasadas <span class="count" id="trackingCountLate">0</span></button>
         <button type="button" class="filter-pill" data-tracking-filter="risk">Riesgo <span class="count" id="trackingCountRisk">0</span></button>
         <button type="button" class="filter-pill" data-tracking-filter="running">En proceso <span class="count" id="trackingCountRunning">0</span></button>
         <button type="button" class="filter-pill" data-tracking-filter="done">Listas <span class="count" id="trackingCountDone">0</span></button>
-        <button type="button" class="filter-pill" data-tracking-filter="impact">Impactadas <span class="count" id="trackingCountImpact">0</span></button>
       </div>
       <div class="toolbar-right">
         <div class="tracking-search-wrap">
@@ -569,138 +315,12 @@ html[data-theme="dark"] .planning-tracking-alert{background:var(--tracking-red-b
           <option value="progress">Progreso</option>
           <option value="code">Código</option>
         </select>
-        <div class="tracking-view-switcher">
-          <button type="button" class="tracking-view-btn active" data-tracking-view="list">
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="0" y="1" width="13" height="2" rx="1" fill="currentColor"/><rect x="0" y="5.5" width="13" height="2" rx="1" fill="currentColor"/><rect x="0" y="10" width="13" height="2" rx="1" fill="currentColor"/></svg>
-            Lista
-          </button>
-          <button type="button" class="tracking-view-btn" data-tracking-view="sem">
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="2" cy="2" r="2" fill="currentColor"/><rect x="6" y="1" width="7" height="2" rx="1" fill="currentColor"/><circle cx="2" cy="6.5" r="2" fill="currentColor"/><rect x="6" y="5.5" width="7" height="2" rx="1" fill="currentColor"/><circle cx="2" cy="11" r="2" fill="currentColor"/><rect x="6" y="10" width="7" height="2" rx="1" fill="currentColor"/></svg>
-            Semaforo
-          </button>
-          <button type="button" class="tracking-view-btn" data-tracking-view="kanban">
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="0" y="0" width="3.5" height="13" rx="1" fill="currentColor"/><rect x="4.75" y="0" width="3.5" height="10" rx="1" fill="currentColor"/><rect x="9.5" y="0" width="3.5" height="7" rx="1" fill="currentColor"/></svg>
-            Kanban
-          </button>
-        </div>
       </div>
     </div>
     <div class="order-list" id="planningTrackingList">
       <div class="loading-state"><div class="spinner"></div> Cargando órdenes...</div>
     </div>
-    <div class="tracking-semaforo-header" id="trackingSemaforoHeader" style="display:none">
-      <div class="tracking-sem-col-head">Orden</div>
-      <div class="tracking-sem-col-head">Proceso actual</div>
-      <div class="tracking-sem-col-head">Progreso por etapas</div>
-      <div class="tracking-sem-col-head">Estado</div>
-      <div class="tracking-sem-col-head">Entrega</div>
-    </div>
-    <div class="tracking-semaforo-list" id="trackingSemaforoList" style="display:none"></div>
-    <div class="tracking-kanban-board" id="trackingKanbanBoard" style="display:none">
-      <div class="tracking-kanban-col">
-        <div class="tracking-kanban-col-head">
-          <div class="tracking-kanban-col-dot" style="background:var(--tracking-border2,#d4d2cc)"></div>
-          <div class="tracking-kanban-col-title">En cola</div>
-          <div class="tracking-kanban-col-count" id="trackingKcCount-ok">0</div>
-        </div>
-        <div class="tracking-kanban-cards" id="trackingKcol-ok"></div>
-      </div>
-      <div class="tracking-kanban-col">
-        <div class="tracking-kanban-col-head">
-          <div class="tracking-kanban-col-dot" style="background:var(--tracking-blue,#185FA5)"></div>
-          <div class="tracking-kanban-col-title">En proceso</div>
-          <div class="tracking-kanban-col-count" id="trackingKcCount-running">0</div>
-        </div>
-        <div class="tracking-kanban-cards" id="trackingKcol-running"></div>
-      </div>
-      <div class="tracking-kanban-col">
-        <div class="tracking-kanban-col-head">
-          <div class="tracking-kanban-col-dot" style="background:var(--tracking-red,#A32D2D)"></div>
-          <div class="tracking-kanban-col-title">Atención requerida</div>
-          <div class="tracking-kanban-col-count" id="trackingKcCount-alert">0</div>
-        </div>
-        <div class="tracking-kanban-cards" id="trackingKcol-alert"></div>
-      </div>
-    </div>
   </section>
-
-  <div class="tracking-drawer-overlay" id="trackingDrawerOverlay"></div>
-  <div class="tracking-drawer" id="trackingDrawer">
-    <div class="tracking-drawer-header">
-      <div>
-        <div class="tracking-drawer-title">Estimar fecha de entrega</div>
-        <div class="tracking-drawer-code" id="trackingDrawerCode">—</div>
-      </div>
-      <button type="button" class="tracking-drawer-close" id="trackingDrawerClose">×</button>
-    </div>
-    <div class="tracking-drawer-body">
-      <div class="tracking-drw-section">
-        <div class="tracking-drw-section-title">Procesos de la orden</div>
-        <div id="trackingDrawerProcesses" style="display:grid;gap:6px"></div>
-      </div>
-      <div class="tracking-drw-section">
-        <div class="tracking-drw-section-title">Prioridad del cliente</div>
-        <div class="tracking-priority-grid">
-          <div class="tracking-priority-opt sel-normal" data-tracking-priority="normal">
-            <div class="tracking-priority-icon">◎</div>
-            <div class="tracking-priority-name">Normal</div>
-            <div class="tracking-priority-desc">Cola estándar</div>
-          </div>
-          <div class="tracking-priority-opt" data-tracking-priority="premium">
-            <div class="tracking-priority-icon">◈</div>
-            <div class="tracking-priority-name">Cliente A</div>
-            <div class="tracking-priority-desc">Adelanta cola ~55%</div>
-          </div>
-          <div class="tracking-priority-opt" data-tracking-priority="urgent">
-            <div class="tracking-priority-icon">⚡</div>
-            <div class="tracking-priority-name">Urgente</div>
-            <div class="tracking-priority-desc">Siguiente ranura</div>
-          </div>
-        </div>
-      </div>
-      <div class="tracking-drw-section">
-        <div class="tracking-drw-section-title">Colchón de seguridad</div>
-        <div class="tracking-buffer-row">
-          <span style="font-size:12px;color:var(--tracking-text2,#6b6a66)">Días hábil extra</span>
-          <input class="tracking-buffer-slider" type="range" id="trackingBufferSlider" min="0" max="5" value="2">
-          <span class="tracking-buffer-val" id="trackingBufferVal">+2d</span>
-        </div>
-        <div class="tracking-buffer-hint">Margen antes de comprometer la fecha al cliente. El rango de entrega se expande con el colchón.</div>
-      </div>
-      <div id="trackingResultSection" style="display:none">
-        <div class="tracking-drw-section-title">Fecha estimada de entrega</div>
-        <div class="tracking-result-box">
-          <div class="tracking-result-hero">
-            <div class="tracking-result-label">Comprometer al cliente</div>
-            <div class="tracking-result-date-big" id="trackingResDateBig">—</div>
-            <div class="tracking-result-range" id="trackingResRange">—</div>
-            <span class="tracking-result-confidence" id="trackingResConf">—</span>
-          </div>
-          <div class="tracking-result-breakdown" id="trackingResBreakdown"></div>
-        </div>
-        <div id="trackingResNote"></div>
-        <div class="tracking-lock-section">
-          <span class="tracking-lock-icon">🔒</span>
-          <div class="tracking-lock-text">
-            <div class="tracking-lock-title">Bloqueo suave de fecha</div>
-            <div class="tracking-lock-desc">Alerta si una urgencia desplaza esta orden más de 1 día hábil</div>
-          </div>
-          <label class="tracking-lock-toggle">
-            <input type="checkbox" id="trackingLockToggle" checked>
-            <div class="tracking-lock-track"></div>
-            <div class="tracking-lock-thumb"></div>
-          </label>
-        </div>
-      </div>
-    </div>
-    <div class="tracking-drawer-footer">
-      <button type="button" class="tracking-calc-btn" id="trackingCalcBtn">
-        <div class="tracking-calc-spinner" id="trackingCalcSpinner"></div>
-        <span id="trackingCalcBtnText">Calcular fecha estimada</span>
-      </button>
-      <button type="button" class="tracking-btn-copy" id="trackingBtnCopy" style="display:none">Copiar fecha para comunicar al cliente</button>
-    </div>
-  </div>
 </main>
 <script src="/access-control.js"></script>
 <script src="/planificacion/lanzamiento.js"></script>
