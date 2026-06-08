@@ -402,32 +402,38 @@
         .calculo-subtabs {
             display: flex;
             flex-wrap: wrap;
-            gap: 6px;
+            gap: 8px;
+            padding: 4px;
             margin-bottom: 16px;
-            padding: 3px;
-            background: #f5f5f3;
-            border-radius: 8px;
+            border: 1px solid #d8e2ea;
+            border-radius: 14px;
+            background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.75);
         }
         .calculo-subtab {
-            padding: 5px 12px;
-            border-radius: 6px;
-            font-size: 11px;
-            cursor: pointer;
-            color: #666;
             border: none;
+            border-radius: 10px;
+            padding: 9px 14px;
             background: transparent;
-            font-weight: 500;
-            white-space: nowrap;
-            transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+            color: #60707f;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
         }
         .calculo-subtab:hover {
             background: rgba(11,129,184,0.08);
             color: #23516a;
         }
         .calculo-subtab.active {
-            background: #fff;
-            color: #1a1a1a;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            background: linear-gradient(180deg, #24a8df 0%, #118fc6 100%);
+            color: #fff;
+            box-shadow: 0 8px 18px rgba(17,143,198,0.24);
+        }
+        .calculo-subtab.active:hover,
+        .calculo-subtab.active:focus-visible {
+            background: linear-gradient(180deg, #24a8df 0%, #118fc6 100%);
+            color: #eaf8ff;
         }
         .calculo-subpanel {
             display: flex;
@@ -438,7 +444,7 @@
         }
         .calculo-subpanel > .config-card {
             width: 100%;
-            max-width: 380px;
+            max-width: 100%;
             min-width: 0;
         }
         .calculo-subpanel .quote-product-types-card,
@@ -2255,6 +2261,28 @@
         html[data-theme="dark"] .quotes-subtab.active,
         html[data-theme="dark"] .quotes-subtab.active:hover,
         html[data-theme="dark"] .quotes-subtab.active:focus-visible {
+            background: linear-gradient(135deg, #0ea5e9, #22d3ee) !important;
+            color: #ffffff !important;
+            box-shadow: 0 8px 18px rgba(34, 211, 238, 0.18) !important;
+        }
+        html[data-theme="dark"] .calculo-subtabs {
+            border-color: var(--app-border) !important;
+            background: linear-gradient(180deg, color-mix(in srgb, var(--app-surface-raised) 96%, #102033) 0%, color-mix(in srgb, var(--app-surface) 92%, #16253a) 100%) !important;
+            box-shadow: none !important;
+        }
+        html[data-theme="dark"] .calculo-subtab {
+            color: var(--app-text-muted) !important;
+            background: transparent !important;
+            border-color: transparent !important;
+        }
+        html[data-theme="dark"] .calculo-subtab:hover,
+        html[data-theme="dark"] .calculo-subtab:focus-visible {
+            background: var(--app-primary-soft) !important;
+            color: var(--app-text) !important;
+        }
+        html[data-theme="dark"] .calculo-subtab.active,
+        html[data-theme="dark"] .calculo-subtab.active:hover,
+        html[data-theme="dark"] .calculo-subtab.active:focus-visible {
             background: linear-gradient(135deg, #0ea5e9, #22d3ee) !important;
             color: #ffffff !important;
             box-shadow: 0 8px 18px rgba(34, 211, 238, 0.18) !important;
@@ -4726,7 +4754,6 @@
                     <!-- Tabs -->
                     <div class="config-tabs">
                         <button type="button" class="config-tab active" data-tab="cotizaciones">Cotizaciones</button>
-                        <button type="button" class="config-tab" data-tab="entregas">Entregas</button>
                         <button type="button" class="config-tab" data-tab="seguridad">Seguridad</button>
                         <button type="button" id="configTabSap" class="config-tab" data-tab="sap">SAP</button>
                         <button type="button" id="configTabNotificaciones" class="config-tab" data-tab="notificaciones">Notificaciones</button>
@@ -5520,158 +5547,147 @@
                             <div class="quotes-subtabs">
                                 <button type="button" class="quotes-subtab active" data-quotes-tab="calculo">Cálculo</button>
                                 <button type="button" class="quotes-subtab" data-quotes-tab="proforma">Proforma</button>
+                                <button type="button" class="quotes-subtab" data-quotes-tab="entregas">Entregas</button>
                             </div>
 
                             <div id="quotes-panel-calculo" class="quotes-subpanel">
                                 <div class="calculo-subtabs">
-                                    <button type="button" class="calculo-subtab active" data-calculo-tab="tipos-producto">Tipos de Producto</button>
-                                    <button type="button" class="calculo-subtab" data-calculo-tab="aplicacion">Aplicación</button>
-                                    <button type="button" class="calculo-subtab" data-calculo-tab="superficie">Tipo de Superficie</button>
-                                    <button type="button" class="calculo-subtab" data-calculo-tab="ordenes">Config. Creación de Órdenes</button>
-                                    <button type="button" class="calculo-subtab" data-calculo-tab="valores">Valores Estándar del Cálculo</button>
-                                    <button type="button" class="calculo-subtab" data-calculo-tab="inventario">Origen de Inventario</button>
+                                    <button type="button" class="calculo-subtab active" data-calculo-tab="general">General</button>
+                                    <button type="button" class="calculo-subtab" data-calculo-tab="aplicacion-superficie">Aplicación / Superficie</button>
                                     <button type="button" class="calculo-subtab" data-calculo-tab="salidas">Tipos de Salida</button>
                                     <button type="button" class="calculo-subtab" data-calculo-tab="formas-troquel">Formas de Troquel</button>
                                 </div>
 
-                                <div id="calculo-panel-tipos-producto" class="calculo-subpanel">
-                                    <section class="config-card quote-product-types-card">
-                                        <input id="quoteProductTypesJson" name="general.quoteProductTypesJson" type="hidden">
-                                        <h2 class="config-section-title">Tipos de Producto</h2>
-                                        <div class="quote-product-types-toolbar">
-                                            <p>Esta lista alimenta Nueva Cotización y el cálculo general.</p>
-                                            <button id="quoteProductTypeAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
-                                        </div>
-                                        <div class="quote-product-types-table-wrap">
-                                            <table class="quote-product-types-table">
-                                                <thead>
-                                                    <tr>
-                                                        <th style="width:72px;">#</th>
-                                                        <th>Nombre</th>
-                                                        <th>Acción</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody id="quoteProductTypesTableBody"></tbody>
-                                            </table>
-                                        </div>
-                                    </section>
+                                <div id="calculo-panel-general" class="calculo-subpanel">
+                                    <div class="quotes-general-split">
+                                        <section class="config-card quote-product-types-card">
+                                            <input id="quoteProductTypesJson" name="general.quoteProductTypesJson" type="hidden">
+                                            <h2 class="config-section-title">Tipos de Producto</h2>
+                                            <div class="quote-product-types-toolbar">
+                                                <p>Esta lista alimenta Nueva Cotización y el cálculo general.</p>
+                                                <button id="quoteProductTypeAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
+                                            </div>
+                                            <div class="quote-product-types-table-wrap">
+                                                <table class="quote-product-types-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th style="width:72px;">#</th>
+                                                            <th>Nombre</th>
+                                                            <th>Acción</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="quoteProductTypesTableBody"></tbody>
+                                                </table>
+                                            </div>
+                                        </section>
+                                        <section class="config-card quote-product-types-card">
+                                            <h3>Configuración de Creación de Órdenes</h3>
+                                            <div class="config-form-grid">
+                                                <label>
+                                                    <span>Día Máximo</span>
+                                                    <select name="general.ordersCutoffDay">
+                                                        <option value="viernes">Viernes</option>
+                                                        <option value="sabado">Sábado</option>
+                                                        <option value="domingo">Domingo</option>
+                                                        <option value="jueves">Jueves</option>
+                                                    </select>
+                                                </label>
+                                                <label>
+                                                    <span>Hora Máxima</span>
+                                                    <input name="general.ordersCutoffHour" type="time" value="17:00">
+                                                </label>
+                                                <label>
+                                                    <span>Se Reprograma a</span>
+                                                    <select name="general.ordersCutoffNextDay">
+                                                        <option value="lunes">Lunes</option>
+                                                        <option value="martes">Martes</option>
+                                                        <option value="miercoles">Miércoles</option>
+                                                    </select>
+                                                </label>
+                                                <label>
+                                                    <span>Hora de Recepción</span>
+                                                    <input name="general.ordersCutoffNextHour" type="time" value="06:00">
+                                                </label>
+                                            </div>
+                                            <p class="config-help">Define el corte para solicitudes tardías de orden.</p>
+                                        </section>
+                                        <section class="config-card quote-product-types-card">
+                                            <h3>Valores Estándar del Cálculo</h3>
+                                            <div class="config-form-grid">
+                                                <label>
+                                                    <span>Cantidad Máxima Automática para Digital</span>
+                                                    <input name="general.quoteAutomaticDigitalMaxQuantity" type="number" min="1" step="1" value="100000">
+                                                </label>
+                                                <label>
+                                                    <span>Etiquetas por Rollo por Defecto</span>
+                                                    <input name="general.quoteAutomaticLabelsPerRoll" type="number" min="1" step="1" value="1000">
+                                                </label>
+                                            </div>
+                                            <p class="config-help">Si la cantidad es menor o igual a este valor, se intenta digital primero.</p>
+                                        </section>
+                                        <section class="config-card quote-product-types-card">
+                                            <h3>Origen de Inventario</h3>
+                                            <div class="config-form-grid">
+                                                <label>
+                                                    <span>Fuente para Cotización y Cálculo</span>
+                                                    <select name="general.inventorySourceMode">
+                                                        <option value="local">Inventario Local</option>
+                                                        <option value="sap">Inventario Importado SAP</option>
+                                                    </select>
+                                                </label>
+                                                <label>
+                                                    <span>Campo SAP para Clasificar</span>
+                                                    <input name="general.inventoryImportedClassificationField" type="text" placeholder="ItemsGroupCode, U_CategoriaFlexo, etc.">
+                                                </label>
+                                            </div>
+                                            <p class="config-help">Define si el cálculo usará inventario local o importado desde SAP.</p>
+                                        </section>
+                                    </div>
                                 </div>
 
-                                <div id="calculo-panel-aplicacion" class="calculo-subpanel" hidden>
-                                    <section class="config-card quote-product-types-card quote-application-options-card">
-                                        <input id="quoteApplicationOptionsJson" name="general.quoteApplicationOptionsJson" type="hidden">
-                                        <h2 class="config-section-title">Aplicación</h2>
-                                        <div class="quote-product-types-toolbar">
-                                            <p>Esta lista alimenta la solicitud y el cálculo.</p>
-                                            <button id="quoteApplicationOptionAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
-                                        </div>
-                                        <div class="quote-product-types-table-wrap">
-                                            <table class="quote-product-types-table">
-                                                <thead>
-                                                    <tr>
-                                                        <th style="width:72px;">#</th>
-                                                        <th>Valor</th>
-                                                        <th>Acción</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody id="quoteApplicationOptionsTableBody"></tbody>
-                                            </table>
-                                        </div>
-                                    </section>
-                                </div>
-
-                                <div id="calculo-panel-superficie" class="calculo-subpanel" hidden>
-                                    <section class="config-card quote-product-types-card quote-surface-options-card">
-                                        <input id="quoteSurfaceOptionsJson" name="general.quoteSurfaceOptionsJson" type="hidden">
-                                        <h2 class="config-section-title">Tipo de Superficie</h2>
-                                        <div class="quote-product-types-toolbar">
-                                            <p>Esta lista alimenta la solicitud y el cálculo.</p>
-                                            <button id="quoteSurfaceOptionAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
-                                        </div>
-                                        <div class="quote-product-types-table-wrap">
-                                            <table class="quote-product-types-table">
-                                                <thead>
-                                                    <tr>
-                                                        <th style="width:72px;">#</th>
-                                                        <th>Valor</th>
-                                                        <th>Acción</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody id="quoteSurfaceOptionsTableBody"></tbody>
-                                            </table>
-                                        </div>
-                                    </section>
-                                </div>
-
-                                <div id="calculo-panel-ordenes" class="calculo-subpanel" hidden>
-                                    <section id="ordersGeneralSection" class="config-card">
-                                        <h2 class="config-section-title">Configuración de Creación de Órdenes</h2>
-                                        <div class="config-form-grid">
-                                            <label>
-                                                <span>Día Máximo</span>
-                                                <select name="general.ordersCutoffDay">
-                                                    <option value="viernes">Viernes</option>
-                                                    <option value="sabado">Sábado</option>
-                                                    <option value="domingo">Domingo</option>
-                                                    <option value="jueves">Jueves</option>
-                                                </select>
-                                            </label>
-                                            <label>
-                                                <span>Hora Máxima</span>
-                                                <input name="general.ordersCutoffHour" type="time" value="17:00">
-                                            </label>
-                                            <label>
-                                                <span>Se Reprograma a</span>
-                                                <select name="general.ordersCutoffNextDay">
-                                                    <option value="lunes">Lunes</option>
-                                                    <option value="martes">Martes</option>
-                                                    <option value="miercoles">Miércoles</option>
-                                                </select>
-                                            </label>
-                                            <label>
-                                                <span>Hora de Recepción</span>
-                                                <input name="general.ordersCutoffNextHour" type="time" value="06:00">
-                                            </label>
-                                        </div>
-                                        <p class="config-help">Define el corte para solicitudes tardías de orden y la fecha/hora efectiva con la que deben entrar a producción.</p>
-                                    </section>
-                                </div>
-
-                                <div id="calculo-panel-valores" class="calculo-subpanel" hidden>
-                                    <section class="config-card">
-                                        <h2 class="config-section-title">Valores Estándar del Cálculo</h2>
-                                        <div class="config-form-grid">
-                                            <label>
-                                                <span>Cantidad Máxima Automática para Digital</span>
-                                                <input name="general.quoteAutomaticDigitalMaxQuantity" type="number" min="1" step="1" value="100000">
-                                            </label>
-                                            <label>
-                                                <span>Etiquetas por Rollo por Defecto</span>
-                                                <input name="general.quoteAutomaticLabelsPerRoll" type="number" min="1" step="1" value="1000">
-                                            </label>
-                                        </div>
-                                        <p class="config-help">Si la cantidad solicitada es menor o igual a este valor, la cotización automática intentará digital primero. Si no encuentra troquel, material o máquina compatible, hará fallback controlado y dejará advertencia técnica. La cantidad por rollo servirá como base automática para el cálculo inicial cuando el vendedor no la defina.</p>
-                                    </section>
-                                </div>
-
-                                <div id="calculo-panel-inventario" class="calculo-subpanel" hidden>
-                                    <section class="config-card">
-                                        <h2 class="config-section-title">Origen de Inventario</h2>
-                                        <div class="config-form-grid">
-                                            <label>
-                                                <span>Fuente para Cotización y Cálculo</span>
-                                                <select name="general.inventorySourceMode">
-                                                    <option value="local">Inventario Local</option>
-                                                    <option value="sap">Inventario Importado SAP</option>
-                                                </select>
-                                            </label>
-                                            <label>
-                                                <span>Campo SAP para Clasificar</span>
-                                                <input name="general.inventoryImportedClassificationField" type="text" placeholder="ItemsGroupCode, U_CategoriaFlexo, etc.">
-                                            </label>
-                                        </div>
-                                        <p class="config-help">Aquí defines si el cálculo usará el inventario local o el inventario importado desde SAP. También puedes indicar el nombre del campo SAP o UDF que servirá como base de clasificación.</p>
-                                    </section>
+                                <div id="calculo-panel-aplicacion-superficie" class="calculo-subpanel" hidden>
+                                    <div class="quotes-general-split">
+                                        <section class="config-card quote-product-types-card quote-application-options-card">
+                                            <input id="quoteApplicationOptionsJson" name="general.quoteApplicationOptionsJson" type="hidden">
+                                            <h2 class="config-section-title">Aplicación</h2>
+                                            <div class="quote-product-types-toolbar">
+                                                <p>Esta lista alimenta la solicitud y el cálculo.</p>
+                                                <button id="quoteApplicationOptionAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
+                                            </div>
+                                            <div class="quote-product-types-table-wrap">
+                                                <table class="quote-product-types-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th style="width:72px;">#</th>
+                                                            <th>Valor</th>
+                                                            <th>Acción</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="quoteApplicationOptionsTableBody"></tbody>
+                                                </table>
+                                            </div>
+                                        </section>
+                                        <section class="config-card quote-product-types-card quote-surface-options-card">
+                                            <input id="quoteSurfaceOptionsJson" name="general.quoteSurfaceOptionsJson" type="hidden">
+                                            <h2 class="config-section-title">Tipo de Superficie</h2>
+                                            <div class="quote-product-types-toolbar">
+                                                <p>Esta lista alimenta la solicitud y el cálculo.</p>
+                                                <button id="quoteSurfaceOptionAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
+                                            </div>
+                                            <div class="quote-product-types-table-wrap">
+                                                <table class="quote-product-types-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th style="width:72px;">#</th>
+                                                            <th>Valor</th>
+                                                            <th>Acción</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="quoteSurfaceOptionsTableBody"></tbody>
+                                                </table>
+                                            </div>
+                                        </section>
+                                    </div>
                                 </div>
 
                                 <div id="calculo-panel-salidas" class="calculo-subpanel" hidden>
@@ -6027,56 +6043,56 @@
                         </section>
                     </div>
 
-                        </section>
-                    </div>
-
-                    <div id="tab-entregas" class="config-tab-content">
-                        <section class="config-card">
-                            <h2 class="config-section-title">Entregas</h2>
-                            <div class="quotes-general-split">
-                                <section class="config-card quote-product-types-card">
-                                    <input id="deliverySampleModesJson" name="general.deliverySampleModesJson" type="hidden">
-                                    <h3>Envío de Muestras</h3>
-                                    <div class="quote-product-types-toolbar">
-                                        <p>Lista usada en órdenes para muestras.</p>
-                                        <button id="deliverySampleModeAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
-                                    </div>
-                                    <div class="quote-product-types-table-wrap">
-                                        <table class="quote-product-types-table config-table">
-                                            <thead><tr><th style="width:28px;"></th><th style="width:72px;">#</th><th>Valor</th><th>Acción</th></tr></thead>
-                                            <tbody id="deliverySampleModesTableBody"></tbody>
-                                        </table>
-                                    </div>
-                                </section>
-                                <section class="config-card quote-product-types-card">
-                                    <input id="deliveryApprovalRecipientsJson" name="general.deliveryApprovalRecipientsJson" type="hidden">
-                                    <h3>Destinatario Visto Bueno</h3>
-                                    <div class="quote-product-types-toolbar">
-                                        <p>Lista usada para aprobaciones del cliente.</p>
-                                        <button id="deliveryApprovalRecipientAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
-                                    </div>
-                                    <div class="quote-product-types-table-wrap">
-                                        <table class="quote-product-types-table config-table">
-                                            <thead><tr><th style="width:28px;"></th><th style="width:72px;">#</th><th>Valor</th><th>Acción</th></tr></thead>
-                                            <tbody id="deliveryApprovalRecipientsTableBody"></tbody>
-                                        </table>
-                                    </div>
-                                </section>
-                                <section class="config-card quote-product-types-card">
-                                    <input id="deliveryMethodsJson" name="general.deliveryMethodsJson" type="hidden">
-                                    <h3>Forma de Entrega</h3>
-                                    <div class="quote-product-types-toolbar">
-                                        <p>Lista usada en tipo de entrega.</p>
-                                        <button id="deliveryMethodAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
-                                    </div>
-                                    <div class="quote-product-types-table-wrap">
-                                        <table class="quote-product-types-table config-table">
-                                            <thead><tr><th style="width:28px;"></th><th style="width:72px;">#</th><th>Valor</th><th>Acción</th></tr></thead>
-                                            <tbody id="deliveryMethodsTableBody"></tbody>
-                                        </table>
+                            <div id="quotes-panel-entregas" class="quotes-subpanel" hidden>
+                                <section class="config-card">
+                                    <h2 class="config-section-title">Entregas</h2>
+                                    <div class="quotes-general-split">
+                                        <section class="config-card quote-product-types-card">
+                                            <input id="deliverySampleModesJson" name="general.deliverySampleModesJson" type="hidden">
+                                            <h3>Envío de Muestras</h3>
+                                            <div class="quote-product-types-toolbar">
+                                                <p>Lista usada en órdenes para muestras.</p>
+                                                <button id="deliverySampleModeAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
+                                            </div>
+                                            <div class="quote-product-types-table-wrap">
+                                                <table class="quote-product-types-table config-table">
+                                                    <thead><tr><th style="width:28px;"></th><th style="width:72px;">#</th><th>Valor</th><th>Acción</th></tr></thead>
+                                                    <tbody id="deliverySampleModesTableBody"></tbody>
+                                                </table>
+                                            </div>
+                                        </section>
+                                        <section class="config-card quote-product-types-card">
+                                            <input id="deliveryApprovalRecipientsJson" name="general.deliveryApprovalRecipientsJson" type="hidden">
+                                            <h3>Destinatario Visto Bueno</h3>
+                                            <div class="quote-product-types-toolbar">
+                                                <p>Lista usada para aprobaciones del cliente.</p>
+                                                <button id="deliveryApprovalRecipientAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
+                                            </div>
+                                            <div class="quote-product-types-table-wrap">
+                                                <table class="quote-product-types-table config-table">
+                                                    <thead><tr><th style="width:28px;"></th><th style="width:72px;">#</th><th>Valor</th><th>Acción</th></tr></thead>
+                                                    <tbody id="deliveryApprovalRecipientsTableBody"></tbody>
+                                                </table>
+                                            </div>
+                                        </section>
+                                        <section class="config-card quote-product-types-card">
+                                            <input id="deliveryMethodsJson" name="general.deliveryMethodsJson" type="hidden">
+                                            <h3>Forma de Entrega</h3>
+                                            <div class="quote-product-types-toolbar">
+                                                <p>Lista usada en tipo de entrega.</p>
+                                                <button id="deliveryMethodAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
+                                            </div>
+                                            <div class="quote-product-types-table-wrap">
+                                                <table class="quote-product-types-table config-table">
+                                                    <thead><tr><th style="width:28px;"></th><th style="width:72px;">#</th><th>Valor</th><th>Acción</th></tr></thead>
+                                                    <tbody id="deliveryMethodsTableBody"></tbody>
+                                                </table>
+                                            </div>
+                                        </section>
                                     </div>
                                 </section>
                             </div>
+
                         </section>
                     </div>
 
@@ -11101,10 +11117,10 @@
         }
 
         function getActiveCalculoTabKey() {
-            return document.querySelector('.calculo-subtab.active')?.dataset.calculoTab || 'tipos-producto';
+            return document.querySelector('.calculo-subtab.active')?.dataset.calculoTab || 'general';
         }
 
-        function activateCalculoTab(tabKey = 'tipos-producto') {
+        function activateCalculoTab(tabKey = 'general') {
             calculoSubtabs.forEach((tab) => {
                 tab.classList.toggle('active', tab.dataset.calculoTab === tabKey);
             });
@@ -15627,7 +15643,7 @@
 
         calculoSubtabs.forEach((tab) => {
             tab.addEventListener('click', () => {
-                activateCalculoTab(tab.dataset.calculoTab || 'tipos-producto');
+                activateCalculoTab(tab.dataset.calculoTab || 'general');
             });
         });
 
