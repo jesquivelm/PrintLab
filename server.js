@@ -20402,6 +20402,10 @@ app.get('/planificacion/lanzamiento', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'planificacion', 'lanzamiento.html'));
 });
 
+app.get('/planificacion/seguimiento', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'planificacion', 'seguimiento.html'));
+});
+
 app.get('/planificacion', (req, res) => {
     res.redirect('/planificacion/lanzamiento');
 });
