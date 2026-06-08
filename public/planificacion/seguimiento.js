@@ -1,7 +1,8 @@
 /* ── CONSTANTES ── */
 const API='/api';
-const LABELS={diseno:'Diseño',preprensa:'Preprensa',impresion:'Impresión',laminado:'Laminado',troquelado:'Troquelado',estampado:'Estampado',barnizado:'Barniz',embosado:'Embosado',numeracion:'Numeración',rebobinado:'Rebobinado',empaque:'Empaque'};
-const ICONS={diseno:'✏',preprensa:'⬛',impresion:'◼',laminado:'◧',troquelado:'◈',estampado:'◆',barnizado:'◐',embosado:'◉',numeracion:'#',rebobinado:'↻',empaque:'□'};
+const LABELS={orden_creada:'Creación de Orden',solicitud_vendedor:'Solicitud de Vendedor',planeacion:'Planificación',diseno:'Diseño',preprensa:'Preprensa',visto_bueno:'Visto Bueno',planchas:'Planchas',impresion:'Impresión',laminado:'Laminado',troquelado:'Troquelado',estampado:'Estampado',barnizado:'Barniz',embosado:'Embosado',numeracion:'Numeración',rebobinado:'Rebobinado',empaque:'Empaque'};
+const ICONS={orden_creada:'+',solicitud_vendedor:'→',planeacion:'✓',diseno:'✏',preprensa:'⬛',visto_bueno:'✓',planchas:'▣',impresion:'◼',laminado:'◧',troquelado:'◈',estampado:'◆',barnizado:'◐',embosado:'◉',numeracion:'#',rebobinado:'↻',empaque:'□'};
+const TRACKING_BASE_KEYS=['orden_creada','solicitud_vendedor','planeacion'];
 const WORK_HRS=8;
 const WORK_DAYS=new Set([1,2,3,4,5,6]);
 const Q_FACTOR={normal:1,premium:.45,urgent:.05};
@@ -28,6 +29,15 @@ function fmtLong(d){return d.toLocaleDateString('es-CR',{weekday:'short',day:'2-
 function capitalise(s){return s.charAt(0).toUpperCase()+s.slice(1)}
 function daysUntil(v){if(!v)return null;const d=new Date(v);if(isNaN(d))return null;const n=new Date();n.setHours(0,0,0,0);d.setHours(0,0,0,0);return Math.round((d-n)/86400000)}
 function formatNumber(v,d){return Number(v||0).toLocaleString('es-CR',d!=null?{minimumFractionDigits:d,maximumFractionDigits:d}:{})}
+function dateInputValue(v){const d=new Date(v);if(isNaN(d))return'';return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function stepKey(p){return p?.key||p?.processKey||''}
+function normalizeStepStatus(v){
+  const s=norm(v);
+  if(['completado','completa','complete','done','listo'].includes(s))return'done';
+  if(['run','setup','active','running','en proceso'].includes(s))return'active';
+  if(['paro','late','atrasado'].includes(s))return'late';
+  return'pending';
+}
 
 function addWorkHours(from,hours){
   let d=new Date(from),rem=hours;
@@ -56,11 +66,19 @@ function orderStatus(o){
 function buildSteps(o){
   const cl=Array.isArray(o.processChecklist)?o.processChecklist:[];
   const lr=Array.isArray(o.processLoadSummary)?o.processLoadSummary:[];
-  const sel=cl.filter(p=>p.selected||p.base||p.quoted).filter(p=>p.key!=='acabados');
+  const hasBase=cl.some(p=>TRACKING_BASE_KEYS.includes(stepKey(p)));
+  const flowBase=!hasBase&&Array.isArray(o.steps)
+    ?o.steps.filter(s=>TRACKING_BASE_KEYS.includes(stepKey(s))).map(s=>({
+      key:s.processKey,selected:true,base:true,label:s.processName,status:normalizeStepStatus(s.routeStatus),
+      completedAt:s.completedAt,startedAt:s.startedAt
+    }))
+    :[];
+  const sel=[...flowBase,...cl].filter(p=>p.selected||p.base||p.quoted).filter(p=>stepKey(p)!=='acabados');
   return sel.map((p,i)=>{
-    const l=lr.find(r=>r.processKey===p.key)||{};
-    return{key:p.key,label:LABELS[p.key]||p.label||p.key,icon:ICONS[p.key]||'·',
-      status:p.status||(i===0?'active':'pending'),
+    const key=stepKey(p);
+    const l=lr.find(r=>r.processKey===key)||{};
+    return{key,label:LABELS[key]||p.label||p.processName||key,icon:ICONS[key]||'·',
+      status:p.status?normalizeStepStatus(p.status):(l.status?normalizeStepStatus(l.status):(i===0?'active':'pending')),
       endDate:l.endDate||null,machine:l.machineName||p.machineName||null,
       hrs:l.durationHours?Math.round(l.durationHours):null,
       ordersAhead:l.ordersAhead??null,daysAhead:l.daysAhead??null,quoted:p.quoted};
@@ -281,7 +299,9 @@ function openDrawer(code){
   drawerResult=null;
   document.getElementById('drawerCode').textContent=code+' · '+(order.customerName||'');
   document.getElementById('resultSection').style.display='none';
-  document.getElementById('btnCopy').style.display='none';
+  document.getElementById('btnSetDate').style.display='none';
+  document.getElementById('btnSetDate').disabled=false;
+  document.getElementById('btnSetDate').textContent='Establecer fecha en orden';
   document.getElementById('btnGantt').style.display='none';
   document.getElementById('btnGantt').href=`/planificacion/gantt?orderCode=${code}`;
   document.getElementById('calcBtnText').textContent='Calcular fecha estimada';
@@ -382,7 +402,7 @@ function renderDrawerResult(r){
   document.getElementById('resNote').innerHTML=note;
 
   document.getElementById('resultSection').style.display='block';
-  document.getElementById('btnCopy').style.display='flex';
+  document.getElementById('btnSetDate').style.display='flex';
   document.getElementById('btnGantt').style.display='block';
 
   if(document.getElementById('lockToggle').checked){
@@ -420,17 +440,46 @@ function updateLock(){
   }
 }
 
-function copyResult(){
+async function setDateInOrder(){
   if(!drawerResult||!drawerOrder)return;
-  const{earlyEnd,lateEnd,bufferDays}=drawerResult;
-  const text=bufferDays>0
-    ?`Estimado de entrega ${drawerOrder.orderCode} (${drawerOrder.customerName||''}): entre el ${capitalise(fmtLong(earlyEnd))} y el ${capitalise(fmtLong(lateEnd))}.`
-    :`Estimado de entrega ${drawerOrder.orderCode} (${drawerOrder.customerName||''}): ${capitalise(fmtLong(earlyEnd))}.`;
-  navigator.clipboard.writeText(text).then(()=>{
-    const btn=document.getElementById('btnCopy');
-    btn.textContent='✓ Copiado al portapapeles';
-    setTimeout(()=>{btn.innerHTML='📋 Copiar fecha para comunicar al cliente'},2000);
-  }).catch(()=>{});
+  const btn=document.getElementById('btnSetDate');
+  const{earlyEnd,lateEnd,bufferDays,conf}=drawerResult;
+  const committedEnd=bufferDays>0?lateEnd:earlyEnd;
+  btn.disabled=true;
+  btn.textContent='Guardando fecha...';
+  try{
+    const response=await fetch(`${API}/ordenes-produccion/${encodeURIComponent(drawerOrder.orderCode)}/details`,{
+      method:'PATCH',
+      headers:Object.assign({'Content-Type':'application/json'},sessionHeader()),
+      body:JSON.stringify({planningControl:{
+        promisedDeliveryDate:dateInputValue(committedEnd),
+        scheduledDeliveryDate:dateInputValue(earlyEnd),
+        estimatePriority:drawerPriority,
+        deliveryBufferBusinessDays:bufferDays,
+        estimatedProductionEndDate:earlyEnd.toISOString(),
+        estimatedDeliveryDateEarly:earlyEnd.toISOString(),
+        estimatedDeliveryDateLate:lateEnd.toISOString(),
+        estimatedAt:new Date().toISOString(),
+        estimatedBy:'',
+        estimationConfidence:conf
+      }})
+    });
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok||data.ok===false)throw new Error(data.error||'No fue posible guardar la fecha.');
+    drawerOrder.promisedDeliveryDate=dateInputValue(committedEnd);
+    drawerOrder.scheduledDeliveryDate=dateInputValue(earlyEnd);
+    drawerOrder.productionEndDate=earlyEnd.toISOString();
+    drawerOrder.estimatedDeliveryDateEarly=earlyEnd.toISOString();
+    drawerOrder.estimatedDeliveryDateLate=lateEnd.toISOString();
+    softLocks[drawerOrder.orderCode]={earlyEnd,lateEnd,priority:drawerPriority};
+    btn.textContent='Fecha establecida en la orden';
+    updateSummary();
+    renderAll();
+  }catch(error){
+    btn.disabled=false;
+    btn.textContent='Establecer fecha en orden';
+    alert(error.message||'No fue posible guardar la fecha en la orden.');
+  }
 }
 
 async function loadData(){
@@ -478,8 +527,8 @@ let currentView='list';
 
 function setView(v){
   currentView=v;
-  ['list','sem','kanban'].forEach(id=>{
-    document.getElementById(`vbtn-${id}`).classList.toggle('active',id===v);
+  document.querySelectorAll('.view-btn[data-view]').forEach(btn=>{
+    btn.classList.toggle('active',btn.dataset.view===v);
   });
   document.getElementById('orderList').style.display=v==='list'?'grid':'none';
   document.getElementById('semaforoView').style.display=v==='sem'?'block':'none';
@@ -642,7 +691,7 @@ function renderKanban(orders){
 function setFilter(f,btn){
   currentFilter=f;
   document.querySelectorAll('.filter-pill').forEach(p=>p.classList.remove('active'));
-  btn.classList.add('active');renderAll();
+  if(btn)btn.classList.add('active');renderAll();
 }
 
 document.getElementById('searchInput').addEventListener('input',e=>{searchTerm=e.target.value;renderAll()});
@@ -656,12 +705,18 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer()});
 document.querySelectorAll('.priority-opt[data-priority]').forEach(opt=>{
   opt.addEventListener('click',()=>setPriority(opt.dataset.priority));
 });
+document.querySelectorAll('.view-btn[data-view]').forEach(btn=>{
+  btn.addEventListener('click',()=>setView(btn.dataset.view));
+});
+document.querySelectorAll('.filter-pill[data-filter]').forEach(btn=>{
+  btn.addEventListener('click',()=>setFilter(btn.dataset.filter,btn));
+});
 document.getElementById('bufferSlider')?.addEventListener('input',updateBuffer);
 document.getElementById('lockToggle')?.addEventListener('change',updateLock);
 document.getElementById('drawerClose')?.addEventListener('click',closeDrawer);
 document.getElementById('drawerOverlay')?.addEventListener('click',closeDrawer);
 document.getElementById('calcBtn')?.addEventListener('click',runCalc);
-document.getElementById('btnCopy')?.addEventListener('click',copyResult);
+document.getElementById('btnSetDate')?.addEventListener('click',setDateInOrder);
 document.getElementById('refreshBtn')?.addEventListener('click',loadData);
 document.getElementById('sortSelect')?.addEventListener('change',renderAll);
 setInterval(loadData,60000);
@@ -723,13 +778,28 @@ async function loadFlowPanel(code) {
 function buildFlowFromOrder(order) {
   const cl  = Array.isArray(order.processChecklist)   ? order.processChecklist   : [];
   const lr  = Array.isArray(order.processLoadSummary) ? order.processLoadSummary : [];
-  return cl.filter(p => p.selected || p.base || p.quoted).filter(p => p.key !== 'acabados')
+  const hasBase = cl.some(p => TRACKING_BASE_KEYS.includes(stepKey(p)));
+  const fixed = !hasBase && Array.isArray(order.steps)
+    ? order.steps.filter(s => TRACKING_BASE_KEYS.includes(stepKey(s))).map(s => ({
+        key: s.processKey,
+        selected: true,
+        base: true,
+        label: s.processName,
+        status: normalizeStepStatus(s.routeStatus),
+        completedBy: s.completedBy,
+        completedAt: s.completedAt,
+        startedBy: s.startedBy,
+        startedAt: s.startedAt
+      }))
+    : [];
+  return [...fixed, ...cl].filter(p => p.selected || p.base || p.quoted).filter(p => stepKey(p) !== 'acabados')
     .map(p => {
-      const load = lr.find(r => r.processKey === p.key) || {};
-      const st   = p.status || 'pending';
+      const key = stepKey(p);
+      const load = lr.find(r => r.processKey === key) || {};
+      const st   = normalizeStepStatus(p.status || 'pending');
       return {
-        processKey:   p.key,
-        processName:  LABELS[p.key] || p.label || p.key,
+        processKey:   key,
+        processName:  LABELS[key] || p.label || p.processName || key,
         routeStatus:  st === 'done' || st === 'complete' ? 'COMPLETADO'
                     : st === 'active' || st === 'running' ? 'RUN' : 'PENDIENTE',
         completedBy:  p.completedBy  || load.completedBy  || '',

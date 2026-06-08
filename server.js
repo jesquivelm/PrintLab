@@ -14992,14 +14992,38 @@ app.get('/api/planificacion/seguimiento', async (req, res) => {
             const tintCount = Number(lineSnapshot.tintCount || lineSnapshot.pantoneCount || lineRaw['CANTIDAD TINTAS'] || 0);
             const quotedKeys = getQuotedPlanningProcessKeys(row);
             const quotedSet = new Set(quotedKeys);
-            const processChecklist = processKeys.map(key => ({
+            const fixedProcessChecklist = fixedSteps.map((step) => ({
+                key: step.processKey,
+                selected: true,
+                quoted: false,
+                base: true,
+                label: step.processName,
+                status: step.routeStatus === 'COMPLETADO' ? 'done' : (step.routeStatus === 'RUN' ? 'active' : 'pending')
+            }));
+            const processChecklist = processKeys.map(key => {
+                const route = routeByKey.get(key);
+                const routeStatus = String(route?.route_status || '').toUpperCase();
+                return {
                 key,
                 selected: true,
                 quoted: quotedSet.has(key),
-                base: PLANNING_BASE_PROCESS_KEYS.includes(key)
+                base: PLANNING_BASE_PROCESS_KEYS.includes(key),
+                status: routeStatus === 'COMPLETADO' ? 'done' : (['RUN', 'SETUP'].includes(routeStatus) ? 'active' : (routeStatus === 'PARO' ? 'late' : 'pending'))
+                };
+            });
+            const fixedLoadSummary = fixedSteps.map((step) => ({
+                processKey: step.processKey,
+                processName: step.processName,
+                machineName: '',
+                endDate: step.completedAt || null,
+                durationHours: 0,
+                ordersAhead: null,
+                daysAhead: null,
+                status: step.routeStatus === 'COMPLETADO' ? 'done' : (step.routeStatus === 'RUN' ? 'active' : 'pending')
             }));
             const processLoadSummary = processKeys.map(key => {
                 const route = routeByKey.get(key);
+                const routeStatus = String(route?.route_status || '').toUpperCase();
                 return {
                     processKey: key,
                     processName: PRODUCTION_FLOW_LABELS[key] || (route ? route.process_name : PLANNING_PROCESS_LABELS[key]) || key,
@@ -15007,7 +15031,8 @@ app.get('/api/planificacion/seguimiento', async (req, res) => {
                     endDate: route ? (route.actual_end_at || null) : null,
                     durationHours: route ? (Number(route.duration_hours || 0)) : 0,
                     ordersAhead: null,
-                    daysAhead: null
+                    daysAhead: null,
+                    status: routeStatus === 'COMPLETADO' ? 'done' : (['RUN', 'SETUP'].includes(routeStatus) ? 'active' : (routeStatus === 'PARO' ? 'late' : 'pending'))
                 };
             });
             return {
@@ -15030,8 +15055,8 @@ app.get('/api/planificacion/seguimiento', async (req, res) => {
                 productionEndDate: planning.productionEndDate,
                 planningStatus: planning.planningStatus,
                 finishSummary: planningFinishLabelsFromOrder(row).join(' · '),
-                processChecklist,
-                processLoadSummary,
+                processChecklist: [...fixedProcessChecklist, ...processChecklist],
+                processLoadSummary: [...fixedLoadSummary, ...processLoadSummary],
                 steps
             };
         }));
