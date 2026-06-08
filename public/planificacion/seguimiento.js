@@ -280,11 +280,15 @@ function hasPendingStep(order, processKey) {
     if (!processKey) return true;
     const steps = buildSteps(order);
     const filterKey = processKey.replace(/[\s_]+/g, '').toLowerCase();
-    return steps.some(s => {
-        const key = norm(s.processKey || '').replace(/[\s_]+/g, '');
-        const status = (s.routeStatus || '').toUpperCase();
-        return key === filterKey && status !== 'COMPLETADO';
-    });
+    // Encontrar el primer paso NO completado (proceso actual activo/pendiente)
+    for (const step of steps) {
+        const status = (step.routeStatus || '').toUpperCase();
+        if (status !== 'COMPLETADO') {
+            const key = norm(step.processKey || '').replace(/[\s_]+/g, '');
+            return key === filterKey;
+        }
+    }
+    return false; // todos completados
 }
 
 function renderAll() {
@@ -790,16 +794,13 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawe
 
 document.getElementById('ganttLink')?.addEventListener('click', (e) => {
     e.preventDefault();
-    // Copiar sesión a localStorage para que el Gantt en ventana nueva la encuentre
+    // Copiar sesión a localStorage por si acaso
     try {
         const sessionData = sessionStorage.getItem('erp-user-session') || localStorage.getItem('erp-user-session');
         if (sessionData) localStorage.setItem('erp-user-session', sessionData);
     } catch (_) {}
-    if (new URLSearchParams(window.location.search).get('shell') === '1') {
-        window.parent.postMessage({ type: 'erp-open-tab', route: '/planificacion/gantt?shell=1', label: 'Gantt' }, '*');
-    } else {
-        window.open('/planificacion/gantt', '_blank');
-    }
+    // Navegar en la misma ventana para preservar sessionStorage
+    window.location.href = '/planificacion/gantt';
 });
 
 setInterval(loadData, 60000);
