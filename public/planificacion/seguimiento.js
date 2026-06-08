@@ -71,34 +71,44 @@ function orderStatus(o) {
 }
 
 function buildSteps(o) {
-    const steps = Array.isArray(o.steps) ? o.steps : [];
-    return steps.filter(s => {
-        if (!s || !s.processKey) return false;
-        const key = norm(s.processKey);
-        if (key === 'orden_creada' || key === 'solicitud_vendedor' || key === 'planeacion') return false;
-        return true;
+    const cl = Array.isArray(o.processChecklist) ? o.processChecklist : [];
+    const lr = Array.isArray(o.processLoadSummary) ? o.processLoadSummary : [];
+    const sel = cl.filter(p => p.selected || p.base || p.quoted);
+    return sel.map((p, i) => {
+        const l = lr.find(r => r.processKey === p.key) || {};
+        return {
+            key: p.key,
+            label: LABELS[p.key] || p.label || p.key,
+            icon: ICONS[p.key] || '·',
+            status: p.status || (i === 0 ? 'active' : 'pending'),
+            endDate: l.endDate || null,
+            machine: l.machineName || p.machineName || null,
+            hrs: l.durationHours ? Math.round(l.durationHours) : null,
+            ordersAhead: l.ordersAhead ?? null,
+            daysAhead: l.daysAhead ?? null,
+            quoted: p.quoted
+        };
     });
 }
 
 function calcPct(steps) {
     if (!steps.length) return 0;
-    const done = steps.filter(s => (s.routeStatus || '').toUpperCase() === 'COMPLETADO').length;
-    const active = steps.filter(s => ['RUN','SETUP'].includes((s.routeStatus || '').toUpperCase())).length;
+    const done = steps.filter(s => s.status === 'done' || s.status === 'complete').length;
+    const active = steps.filter(s => s.status === 'active' || s.status === 'running').length;
     return Math.round((done + active * .5) / steps.length * 100);
 }
 
 function currentProcLabel(steps) {
-    const a = steps.find(s => ['RUN','SETUP'].includes((s.routeStatus || '').toUpperCase()));
-    if (a) return a.processName || LABELS[a.processKey] || a.processKey;
-    const p = steps.find(s => (s.routeStatus || '').toUpperCase() === 'PENDIENTE');
-    return p ? `Siguiente: ${p.processName || LABELS[p.processKey] || p.processKey}` : 'Terminada';
+    const a = steps.find(s => s.status === 'active' || s.status === 'running');
+    if (a) return a.label || a.key;
+    const p = steps.find(s => s.status === 'pending');
+    return p ? `Siguiente: ${p.label || p.key}` : 'Terminada';
 }
 
 function trackingStepStatus(step) {
-    const s = (step.routeStatus || '').toUpperCase();
-    if (s === 'COMPLETADO') return 'done';
-    if (s === 'RUN' || s === 'SETUP') return 'active';
-    if (s === 'PARO') return 'late';
+    const s = (step.status || step.routeStatus || '').toUpperCase();
+    if (s === 'DONE' || s === 'COMPLETE' || s === 'COMPLETADO') return 'done';
+    if (s === 'ACTIVE' || s === 'RUNNING' || s === 'RUN' || s === 'SETUP') return 'active';
     return 'pending';
 }
 
@@ -162,14 +172,14 @@ function renderProcessRow(s) {
     const state = trackingStepStatus(s);
     const cls = state === 'done' ? 'done' : state === 'active' ? 'active' : 'pending';
     const pct = state === 'done' ? 100 : state === 'active' ? 55 : 0;
-    const hrs = s.planned?.minutes ? `${Math.round(s.planned.minutes / 60)}h` : '';
+    const hrs = s.hrs ? `${s.hrs}h` : '';
     const stLabel = {done:'Listo',active:'En proceso',pending:'Pendiente',late:'Atrasado'}[cls] || cls;
     return `<div class="process-row">
-      <div class="process-name-cell"><div class="process-icon ${cls}">${esc(ICONS[s.processKey] || '·')}</div>
-        <div><div class="process-label">${esc(s.processName || LABELS[s.processKey] || s.processKey)}</div></div></div>
+      <div class="process-name-cell"><div class="process-icon ${cls}">${esc(s.icon || '·')}</div>
+        <div><div class="process-label">${esc(s.label || s.key)}</div></div></div>
       <div class="duration-cell"><div class="duration-track"><div class="duration-fill ${cls}" style="width:${pct}%"></div></div>${hrs ? `<div class="duration-hours">${esc(hrs)}</div>` : ''}</div>
-      <div class="process-date-cell">${esc(s.completedAt ? fmtShort(s.completedAt) : s.startedAt ? fmtShort(s.startedAt) : '—')}</div>
-      <div class="process-machine-cell">${esc(s.planned?.machineName || '—')}</div>
+      <div class="process-date-cell">${esc(s.endDate ? fmtShort(s.endDate) : '—')}</div>
+      <div class="process-machine-cell">${esc(s.machine || '—')}</div>
       <div><span class="ps-badge ${cls}"><span class="ps-dot"></span>${esc(stLabel)}</span></div>
     </div>`;
 }
@@ -190,7 +200,7 @@ function renderOrderCard(o) {
 
     const pips = steps.slice(0, 8).map(s => {
         const sc = trackingStepStatus(s);
-        return `<div class="step-pip ${sc}" title="${esc(s.processName || LABELS[s.processKey] || '')}"></div>`;
+        return `<div class="step-pip ${sc}" title="${esc(s.label || s.key)}"></div>`;
     }).join('');
 
     const impactTag = imp ? `<span class="impact-tag">↑${imp.days}d · ${fmtShort(imp.newDate)}</span>` : '';
@@ -280,15 +290,14 @@ function hasPendingStep(order, processKey) {
     if (!processKey) return true;
     const steps = buildSteps(order);
     const filterKey = processKey.replace(/[\s_]+/g, '').toLowerCase();
-    // Encontrar el primer paso NO completado (proceso actual activo/pendiente)
     for (const step of steps) {
-        const status = (step.routeStatus || '').toUpperCase();
-        if (status !== 'COMPLETADO') {
-            const key = norm(step.processKey || '').replace(/[\s_]+/g, '');
+        const status = (step.status || step.routeStatus || '').toUpperCase();
+        if (status !== 'DONE' && status !== 'COMPLETE' && status !== 'COMPLETADO') {
+            const key = norm(step.key || step.processKey || '').replace(/[\s_]+/g, '');
             return key === filterKey;
         }
     }
-    return false; // todos completados
+    return false;
 }
 
 function renderAll() {
@@ -341,7 +350,7 @@ function renderSemaforo(orders) {
         const daysLabel = days === null ? '' : days < 0 ? `Hace ${Math.abs(days)}d` : days === 0 ? 'Hoy' : `En ${days}d`;
         const pips = steps.slice(0, 12).map(s => {
             const sc = trackingStepStatus(s);
-            return `<div class="sem-stage ${sc}" title="${esc(s.processName || LABELS[s.processKey] || '')}"></div>`;
+            return `<div class="sem-stage ${sc}" title="${esc(s.label || s.key)}"></div>`;
         }).join('');
         return `<div class="sem-row ${rowCls}${imp ? ' has-impact' : ''}" data-action="open-drawer" data-order="${esc(o.orderCode)}">
       <div>
@@ -391,7 +400,7 @@ function renderKanban(orders) {
             const daysLabel = days === null ? '' : days < 0 ? `hace ${Math.abs(days)}d` : days === 0 ? 'Hoy' : `${days}d`;
             const pips = steps.slice(0, 8).map(s => {
                 const sc = trackingStepStatus(s);
-                return `<div class="kc-pip ${sc}" title="${esc(s.processName || LABELS[s.processKey] || '')}"></div>`;
+                return `<div class="kc-pip ${sc}" title="${esc(s.label || s.key)}"></div>`;
             }).join('');
             return `<div class="kanban-card ${rowCls}${imp ? ' has-impact' : ''}" data-action="open-drawer" data-order="${esc(o.orderCode)}">
         <div class="kc-code">${esc(o.orderCode)}${imp ? `<span class="impact-tag" style="font-size:9px;padding:1px 5px;margin-left:5px">+${imp.days}d</span>` : ''}</div>
@@ -428,10 +437,10 @@ function openDrawer(code) {
     const steps = buildSteps(order);
     document.getElementById('drawerProcesses').innerHTML = steps.length
         ? steps.map(s => `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);font-size:12px">
-            <span style="font-size:14px">${esc(ICONS[s.processKey] || '·')}</span>
-            <span style="flex:1;font-weight:500;color:var(--text)">${esc(s.processName || LABELS[s.processKey] || s.processKey)}</span>
-            ${s.planned?.minutes ? `<span style="color:var(--text3);font-family:'DM Mono',monospace;font-size:11px">${Math.round(s.planned.minutes / 60)}h</span>` : ''}
-            ${s.planned?.machineName ? `<span style="color:var(--text3);font-size:11px">${esc(s.planned.machineName)}</span>` : ''}
+            <span style="font-size:14px">${esc(s.icon || ICONS[s.key] || '·')}</span>
+            <span style="flex:1;font-weight:500;color:var(--text)">${esc(s.label || s.key)}</span>
+            ${s.hrs ? `<span style="color:var(--text3);font-family:'DM Mono',monospace;font-size:11px">${s.hrs}h</span>` : ''}
+            ${s.machine ? `<span style="color:var(--text3);font-size:11px">${esc(s.machine)}</span>` : ''}
           </div>`).join('')
         : '<div style="color:var(--text3);font-size:12px;padding:8px">No hay procesos configurados en esta orden.</div>';
 

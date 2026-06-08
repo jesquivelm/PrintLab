@@ -14990,6 +14990,26 @@ app.get('/api/planificacion/seguimiento', async (req, res) => {
             const widthInches = Number(lineSnapshot.widthInches || lineRaw['DIMENSIONES ETIQUETA | ANCHO'] || 0);
             const lengthInches = Number(lineSnapshot.lengthInches || lineRaw['DIMENSIONES ETIQUETA | LARGO'] || 0);
             const tintCount = Number(lineSnapshot.tintCount || lineSnapshot.pantoneCount || lineRaw['CANTIDAD TINTAS'] || 0);
+            const quotedKeys = getQuotedPlanningProcessKeys(row);
+            const quotedSet = new Set(quotedKeys);
+            const processChecklist = processKeys.map(key => ({
+                key,
+                selected: true,
+                quoted: quotedSet.has(key),
+                base: PLANNING_BASE_PROCESS_KEYS.includes(key)
+            }));
+            const processLoadSummary = processKeys.map(key => {
+                const route = routeByKey.get(key);
+                return {
+                    processKey: key,
+                    processName: PRODUCTION_FLOW_LABELS[key] || (route ? route.process_name : PLANNING_PROCESS_LABELS[key]) || key,
+                    machineName: route ? (route.machine_name || '') : '',
+                    endDate: route ? (route.actual_end_at || null) : null,
+                    durationHours: route ? (Number(route.duration_hours || 0)) : 0,
+                    ordersAhead: null,
+                    daysAhead: null
+                };
+            });
             return {
                 orderCode: row.order_code,
                 quoteCode: row.quote_code || '',
@@ -15010,6 +15030,8 @@ app.get('/api/planificacion/seguimiento', async (req, res) => {
                 productionEndDate: planning.productionEndDate,
                 planningStatus: planning.planningStatus,
                 finishSummary: planningFinishLabelsFromOrder(row).join(' · '),
+                processChecklist,
+                processLoadSummary,
                 steps
             };
         }));
