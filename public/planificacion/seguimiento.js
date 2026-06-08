@@ -1,6 +1,6 @@
 const API = '/api';
-const LABELS = {diseno:'Diseno',preprensa:'Preprensa',impresion:'Impresion',laminado:'Laminado',troquelado:'Troquelado',estampado:'Estampado',barnizado:'Barniz',embosado:'Embosado',numeracion:'Numeracion',rebobinado:'Rebobinado',empaque:'Empaque',inventario_salida:'Salida'};
-const ICONS = {diseno:'✏',preprensa:'■',impresion:'■',laminado:'◧',troquelado:'◈',estampado:'◆',barnizado:'◐',embosado:'◉',numeracion:'#',rebobinado:'↻',empaque:'□',inventario_salida:'↑'};
+const LABELS = {diseno:'Diseno',preprensa:'Preprensa',impresion:'Impresion',laminado:'Laminado',troquelado:'Troquelado',estampado:'Estampado',barnizado:'Barniz',embosado:'Embosado',numeracion:'Numeracion',rebobinado:'Rebobinado',empaque:'Empaque'};
+const ICONS = {diseno:'✏',preprensa:'■',impresion:'■',laminado:'◧',troquelado:'◈',estampado:'◆',barnizado:'◐',embosado:'◉',numeracion:'#',rebobinado:'↻',empaque:'□'};
 const WORK_HRS = 8;
 const WORK_DAYS = new Set([1,2,3,4,5,6]);
 const Q_FACTOR = {normal:1, premium:.45, urgent:.05};
@@ -438,6 +438,7 @@ function openDrawer(code) {
     document.getElementById('drawerOverlay').classList.add('open');
     document.getElementById('drawer').classList.add('open');
     document.body.style.overflow = 'hidden';
+    setTimeout(runCalc, 200);
 }
 
 function closeDrawer() {
@@ -670,7 +671,7 @@ function renderFlowPanel(box, steps, hist) {
 
         tlHtml += `<div class="flow-tl-row">
       <div class="flow-tl-left">
-        <div class="${nodeCls}">${nodeInner}</div>
+        <button type="button" class="${nodeCls}" data-flow-step-index="${i}"${isDone ? ' disabled' : ''}>${nodeInner}</button>
         ${connector}
       </div>
       <div class="flow-tl-content">
@@ -773,6 +774,33 @@ document.addEventListener('click', (e) => {
         flipCard(flipBtn.dataset.order);
         return;
     }
+    const stepBtn = e.target.closest('[data-flow-step-index]');
+    if (stepBtn) {
+        e.stopPropagation();
+        const idx = parseInt(stepBtn.dataset.flowStepIndex, 10);
+        const box = stepBtn.closest('[id^="flow-"]');
+        if (!box || isNaN(idx)) return;
+        const code = box.id.replace('flow-', '');
+        const steps = flowCache[code];
+        if (!steps || !steps[idx]) return;
+        const step = steps[idx];
+        const isDone = String(step.routeStatus || '').toUpperCase() === 'COMPLETADO';
+        stepBtn.disabled = true;
+        const prevText = stepBtn.innerHTML;
+        stepBtn.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px"></span>';
+        fetch(`${API}/ordenes-produccion/${encodeURIComponent(code)}/seguimiento/marca`, {
+            method: 'POST',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, sessionHeader()),
+            body: JSON.stringify({ processKey: step.processKey, marked: !isDone })
+        }).then(r => r.json()).then(() => {
+            delete flowCache[code];
+            loadFlowPanel(code);
+        }).catch(() => {
+            stepBtn.disabled = false;
+            stepBtn.innerHTML = prevText;
+        });
+        return;
+    }
 });
 
 document.querySelectorAll('.priority-opt').forEach(el => {
@@ -817,20 +845,25 @@ function toggleTheme() {
     root.style.colorScheme = next;
 }
 
-// ── Cargar usuario ─────────────────────────────────────────
-(function() {
-    try {
-        const raw = localStorage.getItem('erp-user-session') || sessionStorage.getItem('erp-user-session');
-        if (raw) {
-            const session = JSON.parse(raw);
-            const name = session.username || session.fullname || session.email || 'Usuario';
-            document.getElementById('userBadgeName').textContent = name;
-        }
-    } catch (_) {}
-})();
-document.getElementById('userBadgeBtn')?.addEventListener('click', () => {
-    if (confirm('Cerrar sesion?')) {
-        try { localStorage.removeItem('erp-user-session'); sessionStorage.removeItem('erp-user-session'); } catch (_) {}
-        window.location.href = '/login';
-    }
-});
+// ── Sesión para APIs ───────────────────────────────────────
+function sessionHeader() {
+    var raw;
+    try { raw = localStorage.getItem('erp-user-session'); } catch (_) {}
+    if (!raw) return {};
+    var s;
+    try { s = JSON.parse(raw); } catch (_) { return {}; }
+    return {
+        'x-erp-session': JSON.stringify({
+            id: s.id || s.userId || s.sessionId || '',
+            userId: s.userId || s.id || '',
+            username: s.username || s.user || '',
+            user: s.user || s.username || '',
+            name: s.fullName || s.name || s.user || s.username || '',
+            fullName: s.fullName || s.name || '',
+            photoUrl: s.photoUrl || s.photo_url || '',
+            permissionName: s.permissionName || ''
+        })
+    };
+}
+
+// ── Fin ─────────────────────────────────────────────────────

@@ -1491,7 +1491,6 @@ const DEFAULT_COSTS_CONFIG = {
             { key: 'troquelado', label: 'Troquelado', active: false, createEnabled: false, locked: false, repeatable: false, order: 73, minimumCost: 0, timeBufferMinutes: 0, capacityMinutes: 480 },
             { key: 'rebobinado', label: 'Rebobinado', active: false, createEnabled: true, locked: false, repeatable: false, order: 74, minimumCost: 0, timeBufferMinutes: 0, capacityMinutes: 480 },
             { key: 'empaque', label: 'Empaque', active: false, createEnabled: true, locked: false, repeatable: false, order: 80, minimumCost: 0, timeBufferMinutes: 0, capacityMinutes: 480 },
-            { key: 'inventario_salida', label: 'Salida de inventario', active: true, createEnabled: true, locked: false, repeatable: false, order: 85, minimumCost: 0, timeBufferMinutes: 0, capacityMinutes: 480 },
             { key: 'adicionales', label: 'Procesos adicionales', active: false, createEnabled: false, locked: false, repeatable: false, order: 90, minimumCost: 0, timeBufferMinutes: 0, capacityMinutes: 480 }
         ]
     },
@@ -3135,16 +3134,13 @@ function normalizeCostsConfigRecord(config) {
             if (!key || !fallback || seen.has(key)) return null;
             seen.add(key);
             const locked = ['macula', 'troquel'].includes(key) ? true : (row?.locked === true || String(row?.locked || '').trim().toLowerCase() === 'true');
-            const mandatoryGantt = key === 'inventario_salida';
-            const active = (locked || mandatoryGantt) ? true : (row?.active === true || String(row?.active || '').trim().toLowerCase() === 'true');
+            const active = locked ? true : (row?.active === true || String(row?.active || '').trim().toLowerCase() === 'true');
             const createEnabled = key === 'macula'
                 ? true
                 : (row?.createEnabled === true || row?.create === true || String(row?.createEnabled ?? row?.create ?? fallback.createEnabled ?? '').trim().toLowerCase() === 'true');
             const repeatable = row?.repeatable === true || String(row?.repeatable || '').trim().toLowerCase() === 'true';
             const hasGanttEnabled = row?.ganttEnabled !== undefined && row?.ganttEnabled !== null;
-            const ganttEnabled = mandatoryGantt
-                ? true
-                : hasGanttEnabled
+            const ganttEnabled = hasGanttEnabled
                 ? (row?.ganttEnabled === true || String(row?.ganttEnabled || '').trim().toLowerCase() === 'true')
                 : active;
             return {
@@ -3164,15 +3160,14 @@ function normalizeCostsConfigRecord(config) {
         fallbackRows.forEach((item, index) => {
             const key = String(item.key || '').trim().toLowerCase();
             if (!key || seen.has(key)) return;
-            const mandatoryGantt = key === 'inventario_salida';
             normalized.push({
                 key,
                 label: String(item.label || '').trim(),
-                active: (item.locked || mandatoryGantt) ? true : Boolean(item.active),
-                createEnabled: key === 'macula' ? true : Boolean(item.createEnabled && (item.locked || item.active || mandatoryGantt)),
+                active: Boolean(item.active),
+                createEnabled: key === 'macula' ? true : Boolean(item.createEnabled && (item.locked || item.active)),
                 locked: Boolean(item.locked),
                 repeatable: Boolean(item.repeatable),
-                ganttEnabled: mandatoryGantt ? true : (item.ganttEnabled === undefined ? Boolean(item.active) : Boolean(item.ganttEnabled)),
+                ganttEnabled: item.ganttEnabled === undefined ? Boolean(item.active) : Boolean(item.ganttEnabled),
                 order: Number(item.order || ((index + 1) * 10)),
                 minimumCost: Math.max(0, Number(item.minimumCost || 0)),
                 timeBufferMinutes: Math.max(0, Number(item.timeBufferMinutes || 0)),
@@ -7148,8 +7143,7 @@ const PLANNING_CLASSIFICATION_PROCESS_KEYS = Object.freeze([
     'embosado',
     'numeracion',
     'rebobinado',
-    'empaque',
-    'inventario_salida'
+    'empaque'
 ]);
 
 const PLANNING_BASE_PROCESS_KEYS = Object.freeze(['rebobinado', 'empaque']);
@@ -7169,8 +7163,7 @@ const PLANNING_PROCESS_LABELS = Object.freeze({
     embosado: 'Embosado',
     numeracion: 'Numeración',
     rebobinado: 'Rebobinado',
-    empaque: 'Empaque',
-    inventario_salida: 'Salida de inventario'
+    empaque: 'Empaque'
 });
 
 const PRODUCTION_FLOW_SEQUENCE = Object.freeze([
@@ -7187,8 +7180,7 @@ const PRODUCTION_FLOW_SEQUENCE = Object.freeze([
     'embosado',
     'numeracion',
     'rebobinado',
-    'empaque',
-    'inventario_salida'
+    'empaque'
 ]);
 
 const PRODUCTION_FLOW_LABELS = Object.freeze({
@@ -7205,8 +7197,7 @@ const PRODUCTION_FLOW_LABELS = Object.freeze({
     embosado: 'Embosado',
     numeracion: 'Numeración',
     rebobinado: 'Rebobinado',
-    empaque: 'Empaque',
-    inventario_salida: 'Salida de inventario'
+    empaque: 'Empaque'
 });
 
 function canonicalProductionFlowKey(value) {
@@ -7243,7 +7234,6 @@ function canonicalPlanningProcessKey(value) {
     if (key.includes('numer')) return 'numeracion';
     if (key.includes('rebobin')) return 'rebobinado';
     if (key.includes('empaque') || key.includes('packing')) return 'empaque';
-    if (key.includes('inventario') || key.includes('despacho')) return 'inventario_salida';
     return key;
 }
 
@@ -7688,7 +7678,7 @@ function processOrderFromCosts(costsConfig = {}) {
     return order;
 }
 
-const ORDER_TRACKING_MANDATORY_PROCESS_KEYS = Object.freeze(['preprensa', 'visto_bueno', 'rebobinado', 'empaque', 'inventario_salida']);
+const ORDER_TRACKING_MANDATORY_PROCESS_KEYS = Object.freeze(['preprensa', 'visto_bueno', 'rebobinado', 'empaque']);
 const ORDER_TRACKING_HIDDEN_PROCESS_KEYS = new Set(['macula', 'troquel', 'sustrato', 'tintas', 'acabados']);
 const ORDER_TRACKING_EXTERNAL_FINISH_KEYS = new Set(['acabados', 'barnizado', 'laminado', 'troquelado', 'estampado', 'embosado', 'numeracion']);
 
@@ -8528,8 +8518,7 @@ async function ensurePlanningSchema() {
         { processKey: 'embosado', processName: 'Embosado', sequenceOrder: 12, colorHex: '#A855F7', iconKey: '[EMB]', isParallel: false },
         { processKey: 'numeracion', processName: 'Numeración', sequenceOrder: 13, colorHex: '#D97706', iconKey: '[NUM]', isParallel: false },
         { processKey: 'rebobinado', processName: 'Rebobinado', sequenceOrder: 14, colorHex: '#F97316', iconKey: '[R]', isParallel: false },
-        { processKey: 'empaque', processName: 'Empaque', sequenceOrder: 15, colorHex: '#10B981', iconKey: '[EMP]', isParallel: false },
-        { processKey: 'inventario_salida', processName: 'Salida de inventario', sequenceOrder: 16, colorHex: '#64748B', iconKey: '[INV]', isParallel: false }
+        { processKey: 'empaque', processName: 'Empaque', sequenceOrder: 15, colorHex: '#10B981', iconKey: '[EMP]', isParallel: false }
     ];
     seededProcesses.forEach((row) => {
         if (!processRegistry.has(row.processKey)) {

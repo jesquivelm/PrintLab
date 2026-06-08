@@ -30,8 +30,7 @@ const PROCESS_LABELS = {
     embosado: 'Embosado',
     numeracion: 'Numeración',
     rebobinado: 'Rebobinado',
-    empaque: 'Empaque',
-    inventario_salida: 'Salida de inventario'
+    empaque: 'Empaque'
 };
 
 let planningItems = [];
@@ -429,10 +428,9 @@ const TRACKING_PROCESS_ICONS = {
     visto_bueno: '✓',
     impresion: '▣',
     rebobinado: '↻',
-    empaque: '□',
-    inventario_salida: '↑'
+    empaque: '□'
 };
-const TRACKING_HIDDEN_PROCESS_KEYS = new Set(['inventario_salida', 'planchas', 'tintas']);
+const TRACKING_HIDDEN_PROCESS_KEYS = new Set(['planchas', 'tintas']);
 
 function visibleTrackingSteps(steps = []) {
     return steps.filter((step) => !TRACKING_HIDDEN_PROCESS_KEYS.has(step.processKey));

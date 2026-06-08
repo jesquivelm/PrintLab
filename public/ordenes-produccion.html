@@ -4,54 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/theme.js"></script>
-    <title>Órdenes de Producción</title>
+    <title>Ordenes de Produccion</title>
     <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
     <main class="workspace workspace-quote quote-browser-main">
-        <section class="quote-card quote-card-clean quote-browser-card quote-browser-card-orders orders-tracking-shell">
-            <div class="orders-tracking-summary" id="ordersSummary"></div>
-            <div class="quote-browser-search-row orders-tracking-toolbar">
-                <div class="orders-filter-pills" id="ordersFilterPills">
-                    <button type="button" class="orders-filter-pill active" data-filter="all">Todas <span id="ordersCountAll">0</span></button>
-                    <button type="button" class="orders-filter-pill" data-filter="late">Atrasadas <span id="ordersCountLate">0</span></button>
-                    <button type="button" class="orders-filter-pill" data-filter="risk">Riesgo <span id="ordersCountRisk">0</span></button>
-                    <button type="button" class="orders-filter-pill" data-filter="running">En proceso <span id="ordersCountRunning">0</span></button>
-                </div>
+        <section class="quote-card quote-card-clean quote-browser-card quote-browser-card-orders">
+            <div class="quote-browser-search-row">
                 <div class="quote-browser-search-wrap">
-                    <input id="ordersSearchInput" class="copy-popover-search quote-browser-search" type="search" placeholder="Buscar por orden, cotización o cliente">
-                </div>
-                <button type="button" id="ordersRefreshButton" class="orders-refresh-btn" aria-label="Actualizar seguimiento">Actualizar</button>
-                <span id="ordersRefreshStatus" class="orders-refresh-status" aria-live="polite"></span>
-                <select id="ordersSortSelect" class="orders-sort-select" aria-label="Ordenar órdenes">
-                    <option value="date">Fecha</option>
-                    <option value="status">Estado</option>
-                    <option value="progress">Progreso</option>
-                    <option value="code">Orden</option>
-                </select>
-                <div class="orders-view-switcher" aria-label="Vista de órdenes">
-                    <button type="button" class="orders-view-btn active" data-view="list">Lista</button>
-                    <button type="button" class="orders-view-btn" data-view="sem">Semáforo</button>
-                    <button type="button" class="orders-view-btn" data-view="kanban">Kanban</button>
+                    <input id="ordersSearchInput" class="copy-popover-search quote-browser-search" type="search" placeholder="Buscar por orden, cotizacion o cliente">
                 </div>
             </div>
-            <div id="ordersListView" class="orders-card-list"></div>
-            <div id="ordersSemaforoView" class="orders-semaforo-list" hidden></div>
-            <div id="ordersKanbanView" class="orders-kanban-board" hidden>
-                <section class="orders-kanban-column">
-                    <div class="orders-kanban-head"><span class="orders-kanban-dot ok"></span><strong>En cola</strong><em id="ordersKanbanOk">0</em></div>
-                    <div class="orders-kanban-cards" data-kanban-column="ok"></div>
-                </section>
-                <section class="orders-kanban-column">
-                    <div class="orders-kanban-head"><span class="orders-kanban-dot running"></span><strong>En proceso</strong><em id="ordersKanbanRunning">0</em></div>
-                    <div class="orders-kanban-cards" data-kanban-column="running"></div>
-                </section>
-                <section class="orders-kanban-column">
-                    <div class="orders-kanban-head"><span class="orders-kanban-dot alert"></span><strong>Atención requerida</strong><em id="ordersKanbanAlert">0</em></div>
-                    <div class="orders-kanban-cards" data-kanban-column="alert"></div>
-                </section>
-            </div>
-            <div class="copy-popover-table-wrap quote-browser-table-wrap" hidden>
+            <div class="copy-popover-table-wrap quote-browser-table-wrap">
                 <table class="copy-popover-table quote-browser-table">
                     <thead>
                         <tr>
@@ -69,38 +33,6 @@
             </div>
         </section>
     </main>
-    <div id="ordersEstimateDrawer" class="orders-estimate-drawer" hidden>
-        <div class="orders-estimate-backdrop" data-estimate-action="close"></div>
-        <aside class="orders-estimate-panel" aria-label="Estimación de entrega">
-            <button type="button" class="orders-estimate-close" data-estimate-action="close" aria-label="Cerrar">×</button>
-            <div class="orders-estimate-head">
-                <span>Fecha estimada</span>
-                <strong id="estimateOrderCode">Orden</strong>
-                <em id="estimateOrderMeta"></em>
-            </div>
-            <div class="orders-estimate-section">
-                <div class="orders-estimate-label">Prioridad del cliente</div>
-                <div class="orders-priority-grid">
-                    <button type="button" class="orders-priority-option is-selected" data-priority="normal"><strong>Normal</strong><span>Cola estándar</span></button>
-                    <button type="button" class="orders-priority-option" data-priority="cliente_a"><strong>Cliente A</strong><span>Reduce la cola</span></button>
-                    <button type="button" class="orders-priority-option" data-priority="urgente"><strong>Urgente</strong><span>Siguiente ranura</span></button>
-                </div>
-            </div>
-            <div class="orders-estimate-section">
-                <label class="orders-estimate-label" for="estimateBufferInput">Colchón de días hábiles después de finalizar</label>
-                <div class="orders-buffer-row">
-                    <input id="estimateBufferInput" type="range" min="0" max="5" value="2">
-                    <strong id="estimateBufferValue">+2 días</strong>
-                </div>
-                <p>Este margen cubre inventario de producto terminado, procesamiento, facturación y entrega interna antes de comprometer la fecha al cliente.</p>
-            </div>
-            <div id="estimateResultBox" class="orders-estimate-result"></div>
-            <div class="orders-estimate-actions">
-                <button type="button" class="action-btn" data-estimate-action="close">Cancelar</button>
-                <button type="button" class="action-btn action-btn-primary" id="estimateSaveButton">Guardar en la orden</button>
-            </div>
-        </aside>
-    </div>
     <script src="/access-control.js"></script>
     <script src="/ordenes-produccion.js"></script>
 </body>

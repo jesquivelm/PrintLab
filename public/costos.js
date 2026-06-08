@@ -18,7 +18,6 @@ const PROCESS_DEFAULTS = [
     { key: "troquelado", label: "Troquelado", active: false, createEnabled: false, locked: false, repeatable: false, order: 73 },
     { key: "rebobinado", label: "Rebobinado", active: false, createEnabled: true, locked: false, repeatable: false, order: 74 },
     { key: "empaque", label: "Empaque", active: false, createEnabled: true, locked: false, repeatable: false, order: 80 },
-    { key: "inventario_salida", label: "Salida de inventario", active: true, createEnabled: true, locked: false, repeatable: false, order: 85 },
     { key: "adicionales", label: "Procesos adicionales", active: false, createEnabled: false, locked: false, repeatable: false, order: 90 }
 ];
 
@@ -296,8 +295,7 @@ function normalizeProcessDefaults(value) {
         if (!fallback || seen.has(key)) return null;
         seen.add(key);
         const locked = ["macula", "troquel"].includes(key) ? true : booleanValue(row?.locked, fallback.locked);
-        const mandatoryGantt = key === "inventario_salida";
-        const active = (locked || mandatoryGantt) ? true : booleanValue(row?.active, fallback.active);
+        const active = locked ? true : booleanValue(row?.active, fallback.active);
         const createEnabled = key === "macula" ? true : booleanValue(row?.createEnabled ?? row?.create, fallback.createEnabled);
         const repeatable = booleanValue(row?.repeatable, fallback.repeatable);
         return {
