@@ -46,7 +46,7 @@ const DASHBOARD_CARDS = [
 ];
 const INVENTORY_CARD_ROUTE = '/inventario-materiales';
 const INVENTORY_OPTIONS = [
-    { route: '/inventario-maquinas', label: 'Inventario de Maquinas', modules: ['inventario-maquinaria'] },
+    { route: '/inventario-maquinas', label: 'Inventario de Máquinas', modules: ['inventario-maquinaria'] },
     { route: '/inventario-materiales', label: 'Inventario de Materia Prima', modules: ['inventario-mp'] },
     { route: '/inventario-troqueles', label: 'Inventario de Troqueles', modules: ['inventario-troqueles'] }
 ];

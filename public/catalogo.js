@@ -18,9 +18,6 @@ const catalogImportButton = document.getElementById('catalogImportButton');
 const catalogExportButton = document.getElementById('catalogExportButton');
 const catalogBackButton = document.getElementById('catalogBackButton');
 const catalogImportInput = document.getElementById('catalogImportInput');
-const machineCapabilitiesSection = document.getElementById('machineCapabilitiesSection');
-const machineCapabilitiesList = document.getElementById('machineCapabilitiesList');
-const addCapabilityButton = document.getElementById('addCapabilityButton');
 const catalogHeaderSearchButton = document.getElementById('catalogHeaderSearchButton');
 const catalogMenuToggle = document.getElementById('catalogMenuToggle');
 const catalogMenuPanel = document.getElementById('catalogMenuPanel');
@@ -1633,52 +1630,11 @@ function renderDetailPreview(item) {
     `;
 }
 
-function renderCapabilities() {
-    machineCapabilitiesList.innerHTML = '';
-    if (!capabilitiesState.length) {
-        const empty = document.createElement('div');
-        empty.className = 'inventory-empty-note';
-        empty.textContent = 'Sin procesos definidos para esta máquina.';
-        machineCapabilitiesList.appendChild(empty);
-        return;
-    }
-
-    capabilitiesState.forEach((capacity, index) => {
-        const card = document.createElement('div');
-        card.className = 'machine-capability-card';
-        card.innerHTML = `
-            <div class="machine-capability-header">
-                <strong>${index === 0 ? 'Capacidad principal' : `Proceso ${index + 1}`}</strong>
-                <button type="button" class="action-btn" data-remove-capacity="${index}">Quitar</button>
-            </div>
-            <div class="config-form-grid config-form-grid-wide">
-                <label><span>Clasificación</span><input type="text" data-capacity="${index}" data-key="clasificacion" value="${escapeHtml(capacity.clasificacion || '')}"></label>
-                <label><span>Proceso</span><input type="text" data-capacity="${index}" data-key="proceso" value="${escapeHtml(capacity.proceso || '')}"></label>
-                <label><span>Subproceso</span><input type="text" data-capacity="${index}" data-key="subproceso" value="${escapeHtml(capacity.subproceso || '')}"></label>
-                <label><span>Unidad trabajo</span><input type="text" data-capacity="${index}" data-key="unidad_trabajo" value="${escapeHtml(capacity.unidad_trabajo || '')}"></label>
-                <label><span>Setup</span><input type="number" step="0.01" data-capacity="${index}" data-key="tiempo_preparacion_general" value="${escapeHtml(capacity.tiempo_preparacion_general ?? 0)}"></label>
-                <label><span>Prep. adicional</span><input type="number" step="0.01" data-capacity="${index}" data-key="tiempo_adicional_preparacion" value="${escapeHtml(capacity.tiempo_adicional_preparacion ?? 0)}"></label>
-                <label><span>Montaje</span><input type="number" step="0.01" data-capacity="${index}" data-key="tiempo_por_estacion" value="${escapeHtml(capacity.tiempo_por_estacion ?? 0)}"></label>
-                <label><span>Factor por área</span><input type="number" step="0.01" data-capacity="${index}" data-key="factor_proceso_por_area" value="${escapeHtml(capacity.factor_proceso_por_area ?? 0)}"></label>
-                <label><span>Velocidad producción</span><input type="number" step="0.01" data-capacity="${index}" data-key="velocidad_produccion" value="${escapeHtml(capacity.velocidad_produccion ?? 0)}"></label>
-                <label><span>Costo hora máquina</span><input type="number" step="0.01" data-capacity="${index}" data-key="costo_hora_maquina" value="${escapeHtml(capacity.costo_hora_maquina ?? 0)}"></label>
-                <label><span>Costo hora operario</span><input type="number" step="0.01" data-capacity="${index}" data-key="costo_hora_operario" value="${escapeHtml(capacity.costo_hora_operario ?? 0)}"></label>
-                <label><span>Fórmula tiempo</span><input type="text" data-capacity="${index}" data-key="formula_tiempo" value="${escapeHtml(capacity.formula_tiempo || '')}"></label>
-                <label><span>Fórmula costo</span><input type="text" data-capacity="${index}" data-key="formula_costo" value="${escapeHtml(capacity.formula_costo || '')}"></label>
-                <label class="inventory-checkbox-field"><span>Activa</span><input type="checkbox" data-capacity="${index}" data-key="activa" ${capacity.activa !== false ? 'checked' : ''}></label>
-            </div>
-        `;
-        machineCapabilitiesList.appendChild(card);
-    });
-}
-
 function renderForm(item) {
     if (isOutputTypesInventory()) {
         editorTitle.hidden = true;
         catalogForm.innerHTML = '';
-        machineCapabilitiesSection.hidden = true;
         capabilitiesState = [];
-        machineCapabilitiesList.innerHTML = '';
         renderDetailPreview(page.createEmptyItem());
         return;
     }
@@ -1719,13 +1675,9 @@ function renderForm(item) {
     renderDetailPreview(viewItem);
 
     if (page.inventoryKey === 'maquinas') {
-        machineCapabilitiesSection.hidden = false;
         capabilitiesState = Array.isArray(item.capacidades) ? item.capacidades.map((capacity) => ({ ...capacity })) : [];
-        renderCapabilities();
     } else {
-        machineCapabilitiesSection.hidden = true;
         capabilitiesState = [];
-        machineCapabilitiesList.innerHTML = '';
     }
 }
 
@@ -2120,12 +2072,6 @@ function closeCatalogSapImportPopover() {
     setCatalogSapImportPopoverStatus('', '');
 }
 
-function capacitiesStateSanity() {
-    if (!Array.isArray(capabilitiesState)) {
-        capabilitiesState = [];
-    }
-}
-
 function handleCatalogTouchAction(event, element, action) {
     if (!element || (event.pointerType !== 'touch' && event.pointerType !== 'pen')) return false;
     event.preventDefault();
@@ -2336,47 +2282,6 @@ catalogImportInput.addEventListener('change', () => {
     }).finally(() => {
         catalogImportInput.value = '';
     });
-});
-
-addCapabilityButton?.addEventListener('click', () => {
-    capabilitiesState.push({
-        clasificacion: 'produccion',
-        proceso: 'Produccion',
-        subproceso: '',
-        unidad_trabajo: 'pies',
-        tiempo_preparacion_general: 0,
-        tiempo_adicional_preparacion: 0,
-        tiempo_por_estacion: 0,
-        factor_proceso_por_area: 0,
-        velocidad_produccion: 0,
-        costo_hora_maquina: 0,
-        costo_hora_operario: 0,
-        formula_tiempo: '',
-        formula_costo: '',
-        activa: true
-    });
-    renderCapabilities();
-    scheduleCatalogAutosave('capacity-add');
-});
-
-machineCapabilitiesList?.addEventListener('input', (event) => {
-    const input = event.target;
-    const capacityIndex = Number(input.dataset.capacity);
-    const key = input.dataset.key;
-    if (!Number.isInteger(capacityIndex) || !key || !capabilitiesState[capacityIndex]) return;
-    capacitiesStateSanity();
-    capabilitiesState[capacityIndex][key] = input.type === 'checkbox' ? input.checked : input.value;
-    scheduleCatalogAutosave('capacity-input');
-});
-
-machineCapabilitiesList?.addEventListener('click', (event) => {
-    const button = event.target.closest('[data-remove-capacity]');
-    if (!button) return;
-    const index = Number(button.dataset.removeCapacity);
-    if (!Number.isInteger(index)) return;
-    capabilitiesState.splice(index, 1);
-    renderCapabilities();
-    scheduleCatalogAutosave('capacity-remove');
 });
 
 document.addEventListener('click', (event) => {
