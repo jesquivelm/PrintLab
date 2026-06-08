@@ -806,7 +806,7 @@ document.getElementById('ganttLink')?.addEventListener('click', (e) => {
 setInterval(loadData, 60000);
 loadData();
 
-// ── Floating theme toggle ──────────────────────────────────
+// ── Toggle tema ────────────────────────────────────────────
 function toggleTheme() {
     const root = document.documentElement;
     const current = root.dataset.themeMode === 'dark' ? 'dark' : 'light';
@@ -816,3 +816,21 @@ function toggleTheme() {
     root.dataset.theme = next;
     root.style.colorScheme = next;
 }
+
+// ── Cargar usuario ─────────────────────────────────────────
+(function() {
+    try {
+        const raw = localStorage.getItem('erp-user-session') || sessionStorage.getItem('erp-user-session');
+        if (raw) {
+            const session = JSON.parse(raw);
+            const name = session.username || session.fullname || session.email || 'Usuario';
+            document.getElementById('userBadgeName').textContent = name;
+        }
+    } catch (_) {}
+})();
+document.getElementById('userBadgeBtn')?.addEventListener('click', () => {
+    if (confirm('Cerrar sesion?')) {
+        try { localStorage.removeItem('erp-user-session'); sessionStorage.removeItem('erp-user-session'); } catch (_) {}
+        window.location.href = '/login';
+    }
+});

@@ -379,17 +379,14 @@ body{font-family:'DM Sans',system-ui,sans-serif;font-size:14px;color:var(--text)
 .loading-state{display:flex;align-items:center;justify-content:center;gap:10px;padding:48px;color:var(--text3)}
 .spinner{width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
 
-/* Floating button — dashboard-bdfg-button real */
-#themeFloatingBtn{position:fixed;top:16px;right:16px;z-index:5000;width:44px;min-width:44px;height:44px;min-height:44px;padding:0;border:0;border-radius:50%;background:radial-gradient(circle at 31% 21%,rgba(255,255,255,.92),color-mix(in srgb,var(--accent,#cbd5e1) 32%,transparent) 28%,color-mix(in srgb,var(--accent,#cbd5e1) 72%,transparent) 60%,var(--accent,#cbd5e1) 100%);color:#fff;box-shadow:0 8px 24px rgba(15,23,42,.12),inset 0 3px 8px rgba(255,255,255,.5),inset 0 -6px 12px rgba(0,0,0,.08);backdrop-filter:blur(12px) saturate(1.16);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:transform .28s cubic-bezier(0.34,1.56,0.64,1),box-shadow .28s ease,filter .28s ease;user-select:none;touch-action:none}
-#themeFloatingBtn:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(15,23,42,.16),inset 0 3px 8px rgba(255,255,255,.5),inset 0 -6px 12px rgba(0,0,0,.08);outline:none}
-#themeFloatingBtn:active{transform:scale(.98);filter:brightness(1.02)}
-#themeFloatingBtn .dashboard-bdfg-icon{transition:transform .3s cubic-bezier(0.34,1.56,0.64,1);display:inline-flex;width:32px;height:32px;align-items:center;justify-content:center;color:rgba(255,255,255,.98);filter:drop-shadow(0 2px 6px rgba(255,255,255,.18));pointer-events:none;user-select:none;position:relative}
-#themeFloatingBtn .dashboard-bdfg-icon svg{width:28px;height:28px;overflow:visible;pointer-events:none;position:absolute}
-#themeFloatingBtn .dashboard-bdfg-icon path{fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
-html[data-theme="dark"] #themeFloatingBtn .theme-icon-sun{display:none}
-html[data-theme="dark"] #themeFloatingBtn .theme-icon-moon{display:block}
-html[data-theme="light"] #themeFloatingBtn .theme-icon-moon{display:none}
-html[data-theme="light"] #themeFloatingBtn .theme-icon-sun{display:block}
+/* Theme toggle y usuario en header */
+.theme-hdr-btn{display:inline-flex;align-items:center;gap:4px;padding:6px 10px}
+.theme-hdr-btn svg{flex-shrink:0}
+html[data-theme="dark"] .theme-hdr-btn .theme-icon-sun{display:none}
+html[data-theme="dark"] .theme-hdr-btn .theme-icon-moon{display:inline-block}
+html[data-theme="light"] .theme-hdr-btn .theme-icon-moon{display:none}
+html[data-theme="light"] .theme-hdr-btn .theme-icon-sun{display:inline-block}
+#userBadgeBtn{display:inline-flex;align-items:center;gap:2px;padding:6px 10px;font-size:12px}
 
 @media(max-width:1100px){
   .order-head{grid-template-columns:160px 1fr auto auto auto}
@@ -416,17 +413,6 @@ html[data-theme="light"] #themeFloatingBtn .theme-icon-sun{display:block}
 </head>
 <body>
 
-<button type="button" class="dashboard-bdfg-button" id="themeFloatingBtn" aria-label="Cambiar tema claro/oscuro" onclick="toggleTheme()">
-  <span class="dashboard-bdfg-icon" aria-hidden="true">
-    <svg class="theme-icon-sun" viewBox="0 0 24 24" fill="none" width="24" height="24">
-      <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"/>
-      <path d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.364-6.364l-1.414 1.414M7.05 16.95l-1.414 1.414m12.728 0l-1.414-1.414M7.05 7.05L5.636 5.636" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-    </svg>
-    <svg class="theme-icon-moon" viewBox="0 0 24 24" fill="none" width="24" height="24" style="display:none">
-      <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-  </span>
-</button>
 <header class="hdr">
   <a class="hdr-logo" href="/planificacion/lanzamiento" data-route="/planificacion/lanzamiento" data-label="Planificación">
     <div class="hdr-logo-dot" id="liveIndicator"></div>
@@ -436,7 +422,15 @@ html[data-theme="light"] #themeFloatingBtn .theme-icon-sun{display:block}
   <span class="hdr-page">Seguimiento</span>
   <div class="hdr-right">
     <input class="hdr-search" type="search" id="searchInput" placeholder="Buscar orden, cliente...">
-    <a class="hdr-btn" id="ganttLink" href="/planificacion/gantt" target="_blank">Ver Gantt</a>
+    <a class="hdr-btn" id="ganttLink" href="/planificacion/gantt">Ver Gantt</a>
+    <button type="button" class="hdr-btn theme-hdr-btn" id="themeHdrBtn" onclick="toggleTheme()" title="Cambiar tema">
+      <svg class="theme-icon-sun" viewBox="0 0 24 24" fill="none" width="16" height="16"><circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"/><path d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.364-6.364l-1.414 1.414M7.05 16.95l-1.414 1.414m12.728 0l-1.414-1.414M7.05 7.05L5.636 5.636" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <svg class="theme-icon-moon" viewBox="0 0 24 24" fill="none" width="16" height="16" style="display:none"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button type="button" class="hdr-btn" id="userBadgeBtn" title="Cerrar sesion">
+      <span id="userBadgeIcon">👤</span>
+      <span id="userBadgeName" style="margin-left:4px">Cargando...</span>
+    </button>
     <button type="button" class="hdr-btn primary" id="refreshBtn">Actualizar</button>
   </div>
 </header>
