@@ -331,7 +331,7 @@ const ZOOM_CONFIG = {
   '2week':{ label: '15 días', hours: 360, slotW: 36,  granularity: 'day'      }
 };
 
-// Los únicos procesos que aparecen en el Gantt
+// Los únicos procesos que aparecen en el Gantt — en este orden exacto
 const GANTT_PROCESS_KEYS = ['diseno','preprensa','visto_bueno','impresion','rebobinado','empaque'];
 const searchParams = new URLSearchParams(window.location.search);
 const autoPlanRequested = searchParams.get('autoplan') === '1';
@@ -348,6 +348,7 @@ let conflictDrawerOpen = false;
 let currentView = 'pipeline'; // 'pipeline' | 'gantt'
 let pipelineFilter = '';
 let pipelineFilterEstado = '';
+let ganttFilter = ''; // buscador en Gantt
 const expandedProcessIds = new Set();
 const ROUTE_COLORS = ['#378ADD','#1D9E75','#BA7517','#E24B4A','#639922','#8B5CF6','#0EA5E9','#F59E0B','#64748B',''];
 
@@ -519,6 +520,8 @@ async function loadFromAPI() {
 
     const grupos = {};
     machines.forEach(m => {
+      // Normalizar: agregar _matchId con todos los posibles IDs para matching con orders.maquina
+      m._matchId = String(m.id_maquina || m.id || m.machine_profile_id || '');
       const processKey = (m.process_key || '').toLowerCase().trim();
       const costCfg = costsProcessOrder[processKey];
       if (costCfg && !costCfg.ganttEnabled) return;
@@ -702,8 +705,17 @@ function processDomKey(proc) {
   return String(proc?.id_proceso || proc?.nombre || 'sin-proceso');
 }
 
-function machineVisibleOps(machineId) {
-  return orders.filter(o => o.maquina === machineId && orderOverlapsVisible(o));
+function machineVisibleOps(machineMatchId) {
+  // orders.maquina puede ser machine_profile_id, id_maquina, o cualquier UUID de la API.
+  // Comparamos con _matchId que normalizamos al cargar.
+  return orders.filter(o => {
+    if (!orderOverlapsVisible(o)) return false;
+    return String(o.maquina || '') === String(machineMatchId || '');
+  });
+}
+
+function getMachineMatchId(m) {
+  return String(m._matchId || m.id_maquina || m.id || '');
 }
 
 function toggleConflicts() {
@@ -1161,6 +1173,17 @@ function renderGantt() {
       <button class="btn zoom-btn${zoomLevel==='week'?' zoom-active':''}"   data-zoom="week"  onclick="setZoom('week')">1 sem</button>
       <button class="btn zoom-btn${zoomLevel==='2week'?' zoom-active':''}"  data-zoom="2week" onclick="setZoom('2week')">15 días</button>
     </div>
+    <div style="display:flex;align-items:center;gap:5px;margin-left:8px;border-left:1px solid #e0e0da;padding-left:10px">
+      <input
+        class="pipeline-search"
+        type="text"
+        placeholder="Buscar orden, cliente, artículo…"
+        value="${escHtml(ganttFilter)}"
+        oninput="ganttFilter=this.value;renderGantt();requestAnimationFrame(()=>drawArrows())"
+        style="width:210px"
+      >
+      ${ganttFilter ? `<button class="btn" onclick="ganttFilter='';renderGantt();requestAnimationFrame(()=>drawArrows())" title="Limpiar búsqueda">✕</button>` : ''}
+    </div>
     <button class="btn" style="margin-left:auto" onclick="clearChain()">Limpiar selección</button>
     <span style="font-size:11px;color:#aaa">Arrastrá para mover · Click para ver cadena</span>
   </div>
@@ -1180,15 +1203,32 @@ function renderGantt() {
       </div>
     </div>`;
 
-  // Solo mostrar los procesos configurados para el Gantt
-  const ganttProcesos = procesos.filter(proc =>
-    GANTT_PROCESS_KEYS.some(k => normalizeProcessKey(proc.process_key || proc.nombre).includes(k) || k.includes(normalizeProcessKey(proc.process_key || proc.nombre)))
-  );
+  // Filtrar y reordenar estrictamente según GANTT_PROCESS_KEYS
+  const ganttProcesos = GANTT_PROCESS_KEYS
+    .map(gk => procesos.find(proc => {
+      const pk = normalizeProcessKey(proc.process_key || proc.nombre);
+      return pk === gk || pk.includes(gk) || gk.includes(pk);
+    }))
+    .filter(Boolean);
+
+  // Filtro de búsqueda para el Gantt
+  const ganttFilterLower = ganttFilter.toLowerCase();
+  const filteredOrderIds = ganttFilter
+    ? new Set(orders.filter(o =>
+        o.id.toLowerCase().includes(ganttFilterLower) ||
+        o.cliente.toLowerCase().includes(ganttFilterLower) ||
+        o.articulo.toLowerCase().includes(ganttFilterLower)
+      ).map(o => o.id_ruta))
+    : null;
 
   ganttProcesos.forEach(proc => {
     const procKey = processDomKey(proc);
     const expanded = expandedProcessIds.has(procKey);
-    const assignedMachines = proc.maquinas.filter(m => machineVisibleOps(m.id_maquina).length > 0);
+    // Usar getMachineMatchId para buscar órdenes asignadas
+    const assignedMachines = proc.maquinas.filter(m => {
+      const ops = machineVisibleOps(getMachineMatchId(m));
+      return filteredOrderIds ? ops.some(o => filteredOrderIds.has(o.id_ruta)) : ops.length > 0;
+    });
     const visibleMachines  = expanded ? proc.maquinas : assignedMachines;
     const hiddenCount = proc.maquinas.length - visibleMachines.length;
 
@@ -1208,17 +1248,19 @@ function renderGantt() {
     </div>`;
 
     visibleMachines.forEach(m => {
-      const mOps = machineVisibleOps(m.id_maquina);
+      const mid = getMachineMatchId(m);
+      let mOps = machineVisibleOps(mid);
+      if (filteredOrderIds) mOps = mOps.filter(o => filteredOrderIds.has(o.id_ruta));
       const machineSub = [m.sub_descripcion || '', mOps.length ? `${mOps.length} asignada${mOps.length>1?'s':''}` : ''].filter(Boolean).join(' · ');
 
       html += `
-      <div class="g-row" data-machine="${m.id_maquina}" style="border-left:3px solid ${proc.color}">
+      <div class="g-row" data-machine="${mid}" style="border-left:3px solid ${proc.color}">
         <div class="res-lbl">
           <span class="res-name">${m.nombre_recurso}</span>
           ${machineSub ? `<span class="res-sub">${machineSub}</span>` : ''}
           ${mOps.length > 0 ? `<span class="res-count">${mOps.length} orden${mOps.length>1?'es':''}</span>` : ''}
         </div>
-        <div class="timeline" data-machine="${m.id_maquina}">
+        <div class="timeline" data-machine="${mid}">
           <div class="drop-hint"></div>
           ${HOURS.map((_, i) => `<div class="grid-ln" style="left:${pct(i)}"></div>`).join('')}
           ${DAYS.filter(d => d.slot > 0).map(d => `<div class="day-sep" style="left:${pct(d.slot)}"></div>`).join('')}
@@ -1603,7 +1645,25 @@ function openDP(id_ruta) {
   if (currentView === 'gantt') { renderGantt(); drawArrows(); }
 
   const allConflicts = detectAllConflicts();
-  const chainOps = orders.filter(o => activeChainIds.has(o.id_ruta)).sort((a,b) => a.inicio - b.inicio);
+  // Mostrar en la cadena solo los procesos válidos del Gantt (sin planchas, tintas, salida de inventario, etc.)
+  const chainOps = orders
+    .filter(o => activeChainIds.has(o.id_ruta))
+    .filter(o => {
+      const pk = normalizeProcessKey(o.proceso_key || o.proceso);
+      return GANTT_PROCESS_KEYS.some(gk => pk === gk || pk.includes(gk) || gk.includes(pk));
+    })
+    .sort((a,b) => {
+      const ai = GANTT_PROCESS_KEYS.findIndex(gk => {
+        const pk = normalizeProcessKey(a.proceso_key || a.proceso);
+        return pk === gk || pk.includes(gk) || gk.includes(pk);
+      });
+      const bi = GANTT_PROCESS_KEYS.findIndex(gk => {
+        const pk = normalizeProcessKey(b.proceso_key || b.proceso);
+        return pk === gk || pk.includes(gk) || gk.includes(pk);
+      });
+      if (ai !== bi) return ai - bi;
+      return a.inicio - b.inicio;
+    });
   const downstream = getDownstreamOps(id_ruta);
 
   document.getElementById('dp-title-txt').textContent = op.id;
