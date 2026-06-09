@@ -1456,6 +1456,27 @@ function drawNowLine() {
   const line = document.createElement('div');
   line.className = 'now-line';
   line.style.left = leftPct + '%';
+  line.style.cursor = 'default';
+  line.addEventListener('mouseenter', (e) => {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+    const dateStr = now.toLocaleDateString('es-CR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const tt = document.getElementById('tt');
+    document.getElementById('tt-t').textContent = 'Hora actual';
+    document.getElementById('tt-c').textContent = dateStr;
+    document.getElementById('tt-b').innerHTML = `<div class="tt-row"><span>Hora</span><span class="tt-val" style="color:#E24B4A;font-size:14px;font-weight:600">${timeStr}</span></div>`;
+    tt.style.display = 'block';
+    tt.style.left = (e.clientX + 14) + 'px';
+    tt.style.top = (e.clientY - 16) + 'px';
+  });
+  line.addEventListener('mousemove', (e) => {
+    const tt = document.getElementById('tt');
+    tt.style.left = (e.clientX + 14) + 'px';
+    tt.style.top = (e.clientY - 16) + 'px';
+  });
+  line.addEventListener('mouseleave', () => {
+    document.getElementById('tt').style.display = 'none';
+  });
   ganttEl.appendChild(line);
 }
 
