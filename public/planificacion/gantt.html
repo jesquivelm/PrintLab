@@ -93,7 +93,7 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 .task-bar:hover{filter:brightness(1.07);z-index:20;box-shadow:0 4px 14px rgba(0,0,0,.18)}
 .task-bar.dragging{opacity:0.4;cursor:grabbing}
 .task-bar.drag-target{outline:2.5px dashed rgba(255,255,255,.7);outline-offset:-3px}
-.task-bar.chain-active{box-shadow:0 0 0 3px rgba(255,214,0,.6),0 0 20px rgba(255,214,0,.3);z-index:30;filter:brightness(1.08);border-color:#FFD600!important}
+.task-bar.chain-active{box-shadow:0 0 0 3px rgba(6,182,212,.6),0 0 20px rgba(6,182,212,.3);z-index:30;filter:brightness(1.08);border-color:#06b6d4!important}
 .task-bar.chain-dim{opacity:0.15}
 .task-cliente{font-size:9.5px;opacity:0.85;overflow:hidden;text-overflow:ellipsis;line-height:1.2;font-weight:500}
 .task-lbl{font-size:11.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
@@ -229,6 +229,15 @@ html[data-theme="dark"] .pc-due{color:var(--app-text-muted,#94a3b8)}
 .zoom-group{display:flex;gap:2px}
 .zoom-btn{font-size:11px!important;padding:4px 9px!important;border:1px solid #d0d0ca!important;background:#fff!important;color:#555!important;border-radius:4px!important;cursor:pointer!important}
 .zoom-btn.zoom-active{background:#185FA5!important;border-color:#185FA5!important;color:#fff!important}
+.gantt-zoom-bar{padding:6px 16px 4px;display:flex;gap:6px;align-items:center;border-bottom:1px solid #e0e0da;background:#2d2d2d;flex-wrap:wrap}
+.gantt-zoom-bar .zoom-btn{background:#3d3d3d!important;border-color:#555!important;color:#ccc!important}
+.gantt-zoom-bar .zoom-btn:hover{background:#4d4d4d!important}
+.gantt-zoom-bar .zoom-btn.zoom-active{background:#185FA5!important;border-color:#185FA5!important;color:#fff!important}
+.gantt-zoom-bar span.gantt-zoom-label{color:#999}
+.gantt-zoom-bar .pipeline-search{background:#3d3d3d;border-color:#555;color:#ccc}
+.gantt-zoom-bar .pipeline-search::placeholder{color:#777}
+.gantt-zoom-bar .btn{background:#3d3d3d;border-color:#555;color:#ccc}
+.gantt-zoom-bar .btn:hover{background:#4d4d4d}
 
 /* ── DARK MODE ── */
 html[data-theme="dark"] body{background:var(--app-bg,#0f172a);color:var(--app-text,#e5edf6)}
@@ -384,8 +393,9 @@ function configureTimelineHorizon() {
   const useHalfHours = cfg.granularity === 'halfhour';
   const slotUnit = useHalfHours ? 0.5 : 1; // hours per slot
   const maxEnd = Math.max(cfg.hours, ...orders.map(o => Number(o.inicio || 0) + Number(o.dur || 0)));
+  const minSlots = Math.ceil(cfg.hours / slotUnit);
   SLOTS = useHalfHours
-    ? Math.max(cfg.hours / slotUnit, Math.min(cfg.hours / slotUnit * 2, Math.ceil(maxEnd / slotUnit) + 4))
+    ? minSlots
     : Math.max(cfg.hours, Math.min(cfg.hours * 2, Math.ceil(maxEnd) + 2));
   const base = new Date();
   base.setHours(6, 0, 0, 0);
@@ -1165,15 +1175,15 @@ function renderGantt() {
   const slotW = ZOOM_CONFIG[zoomLevel].slotW;
 
   let html = `
-  <div style="padding:6px 16px 4px;display:flex;gap:6px;align-items:center;border-bottom:1px solid #e0e0da;background:#fafaf8;flex-wrap:wrap">
-    <span style="font-size:11px;color:#888">Zoom:</span>
+  <div class="gantt-zoom-bar">
+    <span class="gantt-zoom-label" style="font-size:11px">Zoom:</span>
     <div class="zoom-group">
       <button class="btn zoom-btn${zoomLevel==='day'?' zoom-active':''}"    data-zoom="day"   onclick="setZoom('day')">1 día</button>
       <button class="btn zoom-btn${zoomLevel==='3day'?' zoom-active':''}"   data-zoom="3day"  onclick="setZoom('3day')">3 días</button>
       <button class="btn zoom-btn${zoomLevel==='week'?' zoom-active':''}"   data-zoom="week"  onclick="setZoom('week')">1 sem</button>
       <button class="btn zoom-btn${zoomLevel==='2week'?' zoom-active':''}"  data-zoom="2week" onclick="setZoom('2week')">15 días</button>
     </div>
-    <div style="display:flex;align-items:center;gap:5px;margin-left:8px;border-left:1px solid #e0e0da;padding-left:10px">
+    <div style="display:flex;align-items:center;gap:5px;margin-left:8px;border-left:1px solid #555;padding-left:10px">
       <input
         class="pipeline-search"
         type="text"
@@ -1185,7 +1195,7 @@ function renderGantt() {
       ${ganttFilter ? `<button class="btn" onclick="ganttFilter='';renderGantt();requestAnimationFrame(()=>drawArrows())" title="Limpiar búsqueda">✕</button>` : ''}
     </div>
     <button class="btn" style="margin-left:auto" onclick="clearChain()">Limpiar selección</button>
-    <span style="font-size:11px;color:#aaa">Arrastrá para mover · Click para ver cadena</span>
+    <span style="font-size:11px;color:#777">Arrastrá para mover · Click para ver cadena</span>
   </div>
   <div class="gantt-wrap"><div class="gantt-inner" id="gantt-inner" style="min-width:${190 + SLOTS * slotW}px">
     <div class="g-header">
@@ -1284,7 +1294,7 @@ function renderGantt() {
     <span class="leg-item"><span class="leg-dot" style="background:#E24B4A"></span>Alerta</span>
     <span class="leg-item"><span class="leg-dot" style="background:#639922"></span>Completado</span>
     <span class="leg-item" style="font-size:10px;color:#aaa;margin-left:auto">
-      <span style="background:#FFD600;padding:1px 5px;border-radius:3px;color:#1a1a1a">⬤</span> Cadena activa
+      <span style="background:#06b6d4;padding:1px 5px;border-radius:3px;color:#fff">⬤</span> Cadena activa
     </span>
   </div>`;
 
@@ -1307,7 +1317,7 @@ function drawArrows() {
   const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
   [
     {id:'arr-normal',color:'#8a97a6'},
-    {id:'arr-active',color:'#FFD600'},
+    {id:'arr-active',color:'#06b6d4'},
     {id:'arr-dim',   color:'#ddd'},
   ].forEach(({id,color}) => {
     const marker = document.createElementNS('http://www.w3.org/2000/svg','marker');
@@ -1348,7 +1358,7 @@ function drawArrows() {
     const cx = (x1 + x2) / 2;
     path.setAttribute('d', `M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2},${y2}`);
     path.setAttribute('fill','none');
-    path.setAttribute('stroke', arrowClass==='arr-active' ? '#FFD600' : arrowClass==='arr-dim' ? '#ddd' : '#8a97a6');
+    path.setAttribute('stroke', arrowClass==='arr-active' ? '#06b6d4' : arrowClass==='arr-dim' ? '#ddd' : '#8a97a6');
     path.setAttribute('stroke-width', arrowClass==='arr-active' ? '2' : '1.5');
     path.setAttribute('stroke-dasharray', arrowClass==='arr-normal' ? '4 3' : 'none');
     path.setAttribute('marker-end', `url(#${arrowClass})`);
@@ -1642,7 +1652,13 @@ function openDP(id_ruta) {
   currentDP = op;
 
   activeChainIds = getChain(id_ruta);
+  const ganttWrap = document.querySelector('.gantt-wrap');
+  const scrollX = ganttWrap ? ganttWrap.scrollLeft : 0;
+  const scrollY = window.scrollY;
   if (currentView === 'gantt') { renderGantt(); drawArrows(); }
+  const ganttWrapAfter = document.querySelector('.gantt-wrap');
+  if (ganttWrapAfter) ganttWrapAfter.scrollLeft = scrollX;
+  window.scrollTo(0, scrollY);
 
   const allConflicts = detectAllConflicts();
   // Mostrar en la cadena solo los procesos válidos del Gantt (sin planchas, tintas, salida de inventario, etc.)
@@ -1771,8 +1787,14 @@ function closeDP() {
   document.getElementById('dp').style.display = 'none';
   currentDP = null;
   activeChainIds = null;
+  const ganttWrap = document.querySelector('.gantt-wrap');
+  const scrollX = ganttWrap ? ganttWrap.scrollLeft : 0;
+  const scrollY = window.scrollY;
   if (currentView === 'gantt') { renderGantt(); drawArrows(); }
   else { renderPipeline(); }
+  const ganttWrapAfter = document.querySelector('.gantt-wrap');
+  if (ganttWrapAfter) ganttWrapAfter.scrollLeft = scrollX;
+  window.scrollTo(0, scrollY);
 }
 
 async function saveDP() {
