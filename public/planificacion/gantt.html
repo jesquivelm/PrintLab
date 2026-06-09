@@ -72,8 +72,7 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 .timeline{flex:1;position:relative;display:flex;align-items:center;min-height:72px}
 .grid-ln{position:absolute;top:0;bottom:0;width:1px;background:rgba(0,0,0,.08)}
 .day-sep{position:absolute;top:0;bottom:0;width:2px;background:rgba(0,0,0,.12);pointer-events:none;z-index:2}
-.now-line{position:absolute;top:0;bottom:0;width:2px;background:#E24B4A;z-index:60;pointer-events:none}
-.now-line::before{content:'AHORA';position:absolute;top:2px;left:6px;font-size:9px;font-weight:700;color:#E24B4A;background:rgba(255,255,255,.85);padding:1px 5px;border-radius:3px;white-space:nowrap;letter-spacing:.03em}
+.now-line{position:absolute;top:0;bottom:0;width:1px;background:rgba(226,75,74,.55);z-index:60;pointer-events:none}
 
 /* ── TASK BARS (mejoradas) ── */
 .task-bar{
@@ -256,7 +255,7 @@ html[data-theme="dark"] .day-hdr{background:var(--app-surface-soft,#172033);bord
 html[data-theme="dark"] .day-hdr-item{color:var(--app-text,#e5edf6);border-color:var(--app-border,#334155)}
 html[data-theme="dark"] .day-sep{background:rgba(255,255,255,.1)}
 html[data-theme="dark"] .grid-ln{background:rgba(255,255,255,.06);border-color:var(--app-border,#334155)}
-html[data-theme="dark"] .now-line::before{background:rgba(30,30,30,.85);color:#f87171}
+html[data-theme="dark"] .now-line{background:rgba(248,113,113,.45)}
 html[data-theme="dark"] .zoom-btn{background:var(--app-surface-raised,#1f2937)!important;border-color:var(--app-border,#334155)!important;color:var(--app-text,#e5edf6)!important}
 html[data-theme="dark"] .zoom-btn.zoom-active{background:#185FA5!important;border-color:#185FA5!important;color:#fff!important}
 html[data-theme="dark"] .stat,
@@ -1454,13 +1453,10 @@ function drawNowLine() {
   const slotPos = hoursSinceBase / slotUnit;
   const leftPct = (slotPos / SLOTS) * 100;
 
-  const lines = ganttEl.querySelectorAll('.timeline');
-  lines.forEach(timeline => {
-    const line = document.createElement('div');
-    line.className = 'now-line';
-    line.style.left = leftPct + '%';
-    timeline.appendChild(line);
-  });
+  const line = document.createElement('div');
+  line.className = 'now-line';
+  line.style.left = leftPct + '%';
+  ganttEl.appendChild(line);
 }
 
 function updateNowLine() {
