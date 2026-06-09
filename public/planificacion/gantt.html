@@ -55,7 +55,6 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 .day-hdr-item{padding:6px 8px 4px;font-size:11px;font-weight:600;color:#445;border-right:1px solid #d8e0e8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}
 .time-hdr{display:flex;flex:1}
 .t-slot{flex:1;min-width:52px;padding:6px 4px;text-align:center;font-size:10px;color:#aaa;border-right:1px solid #e8e8e4}
-.day-sep{position:absolute;top:0;bottom:0;width:2px;background:rgba(0,0,0,.06);pointer-events:none;z-index:2}
 .g-row{display:flex;border-bottom:1px solid #e0e0da;min-height:72px;align-items:stretch;position:relative;background:#fff}
 .g-row:hover{background:#fafaf8}
 .g-row.drag-over .timeline{outline:2px dashed #378ADD;outline-offset:-2px;background:rgba(55,138,221,0.04)}
@@ -71,7 +70,10 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 .proceso-empty-note{color:#bbb;font-size:10px}
 .proceso-toggle{font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid #d0d0ca;background:#fff;color:#666;cursor:pointer}
 .timeline{flex:1;position:relative;display:flex;align-items:center;min-height:72px}
-.grid-ln{position:absolute;top:0;bottom:0;width:1px;background:#ebebea}
+.grid-ln{position:absolute;top:0;bottom:0;width:1px;background:rgba(0,0,0,.08)}
+.day-sep{position:absolute;top:0;bottom:0;width:2px;background:rgba(0,0,0,.12);pointer-events:none;z-index:2}
+.now-line{position:absolute;top:0;bottom:0;width:2px;background:#E24B4A;z-index:60;pointer-events:none}
+.now-line::before{content:'AHORA';position:absolute;top:2px;left:6px;font-size:9px;font-weight:700;color:#E24B4A;background:rgba(255,255,255,.85);padding:1px 5px;border-radius:3px;white-space:nowrap;letter-spacing:.03em}
 
 /* ── TASK BARS (mejoradas) ── */
 .task-bar{
@@ -252,7 +254,9 @@ html[data-theme="dark"] #pipeline-view,
 html[data-theme="dark"] .pipeline-filters{background:var(--app-surface,#111827);border-color:var(--app-border,#334155);color:var(--app-text,#e5edf6)}
 html[data-theme="dark"] .day-hdr{background:var(--app-surface-soft,#172033);border-color:var(--app-border,#334155)}
 html[data-theme="dark"] .day-hdr-item{color:var(--app-text,#e5edf6);border-color:var(--app-border,#334155)}
-html[data-theme="dark"] .day-sep{background:rgba(255,255,255,.05)}
+html[data-theme="dark"] .day-sep{background:rgba(255,255,255,.1)}
+html[data-theme="dark"] .grid-ln{background:rgba(255,255,255,.06);border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .now-line::before{background:rgba(30,30,30,.85);color:#f87171}
 html[data-theme="dark"] .zoom-btn{background:var(--app-surface-raised,#1f2937)!important;border-color:var(--app-border,#334155)!important;color:var(--app-text,#e5edf6)!important}
 html[data-theme="dark"] .zoom-btn.zoom-active{background:#185FA5!important;border-color:#185FA5!important;color:#fff!important}
 html[data-theme="dark"] .stat,
@@ -272,8 +276,7 @@ html[data-theme="dark"] .g-row:hover{background:rgba(14,165,233,.07)}
 html[data-theme="dark"] .res-col,
 html[data-theme="dark"] .t-slot,
 html[data-theme="dark"] .res-lbl,
-html[data-theme="dark"] .proceso-hdr-lbl,
-html[data-theme="dark"] .grid-ln{border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .proceso-hdr-lbl{border-color:var(--app-border,#334155)}
 html[data-theme="dark"] .stat-lbl,
 html[data-theme="dark"] .res-sub,
 html[data-theme="dark"] .t-slot,
@@ -1331,6 +1334,7 @@ function renderGantt() {
 
   container.innerHTML = html;
   setupDropZones();
+  requestAnimationFrame(() => drawNowLine());
 }
 
 // ── SVG ARROWS ───────────────────────────────────────────────
@@ -1431,6 +1435,36 @@ function drawArrows() {
     path.setAttribute('opacity', arrowClass==='arr-dim' ? '0.35' : '0.9');
     svg.appendChild(path);
   });
+}
+
+function drawNowLine() {
+  document.querySelectorAll('.now-line').forEach(el => el.remove());
+  const ganttEl = document.getElementById('gantt-inner');
+  if (!ganttEl) return;
+
+  const slotUnit = window._ganttSlotUnit || 1;
+  const base = new Date();
+  base.setHours(6, 0, 0, 0);
+  const nowMs = Date.now();
+  const baseMs = base.getTime();
+  const hoursSinceBase = (nowMs - baseMs) / 3600000;
+
+  if (hoursSinceBase < 0 || hoursSinceBase >= SLOTS * slotUnit) return;
+
+  const slotPos = hoursSinceBase / slotUnit;
+  const leftPct = (slotPos / SLOTS) * 100;
+
+  const lines = ganttEl.querySelectorAll('.timeline');
+  lines.forEach(timeline => {
+    const line = document.createElement('div');
+    line.className = 'now-line';
+    line.style.left = leftPct + '%';
+    timeline.appendChild(line);
+  });
+}
+
+function updateNowLine() {
+  drawNowLine();
 }
 
 function clearChain() {
@@ -2085,6 +2119,7 @@ function syncGanttUserName() {
 
 // ── POLLING ──────────────────────────────────────────────────
 setInterval(() => { if (!currentDP) loadFromAPI(); }, 30000);
+setInterval(updateNowLine, 60000);
 
 // ── INIT ─────────────────────────────────────────────────────
 loadFromAPI();
