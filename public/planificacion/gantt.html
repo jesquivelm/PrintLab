@@ -214,7 +214,7 @@ html[data-theme="dark"] .pc-due{color:var(--app-text-muted,#94a3b8)}
 .conflict-group{margin-bottom:14px;border:1px solid #e0e0da;border-radius:8px;overflow:hidden}
 .conflict-group-header{padding:10px 12px;background:#f7f7f5;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e0e0da;cursor:pointer}
 .conflict-group-header:hover{background:#f0f0ea}
-.conflict-group-title{font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px}
+.conflict-group-title{font-size:12px;font-weight:600;color:#1a1a1a;display:flex;align-items:center;gap:6px}
 .conflict-group-count{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600}
 .conflict-group-body{padding:8px 12px}
 .conflict-item{font-size:11px;color:#555;padding:4px 0;border-bottom:1px solid #f0f0ea;display:flex;align-items:flex-start;gap:6px}
@@ -228,7 +228,45 @@ html[data-theme="dark"] .pc-due{color:var(--app-text-muted,#94a3b8)}
 .html[data-theme="dark"] .conflict-group{border-color:var(--app-border,#334155)}
 .html[data-theme="dark"] .conflict-group-header{background:var(--app-surface-soft,#172033);border-color:var(--app-border,#334155)}
 .html[data-theme="dark"] .conflict-group-header:hover{background:rgba(255,255,255,.05)}
+.html[data-theme="dark"] .conflict-group-title{color:var(--app-text,#e5edf6)}
 .html[data-theme="dark"] .conflict-item{color:var(--app-text-muted,#94a3b8);border-color:var(--app-border,#334155)}
+.html[data-theme="dark"] .modal-close{color:var(--app-text-muted,#94a3b8)}
+.html[data-theme="dark"] .modal-close:hover{background:rgba(255,255,255,.08)}
+
+/* ── MOVE DECISION MODAL ── */
+.move-modal-grid{display:flex;gap:12px;margin:12px 0}
+.move-modal-left{flex:1;min-width:0}
+.move-modal-right{width:220px;flex-shrink:0}
+.move-field{margin-bottom:10px}
+.move-field label{display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px}
+.move-field input,.move-field select{width:100%;padding:6px 8px;font-size:12px;border:1px solid #d0d0ca;border-radius:6px;background:#fff;color:#1a1a1a}
+.move-field input:focus,.move-field select:focus{outline:none;border-color:#378ADD}
+.mini-gantt{position:relative;height:80px;background:#f9f9f7;border:1px solid #e0e0da;border-radius:6px;overflow:hidden}
+.mini-gantt-bar{position:absolute;top:8px;height:24px;border-radius:4px;font-size:9px;color:#fff;display:flex;align-items:center;padding:0 5px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;border:1px solid rgba(0,0,0,.1)}
+.mini-gantt-bar.ghost{opacity:.5;border:2px dashed #378ADD;background:rgba(55,138,221,.3)!important;color:#185FA5;border-color:#378ADD}
+.mini-gantt-bar.conflict{outline:2px solid #E24B4A;outline-offset:-1px}
+.mini-gantt-slot{position:absolute;top:8px;height:24px;background:rgba(55,138,221,.15);border:1px dashed #378ADD;border-radius:4px}
+.mini-gantt-now{position:absolute;top:0;bottom:0;width:2px;background:#E24B4A;z-index:5}
+.mini-gantt-label{position:absolute;bottom:2px;font-size:9px;color:#888}
+.mini-gantt-hours{display:flex;position:absolute;top:0;left:0;right:0;height:100%}
+.mini-gantt-hour-mark{flex:1;border-left:1px solid #e8e8e4;font-size:8px;color:#bbb;padding:1px 3px}
+.move-actions{display:flex;gap:8px;margin-top:14px}
+.move-btn{padding:8px 16px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid #d0d0ca;background:#fff;color:#555;transition:all .15s}
+.move-btn:hover{background:#f0f0ea}
+.move-btn.primary{background:#185FA5;color:#fff;border-color:#185FA5}
+.move-btn.primary:hover{background:#1466B5}
+.move-btn.danger{border-color:#E24B4A;color:#E24B4A}
+.move-btn.danger:hover{background:#fef2f2}
+.move-info{padding:10px;background:#f7f7f5;border-radius:6px;font-size:11px;color:#555;margin-bottom:10px}
+.move-info strong{color:#1a1a1a}
+.html[data-theme="dark"] .move-field label{color:var(--app-text-muted,#94a3b8)}
+.html[data-theme="dark"] .move-field input,.html[data-theme="dark"] .move-field select{background:var(--app-surface-soft,#172033);border-color:var(--app-border,#334155);color:var(--app-text,#e5edf6)}
+.html[data-theme="dark"] .mini-gantt{background:var(--app-surface-soft,#172033);border-color:var(--app-border,#334155)}
+.html[data-theme="dark"] .mini-gantt-hour-mark{border-color:var(--app-border,#334155);color:var(--app-text-muted,#94a3b8)}
+.html[data-theme="dark"] .move-btn{background:var(--app-surface-soft,#172033);border-color:var(--app-border,#334155);color:var(--app-text-muted,#94a3b8)}
+.html[data-theme="dark"] .move-btn:hover{background:rgba(255,255,255,.05)}
+.html[data-theme="dark"] .move-info{background:var(--app-surface-soft,#172033);color:var(--app-text-muted,#94a3b8)}
+.html[data-theme="dark"] .move-info strong{color:var(--app-text,#e5edf6)}
 
 /* ── PIPELINE DETAIL PANEL TABS ── */
 .dp-tabs{display:flex;gap:0;border-bottom:2px solid #e0e0da;margin-bottom:12px}
@@ -1674,40 +1712,17 @@ async function handleDrop(e, tl) {
 
   if (newStart === movedOp.inicio && newMaq === movedOp.maquina) return;
 
-  const before = new Map(orders.map(o => [o.id_ruta, { inicio: o.inicio, maquina: o.maquina }]));
   const issues  = checkMove(movedOp.id_ruta, newStart, movedOp.dur, newMaq);
 
-  // Machine conflicts: block with clear toast (no silent fail)
-  const machineIssues = issues.filter(i => i.type === 'machine');
-  if (machineIssues.length > 0) {
-    showToast(`⊗ Conflicto de máquina: ${machineIssues[0].message}`, 'error');
+  if (issues.length > 0) {
+    openMoveModal(movedOp, newStart, newMaq, issues);
     return;
   }
 
-  // Sequence conflicts: ask for auto-fix
-  const seqIssues = issues.filter(i => i.type === 'sequence');
-  if (seqIssues.length > 0) {
-    const msg = `Este movimiento genera ${seqIssues.length} conflicto(s) de secuencia:\n\n` +
-      seqIssues.map(i => '• ' + i.message).join('\n') +
-      '\n\n¿Ajustar automáticamente los procesos afectados?';
-    if (!confirm(msg)) return;
-  }
-
-  // Downstream cascade warning
-  const downstream = getDownstreamOps(movedOp.id_ruta);
-  if (downstream.length > 0 && seqIssues.length === 0) {
-    const delta = newStart - movedOp.inicio;
-    if (Math.abs(delta) > 0.01) {
-      const nombres = downstream.slice(0,3).map(o => o.id).join(', ');
-      const more = downstream.length > 3 ? `… (+${downstream.length-3} más)` : '';
-      if (!confirm(`Mover "${movedOp.id}" ${delta>0?'+':''}${delta.toFixed(2)}h desplazará:\n${nombres}${more}\n\n¿Confirmar?`)) return;
-    }
-  }
-
+  const before = new Map(orders.map(o => [o.id_ruta, { inicio: o.inicio, maquina: o.maquina }]));
   movedOp.inicio  = newStart;
   movedOp.maquina = newMaq;
-  const newEnd = newStart + movedOp.dur;
-  autoFix(movedOp.id_ruta, newEnd);
+  autoFix(movedOp.id_ruta, newStart + movedOp.dur);
 
   const changedOps = orders.filter(o => {
     const prev = before.get(o.id_ruta) || {};
@@ -1726,6 +1741,201 @@ async function handleDrop(e, tl) {
   } catch (err) {
     showError('Error guardando movimiento: ' + err.message);
   }
+}
+
+function openMoveModal(movedOp, dropStart, dropMaq, issues) {
+  const slotUnit = window._ganttSlotUnit || 1;
+  const conflictOps = issues.filter(i => i.type === 'machine').map(i => orders.find(o => o.id_ruta === i.id_ruta)).filter(Boolean);
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.style.zIndex = '900';
+
+  const baseDate = new Date();
+  baseDate.setHours(6, 0, 0, 0);
+  const dropDate = new Date(baseDate.getTime() + dropStart * slotUnit * 3600000);
+  const dateStr = dropDate.toISOString().slice(0, 10);
+  const hourVal = Math.floor(dropStart);
+  const minVal = Math.round((dropStart - hourVal) * 60);
+
+  function renderMiniGantt(centerSlot, containerEl, ghostStart, ghostDur, ghostLabel) {
+    const viewSlots = 16;
+    const viewStart = Math.max(0, centerSlot - 8);
+    const viewEnd = Math.min(SLOTS, viewStart + viewSlots);
+    const localMaqOps = orders.filter(o => o.maquina === dropMaq && o.id_ruta !== movedOp.id_ruta && o.inicio < viewEnd && (o.inicio + o.dur) > viewStart);
+
+    let barsHtml = '';
+    localMaqOps.forEach(op => {
+      const left = ((op.inicio - viewStart) / (viewEnd - viewStart)) * 100;
+      const width = (op.dur / (viewEnd - viewStart)) * 100;
+      const isConflict = conflictOps.some(c => c.id_ruta === op.id_ruta);
+      barsHtml += `<div class="mini-gantt-bar${isConflict ? ' conflict' : ''}" style="left:${left}%;width:${width}%;background:${COLORS[op.estado]?.bg || '#aaa'}" title="${op.id} · ${op.proceso}">${op.id}</div>`;
+    });
+
+    if (ghostStart !== undefined && ghostDur !== undefined) {
+      const gLeft = ((ghostStart - viewStart) / (viewEnd - viewStart)) * 100;
+      const gWidth = (ghostDur / (viewEnd - viewStart)) * 100;
+      barsHtml += `<div class="mini-gantt-bar ghost" style="left:${gLeft}%;width:${gWidth}%">${ghostLabel || movedOp.id}</div>`;
+    }
+
+    let hoursHtml = '';
+    for (let i = viewStart; i < viewEnd; i++) {
+      const hLeft = ((i - viewStart) / (viewEnd - viewStart)) * 100;
+      hoursHtml += `<div class="mini-gantt-hour-mark" style="position:absolute;left:${hLeft}%;top:0;bottom:0;width:${100/(viewEnd-viewStart)}%;border-left:1px solid #e8e8e4;font-size:8px;color:#bbb;padding:1px 3px">${formatHora(i)}</div>`;
+    }
+
+    containerEl.innerHTML = hoursHtml + barsHtml;
+    containerEl.dataset.viewStart = viewStart;
+    containerEl.dataset.viewEnd = viewEnd;
+  }
+
+  function getSelectedSlot() {
+    const dateVal = modal.querySelector('#move-date')?.value;
+    const hourVal = parseInt(modal.querySelector('#move-hour')?.value || '0');
+    const minVal = parseInt(modal.querySelector('#move-min')?.value || '0');
+    if (!dateVal) return dropStart;
+    const chosen = new Date(dateVal + 'T06:00:00');
+    const baseD = new Date();
+    baseD.setHours(6, 0, 0, 0);
+    const dayOffset = Math.round((chosen - baseD) / 86400000);
+    return dayOffset * (24 / slotUnit) + hourVal + minVal / 60;
+  }
+
+  function updatePreview() {
+    const slot = getSelectedSlot();
+    const mg = modal.querySelector('#mini-gantt');
+    if (mg) renderMiniGantt(slot, mg, slot, movedOp.dur, movedOp.id);
+    const newIssues = checkMove(movedOp.id_ruta, slot, movedOp.dur, dropMaq);
+    const conflictInfo = modal.querySelector('#move-conflict-info');
+    if (conflictInfo) {
+      if (newIssues.length) {
+        const machineIssues = newIssues.filter(i => i.type === 'machine');
+        conflictInfo.innerHTML = `<span style="color:#E24B4A">⚠ ${machineIssues.length ? machineIssues.length + ' conflicto(s) de máquina' : ''} ${newIssues.filter(i=>i.type==='sequence').length ? newIssues.filter(i=>i.type==='sequence').length + ' de secuencia' : ''}</span>`;
+      } else {
+        conflictInfo.innerHTML = '<span style="color:#1D9E75">✓ Sin conflictos en este horario</span>';
+      }
+    }
+  }
+
+  modal.innerHTML = `
+  <div class="modal-box" style="width:min(700px,92vw)">
+    <div class="modal-header">
+      <h3>Mover ${movedOp.id} · ${movedOp.proceso}</h3>
+      <span class="modal-close" onclick="this.closest('.modal-overlay').remove()">✕</span>
+    </div>
+    <div class="modal-body">
+      <div class="move-info">
+        <strong>${movedOp.id}</strong> — ${movedOp.cliente || ''} · ${movedOp.articulo || ''}<br>
+        Máquina: <strong>${dropMaq || movedOp.maquina}</strong> · Duración: <strong>${movedOp.dur}h</strong> · Actual: ${formatHora(movedOp.inicio)}
+      </div>
+      <div class="move-modal-grid">
+        <div class="move-modal-left">
+          <div style="display:flex;gap:8px">
+            <div class="move-field"><label>Fecha</label><input type="date" id="move-date" value="${dateStr}"></div>
+            <div class="move-field" style="width:80px"><label>Hora</label><input type="number" id="move-hour" value="${hourVal}" min="0" max="23"></div>
+            <div class="move-field" style="width:70px"><label>Min</label><input type="number" id="move-min" value="${minVal}" min="0" max="45" step="15"></div>
+          </div>
+          <div id="move-conflict-info" style="font-size:11px;margin-top:4px"></div>
+        </div>
+        <div class="move-modal-right">
+          <div style="font-size:11px;font-weight:600;color:#555;margin-bottom:4px">Vista previa</div>
+          <div class="mini-gantt" id="mini-gantt" style="height:70px"></div>
+        </div>
+      </div>
+      <div class="move-actions">
+        <button class="move-btn primary" id="move-confirm">Mover aquí</button>
+        <button class="move-btn" id="move-push">Mover al final de la cola</button>
+        <button class="move-btn danger" id="move-cancel">Cancelar</button>
+      </div>
+    </div>
+  </div>`;
+
+  document.body.appendChild(modal);
+
+  const miniGanttEl = modal.querySelector('#mini-gantt');
+  renderMiniGantt(dropStart, miniGanttEl, dropStart, movedOp.dur, movedOp.id);
+  updatePreview();
+
+  modal.querySelector('#move-date').addEventListener('change', updatePreview);
+  modal.querySelector('#move-hour').addEventListener('input', updatePreview);
+  modal.querySelector('#move-min').addEventListener('input', updatePreview);
+
+  modal.querySelector('#move-confirm').addEventListener('click', async () => {
+    const slot = getSelectedSlot();
+    const newIssues = checkMove(movedOp.id_ruta, slot, movedOp.dur, dropMaq);
+    const machineIssues = newIssues.filter(i => i.type === 'machine');
+    if (machineIssues.length) {
+      if (!confirm(`Hay ${machineIssues.length} conflicto(s) de máquina. Empurrar procesos existentes para hacer espacio?`)) return;
+    }
+    modal.remove();
+    const before = new Map(orders.map(o => [o.id_ruta, { inicio: o.inicio, maquina: o.maquina }]));
+    movedOp.inicio = parseFloat(slot.toFixed(2));
+    movedOp.maquina = dropMaq;
+    pushForward(movedOp.id_ruta, movedOp.inicio + movedOp.dur, dropMaq);
+    autoFix(movedOp.id_ruta, movedOp.inicio + movedOp.dur);
+    const changedOps = orders.filter(o => {
+      const prev = before.get(o.id_ruta) || {};
+      return prev.inicio !== o.inicio || prev.maquina !== o.maquina;
+    });
+    renderGantt();
+    requestAnimationFrame(() => drawArrows());
+    try {
+      await Promise.all(changedOps.map(op => apiPatch(`${API}/gantt/mover`, {
+        id_ruta: op.id_ruta, inicio: op.inicio, id_maquina: op.maquina
+      })));
+      showToast(`✓ Movimiento guardado (${changedOps.length} ruta${changedOps.length>1?'s':''})`, 'ok');
+      await loadFromAPI();
+    } catch (err) {
+      showError('Error guardando movimiento: ' + err.message);
+    }
+  });
+
+  modal.querySelector('#move-push').addEventListener('click', async () => {
+    modal.remove();
+    const machineOps = orders.filter(o => o.maquina === dropMaq && o.id_ruta !== movedOp.id_ruta)
+      .sort((a, b) => a.inicio - b.inicio);
+    let endSlot = 0;
+    machineOps.forEach(op => {
+      const opEnd = op.inicio + op.dur;
+      if (opEnd > endSlot) endSlot = opEnd;
+    });
+    const before = new Map(orders.map(o => [o.id_ruta, { inicio: o.inicio, maquina: o.maquina }]));
+    movedOp.inicio = parseFloat(endSlot.toFixed(2));
+    movedOp.maquina = dropMaq;
+    autoFix(movedOp.id_ruta, movedOp.inicio + movedOp.dur);
+    const changedOps = orders.filter(o => {
+      const prev = before.get(o.id_ruta) || {};
+      return prev.inicio !== o.inicio || prev.maquina !== o.maquina;
+    });
+    renderGantt();
+    requestAnimationFrame(() => drawArrows());
+    try {
+      await Promise.all(changedOps.map(op => apiPatch(`${API}/gantt/mover`, {
+        id_ruta: op.id_ruta, inicio: op.inicio, id_maquina: op.maquina
+      })));
+      showToast(`✓ Movido al final de la cola (${changedOps.length} ruta${changedOps.length>1?'s':''})`, 'ok');
+      await loadFromAPI();
+    } catch (err) {
+      showError('Error guardando movimiento: ' + err.message);
+    }
+  });
+
+  modal.querySelector('#move-cancel').addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+}
+
+function pushForward(id_ruta, mustStartAfter, maquina) {
+  const slotUnit = window._ganttSlotUnit || 1;
+  orders.filter(o => o.maquina === maquina && o.id_ruta !== id_ruta)
+    .sort((a, b) => a.inicio - b.inicio)
+    .forEach(o => {
+      const oEnd = o.inicio + o.dur;
+      if (o.inicio < mustStartAfter && oEnd > mustStartAfter) {
+        o.inicio = parseFloat(mustStartAfter.toFixed(2));
+        o.schedule_mode = 'pushed';
+        pushForward(o.id_ruta, o.inicio + o.dur, maquina);
+      }
+    });
 }
 
 function setupDropZones() {
