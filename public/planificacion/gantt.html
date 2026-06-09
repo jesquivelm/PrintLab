@@ -1307,8 +1307,46 @@ function drawArrows() {
   const ganttEl = document.getElementById('gantt-inner');
   if (!ganttEl) return;
   document.getElementById('arrows-svg')?.remove();
-  const depsOrders = orders.filter(o => o.dep_ruta_id || o.dep);
-  if (!depsOrders.length) return;
+
+  const visibleBarIds = new Set();
+  orders.forEach(o => {
+    const el = document.getElementById('bar-' + o.id_ruta);
+    if (el) visibleBarIds.add(o.id_ruta);
+  });
+  if (!visibleBarIds.size) return;
+
+  const orderMap = new Map(orders.map(o => [o.id_ruta, o]));
+
+  const visibleDeps = [];
+  orders.forEach(op => {
+    if (!op.dep_ruta_id && !op.dep) return;
+    let ancestorId = op.dep_ruta_id;
+    if (!ancestorId && op.dep) {
+      const srcOp = orders.find(o => o.id === op.dep);
+      if (srcOp) ancestorId = srcOp.id_ruta;
+    }
+    if (!ancestorId) return;
+
+    const visited = new Set([op.id_ruta]);
+    let curId = ancestorId;
+    while (curId && !visibleBarIds.has(curId) && !visited.has(curId)) {
+      visited.add(curId);
+      const cur = orderMap.get(curId);
+      if (!cur) break;
+      let nextId = cur.dep_ruta_id;
+      if (!nextId && cur.dep) {
+        const nextOp = orders.find(o => o.id === cur.dep);
+        if (nextOp) nextId = nextOp.id_ruta;
+      }
+      curId = nextId;
+    }
+
+    if (curId && visibleBarIds.has(curId) && curId !== op.id_ruta) {
+      visibleDeps.push({ srcId: curId, dstId: op.id_ruta });
+    }
+  });
+
+  if (!visibleDeps.length) return;
 
   const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
   svg.id = 'arrows-svg';
@@ -1316,31 +1354,25 @@ function drawArrows() {
 
   const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
   [
-    {id:'arr-normal',color:'#8a97a6'},
+    {id:'arr-normal',color:'#7c8594'},
     {id:'arr-active',color:'#06b6d4'},
-    {id:'arr-dim',   color:'#ddd'},
+    {id:'arr-dim',   color:'#d0d0d0'},
   ].forEach(({id,color}) => {
     const marker = document.createElementNS('http://www.w3.org/2000/svg','marker');
-    marker.setAttribute('id',id); marker.setAttribute('markerWidth','9');
-    marker.setAttribute('markerHeight','9'); marker.setAttribute('refX','7');
-    marker.setAttribute('refY','4'); marker.setAttribute('orient','auto');
+    marker.setAttribute('id',id); marker.setAttribute('markerWidth','10');
+    marker.setAttribute('markerHeight','10'); marker.setAttribute('refX','8');
+    marker.setAttribute('refY','5'); marker.setAttribute('orient','auto');
     const poly = document.createElementNS('http://www.w3.org/2000/svg','polygon');
-    poly.setAttribute('points','0 1, 8 4, 0 7'); poly.setAttribute('fill',color);
+    poly.setAttribute('points','0 1, 9 5, 0 9'); poly.setAttribute('fill',color);
     marker.appendChild(poly); defs.appendChild(marker);
   });
   svg.appendChild(defs);
 
   const ganttRect = ganttEl.getBoundingClientRect();
 
-  orders.forEach(op => {
-    let srcRutaId = op.dep_ruta_id;
-    if (!srcRutaId && op.dep) {
-      const srcOp = orders.find(o => o.id === op.dep);
-      if (srcOp) srcRutaId = srcOp.id_ruta;
-    }
-    if (!srcRutaId) return;
-    const srcBar = document.getElementById('bar-' + srcRutaId);
-    const dstBar = document.getElementById('bar-' + op.id_ruta);
+  visibleDeps.forEach(({ srcId, dstId }) => {
+    const srcBar = document.getElementById('bar-' + srcId);
+    const dstBar = document.getElementById('bar-' + dstId);
     if (!srcBar || !dstBar) return;
     const sRect = srcBar.getBoundingClientRect();
     const dRect = dstBar.getBoundingClientRect();
@@ -1351,18 +1383,21 @@ function drawArrows() {
 
     let arrowClass = 'arr-normal';
     if (activeChainIds) {
-      arrowClass = (activeChainIds.has(srcRutaId) && activeChainIds.has(op.id_ruta)) ? 'arr-active' : 'arr-dim';
+      arrowClass = (activeChainIds.has(srcId) && activeChainIds.has(dstId)) ? 'arr-active' : 'arr-dim';
     }
 
     const path = document.createElementNS('http://www.w3.org/2000/svg','path');
-    const cx = (x1 + x2) / 2;
-    path.setAttribute('d', `M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2},${y2}`);
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const cx1 = x1 + dx * 0.4;
+    const cx2 = x2 - dx * 0.4;
+    path.setAttribute('d', `M${x1},${y1} C${cx1},${y1} ${cx2},${y2} ${x2},${y2}`);
     path.setAttribute('fill','none');
-    path.setAttribute('stroke', arrowClass==='arr-active' ? '#06b6d4' : arrowClass==='arr-dim' ? '#ddd' : '#8a97a6');
-    path.setAttribute('stroke-width', arrowClass==='arr-active' ? '2' : '1.5');
-    path.setAttribute('stroke-dasharray', arrowClass==='arr-normal' ? '4 3' : 'none');
+    path.setAttribute('stroke', arrowClass==='arr-active' ? '#06b6d4' : arrowClass==='arr-dim' ? '#d0d0d0' : '#7c8594');
+    path.setAttribute('stroke-width', arrowClass==='arr-active' ? '2.5' : '1.5');
+    path.setAttribute('stroke-dasharray', arrowClass==='arr-normal' ? '5 3' : 'none');
     path.setAttribute('marker-end', `url(#${arrowClass})`);
-    path.setAttribute('opacity', arrowClass==='arr-dim' ? '0.4' : '0.85');
+    path.setAttribute('opacity', arrowClass==='arr-dim' ? '0.35' : '0.9');
     svg.appendChild(path);
   });
 }
