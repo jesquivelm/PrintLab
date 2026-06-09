@@ -52,7 +52,7 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 .res-col{width:190px;min-width:190px;padding:8px 12px;font-size:11px;font-weight:500;color:#888;border-right:1px solid #e0e0da;flex-shrink:0}
 .time-col{display:flex;flex-direction:column;flex:1;min-width:0}
 .day-hdr{display:flex;border-bottom:1px solid #e0e0da;background:#f0f4f8}
-.day-hdr-item{padding:6px 8px 4px;font-size:11px;font-weight:600;color:#445;border-right:1px solid #d8e0e8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:capitalize;flex-shrink:0}
+.day-hdr-item{padding:6px 8px 4px;font-size:11px;font-weight:600;color:#445;border-right:1px solid #d8e0e8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}
 .time-hdr{display:flex;flex:1}
 .t-slot{flex:1;min-width:52px;padding:6px 4px;text-align:center;font-size:10px;color:#aaa;border-right:1px solid #e8e8e4}
 .day-sep{position:absolute;top:0;bottom:0;width:2px;background:rgba(0,0,0,.06);pointer-events:none;z-index:2}
@@ -66,7 +66,7 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 
 /* Proceso header */
 .proceso-hdr{display:flex;align-items:center;border-bottom:1px solid #e0e0da;border-top:3px solid transparent;background:#f7f7f5}
-.proceso-hdr-lbl{width:190px;min-width:190px;padding:8px 12px;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border-right:1px solid #e0e0da;display:flex;align-items:center;gap:6px;flex-shrink:0}
+.proceso-hdr-lbl{width:190px;min-width:190px;padding:8px 12px;font-size:11px;font-weight:700;border-right:1px solid #e0e0da;display:flex;align-items:center;gap:6px;flex-shrink:0}
 .proceso-hdr-timeline{flex:1;padding:4px 10px;font-size:10px;color:#aaa;display:flex;align-items:center;gap:8px;justify-content:space-between}
 .proceso-empty-note{color:#bbb;font-size:10px}
 .proceso-toggle{font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid #d0d0ca;background:#fff;color:#666;cursor:pointer}
@@ -145,7 +145,7 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 .dp-lbl{font-size:11px;color:#888;margin-bottom:3px}
 .dp-val{font-size:13px;font-weight:500}
 .dp-input{width:100%;font-size:12px;padding:6px 8px;border:1px solid #d0d0ca;border-radius:6px;background:#fafaf8;color:#1a1a1a}
-.dp-section{font-size:10px;font-weight:600;color:#888;margin:14px 0 6px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #e8e8e4;padding-bottom:4px}
+.dp-section{font-size:10px;font-weight:600;color:#888;margin:14px 0 6px;letter-spacing:.04em;border-bottom:1px solid #e8e8e4;padding-bottom:4px}
 .chain-list{margin-bottom:12px}
 .chain-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;margin-bottom:3px;font-size:11px;background:#f5f5f3;border:1px solid #e8e8e4}
 .chain-item.active{background:#e8f0fb;border-color:#b5d0f0;font-weight:600}
@@ -162,37 +162,45 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 .impact-title{font-weight:600;margin-bottom:4px}
 
 /* ── PIPELINE VIEW ── */
-#pipeline-view{display:none;padding:16px;overflow-x:auto;min-height:400px}
-.pipeline-board{display:flex;gap:12px;min-width:max-content;align-items:flex-start;padding-bottom:8px}
-.pipeline-col{width:240px;flex-shrink:0}
-.pipeline-col-header{border-radius:8px 8px 0 0;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;border-bottom:3px solid transparent}
-.pipeline-col-title{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;display:flex;align-items:center;gap:7px}
-.pipeline-col-count{font-size:13px;font-weight:700;border-radius:12px;padding:2px 9px;min-width:28px;text-align:center}
-.pipeline-cards{display:flex;flex-direction:column;gap:7px;min-height:60px;padding:4px 0}
-.pipeline-card{background:#fff;border:1px solid #e0e0da;border-radius:8px;padding:10px 12px;cursor:pointer;transition:box-shadow .14s,transform .14s,border-color .14s;position:relative;border-left-width:4px}
-.pipeline-card:hover{box-shadow:0 3px 12px rgba(0,0,0,.10);transform:translateY(-1px);border-color:#b5cce0}
-.pipeline-card.is-late{border-right:3px solid #E24B4A}
-.pipeline-card.is-tight{border-right:3px solid #BA7517}
-.pipeline-card.is-running{border-right:3px solid #1D9E75}
-.pc-order{font-size:12px;font-weight:700;color:#1a1a1a;margin-bottom:2px;display:flex;justify-content:space-between;align-items:flex-start}
-.pc-cliente{font-size:11px;color:#378ADD;font-weight:500;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#pipeline-view{display:none;min-height:400px}
+.pipeline-board{display:grid;grid-template-columns:repeat(7,1fr);width:100%;border-top:1px solid #e0e0da}
+.pipeline-col{min-width:0;border-right:1px solid #e0e0da}
+.pipeline-col:last-child{border-right:none}
+.pipeline-col-header{padding:10px 10px 8px;display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid transparent}
+.pipeline-col-title{font-size:11.5px;font-weight:600;display:flex;align-items:center;gap:5px;min-width:0}
+.pipeline-col-count{font-size:11px;font-weight:700;border-radius:10px;padding:1px 7px;min-width:22px;text-align:center;flex-shrink:0}
+.pipeline-cards{display:flex;flex-direction:column;gap:6px;padding:8px 8px 12px;min-height:80px}
+.pipeline-card{background:#fff;border:1px solid #e0e0da;border-radius:7px;padding:8px 10px;cursor:pointer;transition:box-shadow .14s,transform .14s;position:relative;border-left-width:4px}
+.pipeline-card:hover{box-shadow:0 3px 12px rgba(0,0,0,.10);transform:translateY(-1px)}
+.pipeline-card.is-late{box-shadow:inset 3px 0 0 0 #E24B4A,inset -3px 0 0 0 #E24B4A}
+.pipeline-card.is-tight{box-shadow:inset 3px 0 0 0 #BA7517,inset -3px 0 0 0 #BA7517}
+.pipeline-card.is-running{box-shadow:inset 3px 0 0 0 #1D9E75,inset -3px 0 0 0 #1D9E75}
+.pc-order{font-size:12px;font-weight:700;color:#1a1a1a;margin-bottom:1px;display:flex;justify-content:space-between;align-items:flex-start;gap:4px}
+.pc-cliente{font-size:11px;color:#378ADD;font-weight:500;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pc-articulo{font-size:11px;color:#555;margin-bottom:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pc-meta{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
-.pc-chip{font-size:10px;padding:2px 6px;border-radius:4px;font-weight:500;white-space:nowrap}
-.pc-chip.estado-RUN{background:#e8f7f1;color:#0F6E56}
-.pc-chip.estado-SETUP{background:#fef3e2;color:#854F0B}
-.pc-chip.estado-PENDIENTE{background:#e8f0fb;color:#185FA5}
-.pc-chip.estado-PARO{background:#fceaea;color:#A32D2D}
-.pc-chip.estado-COMPLETADO{background:#eaf3de;color:#3B6D11}
+.pc-meta{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.pc-chip{font-size:10px;padding:2px 5px;border-radius:4px;font-weight:500;white-space:nowrap}
 .pc-chip.dur{background:#f0f0ea;color:#555}
+.pc-chip.colores{background:#f0eefb;color:#5b21b6}
 .pc-chip.late{background:#fceaea;color:#A32D2D;font-weight:700}
 .pc-chip.tight{background:#fef3e2;color:#854F0B}
-.pc-chip.maq{background:#f5f0fb;color:#534AB7;max-width:90px;overflow:hidden;text-overflow:ellipsis}
-.pc-due{font-size:10px;color:#aaa;margin-top:5px;display:flex;align-items:center;gap:4px}
+.pc-chip.maq{background:#f5f0fb;color:#534AB7;max-width:110px;overflow:hidden;text-overflow:ellipsis}
+.pc-chip.run{background:#e8f7f1;color:#0F6E56;font-weight:600}
+.pc-due{font-size:10px;color:#aaa;margin-top:4px;display:flex;align-items:center;gap:3px}
 .pc-due.overdue{color:#A32D2D;font-weight:600}
+.pc-due.tight-date{color:#854F0B}
 .pc-progress{margin-top:5px;height:3px;background:#f0f0ea;border-radius:2px;overflow:hidden}
 .pc-progress-fill{height:100%;border-radius:2px;transition:width .5s ease}
-.pipeline-empty{text-align:center;padding:24px 8px;color:#ccc;font-size:12px}
+.pipeline-empty{text-align:center;padding:20px 6px;color:#ccc;font-size:11px}
+.pipeline-status-note{font-size:10px;color:#bbb;padding:3px 8px;text-align:center}
+html[data-theme="dark"] .pipeline-board{border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .pipeline-col{border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .pipeline-card{background:var(--app-surface-soft,#172033);border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .pipeline-card:hover{box-shadow:0 4px 14px rgba(0,0,0,.3)}
+html[data-theme="dark"] .pc-order{color:var(--app-text,#e5edf6)}
+html[data-theme="dark"] .pc-articulo{color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .pc-chip.dur{background:rgba(255,255,255,.07);color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .pc-due{color:var(--app-text-muted,#94a3b8)}
 
 /* Pipeline filter bar */
 .pipeline-filters{display:flex;gap:8px;padding:8px 16px;border-bottom:1px solid #e0e0da;background:#fafaf8;align-items:center;flex-wrap:wrap}
@@ -267,10 +275,17 @@ html[data-theme="dark"] .tt-row{color:var(--app-text-muted,#94a3b8)}
 html[data-theme="dark"] .tt-val,
 html[data-theme="dark"] .res-name,
 html[data-theme="dark"] .dp-val{color:var(--app-text,#e5edf6)}
+html[data-theme="dark"] .pipeline-board{border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .pipeline-col{border-color:var(--app-border,#334155)}
 html[data-theme="dark"] .pipeline-card{background:var(--app-surface-soft,#172033);border-color:var(--app-border,#334155)}
-html[data-theme="dark"] .pipeline-card:hover{border-color:#378ADD;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+html[data-theme="dark"] .pipeline-card:hover{box-shadow:0 4px 14px rgba(0,0,0,.3)}
 html[data-theme="dark"] .pc-order{color:var(--app-text,#e5edf6)}
 html[data-theme="dark"] .pc-articulo{color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .pipeline-status-note{color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .pc-chip.dur{background:rgba(255,255,255,.07);color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .pc-chip.colores{background:rgba(139,92,246,.18);color:#c4b5fd}
+html[data-theme="dark"] .pc-chip.maq{background:rgba(139,92,246,.12);color:#c4b5fd}
+html[data-theme="dark"] .pc-due{color:var(--app-text-muted,#94a3b8)}
 html[data-theme="dark"] .view-tabs{background:var(--app-surface,#111827);border-color:var(--app-border,#334155)}
 html[data-theme="dark"] .view-tab{color:var(--app-text-muted,#94a3b8)}
 html[data-theme="dark"] .view-tab:hover{color:#378ADD}
@@ -310,11 +325,14 @@ let SLOTS = 15;
 let DAYS = [];
 let zoomLevel = 'week';
 const ZOOM_CONFIG = {
-  day:    { label: '1 día',   hours: 24,  slotW: 120, granularity: 'hour'  },
-  '3day': { label: '3 días',  hours: 72,  slotW: 72,  granularity: 'hour'  },
-  week:   { label: '1 sem',   hours: 168, slotW: 52,  granularity: 'day'   },
-  '2week':{ label: '15 días', hours: 360, slotW: 36,  granularity: 'day'   }
+  day:    { label: '1 día',   hours: 24,  slotW: 160, granularity: 'halfhour' },
+  '3day': { label: '3 días',  hours: 72,  slotW: 80,  granularity: 'hour'     },
+  week:   { label: '1 sem',   hours: 168, slotW: 52,  granularity: 'day'      },
+  '2week':{ label: '15 días', hours: 360, slotW: 36,  granularity: 'day'      }
 };
+
+// Los únicos procesos que aparecen en el Gantt
+const GANTT_PROCESS_KEYS = ['diseno','preprensa','visto_bueno','impresion','rebobinado','empaque'];
 const searchParams = new URLSearchParams(window.location.search);
 const autoPlanRequested = searchParams.get('autoplan') === '1';
 
@@ -361,14 +379,28 @@ function getPipelineProc(processKey) {
 
 function configureTimelineHorizon() {
   const cfg = ZOOM_CONFIG[zoomLevel];
+  // SLOTS = number of half-hour blocks in day mode, hours otherwise
+  const useHalfHours = cfg.granularity === 'halfhour';
+  const slotUnit = useHalfHours ? 0.5 : 1; // hours per slot
   const maxEnd = Math.max(cfg.hours, ...orders.map(o => Number(o.inicio || 0) + Number(o.dur || 0)));
-  SLOTS = Math.max(cfg.hours, Math.min(cfg.hours * 2, Math.ceil(maxEnd) + 2));
+  SLOTS = useHalfHours
+    ? Math.max(cfg.hours / slotUnit, Math.min(cfg.hours / slotUnit * 2, Math.ceil(maxEnd / slotUnit) + 4))
+    : Math.max(cfg.hours, Math.min(cfg.hours * 2, Math.ceil(maxEnd) + 2));
   const base = new Date();
   base.setHours(6, 0, 0, 0);
 
-  const granularity = cfg.granularity;
-
-  if (granularity === 'hour') {
+  if (useHalfHours) {
+    HOURS = Array.from({ length: SLOTS }, (_, i) => {
+      const stamp = new Date(base.getTime() + i * 30 * 60000);
+      if (i === 0 || (stamp.getHours() === 0 && stamp.getMinutes() === 0)) {
+        return stamp.toLocaleDateString('es-CR', { day: '2-digit', month: '2-digit' });
+      }
+      if (stamp.getMinutes() === 0) {
+        return stamp.toLocaleTimeString('es-CR', { hour: 'numeric', hour12: true });
+      }
+      return stamp.getMinutes() === 30 ? ':30' : '';
+    });
+  } else if (cfg.granularity === 'hour') {
     HOURS = Array.from({ length: SLOTS }, (_, i) => {
       const stamp = new Date(base.getTime() + i * 3600000);
       if (i === 0 || stamp.getHours() === 0) {
@@ -377,7 +409,6 @@ function configureTimelineHorizon() {
       return stamp.toLocaleTimeString('es-CR', { hour: 'numeric', hour12: true });
     });
   } else {
-    // For week+ views: group by day — show one label per day, empty string for subsequent hours of that day
     HOURS = Array.from({ length: SLOTS }, (_, i) => {
       const stamp = new Date(base.getTime() + i * 3600000);
       if (stamp.getHours() === 6 || i === 0) {
@@ -387,10 +418,13 @@ function configureTimelineHorizon() {
     });
   }
 
+  // slotUnit stored globally for bar position calculations
+  window._ganttSlotUnit = slotUnit;
+
   const dayMap = {};
   DAYS = [];
   for (let i = 0; i < SLOTS; i++) {
-    const stamp = new Date(base.getTime() + i * 3600000);
+    const stamp = new Date(base.getTime() + i * slotUnit * 3600000);
     const dayKey = stamp.toLocaleDateString('es-CR', { day: '2-digit', month: '2-digit', year: 'numeric' });
     if (!dayMap[dayKey]) {
       dayMap[dayKey] = {
@@ -972,7 +1006,7 @@ function renderPipeline() {
   const allConflicts   = detectAllConflicts();
   const conflictRutaSet = new Set(allConflicts.flatMap(c => [c.ruta_a, c.ruta_b]));
 
-  // Filter orders
+  // Filter by search text
   let filteredOrders = orders;
   if (pipelineFilter) {
     const q = pipelineFilter.toLowerCase();
@@ -982,18 +1016,19 @@ function renderPipeline() {
       o.articulo.toLowerCase().includes(q)
     );
   }
-  if (pipelineFilterEstado) {
-    filteredOrders = filteredOrders.filter(o => o.estado === pipelineFilterEstado);
-  }
 
-  // Group by pipeline process
+  // Group by pipeline process — each column shows only the relevant estado for that stage
+  // Default is PENDIENTE. If user picks a specific filter, use that.
   const groups = {};
   PIPELINE_PROCESSES.forEach(pp => { groups[pp.key] = []; });
 
   filteredOrders.forEach(op => {
     const pp = getPipelineProc(op.proceso_key);
     if (!groups[pp.key]) groups[pp.key] = [];
-    groups[pp.key].push(op);
+    const showEstado = pipelineFilterEstado || 'PENDIENTE';
+    if (op.estado === showEstado) {
+      groups[pp.key].push(op);
+    }
   });
 
   // Sort each column by priority: late → tight → by date
@@ -1009,6 +1044,7 @@ function renderPipeline() {
   });
 
   const estados = ['PENDIENTE','SETUP','RUN','PARO','COMPLETADO'];
+  const activeEstadoLabel = pipelineFilterEstado || 'Pendiente';
 
   let html = `
   <div class="pipeline-filters">
@@ -1016,36 +1052,37 @@ function renderPipeline() {
       value="${escHtml(pipelineFilter)}"
       oninput="pipelineFilter=this.value;renderPipeline()"
     >
-    <span class="filter-lbl">Estado:</span>
-    <button class="filter-btn${!pipelineFilterEstado?' active':''}" onclick="pipelineFilterEstado='';renderPipeline()">Todos</button>
-    ${estados.map(e => `<button class="filter-btn${pipelineFilterEstado===e?' active':''}" onclick="pipelineFilterEstado='${e}';renderPipeline()">${e}</button>`).join('')}
+    <span class="filter-lbl">Mostrar:</span>
+    <button class="filter-btn${!pipelineFilterEstado?' active':''}" onclick="pipelineFilterEstado='';renderPipeline()">Pendientes</button>
+    ${estados.filter(e=>e!=='PENDIENTE').map(e => `<button class="filter-btn${pipelineFilterEstado===e?' active':''}" onclick="pipelineFilterEstado='${e}';renderPipeline()">${e.charAt(0)+e.slice(1).toLowerCase()}</button>`).join('')}
     <button class="btn" style="margin-left:auto" onclick="pipelineFilter='';pipelineFilterEstado='';renderPipeline()">Limpiar</button>
   </div>
-  <div style="padding:12px 16px 0">
   <div class="pipeline-board">`;
 
   PIPELINE_PROCESSES.forEach(pp => {
     const colOrders = groups[pp.key] || [];
-    const runCount = colOrders.filter(o => o.estado === 'RUN').length;
+    // Total in this process (regardless of estado) for context
+    const totalInProcess = orders.filter(o => getPipelineProc(o.proceso_key).key === pp.key).length;
     const lateCount = colOrders.filter(o => scheduleAlerts.find(e => e.orderCode === o.id && e.type === 'late')).length;
+    const runCount  = colOrders.filter(o => o.estado === 'RUN').length;
 
     html += `
     <div class="pipeline-col">
       <div class="pipeline-col-header" style="background:${pp.bgHeader};border-bottom-color:${pp.color}">
         <div class="pipeline-col-title" style="color:${pp.textColor}">
           <span>${pp.icon}</span>
-          ${pp.label}
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${pp.label}</span>
         </div>
-        <div style="display:flex;gap:5px;align-items:center">
-          ${lateCount > 0 ? `<span style="font-size:10px;background:#fceaea;color:#A32D2D;border-radius:4px;padding:1px 5px;font-weight:700">⏰${lateCount}</span>` : ''}
-          ${runCount > 0  ? `<span style="font-size:10px;background:#e8f7f1;color:#0F6E56;border-radius:4px;padding:1px 5px;font-weight:700">▶${runCount}</span>` : ''}
+        <div style="display:flex;gap:4px;align-items:center;flex-shrink:0">
+          ${lateCount > 0 ? `<span style="font-size:10px;background:#fceaea;color:#A32D2D;border-radius:4px;padding:1px 4px;font-weight:700">⚠${lateCount}</span>` : ''}
           <span class="pipeline-col-count" style="background:${pp.color};color:#fff">${colOrders.length}</span>
         </div>
       </div>
+      ${totalInProcess > colOrders.length ? `<div class="pipeline-status-note">${totalInProcess} en total · mostrando ${activeEstadoLabel.toLowerCase()}</div>` : ''}
       <div class="pipeline-cards">`;
 
     if (colOrders.length === 0) {
-      html += `<div class="pipeline-empty">Sin órdenes</div>`;
+      html += `<div class="pipeline-empty">Sin órdenes ${activeEstadoLabel.toLowerCase()}</div>`;
     } else {
       colOrders.forEach(op => {
         const alert     = scheduleAlerts.find(e => e.orderCode === op.id);
@@ -1054,7 +1091,7 @@ function renderPipeline() {
         const isRunning = op.estado === 'RUN' || op.estado === 'SETUP';
         const hasConflict = conflictRutaSet.has(op.id_ruta);
         const progressPct = isRunning ? Math.min(100, Math.round(Number(op.route_payload?.progressPct || op.planning_snapshot?.progressPct || 0))) : 0;
-        const maquinaNombre = machines.find(m => m.id_maquina === op.maquina || m.id === op.maquina)?.nombre_recurso || op.maquina || '';
+        const maquinaNombre = (machines.find(m => m.id_maquina === op.maquina || m.id === op.maquina)?.nombre_recurso || '').split(' ').slice(0,2).join(' ');
         const routeArg = String(op.id_ruta).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
 
         let cardExtra = '';
@@ -1062,37 +1099,37 @@ function renderPipeline() {
         else if (isTight) cardExtra = ' is-tight';
         else if (isRunning) cardExtra = ' is-running';
 
+        // Due date label
+        const dueLabel = op.fecha_entrega_prometida ? formatPromisedDate(op.fecha_entrega_prometida) : null;
+        const dueClass = isLate ? ' overdue' : isTight ? ' tight-date' : '';
+
         html += `
         <div class="pipeline-card${cardExtra}"
           style="border-left-color:${pp.color}"
           onclick="openDP('${routeArg}')"
-          title="${op.id} — ${op.cliente}"
         >
           <div class="pc-order">
             <span>${op.id}</span>
-            <div style="display:flex;gap:3px">
-              ${isLate    ? '<span title="Fuera de fecha" style="color:#E24B4A;font-size:12px">⏰</span>' : ''}
-              ${isTight   ? '<span title="Margen justo"   style="color:#BA7517;font-size:12px">⌛</span>' : ''}
-              ${hasConflict ? '<span title="Tiene conflicto" style="color:#E24B4A;font-size:11px">⊗</span>' : ''}
-              ${op.manual_lock ? '<span title="Fijo" style="color:#888;font-size:11px">🔒</span>' : ''}
+            <div style="display:flex;gap:2px;flex-shrink:0">
+              ${isLate    ? '<span title="Fuera de fecha prometida" style="color:#E24B4A;font-size:11px">⚠</span>' : ''}
+              ${isTight   ? '<span title="Margen ajustado" style="color:#BA7517;font-size:11px">⌛</span>' : ''}
+              ${hasConflict ? '<span title="Conflicto de secuencia o máquina" style="color:#E24B4A;font-size:10px">⊗</span>' : ''}
+              ${op.manual_lock ? '<span title="Orden fija" style="color:#aaa;font-size:10px">🔒</span>' : ''}
             </div>
           </div>
           <div class="pc-cliente">${escHtml(op.cliente)}</div>
           <div class="pc-articulo" title="${escHtml(op.articulo)}">${escHtml(op.articulo)}</div>
           <div class="pc-meta">
-            <span class="pc-chip estado-${op.estado}">${op.estado}</span>
-            <span class="pc-chip dur">${op.dur}h</span>
-            ${op.colores > 0 ? `<span class="pc-chip dur">${op.colores}C</span>` : ''}
-            ${maquinaNombre ? `<span class="pc-chip maq" title="${escHtml(maquinaNombre)}">${escHtml(maquinaNombre)}</span>` : ''}
-            ${isLate  ? `<span class="pc-chip late">+${Math.abs(alert.slack).toFixed(1)}h tarde</span>` : ''}
-            ${isTight ? `<span class="pc-chip tight">${alert.slack.toFixed(1)}h margen</span>` : ''}
+            <span class="pc-chip dur" title="Duración estimada">${op.dur}h</span>
+            ${op.colores > 0 ? `<span class="pc-chip colores" title="${op.colores} colores">${op.colores} col.</span>` : ''}
+            ${maquinaNombre ? `<span class="pc-chip maq" title="Máquina asignada: ${escHtml(maquinaNombre)}">${escHtml(maquinaNombre)}</span>` : ''}
+            ${isLate  ? `<span class="pc-chip late" title="Retraso acumulado">+${Math.abs(alert.slack).toFixed(1)}h tarde</span>` : ''}
+            ${isTight ? `<span class="pc-chip tight" title="Margen disponible">${alert.slack.toFixed(1)}h margen</span>` : ''}
+            ${isRunning ? `<span class="pc-chip run">${op.estado}</span>` : ''}
           </div>
-          ${op.fecha_entrega_prometida ? `
-          <div class="pc-due${isLate?' overdue':''}">
-            📅 ${formatPromisedDate(op.fecha_entrega_prometida)}
-          </div>` : ''}
+          ${dueLabel ? `<div class="pc-due${dueClass}" title="Fecha de entrega prometida">📅 Entrega: ${dueLabel}</div>` : ''}
           ${progressPct > 0 ? `
-          <div class="pc-progress">
+          <div class="pc-progress" title="Progreso: ${progressPct}%">
             <div class="pc-progress-fill" style="width:${progressPct}%;background:${pp.color}"></div>
           </div>` : ''}
         </div>`;
@@ -1102,7 +1139,7 @@ function renderPipeline() {
     html += `</div></div>`;
   });
 
-  html += `</div></div>`;
+  html += `</div>`;
   container.innerHTML = html;
 }
 
@@ -1143,7 +1180,12 @@ function renderGantt() {
       </div>
     </div>`;
 
-  procesos.forEach(proc => {
+  // Solo mostrar los procesos configurados para el Gantt
+  const ganttProcesos = procesos.filter(proc =>
+    GANTT_PROCESS_KEYS.some(k => normalizeProcessKey(proc.process_key || proc.nombre).includes(k) || k.includes(normalizeProcessKey(proc.process_key || proc.nombre)))
+  );
+
+  ganttProcesos.forEach(proc => {
     const procKey = processDomKey(proc);
     const expanded = expandedProcessIds.has(procKey);
     const assignedMachines = proc.maquinas.filter(m => machineVisibleOps(m.id_maquina).length > 0);
@@ -1154,11 +1196,11 @@ function renderGantt() {
     <div class="proceso-hdr" style="border-top-color:${proc.color}">
       <div class="proceso-hdr-lbl" style="color:${proc.color}">
         <span style="font-size:14px">${proc.icono}</span>
-        ${displayProcessName(proc.nombre).toUpperCase()}
+        ${displayProcessName(proc.nombre)}
         <span style="font-weight:400;font-size:10px;color:#bbb;margin-left:4px">(${assignedMachines.length}/${proc.maquinas.length})</span>
       </div>
       <div class="proceso-hdr-timeline">
-        <span class="proceso-empty-note">${assignedMachines.length ? 'Recursos con órdenes asignadas' : 'Sin recursos asignados'}</span>
+        <span class="proceso-empty-note">${assignedMachines.length ? 'Recursos con órdenes' : 'Sin recursos asignados'}</span>
         ${hiddenCount > 0 || expanded
           ? `<button type="button" class="proceso-toggle" onclick='toggleProcessMachines(${JSON.stringify(procKey)})'>${expanded?'Ocultar vacías':`Ver todas (${proc.maquinas.length})`}</button>`
           : ''}
@@ -1167,7 +1209,7 @@ function renderGantt() {
 
     visibleMachines.forEach(m => {
       const mOps = machineVisibleOps(m.id_maquina);
-      const machineSub = [m.sub_descripcion || '', mOps.length ? `${mOps.length} asignadas` : ''].filter(Boolean).join(' · ');
+      const machineSub = [m.sub_descripcion || '', mOps.length ? `${mOps.length} asignada${mOps.length>1?'s':''}` : ''].filter(Boolean).join(' · ');
 
       html += `
       <div class="g-row" data-machine="${m.id_maquina}" style="border-left:3px solid ${proc.color}">
@@ -1186,9 +1228,9 @@ function renderGantt() {
     });
   });
 
-  if (procesos.length === 0) {
+  if (ganttProcesos.length === 0) {
     html += `<div style="padding:32px;text-align:center;color:#aaa">
-      ⚙ No hay procesos configurados. <a href="configuracion.html" style="color:#378ADD">Ir a Configuración →</a>
+      ⚙ No hay procesos configurados para el Gantt. <a href="configuracion.html" style="color:#378ADD">Ir a Configuración →</a>
     </div>`;
   }
 
