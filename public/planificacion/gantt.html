@@ -1028,32 +1028,64 @@ function renderPipeline() {
   const allConflicts   = detectAllConflicts();
   const conflictRutaSet = new Set(allConflicts.flatMap(c => [c.ruta_a, c.ruta_b]));
 
-  // Filter by search text
-  let filteredOrders = orders;
+  // Build order route map to find "current process" for each order
+  const orderRoutesMap = {};
+  orders.forEach(op => {
+    if (!orderRoutesMap[op.id]) orderRoutesMap[op.id] = [];
+    orderRoutesMap[op.id].push(op);
+  });
+
+  // Today range: start_turn_hour 0-24 = today 6am to tomorrow 6am
+  const todayBase = new Date();
+  todayBase.setHours(6, 0, 0, 0);
+  const todayStart = todayBase.getTime();
+  const todayEnd = todayStart + 24 * 3600000;
+
+  // Filter: only routes that are the "current process" for their order
+  // A route is "current" if: prev process is COMPLETED (or no prev) AND this process is NOT COMPLETED
+  let pipelineOrders = [];
+  Object.keys(orderRoutesMap).forEach(orderCode => {
+    const routes = orderRoutesMap[orderCode];
+    routes.forEach(op => {
+      if (op.estado === 'COMPLETADO') return;
+
+      // Check if predecessor is completed
+      let predCompleted = true;
+      if (op.dep_ruta_id) {
+        const pred = orders.find(o => o.id_ruta === op.dep_ruta_id);
+        predCompleted = pred && pred.estado === 'COMPLETADO';
+      }
+      if (!predCompleted) return;
+
+      // Check if scheduled for today (start_turn_hour 0-24)
+      const inicio = Number(op.inicio || 0);
+      if (inicio < 0 || inicio >= 24) return;
+
+      pipelineOrders.push(op);
+    });
+  });
+
+  // Apply search filter
   if (pipelineFilter) {
     const q = pipelineFilter.toLowerCase();
-    filteredOrders = filteredOrders.filter(o =>
+    pipelineOrders = pipelineOrders.filter(o =>
       o.id.toLowerCase().includes(q) ||
       o.cliente.toLowerCase().includes(q) ||
       o.articulo.toLowerCase().includes(q)
     );
   }
 
-  // Group by pipeline process — each column shows only the relevant estado for that stage
-  // Default is PENDIENTE. If user picks a specific filter, use that.
+  // Group by pipeline process
   const groups = {};
   PIPELINE_PROCESSES.forEach(pp => { groups[pp.key] = []; });
 
-  filteredOrders.forEach(op => {
+  pipelineOrders.forEach(op => {
     const pp = getPipelineProc(op.proceso_key);
     if (!groups[pp.key]) groups[pp.key] = [];
-    const showEstado = pipelineFilterEstado || 'PENDIENTE';
-    if (op.estado === showEstado) {
-      groups[pp.key].push(op);
-    }
+    groups[pp.key].push(op);
   });
 
-  // Sort each column by priority: late → tight → by date
+  // Sort each column by start time
   PIPELINE_PROCESSES.forEach(pp => {
     groups[pp.key].sort((a, b) => {
       const aAlert = scheduleAlerts.find(e => e.orderCode === a.id);
@@ -1061,12 +1093,17 @@ function renderPipeline() {
       const aPrio = aAlert?.type === 'late' ? 0 : aAlert?.type === 'tight' ? 1 : 2;
       const bPrio = bAlert?.type === 'late' ? 0 : bAlert?.type === 'tight' ? 1 : 2;
       if (aPrio !== bPrio) return aPrio - bPrio;
-      return parsePromisedTime(a.fecha_entrega_prometida) - parsePromisedTime(b.fecha_entrega_prometida);
+      return a.inicio - b.inicio;
     });
   });
 
-  const estados = ['PENDIENTE','SETUP','RUN','PARO','COMPLETADO'];
-  const activeEstadoLabel = pipelineFilterEstado || 'Pendiente';
+  // Today hours for time column (6am to 6am+24h)
+  const todayHours = [];
+  for (let h = 0; h < 24; h++) {
+    const hour = (6 + h) % 24;
+    const label = String(hour).padStart(2, '0') + ':00';
+    todayHours.push({ hour, label, slotStart: h });
+  }
 
   let html = `
   <div class="pipeline-filters">
@@ -1074,19 +1111,16 @@ function renderPipeline() {
       value="${escHtml(pipelineFilter)}"
       oninput="pipelineFilter=this.value;renderPipeline()"
     >
-    <span class="filter-lbl">Mostrar:</span>
-    <button class="filter-btn${!pipelineFilterEstado?' active':''}" onclick="pipelineFilterEstado='';renderPipeline()">Pendientes</button>
-    ${estados.filter(e=>e!=='PENDIENTE').map(e => `<button class="filter-btn${pipelineFilterEstado===e?' active':''}" onclick="pipelineFilterEstado='${e}';renderPipeline()">${e.charAt(0)+e.slice(1).toLowerCase()}</button>`).join('')}
-    <button class="btn" style="margin-left:auto" onclick="pipelineFilter='';pipelineFilterEstado='';renderPipeline()">Limpiar</button>
+    <span class="filter-lbl" style="font-size:11px;color:#06b6d4;font-weight:600">
+      📅 ${todayBase.toLocaleDateString('es-CR', { weekday: 'long', day: 'numeric', month: 'long' })}
+    </span>
+    <button class="btn" style="margin-left:auto" onclick="pipelineFilter='';renderPipeline()">Limpiar</button>
   </div>
-  <div class="pipeline-board">`;
+  <div class="pipeline-board" style="grid-template-columns:repeat(${PIPELINE_PROCESSES.length},1fr) 60px">`;
 
   PIPELINE_PROCESSES.forEach(pp => {
     const colOrders = groups[pp.key] || [];
-    // Total in this process (regardless of estado) for context
-    const totalInProcess = orders.filter(o => getPipelineProc(o.proceso_key).key === pp.key).length;
     const lateCount = colOrders.filter(o => scheduleAlerts.find(e => e.orderCode === o.id && e.type === 'late')).length;
-    const runCount  = colOrders.filter(o => o.estado === 'RUN').length;
 
     html += `
     <div class="pipeline-col">
@@ -1100,11 +1134,10 @@ function renderPipeline() {
           <span class="pipeline-col-count" style="background:${pp.color};color:#fff">${colOrders.length}</span>
         </div>
       </div>
-      ${totalInProcess > colOrders.length ? `<div class="pipeline-status-note">${totalInProcess} en total · mostrando ${activeEstadoLabel.toLowerCase()}</div>` : ''}
       <div class="pipeline-cards">`;
 
     if (colOrders.length === 0) {
-      html += `<div class="pipeline-empty">Sin órdenes ${activeEstadoLabel.toLowerCase()}</div>`;
+      html += `<div class="pipeline-empty">Sin órdenes pendientes</div>`;
     } else {
       colOrders.forEach(op => {
         const alert     = scheduleAlerts.find(e => e.orderCode === op.id);
@@ -1116,12 +1149,17 @@ function renderPipeline() {
         const maquinaNombre = (machines.find(m => m.id_maquina === op.maquina || m.id === op.maquina)?.nombre_recurso || '').split(' ').slice(0,2).join(' ');
         const routeArg = String(op.id_ruta).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
 
+        // Format start time
+        const inicio = Number(op.inicio || 0);
+        const startHour = (6 + Math.floor(inicio)) % 24;
+        const startMin = Math.round((inicio % 1) * 60);
+        const timeLabel = String(startHour).padStart(2, '0') + ':' + String(startMin).padStart(2, '0');
+
         let cardExtra = '';
         if (isLate) cardExtra = ' is-late';
         else if (isTight) cardExtra = ' is-tight';
         else if (isRunning) cardExtra = ' is-running';
 
-        // Due date label
         const dueLabel = op.fecha_entrega_prometida ? formatPromisedDate(op.fecha_entrega_prometida) : null;
         const dueClass = isLate ? ' overdue' : isTight ? ' tight-date' : '';
 
@@ -1142,14 +1180,15 @@ function renderPipeline() {
           <div class="pc-cliente">${escHtml(op.cliente)}</div>
           <div class="pc-articulo" title="${escHtml(op.articulo)}">${escHtml(op.articulo)}</div>
           <div class="pc-meta">
+            <span class="pc-chip dur" title="Hora inicio">${timeLabel}</span>
             <span class="pc-chip dur" title="Duración estimada">${op.dur}h</span>
             ${op.colores > 0 ? `<span class="pc-chip colores" title="${op.colores} colores">${op.colores} col.</span>` : ''}
-            ${maquinaNombre ? `<span class="pc-chip maq" title="Máquina asignada: ${escHtml(maquinaNombre)}">${escHtml(maquinaNombre)}</span>` : ''}
-            ${isLate  ? `<span class="pc-chip late" title="Retraso acumulado">+${Math.abs(alert.slack).toFixed(1)}h tarde</span>` : ''}
-            ${isTight ? `<span class="pc-chip tight" title="Margen disponible">${alert.slack.toFixed(1)}h margen</span>` : ''}
+            ${maquinaNombre ? `<span class="pc-chip maq" title="Máquina: ${escHtml(maquinaNombre)}">${escHtml(maquinaNombre)}</span>` : ''}
+            ${isLate  ? `<span class="pc-chip late" title="Retraso">+${Math.abs(alert.slack).toFixed(1)}h</span>` : ''}
+            ${isTight ? `<span class="pc-chip tight" title="Margen">${alert.slack.toFixed(1)}h</span>` : ''}
             ${isRunning ? `<span class="pc-chip run">${op.estado}</span>` : ''}
           </div>
-          ${dueLabel ? `<div class="pc-due${dueClass}" title="Fecha de entrega prometida">📅 Entrega: ${dueLabel}</div>` : ''}
+          ${dueLabel ? `<div class="pc-due${dueClass}" title="Entrega prometida">📅 ${dueLabel}</div>` : ''}
           ${progressPct > 0 ? `
           <div class="pc-progress" title="Progreso: ${progressPct}%">
             <div class="pc-progress-fill" style="width:${progressPct}%;background:${pp.color}"></div>
@@ -1161,6 +1200,25 @@ function renderPipeline() {
     html += `</div></div>`;
   });
 
+  // Time column on the right
+  html += `
+  <div class="pipeline-col" style="border-left:2px solid #e0e0da">
+    <div class="pipeline-col-header" style="background:#f1f5f9;border-bottom-color:#94a3b8">
+      <div class="pipeline-col-title" style="color:#334155">
+        <span>🕐</span>
+        <span>Hora</span>
+      </div>
+    </div>
+    <div class="pipeline-cards" style="padding:0">`;
+
+  todayHours.forEach(h => {
+    const slotTop = (h.slotStart / 24) * 100;
+    html += `<div style="height:calc(100% / 24);min-height:24px;border-bottom:1px solid #e8e8e4;display:flex;align-items:center;padding:0 6px;font-size:10px;color:#888;position:relative">
+      <span style="position:absolute;left:4px;top:2px;font-size:9px;color:#aaa">${h.label}</span>
+    </div>`;
+  });
+
+  html += `</div></div>`;
   html += `</div>`;
   container.innerHTML = html;
 }
