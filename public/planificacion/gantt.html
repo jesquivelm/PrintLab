@@ -1097,14 +1097,6 @@ function renderPipeline() {
     });
   });
 
-  // Today hours for time column (6am to 6am+24h)
-  const todayHours = [];
-  for (let h = 0; h < 24; h++) {
-    const hour = (6 + h) % 24;
-    const label = String(hour).padStart(2, '0') + ':00';
-    todayHours.push({ hour, label, slotStart: h });
-  }
-
   let html = `
   <div class="pipeline-filters">
     <input class="pipeline-search" type="text" placeholder="Buscar orden, cliente, artículo…"
@@ -1116,7 +1108,7 @@ function renderPipeline() {
     </span>
     <button class="btn" style="margin-left:auto" onclick="pipelineFilter='';renderPipeline()">Limpiar</button>
   </div>
-  <div class="pipeline-board" style="grid-template-columns:repeat(${PIPELINE_PROCESSES.length},1fr) 60px">`;
+  <div class="pipeline-board" style="padding:0 40px">`;
 
   PIPELINE_PROCESSES.forEach(pp => {
     const colOrders = groups[pp.key] || [];
@@ -1200,25 +1192,6 @@ function renderPipeline() {
     html += `</div></div>`;
   });
 
-  // Time column on the right
-  html += `
-  <div class="pipeline-col" style="border-left:2px solid #e0e0da">
-    <div class="pipeline-col-header" style="background:#f1f5f9;border-bottom-color:#94a3b8">
-      <div class="pipeline-col-title" style="color:#334155">
-        <span>🕐</span>
-        <span>Hora</span>
-      </div>
-    </div>
-    <div class="pipeline-cards" style="padding:0">`;
-
-  todayHours.forEach(h => {
-    const slotTop = (h.slotStart / 24) * 100;
-    html += `<div style="height:calc(100% / 24);min-height:24px;border-bottom:1px solid #e8e8e4;display:flex;align-items:center;padding:0 6px;font-size:10px;color:#888;position:relative">
-      <span style="position:absolute;left:4px;top:2px;font-size:9px;color:#aaa">${h.label}</span>
-    </div>`;
-  });
-
-  html += `</div></div>`;
   html += `</div>`;
   container.innerHTML = html;
 }
