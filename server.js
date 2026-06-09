@@ -15391,7 +15391,7 @@ app.get('/api/planificacion/gantt-agrupado', async (req, res) => {
                     COALESCE(NULLIF(o.raw_data->'line_snapshot'->>'pantoneCount','')::numeric, NULLIF(o.raw_data->'line_snapshot'->>'tintCount','')::numeric, 0) AS colores,
                     COALESCE(NULLIF(o.raw_data->'line_snapshot'->>'materialFeet','')::numeric, o.ordered_quantity, 0) AS pies,
                     r.process_name AS proceso,
-                    COALESCE(NULLIF(r.route_payload->>'capacityResourceId','')::uuid, mp.id) AS maquina,
+                    COALESCE(cap_res.machine_profile_id, NULLIF(r.route_payload->>'capacityResourceId','')::uuid, mp.id) AS maquina,
                     COALESCE(r.route_payload->>'capacityResourceName', mp.machine_name, o.machine_name) AS maquina_nombre,
                     COALESCE(r.start_turn_hour, 0) AS inicio,
                     COALESCE(r.duration_hours, 0) AS dur,
@@ -15416,6 +15416,7 @@ app.get('/api/planificacion/gantt-agrupado', async (req, res) => {
                 FROM production_order_routes r
                 JOIN flexo_orders o ON o.order_code = r.order_code
                 LEFT JOIN production_machine_profiles mp ON mp.id = r.machine_profile_id
+                LEFT JOIN production_resources cap_res ON cap_res.id::text = r.route_payload->>'capacityResourceId'
                 LEFT JOIN production_order_routes dep ON dep.id = r.dependency_route_id
                 WHERE COALESCE(r.process_key, '') <> 'acabados'
                   AND lower(COALESCE(r.process_name, '')) <> 'acabados'
