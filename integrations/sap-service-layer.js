@@ -133,7 +133,7 @@ const DEMO_DATA_SEED = Object.freeze({
 const SYNC_ENTITY_DEFS = Object.freeze({
     BusinessPartners: {
         pageSize: 200,
-        query: '$select=CardCode,CardName,CardType,Balance,Currency,Phone1,Email,ContactPerson,PriceListNum,FederalTaxID,LicTradNum,BPAddresses&$expand=BPAddresses'
+        query: '$select=CardCode,CardName,CardType,Balance,Currency,Phone1,Phone2,Email,EmailAddress,ContactPerson,PriceListNum,FederalTaxID,LicTradNum,Cellular,BPAddresses,ContactEmployees&$expand=BPAddresses,ContactEmployees'
     },
     Items: {
         pageSize: 500,

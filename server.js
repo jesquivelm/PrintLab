@@ -2201,7 +2201,7 @@ function normalizeSapPartnerContact(contact = {}, row = {}, primaryAddress = {})
         lastName: pickFirstSapValue(contact, ['LastName']) || parts.lastName,
         email: pickFirstSapValue(contact, ['E_MailL', 'Email', 'EmailAddress']) || pickSapEmail(row),
         phone: pickFirstSapValue(contact, ['Tel1', 'Phone1', 'Telephone1']) || pickSapPhone(row),
-        mobile: pickFirstSapValue(contact, ['Cellolar', 'Cellular', 'MobilePhone', 'Mobile']) || pickSapMobile(row),
+        mobile: pickFirstSapValue(contact, ['Cellular', 'MobilePhone', 'Mobile']) || pickSapMobile(row),
         fax: pickFirstSapValue(contact, ['Fax', 'Fax1']),
         position: pickFirstSapValue(contact, ['Position', 'Title']) || 'Principal',
         country: pickFirstSapValue(contact, ['Country']) || primaryAddress.country || '',
