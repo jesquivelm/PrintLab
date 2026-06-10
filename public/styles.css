@@ -4401,16 +4401,13 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
 .socios-grid input {
     width: 100%;
     min-height: 42px;
-    height: 42px;
-    padding: 10px 12px;
     border: 1px solid #c9d6e2;
     border-radius: 12px;
+    padding: 10px 12px;
     background: #fff;
     color: #17354a;
     box-shadow: none;
-    font-size: var(--field-font-size, 12px);
-    font-family: var(--field-font-family, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif);
-    transition: border-color .16s ease, box-shadow .16s ease;
+    font: inherit;
 }
 .socios-grid input:focus {
     outline: none;
