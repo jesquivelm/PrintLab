@@ -7,11 +7,11 @@
 <title>Control de Pendientes | Planificacion</title>
 <style>
 :root{
-  --bg:#f4f7fb;
+  --bg:#f3f7fb;
   --surface:#ffffff;
-  --border:#d9e4f0;
+  --border:#d8e4ef;
   --text:#1f2b3d;
-  --muted:#6c7a92;
+  --muted:#66758b;
   --primary:#0b81b8;
   --primary-soft:#e8f4fb;
   --success:#1d9e75;
@@ -20,11 +20,11 @@
   --shadow:0 18px 42px rgba(31,55,88,.08);
 }
 html[data-theme="dark"]{
-  --bg:#0d1117;
-  --surface:#161b22;
-  --border:#303a46;
-  --text:#e6edf3;
-  --muted:#8b98a8;
+  --bg:#0f172a;
+  --surface:#162033;
+  --border:#26364f;
+  --text:#e5eefb;
+  --muted:#9fb0c8;
   --primary:#58a6ff;
   --primary-soft:#0d2137;
   --success:#3fb950;
@@ -35,11 +35,11 @@ html[data-theme="dark"]{
 *{box-sizing:border-box;margin:0;padding:0}
 body{
   font-family:"Segoe UI",Tahoma,sans-serif;
-  background:linear-gradient(180deg,#eef5fb 0%,#f7f9fc 220px,#f4f7fb 220px);
+  background:linear-gradient(180deg,#edf5fb 0%,#f7f9fc 220px,#f3f7fb 220px);
   color:var(--text);
 }
-html[data-theme="dark"] body{background:linear-gradient(180deg,#0b1220 0%,#0d1117 220px,#0d1117 220px)}
-html[data-theme="dark"] .hero{background:linear-gradient(135deg,#10243a,#0f3a53);box-shadow:none;border:1px solid #243244}
+html[data-theme="dark"] body{background:linear-gradient(180deg,#0b1220 0%,#0f172a 220px,#0f172a 220px)}
+html[data-theme="dark"] .hero{background:linear-gradient(135deg,#10243a,#0f3a53);box-shadow:none;border:1px solid #26364f}
 html[data-theme="dark"] .btn{background:#1c2430;border-color:#3a4656;color:#dce7f3}
 html[data-theme="dark"] .btn.primary{background:#1f6feb;border-color:#58a6ff;color:#fff}
 html[data-theme="dark"] .card,
@@ -48,7 +48,7 @@ html[data-theme="dark"] .process-card,
 html[data-theme="dark"] .mini-btn,
 html[data-theme="dark"] .search,
 html[data-theme="dark"] .chip{background:var(--surface);border-color:var(--border);color:var(--text)}
-html[data-theme="dark"] .order-card{background:linear-gradient(180deg,#161b22 0%,#111820 100%)}
+html[data-theme="dark"] .order-card{background:linear-gradient(180deg,#162033 0%,#111820 100%)}
 html[data-theme="dark"] .process-card{background:#111820}
 html[data-theme="dark"] .meta-pill{background:#101722;border-color:var(--border);color:var(--muted)}
 html[data-theme="dark"] .chip.active{background:var(--primary-soft);border-color:#1f6feb;color:var(--primary)}
@@ -80,7 +80,7 @@ html[data-theme="dark"] .process-status.pending{background:var(--primary-soft);c
 .summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:20px}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow)}
 .metric{padding:16px 18px}
-.metric-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.metric-label{font-size:11px;color:var(--muted);letter-spacing:.06em;margin-bottom:8px}
 .metric-value{font-size:30px;font-weight:700;line-height:1}
 .metric-sub{margin-top:6px;font-size:12px;color:var(--muted)}
 .toolbar{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:18px}
@@ -109,7 +109,7 @@ html[data-theme="dark"] .process-status.pending{background:var(--primary-soft);c
 .status-pill.warn{background:#fbf1df;color:var(--warning)}
 .status-pill.danger{background:#fdecec;color:var(--danger)}
 .process-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.process-card{border:1px solid #d8e3f0;border-radius:16px;padding:14px;background:#fbfdff}
+.process-card{border:1px solid #d8e4ef;border-radius:16px;padding:14px;background:#fbfdff}
 .process-title{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
 .process-name{font-size:15px;font-weight:700}
 .process-status{font-size:11px;font-weight:700;padding:5px 8px;border-radius:999px}
@@ -144,11 +144,11 @@ html[data-theme="dark"] .process-status.pending{background:var(--primary-soft);c
 </style>
 <link rel="stylesheet" href="/theme-extensions.css">
 <style>
-html[data-theme="dark"] .hero{background:linear-gradient(135deg,#10243a,#0f3a53)!important;box-shadow:none!important;border:1px solid #243244!important}
+html[data-theme="dark"] .hero{background:linear-gradient(135deg,#10243a,#0f3a53)!important;box-shadow:none!important;border:1px solid #26364f!important}
 html[data-theme="dark"] .btn{background:#1c2430!important;border-color:#3a4656!important;color:#dce7f3!important;box-shadow:none!important}
 html[data-theme="dark"] .btn.primary{background:#1f6feb!important;border-color:#58a6ff!important;color:#fff!important}
-html[data-theme="dark"] .order-card{background:linear-gradient(180deg,#161b22 0%,#111820 100%)!important;box-shadow:none!important}
-html[data-theme="dark"] .process-card{background:#111820!important;border-color:#303a46!important}
+html[data-theme="dark"] .order-card{background:linear-gradient(180deg,#162033 0%,#111820 100%)!important;box-shadow:none!important}
+html[data-theme="dark"] .process-card{background:#111820!important;border-color:#26364f!important}
 </style>
 </head>
 <body>

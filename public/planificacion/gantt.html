@@ -135,7 +135,7 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 .tt-val{color:#1a1a1a;font-weight:500}
 
 /* ── DETAIL PANEL ── */
-.dp{position:fixed;top:0;right:0;width:320px;height:100%;background:#fff;border-left:1px solid #d0d0ca;padding:16px;z-index:500;display:none;overflow-y:auto;box-shadow:-4px 0 24px rgba(0,0,0,.10)}
+.dp{position:fixed;top:0;right:0;width:380px;height:100%;background:#fff;border-left:1px solid #d0d0ca;padding:0;z-index:500;display:none;flex-direction:column;overflow:hidden;box-shadow:-6px 0 28px rgba(0,0,0,.12)}
 .dp-title{font-size:14px;font-weight:600;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center}
 .dp-subtitle{font-size:11px;color:#378ADD;margin-bottom:14px}
 .dp-close{cursor:pointer;font-size:18px;color:#888;line-height:1;padding:2px 6px;border-radius:4px}
@@ -154,7 +154,7 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 .dp-color-row input{position:absolute;opacity:0;pointer-events:none}
 .dp-color-swatch{width:24px;height:24px;border-radius:50%;border:2px solid transparent;box-shadow:0 0 0 1px #d0d0ca;cursor:pointer}
 .dp-color-row input:checked + .dp-color-swatch{border-color:#1a1a1a}
-.save-btn{width:100%;padding:8px;background:#e8f0fb;border:1px solid #b5d0f0;color:#185FA5;border-radius:6px;cursor:pointer;font-size:12px;margin-top:10px;font-weight:500}
+.save-btn{width:100%;padding:9px;background:#e8f0fb;border:1px solid #b5d0f0;color:#185FA5;border-radius:6px;cursor:pointer;font-size:12px;font-weight:500}
 .save-btn:hover{background:#d0e4f8}
 .save-btn.saving{opacity:0.6;cursor:not-allowed}
 .impact-box{background:#fef3e2;border:1px solid #f5c77e;border-radius:6px;padding:10px;margin-top:10px;font-size:11px;color:#854F0B}
@@ -162,7 +162,7 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 
 /* ── PIPELINE VIEW ── */
 #pipeline-view{display:none;min-height:400px}
-.pipeline-board{display:grid;grid-template-columns:repeat(7,1fr);width:100%;border-top:1px solid #e0e0da}
+.pipeline-board{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));width:100%;border-top:1px solid #e0e0da}
 .pipeline-col{min-width:0;border-right:1px solid #e0e0da}
 .pipeline-col:last-child{border-right:none}
 .pipeline-col-header{padding:10px 10px 8px;display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid transparent}
@@ -269,8 +269,8 @@ html[data-theme="dark"] .pc-due{color:var(--app-text-muted,#94a3b8)}
 .html[data-theme="dark"] .move-info strong{color:var(--app-text,#e5edf6)}
 
 /* ── PIPELINE DETAIL PANEL TABS ── */
-.dp-tabs{display:flex;gap:0;border-bottom:2px solid #e0e0da;margin-bottom:12px}
-.dp-tab{font-size:11px;font-weight:500;padding:8px 14px;border:none;background:none;color:#888;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:color .15s,border-color .15s}
+.dp-tabs{display:flex;gap:0;border-bottom:1px solid #e0e0da;margin:10px 0 0;background:transparent}
+.dp-tab{font-size:11px;font-weight:500;padding:9px 16px;border:none;background:none;color:#888;cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s;display:flex;align-items:center;gap:5px;white-space:nowrap}
 .dp-tab:hover{color:#378ADD}
 .dp-tab.active{color:#185FA5;border-bottom-color:#185FA5}
 .tl-flow{display:flex;flex-direction:column;gap:0;padding:4px 0}
@@ -331,6 +331,71 @@ html[data-theme="dark"] .pc-due{color:var(--app-text-muted,#94a3b8)}
 .drop-hint{position:absolute;top:0;bottom:0;width:3px;background:#378ADD;border-radius:2px;pointer-events:none;z-index:100;opacity:0;transition:opacity .1s}
 .timeline.drag-over .drop-hint{opacity:1}
 
+/* ── PROCESS REORDER (Pipeline) ── */
+.pipeline-col-reorder{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;margin-left:4px;flex-shrink:0}
+.proc-order-badge{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;border:2px solid rgba(255,255,255,.5);color:#fff;background:rgba(0,0,0,.18);cursor:default;user-select:none;transition:box-shadow .15s}
+.proc-move-btn{width:18px;height:18px;border:none;border-radius:4px;background:rgba(255,255,255,.28);color:#fff;font-size:10px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;transition:background .12s}
+.proc-move-btn:hover{background:rgba(255,255,255,.52)}
+.proc-move-btn:disabled{opacity:0.22;cursor:not-allowed}
+.pipeline-col.proc-dragging-src{opacity:0.45;outline:2px dashed rgba(255,255,255,.5);outline-offset:-2px}
+.pipeline-col.proc-drag-over{background:rgba(55,138,221,.06);outline:2px dashed #378ADD;outline-offset:-2px}
+/* ── DETAIL PANEL — Improved ── */
+.dp-header-area{padding:16px 18px 0;flex-shrink:0}
+.dp-title{font-size:14px;font-weight:600;margin-bottom:3px;display:flex;justify-content:space-between;align-items:center}
+.dp-subtitle{font-size:11px;color:#378ADD;margin-bottom:0}
+.dp-tabs{display:flex;gap:0;border-bottom:1px solid #e0e0da;margin:10px 0 0;background:transparent}
+.dp-tab{font-size:11px;font-weight:500;padding:9px 16px;border:none;background:none;color:#888;cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s;display:flex;align-items:center;gap:5px;white-space:nowrap}
+.dp-tab:hover{color:#378ADD}
+.dp-tab.active{color:#185FA5;border-bottom-color:#185FA5;font-weight:600}
+.dp-scroll-body{flex:1;overflow-y:auto;padding:14px 18px 16px}
+.dp-scroll-body::-webkit-scrollbar{width:5px}
+.dp-scroll-body::-webkit-scrollbar-thumb{background:#d0d0ca;border-radius:3px}
+/* Flow timeline improved */
+.tl-flow-wrap{padding:4px 0 8px}
+.tl-row{display:flex;align-items:flex-start;gap:10px;padding:4px 0}
+.tl-col-left{display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:22px}
+.tl-content{flex:1;min-width:0;padding-top:1px;padding-bottom:4px;border-bottom:1px solid #f0f0ea}
+.tl-row:last-child .tl-content{border-bottom:none}
+.tl-step-title{font-size:12px;font-weight:500;color:#1a1a1a;line-height:1.4}
+.tl-step-title.done{color:#1D9E75}
+.tl-step-title.active{color:#378ADD;font-weight:600}
+.tl-step-title.stopped{color:#E24B4A}
+.tl-step-title.pending{color:#888}
+.tl-step-meta{font-size:10px;color:#aaa;margin-top:2px}
+.tl-node{width:22px;height:22px;border-radius:50%;border:2px solid #d0d0ca;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:9px;transition:all .15s;margin-top:2px;background:#fff}
+.tl-node.done{background:#1D9E75;border-color:#1D9E75;color:#fff}
+.tl-node.active{background:#378ADD;border-color:#378ADD;color:#fff;box-shadow:0 0 0 3px rgba(55,138,221,.2)}
+.tl-node.pending{background:#fff;border-color:#d0d0ca}
+.tl-node.paro{background:#E24B4A;border-color:#E24B4A;color:#fff}
+.tl-connector{width:2px;height:12px;margin:0 auto;background:repeating-linear-gradient(to bottom,#d0d0ca 0 3px,transparent 3px 6px)}
+.tl-connector.solid{background:#1D9E75}
+.flow-action-btn{font-size:11px;padding:6px 12px;border:1px solid #d0d0ca;border-radius:6px;background:#fff;color:#555;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:5px}
+.flow-action-btn:hover{background:#f0f0ea;border-color:#378ADD;color:#185FA5}
+.flow-action-btn.complete{border-color:#1D9E75;color:#1D9E75;font-weight:500}
+.flow-action-btn.complete:hover{background:#ecfdf5}
+.flow-action-btn.warning{border-color:#E24B4A;color:#E24B4A}
+.flow-action-btn.warning:hover{background:#fef2f2}
+.flow-actions{display:flex;flex-direction:column;gap:6px;margin-top:12px;padding-top:12px;border-top:1px solid #e8e8e4}
+.flow-progress{height:4px;background:#e8e8e4;border-radius:2px;margin-bottom:12px;overflow:hidden}
+.flow-progress-fill{height:100%;border-radius:2px;transition:width .3s}
+.flow-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.flow-title{font-size:12px;font-weight:600;color:#555}
+.flow-sub{font-size:10px;color:#aaa}
+.flow-counter{display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border-radius:10px;padding:2px 8px}
+.flow-detail-row{display:inline-flex;align-items:center;gap:4px;font-size:10px;color:#888;margin-top:2px}
+.flow-detail-stack{display:flex;flex-direction:column;gap:2px;margin-top:3px}
+.dp-footer{padding:12px 18px;border-top:1px solid #e8e8e4;flex-shrink:0;background:#fafaf8}
+/* Dark mode updates for DP */
+html[data-theme="dark"] .dp{background:rgba(17,24,39,.96);backdrop-filter:blur(12px)}
+html[data-theme="dark"] .dp-footer{background:var(--app-surface-soft,#172033);border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .tl-content{border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .flow-actions{border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .tl-step-title{color:var(--app-text,#e5edf6)}
+html[data-theme="dark"] .tl-step-title.pending{color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .tl-node{background:var(--app-surface-raised,#1f2937);border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .flow-action-btn{background:var(--app-surface-raised,#1f2937);border-color:var(--app-border,#334155);color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .flow-action-btn:hover{background:rgba(255,255,255,.06)}
+html[data-theme="dark"] .dp-scroll-body::-webkit-scrollbar-thumb{background:#334155}
 /* ── LOADING / ERROR ── */
 .loading{display:flex;align-items:center;justify-content:center;padding:40px;gap:10px;color:#888;font-size:13px}
 .spinner{width:16px;height:16px;border:2px solid #e0e0da;border-top-color:#378ADD;border-radius:50%;animation:spin .7s linear infinite}
@@ -436,17 +501,21 @@ html[data-theme="dark"] .view-tab.active{color:#60a5fa;border-bottom-color:#60a5
 </div>
 
 <div class="dp" id="dp">
-  <div class="dp-title">
-    <span id="dp-title-txt">Detalle OP</span>
-    <span class="dp-close" onclick="closeDP()">✕</span>
+  <div class="dp-header-area">
+    <div class="dp-title">
+      <span id="dp-title-txt">Detalle OP</span>
+      <span class="dp-close" onclick="closeDP()">✕</span>
+    </div>
+    <div class="dp-subtitle" id="dp-subtitle"></div>
+    <div class="dp-tabs" id="dp-tabs">
+      <button class="dp-tab active" data-dp-tab="info" onclick="switchDPTab('info')">📋 Detalle</button>
+      <button class="dp-tab" data-dp-tab="flow" onclick="switchDPTab('flow')">🔄 Flujo</button>
+    </div>
   </div>
-  <div class="dp-subtitle" id="dp-subtitle"></div>
-  <div class="dp-tabs" id="dp-tabs">
-    <button class="dp-tab active" data-dp-tab="info" onclick="switchDPTab('info')">📋 Detalle</button>
-    <button class="dp-tab" data-dp-tab="flow" onclick="switchDPTab('flow')">🔄 Flujo</button>
+  <div class="dp-scroll-body" id="dp-body"></div>
+  <div class="dp-footer">
+    <button class="save-btn" id="save-btn" onclick="saveDP()">Guardar cambios</button>
   </div>
-  <div id="dp-body"></div>
-  <button class="save-btn" id="save-btn" onclick="saveDP()">Guardar cambios</button>
 </div>
 
 <script>
@@ -463,7 +532,7 @@ const ZOOM_CONFIG = {
 };
 
 // Los únicos procesos que aparecen en el Gantt — en este orden exacto
-const GANTT_PROCESS_KEYS = ['diseno','preprensa','visto_bueno','impresion','rebobinado','empaque'];
+const GANTT_PROCESS_KEYS = ['diseno','preprensa','visto_bueno','planchas','impresion','rebobinado','empaque'];
 const searchParams = new URLSearchParams(window.location.search);
 const autoPlanRequested = searchParams.get('autoplan') === '1';
 
@@ -484,16 +553,24 @@ let ganttFilter = ''; // buscador en Gantt
 const expandedProcessIds = new Set();
 const ROUTE_COLORS = ['#378ADD','#1D9E75','#BA7517','#E24B4A','#639922','#8B5CF6','#0EA5E9','#F59E0B','#64748B',''];
 
-// Pipeline process definitions — el orden importa
-const PIPELINE_PROCESSES = [
+// Pipeline process definitions — el orden importa, manejado por pipelineProcessOrder
+const PIPELINE_PROCESSES_BASE = [
   { key: 'seguimiento',  label: 'Seguimiento',  icon: '📋', color: '#64748B', bgLight: '#f1f5f9', bgHeader: '#e2e8f0', textColor: '#334155' },
   { key: 'diseno',       label: 'Diseño',        icon: '🎨', color: '#8B5CF6', bgLight: '#f5f3ff', bgHeader: '#ede9fe', textColor: '#5b21b6' },
   { key: 'preprensa',    label: 'Preprensa',     icon: '🖥',  color: '#0EA5E9', bgLight: '#f0f9ff', bgHeader: '#e0f2fe', textColor: '#0369a1' },
   { key: 'visto_bueno',  label: 'Visto Bueno',   icon: '✅', color: '#1D9E75', bgLight: '#f0fdf4', bgHeader: '#dcfce7', textColor: '#15803d' },
+  { key: 'planchas',     label: 'Planchas',      icon: '🔲', color: '#9333EA', bgLight: '#faf5ff', bgHeader: '#f3e8ff', textColor: '#7e22ce' },
   { key: 'impresion',    label: 'Impresión',     icon: '🖨',  color: '#185FA5', bgLight: '#eff6ff', bgHeader: '#dbeafe', textColor: '#1d4ed8' },
   { key: 'rebobinado',   label: 'Rebobinado',    icon: '🔄', color: '#BA7517', bgLight: '#fffbeb', bgHeader: '#fef3c7', textColor: '#92400e' },
   { key: 'empaque',      label: 'Empaque',       icon: '📦', color: '#639922', bgLight: '#f7fee7', bgHeader: '#ecfccb', textColor: '#3f6212' },
 ];
+
+// Orden mutable de procesos en el pipeline (se puede reordenar)
+let pipelineProcessOrder = PIPELINE_PROCESSES_BASE.map((_, i) => i);
+
+function getPIPELINE_PROCESSES() {
+  return pipelineProcessOrder.map(i => PIPELINE_PROCESSES_BASE[i]);
+}
 
 function normalizeProcessKey(raw) {
   return String(raw || '').trim()
@@ -504,10 +581,10 @@ function normalizeProcessKey(raw) {
 
 function getPipelineProc(processKey) {
   const k = normalizeProcessKey(processKey);
-  const found = PIPELINE_PROCESSES.find(p =>
+  const found = getPIPELINE_PROCESSES().find(p =>
     k === p.key || k.includes(p.key) || p.key.includes(k)
   );
-  return found || PIPELINE_PROCESSES[0];
+  return found || getPIPELINE_PROCESSES()[0];
 }
 
 function configureTimelineHorizon() {
@@ -592,7 +669,7 @@ function displayProcessName(value) {
     impresion_convencional:'Impresión Convencional', impresion_digital:'Impresión Digital',
     barnizado:'Barniz', barniz:'Barniz', numeracion:'Numeración',
     rebobinado:'Rebobinado', empaque:'Empaque', seguimiento:'Seguimiento',
-    visto_bueno:'Visto Bueno'
+    visto_bueno:'Visto Bueno', planchas:'Planchas'
   };
   return labels[k] || raw || 'Sin proceso';
 }
@@ -1115,7 +1192,7 @@ function renderHeader() {
 
   // Count pipeline stats for tabs
   const pipelineCounts = {};
-  PIPELINE_PROCESSES.forEach(pp => {
+  getPIPELINE_PROCESSES().forEach(pp => {
     pipelineCounts[pp.key] = orders.filter(o => normalizeProcessKey(o.proceso_key) === pp.key || getPipelineProc(o.proceso_key).key === pp.key).length;
   });
   const pipelineTotal = orders.length;
@@ -1197,6 +1274,57 @@ function switchView(view) {
   render();
 }
 
+// ── PROCESS ORDER MANAGEMENT ─────────────────────────────────
+let procDragSrcIdx = null; // index within pipelineProcessOrder being dragged
+
+function movePipelineProcess(fromIdx, direction) {
+  const toIdx = fromIdx + direction;
+  if (toIdx < 0 || toIdx >= pipelineProcessOrder.length) return;
+  const arr = [...pipelineProcessOrder];
+  [arr[fromIdx], arr[toIdx]] = [arr[toIdx], arr[fromIdx]];
+  pipelineProcessOrder = arr;
+  renderPipeline();
+}
+
+function procDragStart(e, colIdx) {
+  procDragSrcIdx = colIdx;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('application/proc-order', String(colIdx));
+  // Add class after paint
+  requestAnimationFrame(() => {
+    const cols = document.querySelectorAll('.pipeline-col');
+    if (cols[colIdx]) cols[colIdx].classList.add('proc-dragging-src');
+  });
+}
+
+function procDragEnd() {
+  document.querySelectorAll('.pipeline-col').forEach(c => {
+    c.classList.remove('proc-dragging-src','proc-drag-over');
+  });
+  procDragSrcIdx = null;
+}
+
+function procDragOver(e, colIdx) {
+  if (procDragSrcIdx === null || procDragSrcIdx === colIdx) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('.pipeline-col').forEach((c, i) => {
+    c.classList.toggle('proc-drag-over', i === colIdx);
+  });
+}
+
+function procDrop(e, colIdx) {
+  e.preventDefault();
+  document.querySelectorAll('.pipeline-col').forEach(c => c.classList.remove('proc-drag-over'));
+  if (procDragSrcIdx === null || procDragSrcIdx === colIdx) { procDragSrcIdx = null; return; }
+  const arr = [...pipelineProcessOrder];
+  const [removed] = arr.splice(procDragSrcIdx, 1);
+  arr.splice(colIdx, 0, removed);
+  pipelineProcessOrder = arr;
+  procDragSrcIdx = null;
+  renderPipeline();
+}
+
 // ── PIPELINE VIEW ────────────────────────────────────────────
 function renderPipeline() {
   const container = document.getElementById('pipeline-view');
@@ -1253,7 +1381,7 @@ function renderPipeline() {
 
   // Group by pipeline process
   const groups = {};
-  PIPELINE_PROCESSES.forEach(pp => { groups[pp.key] = []; });
+  getPIPELINE_PROCESSES().forEach(pp => { groups[pp.key] = []; });
 
   pipelineOrders.forEach(op => {
     const pp = getPipelineProc(op.proceso_key);
@@ -1262,7 +1390,7 @@ function renderPipeline() {
   });
 
   // Sort each column by start time
-  PIPELINE_PROCESSES.forEach(pp => {
+  getPIPELINE_PROCESSES().forEach(pp => {
     groups[pp.key].sort((a, b) => {
       const aAlert = scheduleAlerts.find(e => e.orderCode === a.id);
       const bAlert = scheduleAlerts.find(e => e.orderCode === b.id);
@@ -1273,6 +1401,7 @@ function renderPipeline() {
     });
   });
 
+  const orderedProcesses = getPIPELINE_PROCESSES();
   let html = `
   <div class="pipeline-filters">
     <input class="pipeline-search" type="text" placeholder="Buscar orden, cliente, artículo…"
@@ -1286,20 +1415,35 @@ function renderPipeline() {
   </div>
   <div class="pipeline-board" style="padding:0 40px">`;
 
-  PIPELINE_PROCESSES.forEach(pp => {
+  orderedProcesses.forEach((pp, colIdx) => {
     const colOrders = groups[pp.key] || [];
     const lateCount = colOrders.filter(o => scheduleAlerts.find(e => e.orderCode === o.id && e.type === 'late')).length;
+    const isFirst = colIdx === 0;
+    const isLast  = colIdx === orderedProcesses.length - 1;
 
     html += `
-    <div class="pipeline-col">
+    <div class="pipeline-col"
+      draggable="true"
+      ondragstart="procDragStart(event,${colIdx})"
+      ondragend="procDragEnd()"
+      ondragover="procDragOver(event,${colIdx})"
+      ondrop="procDrop(event,${colIdx})"
+    >
       <div class="pipeline-col-header" style="background:${pp.bgHeader};border-bottom-color:${pp.color}">
-        <div class="pipeline-col-title" style="color:${pp.textColor}">
+        <div class="pipeline-col-title" style="color:${pp.textColor};cursor:grab" title="Arrastrá para reordenar">
           <span>${pp.icon}</span>
           <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${pp.label}</span>
         </div>
         <div style="display:flex;gap:4px;align-items:center;flex-shrink:0">
           ${lateCount > 0 ? `<span style="font-size:10px;background:#fceaea;color:#A32D2D;border-radius:4px;padding:1px 4px;font-weight:700">⚠${lateCount}</span>` : ''}
           <span class="pipeline-col-count" style="background:${pp.color};color:#fff">${colOrders.length}</span>
+          <div class="pipeline-col-reorder" onclick="event.stopPropagation()">
+            <button class="proc-move-btn" title="Mover izquierda" onclick="movePipelineProcess(${colIdx},-1)" ${isFirst?'disabled':''}
+              style="font-size:9px">◀</button>
+            <span class="proc-order-badge" style="background:${pp.color}" title="Posición ${colIdx+1}">${colIdx+1}</span>
+            <button class="proc-move-btn" title="Mover derecha" onclick="movePipelineProcess(${colIdx},1)" ${isLast?'disabled':''}
+              style="font-size:9px">▶</button>
+          </div>
         </div>
       </div>
       <div class="pipeline-cards">`;
@@ -1420,8 +1564,11 @@ function renderGantt() {
       </div>
     </div>`;
 
-  // Filtrar y reordenar estrictamente según GANTT_PROCESS_KEYS
-  const ganttProcesos = GANTT_PROCESS_KEYS
+  // Filtrar y reordenar según el orden actual del pipeline (respeta reordenamientos del usuario)
+  const orderedGanttKeys = getPIPELINE_PROCESSES()
+    .map(pp => pp.key)
+    .filter(k => GANTT_PROCESS_KEYS.includes(k));
+  const ganttProcesos = orderedGanttKeys
     .map(gk => procesos.find(proc => {
       const pk = normalizeProcessKey(proc.process_key || proc.nombre);
       return pk === gk || pk.includes(gk) || gk.includes(pk);
@@ -2126,7 +2273,7 @@ function openDP(id_ruta) {
   window.scrollTo(0, scrollY);
 
   const allConflicts = detectAllConflicts();
-  // Mostrar en la cadena solo los procesos válidos del Gantt (sin planchas, tintas, salida de inventario, etc.)
+  // Mostrar en la cadena los procesos válidos del Gantt (incluyendo planchas)
   const chainOps = orders
     .filter(o => activeChainIds.has(o.id_ruta))
     .filter(o => {
@@ -2248,8 +2395,9 @@ function openDP(id_ruta) {
   document.querySelectorAll('.dp-tab').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.dpTab === 'info');
   });
-  document.getElementById('save-btn').style.display = '';
-  document.getElementById('dp').style.display = 'block';
+  const footer = document.getElementById('save-btn')?.closest('.dp-footer');
+  if (footer) footer.style.display = '';
+  document.getElementById('dp').style.display = 'flex';
 }
 
 function closeDP() {
@@ -2273,7 +2421,8 @@ function switchDPTab(tab) {
   document.querySelectorAll('.dp-tab').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.dpTab === tab);
   });
-  document.getElementById('save-btn').style.display = tab === 'info' ? '' : 'none';
+  const footer = document.getElementById('save-btn')?.closest('.dp-footer');
+  if (footer) footer.style.display = tab === 'info' ? '' : 'none';
   if (tab === 'flow') renderDPFlow();
 }
 
@@ -2300,13 +2449,19 @@ function renderFlowTimeline(steps) {
   const barColor = doneCount === total ? '#1D9E75' : doneCount > 0 ? '#D4A017' : '#d0d0ca';
   const barBg = doneCount === total ? '#ecfdf5' : doneCount > 0 ? '#fef9ee' : '#f4f4f0';
 
+  const procIcons = {
+    diseno:'🎨', preprensa:'🖥', visto_bueno:'✅', planchas:'🔲',
+    impresion:'🖨', rebobinado:'🔄', empaque:'📦', seguimiento:'📋'
+  };
+
   let html = `
     <div class="flow-header">
       <div><div class="flow-title">Flujo de producción</div>
       <div class="flow-sub">${doneCount} de ${total} etapas completas</div></div>
       <span class="flow-counter" style="background:${barBg};color:${barColor}">${doneCount}/${total}</span>
     </div>
-    <div class="flow-progress"><div class="flow-progress-fill" style="width:${pct}%;background:${barColor}"></div></div>`;
+    <div class="flow-progress"><div class="flow-progress-fill" style="width:${pct}%;background:${barColor}"></div></div>
+    <div class="tl-flow-wrap">`;
 
   for (let i = 0; i < steps.length; i++) {
     const s = steps[i];
@@ -2317,22 +2472,26 @@ function renderFlowTimeline(steps) {
     const isLast = i === steps.length - 1;
 
     const nodeClass = isDone ? 'tl-node done' : isActive ? 'tl-node active' : isStopped ? 'tl-node paro' : 'tl-node pending';
-    const nodeInner = isDone ? '✓' : isActive ? '●' : isStopped ? '✕' : '';
+    const nodeInner = isDone ? '✓' : isActive ? '●' : isStopped ? '✕' : (procIcons[s.processKey] || '');
     const titleClass = isDone ? 'done' : isActive ? 'active' : isStopped ? 'stopped' : 'pending';
     const solid = isDone && !isLast && steps[i + 1] && String(steps[i + 1].routeStatus || '').toUpperCase() === 'COMPLETADO';
-    const line = isLast ? '' : `<div class="tl-connector ${solid ? 'solid' : 'dashed'}"></div>`;
 
     let detailRows = '';
-    const machineKeys = ['planchas', 'impresion', 'acabados', 'barnizado', 'laminado', 'troquelado', 'estampado', 'embosado', 'numeracion', 'rebobinado'];
-    if (machineKeys.includes(s.processKey) && s.planned && s.planned.machineName) {
+    const machineKeys = ['planchas', 'impresion', 'acabados', 'barnizado', 'laminado', 'rebobinado', 'numeracion'];
+    if (machineKeys.includes(s.processKey) && s.planned?.machineName) {
       detailRows += `<span class="flow-detail-row">⚙ ${escHtml(s.planned.machineName)}</span>`;
     }
-    const plannedMin = s.planned && s.planned.minutes > 0 ? s.planned.minutes : 0;
+    const plannedMin = s.planned?.minutes > 0 ? s.planned.minutes : 0;
     if (plannedMin > 0) {
       const h = Math.floor(plannedMin / 60);
       const m = Math.round(plannedMin % 60);
       const timeStr = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
       detailRows += `<span class="flow-detail-row">⏱ ${timeStr}</span>`;
+    }
+    // Special detail for planchas
+    if (s.processKey === 'planchas') {
+      const planSource = s.actual?.planSourceLabel || s.planned?.planSource;
+      if (planSource) detailRows += `<span class="flow-detail-row">📦 ${escHtml(planSource)}</span>`;
     }
 
     const metaParts = [];
@@ -2342,31 +2501,40 @@ function renderFlowTimeline(steps) {
       metaParts.push(d.toLocaleDateString('es-CR') + ' ' + d.toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' }));
     }
 
+    // Status label pill
+    const statusLabel = isDone ? 'Listo' : isActive ? status : isStopped ? 'Paro' : 'Pendiente';
+    const statusStyle = isDone ? 'background:#e8f7f1;color:#0F6E56' :
+      isActive ? 'background:#e8f0fb;color:#185FA5' :
+      isStopped ? 'background:#fceaea;color:#A32D2D' :
+      'background:#f0f0ea;color:#888';
+
     html += `
       <div class="tl-row">
         <div class="tl-col-left">
-          <button type="button" class="${nodeClass}" data-flow-toggle="${i}" style="cursor:pointer;border:none" title="${isDone ? 'Quitar marca' : 'Marcar completado'}">
-            <span style="font-size:10px">${nodeInner}</span>
+          <button type="button" class="${nodeClass}" data-flow-toggle="${i}"
+            title="${isDone ? 'Quitar marca' : 'Marcar completado'}">
+            <span style="font-size:9px">${nodeInner}</span>
           </button>
-          ${line}
+          ${!isLast ? `<div class="tl-connector ${solid ? 'solid' : ''}"></div>` : ''}
         </div>
         <div class="tl-content">
-          <div class="tl-step-title ${titleClass}">${escHtml(s.processName || s.processKey || 'Proceso')}</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px">
+            <span class="tl-step-title ${titleClass}">${escHtml(s.processName || s.processKey || 'Proceso')}</span>
+            <span style="font-size:9px;padding:1px 6px;border-radius:10px;flex-shrink:0;${statusStyle}">${statusLabel}</span>
+          </div>
           ${metaParts.length ? `<div class="tl-step-meta">${metaParts.join(' · ')}</div>` : ''}
           ${detailRows ? `<div class="flow-detail-stack">${detailRows}</div>` : ''}
+          ${!isDone ? `
+          <div style="display:flex;gap:5px;margin-top:6px;margin-bottom:4px">
+            <button class="flow-action-btn complete" data-flow-complete="${i}" style="flex:1;justify-content:center">
+              ✓ Completar
+            </button>
+          </div>` : ''}
         </div>
       </div>`;
   }
 
-  html += `
-    <div class="flow-actions">
-      ${steps.map((s, i) => {
-        const isDone = String(s.routeStatus || '').toUpperCase() === 'COMPLETADO';
-        if (isDone) return '';
-        return `<button class="flow-action-btn complete" data-flow-complete="${i}">✓ Completar ${escHtml(s.processName || s.processKey || '')}</button>`;
-      }).join('')}
-    </div>`;
-
+  html += `</div>`;
   return html;
 }
 

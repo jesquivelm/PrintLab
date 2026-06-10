@@ -108,7 +108,7 @@ const DEFAULT_ICONS = {
     view: '⌕'
 };
 
-const ORDER_VISIBLE_PROCESSES = ['diseno', 'preprensa', 'visto bueno', 'tintas', 'impresion', 'rebobinado', 'empaque'];
+const ORDER_VISIBLE_PROCESSES = ['diseno', 'preprensa', 'visto bueno', 'visto_bueno', 'planchas', 'tintas', 'impresion', 'rebobinado', 'empaque'];
 
 function normalizeProcessName(value) {
     return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
@@ -116,7 +116,7 @@ function normalizeProcessName(value) {
 
 function isVisibleOrderProcess(value) {
     const name = normalizeProcessName(value);
-    if (!name || /plancha|acabado/.test(name)) return false;
+    if (!name || /acabado/.test(name)) return false;
     return ORDER_VISIBLE_PROCESSES.some((item) => name.includes(item));
 }
 
@@ -672,6 +672,13 @@ function renderFlowTimeline(steps, order) {
         if (machineProcessKeys.includes(s.processKey) && s.planned && s.planned.machineName) {
             detailRows += '<span class="flow-detail-row"><i class="ti ti-cpu" style="font-size:11px;"></i>' + escapeHtml(s.planned.machineName) + '</span>';
         }
+        // Planchas: show source info (inventory vs. external)
+        if (s.processKey === 'planchas') {
+            var planSource = (s.actual && s.actual.planSourceLabel) || (s.planned && s.planned.planSource);
+            var planDias = (s.actual && s.actual.diasEstimados) || (s.planned && s.planned.diasEstimados);
+            if (planSource) detailRows += '<span class="flow-detail-row"><i class="ti ti-layers-subtract" style="font-size:11px;"></i>' + escapeHtml(planSource) + '</span>';
+            if (planDias > 0) detailRows += '<span class="flow-detail-row"><i class="ti ti-calendar" style="font-size:11px;"></i>' + planDias + (planDias === 1 ? ' día est.' : ' días est.') + '</span>';
+        }
         var plannedTime = s.planned && s.planned.minutes > 0 ? fmtFlowTime(s.planned.minutes) : '';
         var showTimeInTitle = isDone && plannedTime && s.processKey !== 'empaque';
         if (plannedTime && !showTimeInTitle) {
@@ -755,7 +762,7 @@ function renderComparisonView(cmp) {
             + '<div class="cmp-grid">'
             + '<div class="cmp-col planned"><div class="cmp-col-title"><i class="ti ti-clipboard-list"></i>Cotizado</div>';
         if (planned.minutes > 0) html += '<div class="cmp-row"><span class="cmp-row-label">Tiempo</span><span class="cmp-row-val">' + fmtFlowTime(planned.minutes) + '</span></div>';
-        if (step.processKey === 'impresion' && planned.machineName) html += '<div class="cmp-row"><span class="cmp-row-label">Máquina</span><span class="cmp-row-val" style="font-size:10px;">' + escapeHtml(planned.machineName) + '</span></div>';
+        if ((step.processKey === 'impresion' || step.processKey === 'planchas') && planned.machineName) html += '<div class="cmp-row"><span class="cmp-row-label">Máquina</span><span class="cmp-row-val" style="font-size:10px;">' + escapeHtml(planned.machineName) + '</span></div>';
         if (planned.quantity > 0) html += '<div class="cmp-row"><span class="cmp-row-label">Cantidad</span><span class="cmp-row-val">' + fmtFlowQty(planned.quantity, planned.unit) + '</span></div>';
 
         html += '</div><div class="cmp-col real"><div class="cmp-col-title"><i class="ti ti-activity"></i>Real</div>';

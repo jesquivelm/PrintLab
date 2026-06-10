@@ -594,11 +594,11 @@ function trackingOpenDrawer(code) {
     document.getElementById('trackingDrawerProcesses').innerHTML = steps.length
         ? steps.map(s => `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;border:1px solid var(--tracking-border,#e4e2dc);background:var(--tracking-surface2,#f9f8f6);font-size:12px">
             <span style="font-size:14px">${escapeHtml(TRACKING_PROCESS_ICONS[s.processKey] || '·')}</span>
-            <span style="flex:1;font-weight:500;color:var(--tracking-text,#1a1916)">${escapeHtml(s.processName || processLabel(s.processKey) || s.processKey)}</span>
-            ${s.planned?.minutes ? `<span style="color:var(--tracking-text3,#9e9c98);font-family:'DM Mono',monospace;font-size:11px">${Math.round(s.planned.minutes / 60)}h</span>` : ''}
-            ${s.planned?.machineName ? `<span style="color:var(--tracking-text3,#9e9c98);font-size:11px">${escapeHtml(s.planned.machineName)}</span>` : ''}
+            <span style="flex:1;font-weight:500;color:var(--tracking-text,#1f2b3d)">${escapeHtml(s.processName || processLabel(s.processKey) || s.processKey)}</span>
+            ${s.planned?.minutes ? `<span style="color:var(--tracking-text3,#66758b);font-family:'DM Mono',monospace;font-size:11px">${Math.round(s.planned.minutes / 60)}h</span>` : ''}
+            ${s.planned?.machineName ? `<span style="color:var(--tracking-text3,#66758b);font-size:11px">${escapeHtml(s.planned.machineName)}</span>` : ''}
           </div>`).join('')
-        : '<div style="color:var(--tracking-text3,#9e9c98);font-size:12px;padding:8px">No hay procesos configurados en esta orden.</div>';
+        : '<div style="color:var(--tracking-text3,#66758b);font-size:12px;padding:8px">No hay procesos configurados en esta orden.</div>';
     document.getElementById('trackingDrawerOverlay').classList.add('open');
     document.getElementById('trackingDrawer').classList.add('open');
     document.body.style.overflow = 'hidden';
@@ -657,7 +657,7 @@ function trackingRenderDrawerResult(r) {
     document.getElementById('trackingResBreakdown').innerHTML = breakdown.map(b => `
       <div class="tracking-breakdown-item">
         <div class="tracking-breakdown-dot" style="background:${b.cls}"></div>
-        <div class="tracking-breakdown-label"><strong style="color:var(--tracking-text,#1a1916)">${escapeHtml(b.name)}</strong><br><span style="font-size:10px">${escapeHtml(b.detail)}</span></div>
+        <div class="tracking-breakdown-label"><strong style="color:var(--tracking-text,#1f2b3d)">${escapeHtml(b.name)}</strong><br><span style="font-size:10px">${escapeHtml(b.detail)}</span></div>
         <div class="tracking-breakdown-hrs">${Math.round(b.hrs)}h</div>
       </div>`).join('');
     let note = '';
@@ -1017,7 +1017,7 @@ function trackingRenderFlowPanel(box, steps, hist) {
     const total = steps.length;
     const pct = Math.round(doneCount / total * 100);
     const cntBg = doneCount === total ? 'var(--accent-bg,#edf7f3)' : doneCount > 0 ? 'rgba(133,79,11,.1)' : 'var(--tracking-surface2,#f9f8f6)';
-    const cntClr = doneCount === total ? 'var(--accent)' : doneCount > 0 ? '#854F0B' : 'var(--tracking-text3,#9e9c98)';
+    const cntClr = doneCount === total ? 'var(--accent)' : doneCount > 0 ? '#854F0B' : 'var(--tracking-text3,#66758b)';
     let tlHtml = '';
     steps.forEach((s, i) => {
         const status = String(s.routeStatus || 'PENDIENTE').toUpperCase();
@@ -1047,7 +1047,7 @@ function trackingRenderFlowPanel(box, steps, hist) {
         } else if (isActive) {
             nodeInner = '<span style="font-size:9px;font-weight:700">▶</span>';
         } else {
-            nodeInner = `<span style="font-size:10px;color:var(--tracking-text3,#9e9c98)">${i + 1}</span>`;
+            nodeInner = `<span style="font-size:10px;color:var(--tracking-text3,#66758b)">${i + 1}</span>`;
         }
         const nextDone = !isLast && String(steps[i + 1]?.routeStatus || '').toUpperCase() === 'COMPLETADO';
         const connector = isLast ? '' : `<div class="tracking-flow-tl-connector ${isDone && nextDone ? 'solid' : 'dashed'}"></div>`;

@@ -7,18 +7,18 @@
 <title>Flexo APS — Configuración de Procesos y Máquinas</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f5f5f3;min-height:100vh}
+body{font-family:system-ui,sans-serif;font-size:13px;color:#1f2b3d;background:#f3f7fb;min-height:100vh}
 
 /* Header */
-.hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:#fff;border-bottom:1px solid #e0e0da;position:sticky;top:0;z-index:100}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:#fff;border-bottom:1px solid #d8e4ef;position:sticky;top:0;z-index:100}
 .hdr-left{display:flex;align-items:center;gap:12px}
-.hdr-title{font-size:15px;font-weight:600;color:#1a1a1a}
-.hdr-sub{font-size:11px;color:#888}
-.nav-tabs{display:flex;gap:2px;background:#f5f5f3;padding:3px;border-radius:8px}
+.hdr-title{font-size:15px;font-weight:600;color:#1f2b3d}
+.hdr-sub{font-size:11px;color:#66758b}
+.nav-tabs{display:flex;gap:2px;background:#f3f7fb;padding:3px;border-radius:8px}
 .nav-tab{padding:6px 16px;border-radius:6px;font-size:12px;cursor:pointer;color:#666;border:none;background:transparent;font-weight:500}
-.nav-tab.active{background:#fff;color:#1a1a1a;box-shadow:0 1px 4px rgba(0,0,0,0.08)}
-.btn{font-size:12px;padding:6px 14px;border-radius:7px;border:1px solid #d0d0ca;background:#fff;color:#1a1a1a;cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-weight:500}
-.btn:hover{background:#f0f0ea}
+.nav-tab.active{background:#fff;color:#1f2b3d;box-shadow:0 1px 4px rgba(31,55,88,0.08)}
+.btn{font-size:12px;padding:6px 14px;border-radius:7px;border:1px solid #d8e4ef;background:#fff;color:#1f2b3d;cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-weight:500}
+.btn:hover{background:#f3f7fb}
 .btn.primary{background:#1D9E75;border-color:#0F6E56;color:#fff}
 .btn.primary:hover{background:#0F6E56}
 .btn.danger{background:#fceaea;border-color:#f0b5b5;color:#A32D2D}
@@ -30,20 +30,20 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 .page.active{display:block}
 
 /* Cards */
-.card{background:#fff;border:1px solid #e0e0da;border-radius:10px;overflow:hidden;margin-bottom:16px}
-.card-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e8e8e4}
+.card{background:#fff;border:1px solid #d8e4ef;border-radius:10px;overflow:hidden;margin-bottom:16px}
+.card-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e8ecf0}
 .card-title{font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
 .card-body{padding:0}
-.planning-primary-strip{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;background:#fff;border:1px solid #e0e0da;border-radius:10px;padding:12px 14px;margin-bottom:16px}
+.planning-primary-strip{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;background:#fff;border:1px solid #d8e4ef;border-radius:10px;padding:12px 14px;margin-bottom:16px}
 .planning-primary-field{display:flex;flex-direction:column;gap:5px;min-width:280px}
-.planning-primary-field span{font-size:11px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
-.planning-primary-field select{font-size:12px;padding:7px 10px;border:1px solid #d0d0ca;border-radius:7px;background:#fafaf8;color:#1a1a1a}
+.planning-primary-field span{font-size:11px;color:#66758b;font-weight:600;letter-spacing:.04em;white-space:nowrap}
+.planning-primary-field select{font-size:12px;padding:7px 10px;border:1px solid #d8e4ef;border-radius:7px;background:#fafcfe;color:#1f2b3d}
 .planning-primary-summary{font-size:12px;color:#666;text-align:right}
 
 /* Proceso row */
-.proceso-row{display:grid;grid-template-columns:36px 36px 1fr 80px 80px 100px;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid #f0f0ea;cursor:grab}
+.proceso-row{display:grid;grid-template-columns:36px 36px 1fr 80px 80px 100px;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid #f3f7fb;cursor:grab}
 .proceso-row:last-child{border-bottom:none}
-.proceso-row:hover{background:#fafaf8}
+.proceso-row:hover{background:#fafcfe}
 .proceso-row.is-selected{background:#eef8f4}
 .drag-handle{color:#ccc;cursor:grab;font-size:16px;text-align:center}
 .proceso-orden{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0}
@@ -58,9 +58,9 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 
 /* Maquina row */
 .maq-section{padding:0 18px 14px}
-.maq-section-title{font-size:10px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;padding:10px 0 6px;display:flex;align-items:center;gap:6px}
+.maq-section-title{font-size:10px;font-weight:600;color:#66758b;letter-spacing:.05em;padding:10px 0 6px;display:flex;align-items:center;gap:6px}
 .maq-list{display:flex;flex-direction:column;gap:6px}
-.maq-row{display:grid;grid-template-columns:1fr 90px 70px 70px 1fr auto;align-items:center;gap:10px;padding:10px 14px;background:#f9f9f7;border:1px solid #e8e8e4;border-radius:8px}
+.maq-row{display:grid;grid-template-columns:1fr 90px 70px 70px 1fr auto;align-items:center;gap:10px;padding:10px 14px;background:#f7fafd;border:1px solid #e8ecf0;border-radius:8px}
 .maq-row.inactive{opacity:0.5}
 .maq-id{font-weight:700;font-size:12px;color:#378ADD}
 .maq-nombre{font-size:12px;font-weight:500}
@@ -72,24 +72,24 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 /* Formularios */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:200;display:none;align-items:center;justify-content:center}
 .modal-overlay.open{display:flex}
-.modal{background:#fff;border-radius:12px;padding:22px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,0.18)}
+.modal{background:#fff;border-radius:12px;padding:22px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(31,55,88,0.18)}
 .modal-title{font-size:15px;font-weight:600;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center}
 .modal-close{cursor:pointer;color:#888;font-size:20px;line-height:1}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .form-grid.full{grid-template-columns:1fr}
 .field{display:flex;flex-direction:column;gap:4px}
 .field label{font-size:11px;color:#888;font-weight:500}
-.field input,.field select,.field textarea{font-size:12px;padding:7px 10px;border:1px solid #d0d0ca;border-radius:7px;background:#fafaf8;color:#1a1a1a;outline:none}
+.field input,.field select,.field textarea{font-size:12px;padding:7px 10px;border:1px solid #d8e4ef;border-radius:7px;background:#f7fbff;color:#1f2b3d;outline:none}
 .field input:focus,.field select:focus{border-color:#1D9E75;box-shadow:0 0 0 2px rgba(29,158,117,0.12)}
 .field .hint{font-size:10px;color:#aaa}
-.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f0ea}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f3f7fb}
 .toggle-row:last-child{border-bottom:none}
 .toggle-lbl{font-size:12px;color:#333}
 .toggle-hint{font-size:10px;color:#aaa}
 input[type="checkbox"]{width:16px;height:16px;accent-color:#1D9E75;cursor:pointer}
 .color-preview{width:32px;height:32px;border-radius:6px;border:1px solid #d0d0ca;flex-shrink:0}
 .color-row{display:flex;align-items:center;gap:8px}
-.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid #e8e8e4}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid #e8ecf0}
 
 /* Empty state */
 .empty{padding:32px;text-align:center;color:#aaa;font-size:13px}
@@ -107,9 +107,9 @@ input[type="checkbox"]{width:16px;height:16px;accent-color:#1D9E75;cursor:pointe
 
 /* Resumen rápido */
 .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
-.summary-card{background:#fff;border:1px solid #e0e0da;border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+.summary-card{background:#fff;border:1px solid #d8e4ef;border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:4px}
 .summary-num{font-size:28px;font-weight:600}
-.summary-lbl{font-size:11px;color:#888}
+.summary-lbl{font-size:11px;color:#66758b}
 </style>
 <link rel="stylesheet" href="/theme-extensions.css">
 </head>
@@ -320,7 +320,7 @@ input[type="checkbox"]{width:16px;height:16px;accent-color:#1D9E75;cursor:pointe
       </div>
     </div>
     <div style="margin-top:14px">
-      <div style="font-size:11px;font-weight:600;color:#888;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">Capacidades especiales</div>
+      <div style="font-size:11px;font-weight:600;color:#66758b;margin-bottom:8px;letter-spacing:.04em">Capacidades especiales</div>
       <div class="toggle-row">
         <div class="toggle-lbl">Troquel integrado</div>
         <input type="checkbox" id="maq-troquel">
@@ -680,7 +680,7 @@ function renderResumen() {
               <span style="font-size:12px;font-weight:500">${p.icono} ${p.nombre}</span>
               <span style="font-size:11px;color:#888">${maqsDeProc.length} máquina${maqsDeProc.length!==1?'s':''}</span>
             </div>
-            <div style="height:8px;background:#f0f0ea;border-radius:4px;overflow:hidden">
+            <div style="height:8px;background:#e8ecf0;border-radius:4px;overflow:hidden">
               <div style="height:100%;width:${pct}%;background:${p.color_hex};border-radius:4px;transition:width .4s"></div>
             </div>
           </div>`;
