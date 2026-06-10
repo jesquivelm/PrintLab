@@ -162,7 +162,7 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 
 /* ── PIPELINE VIEW ── */
 #pipeline-view{display:none;min-height:400px}
-.pipeline-board{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));width:100%;border-top:1px solid #e0e0da}
+.pipeline-board{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));width:100%;border-top:1px solid #e0e0da;padding:0 16px;box-sizing:border-box}
 .pipeline-col{min-width:0;border-right:1px solid #e0e0da}
 .pipeline-col:last-child{border-right:none}
 .pipeline-col-header{padding:10px 10px 8px;display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid transparent}
@@ -355,7 +355,7 @@ html[data-theme="dark"] .pc-due{color:var(--app-text-muted,#94a3b8)}
 /* Flow timeline improved */
 .tl-flow-wrap{padding:4px 0 8px}
 .tl-row{display:flex;align-items:flex-start;gap:10px;padding:4px 0}
-.tl-col-left{display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:22px}
+.tl-col-left{display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:34px}
 .tl-content{flex:1;min-width:0;padding-top:1px;padding-bottom:4px;border-bottom:1px solid #f0f0ea}
 .tl-row:last-child .tl-content{border-bottom:none}
 .tl-step-title{font-size:12px;font-weight:500;color:#1a1a1a;line-height:1.4}
@@ -364,11 +364,19 @@ html[data-theme="dark"] .pc-due{color:var(--app-text-muted,#94a3b8)}
 .tl-step-title.stopped{color:#E24B4A}
 .tl-step-title.pending{color:#888}
 .tl-step-meta{font-size:10px;color:#aaa;margin-top:2px}
-.tl-node{width:22px;height:22px;border-radius:50%;border:2px solid #d0d0ca;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:9px;transition:all .15s;margin-top:2px;background:#fff}
-.tl-node.done{background:#1D9E75;border-color:#1D9E75;color:#fff}
-.tl-node.active{background:#378ADD;border-color:#378ADD;color:#fff;box-shadow:0 0 0 3px rgba(55,138,221,.2)}
-.tl-node.pending{background:#fff;border-color:#d0d0ca}
-.tl-node.paro{background:#E24B4A;border-color:#E24B4A;color:#fff}
+.tl-node{width:34px;height:34px;border-radius:50%;border:2px solid #d0d0ca;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;transition:all .15s;margin-top:2px;background:#f5f5f3;color:#888;padding:0;appearance:none;position:relative;overflow:visible}
+.tl-node.done{background:#e8f7f1;border-color:#a7f3d0;color:#1D9E75}
+.tl-node.active{background:#e8f0fb;border-color:#b5d0f0;color:#378ADD;box-shadow:0 0 0 3px rgba(55,138,221,.2)}
+.tl-node.pending{background:#f5f5f3;border-color:#d0d0ca;color:#aaa}
+.tl-node.paro{background:#fceaea;border-color:#f0b5b5;color:#E24B4A}
+.tl-node.has-avatar{background:linear-gradient(135deg,#378ADD,#1D9E75);border-color:rgba(255,255,255,.4);color:#fff;box-shadow:0 0 0 2px rgba(55,138,221,.15)}
+.tl-node.has-avatar.has-photo{background:transparent;border-color:#d0d0ca;box-shadow:0 0 0 2px rgba(55,138,221,.15)}
+.tl-avatar-clip{width:100%;height:100%;display:grid;place-items:center;overflow:hidden;border-radius:50%}
+.tl-avatar-clip .tl-av-img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.tl-avatar-clip .tl-av-img[hidden]{display:none}
+.tl-avatar-clip .tl-av-fb{width:100%;height:100%;display:grid;place-items:center;font-size:11px;font-weight:700}
+.tl-avatar-clip .tl-av-fb[hidden]{display:none}
+.tl-node-badge{position:absolute;right:-3px;bottom:-3px;width:14px;height:14px;border-radius:50%;display:grid;place-items:center;background:#1D9E75;color:#fff;border:2px solid #fff;font-size:9px;font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.16)}
 .tl-connector{width:2px;height:12px;margin:0 auto;background:repeating-linear-gradient(to bottom,#d0d0ca 0 3px,transparent 3px 6px)}
 .tl-connector.solid{background:#1D9E75}
 .flow-action-btn{font-size:11px;padding:6px 12px;border:1px solid #d0d0ca;border-radius:6px;background:#fff;color:#555;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:5px}
@@ -394,7 +402,10 @@ html[data-theme="dark"] .tl-content{border-color:var(--app-border,#334155)}
 html[data-theme="dark"] .flow-actions{border-color:var(--app-border,#334155)}
 html[data-theme="dark"] .tl-step-title{color:var(--app-text,#e5edf6)}
 html[data-theme="dark"] .tl-step-title.pending{color:var(--app-text-muted,#94a3b8)}
-html[data-theme="dark"] .tl-node{background:var(--app-surface-raised,#1f2937);border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .tl-node{background:var(--app-surface-raised,#1f2937);border-color:var(--app-border,#334155);color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .tl-node.has-avatar{background:linear-gradient(135deg,#378ADD,#1D9E75);border-color:rgba(255,255,255,.25);color:#fff}
+html[data-theme="dark"] .tl-node.has-avatar.has-photo{background:transparent;border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .tl-node-badge{border-color:var(--app-surface,#111827)}
 html[data-theme="dark"] .flow-action-btn{background:var(--app-surface-raised,#1f2937);border-color:var(--app-border,#334155);color:var(--app-text-muted,#94a3b8)}
 html[data-theme="dark"] .flow-action-btn:hover{background:rgba(255,255,255,.06)}
 html[data-theme="dark"] .dp-scroll-body::-webkit-scrollbar-thumb{background:#334155}
@@ -2535,14 +2546,53 @@ function renderFlowTimeline(steps) {
     const isStopped = status === 'PARO';
     const isLast = i === steps.length - 1;
 
-    const nodeClass = isDone ? 'tl-node done' : isActive ? 'tl-node active' : isStopped ? 'tl-node paro' : 'tl-node pending';
-    const nodeInner = isDone ? '✓' : isActive ? '●' : isStopped ? '✕' : (procIcons[s.processKey] || '');
-    const titleClass = isDone ? 'done' : isActive ? 'active' : isStopped ? 'stopped' : 'pending';
+    // ── Avatar idéntico a orden-produccion.js ──
+    const markerName = String(s.completedBy || s.startedBy || '').trim();
+    const markerPhoto = String(s.completedByPhoto || s.startedByPhoto || '').trim();
+    const hasMarkerPhoto = Boolean(markerPhoto);
+
+    let nodeClass = isDone ? 'tl-node done'
+      : isActive ? 'tl-node active'
+      : isStopped ? 'tl-node paro'
+      : 'tl-node pending';
+
+    let nodeInner;
+    if (markerName) {
+      nodeClass += ' has-avatar' + (hasMarkerPhoto ? ' has-photo' : '');
+      // Intenta obtener foto de la sesión si no viene en el payload
+      let photo = markerPhoto;
+      if (!photo) {
+        try {
+          const raw = localStorage.getItem('erp-user-session') || sessionStorage.getItem('erp-user-session');
+          if (raw) {
+            const sess = JSON.parse(raw);
+            const sName = sess.name || sess.fullName || sess.username || '';
+            const normalize = v => String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+            if (normalize(sName) === normalize(markerName)) {
+              photo = sess.photoUrl || sess.photo_url || '';
+              if (photo) nodeClass = nodeClass.replace('has-avatar', 'has-avatar has-photo');
+            }
+          }
+        } catch(_){}
+      }
+      const initials = escHtml(((markerName.split(' ')[0]?.[0]||'')+(markerName.split(' ')[1]?.[0]||'')).toUpperCase() || 'U');
+      const avatarInner = photo
+        ? `<img class="tl-av-img" src="${escHtml(photo)}" alt="${escHtml(markerName)}"
+             onerror="this.hidden=true;this.nextElementSibling&&(this.nextElementSibling.hidden=false)">
+           <span class="tl-av-fb" hidden>${initials}</span>`
+        : `<div class="tl-av-fb">${initials}</div>`;
+      nodeInner = `<span class="tl-avatar-clip">${avatarInner}</span><span class="tl-node-badge">✓</span>`;
+    } else {
+      nodeInner = isDone ? '✓' : isActive ? '●' : isStopped ? '✕' : (procIcons[s.processKey] || '');
+    }
+
+    const nodeTitle = isDone
+      ? `${markerName ? 'Marcado por ' + markerName + ' — c' : 'C'}lic para quitar`
+      : 'Clic para marcar como completado';
+
     const solid = isDone && !isLast && steps[i + 1] && String(steps[i + 1].routeStatus || '').toUpperCase() === 'COMPLETADO';
 
-    // Node tooltip según estado
-    const nodeTitle = isDone ? 'Quitar marca de completado' : 'Marcar como completado';
-
+    // ── Detalle ──
     let detailRows = '';
     const machineKeys = ['planchas', 'impresion', 'acabados', 'barnizado', 'laminado', 'rebobinado', 'numeracion'];
     if (machineKeys.includes(s.processKey) && s.planned?.machineName) {
@@ -2550,52 +2600,35 @@ function renderFlowTimeline(steps) {
     }
     const plannedMin = s.planned?.minutes > 0 ? s.planned.minutes : 0;
     if (plannedMin > 0) {
-      const h = Math.floor(plannedMin / 60);
-      const m = Math.round(plannedMin % 60);
-      const timeStr = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
-      detailRows += `<span class="flow-detail-row">⏱ ${timeStr}</span>`;
+      const h = Math.floor(plannedMin / 60), m = Math.round(plannedMin % 60);
+      detailRows += `<span class="flow-detail-row">⏱ ${h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`}</span>`;
     }
     if (s.processKey === 'planchas') {
       const planSource = s.actual?.planSourceLabel || s.planned?.planSource;
       if (planSource) detailRows += `<span class="flow-detail-row">📦 ${escHtml(planSource)}</span>`;
     }
 
-    // Avatar / indicador del responsable
-    let avatarHtml = '';
-    if (isDone && (s.completedBy || s.completedAt)) {
-      const name = s.completedBy || '';
-      const initials = name.split(' ').map(w => w[0]?.toUpperCase() || '').slice(0,2).join('') || '✓';
-      const d = s.completedAt ? new Date(s.completedAt) : null;
-      const dateStr = d ? d.toLocaleDateString('es-CR') + ' ' + d.toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' }) : '';
-      avatarHtml = `
-        <div style="display:flex;align-items:center;gap:6px;margin-top:4px" title="${escHtml(name)}${dateStr ? ' · ' + dateStr : ''}">
-          <div style="width:22px;height:22px;border-radius:50%;background:#1D9E75;color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:2px solid #d4edda">${initials}</div>
-          <span class="tl-step-meta">${escHtml(name)}${dateStr ? ' · ' + dateStr : ''}</span>
-        </div>`;
-    } else if (isDone) {
-      avatarHtml = `
-        <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
-          <div style="width:22px;height:22px;border-radius:50%;background:#1D9E75;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:2px solid #d4edda">✓</div>
-          <span class="tl-step-meta" style="color:#1D9E75">Completado</span>
-        </div>`;
+    // Meta (nombre + fecha) solo en texto debajo del título
+    const metaParts = [];
+    if (markerName) metaParts.push(escHtml(markerName));
+    if (s.completedAt) {
+      const d = new Date(s.completedAt);
+      metaParts.push(d.toLocaleDateString('es-CR') + ' ' + d.toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' }));
     }
+    const metaHtml = metaParts.length ? `<div class="tl-step-meta">${metaParts.join(' · ')}</div>` : '';
 
-    // Status label pill
+    const titleClass = isDone ? 'done' : isActive ? 'active' : isStopped ? 'stopped' : 'pending';
     const statusLabel = isDone ? 'Listo' : isActive ? status : isStopped ? 'Paro' : 'Pendiente';
-    const statusStyle = isDone ? 'background:#e8f7f1;color:#0F6E56' :
-      isActive ? 'background:#e8f0fb;color:#185FA5' :
-      isStopped ? 'background:#fceaea;color:#A32D2D' :
-      'background:#f0f0ea;color:#888';
+    const statusStyle = isDone ? 'background:#e8f7f1;color:#0F6E56'
+      : isActive ? 'background:#e8f0fb;color:#185FA5'
+      : isStopped ? 'background:#fceaea;color:#A32D2D'
+      : 'background:#f0f0ea;color:#888';
 
     html += `
       <div class="tl-row">
         <div class="tl-col-left">
-          <button type="button" class="${nodeClass}" data-flow-toggle="${i}"
-            title="${nodeTitle}"
-            style="cursor:pointer;transition:transform .1s,box-shadow .1s"
-            onmouseenter="this.style.transform='scale(1.15)'"
-            onmouseleave="this.style.transform=''">
-            <span style="font-size:9px">${nodeInner}</span>
+          <button type="button" class="${nodeClass}" data-flow-toggle="${i}" title="${nodeTitle}">
+            ${nodeInner}
           </button>
           ${!isLast ? `<div class="tl-connector ${solid ? 'solid' : ''}"></div>` : ''}
         </div>
@@ -2604,7 +2637,7 @@ function renderFlowTimeline(steps) {
             <span class="tl-step-title ${titleClass}">${escHtml(s.processName || s.processKey || 'Proceso')}</span>
             <span style="font-size:9px;padding:1px 6px;border-radius:10px;flex-shrink:0;${statusStyle}">${statusLabel}</span>
           </div>
-          ${avatarHtml}
+          ${metaHtml}
           ${detailRows ? `<div class="flow-detail-stack">${detailRows}</div>` : ''}
         </div>
       </div>`;
