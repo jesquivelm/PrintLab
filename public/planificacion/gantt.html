@@ -331,14 +331,16 @@ html[data-theme="dark"] .pc-due{color:var(--app-text-muted,#94a3b8)}
 .drop-hint{position:absolute;top:0;bottom:0;width:3px;background:#378ADD;border-radius:2px;pointer-events:none;z-index:100;opacity:0;transition:opacity .1s}
 .timeline.drag-over .drop-hint{opacity:1}
 
-/* ── PROCESS REORDER (Pipeline) ── */
-.pipeline-col-reorder{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;margin-left:4px;flex-shrink:0}
-.proc-order-badge{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;border:2px solid rgba(255,255,255,.5);color:#fff;background:rgba(0,0,0,.18);cursor:default;user-select:none;transition:box-shadow .15s}
-.proc-move-btn{width:18px;height:18px;border:none;border-radius:4px;background:rgba(255,255,255,.28);color:#fff;font-size:10px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;transition:background .12s}
-.proc-move-btn:hover{background:rgba(255,255,255,.52)}
-.proc-move-btn:disabled{opacity:0.22;cursor:not-allowed}
-.pipeline-col.proc-dragging-src{opacity:0.45;outline:2px dashed rgba(255,255,255,.5);outline-offset:-2px}
-.pipeline-col.proc-drag-over{background:rgba(55,138,221,.06);outline:2px dashed #378ADD;outline-offset:-2px}
+/* ── ORDER REORDER (Pipeline cards) ── */
+.pc-order-num{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;font-size:9px;font-weight:700;flex-shrink:0;background:rgba(0,0,0,.12);color:inherit;user-select:none}
+.pc-move-btn{width:18px;height:18px;border:none;border-radius:4px;background:transparent;color:#bbb;font-size:10px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;transition:background .12s,color .12s}
+.pc-move-btn:hover{background:#f0f0ea;color:#555}
+.pc-move-btn:disabled{opacity:0.22;cursor:not-allowed}
+.pc-drag-handle{display:flex;align-items:center;justify-content:center;width:18px;height:28px;cursor:grab;color:#ccc;font-size:12px;flex-shrink:0;line-height:1;user-select:none;transition:color .12s}
+.pc-drag-handle:hover{color:#888}
+.pipeline-card.card-dragging{opacity:0.4;cursor:grabbing}
+.pipeline-card.card-drag-over-top{box-shadow:0 -3px 0 0 #378ADD!important}
+.pipeline-card.card-drag-over-bottom{box-shadow:0 3px 0 0 #378ADD!important}
 /* ── DETAIL PANEL — Improved ── */
 .dp-header-area{padding:16px 18px 0;flex-shrink:0}
 .dp-title{font-size:14px;font-weight:600;margin-bottom:3px;display:flex;justify-content:space-between;align-items:center}
@@ -1274,54 +1276,90 @@ function switchView(view) {
   render();
 }
 
-// ── PROCESS ORDER MANAGEMENT ─────────────────────────────────
-let procDragSrcIdx = null; // index within pipelineProcessOrder being dragged
+// ── PROCESS ORDER (pipeline column order is fixed, only card order is mutable) ──
 
-function movePipelineProcess(fromIdx, direction) {
+// ── PIPELINE ORDER SORT STATE ──────────────────────────────────
+// Almacena el orden manual de tarjetas por columna (key → [id_ruta, ...])
+const pipelineColOrder = {};
+
+function getPipelineColOrder(key, defaultList) {
+  if (!pipelineColOrder[key]) {
+    pipelineColOrder[key] = defaultList.map(op => op.id_ruta);
+    return defaultList;
+  }
+  // Merge: keep existing order for known ids, append new ones at end, drop removed
+  const knownIds = new Set(defaultList.map(op => op.id_ruta));
+  const filtered = pipelineColOrder[key].filter(id => knownIds.has(id));
+  const newIds   = defaultList.filter(op => !filtered.includes(op.id_ruta)).map(op => op.id_ruta);
+  pipelineColOrder[key] = [...filtered, ...newIds];
+  const idxMap = {};
+  pipelineColOrder[key].forEach((id, i) => { idxMap[id] = i; });
+  return [...defaultList].sort((a, b) => (idxMap[a.id_ruta] ?? 999) - (idxMap[b.id_ruta] ?? 999));
+}
+
+function movePipelineCard(ppKey, fromIdx, direction) {
   const toIdx = fromIdx + direction;
-  if (toIdx < 0 || toIdx >= pipelineProcessOrder.length) return;
-  const arr = [...pipelineProcessOrder];
+  const arr = pipelineColOrder[ppKey];
+  if (!arr || toIdx < 0 || toIdx >= arr.length) return;
   [arr[fromIdx], arr[toIdx]] = [arr[toIdx], arr[fromIdx]];
-  pipelineProcessOrder = arr;
   renderPipeline();
 }
 
-function procDragStart(e, colIdx) {
-  procDragSrcIdx = colIdx;
+// Drag state for card reordering
+let cardDragSrcKey = null;
+let cardDragSrcIdx = null;
+
+function cardDragStart(e, ppKey, cardIdx) {
+  cardDragSrcKey = ppKey;
+  cardDragSrcIdx = cardIdx;
   e.dataTransfer.effectAllowed = 'move';
-  e.dataTransfer.setData('application/proc-order', String(colIdx));
-  // Add class after paint
+  e.dataTransfer.setData('application/card-order', String(cardIdx));
+  e.stopPropagation();
   requestAnimationFrame(() => {
-    const cols = document.querySelectorAll('.pipeline-col');
-    if (cols[colIdx]) cols[colIdx].classList.add('proc-dragging-src');
+    const col = document.querySelector(`.pipeline-col[data-ppkey="${ppKey}"]`);
+    if (col) {
+      const cards = col.querySelectorAll('.pipeline-card');
+      if (cards[cardIdx]) cards[cardIdx].classList.add('card-dragging');
+    }
   });
 }
 
-function procDragEnd() {
-  document.querySelectorAll('.pipeline-col').forEach(c => {
-    c.classList.remove('proc-dragging-src','proc-drag-over');
+function cardDragEnd(e) {
+  document.querySelectorAll('.pipeline-card').forEach(c => {
+    c.classList.remove('card-dragging','card-drag-over-top','card-drag-over-bottom');
   });
-  procDragSrcIdx = null;
+  cardDragSrcKey = null;
+  cardDragSrcIdx = null;
 }
 
-function procDragOver(e, colIdx) {
-  if (procDragSrcIdx === null || procDragSrcIdx === colIdx) return;
+function cardDragOver(e, ppKey, cardIdx) {
+  if (cardDragSrcKey !== ppKey || cardDragSrcIdx === cardIdx) return;
   e.preventDefault();
   e.dataTransfer.dropEffect = 'move';
-  document.querySelectorAll('.pipeline-col').forEach((c, i) => {
-    c.classList.toggle('proc-drag-over', i === colIdx);
+  const col = document.querySelector(`.pipeline-col[data-ppkey="${ppKey}"]`);
+  if (!col) return;
+  col.querySelectorAll('.pipeline-card').forEach((c, i) => {
+    c.classList.remove('card-drag-over-top','card-drag-over-bottom');
+    if (i === cardIdx) {
+      c.classList.add(cardDragSrcIdx < cardIdx ? 'card-drag-over-bottom' : 'card-drag-over-top');
+    }
   });
 }
 
-function procDrop(e, colIdx) {
+function cardDrop(e, ppKey, cardIdx) {
   e.preventDefault();
-  document.querySelectorAll('.pipeline-col').forEach(c => c.classList.remove('proc-drag-over'));
-  if (procDragSrcIdx === null || procDragSrcIdx === colIdx) { procDragSrcIdx = null; return; }
-  const arr = [...pipelineProcessOrder];
-  const [removed] = arr.splice(procDragSrcIdx, 1);
-  arr.splice(colIdx, 0, removed);
-  pipelineProcessOrder = arr;
-  procDragSrcIdx = null;
+  e.stopPropagation();
+  document.querySelectorAll('.pipeline-card').forEach(c => {
+    c.classList.remove('card-drag-over-top','card-drag-over-bottom');
+  });
+  if (cardDragSrcKey !== ppKey || cardDragSrcIdx === null || cardDragSrcIdx === cardIdx) {
+    cardDragSrcKey = null; cardDragSrcIdx = null; return;
+  }
+  const arr = pipelineColOrder[ppKey];
+  if (!arr) { cardDragSrcKey = null; cardDragSrcIdx = null; return; }
+  const [removed] = arr.splice(cardDragSrcIdx, 1);
+  arr.splice(cardIdx, 0, removed);
+  cardDragSrcKey = null; cardDragSrcIdx = null;
   renderPipeline();
 }
 
@@ -1342,31 +1380,50 @@ function renderPipeline() {
   // Today range: start_turn_hour 0-24 = today 6am to tomorrow 6am
   const todayBase = new Date();
   todayBase.setHours(6, 0, 0, 0);
-  const todayStart = todayBase.getTime();
-  const todayEnd = todayStart + 24 * 3600000;
 
   // Filter: only routes that are the "current process" for their order
   // A route is "current" if: prev process is COMPLETED (or no prev) AND this process is NOT COMPLETED
+  // UNICIDAD: each order appears in at most ONE process column
   let pipelineOrders = [];
+  const seenOrderCodes = new Set();
+
   Object.keys(orderRoutesMap).forEach(orderCode => {
     const routes = orderRoutesMap[orderCode];
-    routes.forEach(op => {
-      if (op.estado === 'COMPLETADO') return;
 
-      // Check if predecessor is completed
-      let predCompleted = true;
-      if (op.dep_ruta_id) {
-        const pred = orders.find(o => o.id_ruta === op.dep_ruta_id);
-        predCompleted = pred && pred.estado === 'COMPLETADO';
+    // Find the single "active" route for this order
+    // Priority: RUN/SETUP first, then earliest non-completed route with pred completed
+    let activeRoute = null;
+
+    // Pass 1: find running route
+    for (const op of routes) {
+      if (op.estado === 'COMPLETADO') continue;
+      if (op.estado === 'RUN' || op.estado === 'SETUP') {
+        const inicio = Number(op.inicio || 0);
+        if (inicio >= 0 && inicio < 24) { activeRoute = op; break; }
       }
-      if (!predCompleted) return;
+    }
 
-      // Check if scheduled for today (start_turn_hour 0-24)
-      const inicio = Number(op.inicio || 0);
-      if (inicio < 0 || inicio >= 24) return;
+    // Pass 2: find first pending route whose predecessor is completed
+    if (!activeRoute) {
+      for (const op of routes) {
+        if (op.estado === 'COMPLETADO') continue;
+        let predCompleted = true;
+        if (op.dep_ruta_id) {
+          const pred = orders.find(o => o.id_ruta === op.dep_ruta_id);
+          predCompleted = pred && pred.estado === 'COMPLETADO';
+        }
+        if (!predCompleted) continue;
+        const inicio = Number(op.inicio || 0);
+        if (inicio < 0 || inicio >= 24) continue;
+        activeRoute = op;
+        break;
+      }
+    }
 
-      pipelineOrders.push(op);
-    });
+    if (activeRoute && !seenOrderCodes.has(orderCode)) {
+      seenOrderCodes.add(orderCode);
+      pipelineOrders.push(activeRoute);
+    }
   });
 
   // Apply search filter
@@ -1389,7 +1446,7 @@ function renderPipeline() {
     groups[pp.key].push(op);
   });
 
-  // Sort each column by start time
+  // Sort each column: default by alert priority then start time, then apply manual order
   getPIPELINE_PROCESSES().forEach(pp => {
     groups[pp.key].sort((a, b) => {
       const aAlert = scheduleAlerts.find(e => e.orderCode === a.id);
@@ -1399,6 +1456,7 @@ function renderPipeline() {
       if (aPrio !== bPrio) return aPrio - bPrio;
       return a.inicio - b.inicio;
     });
+    groups[pp.key] = getPipelineColOrder(pp.key, groups[pp.key]);
   });
 
   const orderedProcesses = getPIPELINE_PROCESSES();
@@ -1413,37 +1471,23 @@ function renderPipeline() {
     </span>
     <button class="btn" style="margin-left:auto" onclick="pipelineFilter='';renderPipeline()">Limpiar</button>
   </div>
-  <div class="pipeline-board" style="padding:0 40px">`;
+  <div class="pipeline-board">`;
 
   orderedProcesses.forEach((pp, colIdx) => {
     const colOrders = groups[pp.key] || [];
     const lateCount = colOrders.filter(o => scheduleAlerts.find(e => e.orderCode === o.id && e.type === 'late')).length;
-    const isFirst = colIdx === 0;
-    const isLast  = colIdx === orderedProcesses.length - 1;
 
+    // Header idéntico al original — sin drag, sin numeración, sin botones de mover
     html += `
-    <div class="pipeline-col"
-      draggable="true"
-      ondragstart="procDragStart(event,${colIdx})"
-      ondragend="procDragEnd()"
-      ondragover="procDragOver(event,${colIdx})"
-      ondrop="procDrop(event,${colIdx})"
-    >
+    <div class="pipeline-col" data-ppkey="${pp.key}">
       <div class="pipeline-col-header" style="background:${pp.bgHeader};border-bottom-color:${pp.color}">
-        <div class="pipeline-col-title" style="color:${pp.textColor};cursor:grab" title="Arrastrá para reordenar">
+        <div class="pipeline-col-title" style="color:${pp.textColor}">
           <span>${pp.icon}</span>
           <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${pp.label}</span>
         </div>
         <div style="display:flex;gap:4px;align-items:center;flex-shrink:0">
           ${lateCount > 0 ? `<span style="font-size:10px;background:#fceaea;color:#A32D2D;border-radius:4px;padding:1px 4px;font-weight:700">⚠${lateCount}</span>` : ''}
           <span class="pipeline-col-count" style="background:${pp.color};color:#fff">${colOrders.length}</span>
-          <div class="pipeline-col-reorder" onclick="event.stopPropagation()">
-            <button class="proc-move-btn" title="Mover izquierda" onclick="movePipelineProcess(${colIdx},-1)" ${isFirst?'disabled':''}
-              style="font-size:9px">◀</button>
-            <span class="proc-order-badge" style="background:${pp.color}" title="Posición ${colIdx+1}">${colIdx+1}</span>
-            <button class="proc-move-btn" title="Mover derecha" onclick="movePipelineProcess(${colIdx},1)" ${isLast?'disabled':''}
-              style="font-size:9px">▶</button>
-          </div>
         </div>
       </div>
       <div class="pipeline-cards">`;
@@ -1451,7 +1495,7 @@ function renderPipeline() {
     if (colOrders.length === 0) {
       html += `<div class="pipeline-empty">Sin órdenes pendientes</div>`;
     } else {
-      colOrders.forEach(op => {
+      colOrders.forEach((op, cardIdx) => {
         const alert     = scheduleAlerts.find(e => e.orderCode === op.id);
         const isLate    = alert?.type === 'late';
         const isTight   = alert?.type === 'tight';
@@ -1460,6 +1504,7 @@ function renderPipeline() {
         const progressPct = isRunning ? Math.min(100, Math.round(Number(op.route_payload?.progressPct || op.planning_snapshot?.progressPct || 0))) : 0;
         const maquinaNombre = (machines.find(m => m.id_maquina === op.maquina || m.id === op.maquina)?.nombre_recurso || '').split(' ').slice(0,2).join(' ');
         const routeArg = String(op.id_ruta).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+        const ppKeyEsc = pp.key.replace(/'/g,"\\'");
 
         // Format start time
         const inicio = Number(op.inicio || 0);
@@ -1474,37 +1519,56 @@ function renderPipeline() {
 
         const dueLabel = op.fecha_entrega_prometida ? formatPromisedDate(op.fecha_entrega_prometida) : null;
         const dueClass = isLate ? ' overdue' : isTight ? ' tight-date' : '';
+        const isFirst = cardIdx === 0;
+        const isLastCard = cardIdx === colOrders.length - 1;
 
         html += `
         <div class="pipeline-card${cardExtra}"
-          style="border-left-color:${pp.color}"
-          onclick="openDP('${routeArg}')"
+          style="border-left-color:${pp.color};display:flex;gap:6px;align-items:flex-start;padding:8px 8px 8px 6px"
+          draggable="true"
+          ondragstart="cardDragStart(event,'${ppKeyEsc}',${cardIdx})"
+          ondragend="cardDragEnd(event)"
+          ondragover="cardDragOver(event,'${ppKeyEsc}',${cardIdx})"
+          ondrop="cardDrop(event,'${ppKeyEsc}',${cardIdx})"
         >
-          <div class="pc-order">
-            <span>${op.id}</span>
-            <div style="display:flex;gap:2px;flex-shrink:0">
-              ${isLate    ? '<span title="Fuera de fecha prometida" style="color:#E24B4A;font-size:11px">⚠</span>' : ''}
-              ${isTight   ? '<span title="Margen ajustado" style="color:#BA7517;font-size:11px">⌛</span>' : ''}
-              ${hasConflict ? '<span title="Conflicto de secuencia o máquina" style="color:#E24B4A;font-size:10px">⊗</span>' : ''}
-              ${op.manual_lock ? '<span title="Orden fija" style="color:#aaa;font-size:10px">🔒</span>' : ''}
+          <!-- Grab handle -->
+          <div class="pc-drag-handle" title="Arrastrar para reordenar" onclick="event.stopPropagation()">⋮⋮</div>
+          <!-- Contenido principal -->
+          <div style="flex:1;min-width:0;cursor:pointer" onclick="openDP('${routeArg}')">
+            <div class="pc-order">
+              <span style="display:flex;align-items:center;gap:5px">
+                <span class="pc-order-num" style="background:${pp.color}22;color:${pp.textColor}">${cardIdx + 1}</span>
+                <span>${op.id}</span>
+              </span>
+              <div style="display:flex;gap:2px;flex-shrink:0">
+                ${isLate    ? '<span title="Fuera de fecha prometida" style="color:#E24B4A;font-size:11px">⚠</span>' : ''}
+                ${isTight   ? '<span title="Margen ajustado" style="color:#BA7517;font-size:11px">⌛</span>' : ''}
+                ${hasConflict ? '<span title="Conflicto de secuencia o máquina" style="color:#E24B4A;font-size:10px">⊗</span>' : ''}
+                ${op.manual_lock ? '<span title="Orden fija" style="color:#aaa;font-size:10px">🔒</span>' : ''}
+              </div>
             </div>
+            <div class="pc-cliente">${escHtml(op.cliente)}</div>
+            <div class="pc-articulo" title="${escHtml(op.articulo)}">${escHtml(op.articulo)}</div>
+            <div class="pc-meta">
+              <span class="pc-chip dur" title="Hora inicio">${timeLabel}</span>
+              <span class="pc-chip dur" title="Duración estimada">${op.dur}h</span>
+              ${op.colores > 0 ? `<span class="pc-chip colores" title="${op.colores} colores">${op.colores} col.</span>` : ''}
+              ${maquinaNombre ? `<span class="pc-chip maq" title="Máquina: ${escHtml(maquinaNombre)}">${escHtml(maquinaNombre)}</span>` : ''}
+              ${isLate  ? `<span class="pc-chip late" title="Retraso">+${Math.abs(alert.slack).toFixed(1)}h</span>` : ''}
+              ${isTight ? `<span class="pc-chip tight" title="Margen">${alert.slack.toFixed(1)}h</span>` : ''}
+              ${isRunning ? `<span class="pc-chip run">${op.estado}</span>` : ''}
+            </div>
+            ${dueLabel ? `<div class="pc-due${dueClass}" title="Entrega prometida">📅 ${dueLabel}</div>` : ''}
+            ${progressPct > 0 ? `
+            <div class="pc-progress" title="Progreso: ${progressPct}%">
+              <div class="pc-progress-fill" style="width:${progressPct}%;background:${pp.color}"></div>
+            </div>` : ''}
           </div>
-          <div class="pc-cliente">${escHtml(op.cliente)}</div>
-          <div class="pc-articulo" title="${escHtml(op.articulo)}">${escHtml(op.articulo)}</div>
-          <div class="pc-meta">
-            <span class="pc-chip dur" title="Hora inicio">${timeLabel}</span>
-            <span class="pc-chip dur" title="Duración estimada">${op.dur}h</span>
-            ${op.colores > 0 ? `<span class="pc-chip colores" title="${op.colores} colores">${op.colores} col.</span>` : ''}
-            ${maquinaNombre ? `<span class="pc-chip maq" title="Máquina: ${escHtml(maquinaNombre)}">${escHtml(maquinaNombre)}</span>` : ''}
-            ${isLate  ? `<span class="pc-chip late" title="Retraso">+${Math.abs(alert.slack).toFixed(1)}h</span>` : ''}
-            ${isTight ? `<span class="pc-chip tight" title="Margen">${alert.slack.toFixed(1)}h</span>` : ''}
-            ${isRunning ? `<span class="pc-chip run">${op.estado}</span>` : ''}
+          <!-- Botones de reordenamiento -->
+          <div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0;align-self:center" onclick="event.stopPropagation()">
+            <button class="pc-move-btn" title="Subir" onclick="movePipelineCard('${ppKeyEsc}',${cardIdx},-1)" ${isFirst?'disabled':''}>▲</button>
+            <button class="pc-move-btn" title="Bajar" onclick="movePipelineCard('${ppKeyEsc}',${cardIdx},1)" ${isLastCard?'disabled':''}>▼</button>
           </div>
-          ${dueLabel ? `<div class="pc-due${dueClass}" title="Entrega prometida">📅 ${dueLabel}</div>` : ''}
-          ${progressPct > 0 ? `
-          <div class="pc-progress" title="Progreso: ${progressPct}%">
-            <div class="pc-progress-fill" style="width:${progressPct}%;background:${pp.color}"></div>
-          </div>` : ''}
         </div>`;
       });
     }
@@ -2476,6 +2540,9 @@ function renderFlowTimeline(steps) {
     const titleClass = isDone ? 'done' : isActive ? 'active' : isStopped ? 'stopped' : 'pending';
     const solid = isDone && !isLast && steps[i + 1] && String(steps[i + 1].routeStatus || '').toUpperCase() === 'COMPLETADO';
 
+    // Node tooltip según estado
+    const nodeTitle = isDone ? 'Quitar marca de completado' : 'Marcar como completado';
+
     let detailRows = '';
     const machineKeys = ['planchas', 'impresion', 'acabados', 'barnizado', 'laminado', 'rebobinado', 'numeracion'];
     if (machineKeys.includes(s.processKey) && s.planned?.machineName) {
@@ -2488,17 +2555,29 @@ function renderFlowTimeline(steps) {
       const timeStr = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
       detailRows += `<span class="flow-detail-row">⏱ ${timeStr}</span>`;
     }
-    // Special detail for planchas
     if (s.processKey === 'planchas') {
       const planSource = s.actual?.planSourceLabel || s.planned?.planSource;
       if (planSource) detailRows += `<span class="flow-detail-row">📦 ${escHtml(planSource)}</span>`;
     }
 
-    const metaParts = [];
-    if (s.completedBy) metaParts.push(escHtml(s.completedBy));
-    if (s.completedAt) {
-      const d = new Date(s.completedAt);
-      metaParts.push(d.toLocaleDateString('es-CR') + ' ' + d.toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' }));
+    // Avatar / indicador del responsable
+    let avatarHtml = '';
+    if (isDone && (s.completedBy || s.completedAt)) {
+      const name = s.completedBy || '';
+      const initials = name.split(' ').map(w => w[0]?.toUpperCase() || '').slice(0,2).join('') || '✓';
+      const d = s.completedAt ? new Date(s.completedAt) : null;
+      const dateStr = d ? d.toLocaleDateString('es-CR') + ' ' + d.toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' }) : '';
+      avatarHtml = `
+        <div style="display:flex;align-items:center;gap:6px;margin-top:4px" title="${escHtml(name)}${dateStr ? ' · ' + dateStr : ''}">
+          <div style="width:22px;height:22px;border-radius:50%;background:#1D9E75;color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:2px solid #d4edda">${initials}</div>
+          <span class="tl-step-meta">${escHtml(name)}${dateStr ? ' · ' + dateStr : ''}</span>
+        </div>`;
+    } else if (isDone) {
+      avatarHtml = `
+        <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+          <div style="width:22px;height:22px;border-radius:50%;background:#1D9E75;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:2px solid #d4edda">✓</div>
+          <span class="tl-step-meta" style="color:#1D9E75">Completado</span>
+        </div>`;
     }
 
     // Status label pill
@@ -2512,7 +2591,10 @@ function renderFlowTimeline(steps) {
       <div class="tl-row">
         <div class="tl-col-left">
           <button type="button" class="${nodeClass}" data-flow-toggle="${i}"
-            title="${isDone ? 'Quitar marca' : 'Marcar completado'}">
+            title="${nodeTitle}"
+            style="cursor:pointer;transition:transform .1s,box-shadow .1s"
+            onmouseenter="this.style.transform='scale(1.15)'"
+            onmouseleave="this.style.transform=''">
             <span style="font-size:9px">${nodeInner}</span>
           </button>
           ${!isLast ? `<div class="tl-connector ${solid ? 'solid' : ''}"></div>` : ''}
@@ -2522,14 +2604,8 @@ function renderFlowTimeline(steps) {
             <span class="tl-step-title ${titleClass}">${escHtml(s.processName || s.processKey || 'Proceso')}</span>
             <span style="font-size:9px;padding:1px 6px;border-radius:10px;flex-shrink:0;${statusStyle}">${statusLabel}</span>
           </div>
-          ${metaParts.length ? `<div class="tl-step-meta">${metaParts.join(' · ')}</div>` : ''}
+          ${avatarHtml}
           ${detailRows ? `<div class="flow-detail-stack">${detailRows}</div>` : ''}
-          ${!isDone ? `
-          <div style="display:flex;gap:5px;margin-top:6px;margin-bottom:4px">
-            <button class="flow-action-btn complete" data-flow-complete="${i}" style="flex:1;justify-content:center">
-              ✓ Completar
-            </button>
-          </div>` : ''}
         </div>
       </div>`;
   }
@@ -2690,8 +2766,6 @@ function syncGanttUserName() {
 document.getElementById('dp-body').addEventListener('click', (e) => {
   const toggleBtn = e.target.closest('[data-flow-toggle]');
   if (toggleBtn) { dpFlowToggle(Number(toggleBtn.dataset.flowToggle)); return; }
-  const completeBtn = e.target.closest('[data-flow-complete]');
-  if (completeBtn) { dpFlowComplete(Number(completeBtn.dataset.flowComplete)); return; }
 });
 
 // ── POLLING ──────────────────────────────────────────────────
