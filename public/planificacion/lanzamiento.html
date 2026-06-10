@@ -181,8 +181,8 @@ html[data-theme="dark"] .planning-tracking-view{--bg:#0f172a;--surface:#162033;-
 .order-detail{display:none;border-top:1px solid var(--border)}
 .order-row.is-open .order-detail{display:block}
 .process-timeline{padding:20px;display:grid;gap:0}
-.process-timeline-header,.process-row{display:grid;grid-template-columns:160px 1fr 100px 100px 90px;gap:12px}
-.process-timeline-header{padding:0 0 10px;border-bottom:1px solid var(--border);margin-bottom:8px}
+.process-timeline-header,.process-row{display:grid;grid-template-columns:minmax(140px,1.4fr) minmax(120px,1fr) minmax(80px,.8fr) minmax(80px,.8fr) minmax(70px,.7fr);gap:12px}
+.process-timeline-header{padding:8px 12px;margin:-4px -12px 8px;border-radius:8px;background:var(--surface2)}
 .pt-col-head{font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.06em}
 .process-row{align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
 .process-row:last-child{border-bottom:none}
@@ -243,7 +243,7 @@ html[data-theme="dark"] .planning-tracking-view{--bg:#0f172a;--surface:#162033;-
   .planning-queue-flip,.planning-queue-flip-inner{min-height:360px}
   .order-head{grid-template-columns:1fr auto auto}
   .order-job,.order-progress-row{display:none}
-  .process-timeline-header,.process-row{grid-template-columns:120px 1fr auto}
+  .process-timeline-header,.process-row{grid-template-columns:minmax(120px,1.4fr) minmax(100px,1fr) auto}
   .process-date-cell,.pt-col-head:nth-child(3),.process-machine-cell,.pt-col-head:nth-child(4){display:none}
   .planning-process-tab.is-visible{display:inline-flex}
   .tracking-toolbar{align-items:stretch;flex-direction:column}
@@ -257,6 +257,14 @@ html[data-theme="dark"] .planning-queue-ink-swatch em{color:var(--app-text-muted
 html[data-theme="dark"] .planning-queue-ink-swatch i{border-color:rgba(255,255,255,.1)!important}
 html[data-theme="dark"] .planning-queue-process-toggle{background:#111c30!important;color:#c9d8eb!important;border-color:var(--app-border)!important}
 html[data-theme="dark"] .planning-queue-process-toggle.was-quoted{background:rgba(154,100,15,.15)!important;color:#fbbf24!important;border-color:rgba(154,100,15,.25)!important}
+
+/* ── Theme Toggle Header ── */
+.theme-hdr-btn{display:inline-flex;align-items:center;gap:4px;padding:6px 10px}
+.theme-hdr-btn svg{flex-shrink:0}
+html[data-theme="dark"] .theme-hdr-btn .theme-icon-sun{display:none}
+html[data-theme="dark"] .theme-hdr-btn .theme-icon-moon{display:inline-block}
+html[data-theme="light"] .theme-hdr-btn .theme-icon-moon{display:none}
+html[data-theme="light"] .theme-hdr-btn .theme-icon-sun{display:inline-block}
 
 /* ── Tracking Summary Bar ── */
 .tracking-summary-bar{display:flex;align-items:center;padding:0 24px;background:var(--tracking-surface,#fff);border-bottom:1px solid var(--tracking-border,#d8e4ef);overflow-x:auto}
@@ -569,6 +577,10 @@ html[data-theme="dark"] .planning-tracking-alert{background:var(--tracking-red-b
           <option value="progress">Progreso</option>
           <option value="code">Código</option>
         </select>
+        <button type="button" class="tracking-view-btn theme-hdr-btn" id="themeHdrBtn" onclick="toggleTheme()" title="Cambiar tema">
+          <svg class="theme-icon-sun" viewBox="0 0 24 24" fill="none" width="14" height="14"><circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"/><path d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.364-6.364l-1.414 1.414M7.05 16.95l-1.414 1.414m12.728 0l-1.414-1.414M7.05 7.05L5.636 5.636" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <svg class="theme-icon-moon" viewBox="0 0 24 24" fill="none" width="14" height="14" style="display:none"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
         <div class="tracking-view-switcher">
           <button type="button" class="tracking-view-btn active" data-tracking-view="list">
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="0" y="1" width="13" height="2" rx="1" fill="currentColor"/><rect x="0" y="5.5" width="13" height="2" rx="1" fill="currentColor"/><rect x="0" y="10" width="13" height="2" rx="1" fill="currentColor"/></svg>
@@ -702,7 +714,19 @@ html[data-theme="dark"] .planning-tracking-alert{background:var(--tracking-red-b
     </div>
   </div>
 </main>
-<script src="/access-control.js"></script>
-<script src="/planificacion/lanzamiento.js"></script>
+    <script src="/access-control.js"></script>
+    <script src="/planificacion/lanzamiento.js"></script>
+    <script>
+    function toggleTheme(){
+      var c=window.PrintLabTheme&&window.PrintLabTheme.current();
+      var n=c&&c.mode==='dark'?'light':'dark';
+      window.PrintLabTheme&&window.PrintLabTheme.apply(n);
+      var s=document.getElementById('themeHdrBtn');
+      if(s){
+        s.querySelector('.theme-icon-sun').style.display=n==='light'?'inline-block':'none';
+        s.querySelector('.theme-icon-moon').style.display=n==='dark'?'inline-block':'none';
+      }
+    }
+    </script>
 </body>
 </html>
