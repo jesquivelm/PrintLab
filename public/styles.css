@@ -11184,6 +11184,15 @@ html[data-theme="dark"] .field-checkbox-inline input[type="checkbox"]:checked {
     box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.14);
 }
 
+html[data-theme="dark"] .socios-delivery-group {
+    border-color: var(--app-border);
+    background: linear-gradient(180deg, var(--app-surface) 0%, var(--app-surface-soft) 100%);
+}
+html[data-theme="dark"] .socios-delivery-group-title {
+    color: var(--app-primary);
+    border-bottom-color: var(--app-border);
+}
+
 html[data-theme="dark"] .quote-browser-action-btn,
 html[data-theme="dark"] .quote-create-use-btn,
 html[data-theme="dark"] .action-btn {
