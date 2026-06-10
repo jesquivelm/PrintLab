@@ -4398,7 +4398,7 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     color: #0b6f9b;
     font-weight: 700;
 }
-.socios-grid input {
+.socios-grid .field input {
     width: 100%;
     min-height: 42px;
     border: 1px solid #c9d6e2;
@@ -4409,12 +4409,12 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     box-shadow: none;
     font: inherit;
 }
-.socios-grid input:focus {
+.socios-grid .field input:focus {
     outline: none;
     border-color: #23a2cb;
     box-shadow: 0 0 0 3px rgba(35,162,203,.12);
 }
-.socios-grid input:read-only {
+.socios-grid .field input:read-only {
     cursor: default;
 }
 .socios-grid select {
@@ -11087,7 +11087,7 @@ html[data-theme="dark"] .quote-browser-search,
 html[data-theme="dark"] .config-form-grid input,
 html[data-theme="dark"] .config-form-grid textarea,
 html[data-theme="dark"] .config-form-grid select,
-html[data-theme="dark"] .socios-grid input,
+html[data-theme="dark"] .socios-grid .field input,
 html[data-theme="dark"] .socios-grid select,
 html[data-theme="dark"] .socios-create-field input,
 html[data-theme="dark"] .socios-check-display,
@@ -11112,7 +11112,7 @@ html[data-theme="dark"] .quote-browser-search:focus,
 html[data-theme="dark"] .config-form-grid input:focus,
 html[data-theme="dark"] .config-form-grid textarea:focus,
 html[data-theme="dark"] .config-form-grid select:focus,
-html[data-theme="dark"] .socios-grid input:focus,
+html[data-theme="dark"] .socios-grid .field input:focus,
 html[data-theme="dark"] .socios-create-field input:focus,
 html[data-theme="dark"] .flexo-form-grid input:focus,
 html[data-theme="dark"] .flexo-form-grid select:focus,
@@ -11128,13 +11128,13 @@ html[data-theme="dark"] .quote-request-textarea:focus {
 }
 
 html[data-theme="dark"] .socios-create-field input[readonly],
-html[data-theme="dark"] .socios-grid input:read-only {
+html[data-theme="dark"] .socios-grid .field input:read-only {
     background: color-mix(in srgb, var(--app-surface-soft) 76%, var(--app-bg));
     color: var(--app-text-soft);
     border-color: var(--app-border);
 }
 
-html[data-theme="dark"] .socios-grid input:focus {
+html[data-theme="dark"] .socios-grid .field input:focus {
     background: var(--app-surface);
     color: var(--app-text);
     border-color: var(--app-primary);
