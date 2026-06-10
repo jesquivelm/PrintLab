@@ -28,8 +28,7 @@
 
         <nav class="socios-detail-tabs standard-module-tabs" aria-label="Detalle del socio">
             <button type="button" class="standard-module-tab is-active" data-socio-tab="cliente">Datos del Cliente</button>
-            <button type="button" class="standard-module-tab" data-socio-tab="manejo">Manejo</button>
-            <button type="button" class="standard-module-tab" data-socio-tab="entrega">Entrega</button>
+            <button type="button" class="standard-module-tab" data-socio-tab="manejo">Manejo y Entrega</button>
         </nav>
 
         <section class="socios-content">
@@ -154,44 +153,42 @@
             </div>
 
             <div id="socio-tab-manejo" class="socios-tab-panel" data-socio-panel="manejo" hidden>
-            <div class="socios-section">
-                <div class="section-caption">Manejo</div>
-                <div class="socios-handling-layout">
-                    <div class="socios-grid socios-grid-handling-main">
-                        <div class="field"><label>Excedentes</label><input id="manejoExcedentes" type="text" readonly></div>
-                        <div class="field"><label>Adelantos</label><input id="manejoAdelantos" type="text" readonly></div>
-                        <div class="field"><label>Faltantes</label><input id="manejoFaltantes" type="text" readonly></div>
-                    </div>
-                    <div class="socios-grid socios-grid-handling-pct">
+            <div class="socios-handling-delivery-layout">
+                <div class="socios-section">
+                    <div class="section-caption">Manejo</div>
+                    <div class="socios-grid socios-grid-handling-paired">
+                        <div class="field"><label>Excedentes</label><select id="manejoExcedentes" disabled></select></div>
                         <div class="field"><label>% Excedentes</label><input id="allowedPercentage" type="text" readonly></div>
-                        <div class="socios-empty-slot" aria-hidden="true"></div>
+                        <div class="field"><label>Adelantos</label><select id="manejoAdelantos" disabled></select></div>
+                        <div class="field"><label>% Adelantos</label><input id="adelantosPorcentaje" type="text" readonly></div>
+                        <div class="field"><label>Faltantes</label><select id="manejoFaltantes" disabled></select></div>
                         <div class="field"><label>% Faltantes</label><input id="faltantesPorcentaje" type="text" readonly></div>
                     </div>
                 </div>
-            </div>
-            </div>
 
-            <div id="socio-tab-entrega" class="socios-tab-panel" data-socio-panel="entrega" hidden>
-            <div class="socios-section">
-                <div class="section-caption">Entrega</div>
-                <div class="socios-delivery-layout">
-                    <div class="socios-grid socios-grid-delivery">
-                        <div class="field"><label>Entrega Muestras</label><input id="entregaMuestras" type="text" readonly></div>
-                        <div class="field"><label>Entrega VB</label><input id="entregaVB" type="text" readonly></div>
-                        <div class="field"><label>Entrega Producto</label><input id="entregaProducto" type="text" readonly></div>
-                    </div>
-                    <div class="socios-grid socios-grid-delivery">
-                        <div class="field"><label>Contacto VB</label><input id="contactoVB" type="text" readonly></div>
-                        <div class="field"><label>Teléfono VB</label><input id="contactoVBTelefono" type="text" readonly></div>
-                        <div class="field"><label>Correo VB</label><input id="contactoVBCorreo" type="text" readonly></div>
-                        <div class="field"><label>Contacto Producto</label><input id="contactoProducto" type="text" readonly></div>
-                        <div class="field"><label>Teléfono Producto</label><input id="contactoProductoTelefono" type="text" readonly></div>
-                        <div class="field"><label>Correo Producto</label><input id="contactoProductoCorreo" type="text" readonly></div>
-                    </div>
-                    <div class="socios-grid socios-grid-delivery">
-                        <div class="field field-full"><label>Indicaciones VB</label><input id="indicacionesVB" type="text" readonly></div>
-                        <div class="field field-full"><label>Indicaciones Producto</label><input id="indicacionesProducto" type="text" readonly></div>
-                        <div class="field field-full"><label>Indicaciones</label><input id="indicacionesEntrega" type="text" readonly></div>
+                <div class="socios-section">
+                    <div class="section-caption">Entrega</div>
+                    <div class="socios-grid socios-grid-delivery-new">
+                        <div class="field"><label>Entrega Muestras</label><select id="entregaMuestras" disabled></select></div>
+                        <div class="field"><label>Indicaciones</label><input id="indicacionesEntrega" type="text" readonly></div>
+                        <div class="socios-delivery-group">
+                            <div class="socios-delivery-group-title">Visto Bueno</div>
+                            <div class="socios-grid socios-grid-delivery-group">
+                                <div class="field"><label>Contacto</label><select id="contactoVB" disabled></select></div>
+                                <div class="field"><label>Teléfono</label><input id="contactoVBTelefono" type="text" readonly></div>
+                                <div class="field"><label>Correo</label><input id="contactoVBCorreo" type="text" readonly></div>
+                                <div class="field"><label>Detalle</label><input id="indicacionesVB" type="text" readonly></div>
+                            </div>
+                        </div>
+                        <div class="socios-delivery-group">
+                            <div class="socios-delivery-group-title">Producto</div>
+                            <div class="socios-grid socios-grid-delivery-group">
+                                <div class="field"><label>Contacto</label><select id="contactoProducto" disabled></select></div>
+                                <div class="field"><label>Teléfono</label><input id="contactoProductoTelefono" type="text" readonly></div>
+                                <div class="field"><label>Correo</label><input id="contactoProductoCorreo" type="text" readonly></div>
+                                <div class="field"><label>Detalle</label><input id="indicacionesProducto" type="text" readonly></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

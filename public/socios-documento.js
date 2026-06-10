@@ -1,4 +1,5 @@
 const CONFIG_ENDPOINT = '/api/config/shell';
+const GENERAL_CONFIG_ENDPOINT = '/api/config/general';
 const SOCIOS_ENDPOINT = '/api/socios';
 const PRESENTATION_KEY = 'socios';
 
@@ -44,6 +45,7 @@ const fields = {
   manejoExcedentes: document.getElementById('manejoExcedentes'),
   allowedPercentage: document.getElementById('allowedPercentage'),
   manejoAdelantos: document.getElementById('manejoAdelantos'),
+  adelantosPorcentaje: document.getElementById('adelantosPorcentaje'),
   tipoSocio: document.getElementById('tipoSocio'),
   manejoFaltantes: document.getElementById('manejoFaltantes'),
   faltantesPorcentaje: document.getElementById('faltantesPorcentaje'),
@@ -114,6 +116,10 @@ function setValue(key, value) {
     fields[key].checked = value === true || normalized === 'sí' || normalized === 'si' || normalized === 'true' || normalized === '1' || normalized === 'yes';
     return;
   }
+  if (fields[key].tagName === 'SELECT') {
+    setSelectedValue(fields[key], value);
+    return;
+  }
   fields[key].value = value || '';
 }
 
@@ -132,6 +138,25 @@ function firstFilled(...values) {
 function isTruthyFlag(value) {
   const normalized = String(value || '').trim().toLowerCase();
   return value === true || ['sí', 'si', 'true', '1', 'yes', 'y'].includes(normalized);
+}
+
+function parseJsonStringArray(value) {
+  if (!value) return [];
+  try {
+    const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+    if (Array.isArray(parsed)) {
+      return parsed.filter(item => typeof item === 'string' && item.trim() !== '');
+    }
+  } catch (e) {}
+  return [];
+}
+
+function populateSelect(selectElement, options, selectedValue) {
+  if (!selectElement) return;
+  const currentValue = selectedValue || '';
+  selectElement.innerHTML = '<option value=""></option>' + options.map(opt => 
+    `<option value="${opt.replace(/"/g, '&quot;')}"${opt === currentValue ? ' selected' : ''}>${opt}</option>`
+  ).join('');
 }
 
 function legalRepresentativeFlag(contact = {}) {
@@ -321,10 +346,53 @@ function applyConfig(config) {
   styleNavButton(nextSocioButton, loadedConfig.icons?.quoteNext || '›', nextPalette);
 }
 
+let generalConfig = null;
+
 async function loadConfig() {
   const response = await fetch(CONFIG_ENDPOINT);
   if (!response.ok) throw new Error('No se pudo cargar la configuración.');
   applyConfig(await response.json());
+}
+
+async function loadGeneralConfig() {
+  try {
+    const response = await fetch(GENERAL_CONFIG_ENDPOINT);
+    if (!response.ok) return;
+    const config = await response.json();
+    generalConfig = config?.general || config || {};
+    populateHandlingSelects();
+    populateDeliverySelects();
+  } catch (e) {
+    console.error('Error loading general config:', e);
+  }
+}
+
+function populateHandlingSelects() {
+  if (!generalConfig) return;
+  const excessOptions = parseJsonStringArray(generalConfig.handlingExcessOptionsJson);
+  const advanceOptions = parseJsonStringArray(generalConfig.handlingAdvanceOptionsJson);
+  const shortageOptions = parseJsonStringArray(generalConfig.handlingShortageOptionsJson);
+  populateSelect(fields.manejoExcedentes, excessOptions);
+  populateSelect(fields.manejoAdelantos, advanceOptions);
+  populateSelect(fields.manejoFaltantes, shortageOptions);
+}
+
+function populateDeliverySelects() {
+  if (!generalConfig) return;
+  const sampleModes = parseJsonStringArray(generalConfig.deliverySampleModesJson);
+  const approvalRecipients = parseJsonStringArray(generalConfig.deliveryApprovalRecipientsJson);
+  const deliveryMethods = parseJsonStringArray(generalConfig.deliveryMethodsJson);
+  populateSelect(fields.entregaMuestras, sampleModes);
+  populateSelect(fields.contactoVB, approvalRecipients);
+  populateSelect(fields.contactoProducto, deliveryMethods);
+}
+
+function setSelectedValue(selectElement, value) {
+  if (!selectElement || selectElement.tagName !== 'SELECT') return;
+  const options = [...selectElement.options];
+  const target = String(value || '').trim();
+  const match = options.find(opt => opt.value === target);
+  selectElement.value = match ? target : '';
 }
 
 async function loadSociosList() {
@@ -438,6 +506,7 @@ async function init() {
   const codigo = new URLSearchParams(window.location.search).get('codigo');
   if (!codigo) throw new Error('No se indicó el código del socio.');
   await loadConfig();
+  await loadGeneralConfig();
   await loadSociosList();
   await loadSocio(codigo, false);
   activateSocioTab('cliente');

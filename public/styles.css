@@ -4306,7 +4306,7 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
 }
 .socios-quality-section .field-checkbox-inline {
     padding-top: 0;
-    min-height: 30px;
+    min-height: 42px;
 }
 .socios-handling-layout {
     display: grid;
@@ -4327,6 +4327,39 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     gap: 12px;
     align-items: start;
 }
+.socios-handling-delivery-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    gap: 14px;
+    align-items: start;
+}
+.socios-grid-handling-paired {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px 14px;
+}
+.socios-grid-delivery-new {
+    display: grid;
+    gap: 12px;
+}
+.socios-delivery-group {
+    border: 1px solid #e1e8ee;
+    border-radius: 14px;
+    padding: 12px;
+    background: linear-gradient(180deg, #fafdff 0%, #f6fafc 100%);
+}
+.socios-delivery-group-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #0b6f9b;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #e8eef3;
+}
+.socios-grid-delivery-group {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px 14px;
+}
 .socios-contact-layout {
     display: grid;
     grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr);
@@ -4344,8 +4377,9 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
 }
 .socios-section .field label {
     font-size: 12px;
+    font-weight: 700;
     line-height: 1.2;
-    color: #72808d;
+    color: #28465c;
     text-transform: none;
     letter-spacing: 0;
     margin-bottom: 2px;
@@ -4366,25 +4400,68 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
 }
 .socios-grid input {
     width: 100%;
-    min-height: 30px;
-    height: 30px;
-    padding: 0 8px;
-    border: 1px solid var(--border, #d8dde3);
-    border-radius: 10px;
-    background: #fbfcfd;
-    color: #2f3740;
+    min-height: 42px;
+    height: 42px;
+    padding: 10px 12px;
+    border: 1px solid #c9d6e2;
+    border-radius: 12px;
+    background: #fff;
+    color: #17354a;
     box-shadow: none;
     font-size: var(--field-font-size, 12px);
     font-family: var(--field-font-family, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif);
+    transition: border-color .16s ease, box-shadow .16s ease;
+}
+.socios-grid input:focus {
+    outline: none;
+    border-color: #23a2cb;
+    box-shadow: 0 0 0 3px rgba(35,162,203,.12);
 }
 .socios-grid input:read-only {
     cursor: default;
+}
+.socios-grid select {
+    width: 100%;
+    min-height: 42px;
+    height: 42px;
+    padding: 10px 12px;
+    border: 1px solid #c9d6e2;
+    border-radius: 12px;
+    background: #fff;
+    color: #17354a;
+    box-shadow: none;
+    font-size: var(--field-font-size, 12px);
+    font-family: var(--field-font-family, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif);
+    transition: border-color .16s ease, box-shadow .16s ease;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23778996' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    background-size: 14px 14px;
+    padding-right: 36px;
+    cursor: pointer;
+}
+.socios-grid select:focus {
+    outline: none;
+    border-color: #23a2cb;
+    box-shadow: 0 0 0 3px rgba(35,162,203,.12);
+}
+.socios-grid select:disabled {
+    cursor: default;
+    opacity: 0.7;
+}
+.socios-grid select option {
+    padding: 8px 12px;
+    font-size: 13px;
+    color: #17354a;
+    background: #fff;
 }
 .field-checkbox-inline {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding-top: 22px;
+    padding-top: 24px;
 }
 .socios-table-check {
     display: inline-flex;
@@ -4413,12 +4490,12 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     display: inline-flex;
     align-items: center;
     gap: 10px;
-    min-height: 32px;
+    min-height: 42px;
     padding: 0 12px;
-    border: 1px solid var(--border, #d8dde3);
+    border: 1px solid #c9d6e2;
     border-radius: 12px;
-    background: #fbfcfd;
-    color: #2f3740;
+    background: #fff;
+    color: #17354a;
 }
 .socios-check-display input {
     width: 18px;
@@ -5662,6 +5739,18 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     border: 1px solid #e1e8ee;
     border-radius: 16px;
     background: #fff;
+    min-height: 120px;
+}
+
+.socios-table-wrap .quote-table {
+    width: 100%;
+    min-width: 700px;
+}
+
+.socios-table-wrap .quote-table th,
+.socios-table-wrap .quote-table td {
+    min-width: 100px;
+    padding: 8px 12px;
 }
 .socios-browser-table tbody tr.is-active td {
     background: #eef7fd;
@@ -5678,7 +5767,10 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     .socios-delivery-layout,
     .socios-related-layout,
     .socios-codes,
-    .socios-codes-single {
+    .socios-codes-single,
+    .socios-handling-delivery-layout,
+    .socios-grid-handling-paired,
+    .socios-grid-delivery-group {
         grid-template-columns: 1fr;
     }
     .socios-overview-layout,
@@ -10999,6 +11091,7 @@ html[data-theme="dark"] .config-form-grid input,
 html[data-theme="dark"] .config-form-grid textarea,
 html[data-theme="dark"] .config-form-grid select,
 html[data-theme="dark"] .socios-grid input,
+html[data-theme="dark"] .socios-grid select,
 html[data-theme="dark"] .socios-create-field input,
 html[data-theme="dark"] .socios-check-display,
 html[data-theme="dark"] .flexo-form-grid input,
@@ -11041,6 +11134,15 @@ html[data-theme="dark"] .socios-create-field input[readonly],
 html[data-theme="dark"] .socios-grid input:read-only {
     background: color-mix(in srgb, var(--app-surface-soft) 76%, var(--app-bg));
     color: var(--app-text-soft);
+    border-color: var(--app-border);
+}
+
+html[data-theme="dark"] .socios-grid input:focus {
+    background: var(--app-surface);
+    color: var(--app-text);
+    border-color: var(--app-primary);
+    box-shadow: 0 0 0 3px var(--app-ring);
+    outline: none;
 }
 
 html[data-theme="dark"] .quote-browser-action-btn,

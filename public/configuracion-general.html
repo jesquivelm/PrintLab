@@ -4818,7 +4818,7 @@
                     
                     <!-- Tabs -->
                     <div class="config-tabs">
-                        <button type="button" class="config-tab active" data-tab="cotizaciones">Cotizaciones</button>
+                        <button type="button" class="config-tab active" data-tab="cotizaciones">Documentos</button>
                         <button type="button" class="config-tab" data-tab="seguridad">Seguridad</button>
                         <button type="button" id="configTabSap" class="config-tab" data-tab="sap">SAP</button>
                         <button type="button" id="configTabNotificaciones" class="config-tab" data-tab="notificaciones">Notificaciones</button>
@@ -5613,6 +5613,7 @@
                                 <button type="button" class="quotes-subtab active" data-quotes-tab="calculo">Cálculo</button>
                                 <button type="button" class="quotes-subtab" data-quotes-tab="proforma">Proforma</button>
                                 <button type="button" class="quotes-subtab" data-quotes-tab="entregas">Entregas</button>
+                                <button type="button" class="quotes-subtab" data-quotes-tab="manejo-producto">Manejo de Producto</button>
                             </div>
 
                             <div id="quotes-panel-calculo" class="quotes-subpanel">
@@ -6151,6 +6152,56 @@
                                                 <table class="quote-product-types-table config-table">
                                                     <thead><tr><th style="width:28px;"></th><th style="width:72px;">#</th><th>Valor</th><th>Acción</th></tr></thead>
                                                     <tbody id="deliveryMethodsTableBody"></tbody>
+                                                </table>
+                                            </div>
+                                        </section>
+                                    </div>
+                                </section>
+                            </div>
+
+                            <div id="quotes-panel-manejo-producto" class="quotes-subpanel" hidden>
+                                <section class="config-card">
+                                    <h2 class="config-section-title">Manejo de Producto</h2>
+                                    <div class="quotes-general-split">
+                                        <section class="config-card quote-product-types-card">
+                                            <input id="handlingExcessOptionsJson" name="general.handlingExcessOptionsJson" type="hidden">
+                                            <h3>Excedentes</h3>
+                                            <div class="quote-product-types-toolbar">
+                                                <p>Opciones de manejo de excedentes.</p>
+                                                <button id="handlingExcessOptionAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
+                                            </div>
+                                            <div class="quote-product-types-table-wrap">
+                                                <table class="quote-product-types-table config-table">
+                                                    <thead><tr><th style="width:28px;"></th><th style="width:72px;">#</th><th>Valor</th><th>Acción</th></tr></thead>
+                                                    <tbody id="handlingExcessOptionsTableBody"></tbody>
+                                                </table>
+                                            </div>
+                                        </section>
+                                        <section class="config-card quote-product-types-card">
+                                            <input id="handlingAdvanceOptionsJson" name="general.handlingAdvanceOptionsJson" type="hidden">
+                                            <h3>Adelantos</h3>
+                                            <div class="quote-product-types-toolbar">
+                                                <p>Opciones de manejo de adelantos.</p>
+                                                <button id="handlingAdvanceOptionAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
+                                            </div>
+                                            <div class="quote-product-types-table-wrap">
+                                                <table class="quote-product-types-table config-table">
+                                                    <thead><tr><th style="width:28px;"></th><th style="width:72px;">#</th><th>Valor</th><th>Acción</th></tr></thead>
+                                                    <tbody id="handlingAdvanceOptionsTableBody"></tbody>
+                                                </table>
+                                            </div>
+                                        </section>
+                                        <section class="config-card quote-product-types-card">
+                                            <input id="handlingShortageOptionsJson" name="general.handlingShortageOptionsJson" type="hidden">
+                                            <h3>Faltantes</h3>
+                                            <div class="quote-product-types-toolbar">
+                                                <p>Opciones de manejo de faltantes.</p>
+                                                <button id="handlingShortageOptionAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
+                                            </div>
+                                            <div class="quote-product-types-table-wrap">
+                                                <table class="quote-product-types-table config-table">
+                                                    <thead><tr><th style="width:28px;"></th><th style="width:72px;">#</th><th>Valor</th><th>Acción</th></tr></thead>
+                                                    <tbody id="handlingShortageOptionsTableBody"></tbody>
                                                 </table>
                                             </div>
                                         </section>
@@ -7836,6 +7887,15 @@
         const deliveryMethodsJsonField = document.getElementById('deliveryMethodsJson');
         const deliveryMethodsTableBody = document.getElementById('deliveryMethodsTableBody');
         const deliveryMethodAddButton = document.getElementById('deliveryMethodAddButton');
+        const handlingExcessOptionsJsonField = document.getElementById('handlingExcessOptionsJson');
+        const handlingExcessOptionsTableBody = document.getElementById('handlingExcessOptionsTableBody');
+        const handlingExcessOptionAddButton = document.getElementById('handlingExcessOptionAddButton');
+        const handlingAdvanceOptionsJsonField = document.getElementById('handlingAdvanceOptionsJson');
+        const handlingAdvanceOptionsTableBody = document.getElementById('handlingAdvanceOptionsTableBody');
+        const handlingAdvanceOptionAddButton = document.getElementById('handlingAdvanceOptionAddButton');
+        const handlingShortageOptionsJsonField = document.getElementById('handlingShortageOptionsJson');
+        const handlingShortageOptionsTableBody = document.getElementById('handlingShortageOptionsTableBody');
+        const handlingShortageOptionAddButton = document.getElementById('handlingShortageOptionAddButton');
         const inventoryClassificationSourceValue = document.getElementById('inventoryClassificationSourceValue');
         const inventoryClassificationCategory = document.getElementById('inventoryClassificationCategory');
         const inventoryClassificationDisplayLabel = document.getElementById('inventoryClassificationDisplayLabel');
@@ -8922,6 +8982,9 @@
             renderDeliverySampleModesTable();
             renderDeliveryApprovalRecipientsTable();
             renderDeliveryMethodsTable();
+            renderHandlingExcessOptionsTable();
+            renderHandlingAdvanceOptionsTable();
+            renderHandlingShortageOptionsTable();
             renderConfigButtonsIcons();
             syncToggleButtons();
             syncTabColorSwatches();
@@ -9107,6 +9170,119 @@
                     <td>${index + 1}</td>
                     <td><input type="text" value="${escapeHtml(item)}" data-delivery-method-index="${index}" maxlength="80"${item ? "" : " class=\"field-empty\""}></td>
                     <td><button type="button" class="icon-only-btn quote-product-types-remove" data-remove-delivery-method="${index}" aria-label="Eliminar" title="Eliminar">${getIconHtml('quantity.delete', '&#128465;', '#b94848', 18)}</button></td>
+                </tr>
+            `).join('');
+        }
+
+        const DEFAULT_HANDLING_EXCESS_OPTIONS = [
+            'Facturar Total más excedentes en una sola factura',
+            'Facturar Total y Excedentes por aparte',
+            'No Facturar Excedentes (Desechar)',
+            'No Facturar Excedentes (Cargar a Inventario)'
+        ];
+        const DEFAULT_HANDLING_ADVANCE_OPTIONS = [
+            'Facturar Adelantos',
+            'Entrega Completa',
+            'Enviar con Nota Remisión'
+        ];
+        const DEFAULT_HANDLING_SHORTAGE_OPTIONS = [
+            'Facturar Producido (Sin importar Faltante)',
+            'Facturar Producido (Se acepta un porcentaje de faltante)',
+            'Reimpresión por faltante (Entrega Completa)'
+        ];
+
+        function readHandlingExcessOptionsFromConfig() {
+            return normalizeQuoteProductTypeItems(handlingExcessOptionsJsonField?.value || loadedConfig?.general?.handlingExcessOptionsJson || '', { keepEmpty: true });
+        }
+
+        function syncHandlingExcessOptionsField(items) {
+            if (!handlingExcessOptionsJsonField) return;
+            handlingExcessOptionsJsonField.value = JSON.stringify(normalizeQuoteProductTypeItems(items, { keepEmpty: true }));
+        }
+
+        function renderHandlingExcessOptionsTable() {
+            if (!handlingExcessOptionsTableBody) return;
+            let items = readHandlingExcessOptionsFromConfig();
+            if (!items.length && !handlingExcessOptionsJsonField?.value) {
+                items = [...DEFAULT_HANDLING_EXCESS_OPTIONS];
+                syncHandlingExcessOptionsField(items);
+            } else {
+                syncHandlingExcessOptionsField(items);
+            }
+            if (!items.length) {
+                handlingExcessOptionsTableBody.innerHTML = '<tr><td colspan="4" class="quote-product-types-empty">No hay opciones configuradas.</td></tr>';
+                return;
+            }
+            handlingExcessOptionsTableBody.innerHTML = items.map((item, index) => `
+                <tr draggable="true" data-item-index="${index}" data-table-key="handlingExcess">
+                    <td class="config-drag-cell"><span class="config-drag-handle" title="Arrastrar para reordenar">⋮⋮</span></td>
+                    <td>${index + 1}</td>
+                    <td><input type="text" value="${escapeHtml(item)}" data-handling-excess-option-index="${index}" maxlength="80"${item ? "" : " class=\"field-empty\""}></td>
+                    <td><button type="button" class="icon-only-btn quote-product-types-remove" data-remove-handling-excess-option="${index}" aria-label="Eliminar" title="Eliminar">${getIconHtml('quantity.delete', '&#128465;', '#b94848', 18)}</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function readHandlingAdvanceOptionsFromConfig() {
+            return normalizeQuoteProductTypeItems(handlingAdvanceOptionsJsonField?.value || loadedConfig?.general?.handlingAdvanceOptionsJson || '', { keepEmpty: true });
+        }
+
+        function syncHandlingAdvanceOptionsField(items) {
+            if (!handlingAdvanceOptionsJsonField) return;
+            handlingAdvanceOptionsJsonField.value = JSON.stringify(normalizeQuoteProductTypeItems(items, { keepEmpty: true }));
+        }
+
+        function renderHandlingAdvanceOptionsTable() {
+            if (!handlingAdvanceOptionsTableBody) return;
+            let items = readHandlingAdvanceOptionsFromConfig();
+            if (!items.length && !handlingAdvanceOptionsJsonField?.value) {
+                items = [...DEFAULT_HANDLING_ADVANCE_OPTIONS];
+                syncHandlingAdvanceOptionsField(items);
+            } else {
+                syncHandlingAdvanceOptionsField(items);
+            }
+            if (!items.length) {
+                handlingAdvanceOptionsTableBody.innerHTML = '<tr><td colspan="4" class="quote-product-types-empty">No hay opciones configuradas.</td></tr>';
+                return;
+            }
+            handlingAdvanceOptionsTableBody.innerHTML = items.map((item, index) => `
+                <tr draggable="true" data-item-index="${index}" data-table-key="handlingAdvance">
+                    <td class="config-drag-cell"><span class="config-drag-handle" title="Arrastrar para reordenar">⋮⋮</span></td>
+                    <td>${index + 1}</td>
+                    <td><input type="text" value="${escapeHtml(item)}" data-handling-advance-option-index="${index}" maxlength="80"${item ? "" : " class=\"field-empty\""}></td>
+                    <td><button type="button" class="icon-only-btn quote-product-types-remove" data-remove-handling-advance-option="${index}" aria-label="Eliminar" title="Eliminar">${getIconHtml('quantity.delete', '&#128465;', '#b94848', 18)}</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function readHandlingShortageOptionsFromConfig() {
+            return normalizeQuoteProductTypeItems(handlingShortageOptionsJsonField?.value || loadedConfig?.general?.handlingShortageOptionsJson || '', { keepEmpty: true });
+        }
+
+        function syncHandlingShortageOptionsField(items) {
+            if (!handlingShortageOptionsJsonField) return;
+            handlingShortageOptionsJsonField.value = JSON.stringify(normalizeQuoteProductTypeItems(items, { keepEmpty: true }));
+        }
+
+        function renderHandlingShortageOptionsTable() {
+            if (!handlingShortageOptionsTableBody) return;
+            let items = readHandlingShortageOptionsFromConfig();
+            if (!items.length && !handlingShortageOptionsJsonField?.value) {
+                items = [...DEFAULT_HANDLING_SHORTAGE_OPTIONS];
+                syncHandlingShortageOptionsField(items);
+            } else {
+                syncHandlingShortageOptionsField(items);
+            }
+            if (!items.length) {
+                handlingShortageOptionsTableBody.innerHTML = '<tr><td colspan="4" class="quote-product-types-empty">No hay opciones configuradas.</td></tr>';
+                return;
+            }
+            handlingShortageOptionsTableBody.innerHTML = items.map((item, index) => `
+                <tr draggable="true" data-item-index="${index}" data-table-key="handlingShortage">
+                    <td class="config-drag-cell"><span class="config-drag-handle" title="Arrastrar para reordenar">⋮⋮</span></td>
+                    <td>${index + 1}</td>
+                    <td><input type="text" value="${escapeHtml(item)}" data-handling-shortage-option-index="${index}" maxlength="80"${item ? "" : " class=\"field-empty\""}></td>
+                    <td><button type="button" class="icon-only-btn quote-product-types-remove" data-remove-handling-shortage-option="${index}" aria-label="Eliminar" title="Eliminar">${getIconHtml('quantity.delete', '&#128465;', '#b94848', 18)}</button></td>
                 </tr>
             `).join('');
         }
@@ -15395,6 +15571,144 @@
             renderDeliveryMethodsTable();
             queueConfigSave();
         });
+        handlingExcessOptionAddButton?.addEventListener('click', () => {
+            const items = readHandlingExcessOptionsFromConfig();
+            if (items.length >= 60) return;
+            items.push("");
+            syncHandlingExcessOptionsField(items);
+            renderHandlingExcessOptionsTable();
+            const inputs = handlingExcessOptionsTableBody?.querySelectorAll('input[data-handling-excess-option-index]') || [];
+            const input = inputs[inputs.length - 1];
+            input?.focus();
+            input?.select();
+            queueConfigSave();
+        });
+        handlingExcessOptionsTableBody?.addEventListener('input', (event) => {
+            const input = event.target.closest('input[data-handling-excess-option-index]');
+            if (!input) return;
+            input.classList.toggle('field-empty', input.value === '');
+            const items = readHandlingExcessOptionsFromConfig();
+            const index = Number(input.dataset.handlingExcessOptionIndex);
+            if (!Number.isInteger(index) || index < 0) return;
+            items[index] = input.value;
+            syncHandlingExcessOptionsField(items);
+            queueConfigSave();
+        });
+        handlingExcessOptionsTableBody?.addEventListener('change', (event) => {
+            const input = event.target.closest('input[data-handling-excess-option-index]');
+            if (!input) return;
+            input.classList.toggle('field-empty', input.value === '');
+            const items = readHandlingExcessOptionsFromConfig();
+            const index = Number(input.dataset.handlingExcessOptionIndex);
+            if (!Number.isInteger(index) || index < 0) return;
+            items[index] = input.value;
+            syncHandlingExcessOptionsField(items);
+            renderHandlingExcessOptionsTable();
+            queueConfigSave();
+        });
+        handlingExcessOptionsTableBody?.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-remove-handling-excess-option]');
+            if (!button) return;
+            const index = Number(button.dataset.removeHandlingExcessOption);
+            const items = readHandlingExcessOptionsFromConfig();
+            if (!Number.isInteger(index) || index < 0 || index >= items.length) return;
+            items.splice(index, 1);
+            syncHandlingExcessOptionsField(items);
+            renderHandlingExcessOptionsTable();
+            queueConfigSave();
+        });
+        handlingAdvanceOptionAddButton?.addEventListener('click', () => {
+            const items = readHandlingAdvanceOptionsFromConfig();
+            if (items.length >= 60) return;
+            items.push("");
+            syncHandlingAdvanceOptionsField(items);
+            renderHandlingAdvanceOptionsTable();
+            const inputs = handlingAdvanceOptionsTableBody?.querySelectorAll('input[data-handling-advance-option-index]') || [];
+            const input = inputs[inputs.length - 1];
+            input?.focus();
+            input?.select();
+            queueConfigSave();
+        });
+        handlingAdvanceOptionsTableBody?.addEventListener('input', (event) => {
+            const input = event.target.closest('input[data-handling-advance-option-index]');
+            if (!input) return;
+            input.classList.toggle('field-empty', input.value === '');
+            const items = readHandlingAdvanceOptionsFromConfig();
+            const index = Number(input.dataset.handlingAdvanceOptionIndex);
+            if (!Number.isInteger(index) || index < 0) return;
+            items[index] = input.value;
+            syncHandlingAdvanceOptionsField(items);
+            queueConfigSave();
+        });
+        handlingAdvanceOptionsTableBody?.addEventListener('change', (event) => {
+            const input = event.target.closest('input[data-handling-advance-option-index]');
+            if (!input) return;
+            input.classList.toggle('field-empty', input.value === '');
+            const items = readHandlingAdvanceOptionsFromConfig();
+            const index = Number(input.dataset.handlingAdvanceOptionIndex);
+            if (!Number.isInteger(index) || index < 0) return;
+            items[index] = input.value;
+            syncHandlingAdvanceOptionsField(items);
+            renderHandlingAdvanceOptionsTable();
+            queueConfigSave();
+        });
+        handlingAdvanceOptionsTableBody?.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-remove-handling-advance-option]');
+            if (!button) return;
+            const index = Number(button.dataset.removeHandlingAdvanceOption);
+            const items = readHandlingAdvanceOptionsFromConfig();
+            if (!Number.isInteger(index) || index < 0 || index >= items.length) return;
+            items.splice(index, 1);
+            syncHandlingAdvanceOptionsField(items);
+            renderHandlingAdvanceOptionsTable();
+            queueConfigSave();
+        });
+        handlingShortageOptionAddButton?.addEventListener('click', () => {
+            const items = readHandlingShortageOptionsFromConfig();
+            if (items.length >= 60) return;
+            items.push("");
+            syncHandlingShortageOptionsField(items);
+            renderHandlingShortageOptionsTable();
+            const inputs = handlingShortageOptionsTableBody?.querySelectorAll('input[data-handling-shortage-option-index]') || [];
+            const input = inputs[inputs.length - 1];
+            input?.focus();
+            input?.select();
+            queueConfigSave();
+        });
+        handlingShortageOptionsTableBody?.addEventListener('input', (event) => {
+            const input = event.target.closest('input[data-handling-shortage-option-index]');
+            if (!input) return;
+            input.classList.toggle('field-empty', input.value === '');
+            const items = readHandlingShortageOptionsFromConfig();
+            const index = Number(input.dataset.handlingShortageOptionIndex);
+            if (!Number.isInteger(index) || index < 0) return;
+            items[index] = input.value;
+            syncHandlingShortageOptionsField(items);
+            queueConfigSave();
+        });
+        handlingShortageOptionsTableBody?.addEventListener('change', (event) => {
+            const input = event.target.closest('input[data-handling-shortage-option-index]');
+            if (!input) return;
+            input.classList.toggle('field-empty', input.value === '');
+            const items = readHandlingShortageOptionsFromConfig();
+            const index = Number(input.dataset.handlingShortageOptionIndex);
+            if (!Number.isInteger(index) || index < 0) return;
+            items[index] = input.value;
+            syncHandlingShortageOptionsField(items);
+            renderHandlingShortageOptionsTable();
+            queueConfigSave();
+        });
+        handlingShortageOptionsTableBody?.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-remove-handling-shortage-option]');
+            if (!button) return;
+            const index = Number(button.dataset.removeHandlingShortageOption);
+            const items = readHandlingShortageOptionsFromConfig();
+            if (!Number.isInteger(index) || index < 0 || index >= items.length) return;
+            items.splice(index, 1);
+            syncHandlingShortageOptionsField(items);
+            renderHandlingShortageOptionsTable();
+            queueConfigSave();
+        });
         inventoryClassificationNewButton?.addEventListener('click', () => {
             resetInventoryClassificationForm();
             setInventoryClassificationStatus('Formulario listo para un nuevo mapeo.', false);
@@ -16052,7 +16366,10 @@
             const TABLE_MAP = {
                 sampleModes: { body: deliverySampleModesTableBody, read: readDeliverySampleModesFromConfig, sync: syncDeliverySampleModesField, render: renderDeliverySampleModesTable },
                 approvalRecipients: { body: deliveryApprovalRecipientsTableBody, read: readDeliveryApprovalRecipientsFromConfig, sync: syncDeliveryApprovalRecipientsField, render: renderDeliveryApprovalRecipientsTable },
-                deliveryMethods: { body: deliveryMethodsTableBody, read: readDeliveryMethodsFromConfig, sync: syncDeliveryMethodsField, render: renderDeliveryMethodsTable }
+                deliveryMethods: { body: deliveryMethodsTableBody, read: readDeliveryMethodsFromConfig, sync: syncDeliveryMethodsField, render: renderDeliveryMethodsTable },
+                handlingExcess: { body: handlingExcessOptionsTableBody, read: readHandlingExcessOptionsFromConfig, sync: syncHandlingExcessOptionsField, render: renderHandlingExcessOptionsTable },
+                handlingAdvance: { body: handlingAdvanceOptionsTableBody, read: readHandlingAdvanceOptionsFromConfig, sync: syncHandlingAdvanceOptionsField, render: renderHandlingAdvanceOptionsTable },
+                handlingShortage: { body: handlingShortageOptionsTableBody, read: readHandlingShortageOptionsFromConfig, sync: syncHandlingShortageOptionsField, render: renderHandlingShortageOptionsTable }
             };
             let dragState = null;
             let handleMousedown = false;
