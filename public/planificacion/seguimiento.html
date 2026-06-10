@@ -135,9 +135,9 @@ body{font-family:'DM Sans',system-ui,sans-serif;font-size:16px;color:var(--text)
 .order-row.is-open .order-detail{display:block}
 
 .process-timeline{padding:20px;display:grid;gap:0}
-.process-timeline-header{display:grid;grid-template-columns:minmax(140px,1.4fr) minmax(120px,1fr) minmax(80px,.8fr) minmax(80px,.8fr) minmax(70px,.7fr);gap:12px;padding:8px 12px;margin:-4px -12px 8px;border-radius:8px;background:var(--surface2)}
+.process-timeline-header{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr .8fr;gap:12px;padding:8px 12px;margin:-4px -12px 8px;border-radius:8px;background:var(--surface2)}
 .pt-col-head{font-size:12px;font-weight:600;color:var(--text3);letter-spacing:.06em}
-.process-row{display:grid;grid-template-columns:minmax(140px,1.4fr) minmax(120px,1fr) minmax(80px,.8fr) minmax(80px,.8fr) minmax(70px,.7fr);gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
+.process-row{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr .8fr;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
 .process-row:last-child{border-bottom:none}
 .process-name-cell{display:flex;align-items:center;gap:8px}
 .process-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
@@ -390,7 +390,7 @@ html[data-theme="light"] .theme-hdr-btn .theme-icon-sun{display:inline-block}
 @media(max-width:1100px){
   .order-head{grid-template-columns:160px 1fr auto auto auto}
   .order-progress-row{display:none}
-  .process-timeline-header,.process-row{grid-template-columns:minmax(120px,1.4fr) minmax(100px,1fr) auto auto}
+  .process-timeline-header,.process-row{grid-template-columns:1.4fr 1fr 1fr}
   .duration-cell,.pt-col-head:nth-child(2){display:none}
   .kanban-board{grid-template-columns:1fr 1fr}
   .sem-row{grid-template-columns:110px minmax(0,1fr) 150px auto}
@@ -401,7 +401,7 @@ html[data-theme="light"] .theme-hdr-btn .theme-icon-sun{display:inline-block}
 @media(max-width:800px){
   .order-head{grid-template-columns:1fr auto auto auto}
   .order-job{display:none}
-  .process-timeline-header,.process-row{grid-template-columns:minmax(100px,1.4fr) minmax(80px,1fr) auto}
+  .process-timeline-header,.process-row{grid-template-columns:1.4fr 1fr 1fr}
   .process-date-cell,.pt-col-head:nth-child(3),.process-machine-cell,.pt-col-head:nth-child(4){display:none}
   .kanban-board{grid-template-columns:1fr}
   .sem-row{grid-template-columns:100px minmax(0,1fr) auto}
