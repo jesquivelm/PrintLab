@@ -14379,22 +14379,32 @@ html[data-theme="dark"] .topbar:not(.dashboard-topbar) .brand-mark {
 
 html[data-theme="dark"] .user-admin-delete-button,
 html[data-theme="dark"] .permission-admin-delete-button,
-html[data-theme="dark"] .repository-card-delete,
-html[data-theme="dark"] .proforma-currency-delete-button {
+html[data-theme="dark"] .repository-card-delete {
     border-color: color-mix(in srgb, #c77474 30%, var(--app-border)) !important;
     background: color-mix(in srgb, var(--app-surface-raised) 88%, #31171b) !important;
     color: #f0b3b3 !important;
     box-shadow: none !important;
 }
 
+html[data-theme="dark"] .proforma-currency-delete-button {
+    background: transparent !important;
+    border: none !important;
+    color: #f0b3b3 !important;
+}
+
 html[data-theme="dark"] .user-admin-delete-button:hover,
 html[data-theme="dark"] .permission-admin-delete-button:hover,
-html[data-theme="dark"] .repository-card-delete:hover,
-html[data-theme="dark"] .proforma-currency-delete-button:hover {
+html[data-theme="dark"] .repository-card-delete:hover {
     background: color-mix(in srgb, var(--app-surface-raised) 60%, #4a1d24) !important;
     border-color: color-mix(in srgb, #f08f8f 48%, var(--app-border)) !important;
     color: #ffd2d2 !important;
     transform: translateY(-1px);
+}
+
+html[data-theme="dark"] .proforma-currency-delete-button:hover {
+    background: transparent !important;
+    border: none !important;
+    color: #ffd2d2 !important;
 }
 
 html[data-theme="dark"] .user-admin-delete-button,

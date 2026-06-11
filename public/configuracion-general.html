@@ -2138,25 +2138,41 @@
             color: #fff !important;
             box-shadow: 0 10px 24px rgba(34, 211, 238, 0.22) !important;
         }
-        html[data-theme="dark"] .proforma-logo-dropzone,
-        html[data-theme="dark"] .proforma-logo-lock-button,
-        html[data-theme="dark"] .proforma-font-upload-button,
-        html[data-theme="dark"] .proforma-currency-add-button {
+        html[data-theme="dark"] .proforma-logo-dropzone {
             border-color: var(--app-border) !important;
             background: linear-gradient(180deg, var(--app-surface-soft) 0%, var(--app-surface) 100%) !important;
             color: var(--app-text-soft) !important;
             box-shadow: none !important;
         }
-        html[data-theme="dark"] .proforma-logo-dropzone:hover,
-        html[data-theme="dark"] .proforma-logo-lock-button:hover,
-        html[data-theme="dark"] .proforma-font-upload-button:hover,
-        html[data-theme="dark"] .proforma-currency-add-button:hover,
-        html[data-theme="dark"] .proforma-logo-lock-button.is-active,
-        html[data-theme="dark"] .proforma-font-upload-button.has-font {
+        html[data-theme="dark"] .proforma-logo-dropzone:hover {
             border-color: var(--app-primary) !important;
             background: var(--app-primary-soft) !important;
             color: var(--app-primary-strong) !important;
             box-shadow: none !important;
+        }
+        html[data-theme="dark"] .proforma-currency-add-button {
+            background: transparent !important;
+            border: none !important;
+        }
+        html[data-theme="dark"] .proforma-currency-add-button:hover {
+            background: transparent !important;
+            border: none !important;
+            color: var(--app-primary) !important;
+        }
+        html[data-theme="dark"] .proforma-logo-lock-button,
+        html[data-theme="dark"] .proforma-font-upload-button {
+            background: transparent !important;
+            border: none !important;
+        }
+        html[data-theme="dark"] .proforma-logo-lock-button:hover,
+        html[data-theme="dark"] .proforma-font-upload-button:hover {
+            background: transparent !important;
+            border: none !important;
+            color: var(--app-primary) !important;
+        }
+        html[data-theme="dark"] .proforma-logo-lock-button.is-active,
+        html[data-theme="dark"] .proforma-font-upload-button.has-font {
+            color: var(--app-primary) !important;
         }
         html[data-theme="dark"] .proforma-preview-control {
             border-color: var(--app-border) !important;
@@ -4087,6 +4103,49 @@
             flex-direction: column;
             gap: 16px;
         }
+        .proforma-subtabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 4px;
+            margin-bottom: 16px;
+            border: 1px solid #d8e2ea;
+            border-radius: 14px;
+            background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.75);
+        }
+        .proforma-subtab {
+            border: none;
+            border-radius: 10px;
+            padding: 9px 14px;
+            background: transparent;
+            color: #60707f;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+        }
+        .proforma-subtab:hover {
+            background: rgba(11,129,184,0.08);
+            color: #23516a;
+        }
+        .proforma-subtab.active {
+            background: linear-gradient(180deg, #24a8df 0%, #118fc6 100%);
+            color: #fff;
+            box-shadow: 0 8px 18px rgba(17,143,198,0.24);
+        }
+        .proforma-subtab.active:hover,
+        .proforma-subtab.active:focus-visible {
+            background: linear-gradient(180deg, #2bb4ea 0%, #139ad5 100%);
+        }
+        .proforma-subpanel {
+            width: 100%;
+            min-width: 0;
+            max-width: 100%;
+        }
+        .proforma-subpanel[hidden] {
+            display: none;
+        }
         .proforma-config-section {
             border: 1px solid #dbe8f0;
             border-radius: 22px;
@@ -4166,20 +4225,17 @@
         .proforma-logo-lock-button {
             width: 30px;
             height: 34px;
-            border: 1px solid #d9e5ee;
-            border-radius: 9px;
-            background: linear-gradient(180deg, #fff 0%, #f3f8fb 100%);
+            border: none;
+            background: transparent;
             color: #6a7b8b;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            transition: border-color .18s ease, color .18s ease, box-shadow .18s ease;
+            transition: color .18s ease;
         }
         .proforma-logo-lock-button.is-active {
-            border-color: #5bc3ef;
             color: #118fc6;
-            box-shadow: 0 0 0 2px rgba(41,166,219,.11);
         }
         .proforma-logo-lock-button svg {
             width: 14px;
@@ -4291,23 +4347,19 @@
         .proforma-font-upload-button {
             width: 42px;
             height: 38px;
-            border-radius: 12px;
-            border: 1px solid rgba(17, 143, 198, 0.24);
-            background: linear-gradient(180deg, #ffffff 0%, #eef7fd 100%);
+            border: none;
+            background: transparent;
             color: #0b81b8;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: border-color .18s ease, color .18s ease, box-shadow .18s ease, background .18s ease;
+            transition: color .18s ease;
         }
         .proforma-font-upload-button:hover {
-            border-color: rgba(17, 143, 198, 0.5);
-            box-shadow: 0 10px 22px rgba(17, 143, 198, 0.14);
+            color: #0970a0;
         }
         .proforma-font-upload-button.has-font {
-            border-color: rgba(17, 143, 198, 0.42);
-            background: linear-gradient(180deg, #f7fbff 0%, #eaf5fc 100%);
             color: #0b81b8;
         }
         .proforma-font-upload-button .icon-svg-mask,
@@ -4344,20 +4396,62 @@
         .proforma-currency-delete-button {
             width: 36px;
             height: 36px;
-            border-radius: 12px;
-            border: 1px solid rgba(17, 143, 198, 0.25);
-            background: linear-gradient(180deg, #ffffff 0%, #eef7fd 100%);
+            border: none;
+            background: transparent;
             color: #118fc6;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            box-shadow: 0 8px 20px rgba(11, 129, 184, 0.08);
         }
         .proforma-currency-table {
             display: flex;
             flex-direction: column;
             gap: 10px;
+        }
+        .proforma-validity-header {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 36px;
+            gap: 10px;
+            padding: 0 4px;
+            margin-top: 8px;
+        }
+        .proforma-validity-header span {
+            font-size: 11px;
+            color: #6d7c89;
+            font-weight: 600;
+        }
+        .proforma-validity-header span:last-child {
+            text-align: center;
+        }
+        .proforma-validity-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 36px;
+            gap: 10px;
+            align-items: center;
+            border: 1px solid #d7e7f1;
+            border-radius: 14px;
+            padding: 8px 12px;
+            background: #fff;
+        }
+        .proforma-validity-row input {
+            width: 100%;
+            min-height: 34px;
+            padding: 6px 10px;
+            border: 1px solid #cfdae4;
+            border-radius: 10px;
+            background: linear-gradient(180deg, #ffffff 0%, #f9fcff 100%);
+            font: inherit;
+            font-size: 13px;
+            color: #33404c;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.82);
+            transition: border-color 0.18s ease, box-shadow 0.18s ease;
+        }
+        .proforma-validity-row input:focus {
+            outline: none;
+            border-color: #8ec8e1;
+            box-shadow: 0 0 0 3px rgba(17,143,198,0.12);
+            background: #fff;
         }
         .proforma-currency-row {
             display: grid;
@@ -5800,9 +5894,14 @@
 
                             <div id="quotes-panel-proforma" class="quotes-subpanel" hidden>
                                 <section class="config-card">
-                                    <h2>Proforma</h2>
+                                    <div class="proforma-subtabs">
+                                        <button type="button" class="proforma-subtab active" data-proforma-tab="empresa">Información de Empresa</button>
+                                        <button type="button" class="proforma-subtab" data-proforma-tab="textos">Textos de la Proforma</button>
+                                        <button type="button" class="proforma-subtab" data-proforma-tab="configuracion">Configuración</button>
+                                    </div>
                                     <div class="proforma-config-grid">
-                                <div class="proforma-config-main">
+
+                                <div id="proforma-panel-empresa" class="proforma-subpanel">
                                     <div class="proforma-config-section">
                                         <h3>Empresa</h3>
                                         <div class="proforma-config-subsection">
@@ -5912,64 +6011,11 @@
                                             </div>
                                         </div>
                                     </div>
+                                </div>
 
+                                <div id="proforma-panel-textos" class="proforma-subpanel" hidden>
                                     <div class="proforma-config-section">
-                                        <h3>VisualizaciÃ³n</h3>
-                                        <div class="proforma-config-grid-2">
-                                            <label>
-                                                <span>VisualizaciÃ³n de Precios</span>
-                                                <select id="proformaPriceDisplayField" name="general.proformaPriceDisplayMode">
-                                                    <option value="unit">Mostrar precio unitario</option>
-                                                    <option value="thousand">Mostrar precio por millar</option>
-                                                    <option value="both">Mostrar ambos</option>
-                                                    <option value="product_totals">Mostrar Ãºnicamente totales por producto</option>
-                                                    <option value="global_totals">Mostrar totales globales</option>
-                                                </select>
-                                            </label>
-                                            <label>
-                                                <span>Firma del Vendedor</span>
-                                                <div id="proformaSellerSignatureSelector" class="proforma-mini-tabset">
-                                                    <label class="proforma-toggle-chip">
-                                                        <input type="radio" name="proformaSellerSignatureChoice" value="true">
-                                                        <span class="proforma-toggle-tab">SÃ­</span>
-                                                    </label>
-                                                    <label class="proforma-toggle-chip">
-                                                        <input type="radio" name="proformaSellerSignatureChoice" value="false">
-                                                        <span class="proforma-toggle-tab">No</span>
-                                                    </label>
-                                                </div>
-                                                <input type="hidden" name="general.proformaSellerSignatureEnabled" value="true">
-                                            </label>
-                                        </div>
-                                    </div>
-
-                                    <div class="proforma-config-section">
-                                        <div class="proforma-config-headline">
-                                            <h3>Monedas</h3>
-                                            <button type="button" id="proformaCurrencyAddButton" class="proforma-currency-add-button" aria-label="Agregar moneda" title="Agregar moneda"></button>
-                                        </div>
-                                        <input id="proformaCurrenciesJsonField" name="general.proformaCurrenciesJson" type="hidden">
-                                        <div id="proformaCurrenciesTable" class="proforma-currency-table"></div>
-                                        <div class="proforma-config-grid-2" style="margin-top:12px;">
-                                            <label>
-                                                <span>Moneda Estándar</span>
-                                                <select id="proformaDefaultCurrencyField" name="general.proformaDefaultCurrency"></select>
-                                            </label>
-                                            <label>
-                                                <span>Validez Estándar de la Oferta</span>
-                                                <select id="proformaValidityField" name="general.proformaDefaultValidity"></select>
-                                            </label>
-                                        </div>
-                                        <input id="proformaValidityOptionsJsonField" name="general.proformaValidityOptionsJson" type="hidden" value='["5 días","8 días","15 días","22 días","30 días","De acuerdo a programación con el cliente","Según lo establecido en el cartel de compra."]'>
-                                        <div class="proforma-config-headline" style="margin-top:12px;">
-                                            <h3>Valores de Validez</h3>
-                                            <button type="button" id="proformaValidityAddButton" class="proforma-currency-add-button" aria-label="Agregar validez" title="Agregar validez"></button>
-                                        </div>
-                                        <div id="proformaValidityTable" class="proforma-currency-table" style="margin-top:12px;"></div>
-                                    </div>
-
-                                    <div class="proforma-config-section">
-                                        <h3>Configuración del Documento</h3>
+                                        <h3>Textos de la Proforma</h3>
                                         <div class="proforma-config-grid-2">
                                             <div class="proforma-intro-config-row proforma-config-grid-span">
                                                 <label>
@@ -6016,7 +6062,70 @@
                                             </label>
                                         </div>
                                     </div>
+                                </div>
 
+                                <div id="proforma-panel-configuracion" class="proforma-subpanel" hidden>
+                                    <div class="proforma-config-section">
+                                        <h3>Visualización</h3>
+                                        <div class="proforma-config-grid-2">
+                                            <label>
+                                                <span>Visualización de Precios</span>
+                                                <select id="proformaPriceDisplayField" name="general.proformaPriceDisplayMode">
+                                                    <option value="unit">Mostrar precio unitario</option>
+                                                    <option value="thousand">Mostrar precio por millar</option>
+                                                    <option value="both">Mostrar ambos</option>
+                                                    <option value="product_totals">Mostrar únicamente totales por producto</option>
+                                                    <option value="global_totals">Mostrar totales globales</option>
+                                                </select>
+                                            </label>
+                                            <label>
+                                                <span>Firma del Vendedor</span>
+                                                <div id="proformaSellerSignatureSelector" class="proforma-mini-tabset">
+                                                    <label class="proforma-toggle-chip">
+                                                        <input type="radio" name="proformaSellerSignatureChoice" value="true">
+                                                        <span class="proforma-toggle-tab">Sí</span>
+                                                    </label>
+                                                    <label class="proforma-toggle-chip">
+                                                        <input type="radio" name="proformaSellerSignatureChoice" value="false">
+                                                        <span class="proforma-toggle-tab">No</span>
+                                                    </label>
+                                                </div>
+                                                <input type="hidden" name="general.proformaSellerSignatureEnabled" value="true">
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="proforma-config-section">
+                                        <div class="proforma-config-headline">
+                                            <h3>Monedas</h3>
+                                            <button type="button" id="proformaCurrencyAddButton" class="proforma-currency-add-button" aria-label="Agregar moneda" title="Agregar moneda"></button>
+                                        </div>
+                                        <input id="proformaCurrenciesJsonField" name="general.proformaCurrenciesJson" type="hidden">
+                                        <div id="proformaCurrenciesTable" class="proforma-currency-table"></div>
+                                        <div class="proforma-config-grid-2" style="margin-top:12px;">
+                                            <label>
+                                                <span>Moneda Estándar</span>
+                                                <select id="proformaDefaultCurrencyField" name="general.proformaDefaultCurrency"></select>
+                                            </label>
+                                            <label>
+                                                <span>Validez Estándar de la Oferta</span>
+                                                <select id="proformaValidityField" name="general.proformaDefaultValidity"></select>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="proforma-config-section">
+                                        <div class="proforma-config-headline">
+                                            <h3>Valores de Validez</h3>
+                                            <button type="button" id="proformaValidityAddButton" class="proforma-currency-add-button" aria-label="Agregar validez" title="Agregar validez"></button>
+                                        </div>
+                                        <input id="proformaValidityOptionsJsonField" name="general.proformaValidityOptionsJson" type="hidden" value='["5 días","8 días","15 días","22 días","30 días","De acuerdo a programación con el cliente","Según lo establecido en el cartel de compra."]'>
+                                        <div class="proforma-validity-header">
+                                            <span>Validez</span>
+                                            <span>Acción</span>
+                                        </div>
+                                        <div id="proformaValidityTable" class="proforma-currency-table" style="margin-top:12px;"></div>
+                                    </div>
                                 </div>
 
                                 <div class="preview-panel proforma-config-preview">
@@ -7812,6 +7921,8 @@
         const proformaValidityOptionsJsonField = document.getElementById('proformaValidityOptionsJsonField');
         const proformaValidityTable = document.getElementById('proformaValidityTable');
         const proformaValidityAddButton = document.getElementById('proformaValidityAddButton');
+        const proformaSubtabs = [...document.querySelectorAll('.proforma-subtab')];
+        const proformaSubpanels = [...document.querySelectorAll('.proforma-subpanel')];
         const proformaIntroField = document.getElementById('proformaIntroField');
         const proformaIntroFontFamilyField = document.getElementById('proformaIntroFontFamilyField');
         const proformaIntroFontSizeField = document.getElementById('proformaIntroFontSizeField');
@@ -11378,6 +11489,23 @@
             if (tabKey === 'calculo') {
                 activateCalculoTab(getActiveCalculoTabKey());
             }
+            if (tabKey === 'proforma') {
+                activateProformaTab(getActiveProformaTabKey());
+            }
+            syncConfigTabHeights();
+        }
+
+        function getActiveProformaTabKey() {
+            return document.querySelector('.proforma-subtab.active')?.dataset.proformaTab || 'empresa';
+        }
+
+        function activateProformaTab(tabKey = 'empresa') {
+            proformaSubtabs.forEach((tab) => {
+                tab.classList.toggle('active', tab.dataset.proformaTab === tabKey);
+            });
+            proformaSubpanels.forEach((panel) => {
+                panel.hidden = panel.id !== `proforma-panel-${tabKey}`;
+            });
             syncConfigTabHeights();
         }
 
@@ -12862,11 +12990,8 @@
             if (!proformaValidityTable) return;
             const deleteIcon = getPermissionIconConfig('proformaCurrencyDelete', '#b94848', 18, '🗑');
             proformaValidityTable.innerHTML = proformaValidityRows.map((value, index) => `
-                <div class="proforma-currency-row" data-proforma-validity-index="${index}">
-                    <label>
-                        <span>Validez</span>
-                        <input type="text" value="${escapeHtml(value)}" data-proforma-validity-field maxlength="120">
-                    </label>
+                <div class="proforma-validity-row" data-proforma-validity-index="${index}">
+                    <input type="text" value="${escapeHtml(value)}" data-proforma-validity-field maxlength="120">
                     <button type="button" class="proforma-currency-delete-button" data-proforma-validity-delete="${index}" aria-label="Eliminar validez" title="Eliminar validez"></button>
                 </div>
             `).join('');
@@ -16041,6 +16166,12 @@
         quotesSubtabs.forEach((tab) => {
             tab.addEventListener('click', () => {
                 activateQuotesTab(tab.dataset.quotesTab || 'calculo');
+            });
+        });
+
+        proformaSubtabs.forEach((tab) => {
+            tab.addEventListener('click', () => {
+                activateProformaTab(tab.dataset.proformaTab || 'empresa');
             });
         });
 
