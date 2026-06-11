@@ -496,6 +496,58 @@ function trackingBuildSteps(o) {
     return steps.filter(s => s.processKey !== 'orden_creada' && s.processKey !== 'solicitud_vendedor' && s.processKey !== 'planeacion');
 }
 
+function trackingFindOrdersAhead(order, steps) {
+    const currentCode = order.orderCode;
+    const result = [];
+    const lr = Array.isArray(order.processLoadSummary) ? order.processLoadSummary : [];
+    steps.forEach(s => {
+        const load = lr.find(r => r.processKey === s.processKey) || {};
+        const machine = load.machineName || s.machineName || '';
+        if (!machine) return;
+        const ahead = [];
+        trackingItems.forEach(o => {
+            if (o.orderCode === currentCode) return;
+            const oLr = Array.isArray(o.processLoadSummary) ? o.processLoadSummary : [];
+            const oLoad = oLr.find(r => r.processKey === s.processKey) || {};
+            const oMachine = oLoad.machineName || '';
+            if (oMachine !== machine) return;
+            const oSteps = trackingBuildSteps(o);
+            const oStep = oSteps.find(st => st.processKey === s.processKey);
+            if (!oStep) return;
+            const isDone = (oStep.routeStatus || '').toUpperCase() === 'COMPLETADO';
+            const isRunning = ['RUN', 'SETUP'].includes((oStep.routeStatus || '').toUpperCase());
+            const isLate = (oStep.routeStatus || '').toUpperCase() === 'PARO';
+            if (isDone) return;
+            const oQty = Number(o.orderedQuantity || 0);
+            const oProcH = oStep.planned?.minutes ? Math.round(oStep.planned.minutes / 60) : 8;
+            const eta = o.promisedDeliveryDate || o.scheduledDeliveryDate || '';
+            ahead.push({
+                orderCode: o.orderCode,
+                customerName: o.customerName || '',
+                orderedQuantity: oQty,
+                procH: oProcH,
+                eta: eta,
+                status: isRunning ? 'running' : isLate ? 'late' : 'pending',
+                machine: machine
+            });
+        });
+        ahead.sort((a, b) => {
+            const da = a.eta ? new Date(a.eta).getTime() : Infinity;
+            const db = b.eta ? new Date(b.eta).getTime() : Infinity;
+            return da - db;
+        });
+        if (ahead.length) {
+            result.push({
+                processKey: s.processKey,
+                processLabel: s.processName || PROCESS_LABELS[s.processKey] || s.processKey,
+                machine: machine,
+                orders: ahead
+            });
+        }
+    });
+    return result;
+}
+
 function trackingCalcPct(steps) {
     if (!steps.length) return 0;
     const done = steps.filter(s => (s.routeStatus || '').toUpperCase() === 'COMPLETADO').length;
@@ -610,6 +662,65 @@ function trackingCloseDrawer() {
     document.body.style.overflow = '';
 }
 
+function trackingOpenOrdersAheadModal() {
+    if (!trackingDrawerResult || !trackingDrawerOrder) return;
+    const steps = trackingBuildSteps(trackingDrawerOrder);
+    const groups = trackingFindOrdersAhead(trackingDrawerOrder, steps);
+    const body = document.getElementById('trackingOrdersAheadBody');
+    const totalOrders = groups.reduce((s, g) => s + g.orders.length, 0);
+    const totalQH = groups.reduce((s, g) => s + g.orders.reduce((os, o) => os + o.procH, 0), 0);
+    let html = `<div style="margin-bottom:14px">
+      <div style="font-size:13px;color:var(--tracking-text2,#5a6d82);margin-bottom:6px">Se encontraron <strong style="color:var(--tracking-text,#1f2b3d)">${totalOrders}</strong> orden${totalOrders !== 1 ? 'es' : ''} delante en la cola, consumiendo ~<strong style="color:var(--tracking-text,#1f2b3d)">${Math.round(totalQH)}h</strong> de produccion acumulada.</div>
+    </div>`;
+    if (!groups.length) {
+        html += `<div style="padding:24px 0;text-align:center;color:var(--tracking-text3,#66758b);font-size:13px">No hay otras ordenes en la misma maquina para este proceso.</div>`;
+    } else {
+        groups.forEach(g => {
+            html += `<div style="margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--tracking-border,#d8e4ef)">
+          <span style="font-size:15px">${escapeHtml(TRACKING_PROCESS_ICONS[g.processKey] || '·')}</span>
+          <span style="font-weight:600;color:var(--tracking-text,#1f2b3d);font-size:13px">${escapeHtml(g.processLabel)}</span>
+          <span style="font-size:11px;color:var(--tracking-text3,#66758b);margin-left:auto">${escapeHtml(g.machine)}</span>
+        </div>`;
+            g.orders.forEach((o, i) => {
+                const qty = Number(o.orderedQuantity || 0);
+                const eta = o.eta ? formatDate(o.eta) : 'Sin fecha';
+                const stColor = o.status === 'running' ? 'var(--accent)' : o.status === 'late' ? '#A32D2D' : 'var(--tracking-text3,#66758b)';
+                const stTxt = o.status === 'running' ? 'En proceso' : o.status === 'late' ? 'Atrasada' : 'En cola';
+                html += `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;border:1px solid var(--tracking-border,#d8e4ef);background:var(--tracking-surface2,#f7fbff);font-size:12px;${i > 0 ? 'margin-top:4px' : ''}">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;color:var(--tracking-text,#1f2b3d);font-family:'DM Mono',monospace;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(o.orderCode)}</div>
+            <div style="color:var(--tracking-text3,#66758b);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(o.customerName || 'Sin cliente')}</div>
+          </div>
+          <div style="text-align:right;min-width:60px">
+            <div style="font-weight:600;color:var(--tracking-text,#1f2b3d);font-family:'DM Mono',monospace;font-size:12px">${formatNumber(qty)}</div>
+            <div style="color:var(--tracking-text3,#66758b);font-size:10px">piezas</div>
+          </div>
+          <div style="text-align:right;min-width:40px">
+            <div style="font-weight:600;color:var(--tracking-text,#1f2b3d);font-family:'DM Mono',monospace;font-size:12px">${o.procH}h</div>
+            <div style="color:var(--tracking-text3,#66758b);font-size:10px">produccion</div>
+          </div>
+          <div style="text-align:right;min-width:60px">
+            <div style="font-size:11px;font-weight:500;color:${stColor}">${stTxt}</div>
+            <div style="color:var(--tracking-text3,#66758b);font-size:10px">${escapeHtml(eta)}</div>
+          </div>
+        </div>`;
+            });
+            html += `</div>`;
+        });
+    }
+    body.innerHTML = html;
+    document.getElementById('trackingOrdersAheadModal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function trackingCloseOrdersAheadModal() {
+    document.getElementById('trackingOrdersAheadModal').classList.remove('open');
+    if (!document.getElementById('trackingDrawer').classList.contains('open')) {
+        document.body.style.overflow = '';
+    }
+}
+
 function trackingSetPriority(p) {
     trackingDrawerPriority = p;
     document.querySelectorAll('[data-tracking-priority]').forEach(el => {
@@ -643,15 +754,23 @@ function trackingRenderDrawerResult(r) {
     const dateCls = priority === 'premium' ? 'premium' : priority === 'urgent' ? 'urgent' : '';
     const earlyStr = formatDateFull(earlyEnd);
     const lateStr = formatDateFull(lateEnd);
-    const confLabel = { high: 'Alta confianza', med: 'Confianza media' }[conf];
-    const confDot = conf === 'high' ? '◉' : '◎';
     document.getElementById('trackingResDateBig').textContent = earlyStr;
     document.getElementById('trackingResDateBig').className = 'tracking-result-date-big' + (dateCls ? ' ' + dateCls : '');
     document.getElementById('trackingResRange').textContent = bufferDays > 0 ? `Rango: ${earlyStr} – ${lateStr}` : 'Sin colchón — fecha fija';
-    document.getElementById('trackingResConf').textContent = `${confDot} ${confLabel}`;
-    document.getElementById('trackingResConf').className = 'tracking-result-confidence ' + conf;
+
+    const steps = trackingBuildSteps(trackingDrawerOrder);
+    const groups = trackingFindOrdersAhead(trackingDrawerOrder, steps);
+    const totalAhead = groups.reduce((s, g) => s + g.orders.length, 0);
+    const confEl = document.getElementById('trackingResConf');
+    if (totalQ > 0) {
+        confEl.innerHTML = `<button class="tracking-btn-orders-ahead" onclick="trackingOpenOrdersAheadModal()"><span class="tracking-orders-ahead-dot"></span>${totalAhead} orden${totalAhead !== 1 ? 'es' : ''} en cola · Ver detalle</button>`;
+    } else {
+        confEl.innerHTML = `<span class="tracking-orders-ahead-dot" style="background:var(--accent)"></span>Sin órdenes en cola`;
+    }
+    confEl.className = 'tracking-result-confidence';
+
     const breakdown = [];
-    if (totalProc > 0) breakdown.push({ cls: 'var(--accent)', name: 'Producción', detail: `${trackingBuildSteps(trackingDrawerOrder).length} procesos en secuencia`, hrs: totalProc });
+    if (totalProc > 0) breakdown.push({ cls: 'var(--accent)', name: 'Producción', detail: `${steps.length} procesos en secuencia`, hrs: totalProc });
     if (totalQ > 0) breakdown.push({ cls: '#F5A623', name: 'Espera en cola', detail: priority === 'urgent' ? 'Entrada directa' : priority === 'premium' ? 'Cola reducida ~55%' : 'Cola actual de máquinas', hrs: totalQ });
     if (bufH > 0) breakdown.push({ cls: 'var(--tracking-blue,#185FA5)', name: 'Colchón de seguridad', detail: `${bufferDays}d hábil${bufferDays !== 1 ? 'es' : ''} de margen`, hrs: bufH });
     document.getElementById('trackingResBreakdown').innerHTML = breakdown.map(b => `

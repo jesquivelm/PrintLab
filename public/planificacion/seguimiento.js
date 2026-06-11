@@ -85,6 +85,58 @@ function buildSteps(o){
   });
 }
 
+function findOrdersAhead(order,steps){
+  const currentCode=order.orderCode;
+  const result=[];
+  const lr=Array.isArray(order.processLoadSummary)?order.processLoadSummary:[];
+  steps.forEach(s=>{
+    const load=lr.find(r=>r.processKey===s.key)||{};
+    const machine=load.machineName||s.machine||'';
+    if(!machine)return;
+    const ahead=[];
+    allOrders.forEach(o=>{
+      if(o.orderCode===currentCode)return;
+      const oLr=Array.isArray(o.processLoadSummary)?o.processLoadSummary:[];
+      const oLoad=oLr.find(r=>r.processKey===s.key)||{};
+      const oMachine=oLoad.machineName||'';
+      if(oMachine!==machine)return;
+      const oSteps=buildSteps(o);
+      const oStep=oSteps.find(st=>st.key===s.key);
+      if(!oStep)return;
+      const isDone=oStep.status==='done'||oStep.status==='complete';
+      const isRunning=oStep.status==='active'||oStep.status==='running';
+      const isLate=oStep.status==='late';
+      if(isDone)return;
+      const oQty=Number(o.orderedQuantity||0);
+      const oProcH=oStep.hrs||8;
+      const eta=o.promisedDeliveryDate||o.scheduledDeliveryDate||'';
+      ahead.push({
+        orderCode:o.orderCode,
+        customerName:o.customerName||'',
+        orderedQuantity:oQty,
+        procH:oProcH,
+        eta:eta,
+        status:isRunning?'running':isLate?'late':'pending',
+        machine:machine
+      });
+    });
+    ahead.sort((a,b)=>{
+      const da=a.eta?new Date(a.eta).getTime():Infinity;
+      const db=b.eta?new Date(b.eta).getTime():Infinity;
+      return da-db;
+    });
+    if(ahead.length){
+      result.push({
+        processKey:s.key,
+        processLabel:s.label,
+        machine:machine,
+        orders:ahead
+      });
+    }
+  });
+  return result;
+}
+
 function calcPct(steps){
   if(!steps.length)return 0;
   const done=steps.filter(s=>s.status==='done'||s.status==='complete').length;
@@ -338,6 +390,67 @@ function closeDrawer(){
   document.body.style.overflow='';
 }
 
+function openOrdersAheadModal(){
+  if(!drawerResult||!drawerOrder)return;
+  const steps=buildSteps(drawerOrder);
+  const groups=findOrdersAhead(drawerOrder,steps);
+  const el=document.getElementById('ordersAheadModal');
+  const body=document.getElementById('ordersAheadBody');
+  const totalOrders=groups.reduce((s,g)=>s+g.orders.length,0);
+  const totalQH=groups.reduce((s,g)=>s+g.orders.reduce((os,o)=>os+o.procH,0),0);
+  let html=`<div style="margin-bottom:14px">
+    <div style="font-size:13px;color:var(--text2);margin-bottom:6px">Se encontraron <strong>${totalOrders}</strong> orden${totalOrders!==1?'es':''} delante en la cola, consumiendo ~<strong>${Math.round(totalQH)}h</strong> de produccion acumulada.</div>
+  </div>`;
+  if(!groups.length){
+    html+=`<div style="padding:24px 0;text-align:center;color:var(--text3);font-size:13px">No hay otras ordenes en la misma maquina para este proceso.</div>`;
+  }else{
+    groups.forEach(g=>{
+      const stLabel={running:'En proceso',late:'Atrasada',pending:'En cola'}[g.orders[0]?.status]||'En cola';
+      html+=`<div style="margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">
+          <span style="font-size:15px">${esc(ICONS[g.processKey]||'·')}</span>
+          <span style="font-weight:600;color:var(--text);font-size:13px">${esc(g.processLabel)}</span>
+          <span style="font-size:11px;color:var(--text3);margin-left:auto">${esc(g.machine)}</span>
+        </div>`;
+      g.orders.forEach((o,i)=>{
+        const qty=Number(o.orderedQuantity||0);
+        const eta=o.eta?fmtShort(o.eta):'Sin fecha';
+        const stCls=o.status==='running'?'color:var(--accent)':o.status==='late'?'color:var(--red)':'color:var(--text3)';
+        const stTxt=o.status==='running'?'En proceso':o.status==='late'?'Atrasada':'En cola';
+        html+=`<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);font-size:12px;${i>0?'margin-top:4px':''}">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(o.orderCode)}</div>
+            <div style="color:var(--text3);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(o.customerName||'Sin cliente')}</div>
+          </div>
+          <div style="text-align:right;min-width:60px">
+            <div style="font-weight:600;color:var(--text);font-family:'DM Mono',monospace;font-size:12px">${formatNumber(qty)}</div>
+            <div style="color:var(--text3);font-size:10px">piezas</div>
+          </div>
+          <div style="text-align:right;min-width:40px">
+            <div style="font-weight:600;color:var(--text);font-family:'DM Mono',monospace;font-size:12px">${o.procH}h</div>
+            <div style="color:var(--text3);font-size:10px">produccion</div>
+          </div>
+          <div style="text-align:right;min-width:60px">
+            <div style="font-size:11px;font-weight:500;${stCls}">${stTxt}</div>
+            <div style="color:var(--text3);font-size:10px">${esc(eta)}</div>
+          </div>
+        </div>`;
+      });
+      html+=`</div>`;
+    });
+  }
+  body.innerHTML=html;
+  el.classList.add('open');
+  document.body.style.overflow='hidden';
+}
+
+function closeOrdersAheadModal(){
+  document.getElementById('ordersAheadModal').classList.remove('open');
+  if(!document.getElementById('drawer').classList.contains('open')){
+    document.body.style.overflow='';
+  }
+}
+
 function setPriority(p){
   drawerPriority=p;
   ['normal','premium','urgent'].forEach(id=>{
@@ -372,19 +485,26 @@ function renderDrawerResult(r){
   const dateCls=priority==='premium'?'premium':priority==='urgent'?'urgent':'';
   const earlyStr=capitalise(fmtLong(earlyEnd));
   const lateStr=capitalise(fmtLong(lateEnd));
-  const confLabel={high:'Alta confianza',med:'Confianza media'}[conf];
-  const confDot=conf==='high'?'◉':'◎';
 
   document.getElementById('resDateBig').textContent=earlyStr;
   document.getElementById('resDateBig').className='result-date-big'+( dateCls?' '+dateCls:'');
   document.getElementById('resRange').textContent=bufferDays>0
     ?`Rango: ${earlyStr} – ${lateStr}`
     :`Sin colchon — fecha fija`;
-  document.getElementById('resConf').textContent=`${confDot} ${confLabel}`;
-  document.getElementById('resConf').className='result-confidence '+conf;
+
+  const steps=buildSteps(drawerOrder);
+  const groups=findOrdersAhead(drawerOrder,steps);
+  const totalAhead=groups.reduce((s,g)=>s+g.orders.length,0);
+  const confEl=document.getElementById('resConf');
+  if(totalQ>0){
+    confEl.innerHTML=`<button class="btn-orders-ahead" onclick="openOrdersAheadModal()"><span class="orders-ahead-dot"></span>${totalAhead} orden${totalAhead!==1?'es':''} en cola · Ver detalle</button>`;
+  }else{
+    confEl.innerHTML=`<span class="orders-ahead-dot" style="background:var(--accent)"></span>Sin ordenes en cola`;
+  }
+  confEl.className='result-confidence';
 
   const breakdown=[];
-  if(totalProc>0)breakdown.push({cls:'var(--accent)',name:'Produccion',detail:`${buildSteps(drawerOrder).length} procesos en secuencia`,hrs:totalProc});
+  if(totalProc>0)breakdown.push({cls:'var(--accent)',name:'Produccion',detail:`${steps.length} procesos en secuencia`,hrs:totalProc});
   if(totalQ>0)breakdown.push({cls:'#F5A623',name:'Espera en cola',detail:priority==='urgent'?'Entrada directa':priority==='premium'?'Cola reducida ~55%':'Cola actual de maquinas',hrs:totalQ});
   if(bufH>0)breakdown.push({cls:'var(--blue)',name:'Colchon de seguridad',detail:`${bufferDays}d habil${bufferDays!==1?'es':''} de margen`,hrs:bufH});
 
