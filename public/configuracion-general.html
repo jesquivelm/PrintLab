@@ -4146,6 +4146,9 @@
             min-width: 0;
             max-width: 100%;
         }
+        .proforma-subpanel .proforma-config-section + .proforma-config-section {
+            margin-top: 18px;
+        }
         .proforma-subpanel[hidden] {
             display: none;
         }
@@ -13543,6 +13546,7 @@
             if (proformaLogoUrlField) proformaLogoUrlField.value = general.proformaLogoUrl || '';
             if (proformaCompanyFontUrlField) proformaCompanyFontUrlField.value = general.proformaCompanyFontUrl || '';
             renderProformaCurrencies();
+            renderProformaCurrencyButton();
             renderProformaValidityButton();
             renderProformaValidityRows();
             applyProformaLogoPreview();
