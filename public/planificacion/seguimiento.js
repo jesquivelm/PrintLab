@@ -1,7 +1,11 @@
 /* ── CONSTANTES ── */
 const API='/api';
 const LABELS={orden_creada:'Creación de Orden',solicitud_vendedor:'Solicitud de Vendedor',planeacion:'Planificación',diseno:'Diseño',preprensa:'Preprensa',visto_bueno:'Visto Bueno',planchas:'Planchas',impresion:'Impresión',laminado:'Laminado',troquelado:'Troquelado',estampado:'Estampado',barnizado:'Barniz',embosado:'Embosado',numeracion:'Numeración',rebobinado:'Rebobinado',empaque:'Empaque'};
+const PROCESS_ICON_KEYS={orden_creada:'produccionCreacionOrden',solicitud_vendedor:'produccionSolicitudVendedor',planeacion:'produccionPlanificacion',diseno:'produccionDiseno',preprensa:'produccionPreprensa',visto_bueno:'produccionVistoBueno',planchas:'produccionPlanchas',impresion:'produccionImpresion',laminado:'produccionLaminado',troquelado:'produccionTroquelado',estampado:'produccionEstampado',barnizado:'produccionBarniz',embosado:'produccionEmbozado',numeracion:'produccionNumerado',rebobinado:'produccionRebobinado',empaque:'produccionEmpaque'};
 const ICONS={orden_creada:'+',solicitud_vendedor:'→',planeacion:'✓',diseno:'✏',preprensa:'⬛',visto_bueno:'✓',planchas:'▣',impresion:'◼',laminado:'◧',troquelado:'◈',estampado:'◆',barnizado:'◐',embosado:'◉',numeracion:'#',rebobinado:'↻',empaque:'□'};
+let trackingConfig={icons:{},general:{}};
+function iconMarkup(key,fallback,altText){const value=trackingConfig.icons?.[key]||fallback;if(/^(\/|data:image\/)/i.test(String(value||''))){return`<img style="width:1em;height:1em;vertical-align:middle" src="${esc(value)}" alt="${esc(altText||'')}">`}return`<span aria-hidden="true">${esc(value)}</span>`}
+function processIcon(key){const iconKey=PROCESS_ICON_KEYS[key];if(iconKey&&trackingConfig.icons?.[iconKey])return iconMarkup(iconKey,ICONS[key]||'·',LABELS[key]||key);return esc(ICONS[key]||'·')}
 const TRACKING_BASE_KEYS=['orden_creada','solicitud_vendedor','planeacion'];
 const WORK_HRS=8;
 const WORK_DAYS=new Set([1,2,3,4,5,6]);
@@ -77,7 +81,7 @@ function buildSteps(o){
   return sel.map((p,i)=>{
     const key=stepKey(p);
     const l=lr.find(r=>r.processKey===key)||{};
-    return{key,label:LABELS[key]||p.label||p.processName||key,icon:ICONS[key]||'·',
+    return{key,label:LABELS[key]||p.label||p.processName||key,icon:processIcon(key),
       status:p.status?normalizeStepStatus(p.status):(l.status?normalizeStepStatus(l.status):(i===0?'active':'pending')),
       endDate:l.endDate||null,machine:l.machineName||p.machineName||null,
       hrs:l.durationHours?Math.round(l.durationHours):null,
@@ -223,7 +227,7 @@ function renderProcessRow(s){
   const stLabel={done:'Listo',active:'En proceso',running:'En proceso',pending:'Pendiente',late:'Atrasado'}[st]||st;
   const pct=st==='done'?100:st==='active'||st==='running'?55:st==='late'?90:0;
   return`<div class="process-row">
-    <div class="process-name-cell"><div class="process-icon ${st}">${esc(s.icon)}</div>
+    <div class="process-name-cell"><div class="process-icon ${st}">${s.icon}</div>
       <div><div class="process-label">${esc(s.label)}</div>${s.ordersAhead!=null?`<div class="process-sublabel">${s.ordersAhead} ord. delante</div>`:''}</div></div>
     <div class="duration-cell"><div class="duration-track"><div class="duration-fill ${st}" style="width:${pct}%"></div></div>${s.hoursStr?`<div class="duration-hours">${esc(s.hoursStr)}</div>`:''}</div>
     <div class="process-date-cell ${isLate?'late':!s.endDate?'pending':''}">${esc(s.endDate?fmtShort(s.endDate):'—')}</div>
@@ -370,7 +374,7 @@ function openDrawer(code){
   const lr=Array.isArray(order.processLoadSummary)?order.processLoadSummary:[];
   document.getElementById('drawerProcesses').innerHTML=steps.length
     ?steps.map(s=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);font-size:12px">
-        <span style="font-size:14px">${esc(s.icon)}</span>
+        <span style="font-size:14px">${s.icon}</span>
         <span style="flex:1;font-weight:500;color:var(--text)">${esc(s.label)}</span>
         ${s.hrs?`<span style="color:var(--text3);font-family:'DM Mono',monospace;font-size:11px">${s.hrs}h</span>`:''}
         ${s.machine?`<span style="color:var(--text3);font-size:11px">${esc(s.machine)}</span>`:''}
@@ -849,7 +853,7 @@ document.getElementById('btnSetDate')?.addEventListener('click',setDateInOrder);
 document.getElementById('refreshBtn')?.addEventListener('click',loadData);
 document.getElementById('sortSelect')?.addEventListener('change',renderAll);
 setInterval(loadData,60000);
-loadData();
+fetch('/api/config/shell').then(r=>r.ok?r.json():{}).catch(()=>({})).then(cfg=>{trackingConfig=cfg||trackingConfig;loadData()});
 
 function flipCard(code) {
   const wrap = document.getElementById(`flip-${code}`);

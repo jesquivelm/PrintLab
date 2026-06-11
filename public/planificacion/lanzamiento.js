@@ -430,7 +430,10 @@ const TRACKING_PROCESS_ICONS = {
     rebobinado: '↻',
     empaque: '□'
 };
+const PROCESS_ICON_KEYS={orden_creada:'produccionCreacionOrden',solicitud_vendedor:'produccionSolicitudVendedor',planeacion:'produccionPlanificacion',diseno:'produccionDiseno',preprensa:'produccionPreprensa',visto_bueno:'produccionVistoBueno',planchas:'produccionPlanchas',impresion:'produccionImpresion',laminado:'produccionLaminado',troquelado:'produccionTroquelado',estampado:'produccionEstampado',barnizado:'produccionBarniz',embosado:'produccionEmbozado',numeracion:'produccionNumerado',rebobinado:'produccionRebobinado',empaque:'produccionEmpaque'};
 const TRACKING_HIDDEN_PROCESS_KEYS = new Set(['planchas', 'tintas']);
+
+function processIcon(key){const iconKey=PROCESS_ICON_KEYS[key];if(iconKey&&planningConfig.icons?.[iconKey])return iconMarkup(iconKey,TRACKING_PROCESS_ICONS[key]||'·',key);return escapeHtml(TRACKING_PROCESS_ICONS[key]||'·')}
 
 function visibleTrackingSteps(steps = []) {
     return steps.filter((step) => !TRACKING_HIDDEN_PROCESS_KEYS.has(step.processKey));
@@ -649,7 +652,7 @@ function trackingOpenDrawer(code) {
     const steps = trackingBuildSteps(order);
     document.getElementById('trackingDrawerProcesses').innerHTML = steps.length
         ? steps.map(s => `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;border:1px solid var(--tracking-border,#e4e2dc);background:var(--tracking-surface2,#f9f8f6);font-size:12px">
-            <span style="font-size:14px">${escapeHtml(TRACKING_PROCESS_ICONS[s.processKey] || '·')}</span>
+            <span style="font-size:14px">${processIcon(s.processKey)}</span>
             <span style="flex:1;font-weight:500;color:var(--tracking-text,#1f2b3d)">${escapeHtml(s.processName || processLabel(s.processKey) || s.processKey)}</span>
             ${s.planned?.minutes ? `<span style="color:var(--tracking-text3,#66758b);font-family:'DM Mono',monospace;font-size:11px">${Math.round(s.planned.minutes / 60)}h</span>` : ''}
             ${s.planned?.machineName ? `<span style="color:var(--tracking-text3,#66758b);font-size:11px">${escapeHtml(s.planned.machineName)}</span>` : ''}
@@ -834,11 +837,11 @@ function renderTrackingProcessRow(step = {}) {
     const dateText = dateValue ? formatDate(dateValue) : '—';
     const machine = step.planned?.machineName || '';
     const statusLabel = { done: 'Listo', running: 'En proceso', pending: 'Pendiente' }[status] || status;
-    const icon = TRACKING_PROCESS_ICONS[step.processKey] || '·';
+    const icon = processIcon(step.processKey);
     return `
         <div class="process-row">
             <div class="process-name-cell">
-                <div class="process-icon ${status}">${escapeHtml(icon)}</div>
+                <div class="process-icon ${status}">${icon}</div>
                 <div>
                     <div class="process-label">${escapeHtml(step.processName || processLabel(step.processKey))}</div>
                     ${step.notes ? `<div class="process-sublabel">${escapeHtml(step.notes)}</div>` : ''}
