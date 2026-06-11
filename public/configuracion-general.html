@@ -42,6 +42,22 @@
         .favorites-preview-shell { display: grid; gap: 10px; }
         .favorites-preview-viewport { width: 100%; min-height: 220px; border: 1px solid #dce7ef; border-radius: 20px; background: linear-gradient(180deg, #ffffff 0%, #f5f9fc 100%); overflow: hidden; }
         .favorites-preview-canvas { display: block; width: 100%; height: 220px; }
+        .config-form-grid select {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            padding-right: 30px;
+            background-image:
+                linear-gradient(45deg, transparent 50%, #8ba2b4 50%),
+                linear-gradient(135deg, #8ba2b4 50%, transparent 50%);
+            background-position:
+                calc(100% - 14px) calc(50% - 3px),
+                calc(100% - 9px) calc(50% - 3px);
+            background-size:
+                5px 5px,
+                5px 5px;
+            background-repeat: no-repeat;
+        }
         .preview-header { 
             padding: 12px; border-radius: 4px; 
             background: linear-gradient(135deg, var(--header-bg-start, #0b81b8), var(--header-bg-end, #17abdf));
@@ -463,22 +479,12 @@
         }
         .quotes-general-split {
             display: grid;
-            grid-template-columns: minmax(280px, 1fr) minmax(320px, 1fr);
+            grid-template-columns: repeat(4, minmax(220px, 1fr));
             gap: 16px;
             align-items: start;
         }
-        .quote-product-types-card {
-            grid-column: 1;
-        }
-        .quote-surface-options-card {
-            grid-column: 1;
-        }
-        .quote-application-options-card {
-            grid-column: 2;
-            grid-row: 1 / span 2;
-        }
-        .quotes-orders-compact-card {
-            grid-column: 1 / -1;
+        .quotes-general-split > .config-card {
+            min-width: 0;
         }
         .quote-product-types-card,
         .quotes-orders-compact-card {
@@ -2338,14 +2344,12 @@
         }
         @media (max-width: 980px) {
             .quotes-general-split {
-                grid-template-columns: 1fr;
+                grid-template-columns: repeat(2, 1fr);
             }
-            .quote-product-types-card,
-            .quote-surface-options-card,
-            .quote-application-options-card,
-            .quotes-orders-compact-card {
-                grid-column: 1;
-                grid-row: auto;
+        }
+        @media (max-width: 640px) {
+            .quotes-general-split {
+                grid-template-columns: 1fr;
             }
         }
         html[data-theme="dark"] .quote-output-types-table thead th {
