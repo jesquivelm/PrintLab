@@ -483,6 +483,9 @@
             gap: 16px;
             align-items: start;
         }
+        .quotes-general-split.three-col {
+            grid-template-columns: repeat(3, 1fr);
+        }
         .quotes-general-split > .config-card {
             min-width: 0;
         }
@@ -6225,7 +6228,7 @@
                             <div id="quotes-panel-entregas" class="quotes-subpanel" hidden>
                                 <section class="config-card">
                                     <h2 class="config-section-title">Entregas</h2>
-                                    <div class="quotes-general-split">
+                                    <div class="quotes-general-split three-col">
                                         <section class="config-card quote-product-types-card">
                                             <input id="deliverySampleModesJson" name="general.deliverySampleModesJson" type="hidden">
                                             <h3>Envío de Muestras</h3>
@@ -6275,7 +6278,7 @@
                             <div id="quotes-panel-manejo-producto" class="quotes-subpanel" hidden>
                                 <section class="config-card">
                                     <h2 class="config-section-title">Manejo de Producto</h2>
-                                    <div class="quotes-general-split">
+                                    <div class="quotes-general-split three-col">
                                         <section class="config-card quote-product-types-card">
                                             <input id="handlingExcessOptionsJson" name="general.handlingExcessOptionsJson" type="hidden">
                                             <h3>Excedentes</h3>
