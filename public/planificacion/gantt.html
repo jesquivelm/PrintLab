@@ -2553,12 +2553,14 @@ async function renderDPFlow() {
   const orderCode = currentDP.id;
   body.innerHTML = '<div style="padding:20px;text-align:center;color:#888;font-size:12px">Cargando seguimiento...</div>';
   try {
-    const resp = await fetch('/api/ordenes-produccion/' + encodeURIComponent(orderCode) + '/seguimiento');
+    await loadTrackingUserPhotos();
+    const resp = await fetch('/api/ordenes-produccion/' + encodeURIComponent(orderCode) + '/seguimiento', { headers: sessionHeader() });
     dpFlowPayload = await resp.json();
     const steps = Array.isArray(dpFlowPayload?.steps) ? dpFlowPayload.steps : [];
     body.innerHTML = renderFlowTimeline(steps);
     bindTrackingAvatarFallback(body);
   } catch (e) {
+    console.error('Flow load error:', e);
     body.innerHTML = '<div style="padding:20px;text-align:center;color:#E24B4A;font-size:12px">Error al cargar seguimiento</div>';
   }
 }

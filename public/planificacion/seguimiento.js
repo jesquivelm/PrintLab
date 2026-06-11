@@ -222,7 +222,7 @@ function renderOrderCard(o){
       <div class="proc-panel">
         <div class="proc-panel-header">
           <span class="proc-panel-title">Procesos planificados</span>
-          <button class="proc-flip-btn" id="flipbtn-${esc(o.orderCode)}" onclick="event.stopPropagation();flipCard('${esc(o.orderCode)}')" title="Ver flujo de produccion real">
+          <button class="proc-flip-btn" id="flipbtn-${esc(o.orderCode)}" onclick="event.stopPropagation();flipCard('${esc(o.orderCode)}')" title="Ver flujo de producción real">
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6a4 4 0 0 1 8 0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M10 4l0 2-2 0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 6a4 4 0 0 1-8 0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M2 8l0-2 2 0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
             Ver flujo real
           </button>
@@ -396,7 +396,7 @@ function renderDrawerResult(r){
     </div>`).join('');
 
   let note='';
-  if(totalQ>totalProc)note=`<div class="queue-warning"><strong>⚠ La cola supera la produccion</strong>Considera subir la prioridad si la fecha es critica para el cliente.</div>`;
+  if(totalQ>totalProc)note=`<div class="queue-warning"><strong>⚠ La cola supera la producción</strong>Considera subir la prioridad si la fecha es critica para el cliente.</div>`;
   if(priority==='premium')note=`<div class="premium-note"><strong>◈ Cliente A — prioridad activada</strong>Fecha calculada adelantando ~55% de la cola. Confirma disponibilidad con planificacion.</div>`;
   if(priority==='urgent')note=`<div class="premium-note" style="background:var(--red-bg);border-color:var(--red-border);color:var(--red)"><strong>⚡ Urgente — entrada directa</strong>Requiere autorizacion de planificacion. Puede desplazar otras ordenes con bloqueo suave.</div>`;
   document.getElementById('resNote').innerHTML=note;
@@ -757,7 +757,8 @@ async function loadFlowPanel(code) {
 
   box.innerHTML = '<div class="flow-loading"><div class="spinner"></div> Cargando flujo...</div>';
   try {
-    const res = await fetch(`${API}/ordenes-produccion/${encodeURIComponent(code)}/flow`);
+    await loadTrackingUserPhotos();
+    const res = await fetch(`${API}/ordenes-produccion/${encodeURIComponent(code)}/flow`, { headers: sessionHeader() });
     if (!res.ok) throw new Error('no-flow');
     const data = await res.json();
     const steps = data.steps || data.items || [];
@@ -770,7 +771,7 @@ async function loadFlowPanel(code) {
       flowCache[code] = steps;
       renderFlowPanel(box, steps);
     } else {
-      box.innerHTML = '<div class="flow-empty">No se pudo cargar el flujo de produccion.</div>';
+      box.innerHTML = '<div class="flow-empty">No se pudo cargar el flujo de producción.</div>';
     }
   }
 }
@@ -817,7 +818,7 @@ function buildFlowFromOrder(order) {
 
 function renderFlowPanel(box, steps, hist) {
   if (!steps || !steps.length) {
-    box.innerHTML = '<div class="flow-empty">No hay flujo de produccion registrado para esta orden.</div>';
+    box.innerHTML = '<div class="flow-empty">No hay flujo de producción registrado para esta orden.</div>';
     return;
   }
   const doneCount = steps.filter(s => String(s.routeStatus||'').toUpperCase() === 'COMPLETADO').length;
@@ -836,7 +837,7 @@ function renderFlowPanel(box, steps, hist) {
     const isLast   = i === steps.length - 1;
 
     const markerName  = String(s.completedBy || s.startedBy || '').trim();
-    const markerPhoto = String(s.completedByPhoto || s.startedByPhoto || '').trim();
+    const markerPhoto = String(s.completedByPhoto || s.startedByPhoto || '').trim() || (markerName ? trackingUserPhotos.get(trackingUserLookupKey(markerName)) : '');
     const initials    = markerName ? markerName.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() : (isDone ? '✓' : '');
     let nodeCls = 'flow-tl-node';
     if (isDone)    nodeCls += ' done';
@@ -877,7 +878,7 @@ function renderFlowPanel(box, steps, hist) {
 
     tlHtml += `<div class="flow-tl-row">
       <div class="flow-tl-left">
-        <button type="button" class="${nodeCls}" data-flow-step-index="${i}"${isDone ? ' disabled' : ''}>${nodeInner}</button>
+        <button type="button" class="${nodeCls}" data-flow-step-index="${i}">${nodeInner}</button>
         ${connector}
       </div>
       <div class="flow-tl-content">
@@ -897,7 +898,7 @@ function renderFlowPanel(box, steps, hist) {
 
   box.innerHTML = `
     <div class="flow-panel-head">
-      <div class="flow-panel-title">Flujo de produccion</div>
+      <div class="flow-panel-title">Flujo de producción</div>
       <span class="flow-panel-counter" style="background:${cntBg};color:${cntClr}">${doneCount}/${total}</span>
     </div>
     <div class="flow-progress"><div class="flow-progress-fill" style="width:${pct}%"></div></div>
@@ -949,6 +950,33 @@ function sessionHeader() {
             permissionName: s.permissionName || ''
         })
     };
+}
+
+// ── USER PHOTOS ──
+let trackingUserPhotos = new Map();
+function trackingUserLookupKey(v) { return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase(); }
+function escHtml(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+function initialsFromName(name) { const p=String(name||'').trim().split(/\s+/).filter(Boolean); return (p[0]?.[0]||'U')+(p[1]?.[0]||''); }
+function trackingAvatarMarkup(name, photoOverride) {
+    const photo = String(photoOverride||'').trim() || trackingUserPhotos.get(trackingUserLookupKey(name));
+    const initials = escHtml(initialsFromName(name).toUpperCase());
+    if (!photo) return initials;
+    return `<img class="tracking-avatar-image" src="${escHtml(photo)}" alt="${escHtml(name||'Usuario')}" data-tracking-avatar-img><span class="tracking-avatar-fallback" hidden>${initials}</span>`;
+}
+async function loadTrackingUserPhotos() {
+    try {
+        const r = await fetch(`${API}/admin-users`, { headers: sessionHeader() });
+        const users = r.ok ? await r.json() : [];
+        const map = new Map();
+        users.forEach(u => {
+            const photo = String(u.photoUrl||u.photo_url||'').trim();
+            [u.name,u.fullName,u.full_name,u.username,u.sapSalespersonName,u.sap_salesperson_name].forEach(v => {
+                const k = trackingUserLookupKey(v);
+                if (k && photo && !map.has(k)) map.set(k, photo);
+            });
+        });
+        trackingUserPhotos = map;
+    } catch(_) {}
 }
 
 // ── Flow step marking ──
