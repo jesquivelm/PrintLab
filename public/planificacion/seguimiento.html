@@ -140,11 +140,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;font-size:16px;color:var(--text)
 .process-row{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr .8fr;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
 .process-row:last-child{border-bottom:none}
 .process-name-cell{display:flex;align-items:center;gap:8px}
-.process-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
-.process-icon.done{background:var(--accent-bg)}
-.process-icon.active{background:var(--blue-bg)}
-.process-icon.pending{background:var(--surface2)}
-.process-icon.late{background:var(--red-bg)}
+.process-icon{width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
 .process-label{font-size:14px;font-weight:500;color:var(--text)}
 .process-sublabel{font-size:12px;color:var(--text3);margin-top:1px}
 .duration-cell{position:relative;height:24px;display:flex;align-items:center}
@@ -385,7 +381,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;font-size:16px;color:var(--text)
 .spinner{width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
 
 /* Theme toggle en header */
-.theme-hdr-btn{display:inline-flex;align-items:center;gap:4px;padding:6px 10px}
+.theme-hdr-btn{display:inline-flex;align-items:center;gap:4px;padding:6px 10px;background:transparent;border:none}
 .theme-hdr-btn svg{flex-shrink:0}
 html[data-theme="dark"] .theme-hdr-btn .theme-icon-sun{display:none}
 html[data-theme="dark"] .theme-hdr-btn .theme-icon-moon{display:inline-block}
@@ -476,7 +472,7 @@ html[data-theme="light"] .theme-hdr-btn .theme-icon-sun{display:inline-block}
       <span class="theme-icon-sun" id="themeIconSun">☀</span>
       <span class="theme-icon-moon" id="themeIconMoon" style="display:none">☾</span>
     </button>
-    <script>function toggleTheme(){var c=window.PrintLabTheme&&window.PrintLabTheme.current();var n=c&&c.mode==='dark'?'light':'dark';window.PrintLabTheme&&window.PrintLabTheme.apply(n);var s=document.getElementById('themeHdrBtn');if(s){s.querySelector('.theme-icon-sun').style.display=n==='light'?'inline-block':'none';s.querySelector('.theme-icon-moon').style.display=n==='dark'?'inline-block':'none'}}fetch('/api/config/shell').then(function(r){return r.ok?r.json():{}}).catch(function(){return{}}).then(function(cfg){var g=cfg&&cfg.general||{};var ic=cfg&&cfg.icons||{};var sunEl=document.getElementById('themeIconSun');var moonEl=document.getElementById('themeIconMoon');if(sunEl&&ic.produccionModoClaro){if(/^data:image/i.test(ic.produccionModoClaro)){sunEl.innerHTML='<img style="width:1em;height:1em;vertical-align:middle" src="'+ic.produccionModoClaro+'" alt="Modo claro">'}else{sunEl.textContent=ic.produccionModoClaro}}if(moonEl&&ic.produccionModoOscuro){if(/^data:image/i.test(ic.produccionModoOscuro)){moonEl.innerHTML='<img style="width:1em;height:1em;vertical-align:middle" src="'+ic.produccionModoOscuro+'" alt="Modo oscuro">'}else{moonEl.textContent=ic.produccionModoOscuro}}var sc=g.iconColorProduccionModoClaro||g.iconColorHover||'#1e516d';var mc=g.iconColorProduccionModoOscuro||g.iconColorHover||'#0b81b8';if(sunEl)sunEl.style.color=sc;if(moonEl)moonEl.style.color=mc})</script>
+    <script>function toggleTheme(){var c=window.PrintLabTheme&&window.PrintLabTheme.current();var n=c&&c.mode==='dark'?'light':'dark';window.PrintLabTheme&&window.PrintLabTheme.apply(n);var s=document.getElementById('themeHdrBtn');if(s){s.querySelector('.theme-icon-sun').style.display=n==='light'?'inline-block':'none';s.querySelector('.theme-icon-moon').style.display=n==='dark'?'inline-block':'none'}}fetch('/api/config/shell').then(function(r){return r.ok?r.json():{}}).catch(function(){return{}}).then(function(cfg){var g=cfg&&cfg.general||{};var ic=cfg&&cfg.icons||{};function renderIcon(el,key,fallback,alt){if(!el)return;var v=ic[key]||fallback;var suffix=key.replace(/^produccion/,'Produccion');var sz=Number(g['iconSize'+suffix])||18;var clr=g['iconColor'+suffix]||'#1e516d';var v=String(v||'').trim();if(/\.svg(\?|#|$)/i.test(v)||v.indexOf('data:image/svg+xml')===0){var s=v.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');el.innerHTML='<span style="display:inline-flex;width:'+sz+'px;height:'+sz+'px;-webkit-mask-image:url(\''+s+'\');mask-image:url(\''+s+'\');-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;-webkit-mask-size:contain;mask-size:contain;background-color:'+clr+'"></span>';return}if(/^(\/|data:image\/)/i.test(v)){el.innerHTML='<img style="width:'+sz+'px;height:'+sz+'px;object-fit:contain" src="'+v.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')+'" alt="'+alt+'">';return}el.style.fontSize=sz+'px';el.style.color=clr;el.textContent=v}renderIcon(document.getElementById('themeIconSun'),'produccionModoClaro','☀','Modo claro');renderIcon(document.getElementById('themeIconMoon'),'produccionModoOscuro','☾','Modo oscuro')})</script>
   </div>
 </header>
 
