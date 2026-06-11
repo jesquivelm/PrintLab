@@ -188,6 +188,8 @@ html[data-theme="dark"] .planning-tracking-view{--bg:#0f172a;--surface:#162033;-
 .process-row:last-child{border-bottom:none}
 .process-name-cell{display:flex;align-items:center;gap:8px}
 .process-icon{width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.process-icon:hover .process-icon-svg{background-color:var(--ic-h) !important}
+.process-icon:hover .process-icon-glyph{color:var(--ic-h) !important}
 .process-label{font-size:12px;font-weight:500;color:var(--text)}
 .process-sublabel{font-size:10px;color:var(--text3);margin-top:1px}
 .duration-cell{position:relative;height:24px;display:flex;align-items:center}
@@ -257,10 +259,10 @@ html[data-theme="dark"] .planning-queue-process-toggle.was-quoted{background:rgb
 /* ── Theme Toggle Header ── */
 .theme-hdr-btn{display:inline-flex;align-items:center;gap:4px;padding:6px 10px;background:transparent;border:none}
 .theme-hdr-btn svg{flex-shrink:0}
-html[data-theme="dark"] .theme-hdr-btn .theme-icon-sun{display:none}
-html[data-theme="dark"] .theme-hdr-btn .theme-icon-moon{display:inline-block}
-html[data-theme="light"] .theme-hdr-btn .theme-icon-moon{display:none}
-html[data-theme="light"] .theme-hdr-btn .theme-icon-sun{display:inline-block}
+html[data-theme="dark"] .theme-hdr-btn .theme-icon-sun{display:inline-block}
+html[data-theme="dark"] .theme-hdr-btn .theme-icon-moon{display:none}
+html[data-theme="light"] .theme-hdr-btn .theme-icon-moon{display:inline-block}
+html[data-theme="light"] .theme-hdr-btn .theme-icon-sun{display:none}
 
 /* ── Tracking Summary Bar ── */
 .tracking-summary-bar{display:flex;align-items:center;padding:0 24px;background:var(--tracking-surface,#fff);border-bottom:1px solid var(--tracking-border,#d8e4ef);overflow-x:auto}
@@ -619,8 +621,8 @@ html[data-theme="dark"] .planning-tracking-alert{background:var(--tracking-red-b
           <option value="code">Código</option>
         </select>
         <button type="button" class="tracking-view-btn theme-hdr-btn" id="themeHdrBtn" onclick="toggleTheme()" title="Cambiar tema">
-          <span class="theme-icon-sun" id="themeIconSun">☀</span>
-          <span class="theme-icon-moon" id="themeIconMoon" style="display:none">☾</span>
+          <span class="theme-icon-sun" id="themeIconSun"></span>
+          <span class="theme-icon-moon" id="themeIconMoon"></span>
         </button>
         <div class="tracking-view-switcher">
           <button type="button" class="tracking-view-btn active" data-tracking-view="list">
@@ -782,8 +784,8 @@ html[data-theme="dark"] .planning-tracking-alert{background:var(--tracking-red-b
       window.PrintLabTheme&&window.PrintLabTheme.apply(n);
       var s=document.getElementById('themeHdrBtn');
       if(s){
-        s.querySelector('.theme-icon-sun').style.display=n==='light'?'inline-block':'none';
-        s.querySelector('.theme-icon-moon').style.display=n==='dark'?'inline-block':'none';
+        s.querySelector('.theme-icon-sun').style.display=n==='dark'?'inline-block':'none';
+        s.querySelector('.theme-icon-moon').style.display=n==='light'?'inline-block':'none';
       }
     }
     (function(){
