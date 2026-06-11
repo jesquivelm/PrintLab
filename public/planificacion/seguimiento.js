@@ -85,14 +85,16 @@ function buildSteps(o){
   });
 }
 
-function findOrdersAhead(order,steps){
+function findOrdersAhead(order,steps,detail){
   const currentCode=order.orderCode;
   const result=[];
   const lr=Array.isArray(order.processLoadSummary)?order.processLoadSummary:[];
-  steps.forEach(s=>{
+  steps.forEach((s,idx)=>{
     const load=lr.find(r=>r.processKey===s.key)||{};
     const machine=load.machineName||s.machine||'';
-    if(!machine)return;
+    const d=detail[idx]||{};
+    const procH=d.procH||s.hrs||8;
+    const qH=d.qH||0;
     const ahead=[];
     allOrders.forEach(o=>{
       if(o.orderCode===currentCode)return;
@@ -125,14 +127,16 @@ function findOrdersAhead(order,steps){
       const db=b.eta?new Date(b.eta).getTime():Infinity;
       return da-db;
     });
-    if(ahead.length){
-      result.push({
-        processKey:s.key,
-        processLabel:s.label,
-        machine:machine,
-        orders:ahead
-      });
-    }
+    result.push({
+      processKey:s.key,
+      processLabel:s.label,
+      machine:machine,
+      procH:procH,
+      qH:qH,
+      start:d.start||null,
+      end:d.end||null,
+      orders:ahead
+    });
   });
   return result;
 }
@@ -392,48 +396,53 @@ function closeDrawer(){
 
 function openOrdersAheadModal(){
   if(!drawerResult||!drawerOrder)return;
+  const{totalProc,totalQ,bufH,priority,bufferDays,detail}=drawerResult;
   const steps=buildSteps(drawerOrder);
-  const groups=findOrdersAhead(drawerOrder,steps);
+  const groups=findOrdersAhead(drawerOrder,steps,detail);
   const el=document.getElementById('ordersAheadModal');
   const body=document.getElementById('ordersAheadBody');
   const totalOrders=groups.reduce((s,g)=>s+g.orders.length,0);
-  const totalQH=groups.reduce((s,g)=>s+g.orders.reduce((os,o)=>os+o.procH,0),0);
-  let html=`<div style="margin-bottom:14px">
-    <div style="font-size:13px;color:var(--text2);margin-bottom:6px">Se encontraron <strong>${totalOrders}</strong> orden${totalOrders!==1?'es':''} delante en la cola, consumiendo ~<strong>${Math.round(totalQH)}h</strong> de produccion acumulada.</div>
-  </div>`;
-  if(!groups.length){
-    html+=`<div style="padding:24px 0;text-align:center;color:var(--text3);font-size:13px">No hay otras ordenes en la misma maquina para este proceso.</div>`;
+  const earlyStr=capitalise(fmtLong(drawerResult.earlyEnd));
+  const lateStr=capitalise(fmtLong(drawerResult.lateEnd));
+
+  let html=`
+    <div class="oam-summary">
+      <div class="oam-summary-row">
+        <div class="oam-summary-item oam-si-proc"><div class="oam-si-icon">⚙</div><div><div class="oam-si-val">${Math.round(totalProc)}h</div><div class="oam-si-lbl">Produccion</div></div></div>
+        <div class="oam-summary-item oam-si-queue"><div class="oam-si-icon">⏳</div><div><div class="oam-si-val">${Math.round(totalQ)}h</div><div class="oam-si-lbl">En cola</div></div></div>
+        <div class="oam-summary-item oam-si-buffer"><div class="oam-si-icon">🛡</div><div><div class="oam-si-val">${Math.round(bufH)}h</div><div class="oam-si-lbl">Colchon</div></div></div>
+      </div>
+      <div class="oam-summary-eta"><strong>Entrega estimada:</strong> ${earlyStr}${bufferDays>0?' – '+lateStr:''}</div>
+    </div>`;
+
+  if(!groups.length||totalOrders===0){
+    html+=`<div class="oam-empty">No hay otras ordenes compitiendo por las mismas maquinas en este momento.</div>`;
   }else{
+    html+=`<div class="oam-section-title">${totalOrders} orden${totalOrders!==1?'es':''} antes de esta en la cola</div>`;
     groups.forEach(g=>{
-      const stLabel={running:'En proceso',late:'Atrasada',pending:'En cola'}[g.orders[0]?.status]||'En cola';
-      html+=`<div style="margin-bottom:16px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">
-          <span style="font-size:15px">${esc(ICONS[g.processKey]||'·')}</span>
-          <span style="font-weight:600;color:var(--text);font-size:13px">${esc(g.processLabel)}</span>
-          <span style="font-size:11px;color:var(--text3);margin-left:auto">${esc(g.machine)}</span>
+      const stTxt=g.qH>0?`${Math.round(g.qH)}h de espera`:'Sin espera';
+      html+=`<div class="oam-step">
+        <div class="oam-step-head">
+          <div class="oam-step-icon">${esc(ICONS[g.processKey]||'·')}</div>
+          <div class="oam-step-info">
+            <div class="oam-step-name">${esc(g.processLabel)}</div>
+            <div class="oam-step-meta">${esc(g.machine||'Sin maquina')} · ${Math.round(g.procH)}h produccion · ${stTxt}</div>
+          </div>
+          <div class="oam-step-badge">${g.orders.length} ord.</div>
         </div>`;
       g.orders.forEach((o,i)=>{
         const qty=Number(o.orderedQuantity||0);
         const eta=o.eta?fmtShort(o.eta):'Sin fecha';
-        const stCls=o.status==='running'?'color:var(--accent)':o.status==='late'?'color:var(--red)':'color:var(--text3)';
-        const stTxt=o.status==='running'?'En proceso':o.status==='late'?'Atrasada':'En cola';
-        html+=`<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);font-size:12px;${i>0?'margin-top:4px':''}">
-          <div style="flex:1;min-width:0">
-            <div style="font-weight:600;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(o.orderCode)}</div>
-            <div style="color:var(--text3);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(o.customerName||'Sin cliente')}</div>
+        const stCls=o.status==='running'?'oam-st-running':o.status==='late'?'oam-st-late':'oam-st-pending';
+        const stLbl=o.status==='running'?'Procesando':o.status==='late'?'Atrasada':'En cola';
+        html+=`<div class="oam-order">
+          <div class="oam-order-left">
+            <div class="oam-order-code">${esc(o.orderCode)}</div>
+            <div class="oam-order-customer">${esc(o.customerName||'Sin cliente')}</div>
           </div>
-          <div style="text-align:right;min-width:60px">
-            <div style="font-weight:600;color:var(--text);font-family:'DM Mono',monospace;font-size:12px">${formatNumber(qty)}</div>
-            <div style="color:var(--text3);font-size:10px">piezas</div>
-          </div>
-          <div style="text-align:right;min-width:40px">
-            <div style="font-weight:600;color:var(--text);font-family:'DM Mono',monospace;font-size:12px">${o.procH}h</div>
-            <div style="color:var(--text3);font-size:10px">produccion</div>
-          </div>
-          <div style="text-align:right;min-width:60px">
-            <div style="font-size:11px;font-weight:500;${stCls}">${stTxt}</div>
-            <div style="color:var(--text3);font-size:10px">${esc(eta)}</div>
-          </div>
+          <div class="oam-order-qty"><div class="oam-order-qty-val">${formatNumber(qty)}</div><div class="oam-order-qty-lbl">piezas</div></div>
+          <div class="oam-order-hrs"><div class="oam-order-hrs-val">${o.procH}h</div><div class="oam-order-hrs-lbl">produccion</div></div>
+          <div class="oam-order-status"><span class="${stCls}">${stLbl}</span><div class="oam-order-eta">${esc(eta)}</div></div>
         </div>`;
       });
       html+=`</div>`;
@@ -481,7 +490,7 @@ function runCalc(){
 }
 
 function renderDrawerResult(r){
-  const{earlyEnd,lateEnd,totalProc,totalQ,bufH,conf,priority,bufferDays}=r;
+  const{earlyEnd,lateEnd,totalProc,totalQ,bufH,conf,priority,bufferDays,detail}=r;
   const dateCls=priority==='premium'?'premium':priority==='urgent'?'urgent':'';
   const earlyStr=capitalise(fmtLong(earlyEnd));
   const lateStr=capitalise(fmtLong(lateEnd));
@@ -493,7 +502,7 @@ function renderDrawerResult(r){
     :`Sin colchon — fecha fija`;
 
   const steps=buildSteps(drawerOrder);
-  const groups=findOrdersAhead(drawerOrder,steps);
+  const groups=findOrdersAhead(drawerOrder,steps,detail);
   const totalAhead=groups.reduce((s,g)=>s+g.orders.length,0);
   const confEl=document.getElementById('resConf');
   if(totalQ>0){

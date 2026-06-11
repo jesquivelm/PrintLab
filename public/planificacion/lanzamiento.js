@@ -496,14 +496,16 @@ function trackingBuildSteps(o) {
     return steps.filter(s => s.processKey !== 'orden_creada' && s.processKey !== 'solicitud_vendedor' && s.processKey !== 'planeacion');
 }
 
-function trackingFindOrdersAhead(order, steps) {
+function trackingFindOrdersAhead(order, steps, detail) {
     const currentCode = order.orderCode;
     const result = [];
     const lr = Array.isArray(order.processLoadSummary) ? order.processLoadSummary : [];
-    steps.forEach(s => {
+    steps.forEach((s, idx) => {
         const load = lr.find(r => r.processKey === s.processKey) || {};
         const machine = load.machineName || s.machineName || '';
-        if (!machine) return;
+        const d = detail[idx] || {};
+        const procH = d.procH || (s.planned?.minutes ? Math.round(s.planned.minutes / 60) : 8);
+        const qH = d.qH || 0;
         const ahead = [];
         trackingItems.forEach(o => {
             if (o.orderCode === currentCode) return;
@@ -536,14 +538,16 @@ function trackingFindOrdersAhead(order, steps) {
             const db = b.eta ? new Date(b.eta).getTime() : Infinity;
             return da - db;
         });
-        if (ahead.length) {
-            result.push({
-                processKey: s.processKey,
-                processLabel: s.processName || PROCESS_LABELS[s.processKey] || s.processKey,
-                machine: machine,
-                orders: ahead
-            });
-        }
+        result.push({
+            processKey: s.processKey,
+            processLabel: s.processName || PROCESS_LABELS[s.processKey] || s.processKey,
+            machine: machine,
+            procH: procH,
+            qH: qH,
+            start: d.start || null,
+            end: d.end || null,
+            orders: ahead
+        });
     });
     return result;
 }
@@ -664,47 +668,53 @@ function trackingCloseDrawer() {
 
 function trackingOpenOrdersAheadModal() {
     if (!trackingDrawerResult || !trackingDrawerOrder) return;
+    const { totalProc, totalQ, bufH, priority, bufferDays, detail } = trackingDrawerResult;
     const steps = trackingBuildSteps(trackingDrawerOrder);
-    const groups = trackingFindOrdersAhead(trackingDrawerOrder, steps);
+    const groups = trackingFindOrdersAhead(trackingDrawerOrder, steps, detail);
     const body = document.getElementById('trackingOrdersAheadBody');
     const totalOrders = groups.reduce((s, g) => s + g.orders.length, 0);
-    const totalQH = groups.reduce((s, g) => s + g.orders.reduce((os, o) => os + o.procH, 0), 0);
-    let html = `<div style="margin-bottom:14px">
-      <div style="font-size:13px;color:var(--tracking-text2,#5a6d82);margin-bottom:6px">Se encontraron <strong style="color:var(--tracking-text,#1f2b3d)">${totalOrders}</strong> orden${totalOrders !== 1 ? 'es' : ''} delante en la cola, consumiendo ~<strong style="color:var(--tracking-text,#1f2b3d)">${Math.round(totalQH)}h</strong> de produccion acumulada.</div>
-    </div>`;
-    if (!groups.length) {
-        html += `<div style="padding:24px 0;text-align:center;color:var(--tracking-text3,#66758b);font-size:13px">No hay otras ordenes en la misma maquina para este proceso.</div>`;
+    const earlyStr = formatDateFull(trackingDrawerResult.earlyEnd);
+    const lateStr = formatDateFull(trackingDrawerResult.lateEnd);
+
+    let html = `
+      <div class="tracking-oam-summary">
+        <div class="tracking-oam-summary-row">
+          <div class="tracking-oam-summary-item tracking-oam-si-proc"><div class="tracking-oam-si-icon">⚙</div><div><div class="tracking-oam-si-val">${Math.round(totalProc)}h</div><div class="tracking-oam-si-lbl">Producción</div></div></div>
+          <div class="tracking-oam-summary-item tracking-oam-si-queue"><div class="tracking-oam-si-icon">⏳</div><div><div class="tracking-oam-si-val">${Math.round(totalQ)}h</div><div class="tracking-oam-si-lbl">En cola</div></div></div>
+          <div class="tracking-oam-summary-item tracking-oam-si-buffer"><div class="tracking-oam-si-icon">🛡</div><div><div class="tracking-oam-si-val">${Math.round(bufH)}h</div><div class="tracking-oam-si-lbl">Colchón</div></div></div>
+        </div>
+        <div class="tracking-oam-summary-eta"><strong>Entrega estimada:</strong> ${earlyStr}${bufferDays > 0 ? ' – ' + lateStr : ''}</div>
+      </div>`;
+
+    if (!groups.length || totalOrders === 0) {
+        html += `<div class="tracking-oam-empty">No hay otras órdenes compitiendo por las mismas máquinas en este momento.</div>`;
     } else {
+        html += `<div class="tracking-oam-section-title">${totalOrders} orden${totalOrders !== 1 ? 'es' : ''} antes de esta en la cola</div>`;
         groups.forEach(g => {
-            html += `<div style="margin-bottom:16px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--tracking-border,#d8e4ef)">
-          <span style="font-size:15px">${escapeHtml(TRACKING_PROCESS_ICONS[g.processKey] || '·')}</span>
-          <span style="font-weight:600;color:var(--tracking-text,#1f2b3d);font-size:13px">${escapeHtml(g.processLabel)}</span>
-          <span style="font-size:11px;color:var(--tracking-text3,#66758b);margin-left:auto">${escapeHtml(g.machine)}</span>
-        </div>`;
+            const stTxt = g.qH > 0 ? `${Math.round(g.qH)}h de espera` : 'Sin espera';
+            html += `<div class="tracking-oam-step">
+          <div class="tracking-oam-step-head">
+            <div class="tracking-oam-step-icon">${escapeHtml(TRACKING_PROCESS_ICONS[g.processKey] || '·')}</div>
+            <div class="tracking-oam-step-info">
+              <div class="tracking-oam-step-name">${escapeHtml(g.processLabel)}</div>
+              <div class="tracking-oam-step-meta">${escapeHtml(g.machine || 'Sin máquina')} · ${Math.round(g.procH)}h producción · ${stTxt}</div>
+            </div>
+            <div class="tracking-oam-step-badge">${g.orders.length} ord.</div>
+          </div>`;
             g.orders.forEach((o, i) => {
                 const qty = Number(o.orderedQuantity || 0);
                 const eta = o.eta ? formatDate(o.eta) : 'Sin fecha';
-                const stColor = o.status === 'running' ? 'var(--accent)' : o.status === 'late' ? '#A32D2D' : 'var(--tracking-text3,#66758b)';
-                const stTxt = o.status === 'running' ? 'En proceso' : o.status === 'late' ? 'Atrasada' : 'En cola';
-                html += `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;border:1px solid var(--tracking-border,#d8e4ef);background:var(--tracking-surface2,#f7fbff);font-size:12px;${i > 0 ? 'margin-top:4px' : ''}">
-          <div style="flex:1;min-width:0">
-            <div style="font-weight:600;color:var(--tracking-text,#1f2b3d);font-family:'DM Mono',monospace;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(o.orderCode)}</div>
-            <div style="color:var(--tracking-text3,#66758b);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(o.customerName || 'Sin cliente')}</div>
-          </div>
-          <div style="text-align:right;min-width:60px">
-            <div style="font-weight:600;color:var(--tracking-text,#1f2b3d);font-family:'DM Mono',monospace;font-size:12px">${formatNumber(qty)}</div>
-            <div style="color:var(--tracking-text3,#66758b);font-size:10px">piezas</div>
-          </div>
-          <div style="text-align:right;min-width:40px">
-            <div style="font-weight:600;color:var(--tracking-text,#1f2b3d);font-family:'DM Mono',monospace;font-size:12px">${o.procH}h</div>
-            <div style="color:var(--tracking-text3,#66758b);font-size:10px">produccion</div>
-          </div>
-          <div style="text-align:right;min-width:60px">
-            <div style="font-size:11px;font-weight:500;color:${stColor}">${stTxt}</div>
-            <div style="color:var(--tracking-text3,#66758b);font-size:10px">${escapeHtml(eta)}</div>
-          </div>
-        </div>`;
+                const stCls = o.status === 'running' ? 'tracking-oam-st-running' : o.status === 'late' ? 'tracking-oam-st-late' : 'tracking-oam-st-pending';
+                const stLbl = o.status === 'running' ? 'Procesando' : o.status === 'late' ? 'Atrasada' : 'En cola';
+                html += `<div class="tracking-oam-order">
+            <div class="tracking-oam-order-left">
+              <div class="tracking-oam-order-code">${escapeHtml(o.orderCode)}</div>
+              <div class="tracking-oam-order-customer">${escapeHtml(o.customerName || 'Sin cliente')}</div>
+            </div>
+            <div class="tracking-oam-order-qty"><div class="tracking-oam-order-qty-val">${formatNumber(qty)}</div><div class="tracking-oam-order-qty-lbl">piezas</div></div>
+            <div class="tracking-oam-order-hrs"><div class="tracking-oam-order-hrs-val">${o.procH}h</div><div class="tracking-oam-order-hrs-lbl">producción</div></div>
+            <div class="tracking-oam-order-status"><span class="${stCls}">${stLbl}</span><div class="tracking-oam-order-eta">${escapeHtml(eta)}</div></div>
+          </div>`;
             });
             html += `</div>`;
         });
@@ -750,7 +760,7 @@ function trackingRunCalc() {
 }
 
 function trackingRenderDrawerResult(r) {
-    const { earlyEnd, lateEnd, totalProc, totalQ, bufH, conf, priority, bufferDays } = r;
+    const { earlyEnd, lateEnd, totalProc, totalQ, bufH, conf, priority, bufferDays, detail } = r;
     const dateCls = priority === 'premium' ? 'premium' : priority === 'urgent' ? 'urgent' : '';
     const earlyStr = formatDateFull(earlyEnd);
     const lateStr = formatDateFull(lateEnd);
@@ -759,7 +769,7 @@ function trackingRenderDrawerResult(r) {
     document.getElementById('trackingResRange').textContent = bufferDays > 0 ? `Rango: ${earlyStr} – ${lateStr}` : 'Sin colchón — fecha fija';
 
     const steps = trackingBuildSteps(trackingDrawerOrder);
-    const groups = trackingFindOrdersAhead(trackingDrawerOrder, steps);
+    const groups = trackingFindOrdersAhead(trackingDrawerOrder, steps, detail);
     const totalAhead = groups.reduce((s, g) => s + g.orders.length, 0);
     const confEl = document.getElementById('trackingResConf');
     if (totalQ > 0) {
