@@ -788,7 +788,7 @@ function pct(v) { return (v / SLOTS * 100).toFixed(4) + '%'; }
 async function apiPatch(url, body) {
   const res = await fetch(url, {
     method: 'PATCH',
-    headers: {'Content-Type': 'application/json'},
+    headers: Object.assign({'Content-Type': 'application/json'}, sessionHeader()),
     body: JSON.stringify(body)
   });
   const payload = await res.json();
@@ -2362,7 +2362,7 @@ function bindTrackingAvatarFallback(root = document) {
 
 async function loadTrackingUserPhotos() {
   try {
-    const resp = await fetch('/api/admin-users');
+    const resp = await fetch('/api/admin-users', { headers: sessionHeader() });
     const users = resp.ok ? await resp.json() : [];
     const map = new Map();
     users.forEach((user) => {
@@ -2666,7 +2666,7 @@ async function dpFlowToggle(index) {
   try {
     await fetch('/api/ordenes-produccion/' + encodeURIComponent(currentDP.id) + '/seguimiento/marca', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: Object.assign({ 'Content-Type': 'application/json' }, sessionHeader()),
       body: JSON.stringify({ processKey: step.processKey, marked: !isDone })
     });
     await renderDPFlow();
@@ -2686,7 +2686,7 @@ async function dpFlowComplete(index) {
   try {
     await fetch('/api/ordenes-produccion/' + encodeURIComponent(currentDP.id) + '/seguimiento/completar', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: Object.assign({ 'Content-Type': 'application/json' }, sessionHeader()),
       body: JSON.stringify({ processKey: step.processKey, notes })
     });
     await renderDPFlow();
@@ -2790,6 +2790,16 @@ async function autoSeqCapacidad() {
 }
 
 // ── USER SESSION ─────────────────────────────────────────────
+const SESSION_STORAGE_KEY = 'erp-user-session';
+function readUserSession() {
+  try { return JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || 'null'); }
+  catch (_) { return null; }
+}
+function sessionHeader() {
+  const s = readUserSession();
+  if (!s) return {};
+  return { 'x-erp-session': JSON.stringify({ id: s.id || s.userId || s.sessionId || '', userId: s.userId || s.id || '', username: s.username || s.user || '', user: s.user || s.username || '', name: s.fullName || s.name || s.user || s.username || '', fullName: s.fullName || s.name || '', photoUrl: s.photoUrl || s.photo_url || '', permissionName: s.permissionName || '' }) };
+}
 function syncGanttUserName() {
   const el = document.getElementById('ganttUserName');
   if (!el) return;
@@ -2812,7 +2822,11 @@ document.getElementById('dp-body').addEventListener('click', (e) => {
 });
 
 // ── POLLING ──────────────────────────────────────────────────
-setInterval(() => { if (!currentDP) loadFromAPI(); }, 30000);
+setInterval(() => {
+  if (currentDP) return;
+  const scrollX = window.scrollX, scrollY = window.scrollY;
+  loadFromAPI().then(() => window.scrollTo(scrollX, scrollY));
+}, 30000);
 setInterval(updateNowLine, 60000);
 
 // ── INIT ─────────────────────────────────────────────────────
