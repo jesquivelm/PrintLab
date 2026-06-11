@@ -265,51 +265,14 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 .dp-tab{font-size:11px;font-weight:500;padding:9px 16px;border:none;background:none;color:#888;cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s;display:flex;align-items:center;gap:5px;white-space:nowrap}
 .dp-tab:hover{color:#378ADD}
 .dp-tab.active{color:#185FA5;border-bottom-color:#185FA5}
-.tl-flow{display:flex;flex-direction:column;gap:0;padding:4px 0}
-.tl-step{display:flex;align-items:flex-start;gap:10px;padding:6px 0;position:relative}
-.tl-node{width:18px;height:18px;border-radius:50%;border:2px solid #c4d4e4;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;transition:all .15s;margin-top:1px}
-.tl-node.done{background:#1D9E75;border-color:#1D9E75;color:#fff}
-.tl-node.active{background:#378ADD;border-color:#378ADD;color:#fff;box-shadow:0 0 0 3px rgba(55,138,221,.25)}
-.tl-node.pending{background:#fff;border-color:#c4d4e4}
-.tl-node.paro{background:#E24B4A;border-color:#E24B4A;color:#fff}
-.tl-info{flex:1;min-width:0}
-.tl-name{font-size:12px;font-weight:500;color:#1a1a1a}
-.tl-meta{font-size:10px;color:#888;margin-top:1px}
-.tl-connector{width:2px;height:10px;margin-left:8px}
-.tl-connector.solid{background:#1D9E75}
-.tl-connector.dashed{background:repeating-linear-gradient(to bottom,#c4d4e4 0 3px,transparent 3px 6px)}
-.tl-row{display:flex;align-items:flex-start;gap:10px;padding:4px 0}
-.tl-col-left{display:flex;flex-direction:column;align-items:center;flex-shrink:0}
-.tl-content{flex:1;min-width:0;padding-top:1px}
-.tl-step-grid{display:flex;flex-direction:column;gap:1px}
-.tl-step-main{flex:1;min-width:0}
-.tl-step-title{font-size:12px;font-weight:500;color:#1a1a1a}
-.tl-step-title.done{color:#1D9E75}
-.tl-step-title.active{color:#378ADD}
-.tl-step-title.stopped{color:#E24B4A}
-.tl-step-title.pending{color:#888}
-.tl-step-meta{font-size:10px;color:#888;margin-top:2px}
+/* Legacy flow classes (kept for compatibility) */
 .flow-progress{height:4px;background:#e2e8f0;border-radius:2px;margin-bottom:12px;overflow:hidden}
 .flow-progress-fill{height:100%;border-radius:2px;transition:width .3s}
 .flow-counter{display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border-radius:10px;padding:2px 8px;margin-left:auto}
 .flow-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .flow-title{font-size:13px;font-weight:600}
 .flow-sub{font-size:11px;color:#888}
-.flow-detail-row{display:inline-flex;align-items:center;gap:4px;font-size:10px;color:#888;margin-top:2px}
-.flow-detail-stack{display:flex;flex-direction:column;gap:2px}
 .flow-actions{display:flex;gap:6px;margin-top:8px}
-.flow-action-btn{font-size:11px;padding:5px 10px;border:1px solid #c4d4e4;border-radius:6px;background:#fff;color:#555;cursor:pointer;transition:all .15s}
-.flow-action-btn:hover{background:#e8ecf0;border-color:#378ADD;color:#185FA5}
-.flow-action-btn.complete{border-color:#1D9E75;color:#1D9E75}
-.flow-action-btn.complete:hover{background:#ecfdf5}
-.flow-action-btn.warning{border-color:#E24B4A;color:#E24B4A}
-.flow-action-btn.warning:hover{background:#fef2f2}
-.html[data-theme="dark"] .tl-step-title{color:var(--app-text,#e5edf6)}
-.html[data-theme="dark"] .tl-step-title.pending{color:var(--app-text-muted,#94a3b8)}
-.html[data-theme="dark"] .tl-step-meta{color:var(--app-text-muted,#94a3b8)}
-.html[data-theme="dark"] .flow-detail-row{color:var(--app-text-muted,#94a3b8)}
-.html[data-theme="dark"] .flow-action-btn{border-color:var(--app-border,#334155);color:var(--app-text-muted,#94a3b8)}
-.html[data-theme="dark"] .flow-action-btn:hover{background:rgba(255,255,255,.05)}
 
 /* Pipeline filter bar */
 .pipeline-filters{display:flex;gap:8px;padding:8px 16px;border-bottom:1px solid #d8e4ef;background:#f7fbff;align-items:center;flex-wrap:wrap}
@@ -344,48 +307,55 @@ body{font-family:system-ui,sans-serif;font-size:13px;color:#1a1a1a;background:#f
 .dp-scroll-body{flex:1;overflow-y:auto;padding:14px 18px 16px}
 .dp-scroll-body::-webkit-scrollbar{width:5px}
 .dp-scroll-body::-webkit-scrollbar-thumb{background:#c4d4e4;border-radius:3px}
-/* Flow timeline improved */
+/* Flow timeline — idéntico a orden-produccion.html */
 .tl-flow-wrap{padding:4px 0 8px}
-.tl-row{display:flex;align-items:flex-start;gap:10px;padding:4px 0}
-.tl-col-left{display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:34px}
-.tl-content{flex:1;min-width:0;padding-top:1px;padding-bottom:4px;border-bottom:1px solid #e8ecf0}
-.tl-row:last-child .tl-content{border-bottom:none}
-.tl-step-title{font-size:12px;font-weight:500;color:#1a1a1a;line-height:1.4}
-.tl-step-title.done{color:#1D9E75}
-.tl-step-title.active{color:#378ADD;font-weight:600}
-.tl-step-title.stopped{color:#E24B4A}
-.tl-step-title.pending{color:#888}
-.tl-step-meta{font-size:10px;color:#aaa;margin-top:2px}
-.tl-node{width:34px;height:34px;border-radius:50%;border:2px solid #c4d4e4;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;transition:all .15s;margin-top:2px;background:#f3f7fb;color:#888;padding:0;appearance:none;position:relative;overflow:visible}
-.tl-node.done{background:#e8f7f1;border-color:#a7f3d0;color:#1D9E75}
-.tl-node.active{background:#e8f0fb;border-color:#b5d0f0;color:#378ADD;box-shadow:0 0 0 3px rgba(55,138,221,.2)}
-.tl-node.pending{background:#f3f7fb;border-color:#c4d4e4;color:#aaa}
-.tl-node.paro{background:#fceaea;border-color:#f0b5b5;color:#E24B4A}
-.tl-node.has-avatar{background:linear-gradient(135deg,#378ADD,#1D9E75);border-color:rgba(255,255,255,.4);color:#fff;box-shadow:0 0 0 2px rgba(55,138,221,.15)}
-.tl-node.has-avatar.has-photo{background:transparent;border-color:#c4d4e4;box-shadow:0 0 0 2px rgba(55,138,221,.15)}
+.tl-row{display:grid;grid-template-columns:44px 1fr;gap:0 10px;padding:4px 0}
+.tl-col-left{display:flex;flex-direction:column;align-items:center}
+.tl-connector{width:2px;flex:1;min-height:12px;margin:2px 0;border-radius:1px}
+.tl-connector.solid{background:#a7f3d0}
+.tl-connector.dashed{background:repeating-linear-gradient(to bottom,#c4d4e4 0,#c4d4e4 5px,transparent 5px,transparent 9px)}
+.tl-node{position:relative;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:600;font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;overflow:visible;background:#f3f7fb;color:#888;border:1px solid #c4d4e4;box-shadow:inset 0 0 0 1px rgba(255,255,255,.18);padding:0;appearance:none}
+.tl-node:disabled{opacity:.64;cursor:progress}
+.tl-node.done{color:#1D9E75;background:#ecfdf5;border-color:#a7f3d0}
+.tl-node.avail{background:#eff4ff;border-color:#b5d0f0;color:#378ADD}
+.tl-node.locked{background:#fff;border-color:#c4d4e4;color:#9499b0;box-shadow:0 1px 3px rgba(15,17,23,.05),inset 0 0 0 1px rgba(15,17,23,.02)}
+html[data-theme="dark"] .tl-node.locked{background:#111a2b;border-color:#2b3b55;color:#6f7b91;box-shadow:inset 0 0 0 1px rgba(255,255,255,.04)}
+.tl-node.warn{background:#fffbeb;border-color:#fde68a;color:#d97706}
+.tl-node.in-progress{animation:ring-pulse 1.6s infinite;border-color:#b5d0f0!important;background:#eff4ff!important;color:#378ADD!important}
+.tl-node.has-avatar{background:linear-gradient(135deg,#378ADD,#1D9E75);border-color:rgba(255,255,255,.38);color:#fff;box-shadow:0 0 0 2px rgba(55,138,221,.12)}
+.tl-node.has-avatar.has-photo{background:transparent;border-color:#c4d4e4;box-shadow:0 0 0 2px rgba(55,138,221,.12)}
 .tl-avatar-clip{width:100%;height:100%;display:grid;place-items:center;overflow:hidden;border-radius:50%}
-.tl-avatar-clip .tl-av-img{width:100%;height:100%;object-fit:cover;border-radius:50%}
-.tl-avatar-clip .tl-av-img[hidden]{display:none}
-.tl-avatar-clip .tl-av-fb{width:100%;height:100%;display:grid;place-items:center;font-size:11px;font-weight:700}
-.tl-avatar-clip .tl-av-fb[hidden]{display:none}
-.tl-node-badge{position:absolute;right:-3px;bottom:-3px;width:14px;height:14px;border-radius:50%;display:grid;place-items:center;background:#1D9E75;color:#fff;border:2px solid #fff;font-size:9px;font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.16)}
-.tl-connector{width:2px;height:12px;margin:0 auto;background:repeating-linear-gradient(to bottom,#c4d4e4 0 3px,transparent 3px 6px)}
-.tl-connector.solid{background:#1D9E75}
+.tl-avatar-clip .tracking-avatar-image,.tl-avatar-clip .tracking-avatar-fallback{width:100%;height:100%;display:grid;place-items:center;object-fit:cover;border-radius:50%}
+.tl-avatar-clip .tracking-avatar-image[hidden],.tl-avatar-clip .tracking-avatar-fallback[hidden]{display:none}
+.tl-node-badge{position:absolute;right:-3px;bottom:-3px;width:14px;height:14px;border-radius:50%;display:grid;place-items:center;background:#1D9E75;color:#fff;border:2px solid #fff;font-size:9px;font-weight:700;box-shadow:0 1px 4px rgba(15,17,23,.16)}
+.tl-content{padding-bottom:10px;min-width:0}
+.tl-step-grid{display:block;min-width:0}
+.tl-step-main{min-width:0}
+.tl-step-title{font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;margin-bottom:2px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl-step-title.done{color:#1D9E75}
+.tl-step-title.active{color:#378ADD}
+.tl-step-title.stopped{color:#E24B4A}
+.tl-step-title.pending{color:#1a1a1a}
+.tl-title-time{color:#888;font-family:'DM Mono',monospace;font-size:11px;font-weight:500}
+.tl-step-meta{font-size:12px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.flow-detail-stack{display:grid;gap:4px;justify-items:start;min-width:0;margin-top:3px}
+.flow-detail-row{display:inline-flex;align-items:center;gap:5px;max-width:100%;min-width:0;font-size:11px;font-family:'DM Mono',monospace;font-weight:500;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .flow-action-btn{font-size:11px;padding:6px 12px;border:1px solid #c4d4e4;border-radius:6px;background:#fff;color:#555;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:5px}
 .flow-action-btn:hover{background:#e8ecf0;border-color:#378ADD;color:#185FA5}
 .flow-action-btn.complete{border-color:#1D9E75;color:#1D9E75;font-weight:500}
+@keyframes ring-pulse{0%{box-shadow:0 0 0 0 rgba(55,138,221,.35)}60%{box-shadow:0 0 0 8px rgba(55,138,221,0)}100%{box-shadow:0 0 0 0 rgba(55,138,221,0)}}
+.fp-panel{border-radius:10px;overflow:hidden;background:transparent}
+.fp-panel-head{padding:14px 16px 12px;border-bottom:1px solid #e8ecf0;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.fp-panel-title{font-size:14px;font-weight:600;color:#1a1a1a}
+.fp-panel-sub{font-size:12px;color:#888;margin-top:1px}
+.fp-progress{height:4px;background:#e8ecf0;border-radius:2px;margin:10px 16px;overflow:hidden}
+.fp-progress-fill{height:100%;border-radius:2px;transition:width .5s cubic-bezier(.22,.68,0,1.2)}
+.fp-counter{font-family:'DM Mono',monospace;font-size:11px;font-weight:500;padding:4px 12px;border-radius:999px;white-space:nowrap}
+.fp-body{padding:14px 16px 4px;background:transparent}
 .flow-action-btn.complete:hover{background:#ecfdf5}
 .flow-action-btn.warning{border-color:#E24B4A;color:#E24B4A}
 .flow-action-btn.warning:hover{background:#fef2f2}
 .flow-actions{display:flex;flex-direction:column;gap:6px;margin-top:12px;padding-top:12px;border-top:1px solid #e2e8f0}
-.flow-progress{height:4px;background:#e2e8f0;border-radius:2px;margin-bottom:12px;overflow:hidden}
-.flow-progress-fill{height:100%;border-radius:2px;transition:width .3s}
-.flow-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-.flow-title{font-size:12px;font-weight:600;color:#555}
-.flow-sub{font-size:10px;color:#aaa}
-.flow-counter{display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border-radius:10px;padding:2px 8px}
-.flow-detail-row{display:inline-flex;align-items:center;gap:4px;font-size:10px;color:#888;margin-top:2px}
-.flow-detail-stack{display:flex;flex-direction:column;gap:2px;margin-top:3px}
 .dp-footer{padding:12px 18px;border-top:1px solid #e2e8f0;flex-shrink:0;background:#f7fbff}
 /* Dark mode updates for DP */
 html[data-theme="dark"] .dp{background:rgba(17,24,39,.96);backdrop-filter:blur(12px)}
@@ -394,12 +364,22 @@ html[data-theme="dark"] .tl-content{border-color:var(--app-border,#334155)}
 html[data-theme="dark"] .flow-actions{border-color:var(--app-border,#334155)}
 html[data-theme="dark"] .tl-step-title{color:var(--app-text,#e5edf6)}
 html[data-theme="dark"] .tl-step-title.pending{color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .tl-step-meta{color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .flow-detail-row{color:var(--app-text-muted,#94a3b8)}
 html[data-theme="dark"] .tl-node{background:var(--app-surface-raised,#1f2937);border-color:var(--app-border,#334155);color:var(--app-text-muted,#94a3b8)}
 html[data-theme="dark"] .tl-node.has-avatar{background:linear-gradient(135deg,#378ADD,#1D9E75);border-color:rgba(255,255,255,.25);color:#fff}
 html[data-theme="dark"] .tl-node.has-avatar.has-photo{background:transparent;border-color:var(--app-border,#334155)}
 html[data-theme="dark"] .tl-node-badge{border-color:var(--app-surface,#111827)}
+html[data-theme="dark"] .tl-connector.dashed{background:repeating-linear-gradient(to bottom,#334155 0,#334155 5px,transparent 5px,transparent 9px)}
 html[data-theme="dark"] .flow-action-btn{background:var(--app-surface-raised,#1f2937);border-color:var(--app-border,#334155);color:var(--app-text-muted,#94a3b8)}
 html[data-theme="dark"] .flow-action-btn:hover{background:rgba(255,255,255,.06)}
+html[data-theme="dark"] .fp-panel-head{border-color:var(--app-border,#334155)}
+html[data-theme="dark"] .fp-panel-title{color:var(--app-text,#e5edf6)}
+html[data-theme="dark"] .fp-panel-sub{color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .fp-progress{background:var(--app-border,#334155)}
+html[data-theme="dark"] .fp-counter{background:rgba(255,255,255,.07);color:var(--app-text-muted,#94a3b8)}
+html[data-theme="dark"] .tl-node.avail{background:rgba(56,189,248,.14);border-color:rgba(56,189,248,.35);color:#38bdf8}
+html[data-theme="dark"] .tl-node.warn{background:rgba(251,191,36,.13);border-color:rgba(251,191,36,.32);color:#fbbf24}
 html[data-theme="dark"] .dp-scroll-body::-webkit-scrollbar-thumb{background:#334155}
 /* ── LOADING / ERROR ── */
 .loading{display:flex;align-items:center;justify-content:center;padding:40px;gap:10px;color:#888;font-size:13px}
@@ -779,6 +759,7 @@ async function loadFromAPI() {
     procesos = Object.values(grupos).sort((a, b) => a.orden - b.orden);
 
     setOnline(true);
+    loadTrackingUserPhotos();
     render();
   } catch (e) {
     setOnline(false);
@@ -2350,6 +2331,51 @@ function escHtml(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// ── USER PHOTOS (idéntico a orden-produccion.js) ──
+let trackingUserPhotos = new Map();
+
+function trackingUserLookupKey(value) {
+  return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+}
+
+function initialsFromName(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  return (parts[0]?.[0] || 'U') + (parts[1]?.[0] || '');
+}
+
+function trackingAvatarMarkup(name, photoOverride) {
+  const photo = String(photoOverride || '').trim() || trackingUserPhotos.get(trackingUserLookupKey(name));
+  const initials = escHtml(initialsFromName(name).toUpperCase());
+  if (!photo) return initials;
+  return `<img class="tracking-avatar-image" src="${escHtml(photo)}" alt="${escHtml(name || 'Usuario')}" data-tracking-avatar-img><span class="tracking-avatar-fallback" hidden>${initials}</span>`;
+}
+
+function bindTrackingAvatarFallback(root = document) {
+  root.querySelectorAll?.('[data-tracking-avatar-img]').forEach((image) => {
+    image.addEventListener('error', () => {
+      image.hidden = true;
+      const fallback = image.parentElement?.querySelector('.tracking-avatar-fallback');
+      if (fallback) fallback.hidden = false;
+    }, { once: true });
+  });
+}
+
+async function loadTrackingUserPhotos() {
+  try {
+    const resp = await fetch('/api/admin-users');
+    const users = resp.ok ? await resp.json() : [];
+    const map = new Map();
+    users.forEach((user) => {
+      const photo = String(user.photoUrl || user.photo_url || '').trim();
+      [user.name, user.fullName, user.full_name, user.username, user.sapSalespersonName, user.sap_salesperson_name].forEach((value) => {
+        const key = trackingUserLookupKey(value);
+        if (key && photo && !map.has(key)) map.set(key, photo);
+      });
+    });
+    trackingUserPhotos = map;
+  } catch (_) {}
+}
+
 // ── DETAIL PANEL ─────────────────────────────────────────────
 function openDP(id_ruta) {
   const op = orders.find(o => o.id_ruta === id_ruta);
@@ -2531,6 +2557,7 @@ async function renderDPFlow() {
     dpFlowPayload = await resp.json();
     const steps = Array.isArray(dpFlowPayload?.steps) ? dpFlowPayload.steps : [];
     body.innerHTML = renderFlowTimeline(steps);
+    bindTrackingAvatarFallback(body);
   } catch (e) {
     body.innerHTML = '<div style="padding:20px;text-align:center;color:#E24B4A;font-size:12px">Error al cargar seguimiento</div>';
   }
@@ -2544,20 +2571,7 @@ function renderFlowTimeline(steps) {
   const barColor = doneCount === total ? '#1D9E75' : doneCount > 0 ? '#D4A017' : '#c4d4e4';
   const barBg = doneCount === total ? '#ecfdf5' : doneCount > 0 ? '#fef9ee' : '#f4f4f0';
 
-  const procIcons = {
-    diseno:'🎨', preprensa:'🖥', visto_bueno:'✅', planchas:'🔲',
-    impresion:'🖨', rebobinado:'🔄', empaque:'📦', seguimiento:'📋'
-  };
-
-  let html = `
-    <div class="flow-header">
-      <div><div class="flow-title">Flujo de producción</div>
-      <div class="flow-sub">${doneCount} de ${total} etapas completas</div></div>
-      <span class="flow-counter" style="background:${barBg};color:${barColor}">${doneCount}/${total}</span>
-    </div>
-    <div class="flow-progress"><div class="flow-progress-fill" style="width:${pct}%;background:${barColor}"></div></div>
-    <div class="tl-flow-wrap">`;
-
+  let tlHtml = '';
   for (let i = 0; i < steps.length; i++) {
     const s = steps[i];
     const status = String(s.routeStatus || 'PENDIENTE').toUpperCase();
@@ -2566,105 +2580,81 @@ function renderFlowTimeline(steps) {
     const isStopped = status === 'PARO';
     const isLast = i === steps.length - 1;
 
-    // ── Avatar idéntico a orden-produccion.js ──
     const markerName = String(s.completedBy || s.startedBy || '').trim();
     const markerPhoto = String(s.completedByPhoto || s.startedByPhoto || '').trim();
-    const hasMarkerPhoto = Boolean(markerPhoto);
+    const hasMarkerPhoto = Boolean(markerPhoto || trackingUserPhotos.get(trackingUserLookupKey(markerName)));
 
     let nodeClass = isDone ? 'tl-node done'
-      : isActive ? 'tl-node active'
-      : isStopped ? 'tl-node paro'
-      : 'tl-node pending';
+      : isActive ? 'tl-node avail in-progress'
+      : isStopped ? 'tl-node warn'
+      : 'tl-node locked';
 
     let nodeInner;
     if (markerName) {
       nodeClass += ' has-avatar' + (hasMarkerPhoto ? ' has-photo' : '');
-      // Intenta obtener foto de la sesión si no viene en el payload
-      let photo = markerPhoto;
-      if (!photo) {
-        try {
-          const raw = localStorage.getItem('erp-user-session') || sessionStorage.getItem('erp-user-session');
-          if (raw) {
-            const sess = JSON.parse(raw);
-            const sName = sess.name || sess.fullName || sess.username || '';
-            const normalize = v => String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
-            if (normalize(sName) === normalize(markerName)) {
-              photo = sess.photoUrl || sess.photo_url || '';
-              if (photo) nodeClass = nodeClass.replace('has-avatar', 'has-avatar has-photo');
-            }
-          }
-        } catch(_){}
-      }
-      const initials = escHtml(((markerName.split(' ')[0]?.[0]||'')+(markerName.split(' ')[1]?.[0]||'')).toUpperCase() || 'U');
-      const avatarInner = photo
-        ? `<img class="tl-av-img" src="${escHtml(photo)}" alt="${escHtml(markerName)}"
-             onerror="this.hidden=true;this.nextElementSibling&&(this.nextElementSibling.hidden=false)">
-           <span class="tl-av-fb" hidden>${initials}</span>`
-        : `<div class="tl-av-fb">${initials}</div>`;
-      nodeInner = `<span class="tl-avatar-clip">${avatarInner}</span><span class="tl-node-badge">✓</span>`;
+      nodeInner = '<span class="tl-avatar-clip">' + trackingAvatarMarkup(markerName, markerPhoto) + '</span><span class="tl-node-badge"><i class="ti ti-check" style="font-size:10px;"></i></span>';
     } else {
-      nodeInner = isDone ? '✓' : isActive ? '●' : isStopped ? '✕' : (procIcons[s.processKey] || '');
+      nodeInner = '<i class="ti ti-check" style="font-size:16px;"></i>';
     }
 
     const nodeTitle = isDone
-      ? `${markerName ? 'Marcado por ' + markerName + ' — c' : 'C'}lic para quitar`
+      ? (markerName ? 'Marcado por ' + markerName + ' — c' : 'C') + 'lic para quitar'
       : 'Clic para marcar como completado';
 
     const solid = isDone && !isLast && steps[i + 1] && String(steps[i + 1].routeStatus || '').toUpperCase() === 'COMPLETADO';
+    const line = isLast ? '' : '<div class="tl-connector ' + (solid ? 'solid' : 'dashed') + '"></div>';
 
-    // ── Detalle ──
     let detailRows = '';
-    const machineKeys = ['planchas', 'impresion', 'acabados', 'barnizado', 'laminado', 'rebobinado', 'numeracion'];
+    const machineKeys = ['planchas', 'impresion', 'acabados', 'barnizado', 'laminado', 'troquelado', 'estampado', 'embosado', 'numeracion', 'rebobinado'];
     if (machineKeys.includes(s.processKey) && s.planned?.machineName) {
-      detailRows += `<span class="flow-detail-row">⚙ ${escHtml(s.planned.machineName)}</span>`;
-    }
-    const plannedMin = s.planned?.minutes > 0 ? s.planned.minutes : 0;
-    if (plannedMin > 0) {
-      const h = Math.floor(plannedMin / 60), m = Math.round(plannedMin % 60);
-      detailRows += `<span class="flow-detail-row">⏱ ${h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`}</span>`;
+      detailRows += '<span class="flow-detail-row"><i class="ti ti-cpu" style="font-size:11px;"></i>' + escHtml(s.planned.machineName) + '</span>';
     }
     if (s.processKey === 'planchas') {
       const planSource = s.actual?.planSourceLabel || s.planned?.planSource;
-      if (planSource) detailRows += `<span class="flow-detail-row">📦 ${escHtml(planSource)}</span>`;
+      const planDias = s.actual?.diasEstimados || s.planned?.diasEstimados;
+      if (planSource) detailRows += '<span class="flow-detail-row"><i class="ti ti-layers-subtract" style="font-size:11px;"></i>' + escHtml(planSource) + '</span>';
+      if (planDias > 0) detailRows += '<span class="flow-detail-row"><i class="ti ti-calendar" style="font-size:11px;"></i>' + planDias + (planDias === 1 ? ' día est.' : ' días est.') + '</span>';
+    }
+    const plannedMin = s.planned?.minutes > 0 ? s.planned.minutes : 0;
+    let plannedTime = '';
+    if (plannedMin > 0) {
+      const h = Math.floor(plannedMin / 60), m = Math.round(plannedMin % 60);
+      plannedTime = h > 0 ? (m > 0 ? h + 'h ' + m + 'min' : h + 'h') : m + 'min';
+    }
+    const showTimeInTitle = isDone && plannedTime && s.processKey !== 'empaque';
+    if (plannedTime && !showTimeInTitle) {
+      detailRows += '<span class="flow-detail-row"><i class="ti ti-clock" style="font-size:11px;"></i>' + plannedTime + '</span>';
     }
 
-    // Meta (nombre + fecha) solo en texto debajo del título
     const metaParts = [];
     if (markerName) metaParts.push(escHtml(markerName));
     if (s.completedAt) {
       const d = new Date(s.completedAt);
       metaParts.push(d.toLocaleDateString('es-CR') + ' ' + d.toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' }));
     }
-    const metaHtml = metaParts.length ? `<div class="tl-step-meta">${metaParts.join(' · ')}</div>` : '';
-
+    const metaHtml = metaParts.length ? '<div class="tl-step-meta">' + metaParts.join(' · ') + '</div>' : '';
     const titleClass = isDone ? 'done' : isActive ? 'active' : isStopped ? 'stopped' : 'pending';
-    const statusLabel = isDone ? 'Listo' : isActive ? status : isStopped ? 'Paro' : 'Pendiente';
-    const statusStyle = isDone ? 'background:#e8f7f1;color:#0F6E56'
-      : isActive ? 'background:#e8f0fb;color:#185FA5'
-      : isStopped ? 'background:#fceaea;color:#A32D2D'
-      : 'background:#e8ecf0;color:#888';
+    const titleText = escHtml(s.processName || s.processKey || 'Proceso') + (showTimeInTitle ? ' <span class="tl-title-time">(' + plannedTime + ')</span>' : '');
 
-    html += `
-      <div class="tl-row">
-        <div class="tl-col-left">
-          <button type="button" class="${nodeClass}" data-flow-toggle="${i}" title="${nodeTitle}">
-            ${nodeInner}
-          </button>
-          ${!isLast ? `<div class="tl-connector ${solid ? 'solid' : ''}"></div>` : ''}
-        </div>
-        <div class="tl-content">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px">
-            <span class="tl-step-title ${titleClass}">${escHtml(s.processName || s.processKey || 'Proceso')}</span>
-            <span style="font-size:9px;padding:1px 6px;border-radius:10px;flex-shrink:0;${statusStyle}">${statusLabel}</span>
-          </div>
-          ${metaHtml}
-          ${detailRows ? `<div class="flow-detail-stack">${detailRows}</div>` : ''}
-        </div>
-      </div>`;
+    tlHtml += '<div class="tl-row">'
+      + '<div class="tl-col-left">'
+      + '<button type="button" class="' + nodeClass + '" data-flow-toggle="' + i + '" title="' + nodeTitle + '">'
+      + nodeInner + '</button>' + line + '</div>'
+      + '<div class="tl-content">'
+      + '<div class="tl-step-grid"><div class="tl-step-main">'
+      + '<div class="tl-step-title ' + titleClass + '">' + titleText + '</div>'
+      + metaHtml
+      + (detailRows ? '<div class="flow-detail-stack">' + detailRows + '</div>' : '')
+      + '</div></div></div></div>';
   }
 
-  html += `</div>`;
-  return html;
+  return '<div class="fp-panel">'
+    + '<div class="fp-panel-head"><div><div class="fp-panel-title">Flujo de producción</div><div class="fp-panel-sub">' + doneCount + ' de ' + total + ' etapas completas</div></div>'
+    + '<span class="fp-counter" style="background:' + barBg + ';color:' + barColor + '">' + doneCount + '/' + total + '</span>'
+    + '</div>'
+    + '<div class="fp-progress"><div class="fp-progress-fill" style="width:' + pct + '%;background:linear-gradient(90deg,#1D9E75,#34d399)"></div></div>'
+    + '<div class="fp-body" style="padding-top:0;">' + tlHtml + '</div>'
+    + '</div>';
 }
 
 async function dpFlowToggle(index) {
