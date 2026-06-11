@@ -997,7 +997,9 @@ const DEFAULT_GENERAL_CONFIG = {
         produccionTroquelado: '\u2B21',
         produccionNumerado: '#',
         produccionRebobinado: '\u21BB',
-        produccionEmpaque: '\u25A3'
+        produccionEmpaque: '\u25A3',
+        produccionModoClaro: '\u2600',
+        produccionModoOscuro: '\u263E'
     },
     layout: {
         logoWidth: 60,
@@ -1194,6 +1196,12 @@ const DEFAULT_GENERAL_CONFIG = {
         iconColorProduccionEmpaque: '#1e516d',
         iconColorHoverProduccionEmpaque: '#0b81b8',
         iconSizeProduccionEmpaque: '18',
+        iconColorProduccionModoClaro: '#1e516d',
+        iconColorHoverProduccionModoClaro: '#0b81b8',
+        iconSizeProduccionModoClaro: '18',
+        iconColorProduccionModoOscuro: '#1e516d',
+        iconColorHoverProduccionModoOscuro: '#0b81b8',
+        iconSizeProduccionModoOscuro: '18',
         proformaPaymentTerms: '',
         proformaDeliveryTime: '',
         proformaTechnicalSpecs: '',
@@ -1524,6 +1532,8 @@ const DEFAULT_GENERAL_CONFIG = {
         iconSizeProduccionNumerado: 18,
         iconSizeProduccionRebobinado: 18,
         iconSizeProduccionEmpaque: 18,
+        iconSizeProduccionModoClaro: 18,
+        iconSizeProduccionModoOscuro: 18,
         pageMarginTop: 14,
         pageMarginBottom: 8,
         pageMarginRight: 16,
@@ -12027,7 +12037,7 @@ app.get('/api/config/general/icons/:version/:file', async (req, res) => {
 
 app.post('/api/config/general/icon', async (req, res) => {
     try {
-        const orderIconKeys = new Set(['orderArtworkDelete', 'orderStatus', 'orderNumbering', 'orderFlow', 'orderEdit', 'planningRefresh', 'planningProcessFlip', 'planningOpenGantt', 'planningEstimate', 'planningExpand', 'dashboardBusinessPartners', 'dashboardProducts', 'dashboardQuotes', 'dashboardNotifications', 'dashboardInventory', 'dashboardOrders', 'dashboardProduction', 'dashboardCosts', 'dashboardReports', 'dashboardSettings', 'dashboardPlanning', 'produccionCreacionOrden', 'produccionSolicitudVendedor', 'produccionPlanificacion', 'produccionDiseno', 'produccionPreprensa', 'produccionVistoBueno', 'produccionPlanchas', 'produccionImpresion', 'produccionBarniz', 'produccionLaminado', 'produccionEstampado', 'produccionEmbozado', 'produccionTroquelado', 'produccionNumerado', 'produccionRebobinado', 'produccionEmpaque']);
+        const orderIconKeys = new Set(['orderArtworkDelete', 'orderStatus', 'orderNumbering', 'orderFlow', 'orderEdit', 'planningRefresh', 'planningProcessFlip', 'planningOpenGantt', 'planningEstimate', 'planningExpand', 'dashboardBusinessPartners', 'dashboardProducts', 'dashboardQuotes', 'dashboardNotifications', 'dashboardInventory', 'dashboardOrders', 'dashboardProduction', 'dashboardCosts', 'dashboardReports', 'dashboardSettings', 'dashboardPlanning', 'produccionCreacionOrden', 'produccionSolicitudVendedor', 'produccionPlanificacion', 'produccionDiseno', 'produccionPreprensa', 'produccionVistoBueno', 'produccionPlanchas', 'produccionImpresion', 'produccionBarniz', 'produccionLaminado', 'produccionEstampado', 'produccionEmbozado', 'produccionTroquelado', 'produccionNumerado', 'produccionRebobinado', 'produccionEmpaque', 'produccionModoClaro', 'produccionModoOscuro']);
         const iconKey = String(req.body?.key || '').trim();
         const iconValue = String(req.body?.value || '').trim();
         const general = req.body?.general && typeof req.body.general === 'object' && !Array.isArray(req.body.general)

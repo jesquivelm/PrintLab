@@ -8170,7 +8170,9 @@
             { key: 'produccionTroquelado', label: 'Troquelado', group: 'Seguimiento y Producción', tab: 'Seguimiento y Producción', section: 'Acabado', placeholder: '\u2B21', color: '#1e516d', size: 18 },
             { key: 'produccionNumerado', label: 'Numerado', group: 'Seguimiento y Producción', tab: 'Seguimiento y Producción', section: 'Acabado', placeholder: '#', color: '#1e516d', size: 18 },
             { key: 'produccionRebobinado', label: 'Rebobinado', group: 'Seguimiento y Producción', tab: 'Seguimiento y Producción', section: 'Empaque', placeholder: '\u21BB', color: '#1e516d', size: 18 },
-            { key: 'produccionEmpaque', label: 'Empaque', group: 'Seguimiento y Producción', tab: 'Seguimiento y Producción', section: 'Empaque', placeholder: '\u25A3', color: '#1e516d', size: 18 }
+            { key: 'produccionEmpaque', label: 'Empaque', group: 'Seguimiento y Producción', tab: 'Seguimiento y Producción', section: 'Empaque', placeholder: '\u25A3', color: '#1e516d', size: 18 },
+            { key: 'produccionModoClaro', label: 'Modo Claro', group: 'Seguimiento y Producción', tab: 'Seguimiento y Producción', section: 'Configuración', placeholder: '\u2600', color: '#1e516d', size: 18 },
+            { key: 'produccionModoOscuro', label: 'Modo Oscuro', group: 'Seguimiento y Producción', tab: 'Seguimiento y Producción', section: 'Configuración', placeholder: '\u263E', color: '#1e516d', size: 18 }
         ];
 
         const ICON_UNUSED_KEYS = new Set([
@@ -15121,7 +15123,7 @@
             });
         }
 
-        const ORDER_ICON_UPLOAD_KEYS = new Set(['orderArtworkDelete', 'orderStatus', 'orderNumbering', 'orderFlow', 'orderEdit', 'produccionCreacionOrden', 'produccionSolicitudVendedor', 'produccionPlanificacion', 'produccionDiseno', 'produccionPreprensa', 'produccionVistoBueno', 'produccionPlanchas', 'produccionImpresion', 'produccionBarniz', 'produccionLaminado', 'produccionEstampado', 'produccionEmbozado', 'produccionTroquelado', 'produccionNumerado', 'produccionRebobinado', 'produccionEmpaque']);
+        const ORDER_ICON_UPLOAD_KEYS = new Set(['orderArtworkDelete', 'orderStatus', 'orderNumbering', 'orderFlow', 'orderEdit', 'produccionCreacionOrden', 'produccionSolicitudVendedor', 'produccionPlanificacion', 'produccionDiseno', 'produccionPreprensa', 'produccionVistoBueno', 'produccionPlanchas', 'produccionImpresion', 'produccionBarniz', 'produccionLaminado', 'produccionEstampado', 'produccionEmbozado', 'produccionTroquelado', 'produccionNumerado', 'produccionRebobinado', 'produccionEmpaque', 'produccionModoClaro', 'produccionModoOscuro']);
 
         function buildSingleIconGeneralPayload(iconKey, item) {
             const suffix = toIconSuffix(iconKey);
