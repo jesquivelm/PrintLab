@@ -753,7 +753,7 @@ function flipCard(code) {
 async function loadFlowPanel(code) {
   const box = document.getElementById(`flow-${code}`);
   if (!box) return;
-  if (flowCache[code]) { renderFlowPanel(box, flowCache[code]); return; }
+  if (flowCache[code]) { renderFlowPanel(box, flowCache[code]); bindTrackingAvatarFallback(box); return; }
 
   box.innerHTML = '<div class="flow-loading"><div class="spinner"></div> Cargando flujo...</div>';
   try {
@@ -764,12 +764,14 @@ async function loadFlowPanel(code) {
     const steps = data.steps || data.items || [];
     flowCache[code] = steps;
     renderFlowPanel(box, steps, data.history || []);
+    bindTrackingAvatarFallback(box);
   } catch(e) {
     const order = allOrders.find(o => o.orderCode === code);
     if (order) {
       const steps = buildFlowFromOrder(order);
       flowCache[code] = steps;
       renderFlowPanel(box, steps);
+      bindTrackingAvatarFallback(box);
     } else {
       box.innerHTML = '<div class="flow-empty">No se pudo cargar el flujo de producción.</div>';
     }
@@ -838,22 +840,16 @@ function renderFlowPanel(box, steps, hist) {
 
     const markerName  = String(s.completedBy || s.startedBy || '').trim();
     const markerPhoto = String(s.completedByPhoto || s.startedByPhoto || '').trim() || (markerName ? trackingUserPhotos.get(trackingUserLookupKey(markerName)) : '');
-    const initials    = markerName ? markerName.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() : (isDone ? '✓' : '');
     let nodeCls = 'flow-tl-node';
     if (isDone)    nodeCls += ' done';
     else if (isActive)  nodeCls += ' active';
     else if (isStopped) nodeCls += ' stopped';
-    if (markerName) nodeCls += ' has-avatar';
 
     let nodeInner = '';
     if (markerName) {
-      if (markerPhoto) {
-        nodeInner = `<img src="${esc(markerPhoto)}" alt="${esc(markerName)}" onerror="this.style.display='none';this.nextSibling.style.display='flex'">
-          <span style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:11px;font-weight:700;background:linear-gradient(135deg,var(--blue),var(--accent));border-radius:50%;color:#fff">${esc(initials)}</span>`;
-      } else {
-        nodeInner = `<span style="font-size:11px;font-weight:700">${esc(initials)}</span>`;
-      }
-      nodeInner += `<span class="flow-tl-badge">✓</span>`;
+      const hasPhoto = Boolean(markerPhoto);
+      nodeCls += ' has-avatar' + (hasPhoto ? ' has-photo' : '');
+      nodeInner = `<span class="flow-tl-avatar-clip">${trackingAvatarMarkup(markerName, markerPhoto)}</span><span class="flow-tl-badge">✓</span>`;
     } else if (isDone) {
       nodeInner = `<span>✓</span>`;
     } else if (isActive) {
@@ -977,6 +973,15 @@ async function loadTrackingUserPhotos() {
         });
         trackingUserPhotos = map;
     } catch(_) {}
+}
+function bindTrackingAvatarFallback(root) {
+    (root || document).querySelectorAll?.('[data-tracking-avatar-img]').forEach(img => {
+        img.addEventListener('error', () => {
+            img.hidden = true;
+            const fb = img.parentElement?.querySelector('.tracking-avatar-fallback');
+            if (fb) fb.hidden = false;
+        }, { once: true });
+    });
 }
 
 // ── Flow step marking ──
