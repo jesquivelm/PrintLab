@@ -8154,7 +8154,23 @@
             { key: 'dashboardFabInventory', label: 'Ir a Inventarios', group: 'Calculo y Procesos', tab: 'Botón flotante', section: 'Inventarios', placeholder: '\u25A5', color: '#0b81b8', size: 20 },
             { key: 'dashboardFabSettings', label: 'Ir a Configuración', group: 'Calculo y Procesos', tab: 'Botón flotante', section: 'Configuración', placeholder: '\u2692', color: '#0b81b8', size: 20 },
             { key: 'dashboardFabPlanning', label: 'Ir a Planificación', group: 'Calculo y Procesos', tab: 'Botón flotante', section: 'Planificación', placeholder: '\u25F3', color: '#0b81b8', size: 20 },
-            { key: 'dashboardFabCosts', label: 'Ir a Costos', group: 'Calculo y Procesos', tab: 'Botón flotante', section: 'Costos', placeholder: '\u25A7', color: '#0b81b8', size: 20 }
+            { key: 'dashboardFabCosts', label: 'Ir a Costos', group: 'Calculo y Procesos', tab: 'Botón flotante', section: 'Costos', placeholder: '\u25A7', color: '#0b81b8', size: 20 },
+            { key: 'produccionCreacionOrden', label: 'Creación Orden', group: 'Seguimiento y Producción', tab: 'Seguimiento y Producción', section: 'Solicitud', placeholder: '\u279C', color: '#1e516d', size: 18 },
+            { key: 'produccionSolicitudVendedor', label: 'Solicitud Vendedor', group: 'Seguimiento y Producción', tab: 'Seguimiento y Producción', section: 'Solicitud', placeholder: '\u2709', color: '#1e516d', size: 18 },
+            { key: 'produccionPlanificacion', label: 'Planificación', group: 'Seguimiento y Producción', tab: 'Seguimiento y Producción', section: 'Diseño', placeholder: '\u25F3', color: '#1e516d', size: 18 },
+            { key: 'produccionDiseno', label: 'Diseño', group: 'Seguimiento y Producción', tab: 'Seguimiento y Producción', section: 'Diseño', placeholder: '\u270E', color: '#1e516d', size: 18 },
+            { key: 'produccionPreprensa', label: 'Preprensa', group: 'Seguimiento y Producción', tab: 'Seguimiento y Producción', section: 'Diseño', placeholder: '\u25A4', color: '#1e516d', size: 18 },
+            { key: 'produccionVistoBueno', label: 'Visto Bueno', group: 'Seguimiento y Producción', tab: 'Seguimiento y Producción', section: 'Diseño', placeholder: '\u2713', color: '#1e516d', size: 18 },
+            { key: 'produccionPlanchas', label: 'Planchas', group: 'Seguimiento y Producción', tab: 'Seguimiento y Producción', section: 'Producción', placeholder: '\u25A1', color: '#1e516d', size: 18 },
+            { key: 'produccionImpresion', label: 'Impresión', group: 'Seguimiento y Producción', tab: 'Seguimiento y Producción', section: 'Producción', placeholder: '\u25A0', color: '#1e516d', size: 18 },
+            { key: 'produccionBarniz', label: 'Barniz', group: 'Seguimiento y Producción', tab: 'Seguimiento y Producción', section: 'Acabado', placeholder: '\u25CC', color: '#1e516d', size: 18 },
+            { key: 'produccionLaminado', label: 'Laminado', group: 'Seguimiento y Producción', tab: 'Seguimiento y Producción', section: 'Acabado', placeholder: '\u25A6', color: '#1e516d', size: 18 },
+            { key: 'produccionEstampado', label: 'Estampado', group: 'Seguimiento y Producción', tab: 'Seguimiento y Producción', section: 'Acabado', placeholder: '\u2726', color: '#1e516d', size: 18 },
+            { key: 'produccionEmbozado', label: 'Embozado', group: 'Seguimiento y Producción', tab: 'Seguimiento y Producción', section: 'Acabado', placeholder: '\u25C7', color: '#1e516d', size: 18 },
+            { key: 'produccionTroquelado', label: 'Troquelado', group: 'Seguimiento y Producción', tab: 'Seguimiento y Producción', section: 'Acabado', placeholder: '\u2B21', color: '#1e516d', size: 18 },
+            { key: 'produccionNumerado', label: 'Numerado', group: 'Seguimiento y Producción', tab: 'Seguimiento y Producción', section: 'Acabado', placeholder: '#', color: '#1e516d', size: 18 },
+            { key: 'produccionRebobinado', label: 'Rebobinado', group: 'Seguimiento y Producción', tab: 'Seguimiento y Producción', section: 'Empaque', placeholder: '\u21BB', color: '#1e516d', size: 18 },
+            { key: 'produccionEmpaque', label: 'Empaque', group: 'Seguimiento y Producción', tab: 'Seguimiento y Producción', section: 'Empaque', placeholder: '\u25A3', color: '#1e516d', size: 18 }
         ];
 
         const ICON_UNUSED_KEYS = new Set([
@@ -8174,7 +8190,8 @@
             'Órdenes',
             'Proforma',
             'Configuración',
-            'Cálculo'
+            'Cálculo',
+            'Seguimiento y Producción'
         ];
 
         function resolveIconRuntimeMeta(icon) {
@@ -8197,6 +8214,7 @@
             if (key.startsWith('adminUser') || key.startsWith('adminPermission')) return { tab: 'Configuración', section: 'Usuarios y permisos' };
             if (key.startsWith('loginRepository')) return { tab: 'Configuración', section: 'Repositorio de acceso' };
             if (key.startsWith('proformaCurrency')) return { tab: 'Configuración', section: 'Proforma' };
+            if (key.startsWith('produccion')) return { tab: 'Seguimiento y Producción', section: icon.section || 'Producción' };
             return { tab: icon.tab || icon.group || 'General', section: icon.section || '' };
         }
 
@@ -15103,7 +15121,7 @@
             });
         }
 
-        const ORDER_ICON_UPLOAD_KEYS = new Set(['orderArtworkDelete', 'orderStatus', 'orderNumbering', 'orderFlow', 'orderEdit']);
+        const ORDER_ICON_UPLOAD_KEYS = new Set(['orderArtworkDelete', 'orderStatus', 'orderNumbering', 'orderFlow', 'orderEdit', 'produccionCreacionOrden', 'produccionSolicitudVendedor', 'produccionPlanificacion', 'produccionDiseno', 'produccionPreprensa', 'produccionVistoBueno', 'produccionPlanchas', 'produccionImpresion', 'produccionBarniz', 'produccionLaminado', 'produccionEstampado', 'produccionEmbozado', 'produccionTroquelado', 'produccionNumerado', 'produccionRebobinado', 'produccionEmpaque']);
 
         function buildSingleIconGeneralPayload(iconKey, item) {
             const suffix = toIconSuffix(iconKey);
