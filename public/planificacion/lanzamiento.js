@@ -433,7 +433,25 @@ const TRACKING_PROCESS_ICONS = {
 const PROCESS_ICON_KEYS={orden_creada:'produccionCreacionOrden',solicitud_vendedor:'produccionSolicitudVendedor',planeacion:'produccionPlanificacion',diseno:'produccionDiseno',preprensa:'produccionPreprensa',visto_bueno:'produccionVistoBueno',planchas:'produccionPlanchas',impresion:'produccionImpresion',laminado:'produccionLaminado',troquelado:'produccionTroquelado',estampado:'produccionEstampado',barnizado:'produccionBarniz',embosado:'produccionEmbozado',numeracion:'produccionNumerado',rebobinado:'produccionRebobinado',empaque:'produccionEmpaque'};
 const TRACKING_HIDDEN_PROCESS_KEYS = new Set(['planchas', 'tintas']);
 
-function processIcon(key){const iconKey=PROCESS_ICON_KEYS[key];if(iconKey&&planningConfig.icons?.[iconKey])return iconMarkup(iconKey,TRACKING_PROCESS_ICONS[key]||'·',key);return escapeHtml(TRACKING_PROCESS_ICONS[key]||'·')}
+function processIconStyle(processKey){const iconKey=PROCESS_ICON_KEYS[processKey];if(!iconKey)return null;const suffix=iconKey.replace(/^produccion/,'Produccion');const g=planningConfig.general||{};const color1=g[`iconColor${suffix}`]||'#1e516d';const color2=g[`iconColor2${suffix}`]||'#ffffff';const size=Number(g[`iconSize${suffix}`])||18;const value=planningConfig.icons?.[iconKey];if(!value)return null;return{value,color1,color2,size}}
+function isDarkMode(){return document.documentElement.getAttribute('data-theme')==='dark'}
+function processIconHtml(value,fallback,altText,size,color){
+    const v=String(value||'').trim();
+    if(/\.svg(\?|#|$)/i.test(v)||v.startsWith('data:image/svg+xml')){
+        const safe=escapeHtml(v);
+        return`<span class="process-icon-svg" role="img" aria-label="${escapeHtml(altText||'')}" style="display:inline-flex;width:${size}px;height:${size}px;-webkit-mask-image:url('${safe}');mask-image:url('${safe}');-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;-webkit-mask-size:contain;mask-size:contain;background-color:${color}"></span>`;
+    }
+    if(/^(\/|data:image\/)/i.test(v)){
+        return`<img src="${escapeHtml(v)}" alt="${escapeHtml(altText||'')}" style="width:${size}px;height:${size}px;object-fit:contain;display:block">`;
+    }
+    return`<span style="display:inline-flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;font-size:${Math.round(size*.85)}px;color:${color}">${escapeHtml(v||'·')}</span>`;
+}
+function processIcon(key){
+    const cfg=processIconStyle(key);
+    if(!cfg)return escapeHtml(TRACKING_PROCESS_ICONS[key]||'·');
+    const color=isDarkMode()?cfg.color2:cfg.color1;
+    return processIconHtml(cfg.value,TRACKING_PROCESS_ICONS[key]||'·',key,cfg.size,color);
+}
 
 function visibleTrackingSteps(steps = []) {
     return steps.filter((step) => !TRACKING_HIDDEN_PROCESS_KEYS.has(step.processKey));
@@ -1618,6 +1636,7 @@ Promise.all([
     subtitleBox.textContent = error.message;
     listBox.innerHTML = `<div class="planning-queue-empty">${escapeHtml(error.message)}</div>`;
 });
+new MutationObserver(()=>renderList()).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
 
 setInterval(() => {
     if (activePlanningView === 'tracking' && trackingLoaded) {

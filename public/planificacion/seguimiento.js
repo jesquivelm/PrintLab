@@ -4,8 +4,21 @@ const LABELS={orden_creada:'Creación de Orden',solicitud_vendedor:'Solicitud de
 const PROCESS_ICON_KEYS={orden_creada:'produccionCreacionOrden',solicitud_vendedor:'produccionSolicitudVendedor',planeacion:'produccionPlanificacion',diseno:'produccionDiseno',preprensa:'produccionPreprensa',visto_bueno:'produccionVistoBueno',planchas:'produccionPlanchas',impresion:'produccionImpresion',laminado:'produccionLaminado',troquelado:'produccionTroquelado',estampado:'produccionEstampado',barnizado:'produccionBarniz',embosado:'produccionEmbozado',numeracion:'produccionNumerado',rebobinado:'produccionRebobinado',empaque:'produccionEmpaque'};
 const ICONS={orden_creada:'+',solicitud_vendedor:'→',planeacion:'✓',diseno:'✏',preprensa:'⬛',visto_bueno:'✓',planchas:'▣',impresion:'◼',laminado:'◧',troquelado:'◈',estampado:'◆',barnizado:'◐',embosado:'◉',numeracion:'#',rebobinado:'↻',empaque:'□'};
 let trackingConfig={icons:{},general:{}};
-function iconMarkup(key,fallback,altText){const value=trackingConfig.icons?.[key]||fallback;if(/^(\/|data:image\/)/i.test(String(value||''))){return`<img style="width:1em;height:1em;vertical-align:middle" src="${esc(value)}" alt="${esc(altText||'')}">`}return`<span aria-hidden="true">${esc(value)}</span>`}
-function processIcon(key){const iconKey=PROCESS_ICON_KEYS[key];if(iconKey&&trackingConfig.icons?.[iconKey])return iconMarkup(iconKey,ICONS[key]||'·',LABELS[key]||key);return esc(ICONS[key]||'·')}
+function isDarkMode(){return document.documentElement.getAttribute('data-theme')==='dark'}
+function getIconConfig(key){const suffix=key.charAt(0).toUpperCase()+key.slice(1);const g=trackingConfig.general||{};return{value:trackingConfig.icons?.[key]||'',color1:g[`iconColor${suffix}`]||'#1e516d',color2:g[`iconColor2${suffix}`]||'#ffffff',hover:g[`iconColorHover${suffix}`]||'#0b81b8',size:Number(g[`iconSize${suffix}`])||18}}
+function processIconConfig(processKey){const iconKey=PROCESS_ICON_KEYS[processKey];if(!iconKey)return null;const cfg=getIconConfig(iconKey);if(!cfg.value)return null;return cfg}
+function iconMarkup(value,fallback,altText,size,color){
+    const v=String(value||'').trim();
+    if(/\.svg(\?|#|$)/i.test(v)||v.startsWith('data:image/svg+xml')){
+        const safe=esc(v);
+        return`<span class="process-icon-svg" role="img" aria-label="${esc(altText||'')}" style="display:inline-flex;width:${size}px;height:${size}px;-webkit-mask-image:url('${safe}');mask-image:url('${safe}');-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;-webkit-mask-size:contain;mask-size:contain;background-color:${color}"></span>`;
+    }
+    if(/^(\/|data:image\/)/i.test(v)){
+        return`<img src="${esc(v)}" alt="${esc(altText||'')}" style="width:${size}px;height:${size}px;object-fit:contain;display:block">`;
+    }
+    return`<span style="display:inline-flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;font-size:${Math.round(size*.85)}px;color:${color}">${esc(v||'·')}</span>`;
+}
+function processIcon(processKey){const cfg=processIconConfig(processKey);if(!cfg)return`<span>${esc(ICONS[processKey]||'·')}</span>`;const color=isDarkMode()?cfg.color2:cfg.color1;return iconMarkup(cfg.value,ICONS[processKey]||'·',LABELS[processKey]||processKey,cfg.size,color)}
 const TRACKING_BASE_KEYS=['orden_creada','solicitud_vendedor','planeacion'];
 const WORK_HRS=8;
 const WORK_DAYS=new Set([1,2,3,4,5,6]);
@@ -854,6 +867,7 @@ document.getElementById('refreshBtn')?.addEventListener('click',loadData);
 document.getElementById('sortSelect')?.addEventListener('change',renderAll);
 setInterval(loadData,60000);
 fetch('/api/config/shell').then(r=>r.ok?r.json():{}).catch(()=>({})).then(cfg=>{trackingConfig=cfg||trackingConfig;loadData()});
+new MutationObserver(()=>renderAll()).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
 
 function flipCard(code) {
   const wrap = document.getElementById(`flip-${code}`);

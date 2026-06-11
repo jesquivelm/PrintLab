@@ -8593,10 +8593,10 @@
                 });
 
                 const fieldDefs = [
-                    { name: `general.iconColor${suffix}`, label: 'Color 1', type: 'color', value: icon.color, className: 'color-field' },
-                    { name: `general.iconColor2${suffix}`, label: 'Color 2', type: 'color', value: '#ffffff', className: 'color-field' },
-                    { name: `general.iconColorHover${suffix}`, label: 'Color al pasar', type: 'color', value: '#0b81b8', className: 'color-field' },
-                    { name: `general.iconSize${suffix}`, label: 'Tamano', type: 'number', value: String(icon.size), style: 'width:65px;' }
+                    { name: `general.iconColor${suffix}`, label: 'Color 1', type: 'color', value: loadedConfig?.general?.[`iconColor${suffix}`] || icon.color, className: 'color-field' },
+                    { name: `general.iconColor2${suffix}`, label: 'Color 2', type: 'color', value: loadedConfig?.general?.[`iconColor2${suffix}`] || '#ffffff', className: 'color-field' },
+                    { name: `general.iconColorHover${suffix}`, label: 'Color al pasar', type: 'color', value: loadedConfig?.general?.[`iconColorHover${suffix}`] || '#0b81b8', className: 'color-field' },
+                    { name: `general.iconSize${suffix}`, label: 'Tamano', type: 'number', value: String(loadedConfig?.general?.[`iconSize${suffix}`] || icon.size), style: 'width:65px;' }
                 ];
 
                 fieldDefs.forEach((field) => {
