@@ -412,53 +412,76 @@ function closeDrawer(){
   document.body.style.overflow='';
 }
 
+function buildProductionQueue(currentOrder){
+  const currentCode=currentOrder.orderCode;
+  const queue=[];
+  allOrders.forEach(order=>{
+    if(order.orderCode===currentCode)return;
+    const status=orderStatus(order);
+    if(status==='done')return;
+    const steps=buildSteps(order);
+    const activeStep=steps.find(s=>s.status==='active'||s.status==='running')||steps.find(s=>s.status==='pending');
+    if(!activeStep)return;
+    const lr=Array.isArray(order.processLoadSummary)?order.processLoadSummary:[];
+    const load=lr.find(r=>r.processKey===activeStep.key)||{};
+    const machine=load.machineName||activeStep.machine||'';
+    const durationHours=Number(load.durationHours||activeStep.hrs||0);
+    const eta=order.promisedDeliveryDate||order.scheduledDeliveryDate||'';
+    let queueHours=0;
+    let ordersAhead=0;
+    allOrders.forEach(other=>{
+      if(other.orderCode===order.orderCode)return;
+      if(other.orderCode===currentCode)return;
+      const oStatus=orderStatus(other);
+      if(oStatus==='done')return;
+      const oSteps=buildSteps(other);
+      const oActive=oSteps.find(s=>s.status==='active'||s.status==='running')||oSteps.find(s=>s.status==='pending');
+      if(!oActive)return;
+      const oLr=Array.isArray(other.processLoadSummary)?other.processLoadSummary:[];
+      const oLoad=oLr.find(r=>r.processKey===oActive.key)||{};
+      const oMachine=oLoad.machineName||oActive.machine||'';
+      if(oMachine!==machine)return;
+      const oEta=other.promisedDeliveryDate||other.scheduledDeliveryDate||'';
+      if(oEta&&eta&&oEta<=eta){
+        ordersAhead++;
+        queueHours+=Number(oLoad.durationHours||oActive.hrs||0);
+      }
+    });
+    queue.push({
+      orderCode:order.orderCode,
+      customerName:order.customerName||'',
+      jobName:order.jobName||order.productName||'',
+      orderedQuantity:Number(order.orderedQuantity||0),
+      currentProcess:activeStep.label,
+      processKey:activeStep.key,
+      machine:machine,
+      durationHours:durationHours,
+      queueHours:queueHours,
+      ordersAhead:ordersAhead,
+      eta:eta,
+      status:status
+    });
+  });
+  queue.sort((a,b)=>b.queueHours-a.queueHours);
+  return queue;
+}
+
 function openOrdersAheadModal(){
   if(!drawerResult||!drawerOrder)return;
-  const{totalProc,totalQ,bufH,priority,bufferDays,detail}=drawerResult;
-  const steps=buildSteps(drawerOrder);
-  const groups=findOrdersAhead(drawerOrder,steps,detail);
+  const{totalProc,totalQ,bufH,priority,bufferDays}=drawerResult;
+  const queue=buildProductionQueue(drawerOrder);
   const el=document.getElementById('ordersAheadModal');
   const body=document.getElementById('ordersAheadBody');
   const earlyStr=capitalise(fmtLong(drawerResult.earlyEnd));
   const lateStr=capitalise(fmtLong(drawerResult.lateEnd));
-
-  const flatMap=new Map();
-  groups.forEach(g=>{
-    g.orders.forEach(o=>{
-      const existing=flatMap.get(o.orderCode);
-      if(existing){
-        if(o.procH>existing.procH){
-          existing.procH=o.procH;
-          existing.processLabel=g.processLabel;
-          existing.machine=g.machine;
-        }
-        existing.totalQueueH+=o.procH;
-      }else{
-        const src=allOrders.find(x=>x.orderCode===o.orderCode)||{};
-        flatMap.set(o.orderCode,{
-          orderCode:o.orderCode,
-          customerName:o.customerName,
-          jobName:src.jobName||src.productName||'',
-          orderedQuantity:o.orderedQuantity,
-          procH:o.procH,
-          totalQueueH:o.procH,
-          eta:o.eta,
-          status:o.status,
-          processLabel:g.processLabel,
-          machine:g.machine
-        });
-      }
-    });
-  });
-  const flat=Array.from(flatMap.values());
-  flat.sort((a,b)=>b.totalQueueH-a.totalQueueH);
-  const totalOrders=flat.length;
+  const totalOrders=queue.length;
+  const totalQueueH=queue.reduce((s,o)=>s+o.queueHours,0);
 
   let html=`
     <div class="oam-summary">
       <div class="oam-summary-row">
         <div class="oam-summary-item oam-si-proc"><div class="oam-si-icon">⚙</div><div><div class="oam-si-val">${Math.round(totalProc)}h</div><div class="oam-si-lbl">Produccion</div></div></div>
-        <div class="oam-summary-item oam-si-queue"><div class="oam-si-icon">⏳</div><div><div class="oam-si-val">${Math.round(totalQ)}h</div><div class="oam-si-lbl">En cola</div></div></div>
+        <div class="oam-summary-item oam-si-queue"><div class="oam-si-icon">⏳</div><div><div class="oam-si-val">${Math.round(totalQueueH)}h</div><div class="oam-si-lbl">En cola</div></div></div>
         <div class="oam-summary-item oam-si-buffer"><div class="oam-si-icon">🛡</div><div><div class="oam-si-val">${Math.round(bufH)}h</div><div class="oam-si-lbl">Colchon</div></div></div>
       </div>
       <div class="oam-summary-eta"><strong>Entrega estimada:</strong> ${earlyStr}${bufferDays>0?' – '+lateStr:''}</div>
@@ -468,8 +491,8 @@ function openOrdersAheadModal(){
     html+=`<div class="oam-empty">No hay otras ordenes compitiendo por las mismas maquinas en este momento.</div>`;
   }else{
     html+=`<div class="oam-section-title">${totalOrders} orden${totalOrders!==1?'es':''} en la cola de produccion</div>`;
-    flat.forEach(o=>{
-      const qty=Number(o.orderedQuantity||0);
+    queue.forEach(o=>{
+      const qty=o.orderedQuantity;
       const eta=o.eta?fmtShort(o.eta):'Sin fecha';
       const stCls=o.status==='running'?'oam-st-running':o.status==='late'?'oam-st-late':'oam-st-pending';
       const stLbl=o.status==='running'?'Procesando':o.status==='late'?'Atrasada':'En cola';
@@ -479,7 +502,7 @@ function openOrdersAheadModal(){
           <div class="oam-order-customer">${esc(o.customerName||'Sin cliente')}${o.jobName?' · '+esc(o.jobName):''}</div>
         </div>
         <div class="oam-order-qty"><div class="oam-order-qty-val">${formatNumber(qty)}</div><div class="oam-order-qty-lbl">piezas</div></div>
-        <div class="oam-order-hrs"><div class="oam-order-hrs-val">${o.procH}h</div><div class="oam-order-hrs-lbl">produccion</div></div>
+        <div class="oam-order-hrs"><div class="oam-order-hrs-val">${o.durationHours}h</div><div class="oam-order-hrs-lbl">produccion</div></div>
         <div class="oam-order-status"><span class="${stCls}">${stLbl}</span><div class="oam-order-eta">${esc(eta)}</div></div>
       </div>`;
     });
