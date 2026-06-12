@@ -419,9 +419,40 @@ function openOrdersAheadModal(){
   const groups=findOrdersAhead(drawerOrder,steps,detail);
   const el=document.getElementById('ordersAheadModal');
   const body=document.getElementById('ordersAheadBody');
-  const totalOrders=groups.reduce((s,g)=>s+g.orders.length,0);
   const earlyStr=capitalise(fmtLong(drawerResult.earlyEnd));
   const lateStr=capitalise(fmtLong(drawerResult.lateEnd));
+
+  const flatMap=new Map();
+  groups.forEach(g=>{
+    g.orders.forEach(o=>{
+      const existing=flatMap.get(o.orderCode);
+      if(existing){
+        if(o.procH>existing.procH){
+          existing.procH=o.procH;
+          existing.processLabel=g.processLabel;
+          existing.machine=g.machine;
+        }
+        existing.totalQueueH+=o.procH;
+      }else{
+        const src=allOrders.find(x=>x.orderCode===o.orderCode)||{};
+        flatMap.set(o.orderCode,{
+          orderCode:o.orderCode,
+          customerName:o.customerName,
+          jobName:src.jobName||src.productName||'',
+          orderedQuantity:o.orderedQuantity,
+          procH:o.procH,
+          totalQueueH:o.procH,
+          eta:o.eta,
+          status:o.status,
+          processLabel:g.processLabel,
+          machine:g.machine
+        });
+      }
+    });
+  });
+  const flat=Array.from(flatMap.values());
+  flat.sort((a,b)=>b.totalQueueH-a.totalQueueH);
+  const totalOrders=flat.length;
 
   let html=`
     <div class="oam-summary">
@@ -433,37 +464,24 @@ function openOrdersAheadModal(){
       <div class="oam-summary-eta"><strong>Entrega estimada:</strong> ${earlyStr}${bufferDays>0?' – '+lateStr:''}</div>
     </div>`;
 
-  if(!groups.length||totalOrders===0){
+  if(!totalOrders){
     html+=`<div class="oam-empty">No hay otras ordenes compitiendo por las mismas maquinas en este momento.</div>`;
   }else{
-    html+=`<div class="oam-section-title">${totalOrders} orden${totalOrders!==1?'es':''} antes de esta en la cola</div>`;
-    groups.forEach(g=>{
-      const stTxt=g.qH>0?`${Math.round(g.qH)}h de espera`:'Sin espera';
-      html+=`<div class="oam-step">
-        <div class="oam-step-head">
-          <div class="oam-step-icon">${esc(ICONS[g.processKey]||'·')}</div>
-          <div class="oam-step-info">
-            <div class="oam-step-name">${esc(g.processLabel)}</div>
-            <div class="oam-step-meta">${esc(g.machine||'Sin maquina')} · ${Math.round(g.procH)}h produccion · ${stTxt}</div>
-          </div>
-          <div class="oam-step-badge">${g.orders.length} ord.</div>
-        </div>`;
-      g.orders.forEach((o,i)=>{
-        const qty=Number(o.orderedQuantity||0);
-        const eta=o.eta?fmtShort(o.eta):'Sin fecha';
-        const stCls=o.status==='running'?'oam-st-running':o.status==='late'?'oam-st-late':'oam-st-pending';
-        const stLbl=o.status==='running'?'Procesando':o.status==='late'?'Atrasada':'En cola';
-        html+=`<div class="oam-order">
-          <div class="oam-order-left">
-            <div class="oam-order-code">${esc(o.orderCode)}</div>
-            <div class="oam-order-customer">${esc(o.customerName||'Sin cliente')}</div>
-          </div>
-          <div class="oam-order-qty"><div class="oam-order-qty-val">${formatNumber(qty)}</div><div class="oam-order-qty-lbl">piezas</div></div>
-          <div class="oam-order-hrs"><div class="oam-order-hrs-val">${o.procH}h</div><div class="oam-order-hrs-lbl">produccion</div></div>
-          <div class="oam-order-status"><span class="${stCls}">${stLbl}</span><div class="oam-order-eta">${esc(eta)}</div></div>
-        </div>`;
-      });
-      html+=`</div>`;
+    html+=`<div class="oam-section-title">${totalOrders} orden${totalOrders!==1?'es':''} en la cola de produccion</div>`;
+    flat.forEach(o=>{
+      const qty=Number(o.orderedQuantity||0);
+      const eta=o.eta?fmtShort(o.eta):'Sin fecha';
+      const stCls=o.status==='running'?'oam-st-running':o.status==='late'?'oam-st-late':'oam-st-pending';
+      const stLbl=o.status==='running'?'Procesando':o.status==='late'?'Atrasada':'En cola';
+      html+=`<div class="oam-order">
+        <div class="oam-order-left">
+          <div class="oam-order-code">${esc(o.orderCode)}</div>
+          <div class="oam-order-customer">${esc(o.customerName||'Sin cliente')}${o.jobName?' · '+esc(o.jobName):''}</div>
+        </div>
+        <div class="oam-order-qty"><div class="oam-order-qty-val">${formatNumber(qty)}</div><div class="oam-order-qty-lbl">piezas</div></div>
+        <div class="oam-order-hrs"><div class="oam-order-hrs-val">${o.procH}h</div><div class="oam-order-hrs-lbl">produccion</div></div>
+        <div class="oam-order-status"><span class="${stCls}">${stLbl}</span><div class="oam-order-eta">${esc(eta)}</div></div>
+      </div>`;
     });
   }
   body.innerHTML=html;
