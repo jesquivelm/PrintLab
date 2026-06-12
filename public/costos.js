@@ -305,7 +305,7 @@ function normalizeProcessDefaults(value) {
             createEnabled: active ? createEnabled : false,
             locked,
             repeatable,
-            ganttEnabled: mandatoryGantt ? true : booleanValue(row?.ganttEnabled, row?.ganttEnabled == null ? active : false),
+            ganttEnabled: booleanValue(row?.ganttEnabled, row?.ganttEnabled == null ? active : false),
             order: numberValue(row?.order, fallback.order ?? ((index + 1) * 10)),
             minimumCost: Math.max(0, numberValue(row?.minimumCost, 0)),
             timeBufferMinutes: Math.max(0, numberValue(row?.timeBufferMinutes ?? row?.bufferMinutes, 0)),
