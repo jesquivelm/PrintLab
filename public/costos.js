@@ -378,7 +378,7 @@ function getFloatingSaveIcon(config) {
 
 function isSvgValue(value) {
     const normalized = String(value || "").trim().toLowerCase();
-    return normalized.startsWith("data:image/svg+xml") || normalized.endsWith(".svg");
+    return normalized.startsWith("data:image/svg+xml") || /\.svg(\?|#|$)/i.test(normalized);
 }
 
 function applyFloatingSaveButtonIcon(button, iconValue, resolvedSize) {

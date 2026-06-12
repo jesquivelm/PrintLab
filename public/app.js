@@ -378,12 +378,12 @@ function setStatus(message, tone = 'idle') {
 
 function isImageValue(value) {
     const source = String(value || '').trim().toLowerCase();
-    return source.startsWith('data:image/') || source.endsWith('.png') || source.endsWith('.svg') || source.endsWith('.jpg') || source.endsWith('.jpeg') || source.endsWith('.webp');
+    return source.startsWith('data:image/') || /\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(source);
 }
 
 function isSvgValue(value) {
     const source = String(value || '').trim().toLowerCase();
-    return source.startsWith('data:image/svg+xml') || source.endsWith('.svg');
+    return source.startsWith('data:image/svg+xml') || /\.svg(\?|#|$)/i.test(source);
 }
 
 function iconMarkup(value, altText, extraClass = '') {

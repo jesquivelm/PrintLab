@@ -1250,17 +1250,12 @@ function publishBdfgContext() {
 
 function isSvgValue(value) {
     const normalized = String(value || '').trim().toLowerCase();
-    return normalized.startsWith('data:image/svg+xml') || normalized.endsWith('.svg');
+    return normalized.startsWith('data:image/svg+xml') || /\.svg(\?|#|$)/i.test(normalized);
 }
 
 function isImageValue(value) {
     const normalized = String(value || '').trim().toLowerCase();
-    return normalized.startsWith('data:image') || 
-           normalized.endsWith('.png') || 
-           normalized.endsWith('.jpg') || 
-           normalized.endsWith('.jpeg') || 
-           normalized.endsWith('.webp') || 
-           normalized.endsWith('.gif');
+    return normalized.startsWith('data:image/') || /\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(normalized);
 }
 
 function renderIcon(target, iconValue, color, size) {

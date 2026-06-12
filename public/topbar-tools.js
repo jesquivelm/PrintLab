@@ -87,7 +87,7 @@
 
     function iconMarkup(value, altText, extraClass = '') {
         const normalized = String(value || '').trim().toLowerCase();
-        if (normalized.startsWith('data:image/svg+xml') || normalized.endsWith('.svg')) {
+        if (normalized.startsWith('data:image/svg+xml') || /\.svg(\?|#|$)/i.test(normalized)) {
             const safeUrl = escapeHtml(value);
             return `<span class="icon-svg-mask ${extraClass}" role="img" aria-label="${escapeHtml(altText)}" style="-webkit-mask-image:url('${safeUrl}');mask-image:url('${safeUrl}');"></span>`;
         }

@@ -21,7 +21,7 @@ function isShellEmbedded() {
 
 function isSvgValue(value) {
     const source = String(value || '').trim().toLowerCase();
-    return source.startsWith('data:image/svg+xml') || source.endsWith('.svg');
+    return source.startsWith('data:image/svg+xml') || /\.svg(\?|#|$)/i.test(source);
 }
 
 function isImageValue(value) {

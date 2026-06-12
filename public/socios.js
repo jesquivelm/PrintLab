@@ -70,7 +70,8 @@ function formatDate(value) {
 }
 
 function isSvgValue(value) {
-    return String(value || '').trim().startsWith('data:image/svg+xml');
+    const source = String(value || '').trim().toLowerCase();
+    return source.startsWith('data:image/svg+xml') || /\.svg(\?|#|$)/i.test(source);
 }
 
 function isImageValue(value) {

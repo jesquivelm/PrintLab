@@ -194,7 +194,7 @@ function renderIcon(target, iconValue, color, size) {
     if (!target) return;
     const value = String(iconValue || '').trim();
     target.style.color = color || '';
-    const isSvg = value.startsWith('data:image/svg+xml') || value.endsWith('.svg');
+    const isSvg = value.startsWith('data:image/svg+xml') || /\.svg(\?|#|$)/i.test(value.toLowerCase());
     if (isSvg) {
         target.innerHTML = `<span class="icon-svg-mask" style="-webkit-mask-image:url('${value}');mask-image:url('${value}');width:${size}px;height:${size}px;"></span>`;
         return;
