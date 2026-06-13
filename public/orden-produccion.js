@@ -642,6 +642,16 @@ function renderFlowTimeline(steps, order) {
     var doneCount = steps.filter(function (s) { return String(s.routeStatus || '').toUpperCase() === 'COMPLETADO'; }).length;
     var total = steps.length;
 
+    // Find next pending step index (first non-done, non-active, non-stopped, non-completed)
+    var nextPendingIndex = -1;
+    for (var np = 0; np < steps.length; np++) {
+        var npStatus = String(steps[np].routeStatus || 'PENDIENTE').toUpperCase();
+        if (npStatus !== 'COMPLETADO' && !['RUN', 'SETUP'].includes(npStatus) && npStatus !== 'PARO') {
+            nextPendingIndex = np;
+            break;
+        }
+    }
+
     // Build timeline rows
     var tlHtml = '';
     for (var i = 0; i < steps.length; i++) {
@@ -651,16 +661,26 @@ function renderFlowTimeline(steps, order) {
         var isActive = ['RUN', 'SETUP'].includes(status);
         var isStopped = status === 'PARO';
         var isLocked = !isDone && !isActive && !isStopped;
+        var isNextPending = i === nextPendingIndex;
         var isLast = i === steps.length - 1;
 
         var nodeClass = isDone ? 'tl-node done' : (isActive ? 'tl-node avail in-progress' : (isStopped ? 'tl-node warn' : 'tl-node locked'));
         var markerName = String(s.completedBy || s.startedBy || '').trim();
         var markerPhoto = String(s.completedByPhoto || s.startedByPhoto || '').trim();
         var hasMarkerPhoto = Boolean(markerPhoto || trackingUserPhotos.get(trackingUserLookupKey(markerName)));
-        var nodeInner = markerName
-            ? '<span class="tl-avatar-clip">' + trackingAvatarMarkup(markerName, markerPhoto) + '</span><span class="tl-node-badge"><i class="ti ti-check" style="font-size:10px;"></i></span>'
-            : '<i class="ti ti-check" style="font-size:16px;"></i>';
-        if (markerName) nodeClass += ' has-avatar' + (hasMarkerPhoto ? ' has-photo' : '');
+        var nodeInner = '';
+        if (isDone && markerName) {
+            nodeClass += ' has-avatar' + (hasMarkerPhoto ? ' has-photo' : '');
+            nodeInner = '<span class="tl-avatar-clip">' + trackingAvatarMarkup(markerName, markerPhoto) + '</span><span class="tl-node-badge"><i class="ti ti-check" style="font-size:12px;"></i></span>';
+        } else if (isDone) {
+            nodeInner = '<i class="ti ti-check" style="font-size:20px;"></i>';
+        } else if (isNextPending) {
+            nodeInner = '<i class="ti ti-circle-dotted" style="font-size:20px;opacity:.5;"></i><span class="tl-node-badge badge-pending"><i class="ti ti-arrow-right" style="font-size:11px;"></i></span>';
+        } else if (isActive) {
+            nodeInner = '<div style="width:16px;height:16px;border-radius:50%;background:var(--flow-blue);"></div>';
+        } else {
+            nodeInner = '<div style="width:12px;height:12px;border-radius:50%;background:var(--ink-5);opacity:.5;"></div>';
+        }
 
         // Connector
         var solid = isDone && !isLast && steps[i + 1] && String(steps[i + 1].routeStatus || '').toUpperCase() === 'COMPLETADO';
@@ -694,8 +714,9 @@ function renderFlowTimeline(steps, order) {
         var titleStateClass = isDone ? 'done' : (isActive ? 'active' : (isStopped ? 'stopped' : 'pending'));
         var titleText = escapeHtml(s.processName || 'Proceso') + (showTimeInTitle ? ' <span class="tl-title-time">(' + plannedTime + ')</span>' : '');
         var titleHtml = '<div class="tl-step-title ' + titleStateClass + '">' + titleText + '</div>';
+        var hintHtml = (!isDone && !isActive && !isStopped) ? '<div class="tl-step-hint">' + (isNextPending ? 'Siguiente paso' : 'Pendiente') + '</div>' : '';
         var detailHtml = detailRows ? '<div class="flow-detail-stack">' + detailRows + '</div>' : '';
-        contentHtml = '<div class="tl-step-grid"><div class="tl-step-main">' + titleHtml + metaHtml + detailHtml + '</div></div>';
+        contentHtml = '<div class="tl-step-grid"><div class="tl-step-main">' + titleHtml + metaHtml + hintHtml + detailHtml + '</div></div>';
 
         tlHtml += '<div class="tl-row">'
             + '<div class="tl-col-left">'
@@ -742,6 +763,176 @@ function fmtFlowTime(min) {
     var h = Math.floor(total / 60);
     var m = total % 60;
     return h + ' h' + (m ? ' ' + m + ' min' : '');
+}
+
+function fmtFlowDur(min) {
+    var total = Math.round(Number(min || 0));
+    if (!Number.isFinite(total) || total <= 0) return '\u2014';
+    if (total < 60) return total + 'm';
+    var h = Math.floor(total / 60);
+    var m = total % 60;
+    if (h < 24) return h + 'h' + (m ? ' ' + m + 'm' : '');
+    var dd = Math.floor(h / 24);
+    var rh = h % 24;
+    return dd + 'd' + (rh ? ' ' + rh + 'h' : '');
+}
+
+var PAUSE_REASON_LABELS = {
+    'WAITING_CLIENT_APPROVAL': 'Esp. aprobaci\u00f3n cliente',
+    'WAITING_RAW_MATERIAL': 'Esp. materia prima',
+    'WAITING_PLATES': 'Esp. planchas',
+    'CLIENT_CORRECTIONS': 'Correcciones cliente',
+    'FILE_ERROR': 'Error de archivo',
+    'PRODUCTION_ISSUE': 'Problema de producci\u00f3n',
+    'MACHINE_BREAKDOWN': 'Falla de m\u00e1quina',
+    'QUALITY_ISSUE': 'Problema de calidad',
+    'OTHER': 'Otro'
+};
+
+var activeFlowTab = 'flujo';
+
+function initFlowTabs() {
+    var bar = document.getElementById('orderFlowTabs');
+    if (!bar) return;
+    bar.addEventListener('click', function (e) {
+        var btn = e.target.closest('.tl-tab-btn');
+        if (!btn) return;
+        var tab = btn.dataset.flowTab;
+        if (tab === activeFlowTab) return;
+        activeFlowTab = tab;
+        bar.querySelectorAll('.tl-tab-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.flowTab === tab); });
+        var flowBody = document.getElementById('orderFlowBody');
+        var tabContent = document.getElementById('orderFlowTabContent');
+        if (tab === 'flujo') {
+            flowBody.style.display = '';
+            tabContent.style.display = 'none';
+        } else {
+            flowBody.style.display = 'none';
+            tabContent.style.display = '';
+            renderFlowTabContent(tab);
+        }
+    });
+}
+
+function renderFlowTabContent(tab) {
+    var el = document.getElementById('orderFlowTabContent');
+    if (!el) return;
+    if (tab === 'responsabilidades') renderTabResponsabilidades(el);
+    else if (tab === 'pausas') renderTabPausas(el);
+    else if (tab === 'auditoria') renderTabAuditoria(el);
+}
+
+function renderTabResponsabilidades(el) {
+    var steps = currentOrderFlowSteps || [];
+    if (!steps.length) { el.innerHTML = '<div class="production-summary-empty">Sin datos disponibles.</div>'; return; }
+    var depts = {};
+    steps.forEach(function (s) {
+        var dept = s.department || s.processName || 'Sin departamento';
+        if (!depts[dept]) depts[dept] = { real: 0, planned: 0 };
+        var realMin = Number(s.actualMinutes || s.realMinutes || 0);
+        var plannedMin = Number(s.planned?.minutes || 0);
+        if (String(s.routeStatus || '').toUpperCase() === 'COMPLETADO') {
+            depts[dept].real += realMin || plannedMin;
+        }
+        depts[dept].planned += plannedMin;
+    });
+    var entries = Object.entries(depts).filter(function (e) { return e[1].real > 0 || e[1].planned > 0; });
+    if (!entries.length) { el.innerHTML = '<div class="production-summary-empty">Sin datos de tiempos registrados.</div>'; return; }
+    var maxTotal = Math.max.apply(null, entries.map(function (e) { return Math.max(e[1].real, e[1].planned); }).concat([1]));
+    var W = 300;
+    var legend = '<div style="display:flex;gap:14px;padding:12px 16px;font-size:12px;color:var(--ink-4);">'
+        + '<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#378ADD;margin-right:4px;vertical-align:middle;"></span>Real</span>'
+        + '<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--ink-5);margin-right:4px;vertical-align:middle;"></span>Estimado</span>'
+        + '</div>';
+    var html = legend;
+    entries.forEach(function (e) {
+        var name = e[0], v = e[1];
+        var rw = Math.round(v.real / maxTotal * W);
+        var pw = Math.round(v.planned / maxTotal * W);
+        html += '<div class="tl-dept-row">'
+            + '<div class="tl-dept-name">' + escapeHtml(name) + '</div>'
+            + '<div class="tl-dept-bar">'
+            + (rw > 0 ? '<div class="tl-dept-seg" style="width:' + rw + 'px;background:#378ADD;" title="Real: ' + fmtFlowDur(v.real) + '"></div>' : '')
+            + (pw > rw ? '<div class="tl-dept-seg" style="width:' + (pw - rw) + 'px;background:var(--ink-5);opacity:.4;" title="Estimado: ' + fmtFlowDur(v.planned) + '"></div>' : '')
+            + '</div>'
+            + '<div class="tl-dept-total">' + fmtFlowDur(v.real) + '</div>'
+            + '</div>';
+    });
+    el.innerHTML = html;
+}
+
+function renderTabPausas(el) {
+    var steps = currentOrderFlowSteps || [];
+    var pauses = [];
+    steps.forEach(function (s) {
+        var events = s.events || s.routeEvents || [];
+        events.forEach(function (ev) {
+            if (String(ev.eventType || '').toLowerCase() === 'paro') {
+                pauses.push({
+                    processName: s.processName || s.processKey,
+                    reason: ev.stopReason || ev.notes || 'Sin descripci\u00f3n',
+                    reasonCode: ev.stopReasonCode || '',
+                    startedAt: ev.eventTimestamp || ev.createdAt || '',
+                    user: ev.operatorName || '',
+                    step: s
+                });
+            }
+        });
+    });
+    if (!pauses.length) { el.innerHTML = '<div class="production-summary-empty">No hay pausas registradas.</div>'; return; }
+    var html = '';
+    pauses.forEach(function (p) {
+        var label = PAUSE_REASON_LABELS[p.reasonCode] || p.reasonCode || 'Pausa';
+        html += '<div class="tl-pause-card">'
+            + '<div class="tl-pause-hdr"><span class="tl-pause-name">' + escapeHtml(p.processName) + '</span><span class="tl-pause-pill">' + escapeHtml(label) + '</span></div>'
+            + '<div class="tl-pause-reason">' + escapeHtml(p.reason) + '</div>'
+            + '<div class="tl-pause-fields">'
+            + '<div><div class="tl-pause-field-label">Inicio</div><div class="tl-pause-field-val">' + formatDate(p.startedAt, true) + '</div></div>'
+            + '<div><div class="tl-pause-field-label">Por</div><div class="tl-pause-field-val">' + escapeHtml(p.user || '\u2014') + '</div></div>'
+            + '</div></div>';
+    });
+    el.innerHTML = html;
+}
+
+function renderTabAuditoria(el) {
+    var steps = currentOrderFlowSteps || [];
+    if (!steps.length) { el.innerHTML = '<div class="production-summary-empty">Sin eventos registrados.</div>'; return; }
+    var events = [];
+    steps.forEach(function (s) {
+        var evts = s.events || s.routeEvents || [];
+        evts.forEach(function (ev) {
+            events.push({
+                type: ev.eventType || '',
+                timestamp: ev.eventTimestamp || ev.createdAt || '',
+                user: ev.operatorName || '',
+                processName: s.processName || s.processKey,
+                notes: ev.notes || ''
+            });
+        });
+        if (String(s.routeStatus || '').toUpperCase() === 'COMPLETADO' && s.completedAt) {
+            events.push({ type: 'COMPLETADO', timestamp: s.completedAt, user: s.completedBy || '', processName: s.processName || s.processKey, notes: '' });
+        }
+    });
+    events.sort(function (a, b) { return new Date(b.timestamp) - new Date(a.timestamp); });
+    if (!events.length) { el.innerHTML = '<div class="production-summary-empty">Sin eventos registrados.</div>'; return; }
+    var EVENT_COLORS = { 'setup': '#378ADD', 'run': '#1D9E75', 'completado': '#639922', 'paro': '#EF9F27', 'revertido': '#E24B4A', 'COMPLETADO': '#639922' };
+    var EVENT_LABELS = { 'setup': 'Configuraci\u00f3n', 'run': 'En producci\u00f3n', 'completado': 'Completado', 'paro': 'Pausa', 'revertido': 'Revertido', 'COMPLETADO': 'Completado' };
+    var html = '<div class="tl-wrap" style="position:relative;padding-left:26px;"><div style="position:absolute;left:9px;top:0;bottom:0;width:1px;background:var(--ink-6);"></div>';
+    var shown = Math.min(events.length, 30);
+    for (var i = 0; i < shown; i++) {
+        var ev = events[i];
+        var col = EVENT_COLORS[ev.type] || '#888';
+        var label = EVENT_LABELS[ev.type] || ev.type;
+        html += '<div style="position:relative;margin-bottom:14px;">'
+            + '<div style="position:absolute;left:-20px;top:4px;width:10px;height:10px;border-radius:50%;border:2px solid ' + col + ';background:' + col + '20;"></div>'
+            + '<div style="font-size:11px;color:var(--ink-4);">' + formatDate(ev.timestamp, true) + ' \u00b7 ' + escapeHtml(ev.user || '\u2014') + '</div>'
+            + '<div style="font-size:13px;color:var(--ink);">' + escapeHtml(ev.processName) + ' \u2014 ' + escapeHtml(label)
+            + '<span style="display:inline-block;font-size:10px;padding:1px 7px;border-radius:4px;background:var(--ink-7);color:var(--ink-4);margin-left:5px;vertical-align:middle;">' + escapeHtml(label) + '</span></div>'
+            + (ev.notes ? '<div style="font-size:11px;color:var(--ink-4);margin-top:2px;">' + escapeHtml(ev.notes) + '</div>' : '')
+            + '</div>';
+    }
+    html += '</div>';
+    el.innerHTML = html;
 }
 
 function renderComparisonView(cmp) {
@@ -1055,6 +1246,13 @@ function renderInPlace() {
 
 async function openOrderFlowPopover() {
     if (!currentOrderCode) return;
+    activeFlowTab = 'flujo';
+    var tabBar = document.getElementById('orderFlowTabs');
+    if (tabBar) tabBar.querySelectorAll('.tl-tab-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.flowTab === 'flujo'); });
+    var flowBody = document.getElementById('orderFlowBody');
+    var tabContent = document.getElementById('orderFlowTabContent');
+    if (flowBody) flowBody.style.display = '';
+    if (tabContent) tabContent.style.display = 'none';
     openPopover('orderFlowPopover');
     if (orderFlowBody) orderFlowBody.innerHTML = '<div class="production-summary-empty" style="padding:40px;text-align:center;">Cargando seguimiento...</div>';
     try {
@@ -3080,6 +3278,8 @@ document.addEventListener('keydown', (event) => {
         if (!popover.hidden) closePopover(popover.id);
     });
 });
+
+initFlowTabs();
 
 loadOrder().catch((error) => {
     statusBox.textContent = error.message;
