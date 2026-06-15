@@ -38,7 +38,6 @@ let drawerPriority='normal';
 let drawerBuffer=2;
 let drawerResult=null;
 const openRows=new Set();
-const flipState={};
 const flowCache={};
 
 function esc(v){return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
@@ -82,6 +81,10 @@ function orderStatus(o){
   if(days!==null&&days<=2)return'risk';
   if(procs.some(p=>p.status==='running'||p.status==='active'))return'running';
   return'ok';
+}
+
+function isPendingPlanning(o){
+  return o.planningStatus==='PENDIENTE_PLANIFICACION';
 }
 
 function buildSteps(o){
@@ -303,30 +306,10 @@ function renderOrderCard(o){
     <div class="order-detail" id="detail-${esc(o.orderCode)}">
       <div class="proc-panel">
         <div class="proc-panel-header">
-          <span class="proc-panel-title">Procesos planificados</span>
-          <button class="proc-flip-btn" id="flipbtn-${esc(o.orderCode)}" onclick="event.stopPropagation();flipCard('${esc(o.orderCode)}')" title="Ver flujo de producción real">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6a4 4 0 0 1 8 0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M10 4l0 2-2 0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 6a4 4 0 0 1-8 0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M2 8l0-2 2 0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            Ver flujo real
-          </button>
+          <span class="proc-panel-title">Flujo de producción</span>
         </div>
-        <div class="flip-wrap" id="flip-${esc(o.orderCode)}">
-          <div class="flip-inner">
-            <div class="flip-face front">
-              <div class="process-timeline" style="padding-top:0">
-                <div class="process-timeline-header">
-                  <div class="pt-col-head">Proceso</div><div class="pt-col-head">Progreso</div>
-                  <div class="pt-col-head">Fecha fin</div><div class="pt-col-head">Maquina</div><div class="pt-col-head">Estado</div>
-                </div>
-                ${steps.length?steps.map(s=>renderProcessRow({...s,hoursStr:s.hrs?`${s.hrs}h`:null})).join('')
-                  :`<div style="padding:16px 0;color:var(--text3);font-size:12px">No hay procesos configurados.</div>`}
-              </div>
-            </div>
-            <div class="flip-face back">
-              <div class="flow-panel" id="flow-${esc(o.orderCode)}">
-                <div class="flow-loading"><div class="spinner"></div> Cargando flujo...</div>
-              </div>
-            </div>
-          </div>
+        <div class="flow-panel" id="flow-${esc(o.orderCode)}">
+          <div class="flow-loading"><div class="spinner"></div> Cargando flujo...</div>
         </div>
       </div>
       ${imp?`<div style="padding:10px 20px;background:var(--red-bg);border-top:1px solid var(--red-border)">
@@ -350,10 +333,12 @@ function renderOrderCard(o){
 }
 
 function updateSummary(){
-  const t=allOrders.length,run=allOrders.filter(o=>orderStatus(o)==='running').length,
-    risk=allOrders.filter(o=>orderStatus(o)==='risk').length,
-    late=allOrders.filter(o=>orderStatus(o)==='late').length,
-    done=allOrders.filter(o=>orderStatus(o)==='done').length,
+  const active=allOrders.filter(o=>!isPendingPlanning(o));
+  const pending=allOrders.filter(isPendingPlanning);
+  const t=active.length,run=active.filter(o=>orderStatus(o)==='running').length,
+    risk=active.filter(o=>orderStatus(o)==='risk').length,
+    late=active.filter(o=>orderStatus(o)==='late').length,
+    done=active.filter(o=>orderStatus(o)==='done').length,
     imp=Object.keys(impacts).length;
   document.getElementById('statTotal').textContent=t;
   document.getElementById('statRunning').textContent=run;
@@ -366,12 +351,40 @@ function updateSummary(){
   document.getElementById('countRunning').textContent=run;
   document.getElementById('countDone').textContent=done;
   document.getElementById('countImpact').textContent=imp;
+  const countPP=document.getElementById('countPendingPlanning');
+  if(countPP)countPP.textContent=pending.length;
+  renderPendingPlanningSummary(pending);
+}
+
+function renderPendingPlanningSummary(pending){
+  const box=document.getElementById('pendingPlanningSummary');
+  if(!box)return;
+  if(currentFilter!=='pending_planning'||!pending.length){box.style.display='none';box.innerHTML='';return;}
+  let sumDays=0,late=0,urgent=0,normal=0;
+  pending.forEach(o=>{
+    const d=daysUntil(o.promisedDeliveryDate||o.scheduledDeliveryDate);
+    const buf=d==null?0:d;
+    sumDays+=buf;
+    if(d!=null&&d<0)late++;
+    else if(d!=null&&d<=2)urgent++;
+    else normal++;
+  });
+  const avg=pending.length?(sumDays/pending.length):0;
+  box.style.display='flex';
+  box.innerHTML=`
+    <div class="pp-stat"><span class="pp-stat-num">${pending.length}</span><span class="pp-stat-label">Pendientes de planificación</span></div>
+    <div class="pp-stat ${late?'pp-late':''}"><span class="pp-stat-num">${late}</span><span class="pp-stat-label">Atrasadas</span></div>
+    <div class="pp-stat ${urgent?'pp-risk':''}"><span class="pp-stat-num">${urgent}</span><span class="pp-stat-label">≤ 2 días</span></div>
+    <div class="pp-stat"><span class="pp-stat-num">${normal}</span><span class="pp-stat-label">Resto</span></div>
+    <div class="pp-stat"><span class="pp-stat-num">${sumDays}d</span><span class="pp-stat-label">Suma de colchones</span></div>
+    <div class="pp-stat"><span class="pp-stat-num">${avg.toFixed(1)}d</span><span class="pp-stat-label">Promedio</span></div>
+  `;
 }
 
 function toggleRow(code){
   const r=document.getElementById(`row-${code}`);if(!r)return;
   const open=r.classList.toggle('is-open');
-  if(open)openRows.add(code);else openRows.delete(code);
+  if(open){openRows.add(code);loadFlowPanel(code);}else openRows.delete(code);
 }
 
 function openDrawer(code){
@@ -682,12 +695,21 @@ async function loadData(){
   const btn=document.getElementById('refreshBtn');
   btn.textContent='...';btn.disabled=true;
   try{
-    let res=await fetch(`${API}/planificacion/seguimiento`).catch(()=>null);
-    if(!res||!res.ok)res=await fetch(`${API}/planificacion/lanzamiento`);
-    const data=await res.json();
-    if(!data.ok)throw new Error(data.error||'Error al cargar ordenes.');
-    allOrders=data.items||[];
+    const [segRes,lanRes]=await Promise.all([
+      fetch(`${API}/planificacion/seguimiento`).catch(()=>null),
+      fetch(`${API}/planificacion/lanzamiento`).catch(()=>null)
+    ]);
+    const segData=segRes&&segRes.ok?await segRes.json():{ok:false,items:[]};
+    const lanData=lanRes&&lanRes.ok?await lanRes.json():{ok:false,items:[]};
+    if(!segData.ok&&!lanData.ok)throw new Error(segData.error||lanData.error||'Error al cargar ordenes.');
+    const byCode=new Map();
+    (segData.items||[]).forEach(o=>byCode.set(o.orderCode,o));
+    (lanData.items||[]).forEach(o=>{if(!byCode.has(o.orderCode))byCode.set(o.orderCode,o)});
+    allOrders=Array.from(byCode.values());
+    const listBox=document.getElementById('orderList');
+    const scrollY=listBox?listBox.scrollTop:0;
     updateSummary();renderAll();
+    if(listBox)listBox.scrollTop=scrollY;
     document.getElementById('liveIndicator').style.background='#1D9E75';
   }catch(err){
     document.getElementById('liveIndicator').style.background='#E24B4A';
@@ -738,6 +760,8 @@ function renderAll(){
   let filtered=allOrders.filter(o=>{
     const match=!term||norm([o.orderCode,o.customerName,o.jobName,o.productName].join(' ')).includes(term);
     if(!match)return false;
+    if(currentFilter==='pending_planning')return isPendingPlanning(o);
+    if(isPendingPlanning(o))return false;
     if(currentFilter==='all')return true;
     if(currentFilter==='impact')return!!impacts[o.orderCode];
     return orderStatus(o)===currentFilter;
@@ -761,6 +785,8 @@ function renderList(orders){
     orders=allOrders.filter(o=>{
       const match=!term||norm([o.orderCode,o.customerName,o.jobName,o.productName].join(' ')).includes(term);
       if(!match)return false;
+      if(currentFilter==='pending_planning')return isPendingPlanning(o);
+      if(isPendingPlanning(o))return false;
       if(currentFilter==='all')return true;
       if(currentFilter==='impact')return!!impacts[o.orderCode];
       return orderStatus(o)===currentFilter;
@@ -779,7 +805,7 @@ function renderList(orders){
     return;
   }
   box.innerHTML=orders.map(renderOrderCard).join('');
-  openRows.forEach(code=>{const r=document.getElementById(`row-${code}`);if(r)r.classList.add('is-open')});
+  openRows.forEach(code=>{const r=document.getElementById(`row-${code}`);if(r){r.classList.add('is-open');loadFlowPanel(code,true);}});
 }
 
 function renderSemaforo(orders){
@@ -887,7 +913,9 @@ function renderKanban(orders){
 function setFilter(f,btn){
   currentFilter=f;
   document.querySelectorAll('.filter-pill').forEach(p=>p.classList.remove('active'));
-  if(btn)btn.classList.add('active');renderAll();
+  if(btn)btn.classList.add('active');
+  renderPendingPlanningSummary(allOrders.filter(isPendingPlanning));
+  renderAll();
 }
 
 document.getElementById('searchInput').addEventListener('input',e=>{searchTerm=e.target.value;renderAll()});
@@ -919,103 +947,28 @@ setInterval(loadData,60000);
 fetch('/api/config/shell').then(r=>r.ok?r.json():{}).catch(()=>({})).then(cfg=>{trackingConfig=cfg||trackingConfig;loadData()});
 new MutationObserver(()=>renderAll()).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
 
-function flipCard(code) {
-  const wrap = document.getElementById(`flip-${code}`);
-  const btn  = document.getElementById(`flipbtn-${code}`);
-  if (!wrap) return;
+const TRACKING_FIXED_KEYS = new Set(['orden_creada','solicitud_vendedor','planeacion']);
+const TRACKING_MACHINE_KEYS = new Set(['planchas','impresion','acabados','barnizado','laminado','troquelado','estampado','embosado','numeracion','rebobinado']);
 
-  const isFlipped = wrap.classList.toggle('flipped');
-  flipState[code] = isFlipped ? 'back' : 'front';
-
-  if (btn) {
-    btn.classList.toggle('active', isFlipped);
-    btn.innerHTML = isFlipped
-      ? `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6a4 4 0 0 1 8 0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M10 4l0 2-2 0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 6a4 4 0 0 1-8 0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M2 8l0-2 2 0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Ver planificado`
-      : `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6a4 4 0 0 1 8 0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M10 4l0 2-2 0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 6a4 4 0 0 1-8 0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M2 8l0-2 2 0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Ver flujo real`;
-  }
-
-  if (isFlipped) {
-    const front = wrap.querySelector('.flip-face.front');
-    const back  = wrap.querySelector('.flip-face.back');
-    if (front && back) {
-      wrap.querySelector('.flip-inner').style.minHeight = (back.scrollHeight || 200) + 'px';
-    }
-    loadFlowPanel(code);
-  } else {
-    const front = wrap.querySelector('.flip-face.front');
-    if (front) wrap.querySelector('.flip-inner').style.minHeight = front.scrollHeight + 'px';
-  }
-}
-
-async function loadFlowPanel(code) {
+async function loadFlowPanel(code, silent) {
   const box = document.getElementById(`flow-${code}`);
   if (!box) return;
-  if (flowCache[code]) { renderFlowPanel(box, flowCache[code]); bindTrackingAvatarFallback(box); return; }
-
-  box.innerHTML = '<div class="flow-loading"><div class="spinner"></div> Cargando flujo...</div>';
+  if (!silent) box.innerHTML = '<div class="flow-loading"><div class="spinner"></div> Cargando flujo...</div>';
   try {
     await loadTrackingUserPhotos();
-    const res = await fetch(`${API}/ordenes-produccion/${encodeURIComponent(code)}/flow`, { headers: sessionHeader() });
-    if (!res.ok) throw new Error('no-flow');
+    const res = await fetch(`${API}/ordenes-produccion/${encodeURIComponent(code)}/seguimiento`, { headers: sessionHeader() });
     const data = await res.json();
-    const steps = data.steps || data.items || [];
+    if (!res.ok || !data.ok) throw new Error(data.error || 'no-flow');
+    const steps = Array.isArray(data.steps) ? data.steps : [];
     flowCache[code] = steps;
-    renderFlowPanel(box, steps, data.history || []);
+    renderFlowPanel(box, code, steps);
     bindTrackingAvatarFallback(box);
   } catch(e) {
-    const order = allOrders.find(o => o.orderCode === code);
-    if (order) {
-      const steps = buildFlowFromOrder(order);
-      flowCache[code] = steps;
-      renderFlowPanel(box, steps);
-      bindTrackingAvatarFallback(box);
-    } else {
-      box.innerHTML = '<div class="flow-empty">No se pudo cargar el flujo de producción.</div>';
-    }
+    box.innerHTML = '<div class="flow-empty">No se pudo cargar el flujo de producción.</div>';
   }
 }
 
-function buildFlowFromOrder(order) {
-  const cl  = Array.isArray(order.processChecklist)   ? order.processChecklist   : [];
-  const lr  = Array.isArray(order.processLoadSummary) ? order.processLoadSummary : [];
-  const hasBase = cl.some(p => TRACKING_BASE_KEYS.includes(stepKey(p)));
-  const fixed = !hasBase && Array.isArray(order.steps)
-    ? order.steps.filter(s => TRACKING_BASE_KEYS.includes(stepKey(s))).map(s => ({
-        key: s.processKey,
-        selected: true,
-        base: true,
-        label: s.processName,
-        status: normalizeStepStatus(s.routeStatus),
-        completedBy: s.completedBy,
-        completedAt: s.completedAt,
-        startedBy: s.startedBy,
-        startedAt: s.startedAt
-      }))
-    : [];
-  return [...fixed, ...cl].filter(p => p.selected || p.base || p.quoted).filter(p => stepKey(p) !== 'acabados')
-    .map(p => {
-      const key = stepKey(p);
-      const load = lr.find(r => r.processKey === key) || {};
-      const st   = normalizeStepStatus(p.status || 'pending');
-      return {
-        processKey:   key,
-        processName:  LABELS[key] || p.label || p.processName || key,
-        routeStatus:  st === 'done' || st === 'complete' ? 'COMPLETADO'
-                    : st === 'active' || st === 'running' ? 'RUN' : 'PENDIENTE',
-        completedBy:  p.completedBy  || load.completedBy  || '',
-        completedAt:  p.completedAt  || load.completedAt  || '',
-        startedBy:    p.startedBy    || load.startedBy    || '',
-        startedAt:    p.startedAt    || load.startedAt    || '',
-        planned: {
-          machineName: load.machineName || p.machineName || '',
-          minutes:     load.durationHours ? Math.round(load.durationHours * 60) : 0,
-          quantity:    0
-        }
-      };
-    });
-}
-
-function renderFlowPanel(box, steps, hist) {
+function renderFlowPanel(box, code, steps) {
   if (!steps || !steps.length) {
     box.innerHTML = '<div class="flow-empty">No hay flujo de producción registrado para esta orden.</div>';
     return;
@@ -1064,48 +1017,31 @@ function renderFlowPanel(box, steps, hist) {
     if (markerName) metaParts.push(esc(markerName));
     if (markerDate) metaParts.push(fmtFlowDate(markerDate));
     const metaHtml = metaParts.length ? `<div class="flow-step-meta">${metaParts.join(' · ')}</div>` : '';
-    const machine   = s.planned?.machineName || '';
+    const machine   = TRACKING_MACHINE_KEYS.has(s.processKey) ? (s.planned?.machineName || '') : '';
     const machHtml  = machine ? `<div class="flow-step-machine">◼ ${esc(machine)}</div>` : '';
     const mins      = s.planned?.minutes || 0;
     const timeHtml  = mins > 0 ? `<div class="flow-step-hint">⏱ ${fmtFlowMins(mins)}</div>` : '';
+    const pctHtml   = `<div class="flow-step-pct">${isDone?'100%':isActive?'~50%':'0%'}</div>`;
 
     tlHtml += `<div class="flow-tl-row">
       <div class="flow-tl-left">
-        <button type="button" class="${nodeCls}" data-flow-step-index="${i}">${nodeInner}</button>
+        <button type="button" class="${nodeCls}" data-flow-step-index="${i}" title="${isDone?'Quitar marca':'Marcar completado'}">${nodeInner}</button>
         ${connector}
       </div>
       <div class="flow-tl-content">
         <div class="flow-step-name ${titleCls}">${esc(s.processName||'Proceso')}</div>
-        ${metaHtml}${machHtml}${timeHtml}
+        ${metaHtml}${machHtml}${timeHtml}${pctHtml}
       </div>
     </div>`;
   });
 
-  let histHtml = '';
-  if (hist && hist.length) {
-    const rows = hist.slice(0,6).map(h =>
-      `<div class="flow-hist-row"><span class="flow-hist-date">${esc(h.ts||h.date||'')}</span><span>${esc(h.msg||h.message||'')}</span></div>`
-    ).join('');
-    histHtml = `<div class="flow-hist"><div class="flow-hist-title">Historial</div>${rows}</div>`;
-  }
-
   box.innerHTML = `
     <div class="flow-panel-head">
       <div class="flow-panel-title">Flujo de producción</div>
-      <span class="flow-panel-counter" style="background:${cntBg};color:${cntClr}">${doneCount}/${total}</span>
+      <span class="flow-panel-counter" style="background:${cntBg};color:${cntClr}">${doneCount}/${total} · ${pct}%</span>
     </div>
     <div class="flow-progress"><div class="flow-progress-fill" style="width:${pct}%"></div></div>
-    <div class="flow-tl">${tlHtml}</div>
-    ${histHtml}`;
-
-  setTimeout(() => {
-    const wrap = box.closest('.flip-wrap');
-    if (wrap) {
-      const inner = wrap.querySelector('.flip-inner');
-      const back  = wrap.querySelector('.flip-face.back');
-      if (inner && back) inner.style.minHeight = back.scrollHeight + 'px';
-    }
-  }, 50);
+    <div class="flow-tl">${tlHtml}</div>`;
 }
 
 function fmtFlowDate(v) {
@@ -1197,11 +1133,22 @@ document.addEventListener('click', (e) => {
         stepBtn.disabled = true;
         const prevText = stepBtn.innerHTML;
         stepBtn.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px"></span>';
-        fetch(`${API}/ordenes-produccion/${encodeURIComponent(code)}/seguimiento/marca`, {
-            method: 'POST',
-            headers: Object.assign({ 'Content-Type': 'application/json' }, sessionHeader()),
-            body: JSON.stringify({ processKey: step.processKey, marked: !isDone })
-        }).then(r => r.json()).then(() => {
+
+        const isFixed = TRACKING_FIXED_KEYS.has(step.processKey);
+        const req = isFixed
+            ? fetch(`${API}/ordenes-produccion/${encodeURIComponent(code)}/seguimiento/marca`, {
+                method: 'POST',
+                headers: Object.assign({ 'Content-Type': 'application/json' }, sessionHeader()),
+                body: JSON.stringify({ processKey: step.processKey, marked: !isDone })
+              })
+            : fetch(`${API}/ordenes-produccion/${encodeURIComponent(code)}/seguimiento/completar`, {
+                method: 'POST',
+                headers: Object.assign({ 'Content-Type': 'application/json' }, sessionHeader()),
+                body: JSON.stringify({ processKey: step.processKey })
+              });
+
+        req.then(r => r.json()).then((p) => {
+            if (p && p.ok === false && p.error) { stepBtn.disabled = false; stepBtn.innerHTML = prevText; return; }
             delete flowCache[code];
             loadFlowPanel(code);
         }).catch(() => {
@@ -1211,3 +1158,20 @@ document.addEventListener('click', (e) => {
         return;
     }
 });
+
+// ── Estilos inyectados (flujo unificado + resumen pendientes de planificación) ──
+(function injectSeguimientoStyles(){
+  const css = `
+.flow-step-pct{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:2px}
+.flow-tl-node[data-flow-step-index]{cursor:pointer}
+#pendingPlanningSummary{display:none;gap:14px;flex-wrap:wrap;padding:10px 16px;margin-bottom:10px;border:1px solid var(--border);border-radius:10px;background:var(--surface2)}
+.pp-stat{display:flex;flex-direction:column;align-items:flex-start;min-width:64px}
+.pp-stat-num{font-size:16px;font-weight:700;font-family:'DM Mono',monospace;color:var(--text)}
+.pp-stat-label{font-size:10px;color:var(--text3)}
+.pp-stat.pp-late .pp-stat-num{color:var(--red,#E24B4A)}
+.pp-stat.pp-risk .pp-stat-num{color:var(--amber,#F5A623)}
+`;
+  const style = document.createElement('style');
+  style.textContent = css;
+  document.head.appendChild(style);
+})();
