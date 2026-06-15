@@ -18458,11 +18458,15 @@ app.post('/api/ordenes-produccion/:codigo/seguimiento/completar', async (req, re
         }
 
         // Generic route step completion — record event on matching route
+        const canonicalKey = canonicalProductionFlowKey(processKey) || processKey;
         const routeResult = await pgQuery(
             `SELECT id FROM production_order_routes WHERE order_code = $1 AND process_key = $2 ORDER BY sequence_order LIMIT 1`,
-            [codigo, processKey]
+            [codigo, canonicalKey]
         );
-        if (routeResult.rows.length) {
+        if (!routeResult.rows.length) {
+            return res.status(404).json({ ok: false, error: `No existe una ruta de producción para el proceso "${canonicalKey}" en esta orden.` });
+        }
+        {
             const routeId = routeResult.rows[0].id;
             await pgQuery(
                 `INSERT INTO production_route_events (route_id, operator_name, event_type, notes, event_payload, created_at)
@@ -18474,7 +18478,7 @@ app.post('/api/ordenes-produccion/:codigo/seguimiento/completar', async (req, re
                 [routeId]
             );
         }
-        res.json({ ok: true, message: 'Paso completado.', processKey });
+        res.json({ ok: true, message: 'Paso completado.', processKey: canonicalKey });
     } catch (error) {
         res.status(500).json({ ok: false, error: error.message || 'No fue posible completar el paso.' });
     }
@@ -18488,11 +18492,15 @@ app.post('/api/ordenes-produccion/:codigo/seguimiento/vb-revert', async (req, re
         if (!targetKey || !reason) return res.status(400).json({ ok: false, error: 'Se requiere targetKey y motivo.' });
 
         // Find and reset the target route
+        const canonicalTargetKey = canonicalProductionFlowKey(targetKey) || targetKey;
         const routeResult = await pgQuery(
             `SELECT id FROM production_order_routes WHERE order_code = $1 AND process_key = $2 ORDER BY sequence_order LIMIT 1`,
-            [codigo, targetKey]
+            [codigo, canonicalTargetKey]
         );
-        if (routeResult.rows.length) {
+        if (!routeResult.rows.length) {
+            return res.status(404).json({ ok: false, error: `No existe una ruta de producción para el proceso "${canonicalTargetKey}" en esta orden.` });
+        }
+        {
             const routeId = routeResult.rows[0].id;
             await pgQuery(
                 `INSERT INTO production_route_events (route_id, operator_name, event_type, notes, event_payload, created_at)
