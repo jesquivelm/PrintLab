@@ -3,7 +3,7 @@
 ## CORE PRINCIPLE
 
 * Minimize token usage.
-* All backups goes to \Backups folder with respective name and timestamp. 
+* **BACKUPS**: ALWAYS save backup files to `backups/` folder at the project root. Never leave backup files scattered in source directories. Naming convention: `{filename}.backup.{context}.{YYYYMMDD-HHMMSS}`. Example: `server.js.backup.my-task.20260615-143022`
 * Report the estimated percentage of token usage attributable to each section of these instructions whenever possible, for evaluation purposes.
 * Always create field names, labels, and user-facing text in Spanish. Avoid English unless technically required.
 * Stay strictly within the requested scope.
