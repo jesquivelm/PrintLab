@@ -22,11 +22,9 @@ function iconMarkup(value,fallback,altText,size,color,hoverColor){
 function processIcon(processKey){const cfg=processIconConfig(processKey);if(!cfg)return`<span>${esc(ICONS[processKey]||'·')}</span>`;const color=isDarkMode()?cfg.color2:cfg.color1;return iconMarkup(cfg.value,ICONS[processKey]||'·',LABELS[processKey]||processKey,cfg.size,color,cfg.hover)}
 const TRACKING_BASE_KEYS=['orden_creada','solicitud_vendedor','planeacion'];
 const WORK_HRS=8;
-const WORK_START=8;   // hora de inicio de jornada
-const WORK_END=16;    // hora de fin de jornada (8h laborales: 08:00–16:00)
 const WORK_DAYS=new Set([1,2,3,4,5,6]);
 const Q_FACTOR={normal:1,premium:.45,urgent:.05};
-const DEFAULT_Q={normal:0,premium:0,urgent:0};
+const DEFAULT_Q={normal:16,premium:6,urgent:0};
 const softLocks={};
 const impacts={};
 
@@ -62,13 +60,12 @@ function normalizeStepStatus(v){
 function addWorkHours(from,hours){
   let d=new Date(from),rem=hours;
   while(!WORK_DAYS.has(d.getDay()))d.setDate(d.getDate()+1);
-  if(d.getHours()<WORK_START)d.setHours(WORK_START,0,0,0);
-  if(d.getHours()>=WORK_END){d.setDate(d.getDate()+1);d.setHours(WORK_START,0,0,0);while(!WORK_DAYS.has(d.getDay()))d.setDate(d.getDate()+1)}
+  if(d.getHours()<8)d.setHours(8,0,0,0);
   while(rem>0){
-    const avail=Math.min(rem,WORK_END-d.getHours());
+    const avail=Math.min(rem,16-d.getHours());
     d.setHours(d.getHours()+avail);
     rem-=avail;
-    if(rem>0){d.setDate(d.getDate()+1);d.setHours(WORK_START,0,0,0);while(!WORK_DAYS.has(d.getDay()))d.setDate(d.getDate()+1)}
+    if(rem>0){d.setDate(d.getDate()+1);d.setHours(8,0,0,0);while(!WORK_DAYS.has(d.getDay()))d.setDate(d.getDate()+1)}
   }
   return d;
 }
@@ -181,18 +178,13 @@ function estimate(order,priority,bufferDays){
   const qf=Q_FACTOR[priority];
   const dq=DEFAULT_Q[priority];
   let cursor=new Date();
-  if(cursor.getHours()>=WORK_END){cursor.setDate(cursor.getDate()+1);cursor.setHours(WORK_START,0,0,0)}
-  if(cursor.getHours()<WORK_START)cursor.setHours(WORK_START,0,0,0);
+  if(cursor.getHours()>=16){cursor.setDate(cursor.getDate()+1);cursor.setHours(8,0,0,0)}
+  if(cursor.getHours()<8)cursor.setHours(8,0,0,0);
   while(!WORK_DAYS.has(cursor.getDay()))cursor.setDate(cursor.getDate()+1);
 
   let totalProc=0,totalQ=0;
   const detail=steps.map(s=>{
-    // Bug 3: completed steps get zero time, just carry current cursor as start/end
-    if(s.status==='done'||s.status==='complete'){
-      return{...s,procH:0,qH:0,start:new Date(cursor),end:new Date(cursor)};
-    }
-    // Bug 4 fix: use planned minutes as fallback before inventing 8h
-    const procH=s.hrs||(s.plannedMinutes?Math.round(s.plannedMinutes/60):null)||8;
+    const procH=s.hrs||8;
     const rawQ=s.daysAhead!=null?s.daysAhead*WORK_HRS:dq;
     const qH=rawQ*qf;
     cursor=addWorkHours(cursor,qH);
