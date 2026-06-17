@@ -9802,6 +9802,80 @@ function applyOrderTrackingMarks(steps = [], rawData = {}, resolveActorInfo = ()
     });
 }
 
+async function syncMarkToRoute(orderCode, processKey, marked, actor = '', now = new Date().toISOString()) {
+    const canonicalKey = canonicalProductionFlowKey(processKey) || processKey;
+    if (!canonicalKey || ['orden_creada', 'solicitud_vendedor', 'planeacion'].includes(canonicalKey)) return;
+    try {
+        const routeResult = await pgQuery(
+            `SELECT id FROM production_order_routes WHERE order_code = $1 AND process_key = $2 ORDER BY sequence_order LIMIT 1`,
+            [orderCode, canonicalKey]
+        );
+        if (!routeResult.rows.length) return;
+        const routeId = routeResult.rows[0].id;
+        if (marked) {
+            const existing = await pgQuery(
+                `SELECT route_status FROM production_order_routes WHERE id = $1`,
+                [routeId]
+            );
+            const currentStatus = existing.rows[0]?.route_status;
+            if (currentStatus !== 'COMPLETADO') {
+                await pgQuery(
+                    `UPDATE production_order_routes SET route_status = 'COMPLETADO', actual_end_at = COALESCE(actual_end_at, NOW()), updated_at = NOW() WHERE id = $1`,
+                    [routeId]
+                );
+                await pgQuery(
+                    `INSERT INTO production_route_events (route_id, operator_name, event_type, notes, event_payload, created_at)
+                     VALUES ($1, $2, 'completado', 'Marcado desde seguimiento/orden', '{}'::jsonb, NOW())`,
+                    [routeId, actor || null]
+                );
+            }
+        } else {
+            const existing = await pgQuery(
+                `SELECT route_status FROM production_order_routes WHERE id = $1`,
+                [routeId]
+            );
+            const currentStatus = existing.rows[0]?.route_status;
+            if (currentStatus === 'COMPLETADO') {
+                await pgQuery(
+                    `UPDATE production_order_routes SET route_status = 'PENDIENTE', actual_end_at = NULL, updated_at = NOW() WHERE id = $1`,
+                    [routeId]
+                );
+                await pgQuery(
+                    `INSERT INTO production_route_events (route_id, operator_name, event_type, notes, event_payload, created_at)
+                     VALUES ($1, $2, 'revertido', 'Desmarcado desde seguimiento/orden', '{}'::jsonb, NOW())`,
+                    [routeId, actor || null]
+                );
+            }
+        }
+    } catch (e) { /* non-critical sync */ }
+}
+
+async function syncRouteStatusToMark(orderCode, processKey, routeStatus, actor = '', completedAt = null) {
+    const canonicalKey = canonicalProductionFlowKey(processKey) || processKey;
+    if (!canonicalKey || ['orden_creada', 'solicitud_vendedor', 'planeacion'].includes(canonicalKey)) return;
+    try {
+        const orderResult = await pgQuery(`SELECT raw_data FROM flexo_orders WHERE order_code = $1 LIMIT 1`, [orderCode]);
+        if (!orderResult.rows.length) return;
+        const rawData = orderResult.rows[0].raw_data || {};
+        const marks = getOrderTrackingMarks(rawData);
+        const normalizedKey = normalizeOrderTrackingStepKey(processKey);
+        const existingMark = marks[normalizedKey];
+        if (routeStatus === 'COMPLETADO') {
+            if (existingMark && existingMark.marked === true) return;
+            const now = completedAt || new Date().toISOString();
+            const mark = { marked: true, markedAt: now, markedBy: actor || '', markedByPhoto: '' };
+            const nextRawData = withUpdatedOrderTrackingMark(rawData, normalizedKey, mark);
+            await pgQuery(`UPDATE flexo_orders SET raw_data = $2::jsonb WHERE order_code = $1`, [orderCode, JSON.stringify(nextRawData)]);
+        } else if (['PENDIENTE', 'SETUP', 'RUN', 'PARO'].includes(routeStatus)) {
+            if (existingMark && existingMark.marked === false) return;
+            const now = new Date().toISOString();
+            const mark = { marked: false, clearedAt: now, clearedBy: actor || '', clearedByPhoto: '' };
+            const nextRawData = withUpdatedOrderTrackingMark(rawData, normalizedKey, mark);
+            await pgQuery(`UPDATE flexo_orders SET raw_data = $2::jsonb WHERE order_code = $1`, [orderCode, JSON.stringify(nextRawData)]);
+        }
+    } catch (e) { /* non-critical sync */ }
+}
+
 function buildOrderPlanningSummary(orderRow = {}, quoteRow = null) {
     return getOrderPlanningControl(orderRow?.raw_data || {}, quoteRow);
 }
@@ -15626,12 +15700,19 @@ app.patch('/api/planificacion/gantt/estado', async (req, res) => {
         if (!codigo_op || !estado) {
             return res.status(400).json({ ok: false, error: 'Debes indicar codigo_op y estado.' });
         }
+        const affectedRoutes = await pgQuery(
+            `SELECT id, process_key FROM production_order_routes WHERE order_code = $1`,
+            [codigo_op]
+        );
         await pgQuery(`
             UPDATE production_order_routes
             SET route_status = $1,
                 updated_at = NOW()
             WHERE order_code = $2
         `, [estado, codigo_op]);
+        for (const route of affectedRoutes.rows) {
+            syncRouteStatusToMark(codigo_op, route.process_key, estado, '').catch(() => null);
+        }
         invalidateFiniteCapacityCache();
         res.json({ ok: true });
     } catch (error) {
@@ -18403,6 +18484,7 @@ app.post('/api/ordenes-produccion/:codigo/seguimiento/marca', async (req, res) =
         }
 
         await pgQuery(`UPDATE flexo_orders SET raw_data = $2::jsonb WHERE order_code = $1`, [codigo, JSON.stringify(nextRawData)]);
+        syncMarkToRoute(codigo, processKey, marked, actor, now).catch(() => null);
         res.json({ ok: true, processKey, marked, mark });
     } catch (error) {
         res.status(500).json({ ok: false, error: error.message || 'No fue posible actualizar la marca.' });
@@ -18477,6 +18559,7 @@ app.post('/api/ordenes-produccion/:codigo/seguimiento/completar', async (req, re
                 `UPDATE production_order_routes SET route_status = 'COMPLETADO', actual_end_at = NOW() WHERE id = $1`,
                 [routeId]
             );
+            syncRouteStatusToMark(codigo, processKey, 'COMPLETADO', getRequestUserName(req)).catch(() => null);
         }
         res.json({ ok: true, message: 'Paso completado.', processKey: canonicalKey });
     } catch (error) {
@@ -18511,6 +18594,7 @@ app.post('/api/ordenes-produccion/:codigo/seguimiento/vb-revert', async (req, re
                 `UPDATE production_order_routes SET route_status = 'PENDIENTE', actual_end_at = NULL WHERE id = $1`,
                 [routeId]
             );
+            syncRouteStatusToMark(codigo, targetKey, 'PENDIENTE', getRequestUserName(req)).catch(() => null);
         }
         res.json({ ok: true, message: 'Paso revertido para correcciones.' });
     } catch (error) {
@@ -18972,6 +19056,16 @@ app.post('/api/mes/evento', async (req, res) => {
                     WHERE id = $2
                 `, [nextStatus, routeId]);
             }
+            try {
+                const routeInfo = await pgQuery(
+                    `SELECT order_code, process_key FROM production_order_routes WHERE id = $1 LIMIT 1`,
+                    [routeId]
+                );
+                if (routeInfo.rows.length) {
+                    const { order_code, process_key } = routeInfo.rows[0];
+                    syncRouteStatusToMark(order_code, process_key, nextStatus, activeOperator).catch(() => null);
+                }
+            } catch (e) { /* non-critical sync */ }
         }
 
         res.json({ ok: true, event: { routeId, eventType, operatorName: activeOperator, createdAt: new Date().toISOString() } });
