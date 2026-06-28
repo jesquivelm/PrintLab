@@ -16754,7 +16754,7 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 }
 
 .production-order-card .production-tracking-section {
-    overflow: visible;
+    overflow: hidden;
 }
 
 .production-tracking-section {
@@ -16763,7 +16763,7 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 
 .production-tracking-body {
     display: grid;
-    grid-template-columns: minmax(410px, 1fr) minmax(118px, .3fr);
+    grid-template-columns: 1fr auto;
     gap: 0 12px;
     align-items: start;
 }
@@ -16917,11 +16917,6 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
     align-items: center;
     gap: 6px;
     min-width: 0;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    background: inherit;
-    padding: 4px 0;
 }
 
 .production-tracking-date-stack {
@@ -17897,7 +17892,7 @@ html[data-theme="dark"] .config-drag-handle:hover {
          El override anterior en .production-tracking-section no era suficiente
          porque el padre .socios-section tiene overflow: hidden. ── */
 .production-tracking-section.socios-section {
-    overflow: visible !important;
+    overflow: hidden;
 }
 
 .production-header-tab-popover .calc-popover-panel {
