@@ -13242,11 +13242,11 @@ html[data-theme="dark"] .workspace-quote > .quote-card-clean .quote-meta {
 }
 
 .quote-line-menu-panel .row-action-menu-list {
-    gap: 0;
+    gap: 4px;
 }
 
 .quote-line-menu-panel .row-action-menu-item:nth-of-type(-n+5) {
-    margin-bottom: 5px;
+    margin-bottom: 0;
 }
 
 .quote-line-menu-panel .row-action-menu-section-divider {
@@ -13257,6 +13257,7 @@ html[data-theme="dark"] .workspace-quote > .quote-card-clean .quote-meta {
     width: 18px;
     height: 18px;
     flex-basis: 18px;
+    margin-right: 6px;
 }
 
 .quote-line-menu-item span:last-child {
@@ -14126,7 +14127,7 @@ html[data-theme="dark"] .quote-browser-actions .browser-open-link-danger:focus-v
 }
 
 .quote-line-menu-panel {
-    min-width: 420px !important;
+    min-width: 340px !important;
     padding: 23px 8px 8px !important;
     border: 1px solid #d8e1e9 !important;
     border-radius: 14px !important;
@@ -14137,12 +14138,12 @@ html[data-theme="dark"] .quote-browser-actions .browser-open-link-danger:focus-v
 
 .quote-line-menu-panel .row-action-menu-list {
     display: grid;
-    gap: 1px;
+    gap: 4px;
 }
 
 .quote-line-menu-panel .row-action-menu-item {
     min-height: auto !important;
-    padding: 5px 30px !important;
+    padding: 8px 20px !important;
     border-radius: 10px !important;
     font-size: 13px !important;
     font-weight: 600 !important;
