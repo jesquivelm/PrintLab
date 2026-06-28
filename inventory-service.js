@@ -1022,6 +1022,7 @@ async function listMaquinas({ q = '', limit = 300 } = {}) {
             m.sustrato_setup_merma_cantidad,
             m.sustrato_setup_merma_unidad,
             m.sustrato_setup_merma_base,
+            COALESCE(m.especificaciones, '{}'::jsonb) AS especificaciones,
             COALESCE(
                 json_agg(
                     json_build_object(
@@ -1062,6 +1063,7 @@ async function listMaquinas({ q = '', limit = 300 } = {}) {
     return result.rows.map((row) => {
         const capacidades = Array.isArray(row.capacidades) ? row.capacidades : [];
         const primary = getPrimaryCapacity(capacidades);
+        const espec = row.especificaciones && typeof row.especificaciones === 'object' ? row.especificaciones : {};
         return {
             ...row,
             capacidades,
@@ -1072,7 +1074,28 @@ async function listMaquinas({ q = '', limit = 300 } = {}) {
             ancho_max_in: primary?.ancho_max_in ?? 0,
             velocidad_produccion: primary?.velocidad_produccion ?? 0,
             costo_hora_maquina: primary?.costo_hora_maquina ?? 0,
-            costo_hora_operario: primary?.costo_hora_operario ?? 0
+            costo_hora_operario: primary?.costo_hora_operario ?? 0,
+            espec_ancho_max_mm: espec.ancho_max_mm ?? '',
+            espec_largo_max_mm: espec.largo_max_mm ?? '',
+            espec_altura_max_mm: espec.altura_max_mm ?? '',
+            espec_peso_kg: espec.peso_kg ?? '',
+            espec_num_estaciones: espec.num_estaciones ?? '',
+            espec_num_cabezales: espec.num_cabezales ?? '',
+            espec_tinta_base: espec.tinta_base ?? '',
+            espec_resolucion_dpi: espec.resolucion_dpi ?? '',
+            espec_velocidad_max_fpm: espec.velocidad_max_fpm ?? '',
+            espec_ancho_banda_max_mm: espec.ancho_banda_max_mm ?? '',
+            espec_troquel: espec.troquel ?? '',
+            espec_uv: espec.uv ?? '',
+            espec_laminado: espec.laminado ?? '',
+            espec_barniz: espec.barniz ?? '',
+            espec_tension_entrada: espec.tension_entrada ?? '',
+            espec_potencia_kw: espec.potencia_kw ?? '',
+            espec_tension_electrica: espec.tension_electrica ?? '',
+            espec_fase: espec.fase ?? '',
+            espec_corriente_max_a: espec.corriente_max_a ?? '',
+            espec_consumo_aire: espec.consumo_aire ?? '',
+            espec_temperatura_op: espec.temperatura_op ?? ''
         };
     });
 }
@@ -1574,7 +1597,8 @@ async function saveMachine(payload) {
             asText(payload.sustrato_consumo_unidad || 'pies'),
             asNumber(payload.sustrato_setup_merma_cantidad, 0),
             asText(payload.sustrato_setup_merma_unidad || 'pies'),
-            asText(payload.sustrato_setup_merma_base || 'trabajo')
+            asText(payload.sustrato_setup_merma_base || 'trabajo'),
+            payload.especificaciones || {}
         ];
 
         if (!machineValues[1]) {
@@ -1635,6 +1659,7 @@ async function saveMachine(payload) {
                         sustrato_setup_merma_cantidad = $34,
                         sustrato_setup_merma_unidad = $35,
                         sustrato_setup_merma_base = $36,
+                        especificaciones = $37::jsonb,
                         actualizado_en = NOW()
                   WHERE id = $1::uuid
                   RETURNING id::text`,
@@ -1655,9 +1680,9 @@ async function saveMachine(payload) {
                     digital_velocidad_extendida_mpm, digital_gramaje_cmyk_g_m2, digital_gramaje_blanco_g_m2,
                     digital_factor_merma, digital_costo_lavado_especial, digital_premier_modo, digital_premier_setup_min,
                     digital_premier_costo_mantenimiento, digital_premier_costo_offline_m, sustrato_consumo_unidad,
-                    sustrato_setup_merma_cantidad, sustrato_setup_merma_unidad, sustrato_setup_merma_base
+                    sustrato_setup_merma_cantidad, sustrato_setup_merma_unidad, sustrato_setup_merma_base, especificaciones
                  ) VALUES (
-                    $1,$2,$3,$4,$5::proceso_productivo,$6,$7,$11,$12,$13,$14,$15,$16,$8,$9,$10,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36
+                    $1,$2,$3,$4,$5::proceso_productivo,$6,$7,$11,$12,$13,$14,$15,$16,$8,$9,$10,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37::jsonb
                  )
                  RETURNING id::text`,
                 machineValues

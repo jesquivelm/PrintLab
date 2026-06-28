@@ -125,6 +125,7 @@ CREATE TABLE IF NOT EXISTS maquina (
   factor_preparacion          DECIMAL(10,4) NOT NULL DEFAULT 10,
   macula_default_pies         INT NOT NULL DEFAULT 100,
   factor_tiraje_digital       DECIMAL(10,4),
+  especificaciones            JSONB DEFAULT '{}'::jsonb,
   creado_en                   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   actualizado_en              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (tenant_id, nombre)

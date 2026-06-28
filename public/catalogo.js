@@ -307,7 +307,31 @@ function resolveRouteConfig() {
                 { key: 'digital_premier_modo', label: 'Modo premier', type: 'select', options: [['offline', 'Offline'], ['inline', 'In-line']] },
                 { key: 'digital_premier_setup_min', label: 'Setup premier', type: 'number', step: '0.01', suffix: 'min' },
                 { key: 'digital_premier_costo_mantenimiento', label: 'Mantenimiento premier', type: 'number', step: '0.01', suffix: '$' },
-                { key: 'digital_premier_costo_offline_m', label: 'Costo offline', type: 'number', step: '0.01', suffix: '$/m' }
+                { key: 'digital_premier_costo_offline_m', label: 'Costo offline', type: 'number', step: '0.01', suffix: '$/m' },
+                { type: 'section', label: 'Dimensiones y Capacidad', span: 2, tab: 'especificaciones' },
+                { key: 'espec_ancho_max_mm', label: 'Ancho máximo (mm)', type: 'number', step: '0.01', suffix: 'mm', tab: 'especificaciones' },
+                { key: 'espec_largo_max_mm', label: 'Largo máximo (mm)', type: 'number', step: '0.01', suffix: 'mm', tab: 'especificaciones' },
+                { key: 'espec_altura_max_mm', label: 'Altura máxima (mm)', type: 'number', step: '0.01', suffix: 'mm', tab: 'especificaciones' },
+                { key: 'espec_peso_kg', label: 'Peso (kg)', type: 'number', step: '0.01', suffix: 'kg', tab: 'especificaciones' },
+                { key: 'espec_ancho_banda_max_mm', label: 'Ancho banda máximo (mm)', type: 'number', step: '0.01', suffix: 'mm', tab: 'especificaciones' },
+                { type: 'section', label: 'Tecnología', span: 2, tab: 'especificaciones' },
+                { key: 'espec_num_estaciones', label: 'Número estaciones', type: 'number', step: '1', tab: 'especificaciones' },
+                { key: 'espec_num_cabezales', label: 'Número cabezales', type: 'number', step: '1', tab: 'especificaciones' },
+                { key: 'espec_tinta_base', label: 'Tipo tinta base', type: 'select', options: [['', 'Sin definir'], ['solvente', 'Solvente'], ['agua', 'Agua'], ['uv', 'UV'], ['híbrida', 'Híbrida']], tab: 'especificaciones' },
+                { key: 'espec_resolucion_dpi', label: 'Resolución (DPI)', type: 'number', step: '1', suffix: 'DPI', tab: 'especificaciones' },
+                { key: 'espec_velocidad_max_fpm', label: 'Velocidad máxima', type: 'number', step: '0.01', suffixSourceKey: 'unidad_velocidad_produccion', tab: 'especificaciones' },
+                { key: 'espec_troquel', label: 'Troquel', type: 'checkbox', span: 1, tab: 'especificaciones' },
+                { key: 'espec_uv', label: 'UV', type: 'checkbox', span: 1, tab: 'especificaciones' },
+                { key: 'espec_laminado', label: 'Laminado', type: 'checkbox', span: 1, tab: 'especificaciones' },
+                { key: 'espec_barniz', label: 'Barniz', type: 'checkbox', span: 1, tab: 'especificaciones' },
+                { type: 'section', label: 'Eléctrico', span: 2, tab: 'especificaciones' },
+                { key: 'espec_tension_entrada', label: 'Tensión entrada', type: 'select', options: [['', 'Sin definir'], ['110V', '110V'], ['220V', '220V'], ['380V', '380V'], ['440V', '440V']], tab: 'especificaciones' },
+                { key: 'espec_potencia_kw', label: 'Potencia (kW)', type: 'number', step: '0.01', suffix: 'kW', tab: 'especificaciones' },
+                { key: 'espec_tension_electrica', label: 'Tensión eléctrica', type: 'text', tab: 'especificaciones' },
+                { key: 'espec_fase', label: 'Fase', type: 'select', options: [['', 'Sin definir'], ['1', '1'], ['3', '3']], tab: 'especificaciones' },
+                { key: 'espec_corriente_max_a', label: 'Corriente máxima (A)', type: 'number', step: '0.01', suffix: 'A', tab: 'especificaciones' },
+                { key: 'espec_consumo_aire', label: 'Consumo aire', type: 'text', tab: 'especificaciones' },
+                { key: 'espec_temperatura_op', label: 'Temperatura operación', type: 'text', tab: 'especificaciones' }
             ],
             createEmptyItem() {
                 return {
@@ -351,7 +375,28 @@ function resolveRouteConfig() {
                     comentario_setup: '',
                     comentario_montaje: '',
                     macula_default_pies: 0,
-                    capacidades: []
+                    capacidades: [],
+                    espec_ancho_max_mm: '',
+                    espec_largo_max_mm: '',
+                    espec_altura_max_mm: '',
+                    espec_peso_kg: '',
+                    espec_num_estaciones: '',
+                    espec_num_cabezales: '',
+                    espec_tinta_base: '',
+                    espec_resolucion_dpi: '',
+                    espec_velocidad_max_fpm: '',
+                    espec_ancho_banda_max_mm: '',
+                    espec_troquel: '',
+                    espec_uv: '',
+                    espec_laminado: '',
+                    espec_barniz: '',
+                    espec_tension_entrada: '',
+                    espec_potencia_kw: '',
+                    espec_tension_electrica: '',
+                    espec_fase: '',
+                    espec_corriente_max_a: '',
+                    espec_consumo_aire: '',
+                    espec_temperatura_op: ''
                 };
             }
         },
@@ -1385,7 +1430,8 @@ function buildMachineTabbedForm(viewItem) {
     const tabs = [
         { key: 'general', label: 'Informacion general' },
         { key: 'digital', label: 'Impresion digital' },
-        { key: 'premier', label: 'Premier digital' }
+        { key: 'premier', label: 'Premier digital' },
+        { key: 'especificaciones', label: 'Especificaciones' }
     ];
     const tabBar = document.createElement('div');
     tabBar.className = 'standard-module-tabs inventory-machine-tabs';
@@ -1435,9 +1481,10 @@ function buildMachineTabbedForm(viewItem) {
         const isDigital = String(typeSelect?.value || '').trim() === 'Digital';
         Array.from(tabBar.querySelectorAll('.inventory-machine-tab')).forEach((button) => {
             const extraTab = button.dataset.machineTab !== 'general';
-            button.hidden = extraTab && !isDigital;
+            const alwaysVisible = button.dataset.machineTab === 'especificaciones';
+            button.hidden = extraTab && !isDigital && !alwaysVisible;
         });
-        if (!isDigital) {
+        if (!isDigital && !tabBar.querySelector(`[data-machine-tab="especificaciones"].is-active`)) {
             setActiveTab('general');
         }
         syncInventorySuffixes(catalogForm);
@@ -1714,6 +1761,15 @@ function buildPayloadFromForm() {
         primary.costo_hora_maquina = payload.costo_hora_maquina;
         primary.costo_hora_operario = payload.costo_hora_operario;
         payload.capacidades = capabilitiesState.map((capacity) => ({ ...capacity }));
+
+        payload.especificaciones = {};
+        const especKeys = Object.keys(payload).filter(k => k.startsWith('espec_'));
+        especKeys.forEach(k => {
+            const specKey = k.replace('espec_', '');
+            payload.especificaciones[specKey] = payload[k];
+            delete payload[k];
+        });
+
         delete payload.proceso_principal;
         delete payload.subproceso;
         delete payload.ancho_max_in;
