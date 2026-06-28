@@ -197,6 +197,25 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-sans);font-si
 .spectro-save-btn{font-family:var(--font-mono);font-size:10px;padding:4px 12px;border-radius:3px;border:1px solid var(--blue-border);background:var(--blue-bg);color:var(--blue);cursor:pointer;transition:.15s}
 .spectro-save-btn:hover{background:var(--blue-border);color:#fff}
 
+/* ── HISTORIAL DE CONFIGURACIÓN DE ESTACIONES ── */
+.station-history-bar{background:#0a0f1a;border:1px solid #1e2d3d;border-radius:4px;padding:10px;margin-bottom:10px}
+.station-history-hdr{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.station-history-title{font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;flex:1}
+.station-history-btn{font-family:var(--font-mono);font-size:10px;padding:4px 10px;border-radius:3px;border:1px solid #263244;background:#111827;color:#64748b;cursor:pointer;transition:.15s;display:flex;align-items:center;gap:4px}
+.station-history-btn:hover{border-color:#f59e0b;color:#f59e0b}
+.station-history-btn.active{border-color:#f59e0b;background:#2a1f00;color:#f59e0b}
+.station-history-btn.save-btn{border-color:#238636;background:#0a1f0e;color:#3fb950}
+.station-history-btn.save-btn:hover{background:#238636;color:#fff}
+.station-history-list{max-height:0;overflow:hidden;transition:max-height .3s ease}
+.station-history-list.open{max-height:300px;overflow-y:auto}
+.station-history-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid #1e2d3d;cursor:pointer;transition:.12s}
+.station-history-item:hover{background:#161b22}
+.station-history-item:last-child{border-bottom:none}
+.station-history-date{font-family:var(--font-mono);font-size:10px;color:#64748b;min-width:90px}
+.station-history-operator{font-size:11px;color:#8b949e;flex:1}
+.station-history-stations{font-family:var(--font-mono);font-size:9px;color:#475569;display:flex;gap:3px}
+.station-history-chip{width:12px;height:12px;border-radius:2px;border:1px solid #263244}
+
 /* ── SOLICITUD MATERIA PRIMA ── */
 .mp-panel{background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:12px;margin-bottom:10px}
 .mp-panel-hdr{font-family:var(--font-mono);font-size:10px;color:var(--cyan);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
@@ -1209,6 +1228,24 @@ function buildMESPanel(o){
       </div>
     </div>
 
+    <!-- STATION HISTORY BAR -->
+    <div class="station-history-bar" id="stationHistory_${o.id}">
+      <div class="station-history-hdr">
+        <span class="station-history-title">Historial de Configuración</span>
+        <button class="station-history-btn" onclick="toggleStationHistory('${o.id}')">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 3.5a.5.5 0 0 1 .5.5v4H12a.5.5 0 0 1 0 1H7.5a.5.5 0 0 1-.5-.5V4a.5.5 0 0 1 .5-.5z"/><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0z"/></svg>
+          Cargar Anterior
+        </button>
+        <button class="station-history-btn save-btn" onclick="saveStationConfig('${o.id}')">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+          Guardar
+        </button>
+      </div>
+      <div class="station-history-list" id="stationHistoryList_${o.id}">
+        <div style="font-family:var(--font-mono);font-size:10px;color:#475569;padding:8px;text-align:center">Cargando historial...</div>
+      </div>
+    </div>
+
     <div class="mes-form">
       <div class="mes-form-hdr">
         <div>
@@ -1387,6 +1424,151 @@ function mesSel(type,inst,oid){
   renderQueue();
 }
 function mesSave(oid){showToast('✓ Sincronizado con maestro de orden — MES Gallus 440');}
+
+// ════════════════════════════════════════════
+// STATION CONFIG HISTORY
+// ════════════════════════════════════════════
+let stationHistoryOpen={};
+let stationHistoryData={};
+
+function toggleStationHistory(oid){
+  stationHistoryOpen[oid]=!stationHistoryOpen[oid];
+  const el=document.getElementById('stationHistoryList_'+oid);
+  if(!el)return;
+  if(stationHistoryOpen[oid]){
+    el.classList.add('open');
+    loadStationHistory(oid);
+  }else{
+    el.classList.remove('open');
+  }
+}
+
+async function loadStationHistory(oid){
+  const el=document.getElementById('stationHistoryList_'+oid);
+  if(!el)return;
+  el.innerHTML='<div style="font-family:var(--font-mono);font-size:10px;color:#475569;padding:8px;text-align:center">Cargando...</div>';
+  try{
+    const res=await fetch(`/api/mes/historial-config?orderCode=${encodeURIComponent(oid)}`,{
+      headers:{...sessionHeader()}
+    });
+    const json=await res.json();
+    if(!json.ok||!json.data||json.data.length===0){
+      el.innerHTML='<div style="font-family:var(--font-mono);font-size:10px;color:#475569;padding:8px;text-align:center">Sin historial para esta orden</div>';
+      return;
+    }
+    stationHistoryData[oid]=json.data;
+    const inkColorMap={
+      cyan:'#06b6d4',magenta:'#ec4899',amarillo:'#eab308',negro:'#1e293b',
+      blanco:'#f8fafc',pantone:'#f97316',barniz:'#a78bfa',empty:'#1e2d3d'
+    };
+    el.innerHTML=json.data.map((cfg,i)=>{
+      const dt=new Date(cfg.created_at);
+      const dateStr=dt.toLocaleDateString('es-CR',{day:'2-digit',month:'2-digit'})+' '+dt.toLocaleTimeString('es-CR',{hour:'2-digit',minute:'2-digit'});
+      const op=cfg.operator_name||'Operario';
+      return`<div class="station-history-item" onclick="loadStationConfig('${oid}',${i})">
+        <span class="station-history-date">${dateStr}</span>
+        <span class="station-history-operator">${op}</span>
+        <div class="station-history-stations">
+          ${[1,2,3,4,5,6,7,8].map(s=>{
+            const ink=cfg['ink_type_slot_'+s]||cfg.ink_type||'empty';
+            const col=inkColorMap[ink]||'#1e2d3d';
+            return`<div class="station-history-chip" style="background:${col}" title="S${s}: ${ink}"></div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    el.innerHTML='<div style="font-family:var(--font-mono);font-size:10px;color:#f85149;padding:8px;text-align:center">Error al cargar</div>';
+  }
+}
+
+async function loadStationConfig(oid,idx){
+  const cfgs=stationHistoryData[oid];
+  if(!cfgs||!cfgs[idx])return;
+  const cfg=cfgs[idx];
+  try{
+    const res=await fetch(`/api/mes/config-estaciones?orderCode=${encodeURIComponent(oid)}`,{
+      headers:{...sessionHeader()}
+    });
+    const json=await res.json();
+    if(!json.ok||!json.data||json.data.length===0){
+      showToast('No se pudo cargar la configuración');
+      return;
+    }
+    const allConfigs=json.data;
+    const cfgTime=new Date(cfg.created_at).getTime();
+    const groupConfigs=allConfigs.filter(c=>{
+      const cTime=new Date(c.created_at).getTime();
+      return Math.abs(cTime-cfgTime)<3600000;
+    });
+    if(groupConfigs.length===0){
+      showToast('No se encontraron estaciones para esta configuración');
+      return;
+    }
+    for(const st of groupConfigs){
+      const slot=st.slot_number;
+      if(slot>=1&&slot<=8){
+        mesState.slots[slot]=st.ink_type||'empty';
+        mesState.slotData[slot]={
+          visc:String(st.viscosity||22),
+          temp:String(st.temperature||23.5),
+          anilox:st.anilox_code||'ANX-800-2.2',
+          barnizTipo:st.barniz_tipo||'Brillante UV',
+          barnizZonif:st.barniz_zonif||'Total',
+          barnizZona:st.barniz_zona||'',
+          pantoneRef:st.pantone_ref||'PMS 485 C'
+        };
+      }
+    }
+    renderQueue();
+    showToast('✓ Configuración cargada del historial');
+  }catch(e){
+    showToast('Error al cargar configuración');
+  }
+}
+
+async function saveStationConfig(oid){
+  const stations=[];
+  for(let i=1;i<=8;i++){
+    const slot=mesState.slots[i]||'empty';
+    const d=mesState.slotData[i]||{};
+    stations.push({
+      slotNumber:i,
+      inkType:slot,
+      viscosity:Number(d.visc||0),
+      temperature:Number(d.temp||0),
+      aniloxCode:d.anilox||'',
+      pantoneRef:d.pantoneRef||'',
+      barnizTipo:d.barnizTipo||'',
+      barnizZonif:d.barnizZonif||'',
+      barnizZona:d.barnizZona||'',
+      uvPower:d.uvPower||'',
+      uvTemp:d.uvTemp||''
+    });
+  }
+  try{
+    const res=await fetch('/api/mes/config-estaciones',{
+      method:'POST',
+      headers:{'Content-Type':'application/json',...sessionHeader()},
+      body:JSON.stringify({
+        orderCode:oid,
+        productCode:oid,
+        machineName:'Gallus Labelmaster 440',
+        operatorName:currentUserName(),
+        stations:stations
+      })
+    });
+    const json=await res.json();
+    if(json.ok){
+      showToast('✓ Configuración guardada en historial');
+      if(stationHistoryOpen[oid])loadStationHistory(oid);
+    }else{
+      showToast('Error: '+(json.error||'No se pudo guardar'));
+    }
+  }catch(e){
+    showToast('Error al guardar configuración');
+  }
+}
 
 // ════════════════════════════════════════════
 // ACTIONS

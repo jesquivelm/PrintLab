@@ -19110,6 +19110,119 @@ app.post('/api/mes/mermas', async (req, res) => {
     }
 });
 
+// ═══════════════════════════════════════════════════════════════════
+// CONFIGURACIÓN DE ESTACIONES - HISTORIAL MES
+// ═══════════════════════════════════════════════════════════════════
+
+app.get('/api/mes/historial-config', async (req, res) => {
+    try {
+        const orderCode = String(req.query.orderCode || '').trim();
+        const productCode = String(req.query.productCode || '').trim();
+        if (!orderCode && !productCode) {
+            return res.status(400).json({ ok: false, error: 'Debes indicar orderCode o productCode.' });
+        }
+        const filters = [];
+        const values = [];
+        if (orderCode) {
+            values.push(orderCode);
+            filters.push(`order_code = $${values.length}`);
+        }
+        if (productCode) {
+            values.push(productCode);
+            filters.push(`product_code = $${values.length}`);
+        }
+        const result = await pgQuery(`
+            SELECT DISTINCT ON (config_group)
+                id, order_code, product_code, machine_name, operator_name, created_at,
+                config_group
+            FROM (
+                SELECT *,
+                    DATE_TRUNC('hour', created_at) AS config_group
+                FROM production_station_configs
+                WHERE ${filters.join(' AND ')}
+            ) sub
+            ORDER BY config_group DESC, created_at DESC
+            LIMIT 20
+        `, values);
+        res.json({ ok: true, data: result.rows });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible cargar el historial de configuraciones.' });
+    }
+});
+
+app.get('/api/mes/config-estaciones', async (req, res) => {
+    try {
+        const orderCode = String(req.query.orderCode || '').trim();
+        const configId = String(req.query.configId || '').trim();
+        if (!orderCode && !configId) {
+            return res.status(400).json({ ok: false, error: 'Debes indicar orderCode o configId.' });
+        }
+        let query, values;
+        if (configId) {
+            query = `SELECT * FROM production_station_configs WHERE id = $1`;
+            values = [configId];
+        } else {
+            query = `
+                SELECT * FROM production_station_configs
+                WHERE order_code = $1
+                ORDER BY created_at DESC
+                LIMIT 8
+            `;
+            values = [orderCode];
+        }
+        const result = await pgQuery(query, values);
+        res.json({ ok: true, data: result.rows });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible cargar la configuración de estaciones.' });
+    }
+});
+
+app.post('/api/mes/config-estaciones', async (req, res) => {
+    try {
+        const { orderCode, productCode, machineName, operatorName, stations, notes } = req.body || {};
+        if (!orderCode) {
+            return res.status(400).json({ ok: false, error: 'Debes indicar orderCode.' });
+        }
+        if (!stations || !Array.isArray(stations) || stations.length === 0) {
+            return res.status(400).json({ ok: false, error: 'Debes enviar las estaciones (stations).' });
+        }
+        const configGroup = new Date().toISOString();
+        const inserted = [];
+        for (const st of stations) {
+            const result = await pgQuery(`
+                INSERT INTO production_station_configs (
+                    order_code, product_code, machine_name, slot_number, ink_type,
+                    viscosity, temperature, anilox_code, pantone_ref,
+                    barniz_tipo, barniz_zonif, barniz_zona, uv_power, uv_temp,
+                    operator_name, notes
+                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+                RETURNING id
+            `, [
+                orderCode,
+                productCode || null,
+                machineName || null,
+                Number(st.slotNumber || st.slot_number || 0),
+                st.inkType || st.ink_type || 'empty',
+                Number(st.viscosity || st.visc || 0),
+                Number(st.temperature || st.temp || 0),
+                st.aniloxCode || st.anilox || null,
+                st.pantoneRef || null,
+                st.barnizTipo || null,
+                st.barnizZonif || null,
+                st.barnizZona || null,
+                st.uvPower || null,
+                st.uvTemp || null,
+                operatorName || null,
+                notes || null
+            ]);
+            inserted.push(result.rows[0].id);
+        }
+        res.json({ ok: true, ids: inserted });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible guardar la configuración de estaciones.' });
+    }
+});
+
 app.get('/api/flexo/calculo', async (req, res) => {
     try {
         const quoteId = String(req.query.quoteId || '').trim();

@@ -206,3 +206,31 @@ CREATE INDEX IF NOT EXISTS idx_production_resources_process ON production_resour
 CREATE INDEX IF NOT EXISTS idx_production_resource_skills_process ON production_resource_skills(process_key, is_active);
 CREATE INDEX IF NOT EXISTS idx_capacity_snapshots_created ON production_capacity_snapshots(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_capacity_snapshots_period ON production_capacity_snapshots(from_date, to_date);
+
+-- ═══════════════════════════════════════════════════════════════════
+-- FASE: HISTORIAL DE CONFIGURACIÓN DE ESTACIONES (MES)
+-- ═══════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS production_station_configs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_code TEXT NOT NULL REFERENCES flexo_orders(order_code) ON DELETE CASCADE,
+    product_code TEXT,
+    machine_name TEXT,
+    slot_number INTEGER NOT NULL CHECK (slot_number >= 1 AND slot_number <= 8),
+    ink_type TEXT NOT NULL DEFAULT 'empty',
+    viscosity NUMERIC(8,2),
+    temperature NUMERIC(8,2),
+    anilox_code TEXT,
+    pantone_ref TEXT,
+    barniz_tipo TEXT,
+    barniz_zonif TEXT,
+    barniz_zona TEXT,
+    uv_power TEXT,
+    uv_temp TEXT,
+    operator_name TEXT,
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_production_station_configs_order ON production_station_configs(order_code, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_production_station_configs_product ON production_station_configs(product_code, created_at DESC);
