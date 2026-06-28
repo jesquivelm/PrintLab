@@ -16713,7 +16713,7 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 }
 
 .production-order-card .production-order-layout-refined {
-    grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
+    grid-template-columns: 1fr 1fr;
     gap: 16px 22px;
     align-items: stretch;
 }
@@ -16724,13 +16724,13 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 }
 
 #orderContent > .production-order-layout-refined > .production-tracking-section {
-    grid-column: 1;
-    grid-row: 2;
+    grid-column: 2;
+    grid-row: 1;
 }
 
 #orderContent > .production-order-layout-refined > .production-product-section {
-    grid-column: 1;
-    grid-row: 3;
+    grid-column: 1 / -1;
+    grid-row: 2;
 }
 
 #orderContent > .production-order-layout-refined > .production-order-column-secondary {
@@ -16739,17 +16739,17 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 
 #orderContent > .production-order-layout-refined > .production-samples-section {
     grid-column: 1;
-    grid-row: 4;
+    grid-row: 3;
 }
 
 #orderContent > .production-order-layout-refined > .production-delivery-section {
-    grid-column: 1;
-    grid-row: 5;
+    grid-column: 2;
+    grid-row: 3;
 }
 
 #orderContent > .production-order-layout-refined > .production-observations-section {
     grid-column: 1 / -1;
-    grid-row: 6;
+    grid-row: 4;
     margin-top: 0;
 }
 
@@ -17906,7 +17906,7 @@ html[data-theme="dark"] .config-drag-handle:hover {
 }
 
 .production-order-layout-refined {
-    overflow-x: visible;
+    overflow: hidden;
 }
 
 .production-tracking-state-row {
