@@ -1441,7 +1441,7 @@ function frontBackSharedProcessKeys() {
 }
 
 function isProcessAllowedForCurrentFrontBackContext(key = "") {
-  if (isFrontBackEmbeddedElementContext() && ["troquel", "sustrato", "impresion"].includes(norm(key))) return false;
+  if (isFrontBackEmbeddedElementContext() && ["troquel", "sustrato", "impresion", "planchas"].includes(norm(key))) return false;
   return true;
 }
 
@@ -5615,7 +5615,7 @@ function renderFrontBackElementsCard() {
     els.frontBackElementsBody.innerHTML = `
       <div class="front-back-group-note">
         <strong>Elemento ${esc(group.elementRole || "")}</strong>
-        <span>La cantidad, sustrato, preprensa, planchas e impresión se controlan desde la línea grupo ${esc(group.groupLineCode)}.</span>
+        <span>La cantidad, sustrato, preprensa, planchas, impresión y troquel se controlan desde la línea grupo ${esc(group.groupLineCode)}.</span>
         ${groupRoute ? `<button type="button" class="inline-button" data-front-back-open-line="${esc(group.groupLineCode)}">Abrir grupo</button>` : ""}
       </div>
     `;
@@ -7272,7 +7272,22 @@ function renderDieInventoryPanel(troquel) {
   const recommendedLabel = recommendedDie ? `Recomendado: ${first(recommendedDie.codigoTroquel, recommendedDie.codigo, recommendedDie.id)}` : "Seleccionar...";
   const productDimension = `${num(state.form.header.labelWidthIn || 0, 3)} x ${num(state.form.header.labelHeightIn || 0, 3)} in`;
   const associateChecked = state.form.troquel.associateDieShape !== false ? " checked" : "";
-  return `<div class="editable-grid die-association-row"><label><span>Forma</span><button type="button" class="calc-shape-trigger" data-calc-shape-trigger aria-expanded="false"><span class="calc-shape-trigger-copy"><span class="calc-shape-thumb" data-calc-shape-thumb>${dieShapeThumbForValue(shapeValue, shapeImage)}</span><span class="calc-shape-trigger-label" data-calc-shape-label>${esc(shapeValue || "Seleccionar...")}</span></span></button></label><label class="die-associate-field"><span>Asociar</span><span class="inline-process-check plate-virgin-check die-associate-check"><input data-scope="troquel" data-field="associateDieShape" type="checkbox"${associateChecked}></span></label><label><span>Troquel</span><select data-scope="troquel" data-field="dieCode">${processOptions(troquelDieOptions(), state.form.troquel.dieCode, recommendedLabel)}</select></label></div><div class="readonly-grid compact-top">${metricBox("Dimensión Producto", productDimension, false, Boolean(dieDimensionMismatch()))}${metric("Código Troquel", esc(state.form.troquel.dieCode || "No definido"))}${metric("Ancho Montaje", `${num(state.form.troquel.widthIn, 3)} in`)}${metric("Largo Montaje", `${num(state.form.troquel.lengthIn, 3)} in`)}${metric("Ancho Material", `${num(state.form.troquel.materialWidthIn || 0, 3)} in`)}${metric("Elongación", `${num(state.form.troquel.elongationPct || 0, 3)} %`)}${metric("Dientes", num(state.form.troquel.teeth, 0))}${metric("Repeticiones", num(state.form.troquel.repeats, 0))}${metric("Filas", num(state.form.troquel.rows, 0))}${metric("Etiquetas por Vuelta", num(troquel.labelsPerRepeat, 0))}${metric("Desarrollo Total", `${num(troquel.development, 3)} in`)}</div>${dieDimensionWarningMarkup()}${formula("Base del Troquel", troquel.formulaText, troquel.explanation, {
+  let elementDimensionsHtml = "";
+  if (isFrontBackGroupContext()) {
+    const { elements } = relatedFrontBackLines();
+    if (elements.length) {
+      const dimRows = elements.map((item) => {
+        const raw = storedLineRaw(item.line);
+        const uiHeader = raw?.["Estado_UI"]?.header || {};
+        const w = n(uiHeader.labelWidthIn || item.line.raw_data?.["Estado_UI"]?.header?.labelWidthIn, 0);
+        const h = n(uiHeader.labelHeightIn || item.line.raw_data?.["Estado_UI"]?.header?.labelHeightIn, 0);
+        const name = storedLineJobName(item.line) || item.code;
+        return `<div class="metric-cell"><span>${esc(name)} (${esc(item.role)})</span><strong>${num(w, 3)} x ${num(h, 3)} in</strong></div>`;
+      }).join("");
+      elementDimensionsHtml = `<div class="readonly-grid compact-top" style="margin-top:6px;">${metric("Dimensión Producto", productDimension)}${dimRows}</div>`;
+    }
+  }
+  return `<div class="editable-grid die-association-row"><label><span>Forma</span><button type="button" class="calc-shape-trigger" data-calc-shape-trigger aria-expanded="false"><span class="calc-shape-trigger-copy"><span class="calc-shape-thumb" data-calc-shape-thumb>${dieShapeThumbForValue(shapeValue, shapeImage)}</span><span class="calc-shape-trigger-label" data-calc-shape-label>${esc(shapeValue || "Seleccionar...")}</span></span></button></label><label class="die-associate-field"><span>Asociar</span><span class="inline-process-check plate-virgin-check die-associate-check"><input data-scope="troquel" data-field="associateDieShape" type="checkbox"${associateChecked}></span></label><label><span>Troquel</span><select data-scope="troquel" data-field="dieCode">${processOptions(troquelDieOptions(), state.form.troquel.dieCode, recommendedLabel)}</select></label></div><div class="readonly-grid compact-top">${elementDimensionsHtml || `${metricBox("Dimensión Producto", productDimension, false, Boolean(dieDimensionMismatch()))}`}${metric("Código Troquel", esc(state.form.troquel.dieCode || "No definido"))}${metric("Ancho Montaje", `${num(state.form.troquel.widthIn, 3)} in`)}${metric("Largo Montaje", `${num(state.form.troquel.lengthIn, 3)} in`)}${metric("Ancho Material", `${num(state.form.troquel.materialWidthIn || 0, 3)} in`)}${metric("Elongación", `${num(state.form.troquel.elongationPct || 0, 3)} %`)}${metric("Dientes", num(state.form.troquel.teeth, 0))}${metric("Repeticiones", num(state.form.troquel.repeats, 0))}${metric("Filas", num(state.form.troquel.rows, 0))}${metric("Etiquetas por Vuelta", num(troquel.labelsPerRepeat, 0))}${metric("Desarrollo Total", `${num(troquel.development, 3)} in`)}</div>${dieDimensionWarningMarkup()}${formula("Base del Troquel", troquel.formulaText, troquel.explanation, {
     exampleLines: [
       `Etiquetas por repetición: ${formulaValue(state.form.troquel.rows || 0, 0)} x ${formulaValue(state.form.troquel.repeats || 0, 0)} = ${formulaValue(troquel.labelsPerRepeat || 0, 0)}`,
       `Desarrollo total: ${formulaValue(state.form.troquel.lengthIn || 0, 2)} x ${formulaValue(state.form.troquel.repeats || 0, 0)} = ${formulaValue(troquel.development || 0, 2)} in`,
