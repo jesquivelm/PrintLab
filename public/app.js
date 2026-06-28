@@ -1261,7 +1261,7 @@ function renderDataRow(row, index, subtotalKeys) {
             <td class="quote-detail-date-cell">${quoteCellMarkup(formatDate(row.dueOn))}</td>
             ${renderSubtotalCells(row, subtotalKeys)}
             <td>
-                <div class="row-tools row-tools-row-end">
+                <div class="row-tools row-tools-row-end row-tools-detail-actions">
                     <span class="row-action-divider" aria-hidden="true"></span>
                     ${canOpenCalc ? `<button type="button" class="row-tool-btn row-tool-detail" data-action="open-calc" data-id="${row.id}" aria-label="Abrir cálculo" style="${iconButtonStyle('open', 16)}">${iconMarkup(rowIcons.open, 'Abrir cálculo', 'table-icon-media')}</button>` : '<span class="row-tool-spacer"></span>'}
                     <button type="button" class="row-tool-btn row-tool-actions" data-action="toggle-row-menu" data-id="${row.id}" aria-label="Más opciones" title="Más opciones" style="${iconButtonStyle('actions', 18)}">${iconMarkup(rowIcons.actions, 'Más opciones', 'table-icon-media')}</button>
@@ -1302,7 +1302,7 @@ function renderDetailDataRow(node, displayIndex, subtotalKeys, totalNodes) {
             <td class="quote-detail-date-cell">${quoteCellMarkup(formatDate(row.dueOn))}</td>
             ${renderSubtotalCells(row, subtotalKeys)}
             <td>
-                <div class="row-tools row-tools-row-end">
+                <div class="row-tools row-tools-row-end row-tools-detail-actions">
                     <span class="row-action-divider" aria-hidden="true"></span>
                     ${canOpenCalc ? `<button type="button" class="row-tool-btn row-tool-detail" data-action="open-calc" data-id="${row.id}" aria-label="Abrir cálculo" style="${iconButtonStyle('open', 16)}">${iconMarkup(rowIcons.open, 'Abrir cálculo', 'table-icon-media')}</button>` : '<span class="row-tool-spacer"></span>'}
                     <button type="button" class="row-tool-btn row-tool-actions" data-action="toggle-row-menu" data-id="${row.id}" aria-label="Más opciones" title="Más opciones" style="${iconButtonStyle('actions', 18)}">${iconMarkup(rowIcons.actions, 'Más opciones', 'table-icon-media')}</button>
@@ -1452,7 +1452,7 @@ function getRowActionDefinitionsForRow(row) {
         { key: 'duplicate', label: 'Duplicar Línea', icon: rowIcons.duplicate, action: 'duplicate-line' },
         { key: 'copy', label: 'Copiar Línea a Otra Cotización', icon: rowIcons.copy, action: 'copy-line' },
         { key: 'createProduct', label: 'Convertir en Producto', icon: rowIcons.createProduct, action: 'create-product-from-line' },
-        { key: 'createQuote', label: 'Crear Nueva Cotización a Partir de Esta Línea', icon: rowIcons.createQuote, action: 'create-quote-from-line' },
+        { key: 'createQuote', label: 'Crear en Nuevo Cálculo', icon: rowIcons.createQuote, action: 'create-quote-from-line' },
         { key: 'frontBack', label: 'Crear Frente/Dorso', icon: rowIcons.frontBack, action: 'front-back-line' },
         ...(canCreateOrder ? [{ key: 'createOrder', label: 'Crear orden de producción', icon: rowIcons.createOrder, action: 'create-production-order' }] : []),
         { key: 'export', label: 'Exportar Línea a Excel', icon: rowIcons.export, action: 'export-line' },

@@ -6565,6 +6565,7 @@ body.shell-embedded .summary-footer {
 .row-tools { display: flex; align-items: center; justify-content: center; }
 .row-tools-compact { gap: 4px; }
 .row-tools-row-end { gap: 6px; justify-content: flex-end; padding-right: 2px; }
+.row-tools-detail-actions { gap: 2px; }
 .row-tools-leading { gap: 4px; justify-content: flex-start; padding-left: 2px; padding-right: 8px; }
 .row-tool-btn {
     display: inline-flex;
