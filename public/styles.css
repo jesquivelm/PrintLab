@@ -6095,6 +6095,7 @@ body.shell-embedded .summary-footer {
     align-items: start;
     gap: 18px;
     width: 100%;
+    max-width: min(100%, 1320px);
 }
 .quote-head-left {
     display: grid;
@@ -6199,7 +6200,6 @@ body.shell-embedded .summary-footer {
 }
 .field-quote-compact {
     justify-items: center;
-    margin-right: 16px;
 }
 .field-quote input {
     width: var(--quote-number-width, 102px);
@@ -16533,6 +16533,47 @@ html[data-theme="dark"] .quote-master-line-measure {
     font-weight: 700;
     color: var(--app-text-soft, #607286);
     margin-left: 2px;
+}
+
+.detail-tree-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    border: 0;
+    background: transparent;
+    color: var(--app-text-soft, #607286);
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-size: 12px;
+    line-height: 1;
+    vertical-align: middle;
+}
+
+.detail-tree-toggle:hover {
+    color: var(--app-primary, #0b81b8);
+    background: rgba(11, 129, 184, 0.08);
+}
+
+.detail-tree-glyph {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.detail-tree-count {
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.detail-tree-spacer {
+    display: inline-block;
+    width: 28px;
+}
+
+.detail-row-num {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--app-text-soft, #607286);
 }
 
 tr.is-front-back-parent {

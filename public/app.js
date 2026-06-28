@@ -1252,15 +1252,15 @@ function renderDetailDataRow(node, displayIndex, subtotalKeys, totalNodes) {
     let treeToggle = '';
     if (isGroup) {
         const glyph = node.expanded ? '▾' : '▸';
-        treeToggle = `<button type="button" class="quote-master-line-tree-toggle" data-detail-front-back-toggle="${escapeHtml(node.key)}" title="Expandir/colapsar" aria-expanded="${node.expanded ? 'true' : 'false'}">${glyph} <span class="quote-master-toggle-count">(${node.childCount})</span></button>`;
+        treeToggle = `<button type="button" class="detail-tree-toggle" data-detail-front-back-toggle="${escapeHtml(node.key)}" title="Expandir/colapsar" aria-expanded="${node.expanded ? 'true' : 'false'}"><span class="detail-tree-glyph">${glyph}</span><span class="detail-tree-count">(${node.childCount})</span></button>`;
     } else if (isChild) {
-        treeToggle = '<span class="quote-master-line-tree-spacer" aria-hidden="true"></span>';
+        treeToggle = '<span class="detail-tree-spacer" aria-hidden="true"></span>';
     } else {
-        treeToggle = '<span class="quote-master-line-tree-spacer" aria-hidden="true"></span>';
+        treeToggle = '<span class="detail-tree-spacer" aria-hidden="true"></span>';
     }
     return `
         <tr data-id="${row.id}" class="${rowClass}${treeClass}">
-            <td class="row-number">${treeToggle} ${displayIndex + 1}</td>
+            <td class="row-number">${treeToggle} <span class="detail-row-num">${displayIndex + 1}</span></td>
             <td>
                 <div class="row-tools row-tools-compact row-tools-leading">
                     <span class="row-action-divider" aria-hidden="true"></span>
