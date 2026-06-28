@@ -269,69 +269,69 @@ function resolveRouteConfig() {
             ],
             formFields: [
                 { key: 'id', type: 'hidden' },
-                { type: 'section', label: 'Informacion general', span: 2, tabKey: 'general' },
+                { type: 'section', label: 'Información General', span: 2, tabKey: 'general' },
                 { key: 'nombre', label: 'Nombre', type: 'text' },
                 { key: 'marca', label: 'Marca', type: 'text' },
                 { key: 'modelo', label: 'Modelo', type: 'text' },
-                { key: 'tipo', label: 'Tipo', type: 'select', options: [['', 'Sin definir'], ['Convencional', 'Convencional'], ['Digital', 'Digital'], ['Hibrido', 'Hibrido']] },
-                { key: 'proceso_principal', label: 'Proceso principal', type: 'text' },
+                { key: 'tipo', label: 'Tipo', type: 'select', options: [['', 'Sin Definir'], ['Convencional', 'Convencional'], ['Digital', 'Digital'], ['Hibrido', 'Híbrido']] },
+                { key: 'proceso_principal', label: 'Proceso Principal', type: 'text' },
                 { key: 'subproceso', label: 'Subproceso', type: 'text' },
                 { key: 'factor_preparacion', label: 'Setup', type: 'number', step: '0.01', suffix: 'min' },
                 { key: 'factor_montaje_estacion', label: 'Montaje', type: 'number', step: '0.01', suffix: 'min' },
-                { key: 'comentario_setup', label: 'Comentario setup', type: 'textarea', rows: 2, span: 2 },
-                { key: 'comentario_montaje', label: 'Comentario montaje', type: 'textarea', rows: 2, span: 2 },
-                { key: 'ancho_max_in', label: 'Ancho maximo', type: 'number', step: '0.01', suffix: 'in' },
-                { key: 'velocidad_produccion', label: 'Velocidad produccion', type: 'number', step: '0.01', suffixSourceKey: 'unidad_velocidad_produccion' },
-                { key: 'unidad_velocidad_produccion', label: 'Unidad velocidad', type: 'select', options: [['ft/min', 'ft/min'], ['m/min', 'm/min']] },
-                { key: 'costo_hora_maquina', label: 'Costo hora maquina', type: 'number', step: '0.01', suffix: '$/h' },
-                { key: 'costo_hora_operario', label: 'Costo hora hombre', type: 'number', step: '0.01', suffix: '$/h' },
-                { key: 'sustrato_consumo_unidad', label: 'Unidad sustrato', type: 'select', options: [['pies', 'Pies'], ['metros', 'Metros']] },
-                { key: 'sustrato_setup_merma_cantidad', label: 'Merma sustrato setup', type: 'number', step: '0.01', suffixSourceKey: 'sustrato_setup_merma_unidad' },
-                { key: 'sustrato_setup_merma_unidad', label: 'Unidad merma setup', type: 'select', options: [['pies', 'Pies'], ['metros', 'Metros']] },
-                { key: 'sustrato_setup_merma_base', label: 'Base merma setup', type: 'select', options: [['trabajo', 'Por trabajo'], ['color', 'Por color'], ['estacion', 'Por estacion'], ['cabezal', 'Por cabezal']] },
+                { key: 'comentario_setup', label: 'Comentario Setup', type: 'textarea', rows: 2, span: 2 },
+                { key: 'comentario_montaje', label: 'Comentario Montaje', type: 'textarea', rows: 2, span: 2 },
+                { key: 'ancho_max_in', label: 'Ancho Máximo', type: 'number', step: '0.01', suffix: 'in' },
+                { key: 'velocidad_produccion', label: 'Velocidad Producción', type: 'number', step: '0.01', suffixSourceKey: 'unidad_velocidad_produccion' },
+                { key: 'unidad_velocidad_produccion', label: 'Unidad Velocidad', type: 'select', options: [['ft/min', 'ft/min'], ['m/min', 'm/min']] },
+                { key: 'costo_hora_maquina', label: 'Costo Hora Máquina', type: 'number', step: '0.01', suffix: '$/h' },
+                { key: 'costo_hora_operario', label: 'Costo Hora Hombre', type: 'number', step: '0.01', suffix: '$/h' },
+                { key: 'sustrato_consumo_unidad', label: 'Unidad Sustrato', type: 'select', options: [['pies', 'Pies'], ['metros', 'Metros']] },
+                { key: 'sustrato_setup_merma_cantidad', label: 'Merma Sustrato Setup', type: 'number', step: '0.01', suffixSourceKey: 'sustrato_setup_merma_unidad' },
+                { key: 'sustrato_setup_merma_unidad', label: 'Unidad Merma Setup', type: 'select', options: [['pies', 'Pies'], ['metros', 'Metros']] },
+                { key: 'sustrato_setup_merma_base', label: 'Base Merma Setup', type: 'select', options: [['trabajo', 'Por Trabajo'], ['color', 'Por Color'], ['estacion', 'Por Estación'], ['cabezal', 'Por Cabezal']] },
                 { key: 'activa', label: 'Activa', type: 'checkbox', tab: 'general', span: 2 },
-                { type: 'section', label: 'Impresion digital', span: 2, tabKey: 'digital' },
-                { key: 'digital_tipo_cobro', label: 'Tipo cobro digital', type: 'select', options: [['consumo', 'Consumo'], ['clic', 'Clic']] },
-                { key: 'digital_costo_kg_tinta', label: 'Costo kg tinta', type: 'number', step: '0.01', suffix: '$/kg' },
-                { key: 'digital_costo_kg_tinta_blanco', label: 'Costo kg blanco', type: 'number', step: '0.01', suffix: '$/kg' },
-                { key: 'digital_costo_kg_tinta_especial', label: 'Costo kg especial', type: 'number', step: '0.01', suffix: '$/kg' },
-                { key: 'digital_tarifa_click', label: 'Tarifa clic', type: 'number', step: '0.01', suffix: '$' },
-                { key: 'digital_modo_click', label: 'Modo clic', type: 'select', options: [['por_estacion', 'Por estacion'], ['por_vuelta', 'Por vuelta']] },
+                { type: 'section', label: 'Impresión Digital', span: 2, tabKey: 'digital' },
+                { key: 'digital_tipo_cobro', label: 'Tipo Cobro Digital', type: 'select', options: [['consumo', 'Consumo'], ['clic', 'Clic']] },
+                { key: 'digital_costo_kg_tinta', label: 'Costo Kg Tinta', type: 'number', step: '0.01', suffix: '$/kg' },
+                { key: 'digital_costo_kg_tinta_blanco', label: 'Costo Kg Blanco', type: 'number', step: '0.01', suffix: '$/kg' },
+                { key: 'digital_costo_kg_tinta_especial', label: 'Costo Kg Especial', type: 'number', step: '0.01', suffix: '$/kg' },
+                { key: 'digital_tarifa_click', label: 'Tarifa Clic', type: 'number', step: '0.01', suffix: '$' },
+                { key: 'digital_modo_click', label: 'Modo Clic', type: 'select', options: [['por_estacion', 'Por Estación'], ['por_vuelta', 'Por Vuelta']] },
                 { key: 'digital_velocidad_cmyk_mpm', label: 'Velocidad CMYK', type: 'number', step: '0.01', suffix: 'm/min' },
-                { key: 'digital_velocidad_extendida_mpm', label: 'Velocidad extendida', type: 'number', step: '0.01', suffix: 'm/min' },
+                { key: 'digital_velocidad_extendida_mpm', label: 'Velocidad Extendida', type: 'number', step: '0.01', suffix: 'm/min' },
                 { key: 'digital_gramaje_cmyk_g_m2', label: 'Gramaje CMYK', type: 'number', step: '0.01', suffix: 'g/m2' },
-                { key: 'digital_gramaje_blanco_g_m2', label: 'Gramaje blanco', type: 'number', step: '0.01', suffix: 'g/m2' },
-                { key: 'digital_factor_merma', label: 'Factor merma tinta', type: 'number', step: '0.01' },
-                { key: 'digital_costo_lavado_especial', label: 'Costo lavado especial', type: 'number', step: '0.01', suffix: '$' },
-                { type: 'section', label: 'Premier digital', span: 2, tabKey: 'premier' },
-                { key: 'digital_premier_modo', label: 'Modo premier', type: 'select', options: [['offline', 'Offline'], ['inline', 'In-line']] },
-                { key: 'digital_premier_setup_min', label: 'Setup premier', type: 'number', step: '0.01', suffix: 'min' },
-                { key: 'digital_premier_costo_mantenimiento', label: 'Mantenimiento premier', type: 'number', step: '0.01', suffix: '$' },
-                { key: 'digital_premier_costo_offline_m', label: 'Costo offline', type: 'number', step: '0.01', suffix: '$/m' },
+                { key: 'digital_gramaje_blanco_g_m2', label: 'Gramaje Blanco', type: 'number', step: '0.01', suffix: 'g/m2' },
+                { key: 'digital_factor_merma', label: 'Factor Merma Tinta', type: 'number', step: '0.01' },
+                { key: 'digital_costo_lavado_especial', label: 'Costo Lavado Especial', type: 'number', step: '0.01', suffix: '$' },
+                { type: 'section', label: 'Premier Digital', span: 2, tabKey: 'premier' },
+                { key: 'digital_premier_modo', label: 'Modo Premier', type: 'select', options: [['offline', 'Offline'], ['inline', 'In-line']] },
+                { key: 'digital_premier_setup_min', label: 'Setup Premier', type: 'number', step: '0.01', suffix: 'min' },
+                { key: 'digital_premier_costo_mantenimiento', label: 'Mantenimiento Premier', type: 'number', step: '0.01', suffix: '$' },
+                { key: 'digital_premier_costo_offline_m', label: 'Costo Offline', type: 'number', step: '0.01', suffix: '$/m' },
                 { type: 'section', label: 'Dimensiones y Capacidad', span: 2, tab: 'especificaciones' },
-                { key: 'espec_ancho_max_mm', label: 'Ancho máximo (mm)', type: 'number', step: '0.01', suffix: 'mm', tab: 'especificaciones' },
-                { key: 'espec_largo_max_mm', label: 'Largo máximo (mm)', type: 'number', step: '0.01', suffix: 'mm', tab: 'especificaciones' },
-                { key: 'espec_altura_max_mm', label: 'Altura máxima (mm)', type: 'number', step: '0.01', suffix: 'mm', tab: 'especificaciones' },
+                { key: 'espec_ancho_max_mm', label: 'Ancho Máximo (mm)', type: 'number', step: '0.01', suffix: 'mm', tab: 'especificaciones' },
+                { key: 'espec_largo_max_mm', label: 'Largo Máximo (mm)', type: 'number', step: '0.01', suffix: 'mm', tab: 'especificaciones' },
+                { key: 'espec_altura_max_mm', label: 'Altura Máxima (mm)', type: 'number', step: '0.01', suffix: 'mm', tab: 'especificaciones' },
                 { key: 'espec_peso_kg', label: 'Peso (kg)', type: 'number', step: '0.01', suffix: 'kg', tab: 'especificaciones' },
-                { key: 'espec_ancho_banda_max_mm', label: 'Ancho banda máximo (mm)', type: 'number', step: '0.01', suffix: 'mm', tab: 'especificaciones' },
+                { key: 'espec_ancho_banda_max_mm', label: 'Ancho Banda Máximo (mm)', type: 'number', step: '0.01', suffix: 'mm', tab: 'especificaciones' },
                 { type: 'section', label: 'Tecnología', span: 2, tab: 'especificaciones' },
-                { key: 'espec_num_estaciones', label: 'Número estaciones', type: 'number', step: '1', tab: 'especificaciones' },
-                { key: 'espec_num_cabezales', label: 'Número cabezales', type: 'number', step: '1', tab: 'especificaciones' },
-                { key: 'espec_tinta_base', label: 'Tipo tinta base', type: 'select', options: [['', 'Sin definir'], ['solvente', 'Solvente'], ['agua', 'Agua'], ['uv', 'UV'], ['híbrida', 'Híbrida']], tab: 'especificaciones' },
+                { key: 'espec_num_estaciones', label: 'Número Estaciones', type: 'number', step: '1', tab: 'especificaciones' },
+                { key: 'espec_num_cabezales', label: 'Número Cabezales', type: 'number', step: '1', tab: 'especificaciones' },
+                { key: 'espec_tinta_base', label: 'Tipo Tinta Base', type: 'select', options: [['', 'Sin Definir'], ['solvente', 'Solvente'], ['agua', 'Agua'], ['uv', 'UV'], ['híbrida', 'Híbrida']], tab: 'especificaciones' },
                 { key: 'espec_resolucion_dpi', label: 'Resolución (DPI)', type: 'number', step: '1', suffix: 'DPI', tab: 'especificaciones' },
-                { key: 'espec_velocidad_max_fpm', label: 'Velocidad máxima', type: 'number', step: '0.01', suffixSourceKey: 'unidad_velocidad_produccion', tab: 'especificaciones' },
+                { key: 'espec_velocidad_max_fpm', label: 'Velocidad Máxima', type: 'number', step: '0.01', suffixSourceKey: 'unidad_velocidad_produccion', tab: 'especificaciones' },
                 { key: 'espec_troquel', label: 'Troquel', type: 'checkbox', span: 1, tab: 'especificaciones' },
                 { key: 'espec_uv', label: 'UV', type: 'checkbox', span: 1, tab: 'especificaciones' },
                 { key: 'espec_laminado', label: 'Laminado', type: 'checkbox', span: 1, tab: 'especificaciones' },
                 { key: 'espec_barniz', label: 'Barniz', type: 'checkbox', span: 1, tab: 'especificaciones' },
                 { type: 'section', label: 'Eléctrico', span: 2, tab: 'especificaciones' },
-                { key: 'espec_tension_entrada', label: 'Tensión entrada', type: 'select', options: [['', 'Sin definir'], ['110V', '110V'], ['220V', '220V'], ['380V', '380V'], ['440V', '440V']], tab: 'especificaciones' },
+                { key: 'espec_tension_entrada', label: 'Tensión Entrada', type: 'select', options: [['', 'Sin Definir'], ['110V', '110V'], ['220V', '220V'], ['380V', '380V'], ['440V', '440V']], tab: 'especificaciones' },
                 { key: 'espec_potencia_kw', label: 'Potencia (kW)', type: 'number', step: '0.01', suffix: 'kW', tab: 'especificaciones' },
-                { key: 'espec_tension_electrica', label: 'Tensión eléctrica', type: 'text', tab: 'especificaciones' },
-                { key: 'espec_fase', label: 'Fase', type: 'select', options: [['', 'Sin definir'], ['1', '1'], ['3', '3']], tab: 'especificaciones' },
-                { key: 'espec_corriente_max_a', label: 'Corriente máxima (A)', type: 'number', step: '0.01', suffix: 'A', tab: 'especificaciones' },
-                { key: 'espec_consumo_aire', label: 'Consumo aire', type: 'text', tab: 'especificaciones' },
-                { key: 'espec_temperatura_op', label: 'Temperatura operación', type: 'text', tab: 'especificaciones' }
+                { key: 'espec_tension_electrica', label: 'Tensión Eléctrica', type: 'text', tab: 'especificaciones' },
+                { key: 'espec_fase', label: 'Fase', type: 'select', options: [['', 'Sin Definir'], ['1', '1'], ['3', '3']], tab: 'especificaciones' },
+                { key: 'espec_corriente_max_a', label: 'Corriente Máxima (A)', type: 'number', step: '0.01', suffix: 'A', tab: 'especificaciones' },
+                { key: 'espec_consumo_aire', label: 'Consumo Aire', type: 'text', tab: 'especificaciones' },
+                { key: 'espec_temperatura_op', label: 'Temperatura Operación', type: 'text', tab: 'especificaciones' }
             ],
             createEmptyItem() {
                 return {
@@ -1428,9 +1428,9 @@ function syncInventorySuffixes(scope = catalogForm) {
 
 function buildMachineTabbedForm(viewItem) {
     const tabs = [
-        { key: 'general', label: 'Informacion general' },
-        { key: 'digital', label: 'Impresion digital' },
-        { key: 'premier', label: 'Premier digital' },
+        { key: 'general', label: 'Información General' },
+        { key: 'digital', label: 'Impresión Digital' },
+        { key: 'premier', label: 'Premier Digital' },
         { key: 'especificaciones', label: 'Especificaciones' }
     ];
     const tabBar = document.createElement('div');
@@ -1476,15 +1476,22 @@ function buildMachineTabbedForm(viewItem) {
         });
     };
 
+    const getActiveTab = () => {
+        const active = tabBar.querySelector('.inventory-machine-tab.is-active');
+        return active ? active.dataset.machineTab : 'general';
+    };
+
     const syncTabsByType = () => {
         const typeSelect = catalogForm.elements.namedItem('tipo');
         const isDigital = String(typeSelect?.value || '').trim() === 'Digital';
         Array.from(tabBar.querySelectorAll('.inventory-machine-tab')).forEach((button) => {
-            const extraTab = button.dataset.machineTab !== 'general';
-            const alwaysVisible = button.dataset.machineTab === 'especificaciones';
-            button.hidden = extraTab && !isDigital && !alwaysVisible;
+            const tab = button.dataset.machineTab;
+            const extraTab = tab !== 'general' && tab !== 'especificaciones';
+            button.hidden = extraTab && !isDigital;
         });
-        if (!isDigital && !tabBar.querySelector(`[data-machine-tab="especificaciones"].is-active`)) {
+        const activeTab = getActiveTab();
+        const activeButton = tabBar.querySelector(`[data-machine-tab="${activeTab}"]`);
+        if (activeButton && activeButton.hidden) {
             setActiveTab('general');
         }
         syncInventorySuffixes(catalogForm);
