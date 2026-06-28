@@ -403,6 +403,35 @@ function setTopIcon(button, value, altText) {
     button.innerHTML = iconMarkup(value, altText, 'top-icon-media');
 }
 
+function readConfiguredIconValue(key) {
+    const config = window.__erpGeneralConfig || {};
+    const icons = config.icons || {};
+    if (key.startsWith('icons.') && String(config[key] || '').trim()) return config[key];
+    if (String(icons[key] || '').trim()) return icons[key];
+    return '';
+}
+
+function iconConfigFor(key, canonicalKey = null) {
+    const config = window.__erpGeneralConfig || {};
+    const general = config.general || {};
+    const icons = config.icons || {};
+    const suffix = canonicalKey || key;
+    const fallbackColor = '#607286';
+    const fallbackSize = 18;
+    const value = icons[key] || '';
+    const color = general[`iconColor${suffix}`] || fallbackColor;
+    const hover = general[`iconColorHover${suffix}`] || '#0b81b8';
+    const size = Number(general[`iconSize${suffix}`]) || fallbackSize;
+    return { value, color, hover, size };
+}
+
+function getResolvedIcon(keys, canonicalKey) {
+    for (const key of keys) {
+        if (readConfiguredIconValue(key)) return iconConfigFor(key, canonicalKey);
+    }
+    return iconConfigFor(canonicalKey || keys[keys.length - 1]);
+}
+
 function styleIconButton(button, palette) {
     if (!button || !palette) return;
     button.style.color = palette.primary || '#9ba2ab';
@@ -1249,18 +1278,17 @@ function renderDetailDataRow(node, displayIndex, subtotalKeys, totalNodes) {
     const isChild = node.kind === 'child';
     const treeClass = isGroup ? ' is-front-back-parent' : (isChild ? ' is-front-back-child' : '');
     const rowClass = activeRowId === row.id ? 'is-active' : '';
+    const toggleLabel = node.expanded ? 'Contraer' : 'Expandir';
     let treeToggle = '';
     if (isGroup) {
-        const glyph = node.expanded ? '▾' : '▸';
-        treeToggle = `<button type="button" class="detail-tree-toggle" data-detail-front-back-toggle="${escapeHtml(node.key)}" title="Expandir/colapsar" aria-expanded="${node.expanded ? 'true' : 'false'}"><span class="detail-tree-glyph">${glyph}</span><span class="detail-tree-count">(${node.childCount})</span></button>`;
-    } else if (isChild) {
-        treeToggle = '<span class="detail-tree-spacer" aria-hidden="true"></span>';
+        const toggleConf = getResolvedIcon([node.expanded ? 'quoteCollapse' : 'quoteExpand'], node.expanded ? 'quoteCollapse' : 'quoteExpand');
+        treeToggle = `<button type="button" class="quote-master-line-tree-toggle" data-detail-front-back-toggle="${escapeHtml(node.key)}" aria-expanded="${node.expanded ? 'true' : 'false'}" aria-label="${toggleLabel} grupo frente/dorso" style="--icon-color:${escapeHtml(toggleConf.color)};--icon-hover-color:${escapeHtml(toggleConf.hover)};--config-icon-size:${escapeHtml(String(toggleConf.size || 18))}px;">${iconMarkup(toggleConf.value, toggleLabel, 'table-icon-media')}</button>`;
     } else {
-        treeToggle = '<span class="detail-tree-spacer" aria-hidden="true"></span>';
+        treeToggle = '<span class="quote-master-line-tree-spacer" aria-hidden="true"></span>';
     }
     return `
         <tr data-id="${row.id}" class="${rowClass}${treeClass}">
-            <td class="row-number">${treeToggle} <span class="detail-row-num">${displayIndex + 1}</span></td>
+            <td class="row-number"><div class="quote-master-line-order">${treeToggle} <span class="quote-master-line-num">${displayIndex + 1}</span></div></td>
             <td>
                 <div class="row-tools row-tools-compact row-tools-leading">
                     <span class="row-action-divider" aria-hidden="true"></span>
