@@ -13242,7 +13242,7 @@ html[data-theme="dark"] .workspace-quote > .quote-card-clean .quote-meta {
 }
 
 .quote-line-menu-panel .row-action-menu-list {
-    gap: 4px;
+    gap: 8px;
 }
 
 .quote-line-menu-panel .row-action-menu-item:nth-of-type(-n+5) {
@@ -14138,12 +14138,12 @@ html[data-theme="dark"] .quote-browser-actions .browser-open-link-danger:focus-v
 
 .quote-line-menu-panel .row-action-menu-list {
     display: grid;
-    gap: 4px;
+    gap: 8px;
 }
 
 .quote-line-menu-panel .row-action-menu-item {
     min-height: auto !important;
-    padding: 8px 20px !important;
+    padding: 10px 20px !important;
     border-radius: 10px !important;
     font-size: 13px !important;
     font-weight: 600 !important;
