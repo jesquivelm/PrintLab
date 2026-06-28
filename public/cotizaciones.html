@@ -652,6 +652,31 @@ html[data-theme="dark"] .front-back-current,html[data-theme="dark"] .front-back-
 <option value="">Selecciona un cliente</option>
 </select>
 </label>
+<div class="new-calc-format-section">
+<span class="new-calc-format-label">Formato del cálculo</span>
+<div class="new-calc-format-options">
+<label class="new-calc-format-option">
+<input type="radio" name="newCalcFormat" value="simple" checked>
+<span class="new-calc-format-radio"></span>
+<span>Simple</span>
+</label>
+<label class="new-calc-format-option">
+<input type="radio" name="newCalcFormat" value="frente_dorso">
+<span class="new-calc-format-radio"></span>
+<span>Frente y Dorso</span>
+</label>
+</div>
+</div>
+<div id="newCalcFrontBackFields" class="new-calc-front-back-fields" hidden>
+<label class="quote-request-field">
+<span>Nombre Producto Frente</span>
+<input id="nuevoCalculoFrenteNombre" class="quote-request-input" name="frente_name" type="text" placeholder="Ej: Etiqueta Frente">
+</label>
+<label class="quote-request-field">
+<span>Nombre Producto Dorso</span>
+<input id="nuevoCalculoDorsoNombre" class="quote-request-input" name="dorso_name" type="text" placeholder="Ej: Etiqueta Dorso">
+</label>
+</div>
 <p id="nuevoCalculoStatus" class="socios-create-status" hidden></p>
 <div class="quote-calc-actions">
 <button id="cancelarNuevoCalculoButton" type="button" class="action-btn quote-browser-action-btn">Cancelar</button>
@@ -692,6 +717,6 @@ html[data-theme="dark"] .front-back-current,html[data-theme="dark"] .front-back-
 </div>
 
 <script src="/access-control.js"></script>
-<script src="/cotizaciones.js?v=20260521-1615"></script>
+<script src="/cotizaciones.js?v=20260628-1800"></script>
 </body>
 </html>

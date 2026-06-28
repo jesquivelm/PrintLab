@@ -65,6 +65,10 @@ const newCalcContactSelect = document.getElementById('nuevoCalculoContacto');
 const newCalcCustomerLookupPanel = document.getElementById('newCalcCustomerLookupPanel');
 const newCalcCustomerLookupResults = document.getElementById('newCalcCustomerLookupResults');
 const newCalcStatusNode = document.getElementById('nuevoCalculoStatus');
+const newCalcFormatRadios = newCalcPopover ? Array.from(newCalcPopover.querySelectorAll('input[name="newCalcFormat"]')) : [];
+const newCalcFrontBackFields = document.getElementById('newCalcFrontBackFields');
+const newCalcFrenteNombreInput = document.getElementById('nuevoCalculoFrenteNombre');
+const newCalcDorsoNombreInput = document.getElementById('nuevoCalculoDorsoNombre');
 const requestProcessTypeInput = document.getElementById('requestProcessType');
 const fixedSizeSelect = document.getElementById('requestFixedSize');
 const fixedSizeTrigger = document.getElementById('requestFixedSizeTrigger');
@@ -4455,19 +4459,31 @@ function openNewCalcPopover() {
     if (newCalcCustomerCodeInput) newCalcCustomerCodeInput.value = '';
     resetContactSelect(newCalcContactSelect, 'Selecciona un cliente');
     setNewCalcStatus('');
+    toggleNewCalcFrontBackFields();
     newCalcPopover.hidden = false;
     setTimeout(() => newCalcCustomerNameInput?.focus(), 30);
 }
 
+function toggleNewCalcFrontBackFields() {
+    const selected = newCalcFormatRadios.find((r) => r.checked)?.value || 'simple';
+    const isFrontBack = selected === 'frente_dorso';
+    if (newCalcFrontBackFields) newCalcFrontBackFields.hidden = !isFrontBack;
+    if (!isFrontBack) {
+        if (newCalcFrenteNombreInput) newCalcFrenteNombreInput.value = '';
+        if (newCalcDorsoNombreInput) newCalcDorsoNombreInput.value = '';
+    }
+}
+
 function closeNewCalcPopover(force = false) {
     if (!newCalcPopover) return;
-    const hasContent = normalizeText(newCalcCustomerNameInput?.value) || normalizeText(newCalcContactSelect?.value);
+    const hasContent = normalizeText(newCalcCustomerNameInput?.value) || normalizeText(newCalcContactSelect?.value) || normalizeText(newCalcFrenteNombreInput?.value) || normalizeText(newCalcDorsoNombreInput?.value);
     if (!force && hasContent && !window.confirm('Hay datos sin guardar. ¿Quieres cerrar?')) return;
     newCalcPopover.hidden = true;
     newCalcForm?.reset();
     if (newCalcCustomerCodeInput) newCalcCustomerCodeInput.value = '';
     resetContactSelect(newCalcContactSelect, 'Selecciona un cliente');
     if (newCalcCustomerLookupPanel) newCalcCustomerLookupPanel.hidden = true;
+    toggleNewCalcFrontBackFields();
     setNewCalcStatus('');
 }
 
@@ -4475,6 +4491,9 @@ async function submitNewCalculation() {
     const customerName = normalizeText(newCalcCustomerNameInput?.value);
     const customerCode = normalizeText(newCalcCustomerCodeInput?.value);
     const contact = selectedContactPayload(newCalcContactSelect);
+    const format = newCalcFormatRadios.find((r) => r.checked)?.value || 'simple';
+    const frenteNombre = normalizeText(newCalcFrenteNombreInput?.value);
+    const dorsoNombre = normalizeText(newCalcDorsoNombreInput?.value);
     newCalcForm?.querySelectorAll('.is-invalid').forEach((item) => item.classList.remove('is-invalid'));
     const errors = [];
     if (!customerName || !customerCode) {
@@ -4484,6 +4503,16 @@ async function submitNewCalculation() {
     if (!contact.contact_name) {
         newCalcContactSelect?.classList.add('is-invalid');
         errors.push('Contacto');
+    }
+    if (format === 'frente_dorso') {
+        if (!frenteNombre) {
+            newCalcFrenteNombreInput?.classList.add('is-invalid');
+            errors.push('Nombre Frente');
+        }
+        if (!dorsoNombre) {
+            newCalcDorsoNombreInput?.classList.add('is-invalid');
+            errors.push('Nombre Dorso');
+        }
     }
     if (errors.length) {
         throw new Error(`Faltan: ${errors.join(', ')}.`);
@@ -4506,38 +4535,87 @@ async function submitNewCalculation() {
         });
         const quoteCode = quoteResponse?.cotizacion?.quote_code;
         if (!quoteCode) throw new Error('La cotización se creó sin código.');
-        const lineResponse = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(quoteCode)}/lineas`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...sessionHeader() },
-            body: JSON.stringify({
-                customer_code: customerCode,
-                customer_name: customerName,
-                contact_name: contact.contact_name,
-                email: contact.email,
-                phone: contact.phone,
-                salesperson_name: currentUserName(),
-                job_name: '',
-                department: 'Flexografia',
-                process_type: 'Convencional',
-                status: 'Borrador',
-                request_meta: {
-                    'REQ | Cliente Contacto': contact.contact_name,
-                    'TRAZABILIDAD | ORIGEN': 'Cálculo manual'
-                }
-            })
-        });
-        const lineCode = lineResponse?.linea?.line_code || lineResponse?.calculo?.line_code || '';
-        if (!lineCode) throw new Error('La línea se creó sin código.');
-        await loadQuotes();
-        closeNewCalcPopover(true);
-        const route = `/calculo-flexografia?${new URLSearchParams({
-            lineId: lineCode,
-            quoteId: quoteCode,
-            productId: '',
-            department: 'Flexografia'
-        }).toString()}`;
-        if (!openRouteInShell(route, `Cálculo ${lineCode}`)) {
-            window.location.href = route;
+        const basePayload = {
+            customer_code: customerCode,
+            customer_name: customerName,
+            contact_name: contact.contact_name,
+            email: contact.email,
+            phone: contact.phone,
+            salesperson_name: currentUserName(),
+            department: 'Flexografia',
+            process_type: 'Convencional',
+            status: 'Borrador',
+            request_meta: {
+                'REQ | Cliente Contacto': contact.contact_name,
+                'TRAZABILIDAD | ORIGEN': 'Cálculo manual'
+            }
+        };
+        if (format === 'frente_dorso') {
+            setNewCalcStatus('Creando grupo frente/dorso...', 'saving');
+            const groupLineResponse = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(quoteCode)}/lineas`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...sessionHeader() },
+                body: JSON.stringify({ ...basePayload, job_name: '' })
+            });
+            const groupLineCode = groupLineResponse?.linea?.line_code || groupLineResponse?.calculo?.line_code || '';
+            if (!groupLineCode) throw new Error('La línea grupo se creó sin código.');
+            setNewCalcStatus('Creando línea frente...', 'saving');
+            const frenteLineResponse = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(quoteCode)}/lineas`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...sessionHeader() },
+                body: JSON.stringify({ ...basePayload, job_name: frenteNombre })
+            });
+            const frenteLineCode = frenteLineResponse?.linea?.line_code || frenteLineResponse?.calculo?.line_code || '';
+            if (!frenteLineCode) throw new Error('La línea frente se creó sin código.');
+            setNewCalcStatus('Creando línea dorso...', 'saving');
+            const dorsoLineResponse = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(quoteCode)}/lineas`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...sessionHeader() },
+                body: JSON.stringify({ ...basePayload, job_name: dorsoNombre })
+            });
+            const dorsoLineCode = dorsoLineResponse?.linea?.line_code || dorsoLineResponse?.calculo?.line_code || '';
+            if (!dorsoLineCode) throw new Error('La línea dorso se creó sin código.');
+            setNewCalcStatus('Vinculando frente/dorso...', 'saving');
+            const groupResponse = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(quoteCode)}/frente-dorso`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...sessionHeader() },
+                body: JSON.stringify({
+                    groupLineCode,
+                    elementLineCodes: [frenteLineCode, dorsoLineCode],
+                    label: `${frenteNombre} / ${dorsoNombre}`
+                })
+            });
+            if (!groupResponse?.ok) throw new Error('No se pudo vincular frente/dorso.');
+            await loadQuotes();
+            closeNewCalcPopover(true);
+            const route = `/calculo-flexografia?${new URLSearchParams({
+                lineId: groupLineCode,
+                quoteId: quoteCode,
+                productId: '',
+                department: 'Flexografia'
+            }).toString()}`;
+            if (!openRouteInShell(route, `Cálculo ${groupLineCode}`)) {
+                window.location.href = route;
+            }
+        } else {
+            const lineResponse = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(quoteCode)}/lineas`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...sessionHeader() },
+                body: JSON.stringify({ ...basePayload, job_name: '' })
+            });
+            const lineCode = lineResponse?.linea?.line_code || lineResponse?.calculo?.line_code || '';
+            if (!lineCode) throw new Error('La línea se creó sin código.');
+            await loadQuotes();
+            closeNewCalcPopover(true);
+            const route = `/calculo-flexografia?${new URLSearchParams({
+                lineId: lineCode,
+                quoteId: quoteCode,
+                productId: '',
+                department: 'Flexografia'
+            }).toString()}`;
+            if (!openRouteInShell(route, `Cálculo ${lineCode}`)) {
+                window.location.href = route;
+            }
         }
     } finally {
         setButtonBusy(newCalcSubmitButton, false);
@@ -4659,6 +4737,9 @@ function bindEvents() {
     newCalcForm?.addEventListener('submit', (event) => {
         event.preventDefault();
         submitNewCalculation().catch((error) => setNewCalcStatus(error.message, 'error'));
+    });
+    newCalcFormatRadios.forEach((radio) => {
+        radio.addEventListener('change', toggleNewCalcFrontBackFields);
     });
     shapePicker?.addEventListener('click', (event) => {
         const trigger = event.target.closest('[data-shape-trigger]');
