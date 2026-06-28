@@ -361,6 +361,13 @@ function currentUserName(){
   const s=readUserSession();
   return (s&&(s.name||s.fullName||s.user||s.username))||productionUser||'Usuario activo';
 }
+function currentMachineName(){
+  if(mesOpenFor){
+    const route=productionRoutes.find(r=>r.orderCode===mesOpenFor);
+    if(route)return route.machineName||'';
+  }
+  return '';
+}
 function sessionHeader(){
   const s=readUserSession();
   if(!s)return{};
@@ -416,7 +423,10 @@ function orderFromRoute(route){
     status:routeStatusToCardStatus(route.routeStatus),
     mats:[route.materialCode?{id:route.materialCode,name:route.materialCode,qty:route.plannedFeet?`${route.plannedFeet.toLocaleString('es-CR')} ft`:''}:null].filter(Boolean),
     startDt:start,
-    endDt:end
+    endDt:end,
+    machineName:route.machineName||'',
+    machineProfileId:route.machineProfileId||null,
+    machineSpecs:route.machineSpecs||[]
   };
 }
 
@@ -1157,7 +1167,7 @@ function buildMESPanel(o){
 
   return`<div class="mes-panel" id="mesPanel_${o.id}">
     <div style="font-family:var(--font-mono);font-size:10px;color:var(--amber);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
-      <span>🖨 Panel MES — Gallus Labelmaster 440 / ${o.id}</span>
+      <span>🖨 Panel MES — ${o.machineName||'Máquina'} / ${o.id}</span>
       <span style="color:${laminadoOn?'var(--cyan)':'var(--red)'};font-size:9px">${laminadoOn?'● Laminado activo':'● Barniz activo — Laminado desactivado'}</span>
     </div>
     <div class="mes-svg-wrap">
@@ -1553,7 +1563,7 @@ async function saveStationConfig(oid){
       body:JSON.stringify({
         orderCode:oid,
         productCode:oid,
-        machineName:'Gallus Labelmaster 440',
+        machineName:currentMachineName()||'Gallus Labelmaster 440',
         operatorName:currentUserName(),
         stations:stations
       })

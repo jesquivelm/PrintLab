@@ -17476,6 +17476,19 @@ app.get('/api/produccion/flujo', async (req, res) => {
         const processOrder = new Map(PRODUCTION_FLOW_SEQUENCE.map((key, index) => [key, index + 1]));
         const routes = [];
         const machinesByProcess = {};
+        const machineProfileIds = [...new Set(result.rows.map(r => r.machine_profile_id).filter(Boolean))];
+        let specsMap = {};
+        if (machineProfileIds.length) {
+            const specsResult = await pgQuery(`
+                SELECT machine_profile_id::text AS profile_id, spec_group, spec_key, spec_value
+                FROM production_machine_specs
+                WHERE machine_profile_id = ANY($1::uuid[])
+            `, [machineProfileIds]);
+            specsResult.rows.forEach(spec => {
+                if (!specsMap[spec.profile_id]) specsMap[spec.profile_id] = [];
+                specsMap[spec.profile_id].push(spec);
+            });
+        }
         result.rows.forEach((row) => {
             const processKey = canonicalProductionFlowKey(row.process_key || row.process_name);
             if (!PRODUCTION_FLOW_SEQUENCE.includes(processKey)) return;
@@ -17494,6 +17507,8 @@ app.get('/api/produccion/flujo', async (req, res) => {
                 plannedStartAt: row.planned_start_at || null,
                 durationHours: Number(row.duration_hours || 0),
                 machineName: row.machine_name || '',
+                machineProfileId: row.machine_profile_id || null,
+                machineSpecs: row.machine_profile_id ? (specsMap[row.machine_profile_id] || []) : [],
                 customerName: raw.customer_name || raw.quote_snapshot?.customer_name || '',
                 productName: lineSummary.job_name || lineSummary.product_name || lineSnapshot.jobName || row.product_code || row.order_code,
                 materialCode: row.material_code || lineSnapshot.materialCode || '',
@@ -18751,7 +18766,7 @@ app.get('/api/mes/contexto', async (req, res) => {
             return res.status(404).json({ ok: false, error: 'No se encontró una ruta activa para el MES solicitado.' });
         }
 
-        const [eventsResult, wasteResult] = await Promise.all([
+        const [eventsResult, wasteResult, specsResult] = await Promise.all([
             pgQuery(`
                 SELECT
                     e.id::text AS id,
@@ -18787,7 +18802,12 @@ app.get('/api/mes/contexto', async (req, res) => {
                 WHERE route_id = $1::uuid
                 ORDER BY created_at DESC
                 LIMIT 1
-            `, [route.route_id])
+            `, [route.route_id]),
+            route.machine_profile_id ? pgQuery(`
+                SELECT spec_group, spec_key, spec_value
+                FROM production_machine_specs
+                WHERE machine_profile_id = $1::uuid
+            `, [route.machine_profile_id]) : { rows: [] }
         ]);
 
         const raw = route.raw_data || {};
@@ -18825,6 +18845,8 @@ app.get('/api/mes/contexto', async (req, res) => {
                 setupMinutes: Number(route.setup_minutes || 0),
                 hourlyMachineCost: Number(route.hourly_machine_cost || 0),
                 hourlyOperatorCost: Number(route.hourly_operator_cost || 0),
+                machineProfileId: route.machine_profile_id || null,
+                machineSpecs: specsResult.rows || [],
                 createdAt: route.order_created_at,
                 requestedAt: raw.requested_at || raw.updated_at || route.order_created_at,
                 events: eventsResult.rows,
