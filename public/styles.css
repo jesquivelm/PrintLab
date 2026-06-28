@@ -6091,7 +6091,7 @@ body.shell-embedded .summary-footer {
 }
 .quote-head-columns {
     display: grid;
-    grid-template-columns: minmax(360px, 520px) auto;
+    grid-template-columns: minmax(480px, 720px) auto;
     align-items: start;
     gap: 18px;
     width: 100%;
@@ -6133,10 +6133,10 @@ body.shell-embedded .summary-footer {
 .inline-fields-contact { grid-template-columns: 128px minmax(0, 1fr); }
 .field-cliente,
 .field-contacto {
-    width: min(100%, 620px);
+    width: min(100%, 720px);
 }
 .field-vendedor {
-    width: min(100%, 320px);
+    width: min(100%, 420px);
 }
 .field-cliente input,
 .field-contacto input {
@@ -6160,7 +6160,7 @@ body.shell-embedded .summary-footer {
     box-shadow: 0 0 0 2px rgba(49, 130, 206, 0.1);
 }
 .inline-fields-client { 
-    grid-template-columns: 100px minmax(0, 1fr); 
+    grid-template-columns: 120px minmax(0, 1fr); 
     gap: 8px;
 }
 .vendor-actions {
@@ -6199,6 +6199,7 @@ body.shell-embedded .summary-footer {
 }
 .field-quote-compact {
     justify-items: center;
+    margin-right: 16px;
 }
 .field-quote input {
     width: var(--quote-number-width, 102px);
@@ -6249,7 +6250,7 @@ body.shell-embedded .summary-footer {
 }
 .filter-box { display: flex; align-items: center; gap: 8px; padding-bottom: 8px; margin-top: -4px; }
 .filter-box input {
-    width: 230px;
+    width: 320px;
     height: 34px;
     padding: 0 14px;
     border-radius: 999px;
@@ -16525,6 +16526,43 @@ html[data-theme="dark"] .quote-master-line-measure {
 .quote-master-line-tree-toggle .icon-image {
     width: var(--config-icon-size, 16px);
     height: var(--config-icon-size, 16px);
+}
+
+.quote-master-toggle-count {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--app-text-soft, #607286);
+    margin-left: 2px;
+}
+
+tr.is-front-back-parent {
+    background: rgba(11, 129, 184, 0.035) !important;
+}
+
+tr.is-front-back-child td {
+    padding-left: 28px !important;
+}
+
+tr.is-front-back-child td:first-child {
+    position: relative;
+}
+
+tr.is-front-back-child td:first-child::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: rgba(11, 129, 184, 0.22);
+}
+
+html[data-theme="dark"] tr.is-front-back-parent {
+    background: rgba(74, 163, 223, 0.08) !important;
+}
+
+html[data-theme="dark"] tr.is-front-back-child td:first-child::before {
+    background: rgba(74, 163, 223, 0.32);
 }
 
 .quote-master-line.is-front-back-parent {

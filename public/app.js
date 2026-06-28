@@ -123,6 +123,7 @@ let rowIconPalette = {
     ,lineAdd: { primary: '#1e516d', secondary: '#ffffff', hover: '#0b81b8', size: 18 }
 };
 let quoteRows = [];
+let expandedFrontBackDetailKeys = new Set();
 let currentQuote = null;
 let saveStatusTimer = null;
 let quoteSaveTimer = null;
@@ -1089,6 +1090,61 @@ function isCircularQuoteRow(row = {}) {
     return String(raw['REQ | Forma'] || raw['GENERAL | TROQUEL | FORMA'] || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes('circular');
 }
 
+function normalizeFrontBackGroupDetail(rawOrRow = {}) {
+    const raw = rawOrRow.rawData || rawOrRow.raw_data || rawOrRow;
+    const group = raw?.grupoFrenteDorso || raw?.grupo_frente_dorso || raw?.frontBackGroup || raw?.Grupo_Frente_Dorso;
+    if (!group || typeof group !== 'object') return null;
+    const groupId = group.groupId || group.group_id || '';
+    const role = ['elemento', 'componente', 'frente', 'dorso'].includes(String(group.role || '').toLowerCase()) ? 'elemento' : 'grupo';
+    const groupLineCode = group.groupLineCode || group.lineaGrupo || group.primaryLineCode || group.primary_line_code || '';
+    const elementLineCodes = Array.isArray(group.elementLineCodes) ? group.elementLineCodes : Array.isArray(group.memberLineCodes) ? group.memberLineCodes : [];
+    const elementRoles = group.elementRoles || {};
+    const elementRole = group.elementRole || elementRoles[groupLineCode] || '';
+    return { groupId, role, groupLineCode, elementLineCodes, elementRoles, elementRole, label: group.label || '' };
+}
+
+function getFrontBackGroupDetail(row) {
+    return row?.frontBackGroup || normalizeFrontBackGroupDetail(row);
+}
+
+function frontBackDetailGroupKey(group, quoteCode = '') {
+    return `${group.groupId || group.groupLineCode || ''}|${quoteCode}`;
+}
+
+function buildDetailFrontBackTree(rows = [], quoteCode = '') {
+    const byLineCode = new Map(rows.filter((r) => r.linea).map((r) => [r.linea, r]));
+    const handledChildCodes = new Set();
+    const nodes = [];
+    rows.forEach((row) => {
+        const lineCode = row.linea;
+        if (handledChildCodes.has(lineCode)) return;
+        const group = getFrontBackGroupDetail(row);
+        if (group?.role === 'elemento' && byLineCode.has(group.groupLineCode)) return;
+        const isGroupLine = group?.role === 'grupo';
+        if (!isGroupLine) {
+            nodes.push({ row, kind: 'line' });
+            return;
+        }
+        const childCodes = group.elementLineCodes || [];
+        const children = childCodes.filter((code) => code !== lineCode).map((code) => byLineCode.get(code)).filter(Boolean);
+        children.forEach((child) => handledChildCodes.add(child.linea));
+        const key = frontBackDetailGroupKey(group, quoteCode);
+        const expanded = expandedFrontBackDetailKeys.has(key);
+        nodes.push({ row, kind: 'group', group, key, childCount: children.length, expanded });
+        if (expanded) {
+            children.forEach((child) => nodes.push({ row: child, kind: 'child', group, key }));
+        }
+    });
+    return nodes;
+}
+
+function frontBackDetailChipMarkup(row) {
+    const group = getFrontBackGroupDetail(row);
+    if (!group) return '';
+    const role = group.role === 'grupo' ? 'Grupo' : (group.elementRole || 'Elemento');
+    return `<div class="quote-master-line-badges"><span class="quote-line-auto-chip">Frente/Dorso · ${escapeHtml(role)}</span></div>`;
+}
+
 function renderLineSummary(row, index) {
     const raw = row.rawData || {};
     const lineCode = cleanQuoteDetail(row.linea || row.originalLinea || `LC${String(index + 1).padStart(5, '0')}`);
@@ -1124,6 +1180,7 @@ function renderLineSummary(row, index) {
             ${secondLine ? `<div class="quote-master-line-detail-row">${escapeHtml(secondLine)}</div>` : ''}
             ${thirdLine ? `<div class="quote-master-line-detail-row">${thirdLine}</div>` : ''}
             ${fourthLine ? `<div class="quote-master-line-detail-row">${fourthLine}</div>` : ''}
+            ${frontBackDetailChipMarkup(row)}
         </div>
     `;
 }
@@ -1185,6 +1242,48 @@ function renderDataRow(row, index, subtotalKeys) {
     `;
 }
 
+function renderDetailDataRow(node, displayIndex, subtotalKeys, totalNodes) {
+    const row = node.row;
+    const canOpenCalc = Boolean(row.route && row.linea && row.quoteId);
+    const isGroup = node.kind === 'group';
+    const isChild = node.kind === 'child';
+    const treeClass = isGroup ? ' is-front-back-parent' : (isChild ? ' is-front-back-child' : '');
+    const rowClass = activeRowId === row.id ? 'is-active' : '';
+    let treeToggle = '';
+    if (isGroup) {
+        const glyph = node.expanded ? '▾' : '▸';
+        treeToggle = `<button type="button" class="quote-master-line-tree-toggle" data-detail-front-back-toggle="${escapeHtml(node.key)}" title="Expandir/colapsar" aria-expanded="${node.expanded ? 'true' : 'false'}">${glyph} <span class="quote-master-toggle-count">(${node.childCount})</span></button>`;
+    } else if (isChild) {
+        treeToggle = '<span class="quote-master-line-tree-spacer" aria-hidden="true"></span>';
+    } else {
+        treeToggle = '<span class="quote-master-line-tree-spacer" aria-hidden="true"></span>';
+    }
+    return `
+        <tr data-id="${row.id}" class="${rowClass}${treeClass}">
+            <td class="row-number">${treeToggle} ${displayIndex + 1}</td>
+            <td>
+                <div class="row-tools row-tools-compact row-tools-leading">
+                    <span class="row-action-divider" aria-hidden="true"></span>
+                    <button type="button" class="row-tool-btn row-tool-grip" data-action="drag-handle" data-id="${row.id}" aria-label="Mover línea" style="${iconButtonStyle('move', 16)}">${iconMarkup(rowIcons.move, 'Mover fila', 'table-icon-media')}</button>
+                    <span class="row-action-divider" aria-hidden="true"></span>
+                </div>
+            </td>
+            <td>${quoteCellMarkup(row.linea)}</td>
+            <td>${renderLineSummary(row, displayIndex)}</td>
+            <td class="quote-detail-date-cell is-created">${quoteCellMarkup(formatDate(row.createdOn))}</td>
+            <td class="quote-detail-date-cell">${quoteCellMarkup(formatDate(row.dueOn))}</td>
+            ${renderSubtotalCells(row, subtotalKeys)}
+            <td>
+                <div class="row-tools row-tools-row-end">
+                    <span class="row-action-divider" aria-hidden="true"></span>
+                    ${canOpenCalc ? `<button type="button" class="row-tool-btn row-tool-detail" data-action="open-calc" data-id="${row.id}" aria-label="Abrir cálculo" style="${iconButtonStyle('open', 16)}">${iconMarkup(rowIcons.open, 'Abrir cálculo', 'table-icon-media')}</button>` : '<span class="row-tool-spacer"></span>'}
+                    <button type="button" class="row-tool-btn row-tool-actions" data-action="toggle-row-menu" data-id="${row.id}" aria-label="Más opciones" title="Más opciones" style="${iconButtonStyle('actions', 18)}">${iconMarkup(rowIcons.actions, 'Más opciones', 'table-icon-media')}</button>
+                </div>
+            </td>
+        </tr>
+    `;
+}
+
 function renderBlankRow(isFirstBlank, subtotalColumnCount) {
     const blankSubtotalCells = Array.from({ length: subtotalColumnCount }, () => '<td></td>').join('');
     return `
@@ -1217,12 +1316,14 @@ function renderRows() {
             <th class="col-row-actions"></th>
         `;
     }
-    let markup = rows.map((row, index) => renderDataRow(row, index, subtotalKeys)).join('');
+    const quoteCode = currentQuote?.quote_code || '';
+    const treeNodes = buildDetailFrontBackTree(rows, quoteCode);
+    let markup = treeNodes.map((node, displayIndex) => renderDetailDataRow(node, displayIndex, subtotalKeys, treeNodes.length)).join('');
     const blankRowCount = 0;
-    const visibleRowCount = Math.min(Math.max(rows.length, MIN_VISIBLE_ROWS), MAX_VISIBLE_ROWS);
+    const visibleRowCount = Math.min(Math.max(treeNodes.length, MIN_VISIBLE_ROWS), MAX_VISIBLE_ROWS);
     const tableWrap = rowsBody?.closest('.quote-browser-table-wrap, .table-wrap');
     tableWrap?.style.setProperty('--visible-table-rows', String(visibleRowCount));
-    tableWrap?.classList.toggle('is-scrollable', rows.length > MAX_VISIBLE_ROWS);
+    tableWrap?.classList.toggle('is-scrollable', treeNodes.length > MAX_VISIBLE_ROWS);
     for (let index = 0; index < blankRowCount; index += 1) {
         markup += renderBlankRow(index === 0, subtotalKeys.length);
     }
@@ -1867,6 +1968,21 @@ function bindRowActions() {
             openRowMenu(rowId, button);
         };
     });
+
+    rowsBody?.querySelectorAll('[data-detail-front-back-toggle]').forEach((button) => {
+        button.onclick = (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const key = button.dataset.detailFrontBackToggle || '';
+            if (!key) return;
+            if (expandedFrontBackDetailKeys.has(key)) {
+                expandedFrontBackDetailKeys.delete(key);
+            } else {
+                expandedFrontBackDetailKeys.add(key);
+            }
+            renderRows();
+        };
+    });
 }
 
 function buildCalcUrl(row) {
@@ -1965,7 +2081,8 @@ function applyQuotePayload(payload) {
         quoteId: quote?.quote_code || '',
         productId: line.product_code || '',
         processType: line.process_type || '',
-        processSequenceText: line.process_sequence_text || line.raw_data?.['Texto_Secuencia_Procesos'] || ''
+        processSequenceText: line.process_sequence_text || line.raw_data?.['Texto_Secuencia_Procesos'] || '',
+        frontBackGroup: normalizeFrontBackGroupDetail(line.raw_data || {})
     }));
 
     setHeaderLockState(quoteRows.length > 0);
