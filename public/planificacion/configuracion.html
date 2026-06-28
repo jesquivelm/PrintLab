@@ -110,6 +110,14 @@ input[type="checkbox"]{width:16px;height:16px;accent-color:#1D9E75;cursor:pointe
 .summary-card{background:#fff;border:1px solid #d8e4ef;border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:4px}
 .summary-num{font-size:28px;font-weight:600}
 .summary-lbl{font-size:11px;color:#66758b}
+
+/* ── MÁQUINA SPEC TABS ── */
+.maq-spec-tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid #e8ecf0;padding-bottom:8px}
+.maq-spec-tab{font-size:11px;padding:6px 12px;border-radius:6px 6px 0 0;border:1px solid transparent;border-bottom:none;background:transparent;color:#66758b;cursor:pointer;font-weight:500;transition:.15s}
+.maq-spec-tab:hover{color:#1f2b3d;background:#f3f7fb}
+.maq-spec-tab.active{background:#f7fbff;color:#1D9E75;border-color:#d8e4ef;font-weight:600}
+.maq-spec-panel{display:none}
+.maq-spec-panel.active{display:block}
 </style>
 <link rel="stylesheet" href="/theme-extensions.css">
 </head>
@@ -272,72 +280,182 @@ input[type="checkbox"]{width:16px;height:16px;accent-color:#1D9E75;cursor:pointe
 <!-- MODAL: MÁQUINA                                         -->
 <!-- ═══════════════════════════════════════════════════════ -->
 <div class="modal-overlay" id="modal-maquina">
-  <div class="modal">
+  <div class="modal" style="width:680px">
     <div class="modal-title">
       <span id="modal-maquina-titulo">Nueva Máquina</span>
       <span class="modal-close" onclick="closeModal('modal-maquina')">✕</span>
     </div>
     <input type="hidden" id="maq-id-original">
-    <div class="form-grid">
-      <div class="field">
-        <label>Código de máquina</label>
-        <input type="text" id="maq-id" placeholder="Ej: M5" maxlength="10">
-        <span class="hint">Opcional. Visible en planificación sin afectar el identificador interno.</span>
+
+    <!-- Tabs de clasificación -->
+    <div class="maq-spec-tabs">
+      <button type="button" class="maq-spec-tab active" data-maq-tab="general">Información General</button>
+      <button type="button" class="maq-spec-tab" data-maq-tab="dimensiones">Dimensiones y Capacidad</button>
+      <button type="button" class="maq-spec-tab" data-maq-tab="tecnologia">Tecnología</button>
+      <button type="button" class="maq-spec-tab" data-maq-tab="electrico">Eléctrico</button>
+    </div>
+
+    <!-- Tab: Información General -->
+    <div class="maq-spec-panel active" id="maq-panel-general">
+      <div class="form-grid">
+        <div class="field">
+          <label>Código de máquina</label>
+          <input type="text" id="maq-id" placeholder="Ej: M5" maxlength="10">
+          <span class="hint">Opcional. Visible en planificación sin afectar el identificador interno.</span>
+        </div>
+        <div class="field">
+          <label>Proceso al que pertenece *</label>
+          <select id="maq-proceso">
+            <option value="">— Seleccionar —</option>
+          </select>
+        </div>
+        <div class="field" style="grid-column:1/-1">
+          <label>Nombre del recurso *</label>
+          <input type="text" id="maq-nombre" placeholder="Ej: Flexo 8C — Línea 3">
+        </div>
+        <div class="field" style="grid-column:1/-1">
+          <label>Descripción / sub-línea</label>
+          <input type="text" id="maq-sub" placeholder="Ej: 8 colores · Troquel · UV">
+        </div>
+        <div class="field">
+          <label>Capacidad de colores</label>
+          <input type="number" id="maq-colores" min="0" max="12" value="0">
+        </div>
+        <div class="field">
+          <label>Velocidad nominal (pies/min)</label>
+          <input type="number" id="maq-vel" min="0" value="0">
+        </div>
+        <div class="field">
+          <label>OEE estimado (0.00 – 1.00)</label>
+          <input type="number" id="maq-oee" min="0" max="1" step="0.01" value="0.85">
+        </div>
       </div>
-      <div class="field">
-        <label>Proceso al que pertenece *</label>
-        <select id="maq-proceso">
-          <option value="">— Seleccionar —</option>
-        </select>
-      </div>
-      <div class="field" style="grid-column:1/-1">
-        <label>Nombre del recurso *</label>
-        <input type="text" id="maq-nombre" placeholder="Ej: Flexo 8C — Línea 3">
-      </div>
-      <div class="field" style="grid-column:1/-1">
-        <label>Descripción / sub-línea</label>
-        <input type="text" id="maq-sub" placeholder="Ej: 8 colores · Troquel · UV">
-      </div>
-      <div class="field">
-        <label>Capacidad de colores</label>
-        <input type="number" id="maq-colores" min="0" max="12" value="0">
-      </div>
-      <div class="field">
-        <label>Velocidad nominal (pies/min)</label>
-        <input type="number" id="maq-vel" min="0" value="0">
-      </div>
-      <div class="field">
-        <label>OEE estimado (0.00 – 1.00)</label>
-        <input type="number" id="maq-oee" min="0" max="1" step="0.01" value="0.85">
-      </div>
-      <div class="field">
-        <label>Ancho máx. de banda (mm)</label>
-        <input type="number" id="maq-ancho-max" min="0" placeholder="Ej: 1270">
-      </div>
-      <div class="field">
-        <label>Ancho mín. de banda (mm)</label>
-        <input type="number" id="maq-ancho-min" min="0" placeholder="Ej: 250">
+      <div style="margin-top:14px">
+        <div style="font-size:11px;font-weight:600;color:#66758b;margin-bottom:8px;letter-spacing:.04em">Capacidades especiales</div>
+        <div class="toggle-row">
+          <div class="toggle-lbl">Troquel integrado</div>
+          <input type="checkbox" id="maq-troquel">
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-lbl">Barniz UV inline</div>
+          <input type="checkbox" id="maq-uv">
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-lbl">Laminado</div>
+          <input type="checkbox" id="maq-laminado">
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-lbl">Activa</div>
+          <input type="checkbox" id="maq-activa" checked>
+        </div>
       </div>
     </div>
-    <div style="margin-top:14px">
-      <div style="font-size:11px;font-weight:600;color:#66758b;margin-bottom:8px;letter-spacing:.04em">Capacidades especiales</div>
-      <div class="toggle-row">
-        <div class="toggle-lbl">Troquel integrado</div>
-        <input type="checkbox" id="maq-troquel">
-      </div>
-      <div class="toggle-row">
-        <div class="toggle-lbl">Barniz UV inline</div>
-        <input type="checkbox" id="maq-uv">
-      </div>
-      <div class="toggle-row">
-        <div class="toggle-lbl">Laminado</div>
-        <input type="checkbox" id="maq-laminado">
-      </div>
-      <div class="toggle-row">
-        <div class="toggle-lbl">Activa</div>
-        <input type="checkbox" id="maq-activa" checked>
+
+    <!-- Tab: Dimensiones y Capacidad -->
+    <div class="maq-spec-panel" id="maq-panel-dimensiones">
+      <div class="form-grid">
+        <div class="field">
+          <label>Ancho máx. de banda (mm)</label>
+          <input type="number" id="maq-ancho-max" min="0" placeholder="Ej: 440">
+        </div>
+        <div class="field">
+          <label>Ancho mín. de banda (mm)</label>
+          <input type="number" id="maq-ancho-min" min="0" placeholder="Ej: 50">
+        </div>
+        <div class="field">
+          <label>Paso máximo (mm)</label>
+          <input type="number" id="spec-paso-max" min="0" placeholder="Ej: 610">
+        </div>
+        <div class="field">
+          <label>Número de estaciones</label>
+          <input type="number" id="spec-num-estaciones" min="0" max="20" placeholder="Ej: 8">
+        </div>
+        <div class="field">
+          <label>Cantidad de cuerpos</label>
+          <input type="number" id="spec-cuerpos" min="0" max="20" placeholder="Ej: 2">
+        </div>
+        <div class="field">
+          <label>Resolución máxima (LPI)</label>
+          <input type="number" id="spec-resolucion" min="0" placeholder="Ej: 175">
+        </div>
       </div>
     </div>
+
+    <!-- Tab: Tecnología -->
+    <div class="maq-spec-panel" id="maq-panel-tecnologia">
+      <div style="margin-bottom:16px">
+        <div style="font-size:11px;font-weight:600;color:#66758b;margin-bottom:8px;letter-spacing:.04em">Tipos de tinta soportados</div>
+        <div class="toggle-row">
+          <div class="toggle-lbl">UV</div>
+          <input type="checkbox" id="spec-tinta-uv">
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-lbl">LED UV</div>
+          <input type="checkbox" id="spec-tinta-led-uv">
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-lbl">Agua</div>
+          <input type="checkbox" id="spec-tinta-agua">
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-lbl">Solvente</div>
+          <input type="checkbox" id="spec-tinta-solvente">
+        </div>
+      </div>
+      <div style="margin-bottom:16px">
+        <div style="font-size:11px;font-weight:600;color:#66758b;margin-bottom:8px;letter-spacing:.04em">Tipos de secado soportados</div>
+        <div class="toggle-row">
+          <div class="toggle-lbl">UV</div>
+          <input type="checkbox" id="spec-secado-uv">
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-lbl">LED</div>
+          <input type="checkbox" id="spec-secado-led">
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-lbl">Aire caliente</div>
+          <input type="checkbox" id="spec-secado-aire">
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-lbl">IR</div>
+          <input type="checkbox" id="spec-secado-ir">
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:600;color:#66758b;margin-bottom:8px;letter-spacing:.04em">Corona y lámparas</div>
+        <div class="toggle-row">
+          <div class="toggle-lbl">Tiene corona</div>
+          <input type="checkbox" id="spec-corona">
+        </div>
+        <div class="field" style="margin-top:8px">
+          <label>Número de lámparas UV</label>
+          <input type="number" id="spec-lamparas" min="0" placeholder="Ej: 4">
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Eléctrico -->
+    <div class="maq-spec-panel" id="maq-panel-electrico">
+      <div class="form-grid">
+        <div class="field">
+          <label>Potencia máxima corona (kW)</label>
+          <input type="number" id="spec-pot-corona" min="0" step="0.1" placeholder="Ej: 1.5">
+        </div>
+        <div class="field">
+          <label>Potencia máxima lámparas (kW)</label>
+          <input type="number" id="spec-pot-lamparas" min="0" step="0.1" placeholder="Ej: 12">
+        </div>
+        <div class="field">
+          <label>Rango tensión entrada (V)</label>
+          <input type="text" id="spec-tension-entrada" placeholder="Ej: 220-240">
+        </div>
+        <div class="field">
+          <label>Rango tensión salida (V)</label>
+          <input type="text" id="spec-tension-salida" placeholder="Ej: 220-240">
+        </div>
+      </div>
+    </div>
+
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('modal-maquina')">Cancelar</button>
       <button class="btn primary" onclick="guardarMaquina()">Guardar máquina</button>
@@ -1108,7 +1226,102 @@ function editarMaquina(id) {
   document.getElementById('maq-uv').checked       = m.flag_barniz_uv;
   document.getElementById('maq-laminado').checked = m.flag_laminado;
   document.getElementById('maq-activa').checked   = m.activa;
+  // Reset spec tabs
+  document.querySelectorAll('.maq-spec-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.maq-spec-panel').forEach(p => p.classList.remove('active'));
+  document.querySelector('.maq-spec-tab[data-maq-tab="general"]')?.classList.add('active');
+  document.getElementById('maq-panel-general')?.classList.add('active');
+  // Load specifications
+  loadMachineSpecs(id);
   openModal('modal-maquina');
+}
+
+async function loadMachineSpecs(machineId) {
+  const specFields = {
+    dimensiones: {
+      'spec-paso-max': 'paso_max',
+      'spec-num-estaciones': 'num_estaciones',
+      'spec-cuerpos': 'cuerpos',
+      'spec-resolucion': 'resolucion_max'
+    },
+    tecnologia: {
+      'spec-tinta-uv': 'tinta_uv',
+      'spec-tinta-led-uv': 'tinta_led_uv',
+      'spec-tinta-agua': 'tinta_agua',
+      'spec-tinta-solvente': 'tinta_solvente',
+      'spec-secado-uv': 'secado_uv',
+      'spec-secado-led': 'secado_led',
+      'spec-secado-aire': 'secado_aire',
+      'spec-secado-ir': 'secado_ir',
+      'spec-corona': 'tiene_corona',
+      'spec-lamparas': 'num_lamparas'
+    },
+    electrico: {
+      'spec-pot-corona': 'potencia_corona',
+      'spec-pot-lamparas': 'potencia_lamparas',
+      'spec-tension-entrada': 'tension_entrada',
+      'spec-tension-salida': 'tension_salida'
+    }
+  };
+  // Reset all spec fields
+  Object.values(specFields).forEach(group => {
+    Object.keys(group).forEach(fieldId => {
+      const el = document.getElementById(fieldId);
+      if (el) {
+        if (el.type === 'checkbox') el.checked = false;
+        else el.value = '';
+      }
+    });
+  });
+  try {
+    const res = await fetch(`${API}/maquinas/${machineId}/especificaciones`);
+    const data = await res.json();
+    if (data.ok && data.data) {
+      data.data.forEach(spec => {
+        Object.entries(specFields).forEach(([group, fields]) => {
+          Object.entries(fields).forEach(([fieldId, specKey]) => {
+            if (spec.spec_key === specKey) {
+              const el = document.getElementById(fieldId);
+              if (el) {
+                if (el.type === 'checkbox') el.checked = spec.spec_value === 'true';
+                else el.value = spec.spec_value || '';
+              }
+            }
+          });
+        });
+      });
+    }
+  } catch(e) { console.error('Error loading specs:', e); }
+}
+
+async function saveMachineSpecs(machineId) {
+  const specs = [
+    { spec_group: 'dimensiones', spec_key: 'paso_max', spec_value: document.getElementById('spec-paso-max')?.value || '' },
+    { spec_group: 'dimensiones', spec_key: 'num_estaciones', spec_value: document.getElementById('spec-num-estaciones')?.value || '' },
+    { spec_group: 'dimensiones', spec_key: 'cuerpos', spec_value: document.getElementById('spec-cuerpos')?.value || '' },
+    { spec_group: 'dimensiones', spec_key: 'resolucion_max', spec_value: document.getElementById('spec-resolucion')?.value || '' },
+    { spec_group: 'tecnologia', spec_key: 'tinta_uv', spec_value: String(document.getElementById('spec-tinta-uv')?.checked || false) },
+    { spec_group: 'tecnologia', spec_key: 'tinta_led_uv', spec_value: String(document.getElementById('spec-tinta-led-uv')?.checked || false) },
+    { spec_group: 'tecnologia', spec_key: 'tinta_agua', spec_value: String(document.getElementById('spec-tinta-agua')?.checked || false) },
+    { spec_group: 'tecnologia', spec_key: 'tinta_solvente', spec_value: String(document.getElementById('spec-tinta-solvente')?.checked || false) },
+    { spec_group: 'tecnologia', spec_key: 'secado_uv', spec_value: String(document.getElementById('spec-secado-uv')?.checked || false) },
+    { spec_group: 'tecnologia', spec_key: 'secado_led', spec_value: String(document.getElementById('spec-secado-led')?.checked || false) },
+    { spec_group: 'tecnologia', spec_key: 'secado_aire', spec_value: String(document.getElementById('spec-secado-aire')?.checked || false) },
+    { spec_group: 'tecnologia', spec_key: 'secado_ir', spec_value: String(document.getElementById('spec-secado-ir')?.checked || false) },
+    { spec_group: 'tecnologia', spec_key: 'tiene_corona', spec_value: String(document.getElementById('spec-corona')?.checked || false) },
+    { spec_group: 'tecnologia', spec_key: 'num_lamparas', spec_value: document.getElementById('spec-lamparas')?.value || '' },
+    { spec_group: 'electrico', spec_key: 'potencia_corona', spec_value: document.getElementById('spec-pot-corona')?.value || '' },
+    { spec_group: 'electrico', spec_key: 'potencia_lamparas', spec_value: document.getElementById('spec-pot-lamparas')?.value || '' },
+    { spec_group: 'electrico', spec_key: 'tension_entrada', spec_value: document.getElementById('spec-tension-entrada')?.value || '' },
+    { spec_group: 'electrico', spec_key: 'tension_salida', spec_value: document.getElementById('spec-tension-salida')?.value || '' }
+  ];
+  try {
+    await fetch(`${API}/maquinas/${machineId}/especificaciones`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ especificaciones: specs })
+    });
+  } catch(e) { console.error('Error saving specs:', e); }
 }
 
 async function guardarMaquina() {
@@ -1137,6 +1350,12 @@ async function guardarMaquina() {
     const res  = await fetch(url, { method: met, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error);
+    // Save specifications if editing
+    if (idOrig) {
+      await saveMachineSpecs(idOrig);
+    } else if (data.data?.id) {
+      await saveMachineSpecs(data.data.id);
+    }
     closeModal('modal-maquina');
     showAlert(idOrig ? 'Máquina actualizada.' : 'Máquina creada correctamente.');
     await loadAll();
@@ -1161,6 +1380,17 @@ async function desactivarMaquina(id, nombre, activa) {
 document.querySelectorAll('.modal-overlay').forEach(overlay => {
   overlay.addEventListener('click', e => {
     if (e.target === overlay) overlay.classList.remove('open');
+  });
+});
+
+// ── MÁQUINA SPEC TABS ──────────────────────────────────────────
+document.querySelectorAll('.maq-spec-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.maq-spec-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.maq-spec-panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    const panelId = 'maq-panel-' + tab.dataset.maqTab;
+    document.getElementById(panelId)?.classList.add('active');
   });
 });
 

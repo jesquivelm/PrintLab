@@ -15507,6 +15507,46 @@ app.delete('/api/planificacion/maquinas/:id', async (req, res) => {
     }
 });
 
+// ═══════════════════════════════════════════════════════════════════
+// ESPECIFICACIONES TÉCNICAS DE MÁQUINAS
+// ═══════════════════════════════════════════════════════════════════
+
+app.get('/api/planificacion/maquinas/:id/especificaciones', async (req, res) => {
+    try {
+        const result = await pgQuery(`
+            SELECT id::text AS id, spec_group, spec_key, spec_value
+            FROM production_machine_specs
+            WHERE machine_profile_id = $1::uuid
+            ORDER BY spec_group, spec_key
+        `, [req.params.id]);
+        res.json({ ok: true, data: result.rows });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible cargar las especificaciones.' });
+    }
+});
+
+app.put('/api/planificacion/maquinas/:id/especificaciones', async (req, res) => {
+    try {
+        const { especificaciones } = req.body || {};
+        if (!especificaciones || !Array.isArray(especificaciones)) {
+            return res.status(400).json({ ok: false, error: 'Debes enviar el array de especificaciones.' });
+        }
+        const machineId = req.params.id;
+        for (const spec of especificaciones) {
+            if (!spec.spec_key) continue;
+            await pgQuery(`
+                INSERT INTO production_machine_specs (machine_profile_id, spec_group, spec_key, spec_value)
+                VALUES ($1::uuid, $2, $3, $4)
+                ON CONFLICT (machine_profile_id, spec_key)
+                DO UPDATE SET spec_value = EXCLUDED.spec_value, spec_group = EXCLUDED.spec_group, updated_at = NOW()
+            `, [machineId, spec.spec_group || 'general', spec.spec_key, spec.spec_value || '']);
+        }
+        res.json({ ok: true });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible guardar las especificaciones.' });
+    }
+});
+
 app.get('/api/planificacion/gantt-agrupado', async (req, res) => {
     try {
         const [machinesResult, routesResult] = await Promise.all([

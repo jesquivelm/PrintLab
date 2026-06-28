@@ -234,3 +234,20 @@ CREATE TABLE IF NOT EXISTS production_station_configs (
 
 CREATE INDEX IF NOT EXISTS idx_production_station_configs_order ON production_station_configs(order_code, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_production_station_configs_product ON production_station_configs(product_code, created_at DESC);
+
+-- ═══════════════════════════════════════════════════════════════════
+-- ESPECIFICACIONES TÉCNICAS DE MÁQUINAS
+-- ═══════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS production_machine_specs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    machine_profile_id UUID NOT NULL REFERENCES production_machine_profiles(id) ON DELETE CASCADE,
+    spec_group TEXT NOT NULL DEFAULT 'dimensiones',
+    spec_key TEXT NOT NULL,
+    spec_value TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (machine_profile_id, spec_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_production_machine_specs_profile ON production_machine_specs(machine_profile_id, spec_group);
