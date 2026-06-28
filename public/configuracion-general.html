@@ -5721,6 +5721,7 @@
                                 <button type="button" class="quotes-subtab" data-quotes-tab="proforma">Proforma</button>
                                 <button type="button" class="quotes-subtab" data-quotes-tab="entregas">Entregas</button>
                                 <button type="button" class="quotes-subtab" data-quotes-tab="manejo-producto">Manejo de Producto</button>
+                                <button type="button" class="quotes-subtab" data-quotes-tab="datos-ingreso">Datos de Ingreso</button>
                             </div>
 
                             <div id="quotes-panel-calculo" class="quotes-subpanel">
@@ -6326,6 +6327,125 @@
                                                     <tbody id="handlingShortageOptionsTableBody"></tbody>
                                                 </table>
                                             </div>
+                                        </section>
+                                    </div>
+                                </section>
+                            </div>
+
+                            <div id="quotes-panel-datos-ingreso" class="quotes-subpanel" hidden>
+                                <section class="config-card">
+                                    <h2 class="config-section-title">Datos de Ingreso — Configuración Estándar de Tintas</h2>
+                                    <p class="section-caption">Parámetros estándar que se aplican por defecto al configurar estaciones de impresión en el MES. El operario puede ajustar estos valores al momento de configurar cada trabajo.</p>
+
+                                    <div class="quotes-general-split two-col">
+                                        <!-- CMYK -->
+                                        <section class="config-card quote-product-types-card">
+                                            <input id="inkConfigCmykJson" name="general.inkConfigCmykJson" type="hidden">
+                                            <h3 style="color:#06b6d4">Colores Proceso — CMYK</h3>
+                                            <div class="quote-product-types-toolbar">
+                                                <p>Colores base de cuatrocromía. Parámetros compartidos por las 4 estaciones CMYK.</p>
+                                                <button id="inkConfigCmykAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
+                                            </div>
+                                            <div class="quote-product-types-table-wrap">
+                                                <table class="quote-product-types-table config-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th style="width:28px;"></th>
+                                                            <th style="width:72px;">#</th>
+                                                            <th>Color</th>
+                                                            <th>Anilox</th>
+                                                            <th>Visc. (seg)</th>
+                                                            <th>Temp. (°C)</th>
+                                                            <th>Acción</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="inkConfigCmykTableBody"></tbody>
+                                                </table>
+                                            </div>
+                                            <div class="config-help">Valores por defecto: Viscosidad 22 seg (Copa Zahn #2), Temperatura 23.5°C, Anilox ANX-800-2.2 (800 LPI / 2.2 BCM).</div>
+                                        </section>
+
+                                        <!-- Colores Especiales -->
+                                        <section class="config-card quote-product-types-card">
+                                            <input id="inkConfigEspecialesJson" name="general.inkConfigEspecialesJson" type="hidden">
+                                            <h3 style="color:#f8fafc">Colores Especiales — Blanco</h3>
+                                            <div class="quote-product-types-toolbar">
+                                                <p>Tintas especiales con parámetros diferenciados. Blanco base acuoso para sustratos transparentes/opacos.</p>
+                                                <button id="inkConfigEspecialesAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
+                                            </div>
+                                            <div class="quote-product-types-table-wrap">
+                                                <table class="quote-product-types-table config-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th style="width:28px;"></th>
+                                                            <th style="width:72px;">#</th>
+                                                            <th>Color</th>
+                                                            <th>Anilox</th>
+                                                            <th>Visc. (seg)</th>
+                                                            <th>Temp. (°C)</th>
+                                                            <th>Fórmula</th>
+                                                            <th>Acción</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="inkConfigEspecialesTableBody"></tbody>
+                                                </table>
+                                            </div>
+                                            <div class="config-help">Blanco: Fórmula 95% Blanco + 5% Aditivo Desespumante. Espesor de placa 1.44 mm. Cinta de montaje 3M Verde (Dura — para plásticos masivos).</div>
+                                        </section>
+
+                                        <!-- Pantone -->
+                                        <section class="config-card quote-product-types-card">
+                                            <input id="inkConfigPantoneJson" name="general.inkConfigPantoneJson" type="hidden">
+                                            <h3 style="color:#f97316">Colores Pantone</h3>
+                                            <div class="quote-product-types-toolbar">
+                                                <p>Tintas Pantone predefinidas. Cada referencia tiene su propia configuración de anilox y viscosidad.</p>
+                                                <button id="inkConfigPantoneAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
+                                            </div>
+                                            <div class="quote-product-types-table-wrap">
+                                                <table class="quote-product-types-table config-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th style="width:28px;"></th>
+                                                            <th style="width:72px;">#</th>
+                                                            <th>Referencia</th>
+                                                            <th>Anilox</th>
+                                                            <th>Visc. (seg)</th>
+                                                            <th>Temp. (°C)</th>
+                                                            <th>Acción</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="inkConfigPantoneTableBody"></tbody>
+                                                </table>
+                                            </div>
+                                            <div class="config-help">Ejemplo: Pantone 186C (Rojo Marca) — 75% Rubine Red + 20% Warm Yellow + 5% Trans. Base. Cinta 3M Púrpura (Media).</div>
+                                        </section>
+
+                                        <!-- Barniz UV -->
+                                        <section class="config-card quote-product-types-card">
+                                            <input id="inkConfigBarnizJson" name="general.inkConfigBarnizJson" type="hidden">
+                                            <h3 style="color:#a78bfa">Barniz UV</h3>
+                                            <div class="quote-product-types-toolbar">
+                                                <p>Configuración estándar del barniz UV. Exclusive para estación de barnizado.</p>
+                                                <button id="inkConfigBarnizAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
+                                            </div>
+                                            <div class="quote-product-types-table-wrap">
+                                                <table class="quote-product-types-table config-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th style="width:28px;"></th>
+                                                            <th style="width:72px;">#</th>
+                                                            <th>Tipo</th>
+                                                            <th>Aplicación</th>
+                                                            <th>Visc. (seg)</th>
+                                                            <th>Potencia UV (%)</th>
+                                                            <th>Temp. UV (°C)</th>
+                                                            <th>Acción</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="inkConfigBarnizTableBody"></tbody>
+                                                </table>
+                                            </div>
+                                            <div class="config-help">Barniz Brillante UV: 100% potencia, 85°C lámpara. Barniz Mate UV: configuración alternativa para acabado sin brillo.</div>
                                         </section>
                                     </div>
                                 </section>
@@ -9129,6 +9249,10 @@
             renderHandlingExcessOptionsTable();
             renderHandlingAdvanceOptionsTable();
             renderHandlingShortageOptionsTable();
+            renderInkConfigCmykTable();
+            renderInkConfigEspecialesTable();
+            renderInkConfigPantoneTable();
+            renderInkConfigBarnizTable();
             renderConfigButtonsIcons();
             syncToggleButtons();
             syncTabColorSwatches();
@@ -9430,6 +9554,314 @@
                 </tr>
             `).join('');
         }
+
+        // ═══════════════════════════════════════════════════════════════
+        // INK CONFIGURATION — DATOS DE INGRESO
+        // ═══════════════════════════════════════════════════════════════
+
+        const inkConfigCmykJsonField = document.getElementById('inkConfigCmykJson');
+        const inkConfigCmykTableBody = document.getElementById('inkConfigCmykTableBody');
+        const inkConfigCmykAddButton = document.getElementById('inkConfigCmykAddButton');
+
+        const inkConfigEspecialesJsonField = document.getElementById('inkConfigEspecialesJson');
+        const inkConfigEspecialesTableBody = document.getElementById('inkConfigEspecialesTableBody');
+        const inkConfigEspecialesAddButton = document.getElementById('inkConfigEspecialesAddButton');
+
+        const inkConfigPantoneJsonField = document.getElementById('inkConfigPantoneJson');
+        const inkConfigPantoneTableBody = document.getElementById('inkConfigPantoneTableBody');
+        const inkConfigPantoneAddButton = document.getElementById('inkConfigPantoneAddButton');
+
+        const inkConfigBarnizJsonField = document.getElementById('inkConfigBarnizJson');
+        const inkConfigBarnizTableBody = document.getElementById('inkConfigBarnizTableBody');
+        const inkConfigBarnizAddButton = document.getElementById('inkConfigBarnizAddButton');
+
+        const DEFAULT_INK_CMYK = [
+            { nombre: 'Cyan', anilox: 'ANX-800-2.2', visc: 22, temp: 23.5 },
+            { nombre: 'Magenta', anilox: 'ANX-800-2.2', visc: 22, temp: 23.5 },
+            { nombre: 'Amarillo', anilox: 'ANX-800-2.2', visc: 22, temp: 23.5 },
+            { nombre: 'Negro', anilox: 'ANX-800-2.2', visc: 22, temp: 23.5 }
+        ];
+
+        const DEFAULT_INK_ESPECIALES = [
+            { nombre: 'Blanco', anilox: 'ANX-360-7.5', visc: 24, temp: 23.5, formula: '95% Blanco + 5% Aditivo Desespumante' }
+        ];
+
+        const DEFAULT_INK_PANTONE = [
+            { referencia: 'Pantone 186C', anilox: 'ANX-600-3.8', visc: 22, temp: 23.5 },
+            { referencia: 'Pantone 286C', anilox: 'ANX-600-3.8', visc: 22, temp: 23.5 },
+            { referencia: 'Pantone 348C', anilox: 'ANX-600-3.8', visc: 22, temp: 23.5 },
+            { referencia: 'Pantone 109C', anilox: 'ANX-600-3.8', visc: 22, temp: 23.5 }
+        ];
+
+        const DEFAULT_INK_BARNIZ = [
+            { tipo: 'Brillante UV', aplicacion: 'Total', visc: 18, potencia: 100, temp: 85 },
+            { tipo: 'Mate UV', aplicacion: 'Total', visc: 18, potencia: 100, temp: 85 }
+        ];
+
+        function readInkConfigFromField(field) {
+            try {
+                return JSON.parse(field?.value || '[]');
+            } catch { return []; }
+        }
+
+        function syncInkConfigField(field, items) {
+            if (!field) return;
+            field.value = JSON.stringify(items);
+        }
+
+        // CMYK
+        function renderInkConfigCmykTable() {
+            if (!inkConfigCmykTableBody) return;
+            let items = readInkConfigFromField(inkConfigCmykJsonField);
+            if (!items.length && !inkConfigCmykJsonField?.value) {
+                items = DEFAULT_INK_CMYK.map(d => ({...d}));
+                syncInkConfigField(inkConfigCmykJsonField, items);
+            }
+            if (!items.length) {
+                inkConfigCmykTableBody.innerHTML = '<tr><td colspan="7" class="quote-product-types-empty">No hay colores CMYK configurados.</td></tr>';
+                return;
+            }
+            inkConfigCmykTableBody.innerHTML = items.map((item, i) => `
+                <tr data-item-index="${i}" data-table-key="inkCmyk">
+                    <td class="config-drag-cell"><span class="config-drag-handle" title="Arrastrar">⋮⋮</span></td>
+                    <td>${i + 1}</td>
+                    <td><input type="text" value="${escapeHtml(item.nombre || '')}" data-ink-cmyk-nombre="${i}" maxlength="30"></td>
+                    <td><select data-ink-cmyk-anilox="${i}">
+                        <option value="ANX-800-2.2"${item.anilox === 'ANX-800-2.2' ? ' selected' : ''}>ANX-800-2.2</option>
+                        <option value="ANX-360-7.5"${item.anilox === 'ANX-360-7.5' ? ' selected' : ''}>ANX-360-7.5</option>
+                        <option value="ANX-600-3.8"${item.anilox === 'ANX-600-3.8' ? ' selected' : ''}>ANX-600-3.8</option>
+                    </select></td>
+                    <td><input type="number" value="${item.visc || 22}" data-ink-cmyk-visc="${i}" min="10" max="60" step="1" style="width:60px"></td>
+                    <td><input type="number" value="${item.temp || 23.5}" data-ink-cmyk-temp="${i}" min="15" max="40" step="0.5" style="width:60px"></td>
+                    <td><button type="button" class="icon-only-btn quote-product-types-remove" data-remove-ink-cmyk="${i}" aria-label="Eliminar" title="Eliminar">${getIconHtml('quantity.delete', '&#128465;', '#b94848', 18)}</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function syncInkCmykFromInputs() {
+            const items = readInkConfigFromField(inkConfigCmykJsonField);
+            inkConfigCmykTableBody.querySelectorAll('input, select').forEach(el => {
+                const key = [...el.attributes].find(a => a.name.startsWith('data-ink-cmyk-'));
+                if (!key) return;
+                const field = key.name.replace('data-ink-cmyk-', '');
+                const idx = parseInt(key.value);
+                if (items[idx]) {
+                    if (field === 'visc' || field === 'temp') items[idx][field] = parseFloat(el.value) || 0;
+                    else items[idx][field] = el.value;
+                }
+            });
+            syncInkConfigField(inkConfigCmykJsonField, items);
+        }
+
+        // Especiales
+        function renderInkConfigEspecialesTable() {
+            if (!inkConfigEspecialesTableBody) return;
+            let items = readInkConfigFromField(inkConfigEspecialesJsonField);
+            if (!items.length && !inkConfigEspecialesJsonField?.value) {
+                items = DEFAULT_INK_ESPECIALES.map(d => ({...d}));
+                syncInkConfigField(inkConfigEspecialesJsonField, items);
+            }
+            if (!items.length) {
+                inkConfigEspecialesTableBody.innerHTML = '<tr><td colspan="8" class="quote-product-types-empty">No hay colores especiales configurados.</td></tr>';
+                return;
+            }
+            inkConfigEspecialesTableBody.innerHTML = items.map((item, i) => `
+                <tr data-item-index="${i}" data-table-key="inkEspeciales">
+                    <td class="config-drag-cell"><span class="config-drag-handle" title="Arrastrar">⋮⋮</span></td>
+                    <td>${i + 1}</td>
+                    <td><input type="text" value="${escapeHtml(item.nombre || '')}" data-ink-esp-nombre="${i}" maxlength="30"></td>
+                    <td><select data-ink-esp-anilox="${i}">
+                        <option value="ANX-800-2.2"${item.anilox === 'ANX-800-2.2' ? ' selected' : ''}>ANX-800-2.2</option>
+                        <option value="ANX-360-7.5"${item.anilox === 'ANX-360-7.5' ? ' selected' : ''}>ANX-360-7.5</option>
+                        <option value="ANX-600-3.8"${item.anilox === 'ANX-600-3.8' ? ' selected' : ''}>ANX-600-3.8</option>
+                    </select></td>
+                    <td><input type="number" value="${item.visc || 24}" data-ink-esp-visc="${i}" min="10" max="60" step="1" style="width:60px"></td>
+                    <td><input type="number" value="${item.temp || 23.5}" data-ink-esp-temp="${i}" min="15" max="40" step="0.5" style="width:60px"></td>
+                    <td><input type="text" value="${escapeHtml(item.formula || '')}" data-ink-esp-formula="${i}" maxlength="100" placeholder="Ej: 95% Blanco + 5% Desespumante"></td>
+                    <td><button type="button" class="icon-only-btn quote-product-types-remove" data-remove-ink-esp="${i}" aria-label="Eliminar" title="Eliminar">${getIconHtml('quantity.delete', '&#128465;', '#b94848', 18)}</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function syncInkEspecialesFromInputs() {
+            const items = readInkConfigFromField(inkConfigEspecialesJsonField);
+            inkConfigEspecialesTableBody.querySelectorAll('input, select').forEach(el => {
+                const key = [...el.attributes].find(a => a.name.startsWith('data-ink-esp-'));
+                if (!key) return;
+                const field = key.name.replace('data-ink-esp-', '');
+                const idx = parseInt(key.value);
+                if (items[idx]) {
+                    if (field === 'visc' || field === 'temp') items[idx][field] = parseFloat(el.value) || 0;
+                    else items[idx][field] = el.value;
+                }
+            });
+            syncInkConfigField(inkConfigEspecialesJsonField, items);
+        }
+
+        // Pantone
+        function renderInkConfigPantoneTable() {
+            if (!inkConfigPantoneTableBody) return;
+            let items = readInkConfigFromField(inkConfigPantoneJsonField);
+            if (!items.length && !inkConfigPantoneJsonField?.value) {
+                items = DEFAULT_INK_PANTONE.map(d => ({...d}));
+                syncInkConfigField(inkConfigPantoneJsonField, items);
+            }
+            if (!items.length) {
+                inkConfigPantoneTableBody.innerHTML = '<tr><td colspan="7" class="quote-product-types-empty">No hay colores Pantone configurados.</td></tr>';
+                return;
+            }
+            inkConfigPantoneTableBody.innerHTML = items.map((item, i) => `
+                <tr data-item-index="${i}" data-table-key="inkPantone">
+                    <td class="config-drag-cell"><span class="config-drag-handle" title="Arrastrar">⋮⋮</span></td>
+                    <td>${i + 1}</td>
+                    <td><input type="text" value="${escapeHtml(item.referencia || '')}" data-ink-pant-ref="${i}" maxlength="30" placeholder="Ej: Pantone 186C"></td>
+                    <td><select data-ink-pant-anilox="${i}">
+                        <option value="ANX-800-2.2"${item.anilox === 'ANX-800-2.2' ? ' selected' : ''}>ANX-800-2.2</option>
+                        <option value="ANX-360-7.5"${item.anilox === 'ANX-360-7.5' ? ' selected' : ''}>ANX-360-7.5</option>
+                        <option value="ANX-600-3.8"${item.anilox === 'ANX-600-3.8' ? ' selected' : ''}>ANX-600-3.8</option>
+                    </select></td>
+                    <td><input type="number" value="${item.visc || 22}" data-ink-pant-visc="${i}" min="10" max="60" step="1" style="width:60px"></td>
+                    <td><input type="number" value="${item.temp || 23.5}" data-ink-pant-temp="${i}" min="15" max="40" step="0.5" style="width:60px"></td>
+                    <td><button type="button" class="icon-only-btn quote-product-types-remove" data-remove-ink-pant="${i}" aria-label="Eliminar" title="Eliminar">${getIconHtml('quantity.delete', '&#128465;', '#b94848', 18)}</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function syncInkPantoneFromInputs() {
+            const items = readInkConfigFromField(inkConfigPantoneJsonField);
+            inkConfigPantoneTableBody.querySelectorAll('input, select').forEach(el => {
+                const key = [...el.attributes].find(a => a.name.startsWith('data-ink-pant-'));
+                if (!key) return;
+                const field = key.name.replace('data-ink-pant-', '');
+                const idx = parseInt(key.value);
+                if (items[idx]) {
+                    if (field === 'visc' || field === 'temp') items[idx][field] = parseFloat(el.value) || 0;
+                    else items[idx][field] = el.value;
+                }
+            });
+            syncInkConfigField(inkConfigPantoneJsonField, items);
+        }
+
+        // Barniz
+        function renderInkConfigBarnizTable() {
+            if (!inkConfigBarnizTableBody) return;
+            let items = readInkConfigFromField(inkConfigBarnizJsonField);
+            if (!items.length && !inkConfigBarnizJsonField?.value) {
+                items = DEFAULT_INK_BARNIZ.map(d => ({...d}));
+                syncInkConfigField(inkConfigBarnizJsonField, items);
+            }
+            if (!items.length) {
+                inkConfigBarnizTableBody.innerHTML = '<tr><td colspan="8" class="quote-product-types-empty">No hay barnices configurados.</td></tr>';
+                return;
+            }
+            inkConfigBarnizTableBody.innerHTML = items.map((item, i) => `
+                <tr data-item-index="${i}" data-table-key="inkBarniz">
+                    <td class="config-drag-cell"><span class="config-drag-handle" title="Arrastrar">⋮⋮</span></td>
+                    <td>${i + 1}</td>
+                    <td><select data-ink-barn-tipo="${i}">
+                        <option value="Brillante UV"${item.tipo === 'Brillante UV' ? ' selected' : ''}>Brillante UV</option>
+                        <option value="Mate UV"${item.tipo === 'Mate UV' ? ' selected' : ''}>Mate UV</option>
+                    </select></td>
+                    <td><select data-ink-barn-aplic="${i}">
+                        <option value="Total"${item.aplicacion === 'Total' ? ' selected' : ''}>Total</option>
+                        <option value="Zonificado"${item.aplicacion === 'Zonificado' ? ' selected' : ''}>Zonificado</option>
+                    </select></td>
+                    <td><input type="number" value="${item.visc || 18}" data-ink-barn-visc="${i}" min="10" max="60" step="1" style="width:60px"></td>
+                    <td><input type="number" value="${item.potencia || 100}" data-ink-barn-pot="${i}" min="0" max="100" step="5" style="width:60px"></td>
+                    <td><input type="number" value="${item.temp || 85}" data-ink-barn-temp="${i}" min="50" max="120" step="5" style="width:60px"></td>
+                    <td><button type="button" class="icon-only-btn quote-product-types-remove" data-remove-ink-barn="${i}" aria-label="Eliminar" title="Eliminar">${getIconHtml('quantity.delete', '&#128465;', '#b94848', 18)}</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function syncInkBarnizFromInputs() {
+            const items = readInkConfigFromField(inkConfigBarnizJsonField);
+            inkConfigBarnizTableBody.querySelectorAll('input, select').forEach(el => {
+                const key = [...el.attributes].find(a => a.name.startsWith('data-ink-barn-'));
+                if (!key) return;
+                const field = key.name.replace('data-ink-barn-', '');
+                const idx = parseInt(key.value);
+                if (items[idx]) {
+                    if (field === 'visc' || field === 'potencia' || field === 'temp') items[idx][field] = parseFloat(el.value) || 0;
+                    else items[idx][field] = el.value;
+                }
+            });
+            syncInkConfigField(inkConfigBarnizJsonField, items);
+        }
+
+        // Event listeners for ink tables
+        inkConfigCmykTableBody?.addEventListener('input', () => syncInkCmykFromInputs());
+        inkConfigCmykTableBody?.addEventListener('change', () => syncInkCmykFromInputs());
+        inkConfigEspecialesTableBody?.addEventListener('input', () => syncInkEspecialesFromInputs());
+        inkConfigEspecialesTableBody?.addEventListener('change', () => syncInkEspecialesFromInputs());
+        inkConfigPantoneTableBody?.addEventListener('input', () => syncInkPantoneFromInputs());
+        inkConfigPantoneTableBody?.addEventListener('change', () => syncInkPantoneFromInputs());
+        inkConfigBarnizTableBody?.addEventListener('input', () => syncInkBarnizFromInputs());
+        inkConfigBarnizTableBody?.addEventListener('change', () => syncInkBarnizFromInputs());
+
+        // Add buttons
+        inkConfigCmykAddButton?.addEventListener('click', () => {
+            const items = readInkConfigFromField(inkConfigCmykJsonField);
+            items.push({ nombre: '', anilox: 'ANX-800-2.2', visc: 22, temp: 23.5 });
+            syncInkConfigField(inkConfigCmykJsonField, items);
+            renderInkConfigCmykTable();
+        });
+        inkConfigEspecialesAddButton?.addEventListener('click', () => {
+            const items = readInkConfigFromField(inkConfigEspecialesJsonField);
+            items.push({ nombre: '', anilox: 'ANX-360-7.5', visc: 24, temp: 23.5, formula: '' });
+            syncInkConfigField(inkConfigEspecialesJsonField, items);
+            renderInkConfigEspecialesTable();
+        });
+        inkConfigPantoneAddButton?.addEventListener('click', () => {
+            const items = readInkConfigFromField(inkConfigPantoneJsonField);
+            items.push({ referencia: '', anilox: 'ANX-600-3.8', visc: 22, temp: 23.5 });
+            syncInkConfigField(inkConfigPantoneJsonField, items);
+            renderInkConfigPantoneTable();
+        });
+        inkConfigBarnizAddButton?.addEventListener('click', () => {
+            const items = readInkConfigFromField(inkConfigBarnizJsonField);
+            items.push({ tipo: 'Brillante UV', aplicacion: 'Total', visc: 18, potencia: 100, temp: 85 });
+            syncInkConfigField(inkConfigBarnizJsonField, items);
+            renderInkConfigBarnizTable();
+        });
+
+        // Delete buttons (event delegation)
+        inkConfigCmykTableBody?.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-remove-ink-cmyk]');
+            if (!btn) return;
+            const idx = parseInt(btn.dataset.removeInkCmyk);
+            const items = readInkConfigFromField(inkConfigCmykJsonField);
+            items.splice(idx, 1);
+            syncInkConfigField(inkConfigCmykJsonField, items);
+            renderInkConfigCmykTable();
+        });
+        inkConfigEspecialesTableBody?.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-remove-ink-esp]');
+            if (!btn) return;
+            const idx = parseInt(btn.dataset.removeInkEsp);
+            const items = readInkConfigFromField(inkConfigEspecialesJsonField);
+            items.splice(idx, 1);
+            syncInkConfigField(inkConfigEspecialesJsonField, items);
+            renderInkConfigEspecialesTable();
+        });
+        inkConfigPantoneTableBody?.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-remove-ink-pant]');
+            if (!btn) return;
+            const idx = parseInt(btn.dataset.removeInkPant);
+            const items = readInkConfigFromField(inkConfigPantoneJsonField);
+            items.splice(idx, 1);
+            syncInkConfigField(inkConfigPantoneJsonField, items);
+            renderInkConfigPantoneTable();
+        });
+        inkConfigBarnizTableBody?.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-remove-ink-barn]');
+            if (!btn) return;
+            const idx = parseInt(btn.dataset.removeInkBarn);
+            const items = readInkConfigFromField(inkConfigBarnizJsonField);
+            items.splice(idx, 1);
+            syncInkConfigField(inkConfigBarnizJsonField, items);
+            renderInkConfigBarnizTable();
+        });
 
         function setInventoryClassificationStatus(message, isError = false) {
             if (!inventoryClassificationStatus) return;
