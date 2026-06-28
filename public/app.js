@@ -1161,7 +1161,7 @@ function buildDetailFrontBackTree(rows = [], quoteCode = '') {
         const expanded = expandedFrontBackDetailKeys.has(key);
         nodes.push({ row, kind: 'group', group, key, childCount: children.length, expanded });
         if (expanded) {
-            children.forEach((child) => nodes.push({ row: child, kind: 'child', group, key }));
+            children.forEach((child, childIndex) => nodes.push({ row: child, kind: 'child', group, key, childIndex }));
         }
     });
     return nodes;
@@ -1288,7 +1288,7 @@ function renderDetailDataRow(node, displayIndex, subtotalKeys, totalNodes) {
     }
     return `
         <tr data-id="${row.id}" class="${rowClass}${treeClass}">
-            <td class="row-number"><div class="quote-master-line-order">${treeToggle} <span class="quote-master-line-num">${displayIndex + 1}</span></div></td>
+            <td class="row-number"><div class="quote-master-line-order">${treeToggle} <span class="quote-master-line-num">${isChild ? (node.childIndex + 1) : (displayIndex + 1)}</span></div></td>
             <td>
                 <div class="row-tools row-tools-compact row-tools-leading">
                     <span class="row-action-divider" aria-hidden="true"></span>

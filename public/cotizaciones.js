@@ -1845,10 +1845,10 @@ function buildFrontBackLineTree(lines = [], quoteCode = '') {
         const expanded = expandedFrontBackGroupKeys.has(key);
         nodes.push({ line, sourceIndex, kind: 'group', group, key, childCount: children.length, expanded });
         if (expanded) {
-            children.forEach((child) => {
+            children.forEach((child, childIndex) => {
                 nodes.push({
                     line: child,
-                    sourceIndex: lines.findIndex((item) => item.id === child.id),
+                    sourceIndex: childIndex,
                     kind: 'child',
                     group,
                     key
