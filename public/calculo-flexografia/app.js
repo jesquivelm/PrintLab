@@ -3670,7 +3670,8 @@ function renderTechnicalCollapsedSummary() {
   const header = state.form.header;
   const outputItem = currentOutputTypeItem();
   const outputCode = outputItem ? String(first(outputItem.shortName, outputItem.code, outputItem.codigo, outputItem.id, "")).trim() : "";
-  const dimensions = inchValue(header.labelWidthIn) && inchValue(header.labelHeightIn) ? `${inchValue(header.labelWidthIn)} x ${inchValue(header.labelHeightIn)}` : "";
+  const isGroupCtx = isFrontBackGroupContext();
+  const dimensions = !isGroupCtx && inchValue(header.labelWidthIn) && inchValue(header.labelHeightIn) ? `${inchValue(header.labelWidthIn)} x ${inchValue(header.labelHeightIn)}` : "";
   const rows = [
     ["Dimensiones", dimensions],
     ["Ancho Core", inchLabel(header.rollWidthIn)],
@@ -5582,8 +5583,10 @@ function renderHeader() {
 
 function syncFrontBackCalculationShell() {
   const isElement = isFrontBackElementContext();
+  const isGroup = isFrontBackGroupContext();
   const isEmbeddedElement = isEmbeddedView() && isElement;
   document.body.classList.toggle("is-front-back-element-context", isElement);
+  document.body.classList.toggle("is-front-back-group-context", isGroup);
   document.body.classList.toggle("is-front-back-embedded", isEmbeddedView());
   document.body.classList.toggle("is-front-back-embedded-element", isEmbeddedElement);
   document.documentElement.classList.toggle("is-front-back-embedded-early", isEmbeddedElement);

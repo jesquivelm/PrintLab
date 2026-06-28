@@ -432,9 +432,11 @@ body.is-front-back-embedded-element #technicalDataCard .technical-grid {
 html.is-front-back-embedded-early #technicalDataCard .technical-column-left > .technical-panel:not(:first-child),
 html.is-front-back-embedded-early #technicalDataCard .technical-column-right,
 body.is-front-back-embedded-element #technicalDataCard .technical-column-left > .technical-panel:not(:first-child),
-body.is-front-back-embedded-element #technicalDataCard .technical-column-right,
-html.is-front-back-embedded-early #technicalDataCard .technical-column-left > .technical-panel:first-child,
-body.is-front-back-embedded-element #technicalDataCard .technical-column-left > .technical-panel:first-child {
+body.is-front-back-embedded-element #technicalDataCard .technical-column-right {
+  display: none !important;
+}
+
+body.is-front-back-group-context #technicalDataCard .technical-column-left > .technical-panel:first-child {
   display: none !important;
 }
 
