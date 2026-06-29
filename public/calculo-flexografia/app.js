@@ -1441,7 +1441,7 @@ function frontBackSharedProcessKeys() {
 }
 
 function isProcessAllowedForCurrentFrontBackContext(key = "") {
-  if (isFrontBackEmbeddedElementContext() && ["troquel", "sustrato", "impresion", "planchas"].includes(norm(key))) return false;
+  if (isFrontBackEmbeddedElementContext() && ["troquel", "sustrato", "impresion", "planchas", "empaque"].includes(norm(key))) return false;
   return true;
 }
 
