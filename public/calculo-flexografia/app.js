@@ -7829,6 +7829,7 @@ function renderInkProfiles(scope, profiles = []) {
 }
 
 function dieDimensionMismatch() {
+  if (isFrontBackGroupContext()) return null;
   const productWidth = n(state.form?.header?.labelWidthIn, 0);
   const productLength = n(state.form?.header?.labelHeightIn, 0);
   const dieWidth = n(first(state.form?.troquel?.productWidthIn, state.form?.troquel?.labelWidthIn), 0);
