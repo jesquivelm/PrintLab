@@ -3855,8 +3855,10 @@ function buildCalculationValidationState(result = totals()) {
     const rows = normalizeDieExternalRows(form.troquel?.external);
     addWhen("troquel", rows.every((row) => n(row.cost, 0) <= 0), "Falta costo externo del troquel.");
   }
-  addWhen(primaryTarget, !String(form.header?.applicationType || "").trim(), "Falta tipo de etiquetado.");
-  addWhen(packagingTarget, n(form.header?.labelsPerRoll, 0) <= 0, "Falta etiquetas por rollo.");
+  if (!isFrontBackEmbeddedElementContext()) {
+    addWhen(primaryTarget, !String(form.header?.applicationType || "").trim(), "Falta tipo de etiquetado.");
+    addWhen(packagingTarget, n(form.header?.labelsPerRoll, 0) <= 0, "Falta etiquetas por rollo.");
+  }
 
   const substrateMaterial = selectedSubstrateMaterial(form);
   addWhen("sustrato", !substrateMaterial, "Falta sustrato.");
@@ -7016,6 +7018,12 @@ function formatStoredLineBlockMessageForProforma(line = {}, quoteCode = "") {
 function storedLineIssues(line = {}) {
   const raw = line.raw_data || {};
   const activeKeys = activeProcessKeysFromStoredLine(line);
+  const isFrontBackChild = (() => {
+    const group = raw.grupoFrenteDorso || raw.grupo_frente_dorso || raw.frontBackGroup || raw.Grupo_Frente_Dorso;
+    if (!group || typeof group !== "object") return false;
+    const role = String(group.role || "").toLowerCase();
+    return ["elemento", "componente", "frente", "dorso"].includes(role);
+  })();
   const messages = Array.isArray(raw.Mensajes_Validacion)
     ? raw.Mensajes_Validacion.map((item) => String(item || "").trim()).filter(Boolean)
     : [];
@@ -7024,7 +7032,14 @@ function storedLineIssues(line = {}) {
     .map((message) => ({ message, processKey: processKeyFromIssueText(message) }))
     .filter((issue) => {
       if (!EXTERNAL_FINISH_BY_KEY[issue.processKey]) return true;
-      return !activeKeys.size || activeKeys.has(issue.processKey);
+      if (!activeKeys.size || activeKeys.has(issue.processKey)) {
+        if (isFrontBackChild) {
+          const text = norm(issue.message || "");
+          if (text.includes("tipo de etiquetado") || text.includes("etiquetas por rollo")) return false;
+        }
+        return true;
+      }
+      return false;
     });
 }
 

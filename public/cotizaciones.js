@@ -1652,14 +1652,29 @@ function summarizeProformaIssuesByProcess(issues = []) {
     return [...map.values()];
 }
 
+function isFrontBackChildElement(raw = {}) {
+    const group = raw.grupoFrenteDorso || raw.grupo_frente_dorso || raw.frontBackGroup || raw.Grupo_Frente_Dorso;
+    if (!group || typeof group !== 'object') return false;
+    const role = String(group.role || '').toLowerCase();
+    return ['elemento', 'componente', 'frente', 'dorso'].includes(role);
+}
+
 function proformaBlockIssuesFromLine(line = {}) {
     const raw = line.raw_data || line.rawData || {};
+    const isFrontBackChild = isFrontBackChildElement(raw);
     const messages = Array.isArray(raw.Mensajes_Validacion)
         ? raw.Mensajes_Validacion.map((item) => String(item || '').trim()).filter(Boolean)
         : [];
     const fallback = String(raw['ANALISIS CAMPOS PDF'] || raw['ANALISIS CAMPOS CREAR ORDEN'] || raw['ANALISIS CAMPOS FINALIZAR'] || '').trim();
     return [...new Set(messages.length ? messages : (fallback ? [fallback] : []))]
-        .map((message) => ({ message, processKey: processKeyFromIssueText(message) }));
+        .map((message) => ({ message, processKey: processKeyFromIssueText(message) }))
+        .filter((issue) => {
+            const text = normalizeProformaIssueText(issue.message || '');
+            if (isFrontBackChild) {
+                if (text.includes('tipo de etiquetado') || text.includes('etiquetas por rollo')) return false;
+            }
+            return true;
+        });
 }
 
 async function getProformaBlockMessage(quoteCode) {

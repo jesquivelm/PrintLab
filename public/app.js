@@ -560,8 +560,16 @@ function processLabelFromKey(processKey = '') {
     return PROFORMA_BLOCK_PROCESS_LABELS.find((item) => item.key === baseKey)?.label || baseKey || 'Faltante';
 }
 
+function isFrontBackChildElement(raw = {}) {
+    const group = raw.grupoFrenteDorso || raw.grupo_frente_dorso || raw.frontBackGroup || raw.Grupo_Frente_Dorso;
+    if (!group || typeof group !== 'object') return false;
+    const role = String(group.role || '').toLowerCase();
+    return ['elemento', 'componente', 'frente', 'dorso'].includes(role);
+}
+
 function proformaBlockIssuesFromLine(line = {}) {
     const raw = line.raw_data || {};
+    const isFrontBackChild = isFrontBackChildElement(raw);
     const messages = Array.isArray(raw.Mensajes_Validacion)
         ? raw.Mensajes_Validacion.map((item) => String(item || '').trim()).filter(Boolean)
         : [];
@@ -571,7 +579,11 @@ function proformaBlockIssuesFromLine(line = {}) {
         .filter((issue) => {
             const text = normalizeProformaIssueText(issue.message || '');
             const key = String(issue.processKey || '').split('-')[0];
-            return key !== 'planchas' && !text.includes('plancha');
+            if (key === 'planchas' || text.includes('plancha')) return false;
+            if (isFrontBackChild) {
+                if (text.includes('tipo de etiquetado') || text.includes('etiquetas por rollo')) return false;
+            }
+            return true;
         });
 }
 
