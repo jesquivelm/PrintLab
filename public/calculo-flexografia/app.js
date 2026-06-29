@@ -4448,7 +4448,7 @@ function buildForm() {
       costPerMsi: r(processMsi, 6)
     },
     design: { artCount: Math.max(1, n(context?.quantityTypes, n(raw["CANTIDAD TIPOS"], n(raw["CANTIDAD ARTES"], 1)))), timePerArt: 0.75, changeFactor: 0.5, hourCost: n(findProcessByKeywords(["diseno"])?.costo_hora_operario, 15) },
-    prepress: { artCount: Math.max(1, n(context?.quantityTypes, n(raw["CANTIDAD TIPOS"], n(raw["CANTIDAD ARTES"], 1)))), artsPerHour: 2, hourCost: n(findProcessByKeywords(["preprensa"])?.costo_hora_operario, 15) },
+    prepress: { artCount: Math.max(1, n(context?.quantityTypes, n(raw["CANTIDAD TIPOS"], n(raw["CANTIDAD ARTES"], 1)))), artsPerHour: n(state.costsConfig?.general?.defaultPrepressArtsPerHour, 2), hourCost: n(state.costsConfig?.general?.defaultPrepressHourCost, n(findProcessByKeywords(["preprensa"])?.costo_hora_operario, 15)) },
     plates: { chargePlates: true, chargeVirginPlate: false, plateMode: "", external: [{ description: "", cost: 0, comments: "", attachmentName: "" }], inventory: { materialId: "" } },
     print: (() => {
       const selectedPrintMachine = selectedQuotedMachine;
@@ -7923,7 +7923,7 @@ function renderProcesses() {
         ...minimumCostExampleLines(prepress, "Preprensa")
       ],
       answer: `R/ El total a cobrar por preprensa es ${money(prepress.subtotal || 0)}`
-    })}`),
+    })}${prepress.minimumApplied ? issueList("Nota", [`Se está utilizando el costo mínimo de preprensa (${money(prepress.minimumCost)}) porque el calculado (${money(prepress.rawSubtotal)}) es menor.`]) : ""}`),
     planchas: () => {
       const plateMode = normalizePlateMode(state.form.plates?.plateMode);
       const selector = renderPlateModeSelector();

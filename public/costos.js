@@ -30,6 +30,8 @@ const DEFAULT_COSTS_CONFIG = {
         coreDiameterOptions: ["1", "1.5", "3", "6"],
         defaultQuantityTypes: 1,
         defaultCmykEnabled: "true",
+        defaultPrepressArtsPerHour: 2,
+        defaultPrepressHourCost: 15,
         processDefaults: PROCESS_DEFAULTS.map((item) => ({ ...item, minimumCost: 0, timeBufferMinutes: 0, capacityMinutes: 480 }))
     },
     convencional: {
@@ -134,7 +136,9 @@ const generalDefaultFields = {
     defaultRollWidth: document.getElementById("costosDefaultRollWidth"),
     defaultCoreDiameter: document.getElementById("costosDefaultCoreDiameter"),
     defaultQuantityTypes: document.getElementById("costosDefaultQuantityTypes"),
-    defaultCmykEnabled: document.getElementById("costosDefaultCmykEnabled")
+    defaultCmykEnabled: document.getElementById("costosDefaultCmykEnabled"),
+    defaultPrepressArtsPerHour: document.getElementById("costosDefaultPrepressArtsPerHour"),
+    defaultPrepressHourCost: document.getElementById("costosDefaultPrepressHourCost")
 };
 const coreDiameterOptionsTableBody = document.getElementById("costosCoreDiameterOptionsTableBody");
 const addCoreDiameterOptionButton = document.getElementById("costosAddCoreDiameterOption");
@@ -468,6 +472,8 @@ function normalizeCostsConfig(config) {
             coreDiameterOptions: normalizeCoreDiameterOptions(source?.general?.coreDiameterOptions, DEFAULT_COSTS_CONFIG.general.coreDiameterOptions, true),
             defaultQuantityTypes: Math.max(1, numberValue(source?.general?.defaultQuantityTypes, DEFAULT_COSTS_CONFIG.general.defaultQuantityTypes)),
             defaultCmykEnabled: String(source?.general?.defaultCmykEnabled || DEFAULT_COSTS_CONFIG.general.defaultCmykEnabled).trim().toLowerCase() === "false" ? "false" : "true",
+            defaultPrepressArtsPerHour: Math.max(0, numberValue(source?.general?.defaultPrepressArtsPerHour, DEFAULT_COSTS_CONFIG.general.defaultPrepressArtsPerHour)),
+            defaultPrepressHourCost: Math.max(0, numberValue(source?.general?.defaultPrepressHourCost, DEFAULT_COSTS_CONFIG.general.defaultPrepressHourCost)),
             processDefaults: normalizeProcessDefaults(source?.general?.processDefaults || DEFAULT_COSTS_CONFIG.general.processDefaults)
         },
         convencional: {

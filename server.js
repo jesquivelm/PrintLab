@@ -1584,6 +1584,8 @@ const DEFAULT_COSTS_CONFIG = {
         coreDiameterOptions: ['1', '1.5', '3', '6'],
         defaultQuantityTypes: 1,
         defaultCmykEnabled: 'true',
+        defaultPrepressArtsPerHour: 2,
+        defaultPrepressHourCost: 15,
         processDefaults: [
             { key: 'macula', label: 'Merma', active: true, createEnabled: true, locked: true, repeatable: false, order: 5, minimumCost: 0, capacityMinutes: 480 },
             { key: 'troquel', label: 'Troquel', active: true, createEnabled: false, locked: true, repeatable: false, order: 10, minimumCost: 0, capacityMinutes: 480 },
@@ -3296,6 +3298,8 @@ function normalizeCostsConfigRecord(config) {
             coreDiameterOptions: normalizeCoreDiameterOptions(source?.general?.coreDiameterOptions, DEFAULT_COSTS_CONFIG.general.coreDiameterOptions),
             defaultQuantityTypes: Number(source?.general?.defaultQuantityTypes || DEFAULT_COSTS_CONFIG.general.defaultQuantityTypes || 1),
             defaultCmykEnabled: String(source?.general?.defaultCmykEnabled || DEFAULT_COSTS_CONFIG.general.defaultCmykEnabled || 'true').trim().toLowerCase() === 'false' ? 'false' : 'true',
+            defaultPrepressArtsPerHour: Math.max(0, Number(source?.general?.defaultPrepressArtsPerHour || DEFAULT_COSTS_CONFIG.general.defaultPrepressArtsPerHour || 0)),
+            defaultPrepressHourCost: Math.max(0, Number(source?.general?.defaultPrepressHourCost || DEFAULT_COSTS_CONFIG.general.defaultPrepressHourCost || 0)),
             processDefaults: normalizeProcessDefaults(source?.general?.processDefaults || DEFAULT_COSTS_CONFIG.general.processDefaults)
         },
         convencional: {

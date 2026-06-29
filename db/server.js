@@ -531,7 +531,9 @@ const DEFAULT_COSTS_CONFIG = {
         defaultCoreDiameter: 3,
         coreDiameterOptions: ['1', '1.5', '3', '6'],
         defaultQuantityTypes: 1,
-        defaultCmykEnabled: 'true'
+        defaultCmykEnabled: 'true',
+        defaultPrepressArtsPerHour: 2,
+        defaultPrepressHourCost: 15
     },
     convencional: {
         tintaGeneral: {
@@ -1114,7 +1116,9 @@ function normalizeCostsConfigRecord(config) {
             defaultCoreDiameter: Number(source?.general?.defaultCoreDiameter || DEFAULT_COSTS_CONFIG.general.defaultCoreDiameter || 0),
             coreDiameterOptions: normalizeCoreDiameterOptions(source?.general?.coreDiameterOptions, DEFAULT_COSTS_CONFIG.general.coreDiameterOptions),
             defaultQuantityTypes: Number(source?.general?.defaultQuantityTypes || DEFAULT_COSTS_CONFIG.general.defaultQuantityTypes || 1),
-            defaultCmykEnabled: String(source?.general?.defaultCmykEnabled || DEFAULT_COSTS_CONFIG.general.defaultCmykEnabled || 'true').trim().toLowerCase() === 'false' ? 'false' : 'true'
+            defaultCmykEnabled: String(source?.general?.defaultCmykEnabled || DEFAULT_COSTS_CONFIG.general.defaultCmykEnabled || 'true').trim().toLowerCase() === 'false' ? 'false' : 'true',
+            defaultPrepressArtsPerHour: Math.max(0, Number(source?.general?.defaultPrepressArtsPerHour || DEFAULT_COSTS_CONFIG.general.defaultPrepressArtsPerHour || 0)),
+            defaultPrepressHourCost: Math.max(0, Number(source?.general?.defaultPrepressHourCost || DEFAULT_COSTS_CONFIG.general.defaultPrepressHourCost || 0))
         },
         convencional: {
             tintaGeneral: {
