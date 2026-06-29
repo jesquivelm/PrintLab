@@ -16585,6 +16585,10 @@ tr.is-front-back-child td {
     padding-left: 28px !important;
 }
 
+tr.is-front-back-child td:last-child {
+    display: none !important;
+}
+
 tr.is-front-back-child td:first-child {
     position: relative;
 }
@@ -16615,6 +16619,10 @@ html[data-theme="dark"] tr.is-front-back-child td:first-child::before {
     width: calc(100% - 28px) !important;
     margin-left: 28px !important;
     border-left: 2px solid rgba(11, 129, 184, 0.22) !important;
+}
+
+.quote-master-line.is-front-back-child .quote-line-actions {
+    display: none !important;
 }
 
 .quote-master-line.is-front-back-child .quote-master-line-order {
