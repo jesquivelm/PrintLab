@@ -109,6 +109,8 @@ const els = {
   workType: document.getElementById("workType"),
   labelWidthIn: document.getElementById("labelWidthIn"),
   labelHeightIn: document.getElementById("labelHeightIn"),
+  embeddedLabelWidth: document.getElementById("embeddedLabelWidth"),
+  embeddedLabelHeight: document.getElementById("embeddedLabelHeight"),
   rollWidthIn: document.getElementById("rollWidthIn"),
   coreDiameter: document.getElementById("coreDiameter"),
   labelWidthInDisplay: document.getElementById("labelWidthInDisplay"),
@@ -3842,34 +3844,39 @@ function buildCalculationValidationState(result = totals()) {
     if (condition) addIssue(processKey, message);
   };
 
-  addWhen("troquel", n(form.header?.labelWidthIn, 0) <= 0, "Falta ancho de etiqueta.");
-  addWhen("troquel", n(form.header?.labelHeightIn, 0) <= 0, "Falta largo de etiqueta.");
-  addWhen("troquel", n(form.header?.rollWidthIn, 0) <= 0, "Falta ancho de material.");
-  addWhen("troquel", n(form.header?.coreDiameter, 0) <= 0, "Falta diámetro de core.");
-  addWhen("troquel", n(form.header?.coreDiameter, 0) > 10, "Revisa el diámetro de core.");
-  addWhen("troquel", currentQuantity(form) <= 0, "Falta cantidad a producir.");
-  addWhen("troquel", n(form.header?.quantityTypes, 0) <= 0, "Falta cantidad de tipos.");
-  const dieMode = normalizeDieMode(form.troquel?.dieMode);
-  addWhen("troquel", dieMode !== "external" && !String(form.troquel?.dieCode || "").trim(), "Falta troquel.");
-  if (dieMode === "external") {
-    const rows = normalizeDieExternalRows(form.troquel?.external);
-    addWhen("troquel", rows.every((row) => n(row.cost, 0) <= 0), "Falta costo externo del troquel.");
-  }
-  if (!isFrontBackEmbeddedElementContext()) {
+  if (isFrontBackEmbeddedElementContext()) {
+    const embeddedTarget = "preprensa";
+    addWhen(embeddedTarget, !String(form.header?.jobName || "").trim(), "Falta nombre del trabajo.");
+    addWhen(embeddedTarget, n(form.header?.labelWidthIn, 0) <= 0, "Falta ancho de etiqueta.");
+    addWhen(embeddedTarget, n(form.header?.labelHeightIn, 0) <= 0, "Falta largo de etiqueta.");
+  } else {
+    addWhen("troquel", n(form.header?.labelWidthIn, 0) <= 0, "Falta ancho de etiqueta.");
+    addWhen("troquel", n(form.header?.labelHeightIn, 0) <= 0, "Falta largo de etiqueta.");
+    addWhen("troquel", n(form.header?.rollWidthIn, 0) <= 0, "Falta ancho de material.");
+    addWhen("troquel", n(form.header?.coreDiameter, 0) <= 0, "Falta diámetro de core.");
+    addWhen("troquel", n(form.header?.coreDiameter, 0) > 10, "Revisa el diámetro de core.");
+    addWhen("troquel", currentQuantity(form) <= 0, "Falta cantidad a producir.");
+    addWhen("troquel", n(form.header?.quantityTypes, 0) <= 0, "Falta cantidad de tipos.");
+    const dieMode = normalizeDieMode(form.troquel?.dieMode);
+    addWhen("troquel", dieMode !== "external" && !String(form.troquel?.dieCode || "").trim(), "Falta troquel.");
+    if (dieMode === "external") {
+      const rows = normalizeDieExternalRows(form.troquel?.external);
+      addWhen("troquel", rows.every((row) => n(row.cost, 0) <= 0), "Falta costo externo del troquel.");
+    }
     addWhen(primaryTarget, !String(form.header?.applicationType || "").trim(), "Falta tipo de etiquetado.");
     addWhen(packagingTarget, n(form.header?.labelsPerRoll, 0) <= 0, "Falta etiquetas por rollo.");
-  }
 
-  const substrateMaterial = selectedSubstrateMaterial(form);
-  addWhen("sustrato", !substrateMaterial, "Falta sustrato.");
-  addWhen("sustrato", substrateMaterial && n(form.substrate?.costPerFoot, 0) <= 0, "Falta costo de sustrato.");
-  addWhen("planchas", !form.header?.noPrint && !hasActiveProcess("planchas"), "Falta agregar o justificar planchas.");
-  addWhen("impresion", !form.header?.noPrint && !hasActiveProcess("impresion"), "Falta agregar o justificar impresión.");
+    const substrateMaterial = selectedSubstrateMaterial(form);
+    addWhen("sustrato", !substrateMaterial, "Falta sustrato.");
+    addWhen("sustrato", substrateMaterial && n(form.substrate?.costPerFoot, 0) <= 0, "Falta costo de sustrato.");
+    addWhen("planchas", !form.header?.noPrint && !hasActiveProcess("planchas"), "Falta agregar o justificar planchas.");
+    addWhen("impresion", !form.header?.noPrint && !hasActiveProcess("impresion"), "Falta agregar o justificar impresión.");
 
-  if (hasActiveProcess("diseno")) {
-    addWhen("diseno", n(form.design?.artCount, 0) <= 0, "Falta cantidad de artes.");
-    addWhen("diseno", n(form.design?.timePerArt, 0) <= 0, "Falta tiempo por arte.");
-    addWhen("diseno", n(form.design?.hourCost, 0) <= 0, "Falta costo por hora.");
+    if (hasActiveProcess("diseno")) {
+      addWhen("diseno", n(form.design?.artCount, 0) <= 0, "Falta cantidad de artes.");
+      addWhen("diseno", n(form.design?.timePerArt, 0) <= 0, "Falta tiempo por arte.");
+      addWhen("diseno", n(form.design?.hourCost, 0) <= 0, "Falta costo por hora.");
+    }
   }
 
   if (hasActiveProcess("preprensa")) {
@@ -5563,6 +5570,8 @@ function renderHeader() {
   fillSelect(els.outputType, outputTypesCatalog().map((item) => ({ value: item.id || item.codigo, label: item.name || item.nombre || item.id || item.codigo })), state.form.header.outputType);
   fillSelect(els.coreDiameter, coreDiameterSelectOptions(), state.form.header.coreDiameter);
   [["customerCode", els.customerCode], ["customerName", els.customerName], ["jobName", els.jobName], ["salespersonName", els.salespersonName], ["labelWidthIn", els.labelWidthIn], ["labelHeightIn", els.labelHeightIn], ["rollWidthIn", els.rollWidthIn], ["coreDiameter", els.coreDiameter], ["labelsPerRoll", els.labelsPerRoll], ["applicationType", els.applicationType], ["applicationEnvironment", els.applicationEnvironment], ["surfaceType", els.surfaceType], ["quantityTypes", els.quantityTypes], ["quantityChanges", els.quantityChanges], ["pantoneCount", els.pantoneCount]].forEach(([key, element]) => { element.value = state.form.header[key] ?? ""; });
+  if (els.embeddedLabelWidth) els.embeddedLabelWidth.value = state.form.header.labelWidthIn ?? "";
+  if (els.embeddedLabelHeight) els.embeddedLabelHeight.value = state.form.header.labelHeightIn ?? "";
   els.useCmyk.checked = Boolean(state.form.header.useCmyk);
   els.useWhiteInk.checked = Boolean(state.form.header.useWhiteInk);
   els.doubleWhitePass.checked = Boolean(state.form.header.doubleWhitePass);
@@ -7025,7 +7034,6 @@ function storedLineIssues(line = {}) {
     const role = String(group.role || "").toLowerCase();
     return ["elemento", "componente", "frente", "dorso"].includes(role);
   })();
-  const frontBackChildSkip = isFrontBackChild ? ["tipo de etiquetado", "etiquetas por rollo", "cantidad de rollos"] : [];
   const messages = Array.isArray(raw.Mensajes_Validacion)
     ? raw.Mensajes_Validacion.map((item) => String(item || "").trim()).filter(Boolean)
     : [];
@@ -7033,8 +7041,10 @@ function storedLineIssues(line = {}) {
   return uniqueMessages(messages.length ? messages : (fallback ? [fallback] : []))
     .map((message) => ({ message, processKey: processKeyFromIssueText(message) }))
     .filter((issue) => {
-      const text = norm(issue.message || "");
-      if (frontBackChildSkip.some((pattern) => text.includes(pattern))) return false;
+      if (isFrontBackChild) {
+        const allowed = ["preprensa", "rebobinado"];
+        return allowed.includes(String(issue.processKey || "").split("-")[0]);
+      }
       if (!EXTERNAL_FINISH_BY_KEY[issue.processKey]) return true;
       return !activeKeys.size || activeKeys.has(issue.processKey);
     });

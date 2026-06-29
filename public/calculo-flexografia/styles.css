@@ -436,6 +436,44 @@ body.is-front-back-embedded-element #technicalDataCard .technical-column-right {
   display: none !important;
 }
 
+body.is-front-back-embedded-element .header-field-meta {
+  display: none !important;
+}
+
+body.is-front-back-embedded-element .technical-data-card {
+  display: none !important;
+}
+
+.embedded-header-dims {
+  display: none;
+}
+
+body.is-front-back-embedded-element .embedded-header-dims {
+  display: flex;
+  gap: 12px;
+}
+
+.embedded-header-dims label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 100px;
+}
+
+.embedded-header-dims label span:first-child {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary, #8899aa);
+}
+
+.embedded-header-dims label input {
+  padding: 6px 8px;
+  border: 1px solid var(--color-border, #334);
+  border-radius: var(--border-radius, 4px);
+  background: var(--color-background-secondary, #1a2030);
+  color: var(--color-text-primary, #eef);
+  font-size: 0.85rem;
+}
+
 body.is-front-back-group-context #technicalDataCard .technical-column-left > .technical-panel:first-child {
   display: none !important;
 }

@@ -1660,8 +1660,6 @@ function isFrontBackChildElement(raw = {}, line = {}) {
     return ['elemento', 'componente', 'frente', 'dorso'].includes(role);
 }
 
-const FRONT_BACK_CHILD_SKIP_ISSUE_PATTERNS = ['tipo de etiquetado', 'etiquetas por rollo', 'cantidad de rollos'];
-
 function proformaBlockIssuesFromLine(line = {}) {
     const raw = line.raw_data || line.rawData || {};
     const isFrontBackChild = isFrontBackChildElement(raw, line);
@@ -1672,9 +1670,9 @@ function proformaBlockIssuesFromLine(line = {}) {
     return [...new Set(messages.length ? messages : (fallback ? [fallback] : []))]
         .map((message) => ({ message, processKey: processKeyFromIssueText(message) }))
         .filter((issue) => {
-            const text = normalizeProformaIssueText(issue.message || '');
             if (isFrontBackChild) {
-                if (FRONT_BACK_CHILD_SKIP_ISSUE_PATTERNS.some((pattern) => text.includes(pattern))) return false;
+                const allowed = ['preprensa', 'rebobinado'];
+                return allowed.includes(String(issue.processKey || '').split('-')[0]);
             }
             return true;
         });
