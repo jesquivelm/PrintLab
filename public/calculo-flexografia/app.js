@@ -7019,11 +7019,13 @@ function storedLineIssues(line = {}) {
   const raw = line.raw_data || {};
   const activeKeys = activeProcessKeysFromStoredLine(line);
   const isFrontBackChild = (() => {
-    const group = raw.grupoFrenteDorso || raw.grupo_frente_dorso || raw.frontBackGroup || raw.Grupo_Frente_Dorso;
+    const group = raw.grupoFrenteDorso || raw.grupo_frente_dorso || raw.frontBackGroup || raw.Grupo_Frente_Dorso
+      || line.grupo_frente_dorso || line.front_back_group;
     if (!group || typeof group !== "object") return false;
     const role = String(group.role || "").toLowerCase();
     return ["elemento", "componente", "frente", "dorso"].includes(role);
   })();
+  const frontBackChildSkip = isFrontBackChild ? ["tipo de etiquetado", "etiquetas por rollo", "cantidad de rollos"] : [];
   const messages = Array.isArray(raw.Mensajes_Validacion)
     ? raw.Mensajes_Validacion.map((item) => String(item || "").trim()).filter(Boolean)
     : [];
@@ -7031,15 +7033,10 @@ function storedLineIssues(line = {}) {
   return uniqueMessages(messages.length ? messages : (fallback ? [fallback] : []))
     .map((message) => ({ message, processKey: processKeyFromIssueText(message) }))
     .filter((issue) => {
+      const text = norm(issue.message || "");
+      if (frontBackChildSkip.some((pattern) => text.includes(pattern))) return false;
       if (!EXTERNAL_FINISH_BY_KEY[issue.processKey]) return true;
-      if (!activeKeys.size || activeKeys.has(issue.processKey)) {
-        if (isFrontBackChild) {
-          const text = norm(issue.message || "");
-          if (text.includes("tipo de etiquetado") || text.includes("etiquetas por rollo")) return false;
-        }
-        return true;
-      }
-      return false;
+      return !activeKeys.size || activeKeys.has(issue.processKey);
     });
 }
 
