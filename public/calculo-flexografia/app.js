@@ -492,13 +492,12 @@ function isDuplicatedDraftTracking() {
 }
 
 const QUOTE_CLOSE_REASON_OPTIONS = [
-  "Precio alto",
+  "Precio",
   "Tiempo de entrega",
-  "Cliente eligió otro proveedor",
-  "Condiciones comerciales",
-  "Cambios en especificación",
-  "Proyecto cancelado",
-  "Sin respuesta del cliente",
+  "Compró a la competencia",
+  "Cliente canceló el proyecto",
+  "Error en especificaciones",
+  "No respondió",
   "Otro"
 ];
 
@@ -590,7 +589,13 @@ function syncLineStatusFromTracking() {
   const done = quoteTrackingDoneCount();
   const labels = ["En proceso", "En proceso", "En proceso", "Cotización finalizada", "Proforma enviada", "Cerrada"];
   state.form.header.lineStatus = labels[Math.min(done, labels.length - 1)] || "En proceso";
-  if (milestones.find((item) => item.key === "cierre")?.done) state.form.header.lineStatus = "Cerrada";
+  if (milestones.find((item) => item.key === "cierre")?.done) {
+    const closure = state.quoteTracking.closure;
+    if (closure?.outcome === 'accepted') state.form.header.lineStatus = "Aceptada";
+    else if (closure?.outcome === 'expired') state.form.header.lineStatus = "Expirada";
+    else if (closure?.outcome === 'lost') state.form.header.lineStatus = "Rechazada";
+    else state.form.header.lineStatus = "Cerrada";
+  }
 }
 
 function markQuoteTrackingItemDone(item) {
@@ -629,10 +634,12 @@ function trackingMessageForEvent(item = {}, eventType = "", detail = "") {
   if (eventType === "reversion") return `Se revirtió la marca "${label}". ${detail || "Revisión pendiente."}`.trim();
   if (eventType === "solicitud-cambios") return detail || `Se solicitaron cambios en "${label}".`;
   if (eventType === "orden-produccion") return detail || "La venta fue aceptada y se creó la orden de producción.";
-  if (eventType === "cierre-descartado") return `La cotización fue cerrada sin venta. ${detail || ""}`.trim();
+  if (eventType === "cierre-aceptado") return detail || "La cotización fue aceptada.";
+  if (eventType === "cierre-descartado") return detail || "La cotización fue rechazada.";
+  if (eventType === "cierre-expirado") return detail || "La cotización expiró sin respuesta.";
   if (item.key === "finalizacion") return "La línea de cálculo fue marcada como Finalización de Cotización.";
   if (item.key === "envio") return "La proforma fue marcada como enviada.";
-  if (item.key === "cierre") return "La cotización fue marcada como cerrada.";
+  if (item.key === "cierre") return "La cotización fue cerrada comercialmente.";
   return `Se actualizó el seguimiento: ${label}.`;
 }
 
@@ -757,18 +764,38 @@ async function submitQuoteTrackingChange(index) {
   scheduleSave();
 }
 
-function quoteClosureFormMarkup(index) {
-  return `<div class="tracking-close-form tracking-close-form-dialog"><div class="tracking-close-dialog-head"><strong>Dar motivo de cierre</strong><span>Registra el motivo sin mover el panel de seguimiento.</span></div><label><span>Motivo</span><select id="quoteTrackingCloseReason" data-tracking-close-input><option value="">Selecciona un motivo</option>${QUOTE_CLOSE_REASON_OPTIONS.map((reason) => `<option value="${esc(reason)}">${esc(reason)}</option>`).join("")}</select></label><label><span>Comentario</span><textarea id="quoteTrackingCloseComments" class="cr-textarea" placeholder="Comentario para gerencia" data-tracking-close-input></textarea></label><div class="tracking-close-actions"><button type="button" class="btn-cancel" data-close-calc-message>Cancelar</button><button type="button" class="btn-submit" data-tracking-submit-close="${index}"><i class="ti ti-send" style="font-size:12px;" aria-hidden="true"></i>Guardar cierre</button></div></div>`;
+function quoteClosureFormMarkup(index, outcomeType) {
+  if (outcomeType === 'rejected') {
+    return `<div class="tracking-close-form tracking-close-form-dialog"><div class="tracking-close-dialog-head"><strong>Motivo de rechazo</strong><span>Indica el motivo por el cual la cotización fue rechazada.</span></div><label><span>Motivo</span><select id="quoteTrackingCloseReason" data-tracking-close-input><option value="">Selecciona un motivo</option>${QUOTE_CLOSE_REASON_OPTIONS.map((reason) => `<option value="${esc(reason)}">${esc(reason)}</option>`).join("")}</select></label><label><span>Observaciones</span><textarea id="quoteTrackingCloseComments" class="cr-textarea" placeholder="Observaciones adicionales" data-tracking-close-input></textarea></label><div class="tracking-close-actions"><button type="button" class="btn-cancel" data-close-calc-message>Cancelar</button><button type="button" class="btn-submit" data-tracking-submit-close="${index}"><i class="ti ti-send" style="font-size:12px;" aria-hidden="true"></i>Guardar</button></div></div>`;
+  }
+  if (outcomeType === 'expired') {
+    return `<div class="tracking-close-form tracking-close-form-dialog"><div class="tracking-close-dialog-head"><strong>Confirmar expiración</strong><span>La cotización será marcada como expirada / sin respuesta.</span></div><label><span>Observaciones</span><textarea id="quoteTrackingCloseComments" class="cr-textarea" placeholder="Observaciones opcionales" data-tracking-close-input></textarea></label><div class="tracking-close-actions"><button type="button" class="btn-cancel" data-close-calc-message>Cancelar</button><button type="button" class="btn-submit" data-tracking-submit-close="${index}"><i class="ti ti-send" style="font-size:12px;" aria-hidden="true"></i>Confirmar</button></div></div>`;
+  }
+  return `<div class="tracking-close-form tracking-close-form-dialog"><div class="tracking-close-dialog-head"><strong>Confirmar aceptación</strong><span>La cotización será marcada como aceptada. Las acciones operativas se habilitarán.</span></div><div class="tracking-close-actions"><button type="button" class="btn-cancel" data-close-calc-message>Cancelar</button><button type="button" class="btn-submit" data-tracking-submit-close="${index}"><i class="ti ti-send" style="font-size:12px;" aria-hidden="true"></i>Confirmar</button></div></div>`;
 }
 
 function quoteTrackingCloseActionsMarkup(index) {
-  return `<div class="tracking-close-menu"><button type="button" class="btn-mark tracking-primary-action" data-tracking-create-order="${index}" aria-label="Crear orden de producción"><i class="ti ti-check" style="font-size:12px;" aria-hidden="true"></i>Crear orden</button><button type="button" class="btn-mark tracking-secondary-action" data-tracking-open-close-reason="${index}" aria-label="Dar motivo de cierre"><i class="ti ti-message-report" style="font-size:12px;" aria-hidden="true"></i>Dar motivo</button><button type="button" class="btn-mark tracking-product-action" data-tracking-create-product aria-label="Crear producto"><i class="ti ti-box" style="font-size:12px;" aria-hidden="true"></i>Crear producto</button></div>`;
+  const closure = state.quoteTracking.closure;
+  const hasOutcome = closure && closure.outcome;
+  if (hasOutcome) return '';
+  return `<div class="tracking-close-state-selector">
+    <span class="tracking-close-state-label">Resultado de la negociación:</span>
+    <div class="tracking-close-state-buttons">
+      <button type="button" class="tracking-state-btn tracking-state-accepted" data-tracking-set-outcome="${index}" data-outcome="accepted" aria-label="Marcar como Aceptada"><i class="ti ti-check" style="font-size:12px;" aria-hidden="true"></i>Aceptada</button>
+      <button type="button" class="tracking-state-btn tracking-state-rejected" data-tracking-set-outcome="${index}" data-outcome="rejected" aria-label="Marcar como Rechazada"><i class="ti ti-x" style="font-size:12px;" aria-hidden="true"></i>Rechazada</button>
+      <button type="button" class="tracking-state-btn tracking-state-expired" data-tracking-set-outcome="${index}" data-outcome="expired" aria-label="Marcar como Expirada"><i class="ti ti-clock" style="font-size:12px;" aria-hidden="true"></i>Expirada</button>
+    </div>
+  </div>`;
 }
 
-function openQuoteClosureForm(index) {
+function openQuoteClosureForm(index, outcomeType) {
   state.quoteTracking.formOpenKey = "";
-  showCenterMessage(quoteClosureFormMarkup(index), { html: true, duration: 0, className: "tracking-close-dialog" });
-  setTimeout(() => document.getElementById("quoteTrackingCloseReason")?.focus(), 50);
+  showCenterMessage(quoteClosureFormMarkup(index, outcomeType), { html: true, duration: 0, className: "tracking-close-dialog" });
+  state.quoteTracking.pendingOutcome = outcomeType || 'accepted';
+  setTimeout(() => {
+    const reasonField = document.getElementById("quoteTrackingCloseReason");
+    if (reasonField) reasonField.focus();
+  }, 50);
 }
 
 async function submitQuoteClosureReason(index) {
@@ -777,25 +804,33 @@ async function submitQuoteClosureReason(index) {
   const commentsField = document.getElementById("quoteTrackingCloseComments");
   const reason = String(reasonField?.value || "").trim();
   const comments = String(commentsField?.value || "").trim();
-  if (!item || !reason) {
+  const outcomeType = state.quoteTracking.pendingOutcome || 'accepted';
+  if (outcomeType === 'rejected' && !reason) {
     reasonField?.classList.add("error");
     reasonField?.focus();
     return false;
   }
   if (await showQuoteProformaBlockMessageIfNeeded()) return false;
+  const outcome = outcomeType === 'accepted' ? 'accepted' : outcomeType === 'expired' ? 'expired' : 'lost';
   state.quoteTracking.closure = {
-    outcome: "lost",
-    reason,
+    outcome,
+    outcomeType,
+    reason: outcomeType === 'rejected' ? reason : (outcomeType === 'expired' ? 'Expirada' : 'Aceptada'),
     comments,
     by: currentTrackingUser(),
     date: trackingStampNow()
   };
   markQuoteTrackingItemDone(item);
   state.quoteTracking.formOpenKey = "";
+  state.quoteTracking.pendingOutcome = null;
   syncLineStatusFromTracking();
   saveQuoteTrackingMilestones();
   await persistTrackingClosure();
-  await notifyQuoteTrackingEvent(item, "cierre-descartado", `${reason}${comments ? ` · ${comments}` : ""}`);
+  const eventType = outcome === 'accepted' ? 'cierre-aceptado' : outcome === 'expired' ? 'cierre-expirado' : 'cierre-descartado';
+  const eventDetail = outcome === 'accepted' ? 'La cotización fue aceptada.'
+    : outcome === 'expired' ? `La cotización expiró${comments ? `. ${comments}` : ''}.`
+    : `La cotización fue rechazada. Motivo: ${reason}${comments ? `. ${comments}` : ''}.`;
+  await notifyQuoteTrackingEvent(item, eventType, eventDetail);
   renderDetailsDemo(totals());
   scheduleSave();
   return true;
@@ -825,6 +860,88 @@ async function stageSapOutputForCurrentLine() {
   return postJson(`/api/flexo/sap-export/${encodeURIComponent(quoteCode)}/${encodeURIComponent(lineCode)}`, {});
 }
 
+function askCalcProductionOrderQuantity(quantities) {
+  return new Promise(function (resolve) {
+    var existing = document.querySelector('.quote-order-quantity-dialog');
+    if (existing) existing.remove();
+    document.body.classList.add('popover-open');
+    var raw = state.context?.calculo?.raw_data || {};
+    var processResult = raw.processResult || {};
+    var totalsData = processResult.totals || {};
+    var material = raw['GENERAL | MATERIAL'] || '';
+    var wastePct = totalsData.wastePct != null ? totalsData.wastePct : 0;
+    var machineHours = totalsData.machineHours != null ? totalsData.machineHours : 0;
+    var defaultUnit = totalsData.unit || 0;
+    var firstQty = quantities[0] || {};
+    var unit0 = firstQty.unitPrice || defaultUnit;
+    function formatMoney(val) { return '\u20A1' + Number(val || 0).toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function formatNumber(val, dec) { return Number(val || 0).toLocaleString('es-CR', { minimumFractionDigits: dec || 0, maximumFractionDigits: dec || 0 }); }
+    var optionsHtml = quantities.map(function (q, i) {
+      return '<option value="' + i + '"' + (i === 0 ? ' selected' : '') + '>' + esc(n(q.quantity, 0)) + ' unidades</option>';
+    }).join('');
+    var overlay = document.createElement('div');
+    overlay.className = 'quote-order-quantity-dialog';
+    overlay.innerHTML = '<div class="quote-order-quantity-panel" role="dialog" aria-modal="true" aria-label="Crear Orden de Producción">' +
+      '<div class="quote-order-quantity-title">Crear Orden de Producción</div>' +
+      '<div class="quote-order-quantity-body">' +
+        '<div class="quote-order-quantity-left">' +
+          '<label class="quote-order-quantity-field"><span>Cantidad a producir</span>' +
+            '<select class="quote-order-qty-select" data-qty-select>' + optionsHtml + '</select>' +
+          '</label>' +
+        '</div>' +
+        '<div class="quote-order-quantity-right">' +
+          '<div class="quote-order-quantity-summary-title">Resumen de la cantidad seleccionada</div>' +
+          '<div class="quote-order-quantity-summary">' +
+            '<div class="quote-order-qty-row"><span>Precio unitario</span><span data-summary-unit>' + formatMoney(unit0) + '</span></div>' +
+            '<div class="quote-order-qty-row"><span>Costo total</span><span data-summary-total>' + formatMoney(unit0 * (firstQty.quantity || 0)) + '</span></div>' +
+            '<div class="quote-order-qty-row"><span>Tiempo máquina</span><span data-summary-hours>' + formatNumber(machineHours, 2) + ' horas</span></div>' +
+            '<div class="quote-order-qty-row"><span>Material</span><span data-summary-material>' + esc(material || '-') + '</span></div>' +
+            '<div class="quote-order-qty-row"><span>Desperdicio</span><span data-summary-waste>' + formatNumber(wastePct, 1) + ' %</span></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="quote-order-quantity-note">La orden se generará utilizando exactamente los parámetros calculados para la cantidad seleccionada.</div>' +
+      '<div class="quote-order-quantity-actions">' +
+        '<button type="button" class="action-btn" data-quantity-action="cancel">Cancelar</button>' +
+        '<button type="button" class="action-btn action-btn-primary" data-quantity-action="confirm">Crear Orden</button>' +
+      '</div>' +
+    '</div>';
+    function updateSummary(idx) {
+      var q = quantities[idx] || {};
+      var unit = q.unitPrice || defaultUnit;
+      var qty = q.quantity || 0;
+      overlay.querySelector('[data-summary-unit]').textContent = formatMoney(unit);
+      overlay.querySelector('[data-summary-total]').textContent = formatMoney(unit * qty);
+      overlay.querySelector('[data-summary-hours]').textContent = formatNumber(q.machineHours || machineHours, 2) + ' horas';
+      overlay.querySelector('[data-summary-material]').textContent = (q.material || material) || '-';
+      overlay.querySelector('[data-summary-waste]').textContent = formatNumber(q.wastePct || wastePct, 1) + ' %';
+    }
+    var close = function (value) {
+      overlay.remove();
+      document.body.classList.remove('popover-open');
+      resolve(value);
+    };
+    overlay.addEventListener('click', function (event) {
+      if (event.target === overlay) close(null);
+      var action = event.target.closest('[data-quantity-action]')?.dataset.quantityAction;
+      if (action === 'cancel') close(null);
+      if (action === 'confirm') {
+        var select = overlay.querySelector('[data-qty-select]');
+        var idx = Number(select?.value || 0);
+        var qty = quantities[idx];
+        close(qty && qty.quantity > 0 ? qty.quantity : null);
+      }
+    });
+    overlay.addEventListener('change', function (event) {
+      if (event.target.matches('[data-qty-select]')) {
+        updateSummary(Number(event.target.value || 0));
+      }
+    });
+    document.body.appendChild(overlay);
+    overlay.querySelector('[data-quantity-action="confirm"]')?.focus();
+  });
+}
+
 async function createProductionOrderFromTracking(index) {
   ensureCalculationReadyForOutput();
   const item = state.quoteTracking.milestones?.[index];
@@ -851,13 +968,9 @@ async function createProductionOrderFromTracking(index) {
     var rawQty = Array.isArray(header.quantities) ? header.quantities : [];
     var quantities = rawQty.filter(function (q) { return q && Number(q.quantity) > 0; });
     if (quantities.length > 1) {
-      var qText = quantities.map(function (q, i) {
-        return (i + 1) + '. ' + n(q.quantity, 0) + ' uds' + (q.unitPrice ? ' @ ' + q.unitPrice : '');
-      }).join('\n');
-      var choice = window.prompt('Selecciona la cantidad para la orden:\n' + qText + '\n\nIngresa el número de la opción (1-' + quantities.length + ') o Enter para usar la actual:', '1');
-      var idx = parseInt(choice, 10);
-      if (!isNaN(idx) && idx >= 1 && idx <= quantities.length) {
-        body.quantity = Number(quantities[idx - 1].quantity);
+      var selectedQty = await askCalcProductionOrderQuantity(quantities);
+      if (selectedQty && selectedQty > 0) {
+        body.quantity = selectedQty;
       }
     }
   } catch (e) {}
@@ -6397,7 +6510,10 @@ function renderQuoteTracking() {
   const milestones = state.quoteTracking.milestones;
   const doneCount = quoteTrackingDoneCount();
   const panelOpen = Boolean(state.quoteTracking.panelOpen);
-  const statusText = milestones[milestones.length - 1]?.done ? "Cerrada" : doneCount >= 4 ? "Proforma enviada" : doneCount >= 3 ? "Cotización finalizada" : "En proceso";
+  const closure = state.quoteTracking.closure;
+  const statusText = milestones[milestones.length - 1]?.done
+    ? (closure?.outcome === 'accepted' ? 'Aceptada' : closure?.outcome === 'expired' ? 'Expirada' : closure?.outcome === 'lost' ? 'Rechazada' : 'Cerrada')
+    : doneCount >= 4 ? "Proforma enviada" : doneCount >= 3 ? "Cotización finalizada" : "En proceso";
   const nextLabels = ["Completar Solicitud del Vendedor", "Completar Solicitud del Vendedor", "Finalizar Cotización", "Enviar Proforma al cliente", "Finalizar Comercialmente"];
   const body = milestones.map((item, index) => {
     const available = quoteTrackingAvailable(index);
@@ -6424,20 +6540,24 @@ function renderQuoteTracking() {
       const orderLink = closure?.orderCode ? `<a class="summary-row-link" href="/orden-produccion/${encodeURIComponent(closure.orderCode)}" data-route="/orden-produccion/${esc(encodeURIComponent(closure.orderCode))}" data-label="Orden ${esc(closure.orderCode)}">${esc(closure.orderCode)}</a>` : "";
       const closureText = closure
         ? (closure.outcome === "accepted"
-          ? `Venta aceptada${closure.orderCode ? " · Orden " : ""}`
-          : `Cierre sin venta · ${closure.reason || "Sin motivo"}`)
+          ? `Venta aceptada`
+          : closure.outcome === "expired"
+          ? `Expirada / Sin respuesta`
+          : `Rechazada · ${closure.reason || "Sin motivo"}`)
         : "";
-      const closureNote = closureText ? `<div class="tracking-close-note"><strong>${esc(closureText)}${orderLink}</strong>${closure.comments ? `<span>${esc(closure.comments)}</span>` : ""}</div>` : "";
+      const closureNote = closureText ? `<div class="tracking-close-note"><strong>${esc(closureText)}${orderLink ? " · " + orderLink : ""}</strong>${closure.comments ? `<span>${esc(closure.comments)}</span>` : ""}</div>` : "";
+      const postAcceptActions = closure?.outcome === "accepted"
+        ? `<div class="tracking-close-menu"><button type="button" class="btn-mark tracking-primary-action" data-tracking-create-order="${index}" aria-label="Crear orden de producción"><i class="ti ti-check" style="font-size:12px;" aria-hidden="true"></i>Crear Orden de Producción</button><button type="button" class="btn-mark tracking-product-action" data-tracking-create-product aria-label="Registrar producto"><i class="ti ti-box" style="font-size:12px;" aria-hidden="true"></i>Registrar Producto</button></div>`
+        : '';
       const closeActions = item.key === "cierre" ? quoteTrackingCloseActionsMarkup(index) : "";
-      content = `<div class="tl-content-anim" style="padding-bottom:18px;"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px;"><i class="ti ${esc(item.icon)}" style="font-size:14px;color:var(--color-text-secondary);" aria-hidden="true"></i><span style="font-size:13px;font-weight:500;color:var(--color-text-primary);">${esc(item.label)}</span></div><div style="font-size:13px;color:var(--color-text-primary);">${esc(item.user || "")}</div><div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px;">${esc(item.date || "Pendiente")}</div>${closureNote}${closeActions}${changeButton}${form}</div>`;
+      content = `<div class="tl-content-anim" style="padding-bottom:18px;"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px;"><i class="ti ${esc(item.icon)}" style="font-size:14px;color:var(--color-text-secondary);" aria-hidden="true"></i><span style="font-size:13px;font-weight:500;color:var(--color-text-primary);">${esc(item.label)}</span></div><div style="font-size:13px;color:var(--color-text-primary);">${esc(item.user || "")}</div><div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px;">${esc(item.date || "Pendiente")}</div>${closureNote}${closeActions}${postAcceptActions}${changeButton}${form}</div>`;
     } else if (item.cr) {
       const crNote = `<div class="cr-note"><div style="font-size:11px;font-weight:500;color:var(--color-text-warning);">Cambios solicitados por ${esc(item.cr.by)}</div><div style="font-size:11px;color:var(--color-text-warning);margin-top:2px;">${esc(item.cr.date)}</div><div style="font-size:12px;color:var(--color-text-primary);margin-top:6px;line-height:1.4;">"${esc(item.cr.comment)}"</div></div>`;
       content = `<div style="padding-bottom:18px;"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px;"><i class="ti ${esc(item.icon)}" style="font-size:14px;color:#d97706;" aria-hidden="true"></i><span style="font-size:13px;font-weight:500;color:var(--color-text-primary);">${esc(item.label)}</span></div>${crNote}<button type="button" class="btn-mark" data-tracking-complete="${index}" style="margin-top:10px;" aria-label="Marcar ${esc(item.label)} como completado"><i class="ti ti-check" style="font-size:12px;" aria-hidden="true"></i>Marcar como hecho</button></div>`;
     } else if (available) {
       const proformaButton = item.key === "envio" ? '<button type="button" class="btn-mark" data-tracking-proforma aria-label="Ver proforma"><i class="ti ti-file-invoice" style="font-size:12px;" aria-hidden="true"></i>Ver Proforma</button>' : "";
-      const closeForm = state.quoteTracking.formOpenKey === "cierre-descarte" ? `<div class="tracking-close-form"><label><span>Motivo</span><select id="quoteTrackingCloseReason" data-tracking-close-input><option value="">Selecciona un motivo</option>${QUOTE_CLOSE_REASON_OPTIONS.map((reason) => `<option value="${esc(reason)}">${esc(reason)}</option>`).join("")}</select></label><label><span>Comentario</span><textarea id="quoteTrackingCloseComments" class="cr-textarea" placeholder="Comentario para gerencia" data-tracking-close-input></textarea></label><div class="tracking-close-actions"><button type="button" class="btn-cancel" data-tracking-close-form>Cancelar</button><button type="button" class="btn-submit" data-tracking-submit-close="${index}"><i class="ti ti-send" style="font-size:12px;" aria-hidden="true"></i>Guardar cierre</button></div></div>` : "";
       const closeActions = item.key === "cierre"
-        ? `${quoteTrackingCloseActionsMarkup(index)}${closeForm}`
+        ? quoteTrackingCloseActionsMarkup(index)
         : `<div style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn-mark" data-tracking-complete="${index}" aria-label="Marcar ${esc(item.label)} como completado"><i class="ti ti-check" style="font-size:12px;" aria-hidden="true"></i>${item.key === "envio" ? "Marcar como enviada" : "Marcar como hecho"}</button>${proformaButton}</div>`;
       content = `<div style="padding-bottom:18px;"><div style="margin-bottom:6px;font-size:13px;font-weight:500;color:var(--color-text-secondary);">${esc(item.label)}</div>${closeActions}</div>`;
     } else {
@@ -8289,17 +8409,19 @@ function bindDetailsDemo() {
       }).finally(done);
       return;
     }
+    const setOutcome = event.target.closest("[data-tracking-set-outcome]");
+    if (setOutcome) {
+      const index = Number(setOutcome.dataset.trackingSetOutcome);
+      const outcomeType = setOutcome.dataset.outcome || 'accepted';
+      openQuoteClosureForm(index, outcomeType);
+      return;
+    }
     const createOrder = event.target.closest("[data-tracking-create-order]");
     if (createOrder) {
       const done = setTrackingButtonLoading(createOrder, "Creando...");
       createProductionOrderFromTracking(Number(createOrder.dataset.trackingCreateOrder)).catch((error) => {
         showCenterMessage(error.message || "No fue posible crear la orden.");
       }).finally(done);
-      return;
-    }
-    const closeReason = event.target.closest("[data-tracking-open-close-reason]");
-    if (closeReason) {
-      openQuoteClosureForm(Number(closeReason.dataset.trackingOpenCloseReason));
       return;
     }
     const closeSubmit = event.target.closest("[data-tracking-submit-close]");

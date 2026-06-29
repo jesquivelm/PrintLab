@@ -1673,7 +1673,23 @@ async function createQuoteFromLine(row) {
 }
 
 async function createProductFromLine(row) {
-    throw new Error('Convertir a producto está desactivado: falta definir el flujo final de creación de productos desde cotizaciones.');
+    if (!row?.quoteId || !row?.linea) {
+        throw new Error('Se requiere una cotización y línea válidas para registrar el producto.');
+    }
+    const response = await fetch(`${QUOTES_ENDPOINT}/${encodeURIComponent(row.quoteId)}/lineas/${encodeURIComponent(row.linea)}/producto`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...sessionHeader() },
+        body: JSON.stringify({})
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || 'No se pudo crear el producto.');
+    const productCode = payload?.producto?.product_code || '';
+    if (productCode && row.raw_data) {
+        row.raw_data['CODIGO PRODUCTO'] = productCode;
+        if (row.raw_data.line_summary) row.raw_data.line_summary.product_code = productCode;
+    }
+    setStatus(productCode ? `Producto ${productCode} creado.` : 'Producto registrado.', 'saved');
+    return payload;
 }
 
 function openFrontBackDetailModal(row) {
@@ -1857,44 +1873,85 @@ function askProductionOrderQuantity(row, quantities) {
         const existing = document.querySelector('.quote-order-quantity-dialog');
         if (existing) existing.remove();
         document.body.classList.add('popover-open');
-        const overlay = document.createElement('div');
+        var raw = row.raw_data || {};
+        var processResult = raw.processResult || raw.process_result || {};
+        var totals = processResult.totals || {};
+        var material = raw['GENERAL | MATERIAL'] || raw.material_name || '';
+        var wastePct = totals.wastePct != null ? totals.wastePct : (totals.wastePercent != null ? totals.wastePercent : 0);
+        var machineHours = totals.machineHours != null ? totals.machineHours : (totals.printHours != null ? totals.printHours : 0);
+        var defaultUnit = totals.unit || totals.unitPrice || 0;
+        var firstQty = quantities[0] || {};
+        var summaryData = {
+            unitPrice: firstQty.unitPrice || defaultUnit,
+            totalCost: (firstQty.unitPrice || defaultUnit) * (firstQty.quantity || 0),
+            machineHours: firstQty.machineHours || machineHours,
+            material: firstQty.material || material,
+            wastePct: firstQty.wastePct || wastePct
+        };
+        function formatMoney(val) { return '\u20A1' + Number(val || 0).toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+        function formatNumber(val, dec) { return Number(val || 0).toLocaleString('es-CR', { minimumFractionDigits: dec || 0, maximumFractionDigits: dec || 0 }); }
+        var optionsHtml = quantities.map(function (q, i) {
+            return '<option value="' + i + '"' + (i === 0 ? ' selected' : '') + '>' + escapeHtml(parseNumber(q.quantity)) + ' unidades</option>';
+        }).join('');
+        var overlay = document.createElement('div');
         overlay.className = 'quote-order-quantity-dialog';
-        const options = quantities.map((q, i) => `
-            <label class="quote-order-quantity-option${i === 0 ? ' is-selected' : ''}">
-                <input type="radio" name="quoteOrderQuantity" value="${escapeHtml(String(q.quantity))}"${i === 0 ? ' checked' : ''}>
-                <span class="quote-order-quantity-value">${escapeHtml(parseNumber(q.quantity))} uds</span>
-                ${q.unitPrice ? `<span class="quote-order-quantity-price">${escapeHtml(String(q.unitPrice))}</span>` : ''}
-            </label>
-        `).join('');
-        overlay.innerHTML = `
-            <div class="quote-order-quantity-panel" role="dialog" aria-modal="true" aria-label="Seleccionar cantidad de producción">
-                <div class="quote-order-quantity-title">Crear orden de producción</div>
-                <div class="quote-order-quantity-copy">Escoge la cantidad que se va a producir para la línea ${escapeHtml(row?.linea || '')}.</div>
-                <div class="quote-order-quantity-options">${options}</div>
-                <div class="quote-order-quantity-actions">
-                    <button type="button" class="action-btn" data-quantity-action="cancel">Cancelar</button>
-                    <button type="button" class="action-btn action-btn-primary" data-quantity-action="confirm">Continuar</button>
-                </div>
-            </div>
-        `;
-        const close = (value) => {
+        overlay.innerHTML = '<div class="quote-order-quantity-panel" role="dialog" aria-modal="true" aria-label="Crear Orden de Producción">' +
+            '<div class="quote-order-quantity-title">Crear Orden de Producción</div>' +
+            '<div class="quote-order-quantity-body">' +
+                '<div class="quote-order-quantity-left">' +
+                    '<label class="quote-order-quantity-field"><span>Cantidad a producir</span>' +
+                        '<select class="quote-order-qty-select" data-qty-select>' + optionsHtml + '</select>' +
+                    '</label>' +
+                '</div>' +
+                '<div class="quote-order-quantity-right">' +
+                    '<div class="quote-order-quantity-summary-title">Resumen de la cantidad seleccionada</div>' +
+                    '<div class="quote-order-quantity-summary">' +
+                        '<div class="quote-order-qty-row"><span>Precio unitario</span><span data-summary-unit>' + formatMoney(summaryData.unitPrice) + '</span></div>' +
+                        '<div class="quote-order-qty-row"><span>Costo total</span><span data-summary-total>' + formatMoney(summaryData.totalCost) + '</span></div>' +
+                        '<div class="quote-order-qty-row"><span>Tiempo máquina</span><span data-summary-hours>' + formatNumber(summaryData.machineHours, 2) + ' horas</span></div>' +
+                        '<div class="quote-order-qty-row"><span>Material</span><span data-summary-material>' + escapeHtml(summaryData.material || '-') + '</span></div>' +
+                        '<div class="quote-order-qty-row"><span>Desperdicio</span><span data-summary-waste>' + formatNumber(summaryData.wastePct, 1) + ' %</span></div>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="quote-order-quantity-note">La orden se generará utilizando exactamente los parámetros calculados para la cantidad seleccionada.</div>' +
+            '<div class="quote-order-quantity-actions">' +
+                '<button type="button" class="action-btn" data-quantity-action="cancel">Cancelar</button>' +
+                '<button type="button" class="action-btn action-btn-primary" data-quantity-action="confirm">Crear Orden</button>' +
+            '</div>' +
+        '</div>';
+        function updateSummary(idx) {
+            var q = quantities[idx] || {};
+            var unit = q.unitPrice || defaultUnit;
+            var qty = q.quantity || 0;
+            var hours = q.machineHours || machineHours;
+            var mat = q.material || material;
+            var waste = q.wastePct || wastePct;
+            overlay.querySelector('[data-summary-unit]').textContent = formatMoney(unit);
+            overlay.querySelector('[data-summary-total]').textContent = formatMoney(unit * qty);
+            overlay.querySelector('[data-summary-hours]').textContent = formatNumber(hours, 2) + ' horas';
+            overlay.querySelector('[data-summary-material]').textContent = mat || '-';
+            overlay.querySelector('[data-summary-waste]').textContent = formatNumber(waste, 1) + ' %';
+        }
+        var close = function (value) {
             overlay.remove();
             document.body.classList.remove('popover-open');
             resolve(value);
         };
-        overlay.addEventListener('click', (event) => {
+        overlay.addEventListener('click', function (event) {
             if (event.target === overlay) close(null);
-            const option = event.target.closest('.quote-order-quantity-option');
-            if (option) {
-                overlay.querySelectorAll('.quote-order-quantity-option').forEach((item) => item.classList.remove('is-selected'));
-                option.classList.add('is-selected');
-                option.querySelector('input')?.click();
-            }
-            const action = event.target.closest('[data-quantity-action]')?.dataset.quantityAction;
+            var action = event.target.closest('[data-quantity-action]')?.dataset.quantityAction;
             if (action === 'cancel') close(null);
             if (action === 'confirm') {
-                const selected = Number(overlay.querySelector('input[name="quoteOrderQuantity"]:checked')?.value || 0);
-                close(selected > 0 ? selected : null);
+                var select = overlay.querySelector('[data-qty-select]');
+                var idx = Number(select?.value || 0);
+                var qty = quantities[idx];
+                close(qty && qty.quantity > 0 ? qty.quantity : null);
+            }
+        });
+        overlay.addEventListener('change', function (event) {
+            if (event.target.matches('[data-qty-select]')) {
+                updateSummary(Number(event.target.value || 0));
             }
         });
         document.body.appendChild(overlay);
