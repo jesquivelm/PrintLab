@@ -440,6 +440,17 @@ body.is-front-back-group-context #technicalDataCard .technical-column-left > .te
   display: none !important;
 }
 
+.front-back-child-dims {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.front-back-child-dims .metric-cell {
+  min-width: 0;
+}
+
 .front-back-group-note {
   display: flex;
   align-items: center;
