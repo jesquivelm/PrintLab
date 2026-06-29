@@ -1768,7 +1768,7 @@ function applyHeaderConfig(config) {
     }
     renderIconButton(sourceQuoteButton, icons.browserOpen || icons.quoteLookup || DEFAULT_ICONS.view);
     sourceQuoteButton?.setAttribute('title', 'Abrir cotización origen');
-    renderIconButton(pantonesButton, iconConfigFor('orderPantones', DEFAULT_ICONS.pantones));
+    if (pantonesButton) renderIconButton(pantonesButton, iconConfigFor('orderPantones', DEFAULT_ICONS.pantones));
     pantonesButton?.setAttribute('title', 'Detalle de pantones');
     renderIconButton(deliveriesButton, iconConfigFor('orderDeliveries', DEFAULT_ICONS.deliveries));
     deliveriesButton?.setAttribute('title', 'Detalle de entregas');
@@ -1963,12 +1963,6 @@ function renderFrontBackProductCard({ frontBackObj, output, memberInfo, index, s
     const lineCodeHtml = lineCode
         ? `(${buildOrderDataLink(lineRoute, lineCode, `Cálculo ${lineCode}`)}) - `
         : '';
-    const feetText = data.totalFeet > 0
-        ? `${parseNumber(data.linearFeet, ' ft')} + ${parseNumber(data.wasteFeet, ' ft')} = ${parseNumber(data.totalFeet, ' ft')}`
-        : 'Sin consumo registrado';
-    const finishHtml = data.finishes.length
-        ? data.finishes.map((item) => `<span class="production-chip">${escapeHtml(item)}</span>`).join('')
-        : '<span class="production-chip production-chip-muted">Sin acabados adicionales</span>';
     const artHolder = pickFirst(data.raw['ARTE EN PODER DE'], '');
     const artComments = pickFirst(data.raw['COMENTARIOS VENDEDOR'], data.raw['OBSERVACIONES VENTAS'], '');
 
@@ -1992,45 +1986,8 @@ function renderFrontBackProductCard({ frontBackObj, output, memberInfo, index, s
                         </div>
                     </div>
                 </div>
-                <div class="production-subgroup">
-                    <div class="production-subgroup-title">Impresión</div>
-                    ${data.noPrint ? '<div class="production-order-alert">Sin Impresión</div>' : `
-                    <div class="production-summary-grid production-summary-grid-two">
-                        <div class="production-summary-item"><span class="production-summary-label">Máquina</span><span class="production-summary-value">${escapeHtml(data.machineName || 'Sin máquina')}</span></div>
-                        <div class="production-summary-item"><span class="production-summary-label">Sustrato</span><span class="production-summary-value">${escapeHtml(data.materialName || 'Sin sustrato')}</span></div>
-                        <div class="production-summary-item"><span class="production-summary-label">Total de Pies</span><span class="production-summary-value">${escapeHtml(feetText)}</span></div>
-                        <div class="production-summary-item"><span class="production-summary-label">Cantidad de Rollos</span><span class="production-summary-value">${escapeHtml(data.rollCount ? parseNumber(data.rollCount) : 'Por definir')}</span></div>
-                    </div>`}
-                </div>
-                <div class="production-product-pair">
-                    <div class="production-subgroup">
-                        <div class="production-subgroup-title">Tintas</div>
-                        <div class="production-summary-grid production-summary-grid-two">
-                            <div class="production-summary-item production-summary-item-full"><span class="production-summary-label">Tintas</span><span class="production-summary-value">${escapeHtml(data.noPrint ? 'Sin Impresión' : (data.inkConfig || 'Sin configuración'))}</span></div>
-                        </div>
-                    </div>
-                    <div class="production-subgroup">
-                        <div class="production-subgroup-title">Acabados</div>
-                        <div class="production-chip-list">${finishHtml}</div>
-                    </div>
-                </div>
-                <div class="production-subgroup">
-                    <div class="production-subgroup-title">Información del Rollo</div>
-                    <div class="production-summary-grid production-summary-grid-two production-roll-grid">
-                        <div class="production-roll-grid-left">
-                            <div class="production-summary-grid production-summary-grid-single">
-                                <div class="production-summary-item"><span class="production-summary-label">Ancho de Core</span><span class="production-summary-value">${escapeHtml(parseNumber(data.detail.coreWidth) || 'Sin dato')}</span></div>
-                                <div class="production-summary-item"><span class="production-summary-label">Diámetro de Core</span><span class="production-summary-value">${escapeHtml(pickFirst(data.detail.coreDiameter, 'Sin dato'))}</span></div>
-                                <div class="production-summary-item"><span class="production-summary-label">Etiquetas por Rollo</span><span class="production-summary-value">${escapeHtml(parseNumber(data.labelsPerRoll) || 'Sin dato')}</span></div>
-                            </div>
-                        </div>
-                        <div class="production-roll-grid-right">
-                            <div class="production-summary-item"><span class="production-summary-label">Tipo de Salida</span><span class="production-summary-value">${escapeHtml(data.outputType || '')}</span></div>
-                            <div class="production-output-preview">${outputTypePreviewHtml(data.outputType)}</div>
-                        </div>
-                    </div>
-                </div>
                 <div class="production-frontback-art-section">
+                    <div class="production-frontback-art-product-label">${escapeHtml(data.productName)}</div>
                     <div class="production-frontback-art-row">
                         <div class="production-frontback-art-preview-col">
                             <div class="production-art-preview production-art-preview-compact production-art-dropzone production-frontback-art-dropzone" data-frontback-art-target data-quote="${escapeHtml(sourceQuoteCode)}" data-line="${escapeHtml(lineCode)}" aria-label="Adjuntar arte ${escapeHtml(frontBackSideLabel(side))}">
@@ -2098,24 +2055,26 @@ function renderArtwork(attachments) {
     currentArtworkAttachment = artwork || null;
     if (artworkDeleteButton) artworkDeleteButton.hidden = !artwork;
     if (!artwork) {
-        artworkPreview.classList.add('production-art-preview-compact');
-        artworkPreview.innerHTML = '<div class="attachments-empty">Arrastra el Arte</div>';
+        if (artworkPreview) {
+            artworkPreview.classList.add('production-art-preview-compact');
+            artworkPreview.innerHTML = '<div class="attachments-empty">Arrastra el Arte</div>';
+        }
         updateArtworkSectionConstraint();
         return;
     }
     const value = String(artwork.value || '').trim();
-    artworkPreview.classList.remove('production-art-preview-compact');
+    if (artworkPreview) artworkPreview.classList.remove('production-art-preview-compact');
     if (/^data:image\//i.test(value)) {
-        artworkPreview.innerHTML = `<img src="${escapeHtml(value)}" alt="Arte del producto" class="production-art-image">`;
+        if (artworkPreview) artworkPreview.innerHTML = `<img src="${escapeHtml(value)}" alt="Arte del producto" class="production-art-image">`;
         updateArtworkSectionConstraint();
         return;
     }
     if (artwork.id && /^image\//i.test(String(artwork.mime_type || ''))) {
-        artworkPreview.innerHTML = `<img src="/api/adjuntos/${encodeURIComponent(artwork.id)}/download" alt="Arte del producto" class="production-art-image">`;
+        if (artworkPreview) artworkPreview.innerHTML = `<img src="/api/adjuntos/${encodeURIComponent(artwork.id)}/download" alt="Arte del producto" class="production-art-image">`;
         updateArtworkSectionConstraint();
         return;
     }
-    artworkPreview.innerHTML = `<div class="production-art-copy"><strong>${escapeHtml(artwork.label || 'Referencia')}</strong><span>${escapeHtml(value)}</span></div>`;
+    if (artworkPreview) artworkPreview.innerHTML = `<div class="production-art-copy"><strong>${escapeHtml(artwork.label || 'Referencia')}</strong><span>${escapeHtml(value)}</span></div>`;
     updateArtworkSectionConstraint();
 }
 
@@ -2644,6 +2603,21 @@ function renderOrder(order) {
             outputs: (frontBackSource?.outputs || frontBackObj?.outputs || [])
         };
     }
+    if (!frontBackObj || !frontBackObj.outputs || !frontBackObj.outputs.length) {
+        const syntheticLineCode = pickFirst(raw.source_line_code, detail.lineCode, line.line_code, order.line_code);
+        const syntheticProductName = pickFirst(line.job_name, detail.jobName, lineRaw['NOMBRE TRABAJO'], 'Producto');
+        frontBackObj = {
+            mode: 'unified',
+            label: frontBackObj?.label || 'Orden',
+            outputs: [{
+                lineCode: syntheticLineCode,
+                itemName: syntheticProductName,
+                quantity: quantityValue,
+                side: 'frente'
+            }],
+            elementRoles: { [syntheticLineCode]: 'frente' }
+        };
+    }
     /* --- end printing data block --- */
 
     statusBox.hidden = true;
@@ -2683,95 +2657,70 @@ function renderOrder(order) {
 
     samplesSummary.innerHTML = buildSamplesSummary(lineRaw);
 
-    setHtml('orderProductCodesText', productCodes);
     var frontBackBlock = document.getElementById('orderFrontBackBlock');
     var frontBackMembers = document.getElementById('orderFrontBackMembers');
     var frontBackProductCards = document.getElementById('orderFrontBackProductCards');
     var frontBackLayout = document.getElementById('orderFrontBackLayout');
-    var productSection = document.querySelector('#orderContent > .production-order-layout-refined > .production-product-section');
-    var secondaryColumn = document.querySelector('#orderContent > .production-order-layout-refined > .production-order-column-secondary');
     var orderLayout = document.querySelector('#orderContent > .production-order-layout-refined');
-    var quantitySection = document.getElementById('orderQuantitySection');
-    var artSection = document.getElementById('orderArtSection');
-    if (frontBackObj) {
-        orderLayout?.classList.add('is-frontback-order');
-        if (productSection) productSection.hidden = true;
-        if (secondaryColumn) secondaryColumn.hidden = true;
-        if (frontBackLayout) frontBackLayout.hidden = false;
-        frontBackBlock.style.display = 'none';
-        frontBackProductCards.hidden = false;
-        quantitySection.hidden = true;
-        artSection.hidden = true;
-        var outputs = Array.isArray(frontBackObj.outputs) ? frontBackObj.outputs : [];
-        var memberLineCodes = frontBackObj.memberLineCodes || frontBackObj.elementLineCodes || [];
-        var relatedLines = raw.related_lines || [];
-        var memberData = {};
-        relatedLines.forEach(function (rl) {
-            var lc = rl.summary?.line_code || rl.detail?.lineCode || '';
-            if (lc) memberData[lc] = rl;
-        });
-        var cardsHtml = outputs.map(function (o, idx) {
-            var side = '';
-            var lc = String(o.lineCode || '').toLowerCase();
-            var roles = frontBackObj.elementRoles || {};
-            if (roles[o.lineCode]) side = roles[o.lineCode];
-            else if (lc.includes('dorso') || lc.includes('back')) side = 'dorso';
-            else side = 'frente';
-            var sideLabel = side === 'dorso' ? 'Dorso' : 'Frente';
-            var productName = o.itemName || 'Producto';
-            var qty = parseNumber(o.quantity);
-            var memberInfo = memberData[o.lineCode] || {};
-            var memberDetail = memberInfo.detail || {};
-            var memberLineRaw = memberDetail.raw_data || {};
-            var memberLine = memberInfo.summary || {};
-            var artHolder = pickFirst(memberLineRaw['ARTE EN PODER DE'], '');
-            var artComments = pickFirst(memberLineRaw['COMENTARIOS VENDEDOR'], memberLineRaw['OBSERVACIONES VENTAS'], '');
-            var artOrder = pickFirst(memberLineRaw['ORDEN DE ARTE'], '');
-            var quoteCode = sourceQuoteCode;
-            var lineCodeForArt = o.lineCode || '';
-            return '<div class="production-frontback-card" data-side="' + escapeHtml(side) + '">' +
-                '<div class="production-frontback-card-header">' +
-                    '<div class="production-frontback-card-title">' +
-                        '<span class="production-frontback-card-side">' + escapeHtml(sideLabel) + '</span>' +
-                        '<span class="production-frontback-card-name">' + escapeHtml(productName) + '</span>' +
-                    '</div>' +
-                    '<div class="production-frontback-card-qty">' + qty + '</div>' +
+    orderLayout?.classList.add('is-frontback-order');
+
+    var outputs = Array.isArray(frontBackObj.outputs) ? frontBackObj.outputs : [];
+    var memberLineCodes = frontBackObj.memberLineCodes || frontBackObj.elementLineCodes || [];
+    var relatedLines = raw.related_lines || [];
+    var memberData = {};
+    relatedLines.forEach(function (rl) {
+        var lc = rl.summary?.line_code || rl.detail?.lineCode || '';
+        if (lc) memberData[lc] = rl;
+    });
+    var cardsHtml = outputs.map(function (o, idx) {
+        var side = '';
+        var lc = String(o.lineCode || '').toLowerCase();
+        var roles = frontBackObj.elementRoles || {};
+        if (roles[o.lineCode]) side = roles[o.lineCode];
+        else if (lc.includes('dorso') || lc.includes('back')) side = 'dorso';
+        else side = 'frente';
+        var sideLabel = side === 'dorso' ? 'Dorso' : 'Frente';
+        var productName = o.itemName || 'Producto';
+        var qty = parseNumber(o.quantity);
+        var memberInfo = memberData[o.lineCode] || {};
+        var memberDetail = memberInfo.detail || {};
+        var memberLineRaw = memberDetail.raw_data || {};
+        var memberLine = memberInfo.summary || {};
+        var artHolder = pickFirst(memberLineRaw['ARTE EN PODER DE'], '');
+        var artComments = pickFirst(memberLineRaw['COMENTARIOS VENDEDOR'], memberLineRaw['OBSERVACIONES VENTAS'], '');
+        var artOrder = pickFirst(memberLineRaw['ORDEN DE ARTE'], '');
+        var quoteCode = sourceQuoteCode;
+        var lineCodeForArt = o.lineCode || '';
+        return '<div class="production-frontback-card" data-side="' + escapeHtml(side) + '">' +
+            '<div class="production-frontback-card-header">' +
+                '<div class="production-frontback-card-title">' +
+                    '<span class="production-frontback-card-side">' + escapeHtml(sideLabel) + '</span>' +
+                    '<span class="production-frontback-card-name">' + escapeHtml(productName) + '</span>' +
                 '</div>' +
-                '<div class="production-frontback-card-art">' +
-                    '<div class="production-frontback-art-col">' +
-                        '<div class="production-frontback-art-dropzone production-art-dropzone" data-quote="' + escapeHtml(quoteCode) + '" data-line="' + escapeHtml(lineCodeForArt) + '">' +
-                            '<span class="production-frontback-art-dropzone-text">Arrastrar arte aquí</span>' +
-                        '</div>' +
-                    '</div>' +
-                    '<div class="production-frontback-art-col">' +
-                        '<div class="production-frontback-art-info">' +
-                            '<div class="production-frontback-art-field"><span class="production-frontback-art-label">Arte en Poder de</span><span class="production-frontback-art-value">' + escapeHtml(artHolder || 'Sin asignar') + '</span></div>' +
-                            (artOrder ? '<div class="production-frontback-art-field"><span class="production-frontback-art-label">Orden de Arte</span><span class="production-frontback-art-value">' + escapeHtml(artOrder) + '</span></div>' : '') +
-                            (artComments ? '<div class="production-frontback-art-field"><span class="production-frontback-art-label">Comentarios</span><span class="production-frontback-art-value">' + escapeHtml(artComments) + '</span></div>' : '') +
-                        '</div>' +
+                '<div class="production-frontback-card-qty">' + qty + '</div>' +
+            '</div>' +
+            '<div class="production-frontback-card-art">' +
+                '<div class="production-frontback-art-col">' +
+                    '<div class="production-frontback-art-dropzone production-art-dropzone" data-quote="' + escapeHtml(quoteCode) + '" data-line="' + escapeHtml(lineCodeForArt) + '">' +
+                        '<span class="production-frontback-art-dropzone-text">Arrastrar arte aquí</span>' +
                     '</div>' +
                 '</div>' +
-            '</div>';
-        }).join('');
-        frontBackProductCards.innerHTML = cardsHtml;
-        renderFrontBackLayout({ raw, frontBackObj, sourceQuoteCode, order });
-        var artEditIconConf = iconConfigFor('orderEdit', '✏️', '#64748b', 16);
-        document.querySelectorAll('.production-frontback-art-edit-btn').forEach(function (btn) { renderIconButton(btn, artEditIconConf); });
-    } else {
-        orderLayout?.classList.remove('is-frontback-order');
-        if (productSection) productSection.hidden = false;
-        if (secondaryColumn) secondaryColumn.hidden = false;
-        if (frontBackLayout) {
-            frontBackLayout.hidden = true;
-            frontBackLayout.innerHTML = '';
-        }
-        frontBackBlock.style.display = 'none';
-        frontBackProductCards.hidden = true;
-        quantitySection.hidden = false;
-        artSection.hidden = false;
-    }
-    setText('orderJobText', [pickFirst(line.job_name, detail.jobName), dimensions ? '(' + dimensions + ')' : ''].filter(Boolean).join(' '), 'Trabajo sin nombre');
-    setOptionalText('orderDimensionsText', '');
+                '<div class="production-frontback-art-col">' +
+                    '<div class="production-frontback-art-info">' +
+                        '<div class="production-frontback-art-field"><span class="production-frontback-art-label">Arte en Poder de</span><span class="production-frontback-art-value">' + escapeHtml(artHolder || 'Sin asignar') + '</span></div>' +
+                        (artOrder ? '<div class="production-frontback-art-field"><span class="production-frontback-art-label">Orden de Arte</span><span class="production-frontback-art-value">' + escapeHtml(artOrder) + '</span></div>' : '') +
+                        (artComments ? '<div class="production-frontback-art-field"><span class="production-frontback-art-label">Comentarios</span><span class="production-frontback-art-value">' + escapeHtml(artComments) + '</span></div>' : '') +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+    }).join('');
+    if (frontBackProductCards) frontBackProductCards.innerHTML = cardsHtml;
+    if (frontBackLayout) frontBackLayout.hidden = false;
+    if (frontBackBlock) frontBackBlock.style.display = 'none';
+    renderFrontBackLayout({ raw, frontBackObj, sourceQuoteCode, order });
+    var artEditIconConf = iconConfigFor('orderEdit', '✏️', '#64748b', 16);
+    document.querySelectorAll('.production-frontback-art-edit-btn').forEach(function (btn) { renderIconButton(btn, artEditIconConf); });
 
     const printingAlert = document.getElementById('orderPrintingAlert');
     const printingGrid = document.getElementById('orderPrintingGrid');
@@ -2787,6 +2736,7 @@ function renderOrder(order) {
     setText('orderMachineText', printing ? printing.machineName : pickFirst(detail.quotedMachine, line.machine_name, order.machine_name), 'Sin máquina');
     setText('orderMaterialText', printing ? printing.materialName : pickFirst(detail.materialName, line.material_name, order.material_code), 'Sin sustrato');
     setText('orderFeetText', totalFeet > 0 ? `${parseNumber(linearFeet, ' ft')} + ${parseNumber(wasteFeet, ' ft')} = ${parseNumber(totalFeet, ' ft')}` : '', 'Sin consumo registrado');
+    setText('orderConsumptionText', totalFeet > 0 ? parseNumber(totalFeet, ' ft') : '', 'Sin consumo');
     setText('orderRollCountText', rollCount ? parseNumber(rollCount) : '', 'Por definir');
 
     var inkConfig;
@@ -2800,10 +2750,14 @@ function renderOrder(order) {
     } else {
         inkConfig = buildInkConfig(detail, lineRaw);
     }
-    document.getElementById('orderInkBlock').hidden = noPrint;
     setText('orderInkConfigText', inkConfig, 'Sin configuración');
-    pantonesButton.hidden = pantoneList.length <= 0 && inkPantoneCount <= 0;
-    pantonesPopoverBody.innerHTML = (pantoneList.length > 0 || inkPantoneCount > 0)
+    const pantonesRow = document.getElementById('orderPantonesRow');
+    const hasPantones = pantoneList.length > 0 || inkPantoneCount > 0;
+    if (pantonesRow) {
+        pantonesRow.hidden = !hasPantones;
+        setText('orderPantonesText', hasPantones ? parseNumber(inkPantoneCount) + ' pantones' : '', '');
+    }
+    pantonesPopoverBody.innerHTML = hasPantones
         ? `<div class="production-order-popover-summary"><strong>${escapeHtml(parseNumber(inkPantoneCount))} Pantones declarados</strong><span>${escapeHtml(pantoneList.length ? pantoneList.join(' / ') : 'Todavía no hay detalle de pantones cargado.')}</span></div>`
         : '<div class="attachments-empty">Esta orden no tiene pantones declarados.</div>';
 
@@ -2867,7 +2821,6 @@ function renderOrder(order) {
     }
     if (scheduledDateInput) scheduledDateInput.value = normalizeDateInputValue(scheduledDateRaw);
 
-    setText('orderQuantityText', quantity, 'Sin cantidad');
     artSummary.innerHTML = buildSummaryLinesOptional([
         { label: 'Comentarios', value: pickFirst(lineRaw['COMENTARIOS VENDEDOR'], lineRaw['OBSERVACIONES VENTAS']) },
         { label: 'Orden de Arte', value: pickFirst(lineRaw['ORDEN DE ARTE']) },

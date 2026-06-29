@@ -244,57 +244,29 @@
                         </section>
                         </div>
 
-                        <section class="socios-section production-product-section">
-                            <div class="section-caption">Producto</div>
+                        <section id="orderProductionConfig" class="socios-section production-shared-config">
+                            <div class="section-caption">Configuración de Producción</div>
                             <div class="production-summary-stack">
-                                <div class="production-product-hero">
-                                    <div class="production-product-hero-main">
-                                        <div class="production-product-hero-copy">
-                                            <span id="orderProductCodesText" class="production-product-codes"></span>
-                                            <strong id="orderJobText" class="production-product-name"></strong>
-                                        </div>
-                                        <span id="orderDimensionsText" class="production-product-dimensions"></span>
-                                    </div>
-                                </div>
-                                <div id="orderFrontBackBlock" class="production-order-frontback" style="display:none">
-                                    <div class="production-order-frontback-badge"></div>
-                                    <div id="orderFrontBackMembers" class="production-order-frontback-members"></div>
-                                </div>
                                 <div id="orderPrintingBlock" class="production-subgroup">
                                     <div class="production-subgroup-title">Impresión</div>
                                     <div id="orderPrintingAlert" class="production-order-alert" hidden></div>
-                                    <div id="orderPrintingGrid" class="production-summary-grid production-summary-grid-two">
-                                        <div class="production-summary-item">
-                                            <span class="production-summary-label">Máquina</span>
-                                            <span id="orderMachineText" class="production-summary-value"></span>
+                                    <div id="orderPrintingGrid" class="production-shared-printing-grid">
+                                        <div class="production-shared-printing-col">
+                                            <div class="production-summary-item"><span class="production-summary-label">Máquina</span><span id="orderMachineText" class="production-summary-value"></span></div>
+                                            <div class="production-summary-item"><span class="production-summary-label">Total de Pies</span><span id="orderFeetText" class="production-summary-value"></span></div>
+                                            <div class="production-summary-item"><span class="production-summary-label">Consumo Registrado</span><span id="orderConsumptionText" class="production-summary-value"></span></div>
                                         </div>
-                                        <div class="production-summary-item">
-                                            <span class="production-summary-label">Sustrato</span>
-                                            <span id="orderMaterialText" class="production-summary-value"></span>
+                                        <div class="production-shared-printing-col">
+                                            <div class="production-summary-item"><span class="production-summary-label">Sustrato</span><span id="orderMaterialText" class="production-summary-value"></span></div>
+                                            <div class="production-summary-item"><span class="production-summary-label">Cantidad de Rollos</span><span id="orderRollCountText" class="production-summary-value"></span></div>
                                         </div>
-                                        <div class="production-summary-item">
-                                            <span class="production-summary-label">Total de Pies</span>
-                                            <span id="orderFeetText" class="production-summary-value"></span>
-                                        </div>
-                                        <div class="production-summary-item">
-                                            <span class="production-summary-label">Cantidad de Rollos</span>
-                                            <span id="orderRollCountText" class="production-summary-value"></span>
+                                        <div class="production-shared-printing-col">
+                                            <div id="orderInkBlock" class="production-summary-item production-summary-item-full"><span class="production-summary-label">Tintas</span><span id="orderInkConfigText" class="production-summary-value"></span></div>
+                                            <div id="orderPantonesRow" class="production-summary-item" hidden><span class="production-summary-label">Pantones</span><span id="orderPantonesText" class="production-summary-value"></span></div>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="production-product-pair">
-                                    <div id="orderInkBlock" class="production-subgroup" hidden>
-                                        <div class="production-subgroup-head">
-                                            <div class="production-subgroup-title">Tintas</div>
-                                            <button type="button" id="orderPantonesButton" class="browser-open-link production-inline-icon" aria-label="Ver detalle de pantones" hidden></button>
-                                        </div>
-                                        <div class="production-summary-grid production-summary-grid-two">
-                                            <div class="production-summary-item production-summary-item-full">
-                                                <span class="production-summary-label">Tintas</span>
-                                                <span id="orderInkConfigText" class="production-summary-value"></span>
-                                            </div>
-                                        </div>
-                                    </div>
                                     <div class="production-subgroup">
                                         <div class="production-subgroup-title">Acabados</div>
                                         <div class="production-summary-stack">
@@ -342,49 +314,9 @@
                             </div>
                         </section>
 
-                        <div class="production-order-column-secondary">
-                            <div id="orderFrontBackProductCards" class="production-frontback-product-cards" hidden>
-                            </div>
-                            <section id="orderQuantitySection" class="socios-section">
-                                <div class="production-section-head-inline">
-                                    <div class="section-caption">Cantidad de Productos</div>
-                                    <strong id="orderQuantityText" class="production-quantity-highlight"></strong>
-                                </div>
-                            </section>
-                            <section id="orderArtSection" class="socios-section production-art-section">
-                                <div class="section-caption">Información de Arte</div>
-                                <button type="button" id="orderArtToggleButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-section-corner-toggle" aria-label="Expandir información de arte"></button>
-                                <div id="orderArtSummary" class="production-summary-stack"></div>
-                                <form id="orderArtForm" class="production-inline-form" hidden>
-                                    <div class="production-summary-grid production-summary-grid-art">
-                                        <div class="field production-art-comments-field">
-                                            <label for="orderSellerCommentsInput">Comentarios</label>
-                                            <textarea id="orderSellerCommentsInput" rows="1" placeholder="Comentarios de arte"></textarea>
-                                        </div>
-                                        <div class="production-art-meta-stack">
-                                            <div class="field production-art-holder-field">
-                                                <label for="orderArtworkHolderInput">Arte en Poder de</label>
-                                                <input id="orderArtworkHolderInput" type="text" list="orderArtworkHolderOptions" placeholder="Seleccionar o escribir">
-                                                <datalist id="orderArtworkHolderOptions">
-                                                    <option value="Cliente"></option>
-                                                    <option value="Vendedor"></option>
-                                                    <option value="Departamento de Diseño"></option>
-                                                    <option value="Preprensa"></option>
-                                                    <option value="Visto Bueno"></option>
-                                                </datalist>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <input id="orderArtworkFileInput" type="file" accept="image/*" hidden>
-                                    <div class="production-art-preview-wrap">
-                                        <button type="button" id="orderArtworkPreview" class="production-art-preview production-art-preview-compact production-art-dropzone" aria-label="Adjuntar arte"></button>
-                                        <button type="button" id="orderArtworkDeleteButton" class="browser-open-link production-inline-icon production-inline-icon-small production-art-delete" aria-label="Eliminar arte" hidden>×</button>
-                                    </div>
-                                </form>
-                            </section>
-                        </div>
+                        <div id="orderFrontBackProductCards" class="production-frontback-product-cards"></div>
 
-                        <div id="orderFrontBackLayout" class="production-frontback-layout" hidden></div>
+                        <div id="orderFrontBackLayout" class="production-frontback-layout"></div>
 
                         <div class="production-bottom-row">
                         <section class="socios-section production-samples-section">
