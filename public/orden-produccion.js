@@ -2627,21 +2627,6 @@ function renderOrder(order) {
             outputs: (frontBackSource?.outputs || frontBackObj?.outputs || [])
         };
     }
-    if (!frontBackObj || !frontBackObj.outputs || !frontBackObj.outputs.length) {
-        const syntheticLineCode = pickFirst(raw.source_line_code, detail.lineCode, line.line_code, order.line_code);
-        const syntheticProductName = pickFirst(line.job_name, detail.jobName, lineRaw['NOMBRE TRABAJO'], 'Producto');
-        frontBackObj = {
-            mode: 'unified',
-            label: frontBackObj?.label || 'Orden',
-            outputs: [{
-                lineCode: syntheticLineCode,
-                itemName: syntheticProductName,
-                quantity: quantityValue,
-                side: 'frente'
-            }],
-            elementRoles: { [syntheticLineCode]: 'frente' }
-        };
-    }
     /* --- end printing data block --- */
 
     statusBox.hidden = true;
@@ -2684,13 +2669,22 @@ function renderOrder(order) {
     var frontBackProductCards = document.getElementById('orderFrontBackProductCards');
     var frontBackLayout = document.getElementById('orderFrontBackLayout');
     var orderLayout = document.querySelector('#orderContent > .production-order-layout-refined');
-    orderLayout?.classList.add('is-frontback-order');
 
-    if (frontBackProductCards) frontBackProductCards.hidden = true;
-    if (frontBackLayout) frontBackLayout.hidden = false;
-    renderFrontBackLayout({ raw, frontBackObj, sourceQuoteCode, order });
-    var artEditIconConf = iconConfigFor('orderEdit', '✏️', '#64748b', 16);
-    document.querySelectorAll('.production-frontback-art-edit-btn').forEach(function (btn) { renderIconButton(btn, artEditIconConf); });
+    if (frontBackObj) {
+        orderLayout?.classList.add('is-frontback-order');
+        if (frontBackLayout) frontBackLayout.hidden = false;
+        if (frontBackProductCards) frontBackProductCards.hidden = false;
+        renderFrontBackLayout({ raw, frontBackObj, sourceQuoteCode, order });
+        var artEditIconConf = iconConfigFor('orderEdit', '✏️', '#64748b', 16);
+        document.querySelectorAll('.production-frontback-art-edit-btn').forEach(function (btn) { renderIconButton(btn, artEditIconConf); });
+    } else {
+        orderLayout?.classList.remove('is-frontback-order');
+        if (frontBackLayout) {
+            frontBackLayout.hidden = true;
+            frontBackLayout.innerHTML = '';
+        }
+        if (frontBackProductCards) frontBackProductCards.hidden = true;
+    }
 
     const printingAlert = document.getElementById('orderPrintingAlert');
     const printingGrid = document.getElementById('orderPrintingGrid');
