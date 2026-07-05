@@ -2315,20 +2315,20 @@ function buildFinishTags(raw = {}, detail = {}, dieCode = '') {
 
 function populateEditableForms(raw = {}) {
     const lineRaw = raw.line_snapshot?.raw_data || {};
-    samplesModeInput.value = pickFirst(lineRaw['MUESTRAS | TIPO']);
-    samplesApprovalInput.value = pickFirst(lineRaw['MUESTRAS | VISTO BUENO'], lineRaw['MUESTRAS | DESTINATARIO VISTO BUENO']);
-    samplesContactInput.value = pickFirst(lineRaw['MUESTRAS | CONTACTO']);
-    samplesPhoneInput.value = pickFirst(lineRaw['MUESTRAS | TELEFONO']);
-    samplesEmailInput.value = pickFirst(lineRaw['MUESTRAS | EMAIL']);
-    samplesAddressInput.value = pickFirst(lineRaw['MUESTRAS | DIRECCION']);
-    samplesDetailInput.value = pickFirst(lineRaw['MUESTRAS | DETALLE']);
-    deliveryModeInput.value = pickFirst(lineRaw['ENTREGA | TIPO']);
-    deliveryContactInput.value = pickFirst(lineRaw['ENTREGA | CONTACTO']);
-    deliveryPhoneInput.value = pickFirst(lineRaw['ENTREGA | TELEFONO']);
-    deliveryEmailInput.value = pickFirst(lineRaw['ENTREGA | EMAIL']);
-    deliveryDetailInput.value = pickFirst(lineRaw['ENTREGA | DETALLE'], lineRaw['ENTREGA | DIRECCION'], lineRaw['ENTREGA | COMENTARIOS']);
-    sellerCommentsInput.value = pickFirst(lineRaw['COMENTARIOS VENDEDOR'], lineRaw['OBSERVACIONES VENTAS']);
-    artworkHolderInput.value = pickFirst(lineRaw['ARTE EN PODER DE']);
+    if (samplesModeInput) samplesModeInput.value = pickFirst(lineRaw['MUESTRAS | TIPO']);
+    if (samplesApprovalInput) samplesApprovalInput.value = pickFirst(lineRaw['MUESTRAS | VISTO BUENO'], lineRaw['MUESTRAS | DESTINATARIO VISTO BUENO']);
+    if (samplesContactInput) samplesContactInput.value = pickFirst(lineRaw['MUESTRAS | CONTACTO']);
+    if (samplesPhoneInput) samplesPhoneInput.value = pickFirst(lineRaw['MUESTRAS | TELEFONO']);
+    if (samplesEmailInput) samplesEmailInput.value = pickFirst(lineRaw['MUESTRAS | EMAIL']);
+    if (samplesAddressInput) samplesAddressInput.value = pickFirst(lineRaw['MUESTRAS | DIRECCION']);
+    if (samplesDetailInput) samplesDetailInput.value = pickFirst(lineRaw['MUESTRAS | DETALLE']);
+    if (deliveryModeInput) deliveryModeInput.value = pickFirst(lineRaw['ENTREGA | TIPO']);
+    if (deliveryContactInput) deliveryContactInput.value = pickFirst(lineRaw['ENTREGA | CONTACTO']);
+    if (deliveryPhoneInput) deliveryPhoneInput.value = pickFirst(lineRaw['ENTREGA | TELEFONO']);
+    if (deliveryEmailInput) deliveryEmailInput.value = pickFirst(lineRaw['ENTREGA | EMAIL']);
+    if (deliveryDetailInput) deliveryDetailInput.value = pickFirst(lineRaw['ENTREGA | DETALLE'], lineRaw['ENTREGA | DIRECCION'], lineRaw['ENTREGA | COMENTARIOS']);
+    if (sellerCommentsInput) sellerCommentsInput.value = pickFirst(lineRaw['COMENTARIOS VENDEDOR'], lineRaw['OBSERVACIONES VENTAS']);
+    if (artworkHolderInput) artworkHolderInput.value = pickFirst(lineRaw['ARTE EN PODER DE']);
     if (finishNotesInput) finishNotesInput.value = pickFirst(lineRaw['ACABADOS | OBSERVACIONES']);
 }
 
