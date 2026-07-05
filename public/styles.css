@@ -14971,7 +14971,11 @@ html[data-theme="dark"] .quote-request-wizard-btn.is-secondary:focus-visible {
 .costs-shell,
 .costs-card,
 .troquel-document-card,
-.production-order-card,
+.production-order-card {
+    width: min(100%, 1245px);
+    max-width: 1245px;
+}
+
 .costs-tabs,
 body.inventory-route-tipos-salida .inventory-panel-main,
 body.inventory-route-tipos-salida .inventory-toolbar-shell,
