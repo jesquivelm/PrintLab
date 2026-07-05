@@ -10866,11 +10866,15 @@ app.post('/api/socios', async (req, res) => {
             [duplicate.partnerCode]
         );
 
-        let sapResult = null;
-        let sapError = null;
-        try {
-            const sapConfig = await loadSapConfig(pgQuery);
-            sapResult = await createBusinessPartnerInSap({
+        const socioData = created.rows[0] || { partner_code: duplicate.partnerCode, partner_name: payload.partner_name };
+        res.status(201).json({
+            socio: socioData,
+            message: 'Socio creado correctamente.',
+            sap: { enviado: false, pendiente: true }
+        });
+
+        loadSapConfig(pgQuery).then((sapConfig) => {
+            return createBusinessPartnerInSap({
                 pgQuery,
                 config: sapConfig,
                 data: {
@@ -10887,14 +10891,8 @@ app.post('/api/socios', async (req, res) => {
                     addressLine: payload.address_line
                 }
             });
-        } catch (sapErr) {
-            sapError = sapErr.message || 'No fue posible enviar el socio a SAP.';
-        }
-
-        res.status(201).json({
-            socio: created.rows[0] || { partner_code: duplicate.partnerCode, partner_name: payload.partner_name },
-            message: 'Socio creado correctamente.',
-            sap: sapResult ? { enviado: true } : { enviado: false, error: sapError }
+        }).catch((sapErr) => {
+            console.error(`[SAP] Error al enviar socio ${duplicate.partnerCode} a SAP:`, sapErr.message);
         });
     } catch (error) {
         res.status(500).json({ error: error.message || 'No fue posible crear el socio.' });
