@@ -1775,6 +1775,8 @@ function applyHeaderConfig(config) {
     renderIconButton(numberingButton, iconConfigFor('orderNumbering', DEFAULT_ICONS.numbering));
     renderIconButton(attachmentsButton, iconConfigFor('orderAttachments', icons.lineAttachments || DEFAULT_ICONS.attachments));
     attachmentsButton?.setAttribute('title', 'Ver adjuntos');
+    renderIconButton(document.getElementById('orderCreationSummaryButton'), iconConfigFor('orderCreationSummary', '\u2699\uFE0F'));
+    document.getElementById('orderCreationSummaryButton')?.setAttribute('title', 'Datos de creación');
     renderIconButton(stateButton, iconConfigFor('orderStatus', DEFAULT_ICONS.status));
     stateButton?.setAttribute('title', 'Control de planificación');
     if (svgTestButton) {
@@ -2267,15 +2269,22 @@ function renderDeliveries(raw = {}, totalQuantity = '', defaultDate = '', defaul
 function buildFinishTags(raw = {}, detail = {}, dieCode = '') {
     const tags = [];
     const dc = raw['Datos_Cotizados'] || {};
+    const FINISH_SKIP_KEYS = new Set(['troquelado', 'rebobinado']);
     const inlineFinishes = [];
     (Array.isArray(dc?.print?.items) ? dc.print.items : []).forEach(function (printItem) {
         (Array.isArray(printItem?.inlineItems) ? printItem.inlineItems : []).forEach(function (inline) {
             if (inline?.active && (inline.processKey || inline.key || inline.label)) {
-                inlineFinishes.push(inline);
+                var pk = String(inline.processKey || inline.key || '').toLowerCase();
+                if (!FINISH_SKIP_KEYS.has(pk)) {
+                    inlineFinishes.push(inline);
+                }
             }
         });
     });
-    const externalFinishes = Array.isArray(dc?.finishes?.items) ? dc.finishes.items : [];
+    const externalFinishes = (Array.isArray(dc?.finishes?.items) ? dc.finishes.items : []).filter(function (ext) {
+        var pk = String(ext.processKey || ext.key || '').toLowerCase();
+        return !FINISH_SKIP_KEYS.has(pk);
+    });
     const findFinish = function (keys) {
         const v = pickFirst.apply(null, keys.map(function (k) { return raw[k]; }));
         if (v) return v;
@@ -2298,13 +2307,14 @@ function buildFinishTags(raw = {}, detail = {}, dieCode = '') {
     const foil = findFinish(['ACABADOS | FOIL', 'FOIL', 'ESTAMPADO']);
     const emboss = findFinish(['ACABADOS | EMBOSADO', 'EMBOSADO']);
     const numbering = findFinish(['ACABADOS | NUMERADO', 'NUMERADO']);
-    if (dieCode) tags.push('Troquelado (' + dieCode + ')'); else tags.push('Troquelado');
+    if (dieCode) tags.push('Troquelado (' + dieCode + ')');
+    else if (raw['ACABADOS | TROQUELADO'] || raw['TROQUELADO']) tags.push('Troquelado');
+    else if (!tags.length && isNoPrint(detail, raw)) tags.push('Troquelado');
     if (laminate) tags.push('Laminado ' + String(laminate).trim());
     if (varnish) tags.push('Barniz ' + String(varnish).trim());
     if (foil) tags.push('Estampado ' + String(foil).trim());
     if (emboss) tags.push('Embosado ' + String(emboss).trim());
     if (numbering) tags.push('Numerado');
-    if (!tags.length && isNoPrint(detail, raw)) tags.push('Troquelado');
     return [...new Set(tags)];
 }
 
@@ -2818,6 +2828,48 @@ function renderOrder(order) {
     });
 }
 
+function renderCreationSummary(data) {
+    if (!data || typeof data !== 'object') return '';
+    function row(key, val) {
+        if (val === null || val === undefined || val === '') return '';
+        return '<div class="production-creation-summary-row"><span class="production-creation-summary-key">' + escapeHtml(key) + ':</span><span class="production-creation-summary-value">' + escapeHtml(String(Array.isArray(val) ? val.join(', ') : val)) + '</span></div>';
+    }
+    function section(title) {
+        return '<div class="production-creation-summary-section">' + escapeHtml(title) + '</div>';
+    }
+    let html = section('General');
+    html += row('Orden', data.orden);
+    html += row('Cotización', data.cotizacion);
+    html += row('Línea', data.linea);
+    html += row('Cliente', data.cliente);
+    html += row('Producto', data.producto);
+    html += row('Es Frente/Dorso', data.es_frente_dorso ? 'Sí' : 'No');
+    html += row('Cantidad', data.cantidad);
+    html += row('Costo Total', data.costo_total);
+    html += row('Precio Unitario', data.precio_unitario);
+    html += section('Producción');
+    html += row('Máquina', data.maquina);
+    html += row('Sustrato', data.sustrato);
+    html += row('Tintas', data.tintas);
+    html += row('Pantones', data.pantones);
+    html += row('Pies Totales', data.pies_totales);
+    html += section('Acabados');
+    if (Array.isArray(data.acabados) && data.acabados.length) {
+        data.acabados.forEach(function (a) {
+            html += row(a.tipo, a.detalle || '—');
+        });
+    } else {
+        html += row('Acabados', 'Sin acabados');
+    }
+    html += row('Numerado', data.numerado);
+    html += section('Rollo');
+    html += row('Ancho de Core', data.ancho_core);
+    html += row('Diámetro de Core', data.diametro_core);
+    html += row('Etiquetas por Rollo', data.etiquetas_por_rollo);
+    html += row('Tipo de Salida', data.tipo_salida);
+    return html;
+}
+
 async function loadOrder() {
     const orderCode = decodeURIComponent(window.location.pathname.split('/').pop() || '');
     currentOrderCode = orderCode;
@@ -3035,6 +3087,17 @@ pantonesButton?.addEventListener('click', () => openPopover('orderPantonesPopove
     }
 numberingButton?.addEventListener('click', () => openPopover('orderNumberingPopover'));
 attachmentsButton?.addEventListener('click', () => openPopover('orderAttachmentsPopover'));
+document.getElementById('orderCreationSummaryButton')?.addEventListener('click', () => {
+    const summary = currentLoadedOrder?.raw_data?.resumen_creacion;
+    const body = document.getElementById('orderCreationSummaryBody');
+    if (!summary) {
+        if (body) body.innerHTML = '<div class="production-summary-empty">No hay datos de creación disponibles.</div>';
+        openPopover('orderCreationSummaryPopover');
+        return;
+    }
+    if (body) body.innerHTML = renderCreationSummary(summary);
+    openPopover('orderCreationSummaryPopover');
+});
 document.getElementById('orderAudioRecordButton')?.addEventListener('click', toggleOrderAudioRecording);
 document.getElementById('orderAttachmentFileInput')?.addEventListener('change', handleOrderAttachmentUpload);
 orderFlowBody?.addEventListener('click', (event) => {

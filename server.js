@@ -9566,7 +9566,8 @@ function buildProductionOrderRawData({ orderCode, quoteRow, lineRow, attachments
             subtotal_cost: parseLegacyNumber(lineRow?.subtotal_cost),
             total_cost: productionRun?.totals?.totalCost ?? parseLegacyNumber(lineRow?.total_cost),
             unit_price: productionRun?.totals?.unitCost ?? parseLegacyNumber(lineRow?.unit_price)
-        }
+        },
+        resumen_creacion: buildCreationSummary({ orderCode, quoteRow, lineRow, frontBackGroup, productionRun, raw, lineSnapshot, totalFeet })
     };
 }
 
@@ -9574,6 +9575,58 @@ function buildProductionOrderRelatedLine(row = {}) {
     return {
         summary: mapCalculationLine(row),
         detail: mapFlexoCalculationDetail(row)
+    };
+}
+
+function buildCreationSummary({ orderCode, quoteRow, lineRow, frontBackGroup, productionRun, raw, lineSnapshot, totalFeet }) {
+    const lr = lineRow?.raw_data || {};
+    const dc = lr['Datos_Cotizados'] || {};
+    const dieCode = lineSnapshot?.dieCode || lr['GENERAL | TROQUEL | ID'] || '';
+    const printing = extractPrintingData(lineRow?.raw_data || {});
+
+    const acabados = [];
+    const FINISH_SKIP = new Set(['troquelado', 'rebobinado']);
+    (Array.isArray(dc?.print?.items) ? dc.print.items : []).forEach(function (pi) {
+        (Array.isArray(pi?.inlineItems) ? pi.inlineItems : []).forEach(function (inl) {
+            if (inl?.active && (inl.processKey || inl.key || inl.label)) {
+                var pk = String(inl.processKey || inl.key || '').toLowerCase();
+                if (!FINISH_SKIP.has(pk)) {
+                    acabados.push({ tipo: inl.label || inl.processKey || inl.key, detalle: inl.materialName || '' });
+                }
+            }
+        });
+    });
+    (Array.isArray(dc?.finishes?.items) ? dc.finishes.items : []).forEach(function (ext) {
+        if (ext?.active && (ext.processKey || ext.key || ext.label || ext.description)) {
+            var pk = String(ext.processKey || ext.key || '').toLowerCase();
+            if (!FINISH_SKIP.has(pk)) {
+                acabados.push({ tipo: ext.label || ext.processKey || ext.key, detalle: ext.description || ext.materialName || '' });
+            }
+        }
+    });
+    if (dieCode) acabados.push({ tipo: 'Troquelado', detalle: dieCode });
+
+    return {
+        orden: orderCode,
+        cotizacion: quoteRow?.quote_code || '',
+        linea: lineRow?.line_code || '',
+        cliente: pickFirstValue(quoteRow?.customer_name, lr.CLIENTE, lr['CLIENTE NOMBRE']),
+        producto: lineSnapshot?.productName || lr['GENERAL | PRODUCTO'] || '',
+        maquina: printing.machineName || '',
+        sustrato: printing.materialName || '',
+        tintas: printing.tintCount || 0,
+        pantones: printing.pantones || [],
+        pies_totales: totalFeet || 0,
+        acabados: acabados,
+        numerado: printing.numbering || '',
+        ancho_core: printing.coreWidth || '',
+        diametro_core: printing.coreDiameter || '',
+        etiquetas_por_rollo: printing.labelsPerRoll || 0,
+        tipo_salida: printing.outputType || '',
+        es_frente_dorso: Boolean(frontBackGroup),
+        cantidad: productionRun?.totals?.quantity ?? lineRow?.quantity ?? 0,
+        costo_total: productionRun?.totals?.totalCost ?? lineRow?.total_cost ?? 0,
+        precio_unitario: productionRun?.totals?.unitCost ?? lineRow?.unit_price ?? 0
     };
 }
 
@@ -9678,16 +9731,23 @@ function extractPrintingData(rawData = {}) {
     const pantones = [lr['PANTONE 1'], lr['PANTONE 2'], lr['PANTONE 3']].filter(Boolean);
     const dieCode = ls.dieCode || lr['GENERAL | TROQUEL | ID'] || '';
     const finishes = [];
+    const FINISH_SKIP_KEYS = new Set(['troquelado', 'rebobinado']);
     (Array.isArray(dc?.print?.items) ? dc.print.items : []).forEach(function (pi) {
         (Array.isArray(pi?.inlineItems) ? pi.inlineItems : []).forEach(function (inl) {
             if (inl?.active && (inl.processKey || inl.key || inl.label)) {
-                finishes.push(inl.label || inl.materialName || inl.processKey || inl.key);
+                var pk = String(inl.processKey || inl.key || '').toLowerCase();
+                if (!FINISH_SKIP_KEYS.has(pk)) {
+                    finishes.push(inl.label || inl.materialName || inl.processKey || inl.key);
+                }
             }
         });
     });
     (Array.isArray(dc?.finishes?.items) ? dc.finishes.items : []).forEach(function (ext) {
         if (ext?.active && (ext.processKey || ext.key || ext.label || ext.description)) {
-            finishes.push(ext.label || ext.description || ext.processKey || ext.key);
+            var pk = String(ext.processKey || ext.key || '').toLowerCase();
+            if (!FINISH_SKIP_KEYS.has(pk)) {
+                finishes.push(ext.label || ext.description || ext.processKey || ext.key);
+            }
         }
     });
     ['ACABADOS | BARNIZ', 'BARNIZ', 'ACABADOS | LAMINADO', 'LAMINADO', 'ACABADOS | FOIL', 'FOIL',
@@ -9698,6 +9758,7 @@ function extractPrintingData(rawData = {}) {
         }
     });
     if (dieCode) finishes.push('Troquelado (' + dieCode + ')');
+    else if (lr['ACABADOS | TROQUELADO'] || lr['TROQUELADO']) finishes.push('Troquelado');
     var uniqueFinishes = [];
     finishes.forEach(function (f) { if (!uniqueFinishes.includes(f)) uniqueFinishes.push(f); });
     const numbering = lr['ACABADOS | NUMERADO'] || lr['NUMERADO'] || '';
@@ -12175,7 +12236,7 @@ app.get('/api/config/general/icons/:version/:file', async (req, res) => {
 
 app.post('/api/config/general/icon', async (req, res) => {
     try {
-        const orderIconKeys = new Set(['orderArtworkDelete', 'orderStatus', 'orderNumbering', 'orderFlow', 'orderEdit', 'planningRefresh', 'planningProcessFlip', 'planningOpenGantt', 'planningEstimate', 'planningExpand', 'dashboardBusinessPartners', 'dashboardProducts', 'dashboardQuotes', 'dashboardNotifications', 'dashboardInventory', 'dashboardOrders', 'dashboardProduction', 'dashboardCosts', 'dashboardReports', 'dashboardSettings', 'dashboardPlanning', 'produccionCreacionOrden', 'produccionSolicitudVendedor', 'produccionPlanificacion', 'produccionDiseno', 'produccionPreprensa', 'produccionVistoBueno', 'produccionPlanchas', 'produccionImpresion', 'produccionBarniz', 'produccionLaminado', 'produccionEstampado', 'produccionEmbozado', 'produccionTroquelado', 'produccionNumerado', 'produccionRebobinado', 'produccionEmpaque', 'produccionModoClaro', 'produccionModoOscuro']);
+        const orderIconKeys = new Set(['orderArtworkDelete', 'orderStatus', 'orderNumbering', 'orderFlow', 'orderEdit', 'orderCreationSummary', 'planningRefresh', 'planningProcessFlip', 'planningOpenGantt', 'planningEstimate', 'planningExpand', 'dashboardBusinessPartners', 'dashboardProducts', 'dashboardQuotes', 'dashboardNotifications', 'dashboardInventory', 'dashboardOrders', 'dashboardProduction', 'dashboardCosts', 'dashboardReports', 'dashboardSettings', 'dashboardPlanning', 'produccionCreacionOrden', 'produccionSolicitudVendedor', 'produccionPlanificacion', 'produccionDiseno', 'produccionPreprensa', 'produccionVistoBueno', 'produccionPlanchas', 'produccionImpresion', 'produccionBarniz', 'produccionLaminado', 'produccionEstampado', 'produccionEmbozado', 'produccionTroquelado', 'produccionNumerado', 'produccionRebobinado', 'produccionEmpaque', 'produccionModoClaro', 'produccionModoOscuro']);
         const iconKey = String(req.body?.key || '').trim();
         const iconValue = String(req.body?.value || '').trim();
         const general = req.body?.general && typeof req.body.general === 'object' && !Array.isArray(req.body.general)

@@ -239,6 +239,7 @@
                                         <button type="button" id="orderStateButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Control de planificación y flujo productivo"></button>
                                         <button type="button" id="orderDeliveriesButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Detalle de entregas" title="Detalle de entregas"></button>
                                         <button type="button" id="orderAttachmentsButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Ver adjuntos"></button>
+                                        <button type="button" id="orderCreationSummaryButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Datos de creación" title="Datos de creación"></button>
                                     </div>
                                 </div>
                             </div>
@@ -249,7 +250,6 @@
                             <div class="section-caption">Configuración de Producción</div>
                             <div class="production-summary-stack">
                                 <div id="orderPrintingBlock" class="production-subgroup">
-                                    <div class="production-subgroup-title">Impresión</div>
                                     <div id="orderPrintingAlert" class="production-order-alert" hidden></div>
                                     <div id="orderPrintingGrid" class="production-shared-printing-grid">
                                         <div class="production-shared-printing-col">
@@ -280,30 +280,12 @@
                                 </div>
                                 <div id="orderRollBlock" class="production-subgroup">
                                     <div class="production-subgroup-title">Información del Rollo</div>
-                                    <div class="production-summary-grid production-summary-grid-two production-roll-grid">
-                                        <div class="production-roll-grid-left">
-                                            <div class="production-summary-grid production-summary-grid-single">
-                                                <div class="production-summary-item">
-                                                    <span class="production-summary-label">Ancho de Core</span>
-                                                    <span id="orderCoreWidthText" class="production-summary-value"></span>
-                                                </div>
-                                                <div class="production-summary-item">
-                                                    <span class="production-summary-label">Diámetro de Core</span>
-                                                    <span id="orderCoreDiameterText" class="production-summary-value"></span>
-                                                </div>
-                                                <div class="production-summary-item">
-                                                    <span class="production-summary-label">Etiquetas por Rollo</span>
-                                                    <span id="orderRollLabelsText" class="production-summary-value"></span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="production-roll-grid-right">
-                                            <div class="production-summary-item">
-                                                <span class="production-summary-label">Tipo de Salida</span>
-                                                <span id="orderOutputTypeText" class="production-summary-value"></span>
-                                            </div>
-                                            <div id="orderOutputTypeImage" class="production-output-preview">Sin imagen</div>
-                                        </div>
+                                    <div class="production-roll-compact">
+                                        <div class="production-roll-compact-row"><span class="production-roll-compact-label">Ancho de Core:</span> <span id="orderCoreWidthText" class="production-roll-compact-value"></span></div>
+                                        <div class="production-roll-compact-row"><span class="production-roll-compact-label">Diámetro de Core:</span> <span id="orderCoreDiameterText" class="production-roll-compact-value"></span></div>
+                                        <div class="production-roll-compact-row"><span class="production-roll-compact-label">Etiquetas por Rollo:</span> <span id="orderRollLabelsText" class="production-roll-compact-value"></span></div>
+                                        <div class="production-roll-compact-row"><span class="production-roll-compact-label">Tipo de Salida:</span> <span id="orderOutputTypeText" class="production-roll-compact-value"></span></div>
+                                        <div id="orderOutputTypeImage" class="production-output-preview">Sin imagen</div>
                                     </div>
                                 </div>
                             </div>
@@ -489,6 +471,19 @@
                     <h2>Cálculo Relacionado</h2>
                 </div>
                 <div id="orderSourceQuotePopoverBody" class="attachments-popover-body"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="orderCreationSummaryPopover" class="calc-popover production-header-tab-popover" hidden>
+        <div class="calc-popover-backdrop" data-close-popover="orderCreationSummaryPopover"></div>
+        <div class="calc-popover-panel production-flow-popover-panel" style="max-width:700px;">
+            <button type="button" class="calc-popover-close" data-close-popover="orderCreationSummaryPopover" aria-label="Cerrar">×</button>
+            <div class="calc-popover-body" style="padding:16px;">
+                <div class="copy-popover-header">
+                    <h2>Datos de Creación</h2>
+                </div>
+                <div id="orderCreationSummaryBody" class="production-creation-summary-body"></div>
             </div>
         </div>
     </div>

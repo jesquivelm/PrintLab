@@ -8377,6 +8377,7 @@
             { key: 'orderFlow', label: 'Órdenes Seguimiento', group: 'Órdenes', placeholder: '\u226B', color: '#1e516d', size: 40 },
             { key: 'orderArtworkDelete', label: 'Órdenes Eliminar Arte', group: 'Órdenes', placeholder: '\u00D7', color: '#b94848', size: 40 },
             { key: 'orderEdit', label: 'Órdenes Editar', group: 'Órdenes', placeholder: '\u270F\uFE0F', color: '#64748b', size: 18 },
+            { key: 'orderCreationSummary', label: 'Órdenes Datos de Creación', group: 'Órdenes', placeholder: '\u2699\uFE0F', color: '#1e516d', size: 18 },
             { key: 'dashboardFabMain', label: 'Botón Principal', group: 'Calculo y Procesos', tab: 'Botón flotante', section: 'Dashboard', placeholder: '+', color: '#ffffff', size: 34 },
             { key: 'dashboardFabFavorites', label: 'Ventana de favoritos', group: 'Calculo y Procesos', tab: 'Botón flotante', section: 'Dashboard', placeholder: '\u2605', color: '#c79b18', size: 20 },
             { key: 'dashboardFabNotifications', label: 'Notificaciones sin alertas', group: 'Calculo y Procesos', tab: 'Botón flotante', section: 'Dashboard', placeholder: '\uD83D\uDD14', color: '#0b81b8', size: 20 },
@@ -15694,7 +15695,7 @@
             });
         }
 
-        const ORDER_ICON_UPLOAD_KEYS = new Set(['orderArtworkDelete', 'orderStatus', 'orderNumbering', 'orderFlow', 'orderEdit', 'produccionCreacionOrden', 'produccionSolicitudVendedor', 'produccionPlanificacion', 'produccionDiseno', 'produccionPreprensa', 'produccionVistoBueno', 'produccionPlanchas', 'produccionImpresion', 'produccionBarniz', 'produccionLaminado', 'produccionEstampado', 'produccionEmbozado', 'produccionTroquelado', 'produccionNumerado', 'produccionRebobinado', 'produccionEmpaque', 'produccionModoClaro', 'produccionModoOscuro']);
+        const ORDER_ICON_UPLOAD_KEYS = new Set(['orderArtworkDelete', 'orderStatus', 'orderNumbering', 'orderFlow', 'orderEdit', 'orderCreationSummary', 'produccionCreacionOrden', 'produccionSolicitudVendedor', 'produccionPlanificacion', 'produccionDiseno', 'produccionPreprensa', 'produccionVistoBueno', 'produccionPlanchas', 'produccionImpresion', 'produccionBarniz', 'produccionLaminado', 'produccionEstampado', 'produccionEmbozado', 'produccionTroquelado', 'produccionNumerado', 'produccionRebobinado', 'produccionEmpaque', 'produccionModoClaro', 'produccionModoOscuro']);
 
         function buildSingleIconGeneralPayload(iconKey, item) {
             const suffix = toIconSuffix(iconKey);
