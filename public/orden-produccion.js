@@ -1987,7 +1987,6 @@ function renderFrontBackProductCard({ frontBackObj, output, memberInfo, index, s
                     </div>
                 </div>
                 <div class="production-frontback-art-section">
-                    <div class="production-frontback-art-product-label">${escapeHtml(data.productName)}</div>
                     <div class="production-frontback-art-row">
                         <div class="production-frontback-art-preview-col">
                             <div class="production-art-preview production-art-preview-compact production-art-dropzone production-frontback-art-dropzone" data-frontback-art-target data-quote="${escapeHtml(sourceQuoteCode)}" data-line="${escapeHtml(lineCode)}" aria-label="Adjuntar arte ${escapeHtml(frontBackSideLabel(side))}">
