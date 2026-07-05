@@ -17038,7 +17038,7 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 }
 
 .production-order-card .production-tracking-section {
-    overflow: hidden;
+    overflow: visible;
 }
 
 .production-tracking-section {
@@ -17201,6 +17201,8 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
     align-items: center;
     gap: 6px;
     min-width: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
 }
 
 .production-tracking-date-stack {

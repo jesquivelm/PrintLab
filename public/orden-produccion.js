@@ -2734,8 +2734,7 @@ function renderOrder(order) {
     applyOrderState(document.getElementById('orderStateText'), stateText);
     var groupPill = document.getElementById('orderGroupPill');
     if (groupPill) {
-        groupPill.hidden = false;
-        groupPill.textContent = frontBackObj.label || 'Orden';
+        groupPill.hidden = true;
     }
     setText('orderCreatedText', formatDate(order.created_at || raw.created_on, true), 'Sin fecha');
     setText('orderPromisedDateText', formatDate(promisedDateRaw), 'Pendiente');
