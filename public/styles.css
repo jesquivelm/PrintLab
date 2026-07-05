@@ -18263,7 +18263,7 @@ html[data-theme="dark"] .production-group-pill {
 
 .production-shared-printing-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
     gap: 16px;
 }
 
@@ -18271,6 +18271,10 @@ html[data-theme="dark"] .production-group-pill {
     display: flex;
     flex-direction: column;
     gap: 8px;
+}
+
+.production-shared-printing-col > .production-summary-label:first-child {
+    margin-bottom: 4px;
 }
 
 .production-frontback-product .production-summary-stack {
