@@ -18309,20 +18309,24 @@ html[data-theme="dark"] .production-group-pill {
 }
 
 .production-frontback-quantity {
-    text-align: right;
+    display: grid;
+    justify-items: end;
+    gap: 4px;
+    color: var(--ink-3);
+    font-weight: 700;
 }
 
 .production-frontback-quantity span {
-    display: block;
-    font-size: 12px;
-    color: #66717b;
+    font-size: 13px;
+    color: var(--ink-2);
 }
 
 .production-frontback-quantity strong {
-    font-size: 24px;
-    font-weight: 800;
-    color: #112e42;
-    line-height: 1.1;
+    color: #315f9d;
+    font-size: 28px;
+    line-height: 1;
+    letter-spacing: 0;
+    white-space: nowrap;
 }
 
 .production-frontback-product-name {
@@ -18333,14 +18337,6 @@ html[data-theme="dark"] .production-group-pill {
 }
 
 html[data-theme="dark"] .production-frontback-product-name {
-    color: #e2e8f0;
-}
-
-html[data-theme="dark"] .production-frontback-quantity span {
-    color: #94a3b8;
-}
-
-html[data-theme="dark"] .production-frontback-quantity strong {
     color: #e2e8f0;
 }
 
