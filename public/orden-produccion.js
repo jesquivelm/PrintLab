@@ -1977,6 +1977,7 @@ function renderFrontBackProductCard({ frontBackObj, output, memberInfo, index, s
                         <strong>${escapeHtml(parseNumber(data.quantity) || 'Sin cantidad')}</strong>
                     </div>
                 </div>
+                <div class="production-frontback-product-name">${escapeHtml(data.productName)}${dimensions ? ` - ${escapeHtml(dimensions)}` : ''}</div>
             </div>
             <div class="production-summary-stack">
                 <div class="production-frontback-art-section">
@@ -1988,11 +1989,11 @@ function renderFrontBackProductCard({ frontBackObj, output, memberInfo, index, s
                         </div>
                         <div class="production-frontback-art-meta-col">
                             <div class="production-frontback-art-display">
-                                <div class="production-frontback-art-field"><span class="production-frontback-art-label">Arte en Poder de</span><span class="production-frontback-art-value">${escapeHtml(artHolder || 'Sin asignar')}</span></div>
+                                <div class="production-frontback-art-field"><span class="production-frontback-art-label">Arte en poder de</span><span class="production-frontback-art-value">${escapeHtml(artHolder || 'Sin asignar')}</span></div>
                                 ${artComments ? '<div class="production-frontback-art-field"><span class="production-frontback-art-label">Comentarios</span><span class="production-frontback-art-value">' + escapeHtml(artComments) + '</span></div>' : ''}
                             </div>
                             <div class="production-frontback-art-edit-form" hidden>
-                                <div class="production-frontback-art-field"><label class="production-frontback-art-label">Arte en Poder de</label><input type="text" list="orderArtworkHolderOptions" value="${escapeHtml(artHolder)}" placeholder="Seleccionar o escribir"></div>
+                                <div class="production-frontback-art-field"><label class="production-frontback-art-label">Arte en poder de</label><input type="text" list="orderArtworkHolderOptions" value="${escapeHtml(artHolder)}" placeholder="Seleccionar o escribir"></div>
                                 <div class="production-frontback-art-field"><label class="production-frontback-art-label">Comentarios</label><textarea rows="2" placeholder="Comentarios de arte">${escapeHtml(artComments)}</textarea></div>
                                 <div class="production-frontback-art-edit-actions"><button type="button" class="production-frontback-art-cancel-btn">Cancelar</button></div>
                             </div>
@@ -2000,9 +2001,6 @@ function renderFrontBackProductCard({ frontBackObj, output, memberInfo, index, s
                         <button type="button" class="production-frontback-art-edit-btn production-inline-icon production-inline-icon-ghost" title="Editar arte" aria-label="Editar arte"></button>
                     </div>
                 </div>
-            </div>
-            <div class="production-frontback-product-name-footer">
-                ${escapeHtml(data.productName)}${dimensions ? ` - ${escapeHtml(dimensions)}` : ''}
             </div>
         </section>
     `;
