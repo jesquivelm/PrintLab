@@ -2288,16 +2288,29 @@ function buildFinishTags(raw = {}, detail = {}, dieCode = '') {
     const findFinish = function (keys) {
         const v = pickFirst.apply(null, keys.map(function (k) { return raw[k]; }));
         if (v) return v;
+        function finishValue(item) {
+            if (!item) return '';
+            var pk = String(item.processKey || item.key || '').toLowerCase();
+            var label = String(item.label || '').trim();
+            var mat = String(item.materialName || '').trim();
+            var desc = String(item.description || '').trim();
+            if (mat && label && mat.toLowerCase() !== label.toLowerCase()) return label + ' ' + mat;
+            if (mat) return mat;
+            if (desc && label && desc.toLowerCase() !== label.toLowerCase()) return label + ' ' + desc;
+            if (desc) return desc;
+            if (label) return label;
+            return item.processKey || item.key || '';
+        }
         for (const inline of inlineFinishes) {
             const k = inline.processKey || inline.key || inline.label || '';
             if (keys.some(function (key) { return k.toLowerCase().includes(key.replace('ACABADOS | ', '').toLowerCase()); })) {
-                return inline.label || inline.materialName || inline.processKey || k;
+                return finishValue(inline);
             }
         }
         for (const ext of externalFinishes) {
             const ek = ext.processKey || ext.key || ext.label || ext.description || '';
             if (keys.some(function (key) { return ek.toLowerCase().includes(key.replace('ACABADOS | ', '').toLowerCase()); })) {
-                return ext.label || ext.description || ext.processKey || ek;
+                return finishValue(ext);
             }
         }
         return '';
