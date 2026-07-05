@@ -1969,14 +1969,13 @@ function renderFrontBackProductCard({ frontBackObj, output, memberInfo, index, s
     return `
         <section class="socios-section production-product-section production-frontback-product" data-side="${escapeHtml(side)}">
             <div class="production-frontback-product-head">
-                <div>
-                    <div class="section-caption">Producto</div>
-                    <strong class="production-product-name">${lineCodeHtml}${escapeHtml(data.productName)}${dimensions ? ` - ${escapeHtml(dimensions)}` : ''}</strong>
-                    <span class="production-frontback-side-chip">${escapeHtml(frontBackSideLabel(side))}</span>
-                </div>
-                <div class="production-frontback-quantity">
-                    <span>Cantidad</span>
-                    <strong>${escapeHtml(parseNumber(data.quantity) || 'Sin cantidad')}</strong>
+                <div class="production-frontback-product-meta">
+                    <span class="production-frontback-side-chip production-frontback-side-chip--label">${escapeHtml(frontBackSideLabel(side))}</span>
+                    <strong class="production-frontback-product-id">${escapeHtml(lineCode)}</strong>
+                    <div class="production-frontback-quantity">
+                        <span>Cantidad</span>
+                        <strong>${escapeHtml(parseNumber(data.quantity) || 'Sin cantidad')}</strong>
+                    </div>
                 </div>
             </div>
             <div class="production-summary-stack">
@@ -2001,6 +2000,9 @@ function renderFrontBackProductCard({ frontBackObj, output, memberInfo, index, s
                         <button type="button" class="production-frontback-art-edit-btn production-inline-icon production-inline-icon-ghost" title="Editar arte" aria-label="Editar arte"></button>
                     </div>
                 </div>
+            </div>
+            <div class="production-frontback-product-name-footer">
+                ${escapeHtml(data.productName)}${dimensions ? ` - ${escapeHtml(dimensions)}` : ''}
             </div>
         </section>
     `;

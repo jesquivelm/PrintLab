@@ -18288,27 +18288,60 @@ html[data-theme="dark"] .production-group-pill {
 }
 
 .production-frontback-product-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 12px;
     margin-bottom: 0;
 }
 
-.production-frontback-product-head > div:first-child {
+.production-frontback-product-meta {
     display: flex;
     align-items: center;
-    gap: 6px;
-    min-width: 0;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
-.production-frontback-product-head > div:first-child .section-caption {
-    margin: 0;
+.production-frontback-product-id {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1e293b;
 }
-.production-frontback-product-head > div:first-child .production-product-name {
-    display: inline;
-    font-size: 13px;
+
+.production-frontback-product-meta > .production-frontback-quantity {
+    margin-left: auto;
+}
+
+.production-frontback-side-chip--label {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 0 10px;
+    font-size: 12px;
     font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border-radius: 8px;
+    background: #e0f2fe;
+    color: #0369a1;
+    line-height: 1;
+}
+
+html[data-theme="dark"] .production-frontback-side-chip--label {
+    background: #0c4a6e;
+    color: #7dd3fc;
+}
+
+.production-frontback-product-name-footer {
+    padding: 10px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e293b;
+    background: var(--app-surface-soft, #f8fafc);
+    border-top: 1px solid var(--app-border, #e2e8f0);
+    border-radius: 0 0 12px 12px;
+}
+
+html[data-theme="dark"] .production-frontback-product-name-footer {
+    background: #1e293b;
+    color: #e2e8f0;
+    border-top-color: #334155;
 }
 
 .production-frontback-side-chip {
@@ -18366,8 +18399,8 @@ html[data-theme="dark"] .production-group-pill {
 
 .production-frontback-art-preview-col .production-art-dropzone {
     width: 100%;
-    height: 120px;
-    min-height: 100px;
+    height: 180px;
+    min-height: 160px;
     display: flex;
     align-items: center;
     justify-content: center;
