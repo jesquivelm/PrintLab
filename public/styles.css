@@ -9569,9 +9569,6 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
 .production-summary-grid,
 .production-summary-item,
 .production-summary-stack,
-.production-product-hero,
-.production-product-hero-main,
-.production-product-hero-copy,
 .production-roll-grid,
 .production-roll-grid-left,
 .production-roll-grid-right,
@@ -9814,26 +9811,6 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
 .production-section-head-inline .production-quantity-highlight {
     flex: 0 0 auto;
     color: #163e56;
-}
-.production-product-hero {
-    display: grid;
-    gap: 6px;
-}
-.production-product-hero-main {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, auto);
-    gap: 10px;
-    align-items: center;
-    min-width: 0;
-    width: 100%;
-}
-.production-product-hero-copy {
-    min-width: 0;
-    display: flex;
-    gap: 8px;
-    align-items: baseline;
-    flex-wrap: wrap;
-    align-content: start;
 }
 .production-product-codes {
     min-height: 14px;
@@ -18327,6 +18304,11 @@ html[data-theme="dark"] .production-group-pill {
 
 .production-frontback-product-head > div:first-child .section-caption {
     margin: 0;
+}
+.production-frontback-product-head > div:first-child .production-product-name {
+    display: inline;
+    font-size: 13px;
+    font-weight: 600;
 }
 
 .production-frontback-side-chip {

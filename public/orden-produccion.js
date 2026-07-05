@@ -1971,6 +1971,7 @@ function renderFrontBackProductCard({ frontBackObj, output, memberInfo, index, s
             <div class="production-frontback-product-head">
                 <div>
                     <div class="section-caption">Producto</div>
+                    <strong class="production-product-name">${lineCodeHtml}${escapeHtml(data.productName)}${dimensions ? ` - ${escapeHtml(dimensions)}` : ''}</strong>
                     <span class="production-frontback-side-chip">${escapeHtml(frontBackSideLabel(side))}</span>
                 </div>
                 <div class="production-frontback-quantity">
@@ -1979,13 +1980,6 @@ function renderFrontBackProductCard({ frontBackObj, output, memberInfo, index, s
                 </div>
             </div>
             <div class="production-summary-stack">
-                <div class="production-product-hero">
-                    <div class="production-product-hero-main">
-                        <div class="production-product-hero-copy">
-                            <strong class="production-product-name">${lineCodeHtml}${escapeHtml(data.productName)}${dimensions ? ` - ${escapeHtml(dimensions)}` : ''}</strong>
-                        </div>
-                    </div>
-                </div>
                 <div class="production-frontback-art-section">
                     <div class="production-frontback-art-row">
                         <div class="production-frontback-art-preview-col">
