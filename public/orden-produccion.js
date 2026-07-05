@@ -2777,10 +2777,9 @@ function renderOrder(order) {
         { label: 'Arte en Poder de', value: pickFirst(lineRaw['ARTE EN PODER DE']) }
     ]);
     if (artSummary && artForm && artToggleButton) {
-        artSummary.hidden = true;
-        artForm.hidden = false;
-        setToggleIcon(artToggleButton, true);
-        requestAnimationFrame(updateArtworkSectionConstraint);
+        artSummary.hidden = false;
+        artForm.hidden = true;
+        setToggleIcon(artToggleButton, false);
     }
 
     const quoteCurrency = pickFirst(quote.currency, raw.currency, line.currency);

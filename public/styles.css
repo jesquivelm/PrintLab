@@ -10223,13 +10223,38 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
 @media (max-width: 920px) {
     .production-product-hero-main,
 .production-config-bottom-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
+    flex-direction: row;
     gap: 20px;
     align-items: start;
 }
-.production-config-bottom-col {
+.production-config-bottom-row > .production-config-bottom-col {
     min-width: 0;
+    flex: 1 1 0%;
+}
+.production-config-bottom-row > .production-config-bottom-col.production-art-section {
+    flex: 0 0 280px;
+    display: block;
+    padding: 14px;
+    border: 1px solid #edf3f7;
+    border-radius: 14px;
+    background: #fbfdff;
+    max-height: 200px;
+    overflow: hidden;
+}
+.production-config-bottom-row > .production-config-bottom-col.production-art-section .section-caption {
+    width: fit-content;
+}
+.production-config-bottom-row > .production-config-bottom-col.production-art-section .production-art-preview-wrap {
+    max-height: 80px;
+    overflow: hidden;
+}
+.production-config-bottom-row > .production-config-bottom-col.production-art-section .production-art-preview {
+    max-height: 70px;
+    padding: 6px;
+}
+.production-config-bottom-row > .production-config-bottom-col.production-art-section .production-inline-form {
+    overflow: hidden;
 }
 .production-roll-grid {
         grid-template-columns: 1fr;
