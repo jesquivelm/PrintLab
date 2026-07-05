@@ -227,6 +227,11 @@ async function createInventoryEntry(config, body = {}) {
     return { ...payload, source: 'sap', provider: 'di-api' };
 }
 
+async function createBusinessPartner(config, body = {}) {
+    const payload = await requestJson(config, '/business-partners', { method: 'POST', body });
+    return { ...payload, source: 'sap', provider: 'di-api' };
+}
+
 async function fetchSyncRecords(config, entityName) {
     const routeMap = {
         BusinessPartners: { path: '/business-partners', query: { top: 2000 } },
@@ -256,5 +261,6 @@ module.exports = {
     createInvoice,
     createInventoryExit,
     createInventoryEntry,
+    createBusinessPartner,
     fetchSyncRecords
 };

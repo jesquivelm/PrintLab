@@ -282,7 +282,13 @@ async function createSocio(event) {
             throw new Error(result.error || 'No fue posible crear el socio.');
         }
 
-        setCreateStatus(`Socio ${result?.socio?.partner_code || ''} creado correctamente.`);
+        let mensaje = `Socio ${result?.socio?.partner_code || ''} creado correctamente.`;
+        if (result?.sap?.enviado) {
+            mensaje += ' Sincronizado con SAP.';
+        } else if (result?.sap?.error) {
+            mensaje += ` SAP: ${result.sap.error}`;
+        }
+        setCreateStatus(mensaje);
         await loadSocios(currentSearch);
         window.setTimeout(() => {
             closeCreatePopover();

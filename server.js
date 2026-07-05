@@ -18,7 +18,9 @@ const {
     fetchSapBusinessPartnersForImport,
     fetchSapItemsForImport,
     stageSapMirrorOrder,
-    stageSapMirrorBom
+    stageSapMirrorBom,
+    createBusinessPartnerInSap,
+    loadSapConfig
 } = require('./services/sap-service-layer');
 const { ensureExchangeRateSchema, registerExchangeRateRoutes, startExchangeRateScheduler, buildProformaExchangeContext } = require('./services/exchange-rate-service');
 
@@ -10761,7 +10763,7 @@ app.post('/api/socios', async (req, res) => {
                     raw_data,
                     updated_at
                 ) VALUES (
-                    $1, $2, '', $3, $4, $5, $6, $7, '', '', false, NULL, '', CURRENT_DATE, $8::jsonb, NOW()
+                    $1, $2, '', $3, $4, $5, $6, $7, '', '', false, NULL, 'PR', CURRENT_DATE, $8::jsonb, NOW()
                 )`,
                 [
                     partnerCode,
@@ -10856,6 +10858,7 @@ app.post('/api/socios', async (req, res) => {
                 email_facturacion,
                 currency_code,
                 payment_terms,
+                client_type,
                 creation_date
              FROM business_partners
              WHERE partner_code = $1
@@ -10863,9 +10866,35 @@ app.post('/api/socios', async (req, res) => {
             [duplicate.partnerCode]
         );
 
+        let sapResult = null;
+        let sapError = null;
+        try {
+            const sapConfig = await loadSapConfig(pgQuery);
+            sapResult = await createBusinessPartnerInSap({
+                pgQuery,
+                config: sapConfig,
+                data: {
+                    cardCode: duplicate.partnerCode,
+                    partnerName: payload.partner_name,
+                    taxId: payload.tax_id,
+                    email: payload.email_facturacion,
+                    phone: payload.contact_mobile || payload.contact_phone,
+                    contactName: payload.contact_name,
+                    currency: payload.currency_code,
+                    country: payload.address_country,
+                    stateProvince: payload.address_state_province,
+                    county: payload.address_county,
+                    addressLine: payload.address_line
+                }
+            });
+        } catch (sapErr) {
+            sapError = sapErr.message || 'No fue posible enviar el socio a SAP.';
+        }
+
         res.status(201).json({
             socio: created.rows[0] || { partner_code: duplicate.partnerCode, partner_name: payload.partner_name },
-            message: 'Socio creado correctamente.'
+            message: 'Socio creado correctamente.',
+            sap: sapResult ? { enviado: true } : { enviado: false, error: sapError }
         });
     } catch (error) {
         res.status(500).json({ error: error.message || 'No fue posible crear el socio.' });

@@ -4456,6 +4456,90 @@ async function queryOrders({ pgQuery, config, query }) {
     return { value: Array.isArray(payload.value) ? payload.value : [], source: 'sap', provider: 'service-layer' };
 }
 
+function buildBusinessPartnerPayload(data = {}) {
+    const cardType = normalizeText(data.cardType) || 'S';
+    const cardCode = normalizeText(data.cardCode);
+    const cardName = normalizeText(data.partnerName);
+    const taxId = normalizeText(data.taxId);
+    const email = normalizeText(data.email);
+    const phone = normalizeText(data.phone);
+    const contactName = normalizeText(data.contactName);
+    const currency = normalizeText(data.currency) || 'USD';
+    const payload = {
+        CardName: cardName,
+        CardType: cardType,
+        Currency: currency,
+        FederalTaxID: taxId,
+        LicTradNum: taxId,
+        EmailAddress: email,
+        Phone1: phone,
+        ContactPerson: contactName,
+        PriceListNum: 1
+    };
+    if (cardCode) {
+        payload.CardCode = cardCode;
+    }
+    const addresses = [];
+    if (data.addressLine || data.country || data.stateProvince || data.county) {
+        addresses.push({
+            AddressName: 'Principal',
+            AddressType: 'bo_BillTo',
+            Street: normalizeText(data.addressLine),
+            City: normalizeText(data.stateProvince),
+            County: normalizeText(data.county),
+            Country: normalizeText(data.country) || 'CR',
+            State: normalizeText(data.stateProvince),
+            ZipCode: normalizeText(data.zipCode)
+        });
+    }
+    if (addresses.length) {
+        payload.BPAddresses = addresses;
+    }
+    if (contactName || email || phone) {
+        payload.ContactEmployees = [
+            {
+                Name: contactName,
+                E_MailL: email,
+                MobilePhone: phone,
+                Tel1: phone
+            }
+        ];
+    }
+    return payload;
+}
+
+async function createBusinessPartnerInSap({ pgQuery, config, data }) {
+    const mode = resolveOperatingMode(config);
+    const liveConfig = assertLiveSapConfigReady(config, 'La creación de socio');
+    const requestPayload = buildBusinessPartnerPayload(data);
+    try {
+        const responsePayload = isDiApiProvider(liveConfig)
+            ? await diApiBridge.createBusinessPartner(liveConfig, requestPayload)
+            : await sapRequest(liveConfig, 'BusinessPartners', {
+                method: 'POST',
+                body: requestPayload
+            });
+        await logWrite(pgQuery, {
+            entityName: 'BusinessPartners',
+            mode,
+            status: 'success',
+            requestPayload,
+            responsePayload
+        });
+        return { ...responsePayload, source: 'sap' };
+    } catch (error) {
+        await logWrite(pgQuery, {
+            entityName: 'BusinessPartners',
+            mode,
+            status: 'error',
+            requestPayload,
+            responsePayload: {},
+            errorMessage: error.message
+        });
+        throw error;
+    }
+}
+
 async function createOrder({ pgQuery, config, body }) {
     const mode = resolveOperatingMode(config);
     const liveConfig = assertLiveSapConfigReady(config, 'La creación de órdenes');
@@ -5577,5 +5661,7 @@ module.exports = {
     fetchSapBusinessPartnersForImport,
     fetchSapItemsForImport,
     stageSapMirrorOrder,
-    stageSapMirrorBom
+    stageSapMirrorBom,
+    createBusinessPartnerInSap,
+    loadSapConfig
 };
