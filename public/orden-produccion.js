@@ -2896,6 +2896,10 @@ async function loadOrder() {
         currentOrderAttachments = extractAttachments(currentLoadedOrder?.raw_data || {});
     }
     renderOrder(currentLoadedOrder);
+    const adminTools = document.getElementById('orderAdminTools');
+    const session = readUserSession();
+    const username = String(session?.username || session?.user || '').toLowerCase();
+    if (adminTools) adminTools.hidden = username !== 'jesquiv';
     populateDeliverySelects(config);
 
     const raw = currentLoadedOrder.raw_data || {};

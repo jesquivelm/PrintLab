@@ -18359,6 +18359,43 @@ html[data-theme="dark"] .production-creation-summary-section {
     border-bottom-color: #334155;
 }
 
+.production-admin-tools {
+    display: flex;
+    justify-content: flex-end;
+    padding: 4px 0 8px;
+}
+
+.production-admin-tool-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--app-border, #dbe5ec);
+    background: var(--app-surface, #fff);
+    color: #64748b;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .15s, color .15s;
+}
+
+.production-admin-tool-btn:hover {
+    background: #f1f5f9;
+    color: #1e293b;
+}
+
+html[data-theme="dark"] .production-admin-tool-btn {
+    background: #1e293b;
+    border-color: #334155;
+    color: #94a3b8;
+}
+
+html[data-theme="dark"] .production-admin-tool-btn:hover {
+    background: #334155;
+    color: #e2e8f0;
+}
+
 .production-frontback-product .production-summary-stack {
     gap: 8px;
 }
