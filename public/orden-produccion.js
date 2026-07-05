@@ -2311,10 +2311,16 @@ function buildFinishTags(raw = {}, detail = {}, dieCode = '') {
     if (dieCode) tags.push('Troquelado (' + dieCode + ')');
     else if (raw['ACABADOS | TROQUELADO'] || raw['TROQUELADO']) tags.push('Troquelado');
     else if (!tags.length && isNoPrint(detail, raw)) tags.push('Troquelado');
-    if (laminate) tags.push('Laminado ' + String(laminate).trim());
-    if (varnish) tags.push('Barniz ' + String(varnish).trim());
-    if (foil) tags.push('Estampado ' + String(foil).trim());
-    if (emboss) tags.push('Embosado ' + String(emboss).trim());
+    function finishTag(prefix, val) {
+        var s = String(val).trim();
+        if (!s) return '';
+        if (s.toLowerCase().startsWith(prefix.toLowerCase())) return s;
+        return prefix + ' ' + s;
+    }
+    if (laminate)  tags.push(finishTag('Laminado', laminate));
+    if (varnish)   tags.push(finishTag('Barniz', varnish));
+    if (foil)      tags.push(finishTag('Estampado', foil));
+    if (emboss)    tags.push(finishTag('Embosado', emboss));
     if (numbering) tags.push('Numerado');
     if (rewinding) tags.push('Rebobinado');
     return [...new Set(tags)];

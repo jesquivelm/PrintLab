@@ -9586,22 +9586,12 @@ function buildCreationSummary({ orderCode, quoteRow, lineRow, frontBackGroup, pr
 
     const acabados = [];
     const FINISH_SKIP = new Set(['troquelado']);
-    (Array.isArray(dc?.print?.items) ? dc.print.items : []).forEach(function (pi) {
-        (Array.isArray(pi?.inlineItems) ? pi.inlineItems : []).forEach(function (inl) {
-            if (inl?.active && (inl.processKey || inl.key || inl.label)) {
-                var pk = String(inl.processKey || inl.key || '').toLowerCase();
-                if (!FINISH_SKIP.has(pk)) {
-                    acabados.push({ tipo: inl.label || inl.processKey || inl.key, detalle: inl.materialName || '' });
-                }
-            }
-        });
-    });
-    (Array.isArray(dc?.finishes?.items) ? dc.finishes.items : []).forEach(function (ext) {
-        if (ext?.active && (ext.processKey || ext.key || ext.label || ext.description)) {
-            var pk = String(ext.processKey || ext.key || '').toLowerCase();
-            if (!FINISH_SKIP.has(pk)) {
-                acabados.push({ tipo: ext.label || ext.processKey || ext.key, detalle: ext.description || ext.materialName || '' });
-            }
+    (Array.isArray(printing.finishes) ? printing.finishes : []).forEach(function (f) {
+        if (f && !FINISH_SKIP.has(String(f).toLowerCase().split(' ')[0])) {
+            var parts = String(f).trim().split(' ');
+            var tipo = parts[0] || '';
+            var detalle = parts.slice(1).join(' ').trim();
+            acabados.push({ tipo: tipo, detalle: detalle || '' });
         }
     });
     if (dieCode) acabados.push({ tipo: 'Troquelado', detalle: dieCode });
@@ -9732,12 +9722,28 @@ function extractPrintingData(rawData = {}) {
     const dieCode = ls.dieCode || lr['GENERAL | TROQUEL | ID'] || '';
     const finishes = [];
     const FINISH_SKIP_KEYS = new Set(['troquelado']);
+    function finishDisplayName(item) {
+        if (!item) return '';
+        var pk = String(item.processKey || item.key || '').toLowerCase();
+        var label = String(item.label || '').trim();
+        var mat = String(item.materialName || '').trim();
+        var desc = String(item.description || '').trim();
+        if (mat && label && mat.toLowerCase() !== label.toLowerCase()) return label + ' ' + mat;
+        if (mat) return mat;
+        if (desc && label && desc.toLowerCase() !== label.toLowerCase()) return label + ' ' + desc;
+        if (desc) return desc;
+        if (label) return label;
+        return item.processKey || item.key || '';
+    }
     (Array.isArray(dc?.print?.items) ? dc.print.items : []).forEach(function (pi) {
         (Array.isArray(pi?.inlineItems) ? pi.inlineItems : []).forEach(function (inl) {
             if (inl?.active && (inl.processKey || inl.key || inl.label)) {
                 var pk = String(inl.processKey || inl.key || '').toLowerCase();
                 if (!FINISH_SKIP_KEYS.has(pk)) {
-                    finishes.push(inl.label || inl.materialName || inl.processKey || inl.key);
+                    var name = finishDisplayName(inl);
+                    if (name && !finishes.some(function (f) { return f.toLowerCase() === name.toLowerCase(); })) {
+                        finishes.push(name);
+                    }
                 }
             }
         });
@@ -9746,7 +9752,10 @@ function extractPrintingData(rawData = {}) {
         if (ext?.active && (ext.processKey || ext.key || ext.label || ext.description)) {
             var pk = String(ext.processKey || ext.key || '').toLowerCase();
             if (!FINISH_SKIP_KEYS.has(pk)) {
-                finishes.push(ext.label || ext.description || ext.processKey || ext.key);
+                var name = finishDisplayName(ext);
+                if (name && !finishes.some(function (f) { return f.toLowerCase() === name.toLowerCase(); })) {
+                    finishes.push(name);
+                }
             }
         }
     });
@@ -14474,10 +14483,8 @@ app.get('/api/ordenes-produccion/:codigo', async (req, res) => {
             const frontBackBeforeRefresh = normalizeFrontBackGroup(orden.raw_data.front_back_group || orden.raw_data.grupo_frente_dorso || orden.raw_data.production_run || {});
             if (frontBackBeforeRefresh) {
                 await refreshFrontBackOrderRawData(orden.raw_data);
-                orden.raw_data.printing = extractPrintingData(orden.raw_data);
-            } else if (!orden.raw_data.printing) {
-                orden.raw_data.printing = extractPrintingData(orden.raw_data);
             }
+            orden.raw_data.printing = extractPrintingData(orden.raw_data);
             const needsContact = !orden.raw_data.contact_name && !orden.raw_data.phone && !orden.raw_data.email;
             if (needsContact && orden.customer_code) {
                 try {
