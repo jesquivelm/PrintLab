@@ -10669,34 +10669,49 @@ app.get('/api/socios', async (req, res) => {
         let whereClause = '';
 
         if (search) {
-            values.push(`%${search}%`);
-            values.push(`%${search}%`);
-            whereClause = 'WHERE partner_code ILIKE $1 OR partner_name ILIKE $2';
+            const terms = search.split(/\s+/).filter(Boolean);
+            const termConditions = [];
+            for (const term of terms) {
+                values.push(`%${term}%`);
+                values.push(`%${term}%`);
+                values.push(`%${term}%`);
+                values.push(`%${term}%`);
+                values.push(`%${term}%`);
+                termConditions.push(`(
+                    p.partner_name ILIKE $${values.length - 4}
+                    OR p.tax_id ILIKE $${values.length - 3}
+                    OR p.email ILIKE $${values.length - 2}
+                    OR p.email_facturacion ILIKE $${values.length - 1}
+                    OR c.contact_name ILIKE $${values.length}
+                )`);
+            }
+            whereClause = `WHERE ${termConditions.join(' AND ')}`;
         }
 
         const limitClause = hasLimit ? `LIMIT $${values.length + 1}` : '';
         if (hasLimit) values.push(limit);
 
         const result = await pgQuery(
-            `SELECT
-                partner_code,
-                prospect_code,
-                partner_name,
-                salesperson_name,
-                tax_id,
-                email,
-                email_facturacion,
-                currency_code,
-                payment_terms,
-                sector,
-                sub_sector,
-                is_tax_exempt,
-                allowed_percentage,
-                client_type,
-                creation_date
-             FROM business_partners
+            `SELECT DISTINCT ON (p.partner_code)
+                p.partner_code,
+                p.prospect_code,
+                p.partner_name,
+                p.salesperson_name,
+                p.tax_id,
+                p.email,
+                p.email_facturacion,
+                p.currency_code,
+                p.payment_terms,
+                p.sector,
+                p.sub_sector,
+                p.is_tax_exempt,
+                p.allowed_percentage,
+                p.client_type,
+                p.creation_date
+             FROM business_partners p
+             LEFT JOIN business_partner_contacts c ON c.partner_code = p.partner_code
              ${whereClause}
-             ORDER BY partner_name NULLS LAST, partner_code NULLS LAST
+             ORDER BY p.partner_code, p.partner_name NULLS LAST
              ${limitClause}`,
             values
         );
