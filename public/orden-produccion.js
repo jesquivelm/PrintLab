@@ -1775,8 +1775,6 @@ function applyHeaderConfig(config) {
     renderIconButton(numberingButton, iconConfigFor('orderNumbering', DEFAULT_ICONS.numbering));
     renderIconButton(attachmentsButton, iconConfigFor('orderAttachments', icons.lineAttachments || DEFAULT_ICONS.attachments));
     attachmentsButton?.setAttribute('title', 'Ver adjuntos');
-    renderIconButton(document.getElementById('orderCreationSummaryButton'), iconConfigFor('orderCreationSummary', '\u2699\uFE0F'));
-    document.getElementById('orderCreationSummaryButton')?.setAttribute('title', 'Datos de creación');
     renderIconButton(stateButton, iconConfigFor('orderStatus', DEFAULT_ICONS.status));
     stateButton?.setAttribute('title', 'Control de planificación');
     if (svgTestButton) {
@@ -2916,9 +2914,11 @@ async function loadOrder() {
     }
     renderOrder(currentLoadedOrder);
     const adminTools = document.getElementById('orderAdminTools');
-    const session = readUserSession();
-    const username = String(session?.username || session?.user || '').toLowerCase();
-    if (adminTools) adminTools.hidden = username !== 'jesquiv';
+    if (adminTools) {
+        adminTools.hidden = false;
+        const summaryBtn = document.getElementById('orderCreationSummaryButton');
+        if (summaryBtn) renderIconButton(summaryBtn, iconConfigFor('orderCreationSummary', '\u2699\uFE0F'));
+    }
     populateDeliverySelects(config);
 
     const raw = currentLoadedOrder.raw_data || {};
