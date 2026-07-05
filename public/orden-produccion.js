@@ -2657,67 +2657,13 @@ function renderOrder(order) {
 
     samplesSummary.innerHTML = buildSamplesSummary(lineRaw);
 
-    var frontBackBlock = document.getElementById('orderFrontBackBlock');
-    var frontBackMembers = document.getElementById('orderFrontBackMembers');
     var frontBackProductCards = document.getElementById('orderFrontBackProductCards');
     var frontBackLayout = document.getElementById('orderFrontBackLayout');
     var orderLayout = document.querySelector('#orderContent > .production-order-layout-refined');
     orderLayout?.classList.add('is-frontback-order');
 
-    var outputs = Array.isArray(frontBackObj.outputs) ? frontBackObj.outputs : [];
-    var memberLineCodes = frontBackObj.memberLineCodes || frontBackObj.elementLineCodes || [];
-    var relatedLines = raw.related_lines || [];
-    var memberData = {};
-    relatedLines.forEach(function (rl) {
-        var lc = rl.summary?.line_code || rl.detail?.lineCode || '';
-        if (lc) memberData[lc] = rl;
-    });
-    var cardsHtml = outputs.map(function (o, idx) {
-        var side = '';
-        var lc = String(o.lineCode || '').toLowerCase();
-        var roles = frontBackObj.elementRoles || {};
-        if (roles[o.lineCode]) side = roles[o.lineCode];
-        else if (lc.includes('dorso') || lc.includes('back')) side = 'dorso';
-        else side = 'frente';
-        var sideLabel = side === 'dorso' ? 'Dorso' : 'Frente';
-        var productName = o.itemName || 'Producto';
-        var qty = parseNumber(o.quantity);
-        var memberInfo = memberData[o.lineCode] || {};
-        var memberDetail = memberInfo.detail || {};
-        var memberLineRaw = memberDetail.raw_data || {};
-        var memberLine = memberInfo.summary || {};
-        var artHolder = pickFirst(memberLineRaw['ARTE EN PODER DE'], '');
-        var artComments = pickFirst(memberLineRaw['COMENTARIOS VENDEDOR'], memberLineRaw['OBSERVACIONES VENTAS'], '');
-        var artOrder = pickFirst(memberLineRaw['ORDEN DE ARTE'], '');
-        var quoteCode = sourceQuoteCode;
-        var lineCodeForArt = o.lineCode || '';
-        return '<div class="production-frontback-card" data-side="' + escapeHtml(side) + '">' +
-            '<div class="production-frontback-card-header">' +
-                '<div class="production-frontback-card-title">' +
-                    '<span class="production-frontback-card-side">' + escapeHtml(sideLabel) + '</span>' +
-                    '<span class="production-frontback-card-name">' + escapeHtml(productName) + '</span>' +
-                '</div>' +
-                '<div class="production-frontback-card-qty">' + qty + '</div>' +
-            '</div>' +
-            '<div class="production-frontback-card-art">' +
-                '<div class="production-frontback-art-col">' +
-                    '<div class="production-frontback-art-dropzone production-art-dropzone" data-quote="' + escapeHtml(quoteCode) + '" data-line="' + escapeHtml(lineCodeForArt) + '">' +
-                        '<span class="production-frontback-art-dropzone-text">Arrastrar arte aquí</span>' +
-                    '</div>' +
-                '</div>' +
-                '<div class="production-frontback-art-col">' +
-                    '<div class="production-frontback-art-info">' +
-                        '<div class="production-frontback-art-field"><span class="production-frontback-art-label">Arte en Poder de</span><span class="production-frontback-art-value">' + escapeHtml(artHolder || 'Sin asignar') + '</span></div>' +
-                        (artOrder ? '<div class="production-frontback-art-field"><span class="production-frontback-art-label">Orden de Arte</span><span class="production-frontback-art-value">' + escapeHtml(artOrder) + '</span></div>' : '') +
-                        (artComments ? '<div class="production-frontback-art-field"><span class="production-frontback-art-label">Comentarios</span><span class="production-frontback-art-value">' + escapeHtml(artComments) + '</span></div>' : '') +
-                    '</div>' +
-                '</div>' +
-            '</div>' +
-        '</div>';
-    }).join('');
-    if (frontBackProductCards) frontBackProductCards.innerHTML = cardsHtml;
+    if (frontBackProductCards) frontBackProductCards.hidden = true;
     if (frontBackLayout) frontBackLayout.hidden = false;
-    if (frontBackBlock) frontBackBlock.style.display = 'none';
     renderFrontBackLayout({ raw, frontBackObj, sourceQuoteCode, order });
     var artEditIconConf = iconConfigFor('orderEdit', '✏️', '#64748b', 16);
     document.querySelectorAll('.production-frontback-art-edit-btn').forEach(function (btn) { renderIconButton(btn, artEditIconConf); });
@@ -2787,22 +2733,9 @@ function renderOrder(order) {
     setText('orderStateText', stateText, 'Pendiente');
     applyOrderState(document.getElementById('orderStateText'), stateText);
     var groupPill = document.getElementById('orderGroupPill');
-    var frontBackTotalQuantityBox = document.getElementById('orderFrontBackTotalQuantity');
-    if (frontBackObj) {
+    if (groupPill) {
         groupPill.hidden = false;
-        groupPill.textContent = frontBackObj.label || 'Grupo Frente/Dorso';
-        if (frontBackTotalQuantityBox) {
-            const totalQuantity = frontBackTotalQuantity(frontBackObj, raw);
-            frontBackTotalQuantityBox.hidden = totalQuantity <= 0;
-            setText('orderFrontBackTotalQuantityText', totalQuantity > 0 ? parseNumber(totalQuantity) : '', '');
-        }
-    } else {
-        groupPill.hidden = true;
-        groupPill.textContent = '';
-        if (frontBackTotalQuantityBox) {
-            frontBackTotalQuantityBox.hidden = true;
-            setText('orderFrontBackTotalQuantityText', '', '');
-        }
+        groupPill.textContent = frontBackObj.label || 'Orden';
     }
     setText('orderCreatedText', formatDate(order.created_at || raw.created_on, true), 'Sin fecha');
     setText('orderPromisedDateText', formatDate(promisedDateRaw), 'Pendiente');
