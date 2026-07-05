@@ -2269,7 +2269,7 @@ function renderDeliveries(raw = {}, totalQuantity = '', defaultDate = '', defaul
 function buildFinishTags(raw = {}, detail = {}, dieCode = '') {
     const tags = [];
     const dc = raw['Datos_Cotizados'] || {};
-    const FINISH_SKIP_KEYS = new Set(['troquelado', 'rebobinado']);
+    const FINISH_SKIP_KEYS = new Set(['troquelado']);
     const inlineFinishes = [];
     (Array.isArray(dc?.print?.items) ? dc.print.items : []).forEach(function (printItem) {
         (Array.isArray(printItem?.inlineItems) ? printItem.inlineItems : []).forEach(function (inline) {
@@ -2307,6 +2307,7 @@ function buildFinishTags(raw = {}, detail = {}, dieCode = '') {
     const foil = findFinish(['ACABADOS | FOIL', 'FOIL', 'ESTAMPADO']);
     const emboss = findFinish(['ACABADOS | EMBOSADO', 'EMBOSADO']);
     const numbering = findFinish(['ACABADOS | NUMERADO', 'NUMERADO']);
+    const rewinding = findFinish(['ACABADOS | REBOBINADO', 'REBOBINADO']);
     if (dieCode) tags.push('Troquelado (' + dieCode + ')');
     else if (raw['ACABADOS | TROQUELADO'] || raw['TROQUELADO']) tags.push('Troquelado');
     else if (!tags.length && isNoPrint(detail, raw)) tags.push('Troquelado');
@@ -2315,6 +2316,7 @@ function buildFinishTags(raw = {}, detail = {}, dieCode = '') {
     if (foil) tags.push('Estampado ' + String(foil).trim());
     if (emboss) tags.push('Embosado ' + String(emboss).trim());
     if (numbering) tags.push('Numerado');
+    if (rewinding) tags.push('Rebobinado');
     return [...new Set(tags)];
 }
 

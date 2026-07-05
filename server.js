@@ -9585,7 +9585,7 @@ function buildCreationSummary({ orderCode, quoteRow, lineRow, frontBackGroup, pr
     const printing = extractPrintingData(lineRow?.raw_data || {});
 
     const acabados = [];
-    const FINISH_SKIP = new Set(['troquelado', 'rebobinado']);
+    const FINISH_SKIP = new Set(['troquelado']);
     (Array.isArray(dc?.print?.items) ? dc.print.items : []).forEach(function (pi) {
         (Array.isArray(pi?.inlineItems) ? pi.inlineItems : []).forEach(function (inl) {
             if (inl?.active && (inl.processKey || inl.key || inl.label)) {
@@ -9731,7 +9731,7 @@ function extractPrintingData(rawData = {}) {
     const pantones = [lr['PANTONE 1'], lr['PANTONE 2'], lr['PANTONE 3']].filter(Boolean);
     const dieCode = ls.dieCode || lr['GENERAL | TROQUEL | ID'] || '';
     const finishes = [];
-    const FINISH_SKIP_KEYS = new Set(['troquelado', 'rebobinado']);
+    const FINISH_SKIP_KEYS = new Set(['troquelado']);
     (Array.isArray(dc?.print?.items) ? dc.print.items : []).forEach(function (pi) {
         (Array.isArray(pi?.inlineItems) ? pi.inlineItems : []).forEach(function (inl) {
             if (inl?.active && (inl.processKey || inl.key || inl.label)) {
@@ -9751,7 +9751,8 @@ function extractPrintingData(rawData = {}) {
         }
     });
     ['ACABADOS | BARNIZ', 'BARNIZ', 'ACABADOS | LAMINADO', 'LAMINADO', 'ACABADOS | FOIL', 'FOIL',
-     'ACABADOS | EMBOSADO', 'EMBOSADO', 'ACABADOS | NUMERADO', 'NUMERADO'].forEach(function (fk) {
+     'ACABADOS | EMBOSADO', 'EMBOSADO', 'ACABADOS | NUMERADO', 'NUMERADO',
+     'ACABADOS | REBOBINADO', 'REBOBINADO'].forEach(function (fk) {
         var v = lr[fk];
         if (v && !finishes.some(function (f) { return f === v || f.includes(String(v)); })) {
             finishes.push(String(v).trim());
@@ -14544,6 +14545,25 @@ app.get('/api/ordenes-produccion/:codigo', async (req, res) => {
                       WHERE order_code = $1`,
                     [req.params.codigo, orden.raw_data.contact_name || null, orden.raw_data.phone || null, orden.raw_data.email || null]
                 );
+            } catch (_) {}
+        }
+        if (orden.raw_data && !orden.raw_data.resumen_creacion && orden.line_snapshot) {
+            try {
+                const summary = buildCreationSummary({
+                    orderCode: orden.order_code,
+                    quoteRow: { quote_code: orden.quote_code, customer_name: orden.raw_data.customer_name, customer_code: orden.customer_code },
+                    lineRow: { line_code: orden.line_code, raw_data: orden.raw_data.line_snapshot?.raw_data || orden.raw_data, quantity: orden.ordered_quantity, total_cost: orden.raw_data.totals?.total_cost, unit_price: orden.raw_data.totals?.unit_price },
+                    frontBackGroup: orden.raw_data.front_back_group || orden.raw_data.grupo_frente_dorso,
+                    productionRun: orden.raw_data.production_run,
+                    raw: orden.raw_data.line_snapshot?.raw_data || {},
+                    lineSnapshot: orden.raw_data.line_snapshot || {},
+                    totalFeet: orden.raw_data.totals?.total_feet || 0
+                });
+                orden.raw_data.resumen_creacion = summary;
+                await pgQuery(
+                    `UPDATE flexo_orders SET raw_data = raw_data || jsonb_build_object('resumen_creacion', $2::jsonb) WHERE order_code = $1`,
+                    [orden.order_code, JSON.stringify(summary)]
+                ).catch(function () {});
             } catch (_) {}
         }
         res.json({ orden });
