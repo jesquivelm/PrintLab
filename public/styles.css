@@ -18315,7 +18315,7 @@ html[data-theme="dark"] .production-group-pill {
     justify-content: space-between;
     align-items: flex-start;
     gap: 12px;
-    margin-bottom: 8px;
+    margin-bottom: 0;
 }
 
 .production-frontback-product-head > div:first-child {
