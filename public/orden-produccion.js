@@ -1969,9 +1969,11 @@ function renderFrontBackProductCard({ frontBackObj, output, memberInfo, index, s
     return `
         <section class="socios-section production-product-section production-frontback-product" data-side="${escapeHtml(side)}">
             <div class="production-frontback-product-head">
-                <div class="production-frontback-product-meta">
-                    <span class="production-frontback-side-chip production-frontback-side-chip--label">${escapeHtml(frontBackSideLabel(side))}</span>
-                    <strong class="production-frontback-product-id">${escapeHtml(lineCode)}</strong>
+                <div class="production-frontback-product-top">
+                    <div class="production-frontback-product-meta">
+                        <span class="production-frontback-side-chip production-frontback-side-chip--label">${escapeHtml(frontBackSideLabel(side))}</span>
+                        <strong class="production-frontback-product-id">${escapeHtml(lineCode)}</strong>
+                    </div>
                     <div class="production-frontback-quantity">
                         <span>Cantidad</span>
                         <strong>${escapeHtml(parseNumber(data.quantity) || 'Sin cantidad')}</strong>
