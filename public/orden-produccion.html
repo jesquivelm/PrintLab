@@ -281,7 +281,8 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div id="orderRollBlock" class="production-subgroup">
+                                <div class="production-config-bottom-row">
+                                <div id="orderRollBlock" class="production-subgroup production-config-bottom-col">
                                     <div class="production-subgroup-title">Información del Rollo</div>
                                     <div class="production-summary-grid production-summary-grid-two production-roll-grid">
                                         <div class="production-roll-grid-left">
@@ -308,6 +309,38 @@
                                             <div id="orderOutputTypeImage" class="production-output-preview">Sin imagen</div>
                                         </div>
                                     </div>
+                                </div>
+                                <section class="socios-section production-art-section production-config-bottom-col">
+                                    <div class="section-caption">Información de Arte</div>
+                                    <button type="button" id="orderArtToggleButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-section-corner-toggle" aria-label="Expandir información de arte"></button>
+                                    <div id="orderArtSummary" class="production-summary-stack"></div>
+                                    <form id="orderArtForm" class="production-inline-form" hidden>
+                                        <div class="production-summary-grid production-summary-grid-art">
+                                            <div class="field production-art-comments-field">
+                                                <label for="orderSellerCommentsInput">Comentarios</label>
+                                                <textarea id="orderSellerCommentsInput" rows="1" placeholder="Comentarios de arte"></textarea>
+                                            </div>
+                                            <div class="production-art-meta-stack">
+                                                <div class="field production-art-holder-field">
+                                                    <label for="orderArtworkHolderInput">Arte en Poder de</label>
+                                                    <input id="orderArtworkHolderInput" type="text" list="orderArtworkHolderOptions" placeholder="Seleccionar o escribir">
+                                                    <datalist id="orderArtworkHolderOptions">
+                                                        <option value="Cliente"></option>
+                                                        <option value="Vendedor"></option>
+                                                        <option value="Departamento de Diseño"></option>
+                                                        <option value="Preprensa"></option>
+                                                        <option value="Visto Bueno"></option>
+                                                    </datalist>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <input id="orderArtworkFileInput" type="file" accept="image/*" hidden>
+                                        <div class="production-art-preview-wrap">
+                                            <button type="button" id="orderArtworkPreview" class="production-art-preview production-art-preview-compact production-art-dropzone" aria-label="Adjuntar arte"></button>
+                                            <button type="button" id="orderArtworkDeleteButton" class="browser-open-link production-inline-icon production-inline-icon-small production-art-delete" aria-label="Eliminar arte" hidden>×</button>
+                                        </div>
+                                    </form>
+                                </section>
                                 </div>
                             </div>
                         </section>

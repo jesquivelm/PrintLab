@@ -10222,7 +10222,16 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
 }
 @media (max-width: 920px) {
     .production-product-hero-main,
-    .production-roll-grid {
+.production-config-bottom-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-items: start;
+}
+.production-config-bottom-col {
+    min-width: 0;
+}
+.production-roll-grid {
         grid-template-columns: 1fr;
     }
     .production-order-spotlight-right,
