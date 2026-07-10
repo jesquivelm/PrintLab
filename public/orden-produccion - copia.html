@@ -32,27 +32,29 @@
     #orderFlowPopover .calc-popover-close { width:32px; height:32px; top:10px; right:12px; border:0 !important; background:transparent !important; box-shadow:none !important; color:var(--ink-3); font-size:24px; line-height:1; }
     #orderFlowPopover .calc-popover-close:hover,
     #orderFlowPopover .calc-popover-close:focus-visible { background:transparent !important; color:var(--ink); outline:none; }
-    .tl-row { display:grid; grid-template-columns:44px 1fr; gap:0 10px; }
+    .tl-row { display:grid; grid-template-columns:90px 1fr; gap:0 10px; }
     .tl-col-left { display:flex; flex-direction:column; align-items:center; }
     .tl-connector { width:2px; flex:1; min-height:12px; margin:2px 0; border-radius:1px; }
-    .tl-connector.solid { background:var(--green-mid); }
-    .tl-connector.dashed { background:repeating-linear-gradient(to bottom,var(--connector-color) 0,var(--connector-color) 5px,transparent 5px,transparent 9px); }
-    .tl-node { position:relative; width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-weight:600; font-size:12px; font-family:var(--font); cursor:pointer; overflow:visible; background:var(--ink-7); color:var(--ink-3); border:1px solid var(--ink-6); box-shadow:inset 0 0 0 1px rgba(255,255,255,.18); padding:0; appearance:none; }
+    .tl-connector.solid { background:#A7F3D0; }
+    .tl-connector.dashed { background:#D6E4F3; }
+    .tl-node { position:relative; width:58px; height:58px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-weight:600; font-size:12px; font-family:var(--font); cursor:pointer; overflow:visible; background:var(--ink-7); color:var(--ink-3); border:2px solid var(--ink-6); box-shadow:0 2px 8px rgba(0,0,0,0.12); padding:0; appearance:none; transition:all .25s ease; }
     .tl-node:disabled { opacity:.64; cursor:progress; }
     .tl-node.done { color:var(--green); background:var(--green-light); border-color:var(--green-mid); }
-    .tl-node.avail { background:var(--blue-light); border-color:var(--blue-mid); color:var(--flow-blue); }
+    .tl-node.avail { background:var(--blue-light); border-color:#AFC8E8; color:var(--flow-blue); }
     .tl-node.locked { background:var(--white); border-color:var(--ink-6); color:var(--ink-4); box-shadow:0 1px 3px rgba(15,17,23,.05), inset 0 0 0 1px rgba(15,17,23,.02); }
     html[data-theme="dark"] .tl-node.locked { background:#111a2b; border-color:#2b3b55; color:#6f7b91; box-shadow:inset 0 0 0 1px rgba(255,255,255,.04); }
     .tl-node.warn { background:var(--amber-light); border-color:var(--amber-mid); color:var(--amber); }
-    .tl-node.in-progress { animation:ring-pulse 1.6s infinite; border-color:var(--blue-mid) !important; background:var(--blue-light) !important; color:var(--flow-blue) !important; }
-    .tl-node.has-avatar { background:linear-gradient(135deg,var(--flow-blue),var(--green)); border-color:rgba(255,255,255,.38); color:#fff; box-shadow:0 0 0 2px rgba(56,189,248,.12); }
-    .tl-node.has-avatar.has-photo { background:transparent; border-color:var(--ink-6); box-shadow:0 0 0 2px rgba(56,189,248,.12); }
+    .tl-node.in-progress { animation:ring-pulse 1.6s infinite; border-color:#AFC8E8 !important; background:var(--blue-light) !important; color:var(--flow-blue) !important; }
+    .tl-node.has-avatar { background:linear-gradient(135deg,var(--flow-blue),var(--green)); border-color:rgba(255,255,255,.38); color:#fff; box-shadow:0 2px 8px rgba(0,0,0,0.12); }
+    .tl-node.has-avatar.has-photo { background:transparent; border-color:#AFC8E8; box-shadow:0 2px 8px rgba(0,0,0,0.12); }
     .tl-avatar-clip { width:100%; height:100%; display:grid; place-items:center; overflow:hidden; border-radius:inherit; }
     .tl-node.has-avatar .tracking-avatar-image,
     .tl-node.has-avatar .tracking-avatar-fallback { width:100%; height:100%; display:grid; place-items:center; object-fit:cover; border-radius:inherit; }
     .tl-node.has-avatar .tracking-avatar-image[hidden],
     .tl-node.has-avatar .tracking-avatar-fallback[hidden] { display:none; }
-    .tl-node-badge { position:absolute; right:-3px; bottom:-3px; width:14px; height:14px; border-radius:50%; display:grid; place-items:center; background:var(--green); color:#fff; border:2px solid var(--white); box-shadow:0 1px 4px rgba(15,17,23,.16); }
+    .tl-node-badge { position:absolute; right:-2px; bottom:-2px; width:18px; height:18px; border-radius:50%; display:grid; place-items:center; background:var(--green); color:#fff; border:2px solid var(--white); box-shadow:0 1px 4px rgba(15,17,23,.16); font-size:10px; font-weight:700; line-height:1; }
+    .tl-node-badge .ti-check::before { content:"✓" !important; }
+    .tl-node-badge.badge-pending { background:#F4A261; }
     .tl-content { padding-bottom:10px; min-width:0; }
     .tl-step-grid { display:block; min-width:0; }
     .tl-step-main { min-width:0; }
@@ -84,6 +86,28 @@
     .fp-progress-fill { height:100%; border-radius:2px; transition:width .5s cubic-bezier(.22,.68,0,1.2); }
     .fp-counter { font-family:var(--mono); font-size:11px; font-weight:500; padding:4px 12px; border-radius:999px; white-space:nowrap; }
     .fp-body { padding:14px 16px 4px; background:transparent; }
+    .tl-tabs-bar { display:flex; gap:0; border-bottom:1px solid var(--ink-6); padding:0 32px; margin-top:16px; margin-right:60px; background:var(--white); }
+    .tl-tab-btn { padding:10px 16px; font-size:12px; font-weight:500; font-family:var(--font); color:var(--ink-4); background:none; border:none; border-bottom:2px solid transparent; cursor:pointer; transition:color .15s, border-color .15s; white-space:nowrap; }
+    .tl-tab-btn:hover { color:var(--ink-2); }
+    .tl-tab-btn.active { color:var(--flow-blue); border-bottom-color:var(--flow-blue); font-weight:600; }
+    .tl-kpi-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; padding:16px; }
+    .tl-kpi-card { background:var(--ink-7); border-radius:var(--radius); padding:12px; text-align:center; }
+    .tl-kpi-label { font-size:10px; color:var(--ink-4); text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px; }
+    .tl-kpi-val { font-size:18px; font-weight:600; color:var(--ink); }
+    .tl-kpi-sub { font-size:10px; color:var(--ink-4); margin-top:2px; }
+    .tl-dept-row { display:flex; align-items:center; gap:10px; padding:6px 16px; }
+    .tl-dept-name { width:100px; font-size:12px; color:var(--ink-3); flex-shrink:0; }
+    .tl-dept-bar { flex:1; display:flex; gap:2px; height:10px; border-radius:2px; overflow:hidden; }
+    .tl-dept-seg { height:100%; border-radius:2px; }
+    .tl-dept-total { font-size:12px; font-weight:500; width:60px; text-align:right; flex-shrink:0; }
+    .tl-pause-card { background:var(--white); border:1px solid var(--ink-6); border-radius:var(--radius); padding:12px 14px; margin:0 16px 8px; }
+    .tl-pause-hdr { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+    .tl-pause-name { font-size:13px; font-weight:600; color:var(--ink); }
+    .tl-pause-pill { font-size:11px; padding:2px 8px; border-radius:4px; background:var(--amber-light); color:var(--amber); }
+    .tl-pause-fields { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; }
+    .tl-pause-field-label { font-size:10px; color:var(--ink-4); text-transform:uppercase; letter-spacing:.04em; }
+    .tl-pause-field-val { color:var(--ink); font-weight:500; }
+    .tl-pause-reason { font-size:12px; color:var(--ink-3); margin-bottom:6px; }
     .notif-area { position:fixed; top:56px; right:16px; z-index:9999; display:flex; flex-direction:column; gap:8px; }
     .notif-item { background:var(--white); border-radius:var(--radius); border:1px solid var(--ink-6); box-shadow:var(--shadow-lg); padding:12px 16px; display:flex; align-items:flex-start; gap:10px; max-width:300px; animation:toast-in .3s cubic-bezier(.22,.68,0,1.2) both; color:var(--ink); }
     .notif-title { font-size:13px; font-weight:600; }
@@ -147,6 +171,7 @@
     @keyframes toast-in { from{opacity:0;transform:translateX(30px) scale(.95)} to{opacity:1;transform:translateX(0) scale(1)} }
     @keyframes ring-pulse { 0%{box-shadow:0 0 0 0 rgba(37,99,235,.35)} 60%{box-shadow:0 0 0 8px rgba(37,99,235,0)} 100%{box-shadow:0 0 0 0 rgba(37,99,235,0)} }
     @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(5,150,105,.4)} 70%{box-shadow:0 0 0 8px rgba(5,150,105,0)} 100%{box-shadow:0 0 0 0 rgba(5,150,105,0)} }
+
     </style>
 </head>
 <body>
@@ -168,6 +193,8 @@
                 <div id="orderStatus" class="calc-popover-notice production-order-status">Cargando orden...</div>
                 <section id="orderContent" hidden>
                     <div class="production-order-layout production-order-layout-refined">
+                        <div class="production-top-row-wrapper">
+                        <div class="production-top-row">
                         <section class="socios-section production-client-section">
                             <div class="section-caption">Cliente</div>
                             <div class="production-summary-stack">
@@ -187,9 +214,12 @@
                         <section class="socios-section production-tracking-section">
                             <div class="production-tracking-body">
                                 <div class="production-tracking-left">
-                                    <div class="production-tracking-head-row">
+                                        <div class="production-tracking-head-row">
                                         <div class="section-caption production-tracking-title">Seguimiento de la Orden</div>
-                                        <strong id="orderStateText" class="production-order-state production-state-pill production-state-pill-inline"></strong>
+                                        <div class="production-tracking-state-row">
+                                            <strong id="orderStateText" class="production-order-state production-state-pill production-state-pill-inline"></strong>
+                                            <span id="orderGroupPill" class="production-group-pill" hidden></span>
+                                        </div>
                                     </div>
                                     <label class="production-summary-item production-date-field">
                                         <span class="production-summary-label">Fecha de Entrega</span>
@@ -203,11 +233,7 @@
                                 <div class="production-tracking-right">
                                     <span class="production-summary-label">Orden</span>
                                     <strong id="orderCodeText" class="production-order-code"></strong>
-                                    <div class="production-tracking-quote-row">
-                                        <span id="orderQuoteText" class="production-tracking-quote-value"></span>
-                                        <span class="production-tracking-quote-sep">/</span>
-                                        <span id="orderLineText" class="production-tracking-quote-value"></span>
-                                    </div>
+
                                     <div id="openSourceQuoteButton" class="production-source-link-group" aria-label="Ver cálculo origen"></div>
                                     <div class="production-tracking-icons-row">
                                         <button type="button" id="orderSapButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Descargas SAP" title="Descargas SAP"></button>
@@ -218,75 +244,46 @@
                                 </div>
                             </div>
                         </section>
+                        </div>
+                        <div id="orderAdminTools" class="production-admin-tools" hidden>
+                            <button type="button" id="orderCreationSummaryButton" class="browser-open-link production-admin-tool-btn" aria-label="Datos de creación" title="Datos de creación"></button>
+                        </div>
+                        </div>
 
-                        <section class="socios-section production-product-section">
-                            <div class="section-caption">Producto</div>
+                        <section id="orderProductionConfig" class="socios-section production-shared-config">
+                            <div class="section-caption">Configuración de Producción</div>
                             <div class="production-summary-stack">
-                                <div class="production-product-hero">
-                                    <div class="production-product-hero-main">
-                                        <div class="production-product-hero-copy">
-                                            <span id="orderProductCodesText" class="production-product-codes"></span>
-                                            <strong id="orderJobText" class="production-product-name"></strong>
-                                        </div>
-                                        <span id="orderDimensionsText" class="production-product-dimensions"></span>
-                                    </div>
-                                </div>
-                                <div id="orderFrontBackBlock" class="production-order-frontback" style="display:none">
-                                    <div class="production-order-frontback-badge"></div>
-                                    <div id="orderFrontBackMembers" class="production-order-frontback-members"></div>
-                                </div>
                                 <div id="orderPrintingBlock" class="production-subgroup">
-                                    <div class="production-subgroup-title">Impresión</div>
                                     <div id="orderPrintingAlert" class="production-order-alert" hidden></div>
-                                    <div id="orderPrintingGrid" class="production-summary-grid production-summary-grid-two">
-                                        <div class="production-summary-item">
-                                            <span class="production-summary-label">Máquina</span>
-                                            <span id="orderMachineText" class="production-summary-value"></span>
+                                    <div id="orderPrintingGrid" class="production-shared-printing-grid">
+                                        <div class="production-shared-printing-col">
+                                            <div class="production-summary-item"><span class="production-summary-label">Máquina</span><span id="orderMachineText" class="production-summary-value"></span></div>
+                                            <div class="production-summary-item"><span class="production-summary-label">Total de Pies</span><span id="orderFeetText" class="production-summary-value"></span></div>
+                                            <div class="production-summary-item"><span class="production-summary-label">Consumo Registrado</span><span id="orderConsumptionText" class="production-summary-value"></span></div>
                                         </div>
-                                        <div class="production-summary-item">
-                                            <span class="production-summary-label">Sustrato</span>
-                                            <span id="orderMaterialText" class="production-summary-value"></span>
+                                        <div class="production-shared-printing-col">
+                                            <div class="production-summary-item"><span class="production-summary-label">Sustrato</span><span id="orderMaterialText" class="production-summary-value"></span></div>
+                                            <div class="production-summary-item"><span class="production-summary-label">Cantidad de Rollos</span><span id="orderRollCountText" class="production-summary-value"></span></div>
                                         </div>
-                                        <div class="production-summary-item">
-                                            <span class="production-summary-label">Total de Pies</span>
-                                            <span id="orderFeetText" class="production-summary-value"></span>
+                                        <div class="production-shared-printing-col">
+                                            <div id="orderInkBlock" class="production-summary-item production-summary-item-full"><span class="production-summary-label">Tintas</span><span id="orderInkConfigText" class="production-summary-value"></span></div>
+                                            <div id="orderPantonesRow" class="production-summary-item" hidden><span class="production-summary-label">Pantones</span><span id="orderPantonesText" class="production-summary-value"></span></div>
                                         </div>
-                                        <div class="production-summary-item">
-                                            <span class="production-summary-label">Cantidad de Rollos</span>
-                                            <span id="orderRollCountText" class="production-summary-value"></span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="production-product-pair">
-                                    <div id="orderInkBlock" class="production-subgroup" hidden>
-                                        <div class="production-subgroup-head">
-                                            <div class="production-subgroup-title">Tintas</div>
-                                            <button type="button" id="orderPantonesButton" class="browser-open-link production-inline-icon" aria-label="Ver detalle de pantones" hidden></button>
-                                        </div>
-                                        <div class="production-summary-grid production-summary-grid-two">
-                                            <div class="production-summary-item production-summary-item-full">
-                                                <span class="production-summary-label">Tintas</span>
-                                                <span id="orderInkConfigText" class="production-summary-value"></span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="production-subgroup">
-                                        <div class="production-subgroup-title">Acabados</div>
-                                        <div class="production-summary-stack">
+                                        <div class="production-shared-printing-col">
+                                            <div class="production-summary-label">Acabados</div>
                                             <div id="orderFinishList" class="production-chip-list"></div>
-                                            <div class="production-summary-grid production-summary-grid-two">
-                                                <div id="orderNumberingWrap" class="production-summary-item" hidden>
-                                                    <span class="production-summary-label">Numerado</span>
-                                                    <div class="production-inline-link">
-                                                        <span id="orderNumberingSummaryText" class="production-summary-value"></span>
-                                                        <button type="button" id="orderNumberingButton" class="browser-open-link production-inline-icon production-inline-icon-small" aria-label="Ver numerado"></button>
-                                                    </div>
+                                            <div id="orderNumberingWrap" class="production-summary-item" hidden>
+                                                <span class="production-summary-label">Numerado</span>
+                                                <div class="production-inline-link">
+                                                    <span id="orderNumberingSummaryText" class="production-summary-value"></span>
+                                                    <button type="button" id="orderNumberingButton" class="browser-open-link production-inline-icon production-inline-icon-small" aria-label="Ver numerado"></button>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                <div id="orderRollBlock" class="production-subgroup">
+                                <div class="production-config-bottom-row">
+                                <div id="orderRollBlock" class="production-subgroup production-config-bottom-col">
                                     <div class="production-subgroup-title">Información del Rollo</div>
                                     <div class="production-summary-grid production-summary-grid-two production-roll-grid">
                                         <div class="production-roll-grid-left">
@@ -314,49 +311,44 @@
                                         </div>
                                     </div>
                                 </div>
+                                <section class="socios-section production-art-section production-config-bottom-col">
+                                    <div class="section-caption">Información de Arte</div>
+                                    <button type="button" id="orderArtToggleButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-section-corner-toggle" aria-label="Expandir información de arte"></button>
+                                    <div id="orderArtSummary" class="production-summary-stack"></div>
+                                    <form id="orderArtForm" class="production-inline-form" hidden>
+                                        <div class="production-summary-grid production-summary-grid-art">
+                                            <div class="field production-art-comments-field">
+                                                <label for="orderSellerCommentsInput">Comentarios</label>
+                                                <textarea id="orderSellerCommentsInput" rows="1" placeholder="Comentarios de arte"></textarea>
+                                            </div>
+                                            <div class="production-art-meta-stack">
+                                                <div class="field production-art-holder-field">
+                                                    <label for="orderArtworkHolderInput">Arte en Poder de</label>
+                                                    <input id="orderArtworkHolderInput" type="text" list="orderArtworkHolderOptions" placeholder="Seleccionar o escribir">
+                                                    <datalist id="orderArtworkHolderOptions">
+                                                        <option value="Cliente"></option>
+                                                        <option value="Vendedor"></option>
+                                                        <option value="Departamento de Diseño"></option>
+                                                        <option value="Preprensa"></option>
+                                                        <option value="Visto Bueno"></option>
+                                                    </datalist>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <input id="orderArtworkFileInput" type="file" accept="image/*" hidden>
+                                        <div class="production-art-preview-wrap">
+                                            <button type="button" id="orderArtworkPreview" class="production-art-preview production-art-preview-compact production-art-dropzone" aria-label="Adjuntar arte"></button>
+                                            <button type="button" id="orderArtworkDeleteButton" class="browser-open-link production-inline-icon production-inline-icon-small production-art-delete" aria-label="Eliminar arte" hidden>×</button>
+                                        </div>
+                                    </form>
+                                </section>
+                                </div>
                             </div>
                         </section>
 
-                        <div class="production-order-column-secondary">
-                            <section class="socios-section">
-                                <div class="production-section-head-inline">
-                                    <div class="section-caption">Cantidad de Productos</div>
-                                    <strong id="orderQuantityText" class="production-quantity-highlight"></strong>
-                                </div>
-                            </section>
-                            <section class="socios-section production-art-section">
-                                <div class="section-caption">Información de Arte</div>
-                                <button type="button" id="orderArtToggleButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-section-corner-toggle" aria-label="Expandir información de arte"></button>
-                                <div id="orderArtSummary" class="production-summary-stack"></div>
-                                <form id="orderArtForm" class="production-inline-form" hidden>
-                                    <div class="production-summary-grid production-summary-grid-art">
-                                        <div class="field production-art-comments-field">
-                                            <label for="orderSellerCommentsInput">Comentarios</label>
-                                            <textarea id="orderSellerCommentsInput" rows="1" placeholder="Comentarios de arte"></textarea>
-                                        </div>
-                                        <div class="production-art-meta-stack">
-                                            <div class="field production-art-holder-field">
-                                                <label for="orderArtworkHolderInput">Arte en Poder de</label>
-                                                <input id="orderArtworkHolderInput" type="text" list="orderArtworkHolderOptions" placeholder="Seleccionar o escribir">
-                                                <datalist id="orderArtworkHolderOptions">
-                                                    <option value="Cliente"></option>
-                                                    <option value="Vendedor"></option>
-                                                    <option value="Departamento de Diseño"></option>
-                                                    <option value="Preprensa"></option>
-                                                    <option value="Visto Bueno"></option>
-                                                </datalist>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <input id="orderArtworkFileInput" type="file" accept="image/*" hidden>
-                                    <div class="production-art-preview-wrap">
-                                        <button type="button" id="orderArtworkPreview" class="production-art-preview production-art-preview-compact production-art-dropzone" aria-label="Adjuntar arte"></button>
-                                        <button type="button" id="orderArtworkDeleteButton" class="browser-open-link production-inline-icon production-inline-icon-small production-art-delete" aria-label="Eliminar arte" hidden>×</button>
-                                    </div>
-                                </form>
-                            </section>
-                        </div>
+                        <div id="orderFrontBackLayout" class="production-frontback-layout"></div>
 
+                        <div class="production-bottom-row">
                         <section class="socios-section production-samples-section">
                             <div class="section-caption">Muestras y Visto Bueno</div>
                             <button type="button" id="orderSamplesToggleButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-section-corner-toggle" aria-label="Expandir muestras y visto bueno"></button>
@@ -369,6 +361,17 @@
                                     <div class="field">
                                         <label for="orderSamplesModeInput">Tipo de Envío</label>
                                         <select id="orderSamplesModeInput">
+                                            <option value=""></option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="production-form-divider">
+                                    <span class="production-form-divider-label">Destinatario de Visto Bueno</span>
+                                </div>
+                                <div class="production-summary-grid production-summary-grid-two">
+                                    <div class="field">
+                                        <label for="orderSamplesApprovalInput">Destinatario</label>
+                                        <select id="orderSamplesApprovalInput">
                                             <option value=""></option>
                                         </select>
                                     </div>
@@ -387,17 +390,6 @@
                                     <div class="field field-full">
                                         <label for="orderSamplesAddressInput">Dirección</label>
                                         <input id="orderSamplesAddressInput" type="text" placeholder="Dirección del contacto">
-                                    </div>
-                                </div>
-                                <div class="production-form-divider">
-                                    <span class="production-form-divider-label">Destinatario de Visto Bueno</span>
-                                </div>
-                                <div class="production-summary-grid production-summary-grid-two">
-                                    <div class="field">
-                                        <label for="orderSamplesApprovalInput">Destinatario</label>
-                                        <select id="orderSamplesApprovalInput">
-                                            <option value=""></option>
-                                        </select>
                                     </div>
                                 </div>
                                 <div class="production-form-divider">
@@ -445,6 +437,7 @@
                                 </div>
                             </form>
                         </section>
+                        </div>
 
                         <section class="socios-section production-observations-section">
                             <div class="section-caption">Observaciones</div>
@@ -537,12 +530,32 @@
         </div>
     </div>
 
+    <div id="orderCreationSummaryPopover" class="calc-popover" hidden>
+        <div class="calc-popover-backdrop" data-close-popover="orderCreationSummaryPopover"></div>
+        <div class="calc-popover-panel production-flow-popover-panel" style="max-width:700px;">
+            <button type="button" class="calc-popover-close" data-close-popover="orderCreationSummaryPopover" aria-label="Cerrar">×</button>
+            <div class="calc-popover-body" style="padding:16px;">
+                <div class="copy-popover-header">
+                    <h2>Datos de Creación</h2>
+                </div>
+                <div id="orderCreationSummaryBody" class="production-creation-summary-body"></div>
+            </div>
+        </div>
+    </div>
+
     <div id="orderFlowPopover" class="calc-popover production-header-tab-popover production-flow-tab-popover" hidden>
         <div class="calc-popover-backdrop" data-close-popover="orderFlowPopover"></div>
         <div class="calc-popover-panel production-flow-popover-panel">
             <button type="button" class="calc-popover-close" data-close-popover="orderFlowPopover" aria-label="Cerrar">×</button>
             <div class="calc-popover-body">
+                <div id="orderFlowTabs" class="tl-tabs-bar">
+                    <button type="button" class="tl-tab-btn active" data-flow-tab="flujo">Flujo</button>
+                    <button type="button" class="tl-tab-btn" data-flow-tab="responsabilidades">Responsabilidades</button>
+                    <button type="button" class="tl-tab-btn" data-flow-tab="pausas">Pausas</button>
+                    <button type="button" class="tl-tab-btn" data-flow-tab="auditoria">Auditoría</button>
+                </div>
                 <div id="orderFlowBody" class="production-flow-body"></div>
+                <div id="orderFlowTabContent" class="production-flow-body" style="display:none;"></div>
             </div>
         </div>
     </div>
