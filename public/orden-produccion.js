@@ -2906,11 +2906,10 @@ async function loadOrder() {
         currentOrderAttachments = extractAttachments(currentLoadedOrder?.raw_data || {});
     }
     renderOrder(currentLoadedOrder);
-    const adminTools = document.getElementById('orderAdminTools');
-    if (adminTools) {
-        adminTools.hidden = false;
-        const summaryBtn = document.getElementById('orderCreationSummaryButton');
-        if (summaryBtn) renderIconButton(summaryBtn, iconConfigFor('orderCreationSummary', '\u2699\uFE0F'));
+    const summaryBtn = document.getElementById('orderCreationSummaryButton');
+    if (summaryBtn) {
+        summaryBtn.hidden = false;
+        renderIconButton(summaryBtn, iconConfigFor('orderCreationSummary', '\u2699\uFE0F'));
     }
     populateDeliverySelects(config);
 

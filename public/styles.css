@@ -9725,7 +9725,8 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
 #orderSvgTestButton,
 #orderSapButton,
 #orderFlowToggleButton,
-#orderArtworkDeleteButton {
+#orderArtworkDeleteButton,
+#orderCreationSummaryButton {
     width: calc(var(--config-icon-size, 18px) + 12px);
     height: calc(var(--config-icon-size, 18px) + 12px);
 }
