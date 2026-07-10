@@ -335,6 +335,17 @@ function sessionHeader() {
     };
 }
 
+const ADMIN_TOOLS_PERMISSION_KEYWORDS = ['admin', 'implement'];
+
+function hasAdminToolsAccess() {
+    const session = readUserSession();
+    const permissionName = String(session?.permissionName || '').toLowerCase();
+    if (!permissionName) return false;
+    return ADMIN_TOOLS_PERMISSION_KEYWORDS.some(function (keyword) {
+        return permissionName.includes(keyword);
+    });
+}
+
 function currentSessionDisplayName() {
     const session = readUserSession();
     if (!session) return '';
@@ -2906,10 +2917,18 @@ async function loadOrder() {
         currentOrderAttachments = extractAttachments(currentLoadedOrder?.raw_data || {});
     }
     renderOrder(currentLoadedOrder);
-    const summaryBtn = document.getElementById('orderCreationSummaryButton');
-    if (summaryBtn) {
-        summaryBtn.hidden = false;
-        renderIconButton(summaryBtn, iconConfigFor('orderCreationSummary', '\u2699\uFE0F'));
+    const adminTools = document.getElementById('orderAdminTools');
+    if (adminTools) {
+        adminTools.hidden = false;
+        const summaryBtn = document.getElementById('orderCreationSummaryButton');
+        if (summaryBtn) {
+            renderIconButton(summaryBtn, iconConfigFor('orderCreationSummary', '\u2699\uFE0F'));
+            summaryBtn.hidden = !hasAdminToolsAccess();
+        }
+        const printBtn = document.getElementById('orderPrintButton');
+        if (printBtn) renderIconButton(printBtn, iconConfigFor('orderPrint', '\uD83D\uDDA8\uFE0F'));
+        const pdfBtn = document.getElementById('orderPdfButton');
+        if (pdfBtn) renderIconButton(pdfBtn, iconConfigFor('orderPdf', '\uD83D\uDCC4'));
     }
     populateDeliverySelects(config);
 
@@ -3104,6 +3123,16 @@ pantonesButton?.addEventListener('click', () => openPopover('orderPantonesPopove
     }
 numberingButton?.addEventListener('click', () => openPopover('orderNumberingPopover'));
 attachmentsButton?.addEventListener('click', () => openPopover('orderAttachmentsPopover'));
+document.getElementById('orderPrintButton')?.addEventListener('click', () => {
+    window.print();
+});
+document.getElementById('orderPdfButton')?.addEventListener('click', () => {
+    const orderCode = currentLoadedOrder?.raw_data?.order_code || currentOrderCode || 'orden';
+    const previousTitle = document.title;
+    document.title = `Orden_${orderCode}`;
+    window.print();
+    setTimeout(() => { document.title = previousTitle; }, 500);
+});
 document.getElementById('orderCreationSummaryButton')?.addEventListener('click', () => {
     const summary = currentLoadedOrder?.raw_data?.resumen_creacion;
     const body = document.getElementById('orderCreationSummaryBody');

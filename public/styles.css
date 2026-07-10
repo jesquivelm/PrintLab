@@ -9725,8 +9725,7 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
 #orderSvgTestButton,
 #orderSapButton,
 #orderFlowToggleButton,
-#orderArtworkDeleteButton,
-#orderCreationSummaryButton {
+#orderArtworkDeleteButton {
     width: calc(var(--config-icon-size, 18px) + 12px);
     height: calc(var(--config-icon-size, 18px) + 12px);
 }
@@ -18398,6 +18397,10 @@ html[data-theme="dark"] .production-creation-summary-section {
     display: flex;
     justify-content: flex-end;
     padding: 4px 0 8px;
+}
+
+.production-top-row-wrapper {
+    position: relative;
 }
 
 .production-admin-tool-btn {
