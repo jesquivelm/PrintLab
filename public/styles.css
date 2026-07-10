@@ -18396,11 +18396,17 @@ html[data-theme="dark"] .production-creation-summary-section {
 .production-admin-tools {
     display: flex;
     justify-content: flex-end;
-    padding: 4px 0 8px;
+    gap: 6px;
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 0;
+    z-index: 2;
 }
 
 .production-top-row-wrapper {
     position: relative;
+    padding-top: 40px;
 }
 
 .production-admin-tool-btn {
