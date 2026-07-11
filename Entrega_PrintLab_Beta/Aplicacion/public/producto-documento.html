@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/theme.js"></script>
+    <title>Producto</title>
+    <link rel="stylesheet" href="/styles.css?v=20260519-1714">
+</head>
+<body>
+    <script>
+        if (window !== window.parent || new URLSearchParams(window.location.search).get('shell') === '1') {
+            document.body.classList.add('shell-embedded');
+        }
+    </script>
+    <div class="app-shell">
+        <header class="topbar topbar-quote">
+            <div class="brand brand-quote">
+                <div class="brand-logo-wrap">
+                    <img id="productDocCompanyLogo" class="company-logo" alt="Logo empresa">
+                    <div id="productDocBrandFallback" class="brand-mark">PL</div>
+                </div>
+                <h1 id="productDocPageTitle">Producto</h1>
+            </div>
+        </header>
+        <main class="workspace workspace-quote">
+            <section class="quote-card quote-card-clean production-order-card product-document-card">
+                <div id="productDocStatus" class="calc-popover-notice production-order-status" hidden>Cargando producto...</div>
+                <section id="productDocContent" hidden>
+                    <div class="production-order-layout production-order-layout-refined">
+                        <div class="production-order-column production-order-column-primary">
+                            <section class="socios-section">
+                                <div class="production-subgroup-head">
+                                    <div class="section-caption">Producto</div>
+                                    <button type="button" id="productDocQuoteButton" class="action-btn quote-browser-action-btn">Cotizar</button>
+                                </div>
+                                <div class="production-summary-stack">
+                                    <div class="production-product-hero">
+                                        <div class="production-product-hero-main">
+                                            <div class="production-product-hero-copy">
+                                                <span id="productDocCodes" class="production-order-code"></span>
+                                                <strong id="productDocName" class="production-product-name"></strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="production-summary-grid production-summary-grid-two">
+                                        <div class="production-summary-item">
+                                            <span class="production-summary-label">Cliente</span>
+                                            <span id="productDocClient" class="production-summary-value"></span>
+                                        </div>
+                                        <div class="production-summary-item">
+                                            <span class="production-summary-label">Veces cotizado</span>
+                                            <span id="productDocQuoteCount" class="production-summary-value"></span>
+                                        </div>
+                                        <div class="production-summary-item">
+                                            <span class="production-summary-label">Proceso</span>
+                                            <span id="productDocProcess" class="production-summary-value"></span>
+                                        </div>
+                                        <div class="production-summary-item">
+                                            <span class="production-summary-label">Máquina</span>
+                                            <span id="productDocMachine" class="production-summary-value"></span>
+                                        </div>
+                                        <div class="production-summary-item">
+                                            <span class="production-summary-label">Material</span>
+                                            <span id="productDocMaterial" class="production-summary-value"></span>
+                                        </div>
+                                        <div class="production-summary-item">
+                                            <span class="production-summary-label">Dimensiones</span>
+                                            <span id="productDocMeasure" class="production-summary-value"></span>
+                                        </div>
+                                        <div class="production-summary-item">
+                                            <span class="production-summary-label">Cantidad Solicitada</span>
+                                            <span id="productDocQuantity" class="production-summary-value"></span>
+                                        </div>
+                                        <div class="production-summary-item">
+                                            <span class="production-summary-label">Precio</span>
+                                            <span id="productDocPrice" class="production-summary-value"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section id="productDocFinishesSection" class="socios-section">
+                                <div class="section-caption">Acabados</div>
+                                <div id="productDocFinishes" class="production-chip-list"></div>
+                            </section>
+
+                            <section class="socios-section">
+                                <div class="section-caption">Detalle</div>
+                                <div class="standard-module-tabs product-doc-tabs" role="tablist" aria-label="Detalle del producto">
+                                    <button type="button" class="standard-module-tab is-active" data-product-doc-tab="cotizaciones">Cotizaciones</button>
+                                    <button type="button" class="standard-module-tab" data-product-doc-tab="ordenes">Órdenes</button>
+                                    <button type="button" class="standard-module-tab" data-product-doc-tab="adjuntos">Adjuntos</button>
+                                    <button type="button" class="standard-module-tab" data-product-doc-tab="origen">Datos originales</button>
+                                </div>
+                                <div class="product-doc-panel is-active" data-product-doc-panel="cotizaciones">
+                                    <div class="copy-popover-table-wrap quote-browser-table-wrap">
+                                        <table class="copy-popover-table quote-browser-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Cotización</th>
+                                                    <th>Línea</th>
+                                                    <th>Cliente</th>
+                                                    <th>Trabajo</th>
+                                                    <th>Fecha</th>
+                                                    <th></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="productDocHistoryTableBody"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div class="product-doc-panel" data-product-doc-panel="ordenes" hidden>
+                                    <div class="copy-popover-table-wrap quote-browser-table-wrap">
+                                        <table class="copy-popover-table quote-browser-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Orden</th>
+                                                    <th>Cotización</th>
+                                                    <th>Línea</th>
+                                                    <th>Máquina</th>
+                                                    <th>Fecha</th>
+                                                    <th></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="productDocOrdersTableBody"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div class="product-doc-panel" data-product-doc-panel="adjuntos" hidden>
+                                    <div class="production-subgroup-head">
+                                        <div class="production-subgroup-title">Adjuntos</div>
+                                        <div class="production-summary-stack">
+                                            <input id="productDocAttachmentInput" type="file" hidden>
+                                            <button type="button" id="productDocAttachmentAddButton" class="action-btn">Agregar Adjunto</button>
+                                        </div>
+                                    </div>
+                                    <div class="copy-popover-table-wrap quote-browser-table-wrap">
+                                        <table class="copy-popover-table quote-browser-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Archivo</th>
+                                                    <th>Cotización</th>
+                                                    <th>Línea</th>
+                                                    <th>Origen</th>
+                                                    <th>Fecha</th>
+                                                    <th></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="productDocAttachmentsTableBody"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div class="product-doc-panel" data-product-doc-panel="origen" hidden>
+                                    <div id="productDocRaw" class="product-raw-grid"></div>
+                                </div>
+                            </section>
+                        </div>
+                    </div>
+                </section>
+            </section>
+        </main>
+    </div>
+    <script src="/access-control.js?v=20260424g"></script>
+    <script src="/producto-documento.js?v=20260511a"></script>
+</body>
+</html>

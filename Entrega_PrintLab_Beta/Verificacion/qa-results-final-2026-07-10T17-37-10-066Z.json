@@ -1,0 +1,320 @@
+{
+  "pass": 36,
+  "fail": 12,
+  "skip": 4,
+  "total": 52,
+  "results": [
+    {
+      "cat": "ROUTES",
+      "test": "GET /",
+      "status": "PASS",
+      "detail": "HTTP 200"
+    },
+    {
+      "cat": "ROUTES",
+      "test": "GET /login",
+      "status": "PASS",
+      "detail": "HTTP 200"
+    },
+    {
+      "cat": "ROUTES",
+      "test": "GET /dashboard",
+      "status": "PASS",
+      "detail": "HTTP 200"
+    },
+    {
+      "cat": "ROUTES",
+      "test": "GET /configuracion-general",
+      "status": "PASS",
+      "detail": "HTTP 200"
+    },
+    {
+      "cat": "ROUTES",
+      "test": "GET /productos",
+      "status": "PASS",
+      "detail": "HTTP 200"
+    },
+    {
+      "cat": "ROUTES",
+      "test": "GET /cotizaciones",
+      "status": "PASS",
+      "detail": "HTTP 200"
+    },
+    {
+      "cat": "ROUTES",
+      "test": "GET /socios",
+      "status": "PASS",
+      "detail": "HTTP 200"
+    },
+    {
+      "cat": "ROUTES",
+      "test": "GET /vendedores",
+      "status": "PASS",
+      "detail": "HTTP 200"
+    },
+    {
+      "cat": "ROUTES",
+      "test": "GET /costos",
+      "status": "PASS",
+      "detail": "HTTP 200"
+    },
+    {
+      "cat": "ROUTES",
+      "test": "GET /inventario-materiales",
+      "status": "PASS",
+      "detail": "HTTP 200"
+    },
+    {
+      "cat": "ROUTES",
+      "test": "GET /inventario-troqueles",
+      "status": "PASS",
+      "detail": "HTTP 200"
+    },
+    {
+      "cat": "ROUTES",
+      "test": "GET /inventario-maquinas",
+      "status": "PASS",
+      "detail": "HTTP 200"
+    },
+    {
+      "cat": "ROUTES",
+      "test": "GET /inventario-procesos",
+      "status": "PASS",
+      "detail": "HTTP 200"
+    },
+    {
+      "cat": "ROUTES",
+      "test": "GET /inventario-tipos-salida",
+      "status": "PASS",
+      "detail": "HTTP 200"
+    },
+    {
+      "cat": "ROUTES",
+      "test": "GET /ordenes-produccion",
+      "status": "PASS",
+      "detail": "HTTP 200"
+    },
+    {
+      "cat": "ROUTES",
+      "test": "GET /reporteria",
+      "status": "PASS",
+      "detail": "HTTP 200"
+    },
+    {
+      "cat": "ROUTES",
+      "test": "GET /planificacion/dashboard-kpi",
+      "status": "PASS",
+      "detail": "HTTP 200"
+    },
+    {
+      "cat": "ASSETS",
+      "test": "GET /styles.css",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "cat": "ASSETS",
+      "test": "GET /css/style.css",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "cat": "ASSETS",
+      "test": "GET /reporteria.css",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "cat": "ASSETS",
+      "test": "GET /theme-extensions.css",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "cat": "ASSETS",
+      "test": "GET /vendedores-mobile.css",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "cat": "ASSETS",
+      "test": "GET /calculo-flexografia/styles.css",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "cat": "ASSETS",
+      "test": "GET /app.js",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "cat": "ASSETS",
+      "test": "GET /configuracion-general.js",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "cat": "ASSETS",
+      "test": "GET /dashboard.js",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "cat": "ASSETS",
+      "test": "GET /login.js",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "cat": "ASSETS",
+      "test": "GET /calculo-flexografia/app.js",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "cat": "ASSETS",
+      "test": "GET /calculo-flexografia/index.html",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "cat": "AUTH",
+      "test": "POST admin/admin emergency",
+      "status": "PASS",
+      "detail": "User: admin"
+    },
+    {
+      "cat": "AUTH",
+      "test": "POST wrong password",
+      "status": "FAIL",
+      "detail": "HTTP 500"
+    },
+    {
+      "cat": "AUTH",
+      "test": "POST empty credentials",
+      "status": "PASS",
+      "detail": "HTTP 400"
+    },
+    {
+      "cat": "AUTH",
+      "test": "POST administrador/admin",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "cat": "UPLOADS",
+      "test": "GET /uploads/troqueles/BC-01.jpg",
+      "status": "PASS",
+      "detail": "200 7107 bytes"
+    },
+    {
+      "cat": "UPLOADS",
+      "test": "GET /uploads/login-repository/1775693086059-img-0883.jpg",
+      "status": "PASS",
+      "detail": "200 2663026 bytes"
+    },
+    {
+      "cat": "DB_API",
+      "test": "GET /api/productos",
+      "status": "FAIL",
+      "detail": "DB connection failed (sanitized .env)"
+    },
+    {
+      "cat": "DB_API",
+      "test": "GET /api/cotizaciones",
+      "status": "FAIL",
+      "detail": "DB connection failed (sanitized .env)"
+    },
+    {
+      "cat": "DB_API",
+      "test": "GET /api/clientes",
+      "status": "FAIL",
+      "detail": "DB connection failed (sanitized .env)"
+    },
+    {
+      "cat": "DB_API",
+      "test": "GET /api/admin-users",
+      "status": "FAIL",
+      "detail": "DB connection failed (sanitized .env)"
+    },
+    {
+      "cat": "SAP",
+      "test": "GET /api/sap/config",
+      "status": "SKIP",
+      "detail": "HTTP 500: la autentificaci�n password fall� para el usuario �usuario�"
+    },
+    {
+      "cat": "SAP",
+      "test": "GET /api/sap/business-partners",
+      "status": "SKIP",
+      "detail": "HTTP 400: la autentificaci�n password fall� para el usuario �usuario�"
+    },
+    {
+      "cat": "SAP",
+      "test": "GET /api/sap/items",
+      "status": "SKIP",
+      "detail": "HTTP 400: la autentificaci�n password fall� para el usuario �usuario�"
+    },
+    {
+      "cat": "SAP",
+      "test": "GET /api/sap/import-jobs",
+      "status": "SKIP",
+      "detail": "HTTP 500: la autentificaci�n password fall� para el usuario �usuario�"
+    },
+    {
+      "cat": "ERROR",
+      "test": "GET /ruta-inexistente",
+      "status": "PASS",
+      "detail": "HTTP 404"
+    },
+    {
+      "cat": "ERROR",
+      "test": "GET /api/ruta-inexistente",
+      "status": "PASS",
+      "detail": "HTTP 404"
+    },
+    {
+      "cat": "MISSING",
+      "test": "GET /notificaciones",
+      "status": "FAIL",
+      "detail": "HTTP 404 - route not mapped"
+    },
+    {
+      "cat": "MISSING",
+      "test": "GET /sap",
+      "status": "FAIL",
+      "detail": "HTTP 404 - route not mapped"
+    },
+    {
+      "cat": "MISSING",
+      "test": "GET /solicitudes",
+      "status": "FAIL",
+      "detail": "HTTP 404 - route not mapped"
+    },
+    {
+      "cat": "MISSING",
+      "test": "GET /calculos",
+      "status": "FAIL",
+      "detail": "HTTP 404 - route not mapped"
+    },
+    {
+      "cat": "MISSING",
+      "test": "GET /ordenes",
+      "status": "FAIL",
+      "detail": "HTTP 404 - route not mapped"
+    },
+    {
+      "cat": "MISSING",
+      "test": "GET /seguimiento",
+      "status": "FAIL",
+      "detail": "HTTP 404 - route not mapped"
+    },
+    {
+      "cat": "MISSING",
+      "test": "GET /produccion",
+      "status": "FAIL",
+      "detail": "HTTP 404 - route not mapped"
+    }
+  ]
+}

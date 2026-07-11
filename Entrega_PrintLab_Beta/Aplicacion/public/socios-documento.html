@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/theme.js"></script>
+    <title>Socio</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <main class="workspace socios-workspace socios-documento-workspace">
+        <section class="socios-codes socios-codes-single">
+            <div class="socios-code-card socios-code-card-primary">
+                <div class="socios-code-main">
+                    <span>Código Cliente</span>
+                    <div class="socios-code-value-row">
+                        <button id="prevSocioButton" type="button" class="plain-icon socios-nav-btn" aria-label="Socio anterior" hidden></button>
+                        <strong id="partnerCode">-</strong>
+                        <button id="nextSocioButton" type="button" class="plain-icon socios-nav-btn" aria-label="Siguiente socio" hidden></button>
+                    </div>
+                </div>
+            </div>
+            <div class="socios-code-card socios-code-card-name">
+                <span>Nombre del socio</span>
+                <strong id="partnerNameHero">-</strong>
+            </div>
+        </section>
+
+        <nav class="socios-detail-tabs standard-module-tabs" aria-label="Detalle del socio">
+            <button type="button" class="standard-module-tab is-active" data-socio-tab="cliente">Datos del Cliente</button>
+            <button type="button" class="standard-module-tab" data-socio-tab="manejo">Manejo y Entrega</button>
+        </nav>
+
+        <section class="socios-content">
+            <div id="socio-tab-cliente" class="socios-tab-panel is-active" data-socio-panel="cliente">
+            <div class="socios-overview-layout">
+                <div class="socios-section">
+                    <div class="section-caption">Información General</div>
+                    <div class="socios-grid socios-grid-general-summary">
+                        <div class="field"><label>Vendedor</label><input id="salesperson" type="text"></div>
+                        <div class="field"><label>Correo General</label><input id="generalEmail" type="text"></div>
+                        <div class="field"><label>Fecha de Creación</label><input id="creationDate" type="text"></div>
+                    </div>
+                </div>
+
+                <div class="socios-section">
+                    <div class="section-caption">Información Financiera</div>
+                    <div class="socios-grid socios-grid-financial">
+                        <div class="field"><label>Id Fiscal</label><input id="taxId" type="text"></div>
+                        <div class="field"><label>Correo de Facturación</label><input id="invoiceEmail" type="text"></div>
+                        <div class="field"><label>Días de Crédito</label><input id="paymentTerms" type="text"></div>
+                        <div class="field"><label>Moneda</label><input id="currencyCode" type="text"></div>
+                        <div class="field"><label>Sector</label><input id="sector" type="text"></div>
+                        <div class="field"><label>Sub-sector</label><input id="subSector" type="text"></div>
+                        <div class="field field-checkbox-inline">
+                            <label for="taxExempt">Socio Exento</label>
+                            <input id="taxExempt" type="checkbox">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="socios-section socios-quality-section">
+                    <div class="section-caption">Información de Calidad</div>
+                    <div class="socios-grid socios-grid-quality">
+                        <div class="field field-checkbox-inline">
+                            <label for="requiereCartilla">Cartilla</label>
+                            <input id="requiereCartilla" type="checkbox">
+                        </div>
+                        <div class="field field-checkbox-inline">
+                            <label for="requiereCertificado">Certificado</label>
+                            <input id="requiereCertificado" type="checkbox">
+                        </div>
+                        <div class="field field-checkbox-inline">
+                            <label for="usarCartilla">Usar Cartilla</label>
+                            <input id="usarCartilla" type="checkbox">
+                        </div>
+                        <div class="field"><label>Unidad</label><input id="unidadDefecto" type="text"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="socios-section">
+                <div class="section-caption">Contacto Principal</div>
+                <div class="socios-contact-layout">
+                    <div class="socios-grid socios-grid-contact">
+                        <div class="field"><label>Nombre</label><input id="contactFirstName" type="text"></div>
+                        <div class="field"><label>Apellido</label><input id="contactLastName" type="text"></div>
+                        <div class="field"><label>Identificación</label><input id="contactId" type="text"></div>
+                        <div class="field"><label>Celular</label><input id="contactMobile" type="text"></div>
+                        <div class="field"><label>Correo</label><input id="contactEmail" type="text"></div>
+                        <div class="field"><label>Fax</label><input id="contactFax" type="text"></div>
+                        <div class="field"><label>Teléfono</label><input id="contactPhone" type="text"></div>
+                        <div class="field field-checkbox-inline">
+                            <label for="contactLegalRepresentative">Rep. Legal</label>
+                            <input id="contactLegalRepresentative" type="checkbox">
+                        </div>
+                        <div class="field"><label>País</label><input id="contactCountry" type="text"></div>
+                        <div class="field"><label>Estado o Provincia</label><input id="contactState" type="text"></div>
+                        <div class="field"><label>Cantón</label><input id="contactCounty" type="text"></div>
+                        <div class="field field-full"><label>Detalle de Dirección</label><input id="contactAddress" type="text"></div>
+                    </div>
+                    <aside class="socios-map-card">
+                        <div class="socios-map-head">
+                            <span>Ubicación</span>
+                            <a id="contactMapLink" href="https://maps.google.com/" target="_blank" rel="noopener noreferrer" class="browser-open-link socios-map-open" aria-label="Abrir ubicación en Google Maps">↗</a>
+                        </div>
+                        <p id="contactMapSummary" class="socios-map-summary">Buscando referencia de la dirección del socio.</p>
+                        <iframe id="contactMapFrame" class="socios-map-frame" title="Mapa del socio" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                    </aside>
+                </div>
+            </div>
+
+            <div class="socios-related-layout">
+                <div class="socios-section">
+                    <div class="section-caption">Contactos del Socio</div>
+                    <div class="socios-table-wrap">
+                        <table class="quote-table socios-table">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Puesto</th>
+                                    <th>Email</th>
+                                    <th>Teléfono</th>
+                                    <th>Celular</th>
+                                    <th>Rep. Legal</th>
+                                    <th>Provincia</th>
+                                </tr>
+                            </thead>
+                            <tbody id="contactsTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="socios-section">
+                    <div class="section-caption">Direcciones del Socio</div>
+                    <div class="socios-table-wrap">
+                        <table class="quote-table socios-table">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Tipo</th>
+                                    <th>País</th>
+                                    <th>Provincia</th>
+                                    <th>Cantón</th>
+                                    <th>Dirección</th>
+                                </tr>
+                            </thead>
+                            <tbody id="addressesTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            </div>
+
+            <div id="socio-tab-manejo" class="socios-tab-panel" data-socio-panel="manejo" hidden>
+            <div class="socios-handling-delivery-layout">
+                <div class="socios-section">
+                    <div class="section-caption">Manejo</div>
+                    <div class="socios-grid socios-grid-handling-paired">
+                        <div class="field"><label>Excedentes</label><select id="manejoExcedentes"></select></div>
+                        <div class="field"><label>% Excedentes</label><input id="allowedPercentage" type="text"></div>
+                        <div class="field"><label>Adelantos</label><select id="manejoAdelantos"></select></div>
+                        <div class="field"><label>% Adelantos</label><input id="adelantosPorcentaje" type="text"></div>
+                        <div class="field"><label>Faltantes</label><select id="manejoFaltantes"></select></div>
+                        <div class="field"><label>% Faltantes</label><input id="faltantesPorcentaje" type="text"></div>
+                    </div>
+                </div>
+
+                <div class="socios-section">
+                    <div class="section-caption">Entrega</div>
+                    <div class="socios-grid socios-grid-delivery-new">
+                        <div class="field"><label>Entrega Muestras</label><select id="entregaMuestras"></select></div>
+                        <div class="field"><label>Indicaciones</label><input id="indicacionesEntrega" type="text"></div>
+                        <div class="socios-delivery-group">
+                            <div class="socios-delivery-group-title">Visto Bueno</div>
+                            <div class="socios-grid socios-grid-delivery-group">
+                                <div class="field"><label>Contacto</label><select id="contactoVB"></select></div>
+                                <div class="field"><label>Teléfono</label><input id="contactoVBTelefono" type="text"></div>
+                                <div class="field"><label>Correo</label><input id="contactoVBCorreo" type="text"></div>
+                                <div class="field"><label>Detalle</label><input id="indicacionesVB" type="text"></div>
+                            </div>
+                        </div>
+                        <div class="socios-delivery-group">
+                            <div class="socios-delivery-group-title">Producto</div>
+                            <div class="socios-grid socios-grid-delivery-group">
+                                <div class="field"><label>Contacto</label><select id="contactoProducto"></select></div>
+                                <div class="field"><label>Teléfono</label><input id="contactoProductoTelefono" type="text"></div>
+                                <div class="field"><label>Correo</label><input id="contactoProductoCorreo" type="text"></div>
+                                <div class="field"><label>Detalle</label><input id="indicacionesProducto" type="text"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="/access-control.js"></script>
+    <script src="/socios-documento.js"></script>
+</body>
+</html>

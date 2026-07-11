@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/theme.js"></script>
+    <title>Inventario Troqueles</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <main class="workspace workspace-quote quote-browser-main">
+        <section class="quote-card quote-card-clean quote-browser-card inventory-browser-card">
+            <div class="quote-browser-search-row inventory-browser-search-row">
+                <div class="quote-browser-search-wrap">
+                    <input id="troquelesSearchInput" class="copy-popover-search quote-browser-search" type="search" placeholder="Buscar por código, descripción o estado">
+                </div>
+            </div>
+
+            <div class="copy-popover-table-wrap quote-browser-table-wrap inventory-browser-table-wrap">
+                <table class="copy-popover-table quote-browser-table">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Descripción</th>
+                            <th>Ancho in</th>
+                            <th>Largo in</th>
+                            <th>Desarrollo</th>
+                            <th>Dientes</th>
+                            <th>Filas</th>
+                            <th>Repeticiones</th>
+                            <th>Estado</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="troquelesTableBody"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+    <script src="/access-control.js"></script>
+    <script src="/inventario-troqueles.js"></script>
+</body>
+</html>

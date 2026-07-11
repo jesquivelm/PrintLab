@@ -1,0 +1,54 @@
+========================================
+PrintLab - Version de Entrega BETA
+========================================
+
+Fecha: 2026-07-10
+Hora: 10:39 (UTC-6)
+Version: BETA 1.0.1
+Proyecto: PrintLab ERP - Cotizador de Flexografia
+
+--- Entorno de Desarrollo ---
+Node.js: v24.11.1
+NPM: v11.6.2
+PostgreSQL: 18.3 (servidor remoto: Aiven Cloud)
+Sistema Operativo: Windows
+
+--- Proyecto ---
+Tamano original: ~580 MB (incluyendo .git 452 MB y node_modules 47 MB)
+Tamano final: ~150 MB (sin node_modules, sin .git, ofuscado)
+Archivos backend ofuscados: 7
+Respaldos de base de datos: PrintLab.sql (85.6 MB) + PrintLab.backup (12.2 MB)
+
+--- Estado de Validacion ---
+VALIDADO - La aplicacion se inicio correctamente, responde en puerto 3000,
+sirve archivos estaticos, autenticacion funciona (HTTP 200 admin, HTTP 401 wrong pass),
+7 redirecciones 301 agregadas para rutas renombradas,
+backend ofuscado, base de datos respaldada.
+Verificar: Verificacion/resultados-validacion.txt y Verificacion/reporte-qa-completo.md
+
+--- Dependencias ---
+Produccion: express, cors, body-parser, dotenv, pg, sqlite3, sharp, xlsx
+Desarrollo: nodemon, javascript-obfuscator
+
+--- Archivos Eliminados/Limpieza ---
+- .vs/ (Visual Studio)
+- logs/ (logs de ejecucion)
+- scratch/ (scripts de prueba, contenian credenciales)
+- outputs/ (archivos demo)
+- artifacts/ (capturas de pantalla)
+- repomix-output.xml (16 MB, XML de referencia)
+- tmp_catalogs.json (1.3 MB, temporal)
+- cotizador.db (SQLite de desarrollo)
+- Proceso_Troquel.png (imagen no referenciada)
+
+--- Archivos Movidos a Revisar/ ---
+- backups/ (respaldos de desarrollo, 25 MB)
+- id_local / id_local.pub (llaves SSH)
+- integrations/ (codigo legacy)
+- db/postgres (2).js (archivo duplicado)
+- db/server.js (servidor duplicado)
+- public/Last/ (archivos de version anterior)
+- public/* - copia.* (archivos con " - copia" en nombre)
+- obfuscated-backup/ (backups de archivos antes de ofuscar)
+
+========================================
