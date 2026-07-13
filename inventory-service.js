@@ -510,6 +510,9 @@ await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS sustrato_consum
 await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS sustrato_setup_merma_cantidad DECIMAL(12,4) DEFAULT 0`);
 await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS sustrato_setup_merma_unidad VARCHAR(20) DEFAULT 'pies'`);
 await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS sustrato_setup_merma_base VARCHAR(20) DEFAULT 'trabajo'`);
+await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS sustrato_montaje_merma_cantidad DECIMAL(12,4) DEFAULT 0`);
+await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS sustrato_montaje_merma_unidad VARCHAR(20) DEFAULT 'pies'`);
+await client.query(`ALTER TABLE maquina ADD COLUMN IF NOT EXISTS sustrato_montaje_merma_base VARCHAR(20) DEFAULT 'trabajo'`);
   await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS largo_mm DECIMAL(12,4)`);
 await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS costo_x_lamina DECIMAL(12,6)`);
 await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS costo_x_libra DECIMAL(12,6)`);
@@ -527,6 +530,8 @@ await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS premier_preapl
 await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS premier_consumo_g_m2 DECIMAL(12,6) DEFAULT 0.65`);
 await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS premier_costo_x_kg DECIMAL(12,6) DEFAULT 0`);
 await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS premier_costo_x_m2 DECIMAL(12,6) DEFAULT 0`);
+await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS costo_x_pie DECIMAL(12,6) DEFAULT 0`);
+await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS costo_x_metro DECIMAL(12,6) DEFAULT 0`);
 await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS comentario_ancho_mm TEXT`);
     await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS comentario_largo_mm TEXT`);
     await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS comentario_gramaje_g_m2 TEXT`);
@@ -816,6 +821,8 @@ async function listMaterials({ q = '', limit = 300 } = {}) {
             familia_proceso,
             clasificacion,
             costo_x_unidad,
+            costo_x_pie,
+            costo_x_metro,
             merma_pct,
             rendimiento_g_ft2,
             temperatura_aplicacion_c,
@@ -1022,6 +1029,9 @@ async function listMaquinas({ q = '', limit = 300 } = {}) {
             m.sustrato_setup_merma_cantidad,
             m.sustrato_setup_merma_unidad,
             m.sustrato_setup_merma_base,
+            m.sustrato_montaje_merma_cantidad,
+            m.sustrato_montaje_merma_unidad,
+            m.sustrato_montaje_merma_base,
             COALESCE(m.especificaciones, '{}'::jsonb) AS especificaciones,
             COALESCE(
                 json_agg(
@@ -1200,6 +1210,8 @@ async function saveMaterial(payload) {
             normalizeMaterialFamily(payload.familia_proceso || inferMaterialFamily(payload)),
             asText(payload.clasificacion),
             asNullableNumber(payload.costo_x_unidad),
+            asNumber(payload.costo_x_pie, 0),
+            asNumber(payload.costo_x_metro, 0),
             asNullableNumber(payload.merma_pct),
             asNullableNumber(payload.rendimiento_g_ft2) ?? gsmToGPerFt2(payload.peso_capa_gsm),
             asNullableNumber(payload.temperatura_aplicacion_c),
@@ -1252,34 +1264,36 @@ async function saveMaterial(payload) {
                         familia_proceso = $14,
                         clasificacion = $15,
                         costo_x_unidad = $16,
-                        merma_pct = $17,
-                        rendimiento_g_ft2 = $18,
-                        temperatura_aplicacion_c = $19,
-                        tipo_transferencia = $20,
-                        tipo_superficie = $21,
-                        requiere_premier = $22,
-                        premier_preaplicado = $23,
-                        premier_consumo_g_m2 = $24,
-                        premier_costo_x_kg = $25,
-                        premier_costo_x_m2 = $26,
-                        comentario_ancho_mm = $27,
-                        comentario_largo_mm = $28,
-                        comentario_gramaje_g_m2 = $29,
-                        comentario_calibre_micras = $30,
-                        comentario_costo_x_lamina = $31,
-                        comentario_costo_x_msi = $32,
-                        comentario_costo_x_m2 = $33,
-                        comentario_costo_x_kg = $34,
-                        comentario_costo_x_libra = $35,
-                        comentario_peso_capa_gsm = $36,
-                        comentario_rendimiento_g_ft2 = $37,
-                        comentario_compatible_convencional = $38,
-                        comentario_compatible_digital = $39,
-                        comentario_tipo_proforma = $40,
-                        compatible_convencional = $41,
-                        compatible_digital = $42,
-                        tipo_proforma = $43,
-                        activo = $44,
+                        costo_x_pie = $17,
+                        costo_x_metro = $18,
+                        merma_pct = $19,
+                        rendimiento_g_ft2 = $20,
+                        temperatura_aplicacion_c = $21,
+                        tipo_transferencia = $22,
+                        tipo_superficie = $23,
+                        requiere_premier = $24,
+                        premier_preaplicado = $25,
+                        premier_consumo_g_m2 = $26,
+                        premier_costo_x_kg = $27,
+                        premier_costo_x_m2 = $28,
+                        comentario_ancho_mm = $29,
+                        comentario_largo_mm = $30,
+                        comentario_gramaje_g_m2 = $31,
+                        comentario_calibre_micras = $32,
+                        comentario_costo_x_lamina = $33,
+                        comentario_costo_x_msi = $34,
+                        comentario_costo_x_m2 = $35,
+                        comentario_costo_x_kg = $36,
+                        comentario_costo_x_libra = $37,
+                        comentario_peso_capa_gsm = $38,
+                        comentario_rendimiento_g_ft2 = $39,
+                        comentario_compatible_convencional = $40,
+                        comentario_compatible_digital = $41,
+                        comentario_tipo_proforma = $42,
+                        compatible_convencional = $43,
+                        compatible_digital = $44,
+                        tipo_proforma = $45,
+                        activo = $46,
                         actualizado_en = NOW()
                   WHERE id = $1::uuid
                   RETURNING id::text`,
@@ -1295,7 +1309,8 @@ async function saveMaterial(payload) {
         const result = await client.query(
             `INSERT INTO material (
                 tenant_id, codigo, nombre, ancho_mm, largo_mm, gramaje_g_m2, calibre_micras, costo_x_lamina, costo_x_msi,
-                costo_x_m2, costo_x_kg, costo_x_libra, peso_capa_gsm, familia_proceso, clasificacion, costo_x_unidad, merma_pct,
+                costo_x_m2, costo_x_kg, costo_x_libra, peso_capa_gsm, familia_proceso, clasificacion, costo_x_unidad,
+                costo_x_pie, costo_x_metro, merma_pct,
                 rendimiento_g_ft2, temperatura_aplicacion_c, tipo_transferencia,
                 tipo_superficie, requiere_premier, premier_preaplicado, premier_consumo_g_m2, premier_costo_x_kg,
                 premier_costo_x_m2, comentario_ancho_mm, comentario_largo_mm, comentario_gramaje_g_m2, comentario_calibre_micras,
@@ -1304,7 +1319,7 @@ async function saveMaterial(payload) {
                 comentario_compatible_convencional, comentario_compatible_digital, comentario_tipo_proforma,
                 compatible_convencional, compatible_digital, tipo_proforma, activo
              ) VALUES (
-                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44
+                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46
              )
              ON CONFLICT (tenant_id, codigo) DO UPDATE SET
                 nombre = EXCLUDED.nombre,
@@ -1321,6 +1336,8 @@ async function saveMaterial(payload) {
                 familia_proceso = EXCLUDED.familia_proceso,
                 clasificacion = EXCLUDED.clasificacion,
                 costo_x_unidad = EXCLUDED.costo_x_unidad,
+                costo_x_pie = EXCLUDED.costo_x_pie,
+                costo_x_metro = EXCLUDED.costo_x_metro,
                 merma_pct = EXCLUDED.merma_pct,
                 rendimiento_g_ft2 = EXCLUDED.rendimiento_g_ft2,
                 temperatura_aplicacion_c = EXCLUDED.temperatura_aplicacion_c,
@@ -1340,8 +1357,8 @@ async function saveMaterial(payload) {
                 comentario_costo_x_m2 = EXCLUDED.comentario_costo_x_m2,
                 comentario_costo_x_kg = EXCLUDED.comentario_costo_x_kg,
                 comentario_costo_x_libra = EXCLUDED.comentario_costo_x_libra,
-                comentario_peso_capa_gsm = EXCLUDED.comentario_peso_capa_gsm,
-                comentario_rendimiento_g_ft2 = EXCLUDED.comentario_rendimiento_g_ft2,
+                comentario_peso_capa_gsm = EXCLUDED.peso_capa_gsm,
+                comentario_rendimiento_g_ft2 = EXCLUDED.rendimiento_g_ft2,
                 comentario_compatible_convencional = EXCLUDED.comentario_compatible_convencional,
                 comentario_compatible_digital = EXCLUDED.comentario_compatible_digital,
                 comentario_tipo_proforma = EXCLUDED.comentario_tipo_proforma,
@@ -1598,6 +1615,9 @@ async function saveMachine(payload) {
             asNumber(payload.sustrato_setup_merma_cantidad, 0),
             asText(payload.sustrato_setup_merma_unidad || 'pies'),
             asText(payload.sustrato_setup_merma_base || 'trabajo'),
+            asNumber(payload.sustrato_montaje_merma_cantidad, 0),
+            asText(payload.sustrato_montaje_merma_unidad || 'pies'),
+            asText(payload.sustrato_montaje_merma_base || 'trabajo'),
             payload.especificaciones || {}
         ];
 
@@ -1659,7 +1679,10 @@ async function saveMachine(payload) {
                         sustrato_setup_merma_cantidad = $34,
                         sustrato_setup_merma_unidad = $35,
                         sustrato_setup_merma_base = $36,
-                        especificaciones = $37::jsonb,
+                        sustrato_montaje_merma_cantidad = $37,
+                        sustrato_montaje_merma_unidad = $38,
+                        sustrato_montaje_merma_base = $39,
+                        especificaciones = $40::jsonb,
                         actualizado_en = NOW()
                   WHERE id = $1::uuid
                   RETURNING id::text`,
@@ -1680,9 +1703,10 @@ async function saveMachine(payload) {
                     digital_velocidad_extendida_mpm, digital_gramaje_cmyk_g_m2, digital_gramaje_blanco_g_m2,
                     digital_factor_merma, digital_costo_lavado_especial, digital_premier_modo, digital_premier_setup_min,
                     digital_premier_costo_mantenimiento, digital_premier_costo_offline_m, sustrato_consumo_unidad,
-                    sustrato_setup_merma_cantidad, sustrato_setup_merma_unidad, sustrato_setup_merma_base, especificaciones
+                    sustrato_setup_merma_cantidad, sustrato_setup_merma_unidad, sustrato_setup_merma_base,
+                    sustrato_montaje_merma_cantidad, sustrato_montaje_merma_unidad, sustrato_montaje_merma_base, especificaciones
                  ) VALUES (
-                    $1,$2,$3,$4,$5::proceso_productivo,$6,$7,$11,$12,$13,$14,$15,$16,$8,$9,$10,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37::jsonb
+                    $1,$2,$3,$4,$5::proceso_productivo,$6,$7,$11,$12,$13,$14,$15,$16,$8,$9,$10,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40::jsonb
                  )
                  RETURNING id::text`,
                 machineValues

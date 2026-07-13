@@ -1354,7 +1354,9 @@ function applyCostsConfigToCurrentLine(force = false) {
   const applyFinishWaste = (finish) => {
     if (!finish || typeof finish !== "object") return;
     const wasteDefaults = finishWasteDefault(finish.processKey);
-    finish.setupWasteFeet = wasteDefaults.setupWasteFeet;
+    const machine = findMachine(finish.machineId);
+    const machineWaste = firstPositiveNumber(machine?.sustratoSetupMermaCantidad, 0);
+    finish.setupWasteFeet = n(finish.setupWasteFeet, 0) > 0 ? n(finish.setupWasteFeet, 0) : (machineWaste > 0 ? machineWaste : wasteDefaults.setupWasteFeet);
     finish.operationWastePct = wasteDefaults.operationWastePct;
   };
 
@@ -2004,7 +2006,7 @@ function defaultMaculaConfig() {
 
 function machineStartupWasteFeet(machineId = "") {
   const machine = findMachine(machineId);
-  return firstPositiveNumber(machine?.maculaDefaultFeet, machine?.macula_default_pies, machine?.startupWasteFeet, machine?.setupWasteFeet, 0);
+  return firstPositiveNumber(machine?.maculaDefaultFeet, machine?.macula_default_pies, machine?.sustratoSetupMermaCantidad, machine?.startupWasteFeet, machine?.setupWasteFeet, 0);
 }
 
 function defaultPrintMaculaSetupFeet(machineId = "") {
@@ -2119,8 +2121,9 @@ function applyInlineFinishSetupDefaults(stageIndex, inlineKey, force = false) {
   inline.setupMinutes = force || n(inline.setupMinutes, 0) <= 0
     ? inlineFinishSetupMinutes(inlineKey)
     : n(inline.setupMinutes, 0);
+  const stageMachine = findMachine(stage.machineId);
   inline.setupWasteFeet = force || n(inline.setupWasteFeet, 0) <= 0
-    ? inlineFinishSetupWasteFeet(inlineKey)
+    ? firstPositiveNumber(stageMachine?.sustratoSetupMermaCantidad, inlineFinishSetupWasteFeet(inlineKey), 0)
     : n(inline.setupWasteFeet, 0);
   if (inlineKey === "barniz") {
     inline.varnishBcm = force || n(inline.varnishBcm, 0) <= 0
@@ -4565,8 +4568,8 @@ function buildForm() {
     substrate: {
       materialId,
       unit: "pies",
-      costPerFoot: r((((processMsi * n(context?.materialWidth || context?.widthInches, 0)) / 1000) || 0) * 12, 6),
-      costPerMeter: r((((processMsi * n(context?.materialWidth || context?.widthInches, 0)) / 1000) || 0) / 0.0254, 6),
+      costPerFoot: material ? materialUnitCosts(material, n(context?.materialWidth || context?.widthInches, 0)).costPerFoot : r((((processMsi * n(context?.materialWidth || context?.widthInches, 0)) / 1000) || 0) * 12, 6),
+      costPerMeter: material ? materialUnitCosts(material, n(context?.materialWidth || context?.widthInches, 0)).costPerMeter : r((((processMsi * n(context?.materialWidth || context?.widthInches, 0)) / 1000) || 0) / 0.0254, 6),
       costPerMsi: r(processMsi, 6)
     },
     design: { artCount: Math.max(1, n(context?.quantityTypes, n(raw["CANTIDAD TIPOS"], n(raw["CANTIDAD ARTES"], 1)))), timePerArt: 0.75, changeFactor: 0.5, hourCost: n(findProcessByKeywords(["diseno"])?.costo_hora_operario, 15) },
@@ -7619,10 +7622,10 @@ function renderInlinePrintBlock(stage, stageIndex, inline) {
       const plateFields = [];
       const processFields = [
         `<label><span>Montaje <span class="field-unit">min</span></span>${displayInput(scope, "setupMinutes", inline.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label>`,
+        `<label><span>Costo Máquina <span class="field-unit">$/h</span></span>${displayInput(scope, "costHourMachine", inline.costHourMachine, { prefix: "$", maximumFractionDigits: 2 })}</label>`,
+        `<label><span>Costo Operador <span class="field-unit">$/h</span></span>${displayInput(scope, "costHourOperator", inline.operatorHourCost || inline.costHourOperator, { prefix: "$", maximumFractionDigits: 2 })}</label>`,
         ...(isInlineDie ? [] : [
-          `<label><span>Velocidad <span class="field-unit">ft/min</span></span>${displayInput(scope, "speed", inline.speed, { suffix: "ft/min", maximumFractionDigits: 4 })}</label>`,
-          `<label><span>Costo Máquina <span class="field-unit">$/h</span></span>${displayInput(scope, "costHourMachine", inline.costHourMachine, { prefix: "$", maximumFractionDigits: 2 })}</label>`,
-          `<label><span>Costo Operador <span class="field-unit">$/h</span></span>${displayInput(scope, "costHourOperator", inline.operatorHourCost || inline.costHourOperator, { prefix: "$", maximumFractionDigits: 2 })}</label>`
+          `<label><span>Velocidad <span class="field-unit">ft/min</span></span>${displayInput(scope, "speed", inline.speed, { suffix: "ft/min", maximumFractionDigits: 4 })}</label>`
         ]),
         `<label><span>Merma Ajuste <span class="field-unit">ft</span></span>${displayInput(scope, "setupWasteFeet", inline.setupWasteFeet, { suffix: "ft", maximumFractionDigits: 2 })}</label>`,
         ...(isInlineDie ? [] : [`<label><span>Merma Operación <span class="field-unit">%</span></span>${displayInput(scope, "operationWastePct", inline.operationWastePct, { suffix: "%", maximumFractionDigits: 2 })}</label>`])
@@ -7850,9 +7853,9 @@ function renderExternalFinishCard(config, finish, index, orderNumber) {
   const machineFields = [
     `<label class="span-2"><span>Máquina</span><select data-scope="${scope}" data-field="machineId">${processOptions(machineOptions, finish.machineId)}</select></label>`,
     `<label><span>Montaje <span class="field-unit">min</span></span>${displayInput(scope, "setupMinutes", finish.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label>`,
-    `<label><span>Velocidad <span class="field-unit">ft/min</span></span>${displayInput(scope, "speed", finish.speed, { suffix: speedSuffix, maximumFractionDigits: 4 })}</label>`,
     `<label><span>Costo Máquina <span class="field-unit">$/h</span></span>${displayInput(scope, "costHourMachine", finish.costHourMachine, { prefix: "$", maximumFractionDigits: 2 })}</label>`,
     `<label><span>Costo Operador <span class="field-unit">$/h</span></span>${displayInput(scope, "costHourOperator", finish.costHourOperator, { prefix: "$", maximumFractionDigits: 2 })}</label>`,
+    `<label><span>Velocidad <span class="field-unit">ft/min</span></span>${displayInput(scope, "speed", finish.speed, { suffix: speedSuffix, maximumFractionDigits: 4 })}</label>`,
     `<label><span>Merma Ajuste <span class="field-unit">ft</span></span>${displayInput(scope, "setupWasteFeet", finish.setupWasteFeet, { suffix: "ft", maximumFractionDigits: 2 })}</label>`,
     `<label><span>Merma Operación <span class="field-unit">%</span></span>${displayInput(scope, "operationWastePct", finish.operationWastePct, { suffix: "%", maximumFractionDigits: 2 })}</label>`
   ];
@@ -8234,10 +8237,12 @@ function applyFinishMachineDefaults(scope, machineId) {
     : null;
   const selectedMaterial = findMaterial(finish.materialId) || defaultMaterial;
   const costs = materialUnitCosts(selectedMaterial, state.form.header.rollWidthIn);
+  const machineWaste = firstPositiveNumber(machine?.sustratoSetupMermaCantidad, 0);
   Object.assign(finish, {
     machineId,
     machineName: machineDisplayName(machine) || finish.machineName,
     setupMinutes: firstPositiveNumber(machine.setupBaseMinutes, capacity?.tiempo_preparacion_general, finish.setupMinutes),
+    setupWasteFeet: n(finish.setupWasteFeet, 0) > 0 ? n(finish.setupWasteFeet, 0) : (machineWaste > 0 ? machineWaste : finish.setupWasteFeet),
     speed: firstPositiveNumber(machine.productionSpeed, capacity?.velocidad_produccion, finish.speed),
     costHour: firstPositiveNumber(machine.hourlyMachineCost, capacity?.costo_hora_maquina, finish.costHour),
     costHourMachine: firstPositiveNumber(machine.hourlyMachineCost, capacity?.costo_hora_maquina, finish.costHourMachine),
@@ -8280,6 +8285,7 @@ function applyPrintMachineDefaults(machineId) {
     return haystack.includes("impresion") || haystack.includes("digital");
   }) || primaryMachineCapacity(machine);
   const mountingMinutes = firstPositiveNumber(machine.setupPerStationMinutes, capacity?.tiempo_por_estacion, 0) * Math.max(1, effectiveColors(state.form));
+  const specColors = (() => { try { const s = typeof machine?.especificaciones === 'object' ? machine.especificaciones : JSON.parse(machine?.especificaciones || '{}'); return Number(s?.num_estaciones || ''); } catch (e) { return 0; } })();
   Object.assign(state.form.print, {
     machineId,
     machineName: machineDisplayName(machine) || state.form.print.machineName,
@@ -8288,7 +8294,7 @@ function applyPrintMachineDefaults(machineId) {
     speedMetersMin: printSpeedValue(firstPositiveNumber(machine.productionSpeed, capacity?.velocidad_produccion, 0)) || state.form.print.speedMetersMin,
     costHour: firstPositiveNumber(machine.hourlyMachineCost, capacity?.costo_hora_maquina, state.form.print.costHour),
     operatorHourCost: firstPositiveNumber(machine.hourlyOperatorCost, capacity?.costo_hora_operario, state.form.print.operatorHourCost),
-    availableColors: machineSupportsInline(machine) ? 8 : 4,
+    availableColors: specColors > 0 ? specColors : (machineSupportsInline(machine) ? 8 : 4),
     maculaSetupFeet: defaultPrintMaculaSetupFeet(machineId)
   });
   if (Array.isArray(state.form.printStages) && state.form.printStages.length) {
@@ -8310,6 +8316,7 @@ function applyPrintStageMachineDefaults(scope, machineId) {
   const isDigital = isDigitalProductionMachine(machine);
   const stations = Math.max(0, effectiveColors(state.form) + n(state.form.printStages[index].digitalSpecialColors, 0));
   const mountingMinutes = firstPositiveNumber(machine.setupPerStationMinutes, capacity?.tiempo_por_estacion, 0) * Math.max(1, effectiveColors(state.form));
+  const specColors = (() => { try { const s = typeof machine?.especificaciones === 'object' ? machine.especificaciones : JSON.parse(machine?.especificaciones || '{}'); return Number(s?.num_estaciones || ''); } catch (e) { return 0; } })();
   Object.assign(state.form.printStages[index], {
     machineId,
     machineName: machineDisplayName(machine) || state.form.printStages[index].machineName,
@@ -8318,7 +8325,7 @@ function applyPrintStageMachineDefaults(scope, machineId) {
     speedMetersMin: isDigital ? digitalSpeedForStations(machine, state.form.printStages[index], stations) : (printSpeedValue(firstPositiveNumber(machine.productionSpeed, capacity?.velocidad_produccion, 0)) || state.form.printStages[index].speedMetersMin),
     costHour: firstPositiveNumber(machine.hourlyMachineCost, capacity?.costo_hora_maquina, state.form.printStages[index].costHour),
     operatorHourCost: firstPositiveNumber(machine.hourlyOperatorCost, capacity?.costo_hora_operario, state.form.printStages[index].operatorHourCost),
-    availableColors: machineSupportsInline(machine) ? 8 : 4,
+    availableColors: specColors > 0 ? specColors : (machineSupportsInline(machine) ? 8 : 4),
     digitalBillingType: digitalSettings.billingType,
     digitalInkCostPerKg: digitalSettings.inkCostPerKg,
     digitalWhiteInkCostPerKg: digitalSettings.whiteInkCostPerKg,

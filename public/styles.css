@@ -8695,6 +8695,20 @@ body.inventory-route-maquinas.inventory-has-selection .inventory-editor-panel {
     width: 100%;
     box-sizing: border-box;
 }
+.inventory-form.inventory-form-materiales label.is-required span::after {
+    content: ' *';
+    color: #d32f2f;
+    font-weight: 700;
+}
+.inventory-form.inventory-form-materiales label.is-required input,
+.inventory-form.inventory-form-materiales label.is-required select {
+    border-color: #d32f2f;
+    box-shadow: 0 0 0 1px rgba(211, 47, 47, 0.15);
+}
+.inventory-form.inventory-form-materiales .material-code-name-row label.is-required input {
+    border-color: #d32f2f;
+    box-shadow: 0 0 0 1px rgba(211, 47, 47, 0.15);
+}
 .inventory-form.inventory-form-maquinas {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px 18px;

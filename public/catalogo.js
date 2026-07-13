@@ -112,6 +112,8 @@ function resolveRouteConfig() {
                     familia_proceso: '',
                     clasificacion: '',
                     costo_x_unidad: '',
+                    costo_x_pie: 0,
+                    costo_x_metro: 0,
                     merma_pct: '',
                     rendimiento_g_ft2: '',
                     temperatura_aplicacion_c: '',
@@ -917,6 +919,8 @@ function getFormFields() {
         { key: 'premier_preaplicado', label: 'Premier Preaplicado', type: 'checkbox', className: 'inventory-material-field' },
         { key: 'requiere_premier', label: 'Requiere Premier', type: 'checkbox', className: 'inventory-material-field' },
         { type: 'section', label: 'Costos', span: 2, tabKey: 'costos' },
+        { key: 'costo_x_pie', label: 'Costo x Pie Lineal', type: 'number', step: '0.000001', className: 'inventory-material-field' },
+        { key: 'costo_x_metro', label: 'Costo x Metro Lineal', type: 'number', step: '0.000001', className: 'inventory-material-field' },
         { key: 'costo_x_lamina', label: 'Costo Lámina', type: 'number', step: '0.000001', className: 'inventory-material-field' },
         { key: 'costo_x_libra', label: 'Costo Libra', type: 'number', step: '0.000001', className: 'inventory-material-field' },
         { key: 'costo_x_unidad', label: 'Costo Unidad', type: 'number', step: '0.000001', className: 'inventory-material-field' },
@@ -1548,6 +1552,23 @@ function ensureMaterialModal() {
 
     document.getElementById('materialSaveBtn').addEventListener('click', async () => {
         try {
+            if (isMaterialsInventory()) {
+                const classification = normalizeKey(catalogForm.elements.namedItem('clasificacion')?.value || catalogForm.elements.namedItem('familia_proceso')?.value || '');
+                if (classification === 'sustrato') {
+                    const missing = [];
+                    ['codigo', 'nombre', 'ancho_mm', 'costo_x_pie'].forEach((key) => {
+                        const el = catalogForm.elements.namedItem(key);
+                        const val = el ? el.value : '';
+                        if (!val || String(val).trim() === '' || Number(val) === 0) {
+                            missing.push(key);
+                        }
+                    });
+                    if (missing.length) {
+                        catalogStatus.textContent = 'Completa todos los campos requeridos antes de guardar.';
+                        return;
+                    }
+                }
+            }
             await saveCurrentRecord();
             closeMaterialModal();
         } catch (error) {
@@ -1672,6 +1693,47 @@ function buildMaterialTabbedForm(viewItem) {
         if (field) addFieldToPanel(field, digitalPanel);
     });
 
+    // Dynamic conversion between costo_x_pie and costo_x_metro
+    const pieInput = catalogForm.elements.namedItem('costo_x_pie');
+    const metroInput = catalogForm.elements.namedItem('costo_x_metro');
+    if (pieInput && metroInput) {
+        pieInput.addEventListener('input', () => {
+            const val = parseFloat(pieInput.value);
+            if (!isNaN(val) && val > 0) {
+                metroInput.value = (val / 0.3048).toFixed(6);
+            } else if (pieInput.value === '' || pieInput.value === '0') {
+                metroInput.value = '';
+            }
+        });
+        metroInput.addEventListener('input', () => {
+            const val = parseFloat(metroInput.value);
+            if (!isNaN(val) && val > 0) {
+                pieInput.value = (val * 0.3048).toFixed(6);
+            } else if (metroInput.value === '' || metroInput.value === '0') {
+                pieInput.value = '';
+            }
+        });
+    }
+
+    const substrateRequiredFields = ['codigo', 'nombre', 'ancho_mm', 'costo_x_pie'];
+    const requiredLabels = new Set();
+
+    const updateSubstrateRequiredFields = (isSubstrate) => {
+        requiredLabels.forEach((label) => label.classList.remove('is-required'));
+        requiredLabels.clear();
+        if (!isSubstrate) return;
+        substrateRequiredFields.forEach((key) => {
+            const el = catalogForm.elements.namedItem(key);
+            if (el) {
+                const label = el.closest('label');
+                if (label) {
+                    label.classList.add('is-required');
+                    requiredLabels.add(label);
+                }
+            }
+        });
+    };
+
     catalogForm.appendChild(tabBar);
     catalogForm.appendChild(panels);
 
@@ -1691,6 +1753,7 @@ function buildMaterialTabbedForm(viewItem) {
         if (digitalButton) digitalButton.hidden = !isSubstrate;
         const active = tabBar.querySelector('.inventory-material-tab.is-active');
         if (!isSubstrate && active?.dataset.materialTab === 'digital') setActiveTab('generales');
+        updateSubstrateRequiredFields(isSubstrate);
     };
 
     tabBar.addEventListener('click', (event) => {
