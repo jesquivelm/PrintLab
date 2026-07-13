@@ -289,6 +289,9 @@ function resolveRouteConfig() {
                 { key: 'sustrato_setup_merma_cantidad', label: 'Merma Sustrato Setup', type: 'number', step: '0.01', suffixSourceKey: 'sustrato_setup_merma_unidad' },
                 { key: 'sustrato_setup_merma_unidad', label: 'Unidad Merma Setup', type: 'select', options: [['pies', 'Pies'], ['metros', 'Metros']] },
                 { key: 'sustrato_setup_merma_base', label: 'Base Merma Setup', type: 'select', options: [['trabajo', 'Por Trabajo'], ['color', 'Por Color'], ['estacion', 'Por Estación'], ['cabezal', 'Por Cabezal']] },
+                { key: 'sustrato_montaje_merma_cantidad', label: 'Merma Sustrato Montaje', type: 'number', step: '0.01', suffixSourceKey: 'sustrato_montaje_merma_unidad' },
+                { key: 'sustrato_montaje_merma_unidad', label: 'Unidad Merma Montaje', type: 'select', options: [['pies', 'Pies'], ['metros', 'Metros']] },
+                { key: 'sustrato_montaje_merma_base', label: 'Base Merma Montaje', type: 'select', options: [['trabajo', 'Por Trabajo'], ['color', 'Por Color'], ['estacion', 'Por Estación'], ['cabezal', 'Por Cabezal']] },
                 { key: 'activa', label: 'Activa', type: 'checkbox', tab: 'general', span: 2 },
                 { type: 'section', label: 'Impresión Digital', span: 2, tabKey: 'digital' },
                 { key: 'digital_tipo_cobro', label: 'Tipo Cobro Digital', type: 'select', options: [['consumo', 'Consumo'], ['clic', 'Clic']] },
@@ -370,6 +373,9 @@ function resolveRouteConfig() {
                     sustrato_setup_merma_cantidad: 0,
                     sustrato_setup_merma_unidad: 'pies',
                     sustrato_setup_merma_base: 'trabajo',
+                    sustrato_montaje_merma_cantidad: 0,
+                    sustrato_montaje_merma_unidad: 'pies',
+                    sustrato_montaje_merma_base: 'trabajo',
                     factor_montaje_estacion: 0,
                     factor_preparacion: 0,
                     comentario_setup: '',
@@ -1506,16 +1512,82 @@ function buildMachineTabbedForm(viewItem) {
     catalogForm.elements.namedItem('tipo')?.addEventListener('change', syncTabsByType);
     catalogForm.elements.namedItem('unidad_velocidad_produccion')?.addEventListener('change', () => syncInventorySuffixes(catalogForm));
     catalogForm.elements.namedItem('sustrato_setup_merma_unidad')?.addEventListener('change', () => syncInventorySuffixes(catalogForm));
+    catalogForm.elements.namedItem('sustrato_montaje_merma_unidad')?.addEventListener('change', () => syncInventorySuffixes(catalogForm));
     setActiveTab('general');
     syncTabsByType();
 }
 
+let materialModalEl = null;
+let catalogFormOriginalParent = null;
+
+function ensureMaterialModal() {
+    if (materialModalEl) return materialModalEl;
+    materialModalEl = document.createElement('div');
+    materialModalEl.className = 'material-modal';
+    materialModalEl.innerHTML = `
+        <div class="material-modal-backdrop" data-mm-close="true"></div>
+        <div class="material-modal-panel" role="dialog" aria-modal="true" aria-label="Editar material">
+            <div class="material-modal-header">
+                <h2 id="materialModalTitle">Material</h2>
+                <button type="button" class="material-modal-close" data-mm-close="true" aria-label="Cerrar">&times;</button>
+            </div>
+            <div class="material-modal-body" id="materialModalBody"></div>
+            <div class="material-modal-footer">
+                <button type="button" class="action-btn" data-mm-close="true">Cancelar</button>
+                <button type="button" class="action-btn action-btn-primary" id="materialSaveBtn">Guardar</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(materialModalEl);
+
+    materialModalEl.addEventListener('click', (e) => {
+        if (e.target.closest('[data-mm-close]')) {
+            closeMaterialModal();
+        }
+    });
+
+    document.getElementById('materialSaveBtn').addEventListener('click', async () => {
+        try {
+            await saveCurrentRecord();
+            closeMaterialModal();
+        } catch (error) {
+            catalogStatus.textContent = error.message;
+        }
+    });
+
+    return materialModalEl;
+}
+
+function openMaterialModal(item) {
+    const modal = ensureMaterialModal();
+    catalogFormOriginalParent = catalogForm.parentNode;
+    const title = item.id ? (item.nombre || item.codigo || 'Material') : 'Nuevo material';
+    document.getElementById('materialModalTitle').textContent = title;
+
+    const body = modal.querySelector('#materialModalBody');
+    body.appendChild(catalogForm);
+
+    modal.classList.add('open');
+    document.body.classList.add('popover-open');
+}
+
+function closeMaterialModal() {
+    if (!materialModalEl) return;
+    materialModalEl.classList.remove('open');
+    document.body.classList.remove('popover-open');
+    if (catalogFormOriginalParent) {
+        catalogFormOriginalParent.appendChild(catalogForm);
+    }
+    if (isMaterialsInventory()) {
+        selectedId = '';
+        updateInventoryView('list');
+    }
+}
+
 function buildMaterialTabbedForm(viewItem) {
     const tabs = [
-        { key: 'datos', label: 'Datos del Material' },
-        { key: 'parametros', label: 'Parámetros Generales' },
-        { key: 'digital', label: 'Tratamiento Digital de Sustrato' },
-        { key: 'costos', label: 'Costos' }
+        { key: 'generales', label: 'Datos Generales' },
+        { key: 'digital', label: 'Tratamiento Digital de Sustrato' }
     ];
     const tabBar = document.createElement('div');
     tabBar.className = 'standard-module-tabs inventory-material-tabs';
@@ -1538,14 +1610,66 @@ function buildMaterialTabbedForm(viewItem) {
         panelMap.set(tab.key, panel);
     });
 
-    let currentTab = 'datos';
-    getFormFields().forEach((field) => {
+    const generalesPanel = panelMap.get('generales');
+    const digitalPanel = panelMap.get('digital');
+
+    const fields = getFormFields();
+
+    function addSectionHeading(panel, label) {
+        const div = document.createElement('div');
+        div.className = 'inventory-form-section';
+        div.innerHTML = '<strong>' + label + '</strong>';
+        panel.appendChild(div);
+    }
+
+    function addFieldToPanel(field, panel) {
         const control = createInput(field, viewItem[field.key]);
-        if (field.type === 'section' && field.tabKey) {
-            currentTab = field.tabKey;
+        panel.appendChild(control);
+    }
+
+    const codeRow = document.createElement('div');
+    codeRow.className = 'material-code-name-row';
+
+    const codigoField = fields.find((f) => f.key === 'codigo');
+    const nombreField = fields.find((f) => f.key === 'nombre');
+    if (codigoField) codeRow.appendChild(createInput(codigoField, viewItem.codigo));
+    if (nombreField) codeRow.appendChild(createInput(nombreField, viewItem.nombre));
+    generalesPanel.appendChild(codeRow);
+
+    const hiddenFields = ['id'];
+    const datosKeys = ['familia_proceso', 'clasificacion', 'tipo_proforma', 'comentario_tipo_proforma', 'activo'];
+    const paramKeys = ['ancho_mm', 'largo_mm', 'gramaje_g_m2', 'calibre_micras', 'peso_capa_gsm', 'rendimiento_g_ft2', 'compatible_convencional', 'compatible_digital'];
+    const costKeys = ['costo_x_lamina', 'costo_x_libra', 'costo_x_unidad', 'costo_x_msi', 'costo_x_m2', 'costo_x_kg'];
+    const digitKeys = ['tipo_superficie', 'premier_consumo_g_m2', 'premier_costo_x_kg', 'premier_costo_x_m2', 'premier_preaplicado', 'requiere_premier'];
+
+    fields.forEach((field) => {
+        if (field.type === 'hidden' && hiddenFields.includes(field.key)) {
+            generalesPanel.appendChild(createInput(field, viewItem[field.key]));
         }
-        const targetTab = field.tab || currentTab || 'datos';
-        panelMap.get(targetTab)?.appendChild(control);
+    });
+
+    datosKeys.forEach((key) => {
+        const field = fields.find((f) => f.key === key);
+        if (field) addFieldToPanel(field, generalesPanel);
+    });
+
+    addSectionHeading(generalesPanel, 'Parámetros Generales');
+
+    paramKeys.forEach((key) => {
+        const field = fields.find((f) => f.key === key);
+        if (field) addFieldToPanel(field, generalesPanel);
+    });
+
+    addSectionHeading(generalesPanel, 'Costos');
+
+    costKeys.forEach((key) => {
+        const field = fields.find((f) => f.key === key);
+        if (field) addFieldToPanel(field, generalesPanel);
+    });
+
+    digitKeys.forEach((key) => {
+        const field = fields.find((f) => f.key === key);
+        if (field) addFieldToPanel(field, digitalPanel);
     });
 
     catalogForm.appendChild(tabBar);
@@ -1566,18 +1690,18 @@ function buildMaterialTabbedForm(viewItem) {
         const digitalButton = tabBar.querySelector('[data-material-tab="digital"]');
         if (digitalButton) digitalButton.hidden = !isSubstrate;
         const active = tabBar.querySelector('.inventory-material-tab.is-active');
-        if (!isSubstrate && active?.dataset.materialTab === 'digital') setActiveTab('datos');
+        if (!isSubstrate && active?.dataset.materialTab === 'digital') setActiveTab('generales');
     };
 
     tabBar.addEventListener('click', (event) => {
         const button = event.target.closest('.inventory-material-tab');
         if (!button || button.hidden) return;
-        setActiveTab(button.dataset.materialTab || 'datos');
+        setActiveTab(button.dataset.materialTab || 'generales');
     });
 
     catalogForm.elements.namedItem('clasificacion')?.addEventListener('change', syncTabsByClassification);
     catalogForm.elements.namedItem('familia_proceso')?.addEventListener('change', syncTabsByClassification);
-    setActiveTab('datos');
+    setActiveTab('generales');
     syncTabsByClassification();
 }
 
@@ -1713,6 +1837,9 @@ function renderForm(item) {
         buildMachineTabbedForm(viewItem);
     } else if (page.inventoryKey === 'materiales') {
         buildMaterialTabbedForm(viewItem);
+        catalogForm.classList.add('inventory-form-materiales');
+        openMaterialModal(item);
+        return;
     } else {
         getFormFields().forEach((field) => {
             const control = createInput(field, viewItem[field.key]);
@@ -1867,8 +1994,17 @@ async function loadCatalog(selectId = '') {
 
     renderTable(currentItems);
     const selectedItem = currentItems.find((item) => item.id === selectedId);
-    renderForm(selectedItem || page.createEmptyItem());
-    updateInventoryView(currentView === 'detail' && selectedItem && isTroquelesInventory() ? 'detail' : 'list', selectedItem?.id || '');
+    const modalOpen = materialModalEl?.classList.contains('open');
+    if (isMaterialsInventory() && modalOpen) {
+        // modal is open, skip form re-render to avoid disruption
+    } else if (isMaterialsInventory() && selectedItem) {
+        renderForm(selectedItem);
+    } else if (isMaterialsInventory() && !selectId) {
+        updateInventoryView('list');
+    } else {
+        renderForm(selectedItem || page.createEmptyItem());
+        updateInventoryView(currentView === 'detail' && selectedItem && isTroquelesInventory() ? 'detail' : 'list', selectedItem?.id || '');
+    }
     catalogStatus.textContent = isOutputTypesInventory()
         ? ''
         : (isMaterialsInventory() ? '' : `${currentItems.length} registros cargados.`);
@@ -1897,8 +2033,10 @@ function resetEditor() {
     selectedId = '';
     renderTable(currentItems);
     renderForm(page.createEmptyItem());
-    updateInventoryView(isOutputTypesInventory() ? 'list' : 'detail');
-    catalogStatus.textContent = isMaterialsInventory() ? '' : 'Formulario listo para un nuevo registro.';
+    if (!isMaterialsInventory()) {
+        updateInventoryView(isOutputTypesInventory() ? 'list' : 'detail');
+        catalogStatus.textContent = 'Formulario listo para un nuevo registro.';
+    }
     publishBdfgContext();
 }
 
@@ -1921,8 +2059,12 @@ async function deleteCurrentMaterial(id, label) {
 
     if (selectedId === recordId) {
         selectedId = '';
-        renderForm(page.createEmptyItem());
-        updateInventoryView('list');
+        if (isMaterialsInventory()) {
+            closeMaterialModal();
+        } else {
+            renderForm(page.createEmptyItem());
+            updateInventoryView('list');
+        }
     }
 
     await loadCatalog();
@@ -2177,8 +2319,10 @@ catalogBody.addEventListener('pointerdown', (event) => {
             const selectedItem = currentItems.find((item) => item.id === selectedId);
             if (selectedItem) {
                 renderForm(selectedItem);
-                updateInventoryView('list', selectedId);
-                catalogStatus.textContent = 'Registro cargado en el editor.';
+                if (!isMaterialsInventory()) {
+                    updateInventoryView('list', selectedId);
+                    catalogStatus.textContent = 'Registro cargado en el editor.';
+                }
                 publishBdfgContext();
             }
         });
@@ -2221,8 +2365,10 @@ catalogBody.addEventListener('click', (event) => {
         const selectedItem = currentItems.find((item) => item.id === selectedId);
         if (selectedItem) {
             renderForm(selectedItem);
-            updateInventoryView('list', selectedId);
-            catalogStatus.textContent = 'Registro cargado en el editor.';
+            if (!isMaterialsInventory()) {
+                updateInventoryView('list', selectedId);
+                catalogStatus.textContent = 'Registro cargado en el editor.';
+            }
             publishBdfgContext();
         }
         return;
@@ -2244,15 +2390,17 @@ catalogBody.addEventListener('click', (event) => {
     const selectedItem = currentItems.find((item) => item.id === selectedId);
     if (selectedItem) {
         renderForm(selectedItem);
-        if (isTroquelesInventory()) {
+        if (isMaterialsInventory()) {
+            publishBdfgContext();
+        } else if (isTroquelesInventory()) {
             updateInventoryView('list', selectedId);
             catalogStatus.textContent = 'Troquel seleccionado.';
             publishBdfgContext();
-            return;
+        } else {
+            updateInventoryView('list', selectedId);
+            catalogStatus.textContent = 'Registro cargado en el editor.';
+            publishBdfgContext();
         }
-        updateInventoryView('list', selectedId);
-        catalogStatus.textContent = 'Registro cargado en el editor.';
-        publishBdfgContext();
     }
 });
 
