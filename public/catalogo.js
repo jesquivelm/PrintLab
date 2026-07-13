@@ -74,7 +74,9 @@ function resolveRouteConfig() {
                 { key: 'codigo', label: 'Código', width: '148px', className: 'inventory-col-code inventory-col-code-material' },
                 { key: 'nombre', label: 'Nombre', className: 'inventory-col-name inventory-col-name-material' },
                 { key: 'familia_proceso', label: 'Proceso', width: '180px', className: 'inventory-col-process inventory-col-process-material' },
-                { key: 'clasificacion', label: 'Clasificación', width: '180px', className: 'inventory-col-process inventory-col-classification-material' }
+                { key: 'clasificacion', label: 'Clasificación', width: '180px', className: 'inventory-col-process inventory-col-classification-material' },
+                { key: 'costo_x_pie', label: '$ / Pie', width: '130px', className: 'inventory-col-number', format: (v) => v != null && v !== '' ? '$' + Number(v).toFixed(6) : '—' },
+                { key: 'costo_x_metro', label: '$ / Metro', width: '130px', className: 'inventory-col-number', format: (v) => v != null && v !== '' ? '$' + Number(v).toFixed(6) : '—' }
             ],
             formFields: [
                 { key: 'id', type: 'hidden' },
@@ -2024,7 +2026,8 @@ function renderTable(items) {
                     const label = escapeHtml(item.codigo || item.nombre || item.descripcion || 'registro');
                     return `<td${className}><a class="browser-open-link" href="${href}" data-open-detail="${escapeHtml(item.id)}" aria-label="Abrir troquel ${label}" title="Abrir troquel ${label}" style="--icon-color:${escapeHtml(openIcon.color)};--icon-hover-color:${escapeHtml(openIcon.hover)};--config-icon-size:${escapeHtml(String(openIcon.size))}px;">${iconMarkup(openIcon.value, 'Abrir troquel', 'table-icon-media')}</a></td>`;
                 }
-                return `<td${className} title="${escapeHtml(formatCellValue(item[column.key]))}">${escapeHtml(formatCellValue(item[column.key]))}</td>`;
+                const cellValue = column.format ? column.format(item[column.key]) : formatCellValue(item[column.key]);
+                return `<td${className} title="${escapeHtml(cellValue)}">${escapeHtml(cellValue)}</td>`;
             }).join('')}
         </tr>
     `).join('');
