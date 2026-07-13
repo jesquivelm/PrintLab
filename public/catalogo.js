@@ -926,7 +926,7 @@ function getFormFields() {
         { key: 'costo_x_lamina', label: 'Costo Lámina', type: 'number', step: '0.000001', className: 'inventory-material-field' },
         { key: 'costo_x_libra', label: 'Costo Libra', type: 'number', step: '0.000001', className: 'inventory-material-field' },
         { key: 'costo_x_unidad', label: 'Costo Unidad', type: 'number', step: '0.000001', className: 'inventory-material-field' },
-        { key: 'costo_x_msi', label: 'Costo MCI', type: 'number', step: '0.000001', className: 'inventory-material-field' },
+        { key: 'costo_x_msi', label: 'Costo MSI', type: 'number', step: '0.000001', className: 'inventory-material-field' },
         { key: 'costo_x_m2', label: 'Costo m²', type: 'number', step: '0.000001', className: 'inventory-material-field' },
         { key: 'costo_x_kg', label: 'Costo kg', type: 'number', step: '0.000001', className: 'inventory-material-field' }
     ];
@@ -1662,7 +1662,7 @@ function buildMaterialTabbedForm(viewItem) {
     const hiddenFields = ['id'];
     const datosKeys = ['familia_proceso', 'clasificacion', 'tipo_proforma', 'comentario_tipo_proforma', 'activo'];
     const paramKeys = ['ancho_mm', 'largo_mm', 'gramaje_g_m2', 'calibre_micras', 'peso_capa_gsm', 'rendimiento_g_ft2', 'compatible_convencional', 'compatible_digital'];
-    const costKeys = ['costo_x_lamina', 'costo_x_libra', 'costo_x_unidad', 'costo_x_msi', 'costo_x_m2', 'costo_x_kg'];
+    const costKeys = ['costo_x_pie', 'costo_x_metro', 'costo_x_lamina', 'costo_x_libra', 'costo_x_unidad', 'costo_x_msi', 'costo_x_m2', 'costo_x_kg'];
     const digitKeys = ['tipo_superficie', 'premier_consumo_g_m2', 'premier_costo_x_kg', 'premier_costo_x_m2', 'premier_preaplicado', 'requiere_premier'];
 
     fields.forEach((field) => {
