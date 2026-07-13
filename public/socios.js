@@ -29,6 +29,38 @@ let currentSearch = '';
 let sociosImportStatusTimer = null;
 let sociosImportDiagnosis = null;
 let sociosVisibleCount = 0;
+let sociosSortState = { key: null, dir: null };
+
+function sortSociosList(data) {
+    if (!sociosSortState.key || !sociosSortState.dir) return data;
+    return [...data].sort((a, b) => {
+        const key = sociosSortState.key;
+        let va = a[key], vb = b[key];
+        if (va == null) return 1;
+        if (vb == null) return -1;
+        va = String(va).toLowerCase();
+        vb = String(vb).toLowerCase();
+        if (va < vb) return sociosSortState.dir === 'asc' ? -1 : 1;
+        if (va > vb) return sociosSortState.dir === 'asc' ? 1 : -1;
+        const da = a.creation_date, db = b.creation_date;
+        if (da && db) return new Date(db) - new Date(da);
+        return 0;
+    });
+}
+
+function updateSociosSortIndicators() {
+    document.querySelectorAll('th[data-sort-key]').forEach(th => {
+        const span = th.querySelector('.sort-indicator');
+        if (!span) return;
+        if (sociosSortState.key === th.dataset.sortKey) {
+            th.classList.add('is-sorted');
+            span.textContent = sociosSortState.dir === 'asc' ? '↑' : '↓';
+        } else {
+            th.classList.remove('is-sorted');
+            span.textContent = '';
+        }
+    });
+}
 
 function formatVisibleCountLabel(count, noun) {
     const total = Math.max(0, Number(count) || 0);
@@ -192,7 +224,9 @@ async function loadSocios(search = '') {
     const openIcon = getOpenIconConfig();
     const deleteIcon = getDeleteIconConfig();
 
-    sociosTableBody.innerHTML = items.length ? items.map((item) => `
+    const displayItems = sortSociosList(items);
+    updateSociosSortIndicators();
+    sociosTableBody.innerHTML = displayItems.length ? displayItems.map((item) => `
         <tr>
             <td>${escapeHtml(item.partner_code)}</td>
             <td>${escapeHtml(item.partner_name)}</td>
@@ -492,6 +526,19 @@ document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
         loadSocios(currentSearch).catch(() => {});
     }
+});
+
+sociosTableBody?.closest('table')?.querySelector('thead')?.addEventListener('click', (event) => {
+    const th = event.target.closest('th[data-sort-key]');
+    if (!th) return;
+    const key = th.dataset.sortKey;
+    if (sociosSortState.key === key) {
+        sociosSortState.dir = sociosSortState.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+        sociosSortState.key = key;
+        sociosSortState.dir = 'asc';
+    }
+    loadSocios(currentSearch).catch(() => {});
 });
 
 sociosTableWrap?.addEventListener('scroll', updateSociosScrollBottomIndicator, { passive: true });

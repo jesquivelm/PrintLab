@@ -5,6 +5,38 @@ const ordersSearchInput = document.getElementById('ordersSearchInput');
 const ordersTableBody = document.getElementById('ordersTableBody');
 
 let browserConfig = null;
+let ordersSortState = { key: null, dir: null };
+
+function sortOrdersList(data) {
+    if (!ordersSortState.key || !ordersSortState.dir) return data;
+    return [...data].sort((a, b) => {
+        const key = ordersSortState.key;
+        let va = a[key], vb = b[key];
+        if (va == null) return 1;
+        if (vb == null) return -1;
+        va = String(va).toLowerCase();
+        vb = String(vb).toLowerCase();
+        if (va < vb) return ordersSortState.dir === 'asc' ? -1 : 1;
+        if (va > vb) return ordersSortState.dir === 'asc' ? 1 : -1;
+        const da = a.created_at, db = b.created_at;
+        if (da && db) return new Date(db) - new Date(da);
+        return 0;
+    });
+}
+
+function updateOrdersSortIndicators() {
+    document.querySelectorAll('th[data-sort-key]').forEach(th => {
+        const span = th.querySelector('.sort-indicator');
+        if (!span) return;
+        if (ordersSortState.key === th.dataset.sortKey) {
+            th.classList.add('is-sorted');
+            span.textContent = ordersSortState.dir === 'asc' ? '↑' : '↓';
+        } else {
+            th.classList.remove('is-sorted');
+            span.textContent = '';
+        }
+    });
+}
 
 function escapeHtml(value) {
     return String(value || '')
@@ -111,7 +143,9 @@ async function loadOrders(search = '') {
     }
     const items = payload.items || [];
     const openIcon = getOpenIconConfig();
-    ordersTableBody.innerHTML = items.length ? items.map((item) => {
+    const displayItems = sortOrdersList(items);
+    updateOrdersSortIndicators();
+    ordersTableBody.innerHTML = displayItems.length ? displayItems.map((item) => {
         const route = `/orden-produccion/${encodeURIComponent(item.order_code)}`;
         return `
         <tr>
@@ -128,6 +162,21 @@ async function loadOrders(search = '') {
 }
 
 ordersSearchInput?.addEventListener('input', () => {
+    loadOrders(ordersSearchInput.value).catch((error) => {
+        ordersTableBody.innerHTML = `<tr><td colspan="7">${escapeHtml(error.message)}</td></tr>`;
+    });
+});
+
+ordersTableBody?.closest('table')?.querySelector('thead')?.addEventListener('click', (event) => {
+    const th = event.target.closest('th[data-sort-key]');
+    if (!th) return;
+    const key = th.dataset.sortKey;
+    if (ordersSortState.key === key) {
+        ordersSortState.dir = ordersSortState.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+        ordersSortState.key = key;
+        ordersSortState.dir = 'asc';
+    }
     loadOrders(ordersSearchInput.value).catch((error) => {
         ordersTableBody.innerHTML = `<tr><td colspan="7">${escapeHtml(error.message)}</td></tr>`;
     });

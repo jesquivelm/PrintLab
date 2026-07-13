@@ -259,6 +259,38 @@ function updateQuotesScrollBottomIndicator() {
 let loadedConfig = {};
 let quoteCatalog = [];
 let quoteSearchTimer = null;
+let quoteSortState = { key: null, dir: null };
+
+function sortQuotesList(data) {
+    if (!quoteSortState.key || !quoteSortState.dir) return data;
+    return [...data].sort((a, b) => {
+        const key = quoteSortState.key;
+        let va = a[key], vb = b[key];
+        if (va == null) return 1;
+        if (vb == null) return -1;
+        va = String(va).toLowerCase();
+        vb = String(vb).toLowerCase();
+        if (va < vb) return quoteSortState.dir === 'asc' ? -1 : 1;
+        if (va > vb) return quoteSortState.dir === 'asc' ? 1 : -1;
+        const da = a.created_on, db = b.created_on;
+        if (da && db) return new Date(db) - new Date(da);
+        return 0;
+    });
+}
+
+function updateQuoteSortIndicators() {
+    document.querySelectorAll('th[data-sort-key]').forEach(th => {
+        const span = th.querySelector('.sort-indicator');
+        if (!span) return;
+        if (quoteSortState.key === th.dataset.sortKey) {
+            th.classList.add('is-sorted');
+            span.textContent = quoteSortState.dir === 'asc' ? '↑' : '↓';
+        } else {
+            th.classList.remove('is-sorted');
+            span.textContent = '';
+        }
+    });
+}
 let quoteTreeLineSequence = 100000;
 const expandedQuoteCodes = new Set();
 const expandedFrontBackGroupKeys = new Set();
@@ -3134,15 +3166,17 @@ async function handleQuoteLineAction(action, row) {
 
 function renderQuotesTable(items) {
     if (!rowsBody) return;
+    const sorted = sortQuotesList(items);
+    updateQuoteSortIndicators();
     visibleQuotesCount = Array.isArray(items) ? items.length : 0;
     quoteLineLookup.clear();
-    if (!items.length) {
+    if (!sorted.length) {
         rowsBody.innerHTML = '<tr><td colspan="7">No hay cotizaciones.</td></tr>';
         requestAnimationFrame(updateQuotesScrollBottomIndicator);
         publishBdfgContext();
         return;
     }
-    rowsBody.innerHTML = items.map(renderQuoteParentRow).join('');
+    rowsBody.innerHTML = sorted.map(renderQuoteParentRow).join('');
     requestAnimationFrame(updateQuotesScrollBottomIndicator);
     publishBdfgContext();
 }
@@ -4795,6 +4829,18 @@ function bindEvents() {
         quoteSearchTimer = setTimeout(() => {
             loadQuotes().catch((error) => setStatus(error.message, 'error'));
         }, 240);
+    });
+    rowsBody?.closest('table')?.querySelector('thead')?.addEventListener('click', (event) => {
+        const th = event.target.closest('th[data-sort-key]');
+        if (!th) return;
+        const key = th.dataset.sortKey;
+        if (quoteSortState.key === key) {
+            quoteSortState.dir = quoteSortState.dir === 'asc' ? 'desc' : 'asc';
+        } else {
+            quoteSortState.key = key;
+            quoteSortState.dir = 'asc';
+        }
+        loadQuotes().catch((error) => setStatus(error.message, 'error'));
     });
     quotesTableWrap?.addEventListener('scroll', updateQuotesScrollBottomIndicator, { passive: true });
     window.addEventListener('resize', updateQuotesScrollBottomIndicator);

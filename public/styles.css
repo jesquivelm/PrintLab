@@ -12237,6 +12237,30 @@ html[data-theme="dark"] .socios-table th {
     border-color: var(--app-border) !important;
 }
 
+th.sortable-header {
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.12s;
+}
+th.sortable-header:hover {
+    color: #2f3740;
+}
+html[data-theme="dark"] th.sortable-header:hover {
+    color: #eef2f6;
+}
+.sort-indicator {
+    display: inline-block;
+    margin-left: 3px;
+    font-size: 10px;
+    line-height: 1;
+    vertical-align: middle;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+th.sortable-header.is-sorted .sort-indicator {
+    opacity: 1;
+}
+
 html[data-theme="dark"] .copy-popover-table td,
 html[data-theme="dark"] .quote-browser-table td,
 html[data-theme="dark"] .inventory-table td,
