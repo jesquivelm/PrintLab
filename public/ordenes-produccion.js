@@ -24,16 +24,35 @@ function sortOrdersList(data) {
     });
 }
 
+function getOrdersSortIcon(dir) {
+    const config = browserConfig || {};
+    const icons = config.icons || {};
+    const general = config.general || {};
+    const key = dir === 'asc' ? 'sortAsc' : 'sortDesc';
+    return {
+        value: icons[key] || (dir === 'asc' ? '\u25B2' : '\u25BC'),
+        color: firstFilled(general['iconColorSortAsc'], general.iconColor, '#607286'),
+        size: Number(firstFilled(general['iconSizeSortAsc'], '14')) || 14
+    };
+}
+
 function updateOrdersSortIndicators() {
+    const ascConf = getOrdersSortIcon('asc');
+    const descConf = getOrdersSortIcon('desc');
     document.querySelectorAll('th[data-sort-key]').forEach(th => {
         const span = th.querySelector('.sort-indicator');
         if (!span) return;
         if (ordersSortState.key === th.dataset.sortKey) {
             th.classList.add('is-sorted');
-            span.textContent = ordersSortState.dir === 'asc' ? '↑' : '↓';
+            const conf = ordersSortState.dir === 'asc' ? ascConf : descConf;
+            span.innerHTML = iconMarkup(conf.value, 'Orden ' + (ordersSortState.dir === 'asc' ? 'ascendente' : 'descendente'), 'sort-indicator-icon');
+            span.style.setProperty('--icon-color', conf.color);
+            span.style.setProperty('--config-icon-size', conf.size + 'px');
         } else {
             th.classList.remove('is-sorted');
-            span.textContent = '';
+            span.innerHTML = '';
+            span.style.removeProperty('--icon-color');
+            span.style.removeProperty('--config-icon-size');
         }
     });
 }
@@ -154,7 +173,7 @@ async function loadOrders(search = '') {
             <td>${escapeHtml(item.line_code)}</td>
             <td>${escapeHtml(item.customer_name)}</td>
             <td>${escapeHtml(item.job_name)}</td>
-            <td>${escapeHtml(formatDate(item.created_at))}</td>
+            <td title="${escapeHtml(item.created_at || '')}">${escapeHtml(formatDate(item.created_at))}</td>
             <td><a class="browser-open-link" href="${route}" data-route="${route}" data-label="Orden ${escapeHtml(item.order_code)}" aria-label="Abrir orden ${escapeHtml(item.order_code)}" style="--icon-color:${escapeHtml(openIcon.color)};--icon-hover-color:${escapeHtml(openIcon.hover)};--config-icon-size:${escapeHtml(String(openIcon.size))}px;">${iconMarkup(openIcon.value, 'Abrir orden', 'table-icon-media')}</a></td>
         </tr>
     `;

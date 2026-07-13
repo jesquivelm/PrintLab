@@ -2890,6 +2890,66 @@
             color: #71808d;
             font-size: 12px;
         }
+
+        .user-admin-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(7,17,29,0.5);
+            backdrop-filter: blur(4px);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .user-admin-modal-overlay[hidden] { display: none; }
+        .user-admin-modal {
+            max-width: 420px;
+            width: 100%;
+            margin: 20px;
+            padding: 28px 24px;
+            background: #fff;
+            border-radius: 24px;
+            box-shadow: 0 28px 60px rgba(17,41,59,0.24);
+        }
+        .user-admin-modal h3 {
+            font-size: 20px;
+            margin: 0 0 16px;
+            font-weight: 700;
+            color: #152b38;
+        }
+        .user-admin-modal label span {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #223140;
+        }
+        .user-admin-modal label input[type="text"],
+        .user-admin-modal label input[type="password"] {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #c1d6e4;
+            border-radius: 10px;
+            font-size: 14px;
+            background: #fff;
+            color: #223140;
+            outline: none;
+        }
+        .user-admin-modal label input:focus {
+            border-color: #118fc6;
+            box-shadow: 0 0 0 3px rgba(17,143,198,0.15);
+        }
+        .user-admin-modal .password-rules {
+            font-size: 12px;
+            color: #6b7986;
+            margin: 4px 0 0;
+            padding: 0;
+            list-style: none;
+        }
+        .user-admin-modal .password-rules li { margin: 2px 0; }
+        .user-admin-modal .password-rules li.valid { color: #2a9d2a; }
+        .user-admin-modal .password-rules li.invalid { color: #b83a3a; }
+
         .user-admin-detail-card {
             min-height: 540px;
             border: 1px solid #d8dde3;
@@ -6581,11 +6641,16 @@
                                     </div>
                                 </section>
                             </div>
+
                     <div id="tab-seguridad" class="config-tab-content">
                         <section class="config-card">
                             <div class="security-subtabs">
                                 <button type="button" class="security-subtab active" data-security-tab="usuarios">Usuarios</button>
                                 <button type="button" class="security-subtab" data-security-tab="permisos">Permisos</button>
+                                <button type="button" class="security-subtab" data-security-tab="correo">Correo SMTP</button>
+                                <button type="button" class="security-subtab" data-security-tab="politicas">Políticas</button>
+                                <button type="button" class="security-subtab" data-security-tab="auditoria-credenciales">Auditoría</button>
+                                <button type="button" class="security-subtab" data-security-tab="centro-envios">Centro de Envíos</button>
                                 <button type="button" class="security-subtab" data-security-tab="sap" hidden>SAP</button>
                                 <button type="button" id="securityTabLlaves" class="security-subtab" data-security-tab="llaves">Llaves</button>
                             </div>
@@ -6638,9 +6703,10 @@
                                                 </label>
                                                 <label>
                                                     <span>Contraseña</span>
-                                                    <div class="password-field-wrap">
-                                                        <input id="userAdminFieldPassword" type="password" placeholder="Contraseña">
-                                                        <button type="button" id="userAdminPasswordToggle" class="password-toggle-btn" aria-label="Mostrar contraseña" title="Mostrar contraseña"></button>
+                                                    <div style="display:flex;gap:8px;align-items:center;">
+                                                        <input id="userAdminFieldPassword" type="password" placeholder="Sin cambios" readonly style="flex:1;background:#f5f7f9;color:#6b7986;cursor:default;">
+                                                        <button type="button" id="userAdminPasswordToggle" class="password-toggle-btn" aria-label="Mostrar contraseña" title="Mostrar contraseña" style="display:none;"></button>
+                                                        <button type="button" id="userAdminChangePasswordBtn" class="btn-primary" style="white-space:nowrap;padding:8px 16px;border-radius:10px;font-size:13px;">Cambiar</button>
                                                     </div>
                                                 </label>
                                                 <label>
@@ -6701,6 +6767,33 @@
                                         </div>
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+
+                            <!-- Reset Password Modal -->
+                            <div id="resetPasswordOverlay" class="user-admin-modal-overlay" hidden>
+                                <div class="user-admin-modal">
+                                    <h3>Cambiar Contraseña</h3>
+                                    <p id="resetPasswordUserName" style="font-size:14px;color:#6b7986;margin:0 0 16px;"></p>
+                                    <label>
+                                        <span>Nueva contraseña</span>
+                                        <input id="resetPasswordInput" type="text" placeholder="Escribe la nueva contraseña">
+                                    </label>
+                                    <ul class="password-rules" id="resetPasswordRules" style="font-size:12px;list-style:none;padding:0;margin:4px 0 12px;">
+                                        <li id="resetRuleLength" class="invalid">✗ Al menos 8 caracteres</li>
+                                        <li id="resetRuleUpper" class="invalid">✗ Al menos una mayúscula</li>
+                                        <li id="resetRuleLower" class="invalid">✗ Al menos una minúscula</li>
+                                        <li id="resetRuleDigit" class="invalid">✗ Al menos un número</li>
+                                    </ul>
+                                    <label style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+                                        <input id="resetPasswordSendEmail" type="checkbox" checked>
+                                        <span style="font-size:13px;">Enviar por correo al usuario</span>
+                                    </label>
+                                    <div class="forgot-actions" style="display:flex;gap:10px;">
+                                        <button type="button" id="resetPasswordCancelBtn" class="forgot-btn-cancel">Cancelar</button>
+                                        <button type="button" id="resetPasswordSaveBtn" class="forgot-btn-primary" disabled>Guardar contraseña</button>
+                                    </div>
+                                    <p id="resetPasswordStatus" class="forgot-status" style="margin-top:12px;min-height:20px;font-size:13px;"></p>
                                 </div>
                             </div>
 
@@ -7368,6 +7461,178 @@
                                         </section>
                                     </aside>
                                 </div>
+                            </div>
+
+                            <!-- CORREO SMTP -->
+                            <div id="security-panel-correo" class="security-subpanel" hidden>
+                                <section class="config-card">
+                                    <h2 class="config-section-title">Configuración de Correo SMTP</h2>
+                                    <p class="section-caption" style="margin-bottom:20px;">Configura el servidor SMTP para el envío de códigos de recuperación y notificaciones del sistema.</p>
+                                    <div class="info-empresa-grid" style="grid-template-columns:1fr 1fr;">
+                                        <label>
+                                            <span>Servidor SMTP</span>
+                                            <input id="smtpHost" type="text" placeholder="smtp.gmail.com">
+                                        </label>
+                                        <label>
+                                            <span>Puerto</span>
+                                            <input id="smtpPort" type="number" placeholder="587">
+                                        </label>
+                                        <label>
+                                            <span>Seguridad SSL/TLS</span>
+                                            <select id="smtpSecure">
+                                                <option value="false">No (STARTTLS - Puerto 587)</option>
+                                                <option value="true">Sí (SSL directo - Puerto 465)</option>
+                                            </select>
+                                        </label>
+                                        <label>
+                                            <span>Nombre del remitente</span>
+                                            <input id="smtpFromName" type="text" placeholder="PrintLab">
+                                        </label>
+                                        <label>
+                                            <span>Correo remitente</span>
+                                            <input id="smtpFromEmail" type="email" placeholder="tucorreo@gmail.com">
+                                            <span id="smtpDetectedProvider" style="font-size:12px;color:#6b7986;margin-top:3px;display:block;"></span>
+                                        </label>
+                                        <label>
+                                            <span>Usuario SMTP</span>
+                                            <input id="smtpUser" type="text" placeholder="tucorreo@gmail.com">
+                                        </label>
+                                        <label>
+                                            <span>Contraseña SMTP</span>
+                                            <input id="smtpPassword" type="password" placeholder="Contraseña de aplicación">
+                                        </label>
+                                    </div>
+                                    <div style="display:flex;gap:12px;margin-top:16px;align-items:center;flex-wrap:wrap;">
+                                        <button type="button" id="smtpSaveBtn" class="btn-primary">Guardar configuración</button>
+                                        <button type="button" id="smtpTestBtn" class="btn-secondary">Enviar correo de prueba</button>
+                                        <span id="smtpStatus" style="font-size:13px;min-height:20px;"></span>
+                                    </div>
+                                    <details style="margin-top:20px;font-size:13px;color:#6b7986;">
+                                        <summary style="cursor:pointer;font-weight:600;">Ayuda: ¿Cómo configurar Gmail?</summary>
+                                        <div style="margin-top:10px;line-height:1.7;padding:12px;background:#f7fafc;border-radius:10px;">
+                                            <p><strong>1.</strong> Activa la <strong>Verificación en dos pasos</strong> en tu cuenta de Google.</p>
+                                            <p><strong>2.</strong> Genera una <strong>Contraseña de aplicación</strong> en <a href="https://myaccount.google.com/apppasswords" target="_blank">myaccount.google.com/apppasswords</a></p>
+                                            <p><strong>3.</strong> Usa esa contraseña de 16 caracteres en el campo de arriba.</p>
+                                            <p><strong>4.</strong> Configuración recomendada: Servidor <code>smtp.gmail.com</code>, Puerto <code>587</code>, SSL: No, Usuario: tu correo de Gmail.</p>
+                                        </div>
+                                    </details>
+                                </section>
+                            </div>
+
+                            <!-- POLÍTICAS DE SEGURIDAD -->
+                            <div id="security-panel-politicas" class="security-subpanel" hidden>
+                                <section class="config-card">
+                                    <h2 class="config-section-title">Políticas de Contraseñas</h2>
+                                    <div class="info-empresa-grid" style="grid-template-columns:1fr 1fr;">
+                                        <label>
+                                            <span>Longitud mínima de contraseña</span>
+                                            <input id="secPasswordMinLength" type="number" min="4" max="64" value="10">
+                                        </label>
+                                        <label>
+                                            <span>Requerir mayúscula</span>
+                                            <select id="secRequireUpper"><option value="true">Sí</option><option value="false">No</option></select>
+                                        </label>
+                                        <label>
+                                            <span>Requerir minúscula</span>
+                                            <select id="secRequireLower"><option value="true">Sí</option><option value="false">No</option></select>
+                                        </label>
+                                        <label>
+                                            <span>Requerir número</span>
+                                            <select id="secRequireDigit"><option value="true">Sí</option><option value="false">No</option></select>
+                                        </label>
+                                        <label>
+                                            <span>Requerir carácter especial</span>
+                                            <select id="secRequireSpecial"><option value="true">Sí</option><option value="false">No</option></select>
+                                        </label>
+                                    </div>
+                                    <h2 class="config-section-title" style="margin-top:24px;">Configuración de PIN</h2>
+                                    <div class="info-empresa-grid" style="grid-template-columns:1fr 1fr;">
+                                        <label>
+                                            <span>Longitud del PIN</span>
+                                            <input id="secPinLength" type="number" min="4" max="10" value="6">
+                                        </label>
+                                        <label>
+                                            <span>Expiración del PIN (minutos)</span>
+                                            <input id="secPinExpiry" type="number" min="1" max="60" value="15">
+                                        </label>
+                                        <label>
+                                            <span>Intentos máximos del PIN</span>
+                                            <input id="secPinMaxAttempts" type="number" min="1" max="10" value="3">
+                                        </label>
+                                    </div>
+                                    <h2 class="config-section-title" style="margin-top:24px;">Límite de Inicio de Sesión</h2>
+                                    <div class="info-empresa-grid" style="grid-template-columns:1fr 1fr;">
+                                        <label>
+                                            <span>Intentos máximos de login</span>
+                                            <input id="secLoginMaxAttempts" type="number" min="1" max="20" value="5">
+                                        </label>
+                                        <label>
+                                            <span>Ventana de bloqueo (segundos)</span>
+                                            <input id="secLoginWindow" type="number" min="5" max="300" value="30">
+                                        </label>
+                                    </div>
+                                    <div style="display:flex;gap:12px;margin-top:16px;align-items:center;">
+                                        <button type="button" id="secPolicySaveBtn" class="btn-primary">Guardar políticas</button>
+                                        <span id="secPolicyStatus" style="font-size:13px;min-height:20px;"></span>
+                                    </div>
+                                </section>
+                            </div>
+
+                            <!-- AUDITORÍA DE CREDENCIALES -->
+                            <div id="security-panel-auditoria-credenciales" class="security-subpanel" hidden>
+                                <section class="config-card">
+                                    <h2 class="config-section-title">Auditoría de Credenciales</h2>
+                                    <p class="section-caption">Registro de todas las acciones relacionadas con credenciales y seguridad.</p>
+                                    <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center;">
+                                        <input id="auditFilterAction" type="text" placeholder="Filtrar por acción" style="padding:8px 12px;border:1px solid #c1d6e4;border-radius:8px;font-size:13px;">
+                                        <input id="auditFilterUser" type="text" placeholder="Filtrar por usuario" style="padding:8px 12px;border:1px solid #c1d6e4;border-radius:8px;font-size:13px;">
+                                        <button type="button" id="auditSearchBtn" class="btn-primary" style="padding:8px 16px;font-size:13px;">Buscar</button>
+                                        <button type="button" id="auditRefreshBtn" class="btn-secondary" style="padding:8px 16px;font-size:13px;">Actualizar</button>
+                                    </div>
+                                    <div class="table-wrap" style="max-height:500px;overflow-y:auto;">
+                                        <table class="audit-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Fecha</th>
+                                                    <th>Responsable</th>
+                                                    <th>Usuario Afectado</th>
+                                                    <th>Acción</th>
+                                                    <th>Resultado</th>
+                                                    <th>Observaciones</th>
+                                                    <th>IP</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="auditTableBody">
+                                                <tr><td colspan="7" style="text-align:center;color:#71808d;padding:20px;">Cargando...</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div id="auditPagination" style="display:flex;gap:8px;justify-content:center;margin-top:12px;font-size:13px;"></div>
+                                </section>
+                            </div>
+
+                            <!-- CENTRO DE ENVÍOS -->
+                            <div id="security-panel-centro-envios" class="security-subpanel" hidden>
+                                <section class="config-card">
+                                    <h2 class="config-section-title">Centro de Envíos</h2>
+                                    <p class="section-caption">Historial de correos enviados por el sistema.</p>
+                                    <div class="table-wrap" style="max-height:500px;overflow-y:auto;">
+                                        <table class="audit-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Fecha</th>
+                                                    <th>Destinatario</th>
+                                                    <th>Asunto</th>
+                                                    <th>Estado</th>
+                                                    <th>Respuesta SMTP</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="emailLogTableBody">
+                                                <tr><td colspan="5" style="text-align:center;color:#71808d;padding:20px;">Cargando...</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </section>
                             </div>
                         </section>
                     </div>
@@ -8311,6 +8576,8 @@
             { key: 'quoteNumberBoldOn', label: 'Numeracion Negrita Activa', group: 'Navegacion', placeholder: 'B', color: '#0b81b8', size: 16 },
             { key: 'quoteNumberBoldOff', label: 'Numeracion Negrita Inactiva', group: 'Navegacion', placeholder: 'b', color: '#8c97a2', size: 16 },
             { key: 'popoverClose', label: 'Cerrar Popover', group: 'Navegacion', placeholder: '\u2715', color: '#6b7580', size: 18 },
+            { key: 'sortAsc', label: 'Orden Ascendente', group: 'General', tab: 'General', section: 'General', placeholder: '\u25B2', color: '#607286', size: 14 },
+            { key: 'sortDesc', label: 'Orden Descendente', group: 'General', tab: 'General', section: 'General', placeholder: '\u25BC', color: '#607286', size: 14 },
             { key: 'browserOpen', label: 'Abrir Listado', group: 'Tablas y Listados', placeholder: '\u2197', color: '#0b81b8', size: 18 },
             { key: 'tableMove', label: 'Mover Fila', group: 'Tablas y Listados', placeholder: '\u22EE\u22EE', color: '#9ba2ab', size: 20 },
             { key: 'tableOpen', label: 'Abrir Detalle Tabla', group: 'Tablas y Listados', placeholder: '\u2699', color: '#9ba2ab', size: 20 },
@@ -12740,6 +13007,8 @@
                             </div>
                             <div class="user-admin-row-actions">
                                 ${renderAdminUserStatusBadge(user)}
+                                <button type="button" class="user-admin-reset-btn" data-user-reset="${user.id}" title="Restablecer credenciales" style="background:none;border:1px solid #c1d6e4;border-radius:8px;padding:4px 8px;font-size:11px;cursor:pointer;color:#118fc6;">PIN</button>
+                                <button type="button" class="user-admin-lock-btn" data-user-lock="${user.id}" title="${user.locked ? 'Desbloquear usuario' : 'Bloquear usuario'}" style="background:none;border:1px solid #c1d6e4;border-radius:8px;padding:4px 8px;font-size:11px;cursor:pointer;color:${user.locked ? '#2a9d2a' : '#b83a3a'};">${user.locked ? 'UNLOCK' : 'LOCK'}</button>
                                 <button type="button" class="user-admin-delete-button" data-user-delete="${user.id}" aria-label="Dar de baja usuario" title="Dar de baja usuario"></button>
                             </div>
                         </div>
@@ -12881,7 +13150,6 @@
             const user = getSelectedAdminUser();
             if (!user) return null;
             return {
-                password: userAdminFieldPassword?.value || '',
                 department: userAdminFieldDepartment?.value?.trim() || '',
                 process: userAdminFieldProcess?.value?.trim() || '',
                 photoUrl: user.photoUrl || '',
@@ -13129,7 +13397,6 @@
                 }
             });
             [
-                userAdminFieldPassword,
                 userAdminFieldEmail,
                 userAdminFieldPhone,
                 userAdminFieldNotifyEmail,
@@ -17047,6 +17314,338 @@
                 queueConfigSave();
             });
         })();
+
+        // ─── RESET PASSWORD OVERLAY ────────────────────────────────────────
+        let resetPinTargetUserId = null;
+        let resetPinGeneratedValue = null;
+
+        document.addEventListener('click', function(e) {
+            const resetBtn = e.target.closest('[data-user-reset]');
+            if (resetBtn) {
+                const userId = resetBtn.dataset.userReset;
+                handleAdminResetPassword(userId);
+                return;
+            }
+            const lockBtn = e.target.closest('[data-user-lock]');
+            if (lockBtn) {
+                const userId = lockBtn.dataset.userLock;
+                handleAdminToggleLock(userId);
+                return;
+            }
+        });
+
+        async function handleAdminResetPassword(userId) {
+            if (!confirm('¿Restablecer credenciales de este usuario? Se generará un PIN temporal de 6 dígitos.')) return;
+            try {
+                const response = await fetch('/api/admin-users/' + userId + '/reset-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sendEmail: true })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error);
+                resetPinGeneratedValue = data.pin;
+                alert('PIN generado correctamente.\n\nPIN: ' + data.pin + '\n\nEste PIN expira en 15 minutos.\n\n' + (data.emailSent ? 'Se ha enviado un correo al usuario.' : 'El usuario no tiene correo. Entrega el PIN manualmente.'));
+                await loadAdminUsers();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        async function handleAdminToggleLock(userId) {
+            const user = adminUsers.find(function(u) { return Number(u.id) === Number(userId); });
+            if (!user) return;
+            const isLocked = user.locked;
+            const action = isLocked ? 'desbloquear' : 'bloquear';
+            if (!confirm('¿' + (isLocked ? 'Desbloquear' : 'Bloquear') + ' a ' + escapeHtml(user.name) + '?')) return;
+            try {
+                const response = await fetch('/api/admin-users/' + userId + '/' + (isLocked ? 'unlock' : 'lock'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error);
+                await loadAdminUsers();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // ─── SMTP CONFIG ────────────────────────────────────────────────────
+        var smtpHost = document.getElementById('smtpHost');
+        var smtpPort = document.getElementById('smtpPort');
+        var smtpSecure = document.getElementById('smtpSecure');
+        var smtpUser = document.getElementById('smtpUser');
+        var smtpPassword = document.getElementById('smtpPassword');
+        var smtpFromName = document.getElementById('smtpFromName');
+        var smtpFromEmail = document.getElementById('smtpFromEmail');
+        var smtpSaveBtn = document.getElementById('smtpSaveBtn');
+        var smtpTestBtn = document.getElementById('smtpTestBtn');
+        var smtpStatus = document.getElementById('smtpStatus');
+        var smtpDetectedProvider = document.getElementById('smtpDetectedProvider');
+
+        async function loadSmtpConfig() {
+            try {
+                var response = await fetch('/api/config/email');
+                var data = await response.json();
+                if (smtpHost) smtpHost.value = data.host || '';
+                if (smtpPort) smtpPort.value = data.port || 587;
+                if (smtpSecure) smtpSecure.value = data.secure ? 'true' : 'false';
+                if (smtpUser) smtpUser.value = data.user || '';
+                if (smtpFromName) smtpFromName.value = data.fromName || '';
+                if (smtpFromEmail) smtpFromEmail.value = data.fromEmail || '';
+                if (data.detectedProvider && smtpDetectedProvider) {
+                    smtpDetectedProvider.textContent = 'Proveedor detectado: ' + JSON.stringify(data.detectedProvider);
+                }
+            } catch (error) {
+                if (smtpStatus) { smtpStatus.textContent = 'Error al cargar SMTP.'; smtpStatus.style.color = '#b83a3a'; }
+            }
+        }
+
+        if (smtpSaveBtn) {
+            smtpSaveBtn.addEventListener('click', async function() {
+                smtpSaveBtn.disabled = true;
+                smtpSaveBtn.textContent = 'Guardando...';
+                smtpStatus.textContent = '';
+                try {
+                    var response = await fetch('/api/config/email', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            host: (smtpHost?.value || '').trim(),
+                            port: parseInt(smtpPort?.value, 10) || 587,
+                            secure: smtpSecure?.value === 'true',
+                            user: (smtpUser?.value || '').trim(),
+                            password: smtpPassword?.value || '',
+                            fromName: (smtpFromName?.value || '').trim(),
+                            fromEmail: (smtpFromEmail?.value || '').trim()
+                        })
+                    });
+                    var data = await response.json();
+                    if (!response.ok) throw new Error(data.error || 'Error al guardar.');
+                    smtpStatus.textContent = 'Configuración guardada.';
+                    smtpStatus.style.color = '#2a9d2a';
+                } catch (error) {
+                    smtpStatus.textContent = error.message || 'Error al guardar.';
+                    smtpStatus.style.color = '#b83a3a';
+                } finally {
+                    smtpSaveBtn.disabled = false;
+                    smtpSaveBtn.textContent = 'Guardar configuración';
+                }
+            });
+        }
+
+        if (smtpTestBtn) {
+            smtpTestBtn.addEventListener('click', async function() {
+                smtpTestBtn.disabled = true;
+                smtpTestBtn.textContent = 'Enviando...';
+                smtpStatus.textContent = '';
+                try {
+                    var response = await fetch('/api/config/email/test', { method: 'POST' });
+                    var data = await response.json();
+                    if (!response.ok) throw new Error(data.error || 'Error al enviar.');
+                    smtpStatus.textContent = 'Correo de prueba enviado.';
+                    smtpStatus.style.color = '#2a9d2a';
+                } catch (error) {
+                    smtpStatus.textContent = error.message || 'Error.';
+                    smtpStatus.style.color = '#b83a3a';
+                } finally {
+                    smtpTestBtn.disabled = false;
+                    smtpTestBtn.textContent = 'Enviar correo de prueba';
+                }
+            });
+        }
+
+        if (smtpFromEmail) {
+            smtpFromEmail.addEventListener('input', function() {
+                var domain = this.value.split('@')[1];
+                if (domain && smtpDetectedProvider) {
+                    smtpDetectedProvider.textContent = 'Detectando proveedor...';
+                    fetch('/api/config/email/providers?domain=' + encodeURIComponent(domain.toLowerCase().trim()))
+                        .then(function(r) { return r.json(); })
+                        .then(function(p) {
+                            if (p && p.host) {
+                                smtpDetectedProvider.textContent = 'Proveedor: ' + p.host + ':' + p.port;
+                                if (!smtpHost.value) smtpHost.value = p.host;
+                                if (!smtpPort.value || smtpPort.value === '587') smtpPort.value = p.port;
+                                smtpSecure.value = p.secure ? 'true' : 'false';
+                            }
+                        })
+                        .catch(function() {});
+                }
+            });
+        }
+
+        // ─── SECURITY POLICIES ──────────────────────────────────────────────
+        var secPasswordMinLength = document.getElementById('secPasswordMinLength');
+        var secRequireUpper = document.getElementById('secRequireUpper');
+        var secRequireLower = document.getElementById('secRequireLower');
+        var secRequireDigit = document.getElementById('secRequireDigit');
+        var secRequireSpecial = document.getElementById('secRequireSpecial');
+        var secPinLength = document.getElementById('secPinLength');
+        var secPinExpiry = document.getElementById('secPinExpiry');
+        var secPinMaxAttempts = document.getElementById('secPinMaxAttempts');
+        var secLoginMaxAttempts = document.getElementById('secLoginMaxAttempts');
+        var secLoginWindow = document.getElementById('secLoginWindow');
+        var secPolicySaveBtn = document.getElementById('secPolicySaveBtn');
+        var secPolicyStatus = document.getElementById('secPolicyStatus');
+
+        async function loadSecurityConfig() {
+            try {
+                var response = await fetch('/api/security/config');
+                var data = await response.json();
+                if (secPasswordMinLength) secPasswordMinLength.value = data.passwordMinLength || 10;
+                if (secRequireUpper) secRequireUpper.value = data.requireUpper ? 'true' : 'false';
+                if (secRequireLower) secRequireLower.value = data.requireLower ? 'true' : 'false';
+                if (secRequireDigit) secRequireDigit.value = data.requireDigit ? 'true' : 'false';
+                if (secRequireSpecial) secRequireSpecial.value = data.requireSpecial ? 'true' : 'false';
+                if (secPinLength) secPinLength.value = data.pinLength || 6;
+                if (secPinExpiry) secPinExpiry.value = data.pinExpiryMinutes || 15;
+                if (secPinMaxAttempts) secPinMaxAttempts.value = data.pinMaxAttempts || 3;
+                if (secLoginMaxAttempts) secLoginMaxAttempts.value = data.loginMaxAttempts || 5;
+                if (secLoginWindow) secLoginWindow.value = data.loginWindowSeconds || 30;
+            } catch (error) {
+                console.error('Error loading security config:', error);
+            }
+        }
+
+        if (secPolicySaveBtn) {
+            secPolicySaveBtn.addEventListener('click', async function() {
+                secPolicySaveBtn.disabled = true;
+                secPolicySaveBtn.textContent = 'Guardando...';
+                secPolicyStatus.textContent = '';
+                try {
+                    var response = await fetch('/api/security/config', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            passwordMinLength: parseInt(secPasswordMinLength?.value) || 10,
+                            requireUpper: secRequireUpper?.value === 'true',
+                            requireLower: secRequireLower?.value === 'true',
+                            requireDigit: secRequireDigit?.value === 'true',
+                            requireSpecial: secRequireSpecial?.value === 'true',
+                            pinLength: parseInt(secPinLength?.value) || 6,
+                            pinExpiryMinutes: parseInt(secPinExpiry?.value) || 15,
+                            pinMaxAttempts: parseInt(secPinMaxAttempts?.value) || 3,
+                            loginMaxAttempts: parseInt(secLoginMaxAttempts?.value) || 5,
+                            loginWindowSeconds: parseInt(secLoginWindow?.value) || 30
+                        })
+                    });
+                    var data = await response.json();
+                    if (!response.ok) throw new Error(data.error || 'Error al guardar.');
+                    secPolicyStatus.textContent = 'Políticas actualizadas.';
+                    secPolicyStatus.style.color = '#2a9d2a';
+                } catch (error) {
+                    secPolicyStatus.textContent = error.message || 'Error.';
+                    secPolicyStatus.style.color = '#b83a3a';
+                } finally {
+                    secPolicySaveBtn.disabled = false;
+                    secPolicySaveBtn.textContent = 'Guardar políticas';
+                }
+            });
+        }
+
+        // ─── CREDENTIAL AUDIT ───────────────────────────────────────────────
+        var auditFilterAction = document.getElementById('auditFilterAction');
+        var auditFilterUser = document.getElementById('auditFilterUser');
+        var auditSearchBtn = document.getElementById('auditSearchBtn');
+        var auditRefreshBtn = document.getElementById('auditRefreshBtn');
+        var auditPagination = document.getElementById('auditPagination');
+        var auditCurrentPage = 0;
+        var auditPageSize = 50;
+
+        async function loadCredentialAudit(actionFilter, userFilter, page) {
+            if (!auditTableBody) return;
+            auditTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:#71808d;">Cargando...</td></tr>';
+            try {
+                var params = '?limit=' + auditPageSize + '&offset=' + (page * auditPageSize);
+                if (actionFilter) params += '&action=' + encodeURIComponent(actionFilter);
+                if (userFilter) params += '&userAffected=' + encodeURIComponent(userFilter);
+                var response = await fetch('/api/credential-audit-log' + params);
+                var data = await response.json();
+                if (!data.rows || !data.rows.length) {
+                    auditTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:#71808d;">Sin registros.</td></tr>';
+                    if (auditPagination) auditPagination.innerHTML = '';
+                    return;
+                }
+                auditTableBody.innerHTML = data.rows.map(function(r) {
+                    return '<tr>' +
+                        '<td>' + escapeHtml(new Date(r.occurred_at).toLocaleString()) + '</td>' +
+                        '<td>' + escapeHtml(r.user_responsible) + '</td>' +
+                        '<td>' + escapeHtml(r.user_affected) + '</td>' +
+                        '<td>' + escapeHtml(r.action) + '</td>' +
+                        '<td>' + escapeHtml(r.result) + '</td>' +
+                        '<td>' + escapeHtml((r.observations || '').slice(0, 80)) + '</td>' +
+                        '<td>' + escapeHtml(r.ip_address) + '</td>' +
+                        '</tr>';
+                }).join('');
+                if (auditPagination) {
+                    var totalPages = Math.ceil((data.total || 0) / auditPageSize);
+                    var html = '';
+                    if (page > 0) html += '<button type="button" class="btn-secondary" data-audit-page="' + (page - 1) + '" style="padding:4px 12px;font-size:12px;">Anterior</button>';
+                    html += '<span style="padding:4px 8px;font-size:12px;color:#60707f;">Página ' + (page + 1) + ' de ' + totalPages + '</span>';
+                    if (page < totalPages - 1) html += '<button type="button" class="btn-secondary" data-audit-page="' + (page + 1) + '" style="padding:4px 12px;font-size:12px;">Siguiente</button>';
+                    auditPagination.innerHTML = html;
+                    auditPagination.querySelectorAll('[data-audit-page]').forEach(function(btn) {
+                        btn.addEventListener('click', function() {
+                            auditCurrentPage = parseInt(this.dataset.auditPage);
+                            loadCredentialAudit(auditFilterAction?.value, auditFilterUser?.value, auditCurrentPage);
+                        });
+                    });
+                }
+            } catch (error) {
+                auditTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:#b83a3a;">Error al cargar auditoría.</td></tr>';
+            }
+        }
+
+        if (auditSearchBtn) {
+            auditSearchBtn.addEventListener('click', function() {
+                auditCurrentPage = 0;
+                loadCredentialAudit(auditFilterAction?.value, auditFilterUser?.value, 0);
+            });
+        }
+        if (auditRefreshBtn) {
+            auditRefreshBtn.addEventListener('click', function() {
+                loadCredentialAudit(auditFilterAction?.value, auditFilterUser?.value, auditCurrentPage);
+            });
+        }
+
+        // ─── EMAIL LOG (Centro de Envíos) ──────────────────────────────────
+        var emailLogTableBody = document.getElementById('emailLogTableBody');
+
+        async function loadEmailLog() {
+            if (!emailLogTableBody) return;
+            emailLogTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#71808d;">Cargando...</td></tr>';
+            try {
+                var response = await fetch('/api/email-log?limit=100');
+                var data = await response.json();
+                if (!data.rows || !data.rows.length) {
+                    emailLogTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#71808d;">Sin envíos registrados.</td></tr>';
+                    return;
+                }
+                emailLogTableBody.innerHTML = data.rows.map(function(r) {
+                    return '<tr>' +
+                        '<td>' + escapeHtml(new Date(r.sent_at).toLocaleString()) + '</td>' +
+                        '<td>' + escapeHtml(r.recipient) + '</td>' +
+                        '<td>' + escapeHtml(r.subject || '') + '</td>' +
+                        '<td>' + escapeHtml(r.status) + '</td>' +
+                        '<td>' + escapeHtml((r.smtp_response || r.error_message || '').slice(0, 60)) + '</td>' +
+                        '</tr>';
+                }).join('');
+            } catch (error) {
+                emailLogTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#b83a3a;">Error al cargar.</td></tr>';
+            }
+        }
+
+        // Override loadConfig to also load SMTP, security config, audit, email log
+        var origLoadConfig = loadConfig;
+        loadConfig = async function() {
+            await origLoadConfig.call(this);
+            await loadSmtpConfig();
+            await loadSecurityConfig();
+            setTimeout(function() { loadCredentialAudit('', '', 0); }, 500);
+            setTimeout(function() { loadEmailLog(); }, 500);
+        };
 
         (function restrictDesignTab() {
             const session = readStoredErpSession();

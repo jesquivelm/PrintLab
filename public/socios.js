@@ -31,6 +31,18 @@ let sociosImportDiagnosis = null;
 let sociosVisibleCount = 0;
 let sociosSortState = { key: null, dir: null };
 
+function getSociosSortIcon(dir) {
+    const config = browserConfig || {};
+    const icons = config.icons || {};
+    const general = config.general || {};
+    const key = dir === 'asc' ? 'sortAsc' : 'sortDesc';
+    return {
+        value: icons[key] || (dir === 'asc' ? '\u25B2' : '\u25BC'),
+        color: firstFilled(general['iconColorSortAsc'], general.iconColor, '#607286'),
+        size: Number(firstFilled(general['iconSizeSortAsc'], '14')) || 14
+    };
+}
+
 function sortSociosList(data) {
     if (!sociosSortState.key || !sociosSortState.dir) return data;
     return [...data].sort((a, b) => {
@@ -42,22 +54,29 @@ function sortSociosList(data) {
         vb = String(vb).toLowerCase();
         if (va < vb) return sociosSortState.dir === 'asc' ? -1 : 1;
         if (va > vb) return sociosSortState.dir === 'asc' ? 1 : -1;
-        const da = a.creation_date, db = b.creation_date;
+        const da = a.created_at_tz, db = b.created_at_tz;
         if (da && db) return new Date(db) - new Date(da);
         return 0;
     });
 }
 
 function updateSociosSortIndicators() {
+    const ascConf = getSociosSortIcon('asc');
+    const descConf = getSociosSortIcon('desc');
     document.querySelectorAll('th[data-sort-key]').forEach(th => {
         const span = th.querySelector('.sort-indicator');
         if (!span) return;
         if (sociosSortState.key === th.dataset.sortKey) {
             th.classList.add('is-sorted');
-            span.textContent = sociosSortState.dir === 'asc' ? '↑' : '↓';
+            const conf = sociosSortState.dir === 'asc' ? ascConf : descConf;
+            span.innerHTML = iconMarkup(conf.value, 'Orden ' + (sociosSortState.dir === 'asc' ? 'ascendente' : 'descendente'), 'sort-indicator-icon');
+            span.style.setProperty('--icon-color', conf.color);
+            span.style.setProperty('--config-icon-size', conf.size + 'px');
         } else {
             th.classList.remove('is-sorted');
-            span.textContent = '';
+            span.innerHTML = '';
+            span.style.removeProperty('--icon-color');
+            span.style.removeProperty('--config-icon-size');
         }
     });
 }
@@ -233,7 +252,7 @@ async function loadSocios(search = '') {
             <td>${escapeHtml(item.salesperson_name)}</td>
             <td>${escapeHtml(item.email)}</td>
             <td>${escapeHtml(item.sector)}</td>
-            <td>${escapeHtml(formatDate(item.creation_date))}</td>
+            <td title="${escapeHtml(item.created_at_tz || item.creation_date || '')}">${escapeHtml(formatDate(item.creation_date))}</td>
             <td>
                 <div class="quote-browser-actions">
                     <button type="button" class="browser-open-link" data-open-socio="${escapeHtml(item.partner_code)}" aria-label="Abrir socio ${escapeHtml(item.partner_code)}" title="Abrir socio ${escapeHtml(item.partner_code)}" style="--icon-color:${escapeHtml(openIcon.color)};--icon-hover-color:${escapeHtml(openIcon.hover)};--config-icon-size:${escapeHtml(String(openIcon.size))}px;">${iconMarkup(openIcon.value, 'Abrir socio', 'table-icon-media')}</button>

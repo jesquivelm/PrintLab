@@ -8,6 +8,9 @@ const crypto = require('crypto');
 const { spawn } = require('child_process');
 const { pathToFileURL } = require('url');
 const XLSX = require('xlsx');
+const bcrypt = require('bcrypt');
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
 const { query: pgQuery, withTransaction } = require('./db/postgres');
 const { ensureInventorySchema, listInventory, getTroquelByCode, saveInventory, deleteInventory, importInventory, exportInventoryWorkbook } = require('./inventory-service');
 const { calculateProcessQuote } = require('./process-quote-service');
@@ -23,6 +26,11 @@ const {
     loadSapConfig
 } = require('./services/sap-service-layer');
 const { ensureExchangeRateSchema, registerExchangeRateRoutes, startExchangeRateScheduler, buildProformaExchangeContext } = require('./services/exchange-rate-service');
+const nodemailer = require('nodemailer');
+const { ensureEmailSchema, loadSmtpConfig, saveSmtpConfig, sendEmail, sendPasswordResetPin, sendPasswordChangedNotification, sendAccountBlockedNotification, detectProvider, PROVIDER_PRESETS } = require('./services/email-service');
+const { ensureIdentitySchema, validatePassword, hashPassword, verifyPassword, findUserByUsername, recordLoginAttempt, isUserLocked, lockUser, unlockUser, setResetPin, verifyResetPin, setUserPassword, findRecoveryResponsables, generatePin, isPinExpired } = require('./services/identity-service');
+const { ensureAuditSchema: ensureCredentialAuditSchema, recordCredentialAudit, getAuditActor, getCredentialAuditLog, CREDENTIAL_ACTIONS } = require('./services/audit-service');
+const { loadSecurityConfig, saveSecurityConfig } = require('./services/security-config-service');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -1001,7 +1009,9 @@ const DEFAULT_GENERAL_CONFIG = {
         produccionRebobinado: '\u21BB',
         produccionEmpaque: '\u25A3',
         produccionModoClaro: '\u2600',
-        produccionModoOscuro: '\u263E'
+        produccionModoOscuro: '\u263E',
+        sortAsc: '\u25B2',
+        sortDesc: '\u25BC'
     },
     layout: {
         logoWidth: 60,
@@ -1554,6 +1564,12 @@ const DEFAULT_GENERAL_CONFIG = {
         iconSizeProduccionEmpaque: 18,
         iconSizeProduccionModoClaro: 18,
         iconSizeProduccionModoOscuro: 18,
+        iconColorSortAsc: '#607286',
+        iconColorHoverSortAsc: '#0b81b8',
+        iconSizeSortAsc: 14,
+        iconColorSortDesc: '#607286',
+        iconColorHoverSortDesc: '#0b81b8',
+        iconSizeSortDesc: 14,
         pageMarginTop: 14,
         pageMarginBottom: 8,
         pageMarginRight: 16,
@@ -1749,6 +1765,29 @@ if (fs.existsSync(FLEXO_CALCULATOR_PUBLIC_DIR)) {
         }
     }));
 }
+app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: false
+}));
+
+const routeRedirects = {
+    '/notificaciones': '/notificaciones.html',
+    '/produccion': '/produccion.html',
+    '/inventario-mp': '/inventario-materiales',
+    '/inventario-maquinaria': '/inventario-maquinas',
+    '/ordenes': '/ordenes-produccion',
+    '/calculos': '/flexo-calculo',
+    '/seguimiento': '/planificacion/seguimiento',
+};
+for (const [from, to] of Object.entries(routeRedirects)) {
+    app.get(from, (req, res) => res.redirect(301, to));
+}
+
+app.get('/cambiar-contrasena', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'cambiar-contrasena.html'));
+});
+
 ensureGeneralConfig();
 
 async function runStartupSchemaStep(label, action) {
@@ -1776,6 +1815,10 @@ async function initializeStartupSchemas() {
         await ensureNotificationCenterSchema();
         await ensureNotificationAlertContactsSchema();
         await ensureInventoryClassificationMappingsSchema();
+        await ensureIdentitySchema();
+        await ensureEmailSchema();
+        await ensureAuditSchema();
+        await ensureCredentialAuditSchema();
         await ensureSecuritySeed();
     });
 }
@@ -3822,9 +3865,12 @@ function normalizeAdminUserRecord(row = {}) {
         permissionId: row.permission_id == null ? null : Number(row.permission_id),
         permissionName: sanitizeAdminUserText(row.permission_name),
         defaultLanding: sanitizeOptionalPresentationKey(row.default_landing),
+        mustChangePassword: row.must_change_password === true,
+        locked: row.locked_until ? new Date(row.locked_until).getTime() > Date.now() : false,
         sapSalespersonCode: Number.isFinite(Number(row.sap_salesperson_code)) && Number(row.sap_salesperson_code) > 0 ? Number(row.sap_salesperson_code) : null,
         sapSalespersonName: Number.isFinite(Number(row.sap_salesperson_code)) && Number(row.sap_salesperson_code) > 0 ? sanitizeAdminUserText(row.sap_salesperson_name) : '',
-        floatingButtonConfig: floatingButtonConfig && typeof floatingButtonConfig === 'object' && !Array.isArray(floatingButtonConfig) ? floatingButtonConfig : {}
+        floatingButtonConfig: floatingButtonConfig && typeof floatingButtonConfig === 'object' && !Array.isArray(floatingButtonConfig) ? floatingButtonConfig : {},
+        recoveryResponsibleDepartments: row.recovery_responsible_departments || []
     };
 }
 
@@ -12411,6 +12457,7 @@ app.get('/api/admin-users', async (req, res) => {
             `SELECT u.id, u.full_name, u.username, u.password, u.department, u.process, u.photo_url, u.signature_url, u.email, u.phone, u.phone_secondary,
                     u.sap_salesperson_code, u.sap_salesperson_name, u.default_landing,
                     u.notify_email, u.notify_whatsapp, u.notify_sms, u.is_active, u.permission_id, u.floating_button_config,
+                    u.must_change_password, u.locked_until, u.recovery_responsible_departments,
                     p.permission_name
                FROM admin_users u
           LEFT JOIN admin_permissions p
@@ -12431,6 +12478,10 @@ app.post('/api/admin-users', async (req, res) => {
         if (!name || !username || !password) {
             return res.status(400).json({ error: 'Nombre, usuario y contraseña son obligatorios.' });
         }
+        const passwordError = validatePasswordPolicy(password);
+        if (passwordError) {
+            return res.status(400).json({ error: passwordError });
+        }
         const exists = await pgQuery(
             `SELECT id
                FROM admin_users
@@ -12449,18 +12500,20 @@ app.post('/api/admin-users', async (req, res) => {
                 rawCode: req.body?.sapSalespersonCode
             });
         const persistedSalespersonAssignment = normalizePersistedSapSalespersonAssignment(salespersonAssignment);
+        const hashedPassword = await hashPassword(password);
+        await recordCredentialAudit({ userResponsible: getAuditActorFromRequest(req)?.username || 'sistema', userAffected: name, action: CREDENTIAL_ACTIONS.USER_CREATED, ip: req.ip });
         const result = await pgQuery(
             `INSERT INTO admin_users (
                 full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary,
-                notify_email, notify_whatsapp, notify_sms, is_active, permission_id, default_landing, sap_salesperson_code, sap_salesperson_name
+                notify_email, notify_whatsapp, notify_sms, is_active, permission_id, default_landing, must_change_password, sap_salesperson_code, sap_salesperson_name
              )
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, TRUE, $14, $15, $16, $17)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, TRUE, $14, $15, TRUE, $16, $17)
              RETURNING id, full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary,
-                       notify_email, notify_whatsapp, notify_sms, is_active, permission_id, default_landing, sap_salesperson_code, sap_salesperson_name`,
+                       notify_email, notify_whatsapp, notify_sms, is_active, permission_id, default_landing, must_change_password, sap_salesperson_code, sap_salesperson_name`,
             [
                 name,
                 username,
-                password,
+                hashedPassword,
                 sanitizeAdminUserText(req.body?.department),
                 sanitizeAdminUserText(req.body?.process),
                 sanitizeAdminUserText(req.body?.photoUrl),
@@ -12505,7 +12558,7 @@ app.patch('/api/admin-users/:id', async (req, res) => {
         }
         const existing = await pgQuery(
             `SELECT id, full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary,
-                    notify_email, notify_whatsapp, notify_sms, is_active, permission_id, default_landing, sap_salesperson_code, sap_salesperson_name
+                    notify_email, notify_whatsapp, notify_sms, is_active, permission_id, default_landing, must_change_password, sap_salesperson_code, sap_salesperson_name
                FROM admin_users
               WHERE id = $1
               LIMIT 1`,
@@ -12526,6 +12579,10 @@ app.patch('/api/admin-users/:id', async (req, res) => {
             fallbackName: row.sap_salesperson_name
         });
         const persistedSalespersonAssignment = normalizePersistedSapSalespersonAssignment(salespersonAssignment);
+        const rawPassword = req.body?.password;
+        const passwordToSet = rawPassword
+            ? await hashPassword(sanitizeAdminUserText(rawPassword))
+            : row.password;
         const result = await pgQuery(
             `UPDATE admin_users
                 SET full_name = $2,
@@ -12544,17 +12601,18 @@ app.patch('/api/admin-users/:id', async (req, res) => {
                     is_active = $15,
                     permission_id = $16,
                     default_landing = $17,
-                    sap_salesperson_code = $18,
-                    sap_salesperson_name = $19,
+                    must_change_password = $18,
+                    sap_salesperson_code = $19,
+                    sap_salesperson_name = $20,
                     updated_at = NOW()
               WHERE id = $1
           RETURNING id, full_name, username, password, department, process, photo_url, signature_url, email, phone, phone_secondary,
-                    notify_email, notify_whatsapp, notify_sms, is_active, permission_id, default_landing, sap_salesperson_code, sap_salesperson_name`,
+                    notify_email, notify_whatsapp, notify_sms, is_active, permission_id, default_landing, must_change_password, sap_salesperson_code, sap_salesperson_name`,
             [
                 id,
                 sanitizeAdminUserText(row.full_name),
                 sanitizeAdminUserText(row.username),
-                sanitizeAdminUserText(req.body?.password, row.password),
+                passwordToSet,
                 sanitizeAdminUserText(req.body?.department, row.department),
                 sanitizeAdminUserText(req.body?.process, row.process),
                 sanitizeAdminUserText(req.body?.photoUrl, row.photo_url),
@@ -12568,6 +12626,7 @@ app.patch('/api/admin-users/:id', async (req, res) => {
                 req.body?.active === undefined ? row.is_active !== false : req.body?.active === true,
                 permissionId,
                 defaultLanding,
+                rawPassword ? true : row.must_change_password,
                 persistedSalespersonAssignment.sapSalespersonCode,
                 persistedSalespersonAssignment.sapSalespersonName
             ]
@@ -12906,7 +12965,15 @@ app.delete('/api/admin-permissions/:id', async (req, res) => {
     }
 });
 
-app.post('/api/auth/login', async (req, res) => {
+const loginLimiter = rateLimit({
+    windowMs: 30 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Demasiados intentos de inicio de sesión. Intente nuevamente en 30 segundos.' }
+});
+
+app.post('/api/auth/login', loginLimiter, async (req, res) => {
     try {
         const username = sanitizeAdminUserText(req.body?.username).toLowerCase();
         const password = sanitizeAdminUserText(req.body?.password);
@@ -12914,7 +12981,7 @@ app.post('/api/auth/login', async (req, res) => {
             return res.status(400).json({ error: 'Usuario y contraseña son obligatorios.' });
         }
 
-        if ((username === 'admin' || username === 'administrador') && password === 'admin') {
+        if ((username === 'admin' || username === 'administrador') && password === process.env.ADMIN_EMERGENCY_PASSWORD) {
             const emergencyModules = {};
             Object.keys(PRESENTATION_NAMES).forEach((key) => {
                 emergencyModules[key] = 'edit';
@@ -12936,59 +13003,168 @@ app.post('/api/auth/login', async (req, res) => {
             });
         }
 
-        const result = await pgQuery(
-            `SELECT u.id, u.full_name, u.username, u.department, u.process, u.photo_url, u.is_active,
-                    u.permission_id, u.default_landing AS user_default_landing, u.floating_button_config,
-                    p.permission_name,
-                    p.default_landing AS permission_default_landing, p.module_permissions
-               FROM admin_users u
-          LEFT JOIN admin_permissions p
-                 ON p.id = u.permission_id
-              WHERE (
-                        LOWER(TRIM(u.username)) = $1
-                     OR LOWER(TRIM(u.full_name)) = $1
-                    )
-                AND u.password = $2
-              LIMIT 1`,
-            [username, password]
-        );
-
-        if (!result.rows.length) {
+        if (username === 'admin' || username === 'administrador') {
             return res.status(401).json({ error: 'Credenciales inválidas.' });
         }
 
-        const row = result.rows[0];
-        if (row.permission_id != null && !sanitizeAdminUserText(row.permission_name)) {
+        const user = await findUserByUsername(username);
+        if (!user) {
+            await recordCredentialAudit({ userResponsible: username, action: CREDENTIAL_ACTIONS.LOGIN_FAILED, result: 'usuario_no_encontrado', ip: req.ip });
+            return res.status(401).json({ error: 'Credenciales inválidas.' });
+        }
+
+        if (user.is_active === false) {
+            await recordCredentialAudit({ userResponsible: username, userAffected: user.full_name, department: user.department, action: CREDENTIAL_ACTIONS.LOGIN_FAILED, result: 'cuenta_deshabilitada', ip: req.ip });
+            return res.status(403).json({ error: 'Cuenta deshabilitada. Contacta al administrador.' });
+        }
+
+        const locked = user.locked_until && new Date(user.locked_until).getTime() > Date.now();
+        if (locked) {
+            await recordCredentialAudit({ userResponsible: username, userAffected: user.full_name, department: user.department, action: CREDENTIAL_ACTIONS.LOGIN_FAILED, result: 'cuenta_bloqueada', ip: req.ip });
+            const remaining = Math.ceil((new Date(user.locked_until).getTime() - Date.now()) / 1000);
+            return res.status(423).json({ error: `Cuenta bloqueada. Intenta nuevamente en ${remaining} segundos.` });
+        }
+
+        const passwordMatch = await verifyPassword(password, user.password);
+        if (!passwordMatch) {
+            await recordLoginAttempt(user.id, false);
+            await recordCredentialAudit({ userResponsible: username, userAffected: user.full_name, department: user.department, action: CREDENTIAL_ACTIONS.LOGIN_FAILED, result: 'contrasena_incorrecta', ip: req.ip });
+            const attempts = (user.login_attempts || 0) + 1;
+            if (attempts >= 5) {
+                await lockUser(user.id);
+                await recordCredentialAudit({ userResponsible: username, userAffected: user.full_name, department: user.department, action: CREDENTIAL_ACTIONS.USER_BLOCKED, result: 'demasiados_intentos', ip: req.ip });
+                try { await sendAccountBlockedNotification(user); } catch (_) {}
+                return res.status(423).json({ error: 'Cuenta bloqueada por múltiples intentos fallidos. Intenta nuevamente en 15 minutos.' });
+            }
+            return res.status(401).json({ error: `Credenciales inválidas. Intento ${attempts} de 5.` });
+        }
+
+        const pendingPin = user.pin_hash && !isPinExpired(user.pin_created_at);
+        if (pendingPin) {
+            return res.status(400).json({ error: 'Tienes un PIN de recuperación pendiente. Usa el PIN para restablecer tu contraseña.' });
+        }
+
+        await recordLoginAttempt(user.id, true);
+        await recordCredentialAudit({ userResponsible: username, userAffected: user.full_name, department: user.department, action: CREDENTIAL_ACTIONS.LOGIN_SUCCESS, result: 'exitoso', ip: req.ip });
+
+        if (user.permission_id != null && !sanitizeAdminUserText(user.permission_name)) {
             return res.status(409).json({
                 error: 'El usuario tiene un permiso asignado que no existe en esta base de datos. Revisa la migración de permisos antes de continuar.'
             });
         }
-        const permissionName = sanitizeAdminUserText(row.permission_name);
-        if (row.is_active === false) {
-            return res.status(403).json({ error: 'Este usuario se encuentra inactivo.' });
-        }
-        res.json({
+        const permissionName = sanitizeAdminUserText(user.permission_name);
+        const mustChangePassword = user.must_change_password === true;
+        const responseData = {
             ok: true,
             user: {
-                id: Number(row.id || 0),
-                name: sanitizeAdminUserText(row.full_name),
-                username: sanitizeAdminUserText(row.username),
-                department: sanitizeAdminUserText(row.department),
-                process: sanitizeAdminUserText(row.process),
-                photoUrl: sanitizeAdminUserText(row.photo_url),
-                permissionId: row.permission_id == null ? null : Number(row.permission_id),
+                id: Number(user.id || 0),
+                name: sanitizeAdminUserText(user.full_name),
+                username: sanitizeAdminUserText(user.username),
+                department: sanitizeAdminUserText(user.department),
+                process: sanitizeAdminUserText(user.process),
+                photoUrl: sanitizeAdminUserText(user.photo_url),
+                permissionId: user.permission_id == null ? null : Number(user.permission_id),
                 permissionName,
-                defaultLanding: sanitizeOptionalPresentationKey(row.user_default_landing) || sanitizePresentationKey(row.permission_default_landing),
-                floatingButtonConfig: row.floating_button_config && typeof row.floating_button_config === 'object' && !Array.isArray(row.floating_button_config)
-                    ? row.floating_button_config
+                defaultLanding: sanitizeOptionalPresentationKey(user.default_landing) || sanitizePresentationKey(user.permission_default_landing),
+                floatingButtonConfig: user.floating_button_config && typeof user.floating_button_config === 'object' && !Array.isArray(user.floating_button_config)
+                    ? user.floating_button_config
                     : {},
                 modules: isSuperAdminPermissionName(permissionName)
                     ? buildFullPermissionMatrix()
-                    : normalizePermissionMatrix(row.module_permissions || {})
+                    : normalizePermissionMatrix(user.module_permissions || {}),
+                mustChangePassword
             }
-        });
+        };
+        if (mustChangePassword) {
+            responseData.redirect = '/cambiar-contrasena';
+        }
+        res.json(responseData);
     } catch (error) {
-        res.status(500).json({ error: error.message || 'No fue posible iniciar sesión.' });
+        console.error('Error en login:', error.stack || error.message);
+        const isConnectionError = error && (
+            error.message && (
+                error.message.includes('connect') ||
+                error.message.includes('autentificaci') ||
+                error.message.includes('ECONNREFUSED') ||
+                error.message.includes('getaddrinfo') ||
+                error.message.includes('timeout')
+            )
+        );
+        if (isConnectionError) {
+            res.status(503).json({ error: 'Servicio de autenticación temporalmente no disponible.' });
+        } else {
+            res.status(500).json({ error: error.message || 'No fue posible iniciar sesión.' });
+        }
+    }
+});
+
+function validatePasswordPolicy(password) {
+    const errors = validatePassword(password);
+    return errors.length > 0 ? errors.join(' ') : null;
+}
+
+app.post('/api/auth/cambiar-contrasena', async (req, res) => {
+    try {
+        const session = readErpSessionFromRequest(req);
+        const sessionUser = sanitizeAdminUserText(session?.username);
+        if (!sessionUser) {
+            return res.status(401).json({ error: 'Sesión no válida.' });
+        }
+        if (sessionUser === 'admin' || sessionUser === 'administrador') {
+            return res.status(400).json({ error: 'El usuario administrador de emergencia no puede cambiar su contraseña desde aquí.' });
+        }
+        const { currentPassword, newPassword, pin } = req.body || {};
+        if (!newPassword) {
+            return res.status(400).json({ error: 'La nueva contraseña es obligatoria.' });
+        }
+        const passwordError = validatePasswordPolicy(newPassword);
+        if (passwordError) {
+            return res.status(400).json({ error: passwordError });
+        }
+        const userResult = await pgQuery(
+            `SELECT id, password, pin_hash, pin_created_at, pin_attempts, full_name FROM admin_users WHERE LOWER(TRIM(username)) = $1 LIMIT 1`,
+            [sessionUser]
+        );
+        if (!userResult.rows.length) {
+            return res.status(404).json({ error: 'Usuario no encontrado.' });
+        }
+        const row = userResult.rows[0];
+        const usingPin = row.pin_hash && pin;
+        if (usingPin) {
+            const pinResult = await verifyResetPin(row.id, pin);
+            if (!pinResult.valid) {
+                return res.status(401).json({ error: pinResult.reason });
+            }
+        } else {
+            if (!currentPassword) {
+                return res.status(400).json({ error: 'Debes proporcionar la contraseña actual o un PIN de recuperación.' });
+            }
+            if (currentPassword === newPassword) {
+                return res.status(400).json({ error: 'La nueva contraseña debe ser diferente a la actual.' });
+            }
+            const storedPassword = row.password || '';
+            const passwordMatch = await verifyPassword(currentPassword, storedPassword);
+            if (!passwordMatch) {
+                return res.status(401).json({ error: 'La contraseña actual no es correcta.' });
+            }
+        }
+        const hashedNewPassword = await hashPassword(newPassword);
+        await pgQuery(
+            `UPDATE admin_users
+                SET password = $1,
+                    must_change_password = FALSE,
+                    pin_hash = '',
+                    pin_created_at = NULL,
+                    pin_attempts = 0,
+                    updated_at = NOW()
+              WHERE id = $2`,
+            [hashedNewPassword, row.id]
+        );
+        try { await sendPasswordChangedNotification(row); } catch (_) {}
+        await recordCredentialAudit({ userResponsible: sessionUser, userAffected: row.full_name, action: CREDENTIAL_ACTIONS.PASSWORD_CHANGED, ip: req.ip });
+        res.json({ ok: true, message: 'Contraseña actualizada correctamente.', redirect: '/dashboard' });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible cambiar la contraseña.' });
     }
 });
 
@@ -15455,6 +15631,8 @@ app.get('/api/planificacion/maquinas/config', async (req, res) => {
                 mp.supports_lamination AS flag_laminado,
                 mp.max_web_width_in AS ancho_max_banda,
                 mp.min_web_width_in AS ancho_min_banda,
+                mp.hourly_machine_cost,
+                mp.hourly_operator_cost,
                 mp.is_active AS activa
             FROM production_machine_profiles mp
             LEFT JOIN production_process_definitions p ON p.process_key = mp.process_key
@@ -15550,8 +15728,9 @@ app.post('/api/planificacion/maquinas', async (req, res) => {
             INSERT INTO production_machine_profiles (
                 machine_name, process_key, process_name, nominal_speed_fpm, oee_target,
                 max_web_width_in, min_web_width_in, supports_die_cut, supports_varnish_uv,
-                supports_lamination, is_active, source_payload
-            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb)
+                supports_lamination, hourly_machine_cost, hourly_operator_cost,
+                is_active, source_payload
+            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb)
             RETURNING id::text AS id_maquina
         `, [
             payload.nombre_recurso,
@@ -15564,6 +15743,8 @@ app.post('/api/planificacion/maquinas', async (req, res) => {
             Boolean(payload.flag_troquel),
             Boolean(payload.flag_barniz_uv),
             Boolean(payload.flag_laminado),
+            Number(payload.costo_hora_maquina || 0),
+            Number(payload.costo_hora_operario || 0),
             payload.activa !== false,
             JSON.stringify({
                 external_id: payload.id_maquina || null,
@@ -15571,6 +15752,19 @@ app.post('/api/planificacion/maquinas', async (req, res) => {
                 capacidad_colores: Number(payload.capacidad_colores || 0)
             })
         ]);
+        const newMachineId = result.rows[0].id_maquina;
+        if (Number(payload.costo_hora_maquina || 0) > 0 || Number(payload.costo_hora_operario || 0) > 0) {
+            await pgQuery(`
+                UPDATE maquina_capacidad
+                SET costo_hora_maquina = $1,
+                    costo_hora_operario = $2
+                WHERE id = (SELECT machine_capacity_id FROM production_machine_profiles WHERE id = $3::uuid)
+            `, [
+                Number(payload.costo_hora_maquina || 0),
+                Number(payload.costo_hora_operario || 0),
+                newMachineId
+            ]);
+        }
         res.json({ ok: true, data: result.rows[0] });
     } catch (error) {
         res.status(500).json({ ok: false, error: error.message || 'No fue posible crear la máquina.' });
@@ -15600,9 +15794,11 @@ app.put('/api/planificacion/maquinas/:id', async (req, res) => {
                 supports_varnish_uv = COALESCE($9, supports_varnish_uv),
                 supports_lamination = COALESCE($10, supports_lamination),
                 is_active = COALESCE($11, is_active),
-                source_payload = COALESCE($12::jsonb, source_payload),
+                hourly_machine_cost = COALESCE($12, hourly_machine_cost),
+                hourly_operator_cost = COALESCE($13, hourly_operator_cost),
+                source_payload = COALESCE($14::jsonb, source_payload),
                 updated_at = NOW()
-            WHERE id = $13::uuid
+            WHERE id = $15::uuid
             RETURNING id::text AS id_maquina
         `, [
             payload.nombre_recurso || null,
@@ -15616,6 +15812,8 @@ app.put('/api/planificacion/maquinas/:id', async (req, res) => {
             typeof payload.flag_barniz_uv === 'boolean' ? payload.flag_barniz_uv : null,
             typeof payload.flag_laminado === 'boolean' ? payload.flag_laminado : null,
             typeof payload.activa === 'boolean' ? payload.activa : null,
+            payload.costo_hora_maquina !== undefined ? Number(payload.costo_hora_maquina || 0) : null,
+            payload.costo_hora_operario !== undefined ? Number(payload.costo_hora_operario || 0) : null,
             JSON.stringify({
                 external_id: payload.id_maquina || null,
                 sub_descripcion: payload.sub_descripcion || '',
@@ -15626,7 +15824,20 @@ app.put('/api/planificacion/maquinas/:id', async (req, res) => {
         if (!result.rows.length) {
             return res.status(404).json({ ok: false, error: 'Máquina no encontrada.' });
         }
-        res.json({ ok: true, data: result.rows[0] });
+        const updatedMachine = result.rows[0];
+        if (payload.costo_hora_maquina !== undefined || payload.costo_hora_operario !== undefined) {
+            await pgQuery(`
+                UPDATE maquina_capacidad
+                SET costo_hora_maquina = COALESCE($1, costo_hora_maquina),
+                    costo_hora_operario = COALESCE($2, costo_hora_operario)
+                WHERE id = (SELECT machine_capacity_id FROM production_machine_profiles WHERE id = $3::uuid)
+            `, [
+                payload.costo_hora_maquina !== undefined ? Number(payload.costo_hora_maquina || 0) : null,
+                payload.costo_hora_operario !== undefined ? Number(payload.costo_hora_operario || 0) : null,
+                req.params.id
+            ]);
+        }
+        res.json({ ok: true, data: updatedMachine });
     } catch (error) {
         res.status(500).json({ ok: false, error: error.message || 'No fue posible actualizar la máquina.' });
     }
@@ -20774,7 +20985,22 @@ app.get('/api/catalogs', async (req, res) => {
                 unidad_velocidad_produccion: item.unidad_velocidad_produccion || 'ft/min',
                 hourlyMachineCost: primary?.costo_hora_maquina ?? 0,
                 hourlyOperatorCost: primary?.costo_hora_operario ?? 0,
-                availableColors: /digital/i.test(String(item.tipo || '')) ? 0 : 8,
+                maculaDefaultFeet: Number(item.macula_default_pies || 0),
+                macula_default_pies: Number(item.macula_default_pies || 0),
+                sustratoSetupMermaCantidad: Number(item.sustrato_setup_merma_cantidad || 0),
+                sustratoSetupMermaUnidad: item.sustrato_setup_merma_unidad || 'pies',
+                sustratoSetupMermaBase: item.sustrato_setup_merma_base || 'trabajo',
+                sustratoMontajeMermaCantidad: Number(item.sustrato_montaje_merma_cantidad || 0),
+                sustratoMontajeMermaUnidad: item.sustrato_montaje_merma_unidad || 'pies',
+                sustratoMontajeMermaBase: item.sustrato_montaje_merma_base || 'trabajo',
+                availableColors: (() => {
+                    try {
+                        const specs = typeof item.especificaciones === 'object' ? item.especificaciones : JSON.parse(item.especificaciones || '{}');
+                        const numEst = Number(specs?.num_estaciones || '');
+                        if (numEst > 0) return numEst;
+                    } catch (e) {}
+                    return /digital/i.test(String(item.tipo || '')) ? 0 : 8;
+                })(),
                 capacities
             };
         });
@@ -21099,6 +21325,254 @@ function handleServerStartupError(error) {
     writeStartupErrorLog(message, error);
     process.exitCode = 1;
 }
+
+// ─── EMAIL CONFIG ENDPOINTS ────────────────────────────────────────────────
+app.get('/api/config/email', async (req, res) => {
+    try {
+        const cfg = await loadSmtpConfig();
+        if (!cfg || !cfg.host) {
+            return res.json({ host: '', port: 587, secure: false, user: '', password: '', fromName: '', fromEmail: '', detectedProvider: null });
+        }
+        const detectedProvider = cfg.fromEmail ? detectProvider(cfg.fromEmail) : null;
+        res.json({ ...cfg, password: '', detectedProvider });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible cargar la configuración de correo.' });
+    }
+});
+
+app.put('/api/config/email', async (req, res) => {
+    try {
+        const session = readErpSessionFromRequest(req);
+        if (!session || !isSuperAdminPermissionName(sanitizeAdminUserText(session?.permissionName))) {
+            return res.status(403).json({ error: 'No tienes permiso para modificar la configuración de correo.' });
+        }
+        const { host, port, secure, user, password, fromName, fromEmail } = req.body || {};
+        const existing = await loadSmtpConfig();
+        await saveSmtpConfig({
+            host: String(host || existing?.host || '').trim(),
+            port: Number(port) || existing?.port || 587,
+            secure: secure === true || secure === 'true' ? true : (existing?.secure || false),
+            user: String(user || existing?.user || '').trim(),
+            password: password || existing?.password || '',
+            fromName: String(fromName || existing?.fromName || '').trim(),
+            fromEmail: String(fromEmail || existing?.fromEmail || '').trim()
+        });
+        await recordCredentialAudit({ userResponsible: session?.username || 'sistema', action: CREDENTIAL_ACTIONS.SMTP_CONFIG_MODIFIED, ip: req.ip });
+        res.json({ ok: true, message: 'Configuración de correo actualizada.' });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible guardar la configuración de correo.' });
+    }
+});
+
+app.post('/api/config/email/test', async (req, res) => {
+    try {
+        const session = readErpSessionFromRequest(req);
+        if (!session) return res.status(401).json({ error: 'Sesión no válida.' });
+        await sendEmail({
+            to: req.body?.to || session?.username || '',
+            subject: 'Prueba de configuración SMTP - PrintLab',
+            html: '<p>Esta es una prueba de la configuración de correo SMTP.</p><p>Si recibes este mensaje, la configuración es correcta.</p>',
+            text: 'Prueba de configuración SMTP - PrintLab. Si recibes este mensaje, la configuración es correcta.'
+        });
+        await recordCredentialAudit({ userResponsible: session?.username, action: CREDENTIAL_ACTIONS.SMTP_TEST, result: 'exitoso', ip: req.ip });
+        res.json({ ok: true, message: 'Correo de prueba enviado correctamente.' });
+    } catch (error) {
+        await recordCredentialAudit({ userResponsible: session?.username, action: CREDENTIAL_ACTIONS.SMTP_TEST, result: 'fallido', observations: error.message, ip: req.ip });
+        res.status(500).json({ error: error.message || 'No fue posible enviar el correo de prueba.' });
+    }
+});
+
+app.get('/api/config/email/providers', async (req, res) => {
+    const domain = req.query?.domain?.toLowerCase().trim();
+    if (domain) {
+        const preset = PROVIDER_PRESETS[domain];
+        if (preset) return res.json(preset);
+    }
+    res.json(Object.keys(PROVIDER_PRESETS));
+});
+
+// ─── FORGOT PASSWORD ───────────────────────────────────────────────────────
+app.post('/api/auth/forgot-password', async (req, res) => {
+    try {
+        const username = sanitizeAdminUserText(req.body?.username).toLowerCase();
+        if (!username) {
+            return res.status(400).json({ error: 'Debes ingresar tu nombre de usuario.' });
+        }
+        if (username === 'admin' || username === 'administrador') {
+            return res.status(400).json({ error: 'El usuario de emergencia no puede recuperar su contraseña por este medio.' });
+        }
+        const user = await findUserByUsername(username);
+        if (!user || !user.email) {
+            return res.json({ ok: true, message: 'Si el usuario existe y tiene correo registrado, recibirás instrucciones.' });
+        }
+        if (user.is_active === false) {
+            return res.status(403).json({ error: 'Cuenta deshabilitada. Contacta al administrador.' });
+        }
+        const pin = await setResetPin(user.id);
+        try {
+            await sendPasswordResetPin(user, pin);
+            await recordCredentialAudit({ userResponsible: username, userAffected: user.full_name, department: user.department, action: CREDENTIAL_ACTIONS.PIN_GENERATED, result: 'enviado_por_correo', ip: req.ip });
+            return res.json({ ok: true, message: 'Se ha enviado un código de recuperación a tu correo electrónico.' });
+        } catch (emailError) {
+            console.error('Error enviando PIN por correo:', emailError.message);
+            await recordCredentialAudit({ userResponsible: username, userAffected: user.full_name, department: user.department, action: CREDENTIAL_ACTIONS.PIN_GENERATED, result: 'correo_fallido', observations: emailError.message, ip: req.ip });
+            return res.status(500).json({ error: 'No fue posible enviar el correo. Verifica la configuración SMTP o contacta al administrador.' });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible procesar la solicitud.' });
+    }
+});
+
+// ─── ADMIN RESET PASSWORD (PIN generation) ─────────────────────────────────
+app.post('/api/admin-users/:id/reset-password', async (req, res) => {
+    try {
+        const session = readErpSessionFromRequest(req);
+        if (!session) return res.status(401).json({ error: 'Sesión no válida.' });
+        const requester = await findUserByUsername(session.username);
+        if (!requester || !isSuperAdminPermissionName(sanitizeAdminUserText(requester.permission_name))) {
+            return res.status(403).json({ error: 'Solo administradores pueden restablecer contraseñas.' });
+        }
+        const userId = parseInt(req.params.id, 10);
+        if (!userId) return res.status(400).json({ error: 'ID de usuario no válido.' });
+        const user = await pgQuery(`SELECT id, full_name, email, username FROM admin_users WHERE id = $1`, [userId]);
+        if (!user.rows.length) return res.status(404).json({ error: 'Usuario no encontrado.' });
+        const target = user.rows[0];
+
+        const pin = await setResetPin(userId);
+        await recordCredentialAudit({ userResponsible: session.username, userAffected: target.full_name, action: CREDENTIAL_ACTIONS.CREDENTIALS_RESET, ip: req.ip });
+
+        const shouldSendEmail = req.body?.sendEmail !== false;
+        let emailSent = false;
+        if (shouldSendEmail && target.email) {
+            try {
+                await sendPasswordResetPin({ full_name: target.full_name, email: target.email }, pin);
+                emailSent = true;
+            } catch (e) {
+                console.error('Error enviando PIN:', e.message);
+            }
+        }
+
+        res.json({ ok: true, pin, emailSent, message: 'PIN generado correctamente. Muestra este PIN al usuario. Expira en 15 minutos.' });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible restablecer la contraseña.' });
+    }
+});
+
+// ─── LOCK / UNLOCK USER ─────────────────────────────────────────────────────
+app.post('/api/admin-users/:id/lock', async (req, res) => {
+    try {
+        const session = readErpSessionFromRequest(req);
+        if (!session) return res.status(401).json({ error: 'Sesión no válida.' });
+        const requester = await findUserByUsername(session.username);
+        if (!requester || !isSuperAdminPermissionName(sanitizeAdminUserText(requester.permission_name))) {
+            return res.status(403).json({ error: 'No tienes permiso para bloquear usuarios.' });
+        }
+        const userId = parseInt(req.params.id, 10);
+        if (!userId) return res.status(400).json({ error: 'ID no válido.' });
+        await lockUser(userId);
+        await recordCredentialAudit({ userResponsible: session.username, userAffected: String(userId), action: CREDENTIAL_ACTIONS.USER_BLOCKED, ip: req.ip });
+        res.json({ ok: true, message: 'Usuario bloqueado.' });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible bloquear el usuario.' });
+    }
+});
+
+app.post('/api/admin-users/:id/unlock', async (req, res) => {
+    try {
+        const session = readErpSessionFromRequest(req);
+        if (!session) return res.status(401).json({ error: 'Sesión no válida.' });
+        const requester = await findUserByUsername(session.username);
+        if (!requester || !isSuperAdminPermissionName(sanitizeAdminUserText(requester.permission_name))) {
+            return res.status(403).json({ error: 'No tienes permiso para desbloquear usuarios.' });
+        }
+        const userId = parseInt(req.params.id, 10);
+        if (!userId) return res.status(400).json({ error: 'ID no válido.' });
+        await unlockUser(userId);
+        await recordCredentialAudit({ userResponsible: session.username, userAffected: String(userId), action: CREDENTIAL_ACTIONS.USER_UNLOCKED, ip: req.ip });
+        res.json({ ok: true, message: 'Usuario desbloqueado.' });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible desbloquear el usuario.' });
+    }
+});
+
+// ─── SECURITY CONFIG ────────────────────────────────────────────────────────
+app.get('/api/security/config', async (req, res) => {
+    try {
+        res.json(await loadSecurityConfig());
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible cargar la configuración de seguridad.' });
+    }
+});
+
+app.put('/api/security/config', async (req, res) => {
+    try {
+        const session = readErpSessionFromRequest(req);
+        if (!session || !isSuperAdminPermissionName(sanitizeAdminUserText(session?.permissionName))) {
+            return res.status(403).json({ error: 'No tienes permiso para modificar la configuración de seguridad.' });
+        }
+        await saveSecurityConfig(req.body || {});
+        await recordCredentialAudit({ userResponsible: session.username, action: CREDENTIAL_ACTIONS.SECURITY_POLICY_MODIFIED, ip: req.ip });
+        res.json({ ok: true, message: 'Configuración de seguridad actualizada.' });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible guardar la configuración de seguridad.' });
+    }
+});
+
+// ─── RECOVERY RESPONSABLES ──────────────────────────────────────────────────
+app.get('/api/admin-users/:id/recovery-responsables', async (req, res) => {
+    try {
+        const user = await pgQuery(`SELECT id, full_name, recovery_responsible_departments FROM admin_users WHERE id = $1`, [parseInt(req.params.id)]);
+        if (!user.rows.length) return res.status(404).json({ error: 'Usuario no encontrado.' });
+        res.json({ departments: user.rows[0].recovery_responsible_departments || [] });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.put('/api/admin-users/:id/recovery-responsables', async (req, res) => {
+    try {
+        const session = readErpSessionFromRequest(req);
+        if (!session) return res.status(401).json({ error: 'Sesión no válida.' });
+        const userId = parseInt(req.params.id);
+        const departments = Array.isArray(req.body?.departments) ? req.body.departments.map(String).filter(Boolean) : [];
+        await pgQuery(`UPDATE admin_users SET recovery_responsible_departments = $1 WHERE id = $2`, [departments, userId]);
+        await recordCredentialAudit({ userResponsible: session.username, userAffected: String(userId), action: CREDENTIAL_ACTIONS.RECOVERY_RESPONSABLE_ASSIGNED, ip: req.ip });
+        res.json({ ok: true, message: 'Responsabilidades actualizadas.' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ─── CREDENTIAL AUDIT LOG ──────────────────────────────────────────────────
+app.get('/api/credential-audit-log', async (req, res) => {
+    try {
+        const { limit, offset, action, userAffected } = req.query;
+        const result = await getCredentialAuditLog({
+            limit: Math.min(Number(limit) || 100, 500),
+            offset: Number(offset) || 0,
+            action: action || null,
+            userAffected: userAffected || null
+        });
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible cargar la auditoría.' });
+    }
+});
+
+// ─── EMAIL LOG (Centro de envíos) ──────────────────────────────────────────
+app.get('/api/email-log', async (req, res) => {
+    try {
+        const limit = Math.min(Number(req.query.limit) || 50, 200);
+        const offset = Number(req.query.offset) || 0;
+        const result = await pgQuery(
+            `SELECT * FROM email_log ORDER BY sent_at DESC LIMIT $1 OFFSET $2`, [limit, offset]
+        );
+        const count = await pgQuery(`SELECT COUNT(*)::int AS total FROM email_log`);
+        res.json({ rows: result.rows, total: count.rows[0]?.total || 0 });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible cargar el centro de envíos.' });
+    }
+});
 
 const server = app.listen(PORT, () => {
     console.log(`Servidor corriendo en http://localhost:${PORT}`);

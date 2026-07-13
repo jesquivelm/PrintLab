@@ -6,6 +6,57 @@ const productsSearchInput = document.getElementById('productsSearchInput');
 const productsTableBody = document.getElementById('productsTableBody');
 
 let browserConfig = null;
+let productsSortState = { key: null, dir: null };
+
+function getProductsSortIcon(dir) {
+    const config = browserConfig || {};
+    const icons = config.icons || {};
+    const general = config.general || {};
+    const key = dir === 'asc' ? 'sortAsc' : 'sortDesc';
+    return {
+        value: icons[key] || (dir === 'asc' ? '\u25B2' : '\u25BC'),
+        color: firstFilled(general['iconColorSortAsc'], general.iconColor, '#607286'),
+        size: Number(firstFilled(general['iconSizeSortAsc'], '14')) || 14
+    };
+}
+
+function sortProductsList(data) {
+    if (!productsSortState.key || !productsSortState.dir) return data;
+    return [...data].sort((a, b) => {
+        const key = productsSortState.key;
+        let va = a[key], vb = b[key];
+        if (va == null) return 1;
+        if (vb == null) return -1;
+        va = String(va).toLowerCase();
+        vb = String(vb).toLowerCase();
+        if (va < vb) return productsSortState.dir === 'asc' ? -1 : 1;
+        if (va > vb) return productsSortState.dir === 'asc' ? 1 : -1;
+        const da = a.created_at, db = b.created_at;
+        if (da && db) return new Date(db) - new Date(da);
+        return 0;
+    });
+}
+
+function updateProductsSortIndicators() {
+    const ascConf = getProductsSortIcon('asc');
+    const descConf = getProductsSortIcon('desc');
+    document.querySelectorAll('th[data-sort-key]').forEach(th => {
+        const span = th.querySelector('.sort-indicator');
+        if (!span) return;
+        if (productsSortState.key === th.dataset.sortKey) {
+            th.classList.add('is-sorted');
+            const conf = productsSortState.dir === 'asc' ? ascConf : descConf;
+            span.innerHTML = iconMarkup(conf.value, 'Orden ' + (productsSortState.dir === 'asc' ? 'ascendente' : 'descendente'), 'sort-indicator-icon');
+            span.style.setProperty('--icon-color', conf.color);
+            span.style.setProperty('--config-icon-size', conf.size + 'px');
+        } else {
+            th.classList.remove('is-sorted');
+            span.innerHTML = '';
+            span.style.removeProperty('--icon-color');
+            span.style.removeProperty('--config-icon-size');
+        }
+    });
+}
 
 function escapeHtml(value) {
     return String(value || '')
@@ -132,9 +183,12 @@ async function loadProducts(search = '') {
     const payload = await fetchJson(`${PRODUCTS_ENDPOINT}?${params.toString()}`);
     const items = Array.isArray(payload.productos) ? payload.productos : [];
     const openIcon = getOpenIconConfig();
-    productsTableBody.innerHTML = items.length ? items.map((item) => {
+    const displayItems = sortProductsList(items);
+    updateProductsSortIndicators();
+    productsTableBody.innerHTML = displayItems.length ? displayItems.map((item) => {
         const route = productDocumentRoute(item.product_code);
         const label = getProductRowLabel(item);
+        const dateVal = item.last_quoted_at || item.created_at;
         return `
         <tr>
             <td>${escapeHtml(item.product_code || '')}</td>
@@ -142,7 +196,7 @@ async function loadProducts(search = '') {
             <td>${escapeHtml(item.line_code || '')}</td>
             <td>${escapeHtml(item.client_name || '')}</td>
             <td>${escapeHtml(label)}</td>
-            <td>${escapeHtml(formatDate(item.last_quoted_at || item.created_at))}</td>
+            <td title="${escapeHtml(dateVal || '')}">${escapeHtml(formatDate(dateVal))}</td>
             <td><a class="browser-open-link" href="${escapeHtml(route)}" data-route="${escapeHtml(route)}" data-label="Producto ${escapeHtml(label)}" aria-label="Abrir producto ${escapeHtml(label)}" style="--icon-color:${escapeHtml(openIcon.color)};--icon-hover-color:${escapeHtml(openIcon.hover)};--config-icon-size:${escapeHtml(String(openIcon.size))}px;">${iconMarkup(openIcon.value, 'Abrir producto', 'table-icon-media')}</a></td>
         </tr>
     `;
@@ -150,6 +204,21 @@ async function loadProducts(search = '') {
 }
 
 productsSearchInput?.addEventListener('input', () => {
+    loadProducts(productsSearchInput.value).catch((error) => {
+        renderErrorRow(error.message);
+    });
+});
+
+productsTableBody?.closest('table')?.querySelector('thead')?.addEventListener('click', (event) => {
+    const th = event.target.closest('th[data-sort-key]');
+    if (!th) return;
+    const key = th.dataset.sortKey;
+    if (productsSortState.key === key) {
+        productsSortState.dir = productsSortState.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+        productsSortState.key = key;
+        productsSortState.dir = 'asc';
+    }
     loadProducts(productsSearchInput.value).catch((error) => {
         renderErrorRow(error.message);
     });

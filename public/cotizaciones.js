@@ -272,22 +272,29 @@ function sortQuotesList(data) {
         vb = String(vb).toLowerCase();
         if (va < vb) return quoteSortState.dir === 'asc' ? -1 : 1;
         if (va > vb) return quoteSortState.dir === 'asc' ? 1 : -1;
-        const da = a.created_on, db = b.created_on;
+        const da = a.created_at_tz, db = b.created_at_tz;
         if (da && db) return new Date(db) - new Date(da);
         return 0;
     });
 }
 
 function updateQuoteSortIndicators() {
+    const ascConf = getResolvedIcon(['sortAsc'], 'sortAsc');
+    const descConf = getResolvedIcon(['sortDesc'], 'sortDesc');
     document.querySelectorAll('th[data-sort-key]').forEach(th => {
         const span = th.querySelector('.sort-indicator');
         if (!span) return;
         if (quoteSortState.key === th.dataset.sortKey) {
             th.classList.add('is-sorted');
-            span.textContent = quoteSortState.dir === 'asc' ? '↑' : '↓';
+            const conf = quoteSortState.dir === 'asc' ? ascConf : descConf;
+            span.innerHTML = iconMarkup(conf.value, 'Orden ' + (quoteSortState.dir === 'asc' ? 'ascendente' : 'descendente'), 'sort-indicator-icon');
+            span.style.setProperty('--icon-color', conf.color);
+            span.style.setProperty('--config-icon-size', conf.size + 'px');
         } else {
             th.classList.remove('is-sorted');
-            span.textContent = '';
+            span.innerHTML = '';
+            span.style.removeProperty('--icon-color');
+            span.style.removeProperty('--config-icon-size');
         }
     });
 }
@@ -2694,8 +2701,8 @@ function renderQuoteParentRow(item) {
                     <span class="quote-status-chip" data-state="${escapeHtml(statusInfo.state)}">${escapeHtml(statusInfo.label)}</span>
                 </div>
             </td>
-            <td class="quote-master-td-date">${escapeHtml(createdOn)}</td>
-            <td class="quote-master-td-date">${escapeHtml(dueOn)}</td>
+            <td class="quote-master-td-date" title="${escapeHtml(item.created_at_tz || item.created_on || '')}">${escapeHtml(createdOn)}</td>
+            <td class="quote-master-td-date" title="${escapeHtml(item.due_on || '')}">${escapeHtml(dueOn)}</td>
             <td class="quote-master-td-total">${escapeHtml(total)}</td>
             <td class="quote-master-td-actions">
                 <div class="quote-browser-actions row-tools row-tools-row-end">
