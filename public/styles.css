@@ -8745,6 +8745,10 @@ body.inventory-route-maquinas.inventory-has-selection .inventory-editor-panel {
     flex-direction: column !important;
     align-items: center;
 }
+.inventory-form.inventory-form-materiales .material-activo-column .inventory-checkbox-field input[type='checkbox'] {
+    width: 18px;
+    min-width: 18px;
+}
 .inventory-form.inventory-form-materiales .inventory-mask-wrap {
     position: relative;
     min-width: 0;
