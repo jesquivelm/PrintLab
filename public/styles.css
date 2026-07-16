@@ -8736,6 +8736,10 @@ body.inventory-route-maquinas.inventory-has-selection .inventory-editor-panel {
     box-shadow: 0 0 0 1px rgba(208, 53, 53, 0.18);
     background: #fff7f7;
 }
+.inventory-form.inventory-form-materiales label.is-required .inventory-mask-display {
+    border-color: #d03535;
+    background: #fff7f7;
+}
 .inventory-form.inventory-form-materiales .material-activo-column {
     display: flex;
     align-items: center;
