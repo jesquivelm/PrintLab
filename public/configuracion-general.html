@@ -18,7 +18,7 @@
         .config-tab.active { background: linear-gradient(180deg, #24a8df 0%, #118fc6 100%); color: #fff; box-shadow: 0 8px 18px rgba(17,143,198,0.24); }
         .config-tab.active:hover,
         .config-tab.active:focus-visible { background: linear-gradient(180deg, #24a8df 0%, #118fc6 100%); color: #eaf8ff; }
-        .config-tab-content { display: none; min-height: var(--config-tabs-min-height, auto); width: 100%; min-width: 0; max-width: 100%; }
+        .config-tab-content { display: none; width: 100%; min-width: 0; max-width: 100%; overflow-y: auto; }
         .config-tab-content.active { display: block; }
         .config-tab-content.sap-main-mode .security-subtabs { display: none; }
         #generalConfigForm { width: 100%; min-width: 0; }
@@ -1266,23 +1266,42 @@
             margin-top: 24px;
             margin-bottom: 24px;
         }
-        .sap-security-actions .action-btn,
-        .sap-security-actions .action-btn-primary {
+        .action-btn,
+        .action-btn-primary {
             min-height: 34px;
             padding: 6px 14px;
             border-radius: 10px;
-            border-color: #d4dde6;
+            border: 1px solid #d4dde6;
             background: linear-gradient(180deg, #ffffff 0%, #f3f7fa 100%);
             color: #4c5d6d;
             box-shadow: none;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 700;
+            font-family: inherit;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
         }
-        .sap-security-actions .action-btn:hover,
-        .sap-security-actions .action-btn:focus-visible,
-        .sap-security-actions .action-btn-primary:hover,
-        .sap-security-actions .action-btn-primary:focus-visible {
+        .action-btn:hover,
+        .action-btn:focus-visible,
+        .action-btn-primary:hover,
+        .action-btn-primary:focus-visible {
             border-color: #bfd0de;
             background: linear-gradient(180deg, #ffffff 0%, #eef4f8 100%);
             color: #355066;
+        }
+        .action-btn-primary {
+            border-color: #1590d4;
+            background: linear-gradient(180deg, #24a8df 0%, #118fc6 100%);
+            color: #fff;
+        }
+        .action-btn-primary:hover,
+        .action-btn-primary:focus-visible {
+            border-color: #0b81b8;
+            background: linear-gradient(180deg, #2bb4ea 0%, #139ad5 100%);
+            color: #fff;
         }
         .notification-center-thread-shell {
             display: grid;
@@ -1918,8 +1937,8 @@
             color: var(--app-text) !important;
         }
         html[data-theme="dark"] .toggle-btn,
-        html[data-theme="dark"] .sap-security-actions .action-btn,
-        html[data-theme="dark"] .sap-security-actions .action-btn-primary {
+        html[data-theme="dark"] .action-btn,
+        html[data-theme="dark"] .action-btn:not(.action-btn-primary) {
             border-color: var(--app-border-strong) !important;
             background: linear-gradient(180deg, var(--app-surface-soft) 0%, var(--app-surface) 100%) !important;
             color: var(--app-text-soft) !important;
@@ -1940,11 +1959,21 @@
             box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08) !important;
         }
         html[data-theme="dark"] .toggle-btn:hover,
-        html[data-theme="dark"] .sap-security-actions .action-btn:hover,
-        html[data-theme="dark"] .sap-security-actions .action-btn-primary:hover {
+        html[data-theme="dark"] .action-btn:hover,
+        html[data-theme="dark"] .action-btn:not(.action-btn-primary):hover {
             border-color: var(--app-primary) !important;
             background: var(--app-primary-soft) !important;
             color: var(--app-primary-strong) !important;
+        }
+        html[data-theme="dark"] .action-btn-primary {
+            border-color: #38bdf8 !important;
+            background: linear-gradient(135deg, #0ea5e9, #22d3ee) !important;
+            color: #02111f !important;
+        }
+        html[data-theme="dark"] .action-btn-primary:hover {
+            border-color: #7dd3fc !important;
+            background: linear-gradient(135deg, #38bdf8, #67e8f9) !important;
+            color: #02111f !important;
         }
         html[data-theme="dark"] .color-field-trigger:hover,
         html[data-theme="dark"] .color-field-trigger:focus-visible {
@@ -2108,6 +2137,35 @@
         }
         html[data-theme="dark"] .repository-setting input[type="range"] {
             accent-color: var(--app-primary);
+        }
+        html[data-theme="dark"] .repository-card:hover {
+            box-shadow: 0 22px 44px rgba(0, 0, 0, 0.45) !important;
+        }
+        html[data-theme="dark"] .repository-sort-btn {
+            border-color: var(--app-border-strong, #33445d);
+            background: var(--app-surface, #162033);
+            color: var(--app-text-soft, #cbd5e1);
+        }
+        html[data-theme="dark"] .repository-sort-btn:hover {
+            border-color: var(--app-primary, #38bdf8);
+            color: var(--app-primary, #38bdf8);
+            background: var(--app-primary-soft, rgba(56, 189, 248, 0.12));
+        }
+        html[data-theme="dark"] .login-image-modal {
+            background: var(--app-surface-raised, #1b263b);
+        }
+        html[data-theme="dark"] .login-image-modal-preview {
+            background: #111c2e;
+        }
+        html[data-theme="dark"] .login-image-modal-close {
+            background: var(--app-surface-raised, #1b263b);
+            color: var(--app-text-muted, #94a3b8);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+        }
+        html[data-theme="dark"] .login-image-modal-close:hover {
+            background: var(--app-surface-raised, #1b263b);
+            color: var(--app-text, #f8fafc);
+            box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
         }
         html[data-theme="dark"] .proforma-config-grid-2 input,
         html[data-theme="dark"] .proforma-config-grid-2 select,
@@ -2876,7 +2934,7 @@
             width: 100%;
             min-width: 0;
             box-sizing: border-box;
-            padding: 10px 8px 10px 12px;
+            padding: 16px 12px 16px 16px;
         }
         .user-admin-row-actions {
             display: grid;
@@ -2977,6 +3035,122 @@
             flex-direction: column;
             gap: 16px;
             margin-bottom: 20px;
+            position: relative;
+        }
+        .user-admin-detail-actions {
+            position: absolute;
+            top: 0;
+            right: 0;
+            z-index: 10;
+        }
+        .user-admin-actions-dropdown-shell {
+            position: relative;
+        }
+        .user-admin-actions-btn {
+            width: 36px;
+            height: 36px;
+            border: 0;
+            background: transparent;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            transition: background 0.16s ease, transform 0.16s ease;
+            color: #5f7288;
+        }
+        .user-admin-actions-btn:hover {
+            background: rgba(17,143,198,0.08);
+            transform: translateY(-1px);
+        }
+        .user-admin-actions-btn .icon-svg-mask,
+        .user-admin-actions-btn .icon-image,
+        .user-admin-actions-btn .icon-glyph {
+            transition: none;
+        }
+        .user-admin-actions-dropdown {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            min-width: 220px;
+            background: #fff;
+            border: 1px solid #d8e2ea;
+            border-radius: 14px;
+            box-shadow: 0 16px 40px rgba(15,38,56,0.14);
+            padding: 6px;
+            z-index: 50;
+            animation: dropdownFadeIn 0.15s ease;
+        }
+        .user-admin-actions-dropdown[hidden] { display: none; }
+        @keyframes dropdownFadeIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .user-admin-action-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 18px;
+            min-height: 18px;
+        }
+        .user-admin-actions-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            padding: 10px 14px;
+            border: 0;
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: #1f2b3d;
+            border-radius: 10px;
+            transition: background 0.12s ease;
+            text-align: left;
+            white-space: nowrap;
+        }
+        .user-admin-actions-dropdown-item:hover {
+            background: #f3f9fe;
+        }
+        html[data-theme="dark"] .user-admin-actions-btn {
+            color: #8ca5b8;
+        }
+        html[data-theme="dark"] .user-admin-actions-btn:hover {
+            background: rgba(17,143,198,0.12);
+        }
+        html[data-theme="dark"] .user-admin-actions-dropdown {
+            background: #1a2636;
+            border-color: #2a384a;
+            box-shadow: 0 16px 40px rgba(0,0,0,0.4);
+        }
+        html[data-theme="dark"] .user-admin-actions-dropdown-item {
+            color: #dce8f2;
+        }
+        html[data-theme="dark"] .user-admin-actions-dropdown-item:hover {
+            background: rgba(17,143,198,0.1);
+        }
+        html[data-theme="dark"] .user-admin-modal {
+            background: #1a2636;
+            border: 1px solid #2a384a;
+        }
+        html[data-theme="dark"] .user-admin-modal h3 {
+            color: #dce8f2;
+        }
+        html[data-theme="dark"] .user-admin-modal label span {
+            color: #b7cbdb;
+        }
+        html[data-theme="dark"] .user-admin-modal label input[type="text"],
+        html[data-theme="dark"] .user-admin-modal label input[type="password"] {
+            background: #0f172a;
+            border-color: #2a384a;
+            color: #dce8f2;
+        }
+        html[data-theme="dark"] .user-admin-modal p {
+            color: #9bb0c2 !important;
+        }
+        html[data-theme="dark"] .user-admin-modal-overlay {
+            background: rgba(0,0,0,0.6) !important;
         }
         .user-admin-detail-headline {
             display: flex;
@@ -2998,9 +3172,9 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         }
         .user-admin-avatar {
-            width: 42px;
-            height: 42px;
-            font-size: 15px;
+            width: 54px;
+            height: 54px;
+            font-size: 18px;
         }
         .user-admin-detail-avatar {
             width: 88px;
@@ -3519,6 +3693,210 @@
             color: #6e7f90;
             background: linear-gradient(180deg, #fbfdff 0%, #f2f8fc 100%);
         }
+
+        .repository-card {
+            cursor: pointer;
+            transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.28s ease;
+        }
+        .repository-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 22px 40px rgba(24, 44, 61, 0.14);
+        }
+
+        .repository-sort-row {
+            display: flex;
+            align-items: center;
+            min-height: 36px;
+            margin: 10px 0 2px;
+        }
+        .repository-sort-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px 6px 16px;
+            border: 1px solid var(--app-border, #dce7ef);
+            border-radius: 999px;
+            background: var(--app-surface, #ffffff);
+            color: var(--app-text-soft, #475569);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: border-color 0.18s, color 0.18s, background 0.18s;
+            user-select: none;
+        }
+        .repository-sort-btn:hover {
+            border-color: var(--app-primary, #118fc6);
+            color: var(--app-primary, #118fc6);
+            background: var(--app-primary-soft, rgba(2, 119, 169, 0.06));
+        }
+        .repository-sort-btn:active {
+            transform: scale(0.96);
+        }
+        .repository-sort-arrow {
+            font-size: 13px;
+            display: inline-block;
+            transition: transform 0.24s;
+            line-height: 1;
+        }
+        .repository-sort-arrow.asc {
+            transform: rotate(180deg);
+        }
+        .repository-sort-arrow.reverse {
+            opacity: 0.4;
+        }
+
+        .login-image-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(7, 17, 29, 0.55);
+            backdrop-filter: blur(6px);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .login-image-modal-overlay[hidden] { display: none; }
+        .login-image-modal {
+            position: relative;
+            display: flex;
+            max-width: 960px;
+            width: 100%;
+            max-height: 85vh;
+            background: var(--app-surface, #ffffff);
+            border-radius: 24px;
+            box-shadow: 0 32px 72px rgba(7, 17, 29, 0.3);
+        }
+        .login-image-modal-preview {
+            flex: 1.2;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--app-bg-soft, #eef4f8);
+            padding: 16px;
+            position: relative;
+            border-radius: 24px 0 0 24px;
+            overflow: hidden;
+        }
+        .login-image-modal-preview img {
+            max-width: 100%;
+            max-height: 72vh;
+            object-fit: contain;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        }
+        .login-image-modal-close {
+            position: absolute;
+            top: -16px;
+            right: -16px;
+            width: 38px;
+            height: 38px;
+            border: none;
+            border-radius: 50%;
+            background: var(--app-surface, #ffffff);
+            color: var(--app-text-soft, #475569);
+            font-size: 22px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 5;
+            box-shadow: 0 4px 14px rgba(7, 17, 29, 0.18);
+            transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+        }
+        .login-image-modal-close:hover {
+            background: var(--app-surface, #ffffff);
+            color: var(--app-text, #0f172a);
+            box-shadow: 0 6px 20px rgba(7, 17, 29, 0.24);
+        }
+        .login-image-modal-info {
+            flex: 0.8;
+            min-width: 260px;
+            padding: 28px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: auto;
+            border-radius: 0 24px 24px 0;
+        }
+        .login-image-modal-info h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--app-text, #0f172a);
+            word-break: break-all;
+            line-height: 1.3;
+        }
+        .login-image-modal-prop {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .login-image-modal-prop-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--app-text-muted, #64748b);
+        }
+        .login-image-modal-prop-value {
+            font-size: 14px;
+            color: var(--app-text, #0f172a);
+        }
+        .login-image-modal-prop-value.resolution {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--app-primary, #0277a9);
+        }
+        .login-image-modal-divider {
+            height: 1px;
+            background: var(--app-border, #e2e8f0);
+            margin: 6px 0;
+        }
+        .login-image-modal-actions {
+            margin-top: auto;
+            padding-top: 8px;
+            display: flex;
+            gap: 10px;
+        }
+        .login-image-modal-delete {
+            flex: 1;
+            padding: 11px 16px;
+            border: none;
+            border-radius: 14px;
+            background: var(--app-danger, #dc2626);
+            color: #fff;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.18s;
+        }
+        .login-image-modal-delete:hover {
+            opacity: 0.88;
+        }
+        .login-image-modal-delete:active {
+            opacity: 0.76;
+        }
+        @media (max-width: 700px) {
+            .login-image-modal {
+                flex-direction: column;
+                max-height: 92vh;
+            }
+            .login-image-modal-preview {
+                flex: none;
+                max-height: 38vh;
+                border-radius: 24px 24px 0 0;
+            }
+            .login-image-modal-preview img {
+                max-height: 34vh;
+            }
+            .login-image-modal-info {
+                flex: none;
+                min-width: 0;
+                border-radius: 0 0 24px 24px;
+            }
+        }
         .login-image-dropzone {
             width: 100%;
             min-height: 220px;
@@ -3589,8 +3967,8 @@
         .user-admin-popover {
             position: fixed;
             z-index: 2200;
-            width: 320px;
-            padding: 16px;
+            width: 400px;
+            padding: 20px;
             border: 1px solid #d8dde3;
             border-radius: 18px;
             background: rgba(255,255,255,0.98);
@@ -3743,6 +4121,25 @@
             display: flex;
             justify-content: flex-end;
             gap: 8px;
+        }
+        html[data-theme="dark"] .user-admin-popover {
+            background: #1a2636 !important;
+            border-color: #2a384a !important;
+            border: 1px solid #2a384a !important;
+            color: var(--app-text) !important;
+            box-shadow: 0 18px 38px rgba(0,0,0,0.4) !important;
+        }
+        html[data-theme="dark"] .user-admin-popover h3 {
+            color: #dce8f2 !important;
+        }
+        html[data-theme="dark"] .user-admin-popover p {
+            color: #9bb0c2 !important;
+        }
+        html[data-theme="dark"] .user-admin-popover input,
+        html[data-theme="dark"] .user-admin-popover select {
+            background: #0f172a !important;
+            border-color: #2a384a !important;
+            color: #dce8f2 !important;
         }
         html[data-theme="dark"] .user-admin-form-grid input[readonly] {
             background: #223045;
@@ -5428,11 +5825,54 @@
                                         <input id="loginScreensaverSlideSeconds" name="general.loginScreensaverSlideSeconds" type="range" min="4" max="24" step="1" value="10">
                                     </div>
                                 </div>
+                                <div class="repository-sort-row" id="loginRepositorySortRow" hidden>
+                                    <button type="button" id="loginRepositorySortBtn" class="repository-sort-btn">
+                                        <span class="repository-sort-label">Ordenar por resolución</span>
+                                        <span class="repository-sort-arrow" id="loginRepositorySortArrow">↓</span>
+                                    </button>
+                                </div>
                                 <div id="loginRepositoryGallery" class="repository-gallery-grid">
                                     <div class="repository-empty">Todavía no hay imágenes en el repositorio.</div>
                                 </div>
                             </div>
                         </section>
+                    </div>
+
+                    <div id="loginImageModalOverlay" class="login-image-modal-overlay" hidden>
+                        <div class="login-image-modal">
+                            <button type="button" id="loginImageModalClose" class="login-image-modal-close" aria-label="Cerrar">&times;</button>
+                            <div class="login-image-modal-preview">
+                                <img id="loginImageModalPreviewImg" src="" alt="">
+                            </div>
+                            <div class="login-image-modal-info">
+                                <h3 id="loginImageModalFileName">—</h3>
+                                <div class="login-image-modal-divider"></div>
+                                <div class="login-image-modal-prop">
+                                    <span class="login-image-modal-prop-label">Resolución</span>
+                                    <span id="loginImageModalResolution" class="login-image-modal-prop-value resolution">—</span>
+                                </div>
+                                <div class="login-image-modal-prop">
+                                    <span class="login-image-modal-prop-label">Tamaño original</span>
+                                    <span id="loginImageModalSize" class="login-image-modal-prop-value">—</span>
+                                </div>
+                                <div class="login-image-modal-prop">
+                                    <span class="login-image-modal-prop-label">Optimización</span>
+                                    <span id="loginImageModalOptimized" class="login-image-modal-prop-value">—</span>
+                                </div>
+                                <div class="login-image-modal-prop">
+                                    <span class="login-image-modal-prop-label">Fecha de carga</span>
+                                    <span id="loginImageModalDate" class="login-image-modal-prop-value">—</span>
+                                </div>
+                                <div class="login-image-modal-prop">
+                                    <span class="login-image-modal-prop-label">Ubicación</span>
+                                    <span id="loginImageModalLocation" class="login-image-modal-prop-value">—</span>
+                                </div>
+                                <div class="login-image-modal-divider"></div>
+                                <div class="login-image-modal-actions">
+                                    <button type="button" id="loginImageModalDelete" class="login-image-modal-delete">Eliminar imagen</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                         <div id="tab-iconos" class="design-subpanel" hidden>
@@ -6647,6 +7087,7 @@
                             <div class="security-subtabs">
                                 <button type="button" class="security-subtab active" data-security-tab="usuarios">Usuarios</button>
                                 <button type="button" class="security-subtab" data-security-tab="permisos">Permisos</button>
+                                <button type="button" class="security-subtab" data-security-tab="departamentos">Departamentos y Procesos</button>
                                 <button type="button" class="security-subtab" data-security-tab="correo">Correo SMTP</button>
                                 <button type="button" class="security-subtab" data-security-tab="politicas">Políticas</button>
                                 <button type="button" class="security-subtab" data-security-tab="auditoria-credenciales">Auditoría</button>
@@ -6684,12 +7125,23 @@
                                                         <span id="userAdminDetailSubline">Sin departamento</span>
                                                     </div>
                                                 </div>
+                                                <div class="user-admin-detail-actions">
+                                                    <div class="user-admin-actions-dropdown-shell">
+                                                        <button type="button" id="userAdminActionsBtn" class="user-admin-actions-btn" aria-label="Acciones de usuario" title="Acciones de usuario"></button>
+                                                        <div id="userAdminActionsDropdown" class="user-admin-actions-dropdown" hidden>
+                                                            <button type="button" class="user-admin-actions-dropdown-item" data-action="reset">Restablecer credenciales</button>
+                                                            <button type="button" class="user-admin-actions-dropdown-item" data-action="lock">Bloquear usuario</button>
+                                                            <button type="button" class="user-admin-actions-dropdown-item" data-action="deactivate">Dar de baja</button>
+                                                            <button type="button" class="user-admin-actions-dropdown-item" data-action="activate" hidden>Activar usuario</button>
+                                                            <button type="button" class="user-admin-actions-dropdown-item" data-action="password">Cambiar contrase&#xF1;a</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                                 <div class="user-admin-asset-stack">
                                                     <div class="user-admin-signature-block">
                                                         <div id="userAdminSignatureDropzone" class="user-admin-signature-dropzone" title="Cambiar firma"></div>
                                                         <input id="userAdminSignatureUpload" type="file" accept="image/*" hidden>
                                                     </div>
-                                                    <button type="button" id="userAdminDeactivateButton" class="action-btn user-admin-status-button">Dar de baja</button>
                                                 </div>
                                             </div>
                                         <div class="user-admin-form-grid">
@@ -6706,16 +7158,19 @@
                                                     <div style="display:flex;gap:8px;align-items:center;">
                                                         <input id="userAdminFieldPassword" type="password" placeholder="Sin cambios" readonly style="flex:1;background:#f5f7f9;color:#6b7986;cursor:default;">
                                                         <button type="button" id="userAdminPasswordToggle" class="password-toggle-btn" aria-label="Mostrar contraseña" title="Mostrar contraseña" style="display:none;"></button>
-                                                        <button type="button" id="userAdminChangePasswordBtn" class="btn-primary" style="white-space:nowrap;padding:8px 16px;border-radius:10px;font-size:13px;">Cambiar</button>
                                                     </div>
                                                 </label>
                                                 <label>
                                                     <span>Departamento</span>
-                                                    <input id="userAdminFieldDepartment" type="text" placeholder="Departamento">
+                                                    <select id="userAdminFieldDepartment">
+                                                        <option value="">Selecciona un departamento</option>
+                                                    </select>
                                                 </label>
                                                 <label>
                                                     <span>Proceso</span>
-                                                    <input id="userAdminFieldProcess" type="text" placeholder="Proceso">
+                                                    <select id="userAdminFieldProcess">
+                                                        <option value="">Selecciona un proceso</option>
+                                                    </select>
                                                 </label>
                                                 <label>
                                                     <span>Permiso</span>
@@ -6770,6 +7225,35 @@
                                 </div>
                             </div>
 
+                            <div id="security-panel-departamentos" class="security-subpanel" hidden>
+                                <section class="sap-security-card">
+                                    <div class="sap-records-toolbar">
+                                        <div>
+                                            <h3>Departamentos y Procesos</h3>
+                                            <p class="section-caption">Gestiona los departamentos y procesos asociados para asignar a los usuarios.</p>
+                                        </div>
+                                        <div class="sap-security-actions">
+                                            <button type="button" id="deptAddButton" class="action-btn">Agregar</button>
+                                        </div>
+                                    </div>
+                                    <div class="audit-table-wrap">
+                                        <table class="audit-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Departamento</th>
+                                                    <th>Proceso</th>
+                                                    <th style="width:72px;text-align:center">Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="deptTableBody">
+                                                <tr><td colspan="3" class="audit-empty">No hay departamentos registrados.</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div id="deptStatus" class="sap-security-empty" style="margin-top:10px;"></div>
+                                </section>
+                            </div>
+
                             <!-- Reset Password Modal -->
                             <div id="resetPasswordOverlay" class="user-admin-modal-overlay" hidden>
                                 <div class="user-admin-modal">
@@ -6790,8 +7274,8 @@
                                         <span style="font-size:13px;">Enviar por correo al usuario</span>
                                     </label>
                                     <div class="forgot-actions" style="display:flex;gap:10px;">
-                                        <button type="button" id="resetPasswordCancelBtn" class="forgot-btn-cancel">Cancelar</button>
-                                        <button type="button" id="resetPasswordSaveBtn" class="forgot-btn-primary" disabled>Guardar contraseña</button>
+                                        <button type="button" id="resetPasswordCancelBtn" class="action-btn">Cancelar</button>
+                                        <button type="button" id="resetPasswordSaveBtn" class="action-btn action-btn-primary" disabled>Guardar contraseña</button>
                                     </div>
                                     <p id="resetPasswordStatus" class="forgot-status" style="margin-top:12px;min-height:20px;font-size:13px;"></p>
                                 </div>
@@ -7387,6 +7871,19 @@
                                 </div>
                             </div>
 
+                            <!-- Confirm Modal -->
+                            <div id="confirmModalOverlay" class="user-admin-modal-overlay" hidden>
+                                <div class="user-admin-modal" style="max-width:400px;">
+                                    <h3 id="confirmModalTitle">Confirmar</h3>
+                                    <p id="confirmModalMessage" style="font-size:14px;color:#6b7986;margin:0 0 20px;line-height:1.5;"></p>
+                                    <div id="confirmModalExtra" style="margin-bottom:16px;"></div>
+                                    <div style="display:flex;gap:10px;justify-content:flex-end;">
+                                        <button type="button" id="confirmModalCancel" class="action-btn">Cancelar</button>
+                                        <button type="button" id="confirmModalConfirm" class="action-btn action-btn-primary">Confirmar</button>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div id="security-panel-llaves" class="security-subpanel" hidden>
                                 <div class="sap-security-shell">
                                     <div class="sap-security-main">
@@ -7503,8 +8000,8 @@
                                         </label>
                                     </div>
                                     <div style="display:flex;gap:12px;margin-top:16px;align-items:center;flex-wrap:wrap;">
-                                        <button type="button" id="smtpSaveBtn" class="btn-primary">Guardar configuración</button>
-                                        <button type="button" id="smtpTestBtn" class="btn-secondary">Enviar correo de prueba</button>
+                                        <button type="button" id="smtpSaveBtn" class="action-btn action-btn-primary">Guardar configuración</button>
+                                        <button type="button" id="smtpTestBtn" class="action-btn">Enviar correo de prueba</button>
                                         <span id="smtpStatus" style="font-size:13px;min-height:20px;"></span>
                                     </div>
                                     <details style="margin-top:20px;font-size:13px;color:#6b7986;">
@@ -7572,7 +8069,7 @@
                                         </label>
                                     </div>
                                     <div style="display:flex;gap:12px;margin-top:16px;align-items:center;">
-                                        <button type="button" id="secPolicySaveBtn" class="btn-primary">Guardar políticas</button>
+                                        <button type="button" id="secPolicySaveBtn" class="action-btn action-btn-primary">Guardar políticas</button>
                                         <span id="secPolicyStatus" style="font-size:13px;min-height:20px;"></span>
                                     </div>
                                 </section>
@@ -7894,11 +8391,15 @@
             </label>
             <label>
                 <span>Departamento</span>
-                <input id="userAdminCreateDepartmentField" type="text" placeholder="Departamento" maxlength="120">
+                <select id="userAdminCreateDepartmentField">
+                    <option value="">Selecciona un departamento</option>
+                </select>
             </label>
             <label>
                 <span>Proceso</span>
-                <input id="userAdminCreateProcessField" type="text" placeholder="Proceso" maxlength="120">
+                <select id="userAdminCreateProcessField">
+                    <option value="">Selecciona un proceso</option>
+                </select>
             </label>
             <label class="user-admin-popover-full">
                 <span>Permiso</span>
@@ -8616,6 +9117,12 @@
             { key: 'quoteRequestSubmit', label: 'Solicitud de Cotización', group: 'Acciones Flotantes', placeholder: '\u27A4', color: '#ffffff', size: 18 },
             { key: 'quoteRequestAdvanced', label: 'Proceso Avanzado', group: 'Acciones Flotantes', placeholder: '\u2699', color: '#5f7288', size: 18 },
             { key: 'adminUserCreate', label: 'Crear Usuario', group: 'Acciones Administrativas', placeholder: '+', color: '#118fc6', size: 22 },
+            { key: 'adminUserActions', label: 'Acciones de Usuario', group: 'Acciones Administrativas', placeholder: '\u2699', color: '#5f7288', size: 20 },
+            { key: 'adminUserResetPin', label: 'Restablecer PIN', group: 'Acciones Administrativas', placeholder: '\uD83D\uDD11', color: '#5f7288', size: 18 },
+            { key: 'adminUserLock', label: 'Bloquear Usuario', group: 'Acciones Administrativas', placeholder: '\uD83D\uDD12', color: '#b94848', size: 18 },
+            { key: 'adminUserDeactivate', label: 'Dar de Baja', group: 'Acciones Administrativas', placeholder: '\uD83D\uDDD1', color: '#b94848', size: 18 },
+            { key: 'adminUserActivate', label: 'Activar Usuario', group: 'Acciones Administrativas', placeholder: '\u2705', color: '#27ae60', size: 18 },
+            { key: 'adminUserChangePassword', label: 'Cambiar Contrase\u00F1a', group: 'Acciones Administrativas', placeholder: '\uD83D\uDD10', color: '#5f7288', size: 18 },
             { key: 'adminUserDelete', label: 'Eliminar Usuario', group: 'Acciones Administrativas', placeholder: '\uD83D\uDDD1', color: '#b94848', size: 18 },
             { key: 'adminPermissionCreate', label: 'Crear Permiso', group: 'Acciones Administrativas', placeholder: '+', color: '#118fc6', size: 22 },
             { key: 'adminPermissionDelete', label: 'Eliminar Permiso', group: 'Acciones Administrativas', placeholder: '\uD83D\uDDD1', color: '#b94848', size: 18 },
@@ -9146,16 +9653,14 @@
             button.dataset.iconHoverColor = hover;
         }
 
-        function syncConfigTabHeights() {
-            const source = document.getElementById('tab-datos-generales');
-            const tabs = [...document.querySelectorAll('.config-tab-content')];
-            if (!source || !tabs.length) return;
-            const previous = source.style.minHeight;
-            source.style.minHeight = '0px';
-            const height = source.offsetHeight;
-            source.style.minHeight = previous;
-            if (!height) return;
-            document.documentElement.style.setProperty('--config-tabs-min-height', `${height}px`);
+        function constrainActiveTabContent() {
+            const active = document.querySelector('.config-tab-content.active');
+            if (!active) return;
+            active.style.maxHeight = '';
+            const rect = active.getBoundingClientRect();
+            const available = window.innerHeight - rect.top - 20;
+            if (available < 200) return;
+            active.style.maxHeight = available + 'px';
         }
 
         let activeColorField = null;
@@ -11641,6 +12146,9 @@
             if (tabKey === 'usuarios' && !adminUsersLoadedOnce) {
                 loadAdminUsers();
             }
+            if (tabKey === 'departamentos' && !deptLoadedOnce) {
+                loadDeptProcessList();
+            }
             if (tabKey === 'permisos' && !adminPermissionsLoadedOnce) {
                 loadAdminPermissions();
             }
@@ -12201,7 +12709,7 @@
             if (tabKey === 'proforma') {
                 activateProformaTab(getActiveProformaTabKey());
             }
-            syncConfigTabHeights();
+            constrainActiveTabContent();
         }
 
         function getActiveProformaTabKey() {
@@ -12215,7 +12723,7 @@
             proformaSubpanels.forEach((panel) => {
                 panel.hidden = panel.id !== `proforma-panel-${tabKey}`;
             });
-            syncConfigTabHeights();
+            constrainActiveTabContent();
         }
 
         function getActiveCalculoTabKey() {
@@ -12260,7 +12768,7 @@
                     setConfigStatus(error.message || 'No fue posible cargar el repositorio.', true);
                 });
             }
-            syncConfigTabHeights();
+            constrainActiveTabContent();
         }
 
         function getAdminUserIconConfig(key, fallbackColor, fallbackSize, fallbackText) {
@@ -12479,7 +12987,7 @@
             }
 
             renderExchangeRateCalculation();
-            syncConfigTabHeights();
+            constrainActiveTabContent();
         }
 
         function renderExchangeRateCalculation() {
@@ -12905,13 +13413,8 @@
         }
 
         function formatAdminUserPermissionLine(user) {
-            const { permission, edit, create, view } = getAdminUserPermissionAccess(user);
-            const permissionName = permission?.name || user?.permissionName || 'Sin permiso';
-            const summary = [];
-            if (edit.length) summary.push(`Edita ${edit.length}`);
-            if (create.length) summary.push(`Crea ${create.length}`);
-            if (view.length) summary.push(`Visualiza ${view.length}`);
-            return summary.length ? `${permissionName} | ${summary.join(' · ')}` : permissionName;
+            const { permission } = getAdminUserPermissionAccess(user);
+            return permission?.name || user?.permissionName || 'Sin permiso';
         }
 
         function renderAdminUserPermissionBadges(items, emptyLabel) {
@@ -12922,8 +13425,10 @@
         }
 
         function renderAdminUserStatusBadge(user) {
-            const active = user?.active !== false;
-            return `<span class="user-admin-row-status ${active ? '' : 'is-inactive'}">${active ? 'Activo' : 'Inactivo'}</span>`;
+            if (user?.active === false) {
+                return `<span class="user-admin-row-status is-inactive">Inactivo</span>`;
+            }
+            return '';
         }
 
         function renderAdminUserPermissionAccessSummary(user) {
@@ -12988,7 +13493,6 @@
 
         function renderAdminUserList() {
             if (!userAdminTableBody) return;
-            const deleteIcon = getAdminUserIconConfig('adminUserDelete', '#b94848', 18, '🗑');
             if (!adminUsers.length) {
                 userAdminTableBody.innerHTML = '<tr><td class="user-admin-empty">Todavía no hay usuarios creados.</td></tr>';
                 return;
@@ -13007,9 +13511,6 @@
                             </div>
                             <div class="user-admin-row-actions">
                                 ${renderAdminUserStatusBadge(user)}
-                                <button type="button" class="user-admin-reset-btn" data-user-reset="${user.id}" title="Restablecer credenciales" style="background:none;border:1px solid #c1d6e4;border-radius:8px;padding:4px 8px;font-size:11px;cursor:pointer;color:#118fc6;">PIN</button>
-                                <button type="button" class="user-admin-lock-btn" data-user-lock="${user.id}" title="${user.locked ? 'Desbloquear usuario' : 'Bloquear usuario'}" style="background:none;border:1px solid #c1d6e4;border-radius:8px;padding:4px 8px;font-size:11px;cursor:pointer;color:${user.locked ? '#2a9d2a' : '#b83a3a'};">${user.locked ? 'UNLOCK' : 'LOCK'}</button>
-                                <button type="button" class="user-admin-delete-button" data-user-delete="${user.id}" aria-label="Dar de baja usuario" title="Dar de baja usuario"></button>
                             </div>
                         </div>
                     </td>
@@ -13020,10 +13521,6 @@
                 if (avatar) {
                     renderAdminUserAvatar(avatar, user, 'user-admin-avatar');
                 }
-                const deleteButton = userAdminTableBody.querySelector(`[data-user-delete="${user.id}"]`);
-                if (deleteButton) {
-                    renderButtonIcon(deleteButton, deleteIcon.value, deleteIcon.color, deleteIcon.size, '🗑');
-                }
             });
         }
 
@@ -13031,6 +13528,51 @@
             if (!userAdminCreateButton) return;
             const createIcon = getAdminUserIconConfig('adminUserCreate', '#118fc6', 22, '+');
             renderButtonIcon(userAdminCreateButton, createIcon.value, createIcon.color, createIcon.size, '+');
+        }
+
+        function renderAdminUserActionsButton() {
+            const btn = document.getElementById('userAdminActionsBtn');
+            if (!btn) return;
+            const iconConfig = getAdminUserIconConfig('adminUserActions', '#5f7288', 20, '\u2699');
+            renderButtonIcon(btn, iconConfig.value, iconConfig.color, iconConfig.size, '\u2699');
+            const user = getSelectedAdminUser();
+            const dropdown = document.getElementById('userAdminActionsDropdown');
+            if (!dropdown) return;
+            const renderActionItem = (item, iconKey, label, fallbackIcon, color, size) => {
+                const cfg = getAdminUserIconConfig(iconKey, color, size, fallbackIcon);
+                item.innerHTML = '';
+                const iconSpan = document.createElement('span');
+                iconSpan.className = 'user-admin-action-icon';
+                renderButtonIcon(iconSpan, cfg.value, cfg.color, cfg.size, fallbackIcon);
+                item.appendChild(iconSpan);
+                item.appendChild(document.createTextNode(' ' + label));
+            };
+            const items = dropdown.querySelectorAll('[data-action]');
+            items.forEach((item) => {
+                const action = item.dataset.action;
+                if (action === 'reset') {
+                    renderActionItem(item, 'adminUserResetPin', 'Restablecer credenciales', '\uD83D\uDD11', '#5f7288', 18);
+                }
+                if (action === 'lock') {
+                    const label = user?.locked ? 'Desbloquear usuario' : 'Bloquear usuario';
+                    renderActionItem(item, 'adminUserLock', label, '\uD83D\uDD12', '#b94848', 18);
+                }
+                if (action === 'deactivate') {
+                    item.hidden = user?.active === false;
+                    if (!item.hidden) {
+                        renderActionItem(item, 'adminUserDeactivate', 'Dar de baja', '\uD83D\uDDD1', '#b94848', 18);
+                    }
+                }
+                if (action === 'activate') {
+                    item.hidden = user?.active !== false;
+                    if (!item.hidden) {
+                        renderActionItem(item, 'adminUserActivate', 'Activar usuario', '\u2705', '#27ae60', 18);
+                    }
+                }
+                if (action === 'password') {
+                    renderActionItem(item, 'adminUserChangePassword', 'Cambiar contrase\u00F1a', '\uD83D\uDD10', '#5f7288', 18);
+                }
+            });
         }
 
         function updateAdminUserDetail() {
@@ -13050,12 +13592,10 @@
             if (userAdminFieldUsername) userAdminFieldUsername.value = user.username || '';
             if (userAdminFieldPassword) userAdminFieldPassword.value = user.password || '';
             if (userAdminFieldPassword) userAdminFieldPassword.type = userAdminPasswordVisible ? 'text' : 'password';
-            if (userAdminFieldName) userAdminFieldName.readOnly = true;
             if (userAdminFieldUsername) userAdminFieldUsername.readOnly = true;
+            populateDeptProcessSelects();
             if (userAdminFieldDepartment) userAdminFieldDepartment.value = user.department || '';
             if (userAdminFieldProcess) userAdminFieldProcess.value = user.process || '';
-            if (userAdminFieldDepartment) userAdminFieldDepartment.readOnly = true;
-            if (userAdminFieldProcess) userAdminFieldProcess.readOnly = true;
             renderAdminUserSapSalespersonOptions(String(user.sapSalespersonCode || ''));
             if (userAdminFieldSapSalespersonCode) {
                 userAdminFieldSapSalespersonCode.value = String(user.sapSalespersonCode || '').trim();
@@ -13095,6 +13635,7 @@
                 userAdminDeactivateButton.disabled = user.active === false;
                 userAdminDeactivateButton.classList.toggle('is-inactive', user.active === false);
             }
+            renderAdminUserActionsButton();
             renderAdminUserPermissionAccessSummary(user);
             renderPasswordToggleButton(userAdminPasswordToggle, userAdminPasswordVisible);
             validateSelectedAdminUserSapSalesperson(false);
@@ -13235,13 +13776,14 @@
         function openAdminUserCreatePopover() {
             if (!userAdminCreatePopover || !userAdminCreateButton) return;
             const rect = userAdminCreateButton.getBoundingClientRect();
-            const popoverWidth = 420;
+            const popoverWidth = 440;
             const left = Math.min(window.innerWidth - popoverWidth - 12, Math.max(12, rect.right - popoverWidth));
             const top = rect.bottom + 10;
             userAdminCreatePopover.style.left = `${left}px`;
             userAdminCreatePopover.style.top = `${top}px`;
             userAdminCreatePopover.hidden = false;
             populateUserPermissionOptions();
+            populateDeptProcessSelects();
             if (userAdminCreateNameField) {
                 userAdminCreateNameField.value = '';
             }
@@ -13291,11 +13833,157 @@
             setConfigStatus('Usuario creado correctamente.');
         }
 
+        // ─── DEPARTMENTS / PROCESSES ────────────────────────────────────────
+        let deptProcessList = [];
+        let deptLoadedOnce = false;
+
+        function populateDeptProcessSelects() {
+            const deptSelects = [userAdminFieldDepartment, userAdminCreateDepartmentField].filter(Boolean);
+            const procSelects = [userAdminFieldProcess, userAdminCreateProcessField].filter(Boolean);
+            const departments = [...new Set(deptProcessList.map((d) => d.department).filter(Boolean))];
+            deptSelects.forEach((sel) => {
+                const current = sel.value;
+                sel.innerHTML = '<option value="">Selecciona un departamento</option>';
+                departments.forEach((dept) => {
+                    const opt = document.createElement('option');
+                    opt.value = dept;
+                    opt.textContent = dept;
+                    sel.appendChild(opt);
+                });
+                if (current && departments.includes(current)) sel.value = current;
+            });
+            procSelects.forEach((sel) => {
+                const current = sel.value;
+                sel.innerHTML = '<option value="">Selecciona un proceso</option>';
+                deptProcessList.forEach((d) => {
+                    if (!d.process) return;
+                    const opt = document.createElement('option');
+                    opt.value = d.process;
+                    opt.textContent = d.process;
+                    sel.appendChild(opt);
+                });
+                if (current && deptProcessList.some((d) => d.process === current)) sel.value = current;
+            });
+        }
+
+        function renderDeptTable() {
+            const tbody = document.getElementById('deptTableBody');
+            if (!tbody) return;
+            if (!deptProcessList.length) {
+                tbody.innerHTML = '<tr><td colspan="3" class="audit-empty">No hay departamentos registrados.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = deptProcessList.map((entry, index) => {
+                const id = entry.id != null ? entry.id : entry._idx != null ? entry._idx : index;
+                return '<tr>' +
+                    '<td><input type="text" class="sap-accounting-inline-input dept-name-input" data-index="' + index + '" value="' + escapeHtml(entry.department || '') + '" placeholder="Departamento"></td>' +
+                    '<td><input type="text" class="sap-accounting-inline-input dept-process-input" data-index="' + index + '" value="' + escapeHtml(entry.process || '') + '" placeholder="Proceso"></td>' +
+                    '<td style="text-align:center"><button type="button" class="permission-admin-delete-button dept-delete-btn" data-index="' + index + '" title="Eliminar"></button></td>' +
+                    '</tr>';
+            }).join('');
+            tbody.querySelectorAll('.dept-name-input, .dept-process-input').forEach((input) => {
+                input.addEventListener('change', () => {
+                    const idx = parseInt(input.dataset.index, 10);
+                    if (isNaN(idx) || !deptProcessList[idx]) return;
+                    if (input.classList.contains('dept-name-input')) {
+                        deptProcessList[idx].department = input.value.trim();
+                    } else {
+                        deptProcessList[idx].process = input.value.trim();
+                    }
+                    saveDeptProcessList();
+                });
+            });
+            tbody.querySelectorAll('.dept-delete-btn').forEach((btn) => {
+                const deleteIcon = getPermissionIconConfig('adminPermissionDelete', '#b94848', 18, '🗑');
+                renderButtonIcon(btn, deleteIcon.value, deleteIcon.color, deleteIcon.size, '🗑');
+                btn.addEventListener('click', () => {
+                    const idx = parseInt(btn.dataset.index, 10);
+                    if (isNaN(idx) || !deptProcessList[idx]) return;
+                    const entry = deptProcessList[idx];
+                    const dept = (entry.department || '').trim();
+                    const proc = (entry.process || '').trim();
+                    const usersInDeptProc = adminUsers.filter((u) => {
+                        const uDept = (u.department || '').trim();
+                        const uProc = (u.process || '').trim();
+                        if (!dept && !proc) return !uDept && !uProc;
+                        if (!proc) return uDept === dept;
+                        return uDept === dept && uProc === proc;
+                    });
+                    if (usersInDeptProc.length > 0) {
+                        showConfirmModal(
+                            'No se puede eliminar',
+                            `Hay ${usersInDeptProc.length} usuario${usersInDeptProc.length === 1 ? '' : 's'} asignado${usersInDeptProc.length === 1 ? '' : 's'} a este departamento${proc ? ' y proceso' : ''}. Reasigna los usuarios antes de eliminar.`
+                        ).then(() => {});
+                        return;
+                    }
+                    deptProcessList.splice(idx, 1);
+                    renderDeptTable();
+                    saveDeptProcessList();
+                });
+            });
+        }
+
+        function saveDeptProcessList() {
+            const data = deptProcessList.map((d) => ({ department: d.department || '', process: d.process || '' }));
+            try {
+                localStorage.setItem('printlab_dept_process_list', JSON.stringify(data));
+            } catch (e) { /* ignore */ }
+            populateDeptProcessSelects();
+            setConfigStatus('Lista de departamentos actualizada.');
+        }
+
+        function loadDeptProcessList() {
+            try {
+                const stored = localStorage.getItem('printlab_dept_process_list');
+                if (stored) {
+                    deptProcessList = JSON.parse(stored).map((d, i) => ({ ...d, id: i }));
+                } else {
+                    deptProcessList = [];
+                }
+            } catch (e) {
+                deptProcessList = [];
+            }
+            deptLoadedOnce = true;
+            renderDeptTable();
+            populateDeptProcessSelects();
+        }
+
+        function showConfirmModal(title, message, extraHtml) {
+            return new Promise((resolve) => {
+                const overlay = document.getElementById('confirmModalOverlay');
+                const titleEl = document.getElementById('confirmModalTitle');
+                const msgEl = document.getElementById('confirmModalMessage');
+                const extraEl = document.getElementById('confirmModalExtra');
+                const cancelBtn = document.getElementById('confirmModalCancel');
+                const confirmBtn = document.getElementById('confirmModalConfirm');
+                if (!overlay || !titleEl || !msgEl) { resolve(false); return; }
+                titleEl.textContent = title;
+                msgEl.textContent = message;
+                if (extraEl) extraEl.innerHTML = extraHtml || '';
+                overlay.hidden = false;
+                const cleanup = () => {
+                    overlay.hidden = true;
+                    cancelBtn?.removeEventListener('click', onCancel);
+                    confirmBtn?.removeEventListener('click', onConfirm);
+                };
+                const onCancel = () => { cleanup(); resolve(false); };
+                const onConfirm = () => { cleanup(); resolve(true); };
+                cancelBtn?.addEventListener('click', onCancel);
+                confirmBtn?.addEventListener('click', onConfirm);
+                overlay.addEventListener('pointerdown', (e) => {
+                    if (e.target === overlay) { cleanup(); resolve(false); }
+                }, { once: true });
+            });
+        }
+
         async function deleteAdminUser(id) {
             const user = adminUsers.find((item) => Number(item.id) === Number(id));
             if (!user) return;
             if (user.active === false) return;
-            const accepted = window.confirm(`¿Deseas dar de baja a ${user.name || 'este usuario'}?`);
+            const accepted = await showConfirmModal(
+                'Dar de baja',
+                `¿Deseas dar de baja a ${user.name || 'este usuario'}? Esta acción desactivará su cuenta.`
+            );
             if (!accepted) return;
             const response = await fetch(`/api/admin-users/${id}`, { method: 'DELETE' });
             if (!response.ok) {
@@ -13453,6 +14141,196 @@
                 userAdminFieldPassword.type = userAdminPasswordVisible ? 'text' : 'password';
                 renderPasswordToggleButton(userAdminPasswordToggle, userAdminPasswordVisible);
             });
+
+            // Gear actions dropdown
+            const actionsBtn = document.getElementById('userAdminActionsBtn');
+            const actionsDropdown = document.getElementById('userAdminActionsDropdown');
+            if (actionsBtn && actionsDropdown) {
+                actionsBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const isOpen = !actionsDropdown.hidden;
+                    actionsDropdown.hidden = isOpen;
+                });
+                document.addEventListener('pointerdown', (e) => {
+                    if (actionsDropdown.hidden) return;
+                    if (actionsDropdown.contains(e.target)) return;
+                    if (e.target.closest('#userAdminActionsBtn')) return;
+                    actionsDropdown.hidden = true;
+                });
+                actionsDropdown.addEventListener('click', async (e) => {
+                    const item = e.target.closest('[data-action]');
+                    if (!item) return;
+                    actionsDropdown.hidden = true;
+                    const action = item.dataset.action;
+                    const user = getSelectedAdminUser();
+                    if (!user) return;
+                    if (action === 'reset') {
+                        await handleAdminResetPassword(user.id);
+                        return;
+                    }
+                    if (action === 'lock') {
+                        await handleAdminToggleLock(user.id);
+                        return;
+                    }
+                    if (action === 'deactivate') {
+                        if (user.active === false) return;
+                        try {
+                            await deleteAdminUser(user.id);
+                        } catch (error) {
+                            console.error(error);
+                            setConfigStatus(error.message || 'No fue posible dar de baja el usuario.', true);
+                        }
+                        return;
+                    }
+                    if (action === 'activate') {
+                        if (user.active !== false) return;
+                        try {
+                            const confirmed = await showConfirmModal('Activar usuario', '¿Estás seguro de que deseas reactivar a <strong>' + escapeHtml(user.name || '') + '</strong>?');
+                            if (!confirmed) return;
+                            const response = await fetch('/api/admin-users/' + user.id, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ active: true })
+                            });
+                            if (!response.ok) throw new Error('No fue posible reactivar el usuario.');
+                            const saved = await response.json();
+                            upsertAdminUser(saved);
+                            renderAdminUserList();
+                            updateAdminUserDetail();
+                            syncStoredSessionFromUser(saved);
+                            setConfigStatus('Usuario reactivado correctamente.');
+                        } catch (error) {
+                            console.error(error);
+                            setConfigStatus(error.message || 'No fue posible reactivar el usuario.', true);
+                        }
+                        return;
+                    }
+                    if (action === 'password') {
+                        openResetPasswordModal(user);
+                        return;
+                    }
+                });
+            }
+
+            // Department/process add button
+            const deptAddBtn = document.getElementById('deptAddButton');
+            if (deptAddBtn) {
+                deptAddBtn.addEventListener('click', () => {
+                    deptProcessList.push({ department: '', process: '', id: Date.now() });
+                    renderDeptTable();
+                    populateDeptProcessSelects();
+                    setConfigStatus('Nueva fila agregada. Completa los campos.');
+                });
+            }
+
+            // Modal events
+            const resetOverlay = document.getElementById('resetPasswordOverlay');
+            const resetCancel = document.getElementById('resetPasswordCancelBtn');
+            const resetSave = document.getElementById('resetPasswordSaveBtn');
+            const resetInput = document.getElementById('resetPasswordInput');
+            if (resetOverlay) {
+                resetOverlay.addEventListener('pointerdown', (e) => {
+                    if (e.target === resetOverlay) resetOverlay.hidden = true;
+                });
+            }
+            if (resetCancel) {
+                resetCancel.addEventListener('click', () => {
+                    if (resetOverlay) resetOverlay.hidden = true;
+                });
+            }
+            if (resetInput) {
+                resetInput.addEventListener('input', () => {
+                    validateResetPasswordInput();
+                });
+            }
+            if (resetSave) {
+                resetSave.addEventListener('click', async () => {
+                    await saveResetPassword();
+                });
+                resetSave.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') saveResetPassword();
+                });
+            }
+        }
+
+        function openResetPasswordModal(user) {
+            const overlay = document.getElementById('resetPasswordOverlay');
+            const nameEl = document.getElementById('resetPasswordUserName');
+            const input = document.getElementById('resetPasswordInput');
+            const saveBtn = document.getElementById('resetPasswordSaveBtn');
+            const statusEl = document.getElementById('resetPasswordStatus');
+            if (!overlay) return;
+            if (nameEl) nameEl.textContent = user?.name || 'Usuario';
+            if (input) { input.value = ''; input.type = 'text'; }
+            if (saveBtn) saveBtn.disabled = true;
+            if (statusEl) { statusEl.textContent = ''; statusEl.style.color = ''; }
+            document.querySelectorAll('#resetPasswordRules li').forEach((rule) => {
+                rule.className = 'invalid';
+                const label = rule.textContent.replace(/^[✓✔✗✘✗]\s*/, '').trim();
+                rule.innerHTML = '\u2717 ' + label;
+            });
+            overlay.hidden = false;
+            if (input) setTimeout(() => input.focus(), 100);
+        }
+
+        function validateResetPasswordInput() {
+            const input = document.getElementById('resetPasswordInput');
+            const saveBtn = document.getElementById('resetPasswordSaveBtn');
+            if (!input) return;
+            const val = input.value || '';
+            const rules = {
+                length: val.length >= 8,
+                upper: /[A-Z]/.test(val),
+                lower: /[a-z]/.test(val),
+                digit: /\d/.test(val)
+            };
+            const allValid = Object.values(rules).every(Boolean);
+            if (saveBtn) saveBtn.disabled = !allValid;
+            const ruleMap = {
+                resetRuleLength: { key: 'length', label: 'Al menos 8 caracteres' },
+                resetRuleUpper: { key: 'upper', label: 'Al menos una may\u00FAscula' },
+                resetRuleLower: { key: 'lower', label: 'Al menos una min\u00FAscula' },
+                resetRuleDigit: { key: 'digit', label: 'Al menos un n\u00FAmero' }
+            };
+            Object.entries(ruleMap).forEach(([id, cfg]) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                const valid = rules[cfg.key];
+                el.className = valid ? 'valid' : 'invalid';
+                el.innerHTML = (valid ? '\u2713' : '\u2717') + ' ' + cfg.label;
+            });
+        }
+
+        async function saveResetPassword() {
+            const overlay = document.getElementById('resetPasswordOverlay');
+            const input = document.getElementById('resetPasswordInput');
+            const saveBtn = document.getElementById('resetPasswordSaveBtn');
+            const statusEl = document.getElementById('resetPasswordStatus');
+            if (!input || !saveBtn || !statusEl) return;
+            const password = input.value.trim();
+            if (!password || password.length < 8) return;
+            saveBtn.disabled = true;
+            statusEl.textContent = 'Guardando...';
+            try {
+                const user = getSelectedAdminUser();
+                if (!user) throw new Error('No hay usuario seleccionado.');
+                const response = await fetch('/api/admin-users/' + user.id, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+                if (!response.ok) {
+                    const err = await response.json().catch(() => ({}));
+                    throw new Error(err.error || 'No fue posible cambiar la contrase\u00F1a.');
+                }
+                statusEl.textContent = 'Contrase\u00F1a cambiada correctamente.';
+                statusEl.style.color = '#2a9d2a';
+                if (overlay) setTimeout(() => { overlay.hidden = true; }, 1200);
+            } catch (error) {
+                statusEl.textContent = error.message;
+                statusEl.style.color = '#b83a3a';
+                saveBtn.disabled = false;
+            }
         }
 
         function getPermissionPresentationLabel(key) {
@@ -14362,7 +15240,6 @@
 
         function renderLoginRepositoryControls() {
             const uploadIcon = getPermissionIconConfig('loginRepositoryUpload', '#118fc6', 18, '⇧');
-            const deleteIcon = getPermissionIconConfig('loginRepositoryDelete', '#b94848', 18, '🗑');
             if (loginRepositoryUploadPreview) {
                 renderButtonIcon(loginRepositoryUploadPreview, uploadIcon.value, uploadIcon.color, uploadIcon.size, '⇧');
             }
@@ -14387,24 +15264,28 @@
             }
             restartLoginRepositoryPreview();
             loginRepositoryGallery.innerHTML = loginRepositoryImages.map((image) => `
-                <article class="repository-card">
+                <article class="repository-card" data-login-repository-view="${escapeHtml(image.fileName)}">
                     <img src="${escapeHtml(image.url)}" alt="${escapeHtml(image.fileName)}">
-                    <button type="button" class="repository-card-delete" data-login-repository-delete="${escapeHtml(image.fileName)}" aria-label="Eliminar imagen" title="Eliminar imagen"></button>
                 </article>
             `).join('');
-            loginRepositoryGallery.querySelectorAll('[data-login-repository-delete]').forEach((button) => {
-                renderButtonIcon(button, deleteIcon.value, deleteIcon.color, deleteIcon.size, '🗑');
-            });
+
+            if (loginRepositoryImages.length && !loginImageResolutions) {
+                Promise.resolve().then(() => ensureLoginImageDimensions());
+            }
         }
 
         async function loadLoginRepositoryImages() {
-            const response = await fetch(LOGIN_REPOSITORY_ENDPOINT);
+            const response = await fetch(LOGIN_REPOSITORY_ENDPOINT, { cache: 'no-cache' });
             if (!response.ok) {
                 throw new Error('No fue posible cargar el repositorio de imágenes.');
             }
             const data = await response.json();
             loginRepositoryImages = Array.isArray(data?.images) ? data.images : [];
             loginRepositoryLoadedOnce = true;
+            loginImageResolutions = null;
+            loginSortState = null;
+            const sortRow = document.getElementById('loginRepositorySortRow');
+            if (sortRow) sortRow.hidden = true;
             renderLoginRepositoryControls();
         }
 
@@ -14449,6 +15330,149 @@
             await loadLoginRepositoryImages();
             setConfigStatus('Imagen eliminada del repositorio.');
         }
+
+        function formatFileSize(bytes) {
+            if (!bytes || bytes <= 0) return 'Desconocido';
+            const units = ['B', 'KB', 'MB', 'GB'];
+            let size = bytes;
+            let unit = 0;
+            while (size >= 1024 && unit < units.length - 1) { size /= 1024; unit++; }
+            return unit === 0 ? `${size} ${units[unit]}` : `${size.toFixed(1)} ${units[unit]}`;
+        }
+
+        let loginImageModalCurrent = null;
+        const loginImageModalOverlay = document.getElementById('loginImageModalOverlay');
+        const loginImageModalPreviewImg = document.getElementById('loginImageModalPreviewImg');
+        const loginImageModalFileName = document.getElementById('loginImageModalFileName');
+        const loginImageModalResolution = document.getElementById('loginImageModalResolution');
+        const loginImageModalSize = document.getElementById('loginImageModalSize');
+        const loginImageModalOptimized = document.getElementById('loginImageModalOptimized');
+        const loginImageModalDate = document.getElementById('loginImageModalDate');
+        const loginImageModalLocation = document.getElementById('loginImageModalLocation');
+        const loginImageModalDelete = document.getElementById('loginImageModalDelete');
+
+        function openLoginImageModal(image) {
+            if (!loginImageModalOverlay || !image) return;
+            loginImageModalCurrent = image;
+
+            loginImageModalFileName.textContent = image.fileName || '—';
+            loginImageModalSize.textContent = formatFileSize(image.size);
+            loginImageModalOptimized.textContent = image.optimized
+                ? `Optimizada (${formatFileSize(image.optimizedSize)})`
+                : 'Sin optimizar';
+            loginImageModalDate.textContent = formatRepositoryDate(image.updatedAt);
+            loginImageModalLocation.textContent = 'Servidor de archivos';
+            loginImageModalResolution.textContent = 'Cargando...';
+            loginImageModalDelete.disabled = false;
+
+            loginImageModalPreviewImg.src = '';
+            loginImageModalPreviewImg.alt = image.fileName || '';
+
+            const dimg = new Image();
+            dimg.onload = () => {
+                loginImageModalResolution.textContent = `${dimg.naturalWidth} × ${dimg.naturalHeight} px`;
+            };
+            dimg.onerror = () => {
+                loginImageModalResolution.textContent = 'No disponible';
+            };
+            dimg.src = image.url;
+
+            loginImageModalPreviewImg.src = image.url;
+            loginImageModalOverlay.hidden = false;
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLoginImageModal() {
+            if (!loginImageModalOverlay) return;
+            loginImageModalOverlay.hidden = true;
+            document.body.style.overflow = '';
+            loginImageModalCurrent = null;
+        }
+
+        if (loginImageModalOverlay) {
+            loginImageModalOverlay.addEventListener('click', (event) => {
+                if (event.target === loginImageModalOverlay) closeLoginImageModal();
+            });
+        }
+        document.getElementById('loginImageModalClose')?.addEventListener('click', closeLoginImageModal);
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && loginImageModalOverlay && !loginImageModalOverlay.hidden) {
+                closeLoginImageModal();
+            }
+        });
+        loginImageModalDelete?.addEventListener('click', async () => {
+            if (!loginImageModalCurrent) return;
+            loginImageModalDelete.disabled = true;
+            try {
+                await deleteLoginRepositoryFile(loginImageModalCurrent.fileName);
+                closeLoginImageModal();
+            } catch (error) {
+                console.error(error);
+                setConfigStatus(error.message || 'No fue posible eliminar la imagen.', true);
+                loginImageModalDelete.disabled = false;
+            }
+        });
+
+        let loginImageResolutions = null;
+        let loginSortState = null;
+
+        function getResolutionScore(image) {
+            if (!loginImageResolutions) return 0;
+            const r = loginImageResolutions.get(image.fileName);
+            return r ? r.width * r.height : 0;
+        }
+
+        async function ensureLoginImageDimensions() {
+            if (loginImageResolutions) return;
+            loginImageResolutions = new Map();
+            const images = loginRepositoryImages.filter((img) => img.url);
+            await Promise.all(images.map((image) => new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    loginImageResolutions.set(image.fileName, { width: img.naturalWidth, height: img.naturalHeight });
+                    resolve();
+                };
+                img.onerror = () => resolve();
+                img.src = image.url;
+            })));
+            const sortRow = document.getElementById('loginRepositorySortRow');
+            if (sortRow) sortRow.hidden = false;
+        }
+
+        function sortLoginRepositoryImages() {
+            const orders = [null, 'desc', 'asc'];
+            const idx = orders.indexOf(loginSortState);
+            loginSortState = orders[(idx + 1) % orders.length];
+
+            const arrow = document.getElementById('loginRepositorySortArrow');
+            if (arrow) {
+                if (loginSortState === 'desc') { arrow.textContent = '↓'; arrow.className = 'repository-sort-arrow'; }
+                else if (loginSortState === 'asc') { arrow.textContent = '↑'; arrow.className = 'repository-sort-arrow asc'; }
+                else { arrow.textContent = '↕'; arrow.className = 'repository-sort-arrow reverse'; }
+            }
+
+            if (loginSortState) {
+                loginRepositoryImages.sort((a, b) => {
+                    const sa = getResolutionScore(a);
+                    const sb = getResolutionScore(b);
+                    return loginSortState === 'desc' ? sb - sa : sa - sb;
+                });
+            } else {
+                loginRepositoryImages.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
+            }
+            renderLoginRepositoryControls();
+        }
+
+        document.getElementById('loginRepositorySortBtn')?.addEventListener('click', async () => {
+            if (!loginImageResolutions) {
+                const btn = document.getElementById('loginRepositorySortBtn');
+                const label = btn?.querySelector('.repository-sort-label');
+                if (label) label.textContent = 'Cargando dimensiones...';
+                await ensureLoginImageDimensions();
+                if (label) label.textContent = 'Ordenar por resolución';
+            }
+            sortLoginRepositoryImages();
+        });
 
         function bindLoginRepositoryEvents() {
             const openRepositoryPicker = () => loginRepositoryUpload?.click();
@@ -14497,15 +15521,12 @@
                     event.target.value = '';
                 }
             });
-            loginRepositoryGallery?.addEventListener('click', async (event) => {
-                const deleteButton = event.target.closest('[data-login-repository-delete]');
-                if (!deleteButton) return;
-                try {
-                    await deleteLoginRepositoryFile(deleteButton.dataset.loginRepositoryDelete);
-                } catch (error) {
-                    console.error(error);
-                    setConfigStatus(error.message || 'No fue posible eliminar la imagen del repositorio.', true);
-                }
+            loginRepositoryGallery?.addEventListener('click', (event) => {
+                const card = event.target.closest('[data-login-repository-view]');
+                if (!card) return;
+                const fileName = card.dataset.loginRepositoryView;
+                const image = loginRepositoryImages.find((img) => img.fileName === fileName);
+                if (image) openLoginImageModal(image);
             });
             [loginScreensaverMotionSeconds, loginScreensaverSlideSeconds].forEach((field) => {
                 field?.addEventListener('input', () => {
@@ -15804,7 +16825,7 @@
             normalizeUiTextArtifacts();
             applyFloatingSaveButtonPreview();
             updateFavoriteDrumPreview();
-            syncConfigTabHeights();
+            constrainActiveTabContent();
         }
 
         function queueConfigSave() {
@@ -15883,7 +16904,7 @@
                 if (requestedTabKey === 'diseno') {
                     activateDesignTab(getActiveDesignTabKey());
                 } else {
-                    syncConfigTabHeights();
+                    constrainActiveTabContent();
                 }
             });
         });
@@ -16686,7 +17707,7 @@
                     renderPermissionAdminList();
                     updatePermissionAdminSummary();
                 }
-                syncConfigTabHeights();
+                constrainActiveTabContent();
             } catch (error) {
                 console.error('Error loading config:', error);
                 document.getElementById('saveStatus').textContent = 'Error al cargar configuracion';
@@ -16757,7 +17778,7 @@
         }
 
         window.addEventListener('resize', () => {
-            syncConfigTabHeights();
+            constrainActiveTabContent();
         });
 
         auditApplyButton?.addEventListener('click', () => {
@@ -17220,6 +18241,7 @@
         activateDesignTab('datos-generales');
         activateSapTab('envios');
         activateSecurityTab('usuarios');
+        loadDeptProcessList();
         if (new URLSearchParams(window.location.search).get('sap') === '1') {
             document.querySelector('.config-tab[data-tab="sap"]')?.click();
         }
@@ -17335,7 +18357,11 @@
         });
 
         async function handleAdminResetPassword(userId) {
-            if (!confirm('¿Restablecer credenciales de este usuario? Se generará un PIN temporal de 6 dígitos.')) return;
+            const accepted = await showConfirmModal(
+                'Restablecer credenciales',
+                '¿Restablecer credenciales de este usuario? Se generará un PIN temporal de 6 dígitos.'
+            );
+            if (!accepted) return;
             try {
                 const response = await fetch('/api/admin-users/' + userId + '/reset-password', {
                     method: 'POST',
@@ -17345,10 +18371,13 @@
                 const data = await response.json();
                 if (!response.ok) throw new Error(data.error);
                 resetPinGeneratedValue = data.pin;
-                alert('PIN generado correctamente.\n\nPIN: ' + data.pin + '\n\nEste PIN expira en 15 minutos.\n\n' + (data.emailSent ? 'Se ha enviado un correo al usuario.' : 'El usuario no tiene correo. Entrega el PIN manualmente.'));
+                const pinAccepted = await showConfirmModal(
+                    'PIN Generado',
+                    'PIN: ' + data.pin + '\n\nEste PIN expira en 15 minutos.\n\n' + (data.emailSent ? 'Se ha enviado un correo al usuario.' : 'El usuario no tiene correo. Entrega el PIN manualmente.')
+                );
                 await loadAdminUsers();
             } catch (error) {
-                alert('Error: ' + error.message);
+                await showConfirmModal('Error', error.message);
             }
         }
 
@@ -17356,8 +18385,12 @@
             const user = adminUsers.find(function(u) { return Number(u.id) === Number(userId); });
             if (!user) return;
             const isLocked = user.locked;
-            const action = isLocked ? 'desbloquear' : 'bloquear';
-            if (!confirm('¿' + (isLocked ? 'Desbloquear' : 'Bloquear') + ' a ' + escapeHtml(user.name) + '?')) return;
+            const actionLabel = isLocked ? 'Desbloquear' : 'Bloquear';
+            const accepted = await showConfirmModal(
+                actionLabel + ' usuario',
+                '¿' + (isLocked ? 'Desbloquear' : 'Bloquear') + ' a ' + escapeHtml(user.name) + '?'
+            );
+            if (!accepted) return;
             try {
                 const response = await fetch('/api/admin-users/' + userId + '/' + (isLocked ? 'unlock' : 'lock'), {
                     method: 'POST',
@@ -17367,7 +18400,7 @@
                 if (!response.ok) throw new Error(data.error);
                 await loadAdminUsers();
             } catch (error) {
-                alert('Error: ' + error.message);
+                await showConfirmModal('Error', error.message);
             }
         }
 
