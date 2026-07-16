@@ -1704,9 +1704,16 @@ function buildMaterialTabbedForm(viewItem) {
 
     const codigoField = fields.find((f) => f.key === 'codigo');
     const nombreField = fields.find((f) => f.key === 'nombre');
-    if (codigoField) codeRow.appendChild(createInput(codigoField, viewItem.codigo));
+    if (codigoField) {
+        const codigoLabel = createInput(codigoField, viewItem.codigo);
+        const codigoInput = codigoLabel.querySelector('input');
+        if (codigoInput) codigoInput.readOnly = true;
+        codeRow.appendChild(codigoLabel);
+    }
     if (nombreField) {
         const nombreLabel = createInput(nombreField, viewItem.nombre);
+        const nombreInput = nombreLabel.querySelector('input');
+        if (nombreInput) nombreInput.readOnly = true;
         nombreLabel.style.flex = '1 1 auto';
         codeRow.appendChild(nombreLabel);
     }
