@@ -9326,6 +9326,8 @@ html[data-theme="dark"] .inventory-editor-panel .section-caption#editorTitle {
 .inventory-checkbox-field input[type='checkbox']:checked {
     background: linear-gradient(180deg, #38bdf8, #0ea5e9);
     border-color: #38bdf8;
+}
+.inventory-checkbox-field input[type='checkbox']:checked:hover {
     box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.14);
 }
 .inventory-checkbox-field input[type='checkbox']:checked::after {
@@ -9338,6 +9340,8 @@ html[data-theme="dark"] .inventory-checkbox-field input[type='checkbox'] {
 html[data-theme="dark"] .inventory-checkbox-field input[type='checkbox']:checked {
     background: linear-gradient(180deg, #0ea5e9, #22d3ee);
     border-color: transparent;
+}
+html[data-theme="dark"] .inventory-checkbox-field input[type='checkbox']:checked:hover {
     box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.22);
 }
 body.inventory-route-maquinas .inventory-toolbar-shell {
