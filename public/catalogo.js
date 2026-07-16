@@ -1705,20 +1705,18 @@ function buildMaterialTabbedForm(viewItem) {
     const codigoField = fields.find((f) => f.key === 'codigo');
     const nombreField = fields.find((f) => f.key === 'nombre');
     if (codigoField) codeRow.appendChild(createInput(codigoField, viewItem.codigo));
-    if (nombreField) codeRow.appendChild(createInput(nombreField, viewItem.nombre));
+    if (nombreField) {
+        const nombreLabel = createInput(nombreField, viewItem.nombre);
+        nombreLabel.style.flex = '1 1 auto';
+        codeRow.appendChild(nombreLabel);
+    }
     const activoField = fields.find((f) => f.key === 'activo');
     if (activoField) {
-        const activoWrapper = document.createElement('div');
-        activoWrapper.className = 'material-activo-column';
-        const activoSpan = document.createElement('span');
-        activoSpan.textContent = activoField.label || 'Activo';
-        const activoInput = document.createElement('input');
-        activoInput.type = 'checkbox';
-        activoInput.name = 'activo';
-        activoInput.checked = Boolean(viewItem.activo);
-        activoWrapper.appendChild(activoSpan);
-        activoWrapper.appendChild(activoInput);
-        codeRow.appendChild(activoWrapper);
+        const activoWrap = document.createElement('div');
+        activoWrap.className = 'material-activo-column';
+        const activoLabel = createInput(activoField, viewItem.activo);
+        activoWrap.appendChild(activoLabel);
+        codeRow.appendChild(activoWrap);
     }
     generalesPanel.appendChild(codeRow);
 
