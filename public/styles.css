@@ -8743,17 +8743,7 @@ body.inventory-route-maquinas.inventory-has-selection .inventory-editor-panel {
 }
 .inventory-form.inventory-form-materiales .material-activo-column .inventory-checkbox-field {
     flex-direction: column !important;
-    min-height: auto;
-    gap: 2px !important;
     align-items: center;
-    padding: 0;
-}
-.inventory-form.inventory-form-materiales .material-activo-column .inventory-checkbox-field span {
-    font-size: 12px;
-    font-weight: 600;
-    color: #556372;
-    white-space: nowrap;
-    margin-top: 0;
 }
 .inventory-form.inventory-form-materiales .inventory-mask-wrap {
     position: relative;
