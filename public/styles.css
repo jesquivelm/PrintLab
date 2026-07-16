@@ -8736,6 +8736,25 @@ body.inventory-route-maquinas.inventory-has-selection .inventory-editor-panel {
     box-shadow: 0 0 0 1px rgba(208, 53, 53, 0.18);
     background: #fff7f7;
 }
+.inventory-form.inventory-form-materiales .material-activo-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding-top: 22px;
+    flex: 0 0 auto;
+}
+.inventory-form.inventory-form-materiales .material-activo-column span {
+    font-size: 12px;
+    font-weight: 600;
+    color: #556372;
+    white-space: nowrap;
+}
+.inventory-form.inventory-form-materiales .material-activo-column input[type='checkbox'] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+}
 .inventory-form.inventory-form-materiales .inventory-mask-wrap {
     position: relative;
     min-width: 0;

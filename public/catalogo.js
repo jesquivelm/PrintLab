@@ -1706,10 +1706,24 @@ function buildMaterialTabbedForm(viewItem) {
     const nombreField = fields.find((f) => f.key === 'nombre');
     if (codigoField) codeRow.appendChild(createInput(codigoField, viewItem.codigo));
     if (nombreField) codeRow.appendChild(createInput(nombreField, viewItem.nombre));
+    const activoField = fields.find((f) => f.key === 'activo');
+    if (activoField) {
+        const activoWrapper = document.createElement('div');
+        activoWrapper.className = 'material-activo-column';
+        const activoSpan = document.createElement('span');
+        activoSpan.textContent = activoField.label || 'Activo';
+        const activoInput = document.createElement('input');
+        activoInput.type = 'checkbox';
+        activoInput.name = 'activo';
+        activoInput.checked = Boolean(viewItem.activo);
+        activoWrapper.appendChild(activoSpan);
+        activoWrapper.appendChild(activoInput);
+        codeRow.appendChild(activoWrapper);
+    }
     generalesPanel.appendChild(codeRow);
 
     const hiddenFields = ['id'];
-    const datosKeys = ['nombre_comercial', 'familia_proceso', 'clasificacion', 'tipo_proforma', 'comentario_tipo_proforma', 'activo'];
+    const datosKeys = ['nombre_comercial', 'familia_proceso', 'clasificacion', 'tipo_proforma', 'comentario_tipo_proforma'];
     const paramKeys = ['ancho_mm', 'largo_mm', 'gramaje_g_m2', 'calibre_micras', 'peso_capa_gsm', 'rendimiento_g_ft2', 'compatible_convencional', 'compatible_digital'];
     const costKeys = ['costo_x_pie', 'costo_x_metro', 'costo_x_lamina', 'costo_x_libra', 'costo_x_unidad', 'costo_x_msi', 'costo_x_m2', 'costo_x_kg'];
     const digitKeys = ['tipo_superficie', 'premier_consumo_g_m2', 'premier_costo_x_kg', 'premier_costo_x_m2', 'premier_preaplicado', 'requiere_premier'];
