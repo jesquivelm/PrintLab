@@ -6884,6 +6884,29 @@ body.shell-embedded .summary-footer {
     border-top: 1px solid #e2e8f0;
     flex-shrink: 0;
 }
+.material-modal-footer .material-footer-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    min-width: 58px;
+    padding: 0 13px;
+    border-radius: 12px;
+    border: 1px solid #d9e5ee;
+    background: linear-gradient(180deg, #ffffff 0%, #f3f8fb 100%);
+    color: #5a7083;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.material-modal-footer .material-footer-btn:hover {
+    border-color: #5bc3ef;
+    background: linear-gradient(180deg, #39afe4 0%, #1890d4 100%);
+    color: #fff;
+    box-shadow: 0 6px 16px rgba(24,144,212,.22);
+}
 
 html[data-theme="dark"] .material-modal-panel,
 html[data-theme="dark"] .material-modal-header,
@@ -6900,6 +6923,17 @@ html[data-theme="dark"] .material-modal-close:hover {
 }
 html[data-theme="dark"] .material-modal-backdrop {
     background: rgba(0, 0, 0, 0.5);
+}
+html[data-theme="dark"] .material-modal-footer .material-footer-btn {
+    background: var(--app-primary-soft);
+    color: var(--app-primary-strong);
+    border-color: color-mix(in srgb, var(--app-primary) 36%, var(--app-border));
+}
+html[data-theme="dark"] .material-modal-footer .material-footer-btn:hover {
+    background: linear-gradient(180deg, var(--app-primary) 0%, var(--app-primary-strong) 100%);
+    color: #062033;
+    border-color: var(--app-primary);
+    box-shadow: none;
 }
 
 .quote-create-popover-panel {
@@ -8695,19 +8729,129 @@ body.inventory-route-maquinas.inventory-has-selection .inventory-editor-panel {
     width: 100%;
     box-sizing: border-box;
 }
-.inventory-form.inventory-form-materiales label.is-required span::after {
-    content: ' *';
-    color: #d32f2f;
-    font-weight: 700;
-}
 .inventory-form.inventory-form-materiales label.is-required input,
-.inventory-form.inventory-form-materiales label.is-required select {
-    border-color: #d32f2f;
-    box-shadow: 0 0 0 1px rgba(211, 47, 47, 0.15);
-}
+.inventory-form.inventory-form-materiales label.is-required select,
 .inventory-form.inventory-form-materiales .material-code-name-row label.is-required input {
-    border-color: #d32f2f;
-    box-shadow: 0 0 0 1px rgba(211, 47, 47, 0.15);
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12) !important;
+}
+.inventory-form.inventory-form-materiales .inventory-mask-wrap {
+    position: relative;
+    min-width: 0;
+    min-height: 36px;
+}
+.inventory-form.inventory-form-materiales .inventory-mask-input {
+    color: transparent;
+    caret-color: #1a2634;
+    position: relative;
+    z-index: 2;
+    background: transparent !important;
+    border: none !important;
+    -moz-appearance: textfield;
+}
+.inventory-form.inventory-form-materiales .inventory-mask-input::-webkit-inner-spin-button,
+.inventory-form.inventory-form-materiales .inventory-mask-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.inventory-form.inventory-form-materiales .inventory-mask-input:focus,
+.inventory-form.inventory-form-materiales .inventory-mask-input:active {
+    color: #1a2634;
+    border: 1px solid #d9e2e9 !important;
+}
+.inventory-form.inventory-form-materiales .inventory-mask-display {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    border: 1px solid #d9e2e9;
+    border-radius: 12px;
+    background: #fbfcfe;
+    color: #1a2634;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1;
+    z-index: 1;
+    font-size: 14px;
+}
+.inventory-form.inventory-form-materiales .has-mask-prefix .inventory-mask-display {
+    padding-left: 8px;
+}
+.inventory-form.inventory-form-materiales .has-mask-prefix .inventory-mask-input {
+    padding-left: 24px;
+}
+.inventory-form.inventory-form-materiales .has-mask-prefix .inventory-mask-input:focus,
+.inventory-form.inventory-form-materiales .has-mask-prefix .inventory-mask-input:active {
+    padding-left: 24px;
+}
+.inventory-form.inventory-form-materiales .has-mask-suffix .inventory-mask-display {
+    padding-right: 8px;
+}
+.inventory-form.inventory-form-materiales .inventory-cost-source-box {
+    grid-column: 1 / -1;
+    background: #f0f6fe;
+    border: 1px solid #c7dff7;
+    border-radius: 14px;
+    padding: 10px 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+    margin-top: 4px;
+}
+.inventory-form.inventory-form-materiales .cost-source-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+}
+.inventory-form.inventory-form-materiales .cost-source-title {
+    font-weight: 700;
+    color: #1e4976;
+    flex-shrink: 0;
+}
+.inventory-form.inventory-form-materiales .cost-source-head-amount {
+    font-weight: 700;
+    color: #1a2634;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.inventory-form.inventory-form-materiales .cost-source-arrow {
+    font-size: 10px;
+    color: #1e4976;
+    flex-shrink: 0;
+    width: 14px;
+    text-align: center;
+    margin-left: auto;
+}
+.inventory-form.inventory-form-materiales .cost-source-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    padding-top: 10px;
+    margin-top: 8px;
+    border-top: 1px solid #c7dff7;
+}
+.inventory-form.inventory-form-materiales .cost-source-leyenda {
+    font-weight: 500;
+    color: #556372;
+    font-size: 12px;
+}
+.inventory-form.inventory-form-materiales .cost-source-line {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    font-size: 13px;
+}
+.inventory-form.inventory-form-materiales .cost-source-line .cost-source-label {
+    font-weight: 600;
+    color: #556372;
+    flex-shrink: 0;
 }
 .inventory-form.inventory-form-maquinas {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -9145,9 +9289,6 @@ html[data-theme="dark"] .inventory-editor-panel .section-caption#editorTitle {
     align-items: center;
     gap: 10px !important;
     min-height: 40px;
-}
-.inventory-checkbox-field span {
-    flex: 1;
 }
 .inventory-checkbox-field input[type='checkbox'] {
     width: 18px;
@@ -12396,6 +12537,42 @@ html[data-theme="dark"] .costs-formula-card p {
     color: var(--app-text-muted) !important;
 }
 
+html[data-theme="dark"] .inventory-form.inventory-form-materiales .inventory-mask-display {
+    background: #111c30 !important;
+    color: var(--app-text) !important;
+    border-color: var(--app-border) !important;
+}
+html[data-theme="dark"] .inventory-form.inventory-form-materiales .inventory-mask-input {
+    caret-color: var(--app-text) !important;
+}
+html[data-theme="dark"] .inventory-form.inventory-form-materiales .inventory-mask-input:focus,
+html[data-theme="dark"] .inventory-form.inventory-form-materiales .inventory-mask-input:active {
+    color: var(--app-text) !important;
+    border: 1px solid var(--app-border) !important;
+}
+html[data-theme="dark"] .inventory-form.inventory-form-materiales .inventory-cost-source-box {
+    background: #1a2744 !important;
+    border-color: #2a3f6a !important;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25) !important;
+}
+html[data-theme="dark"] .inventory-form.inventory-form-materiales .cost-source-title {
+    color: #93c5fd !important;
+}
+html[data-theme="dark"] .inventory-form.inventory-form-materiales .cost-source-head-amount {
+    color: var(--app-text) !important;
+}
+html[data-theme="dark"] .inventory-form.inventory-form-materiales .cost-source-arrow {
+    color: #93c5fd !important;
+}
+html[data-theme="dark"] .inventory-form.inventory-form-materiales .cost-source-body {
+    border-top-color: #2a3f6a !important;
+}
+html[data-theme="dark"] .inventory-form.inventory-form-materiales .cost-source-leyenda {
+    color: var(--app-text-muted) !important;
+}
+html[data-theme="dark"] .inventory-form.inventory-form-materiales .cost-source-line .cost-source-label {
+    color: var(--app-text-muted) !important;
+}
 html[data-theme="dark"] .inventory-form label,
 html[data-theme="dark"] .inventory-detail-preview,
 html[data-theme="dark"] .inventory-detail-image-shell,

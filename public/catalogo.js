@@ -75,8 +75,9 @@ function resolveRouteConfig() {
                 { key: 'nombre', label: 'Nombre', className: 'inventory-col-name inventory-col-name-material' },
                 { key: 'familia_proceso', label: 'Proceso', width: '180px', className: 'inventory-col-process inventory-col-process-material' },
                 { key: 'clasificacion', label: 'Clasificación', width: '180px', className: 'inventory-col-process inventory-col-classification-material' },
-                { key: 'costo_x_pie', label: '$ / Pie', width: '130px', className: 'inventory-col-number', format: (v) => v != null && v !== '' ? '$' + Number(v).toFixed(6) : '—' },
-                { key: 'costo_x_metro', label: '$ / Metro', width: '130px', className: 'inventory-col-number', format: (v) => v != null && v !== '' ? '$' + Number(v).toFixed(6) : '—' }
+                { key: 'precio_unitario', label: 'Precio Unitario', width: '130px', className: 'inventory-col-number', format: (v, item) => { const p = parseFloat(item?.costo_x_pie); if (Number.isFinite(p) && p > 0) return '$' + p.toFixed(6).replace(/\.?0+$/, ''); return ''; }, tooltip: (v, item) => { const p = parseFloat(item?.costo_x_pie); if (Number.isFinite(p) && p > 0) return '$' + p.toFixed(6).replace(/\.?0+$/, '') + ' /pie'; return ''; } },
+                { key: 'costo_x_pie', label: 'Costo / Pie', width: '130px', className: 'inventory-col-number', format: (v, item) => { const p = parseFloat(v); if (Number.isFinite(p) && p > 0) return '$' + p.toFixed(6).replace(/\.?0+$/, ''); const m2 = parseFloat(item?.costo_x_m2); const a = parseFloat(item?.ancho_mm); if (Number.isFinite(m2) && m2 > 0 && Number.isFinite(a) && a > 0) { const calc = m2 * (a / 1000); return '$' + calc.toFixed(6).replace(/\.?0+$/, '') } return ''; }, tooltip: (v, item) => { const p = parseFloat(v); if (Number.isFinite(p) && p > 0) return '$' + p.toFixed(6).replace(/\.?0+$/, '') + ' /pie'; const m2 = parseFloat(item?.costo_x_m2); const a = parseFloat(item?.ancho_mm); if (Number.isFinite(m2) && m2 > 0 && Number.isFinite(a) && a > 0) { const calc = m2 * (a / 1000); return '$' + calc.toFixed(6).replace(/\.?0+$/, '') + ' /pie (calculado)' } return ''; } },
+                { key: 'costo_x_metro', label: 'Costo / Metro', width: '130px', className: 'inventory-col-number', format: (v, item) => { const m = parseFloat(v); if (Number.isFinite(m) && m > 0) return '$' + m.toFixed(6).replace(/\.?0+$/, ''); const p = parseFloat(item?.costo_x_pie); if (Number.isFinite(p) && p > 0) { const calc = p / 0.3048; return '$' + calc.toFixed(6).replace(/\.?0+$/, '') } return ''; }, tooltip: (v, item) => { const m = parseFloat(v); if (Number.isFinite(m) && m > 0) return '$' + m.toFixed(6).replace(/\.?0+$/, '') + ' /m'; const p = parseFloat(item?.costo_x_pie); if (Number.isFinite(p) && p > 0) { const calc = p / 0.3048; return '$' + calc.toFixed(6).replace(/\.?0+$/, '') + ' /m (calculado)' } return ''; } }
             ],
             formFields: [
                 { key: 'id', type: 'hidden' },
@@ -87,6 +88,7 @@ function resolveRouteConfig() {
                 return {
                     codigo: '',
                     nombre: '',
+                    nombre_comercial: '',
                     ancho_mm: 0,
                     largo_mm: '',
                     gramaje_g_m2: '',
@@ -899,36 +901,37 @@ function getFormFields() {
         { type: 'section', label: 'Datos del Material', span: 2, tabKey: 'datos' },
         { key: 'codigo', label: 'Código', type: 'text' },
         { key: 'nombre', label: 'Nombre', type: 'text' },
+        { key: 'nombre_comercial', label: 'Nombre Comercial', type: 'text', className: 'inventory-material-field' },
         { key: 'familia_proceso', label: 'Proceso', type: 'select', options: [['', 'Sin definir'], ['sustrato', 'Sustrato'], ['tinta', 'Tinta'], ['barniz', 'Barniz'], ['laminado', 'Laminado'], ['foil', 'Foil'], ['core', 'Core'], ['plancha', 'Plancha']] },
         { key: 'clasificacion', label: 'Clasificación', type: 'select', options: [['', 'Sin definir'], ['sustrato', 'Sustrato'], ['tinta', 'Tinta'], ['barniz', 'Barniz'], ['laminado', 'Laminado'], ['foil', 'Foil'], ['core', 'Core'], ['plancha', 'Plancha'], ['otro', 'Otro']] },
         { key: 'tipo_proforma', label: 'Familia Comercial', type: 'text', className: 'inventory-material-field' },
         { key: 'comentario_tipo_proforma', label: 'Comentario', type: 'textarea', rows: 2, className: 'inventory-material-comment' },
         { key: 'activo', label: 'Activo', type: 'checkbox', className: 'inventory-material-field' },
         { type: 'section', label: 'Parámetros Generales', span: 2, tabKey: 'parametros' },
-        { key: 'ancho_mm', label: 'Ancho mm', type: 'number', step: '0.001', className: 'inventory-material-field' },
-        { key: 'largo_mm', label: 'Largo mm', type: 'number', step: '0.001', className: 'inventory-material-field' },
-        { key: 'gramaje_g_m2', label: 'Gramaje g/m²', type: 'number', step: '0.001', className: 'inventory-material-field' },
-        { key: 'calibre_micras', label: 'Calibre micras', type: 'number', step: '0.001', className: 'inventory-material-field' },
-        { key: 'peso_capa_gsm', label: 'GSM Tinta', type: 'number', step: '0.0001', className: 'inventory-material-field' },
-        { key: 'rendimiento_g_ft2', label: 'Rendimiento g/ft²', type: 'number', step: '0.0001', className: 'inventory-material-field' },
+        { key: 'ancho_mm', label: 'Ancho mm', type: 'number', step: '0.01', className: 'inventory-material-field', maskOverlay: true, suffix: 'mm' },
+        { key: 'largo_mm', label: 'Largo mm', type: 'number', step: '0.01', className: 'inventory-material-field', maskOverlay: true, suffix: 'mm' },
+        { key: 'gramaje_g_m2', label: 'Gramaje g/m²', type: 'number', step: '0.001', className: 'inventory-material-field', maskOverlay: true, suffix: 'g/m²' },
+        { key: 'calibre_micras', label: 'Calibre micras', type: 'number', step: '0.01', className: 'inventory-material-field', maskOverlay: true, suffix: 'micras' },
+        { key: 'peso_capa_gsm', label: 'GSM Tinta', type: 'number', step: '0.0001', className: 'inventory-material-field', maskOverlay: true, suffix: 'gsm' },
+        { key: 'rendimiento_g_ft2', label: 'Rendimiento g/ft²', type: 'number', step: '0.0001', className: 'inventory-material-field', maskOverlay: true, suffix: 'g/ft²' },
         { key: 'compatible_convencional', label: 'Compatible Convencional', type: 'checkbox', className: 'inventory-material-field' },
         { key: 'compatible_digital', label: 'Compatible Digital', type: 'checkbox', className: 'inventory-material-field' },
         { type: 'section', label: 'Tratamiento Digital de Sustrato', span: 2, tabKey: 'digital' },
         { key: 'tipo_superficie', label: 'Tipo Superficie', type: 'select', options: [['', 'Sin definir'], ['poroso', 'Poroso'], ['no_poroso', 'No poroso']] },
-        { key: 'premier_consumo_g_m2', label: 'Premier g/m²', type: 'number', step: '0.0001', className: 'inventory-material-field' },
-        { key: 'premier_costo_x_kg', label: 'Premier Costo kg', type: 'number', step: '0.000001', className: 'inventory-material-field' },
-        { key: 'premier_costo_x_m2', label: 'Premier Costo m²', type: 'number', step: '0.000001', className: 'inventory-material-field' },
+        { key: 'premier_consumo_g_m2', label: 'Premier g/m²', type: 'number', step: '0.0001', className: 'inventory-material-field', maskOverlay: true, suffix: 'g/m²' },
+        { key: 'premier_costo_x_kg', label: 'Premier Costo kg', type: 'number', step: '0.000001', className: 'inventory-material-field', maskOverlay: true, prefix: '$' },
+        { key: 'premier_costo_x_m2', label: 'Premier Costo m²', type: 'number', step: '0.000001', className: 'inventory-material-field', maskOverlay: true, prefix: '$' },
         { key: 'premier_preaplicado', label: 'Premier Preaplicado', type: 'checkbox', className: 'inventory-material-field' },
         { key: 'requiere_premier', label: 'Requiere Premier', type: 'checkbox', className: 'inventory-material-field' },
         { type: 'section', label: 'Costos', span: 2, tabKey: 'costos' },
-        { key: 'costo_x_pie', label: 'Costo x Pie Lineal', type: 'number', step: '0.000001', className: 'inventory-material-field' },
-        { key: 'costo_x_metro', label: 'Costo x Metro Lineal', type: 'number', step: '0.000001', className: 'inventory-material-field' },
-        { key: 'costo_x_lamina', label: 'Costo Lámina', type: 'number', step: '0.000001', className: 'inventory-material-field' },
-        { key: 'costo_x_libra', label: 'Costo Libra', type: 'number', step: '0.000001', className: 'inventory-material-field' },
-        { key: 'costo_x_unidad', label: 'Costo Unidad', type: 'number', step: '0.000001', className: 'inventory-material-field' },
-        { key: 'costo_x_msi', label: 'Costo MSI', type: 'number', step: '0.000001', className: 'inventory-material-field' },
-        { key: 'costo_x_m2', label: 'Costo m²', type: 'number', step: '0.000001', className: 'inventory-material-field' },
-        { key: 'costo_x_kg', label: 'Costo kg', type: 'number', step: '0.000001', className: 'inventory-material-field' }
+        { key: 'costo_x_pie', label: 'Costo x Pie Lineal', type: 'number', step: '0.000001', className: 'inventory-material-field', maskOverlay: true, prefix: '$' },
+        { key: 'costo_x_metro', label: 'Costo x Metro Lineal', type: 'number', step: '0.000001', className: 'inventory-material-field', maskOverlay: true, prefix: '$' },
+        { key: 'costo_x_lamina', label: 'Costo Lámina', type: 'number', step: '0.000001', className: 'inventory-material-field', maskOverlay: true, prefix: '$' },
+        { key: 'costo_x_libra', label: 'Costo Libra', type: 'number', step: '0.000001', className: 'inventory-material-field', maskOverlay: true, prefix: '$' },
+        { key: 'costo_x_unidad', label: 'Costo Unidad', type: 'number', step: '0.000001', className: 'inventory-material-field', maskOverlay: true, prefix: '$' },
+        { key: 'costo_x_msi', label: 'Costo MSI', type: 'number', step: '0.000001', className: 'inventory-material-field', maskOverlay: true, prefix: '$' },
+        { key: 'costo_x_m2', label: 'Costo m²', type: 'number', step: '0.000001', className: 'inventory-material-field', maskOverlay: true, prefix: '$' },
+        { key: 'costo_x_kg', label: 'Costo kg', type: 'number', step: '0.000001', className: 'inventory-material-field', maskOverlay: true, prefix: '$' }
     ];
     if (!isTroquelesInventory()) return page.formFields;
     return [
@@ -988,7 +991,7 @@ function formatCellValue(value) {
     if (typeof value === 'number' && Number.isFinite(value)) {
         return new Intl.NumberFormat('es-CR', { maximumFractionDigits: 2 }).format(value);
     }
-    if (value === null || typeof value === 'undefined' || value === '') return '—';
+    if (value === null || typeof value === 'undefined' || value === '') return '';
     return value;
 }
 
@@ -1264,6 +1267,17 @@ function formatFieldValue(field, value) {
     return decimals ? numeric.toFixed(decimals).replace(/\.?0+$/, '') : String(Math.round(numeric));
 }
 
+function formatMaskValue(field, rawValue) {
+    if (rawValue === null || rawValue === undefined || rawValue === '') return '';
+    const num = Number(String(rawValue).trim());
+    if (!Number.isFinite(num)) return String(rawValue);
+    const stepText = String(field.step || 'any');
+    const decimals = stepText.includes('.') ? stepText.split('.')[1].length : 2;
+    const formatted = num.toFixed(decimals).replace(/\.?0+$/, '');
+    const localeFormatted = formatted.replace('.', ',');
+    return (field.prefix || '') + localeFormatted + (field.suffix ? ' ' + field.suffix : '');
+}
+
 function createInput(field, value) {
     if (field.type === 'section') {
         const section = document.createElement('div');
@@ -1412,6 +1426,41 @@ function createInput(field, value) {
     if (field.placeholder) input.placeholder = field.placeholder;
     input.value = formatFieldValue(field, value);
     if (field.inputClass) input.classList.add(field.inputClass);
+
+    if (field.maskOverlay) {
+        const wrap = document.createElement('div');
+        wrap.className = 'inventory-input-wrap inventory-mask-wrap';
+        if (field.prefix) wrap.classList.add('has-mask-prefix');
+        if (field.suffix) wrap.classList.add('has-mask-suffix');
+        input.classList.add('inventory-mask-input');
+
+        const mask = document.createElement('span');
+        mask.className = 'inventory-mask-display';
+        const updateMask = () => {
+            mask.textContent = formatMaskValue(field, input.value);
+        };
+        updateMask();
+
+        const showInput = () => {
+            mask.style.display = 'none';
+            input.style.color = '';
+        };
+        const showMask = () => {
+            mask.style.display = '';
+            input.style.color = 'transparent';
+            updateMask();
+        };
+
+        input.addEventListener('focus', showInput);
+        input.addEventListener('blur', showMask);
+        input.addEventListener('input', updateMask);
+
+        wrap.appendChild(input);
+        wrap.appendChild(mask);
+        label.appendChild(wrap);
+        return label;
+    }
+
     if (field.suffix || field.suffixSourceKey) {
         const wrap = document.createElement('div');
         wrap.className = 'inventory-input-wrap';
@@ -1539,8 +1588,8 @@ function ensureMaterialModal() {
             </div>
             <div class="material-modal-body" id="materialModalBody"></div>
             <div class="material-modal-footer">
-                <button type="button" class="action-btn" data-mm-close="true">Cancelar</button>
-                <button type="button" class="action-btn action-btn-primary" id="materialSaveBtn">Guardar</button>
+                <button type="button" class="material-footer-btn" data-mm-close="true">Cancelar</button>
+                <button type="button" class="material-footer-btn" id="materialSaveBtn">Guardar</button>
             </div>
         </div>
     `;
@@ -1683,6 +1732,11 @@ function buildMaterialTabbedForm(viewItem) {
         if (field) addFieldToPanel(field, generalesPanel);
     });
 
+    const costSourceBox = document.createElement('div');
+    costSourceBox.className = 'inventory-cost-source-box';
+    costSourceBox.hidden = true;
+    generalesPanel.appendChild(costSourceBox);
+
     addSectionHeading(generalesPanel, 'Costos');
 
     costKeys.forEach((key) => {
@@ -1695,49 +1749,136 @@ function buildMaterialTabbedForm(viewItem) {
         if (field) addFieldToPanel(field, digitalPanel);
     });
 
-    // Dynamic conversion between costo_x_pie and costo_x_metro
-    const pieInput = catalogForm.elements.namedItem('costo_x_pie');
-    const metroInput = catalogForm.elements.namedItem('costo_x_metro');
-    if (pieInput && metroInput) {
-        pieInput.addEventListener('input', () => {
-            const val = parseFloat(pieInput.value);
-            if (!isNaN(val) && val > 0) {
-                metroInput.value = (val / 0.3048).toFixed(6);
-            } else if (pieInput.value === '' || pieInput.value === '0') {
-                metroInput.value = '';
-            }
-        });
-        metroInput.addEventListener('input', () => {
-            const val = parseFloat(metroInput.value);
-            if (!isNaN(val) && val > 0) {
-                pieInput.value = (val * 0.3048).toFixed(6);
-            } else if (metroInput.value === '' || metroInput.value === '0') {
-                pieInput.value = '';
-            }
-        });
-    }
-
     const substrateRequiredFields = ['codigo', 'nombre', 'ancho_mm', 'costo_x_pie'];
     const requiredLabels = new Set();
 
-    const updateSubstrateRequiredFields = (isSubstrate) => {
+    const evaluateRequiredFields = (isSubstrate) => {
         requiredLabels.forEach((label) => label.classList.remove('is-required'));
         requiredLabels.clear();
         if (!isSubstrate) return;
         substrateRequiredFields.forEach((key) => {
             const el = catalogForm.elements.namedItem(key);
-            if (el) {
-                const label = el.closest('label');
-                if (label) {
-                    label.classList.add('is-required');
-                    requiredLabels.add(label);
-                }
+            if (!el) return;
+            const val = el.value;
+            const isEmpty = !val || String(val).trim() === '' || Number(val) === 0;
+            if (!isEmpty) return;
+            const label = el.closest('label');
+            if (label) {
+                label.classList.add('is-required');
+                requiredLabels.add(label);
             }
         });
     };
+    substrateRequiredFields.forEach((key) => {
+        const el = catalogForm.elements.namedItem(key);
+        if (el) {
+            el.addEventListener('input', () => {
+                const isSubstrate = String(inputByName('clasificacion')?.value || '').trim() === 'sustrato';
+                evaluateRequiredFields(isSubstrate);
+            });
+        }
+    });
 
     catalogForm.appendChild(tabBar);
     catalogForm.appendChild(panels);
+
+    const inputByName = (name) => catalogForm.querySelector(`[name="${name}"]`);
+
+    const pieInput = inputByName('costo_x_pie');
+    const metroInput = inputByName('costo_x_metro');
+    const triggerInput = (el) => el.dispatchEvent(new Event('input', {bubbles: true}));
+    const syncPieToMetro = () => {
+        const val = parseFloat(pieInput.value);
+        if (!isNaN(val) && val > 0) {
+            metroInput.value = (val / 0.3048).toFixed(6);
+            triggerInput(metroInput);
+        } else if (pieInput.value === '' || parseFloat(pieInput.value) === 0) {
+            metroInput.value = '';
+            triggerInput(metroInput);
+        }
+    };
+    const syncMetroToPie = () => {
+        const val = parseFloat(metroInput.value);
+        if (!isNaN(val) && val > 0) {
+            pieInput.value = (val * 0.3048).toFixed(6);
+            triggerInput(pieInput);
+        } else if (metroInput.value === '' || parseFloat(metroInput.value) === 0) {
+            pieInput.value = '';
+            triggerInput(pieInput);
+        }
+    };
+    if (pieInput && metroInput) {
+        pieInput.addEventListener('input', syncPieToMetro);
+        metroInput.addEventListener('input', syncMetroToPie);
+        syncPieToMetro();
+    }
+
+    const updateCostSource = () => {
+        const viewClass = normalizeKey(viewItem.clasificacion || viewItem.familia_proceso || '');
+        const formClass = normalizeKey(inputByName('clasificacion')?.value || inputByName('familia_proceso')?.value || '');
+        const classification = formClass || viewClass;
+        const isSubstrate = classification === 'sustrato';
+        if (!isSubstrate) {
+            costSourceBox.hidden = true;
+            return;
+        }
+        costSourceBox.hidden = false;
+        const isOpen = costSourceBox.classList.contains('is-open');
+        const pieVal = parseFloat(inputByName('costo_x_pie')?.value);
+        const m2Val = parseFloat(inputByName('costo_x_m2')?.value);
+        const anchoVal = parseFloat(inputByName('ancho_mm')?.value);
+        let displayAmount = '';
+        let leyenda = '';
+        let formulaHtml = '';
+        if (Number.isFinite(pieVal) && pieVal > 0) {
+            displayAmount = ' $' + pieVal.toFixed(6).replace('.', ',') + '/pie';
+            leyenda = 'Costo de Pie Lineal Directo';
+            formulaHtml = '';
+        } else if (Number.isFinite(m2Val) && m2Val > 0 && Number.isFinite(anchoVal) && anchoVal > 0) {
+            const anchoM = anchoVal / 1000;
+            const calculated = m2Val * anchoM;
+            displayAmount = ' $' + calculated.toFixed(6).replace('.', ',') + '/pie';
+            leyenda = 'Convertir Costo de Metro Cuadrado a Costo de Pie Lineal';
+            formulaHtml = '<div class="cost-source-line"><span class="cost-source-label">F\u00f3rmula:</span><span>' +
+                '$' + m2Val.toFixed(6).replace('.', ',') + '/m² x ' +
+                anchoM.toFixed(4).replace('.', ',') + 'm = ' +
+                '<strong>$' + calculated.toFixed(6).replace('.', ',') + '/pie</strong></span></div>';
+        } else if (Number.isFinite(m2Val) && m2Val > 0) {
+            displayAmount = ' Costo m² disponible (falta ancho)';
+            leyenda = '';
+            formulaHtml = '';
+        } else {
+            displayAmount = ' Ingrese al menos un campo de costo';
+            leyenda = '';
+            formulaHtml = '';
+        }
+        const arrowChar = isOpen ? '\u25BC' : '\u25B6';
+        costSourceBox.innerHTML =
+            '<div class="cost-source-head" data-toggle-source>' +
+                '<span class="cost-source-title">Costo para C\u00e1lculo:</span>' +
+                '<span class="cost-source-head-amount">' + displayAmount + '</span>' +
+                '<span class="cost-source-arrow">' + arrowChar + '</span>' +
+            '</div>' +
+            '<div class="cost-source-body"' + (isOpen ? '' : ' style="display:none"') + '>' +
+                (leyenda ? '<div class="cost-source-leyenda">' + leyenda + '</div>' : '') +
+                formulaHtml +
+            '</div>';
+    };
+    costSourceBox.addEventListener('click', (e) => {
+        const head = e.target.closest('[data-toggle-source]');
+        if (!head) return;
+        costSourceBox.classList.toggle('is-open');
+        const body = costSourceBox.querySelector('.cost-source-body');
+        if (body) body.style.display = costSourceBox.classList.contains('is-open') ? '' : 'none';
+        updateCostSource();
+    });
+    costKeys.forEach((key) => {
+        const el = inputByName(key);
+        if (el) el.addEventListener('input', updateCostSource);
+    });
+    inputByName('clasificacion')?.addEventListener('change', updateCostSource);
+    inputByName('familia_proceso')?.addEventListener('change', updateCostSource);
+    updateCostSource();
 
     const setActiveTab = (tabKey) => {
         Array.from(tabBar.querySelectorAll('.inventory-material-tab')).forEach((button) => {
@@ -1755,7 +1896,7 @@ function buildMaterialTabbedForm(viewItem) {
         if (digitalButton) digitalButton.hidden = !isSubstrate;
         const active = tabBar.querySelector('.inventory-material-tab.is-active');
         if (!isSubstrate && active?.dataset.materialTab === 'digital') setActiveTab('generales');
-        updateSubstrateRequiredFields(isSubstrate);
+        evaluateRequiredFields(isSubstrate);
     };
 
     tabBar.addEventListener('click', (event) => {
@@ -2026,8 +2167,9 @@ function renderTable(items) {
                     const label = escapeHtml(item.codigo || item.nombre || item.descripcion || 'registro');
                     return `<td${className}><a class="browser-open-link" href="${href}" data-open-detail="${escapeHtml(item.id)}" aria-label="Abrir troquel ${label}" title="Abrir troquel ${label}" style="--icon-color:${escapeHtml(openIcon.color)};--icon-hover-color:${escapeHtml(openIcon.hover)};--config-icon-size:${escapeHtml(String(openIcon.size))}px;">${iconMarkup(openIcon.value, 'Abrir troquel', 'table-icon-media')}</a></td>`;
                 }
-                const cellValue = column.format ? column.format(item[column.key]) : formatCellValue(item[column.key]);
-                return `<td${className} title="${escapeHtml(cellValue)}">${escapeHtml(cellValue)}</td>`;
+                const cellValue = column.format ? column.format(item[column.key], item) : formatCellValue(item[column.key]);
+                const cellTitle = column.tooltip ? column.tooltip(item[column.key], item) : cellValue;
+                return `<td${className} title="${escapeHtml(cellTitle)}">${escapeHtml(cellValue)}</td>`;
             }).join('')}
         </tr>
     `).join('');
