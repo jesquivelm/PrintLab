@@ -38,6 +38,16 @@ const catalogImportSapPopoverStatus = document.getElementById('catalogImportSapP
 let companyConfig = null;
 let catalogSapImportDiagnosis = null;
 let catalogVisibleCount = 0;
+let catalogSortState = { key: null, dir: null };
+
+function formatDate(value) {
+    if (!value) return '';
+    try {
+        const d = new Date(value);
+        if (isNaN(d.getTime())) return value;
+        return d.toLocaleDateString('es-CR', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    } catch { return value; }
+}
 
 function formatVisibleCountLabel(count, noun) {
     const total = Math.max(0, Number(count) || 0);
@@ -77,7 +87,7 @@ function resolveRouteConfig() {
                 { key: 'clasificacion', label: 'Clasificación', width: '180px', className: 'inventory-col-process inventory-col-classification-material' },
                 { key: 'precio_unitario', label: 'Precio Unitario', width: '130px', className: 'inventory-col-number', format: (v, item) => { const p = parseFloat(item?.costo_x_pie); if (Number.isFinite(p) && p > 0) return '$' + p.toFixed(6).replace(/\.?0+$/, ''); return ''; }, tooltip: (v, item) => { const p = parseFloat(item?.costo_x_pie); if (Number.isFinite(p) && p > 0) return '$' + p.toFixed(6).replace(/\.?0+$/, '') + ' /pie'; return ''; } },
                 { key: 'costo_x_pie', label: 'Costo / Pie', width: '130px', className: 'inventory-col-number', format: (v, item) => { const p = parseFloat(v); if (Number.isFinite(p) && p > 0) return '$' + p.toFixed(6).replace(/\.?0+$/, ''); const m2 = parseFloat(item?.costo_x_m2); const a = parseFloat(item?.ancho_mm); if (Number.isFinite(m2) && m2 > 0 && Number.isFinite(a) && a > 0) { const calc = m2 * (a / 1000); return '$' + calc.toFixed(6).replace(/\.?0+$/, '') } return ''; }, tooltip: (v, item) => { const p = parseFloat(v); if (Number.isFinite(p) && p > 0) return '$' + p.toFixed(6).replace(/\.?0+$/, '') + ' /pie'; const m2 = parseFloat(item?.costo_x_m2); const a = parseFloat(item?.ancho_mm); if (Number.isFinite(m2) && m2 > 0 && Number.isFinite(a) && a > 0) { const calc = m2 * (a / 1000); return '$' + calc.toFixed(6).replace(/\.?0+$/, '') + ' /pie (calculado)' } return ''; } },
-                { key: 'costo_x_metro', label: 'Costo / Metro', width: '130px', className: 'inventory-col-number', format: (v, item) => { const m = parseFloat(v); if (Number.isFinite(m) && m > 0) return '$' + m.toFixed(6).replace(/\.?0+$/, ''); const p = parseFloat(item?.costo_x_pie); if (Number.isFinite(p) && p > 0) { const calc = p / 0.3048; return '$' + calc.toFixed(6).replace(/\.?0+$/, '') } return ''; }, tooltip: (v, item) => { const m = parseFloat(v); if (Number.isFinite(m) && m > 0) return '$' + m.toFixed(6).replace(/\.?0+$/, '') + ' /m'; const p = parseFloat(item?.costo_x_pie); if (Number.isFinite(p) && p > 0) { const calc = p / 0.3048; return '$' + calc.toFixed(6).replace(/\.?0+$/, '') + ' /m (calculado)' } return ''; } }
+                { key: 'costo_x_metro', label: 'Costo / Metro', width: '130px', className: 'inventory-col-number', format: (v, item) => { const m = parseFloat(v); if (Number.isFinite(m) && m > 0) return '$' + m.toFixed(6).replace(/\.?0+$/, ''); const p = parseFloat(item?.costo_x_pie); if (Number.isFinite(p) && p > 0) { const calc = p / 0.3048; return '$' + calc.toFixed(6).replace(/\.?0+$/, '') } const m2 = parseFloat(item?.costo_x_m2); const a = parseFloat(item?.ancho_mm); if (Number.isFinite(m2) && m2 > 0 && Number.isFinite(a) && a > 0) { const calc = (m2 * (a / 1000)) / 0.3048; return '$' + calc.toFixed(6).replace(/\.?0+$/, '') } return ''; }, tooltip: (v, item) => { const m = parseFloat(v); if (Number.isFinite(m) && m > 0) return '$' + m.toFixed(6).replace(/\.?0+$/, '') + ' /m'; const p = parseFloat(item?.costo_x_pie); if (Number.isFinite(p) && p > 0) { const calc = p / 0.3048; return '$' + calc.toFixed(6).replace(/\.?0+$/, '') + ' /m (calculado)' } const m2 = parseFloat(item?.costo_x_m2); const a = parseFloat(item?.ancho_mm); if (Number.isFinite(m2) && m2 > 0 && Number.isFinite(a) && a > 0) { const calc = (m2 * (a / 1000)) / 0.3048; return '$' + calc.toFixed(6).replace(/\.?0+$/, '') + ' /m (calculado)' } return ''; } }
             ],
             formFields: [
                 { key: 'id', type: 'hidden' },
@@ -863,6 +873,36 @@ function updateInventoryRoute(view = 'list', id = '') {
     window.history.replaceState({}, '', nextUrl);
 }
 
+function getCatalogSortIcon(dir) {
+    const config = companyConfig || {};
+    const icons = config.icons || {};
+    const general = config.general || {};
+    const key = dir === 'asc' ? 'sortAsc' : 'sortDesc';
+    return {
+        value: icons[key] || (dir === 'asc' ? '\u25B2' : '\u25BC'),
+        color: general.iconColorSortAsc || general.iconColor || '#607286',
+        size: Number(general.iconSizeSortAsc || '14') || 14
+    };
+}
+
+function updateCatalogSortIndicators() {
+    const headers = catalogHead.querySelectorAll('th[data-sort-key]');
+    headers.forEach((th) => {
+        const key = th.dataset.sortKey;
+        const indicator = th.querySelector('.sort-indicator');
+        if (!indicator) return;
+        th.classList.remove('is-sorted');
+        indicator.innerHTML = '';
+        if (catalogSortState.key === key && catalogSortState.dir) {
+            th.classList.add('is-sorted');
+            const icon = getCatalogSortIcon(catalogSortState.dir);
+            indicator.innerHTML = iconMarkup(icon.value, catalogSortState.dir === 'asc' ? 'Ascendente' : 'Descendente', '');
+            indicator.style.setProperty('--icon-color', icon.color);
+            indicator.style.setProperty('--config-icon-size', `${icon.size}px`);
+        }
+    });
+}
+
 function getTableColumns() {
     const actionColumn = supportsDeleteInventory()
         ? { key: 'actions', label: '', width: '92px', className: 'inventory-col-open inventory-col-actions', isAction: true }
@@ -876,22 +916,24 @@ function getTableColumns() {
         }
         return [
             ...baseColumns,
+            { key: 'created_at', label: 'Creado', width: '100px', className: 'inventory-col-date', format: (v) => formatDate(v) },
             actionColumn
         ];
     }
 
     return [
         actionColumn,
-        { key: 'codigo', label: 'Código', width: '92px', className: 'inventory-col-code' },
-        { key: 'descripcion', label: 'Descripción', width: '240px', className: 'inventory-col-description' },
-        { key: 'ancho_etiqueta_in', label: 'Ancho in', width: '92px', className: 'inventory-col-number' },
-        { key: 'largo_etiqueta_in', label: 'Largo in', width: '92px', className: 'inventory-col-number' },
-        { key: 'desarrollo_in', label: 'Desarrollo', width: '92px', className: 'inventory-col-number' },
-        { key: 'elongacion_pct', label: 'Elongación', width: '96px', className: 'inventory-col-number' },
-        { key: 'dientes', label: 'Dientes', width: '74px', className: 'inventory-col-number' },
-        { key: 'cantidad_filas', label: 'Filas', width: '66px', className: 'inventory-col-number' },
-        { key: 'repeticiones', label: 'Repeticiones', width: '96px', className: 'inventory-col-number' },
-        { key: 'estado', label: 'Estado', width: '90px', className: 'inventory-col-status' }
+        { key: 'codigo', label: 'Código', width: '88px', className: 'inventory-col-code' },
+        { key: 'descripcion', label: 'Descripción', width: '200px', className: 'inventory-col-description' },
+        { key: 'ancho_etiqueta_in', label: 'Ancho in', width: '82px', className: 'inventory-col-number' },
+        { key: 'largo_etiqueta_in', label: 'Largo in', width: '82px', className: 'inventory-col-number' },
+        { key: 'desarrollo_in', label: 'Desarrollo', width: '82px', className: 'inventory-col-number' },
+        { key: 'elongacion_pct', label: 'Elongación', width: '88px', className: 'inventory-col-number' },
+        { key: 'dientes', label: 'Dientes', width: '68px', className: 'inventory-col-number' },
+        { key: 'cantidad_filas', label: 'Filas', width: '62px', className: 'inventory-col-number' },
+        { key: 'repeticiones', label: 'Repeticiones', width: '90px', className: 'inventory-col-number' },
+        { key: 'estado', label: 'Estado', width: '80px', className: 'inventory-col-status' },
+        { key: 'created_at', label: 'Creado', width: '95px', className: 'inventory-col-date', format: (v) => formatDate(v) }
     ];
 }
 
@@ -1656,6 +1698,72 @@ function closeMaterialModal() {
     }
 }
 
+let machineModalEl = null;
+
+function ensureMachineModal() {
+    if (machineModalEl) return machineModalEl;
+    machineModalEl = document.createElement('div');
+    machineModalEl.className = 'machine-modal';
+    machineModalEl.innerHTML = `
+        <div class="machine-modal-backdrop" data-mm-close="true"></div>
+        <div class="machine-modal-panel" role="dialog" aria-modal="true" aria-label="Editar máquina">
+            <div class="machine-modal-header">
+                <h2 id="machineModalTitle">Máquina</h2>
+                <button type="button" class="machine-modal-close" data-mm-close="true" aria-label="Cerrar">&times;</button>
+            </div>
+            <div class="machine-modal-body" id="machineModalBody"></div>
+            <div class="machine-modal-footer">
+                <button type="button" class="machine-footer-btn" data-mm-close="true">Cancelar</button>
+                <button type="button" class="machine-footer-btn" id="machineSaveBtn">Guardar</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(machineModalEl);
+
+    machineModalEl.addEventListener('click', (e) => {
+        if (e.target.closest('[data-mm-close]')) {
+            closeMachineModal();
+        }
+    });
+
+    document.getElementById('machineSaveBtn').addEventListener('click', async () => {
+        try {
+            await saveCurrentRecord();
+            closeMachineModal();
+        } catch (error) {
+            catalogStatus.textContent = error.message;
+        }
+    });
+
+    return machineModalEl;
+}
+
+function openMachineModal(item) {
+    const modal = ensureMachineModal();
+    catalogFormOriginalParent = catalogForm.parentNode;
+    const title = item.id ? (item.nombre || item.codigo || 'Máquina') : 'Nueva máquina';
+    document.getElementById('machineModalTitle').textContent = title;
+
+    const body = modal.querySelector('#machineModalBody');
+    body.appendChild(catalogForm);
+
+    modal.classList.add('open');
+    document.body.classList.add('popover-open');
+}
+
+function closeMachineModal() {
+    if (!machineModalEl) return;
+    machineModalEl.classList.remove('open');
+    document.body.classList.remove('popover-open');
+    if (catalogFormOriginalParent) {
+        catalogFormOriginalParent.appendChild(catalogForm);
+    }
+    if (page.inventoryKey === 'maquinas') {
+        selectedId = '';
+        updateInventoryView('list');
+    }
+}
+
 function buildMaterialTabbedForm(viewItem) {
     const tabs = [
         { key: 'generales', label: 'Datos Generales' },
@@ -1965,7 +2073,7 @@ function updateInventoryView(nextView = 'list', itemId = '') {
     document.body.classList.toggle('inventory-route-materiales', isMateriales);
     document.body.classList.toggle('inventory-route-maquinas', isMaquinas);
     document.body.classList.toggle('inventory-route-tipos-salida', isOutputTypes);
-    document.body.classList.toggle('inventory-has-selection', (isMateriales || isMaquinas) && hasSelection);
+    document.body.classList.toggle('inventory-has-selection', isMateriales && hasSelection);
     document.body.classList.toggle('inventory-view-detail', isTroqueles && currentView === 'detail');
     document.body.classList.toggle('inventory-view-list', !isTroqueles || currentView !== 'detail');
 
@@ -1988,7 +2096,7 @@ function syncMachineActions() {
         inventoryActions.appendChild(catalogSaveButton);
     }
     if (catalogSaveButton) {
-        catalogSaveButton.hidden = isMaterialsInventory();
+        catalogSaveButton.hidden = isMaterialsInventory() || page.inventoryKey === 'maquinas';
     }
     if (catalogNewButton) {
         catalogNewButton.hidden = !canCreateInventoryRecords();
@@ -2060,6 +2168,10 @@ function renderForm(item) {
     }
     if (page.inventoryKey === 'maquinas') {
         buildMachineTabbedForm(viewItem);
+        catalogForm.classList.add('inventory-form-maquinas');
+        capabilitiesState = Array.isArray(item.capacidades) ? item.capacidades.map((capacity) => ({ ...capacity })) : [];
+        openMachineModal(item);
+        return;
     } else if (page.inventoryKey === 'materiales') {
         buildMaterialTabbedForm(viewItem);
         catalogForm.classList.add('inventory-form-materiales');
@@ -2074,17 +2186,12 @@ function renderForm(item) {
     editorTitle.textContent = page.inventoryKey === 'troqueles'
         ? (item.codigo || 'Nuevo troquel')
         : (item.id ? (item.nombre || item.codigo || item.descripcion || 'Registro') : 'Nuevo registro');
-    editorTitle.hidden = page.inventoryKey === 'maquinas';
+    editorTitle.hidden = false;
     catalogForm.classList.toggle('inventory-form-troqueles', page.inventoryKey === 'troqueles');
     catalogForm.classList.toggle('inventory-form-materiales', page.inventoryKey === 'materiales');
     catalogForm.classList.toggle('inventory-form-maquinas', page.inventoryKey === 'maquinas');
     renderDetailPreview(viewItem);
-
-    if (page.inventoryKey === 'maquinas') {
-        capabilitiesState = Array.isArray(item.capacidades) ? item.capacidades.map((capacity) => ({ ...capacity })) : [];
-    } else {
-        capabilitiesState = [];
-    }
+    capabilitiesState = [];
 }
 
 function getFormValue(field) {
@@ -2140,6 +2247,23 @@ function buildPayloadFromForm() {
     return payload;
 }
 
+function sortCatalogItems(items) {
+    const state = catalogSortState;
+    if (!state.key) return items;
+    const arr = [...items];
+    arr.sort((a, b) => {
+        const aVal = a[state.key];
+        const bVal = b[state.key];
+        if (aVal == null && bVal == null) return 0;
+        if (aVal == null) return 1;
+        if (bVal == null) return -1;
+        const aStr = String(aVal).toLowerCase();
+        const bStr = String(bVal).toLowerCase();
+        return state.dir === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
+    });
+    return arr;
+}
+
 function renderTable(items) {
     catalogVisibleCount = Array.isArray(items) ? items.length : 0;
     if (isOutputTypesInventory()) {
@@ -2152,19 +2276,21 @@ function renderTable(items) {
         return;
     }
     const columns = getTableColumns();
+    const sorted = sortCatalogItems(items);
     catalogHead.innerHTML = columns.map((column) => {
         const width = column.width ? ` style="width:${escapeHtml(column.width)};min-width:${escapeHtml(column.width)};max-width:${escapeHtml(column.width)};"` : '';
         const className = column.className ? ` class="${escapeHtml(column.className)}"` : '';
-        return `<th${className}${width}>${column.label || ''}</th>`;
+        const sortKey = column.key && !column.isAction ? ` data-sort-key="${escapeHtml(column.key)}"` : '';
+        return `<th${className}${width}${sortKey}>${column.label || ''}${sortKey ? '<span class="sort-indicator"></span>' : ''}</th>`;
     }).join('');
-    if (!items.length) {
+    if (!sorted.length) {
         catalogBody.innerHTML = `<tr><td colspan="${columns.length}">Sin resultados.</td></tr>`;
         requestAnimationFrame(updateCatalogScrollBottomIndicator);
         return;
     }
     const openIcon = getOpenIconConfig();
     const deleteIcon = getDeleteIconConfig();
-    catalogBody.innerHTML = items.map((item) => `
+    catalogBody.innerHTML = sorted.map((item) => `
         <tr class="${item.id === selectedId ? 'is-active' : ''}" data-id="${escapeHtml(item.id)}">
             ${columns.map((column) => {
                 const className = column.className ? ` class="${escapeHtml(column.className)}"` : '';
@@ -2192,6 +2318,7 @@ function renderTable(items) {
             }).join('')}
         </tr>
     `).join('');
+    updateCatalogSortIndicators();
     requestAnimationFrame(updateCatalogScrollBottomIndicator);
 }
 
@@ -2221,8 +2348,11 @@ async function loadCatalog(selectId = '') {
 
     renderTable(currentItems);
     const selectedItem = currentItems.find((item) => item.id === selectedId);
-    const modalOpen = materialModalEl?.classList.contains('open');
-    if (isMaterialsInventory() && modalOpen) {
+    const materialModalOpen = materialModalEl?.classList.contains('open');
+    const machineModalOpen = machineModalEl?.classList.contains('open');
+    if (isMaterialsInventory() && materialModalOpen) {
+        // modal is open, skip form re-render to avoid disruption
+    } else if (page.inventoryKey === 'maquinas' && machineModalOpen) {
         // modal is open, skip form re-render to avoid disruption
     } else if (isMaterialsInventory() && selectedItem) {
         renderForm(selectedItem);
@@ -2288,6 +2418,8 @@ async function deleteCurrentMaterial(id, label) {
         selectedId = '';
         if (isMaterialsInventory()) {
             closeMaterialModal();
+        } else if (page.inventoryKey === 'maquinas') {
+            closeMachineModal();
         } else {
             renderForm(page.createEmptyItem());
             updateInventoryView('list');
@@ -2729,6 +2861,19 @@ document.addEventListener('click', (event) => {
 });
 catalogTableWrap?.addEventListener('scroll', updateCatalogScrollBottomIndicator, { passive: true });
 window.addEventListener('resize', updateCatalogScrollBottomIndicator);
+
+catalogHead.addEventListener('click', (event) => {
+    const th = event.target.closest('th[data-sort-key]');
+    if (!th) return;
+    const key = th.dataset.sortKey;
+    if (catalogSortState.key === key) {
+        catalogSortState.dir = catalogSortState.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+        catalogSortState.key = key;
+        catalogSortState.dir = 'asc';
+    }
+    renderTable(currentItems);
+});
 catalogImportSapPopover?.addEventListener('click', (event) => {
     if (event.target.closest('[data-close-catalog-import-popover="true"]')) {
         closeCatalogSapImportPopover();
