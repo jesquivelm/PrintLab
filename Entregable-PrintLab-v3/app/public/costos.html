@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/theme.js"></script>
+    <title>Costos</title>
+    <link rel="stylesheet" href="/styles.css?v=costos-20260424d">
+</head>
+<body>
+    <main class="workspace workspace-quote quote-browser-main costs-shell">
+        <section class="quote-card quote-card-clean quote-browser-card costs-card">
+            <div class="costs-tabs" role="tablist" aria-label="Tabs de costos">
+                <button type="button" class="costs-tab is-active" data-tab="general" aria-selected="true">General</button>
+                <button type="button" class="costs-tab" data-tab="convencional" aria-selected="false">Convencional</button>
+                <button type="button" class="costs-tab" data-tab="digital" aria-selected="false">Digital</button>
+            </div>
+
+            <section class="costs-panel is-active" data-panel="general">
+                <div class="costs-panel-frame">
+                    <div class="costs-general-layout">
+                        <div class="costs-general-left">
+                            <article class="costs-section-card costs-section-card-plain costs-defaults-card-plain">
+                                <div class="costs-section-head">
+                                    <h2 class="costs-section-title">Predeterminados de Cotizaci&oacute;n</h2>
+                                </div>
+                                <div class="costs-defaults-shell costs-defaults-shell-plain">
+                                    <div class="costs-defaults-layout">
+                                        <div class="costs-defaults-fields">
+                                            <label><span>Ancho de Core</span><input id="costosDefaultRollWidth" type="number" step="0.01" min="0"></label>
+                                            <label><span>Di&aacute;metro de Core</span><input id="costosDefaultCoreDiameter" type="number" step="0.01" min="0"></label>
+                                            <label><span>Cantidad de Tipos</span><input id="costosDefaultQuantityTypes" type="number" step="1" min="1"></label>
+                                            <label class="costs-default-check-field"><span>CMYK por Defecto</span><span class="costs-process-default-check"><input id="costosDefaultCmykEnabled" type="checkbox"></span></label>
+                                        </div>
+                                        <div class="costs-defaults-fields">
+                                            <h3 class="costs-section-subtitle">Preprensa</h3>
+                                            <label><span>Artes / Hora</span><input id="costosDefaultPrepressArtsPerHour" type="number" step="0.01" min="0"></label>
+                                            <label><span>Costo / Hora</span><input id="costosDefaultPrepressHourCost" type="number" step="0.01" min="0"></label>
+                                        </div>
+                                        <section class="costs-core-options-field costs-core-options-field-plain" aria-label="Opciones de Di&aacute;metro de Core">
+                                            <div class="costs-core-options-head">
+                                                <span>Opciones de Di&aacute;metro de Core</span>
+                                            </div>
+                                            <div class="copy-popover-table-wrap costs-table-wrap costs-core-options-table-wrap costs-core-options-table-wrap-plain">
+                                                <table class="copy-popover-table costs-table costs-core-options-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th class="costs-core-options-title-head"><span>Opci&oacute;n</span></th>
+                                                            <th class="costs-core-options-actions-head"><button type="button" id="costosAddCoreDiameterOption" class="costs-mini-action" aria-label="Agregar opción">+</button></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="costosCoreDiameterOptionsTableBody"></tbody>
+                                                </table>
+                                            </div>
+                                        </section>
+                                    </div>
+                                </div>
+                            </article>
+                            <article class="costs-section-card costs-section-card-plain costs-notes-card-plain">
+                                <div class="costs-section-head">
+                                    <h2 class="costs-section-title">Notas generales</h2>
+                                </div>
+                                <label class="costs-notes-field costs-notes-field-plain">
+                                    <textarea id="costosGeneralNotes" rows="5" placeholder="Aqu&iacute; puedes dejar observaciones sobre criterios de c&aacute;lculo o acuerdos de costos." aria-label="Notas generales"></textarea>
+                                </label>
+                            </article>
+                        </div>
+                        <div class="costs-general-right">
+                            <article class="costs-section-card costs-section-card-plain costs-processes-card-plain">
+                                <div class="costs-section-head">
+                                    <h2 class="costs-section-title">Procesos del C&aacute;lculo</h2>
+                                </div>
+                                <div class="copy-popover-table-wrap costs-table-wrap costs-process-table-wrap costs-process-table-wrap-plain" aria-label="Orden y costos m&iacute;nimos por proceso">
+                                    <table class="copy-popover-table costs-table costs-process-table">
+                                        <colgroup>
+                                            <col class="costs-process-col-number">
+                                            <col class="costs-process-col-process">
+                                            <col class="costs-process-col-check">
+                                            <col class="costs-process-col-check">
+                                            <col class="costs-process-col-check">
+                                            <col class="costs-process-col-check">
+                                            <col class="costs-process-col-check">
+                                            <col class="costs-process-col-cost">
+                                            <col class="costs-process-col-cost">
+                                            <col class="costs-process-col-cost">
+                                        </colgroup>
+                                        <thead>
+                                            <tr>
+                                                <th>N&deg;</th>
+                                                <th>Proceso</th>
+                                                <th>Activo</th>
+                                                <th>Crear</th>
+                                                <th>Gantt</th>
+                                                <th>No Eliminar</th>
+                                                <th>Repetir</th>
+                                                <th>Costo M&iacute;nimo</th>
+                                                <th>Buffer</th>
+                                                <th>Capacidad</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="costosProcessDefaultsList"></tbody>
+                                    </table>
+                                </div>
+                            </article>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="costs-panel" data-panel="convencional">
+                <div class="costs-panel-frame">
+                    <div class="costs-conventional-layout">
+                        <div class="costs-conventional-left">
+                            <article class="costs-section-card">
+                                <div class="costs-section-head">
+                                    <h2>Tintas y Dep&oacute;sito</h2>
+                                </div>
+                                <div class="costs-ink-grid">
+                                    <label><span>BCM Gen&eacute;rico</span><span class="costs-input-overlay has-suffix"><input id="costosBcmGenerico" type="number" step="0.01"><em class="suffix">BCM</em></span></label>
+                                    <label><span>Cobertura Tinta</span><span class="costs-input-overlay has-suffix"><input id="costosCoberturaTinta" type="number" step="0.01"><em class="suffix">%</em></span></label>
+                                    <label><span>Cobertura Dise&ntilde;o</span><span class="costs-input-overlay has-suffix"><input id="costosCoberturaDiseno" type="number" step="0.01"><em class="suffix">%</em></span></label>
+                                    <div class="costs-conv-reference-note">
+                                        <strong>Referencia</strong>
+                                        <p>Consumo tinta = &Aacute;rea impresa x Cobertura x BCM anilox x Factor transferencia x Densidad tinta x Tintas requeridas.</p>
+                                        <p>Estos valores alimentan la cotizaci&oacute;n convencional, el barniz inline y la reposici&oacute;n autom&aacute;tica.</p>
+                                    </div>
+                                    <label><span>Densidad UV</span><span class="costs-input-overlay"><input id="costosDensidadUv" type="number" step="0.01"></span></label>
+                                    <label><span>Costo de libra de CMYK</span><span class="costs-input-overlay has-prefix has-suffix"><em class="prefix">$</em><input id="costosCostoLbCmyk" type="number" step="0.01"><em class="suffix">lb</em></span></label>
+                                    <label><span>Costo de libra de Blanco</span><span class="costs-input-overlay has-prefix has-suffix"><em class="prefix">$</em><input id="costosCostoLbBlanco" type="number" step="0.01"><em class="suffix">lb</em></span></label>
+                                    <label><span>Costo de libra de Pantone</span><span class="costs-input-overlay has-prefix has-suffix"><em class="prefix">$</em><input id="costosCostoLbPantone" type="number" step="0.01"><em class="suffix">lb</em></span></label>
+                                </div>
+                                <div class="costs-table-title">Perfil de aplicaci&oacute;n de tinta</div>
+                                <div class="copy-popover-table-wrap costs-table-wrap">
+                                    <table class="copy-popover-table costs-table">
+                                        <colgroup>
+                                            <col>
+                                            <col>
+                                            <col>
+                                            <col>
+                                        </colgroup>
+                                        <thead>
+                                            <tr>
+                                                <th>Tipo de Trabajo</th>
+                                                <th>BCM Anilox</th>
+                                                <th>Cobertura %</th>
+                                                <th><span title="Cantidad de peso real transferido al sustrato. En Barniz UV corresponde al GSM barniz.">GSM / GSM Barniz</span></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="costosDepositosTableBody"></tbody>
+                                    </table>
+                                </div>
+                            </article>
+                            <article class="costs-section-card">
+                                <div class="costs-section-head">
+                                    <h2>Merma Montaje</h2>
+                                </div>
+                                <div class="copy-popover-table-wrap costs-table-wrap">
+                                    <table class="copy-popover-table costs-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Detalle</th>
+                                                <th>Por Estaci&oacute;n</th>
+                                                <th>Cantidad Tintas</th>
+                                                <th>Total Pies</th>
+                                                <th></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="maculaMontajeTableBody"></tbody>
+                                    </table>
+                                </div>
+                            </article>
+                            <article class="costs-section-card">
+                                <div class="costs-section-head">
+                                    <h2>Merma Tiraje</h2>
+                                </div>
+                                <div class="copy-popover-table-wrap costs-table-wrap">
+                                    <table class="copy-popover-table costs-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Detalle</th>
+                                                <th>Porcentaje</th>
+                                                <th></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="maculaTirajeTableBody"></tbody>
+                                    </table>
+                                </div>
+                            </article>
+                            <article class="costs-section-card">
+                                <div class="costs-section-head">
+                                    <h2>Mermas de Acabados</h2>
+                                </div>
+                                <div class="copy-popover-table-wrap costs-table-wrap">
+                                    <table class="copy-popover-table costs-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Proceso</th>
+                                                <th>Merma Ajuste (ft)</th>
+                                                <th>Merma Operaci&oacute;n (%)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="costosFinishWasteTableBody"></tbody>
+                                    </table>
+                                </div>
+                            </article>
+                        </div>
+                        <div class="costs-conventional-right">
+                            <article class="costs-section-card">
+                                <div class="costs-section-head">
+                                    <h2>Subprocesos Acabados Impresi&oacute;n</h2>
+                                </div>
+                                <div class="copy-popover-table-wrap costs-table-wrap">
+                                    <table class="copy-popover-table costs-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Proceso</th>
+                                                <th>Minutos de Montaje</th>
+                                                <th>Merma Ajuste</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="inlineFinishSetupTableBody"></tbody>
+                                    </table>
+                                </div>
+                            </article>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="costs-panel" data-panel="digital">
+                <div class="costs-panel-frame">
+                <article class="costs-section-card">
+                    <div class="costs-section-head">
+                        <h2>Premier</h2>
+                    </div>
+                    <div class="costs-info-stack">
+                        <div class="costs-formula-card">
+                            <strong>F&oacute;rmula Premier</strong>
+                            <p id="costosDigitalPremierFormulaText"></p>
+                        </div>
+                        <div class="costs-formula-card">
+                            <strong>Explicaci&oacute;n</strong>
+                            <p id="costosDigitalPremierExplanationText"></p>
+                        </div>
+                    </div>
+                    <div class="costs-digital-grid">
+                        <label><span>Modo Predeterminado</span><select id="costosDigitalPremierMode"><option value="offline">Offline</option><option value="inline">In-line</option></select></label>
+                        <label><span>Setup Premier</span><input id="costosDigitalPremierSetupMin" type="number" step="0.01"></label>
+                        <label><span>Consumo Premier</span><input id="costosDigitalPremierConsumptionGm2" type="number" step="0.0001"></label>
+                        <label><span>Costo Premier kg</span><input id="costosDigitalPremierCostPerKg" type="number" step="0.000001"></label>
+                        <label><span>Costo Premier m&sup2;</span><input id="costosDigitalPremierCostPerM2" type="number" step="0.000001"></label>
+                        <label><span>Mantenimiento In-line</span><input id="costosDigitalPremierMaintenanceCost" type="number" step="0.000001"></label>
+                    </div>
+                    <label class="costs-notes-field">
+                        <span>Comentario Premier</span>
+                        <textarea id="costosDigitalPremierComment" rows="4" placeholder="Ej. Si el material ya viene pretratado por el proveedor, no se cobra l&iacute;quido ni proceso."></textarea>
+                    </label>
+                </article>
+
+                <article class="costs-section-card">
+                    <div class="costs-section-head">
+                        <h2>Tintas Digitales</h2>
+                    </div>
+                    <div class="costs-info-stack">
+                        <div class="costs-formula-card">
+                            <strong>F&oacute;rmula Consumo</strong>
+                            <p id="costosDigitalInkFormulaConsumptionText"></p>
+                        </div>
+                        <div class="costs-formula-card">
+                            <strong>F&oacute;rmula Clic</strong>
+                            <p id="costosDigitalInkFormulaClickText"></p>
+                        </div>
+                        <div class="costs-formula-card">
+                            <strong>Explicaci&oacute;n</strong>
+                            <p id="costosDigitalInkExplanationText"></p>
+                        </div>
+                    </div>
+                    <div class="costs-digital-grid">
+                        <label><span>Tipo Cobro</span><select id="costosDigitalBillingType"><option value="consumo">Consumo</option><option value="clic">Clic</option></select></label>
+                        <label><span>Costo kg Tinta</span><input id="costosDigitalInkCostPerKg" type="number" step="0.000001"></label>
+                        <label><span>Costo kg Blanco</span><input id="costosDigitalWhiteInkCostPerKg" type="number" step="0.000001"></label>
+                        <label><span>Costo kg Especial</span><input id="costosDigitalSpecialInkCostPerKg" type="number" step="0.000001"></label>
+                        <label><span>Tarifa Clic</span><input id="costosDigitalClickRate" type="number" step="0.000001"></label>
+                        <label><span>Modo Clic</span><select id="costosDigitalClickMode"><option value="por_estacion">Por estaci&oacute;n</option><option value="por_vuelta">Por vuelta</option></select></label>
+                        <label><span>Cobertura CMYK</span><input id="costosDigitalCoverageCmykPct" type="number" step="0.01"></label>
+                        <label><span>Cobertura Blanco</span><input id="costosDigitalCoverageWhitePct" type="number" step="0.01"></label>
+                        <label><span>Gramaje CMYK</span><input id="costosDigitalCmykGm2" type="number" step="0.0001"></label>
+                        <label><span>Gramaje Blanco</span><input id="costosDigitalWhiteGm2" type="number" step="0.0001"></label>
+                        <label><span>Factor Merma</span><input id="costosDigitalWasteFactor" type="number" step="0.0001"></label>
+                        <label><span>Costo Lavado Especial</span><input id="costosDigitalSpecialWashCost" type="number" step="0.000001"></label>
+                    </div>
+                    <div class="costs-table-title">Perfiles de cobertura digital</div>
+                    <div class="copy-popover-table-wrap costs-table-wrap">
+                        <table class="copy-popover-table costs-table">
+                            <thead>
+                                <tr>
+                                    <th>Perfil</th>
+                                    <th>Cobertura %</th>
+                                </tr>
+                            </thead>
+                            <tbody id="costosDigitalCoverageProfilesTableBody"></tbody>
+                        </table>
+                    </div>
+                    <label class="costs-notes-field">
+                        <span>Comentario Tintas Digitales</span>
+                        <textarea id="costosDigitalInkComment" rows="4" placeholder="Ej. Blanco sobre transparente impacta consumo y velocidad."></textarea>
+                    </label>
+                </article>
+
+                <article class="costs-section-card">
+                    <div class="costs-section-head">
+                        <h2>Velocidad y Estaciones</h2>
+                    </div>
+                    <div class="costs-info-stack">
+                        <div class="costs-formula-card">
+                            <strong>Regla de velocidad</strong>
+                            <p>La velocidad debe bajar cuando se usan m&aacute;s de 4 estaciones, blanco, gamut extendido o colores especiales.</p>
+                        </div>
+                    </div>
+                    <div class="costs-digital-grid costs-digital-grid-compact">
+                        <label><span>Velocidad CMYK m/min</span><input id="costosDigitalSpeedCmykMpm" type="number" step="0.01"></label>
+                        <label><span>Velocidad Extendida m/min</span><input id="costosDigitalSpeedExtendedMpm" type="number" step="0.01"></label>
+                    </div>
+                    <label class="costs-notes-field">
+                        <span>Comentario Velocidad</span>
+                        <textarea id="costosDigitalSpeedComment" rows="3" placeholder="Ej. 5 a 7 colores reduce la velocidad nominal por carga de estaciones y secado."></textarea>
+                    </label>
+                </article>
+                </div>
+            </section>
+
+            <p id="costosSaveStatus" class="costs-save-status" aria-live="polite" hidden></p>
+        </section>
+    </main>
+
+    <script src="/access-control.js?v=costos-20260423a"></script>
+    <script src="/costos.js?v=costos-20260423a"></script>
+</body>
+</html>

@@ -28,3 +28,12 @@ storage/quote-line-attachments/
 *.out
 *.log
 ~$*
+
+# ==========================================
+# Archivos sensibles o de distribucion
+# ==========================================
+printlab-db.dump
+Entregable-Aplicacion.zip
+"Instalar App.txt"
+test-final.js
+test-pg.js

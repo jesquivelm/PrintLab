@@ -4110,7 +4110,7 @@ function normalizePermissionMatrix(input = {}) {
 
 function isSuperAdminPermissionName(value) {
     const name = sanitizeAdminUserText(value);
-    return /administrador(?:es)?|implementador(?:es)?|emergencia/i.test(name);
+    return /administrador(?:es)?|emergencia/i.test(name);
 }
 
 function permissionCanViewAllQuotes(name = '') {
@@ -9625,11 +9625,15 @@ function buildProductionOrderRelatedLine(row = {}) {
 }
 
 function buildCreationSummary({ orderCode, quoteRow, lineRow, frontBackGroup, productionRun, raw, lineSnapshot, totalFeet }) {
-    const lr = lineRow?.raw_data || {};
+    const lr = raw || lineRow?.raw_data || {};
+    const ls = lineSnapshot || {};
+    const qr = quoteRow?.raw_data || {};
     const dc = lr['Datos_Cotizados'] || {};
-    const dieCode = lineSnapshot?.dieCode || lr['GENERAL | TROQUEL | ID'] || '';
-    const printing = extractPrintingData(lineRow?.raw_data || {});
+    const uiState = lr['Estado_UI'] || {};
+    const dieCode = ls.dieCode || lr['GENERAL | TROQUEL | ID'] || '';
+    const printing = extractPrintingData({ line_snapshot: ls, production_run: productionRun });
 
+    const processType = ls.processType || lr['Proceso Productivo'] || '';
     const acabados = [];
     const FINISH_SKIP = new Set(['troquelado']);
     (Array.isArray(printing.finishes) ? printing.finishes : []).forEach(function (f) {
@@ -9644,25 +9648,142 @@ function buildCreationSummary({ orderCode, quoteRow, lineRow, frontBackGroup, pr
 
     return {
         orden: orderCode,
-        cotizacion: quoteRow?.quote_code || '',
-        linea: lineRow?.line_code || '',
+        cotizacion: quoteRow?.quote_code || ls.quoteCode || lr['ID COTIZACION'] || '',
+        linea: lineRow?.line_code || ls.lineCode || lr['ID LINEA'] || '',
         cliente: pickFirstValue(quoteRow?.customer_name, lr.CLIENTE, lr['CLIENTE NOMBRE']),
-        producto: lineSnapshot?.productName || lr['GENERAL | PRODUCTO'] || '',
-        maquina: printing.machineName || '',
-        sustrato: printing.materialName || '',
-        tintas: printing.tintCount || 0,
-        pantones: printing.pantones || [],
-        pies_totales: totalFeet || 0,
-        acabados: acabados,
-        numerado: printing.numbering || '',
-        ancho_core: printing.coreWidth || '',
-        diametro_core: printing.coreDiameter || '',
-        etiquetas_por_rollo: printing.labelsPerRoll || 0,
-        tipo_salida: printing.outputType || '',
+        contacto: {
+            nombre: pickFirstValue(quoteRow?.contact_name, lr['CLIENTE | CONTACTO NOMBRE COMPLETO']),
+            email: pickFirstValue(quoteRow?.email, lr['CLIENTE | CONTACTO EMAIL']),
+            telefono: pickFirstValue(quoteRow?.phone, lr['CLIENTE | CONTACTO TELEFONO'], lr['CLIENTE | CONTACTO TELEFONO SECUNDARIO'])
+        },
+        vendedor: pickFirstValue(quoteRow?.salesperson_name, lr.VENDEDOR, lr['VENDEDOR | USUARIO']),
+        codigo_cliente: pickFirstValue(quoteRow?.customer_code, lr['ID CLIENTE']),
+        producto: ls.productName || lr['GENERAL | PRODUCTO'] || lineRow?.product_code || '',
+        codigo_producto: ls.productCode || lr['CODIGO PRODUCTO'] || '',
+        nombre_trabajo: pickFirstValue(lr['NOMBRE TRABAJO'], lr['TIPO TRABAJO | ORDEN REFERENCIA 1']),
+        departamento: pickFirstValue(lr.DEPARTAMENTO, 'Flexografia'),
+        tipo_proceso: processType,
+        tipo_orden: pickFirstValue(lr['TIPO ORDEN']),
+        estado_linea: pickFirstValue(lr['SOLICITUD ESTADO'], lr['ESTADO LINEA'], lr['FIN COTIZACION | ESTADO']),
+        tipo_calculo: pickFirstValue(lr['ESTADO LINEA | CALCULO'], lr['ESTADO LINEA | SEGUN CANTIDAD ELEMENTOS']),
+        estado_cotizacion: pickFirstValue(quoteRow?.status, lr['Estado Cotizacion']),
+        fecha_creacion: pickFirstValue(quoteRow?.created_on, lr['FECHA CREACION DATE'], lr['FECHA CREACION']),
+        fecha_vencimiento: pickFirstValue(quoteRow?.due_on, lr['FECHA VENCIMIENTO']),
+        condiciones_pago: lr['CONDICION PAGO'] || '',
+        tiempo_entrega: lr['TIEMPO ENTREGA'] || '',
+        tipo_cambio_venta: lr['TIPO CAMBIO VENTA'] || null,
+        tipo_cambio_compra: lr['TIPO CAMBIO COMPRA'] || null,
+        moneda: lr['MONEDA'] || '',
+        metodo_envio: lr['METODO ENVIO'] || '',
+        tipo_etiquetado: lr['TIPO ETIQUETADO'] || '',
+        cantidad: productionRun?.totals?.quantity ?? lineRow?.quantity ?? ls.quantityProducts ?? 0,
+        cantidad_productos: ls.quantityProducts || 0,
+        cantidad_tipos: ls.quantityTypes || 0,
+        cantidad_cambios: ls.quantityChanges || 0,
         es_frente_dorso: Boolean(frontBackGroup),
-        cantidad: productionRun?.totals?.quantity ?? lineRow?.quantity ?? 0,
-        costo_total: productionRun?.totals?.totalCost ?? lineRow?.total_cost ?? 0,
-        precio_unitario: productionRun?.totals?.unitCost ?? lineRow?.unit_price ?? 0
+        finalizado_para_orden: Boolean(lineRow?.finalized_for_order ?? lr['Finalizado_Para_Orden']),
+        dimensiones: {
+            ancho_pulgadas: ls.widthInches || 0,
+            largo_pulgadas: ls.lengthInches || 0,
+            area_pulgadas: ls.areaInches || 0,
+            area_m2: ls.areaM2 || 0
+        },
+        material: {
+            codigo: ls.materialCode || lr['Material Convencional | Id Material'] || lr['Material Digital | Id Material'] || '',
+            nombre: ls.materialName || lr['GENERAL | MATERIAL'] || '',
+            ancho: ls.materialWidth || 0,
+            m2: ls.materialM2 || 0,
+            msi: ls.materialMsi || 0,
+            pies_totales: totalFeet || ls.materialFeet || 0,
+            pies_macula: ls.materialFeetWaste || 0,
+            tipo_aplicacion: ls.applicationType || lr['TIPO ETIQUETADO'] || ''
+        },
+        maquina: printing.machineName || ls.quotedMachine || lr['MAQUINA IMPRESION'] || lr['CONV | MAQUINA'] || '',
+        sustrato: printing.materialName || ls.materialName || lr['GENERAL | MATERIAL'] || '',
+        impresion: {
+            tintas: printing.tintCount || ls.tintCount || 0,
+            pantones: printing.pantones || [],
+            cantidad_pantones: ls.pantoneCount || 0,
+            cmyk: Boolean(lr['GENERAL | CMYK'] === true || String(lr['CMYK'] || '').toLowerCase() === 'si'),
+            tinta_blanca: Boolean(String(lr['TINTA BLANCA'] || '').toLowerCase() === 'si' || lr['GENERAL | TINTA BLANCA'] === true),
+            doble_blanca: Boolean(String(lr['DOBLE PASADA BLANCA'] || '').toLowerCase() === 'si'),
+            nombres_tintas: printing.inkNames || [],
+            ids_material_tintas: printing.inkMaterialIds || []
+        },
+        troquel: {
+            codigo: dieCode,
+            dientes: ls.dieTeeth || 0,
+            filas: ls.dieRows || 0,
+            repeticiones: ls.dieRepeats || 0
+        },
+        acabados: acabados,
+        numerado: printing.numbering || lr['ACABADOS | NUMERADO'] || lr['NUMERADO'] || '',
+        rollo: {
+            ancho_core: printing.coreWidth || ls.coreWidth || '',
+            diametro_core: printing.coreDiameter || ls.coreDiameter || '',
+            etiquetas_por_rollo: printing.labelsPerRoll || ls.labelsPerRoll || 0,
+            tipo_salida: printing.outputType || ls.outputType || lr['TIPO SALIDA'] || ''
+        },
+        costos: {
+            desglose: {
+                material: ls.components?.material || 0,
+                tintas: ls.components?.inks || 0,
+                impresion: ls.components?.print || 0,
+                preprensa: ls.components?.prepress || 0,
+                acabados: ls.components?.finishes || 0,
+                empaque: ls.components?.packaging || 0,
+                tiraje: ls.components?.runCost || 0
+            },
+            subtotal_costos: ls.subtotalCost || 0,
+            subtotal_financiero: ls.subtotalFinancial || 0,
+            subtotal_rendimiento: ls.subtotalPerformance || 0,
+            costo_minimo: ls.minimumCost || 0,
+            porcentaje_imprevistos: ls.contingencyPercent || 0,
+            porcentaje_financiero: ls.financialPercent || 0,
+            porcentaje_adicional: ls.extraPercent || 0,
+            costo_total: productionRun?.totals?.totalCost ?? lineRow?.total_cost ?? ls.subtotalCost ?? 0,
+            pies_totales: totalFeet || 0
+        },
+        precios: {
+            subtotal_antes_iva: ls.subtotalBeforeTax || 0,
+            impuesto: ls.taxAmount || 0,
+            total_final: ls.finalTotal || 0,
+            precio_unitario: productionRun?.totals?.unitCost ?? lineRow?.unit_price ?? ls.unitPrice ?? 0,
+            precio_millar: ls.thousandPrice || 0,
+            total_colones: ls.totalColones || 0,
+            tipo_cambio: ls.exchangeRate || lr['TIPO CAMBIO'] || lr['TIPO CAMBIO VENTA'] || null,
+            porcentaje_iva: ls.taxPercent || 0,
+            cyrel: ls.cyrelCost || 0
+        },
+        frente_dorso: frontBackGroup ? {
+            modo: productionRun?.mode || '',
+            etiqueta: productionRun?.label || 'Frente / Dorso',
+            linea_comercial: productionRun?.commercialLineCode || '',
+            lineas_miembro: productionRun?.memberLineCodes || [],
+            lineas_elemento: productionRun?.elementLineCodes || [],
+            linea_frente: productionRun?.frontLineCode || '',
+            linea_dorso: productionRun?.backLineCode || '',
+            roles: productionRun?.elementRoles || {},
+            salidas: Array.isArray(productionRun?.outputs) ? productionRun.outputs.map(function (o) {
+                return { linea: o.lineCode, cantidad: o.quantity, pies: o.feet };
+            }) : []
+        } : null,
+        notas: {
+            resumen_cotizacion: lr['Resumen Cotización'] || lr['Resumen Cotizacion'] || '',
+            info_impresion: lr['INFORMACION IMPRESION COTIZACION | MOSTRAR'] || lr['INFORMACION IMPRESION COTIZACION | CALCULO'] || '',
+            observaciones: lr['OBSERVACIONES SOLICITUD'] || '',
+            estado_creacion: lr['CREACION ESTADO'] || '',
+            analisis_solicitud: lr['ANALISIS CAMPOS SOLICITUD'] || '',
+            analisis_finalizar: lr['ANALISIS CAMPOS FINALIZAR'] || '',
+            analisis_crear_orden: lr['ANALISIS CAMPOS CREAR ORDEN'] || ''
+        },
+        maestra: {
+            proceso_productivo: lr['Proceso Productivo'] || '',
+            pie_cotizacion_fechas: qr['PIE COTIZACION | DETALLE COTIZACION | FECHAS'] || lr['PIE COTIZACION | DETALLE COTIZACION | FECHAS'] || '',
+            pie_cotizacion_tipo_cambio: qr['PIE COTIZACION | DETALLE COTIZACION | TIPO CAMBIO'] || lr['PIE COTIZACION | DETALLE COTIZACION | TIPO CAMBIO'] || '',
+            cantidad_elementos: lr['CANTIDAD ELEMENTOS'] || '',
+            ui_state: uiState
+        }
     };
 }
 
@@ -12478,7 +12599,7 @@ app.post('/api/admin-users', async (req, res) => {
         if (!name || !username || !password) {
             return res.status(400).json({ error: 'Nombre, usuario y contraseña son obligatorios.' });
         }
-        const passwordError = validatePasswordPolicy(password);
+        const passwordError = await validatePasswordPolicy(password);
         if (passwordError) {
             return res.status(400).json({ error: passwordError });
         }
@@ -12568,7 +12689,7 @@ app.patch('/api/admin-users/:id', async (req, res) => {
             return res.status(404).json({ error: 'Usuario no encontrado.' });
         }
         const row = existing.rows[0];
-        const permissionId = req.body?.permissionId ? Number(req.body.permissionId) : null;
+        const permissionId = req.body?.permissionId !== undefined && req.body?.permissionId !== null && req.body?.permissionId !== '' ? Number(req.body.permissionId) : row.permission_id;
         const defaultLanding = req.body?.defaultLanding === undefined
             ? sanitizeOptionalPresentationKey(row.default_landing)
             : sanitizeOptionalPresentationKey(req.body?.defaultLanding);
@@ -12626,7 +12747,7 @@ app.patch('/api/admin-users/:id', async (req, res) => {
                 req.body?.active === undefined ? row.is_active !== false : req.body?.active === true,
                 permissionId,
                 defaultLanding,
-                rawPassword ? true : row.must_change_password,
+                row.must_change_password,
                 persistedSalespersonAssignment.sapSalespersonCode,
                 persistedSalespersonAssignment.sapSalespersonName
             ]
@@ -12946,6 +13067,10 @@ app.delete('/api/admin-permissions/:id', async (req, res) => {
         if (!Number.isFinite(id) || id <= 0) {
             return res.status(400).json({ error: 'Identificador no válido.' });
         }
+        const assigned = await pgQuery(`SELECT COUNT(*)::int AS total FROM admin_users WHERE permission_id = $1`, [id]);
+        if (Number(assigned.rows[0]?.total || 0) > 0) {
+            return res.status(409).json({ error: 'No se puede eliminar este permiso porque hay usuarios asignados a él. Reasigne los usuarios primero.' });
+        }
         const result = await pgQuery(`DELETE FROM admin_permissions WHERE id = $1 RETURNING id, permission_name, default_landing, module_permissions`, [id]);
         if (!result.rows.length) {
             return res.status(404).json({ error: 'Permiso no encontrado.' });
@@ -13003,10 +13128,6 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
             });
         }
 
-        if (username === 'admin' || username === 'administrador') {
-            return res.status(401).json({ error: 'Credenciales inválidas.' });
-        }
-
         const user = await findUserByUsername(username);
         if (!user) {
             await recordCredentialAudit({ userResponsible: username, action: CREDENTIAL_ACTIONS.LOGIN_FAILED, result: 'usuario_no_encontrado', ip: req.ip });
@@ -13039,10 +13160,6 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
             return res.status(401).json({ error: `Credenciales inválidas. Intento ${attempts} de 5.` });
         }
 
-        const pendingPin = user.pin_hash && !isPinExpired(user.pin_created_at);
-        if (pendingPin) {
-            return res.status(400).json({ error: 'Tienes un PIN de recuperación pendiente. Usa el PIN para restablecer tu contraseña.' });
-        }
 
         await recordLoginAttempt(user.id, true);
         await recordCredentialAudit({ userResponsible: username, userAffected: user.full_name, department: user.department, action: CREDENTIAL_ACTIONS.LOGIN_SUCCESS, result: 'exitoso', ip: req.ip });
@@ -13062,7 +13179,7 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
                 username: sanitizeAdminUserText(user.username),
                 department: sanitizeAdminUserText(user.department),
                 process: sanitizeAdminUserText(user.process),
-                photoUrl: sanitizeAdminUserText(user.photo_url),
+                photoUrl: String(user.photo_url || '').length > 102400 ? '' : sanitizeAdminUserText(user.photo_url),
                 permissionId: user.permission_id == null ? null : Number(user.permission_id),
                 permissionName,
                 defaultLanding: sanitizeOptionalPresentationKey(user.default_landing) || sanitizePresentationKey(user.permission_default_landing),
@@ -13098,13 +13215,23 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
     }
 });
 
-function validatePasswordPolicy(password) {
-    const errors = validatePassword(password);
+async function validatePasswordPolicy(password) {
+    const config = await loadSecurityConfig();
+    const errors = validatePassword(password, config);
     return errors.length > 0 ? errors.join(' ') : null;
 }
 
 app.post('/api/auth/cambiar-contrasena', async (req, res) => {
     try {
+        const { currentPassword, newPassword } = req.body || {};
+        if (!newPassword) {
+            return res.status(400).json({ error: 'La nueva contraseña es obligatoria.' });
+        }
+        const passwordError = await validatePasswordPolicy(newPassword);
+        if (passwordError) {
+            return res.status(400).json({ error: passwordError });
+        }
+
         const session = readErpSessionFromRequest(req);
         const sessionUser = sanitizeAdminUserText(session?.username);
         if (!sessionUser) {
@@ -13113,51 +13240,35 @@ app.post('/api/auth/cambiar-contrasena', async (req, res) => {
         if (sessionUser === 'admin' || sessionUser === 'administrador') {
             return res.status(400).json({ error: 'El usuario administrador de emergencia no puede cambiar su contraseña desde aquí.' });
         }
-        const { currentPassword, newPassword, pin } = req.body || {};
-        if (!newPassword) {
-            return res.status(400).json({ error: 'La nueva contraseña es obligatoria.' });
-        }
-        const passwordError = validatePasswordPolicy(newPassword);
-        if (passwordError) {
-            return res.status(400).json({ error: passwordError });
-        }
+
         const userResult = await pgQuery(
-            `SELECT id, password, pin_hash, pin_created_at, pin_attempts, full_name FROM admin_users WHERE LOWER(TRIM(username)) = $1 LIMIT 1`,
+            `SELECT id, password, full_name, must_change_password FROM admin_users WHERE LOWER(TRIM(username)) = $1 LIMIT 1`,
             [sessionUser]
         );
         if (!userResult.rows.length) {
             return res.status(404).json({ error: 'Usuario no encontrado.' });
         }
         const row = userResult.rows[0];
-        const usingPin = row.pin_hash && pin;
-        if (usingPin) {
-            const pinResult = await verifyResetPin(row.id, pin);
-            if (!pinResult.valid) {
-                return res.status(401).json({ error: pinResult.reason });
-            }
-        } else {
+        const isForcedChange = row.must_change_password === true;
+
+        if (!isForcedChange) {
+            // Cambio voluntario: se exige la contraseña actual
             if (!currentPassword) {
-                return res.status(400).json({ error: 'Debes proporcionar la contraseña actual o un PIN de recuperación.' });
+                return res.status(400).json({ error: 'Debes proporcionar la contraseña actual.' });
+            }
+            const passwordMatch = await verifyPassword(currentPassword, row.password || '');
+            if (!passwordMatch) {
+                return res.status(401).json({ error: 'La contraseña actual no es correcta.' });
             }
             if (currentPassword === newPassword) {
                 return res.status(400).json({ error: 'La nueva contraseña debe ser diferente a la actual.' });
             }
-            const storedPassword = row.password || '';
-            const passwordMatch = await verifyPassword(currentPassword, storedPassword);
-            if (!passwordMatch) {
-                return res.status(401).json({ error: 'La contraseña actual no es correcta.' });
-            }
         }
+        // Cambio forzado: la sesión ya autenticó al usuario en el login, no se pide nada más.
+
         const hashedNewPassword = await hashPassword(newPassword);
         await pgQuery(
-            `UPDATE admin_users
-                SET password = $1,
-                    must_change_password = FALSE,
-                    pin_hash = '',
-                    pin_created_at = NULL,
-                    pin_attempts = 0,
-                    updated_at = NOW()
-              WHERE id = $2`,
+            `UPDATE admin_users SET password = $1, must_change_password = FALSE, updated_at = NOW() WHERE id = $2`,
             [hashedNewPassword, row.id]
         );
         try { await sendPasswordChangedNotification(row); } catch (_) {}
@@ -13165,14 +13276,6 @@ app.post('/api/auth/cambiar-contrasena', async (req, res) => {
         res.json({ ok: true, message: 'Contraseña actualizada correctamente.', redirect: '/dashboard' });
     } catch (error) {
         res.status(500).json({ error: error.message || 'No fue posible cambiar la contraseña.' });
-    }
-});
-
-app.get('/api/costos-config', async (req, res) => {
-    try {
-        res.json(await loadCostsConfig());
-    } catch (error) {
-        res.status(500).json({ error: 'No fue posible cargar la configuracion de costos.' });
     }
 });
 
@@ -21041,7 +21144,12 @@ app.get('/api/catalogs', async (req, res) => {
             areaTroquelIn2: item.area_troquel_in2,
             imageUrl: item.image_url,
             image_url: item.image_url,
-            activo: item.activo
+            activo: item.activo,
+            formato: item.formato,
+            tipoTroquel: item.tipo_troquel,
+            tipo_troquel: item.tipo_troquel,
+            tipoTroquel2: item.tipo_troquel_2,
+            tipo_troquel_2: item.tipo_troquel_2
         }));
         res.json({ ...catalogs, materials, machines, machineCategories, troqueles, processes, outputTypes });
     } catch (error) {
@@ -21402,11 +21510,18 @@ app.post('/api/auth/forgot-password', async (req, res) => {
             return res.status(400).json({ error: 'El usuario de emergencia no puede recuperar su contraseña por este medio.' });
         }
         const user = await findUserByUsername(username);
-        if (!user || !user.email) {
-            return res.json({ ok: true, message: 'Si el usuario existe y tiene correo registrado, recibirás instrucciones.' });
+        if (!user) {
+            return res.status(404).json({ error: 'Usuario no encontrado.' });
         }
         if (user.is_active === false) {
             return res.status(403).json({ error: 'Cuenta deshabilitada. Contacta al administrador.' });
+        }
+        if (!user.email) {
+            return res.status(400).json({ error: 'Este usuario no tiene correo electrónico asignado. Contacte al administrador o a su jefatura para el cambio de contraseña.' });
+        }
+        const smtpConfig = await loadSmtpConfig();
+        if (!smtpConfig || !smtpConfig.host || !smtpConfig.user || !smtpConfig.password || !smtpConfig.fromEmail) {
+            return res.status(503).json({ error: 'El sistema no tiene configurado el servidor SMTP para envío de correos. Comuníquese con el administrador o con su jefatura para el cambio de contraseña.' });
         }
         const pin = await setResetPin(user.id);
         try {
@@ -21438,21 +21553,28 @@ app.post('/api/admin-users/:id/reset-password', async (req, res) => {
         if (!user.rows.length) return res.status(404).json({ error: 'Usuario no encontrado.' });
         const target = user.rows[0];
 
-        const pin = await setResetPin(userId);
-        await recordCredentialAudit({ userResponsible: session.username, userAffected: target.full_name, action: CREDENTIAL_ACTIONS.CREDENTIALS_RESET, ip: req.ip });
+        const { newPassword, forceOnly } = req.body || {};
 
-        const shouldSendEmail = req.body?.sendEmail !== false;
-        let emailSent = false;
-        if (shouldSendEmail && target.email) {
-            try {
-                await sendPasswordResetPin({ full_name: target.full_name, email: target.email }, pin);
-                emailSent = true;
-            } catch (e) {
-                console.error('Error enviando PIN:', e.message);
-            }
+        if (forceOnly) {
+            // Opción B: no se toca la contraseña actual, solo se marca para que la cambie
+            await pgQuery(`UPDATE admin_users SET must_change_password = TRUE, updated_at = NOW() WHERE id = $1`, [userId]);
+            await recordCredentialAudit({ userResponsible: session.username, userAffected: target.full_name, action: CREDENTIAL_ACTIONS.CREDENTIALS_RESET, observations: 'Forzado sin nueva contraseña', ip: req.ip });
+            return res.json({ ok: true, message: 'Se forzó el cambio de contraseña. El usuario deberá definir una nueva en su próximo inicio de sesión, usando la que ya tiene.' });
         }
 
-        res.json({ ok: true, pin, emailSent, message: 'PIN generado correctamente. Muestra este PIN al usuario. Expira en 15 minutos.' });
+        // Opción A: el admin fija la contraseña y se la entrega al usuario
+        if (!newPassword) {
+            return res.status(400).json({ error: 'Debes indicar la nueva contraseña o marcar la opción de solo forzar el cambio.' });
+        }
+        const passwordError = await validatePasswordPolicy(newPassword);
+        if (passwordError) return res.status(400).json({ error: passwordError });
+
+        const hashed = await hashPassword(newPassword);
+        await pgQuery(`UPDATE admin_users SET password = $1, must_change_password = TRUE, updated_at = NOW() WHERE id = $2`, [hashed, userId]);
+        await recordCredentialAudit({ userResponsible: session.username, userAffected: target.full_name, action: CREDENTIAL_ACTIONS.CREDENTIALS_RESET, ip: req.ip });
+        try { await sendPasswordChangedNotification(target); } catch (_) {}
+
+        res.json({ ok: true, message: 'Contraseña restablecida. Comunícasela al usuario; deberá definir una nueva en su próximo inicio de sesión.' });
     } catch (error) {
         res.status(500).json({ error: error.message || 'No fue posible restablecer la contraseña.' });
     }

@@ -1,4 +1,5 @@
 const TROQUELES_ENDPOINT = '/api/inventario/troqueles';
+const CONFIG_ENDPOINT = '/api/config/shell';
 
 const troquelForm = document.getElementById('troquelForm');
 const troquelHeroCode = document.getElementById('troquelHeroCode');
@@ -7,6 +8,27 @@ const troquelImagePreview = document.getElementById('troquelImagePreview');
 
 const query = new URLSearchParams(window.location.search);
 let currentTroquelCode = query.get('codigo') || '';
+let loadedConfig = {};
+
+function getShapeOptions() {
+    const general = loadedConfig.general || {};
+    return [
+        { value: 'Circular', label: general.dieShapeLabel1 || 'Circular' },
+        { value: 'Cuadrado', label: general.dieShapeLabel2 || 'Cuadrado' },
+        { value: 'Rectangular', label: general.dieShapeLabel3 || 'Rectangular' },
+        { value: 'Ovalado', label: general.dieShapeLabel4 || 'Ovalado' },
+        { value: 'Especial', label: general.dieShapeLabel5 || 'Especial' },
+        { value: 'Butt Cut', label: general.dieShapeLabel6 || 'Butt Cut' }
+    ];
+}
+
+function populateFormatoSelect() {
+    const select = document.getElementById('troquelFormato');
+    if (!select) return;
+    const shapes = getShapeOptions();
+    select.innerHTML = '<option value="">Seleccione forma...</option>' +
+        shapes.map(s => `<option value="${s.value}">${s.label}</option>`).join('');
+}
 
 function escapeHtml(value) {
     return String(value || '')
@@ -81,6 +103,10 @@ function setDirectValue(id, value, isCheckbox = false, numeric = false) {
         element.checked = Boolean(value);
         return;
     }
+    if (element.tagName === 'SELECT') {
+        element.value = value ?? '';
+        return;
+    }
     element.value = numeric ? formatDisplayNumber(value) : (value ?? '');
 }
 
@@ -100,6 +126,7 @@ function renderTroquel(data) {
 
     setDirectValue('troquelId', item.id);
     setDirectValue('troquelDescripcionCotizacion', item.descripcion_cotizaciones);
+    setDirectValue('troquelFormato', item.formato);
     setDirectValue('troquelAnchoEtiqueta', item.ancho_etiqueta_in, false, true);
     setDirectValue('troquelLargoEtiqueta', item.largo_etiqueta_in, false, true);
     setDirectValue('troquelAnchoMaterial', item.ancho_material_in, false, true);
@@ -108,13 +135,8 @@ function renderTroquel(data) {
     setDirectValue('troquelDientes', item.dientes, false, true);
     setDirectValue('troquelFilas', item.cantidad_filas, false, true);
     setDirectValue('troquelRepeticiones', item.repeticiones, false, true);
-    setDirectValue('troquelAnchoTotal', item.ancho_total_troquel_in, false, true);
-    setDirectValue('troquelLargoTotal', item.largo_total_troquel_in, false, true);
     setDirectValue('troquelEstado', item.estado);
     setDirectValue('troquelClasificacion', item.clasificacion);
-    setDirectValue('troquelTipo', item.tipo_troquel);
-    setDirectValue('troquelEstructura', item.estructura_troquel);
-    setDirectValue('troquelFormato', item.formato);
     setDirectValue('troquelMontaje', item.montaje_troquel);
     setDirectValue('troquelTension', item.tension);
     setDirectValue('troquelAreaEtiquetaExcesos', item.area_etiqueta_excesos_in, false, true);
@@ -128,7 +150,6 @@ function renderTroquel(data) {
     setDirectValue('troquelDimensiones', item.dimensiones_troquel_in);
     setDirectValue('troquelCodigoCliente', item.codigo_cliente);
     setDirectValue('troquelCodigoPreprensa', item.codigo_preprensa);
-    setDirectValue('troquelUsuarioCreacion', item.usuario_creacion);
     setDirectValue('troquelVidaRestante', item.vida_util_golpes_restantes, false, true);
     setDirectValue('troquelVidaUsada', item.vida_util_golpes_usados, false, true);
     setDirectValue('troquelVidaTotal', item.vida_util_golpes_total, false, true);
@@ -140,7 +161,18 @@ function renderTroquel(data) {
     renderImagePreview(item.image_url, item.codigo);
 }
 
+async function loadConfig() {
+    try {
+        const res = await fetch(CONFIG_ENDPOINT);
+        loadedConfig = await res.json();
+    } catch {
+        loadedConfig = {};
+    }
+}
+
 async function loadTroquel() {
+    await loadConfig();
+    populateFormatoSelect();
     if (!currentTroquelCode) {
         renderTroquel(emptyTroquel());
         return;

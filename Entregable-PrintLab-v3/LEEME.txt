@@ -1,0 +1,63 @@
+﻿=================================================================
+   PRINTLAB - PAQUETE DE INSTALACION v3
+=================================================================
+
+CONTENIDO:
+  instalar.bat          -> [DOBLE CLIC] Asistente de instalacion
+  instalar.ps1          -> Script PowerShell (ejecutado por instalar.bat)
+  iniciar.bat           -> [DOBLE CLIC] Inicia el servidor
+  app/                  -> Codigo de la aplicacion
+  printlab-db.dump      -> Respaldo de la base de datos
+  LEEME.txt             -> Este archivo
+
+=================================================================
+INSTALACION (SOLO LA PRIMERA VEZ)
+=================================================================
+
+  1. Extraer todo el contenido del ZIP en una carpeta
+
+  2. Dar DOBLE CLIC en "instalar.bat" como Administrador
+
+  3. El asistente le pedira:
+
+       Puerto web        -> Puerto donde se vera la pagina (Enter = 9090)
+       IP del servidor BD -> Direccion del servidor PostgreSQL (Enter = localhost)
+       Puerto BD          -> Puerto de PostgreSQL (Enter = 5432)
+       Nombre BD          -> Nombre de la base de datos (Enter = printlab)
+       Usuario BD         -> Usuario de PostgreSQL (Enter = postgres)
+       Contrasena BD      -> Contrasena del usuario de PostgreSQL
+       Contrasena admin   -> Clave de emergencia del usuario 'admin'
+
+  4. El asistente:
+       a) Crea el archivo .env con esos datos
+       b) Instala PostgreSQL 18 si no esta presente (opcional)
+       c) Instala Node.js si no esta presente (opcional)
+       d) Crea la base de datos y restaura el dump
+       e) Ejecuta npm install
+       f) Aplica la migracion de seguridad
+
+=================================================================
+INICIAR LA APLICACION (USO DIARIO)
+=================================================================
+
+  Dar DOBLE CLIC en "iniciar.bat"
+  - O -
+  Abrir PowerShell en app\ y ejecutar: node server.js
+
+  Abrir http://localhost:9090 en el navegador
+  (o el puerto que haya configurado durante la instalacion)
+
+=================================================================
+CREDENCIALES POR DEFECTO
+=================================================================
+  Usuario regular: jesquiv / 1234
+  Admin emergencia: admin / (la que ingreso durante instalacion)
+
+=================================================================
+REQUISITOS DEL SISTEMA
+=================================================================
+  Sistema operativo: Windows 10/11 o Windows Server 2019+
+  Espacio: ~500 MB libres
+  RAM: 4 GB minimo
+  Puerto 9090 libre (o el que haya configurado)
+

@@ -2853,29 +2853,96 @@ function renderOrder(order) {
 
 function renderCreationSummary(data) {
     if (!data || typeof data !== 'object') return '';
-    function row(key, val) {
-        if (val === null || val === undefined || val === '') return '';
-        return '<div class="production-creation-summary-row"><span class="production-creation-summary-key">' + escapeHtml(key) + ':</span><span class="production-creation-summary-value">' + escapeHtml(String(Array.isArray(val) ? val.join(', ') : val)) + '</span></div>';
+    function val(v) {
+        if (v === null || v === undefined || v === '') return '';
+        if (typeof v === 'boolean') return v ? 'Sí' : 'No';
+        if (Array.isArray(v)) return v.length ? v.join(', ') : '';
+        if (typeof v === 'object') return '';
+        return String(v);
+    }
+    function row(key, v) {
+        var s = val(v);
+        if (!s) return '';
+        return '<div class="production-creation-summary-row"><span class="production-creation-summary-key">' + escapeHtml(key) + ':</span><span class="production-creation-summary-value">' + escapeHtml(s) + '</span></div>';
     }
     function section(title) {
         return '<div class="production-creation-summary-section">' + escapeHtml(title) + '</div>';
     }
-    let html = section('General');
+    function subsec(title) {
+        return '<div class="production-creation-summary-subsection">' + escapeHtml(title) + '</div>';
+    }
+    var html = '';
+    html += section('General');
     html += row('Orden', data.orden);
     html += row('Cotización', data.cotizacion);
     html += row('Línea', data.linea);
     html += row('Cliente', data.cliente);
+    html += row('Código Cliente', data.codigo_cliente);
+    html += row('Contacto', data.contacto?.nombre);
+    html += row('Email', data.contacto?.email);
+    html += row('Teléfono', data.contacto?.telefono);
+    html += row('Vendedor', data.vendedor);
     html += row('Producto', data.producto);
-    html += row('Es Frente/Dorso', data.es_frente_dorso ? 'Sí' : 'No');
+    html += row('Código Producto', data.codigo_producto);
+    html += row('Nombre Trabajo', data.nombre_trabajo);
+    html += row('Departamento', data.departamento);
+    html += row('Tipo Proceso', data.tipo_proceso);
+    html += row('Tipo Orden', data.tipo_orden);
+    html += row('Estado Línea', data.estado_linea);
+    html += row('Tipo Cálculo', data.tipo_calculo);
+    html += row('Estado Cotización', data.estado_cotizacion);
+    html += row('Fecha Creación', data.fecha_creacion);
+    html += row('Fecha Vencimiento', data.fecha_vencimiento);
+    html += row('Condiciones Pago', data.condiciones_pago);
+    html += row('Tiempo Entrega', data.tiempo_entrega);
+    html += row('Tipo Cambio Venta', data.tipo_cambio_venta);
+    html += row('Tipo Cambio Compra', data.tipo_cambio_compra);
+    html += row('Moneda', data.moneda);
+    html += row('Método Envío', data.metodo_envio);
+    html += row('Tipo Etiquetado', data.tipo_etiquetado);
+    html += row('Es Frente/Dorso', data.es_frente_dorso);
+    html += row('Finalizado para Orden', data.finalizado_para_orden);
     html += row('Cantidad', data.cantidad);
-    html += row('Costo Total', data.costo_total);
-    html += row('Precio Unitario', data.precio_unitario);
+    html += row('Cantidad Productos', data.cantidad_productos);
+    html += row('Cantidad Tipos', data.cantidad_tipos);
+    html += row('Cantidad Cambios', data.cantidad_cambios);
+
+    html += section('Dimensiones');
+    html += row('Ancho (pulgadas)', data.dimensiones?.ancho_pulgadas);
+    html += row('Largo (pulgadas)', data.dimensiones?.largo_pulgadas);
+    html += row('Área (pulgadas)', data.dimensiones?.area_pulgadas);
+    html += row('Área (m2)', data.dimensiones?.area_m2);
+
+    html += section('Material');
+    html += row('Código', data.material?.codigo);
+    html += row('Nombre', data.material?.nombre);
+    html += row('Ancho', data.material?.ancho);
+    html += row('m2', data.material?.m2);
+    html += row('MSI', data.material?.msi);
+    html += row('Pies Totales', data.material?.pies_totales);
+    html += row('Pies Mácula', data.material?.pies_macula);
+    html += row('Tipo Aplicación', data.material?.tipo_aplicacion);
+
     html += section('Producción');
     html += row('Máquina', data.maquina);
     html += row('Sustrato', data.sustrato);
-    html += row('Tintas', data.tintas);
-    html += row('Pantones', data.pantones);
-    html += row('Pies Totales', data.pies_totales);
+
+    html += section('Impresión');
+    html += row('Tintas', data.impresion?.tintas);
+    html += row('Pantones', data.impresion?.pantones);
+    html += row('Cantidad Pantones', data.impresion?.cantidad_pantones);
+    html += row('CMYK', data.impresion?.cmyk);
+    html += row('Tinta Blanca', data.impresion?.tinta_blanca);
+    html += row('Doble Blanca', data.impresion?.doble_blanca);
+    html += row('Nombres Tintas', data.impresion?.nombres_tintas);
+    html += row('IDs Material Tintas', data.impresion?.ids_material_tintas);
+
+    html += section('Troquel');
+    html += row('Código', data.troquel?.codigo);
+    html += row('Dientes', data.troquel?.dientes);
+    html += row('Filas', data.troquel?.filas);
+    html += row('Repeticiones', data.troquel?.repeticiones);
+
     html += section('Acabados');
     if (Array.isArray(data.acabados) && data.acabados.length) {
         data.acabados.forEach(function (a) {
@@ -2885,11 +2952,70 @@ function renderCreationSummary(data) {
         html += row('Acabados', 'Sin acabados');
     }
     html += row('Numerado', data.numerado);
+
     html += section('Rollo');
-    html += row('Ancho de Core', data.ancho_core);
-    html += row('Diámetro de Core', data.diametro_core);
-    html += row('Etiquetas por Rollo', data.etiquetas_por_rollo);
-    html += row('Tipo de Salida', data.tipo_salida);
+    html += row('Ancho de Core', data.rollo?.ancho_core);
+    html += row('Diámetro de Core', data.rollo?.diametro_core);
+    html += row('Etiquetas por Rollo', data.rollo?.etiquetas_por_rollo);
+    html += row('Tipo de Salida', data.rollo?.tipo_salida);
+
+    html += section('Costos');
+    html += subsec('Desglose');
+    html += row('Material', data.costos?.desglose?.material);
+    html += row('Tintas', data.costos?.desglose?.tintas);
+    html += row('Impresión', data.costos?.desglose?.impresion);
+    html += row('Preprensa', data.costos?.desglose?.preprensa);
+    html += row('Acabados', data.costos?.desglose?.acabados);
+    html += row('Empaque', data.costos?.desglose?.empaque);
+    html += row('Tiraje', data.costos?.desglose?.tiraje);
+    html += subsec('Totales');
+    html += row('Subtotal Costos', data.costos?.subtotal_costos);
+    html += row('Subtotal Financiero', data.costos?.subtotal_financiero);
+    html += row('Subtotal Rendimiento', data.costos?.subtotal_rendimiento);
+    html += row('Costo Mínimo', data.costos?.costo_minimo);
+    html += row('% Imprevistos', data.costos?.porcentaje_imprevistos);
+    html += row('% Financiero', data.costos?.porcentaje_financiero);
+    html += row('% Adicional', data.costos?.porcentaje_adicional);
+    html += row('Costo Total', data.costos?.costo_total);
+    html += row('Pies Totales', data.costos?.pies_totales);
+
+    html += section('Precios');
+    html += row('Subtotal antes de IVA', data.precios?.subtotal_antes_iva);
+    html += row('Impuesto', data.precios?.impuesto);
+    html += row('Total Final', data.precios?.total_final);
+    html += row('Precio Unitario', data.precios?.precio_unitario);
+    html += row('Precio Millar', data.precios?.precio_millar);
+    html += row('Total Colones', data.precios?.total_colones);
+    html += row('Tipo de Cambio', data.precios?.tipo_cambio);
+    html += row('% IVA', data.precios?.porcentaje_iva);
+    html += row('Cyrel', data.precios?.cyrel);
+
+    if (data.frente_dorso) {
+        html += section('Frente / Dorso');
+        html += row('Modo', data.frente_dorso.modo);
+        html += row('Etiqueta', data.frente_dorso.etiqueta);
+        html += row('Línea Comercial', data.frente_dorso.linea_comercial);
+        html += row('Líneas Miembro', data.frente_dorso.lineas_miembro);
+        html += row('Líneas Elemento', data.frente_dorso.lineas_elemento);
+        html += row('Línea Frente', data.frente_dorso.linea_frente);
+        html += row('Línea Dorso', data.frente_dorso.linea_dorso);
+        if (Array.isArray(data.frente_dorso.salidas) && data.frente_dorso.salidas.length) {
+            html += subsec('Salidas');
+            data.frente_dorso.salidas.forEach(function (s) {
+                html += row('Línea ' + (s.linea || ''), 'Cant: ' + (s.cantidad || 0) + ', Pies: ' + (s.pies || 0));
+            });
+        }
+    }
+
+    html += section('Notas');
+    html += row('Resumen Cotización', data.notas?.resumen_cotizacion);
+    html += row('Info Impresión', data.notas?.info_impresion);
+    html += row('Observaciones', data.notas?.observaciones);
+    html += row('Estado Creación', data.notas?.estado_creacion);
+    html += row('Análisis Solicitud', data.notas?.analisis_solicitud);
+    html += row('Análisis Finalizar', data.notas?.analisis_finalizar);
+    html += row('Análisis Crear Orden', data.notas?.analisis_crear_orden);
+
     return html;
 }
 

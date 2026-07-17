@@ -26,6 +26,7 @@ const {
     loadSapConfig
 } = require('./services/sap-service-layer');
 const { ensureExchangeRateSchema, registerExchangeRateRoutes, startExchangeRateScheduler, buildProformaExchangeContext } = require('./services/exchange-rate-service');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -1772,6 +1773,9 @@ const routeRedirects = {
 for (const [from, to] of Object.entries(routeRedirects)) {
     app.get(from, (req, res) => res.redirect(301, to));
 }
+app.get('/cambiar-contrasena', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'cambiar-contrasena.html'));
+});
 
 async function runStartupSchemaStep(label, action) {
     try {
@@ -1798,6 +1802,7 @@ async function initializeStartupSchemas() {
         await ensureNotificationCenterSchema();
         await ensureNotificationAlertContactsSchema();
         await ensureInventoryClassificationMappingsSchema();
+        await ensureEmailConfigSchema();
         await ensureSecuritySeed();
     });
 }
@@ -3921,6 +3926,24 @@ async function ensureAdminUsersSchema() {
     await pgQuery(`ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS sap_salesperson_code BIGINT`);
     await pgQuery(`ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS sap_salesperson_name TEXT NOT NULL DEFAULT ''`);
     await pgQuery(`CREATE INDEX IF NOT EXISTS admin_users_name_idx ON admin_users (full_name)`);
+}
+
+async function ensureEmailConfigSchema() {
+    await pgQuery(`CREATE TABLE IF NOT EXISTS email_config (
+        id INTEGER PRIMARY KEY DEFAULT 1,
+        host TEXT NOT NULL DEFAULT '',
+        port INTEGER NOT NULL DEFAULT 587,
+        secure BOOLEAN NOT NULL DEFAULT FALSE,
+        user TEXT NOT NULL DEFAULT '',
+        password TEXT NOT NULL DEFAULT '',
+        from_name TEXT NOT NULL DEFAULT '',
+        from_email TEXT NOT NULL DEFAULT '',
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )`);
+    const exists = await pgQuery(`SELECT id FROM email_config WHERE id = 1`);
+    if (!exists.rows.length) {
+        await pgQuery(`INSERT INTO email_config (id) VALUES (1)`);
+    }
 }
 
 function normalizeAdminPermissionNameForSalesperson(value = '') {
@@ -12579,7 +12602,7 @@ app.patch('/api/admin-users/:id', async (req, res) => {
             'updated_at = NOW()'
         ];
         if (passwordChanged) {
-            setClauses.push('must_change_password = FALSE');
+            setClauses.push('must_change_password = TRUE');
         }
         const result = await pgQuery(
             `UPDATE admin_users
@@ -13004,7 +13027,11 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
         }
 
         const row = result.rows[0];
-        const passwordMatch = await bcrypt.compare(password, row.password || '');
+        const storedPassword = row.password || '';
+        const isBcryptHash = storedPassword.startsWith('$2');
+        const passwordMatch = isBcryptHash
+            ? await bcrypt.compare(password, storedPassword)
+            : password === storedPassword;
         if (!passwordMatch) {
             return res.status(401).json({ error: 'Credenciales inválidas.' });
         }
@@ -13064,26 +13091,35 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
 
 function validatePasswordPolicy(password) {
     const errors = [];
-    if (password.length < 10) errors.push('Debe tener al menos 10 caracteres.');
+    if (password.length < 8) errors.push('Debe tener al menos 8 caracteres.');
     if (!/[A-Z]/.test(password)) errors.push('Debe contener al menos una mayúscula.');
     if (!/[a-z]/.test(password)) errors.push('Debe contener al menos una minúscula.');
     if (!/[0-9]/.test(password)) errors.push('Debe contener al menos un número.');
-    if (!/[^A-Za-z0-9]/.test(password)) errors.push('Debe contener al menos un carácter especial.');
     return errors;
 }
 
 app.post('/api/auth/change-password', async (req, res) => {
     try {
-        const username = sanitizeAdminUserText(req.body?.username).toLowerCase();
+        const session = readErpSessionFromRequest(req);
+        const sessionUsername = sanitizeAdminUserText(session?.username).toLowerCase();
+        if (!sessionUsername) {
+            return res.status(401).json({ error: 'Sesión no válida.' });
+        }
+
+        if (sessionUsername === 'admin' || sessionUsername === 'administrador') {
+            return res.status(400).json({ error: 'El usuario de emergencia no puede cambiar su contraseña por este medio.' });
+        }
+
         const currentPassword = sanitizeAdminUserText(req.body?.currentPassword);
         const newPassword = sanitizeAdminUserText(req.body?.newPassword);
+        const confirmPassword = sanitizeAdminUserText(req.body?.confirmPassword);
 
-        if (!username || !currentPassword || !newPassword) {
+        if (!currentPassword || !newPassword || !confirmPassword) {
             return res.status(400).json({ error: 'Todos los campos son obligatorios.' });
         }
 
-        if (username === 'admin' || username === 'administrador') {
-            return res.status(400).json({ error: 'El usuario de emergencia no puede cambiar su contraseña por este medio.' });
+        if (newPassword !== confirmPassword) {
+            return res.status(400).json({ error: 'Las contraseñas nuevas no coinciden.' });
         }
 
         const validationErrors = validatePasswordPolicy(newPassword);
@@ -13093,7 +13129,7 @@ app.post('/api/auth/change-password', async (req, res) => {
 
         const result = await pgQuery(
             `SELECT id, password FROM admin_users WHERE LOWER(TRIM(username)) = $1 LIMIT 1`,
-            [username]
+            [sessionUsername]
         );
 
         if (!result.rows.length) {
@@ -13101,7 +13137,11 @@ app.post('/api/auth/change-password', async (req, res) => {
         }
 
         const row = result.rows[0];
-        const passwordMatch = await bcrypt.compare(currentPassword, row.password || '');
+        const storedPassword = row.password || '';
+        const isBcryptHash = storedPassword.startsWith('$2');
+        const passwordMatch = isBcryptHash
+            ? await bcrypt.compare(currentPassword, storedPassword)
+            : currentPassword === storedPassword;
         if (!passwordMatch) {
             return res.status(401).json({ error: 'Credenciales inválidas.' });
         }
@@ -21227,6 +21267,193 @@ function handleServerStartupError(error) {
 }
 
 // Startup validation
+// ─── EMAIL CONFIG ENDPOINTS ────────────────────────────────────────────────
+app.get('/api/config/email', async (req, res) => {
+    try {
+        const result = await pgQuery(`SELECT id, host, port, secure, "user", password, from_name, from_email, updated_at FROM email_config WHERE id = 1`);
+        if (!result.rows.length) {
+            await pgQuery(`INSERT INTO email_config (id) DEFAULT VALUES ON CONFLICT (id) DO NOTHING`);
+            return res.json({ host: '', port: 587, secure: false, user: '', password: '', fromName: '', fromEmail: '' });
+        }
+        const row = result.rows[0];
+        res.json({
+            host: row.host || '',
+            port: Number(row.port) || 587,
+            secure: Boolean(row.secure),
+            user: row.user || '',
+            password: row.password || '',
+            fromName: row.from_name || '',
+            fromEmail: row.from_email || ''
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible cargar la configuración de correo.' });
+    }
+});
+
+app.put('/api/config/email', async (req, res) => {
+    try {
+        const session = readErpSessionFromRequest(req);
+        if (!session || !isSuperAdminPermissionName(sanitizeAdminUserText(session?.permissionName))) {
+            return res.status(403).json({ error: 'No tienes permiso para modificar la configuración de correo.' });
+        }
+        const host = sanitizeAdminUserText(req.body?.host);
+        const port = parseInt(req.body?.port, 10) || 587;
+        const secure = req.body?.secure === true;
+        const user = sanitizeAdminUserText(req.body?.user);
+        const password = sanitizeAdminUserText(req.body?.password);
+        const fromName = sanitizeAdminUserText(req.body?.fromName);
+        const fromEmail = sanitizeAdminUserText(req.body?.fromEmail);
+        if (!host || !user || !password) {
+            return res.status(400).json({ error: 'Host, usuario y contraseña son obligatorios.' });
+        }
+        const existing = await pgQuery(`SELECT password FROM email_config WHERE id = 1`);
+        const storedPassword = existing.rows.length ? existing.rows[0].password : '';
+        const finalPassword = password || storedPassword;
+        await pgQuery(`UPDATE email_config SET host = $1, port = $2, secure = $3, "user" = $4, password = $5, from_name = $6, from_email = $7, updated_at = NOW() WHERE id = 1`,
+            [host, port, secure, user, finalPassword, fromName, fromEmail]);
+        res.json({ ok: true, message: 'Configuración de correo actualizada.' });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible guardar la configuración de correo.' });
+    }
+});
+
+// ─── EMAIL SEND UTILITY ────────────────────────────────────────────────────
+async function sendEmail({ to, subject, html, text }) {
+    const result = await pgQuery(`SELECT host, port, secure, "user", password, from_name, from_email FROM email_config WHERE id = 1`);
+    if (!result.rows.length || !result.rows[0].host) {
+        throw new Error('Correo electrónico no configurado. Configura el servidor SMTP en Configuración > Documentos > Correo.');
+    }
+    const cfg = result.rows[0];
+    if (!cfg.from_email) {
+        throw new Error('Correo remitente no configurado.');
+    }
+    const transporter = nodemailer.createTransport({
+        host: cfg.host,
+        port: Number(cfg.port) || 587,
+        secure: Boolean(cfg.secure),
+        auth: { user: cfg.user, pass: cfg.password }
+    });
+    await transporter.sendMail({
+        from: `"${cfg.from_name || 'PrintLab'}" <${cfg.from_email}>`,
+        to,
+        subject: subject || 'Notificación PrintLab',
+        html,
+        text: text || ''
+    });
+}
+
+// ─── FORGOT PASSWORD ───────────────────────────────────────────────────────
+app.post('/api/auth/forgot-password', async (req, res) => {
+    try {
+        const username = sanitizeAdminUserText(req.body?.username).toLowerCase();
+        if (!username) {
+            return res.status(400).json({ error: 'Debes ingresar tu nombre de usuario.' });
+        }
+        if (username === 'admin' || username === 'administrador') {
+            return res.status(400).json({ error: 'El usuario de emergencia no puede recuperar su contraseña por este medio.' });
+        }
+        const result = await pgQuery(
+            `SELECT id, full_name, email FROM admin_users WHERE LOWER(TRIM(username)) = $1 AND is_active = TRUE LIMIT 1`,
+            [username]
+        );
+        if (!result.rows.length) {
+            return res.json({ ok: true, message: 'Si el usuario existe, recibirás un correo con instrucciones.' });
+        }
+        const user = result.rows[0];
+        if (!user.email) {
+            return res.json({ ok: true, message: 'Si el usuario existe, recibirás un correo con instrucciones.' });
+        }
+        const tempPassword = crypto.randomBytes(4).toString('hex') + 'A1';
+        const hashedPassword = await bcrypt.hash(tempPassword, 12);
+        await pgQuery(
+            `UPDATE admin_users SET password = $1, must_change_password = TRUE, updated_at = NOW() WHERE id = $2`,
+            [hashedPassword, user.id]
+        );
+        try {
+            await sendEmail({
+                to: user.email,
+                subject: 'Recuperación de contraseña - PrintLab',
+                html: `<p>Hola <strong>${sanitizeAdminUserText(user.full_name)}</strong>,</p>
+<p>Has solicitado recuperar tu contraseña de PrintLab.</p>
+<p>Tu contraseña temporal es: <strong>${tempPassword}</strong></p>
+<p>Al iniciar sesión, el sistema te pedirá que cambies esta contraseña por una nueva.</p>
+<p>Si no solicitaste este cambio, ignora este mensaje.</p>
+<p>Saludos,<br>Equipo PrintLab</p>`,
+                text: `Hola ${sanitizeAdminUserText(user.full_name)},\n\nHas solicitado recuperar tu contraseña de PrintLab.\n\nTu contraseña temporal es: ${tempPassword}\n\nAl iniciar sesión, el sistema te pedirá que cambies esta contraseña por una nueva.\n\nSi no solicitaste este cambio, ignora este mensaje.\n\nSaludos,\nEquipo PrintLab`
+            });
+            res.json({ ok: true, message: 'Se ha enviado un correo con las instrucciones para recuperar tu contraseña.' });
+        } catch (emailError) {
+            console.error('Error enviando correo de recuperación:', emailError.message);
+            res.status(500).json({ error: 'No fue posible enviar el correo de recuperación. Verifica la configuración SMTP.' });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible procesar la solicitud.' });
+    }
+});
+
+// ─── ADMIN RESET USER PASSWORD ─────────────────────────────────────────────
+app.post('/api/admin-users/:id/reset-password', async (req, res) => {
+    try {
+        const session = readErpSessionFromRequest(req);
+        const sessionUser = sanitizeAdminUserText(session?.username);
+        if (!sessionUser) {
+            return res.status(401).json({ error: 'Sesión no válida.' });
+        }
+        const requesterResult = await pgQuery(
+            `SELECT u.id, p.permission_name FROM admin_users u LEFT JOIN admin_permissions p ON p.id = u.permission_id WHERE LOWER(TRIM(u.username)) = LOWER(TRIM($1)) LIMIT 1`,
+            [sessionUser]
+        );
+        if (!requesterResult.rows.length) {
+            return res.status(403).json({ error: 'No tienes permiso para realizar esta acción.' });
+        }
+        const requesterPermission = sanitizeAdminUserText(requesterResult.rows[0].permission_name);
+        if (!isSuperAdminPermissionName(requesterPermission)) {
+            return res.status(403).json({ error: 'Solo administradores pueden restablecer contraseñas.' });
+        }
+        const userId = parseInt(req.params.id, 10);
+        if (!userId) {
+            return res.status(400).json({ error: 'ID de usuario no válido.' });
+        }
+        const newPassword = sanitizeAdminUserText(req.body?.password);
+        if (!newPassword || newPassword.length < 4) {
+            return res.status(400).json({ error: 'La contraseña debe tener al menos 4 caracteres.' });
+        }
+        const validationErrors = validatePasswordPolicy(newPassword);
+        if (validationErrors.length > 0) {
+            return res.status(400).json({ error: 'La contraseña no cumple con los requisitos.', details: validationErrors });
+        }
+        const hashedPassword = await bcrypt.hash(newPassword, 12);
+        await pgQuery(
+            `UPDATE admin_users SET password = $1, must_change_password = TRUE, updated_at = NOW() WHERE id = $2`,
+            [hashedPassword, userId]
+        );
+        const sendEmail = req.body?.sendEmail === true;
+        if (sendEmail) {
+            try {
+                const userResult = await pgQuery(`SELECT full_name, email FROM admin_users WHERE id = $1`, [userId]);
+                if (userResult.rows.length && userResult.rows[0].email) {
+                    const u = userResult.rows[0];
+                    await sendEmail({
+                        to: u.email,
+                        subject: 'Contraseña restablecida - PrintLab',
+                        html: `<p>Hola <strong>${sanitizeAdminUserText(u.full_name)}</strong>,</p>
+<p>Un administrador ha restablecido tu contraseña de PrintLab.</p>
+<p>Tu nueva contraseña temporal es: <strong>${newPassword}</strong></p>
+<p>Al iniciar sesión, el sistema te pedirá que cambies esta contraseña por una nueva.</p>
+<p>Saludos,<br>Equipo PrintLab</p>`,
+                        text: `Hola ${sanitizeAdminUserText(u.full_name)},\n\nUn administrador ha restablecido tu contraseña de PrintLab.\n\nTu nueva contraseña temporal es: ${newPassword}\n\nAl iniciar sesión, el sistema te pedirá que cambies esta contraseña por una nueva.\n\nSaludos,\nEquipo PrintLab`
+                    });
+                }
+            } catch (emailError) {
+                console.error('Error enviando correo de notificación:', emailError.message);
+            }
+        }
+        res.json({ ok: true, message: 'Contraseña restablecida correctamente. El usuario deberá cambiarla al iniciar sesión.' });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible restablecer la contraseña.' });
+    }
+});
+
 if (!process.env.ADMIN_EMERGENCY_PASSWORD) {
     try {
         const warnPath = path.join(APP_ROOT, 'logs', 'server-startup.warn.log');

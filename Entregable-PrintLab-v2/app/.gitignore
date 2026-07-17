@@ -1,0 +1,30 @@
+# ==========================================
+# Carpetas de herramientas y compilacion
+# ==========================================
+.vs/
+.git/
+[Bb]in/
+[Oo]bj/
+node_modules/
+
+# ==========================================
+# Carpetas de datos locales / runtime
+# ==========================================
+logs/
+backups/
+storage/quote-line-attachments/
+
+# ==========================================
+# Archivos temporales y de entorno
+# ==========================================
+.env
+*.suo
+*.user
+*.tmp
+*.cache
+*.bak
+*.backup
+*.err
+*.out
+*.log
+~$*

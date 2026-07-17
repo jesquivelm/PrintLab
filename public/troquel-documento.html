@@ -24,69 +24,88 @@
 
                 <div class="troquel-document-main">
                     <div class="troquel-document-left">
-                        <section class="socios-section troquel-section-compact">
-                            <div class="section-caption">Datos para Cotización</div>
-                            <div class="socios-grid troquel-grid-3 troquel-grid-tight">
-                                <div class="field field-full"><label>Descripción Cotización</label><input id="troquelDescripcionCotizacion" name="descripcion_cotizaciones" type="text" readonly></div>
-                                <div class="field"><label>Ancho Etiqueta in</label><input id="troquelAnchoEtiqueta" name="ancho_etiqueta_in" type="text" readonly></div>
-                                <div class="field"><label>Largo Etiqueta in</label><input id="troquelLargoEtiqueta" name="largo_etiqueta_in" type="text" readonly></div>
-                                <div class="field"><label>Ancho Material in</label><input id="troquelAnchoMaterial" name="ancho_material_in" type="text" readonly></div>
-                                <div class="field"><label>Desarrollo in</label><input id="troquelDesarrolloIn" name="desarrollo_in" type="text" readonly></div>
-                                <div class="field"><label>Elongación %</label><input id="troquelElongacion" name="elongacion_pct" type="text" readonly></div>
-                                <div class="field"><label>Dientes</label><input id="troquelDientes" name="dientes" type="text" readonly></div>
-                                <div class="field"><label>Filas</label><input id="troquelFilas" name="cantidad_filas" type="text" readonly></div>
-                                <div class="field"><label>Repeticiones</label><input id="troquelRepeticiones" name="repeticiones" type="text" readonly></div>
-                                <div class="field"><label>Ancho Total Troquel in</label><input id="troquelAnchoTotal" name="ancho_total_troquel_in" type="text" readonly></div>
-                                <div class="field"><label>Largo Total Troquel in</label><input id="troquelLargoTotal" name="largo_total_troquel_in" type="text" readonly></div>
-                                <div class="field"><label>Estado</label><input id="troquelEstado" name="estado" type="text" readonly></div>
-                                <div class="field"><label>Clasificación</label><input id="troquelClasificacion" name="clasificacion" type="text" readonly></div>
-                                <div class="field"><label>Tipo Troquel</label><input id="troquelTipo" name="tipo_troquel" type="text" readonly></div>
-                                <div class="field"><label>Estructura</label><input id="troquelEstructura" name="estructura_troquel" type="text" readonly></div>
-                            </div>
-                        </section>
 
+                        <!-- 1. Detalles Generales -->
                         <section class="socios-section troquel-section-compact">
-                            <div class="section-caption">Información del Troquel</div>
+                            <div class="section-caption">Detalles Generales</div>
                             <div class="socios-grid troquel-grid-3 troquel-grid-tight">
-                                <div class="field"><label>Formato</label><input id="troquelFormato" name="formato" type="text" readonly></div>
-                                <div class="field"><label>Montaje Troquel</label><input id="troquelMontaje" name="montaje_troquel" type="text" readonly></div>
-                                <div class="field"><label>Tensión</label><input id="troquelTension" name="tension" type="text" readonly></div>
-                                <div class="field"><label>Área Etiqueta c/Excesos in²</label><input id="troquelAreaEtiquetaExcesos" name="area_etiqueta_excesos_in" type="text" readonly></div>
-                                <div class="field"><label>Área Etiqueta in²</label><input id="troquelAreaEtiqueta" name="area_etiqueta_in" type="text" readonly></div>
-                                <div class="field"><label>Área Troquel in²</label><input id="troquelAreaTroquel" name="area_troquel_in2" type="text" readonly></div>
-                                <div class="field"><label>Proveedor Troquel</label><input id="troquelProveedor" name="proveedor_troquel" type="text" readonly></div>
-                                <div class="field"><label>Código Proveedor</label><input id="troquelCodigoProveedor" name="codigo_proveedor" type="text" readonly></div>
-                                <div class="field field-checkbox-inline"><label for="troquelActivo">Activo</label><input id="troquelActivo" name="activo" type="checkbox" disabled></div>
-                                <div class="field field-checkbox-inline"><label for="troquelUsoConvencional">Uso Convencional</label><input id="troquelUsoConvencional" name="uso_convencional" type="checkbox" disabled></div>
-                                <div class="field field-checkbox-inline"><label for="troquelUsoDigital">Uso Digital</label><input id="troquelUsoDigital" name="uso_digital" type="checkbox" disabled></div>
-                                <div class="field"><label>Dimensiones Troquel in</label><input id="troquelDimensiones" name="dimensiones_troquel_in" type="text" readonly></div>
-                            </div>
-                        </section>
-
-                        <section class="socios-section troquel-section-compact">
-                            <div class="section-caption">Observaciones</div>
-                            <div class="socios-grid troquel-grid-3 troquel-grid-tight">
-                                <div class="field field-full">
-                                    <label>Observaciones</label>
-                                    <textarea id="troquelObservaciones" name="observaciones" rows="3" readonly></textarea>
+                                <div class="field field-full"><label>Descripción Cotización</label><input id="troquelDescripcionCotizacion" name="descripcion_cotizaciones" type="text"></div>
+                                <div class="field"><label>Forma Troquel</label><select id="troquelFormato" name="formato"></select></div>
+                                <div class="field"><label>Estado</label><input id="troquelEstado" name="estado" type="text"></div>
+                                <div class="field"><label>Clasificación</label><input id="troquelClasificacion" name="clasificacion" type="text"></div>
+                                <div class="field"><label>Código Cliente</label><input id="troquelCodigoCliente" name="codigo_cliente" type="text"></div>
+                                <div class="field"><label>Código Preprensa</label><input id="troquelCodigoPreprensa" name="codigo_preprensa" type="text"></div>
+                                <div></div>
+                                <div class="troquel-check-group">
+                                    <label class="inventory-checkbox-field"><span>Activo</span><input id="troquelActivo" name="activo" type="checkbox"></label>
+                                    <label class="inventory-checkbox-field"><span>Convencional</span><input id="troquelUsoConvencional" name="uso_convencional" type="checkbox"></label>
+                                    <label class="inventory-checkbox-field"><span>Digital</span><input id="troquelUsoDigital" name="uso_digital" type="checkbox"></label>
                                 </div>
                             </div>
                         </section>
 
+                        <!-- 2. Dimensionamiento -->
                         <section class="socios-section troquel-section-compact">
-                            <div class="section-caption">Control</div>
+                            <div class="section-caption">Dimensionamiento</div>
                             <div class="socios-grid troquel-grid-3 troquel-grid-tight">
-                                <div class="field"><label>Código Cliente</label><input id="troquelCodigoCliente" name="codigo_cliente" type="text" readonly></div>
-                                <div class="field"><label>Código Preprensa</label><input id="troquelCodigoPreprensa" name="codigo_preprensa" type="text" readonly></div>
-                                <div class="field"><label>Usuario Creación</label><input id="troquelUsuarioCreacion" name="usuario_creacion" type="text" readonly></div>
-                                <div class="field"><label>Vida Útil Restante</label><input id="troquelVidaRestante" name="vida_util_golpes_restantes" type="text" readonly></div>
-                                <div class="field"><label>Vida Útil Usada</label><input id="troquelVidaUsada" name="vida_util_golpes_usados" type="text" readonly></div>
-                                <div class="field"><label>Vida Útil Total</label><input id="troquelVidaTotal" name="vida_util_golpes_total" type="text" readonly></div>
-                                <div class="field"><label>Reemplaza a</label><input id="troquelReemplazaA" name="reemplaza_a" type="text" readonly></div>
-                                <div class="field"><label>Reemplazado por</label><input id="troquelReemplazadoPor" name="reemplazado_por" type="text" readonly></div>
-                                <div class="field"><label>Elongado</label><input id="troquelElongado" name="elongado" type="text" readonly></div>
+                                <div class="field"><label>Ancho Etiqueta in</label><input id="troquelAnchoEtiqueta" name="ancho_etiqueta_in" type="text"></div>
+                                <div class="field"><label>Largo Etiqueta in</label><input id="troquelLargoEtiqueta" name="largo_etiqueta_in" type="text"></div>
+                                <div class="field"><label>Ancho Material in</label><input id="troquelAnchoMaterial" name="ancho_material_in" type="text"></div>
+                                <div class="field"><label>Desarrollo in</label><input id="troquelDesarrolloIn" name="desarrollo_in" type="text"></div>
+                                <div class="field"><label>Dientes</label><input id="troquelDientes" name="dientes" type="text"></div>
+                                <div class="field"><label>Elongación %</label><input id="troquelElongacion" name="elongacion_pct" type="text"></div>
+                                <div class="field"><label>Filas</label><input id="troquelFilas" name="cantidad_filas" type="text"></div>
+                                <div class="field"><label>Repeticiones</label><input id="troquelRepeticiones" name="repeticiones" type="text"></div>
+                                <div class="field"><label>Montaje Troquel</label><input id="troquelMontaje" name="montaje_troquel" type="text"></div>
+                                <div class="field"><label>Dimensiones Troquel in</label><input id="troquelDimensiones" name="dimensiones_troquel_in" type="text" placeholder="13 x 7,8"></div>
+                                <div class="field"><label>Tensión</label><input id="troquelTension" name="tension" type="text"></div>
+                                <div class="field"><label>Elongado</label><input id="troquelElongado" name="elongado" type="text"></div>
                             </div>
                         </section>
+
+                        <!-- 3. Áreas -->
+                        <section class="socios-section troquel-section-compact">
+                            <div class="section-caption">Áreas</div>
+                            <div class="socios-grid troquel-grid-3 troquel-grid-tight">
+                                <div class="field"><label>Área Etiqueta in²</label><input id="troquelAreaEtiqueta" name="area_etiqueta_in" type="text"></div>
+                                <div class="field"><label>Área Etiqueta c/Excesos in²</label><input id="troquelAreaEtiquetaExcesos" name="area_etiqueta_excesos_in" type="text"></div>
+                                <div class="field"><label>Área Troquel in²</label><input id="troquelAreaTroquel" name="area_troquel_in2" type="text"></div>
+                            </div>
+                        </section>
+
+                        <!-- 4. Vida Útil / Trazabilidad -->
+                        <section class="socios-section troquel-section-compact">
+                            <div class="section-caption">Vida Útil / Trazabilidad</div>
+                            <div class="socios-grid troquel-grid-3 troquel-grid-tight">
+                                <div class="field"><label>Vida Útil Total</label><input id="troquelVidaTotal" name="vida_util_golpes_total" type="text"></div>
+                                <div class="field"><label>Vida Útil Usada</label><input id="troquelVidaUsada" name="vida_util_golpes_usados" type="text"></div>
+                                <div class="field"><label>Vida Útil Restante</label><input id="troquelVidaRestante" name="vida_util_golpes_restantes" type="text"></div>
+                                <div class="field"><label>Reemplaza a</label><input id="troquelReemplazaA" name="reemplaza_a" type="text"></div>
+                                <div class="field"><label>Reemplazado por</label><input id="troquelReemplazadoPor" name="reemplazado_por" type="text"></div>
+                                <div></div>
+                            </div>
+                        </section>
+
+                        <!-- 5. Observaciones -->
+                        <section class="socios-section troquel-section-compact">
+                            <div class="section-caption">Observaciones</div>
+                            <div class="socios-grid">
+                                <div class="field field-full">
+                                    <textarea id="troquelObservaciones" name="observaciones" rows="3"></textarea>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- 6. Proveedor -->
+                        <section class="socios-section troquel-section-compact">
+                            <div class="section-caption">Proveedor</div>
+                            <div class="socios-grid troquel-grid-3 troquel-grid-tight">
+                                <div class="field"><label>Proveedor Troquel</label><input id="troquelProveedor" name="proveedor_troquel" type="text"></div>
+                                <div class="field"><label>Código Proveedor</label><input id="troquelCodigoProveedor" name="codigo_proveedor" type="text"></div>
+                                <div></div>
+                            </div>
+                        </section>
+
                     </div>
 
                     <aside class="troquel-document-right">

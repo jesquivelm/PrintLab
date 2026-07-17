@@ -1,0 +1,28 @@
+C¢digo;Nombre;Familia proceso;Familia comercial;Ancho mm;Largo mm;Gramaje g/mý;Calibre micras;Costo l mina USD;Costo MSI USD;Costo mý USD;Costo ftý USD;Costo kg USD;Costo libra USD;Costo unidad USD;Merma %;Superficie;Requiere premier;Premier preaplicado;Premier g/mý;Premier costo kg USD;Premier costo mý USD;Compatible convencional;Compatible digital;Activo;Notas
+SUB-001;BOPP Blanco 60 micras;sustrato;BOPP;330;;;60;;0,85;;;;;;2;no_poroso;S¡;No;0,65;9,25;;S¡;S¡;S¡;Ejemplo demo
+PAP-001;Papel Adhesivo Semiglos;sustrato;Papel;330;;80;;;0,42;;;;;;1,5;poroso;No;No;;;;S¡;S¡;S¡;
+111900141;Polipropileno Transparente (Respaldo PET) | BOPPTC S692N;sustrato;BOPP;341 884;;46,3;50,8;;;0,78;;;;;;no_poroso;No;No;;;;S¡;No;S¡;
+111900179;Polipropileno Transparente (Respaldo PET)| BOPPTC S692N;sustrato;BOPP;303 784;;46,3;50,8;;;0,78;;;;;;no_poroso;No;No;;;;S¡;No;S¡;
+111900171;Cartulina C2S 10 PT Brite White / B4483 RAPID ROLL 10 PTC2S;sustrato;Papel;355,6;;;;;;;;;;;;;;;;;;;;;
+111900121;Semiglos Adhesivo de Seguridad | LITHO80-SEH-G62;sustrato;Papel;350,00;;80;70;;;0,761;;;;;;;;;;;;;;;
+111900148;Polipropileno Metalizado | PPMB50-P4-G60;sustrato;BOPP;299,72;;45;50;;;0,858;;;;;;;;;;;;;;;
+111900143;Polipropileno Transparente (Respaldo PET) | BOPPTC S692N;sustrato;BOPP;278,89;;46,3;50,8;;;0,78;;;;;;;;;;;;;;;
+111900107;Semiglos Adhesivo Hot Melt | LITHO80-PH-G62;sustrato;Papel;249,68;;80;70;;;0,39;;;;;;;;;;;;;;;
+111900182;Semiglos Adhesivo Hot Melt | LITHO80-BH-G60S;sustrato;Papel;249,68;;80;70;;;0,39;;;;;;;;;;;;;;;
+111900164;Polipropileno Transparente (Respaldo PET) | BOPPTC S692N;sustrato;BOPP;278,89;;46,3;50,8;;;0,78;;;;;;;;;;;;;;;
+111900166;Semiglos Adhesivo Hot Melt (14,75") | LITHO80-PH-G62;sustrato;Papel;374,65;;80;70;;;0,39;;;;;;;;;;;;;;;
+111900114;Polipropileno Metalizado (14,75") | PPMB50-P4-G60;sustrato;BOPP;374,65;;45;50;;;0,858;;;;;;;;;;;;;;;
+111900011;Semiglos Adhesivo Hot Melt (11,8") | LITHO80-PH-G62;sustrato;Papel;299,72;;80;70;;;0,39;;;;;;;;;;;;;;;
+111900019;Semiglos Adhesivo Hot Melt  (10") | LITHO80-PH-G62;sustrato;Papel;254;;80;70;;;0,39;;;;;;;;;;;;;;;
+111900023;Semiglos Adhesivo Hot Melt  (8") | LITHO80-PH-G62;sustrato;Papel;203,2;;80;70;;;0,39;;;;;;;;;;;;;;;
+111900025;Polipropileno Transparente (14") | PPT50-P1-G62;sustrato;BOPP;355,6;;46;50;;;0,68;;;;;;;;;;;;;;;
+111900027;Semiglos Adhesivo Acrílico (12") | LITHO80-P4-G62;sustrato;Papel;304,8;;;;;;0,661;;;;;;;;;;;;;;;
+111900046;Polipropileno Transparente (15,5") | PPT50-CP-PST;sustrato;BOPP;393,7;;46;50;;;0,951;;;;;;;;;;;;;;;
+111900048;Polipropileno Transparente (14,125") | PPT50-CP-PST;sustrato;BOPP;358,775;;46;50;;;0,951;;;;;;;;;;;;;;;
+111900049;Polipropileno Transparente (10,25") | PPT50-CP-PST;sustrato;BOPP;260,35;;46;50;;;0,951;;;;;;;;;;;;;;;
+111900068;Polipropileno Transparente (11") |  PPT50-CP-PST;sustrato;BOPP;279,4;;46;50;;;0,951;;;;;;;;;;;;;;;
+111900069;Polipropileno Transparente (15") |  PPT50-CP-PST;sustrato;BOPP;381;;46;50;;;0,951;;;;;;;;;;;;;;;
+111900153;PVC Termoencogible (13") | PETG Shrink SX-503;sustrato;PET G;330,2;;;40;;;0,5;;;;;;;;;;;;;;;
+111900089;2.4 MIL White BOPP TC/S2005 Glassine Hotmelt (15,5");sustrato;BOPP;393,7;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;

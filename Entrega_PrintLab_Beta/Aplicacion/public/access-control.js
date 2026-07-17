@@ -75,7 +75,7 @@ function canErpEditModule(moduleKey, modulesOverride) {
 
 function getErpAccessRouteModules(pathname) {
     const path = String(pathname || window.location.pathname || '/').toLowerCase();
-    if (path === '/' || path === '/login' || path === '/dashboard') return ['dashboard'];
+    if (path === '/' || path === '/login' || path === '/cambiar-contrasena' || path === '/dashboard') return ['dashboard'];
     if (path === '/socios' || path === '/socios.html' || path === '/socios-documento.html' || path.startsWith('/socios/')) return ['socios'];
     if (path === '/productos' || path === '/productos.html' || path.startsWith('/productos/')) return ['productos'];
     if (path === '/cotizaciones' || path === '/cotizaciones.html' || path === '/index.html' || path.startsWith('/cotizaciones/')) return ['cotizaciones'];
@@ -128,6 +128,10 @@ function showErpAccessBlocked(moduleName) {
     const session = readErpAccessSession();
     if (!session?.username) {
         window.location.replace('/login');
+        return;
+    }
+    if (session.mustChangePassword && window.location.pathname !== '/cambiar-contrasena') {
+        window.location.replace('/cambiar-contrasena');
         return;
     }
     if (isErpSuperPermission(session)) return;

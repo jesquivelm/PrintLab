@@ -1273,7 +1273,14 @@ function getBdfgActions() {
                     callback: () => {
                         ensureInventoryPopover();
                         closeSearchPopover();
-                        if (inventoryPopover) inventoryPopover.hidden = false;
+                        if (inventoryPopover) {
+                            inventoryPopover.hidden = false;
+                            inventoryPopover.style.visibility = 'hidden';
+                            requestAnimationFrame(() => {
+                                positionInventoryPopover(bdfgButton || bdfgShell);
+                                inventoryPopover.style.visibility = '';
+                            });
+                        }
                     }
                 });
             }
@@ -2532,6 +2539,37 @@ function closeInventoryPopover() {
     if (inventoryPopover) inventoryPopover.hidden = true;
 }
 
+function positionInventoryPopover(anchorEl) {
+    if (!inventoryPopover || inventoryPopover.hidden) return;
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 1280;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 720;
+    const margin = 12;
+
+    let top, left;
+
+    if (anchorEl) {
+        const rect = anchorEl.getBoundingClientRect();
+        const popoverWidth = inventoryPopover.offsetWidth || 360;
+        const popoverHeight = inventoryPopover.offsetHeight || 200;
+
+        left = rect.left;
+        if (left + popoverWidth > viewportWidth - margin) {
+            left = Math.max(margin, viewportWidth - popoverWidth - margin);
+        }
+
+        const fitsBelow = rect.bottom + 8 + popoverHeight <= viewportHeight - margin;
+        top = fitsBelow
+            ? rect.bottom + 8
+            : Math.max(margin, rect.top - popoverHeight - 8);
+    } else {
+        left = Math.max(margin, (viewportWidth - 360) / 2);
+        top = Math.max(margin, viewportHeight * 0.18);
+    }
+
+    inventoryPopover.style.left = `${left}px`;
+    inventoryPopover.style.top = `${top}px`;
+}
+
 function renderSearchResults(items, term = '') {
     if (!searchResults) return;
     if (!term.trim()) {
@@ -2809,6 +2847,11 @@ document.querySelectorAll('.dashboard-card').forEach((card) => {
             closeInventoryPopover();
             if (!shouldOpen) return;
             inventoryPopover.hidden = false;
+            inventoryPopover.style.visibility = 'hidden';
+            requestAnimationFrame(() => {
+                positionInventoryPopover(card);
+                inventoryPopover.style.visibility = '';
+            });
             return;
         }
         if (card.dataset.openMode === 'window') {

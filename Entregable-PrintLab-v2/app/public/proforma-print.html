@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <script src="/theme.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proforma — Impresión</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style id="pDynamicFont"></style>
+    <style>
+        :root {
+            --ink: #1b2430;
+            --navy: #1f314b;
+            --navy-soft: #314765;
+            --gold: #b59055;
+            --paper: #fffdf8;
+            --line: #d7e2ea;
+            --muted: #647384;
+            --p-scroll-track: #d9e3ec;
+            --p-scroll-thumb: linear-gradient(180deg, #5d7a97 0%, #486582 100%);
+            --p-scroll-thumb-hover: linear-gradient(180deg, #52718f 0%, #3c5a78 100%);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            color: var(--ink);
+            background: #e8edf2;
+            scrollbar-color: #6d89a5 #d9e3ec;
+        }
+        body::-webkit-scrollbar,
+        #pPageWrap::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        body::-webkit-scrollbar-track,
+        #pPageWrap::-webkit-scrollbar-track {
+            background: var(--p-scroll-track);
+            border-radius: 999px;
+        }
+        body::-webkit-scrollbar-thumb,
+        #pPageWrap::-webkit-scrollbar-thumb {
+            background: var(--p-scroll-thumb);
+            border-radius: 999px;
+            border: 1px solid color-mix(in srgb, #ffffff 38%, var(--p-scroll-track));
+        }
+        body::-webkit-scrollbar-thumb:hover,
+        #pPageWrap::-webkit-scrollbar-thumb:hover {
+            background: var(--p-scroll-thumb-hover);
+        }
+        html[data-theme="dark"] body {
+            background: #0f1b2d;
+            color: #e6eef8;
+            scrollbar-color: #3b5d7f #152334;
+        }
+        html[data-theme="dark"] {
+            --p-scroll-track: #152334;
+            --p-scroll-thumb: linear-gradient(180deg, #355274 0%, #294563 100%);
+            --p-scroll-thumb-hover: linear-gradient(180deg, #406286 0%, #315171 100%);
+        }
+
+        /* ── Toolbar (screen only) ─────────────────── */
+        #pToolbar {
+            display: none !important;
+        }
+        #pToolbar h1 { font-size: 15px; font-weight: 600; flex: 1; }
+        #pToolbar button {
+            height: 34px;
+            padding: 0 18px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,.25);
+            background: rgba(255,255,255,.15);
+            color: #fff;
+            font: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background .15s;
+        }
+        #pToolbar button:hover { background: rgba(255,255,255,.28); }
+        #pToolbar button.primary {
+            background: #1a8fc8;
+            border-color: transparent;
+        }
+        #pToolbar button.primary:hover { background: #1580b5; }
+        #pToolbar .sep {
+            width: 1px; height: 24px;
+            background: rgba(255,255,255,.2);
+        }
+
+        /* ── Page wrapper (screen) ─────────────────── */
+        #pPageWrap {
+            padding: 24px 24px 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+        }
+        html[data-theme="dark"] #pPageWrap {
+            background: #0f1b2d;
+        }
+
+        /* ── The actual document ───────────────────── */
+        .p-page {
+            width: 215.9mm;   /* Letter width */
+            min-height: 279.4mm; /* Letter height */
+            background: #fff;
+            box-shadow: 0 8px 32px rgba(0,0,0,.18);
+            display: flex;
+            flex-direction: column;
+            /* NO overflow:hidden — content must flow */
+        }
+
+        /* ── Header ────────────────────────────────── */
+        .p-header {
+            padding: 14px 22px 12px;
+            background: var(--navy);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-shrink: 0;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .p-header.is-light {
+            background: linear-gradient(135deg, #f8fbfe 0%, #eaf2f9 100%);
+            color: var(--navy);
+        }
+        .p-brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex: 1;
+        }
+        .p-logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .p-logo img { object-fit: contain; display: block; }
+        .p-brand-copy { display: flex; flex-direction: column; gap: 3px; }
+        .p-brand-copy[hidden] { display: none; }
+        .p-company-name {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 26px;
+            letter-spacing: .06em;
+            line-height: 1;
+        }
+        .p-slogan { font-size: 10px; opacity: .78; }
+        .p-doc-title {
+            text-align: right;
+            flex-shrink: 0;
+        }
+        .p-doc-title h2 {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 34px;
+            font-style: italic;
+            font-weight: 400;
+            line-height: 1;
+        }
+        .p-doc-title p {
+            font-size: 14px;
+            font-weight: 600;
+            opacity: 1;
+            margin-top: 5px;
+            letter-spacing: 0.02em;
+        }
+
+        /* ── Meta row: client + doc-info side by side ── */
+        .p-meta-row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+        }
+        .p-doc-info-card {
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 10px 12px;
+            background: #fcfeff;
+            min-width: 148px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .p-doc-info-card h3 {
+            font-size: 10px;
+            color: var(--gold);
+            letter-spacing: .04em;
+            margin-bottom: 5px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .p-doc-info-item {
+            display: block;
+            font-size: 11.5px;
+            color: #4d5a68;
+            line-height: 1.6;
+        }
+        .p-doc-info-item strong {
+            font-weight: 600;
+            color: var(--navy);
+        }
+
+        /* ── Body ───────────────────────────────────── */
+        .p-body {
+            padding: 16px 22px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            flex: 1;
+        }
+
+        /* Client card */
+        .p-client-card {
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 10px 12px;
+            background: #fcfeff;
+        }
+        .p-client-card h3 {
+            font-size: 10px;
+            color: var(--gold);
+            letter-spacing: .04em;
+            margin-bottom: 5px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .p-client-name {
+            display: block;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--navy);
+        }
+        .p-client-meta {
+            display: block;
+            font-size: 12px;
+            color: #4d5a68;
+        }
+
+        /* Intro */
+        .p-intro {
+            border-left: 3px solid var(--gold);
+            background: #fbf7f0;
+            padding: 10px 14px;
+            border-radius: 0 10px 10px 0;
+            font-size: 13px;
+            font-style: italic;
+            color: #2f3c46;
+            line-height: 1.5;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .p-intro[hidden] { display: none; }
+        .p-tech-summary {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+        .p-tech-card {
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 10px 12px;
+            background: #fbfdff;
+        }
+        .p-tech-card h3 {
+            margin: 0 0 5px;
+            font-size: 10px;
+            color: var(--gold);
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .p-tech-card p {
+            margin: 0;
+            font-size: 11.5px;
+            color: #536273;
+            line-height: 1.45;
+        }
+
+        /* Products table */
+        .p-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            font-size: 12px;
+        }
+        .p-table thead {
+            background: var(--navy);
+            color: #fff;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .p-table th {
+            padding: 8px 10px;
+            font-size: 10px;
+            font-weight: 500;
+            text-align: left;
+            white-space: nowrap;
+        }
+        .p-table th:not(:first-child),
+        .p-table td:not(:first-child) { text-align: right; }
+        .p-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #e3ebf0;
+            color: #4a5967;
+            vertical-align: top;
+        }
+        .p-table tr:nth-child(even) td { background: #fbfdff; }
+        .p-product-name { font-weight: 600; color: var(--navy); }
+        .p-product-desc {
+            display: block;
+            margin-top: 2px;
+            font-size: 10px;
+            color: var(--muted);
+        }
+
+        /* Totals */
+        .p-totals {
+            margin-left: auto;
+            width: 280px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .p-totals table { width: 100%; border-collapse: collapse; }
+        .p-totals td {
+            padding: 9px 12px;
+            border-bottom: 1px solid var(--line);
+            font-size: 12px;
+            color: #485766;
+        }
+        .p-totals tr:last-child td {
+            border-bottom: none;
+            background: var(--navy);
+            color: #fff;
+            font-weight: 700;
+            font-size: 13px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .p-totals td:last-child { text-align: right; }
+        .p-totals[hidden] { display: none; }
+
+        /* ── Document footer section (terms + signature) ── */
+        .p-doc-footer {
+            margin-top: auto;
+            padding-top: 14px;
+            /* sin línea — el espacio visual es suficiente */
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .p-terms-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .p-terms-grid[hidden] { display: none; }
+        .p-term {
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 9px 11px;
+            background: #fbfdff;
+        }
+        .p-term h3 {
+            font-size: 10px;
+            color: var(--gold);
+            letter-spacing: .04em;
+            margin-bottom: 4px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .p-term p { font-size: 11.5px; color: #536273; line-height: 1.45; }
+
+        /* Signature */
+        .p-sig-row {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            padding-top: 6px;
+        }
+        .p-signature { min-width: 200px; text-align: center; }
+        .p-sig-line {
+            min-height: 44px;
+            border-bottom: 1px solid var(--navy);
+            margin-bottom: 5px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 4px;
+            overflow: hidden;
+        }
+        .p-sig-line img {
+            max-width: 160px;
+            max-height: 42px;
+            object-fit: contain;
+        }
+        .p-signature strong {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #111;
+        }
+        .p-signature span {
+            display: block;
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        /* Loading / error */
+        #pLoading {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #e8edf2;
+            font-family: 'Outfit', sans-serif;
+            font-size: 15px;
+            color: #647384;
+            flex-direction: column;
+            gap: 12px;
+        }
+        html[data-theme="dark"] #pLoading {
+            background: #0f1b2d;
+            color: #93a4b8;
+        }
+        #pLoading .spinner {
+            width: 36px; height: 36px;
+            border: 3px solid #d7e2ea;
+            border-top-color: #1f314b;
+            border-radius: 50%;
+            animation: spin .8s linear infinite;
+        }
+        html[data-theme="dark"] #pLoading .spinner {
+            border-color: #27405d;
+            border-top-color: #7dd3fc;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── PRINT ──────────────────────────────────── */
+        @page {
+            size: Letter portrait;
+            margin: 0;
+        }
+        @media print {
+            html, body {
+                background: #fff !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            #pToolbar { display: none !important; }
+            #pPageWrap {
+                padding: 0 !important;
+                background: #fff !important;
+                display: block !important;
+            }
+            .p-page {
+                width: 100% !important;
+                /* Mantener altura carta para que margin-top:auto funcione */
+                height: 279.4mm !important;
+                min-height: 279.4mm !important;
+                box-shadow: none !important;
+                page-break-after: always;
+                overflow: hidden;
+            }
+            .p-page:last-child { page-break-after: auto; }
+            .p-tech-summary, .p-intro { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading overlay -->
+    <div id="pLoading">
+        <div class="spinner"></div>
+        <span>Cargando proforma…</span>
+    </div>
+
+    <!-- Toolbar (screen only) -->
+    <div id="pToolbar" hidden>
+        <h1 id="pToolbarTitle">Proforma</h1>
+        <div class="sep"></div>
+        <button onclick="window.close()">&#x2715; Cerrar</button>
+        <button class="primary" onclick="window.print()">&#x1F5A8; Imprimir / Guardar PDF</button>
+    </div>
+
+    <!-- Pages container -->
+    <div id="pPageWrap"></div>
+
+    <script>
+    (function () {
+        'use strict';
+
+        function qs(sel) { return document.querySelector(sel); }
+        function repairTextEncoding(value) {
+            const text = String(value ?? '');
+            if (!/[ÃÂâ�]/.test(text)) return text;
+            try {
+                const bytes = Uint8Array.from([...text].map((char) => char.charCodeAt(0) & 255));
+                const decoded = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+                const badBefore = (text.match(/[ÃÂâ�]/g) || []).length;
+                const badAfter = (decoded.match(/[ÃÂâ�]/g) || []).length;
+                if (decoded && badAfter < badBefore) return decoded;
+            } catch (error) {
+                // Keep the original text when it is not a latin1/utf8 mojibake case.
+            }
+            return text
+                .replace(/Ã¡/g, 'á').replace(/Ã©/g, 'é').replace(/Ã­/g, 'í').replace(/Ã³/g, 'ó').replace(/Ãº/g, 'ú')
+                .replace(/Ã/g, 'Á').replace(/Ã‰/g, 'É').replace(/Ã/g, 'Í').replace(/Ã“/g, 'Ó').replace(/Ãš/g, 'Ú')
+                .replace(/Ã±/g, 'ñ').replace(/Ã‘/g, 'Ñ').replace(/Â¿/g, '¿').replace(/Â¡/g, '¡').replace(/Âº/g, 'º')
+                .replace(/Â/g, '');
+        }
+
+        function escHtml(v) {
+            return repairTextEncoding(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+        function fmtDate(v) {
+            const d = v ? new Date(v) : new Date();
+            if (isNaN(d)) return '';
+            return d.toLocaleDateString('es-CR', { year:'numeric', month:'2-digit', day:'2-digit' });
+        }
+        function fmtNum(v) {
+            const n = Number(v);
+            if (!isFinite(n)) return '';
+            return n.toLocaleString('es-CR', { maximumFractionDigits: 0 });
+        }
+        function fmtCur(amount, currency) {
+            const code = currency?.code || 'CRC';
+            try {
+                return new Intl.NumberFormat('es-CR', {
+                    style: 'currency', currency: code, maximumFractionDigits: 2
+                }).format(Number(amount || 0));
+            } catch (_) {
+                return `${currency?.symbol || code} ${Number(amount || 0).toFixed(2)}`;
+            }
+        }
+
+        function getPriceCols(mode) {
+            switch (mode) {
+                case 'regular_simple':
+                    return [{key:'subtotal',label:'Subtotal'},{key:'taxAmount',label:'Impuestos'},{key:'totalPrice',label:'Total'}];
+                case 'regular_unit':
+                    return [{key:'unitPrice',label:'Precio unitario'},{key:'subtotal',label:'Subtotal'},{key:'taxAmount',label:'Impuestos'},{key:'totalPrice',label:'Total'}];
+                case 'regular_thousand':
+                    return [{key:'subtotal',label:'Subtotal'},{key:'taxAmount',label:'Impuestos'},{key:'totalPrice',label:'Total'},{key:'thousandPrice',label:'Precio millar'}];
+                case 'totalized_simple':
+                    return [{key:'subtotal',label:'Subtotal'}];
+                default:
+                    return [{key:'unitPrice',label:'Precio unitario'},{key:'subtotal',label:'Subtotal'},{key:'taxAmount',label:'Impuestos'},{key:'totalPrice',label:'Total'}];
+            }
+        }
+
+        function getLuma(hex) {
+            const h = String(hex||'').replace('#','');
+            if (h.length !== 6) return 0;
+            const r = parseInt(h.slice(0,2),16);
+            const g = parseInt(h.slice(2,4),16);
+            const b = parseInt(h.slice(4,6),16);
+            return r*0.299 + g*0.587 + b*0.114;
+        }
+
+        function buildPage(data) {
+            const company   = data.company   || {};
+            const client    = data.client    || {};
+            const seller    = data.seller    || {};
+            const currency  = data.currency  || {};
+            const totals    = data.totals    || {};
+            const products  = data.products  || [];
+            const mode      = data.priceDisplayMode || 'regular_unit';
+            const cols      = getPriceCols(mode);
+            const isTotalized = String(mode).startsWith('totalized_');
+            const headerColor = String(company.headerColor || '#1f314b').trim();
+            const isLight = getLuma(headerColor) > 160;
+            const showSig = data.sellerSignatureEnabled !== false;
+
+            // Logo sizing
+            const logoW = Math.max(40, Number(company.logoWidth)  || 120);
+            const logoH = Math.max(24, Number(company.logoHeight) || 64);
+            const showCompanyName = String(company.showCompanyName ?? 'true').toLowerCase() !== 'false';
+
+            // Company font
+            const fontFamily = String(company.fontFamily || 'Cormorant Garamond').trim() || 'Cormorant Garamond';
+            const fontUrl    = String(company.fontUrl || '').trim();
+            const isCustom   = fontUrl && String(company.fontFamilySource||'').trim() === '__custom__';
+            const dynFont = document.getElementById('pDynamicFont');
+            if (dynFont) {
+                dynFont.textContent = isCustom
+                    ? `@font-face { font-family:"${fontFamily}"; src:url("${fontUrl}") format("woff2"); font-display:swap; }`
+                    : '';
+            }
+            const nameColor = isLight
+                ? (company.nameColor || '#1f314b')
+                : (company.nameColor || '#ffffff');
+
+            // Build product rows
+            const rows = products.map(p => `
+                <tr>
+                    <td>
+                        <span class="p-product-name">${escHtml(p.name || 'Producto')}</span>
+                        <span class="p-product-desc">${escHtml(p.descriptionText || [p.material, p.machineSummary, p.processType, p.dimensionsText, p.finishesSummary].filter(Boolean).join(' · '))}</span>
+                    </td>
+                    <td>${escHtml(p.quantity == null ? '' : fmtNum(p.quantity))}</td>
+                    ${cols.map(c => `<td>${escHtml(fmtCur(p[c.key], currency))}</td>`).join('')}
+                </tr>`).join('');
+
+            // Terms visibility
+            const paymentTerms  = String(data.paymentTerms  || '').trim();
+            const deliveryTime  = String(data.deliveryTime  || '').trim();
+            const techSpecs     = String(data.technicalSpecs || '').trim();
+            const qualityPol    = String(data.qualityPolicies || '').trim();
+            const hasTerms = paymentTerms || deliveryTime || techSpecs || qualityPol;
+
+            const intro = String(data.intro || '').trim();
+
+            // Totals rows
+            const totalsHtml = isTotalized ? `
+                <table>
+                    <tbody>
+                        <tr><td>Subtotal</td><td>${escHtml(fmtCur(totals.subtotal||0, currency))}</td></tr>
+                        <tr><td>Impuestos de Venta</td><td>${escHtml(fmtCur(totals.taxAmount||0, currency))}</td></tr>
+                        <tr><td>Total General</td><td>${escHtml(fmtCur(totals.grandTotal||0, currency))}</td></tr>
+                    </tbody>
+                </table>` : '';
+
+            return `
+<div class="p-page">
+    <!-- HEADER (slim) -->
+    <header class="p-header${isLight ? ' is-light' : ''}" style="background:${escHtml(isLight ? 'linear-gradient(135deg,#f8fbfe 0%,#eaf2f9 100%)' : headerColor)}">
+        <div class="p-brand">
+            <div class="p-logo" style="width:${logoW}px;height:${logoH}px;${!showCompanyName?'width:auto;flex:1 1 auto;':''}">
+                ${company.logoUrl
+                    ? `<img src="${escHtml(company.logoUrl)}" alt="${escHtml(company.name||'Logo')}" style="width:${logoW}px;height:${logoH}px;">`
+                    : `<span style="font-size:11px;opacity:.6">Logo</span>`}
+            </div>
+            ${showCompanyName ? `
+            <div class="p-brand-copy">
+                <span class="p-company-name" style="font-family:'${escHtml(fontFamily)}',serif;color:${escHtml(nameColor)}">${escHtml(company.name||'Empresa')}</span>
+                ${company.slogan ? `<span class="p-slogan">${escHtml(company.slogan)}</span>` : ''}
+            </div>` : ''}
+        </div>
+        <div class="p-doc-title">
+            <h2>Proforma</h2>
+            <p>${escHtml('Cotización ' + (data.quoteCode||''))}</p>
+        </div>
+    </header>
+
+    <!-- BODY -->
+    <div class="p-body">
+
+        <!-- Meta row: client card + doc-info card -->
+        <div class="p-meta-row">
+            <div class="p-client-card">
+                <h3>Cliente</h3>
+                <span class="p-client-name">${escHtml(client.company||'Cliente')}</span>
+                ${client.contactName ? `<span class="p-client-meta">Contacto: ${escHtml(client.contactName)}</span>` : ''}
+                ${client.email       ? `<span class="p-client-meta">Correo: ${escHtml(client.email)}</span>`       : ''}
+                ${client.phone       ? `<span class="p-client-meta">Teléfono: ${escHtml(client.phone)}</span>`     : ''}
+            </div>
+            <div class="p-doc-info-card">
+                <h3>Datos del documento</h3>
+                <span class="p-doc-info-item"><strong>Emisión:</strong> ${escHtml(fmtDate(data.issueDate))}</span>
+                ${data.validity ? `<span class="p-doc-info-item"><strong>Validez:</strong> ${escHtml(data.validity)}</span>` : ''}
+            </div>
+        </div>
+
+        <!-- Intro -->
+        ${intro ? `<div class="p-intro">${escHtml(intro)}</div>` : ''}
+
+        <!-- Products table -->
+        <table class="p-table">
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th style="width:80px">Cantidad</th>
+                    ${cols.map(c => `<th style="width:${['subtotal','taxAmount','totalPrice'].includes(c.key)?'88px':'100px'}">${escHtml(c.label)}</th>`).join('')}
+                </tr>
+            </thead>
+            <tbody>${rows || `<tr><td colspan="${2+cols.length}" style="text-align:center;color:#999;padding:16px">Sin productos</td></tr>`}</tbody>
+        </table>
+
+        <!-- Totals (totalized mode only) -->
+        ${isTotalized ? `<div class="p-totals">${totalsHtml}</div>` : ''}
+
+        <!-- Document footer: terms + signature — pinned to bottom -->
+        <div class="p-doc-footer">
+            ${hasTerms ? `
+            <div class="p-terms-grid">
+                ${paymentTerms ? `<div class="p-term"><h3>Términos de pago</h3><p>${escHtml(paymentTerms)}</p></div>` : ''}
+                ${deliveryTime ? `<div class="p-term"><h3>Tiempos estimados de entrega</h3><p>${escHtml(deliveryTime)}</p></div>` : ''}
+                ${techSpecs   ? `<div class="p-term"><h3>Especificaciones técnicas</h3><p>${escHtml(techSpecs)}</p></div>`   : ''}
+                ${qualityPol  ? `<div class="p-term"><h3>Políticas de calidad</h3><p>${escHtml(qualityPol)}</p></div>`       : ''}
+            </div>` : ''}
+            ${showSig ? `
+            <div class="p-sig-row">
+                <div class="p-signature">
+                    <div class="p-sig-line">
+                        ${seller.signatureUrl ? `<img src="${escHtml(seller.signatureUrl)}" alt="Firma">` : ''}
+                    </div>
+                    <strong>${escHtml(seller.name||'')}</strong>
+                    <span>Ejecutivo de Ventas</span>
+                </div>
+            </div>` : ''}
+        </div>
+
+    </div><!-- /p-body -->
+</div><!-- /p-page -->`;
+        }
+
+        async function init() {
+            const params = new URLSearchParams(window.location.search);
+            const code   = params.get('codigo') || '';
+            if (!code) {
+                document.getElementById('pLoading').innerHTML = '<p style="color:#c0392b">No se indicó ninguna cotización.</p>';
+                return;
+            }
+            try {
+                const res     = await fetch(`/api/proformas/${encodeURIComponent(code)}`);
+                const data    = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data?.error || 'Error al cargar la proforma.');
+
+                const wrap = document.getElementById('pPageWrap');
+                wrap.innerHTML = buildPage(data);
+
+                // Toolbar: hide when embedded in iframe
+                const isEmbed = params.get('embed') === '1';
+                // Adjust page wrap padding when embedded
+                if (isEmbed) {
+                    document.getElementById('pPageWrap').style.padding = '20px 16px 24px';
+                }
+
+                document.title = `Proforma ${data.quoteCode || ''}`;
+
+                // Hide loading
+                const loading = document.getElementById('pLoading');
+                if (loading) loading.style.display = 'none';
+
+                // Auto-print if ?print=1
+                if (params.get('print') === '1') {
+                    setTimeout(() => window.print(), 600);
+                }
+            } catch (err) {
+                const loading = document.getElementById('pLoading');
+                if (loading) loading.innerHTML = `<p style="color:#c0392b;font-family:sans-serif;padding:24px">Error: ${escHtml(err.message)}</p>`;
+            }
+        }
+
+        init();
+    })();
+    </script>
+</body>
+</html>

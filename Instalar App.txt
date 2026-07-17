@@ -1,0 +1,31 @@
+Instalación de PrintLab
+
+
+1. Instalar Postgre 18   (Guardar Contraseña de Root para importar base de datos luego)
+2. Instalar Node v24
+
+
+Entrar a PowerShell y correr: 
+
+Para ligar la carpeta de Postgre:
+
+$env:Path += ";C:\Program Files\PostgreSQL\18\bin"
+
+Para crear la base de datos:   (O lo puedes hacer en PGAdmin 4)
+
+createdb -U postgres printlab
+
+Y si quieres cargar el respaldo de una vez: 
+
+pg_restore -U postgres -d printlab -Fc -v printlab-db.dump
+
+
+
+OPCIONAL: 
+
+Ir a PGAdmin 4 > Abrir  > Servers > PostgresSQL 18 > Databases > 
+
+    Dar Click Derecho y Restore > 
+    En el campo Filename buscas el archivo printlab-db.dump 
+    En Role name seleccionas: postgres 
+    Le das al boton de Restore y listo!

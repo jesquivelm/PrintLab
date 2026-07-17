@@ -1,0 +1,1740 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="/theme.js"></script>
+<title>MES Flexografía — Cola del Operador</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d1117;--bg2:#161b22;--bg3:#1c2128;--bg4:#22272e;
+  --border:#30363d;--border2:#444c56;
+  --text:#e6edf3;--text2:#8b949e;--text3:#6e7681;
+  --blue:#58a6ff;--blue-bg:#0d2137;--blue-border:#1f6feb;
+  --green:#3fb950;--green-bg:#0a1f0e;--green-border:#238636;
+  --amber:#d29922;--amber-bg:#1f1800;--amber-border:#9e6a03;
+  --red:#f85149;--red-bg:#1f0c0c;--red-border:#b62324;
+  --purple:#a371f7;--purple-bg:#1a0f2e;--purple-border:#6e40c9;
+  --cyan:#39d0d8;--cyan-bg:#041f24;
+  --font-mono:'JetBrains Mono',monospace;
+  --font-sans:'DM Sans',sans-serif;
+}
+html[data-theme="light"]{
+  --bg:#f5f7fb;--bg2:#ffffff;--bg3:#eef2f7;--bg4:#dde5ef;
+  --border:#d5dde8;--border2:#aebccd;
+  --text:#17212f;--text2:#526070;--text3:#788596;
+  --blue:#0b81b8;--blue-bg:#e6f4fb;--blue-border:#8ed1ee;
+  --green:#16823b;--green-bg:#e7f7ec;--green-border:#83d39a;
+  --amber:#a16207;--amber-bg:#fff5d9;--amber-border:#dfb75a;
+  --red:#c4322b;--red-bg:#ffe9e8;--red-border:#ee8d88;
+  --purple:#6d42c7;--purple-bg:#f0eafd;--purple-border:#bca9ef;
+  --cyan:#0f8792;--cyan-bg:#e4f8fb;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--font-sans);font-size:14px;min-height:100vh}
+.shell{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:8px 20px;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0}
+.tb-left{display:flex;align-items:center;gap:14px}
+.clock{font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--text);letter-spacing:.04em}
+.date-lbl{font-size:11px;color:var(--text2)}
+.shift-badge{font-family:var(--font-mono);font-size:10px;font-weight:700;padding:3px 10px;border-radius:3px;letter-spacing:.08em;text-transform:uppercase}
+.sn{background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-border)}
+.sd{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.se{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+.fmt-toggle{font-family:var(--font-mono);font-size:11px;padding:3px 10px;border-radius:3px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer;transition:.15s}
+.fmt-toggle:hover{color:var(--text);border-color:var(--blue)}
+.tb-right{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text2)}
+.operator-name{color:var(--text);font-weight:500}
+.proc-strip{display:flex;gap:4px;flex-wrap:wrap;padding:8px 20px;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0}
+.pb{font-family:var(--font-mono);font-size:11px;padding:4px 12px;border-radius:3px;border:1px solid var(--border);background:var(--bg3);color:var(--text2);cursor:pointer;position:relative;white-space:nowrap;transition:.12s;letter-spacing:.02em}
+.pb:hover{border-color:var(--border2);color:var(--text)}
+.pb.act{background:var(--blue-bg);border-color:var(--blue-border);color:var(--blue)}
+.pbadge{position:absolute;top:-5px;right:-5px;background:var(--red);color:#fff;font-size:9px;font-weight:700;border-radius:999px;width:15px;height:15px;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono)}
+.mbar{display:flex;align-items:center;gap:8px;padding:6px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap;flex-shrink:0}
+.mlbl{font-family:var(--font-mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em}
+.mb{font-family:var(--font-mono);font-size:11px;padding:3px 12px;border-radius:3px;border:1px solid var(--border);background:var(--bg3);color:var(--text2);cursor:pointer;transition:.12s}
+.mb:hover{border-color:var(--border2);color:var(--text)}
+.mb.act{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
+.queue{flex:1;overflow-y:auto;padding:12px 20px}
+.day-sep{display:flex;align-items:center;gap:10px;margin:14px 0 10px;font-family:var(--font-mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em}
+.day-sep::before,.day-sep::after{content:'';flex:1;height:1px;background:var(--border)}
+.ocard{border:1px solid var(--border);border-radius:6px;background:var(--bg2);margin-bottom:6px;overflow:hidden;transition:border-color .15s}
+.ocard:hover{border-color:var(--border2)}
+.ocard.bl-blue{border-left:3px solid var(--blue)}
+.ocard.bl-green{border-left:3px solid var(--green)}
+.ocard.bl-amber{border-left:3px solid var(--amber)}
+.ocard.bl-red{border-left:3px solid var(--red)}
+.ocard.bl-gray{border-left:3px solid var(--text3)}
+.ohead{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;user-select:none}
+.oid{font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--blue);min-width:76px}
+.oname{font-size:13px;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.otime{font-family:var(--font-mono);font-size:11px;color:var(--text2);white-space:nowrap}
+.delay-chip{font-family:var(--font-mono);font-size:10px;padding:2px 8px;border-radius:3px;white-space:nowrap}
+.delay-chip.late{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.delay-chip.ok{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.delay-chip.inprog{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
+.delay-chip.paused{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+.delay-chip.done{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.delay-chip.pending{background:var(--bg3);color:var(--text3);border:1px solid var(--border)}
+.chev{font-size:12px;color:var(--text3);flex-shrink:0;transition:transform .15s}
+.chev.open{transform:rotate(180deg)}
+.odetail{display:none;border-top:1px solid var(--border);padding:12px 14px}
+.odetail.open{display:block}
+
+/* ── TIMELINE MEJORADO ── */
+.timeline-wrap{margin-bottom:14px}
+.tl-label{font-family:var(--font-mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;display:flex;justify-content:space-between}
+.tl-bar{height:10px;border-radius:3px;background:var(--bg3);border:1px solid var(--border);overflow:hidden;position:relative}
+.tl-planned{position:absolute;top:0;left:0;height:100%;background:var(--border2);border-radius:3px}
+.tl-real{position:absolute;top:0;left:0;height:100%;background:var(--blue);border-radius:3px;transition:width .5s}
+.tl-real.late{background:var(--red)}
+.tl-real.done{background:var(--green)}
+/* Marcador de "ahora" en la barra */
+.tl-now-marker{position:absolute;top:-2px;width:2px;height:calc(100%+4px);background:var(--amber);border-radius:1px;transition:left .5s;z-index:2}
+.tl-legend{display:flex;gap:12px;margin-top:4px;font-family:var(--font-mono);font-size:10px;color:var(--text3)}
+.tl-legend span{display:flex;align-items:center;gap:4px}
+.dot-plan{width:8px;height:8px;border-radius:2px;background:var(--border2)}
+.dot-real{width:8px;height:8px;border-radius:2px;background:var(--blue)}
+.dot-late{width:8px;height:8px;border-radius:2px;background:var(--red)}
+
+/* ── COUNTDOWN RING ── */
+.countdown-wrap{display:flex;align-items:center;gap:16px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px 14px;margin-bottom:12px}
+.countdown-ring-svg{flex-shrink:0}
+.countdown-ring-track{fill:none;stroke:var(--bg4);stroke-width:6}
+.countdown-ring-fill{fill:none;stroke-width:6;stroke-linecap:round;transition:stroke-dashoffset .8s ease,stroke .5s;transform:rotate(-90deg);transform-origin:center}
+.countdown-info{flex:1}
+.countdown-label{font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:2px}
+.countdown-time-display{font-family:var(--font-mono);font-size:22px;font-weight:700;letter-spacing:.04em;line-height:1}
+.countdown-sub{font-family:var(--font-mono);font-size:10px;margin-top:4px;padding:2px 8px;border-radius:3px;display:inline-block}
+.countdown-sub.green{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.countdown-sub.red{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.countdown-sub.amber{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+
+.dgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.di-lbl{font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px}
+.di-val{font-size:13px;color:var(--text);font-weight:500}
+.mat-sec{background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:10px;margin-bottom:10px}
+.mat-hdr{font-family:var(--font-mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.mat-row{display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap}
+.mat-id{font-family:var(--font-mono);font-size:11px;color:var(--cyan);min-width:100px}
+.mat-name{font-size:12px;color:var(--text2);flex:1}
+.mat-qty{font-family:var(--font-mono);font-size:11px;color:var(--text);min-width:60px;text-align:right}
+.sap-btn{font-family:var(--font-mono);font-size:10px;padding:3px 10px;border-radius:3px;border:1px solid var(--blue-border);background:var(--blue-bg);color:var(--blue);cursor:pointer;transition:.15s;white-space:nowrap}
+.sap-btn:hover{background:var(--blue-border);color:#fff}
+.sap-btn.sent{border-color:var(--green-border);background:var(--green-bg);color:var(--green);cursor:default}
+.act-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.btn-ini{font-family:var(--font-mono);font-size:11px;padding:6px 16px;border-radius:3px;border:1px solid var(--green-border);background:var(--green-bg);color:var(--green);cursor:pointer;transition:.15s}
+.btn-ini:hover{background:var(--green-border);color:#fff}
+.btn-done{font-family:var(--font-mono);font-size:11px;padding:6px 16px;border-radius:3px;border:1px solid var(--blue-border);background:var(--blue-bg);color:var(--blue);cursor:pointer;transition:.15s}
+.btn-done:hover{background:var(--blue-border);color:#fff}
+.btn-pau{font-family:var(--font-mono);font-size:11px;padding:6px 16px;border-radius:3px;border:1px solid var(--amber-border);background:var(--amber-bg);color:var(--amber);cursor:pointer;transition:.15s}
+.btn-pau:hover{background:var(--amber-border);color:#fff}
+.btn-log{font-family:var(--font-mono);font-size:11px;padding:6px 12px;border-radius:3px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer;transition:.15s;margin-left:auto}
+.btn-log:hover{color:var(--text);border-color:var(--text2)}
+.btn-mes{font-family:var(--font-mono);font-size:11px;padding:6px 12px;border-radius:3px;border:1px solid var(--purple-border);background:var(--purple-bg);color:var(--purple);cursor:pointer;transition:.15s}
+.btn-mes:hover{background:var(--purple-border);color:#fff}
+/* Botón solicitud materia prima */
+.btn-mp{font-family:var(--font-mono);font-size:11px;padding:6px 12px;border-radius:3px;border:1px solid var(--cyan-bg);border-color:#0e7490;background:var(--cyan-bg);color:var(--cyan);cursor:pointer;transition:.15s}
+.btn-mp:hover{background:#0e7490;color:#fff}
+.pause-timer{font-family:var(--font-mono);font-size:12px;color:var(--amber);letter-spacing:.04em}
+.evlog{margin-top:10px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:10px;max-height:150px;overflow-y:auto}
+.evlog-hdr{font-family:var(--font-mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.ev-row{display:flex;gap:8px;padding:3px 0;border-bottom:1px solid var(--border);font-size:11px}
+.ev-row:last-child{border-bottom:none}
+.ev-time{font-family:var(--font-mono);color:var(--text3);min-width:48px;flex-shrink:0}
+.ev-icon{width:16px;flex-shrink:0;text-align:center}
+.ev-msg{color:var(--text2)}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:200;backdrop-filter:blur(2px)}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:8px;width:440px;max-width:96vw;padding:22px;max-height:90vh;overflow-y:auto}
+.modal h3{font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px}
+.modal-sub{font-family:var(--font-mono);font-size:11px;color:var(--text3);margin-bottom:16px}
+.section-lbl{font-family:var(--font-mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.reason-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px}
+.rbtn{font-size:12px;padding:9px 10px;border-radius:4px;border:1px solid var(--border);background:var(--bg3);color:var(--text);cursor:pointer;text-align:left;line-height:1.4;transition:.12s}
+.rbtn:hover{border-color:var(--border2)}
+.rbtn.sel-amber{border-color:var(--amber-border);background:var(--amber-bg);color:var(--amber)}
+.rbtn.sel-red{border-color:var(--red-border);background:var(--red-bg);color:var(--red)}
+.rbtn.sel-green{border-color:var(--green-border);background:var(--green-bg);color:var(--green)}
+.rbtn.sel-blue{border-color:var(--blue-border);background:var(--blue-bg);color:var(--blue)}
+.note-input{width:100%;font-size:12px;padding:8px 10px;border-radius:4px;border:1px solid var(--border);background:var(--bg3);color:var(--text);resize:vertical;min-height:52px;margin-bottom:14px;outline:none;font-family:var(--font-sans)}
+.note-input:focus{border-color:var(--blue-border)}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end}
+.mbtn-cancel{font-family:var(--font-mono);font-size:11px;padding:7px 16px;border-radius:3px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer}
+.mbtn-confirm{font-family:var(--font-mono);font-size:11px;padding:7px 16px;border-radius:3px;cursor:pointer;transition:.15s}
+.mbtn-amber{border:1px solid var(--amber-border);background:var(--amber-bg);color:var(--amber)}
+.mbtn-blue{border:1px solid var(--blue-border);background:var(--blue-bg);color:var(--blue)}
+.mbtn-green{border:1px solid var(--green-border);background:var(--green-bg);color:var(--green)}
+
+/* ── MES panel ── */
+.mes-panel{background:#0d1117;border:1px solid var(--border);border-radius:6px;padding:14px;margin-top:10px}
+.mes-svg-wrap{overflow-x:auto;margin-bottom:14px}
+.st-active{stroke:#f59e0b!important;stroke-width:3px!important;filter:drop-shadow(0 0 8px rgba(245,158,11,0.5))}
+.mes-form{background:#161b22;border-radius:4px;border:1px solid var(--border);padding:12px}
+.mes-form-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.mes-nodo-tipo{font-family:var(--font-mono);font-size:10px;color:var(--amber);font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.mes-nodo-titulo{font-size:13px;font-weight:600;color:var(--text)}
+.mes-color-pick{display:flex;align-items:center;gap:6px;background:var(--bg3);padding:4px 10px;border-radius:3px;border:1px solid var(--border)}
+.mes-fields{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.mes-field-group{background:var(--bg3);border-radius:4px;border:1px solid var(--border);padding:10px}
+.mes-field-lbl{font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;font-weight:700}
+.mes-input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:5px 8px;font-size:11px;color:var(--text2);margin-bottom:6px;font-family:var(--font-mono);outline:none}
+.mes-input:focus{border-color:var(--blue-border);color:var(--text)}
+.mes-select{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:5px 8px;font-size:11px;color:var(--text2);font-family:var(--font-mono)}
+.mes-save-btn{font-family:var(--font-mono);font-size:11px;padding:7px 18px;border-radius:3px;background:#d97706;border:none;color:#fff;cursor:pointer;font-weight:700;transition:.15s}
+.mes-save-btn:hover{background:#f59e0b}
+
+/* ── HISTORIAL ESPECTROFOTOMÉTRICO ── */
+.spectro-history{margin-top:10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;overflow:hidden}
+.spectro-history-hdr{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid var(--border);background:var(--bg3)}
+.spectro-history-title{font-family:var(--font-mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em}
+.spectro-history-table{width:100%;font-size:10px;font-family:var(--font-mono);border-collapse:collapse}
+.spectro-history-table th{padding:4px 6px;text-align:center;color:var(--text3);font-size:9px;border-bottom:1px solid var(--border);background:var(--bg3)}
+.spectro-history-table td{padding:4px 6px;text-align:center;border-bottom:1px solid var(--border);color:var(--text2)}
+.spectro-history-table tr:last-child td{border-bottom:none}
+.spectro-history-table .ok-val{color:var(--green)}
+.spectro-history-table .out-val{color:var(--red)}
+.spectro-save-btn{font-family:var(--font-mono);font-size:10px;padding:4px 12px;border-radius:3px;border:1px solid var(--blue-border);background:var(--blue-bg);color:var(--blue);cursor:pointer;transition:.15s}
+.spectro-save-btn:hover{background:var(--blue-border);color:#fff}
+
+/* ── HISTORIAL DE CONFIGURACIÓN DE ESTACIONES ── */
+.station-history-bar{background:#0a0f1a;border:1px solid #1e2d3d;border-radius:4px;padding:10px;margin-bottom:10px}
+.station-history-hdr{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.station-history-title{font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;flex:1}
+.station-history-btn{font-family:var(--font-mono);font-size:10px;padding:4px 10px;border-radius:3px;border:1px solid #263244;background:#111827;color:#64748b;cursor:pointer;transition:.15s;display:flex;align-items:center;gap:4px}
+.station-history-btn:hover{border-color:#f59e0b;color:#f59e0b}
+.station-history-btn.active{border-color:#f59e0b;background:#2a1f00;color:#f59e0b}
+.station-history-btn.save-btn{border-color:#238636;background:#0a1f0e;color:#3fb950}
+.station-history-btn.save-btn:hover{background:#238636;color:#fff}
+.station-history-list{max-height:0;overflow:hidden;transition:max-height .3s ease}
+.station-history-list.open{max-height:300px;overflow-y:auto}
+.station-history-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid #1e2d3d;cursor:pointer;transition:.12s}
+.station-history-item:hover{background:#161b22}
+.station-history-item:last-child{border-bottom:none}
+.station-history-date{font-family:var(--font-mono);font-size:10px;color:#64748b;min-width:90px}
+.station-history-operator{font-size:11px;color:#8b949e;flex:1}
+.station-history-stations{font-family:var(--font-mono);font-size:9px;color:#475569;display:flex;gap:3px}
+.station-history-chip{width:12px;height:12px;border-radius:2px;border:1px solid #263244}
+
+/* ── SOLICITUD MATERIA PRIMA ── */
+.mp-panel{background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:12px;margin-bottom:10px}
+.mp-panel-hdr{font-family:var(--font-mono);font-size:10px;color:var(--cyan);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.mp-material-row{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.mp-material-row:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+.mp-label{font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.mp-mat-name{font-size:12px;color:var(--text);font-weight:500;margin-bottom:2px}
+.mp-mat-unit{font-family:var(--font-mono);font-size:9px;color:var(--text3)}
+.mp-input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:5px 8px;font-size:12px;color:var(--text);font-family:var(--font-mono);outline:none;text-align:right}
+.mp-input:focus{border-color:var(--cyan);color:var(--cyan)}
+.mp-total-chip{font-family:var(--font-mono);font-size:10px;padding:3px 8px;border-radius:3px;background:var(--bg);border:1px solid var(--border);color:var(--text3);white-space:nowrap}
+.mp-total-chip.has-val{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
+.mp-request-btn{font-family:var(--font-mono);font-size:10px;padding:5px 12px;border-radius:3px;border:1px solid var(--cyan-bg);border-color:#0e7490;background:var(--cyan-bg);color:var(--cyan);cursor:pointer;transition:.15s;white-space:nowrap}
+.mp-request-btn:hover{background:#0e7490;color:#fff}
+.mp-request-btn.sent{border-color:var(--green-border);background:var(--green-bg);color:var(--green);cursor:default}
+
+/* ── SVG Machine animations ── */
+@keyframes spin-cw{from{transform-origin:center;transform:rotate(0deg)}to{transform-origin:center;transform:rotate(360deg)}}
+@keyframes dash-move{from{stroke-dashoffset:40}to{stroke-dashoffset:0}}
+@keyframes dash-move-fast{from{stroke-dashoffset:20}to{stroke-dashoffset:0}}
+.rot-cw{animation:spin-cw 3s linear infinite;transform-box:fill-box;transform-origin:center}
+.rot-cw-slow{animation:spin-cw 5s linear infinite;transform-box:fill-box;transform-origin:center}
+.rot-cw-fast{animation:spin-cw 1.5s linear infinite;transform-box:fill-box;transform-origin:center}
+.paper-flow{animation:dash-move 0.6s linear infinite}
+.paper-flow-fast{animation:dash-move-fast 0.4s linear infinite}
+
+.toast{position:fixed;bottom:20px;right:20px;background:var(--bg2);border:1px solid var(--green-border);border-radius:4px;padding:10px 16px;font-family:var(--font-mono);font-size:12px;color:var(--green);z-index:300;display:none;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+.empty{text-align:center;padding:3rem;color:var(--text3);font-size:13px}
+.empty-icon{font-size:28px;margin-bottom:10px}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+</style>
+</head>
+<body>
+<div class="shell">
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="tb-left">
+    <div>
+      <div class="clock" id="clockEl">--:--:--</div>
+      <div class="date-lbl" id="dateEl">—</div>
+    </div>
+    <span class="shift-badge sn" id="shiftBadge">—</span>
+    <button class="fmt-toggle" id="fmtBtn" onclick="toggleFmt()" title="Cambiar formato de hora">24H / AM·PM</button>
+  </div>
+  <div class="tb-right">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="color:var(--text3)"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.314 2.686-6 6-6s6 2.686 6 6"/></svg>
+    Operador: <span id="operatorName" class="operator-name">Usuario activo</span>
+  </div>
+</div>
+<!-- PROCESS STRIP -->
+<div class="proc-strip" id="procStrip"></div>
+<!-- MACHINE BAR -->
+<div class="mbar" id="machBar" style="display:none">
+  <span class="mlbl">Máquina:</span>
+  <div id="machBtns" style="display:flex;gap:5px;flex-wrap:wrap"></div>
+</div>
+<!-- QUEUE -->
+<div class="queue" id="queueArea">
+  <div class="empty"><div class="empty-icon">⌨</div>Seleccioná un proceso para ver su cola del turno</div>
+</div>
+</div>
+
+<!-- OVERLAY -->
+<div class="overlay" id="overlay" style="display:none" onclick="handleOverlayClick(event)">
+  <div class="modal" id="modalBox" onclick="event.stopPropagation()"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════
+// DATA
+// ════════════════════════════════════════════
+const PROCS=[
+  {id:'diseno',lbl:'Diseño',machines:null,cats:['Arte incompleto','Cliente no aprueba','Archivo corrupto','Cambio de especificación']},
+  {id:'preprensa',lbl:'Preprensa',machines:null,cats:['Error de separación de color','Archivo de baja resolución','Cambio de tinta']},
+  {id:'visto_bueno',lbl:'Visto bueno',machines:null,cats:['Muestra fuera de especificación','Aprobación pendiente de cliente']},
+  {id:'planchas',lbl:'Planchas',machines:[],cats:['Plancha dañada','Error de grabado','Desregistro de color','Desgaste prematuro','Plancha incorrecta para la orden']},
+  {id:'tintas',lbl:'Tintas',machines:[],cats:['Tono fuera de especificación','Viscosidad incorrecta','Falta de pigmento','Contaminación de tinta','Falta de solvente']},
+  {id:'impresion',lbl:'Impresión',machines:[],cats:['Plancha dañada','Color fuera de tono','Desregistro','Sustrato dañado','Mancha / repinte','Falla mecánica','Reimprimir plancha','Cambio de tinta','Velocidad fuera de rango']},
+  {id:'acabados',lbl:'Acabados',machines:[],cats:['Aplicación irregular','Falla de secado','Desalineación','Corte incompleto','Presión incorrecta']},
+  {id:'rebobinado',lbl:'Rebobinado',machines:[],cats:['Tensión incorrecta','Desalineación de bobina','Núcleo equivocado']},
+  {id:'empaque',lbl:'Empaque',machines:null,cats:['Material insuficiente','Error de conteo','Caja equivocada']},
+];
+
+const PERSONAL=[
+  {id:'lunch',lbl:'🍽 Almuerzo',dur:30},{id:'coffee',lbl:'☕ Café / merienda',dur:15},
+  {id:'dinner',lbl:'🌙 Cena',dur:30},{id:'breakfast',lbl:'🌅 Desayuno',dur:20},
+  {id:'wc',lbl:'🚻 Baño',dur:10},{id:'personal',lbl:'🧍 Tiempo personal',dur:0},
+];
+const MAINT=[
+  {id:'prev',lbl:'🔧 Mantenimiento preventivo'},{id:'corr',lbl:'🔩 Mantenimiento correctivo'},
+  {id:'clean',lbl:'🧹 Limpieza de máquina'},{id:'safety',lbl:'⚠️ Seguridad / incidente'},
+];
+
+// Materiales por tipo con unidades
+const MP_MATERIALS=[
+  {id:'mp-tinta',name:'Tintas',unit:'lb',unitLabel:'Libras (lb)',icon:'🎨',color:'var(--purple)'},
+  {id:'mp-barniz',name:'Barniz',unit:'lb',unitLabel:'Libras (lb)',icon:'✨',color:'var(--amber)'},
+  {id:'mp-laminado',name:'Laminado',unit:'ft',unitLabel:'Pies lineales (ft)',icon:'📄',color:'var(--cyan)'},
+  {id:'mp-foil',name:'Foil (Estampado)',unit:'ft',unitLabel:'Pies lineales (ft)',icon:'🌟',color:'var(--amber)'},
+  {id:'mp-planchas',name:'Planchas',unit:'ft²',unitLabel:'Pies cuadrados (ft²)',icon:'🖼',color:'var(--green)'},
+];
+
+let COUNTS={};
+let productionRoutes=[];
+let productionProcesses=[];
+let productionUser='';
+
+const SIM_START_H=22,SIM_START_M=15;
+const _simBase=new Date();_simBase.setHours(SIM_START_H,SIM_START_M,0,0);
+const _simTs=Date.now();
+function nowSim(){const d=new Date(_simBase);d.setSeconds(d.getSeconds()+Math.floor((Date.now()-_simTs)/1000));return d;}
+
+// ════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════
+let activeProc=null,activeMach=null;
+let openCards=new Set();
+let orderStates={};
+let orderStartTime={};
+let pauseStarts={};
+let pauseTimerIvs={};
+let openLogs=new Set();
+let eventLogs={};
+let mesOpenFor=null;
+let mpOpenFor=null; // panel materia prima
+let sentMats=new Set();
+let use24=true;
+// Historial espectrofotométrico: {oid_colorInst: [{ts, L, a, b, lMin,lStd,lMax,aMin,aStd,aMax,bMin,bStd,bMax, ok}]}
+let spectroHistory={};
+// Solicitudes materia prima: {oid: {mp-tinta: {qty, history:[{qty,ts}]}, ...}}
+let mpData={};
+
+const mesState={active:'color',inst:1,barnizSlot:null};
+
+const SESSION_STORAGE_KEY='erp-user-session';
+function readUserSession(){
+  try{return JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY)||'null');}catch(e){return null;}
+}
+function currentUserName(){
+  const s=readUserSession();
+  return (s&&(s.name||s.fullName||s.user||s.username))||productionUser||'Usuario activo';
+}
+function currentMachineName(){
+  if(mesOpenFor){
+    const route=productionRoutes.find(r=>r.orderCode===mesOpenFor);
+    if(route)return route.machineName||'';
+  }
+  return '';
+}
+function sessionHeader(){
+  const s=readUserSession();
+  if(!s)return{};
+  return {'x-erp-session':JSON.stringify({
+    id:s.id||s.userId||s.sessionId||'',
+    userId:s.userId||s.id||'',
+    username:s.username||s.user||'',
+    user:s.user||s.username||'',
+    name:s.name||s.fullName||s.user||s.username||'',
+    fullName:s.fullName||s.name||'',
+    permissionName:s.permissionName||'',
+    modules:s.modules||{}
+  })};
+}
+function syncOperatorName(){
+  const node=document.getElementById('operatorName');
+  if(node)node.textContent=currentUserName();
+}
+async function loadProductionFlow(){
+  const res=await fetch('/api/produccion/flujo',{headers:sessionHeader()});
+  const payload=await res.json().catch(()=>({}));
+  if(!res.ok)throw new Error(payload.error||'No fue posible cargar producción');
+  productionUser=payload.user||productionUser;
+  productionProcesses=Array.isArray(payload.processes)?payload.processes:[];
+  productionRoutes=Array.isArray(payload.routes)?payload.routes:[];
+  COUNTS={};
+  productionProcesses.forEach(p=>{
+    COUNTS[p.key]=Number(p.activeCount||0);
+    const proc=PROCS.find(item=>item.id===p.key);
+    if(proc)proc.machines=Array.isArray(p.machines)&&p.machines.length?p.machines:null;
+  });
+  syncOperatorName();
+}
+function routeStatusToCardStatus(status){
+  const value=String(status||'').toUpperCase();
+  if(value==='RUN'||value==='SETUP')return'inprog';
+  if(value==='PARO')return'paused';
+  if(value==='COMPLETADO')return'done';
+  return'pending';
+}
+function orderFromRoute(route){
+  const start=route.plannedStartAt?new Date(route.plannedStartAt):new Date(route.createdAt||Date.now());
+  if(Number.isNaN(start.getTime()))start.setTime(Date.now());
+  const dur=Math.max(15,Math.round(Number(route.durationHours||0.5)*60));
+  const end=new Date(start.getTime()+dur*60000);
+  return {
+    id:route.orderCode,
+    routeId:route.routeId,
+    name:route.productName||route.orderCode,
+    h:start.getHours(),
+    m:start.getMinutes(),
+    dur,
+    status:routeStatusToCardStatus(route.routeStatus),
+    mats:[route.materialCode?{id:route.materialCode,name:route.materialCode,qty:route.plannedFeet?`${route.plannedFeet.toLocaleString('es-CR')} ft`:''}:null].filter(Boolean),
+    startDt:start,
+    endDt:end,
+    machineName:route.machineName||'',
+    machineProfileId:route.machineProfileId||null,
+    machineSpecs:route.machineSpecs||[]
+  };
+}
+
+// ════════════════════════════════════════════
+// TIME UTILS
+// ════════════════════════════════════════════
+function pad2(n){return String(n).padStart(2,'0')}
+function fmtH(d){
+  if(use24)return`${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  let h=d.getHours(),ap=h>=12?'PM':'AM';h=h%12||12;
+  return`${h}:${pad2(d.getMinutes())} ${ap}`;
+}
+function fmtDate(d){return`${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}`;}
+function fmtTs(d){return`${fmtDate(d)} ${fmtH(d)}`;}
+function makeDate(h,m){const n=nowSim(),d=new Date(n);d.setHours(h,m,0,0);if(h<SIM_START_H||(h===SIM_START_H&&m<SIM_START_M))d.setDate(d.getDate()+1);return d;}
+
+function renderClock(){
+  const n=nowSim();
+  document.getElementById('clockEl').textContent=use24?`${pad2(n.getHours())}:${pad2(n.getMinutes())}:${pad2(n.getSeconds())}`:(()=>{let h=n.getHours(),ap=h>=12?'PM':'AM';h=h%12||12;return`${h}:${pad2(n.getMinutes())}:${pad2(n.getSeconds())} ${ap}`;})();
+  document.getElementById('dateEl').textContent=n.toLocaleDateString('es-CR',{weekday:'long',day:'numeric',month:'long'});
+  const hr=n.getHours();
+  const badge=document.getElementById('shiftBadge');
+  if(hr>=6&&hr<14){badge.className='shift-badge sd';badge.textContent='Turno Día';}
+  else if(hr>=14&&hr<22){badge.className='shift-badge se';badge.textContent='Turno Tarde';}
+  else{badge.className='shift-badge sn';badge.textContent='Turno Noche';}
+}
+function toggleFmt(){use24=!use24;renderClock();}
+
+function makeOrders(pid,mid){
+  const live=productionRoutes
+    .filter(r=>r.processKey===pid)
+    .filter(r=>!mid||r.machineName===mid)
+    .map(orderFromRoute);
+  if(live.length)return live;
+  return [];
+  const DB={
+    impresion:{
+      'Flexo 1':[
+        {id:'OP-2835',name:'Etiqueta Cerveza Premium 330ml',h:22,m:15,dur:240,status:'inprog',
+         mats:[{id:'MAT-INK-440',name:'Tinta UV Cyan',qty:'0.8 kg'},{id:'MAT-SUB-121',name:'PE 60µ blanco',qty:'5000 m'}]},
+        {id:'OP-2836',name:'Etiqueta Vino Reserva Especial',h:2,m:15,dur:180,status:'pending',
+         mats:[{id:'MAT-INK-441',name:'Tinta Dorada Pantone 872',qty:'1.2 kg'},{id:'MAT-SUB-122',name:'BOPP 40µ metálico',qty:'3500 m'}]},
+        {id:'OP-2837',name:'Film Snack Papas 80g',h:5,m:15,dur:120,status:'pending',
+         mats:[{id:'MAT-INK-442',name:'Tinta Magenta UV',qty:'0.6 kg'}]},
+      ],
+      'Flexo 2':[
+        {id:'OP-2844',name:'Empaque Snack 25g',h:21,m:30,dur:300,status:'paused',
+         mats:[{id:'MAT-INK-443',name:'Tinta base agua roja',qty:'3.1 kg'},{id:'MAT-SUB-125',name:'CPP 25µ metalizado',qty:'7500 m'}]},
+        {id:'OP-2855',name:'Film Galleta Soda',h:2,m:0,dur:150,status:'pending',
+         mats:[{id:'MAT-INK-444',name:'Tinta UV Amarillo',qty:'2.0 kg'},{id:'MAT-SUB-120',name:'BOPP 40µ transparente',qty:'2200 m'}]},
+      ],
+      'Flexo 3':[
+        {id:'OP-2860',name:'Etiqueta Vino Reserva',h:23,m:0,dur:360,status:'pending',
+         mats:[{id:'MAT-INK-445',name:'Tinta dorada especial',qty:'1.5 kg'},{id:'MAT-SUB-130',name:'PP film premium',qty:'1200 m'}]},
+      ],
+      'Flexo 4':[],
+    },
+    laminado:{
+      'Laminadora 1':[
+        {id:'OP-2841',name:'Empaque Snack 25g — laminado',h:23,m:30,dur:180,status:'pending',
+         mats:[{id:'MAT-LAM-010',name:'Laminante PU base agua',qty:'4.2 L'},{id:'MAT-LAM-012',name:'Film PET 12µ',qty:'7500 m'}]},
+        {id:'OP-2858',name:'Film Café Molido 250g',h:3,m:0,dur:120,status:'pending',
+         mats:[{id:'MAT-LAM-011',name:'Adhesivo solventado',qty:'2.1 L'}]},
+      ],
+      'Laminadora 2':[
+        {id:'OP-2862',name:'Bolsa Stand-up Granola',h:1,m:0,dur:90,status:'pending',
+         mats:[{id:'MAT-LAM-013',name:'Film BOPP perlado',qty:'3000 m'}]},
+      ],
+    },
+    troquelado:{
+      'Troquel 1':[
+        {id:'OP-2838',name:'Etiqueta Cerveza Premium 330ml',h:3,m:0,dur:60,status:'pending',mats:[]},
+        {id:'OP-2842',name:'Etiqueta Miel Artesanal',h:5,m:0,dur:120,status:'pending',mats:[]},
+      ],
+      'Troquel 2':[
+        {id:'OP-2845',name:'Empaque Snack 25g',h:4,m:30,dur:90,status:'pending',mats:[]},
+      ],
+    },
+    diseno:{'null':[
+      {id:'OP-2875',name:'Nueva línea jugos orgánicos',h:22,m:0,dur:120,status:'inprog',mats:[]},
+      {id:'OP-2876',name:'Rediseño etiqueta café',h:0,m:30,dur:90,status:'pending',mats:[]},
+      {id:'OP-2877',name:'Arte bolsa granola',h:3,m:0,dur:180,status:'pending',mats:[]},
+    ]},
+  };
+  const fallback={'null':[
+    {id:'OP-2890',name:'Orden Demo A',h:22,m:0,dur:90,status:'pending',mats:[]},
+    {id:'OP-2891',name:'Orden Demo B',h:1,m:30,dur:60,status:'pending',mats:[]},
+  ]};
+  const proc=DB[pid]||(mid?{}:fallback);
+  const key=mid||'null';
+  const raw=proc[key]||proc['null']||[];
+  return raw.map(o=>{
+    const sd=makeDate(o.h,o.m);
+    const ed=new Date(sd.getTime()+o.dur*60000);
+    return{...o,startDt:sd,endDt:ed};
+  });
+}
+
+// ════════════════════════════════════════════
+// STATUS / DELAY HELPERS
+// ════════════════════════════════════════════
+function stOf(o){return orderStates[o.id]||o.status}
+function delayMin(o){
+  const n=nowSim(),st=stOf(o);
+  if(st==='done')return null;
+  if(st==='pending'){const d=(n-o.startDt)/60000;return d>0?Math.round(d):null;}
+  if(st==='inprog'){
+    const elapsed=(n-(orderStartTime[o.id]||o.startDt))/60000;
+    return elapsed>o.dur?Math.round(elapsed-o.dur):null;
+  }
+  return null;
+}
+function tlProgress(o){
+  const n=nowSim(),st=stOf(o);
+  const total=o.dur*60000;
+  if(st==='pending')return{plan:0,real:0,planAbsolute:0};
+  if(st==='done')return{plan:100,real:100,done:true,planAbsolute:100};
+  const startT=orderStartTime[o.id]||o.startDt;
+  const elapsed=Math.min(n-startT,total*2);
+  const real=Math.min(100,(elapsed/total)*100);
+  const plan=Math.min(100,((n-o.startDt)/total)*100);
+  return{plan:Math.max(0,plan),real:Math.max(0,real),late:real>plan+5,planAbsolute:Math.max(0,plan)};
+}
+function cardBorder(o){
+  const st=stOf(o);
+  if(st==='done')return'bl-gray';
+  if(st==='paused')return'bl-amber';
+  if(st==='inprog'){const d=delayMin(o);return d?'bl-red':'bl-blue';}
+  const diff=(o.startDt-nowSim())/60000;
+  if(diff<0)return'bl-red';
+  if(diff<60)return'bl-amber';
+  return'bl-green';
+}
+function chipInfo(o){
+  const st=stOf(o);
+  if(st==='done')return{cls:'done',lbl:'✓ Completado'};
+  if(st==='paused')return{cls:'paused',lbl:'⏸ Pausado'};
+  if(st==='inprog'){const d=delayMin(o);return d?{cls:'late',lbl:`▶ +${d}min atraso`}:{cls:'inprog',lbl:'▶ En curso'};}
+  const diff=(o.startDt-nowSim())/60000;
+  if(diff<0)return{cls:'late',lbl:`⚡ ${Math.round(-diff)}min pendiente`};
+  if(diff<60)return{cls:'ok',lbl:'Próximo'};
+  return{cls:'pending',lbl:'Programado'};
+}
+function dayLabel(dt){
+  const n=nowSim(),nd=new Date(n);nd.setHours(0,0,0,0);
+  const dd=new Date(dt);dd.setHours(0,0,0,0);
+  const diff=Math.round((dd-nd)/86400000);
+  if(diff===0)return`HOY — ${fmtDate(dt)}`;
+  if(diff===1)return`MAÑANA — ${fmtDate(dt)}`;
+  return fmtDate(dt);
+}
+
+// ════════════════════════════════════════════
+// LOG
+// ════════════════════════════════════════════
+function addLog(oid,icon,msg){
+  if(!eventLogs[oid])eventLogs[oid]=[];
+  eventLogs[oid].unshift({time:fmtH(nowSim()),icon,msg});
+}
+
+// ════════════════════════════════════════════
+// COUNTDOWN RING
+// ════════════════════════════════════════════
+function buildCountdownRing(o){
+  const st=stOf(o);
+  if(st==='pending'||st==='done') return '';
+  const n=nowSim();
+  const startT=orderStartTime[o.id]||o.startDt;
+  const totalMs=o.dur*60000;
+  const elapsed=n-startT;
+  const remaining=Math.max(0,totalMs-elapsed);
+  const pct=Math.min(100,Math.max(0,(elapsed/totalMs)*100));
+  const remMin=Math.floor(remaining/60000);
+  const remSec=Math.floor((remaining%60000)/1000);
+  const delay=delayMin(o);
+  const isLate=pct>=100&&delay;
+  const overMin=isLate?delay:0;
+
+  // ring params
+  const R=26,C=2*Math.PI*R;
+  const filled=C*(pct/100);
+  const stroke=isLate?'var(--red)':pct>75?'var(--amber)':'var(--blue)';
+
+  let subText='',subCls='amber';
+  if(isLate){subText=`+${overMin}min atraso`;subCls='red';}
+  else if(remaining>0){
+    const ahead=Math.round(((totalMs-elapsed)-(totalMs*(1-pct/100)))/60000);
+    subText=`${Math.round(100-pct)}% restante`;subCls='green';
+  }
+
+  return`<div class="countdown-wrap" id="cdwrap_${o.id}">
+    <svg class="countdown-ring-svg" width="68" height="68" viewBox="0 0 68 68">
+      <circle class="countdown-ring-track" cx="34" cy="34" r="${R}"/>
+      <circle class="countdown-ring-fill" cx="34" cy="34" r="${R}"
+        stroke="${stroke}"
+        stroke-dasharray="${filled} ${C}"
+        stroke-dashoffset="0"
+        style="transform:rotate(-90deg);transform-origin:34px 34px"/>
+      <text x="34" y="31" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="11" font-weight="700" fill="${stroke}">${Math.round(100-pct)}%</text>
+      <text x="34" y="43" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="8" fill="#6e7681">reste</text>
+    </svg>
+    <div class="countdown-info">
+      <div class="countdown-label">${isLate?'⚠ Tiempo excedido':'⏱ Tiempo restante'}</div>
+      <div class="countdown-time-display" style="color:${stroke}">${isLate?`+${overMin}m`:`${pad2(remMin)}:${pad2(remSec)}`}</div>
+      <div class="countdown-sub ${subCls}">${subText}</div>
+    </div>
+    <div style="flex:1;text-align:right">
+      <div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);margin-bottom:3px">INICIO REAL</div>
+      <div style="font-family:var(--font-mono);font-size:12px;color:var(--text2)">${fmtH(startT)}</div>
+      <div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);margin-top:6px;margin-bottom:3px">FIN ESTIMADO</div>
+      <div style="font-family:var(--font-mono);font-size:12px;color:${isLate?'var(--red)':'var(--text2)'}">${fmtH(new Date(startT.getTime()+totalMs))}</div>
+    </div>
+  </div>`;
+}
+
+// ════════════════════════════════════════════
+// MATERIA PRIMA PANEL
+// ════════════════════════════════════════════
+function getMPData(oid){
+  if(!mpData[oid]){
+    mpData[oid]={};
+    MP_MATERIALS.forEach(m=>{mpData[oid][m.id]={qty:'',history:[]};});
+  }
+  return mpData[oid];
+}
+function buildMPPanel(o){
+  const data=getMPData(o.id);
+  const rows=MP_MATERIALS.map(mat=>{
+    const d=data[mat.id];
+    const total=d.history.reduce((s,h)=>s+parseFloat(h.qty||0),0);
+    const hasTotal=total>0;
+    return`<div class="mp-material-row">
+      <div>
+        <div class="mp-label">Material</div>
+        <div class="mp-mat-name">${mat.icon} ${mat.name}</div>
+        <div class="mp-mat-unit">${mat.unitLabel}</div>
+      </div>
+      <div>
+        <div class="mp-label">Cantidad a solicitar</div>
+        <input class="mp-input" type="number" min="0" step="0.1" placeholder="0.00"
+          id="mpinput_${o.id}_${mat.id}"
+          value="${d.qty||''}"
+          onchange="mpSetQty('${o.id}','${mat.id}',this.value)">
+      </div>
+      <div>
+        <div class="mp-label">Total solicitado</div>
+        <div class="mp-total-chip ${hasTotal?'has-val':''}">${hasTotal?total.toFixed(2)+' '+mat.unit:'—'}</div>
+        ${d.history.length>0?`<div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);margin-top:4px">${d.history.length} solicitud${d.history.length>1?'es':''}</div>`:''}
+      </div>
+      <div>
+        <button class="mp-request-btn" onclick="mpRequest('${o.id}','${mat.id}','${mat.name}','${mat.unit}')">↗ Solicitar</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Historial de solicitudes
+  const allHistory=[];
+  MP_MATERIALS.forEach(mat=>{
+    (data[mat.id].history||[]).forEach(h=>{
+      allHistory.push({mat:mat.name,icon:mat.icon,unit:mat.unit,...h});
+    });
+  });
+  allHistory.sort((a,b)=>b.tsRaw-a.tsRaw);
+  const histHtml=allHistory.length?`
+    <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px">
+      <div class="mp-label" style="margin-bottom:6px">📋 Historial de solicitudes</div>
+      <div style="max-height:120px;overflow-y:auto">
+        ${allHistory.map(h=>`<div style="display:flex;gap:8px;align-items:center;padding:3px 0;border-bottom:1px solid var(--border);font-size:11px">
+          <span style="font-family:var(--font-mono);color:var(--text3);font-size:10px;min-width:90px">${h.ts}</span>
+          <span>${h.icon} ${h.mat}</span>
+          <span style="font-family:var(--font-mono);color:var(--cyan);margin-left:auto">${h.qty} ${h.unit}</span>
+          <span style="font-family:var(--font-mono);font-size:9px;color:var(--green)">✓ enviado</span>
+        </div>`).join('')}
+      </div>
+    </div>`:'';
+
+  return`<div class="mp-panel" id="mpPanel_${o.id}">
+    <div class="mp-panel-hdr">
+      <span>📦 Solicitud de Materia Prima — ${o.id}</span>
+    </div>
+    ${rows}
+    ${histHtml}
+  </div>`;
+}
+function mpSetQty(oid,mid,val){getMPData(oid)[mid].qty=val;}
+function mpRequest(oid,mid,name,unit){
+  const d=getMPData(oid)[mid];
+  const el=document.getElementById(`mpinput_${oid}_${mid}`);
+  const qty=el?parseFloat(el.value):parseFloat(d.qty);
+  if(!qty||qty<=0){showToast('⚠ Ingresá una cantidad válida');return;}
+  const ts=fmtTs(nowSim());
+  d.history.push({qty:qty.toFixed(2),ts,tsRaw:Date.now()});
+  d.qty='';
+  addLog(oid,'📦',`Solicitud MP: ${name} — ${qty.toFixed(2)} ${unit}`);
+  renderQueue();
+  showToast(`↗ Solicitud enviada: ${name} ${qty.toFixed(2)} ${unit}`);
+}
+
+// ════════════════════════════════════════════
+// ESPECTROFOTOMÉTRICO HISTORIAL
+// ════════════════════════════════════════════
+function getSpectroKey(oid){return `${oid}_${mesState.inst}`;}
+function saveSpectroReading(oid){
+  const key=getSpectroKey(oid);
+  if(!spectroHistory[key])spectroHistory[key]=[];
+  const fields=['L_min','L_std','L_max','a_min','a_std','a_max','b_min','b_std','b_max'];
+  const vals={};
+  let allOk=true;
+  fields.forEach(f=>{
+    const el=document.getElementById(`sp_${oid}_${f}`);
+    vals[f]=el?parseFloat(el.value):0;
+  });
+  // Check if std values are within min/max
+  const lOk=vals.L_std>=vals.L_min&&vals.L_std<=vals.L_max;
+  const aOk=vals.a_std>=vals.a_min&&vals.a_std<=vals.a_max;
+  const bOk=vals.b_std>=vals.b_min&&vals.b_std<=vals.b_max;
+  const ok=lOk&&aOk&&bOk;
+  const _slotLabel=(SLOT_COLOR_MAP[mesState.slots[mesState.inst]]||SLOT_COLOR_MAP.empty).label;
+  spectroHistory[key].unshift({...vals,ts:fmtTs(nowSim()),tsRaw:Date.now(),ok,colorName:_slotLabel});
+  addLog(oid,'🔬',`Espectro Col.${mesState.inst} — L*:${vals.L_std} a*:${vals.a_std} b*:${vals.b_std} ${ok?'✓ OK':'⚠ FUERA'}`);
+  renderQueue();
+  showToast(`🔬 Medición guardada — Color ${mesState.inst} ${ok?'✓ OK':'⚠ fuera de rango'}`);
+}
+function buildSpectroHistory(oid){
+  const key=getSpectroKey(oid);
+  const hist=spectroHistory[key]||[];
+  if(!hist.length)return`<div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);text-align:center;padding:8px 0">Sin mediciones registradas aún</div>`;
+  return`<div class="spectro-history">
+    <div class="spectro-history-hdr">
+      <span class="spectro-history-title">📊 Historial — Slot ${mesState.inst}: ${(SLOT_COLOR_MAP[mesState.slots[mesState.inst]]||SLOT_COLOR_MAP.empty).label} (${hist.length} medición${hist.length>1?'es':''})</span>
+    </div>
+    <div style="overflow-x:auto;max-height:140px;overflow-y:auto">
+      <table class="spectro-history-table">
+        <thead><tr>
+          <th>Hora</th><th>L* min</th><th>L* val</th><th>L* max</th>
+          <th>a* min</th><th>a* val</th><th>a* max</th>
+          <th>b* min</th><th>b* val</th><th>b* max</th><th>Estado</th>
+        </tr></thead>
+        <tbody>${hist.map(h=>`<tr>
+          <td style="color:var(--text3)">${h.ts}</td>
+          <td>${h.L_min}</td><td class="${h.L_std>=h.L_min&&h.L_std<=h.L_max?'ok-val':'out-val'}">${h.L_std}</td><td>${h.L_max}</td>
+          <td>${h.a_min}</td><td class="${h.a_std>=h.a_min&&h.a_std<=h.a_max?'ok-val':'out-val'}">${h.a_std}</td><td>${h.a_max}</td>
+          <td>${h.b_min}</td><td class="${h.b_std>=h.b_min&&h.b_std<=h.b_max?'ok-val':'out-val'}">${h.b_std}</td><td>${h.b_max}</td>
+          <td style="color:${h.ok?'var(--green)':'var(--red)'}">${h.ok?'✓ OK':'⚠ FUERA'}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+// ════════════════════════════════════════════
+// RENDER
+// ════════════════════════════════════════════
+function renderProcs(){
+  document.getElementById('procStrip').innerHTML=PROCS.map(p=>
+    `<button class="pb${activeProc===p.id?' act':''}" onclick="selProc('${p.id}')">${p.lbl}${COUNTS[p.id]?`<span class="pbadge">${COUNTS[p.id]}</span>`:''}</button>`
+  ).join('');
+}
+function selProc(id){
+  activeProc=id;activeMach=null;openCards.clear();openLogs.clear();mesOpenFor=null;mpOpenFor=null;
+  const proc=PROCS.find(p=>p.id===id);
+  const mb=document.getElementById('machBar');
+  if(proc.machines&&proc.machines.length){
+    mb.style.display='flex';
+    document.getElementById('machBtns').innerHTML=proc.machines.map((m,i)=>
+      `<button class="mb${i===0?' act':''}" onclick="selMach('${m.replace(/'/g,"\\'")}',this)">${m}</button>`
+    ).join('');
+    activeMach=proc.machines[0];
+  }else{mb.style.display='none';activeMach=null;}
+  renderProcs();renderQueue();
+}
+function selMach(m,el){
+  activeMach=m;openCards.clear();openLogs.clear();mesOpenFor=null;mpOpenFor=null;
+  document.querySelectorAll('.mb').forEach(b=>b.classList.remove('act'));
+  el.classList.add('act');renderQueue();
+}
+
+function renderQueue(){
+  const qa=document.getElementById('queueArea');
+  if(!activeProc){qa.innerHTML='<div class="empty"><div class="empty-icon">⌨</div>Seleccioná un proceso</div>';return;}
+  const orders=makeOrders(activeProc,activeMach);
+  if(!orders.length){qa.innerHTML='<div class="empty"><div class="empty-icon" style="color:var(--green)">✓</div>Sin órdenes programadas en este turno</div>';return;}
+  const groups={};
+  orders.forEach(o=>{
+    const k=fmtDate(o.startDt);
+    if(!groups[k]){groups[k]={lbl:dayLabel(o.startDt),list:[]}}
+    groups[k].list.push(o);
+  });
+  let html='';
+  Object.values(groups).forEach(g=>{
+    html+=`<div class="day-sep">${g.lbl}</div>`;
+    g.list.forEach(o=>{ html+=renderCard(o); });
+  });
+  qa.innerHTML=html;
+  Object.keys(pauseStarts).forEach(oid=>{updatePauseDisp(oid)});
+}
+
+function renderCard(o){
+  const st=stOf(o);
+  const ci=chipInfo(o);
+  const open=openCards.has(o.id);
+  const border=cardBorder(o);
+  const showLog=openLogs.has(o.id);
+  const logs=eventLogs[o.id]||[];
+  const showMES=(mesOpenFor===o.id && activeProc==='impresion');
+  const showMP=(mpOpenFor===o.id);
+  const tl=tlProgress(o);
+
+  let detail='';
+  if(open){
+    // TIMELINE
+    const tlHtml=`<div class="timeline-wrap">
+      <div class="tl-label">
+        <span>Línea de tiempo</span>
+        <span>${fmtH(o.startDt)} → ${fmtH(o.endDt)} (${o.dur}min)</span>
+      </div>
+      <div class="tl-bar">
+        <div class="tl-planned" style="width:${tl.plan}%"></div>
+        <div class="tl-real${tl.late?' late':''}${tl.done?' done':''}" style="width:${tl.real}%"></div>
+        ${tl.planAbsolute>0&&!tl.done?`<div class="tl-now-marker" style="left:${Math.min(98,tl.planAbsolute)}%"></div>`:''}
+      </div>
+      <div class="tl-legend">
+        <span><span class="dot-plan"></span>Programado</span>
+        <span><span class="dot-real${tl.late?' dot-late':''}"></span>Real${tl.late?' (atrasado)':''}</span>
+        ${tl.planAbsolute>0&&!tl.done?`<span><span style="width:8px;height:8px;border-radius:2px;background:var(--amber);display:inline-block"></span>Ahora</span>`:''}
+      </div>
+    </div>`;
+
+    // COUNTDOWN RING
+    const cdHtml=buildCountdownRing(o);
+
+    // detail grid
+    const delay=delayMin(o);
+    const dgrid=`<div class="dgrid">
+      <div><div class="di-lbl">Inicio prog.</div><div class="di-val">${fmtH(o.startDt)}</div></div>
+      <div><div class="di-lbl">Fin estimado</div><div class="di-val">${fmtH(o.endDt)}</div></div>
+      <div><div class="di-lbl">Duración</div><div class="di-val">${Math.floor(o.dur/60)?Math.floor(o.dur/60)+'h ':''} ${o.dur%60?o.dur%60+'min':''}</div></div>
+      <div><div class="di-lbl">Atraso</div><div class="di-val" style="color:${delay?'var(--red)':'var(--green)'}">${delay?`+${delay} min`:'Sin atraso'}</div></div>
+    </div>`;
+
+    // materials
+    let matHtml='';
+    if(o.mats&&o.mats.length){
+      matHtml=`<div class="mat-sec">
+        <div class="mat-hdr">📦 Materiales — Descargo SAP</div>
+        ${o.mats.map(m=>{
+          const key=o.id+'_'+m.id;
+          const sent=sentMats.has(key);
+          return`<div class="mat-row">
+            <span class="mat-id">${m.id}</span>
+            <span class="mat-name">${m.name}</span>
+            <span class="mat-qty">${m.qty}</span>
+            <button class="sap-btn${sent?' sent':''}" onclick="sendSAP('${o.id}','${m.id}','${m.name}',this)" ${sent?'disabled':''}>${sent?'✓ Enviado a SAP':'↗ Solicitar SAP'}</button>
+          </div>`;
+        }).join('')}
+      </div>`;
+    }
+
+    // action row
+    const ptEl=pauseStarts[o.id]?`<span class="pause-timer" id="pt_${o.id}">⏱ 0:00</span>`:'';
+    let actBtns='';
+    if(st==='pending') actBtns+=`<button class="btn-ini" onclick="doStart('${o.id}','${o.name}')">▶ Iniciar</button>`;
+    if(st==='inprog'){
+      actBtns+=`<button class="btn-done" onclick="doComplete('${o.id}','${o.name}')">✓ Completar</button>`;
+      actBtns+=`<button class="btn-pau" onclick="openPauseModal('${o.id}','${o.name}','${activeProc}')">⏸ Pausar</button>`;
+    }
+    if(st==='paused') actBtns+=`<button class="btn-ini" onclick="doResume('${o.id}')">▶ Reanudar</button>`;
+    if(activeProc==='impresion'){
+      actBtns+=`<button class="btn-mes" onclick="toggleMES('${o.id}')">🖨 Panel MES</button>`;
+    }
+    // Botón solicitud MP siempre visible
+    actBtns+=`<button class="btn-mp" onclick="toggleMP('${o.id}')">📦 ${showMP?'Cerrar MP':'Solicitar MP'}</button>`;
+    actBtns+=`<button class="btn-log" onclick="toggleLog('${o.id}')">${logs.length?`📋 Eventos (${logs.length})`:'📋 Sin eventos'}</button>`;
+    if(ptEl) actBtns+=ptEl;
+
+    // event log
+    let logHtml='';
+    if(showLog){
+      logHtml=`<div class="evlog" id="log_${o.id}">
+        <div class="evlog-hdr">Historial de eventos</div>
+        ${logs.length?logs.map(ev=>`<div class="ev-row"><span class="ev-time">${ev.time}</span><span class="ev-icon">${ev.icon}</span><span class="ev-msg">${ev.msg}</span></div>`).join('')
+        :'<div style="color:var(--text3);font-size:11px;text-align:center;padding:6px">Sin eventos registrados</div>'}
+      </div>`;
+    }
+
+    // MP panel
+    let mpHtml='';
+    if(showMP) mpHtml=buildMPPanel(o);
+
+    // MES panel
+    let mesHtml='';
+    if(showMES) mesHtml=buildMESPanel(o);
+
+    detail=`<div class="odetail open">
+      ${tlHtml}${cdHtml}${dgrid}${matHtml}
+      <div class="act-row">${actBtns}</div>
+      ${mpHtml}${logHtml}${mesHtml}
+    </div>`;
+  }
+
+  return`<div class="ocard ${border}" id="card_${o.id}">
+    <div class="ohead" onclick="toggleCard('${o.id}')">
+      <span class="oid">${o.id}</span>
+      <span class="oname">${o.name}</span>
+      <span class="otime">${fmtH(o.startDt)}–${fmtH(o.endDt)}</span>
+      <span class="delay-chip ${ci.cls}">${ci.lbl}</span>
+      <svg class="chev${open?' open':''}" viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M4 6l4 4 4-4"/></svg>
+    </div>
+    ${detail}
+  </div>`;
+}
+
+function toggleCard(id){
+  if(openCards.has(id)){openCards.delete(id);}else{openCards.add(id);}
+  renderQueue();
+  if(openCards.has(id)){
+    setTimeout(()=>{
+      const el=document.getElementById('card_'+id);
+      if(el)el.scrollIntoView({behavior:'smooth',block:'nearest'});
+    },50);
+  }
+}
+function toggleLog(id){
+  if(openLogs.has(id))openLogs.delete(id);else openLogs.add(id);
+  renderQueue();
+}
+function toggleMES(id){
+  mesOpenFor=(mesOpenFor===id)?null:id;
+  renderQueue();
+}
+function toggleMP(id){
+  mpOpenFor=(mpOpenFor===id)?null:id;
+  renderQueue();
+}
+
+// ════════════════════════════════════════════
+// MES STATE — station assignments
+// ════════════════════════════════════════════
+// stationTypes: per slot (1-8) what is assigned
+// Options: 'empty' | 'blanco' | 'amarillo' | 'magenta' | 'cyan' | 'negro' | 'pantone' | 'barniz'
+// stationData: per slot viscosity, temp, anilox, barnizTipo, barnizZonif, barnizZona, pantoneRef
+const SLOT_COLOR_MAP={
+  blanco:{hex:'#f8fafc',label:'Blanco',textColor:'#1e293b'},
+  amarillo:{hex:'#eab308',label:'Amarillo',textColor:'#1e293b'},
+  magenta:{hex:'#ec4899',label:'Magenta',textColor:'#fff'},
+  cyan:{hex:'#06b6d4',label:'Cián',textColor:'#fff'},
+  negro:{hex:'#1e293b',label:'Negro',textColor:'#94a3b8'},
+  pantone:{hex:'#f97316',label:'Pantón',textColor:'#fff'},
+  barniz:{hex:'#a78bfa',label:'Barniz UV',textColor:'#fff'},
+  empty:{hex:'#1e293b',label:'—',textColor:'#475569'},
+};
+// Default station assignments
+if(!mesState.slots){
+  mesState.slots={1:'blanco',2:'amarillo',3:'magenta',4:'cyan',5:'negro',6:'empty',7:'empty',8:'barniz'};
+  mesState.slotData={};
+  for(let i=1;i<=8;i++) mesState.slotData[i]={visc:'22',temp:'23.5',anilox:'ANX-800-2.2',barnizTipo:'Brillante UV',barnizZonif:'Total',barnizZona:'',pantoneRef:'PMS 485 C'};
+  // laminado: true means active (only if no barniz slot exists)
+  mesState.laminadoActive=false; // will be computed
+  mesState.laminadoData={material:'BOPP Transparente Brillo 12µ',ancho:'280',tension:'14',tempRodillo:'65',presion:'3.5'};
+  mesState.troqueData={id:'TRQ-RECT-4X3-Z84',medida:'4" x 3"',golpes:'420,500 / 1,500,000',psiIzq:'450',psiDer:'460'};
+}
+function hasBarnizSlot(){return Object.values(mesState.slots).includes('barniz');}
+function computeLaminadoActive(){
+  // Laminado is disabled if any slot is 'barniz'
+  return !hasBarnizSlot();
+}
+
+function buildMESPanel(o){
+  const laminadoOn=computeLaminadoActive();
+  const slots=mesState.slots;
+
+  // Layout geometry
+  // 8 color slots, each W=58, gap=6 → total=8*58+7*6=506
+  // SVG viewBox total width: desb(50) + gap(14) + 8slots(506) + gap(10) + laminado(58,only if on) + gap(8) + troquel(58) + gap(10) + esqueleto+rebob area(80) = ~800 min
+  const SW=52; // station width
+  const SH=90; // station height
+  const SY=130; // station top Y
+  const CY=SY+SH/2; // center Y of stations = 175
+  const railY=CY+SH/2-8; // paper rail Y ~ 212
+  const DESBX=42, DEBCY=railY; // desbobinado center
+  const stationStartX=DESBX+42+8; // after desb
+  const GAP=4;
+  const totalStW=8*(SW+GAP)-GAP;
+  let curX=stationStartX;
+
+  // build station X positions
+  const stX=[];
+  for(let i=0;i<8;i++){stX.push(curX);curX+=SW+GAP;}
+  curX+=10;
+
+  // laminado X
+  const lamX=laminadoOn?curX:-9999;
+  if(laminadoOn) curX+=SW+GAP+10;
+
+  // troquel X
+  const trqX=curX;
+  curX+=SW+GAP+10;
+
+  // skeleton reel above troquel
+  const skelCX=trqX+SW/2;
+  const skelCY=SY-42;
+
+  // rebobinado
+  const rebX=curX+10;
+  const rebCX=rebX+28;
+  const rebCY=railY;
+
+  const totalW=rebCX+38;
+  const svgH=260;
+
+  // Per-station mini info below each station
+  function stationInfoText(slot,i){
+    if(slot==='empty') return '';
+    if(slot==='barniz'){
+      const d=mesState.slotData[i];
+      return`<text x="${stX[i-1]+SW/2}" y="${SY+SH+14}" text-anchor="middle" fill="#a78bfa" font-size="7" font-family="monospace">${d.barnizTipo||'UV Brillo'}</text>
+      <text x="${stX[i-1]+SW/2}" y="${SY+SH+24}" text-anchor="middle" fill="#7c3aed" font-size="6" font-family="monospace">Zonif: ${d.barnizZonif||'Total'}</text>`;
+    }
+    const d=mesState.slotData[i];
+    return`<text x="${stX[i-1]+SW/2}" y="${SY+SH+14}" text-anchor="middle" fill="#64748b" font-size="6.5" font-family="monospace">${d.anilox||'ANX-800-2.2'}</text>
+    <text x="${stX[i-1]+SW/2}" y="${SY+SH+23}" text-anchor="middle" fill="#f59e0b" font-size="6.5" font-family="monospace">${d.visc||'22'}s · ${d.temp||'23.5'}°C</text>`;
+  }
+
+  // Station SVG element
+  function stationSVG(i){
+    const slot=slots[i];
+    const ci=SLOT_COLOR_MAP[slot]||SLOT_COLOR_MAP.empty;
+    const x=stX[i-1];
+    const isActive=(mesState.active==='color'&&mesState.inst===i)||(mesState.active==='barniz'&&slot==='barniz'&&mesState.barnizSlot===i);
+    const strokeCol=isActive?'#f59e0b':(slot==='barniz'?'#7c3aed':'#2d3748');
+    const sw=isActive?2:1.5;
+
+    // 3 rollers stacked vertically, touching:
+    // anilox (top, R=9): center Y = SY+18
+    // ink/barniz roller (mid, R=12): center Y = SY+18+9+12=SY+39
+    // impression cylinder (bottom, R=9): center Y = SY+39+12+9=SY+60
+    // All inside station body SY to SY+SH
+    const aniloxCY=SY+20;
+    const inkCY=SY+20+9+12; // touching anilox bottom
+    const impCY=SY+20+9+12+12+9; // touching ink bottom
+    const cx=x+SW/2;
+
+    const isBarniz=slot==='barniz';
+    const inkColor=ci.hex;
+    const barnizStroke=isBarniz?'#7c3aed':'#334155';
+
+    return`<g id="mg-col-${i}-${o.id}" onclick="mesSel(${isBarniz?`'barniz',${i}`:`'color',${i}`},'${o.id}')" style="cursor:pointer">
+      <rect x="${x}" y="${SY}" width="${SW}" height="${SH}" rx="3"
+        fill="#111827" stroke="${strokeCol}" stroke-width="${sw}" ${isActive?'filter="url(#glow)"':''}/>
+      <!-- Anilox (top) -->
+      <circle cx="${cx}" cy="${aniloxCY}" r="9" fill="#0a0f1a" stroke="#475569" stroke-width="1.5" class="rot-cw-fast"/>
+      <line x1="${cx-4}" y1="${aniloxCY}" x2="${cx+4}" y2="${aniloxCY}" stroke="#64748b" stroke-width="1" class="rot-cw-fast"/>
+      <line x1="${cx}" y1="${aniloxCY-4}" x2="${cx}" y2="${aniloxCY+4}" stroke="#64748b" stroke-width="1" class="rot-cw-fast"/>
+      <!-- Ink/Barniz roller (mid, colored) -->
+      <circle cx="${cx}" cy="${inkCY}" r="12" fill="${inkColor}" stroke="${barnizStroke}" stroke-width="1.5" class="rot-cw"/>
+      <circle cx="${cx}" cy="${inkCY}" r="4" fill="#0a0f1a" stroke="#1e293b" stroke-width="1"/>
+      <!-- Impression cylinder (bottom) -->
+      <circle cx="${cx}" cy="${impCY}" r="9" fill="#0a0f1a" stroke="#334155" stroke-width="1.2" class="rot-cw"/>
+      <!-- Label -->
+      <text x="${cx}" y="${SY-8}" text-anchor="middle" fill="${isBarniz?'#a78bfa':'#64748b'}" font-size="7.5" font-family="monospace" font-weight="bold">${isBarniz?'BARNIZ':'COL '+i}</text>
+      <!-- Color chip top-left -->
+      <rect x="${x+3}" y="${SY+3}" width="10" height="6" rx="1" fill="${inkColor}" opacity="0.9"/>
+      ${stationInfoText(slot,i)}
+    </g>`;
+  }
+
+  // Laminado SVG
+  const lamCX=lamX+SW/2;
+  const lamArmTopY=SY-38;
+  const lamRollCX=lamCX+4;
+  const lamRollCY=lamArmTopY-22;
+  function laminadoSVG(){
+    if(!laminadoOn) return '';
+    const isActive=mesState.active==='laminado';
+    const d=mesState.laminadoData;
+    return`<g id="mg-lam-${o.id}" onclick="mesSel('laminado',0,'${o.id}')" style="cursor:pointer">
+      <rect x="${lamX}" y="${SY}" width="${SW}" height="${SH}" rx="3"
+        fill="#111827" stroke="${isActive?'#f59e0b':'#0891b2'}" stroke-width="${isActive?2:1.5}" ${isActive?'filter="url(#glow)"':''}/>
+      <!-- Arm up -->
+      <path d="M ${lamCX} ${SY} L ${lamCX} ${lamArmTopY} L ${lamRollCX} ${lamArmTopY}" stroke="#475569" stroke-width="1.5" fill="none"/>
+      <!-- Supply roll (rotates CW) -->
+      <circle cx="${lamRollCX}" cy="${lamRollCY}" r="18" fill="#0a0f1a" stroke="#0891b2" stroke-width="1.5" class="rot-cw-slow"/>
+      <circle cx="${lamRollCX}" cy="${lamRollCY}" r="11" fill="#164e63" stroke="#06b6d4" stroke-width="1" class="rot-cw-slow"/>
+      <circle cx="${lamRollCX}" cy="${lamRollCY}" r="4" fill="#0a0f1a" stroke="#475569"/>
+      <!-- Film feed path animated -->
+      <path d="M ${lamRollCX} ${lamRollCY+18} L ${lamCX} ${SY+10}" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="4 3" fill="none" style="animation:dash-move 0.5s linear infinite"/>
+      <!-- Laminating roller inside station (rotates) -->
+      <circle cx="${lamCX}" cy="${SY+35}" r="10" fill="#164e63" stroke="#0891b2" stroke-width="1.5" class="rot-cw"/>
+      <circle cx="${lamCX}" cy="${SY+35}" r="3.5" fill="#0a0f1a" stroke="#475569"/>
+      <!-- Pressure/impression roller below -->
+      <circle cx="${lamCX}" cy="${SY+57}" r="9" fill="#0a0f1a" stroke="#334155" stroke-width="1.2" class="rot-cw"/>
+      <!-- Label -->
+      <text x="${lamCX}" y="${SY-8}" text-anchor="middle" fill="#06b6d4" font-size="7.5" font-family="monospace" font-weight="bold">LAMINADO</text>
+      <!-- Mini info below -->
+      <text x="${lamCX}" y="${SY+SH+14}" text-anchor="middle" fill="#0891b2" font-size="6.5" font-family="monospace">${d.material||'BOPP 12µ'}</text>
+      <text x="${lamCX}" y="${SY+SH+23}" text-anchor="middle" fill="#475569" font-size="6" font-family="monospace">${d.ancho||'280'}mm · ${d.presion||'3.5'}bar</text>
+    </g>`;
+  }
+
+  // Troquel SVG
+  const trqCX=trqX+SW/2;
+  const trqCY_die=SY+40;
+  function troqueladoSVG(){
+    const isActive=mesState.active==='troquelado';
+    const d=mesState.troqueData;
+    return`<g id="mg-trq-${o.id}" onclick="mesSel('troquelado',0,'${o.id}')" style="cursor:pointer">
+      <rect x="${trqX}" y="${SY}" width="${SW}" height="${SH}" rx="3"
+        fill="#111827" stroke="${isActive?'#f59e0b':'#1e4d37'}" stroke-width="${isActive?2:1.5}" ${isActive?'filter="url(#glow)"':''}/>
+      <!-- Die cylinder (rotating, with teeth pattern) -->
+      <circle cx="${trqCX}" cy="${trqCY_die}" r="16" fill="#0a0f1a" stroke="#10b981" stroke-width="1.5" stroke-dasharray="5 2" class="rot-cw"/>
+      <circle cx="${trqCX}" cy="${trqCY_die}" r="7" fill="#111827" stroke="#475569" stroke-width="1"/>
+      <circle cx="${trqCX}" cy="${trqCY_die}" r="2.5" fill="#10b981"/>
+      <!-- Anvil cylinder below -->
+      <circle cx="${trqCX}" cy="${SY+72}" r="9" fill="#0a0f1a" stroke="#334155" stroke-width="1.2" class="rot-cw"/>
+      <!-- Skeleton path going up-right to waste reel -->
+      <path d="M ${trqCX+16} ${trqCY_die-5} Q ${trqCX+28} ${skelCY+10} ${skelCX} ${skelCY+18}"
+        stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4 3" fill="none" style="animation:dash-move 0.55s linear infinite"/>
+      <!-- Skeleton/waste reel above troquel -->
+      <circle cx="${skelCX}" cy="${skelCY}" r="18" fill="#0a0f1a" stroke="#dc2626" stroke-width="1.5" class="rot-cw-slow"/>
+      <circle cx="${skelCX}" cy="${skelCY}" r="11" fill="#1f0c0c" stroke="#ef4444" stroke-width="1" class="rot-cw-slow"/>
+      <circle cx="${skelCX}" cy="${skelCY}" r="4" fill="#111827" stroke="#475569"/>
+      <!-- Labels -->
+      <text x="${trqCX}" y="${SY-8}" text-anchor="middle" fill="#10b981" font-size="7.5" font-family="monospace" font-weight="bold">TROQUEL</text>
+      <text x="${skelCX}" y="${skelCY-22}" text-anchor="middle" fill="#ef4444" font-size="7" font-family="monospace">ESQUELETO</text>
+      <text x="${skelCX}" y="${skelCY-13}" text-anchor="middle" fill="#7f1d1d" font-size="6" font-family="monospace">(MERMA)</text>
+      <!-- Mini info below -->
+      <text x="${trqCX}" y="${SY+SH+14}" text-anchor="middle" fill="#10b981" font-size="6.5" font-family="monospace">${d.id||'TRQ-RECT-4X3-Z84'}</text>
+      <text x="${trqCX}" y="${SY+SH+23}" text-anchor="middle" fill="#475569" font-size="6" font-family="monospace">${d.psiIzq||'450'}/${d.psiDer||'460'} PSI</text>
+    </g>`;
+  }
+
+  // Disabled laminado ghost
+  function laminadoDisabledSVG(){
+    if(laminadoOn) return '';
+    return`<text x="${trqX-30}" y="${SY+50}" text-anchor="middle" fill="#374151" font-size="8" font-family="monospace" transform="rotate(-30,${trqX-30},${SY+50})">LAMINADO</text>
+    <text x="${trqX-30}" y="${SY+62}" text-anchor="middle" fill="#374151" font-size="7" font-family="monospace" transform="rotate(-30,${trqX-30},${SY+62})">DESACTIVADO</text>`;
+  }
+
+  return`<div class="mes-panel" id="mesPanel_${o.id}">
+    <div style="font-family:var(--font-mono);font-size:10px;color:var(--amber);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
+      <span>🖨 Panel MES — ${o.machineName||'Máquina'} / ${o.id}</span>
+      <span style="color:${laminadoOn?'var(--cyan)':'var(--red)'};font-size:9px">${laminadoOn?'● Laminado activo':'● Barniz activo — Laminado desactivado'}</span>
+    </div>
+    <div class="mes-svg-wrap">
+      <svg viewBox="0 0 ${totalW} ${svgH}" xmlns="http://www.w3.org/2000/svg" style="min-width:820px;max-width:100%;height:auto">
+        <defs>
+          <filter id="glow"><feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+          <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+
+        <!-- RAIL -->
+        <rect x="${DESBX-30}" y="${railY}" width="${totalW-(DESBX-30)+10}" height="6" rx="2" fill="#1a2233" stroke="#263244"/>
+
+        <!-- PAPER FLOW -->
+        <path d="M ${DESBX+40} ${railY+3} L ${rebCX-30} ${railY+3}"
+          stroke="#334155" stroke-width="2" stroke-dasharray="7 5" fill="none"
+          style="animation:dash-move 0.5s linear infinite"/>
+
+        <!-- DESBOBINADO -->
+        <g>
+          <circle cx="${DESBX}" cy="${DEBCY}" r="30" fill="#0a0f1a" stroke="#263244" stroke-width="1.5"/>
+          <circle cx="${DESBX}" cy="${DEBCY}" r="22" fill="#111827" stroke="#334155" stroke-width="1.2" class="rot-cw-slow"/>
+          <circle cx="${DESBX}" cy="${DEBCY}" r="14" fill="#0a0f1a" stroke="#38bdf8" stroke-width="1" class="rot-cw-slow"/>
+          <circle cx="${DESBX}" cy="${DEBCY}" r="7" fill="#111827" stroke="#1e3a4a" stroke-width="1" class="rot-cw-slow"/>
+          <circle cx="${DESBX}" cy="${DEBCY}" r="3" fill="#1e293b" stroke="#475569"/>
+          <line x1="${DESBX}" y1="${DEBCY-6}" x2="${DESBX}" y2="${DEBCY+6}" stroke="#334155" stroke-width="1.5" class="rot-cw-slow"/>
+          <line x1="${DESBX-6}" y1="${DEBCY}" x2="${DESBX+6}" y2="${DEBCY}" stroke="#334155" stroke-width="1.5" class="rot-cw-slow"/>
+          <text x="${DESBX}" y="${DEBCY+44}" text-anchor="middle" fill="#475569" font-size="8" font-family="monospace" font-weight="bold">DESBOB.</text>
+        </g>
+
+        <!-- COLOR STATIONS -->
+        ${[1,2,3,4,5,6,7,8].map(i=>stationSVG(i)).join('')}
+
+        <!-- LAMINADO -->
+        ${laminadoSVG()}
+        ${laminadoDisabledSVG()}
+
+        <!-- TROQUEL -->
+        ${troqueladoSVG()}
+
+        <!-- REBOBINADO -->
+        <g>
+          <circle cx="${rebCX}" cy="${rebCY}" r="28" fill="#0a0f1a" stroke="#263244" stroke-width="1.5"/>
+          <circle cx="${rebCX}" cy="${rebCY}" r="20" fill="#111827" stroke="#334155" stroke-width="1.2" class="rot-cw-slow"/>
+          <circle cx="${rebCX}" cy="${rebCY}" r="12" fill="#0a0f1a" stroke="#38bdf8" stroke-width="1" class="rot-cw-slow"/>
+          <circle cx="${rebCX}" cy="${rebCY}" r="6" fill="#111827" stroke="#1e3a4a" stroke-width="1" class="rot-cw-slow"/>
+          <circle cx="${rebCX}" cy="${rebCY}" r="2.5" fill="#1e293b" stroke="#475569"/>
+          <line x1="${rebCX}" y1="${rebCY-5}" x2="${rebCX}" y2="${rebCY+5}" stroke="#334155" stroke-width="1.5" class="rot-cw-slow"/>
+          <line x1="${rebCX-5}" y1="${rebCY}" x2="${rebCX+5}" y2="${rebCY}" stroke="#334155" stroke-width="1.5" class="rot-cw-slow"/>
+          <text x="${rebCX}" y="${rebCY+42}" text-anchor="middle" fill="#475569" font-size="8" font-family="monospace" font-weight="bold">REBOB.</text>
+        </g>
+
+      </svg>
+    </div>
+
+    <!-- STATION ASSIGNMENT ROW -->
+    <div style="background:#0a0f1a;border:1px solid #1e2d3d;border-radius:4px;padding:10px;margin-bottom:10px">
+      <div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Asignación de estaciones — click en estación del diagrama para editar</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        ${[1,2,3,4,5,6,7,8].map(i=>{
+          const slot=slots[i];
+          const ci=SLOT_COLOR_MAP[slot]||SLOT_COLOR_MAP.empty;
+          const isActive=(mesState.active==='color'&&mesState.inst===i)||(mesState.active==='barniz'&&mesState.barnizSlot===i);
+          return`<div onclick="mesSel(${slot==='barniz'?`'barniz',${i}`:`'color',${i}`},'${o.id}')" style="cursor:pointer;background:${isActive?'#1e2a1a':'#111827'};border:1px solid ${isActive?'#f59e0b':'#263244'};border-radius:3px;padding:4px 6px;display:flex;align-items:center;gap:4px;min-width:70px">
+            <div style="width:10px;height:10px;border-radius:2px;background:${ci.hex};flex-shrink:0"></div>
+            <span style="font-family:var(--font-mono);font-size:9px;color:${isActive?'#f59e0b':'#64748b'}">S${i}:${ci.label}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <!-- STATION HISTORY BAR -->
+    <div class="station-history-bar" id="stationHistory_${o.id}">
+      <div class="station-history-hdr">
+        <span class="station-history-title">Historial de Configuración</span>
+        <button class="station-history-btn" onclick="toggleStationHistory('${o.id}')">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 3.5a.5.5 0 0 1 .5.5v4H12a.5.5 0 0 1 0 1H7.5a.5.5 0 0 1-.5-.5V4a.5.5 0 0 1 .5-.5z"/><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0z"/></svg>
+          Cargar Anterior
+        </button>
+        <button class="station-history-btn save-btn" onclick="saveStationConfig('${o.id}')">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+          Guardar
+        </button>
+      </div>
+      <div class="station-history-list" id="stationHistoryList_${o.id}">
+        <div style="font-family:var(--font-mono);font-size:10px;color:#475569;padding:8px;text-align:center">Cargando historial...</div>
+      </div>
+    </div>
+
+    <div class="mes-form">
+      <div class="mes-form-hdr">
+        <div>
+          <div class="mes-nodo-tipo">MÓDULO: ${mesState.active.toUpperCase()}${mesState.active==='color'||mesState.active==='barniz'?` — SLOT ${mesState.inst}`:''}</div>
+          <div class="mes-nodo-titulo">${mesState.active==='color'?`Color ${mesState.inst} — ${(SLOT_COLOR_MAP[slots[mesState.inst]]||SLOT_COLOR_MAP.empty).label}`:mesState.active==='barniz'?`Barniz UV — Slot ${mesState.inst}`:mesState.active==='laminado'?'Estación de Laminado':'Estación de Troquelado'}</div>
+        </div>
+        ${(mesState.active==='color')?`<div style="display:flex;gap:4px;flex-wrap:wrap;max-width:360px">
+          ${Object.entries(SLOT_COLOR_MAP).filter(([k])=>k!=='empty').map(([k,v])=>`<button onclick="mesSetSlot(${mesState.inst},'${k}','${o.id}')" style="padding:3px 8px;border-radius:3px;border:1px solid ${slots[mesState.inst]===k?'#f59e0b':'#263244'};background:${slots[mesState.inst]===k?'#2a1f00':'#111827'};cursor:pointer;display:flex;align-items:center;gap:4px">
+            <div style="width:8px;height:8px;border-radius:1px;background:${v.hex}"></div>
+            <span style="font-family:var(--font-mono);font-size:9px;color:${slots[mesState.inst]===k?'#f59e0b':'#64748b'}">${v.label}</span>
+          </button>`).join('')}
+        </div>`:''}
+      </div>
+      ${buildMESForm(o)}
+      <div style="display:flex;justify-content:flex-end;margin-top:10px">
+        <button class="mes-save-btn" onclick="mesSave('${o.id}')">Confirmar y Sincronizar ↗</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function mesSetSlot(inst,type,oid){
+  mesState.slots[inst]=type;
+  if(type==='barniz'){mesState.active='barniz';mesState.barnizSlot=inst;}
+  else{mesState.active='color';mesState.inst=inst;}
+  renderQueue();
+}
+
+function buildMESForm(o){
+  const oid=o.id;
+  const slot=mesState.slots[mesState.inst]||'empty';
+
+  if(mesState.active==='color'){
+    const d=mesState.slotData[mesState.inst]||{};
+    return`<div class="mes-fields">
+      <div class="mes-field-group">
+        <div class="mes-field-lbl">Variables de Tinta — Slot ${mesState.inst}</div>
+        <label style="font-size:10px;color:var(--text3)">Viscosidad (Copa Zahn #2)</label>
+        <div style="display:flex;gap:6px;margin-bottom:6px">
+          <input class="mes-input" type="number" value="${d.visc||22}" onchange="mesState.slotData[${mesState.inst}].visc=this.value" style="flex:1">
+          <span style="font-size:10px;color:var(--text3);align-self:center;font-family:var(--font-mono)">seg</span>
+        </div>
+        <label style="font-size:10px;color:var(--text3)">Temperatura de tinta</label>
+        <div style="display:flex;gap:6px;margin-bottom:6px">
+          <input class="mes-input" type="number" value="${d.temp||23.5}" step="0.1" onchange="mesState.slotData[${mesState.inst}].temp=this.value" style="flex:1">
+          <span style="font-size:10px;color:var(--text3);align-self:center;font-family:var(--font-mono)">°C</span>
+        </div>
+        <label style="font-size:10px;color:var(--text3)">Anilox</label>
+        <select class="mes-select" onchange="mesState.slotData[${mesState.inst}].anilox=this.value">
+          <option ${d.anilox==='ANX-800-2.2'?'selected':''}>ANX-800-2.2 (800 LPI / 2.2 BCM)</option>
+          <option ${d.anilox==='ANX-360-7.5'?'selected':''}>ANX-360-7.5 (360 LPI / 7.5 BCM)</option>
+          <option ${d.anilox==='ANX-600-3.8'?'selected':''}>ANX-600-3.8 (600 LPI / 3.8 BCM)</option>
+        </select>
+        ${slot==='pantone'?`<label style="font-size:10px;color:var(--text3);margin-top:6px">Referencia Pantón</label>
+        <input class="mes-input" type="text" value="${d.pantoneRef||'PMS 485 C'}" onchange="mesState.slotData[${mesState.inst}].pantoneRef=this.value">`:'' }
+      </div>
+      <div class="mes-field-group" style="grid-column:span 2">
+        <div class="mes-field-lbl" style="color:#60a5fa">Límites Espectrofotométricos CIELAB</div>
+        <table style="width:100%;font-size:11px;font-family:var(--font-mono);border-collapse:collapse;margin-bottom:8px">
+          <thead><tr style="color:var(--text3)"><th style="text-align:left;padding:3px 4px">Eje</th><th style="padding:3px 4px">Mínimo</th><th style="padding:3px 4px;color:#60a5fa">Medición actual</th><th style="padding:3px 4px">Máximo</th></tr></thead>
+          <tbody>
+            <tr><td style="color:var(--text2);padding:3px 4px">L*</td>
+              <td><input class="mes-input" id="sp_${oid}_L_min" type="number" step=".01" value="33.10" style="width:65px;text-align:center"></td>
+              <td><input class="mes-input" id="sp_${oid}_L_std" type="number" step=".01" value="35.24" style="width:65px;text-align:center;border-color:var(--blue-border);color:var(--blue)"></td>
+              <td><input class="mes-input" id="sp_${oid}_L_max" type="number" step=".01" value="37.40" style="width:65px;text-align:center"></td></tr>
+            <tr><td style="color:var(--text2);padding:3px 4px">a*</td>
+              <td><input class="mes-input" id="sp_${oid}_a_min" type="number" step=".01" value="-1.50" style="width:65px;text-align:center"></td>
+              <td><input class="mes-input" id="sp_${oid}_a_std" type="number" step=".01" value="-0.82" style="width:65px;text-align:center;border-color:var(--blue-border);color:var(--blue)"></td>
+              <td><input class="mes-input" id="sp_${oid}_a_max" type="number" step=".01" value="-0.20" style="width:65px;text-align:center"></td></tr>
+            <tr><td style="color:var(--text2);padding:3px 4px">b*</td>
+              <td><input class="mes-input" id="sp_${oid}_b_min" type="number" step=".01" value="-44.20" style="width:65px;text-align:center"></td>
+              <td><input class="mes-input" id="sp_${oid}_b_std" type="number" step=".01" value="-42.15" style="width:65px;text-align:center;border-color:var(--blue-border);color:var(--blue)"></td>
+              <td><input class="mes-input" id="sp_${oid}_b_max" type="number" step=".01" value="-40.05" style="width:65px;text-align:center"></td></tr>
+          </tbody>
+        </table>
+        <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+          <button class="spectro-save-btn" onclick="saveSpectroReading('${oid}')">🔬 Guardar Medición</button>
+        </div>
+        ${buildSpectroHistory(oid)}
+      </div>
+    </div>`;
+  }
+  if(mesState.active==='barniz'){
+    const d=mesState.slotData[mesState.inst]||{};
+    return`<div class="mes-fields">
+      <div class="mes-field-group">
+        <div class="mes-field-lbl" style="color:var(--purple)">Tipo de Barniz — Slot ${mesState.inst}</div>
+        <label style="font-size:10px;color:var(--text3)">Tipo</label>
+        <select class="mes-select" style="margin-bottom:6px" onchange="mesState.slotData[${mesState.inst}].barnizTipo=this.value">
+          <option ${d.barnizTipo==='Brillante UV'?'selected':''}>Brillante UV</option>
+          <option ${d.barnizTipo==='Mate UV'?'selected':''}>Mate UV</option>
+        </select>
+        <label style="font-size:10px;color:var(--text3)">Aplicación</label>
+        <select class="mes-select" style="margin-bottom:6px" onchange="mesState.slotData[${mesState.inst}].barnizZonif=this.value">
+          <option ${d.barnizZonif==='Total'?'selected':''}>Total (toda la superficie)</option>
+          <option ${d.barnizZonif==='Zonificado'?'selected':''}>Zonificado (área parcial)</option>
+        </select>
+        <label style="font-size:10px;color:var(--text3)">Zona (si aplica)</label>
+        <input class="mes-input" type="text" placeholder="Ej: logo central, 40x40mm" value="${d.barnizZona||''}" onchange="mesState.slotData[${mesState.inst}].barnizZona=this.value">
+      </div>
+      <div class="mes-field-group">
+        <div class="mes-field-lbl" style="color:var(--purple)">Variables de Proceso</div>
+        <label style="font-size:10px;color:var(--text3)">Viscosidad (seg)</label>
+        <input class="mes-input" type="number" value="${d.visc||18}" onchange="mesState.slotData[${mesState.inst}].visc=this.value">
+        <label style="font-size:10px;color:var(--text3)">Temp. lámpara UV (°C)</label>
+        <input class="mes-input" type="number" value="85">
+        <label style="font-size:10px;color:var(--text3)">Potencia UV (%)</label>
+        <input class="mes-input" type="number" value="100">
+      </div>
+      <div class="mes-field-group">
+        <div class="mes-field-lbl" style="color:var(--purple)">Estado</div>
+        <div style="font-size:11px;color:var(--green);background:var(--green-bg);border:1px solid var(--green-border);padding:6px;border-radius:3px;text-align:center;font-family:var(--font-mono);margin-bottom:8px">LÁMPARA UV ACTIVA ✓</div>
+        <div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);margin-bottom:4px">Nota:</div>
+        <div style="font-size:10px;color:var(--red-border);background:var(--red-bg);border:1px solid var(--red-border);padding:5px;border-radius:3px;font-family:var(--font-mono)">⚠ Laminado desactivado por exclusión</div>
+      </div>
+    </div>`;
+  }
+  if(mesState.active==='laminado'){
+    const d=mesState.laminadoData;
+    return`<div class="mes-fields">
+      <div class="mes-field-group">
+        <div class="mes-field-lbl" style="color:var(--cyan)">Material Laminado</div>
+        <label style="font-size:10px;color:var(--text3)">Tipo de material</label>
+        <input class="mes-input" type="text" value="${d.material||'BOPP Transparente Brillo 12µ'}" onchange="mesState.laminadoData.material=this.value">
+        <label style="font-size:10px;color:var(--text3)">Ancho (mm)</label>
+        <input class="mes-input" type="number" value="${d.ancho||280}" onchange="mesState.laminadoData.ancho=this.value">
+        <label style="font-size:10px;color:var(--text3)">Tensión de entrada (N)</label>
+        <input class="mes-input" type="number" value="${d.tension||14}" onchange="mesState.laminadoData.tension=this.value">
+      </div>
+      <div class="mes-field-group">
+        <div class="mes-field-lbl" style="color:var(--cyan)">Control Térmico</div>
+        <label style="font-size:10px;color:var(--text3)">Temp. rodillo laminador (°C)</label>
+        <input class="mes-input" type="number" value="${d.tempRodillo||65}" onchange="mesState.laminadoData.tempRodillo=this.value">
+        <label style="font-size:10px;color:var(--text3)">Presión del rodillo (Bar)</label>
+        <input class="mes-input" type="number" value="${d.presion||3.5}" step="0.1" onchange="mesState.laminadoData.presion=this.value">
+      </div>
+      <div class="mes-field-group">
+        <div class="mes-field-lbl" style="color:var(--cyan)">Estado</div>
+        <div style="font-size:11px;color:var(--green);background:var(--green-bg);border:1px solid var(--green-border);padding:6px;border-radius:3px;text-align:center;font-family:var(--font-mono)">SENSOR ACTIVO ✓</div>
+      </div>
+    </div>`;
+  }
+  // troquelado
+  const d=mesState.troqueData;
+  return`<div class="mes-fields">
+    <div class="mes-field-group">
+      <div class="mes-field-lbl" style="color:var(--green)">Herramental</div>
+      <label style="font-size:10px;color:var(--text3)">ID Placa Magnética</label>
+      <input class="mes-input" type="text" value="${d.id||'TRQ-RECT-4X3-Z84'}" onchange="mesState.troqueData.id=this.value" style="color:var(--green);font-weight:700">
+      <label style="font-size:10px;color:var(--text3)">Medida</label>
+      <input class="mes-input" type="text" value="${d.medida||'4&quot; x 3&quot;'}" onchange="mesState.troqueData.medida=this.value">
+      <label style="font-size:10px;color:var(--text3)">Golpes acumulados</label>
+      <input class="mes-input" type="text" readonly value="${d.golpes||'420,500 / 1,500,000'}" style="color:var(--text3)">
+    </div>
+    <div class="mes-field-group" style="grid-column:span 2">
+      <div class="mes-field-lbl" style="color:var(--green)">Presión Hidráulica</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div><label style="font-size:10px;color:var(--text3)">Manómetro Izq. (PSI)</label><input class="mes-input" type="number" value="${d.psiIzq||450}" onchange="mesState.troqueData.psiIzq=this.value"></div>
+        <div><label style="font-size:10px;color:var(--text3)">Manómetro Der. (PSI)</label><input class="mes-input" type="number" value="${d.psiDer||460}" onchange="mesState.troqueData.psiDer=this.value"></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function mesSel(type,inst,oid){
+  mesOpenFor=oid;
+  if(type==='barniz'){
+    mesState.active='barniz';mesState.barnizSlot=inst;mesState.inst=inst;
+  } else if(type==='color'){
+    const slotType=mesState.slots[inst]||'empty';
+    if(slotType==='barniz'){mesState.active='barniz';mesState.barnizSlot=inst;mesState.inst=inst;}
+    else{mesState.active='color';mesState.inst=inst;}
+  } else {
+    mesState.active=type;mesState.inst=inst;
+  }
+  renderQueue();
+}
+function mesSave(oid){showToast('✓ Sincronizado con maestro de orden — MES Gallus 440');}
+
+// ════════════════════════════════════════════
+// STATION CONFIG HISTORY
+// ════════════════════════════════════════════
+let stationHistoryOpen={};
+let stationHistoryData={};
+
+function toggleStationHistory(oid){
+  stationHistoryOpen[oid]=!stationHistoryOpen[oid];
+  const el=document.getElementById('stationHistoryList_'+oid);
+  if(!el)return;
+  if(stationHistoryOpen[oid]){
+    el.classList.add('open');
+    loadStationHistory(oid);
+  }else{
+    el.classList.remove('open');
+  }
+}
+
+async function loadStationHistory(oid){
+  const el=document.getElementById('stationHistoryList_'+oid);
+  if(!el)return;
+  el.innerHTML='<div style="font-family:var(--font-mono);font-size:10px;color:#475569;padding:8px;text-align:center">Cargando...</div>';
+  try{
+    const res=await fetch(`/api/mes/historial-config?orderCode=${encodeURIComponent(oid)}`,{
+      headers:{...sessionHeader()}
+    });
+    const json=await res.json();
+    if(!json.ok||!json.data||json.data.length===0){
+      el.innerHTML='<div style="font-family:var(--font-mono);font-size:10px;color:#475569;padding:8px;text-align:center">Sin historial para esta orden</div>';
+      return;
+    }
+    stationHistoryData[oid]=json.data;
+    const inkColorMap={
+      cyan:'#06b6d4',magenta:'#ec4899',amarillo:'#eab308',negro:'#1e293b',
+      blanco:'#f8fafc',pantone:'#f97316',barniz:'#a78bfa',empty:'#1e2d3d'
+    };
+    el.innerHTML=json.data.map((cfg,i)=>{
+      const dt=new Date(cfg.created_at);
+      const dateStr=dt.toLocaleDateString('es-CR',{day:'2-digit',month:'2-digit'})+' '+dt.toLocaleTimeString('es-CR',{hour:'2-digit',minute:'2-digit'});
+      const op=cfg.operator_name||'Operario';
+      return`<div class="station-history-item" onclick="loadStationConfig('${oid}',${i})">
+        <span class="station-history-date">${dateStr}</span>
+        <span class="station-history-operator">${op}</span>
+        <div class="station-history-stations">
+          ${[1,2,3,4,5,6,7,8].map(s=>{
+            const ink=cfg['ink_type_slot_'+s]||cfg.ink_type||'empty';
+            const col=inkColorMap[ink]||'#1e2d3d';
+            return`<div class="station-history-chip" style="background:${col}" title="S${s}: ${ink}"></div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    el.innerHTML='<div style="font-family:var(--font-mono);font-size:10px;color:#f85149;padding:8px;text-align:center">Error al cargar</div>';
+  }
+}
+
+async function loadStationConfig(oid,idx){
+  const cfgs=stationHistoryData[oid];
+  if(!cfgs||!cfgs[idx])return;
+  const cfg=cfgs[idx];
+  try{
+    const res=await fetch(`/api/mes/config-estaciones?orderCode=${encodeURIComponent(oid)}`,{
+      headers:{...sessionHeader()}
+    });
+    const json=await res.json();
+    if(!json.ok||!json.data||json.data.length===0){
+      showToast('No se pudo cargar la configuración');
+      return;
+    }
+    const allConfigs=json.data;
+    const cfgTime=new Date(cfg.created_at).getTime();
+    const groupConfigs=allConfigs.filter(c=>{
+      const cTime=new Date(c.created_at).getTime();
+      return Math.abs(cTime-cfgTime)<3600000;
+    });
+    if(groupConfigs.length===0){
+      showToast('No se encontraron estaciones para esta configuración');
+      return;
+    }
+    for(const st of groupConfigs){
+      const slot=st.slot_number;
+      if(slot>=1&&slot<=8){
+        mesState.slots[slot]=st.ink_type||'empty';
+        mesState.slotData[slot]={
+          visc:String(st.viscosity||22),
+          temp:String(st.temperature||23.5),
+          anilox:st.anilox_code||'ANX-800-2.2',
+          barnizTipo:st.barniz_tipo||'Brillante UV',
+          barnizZonif:st.barniz_zonif||'Total',
+          barnizZona:st.barniz_zona||'',
+          pantoneRef:st.pantone_ref||'PMS 485 C'
+        };
+      }
+    }
+    renderQueue();
+    showToast('✓ Configuración cargada del historial');
+  }catch(e){
+    showToast('Error al cargar configuración');
+  }
+}
+
+async function saveStationConfig(oid){
+  const stations=[];
+  for(let i=1;i<=8;i++){
+    const slot=mesState.slots[i]||'empty';
+    const d=mesState.slotData[i]||{};
+    stations.push({
+      slotNumber:i,
+      inkType:slot,
+      viscosity:Number(d.visc||0),
+      temperature:Number(d.temp||0),
+      aniloxCode:d.anilox||'',
+      pantoneRef:d.pantoneRef||'',
+      barnizTipo:d.barnizTipo||'',
+      barnizZonif:d.barnizZonif||'',
+      barnizZona:d.barnizZona||'',
+      uvPower:d.uvPower||'',
+      uvTemp:d.uvTemp||''
+    });
+  }
+  try{
+    const res=await fetch('/api/mes/config-estaciones',{
+      method:'POST',
+      headers:{'Content-Type':'application/json',...sessionHeader()},
+      body:JSON.stringify({
+        orderCode:oid,
+        productCode:oid,
+        machineName:currentMachineName()||'Gallus Labelmaster 440',
+        operatorName:currentUserName(),
+        stations:stations
+      })
+    });
+    const json=await res.json();
+    if(json.ok){
+      showToast('✓ Configuración guardada en historial');
+      if(stationHistoryOpen[oid])loadStationHistory(oid);
+    }else{
+      showToast('Error: '+(json.error||'No se pudo guardar'));
+    }
+  }catch(e){
+    showToast('Error al guardar configuración');
+  }
+}
+
+// ════════════════════════════════════════════
+// ACTIONS
+// ════════════════════════════════════════════
+function findOrderRouteId(oid){
+  const route=productionRoutes.find(r=>r.orderCode===oid&&r.processKey===activeProc);
+  return route?.routeId||'';
+}
+async function postMesEvent(oid,eventType,notes=''){
+  const routeId=findOrderRouteId(oid);
+  if(!routeId)throw new Error('No se encontró la ruta activa de la orden.');
+  const res=await fetch('/api/mes/evento',{
+    method:'POST',
+    headers:{'Content-Type':'application/json',...sessionHeader()},
+    body:JSON.stringify({routeId,eventType,operatorName:currentUserName(),notes})
+  });
+  const payload=await res.json().catch(()=>({}));
+  if(!res.ok)throw new Error(payload.error||'No se pudo registrar el avance.');
+  await loadProductionFlow();
+}
+async function doStart(oid,name){
+  try{await postMesEvent(oid,'run','Inicio de proceso');}catch(e){showToast(e.message);return;}
+  orderStates[oid]='inprog';
+  orderStartTime[oid]=nowSim();
+  addLog(oid,'▶','Orden iniciada');
+  renderQueue();showToast(`▶ ${oid} iniciada`);
+}
+async function doResume(oid){
+  if(pauseStarts[oid]){
+    const dur=Math.round((Date.now()-pauseStarts[oid].startTs)/60000);
+    addLog(oid,'▶',`Reanudada (pausa: ${dur}min — ${pauseStarts[oid].reason})`);
+    clearInterval(pauseTimerIvs[oid]);
+    delete pauseStarts[oid];delete pauseTimerIvs[oid];
+  }
+  try{await postMesEvent(oid,'run','Reanudación de proceso');}catch(e){showToast(e.message);return;}
+  orderStates[oid]='inprog';
+  renderQueue();showToast(`▶ Orden ${oid} reanudada`);
+}
+function doComplete(oid,name){
+  showModal(`<h3>✓ Completar orden</h3>
+    <div class="modal-sub">${oid} — ${name}</div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">¿Confirmás que esta orden fue completada correctamente?</p>
+    <div class="modal-btns">
+      <button class="mbtn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="mbtn-confirm mbtn-green" onclick="confirmComplete('${oid}','${name}')">✓ Confirmar</button>
+    </div>`);
+}
+async function confirmComplete(oid,name){
+  try{await postMesEvent(oid,'completado',`Proceso ${activeProc} completado`);}catch(e){showToast(e.message);return;}
+  orderStates[oid]='done';
+  if(pauseStarts[oid]){clearInterval(pauseTimerIvs[oid]);delete pauseStarts[oid];delete pauseTimerIvs[oid];}
+  addLog(oid,'✓','Orden completada');
+  closeModal();renderQueue();showToast(`✓ ${oid} completada`);
+}
+function sendSAP(oid,mid,name,btn){
+  const key=oid+'_'+mid;
+  if(sentMats.has(key))return;
+  btn.textContent='↻ Enviando...';btn.disabled=true;
+  setTimeout(()=>{
+    sentMats.add(key);
+    btn.textContent='✓ Enviado a SAP';btn.classList.add('sent');
+    addLog(oid,'📦',`Descargo SAP: ${mid} — ${name}`);
+    showToast(`↗ Descargo enviado — ${mid}`);
+  },1200);
+}
+
+// ════════════════════════════════════════════
+// PAUSE MODAL
+// ════════════════════════════════════════════
+let _pauseType=null,_pauseCat=null,_pauseOid=null,_pauseName=null,_pausePid=null;
+
+function openPauseModal(oid,name,pid){
+  _pauseOid=oid;_pauseName=name;_pausePid=pid;_pauseType=null;_pauseCat=null;
+  renderPauseModal();
+  document.getElementById('overlay').style.display='flex';
+}
+
+function renderPauseModal(){
+  const proc=PROCS.find(p=>p.id===_pausePid);
+  const qualCats=proc?proc.cats:[];
+  let sub='';
+  if(_pauseType==='proceso'){
+    sub=`<div class="section-lbl" style="margin-top:14px">Causa del proceso / calidad</div>
+    <div class="reason-grid">${qualCats.map(c=>`<button class="rbtn${_pauseCat===c?' sel-red':''}" onclick="_selCat('${c.replace(/'/g,"\\'")}');renderPauseModal()">${c}</button>`).join('')}</div>`;
+  } else if(_pauseType==='personal'){
+    sub=`<div class="section-lbl" style="margin-top:14px">Tipo de descanso</div>
+    <div class="reason-grid">${PERSONAL.map(r=>`<button class="rbtn${_pauseCat===r.id?' sel-green':''}" onclick="_selCat('${r.id}');renderPauseModal()">${r.lbl}${r.dur?` <span style='opacity:.6'>(${r.dur}min)</span>`:''}</button>`).join('')}</div>`;
+  } else if(_pauseType==='mantenimiento'){
+    sub=`<div class="section-lbl" style="margin-top:14px">Tipo de mantenimiento</div>
+    <div class="reason-grid">${MAINT.map(r=>`<button class="rbtn${_pauseCat===r.id?' sel-blue':''}" onclick="_selCat('${r.id}');renderPauseModal()">${r.lbl}</button>`).join('')}</div>`;
+  }
+  const canConfirm=_pauseType&&_pauseCat;
+  document.getElementById('modalBox').innerHTML=`
+    <h3>⏸ Pausar orden</h3>
+    <div class="modal-sub">${_pauseOid} — ${_pauseName}</div>
+    <div class="section-lbl">Tipo de pausa</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+      <button class="rbtn${_pauseType==='proceso'?' sel-red':''}" onclick="_selType('proceso');renderPauseModal()">⚙️ Proceso / calidad</button>
+      <button class="rbtn${_pauseType==='personal'?' sel-green':''}" onclick="_selType('personal');renderPauseModal()">🧍 Tiempo personal</button>
+      <button class="rbtn${_pauseType==='mantenimiento'?' sel-blue':''}" onclick="_selType('mantenimiento');renderPauseModal()">🔧 Mantenimiento</button>
+    </div>
+    ${sub}
+    <textarea class="note-input" id="pauseNote" placeholder="Observación adicional (opcional)..."></textarea>
+    <div class="modal-btns">
+      <button class="mbtn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="mbtn-confirm mbtn-amber" onclick="confirmPause()" ${canConfirm?'':'disabled style="opacity:.45;cursor:default"'}>⏸ Registrar pausa</button>
+    </div>`;
+}
+window._selType=function(t){_pauseType=t;_pauseCat=null;}
+window._selCat=function(c){_pauseCat=c;}
+
+async function confirmPause(){
+  if(!_pauseType||!_pauseCat)return;
+  const note=document.getElementById('pauseNote').value;
+  try{await postMesEvent(_pauseOid,'paro',`${_pauseType} — ${_pauseCat}${note?' ('+note+')':''}`);}catch(e){showToast(e.message);return;}
+  orderStates[_pauseOid]='paused';
+  pauseStarts[_pauseOid]={startTs:Date.now(),reason:_pauseCat,note};
+  const iv=setInterval(()=>updatePauseDisp(_pauseOid),1000);
+  pauseTimerIvs[_pauseOid]=iv;
+  addLog(_pauseOid,'⏸',`Pausa: ${_pauseType} — ${_pauseCat}${note?' ('+note+')':''}`);
+  closeModal();renderQueue();showToast(`⏸ Pausa registrada — ${_pauseCat}`);
+}
+
+function updatePauseDisp(oid){
+  const ps=pauseStarts[oid];if(!ps)return;
+  const el=document.getElementById('pt_'+oid);if(!el)return;
+  const sec=Math.floor((Date.now()-ps.startTs)/1000);
+  const m=Math.floor(sec/60),s=sec%60;
+  el.textContent=`⏱ ${m}:${pad2(s)}`;
+}
+
+// ════════════════════════════════════════════
+// MODAL UTILS
+// ════════════════════════════════════════════
+function showModal(html){document.getElementById('modalBox').innerHTML=html;document.getElementById('overlay').style.display='flex';}
+function closeModal(){document.getElementById('overlay').style.display='none';}
+function handleOverlayClick(e){if(e.target.id==='overlay')closeModal();}
+
+// ════════════════════════════════════════════
+// TOAST
+// ════════════════════════════════════════════
+let _toastTmr;
+function showToast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';
+  clearTimeout(_toastTmr);_toastTmr=setTimeout(()=>{t.style.display='none';},2800);
+}
+
+// ════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════
+syncOperatorName();
+loadProductionFlow().catch(e=>showToast(e.message)).finally(()=>{renderProcs();if(activeProc)renderQueue();});
+renderClock();
+setInterval(renderClock,1000);
+// Refresh queue every 15s to update countdown rings and timeline
+setInterval(()=>{loadProductionFlow().catch(()=>{}).finally(()=>{renderProcs();if(activeProc)renderQueue();});},15000);
+</script>
+</body>
+</html>

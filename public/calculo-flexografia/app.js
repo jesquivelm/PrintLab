@@ -1751,7 +1751,7 @@ function resolveDieMetrics(die = {}, context = {}) {
   return {
     dieCode: first(die.codigoTroquel, die.codigo, die.id, context?.dieCode, ""),
     dieDescription: first(die.descripcion, die.description, die.codigoTroquel, die.codigo, die.id, context?.dieCode, "No definido"),
-    dieShape: first(die.shapeType, die.shape_type, die.clasificacion, die.classification, die.formaTroquel, die.forma_troquel, die.tipoTroquel2, die.tipo_troquel_2, context?.raw_data?.["REQ | Forma"], context?.dieShape, ""),
+    dieShape: first(die.shapeType, die.shape_type, die.clasificacion, die.classification, die.formaTroquel, die.forma_troquel, die.formato, die.tipoTroquel2, die.tipo_troquel_2, context?.raw_data?.["REQ | Forma"], context?.dieShape, ""),
     widthIn: r(mountWidthIn, 4),
     lengthIn: r(mountLengthIn, 4),
     productWidthIn: r(productWidthIn || 0, 4),
@@ -3353,6 +3353,7 @@ const DIE_SHAPE_TYPE_MAP = new Map([
   ["ovalado", "Ovalado"],
   ["ovalada", "Ovalado"],
   ["ovalo", "Ovalado"],
+  ["elipse", "Ovalado"],
   ["especial", "Especial"],
   ["butt cut", "Butt Cut"],
   ["but cut", "Butt Cut"],
@@ -3378,6 +3379,7 @@ function dieInventoryShapeType(die = {}) {
     die.classification,
     die.formaTroquel,
     die.forma_troquel,
+    die.formato,
     die.tipoTroquel2,
     die.tipo_troquel_2
   ));
@@ -4567,6 +4569,7 @@ function buildForm() {
     },
     substrate: {
       materialId,
+      nombreComercial: '',
       unit: "pies",
       costPerFoot: material ? materialUnitCosts(material, n(context?.materialWidth || context?.widthInches, 0)).costPerFoot : r((((processMsi * n(context?.materialWidth || context?.widthInches, 0)) / 1000) || 0) * 12, 6),
       costPerMeter: material ? materialUnitCosts(material, n(context?.materialWidth || context?.widthInches, 0)).costPerMeter : r((((processMsi * n(context?.materialWidth || context?.widthInches, 0)) / 1000) || 0) / 0.0254, 6),
@@ -4916,7 +4919,7 @@ function applyStageMaculaOverrides(stage = {}, macula = {}, base = metrics()) {
 function calcSustrato() {
   const base = metrics();
   const material = selectedSubstrateMaterial(state.form);
-  const materialName = first(material?.nombre, material?.name, material?.descripcion, "");
+  const materialName = state.form.substrate.nombreComercial || first(material?.nombre, material?.name, material?.descripcion, "");
   const macula = hasActiveProcess("impresion") ? documentMaculaFromStages(base) : { setupFeet: 0, tirajeFeet: 0, totalFeet: 0 };
   const maculaSetupFeet = r(n(macula.setupFeet, 0), 2);
   const maculaTirajeFeet = r(n(macula.tirajeFeet, 0), 2);
@@ -5538,7 +5541,7 @@ function buildSavePayload() {
     salespersonName: state.form.header.salespersonName,
     processType: state.form.header.noPrint ? "Sin impresion" : printProductionType || state.form.header.processType || "Convencional",
     materialId: state.form.substrate.materialId,
-    materialName: first(selectedSubstrateMaterial(state.form)?.nombre, selectedSubstrateMaterial(state.form)?.name, selectedSubstrateMaterial(state.form)?.descripcion, ""),
+    materialName: state.form.substrate.nombreComercial || first(selectedSubstrateMaterial(state.form)?.nombre, selectedSubstrateMaterial(state.form)?.name, selectedSubstrateMaterial(state.form)?.descripcion, ""),
     dieId: state.form.troquel.dieCode,
     machineName: state.form.print.machineName,
     quantityProducts: currentQuantity(state.form),
@@ -6681,7 +6684,7 @@ function renderSidebar(result) {
   const autoMaterialName = first(autoSelection?.materialName, state.context?.calculo?.materialName, "");
   const autoDieCode = first(autoSelection?.dieCode, state.context?.calculo?.dieCode, "");
   const currentMachineName = printProcess?.machine_name || state.form.print.machineName || "";
-  const currentMaterialName = material?.descripcion || "";
+  const currentMaterialName = state.form.substrate.nombreComercial || material?.descripcion || "";
   const currentDieCode = state.form.troquel.dieCode || "";
   const currentLabelsPerRoll = n(state.form.header.labelsPerRoll, 0);
   const autoLabelsPerRoll = n(first(autoSelection?.labelsPerRoll, state.context?.calculo?.labelsPerRoll), 0);
@@ -6700,7 +6703,7 @@ function renderSidebar(result) {
   const quoteValue = quoteRoute
     ? `<a class="summary-row-link" href="${esc(quoteRoute)}" data-route="${esc(quoteRoute)}" data-label="Cotización ${esc(quoteCode)}">${esc(quoteCode)}</a>`
     : esc("Sin base");
-  els.contextRows.innerHTML = [["Cotización", quoteValue, true], ["Línea", state.form.header.lineCode || "Sin base"], ["Cantidades productos", quantities || "Sin definir"], ["Cantidad base", num(currentQuantity(state.form), 0)], ["Troquel", state.form.troquel.dieCode || "No definido"], ["Sustrato", material?.descripcion || "No definido"], ["Máquina impresión", printProcess?.machine_name || state.form.print.machineName || "No definida"], ["Proceso productivo", processProductiveType], ["Ruta automática", state.context?.calculo?.processType || autoSelection?.route || "No definida"], ["Montaje base", first(autoSelection?.mounting?.summary, state.context?.calculo?.raw_data?.["REQ | Montaje Automático"], "Pendiente")], ["Regla planchas", plateRule], ["Estado línea", state.form.header.lineStatus || "En evaluación"]].map(([label, value, html]) => `<div class="summary-row"><span>${esc(label)}</span><span class="summary-row-value">${html ? value : esc(value)}</span></div>`).join("");
+  els.contextRows.innerHTML = [["Cotización", quoteValue, true], ["Línea", state.form.header.lineCode || "Sin base"], ["Cantidades productos", quantities || "Sin definir"], ["Cantidad base", num(currentQuantity(state.form), 0)], ["Troquel", state.form.troquel.dieCode || "No definido"], ["Sustrato", state.form.substrate.nombreComercial || material?.descripcion || "No definido"], ["Máquina impresión", printProcess?.machine_name || state.form.print.machineName || "No definida"], ["Proceso productivo", processProductiveType], ["Ruta automática", state.context?.calculo?.processType || autoSelection?.route || "No definida"], ["Montaje base", first(autoSelection?.mounting?.summary, state.context?.calculo?.raw_data?.["REQ | Montaje Automático"], "Pendiente")], ["Regla planchas", plateRule], ["Estado línea", state.form.header.lineStatus || "En evaluación"]].map(([label, value, html]) => `<div class="summary-row"><span>${esc(label)}</span><span class="summary-row-value">${html ? value : esc(value)}</span></div>`).join("");
   if (els.automaticSummaryRows) {
     const processSequence = autoProcesses.length
       ? autoProcesses.map((item) => item.processName || item.name || item.processKey || "").filter(Boolean).join(" → ")
@@ -8044,7 +8047,7 @@ function renderProcesses() {
           : `${selector}${renderDiePendingPanel()}`);
       return card("troquel", nextTitle("Troquel"), dieMode === "inventory" ? state.form.troquel.dieDescription : "", dieMode === "inventory" ? null : troquel.subtotal, body);
     },
-    sustrato: () => card("sustrato", nextTitle("Sustrato"), sustrato.materialName || "Selecciona material", sustrato.subtotal, `<div class="editable-grid substrate-grid"><label class="span-2"><span>Material</span><select data-scope="substrate" data-field="materialId">${processOptions(substrateMaterialOptions().map((item) => ({ id: item.id, nombre: item.nombre || item.name || item.descripcion || item.id })), state.form.substrate.materialId)}</select></label><label><span>Costo/pie</span>${displayInput("substrate", "costPerFoot", state.form.substrate.costPerFoot, { prefix: "$", suffix: "/pie", maximumFractionDigits: 6, step: "0.000001" })}</label></div><div class="readonly-grid compact-top">${metricBox("Etiquetas al Través", sustrato.acrossCount > 0 ? num(sustrato.acrossCount, 0) : "Pendiente", n(sustrato.acrossCount, 0) <= 0)}${metricBox("Desarrollo del Cilindro", sustrato.cylinderDevelopmentIn > 0 ? `${num(sustrato.cylinderDevelopmentIn, 3)} in` : "Pendiente", n(sustrato.cylinderDevelopmentIn, 0) <= 0)}${metricBox("Merma Total", sustrato.startupWasteFeet > 0 ? `${num(sustrato.startupWasteFeet, 2)} pies` : "Pendiente", (sustrato.issues || []).some((issue) => String(issue).toLowerCase().includes("merma")))}${metricBox("Longitud Total", sustrato.totalLengthFeet > 0 ? `${num(sustrato.totalLengthFeet, 2)} pies` : "Pendiente", (sustrato.issues || []).length > 0)}${metricBox("Área Total Consumida", sustrato.totalAreaFt2 > 0 ? `${num(sustrato.totalAreaFt2, 2)} ft²` : "Pendiente", n(sustrato.webWidthIn, 0) <= 0 || (sustrato.issues || []).length > 0)}${metric("Costo por Pie", money(sustrato.unitCost))}${metric("$ / Metro", money(n(sustrato.unitCost, 0) / 0.3048))}${metric("Subtotal", money(sustrato.subtotal))}</div>${issueList("Problemas detectados en la fórmula", sustrato.issues || [])}${formula("Costo del Sustrato", sustrato.formulaCost, sustrato.explanation, {
+    sustrato: () => card("sustrato", nextTitle("Sustrato"), sustrato.materialName || "Selecciona material", sustrato.subtotal, `<div class="editable-grid substrate-grid"><label class="span-3"><span>Material</span><select data-scope="substrate" data-field="materialId">${processOptions(substrateMaterialOptions().map((item) => ({ id: item.id, nombre: item.nombre || item.name || item.descripcion || item.id })), state.form.substrate.materialId)}</select></label><label><span>Costo/pie</span>${displayInput("substrate", "costPerFoot", state.form.substrate.costPerFoot, { prefix: "$", suffix: "/pie", maximumFractionDigits: 6, step: "0.000001" })}</label><label class="span-3"><span>Nombre Comercial</span><input data-scope="substrate" data-field="nombreComercial" type="text" value="${esc(state.form.substrate.nombreComercial || '')}" placeholder="Nombre del material"></label></div><div class="readonly-grid compact-top">${metricBox("Etiquetas al Través", sustrato.acrossCount > 0 ? num(sustrato.acrossCount, 0) : "Pendiente", n(sustrato.acrossCount, 0) <= 0)}${metricBox("Desarrollo del Cilindro", sustrato.cylinderDevelopmentIn > 0 ? `${num(sustrato.cylinderDevelopmentIn, 3)} in` : "Pendiente", n(sustrato.cylinderDevelopmentIn, 0) <= 0)}${metricBox("Merma Total", sustrato.startupWasteFeet > 0 ? `${num(sustrato.startupWasteFeet, 2)} pies` : "Pendiente", (sustrato.issues || []).some((issue) => String(issue).toLowerCase().includes("merma")))}${metricBox("Longitud Total", sustrato.totalLengthFeet > 0 ? `${num(sustrato.totalLengthFeet, 2)} pies` : "Pendiente", (sustrato.issues || []).length > 0)}${metricBox("Área Total Consumida", sustrato.totalAreaFt2 > 0 ? `${num(sustrato.totalAreaFt2, 2)} ft²` : "Pendiente", n(sustrato.webWidthIn, 0) <= 0 || (sustrato.issues || []).length > 0)}${metric("Costo por Pie", money(sustrato.unitCost))}${metric("$ / Metro", money(n(sustrato.unitCost, 0) / 0.3048))}${metric("Subtotal", money(sustrato.subtotal))}</div>${issueList("Problemas detectados en la fórmula", sustrato.issues || [])}${formula("Costo del Sustrato", sustrato.formulaCost, sustrato.explanation, {
       exampleLines: [
         `Cantidad Lineal Sustrato: ( ${formulaValue(sustrato.qty || 0, 0)} x ${formulaValue(sustrato.cylinderDevelopmentIn || 0, 2)} ) / ( 12 x ${formulaValue(sustrato.acrossCount || 0, 0)} ) = ${formulaValue(sustrato.linealFeet || 0, 2)}`,
         `Longitud Total: ${formulaValue(sustrato.linealFeet || 0, 2)} + ${formulaValue(sustrato.startupWasteFeet || 0, 2)} = ${formulaValue(sustrato.totalLengthFeet || 0, 2)}`,
@@ -8763,6 +8766,7 @@ function bindProcesses() {
       state.form.substrate.costPerFoot = costs.costPerFoot;
       state.form.substrate.costPerMeter = costs.costPerMeter;
       state.form.substrate.costPerMsi = r(costs.costMsi, 6);
+      state.form.substrate.nombreComercial = material?.nombre_comercial || material?.nombre || '';
       const materialNeedsPremier = materialRequiresPremier(material);
       const materialPreTreated = materialPremierPreapplied(material);
       const premierDefaults = digitalInkDefaults();

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<script src="/theme.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Capacidad Finita — Planificación</title>
+<style>
+:root{--font-sans:"Segoe UI",system-ui,sans-serif;--color-text-primary:#1f2b3d;--color-text-secondary:#66758b;--color-background-primary:#f4f7fb;--color-background-secondary:#fff;--color-background-tertiary:#edf2f7;--color-border-secondary:#d8e4ef;--color-border-tertiary:#e4ebf3;--border-radius-md:6px}
+html[data-theme="dark"]{--color-text-primary:#e5eefb;--color-text-secondary:#9fb0c8;--color-background-primary:#0f172a;--color-background-secondary:#162033;--color-background-tertiary:#1e293b;--color-border-secondary:#334155;--color-border-tertiary:#26364f}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);font-size:13px;color:var(--color-text-primary);background:var(--color-background-primary);min-height:100vh}
+.top-bar{padding:12px 16px;border-bottom:0.5px solid var(--color-border-tertiary);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.top-title{font-size:15px;font-weight:500}
+.top-sub{font-size:12px;color:var(--color-text-secondary)}
+.top-actions{display:flex;gap:8px;align-items:center}
+.btn{font-size:12px;padding:6px 14px;border-radius:var(--border-radius-md);border:1px solid var(--color-border-secondary);background:var(--color-background-secondary);color:var(--color-text-primary);cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-weight:500}
+.btn:hover{background:var(--color-background-tertiary)}
+.btn.primary{background:#1D9E75;border-color:#0F6E56;color:#fff}
+.btn.primary:hover{background:#0F6E56}
+.btn.sm{font-size:11px;padding:4px 10px}
+.tab-bar{display:flex;border-bottom:0.5px solid var(--color-border-tertiary);padding:0 16px;gap:4px}
+.tab{padding:9px 14px;font-size:12px;cursor:pointer;border-bottom:2px solid transparent;color:var(--color-text-secondary);transition:all .15s}
+.tab.active{border-bottom-color:#378ADD;color:var(--color-text-primary);font-weight:500}
+.tab:hover{color:var(--color-text-primary)}
+.panel{display:none;padding:14px 16px}
+.panel.active{display:block}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.kpi-card{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:14px 16px}
+.kpi-label{font-size:11px;color:var(--color-text-secondary);margin-bottom:6px;letter-spacing:.04em}
+.kpi-val{font-size:26px;font-weight:600;line-height:1}
+.kpi-sub{font-size:11px;color:var(--color-text-secondary);margin-top:4px}
+.kpi-val.green{color:#0F6E56}
+.kpi-val.amber{color:#854F0B}
+.kpi-val.red{color:#A32D2D}
+.kpi-val.blue{color:#185FA5}
+.loading{padding:60px;text-align:center;color:var(--color-text-secondary)}
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid var(--color-border-secondary);border-top-color:#1D9E75;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{padding:60px;text-align:center;color:var(--color-text-secondary);font-size:13px}
+.empty-icon{font-size:40px;margin-bottom:10px}
+.section-title{font-size:12px;font-weight:500;color:var(--color-text-secondary);letter-spacing:.05em;margin:16px 0 10px}
+.resource-row{display:grid;grid-template-columns:180px 1fr 80px 80px 80px 100px;align-items:center;gap:12px;padding:10px 14px;border-bottom:0.5px solid var(--color-border-tertiary);font-size:12px}
+.resource-row:last-child{border-bottom:none}
+.resource-row:hover{background:var(--color-background-secondary)}
+.resource-row.is-bottleneck{background:rgba(252,235,235,0.4)}
+html[data-theme="dark"] .resource-row.is-bottleneck{background:rgba(164,67,67,0.1)}
+.res-name{font-weight:500;display:flex;align-items:center;gap:6px}
+.res-process{font-size:10px;color:var(--color-text-secondary)}
+.res-bar-wrap{height:8px;background:var(--color-background-tertiary);border-radius:4px;overflow:hidden}
+.res-bar-fill{height:100%;border-radius:4px;transition:width .4s}
+.res-pct{font-weight:600;text-align:right}
+.res-pct.green{color:#0F6E56}
+.res-pct.amber{color:#854F0B}
+.res-pct.red{color:#A32D2D}
+.res-queue{text-align:right;color:var(--color-text-secondary)}
+.res-routes{text-align:right;color:var(--color-text-secondary)}
+.bottleneck-badge{display:inline-block;padding:2px 8px;border-radius:var(--border-radius-md);font-size:10px;font-weight:600;background:#FCEBEB;color:#A32D2D;border:1px solid #f0b5b5}
+html[data-theme="dark"] .bottleneck-badge{background:rgba(164,67,67,0.15);border-color:rgba(164,67,67,0.3);color:#f0a0a0}
+.order-card{background:var(--color-background-secondary);border:1px solid var(--color-border-secondary);border-radius:var(--border-radius-md);margin-bottom:10px;overflow:hidden}
+.order-card-hdr{padding:12px 16px;border-bottom:0.5px solid var(--color-border-tertiary);display:flex;justify-content:space-between;align-items:center}
+.order-code{font-weight:600;font-size:13px}
+.order-dates{font-size:11px;color:var(--color-text-secondary)}
+.order-timeline{padding:14px 16px;display:flex;align-items:flex-start;gap:0;overflow-x:auto}
+.timeline-step{display:flex;flex-direction:column;align-items:center;min-width:120px;position:relative}
+.timeline-bar{width:100%;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#fff;position:relative}
+.timeline-bar.wait{background:repeating-linear-gradient(45deg,#e8e8e4,#e8e8e4 4px,#d0d0ca 4px,#d0d0ca 8px);color:var(--color-text-secondary);font-weight:400}
+.timeline-bar.process{background:#378ADD}
+.timeline-bar.bottleneck{background:#E24B4A}
+.timeline-label{font-size:10px;color:var(--color-text-secondary);margin-top:4px;text-align:center}
+.timeline-dur{font-size:10px;font-weight:600;margin-top:2px}
+.timeline-connector{width:24px;height:2px;background:var(--color-border-secondary);margin-top:15px;flex-shrink:0}
+.order-summary-row{display:flex;gap:16px;padding:8px 16px;border-top:0.5px solid var(--color-border-tertiary);font-size:11px;color:var(--color-text-secondary)}
+.order-summary-row span{display:flex;align-items:center;gap:4px}
+.daily-chart{width:100%;height:200px;position:relative;margin:10px 0}
+.daily-bar{position:absolute;bottom:0;border-radius:3px 3px 0 0;transition:height .4s}
+.daily-cap-line{position:absolute;left:0;right:0;height:1px;border-top:1px dashed var(--color-border-secondary)}
+.filter-row{display:flex;gap:8px;margin-bottom:12px;align-items:center}
+.filter-row label{font-size:11px;color:var(--color-text-secondary)}
+.filter-row select,.filter-row input{font-size:12px;padding:5px 8px;border:1px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-secondary);color:var(--color-text-primary)}
+.summary-mini{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+.summary-mini-item{display:flex;align-items:center;gap:6px;font-size:12px}
+.summary-mini-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.theme-toggle{width:32px;height:30px;border:1px solid var(--color-border-secondary);border-radius:6px;background:var(--color-background-secondary);color:var(--color-text-primary);cursor:pointer}.theme-toggle-icon-sun::before{content:"☀"}.theme-toggle-icon-moon::before{content:"☾"}.theme-toggle-icon-moon{display:none}html[data-theme="dark"] .theme-toggle-icon-sun{display:none}html[data-theme="dark"] .theme-toggle-icon-moon{display:inline}
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div>
+    <div class="top-title">📊 Capacidad Finita</div>
+    <div class="top-sub">Análisis de capacidad, cola y cuellos de botella por recurso</div>
+  </div>
+  <div class="top-actions">
+    <label for="horizon" style="font-size:11px;color:var(--color-text-secondary)">Horizonte</label>
+    <select id="horizon" class="btn" onchange="loadCapacity()">
+      <option value="7">7 días</option>
+      <option value="30" selected>30 días</option>
+      <option value="90">90 días</option>
+    </select>
+    <span id="last-computed" style="font-size:11px;color:var(--color-text-secondary)"></span>
+    <a class="btn" href="/planificacion/simulador">Simular</a>
+    <a class="btn" href="/planificacion/recursos">Recursos</a>
+    <span data-theme-toggle-slot></span>
+    <button id="recalculate" class="btn primary" onclick="recalculateCapacity()">↻ Recalcular</button>
+    <a class="btn" href="/planificacion/gantt">← Gantt</a>
+  </div>
+</div>
+
+<div class="tab-bar">
+  <button class="tab active" onclick="showPanel('general')">General</button>
+  <button class="tab" onclick="showPanel('recursos')">Recursos</button>
+  <button class="tab" onclick="showPanel('ordenes')">Órdenes</button>
+</div>
+
+<div id="loading" class="loading"><span class="spinner"></span>Calculando capacidad finita...</div>
+
+<!-- ═══════ PANEL: GENERAL ═══════ -->
+<div id="panel-general" class="panel" style="display:none">
+  <div id="kpi-cards" class="kpi-grid"></div>
+  <div class="section-title">Cuellos de botella</div>
+  <div id="bottlenecks-area"></div>
+  <div class="section-title">Utilización por recurso</div>
+  <div id="resource-bars"></div>
+</div>
+
+<!-- ═══════ PANEL: RECURSOS ═══════ -->
+<div id="panel-recursos" class="panel" style="display:none">
+  <div class="section-title">Detalle por recurso</div>
+  <div id="resource-detail-list"></div>
+</div>
+
+<!-- ═══════ PANEL: ÓRDENES ═══════ -->
+<div id="panel-ordenes" class="panel" style="display:none">
+  <div class="filter-row">
+    <label>Buscar:</label>
+    <input type="text" id="order-search" placeholder="Código o cliente..." oninput="renderOrders()">
+  </div>
+  <div id="order-list"></div>
+</div>
+
+<script>
+const API = '/api/planificacion';
+let capacityData = null;
+
+function showPanel(name) {
+  document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + name).style.display = 'block';
+  document.querySelectorAll('.tab').forEach(t => {
+    if (t.textContent.toLowerCase().includes(name === 'general' ? 'general' : name === 'recursos' ? 'recurso' : 'orden'))
+      t.classList.add('active');
+  });
+}
+
+function pctColor(pct) {
+  if (pct > 100) return 'red';
+  if (pct > 85) return 'amber';
+  return 'green';
+}
+
+function pctBarColor(pct) {
+  if (pct > 100) return '#A32D2D';
+  if (pct > 85) return '#D4A017';
+  return '#1D9E75';
+}
+
+function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+async function loadCapacity() {
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('panel-general').style.display = 'none';
+  try {
+    const days = document.getElementById('horizon').value;
+    const res = await fetch(`${API}/capacidad-finita?dias=${days}`);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    capacityData = data.data;
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('panel-general').style.display = 'block';
+    document.getElementById('last-computed').textContent = `Actualizado: ${new Date(capacityData.computedAt).toLocaleString('es-CR')}`;
+    renderKPIs();
+    renderBottlenecks();
+    renderResourceBars();
+    renderResourceDetail();
+    renderOrders();
+  } catch (e) {
+    document.getElementById('loading').innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div>Error al calcular capacidad.<br>${esc(e.message)}</div>`;
+  }
+}
+
+async function recalculateCapacity() {
+  const button = document.getElementById('recalculate');
+  button.disabled = true;
+  button.textContent = 'Recalculando...';
+  try {
+    const res = await fetch(`${API}/capacidad-finita/recalcular`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ horizonDays: Number(document.getElementById('horizon').value) })
+    });
+    const payload = await res.json();
+    if (!payload.ok) throw new Error(payload.error);
+    capacityData = payload.data;
+    document.getElementById('last-computed').textContent = `Actualizado: ${new Date(capacityData.computedAt).toLocaleString('es-CR')}`;
+    renderKPIs(); renderBottlenecks(); renderResourceBars(); renderResourceDetail(); renderOrders();
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = '↻ Recalcular';
+  }
+}
+
+function renderKPIs() {
+  const s = capacityData.summary;
+  const avgColor = s.avgUtilization > 100 ? 'red' : s.avgUtilization > 85 ? 'amber' : 'green';
+  document.getElementById('kpi-cards').innerHTML = `
+    <div class="kpi-card">
+      <div class="kpi-label">Utilización Promedio</div>
+      <div class="kpi-val ${avgColor}">${s.avgUtilization}%</div>
+      <div class="kpi-sub">${capacityData.totalResources} recursos activos</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Cuellos de Botella</div>
+      <div class="kpi-val ${s.bottleneckCount > 0 ? 'red' : 'green'}">${s.bottleneckCount}</div>
+      <div class="kpi-sub">recursos con >100% utilización</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Cola Total</div>
+      <div class="kpi-val amber">${s.totalQueueHours}h</div>
+      <div class="kpi-sub">${Math.round(s.totalQueueHours / 8)} días equivalentes</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Máxima Cola</div>
+      <div class="kpi-val ${s.maxQueueDays > 3 ? 'red' : 'amber'}">${s.maxQueueDays} días</div>
+      <div class="kpi-sub">en el recurso más saturado</div>
+    </div>
+  `;
+}
+
+function renderBottlenecks() {
+  const bn = capacityData.bottlenecks;
+  const area = document.getElementById('bottlenecks-area');
+  if (!bn.length) {
+    area.innerHTML = '<div style="padding:14px;font-size:12px;color:var(--color-text-secondary)">✓ No hay cuellos de botella detectados.</div>';
+    return;
+  }
+  area.innerHTML = bn.map(r => `
+    <div style="display:flex;align-items:center;gap:14px;padding:12px 16px;background:var(--color-background-secondary);border:1px solid var(--color-border-secondary);border-radius:var(--border-radius-md);margin-bottom:8px">
+      <span class="bottleneck-badge">⚠ ALERTA</span>
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:13px">${esc(r.machineName)}</div>
+        <div style="font-size:11px;color:var(--color-text-secondary)">${esc(r.processKey)}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:18px;font-weight:600;color:#A32D2D">${r.utilizationPct}%</div>
+        <div style="font-size:11px;color:var(--color-text-secondary)">${r.queueDays} días de cola · ${r.routeCount} rutas</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderResourceBars() {
+  const container = document.getElementById('resource-bars');
+  const sorted = [...capacityData.resources].sort((a, b) => b.utilizationPct - a.utilizationPct);
+  container.innerHTML = sorted.map(r => {
+    const pct = Math.min(r.utilizationPct, 130);
+    const barW = Math.min(pct, 100);
+    return `
+      <div class="resource-row ${r.isBottleneck ? 'is-bottleneck' : ''}">
+        <div class="res-name">
+          ${esc(r.machineName)}
+          ${r.isBottleneck ? '<span class="bottleneck-badge">CUELLO</span>' : ''}
+        </div>
+        <div class="res-bar-wrap">
+          <div class="res-bar-fill" style="width:${barW}%;background:${pctBarColor(r.utilizationPct)}"></div>
+        </div>
+        <div class="res-pct ${pctColor(r.utilizationPct)}">${r.utilizationPct}%</div>
+        <div class="res-queue">${r.queueDays > 0 ? r.queueDays + 'd cola' : '—'}</div>
+        <div class="res-routes">${r.routeCount} rutas</div>
+        <div style="font-size:11px;color:var(--color-text-secondary)">${r.totalLoadHours}h / ${r.totalCapacityHours}h</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderResourceDetail() {
+  const container = document.getElementById('resource-detail-list');
+  const sorted = [...capacityData.resources].sort((a, b) => b.utilizationPct - a.utilizationPct);
+  container.innerHTML = sorted.map(r => {
+    const topDays = (r.dailyLoad || []).slice(0, 14);
+    const maxHour = Math.max(...topDays.map(d => d.capacity || 0), 1);
+    const barHeight = 60;
+    const barsHTML = topDays.map(d => {
+      const h = d.capacity > 0 ? (d.hours / maxHour * barHeight) : 0;
+      const capH = barHeight;
+      const isOver = d.hours > d.capacity && d.capacity > 0;
+      return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+        <div style="width:14px;height:${barHeight}px;background:var(--color-background-tertiary);border-radius:2px;position:relative;display:flex;align-items:flex-end">
+          <div style="width:100%;height:${Math.min(h, barHeight)}px;background:${isOver ? '#A32D2D' : '#378ADD'};border-radius:2px;transition:height .3s"></div>
+          ${d.capacity > 0 ? `<div style="position:absolute;bottom:${d.capacity / maxHour * barHeight}px;left:-2px;right:-2px;height:1px;border-top:1px dashed ${isOver ? '#A32D2D' : '#aaa'}"></div>` : ''}
+        </div>
+        <div style="font-size:9px;color:var(--color-text-secondary)">${d.date.slice(5)}</div>
+      </div>`;
+    }).join('');
+    return `
+      <div style="background:var(--color-background-secondary);border:1px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:14px 16px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div>
+            <span style="font-weight:600;font-size:13px">${esc(r.machineName)}</span>
+            <span style="font-size:11px;color:var(--color-text-secondary);margin-left:8px">${esc(r.processKey)}</span>
+          </div>
+          <div style="display:flex;gap:16px;font-size:12px">
+            <span>Capacidad: <b>${r.totalCapacityHours}h</b></span>
+            <span>Carga: <b>${r.totalLoadHours}h</b></span>
+            <span class="${pctColor(r.utilizationPct)}" style="font-weight:600">${r.utilizationPct}%</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:4px;overflow-x:auto;padding-bottom:4px">
+          ${barsHTML}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderOrders() {
+  const container = document.getElementById('order-list');
+  const search = (document.getElementById('order-search')?.value || '').toLowerCase();
+  let orders = capacityData.orders || [];
+  if (search) {
+    orders = orders.filter(o => o.orderCode.toLowerCase().includes(search));
+  }
+  if (!orders.length) {
+    container.innerHTML = '<div class="empty"><div class="empty-icon">📦</div>No hay órdenes pendientes.</div>';
+    return;
+  }
+  container.innerHTML = orders.map(o => {
+    const routeSteps = o.routes.map((r, i) => {
+      const isBn = r.isBottleneck;
+      const hasWait = r.waitDays > 0;
+      let html = '';
+      if (hasWait) {
+        html += `<div class="timeline-step">
+          <div class="timeline-bar wait" style="width:${Math.min(r.waitDays * 30, 120)}px">Espera</div>
+          <div class="timeline-label">${r.waitDays}d espera</div>
+        </div>
+        <div class="timeline-connector"></div>`;
+      }
+      html += `<div class="timeline-step">
+        <div class="timeline-bar ${isBn ? 'bottleneck' : 'process'}">${esc(r.processName).slice(0, 8)}</div>
+        <div class="timeline-label">${esc(r.machineName || '')}</div>
+        <div class="timeline-dur">${r.projectedStart && r.projectedEnd ? Math.max(1, Math.round((new Date(r.projectedEnd) - new Date(r.projectedStart)) / 86400000)) + 'd' : '—'}</div>
+      </div>`;
+      if (i < o.routes.length - 1) html += '<div class="timeline-connector"></div>';
+      return html;
+    }).join('');
+    return `
+      <div class="order-card">
+        <div class="order-card-hdr">
+          <div class="order-code">${esc(o.orderCode)}</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="order-dates">
+              ${o.earliestStart ? 'Inicio: ' + o.earliestStart : ''}
+              ${o.latestEnd ? ' · Fin: ' + o.latestEnd : ''}
+            </div>
+            <a href="/planificacion/timeline?codigo=${encodeURIComponent(o.orderCode)}" class="btn sm">📋 Timeline</a>
+          </div>
+        </div>
+        <div class="order-timeline">${routeSteps}</div>
+        <div class="order-summary-row">
+          <span>🔄 ${o.routes.length} procesos</span>
+          <span>⏳ ${o.totalWaitDays}d total espera</span>
+          ${o.earliestStart && o.latestEnd ? `<span>📅 ${Math.max(1, Math.round((new Date(o.latestEnd) - new Date(o.earliestStart)) / 86400000))} días totales</span>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+loadCapacity();
+</script>
+</body>
+</html>

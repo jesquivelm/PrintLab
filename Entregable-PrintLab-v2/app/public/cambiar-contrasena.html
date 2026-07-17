@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/theme.js"></script>
+    <title>Cambiar Contraseña | PrintLab</title>
+    <link rel="stylesheet" href="/styles.css">
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #eef5f9 0%, #ffffff 58%, #f5efe8 100%);
+            color: #223140;
+        }
+        .change-password-card {
+            max-width: 420px;
+            width: 100%;
+            padding: 32px 28px;
+            background: rgba(255,255,255,0.96);
+            border: 1px solid rgba(193, 214, 228, 0.9);
+            border-radius: 24px;
+            box-shadow: 0 28px 60px rgba(17, 41, 59, 0.14);
+        }
+        .change-password-card h1 {
+            font-size: 22px;
+            margin: 0 0 6px;
+            font-weight: 700;
+            color: #152b38;
+        }
+        .change-password-card p {
+            font-size: 14px;
+            margin: 0 0 24px;
+            color: #6b7986;
+        }
+        .change-password-card label {
+            display: block;
+            margin-bottom: 16px;
+        }
+        .change-password-card label span {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #223140;
+        }
+        .change-password-card input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #c1d6e4;
+            border-radius: 10px;
+            font-size: 14px;
+            background: #fff;
+            color: #223140;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .change-password-card input:focus {
+            border-color: #118fc6;
+            box-shadow: 0 0 0 3px rgba(17,143,198,0.15);
+        }
+        .change-password-card button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 999px;
+            background: linear-gradient(135deg, #0b81b8, #118fc6);
+            color: #fff;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .change-password-card button:hover {
+            opacity: 0.9;
+        }
+        .change-password-card button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .password-rules {
+            font-size: 12px;
+            color: #6b7986;
+            margin: 4px 0 0;
+            padding: 0;
+            list-style: none;
+        }
+        .password-rules li {
+            margin: 2px 0;
+        }
+        .password-rules li.valid {
+            color: #2a9d2a;
+        }
+        .password-rules li.invalid {
+            color: #b83a3a;
+        }
+        .status-msg {
+            font-size: 13px;
+            margin: 12px 0 0;
+            min-height: 20px;
+        }
+        .status-msg.error {
+            color: #b83a3a;
+        }
+        .status-msg.success {
+            color: #2a9d2a;
+        }
+    </style>
+</head>
+<body>
+    <div class="change-password-card">
+        <h1>Cambiar Contraseña</h1>
+        <p>Por razones de seguridad debes cambiar tu contraseña antes de continuar.</p>
+        <form id="changePasswordForm">
+            <label>
+                <span>Contraseña actual</span>
+                <input id="currentPassword" type="password" autocomplete="current-password" placeholder="Contraseña actual">
+            </label>
+            <label>
+                <span>Nueva contraseña</span>
+                <input id="newPassword" type="password" autocomplete="new-password" placeholder="Nueva contraseña">
+                <ul class="password-rules" id="passwordRules">
+                    <li id="ruleLength" class="invalid">✗ Al menos 8 caracteres</li>
+                    <li id="ruleUpper" class="invalid">✗ Al menos una mayúscula</li>
+                    <li id="ruleLower" class="invalid">✗ Al menos una minúscula</li>
+                    <li id="ruleDigit" class="invalid">✗ Al menos un número</li>
+                </ul>
+            </label>
+            <label>
+                <span>Confirmar nueva contraseña</span>
+                <input id="confirmPassword" type="password" autocomplete="new-password" placeholder="Confirmar nueva contraseña">
+            </label>
+            <button type="submit" id="submitBtn">Cambiar Contraseña</button>
+            <p id="statusMessage" class="status-msg"></p>
+        </form>
+    </div>
+    <script>
+        const SESSION_STORAGE_KEY = 'erp-user-session';
+        const CHANGE_PASSWORD_ENDPOINT = '/api/auth/change-password';
+
+        function getStoredSession() {
+            try {
+                return JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || sessionStorage.getItem(SESSION_STORAGE_KEY) || 'null');
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function getSessionHeaders() {
+            const session = getStoredSession();
+            if (!session) return {};
+            return { 'x-erp-session': JSON.stringify({ username: session.username, name: session.name, permissionName: session.permissionName }) };
+        }
+
+        function validatePassword(password) {
+            const rules = [];
+            rules.push({ key: 'length', pass: password.length >= 8 });
+            rules.push({ key: 'upper', pass: /[A-Z]/.test(password) });
+            rules.push({ key: 'lower', pass: /[a-z]/.test(password) });
+            rules.push({ key: 'digit', pass: /[0-9]/.test(password) });
+            return rules;
+        }
+
+        function updateRules(password) {
+            const rules = validatePassword(password);
+            rules.forEach(function(r) {
+                var el = document.getElementById('rule' + r.key.charAt(0).toUpperCase() + r.key.slice(1));
+                if (el) {
+                    el.className = r.pass ? 'valid' : 'invalid';
+                    var baseText = el.getAttribute('data-text');
+                    if (!baseText) {
+                        baseText = el.textContent.replace(/^[✓✗]\s*/, '').trim();
+                        el.setAttribute('data-text', baseText);
+                    }
+                    el.textContent = (r.pass ? '\u2713 ' : '\u2717 ') + baseText;
+                }
+            });
+        }
+
+        var newPasswordInput = document.getElementById('newPassword');
+        var confirmPasswordInput = document.getElementById('confirmPassword');
+        var currentPasswordInput = document.getElementById('currentPassword');
+        var submitBtn = document.getElementById('submitBtn');
+        var statusMsg = document.getElementById('statusMessage');
+        var form = document.getElementById('changePasswordForm');
+
+        newPasswordInput.addEventListener('input', function() { updateRules(this.value); });
+
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            var currentPassword = currentPasswordInput.value;
+            var newPassword = newPasswordInput.value;
+            var confirmPassword = confirmPasswordInput.value;
+
+            if (!currentPassword || !newPassword || !confirmPassword) {
+                statusMsg.className = 'status-msg error';
+                statusMsg.textContent = 'Todos los campos son obligatorios.';
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                statusMsg.className = 'status-msg error';
+                statusMsg.textContent = 'Las contraseñas nuevas no coinciden.';
+                return;
+            }
+
+            var rules = validatePassword(newPassword);
+            var allValid = rules.every(function(r) { return r.pass; });
+            if (!allValid) {
+                statusMsg.className = 'status-msg error';
+                statusMsg.textContent = 'La contraseña no cumple con los requisitos.';
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Cambiando...';
+            statusMsg.className = 'status-msg';
+            statusMsg.textContent = '';
+
+            try {
+                var response = await fetch(CHANGE_PASSWORD_ENDPOINT, {
+                    method: 'POST',
+                    headers: Object.assign({ 'Content-Type': 'application/json' }, getSessionHeaders()),
+                    body: JSON.stringify({ currentPassword: currentPassword, newPassword: newPassword, confirmPassword: confirmPassword })
+                });
+                var data = await response.text();
+                try { data = JSON.parse(data); } catch(e) {}
+                if (!response.ok) {
+                    throw new Error(data.error || 'No fue posible cambiar la contrase\u00f1a.');
+                }
+                statusMsg.className = 'status-msg success';
+                statusMsg.textContent = 'Contrase\u00f1a actualizada. Redirigiendo...';
+                setTimeout(function() {
+                    window.location.href = '/dashboard';
+                }, 1200);
+            } catch (error) {
+                statusMsg.className = 'status-msg error';
+                statusMsg.textContent = error.message || 'No fue posible cambiar la contrase\u00f1a.';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Cambiar Contrase\u00f1a';
+            }
+        });
+
+        updateRules('');
+
+        var session = getStoredSession();
+        if (!session || !session.username) {
+            window.location.replace('/login');
+        }
+    </script>
+</body>
+</html>

@@ -232,3 +232,185 @@ Error: listen EADDRINUSE: address already in use :::3000
     at Module._load (node:internal/modules/cjs/loader:1300:12)
     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
 
+[2026-07-12T21:49:52.962Z] No se pudo iniciar el servidor: el puerto 3000 ya está en uso.
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at app.listen (E:\Github\PrintLab\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (E:\Github\PrintLab\server.js:21519:20)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object..js (node:internal/modules/cjs/loader:1893:10)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+
+[2026-07-12T23:21:18.255Z] No se pudo iniciar el servidor: el puerto 3000 ya está en uso.
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at app.listen (E:\Github\PrintLab\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (E:\Github\PrintLab\server.js:21528:20)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object..js (node:internal/modules/cjs/loader:1893:10)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+
+[2026-07-12T23:24:33.998Z] No se pudo iniciar el servidor: el puerto 3000 ya está en uso.
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at app.listen (E:\Github\PrintLab\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (E:\Github\PrintLab\server.js:21528:20)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object..js (node:internal/modules/cjs/loader:1893:10)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+
+[2026-07-12T23:25:21.554Z] No se pudo iniciar el servidor: el puerto 3000 ya está en uso.
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at app.listen (E:\Github\PrintLab\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (E:\Github\PrintLab\server.js:21528:20)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object..js (node:internal/modules/cjs/loader:1893:10)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+
+[2026-07-12T23:31:35.833Z] No se pudo iniciar el servidor: el puerto 3000 ya está en uso.
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at app.listen (E:\Github\PrintLab\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (E:\Github\PrintLab\server.js:21554:20)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object..js (node:internal/modules/cjs/loader:1893:10)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+
+[2026-07-13T02:19:39.662Z] No se pudo iniciar el servidor: el puerto 3000 ya está en uso.
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at app.listen (E:\Github\PrintLab\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (E:\Github\PrintLab\server.js:21569:20)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object..js (node:internal/modules/cjs/loader:1893:10)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+
+[2026-07-13T05:17:32.063Z] No se pudo iniciar el servidor: el puerto 3000 ya está en uso.
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at app.listen (E:\Github\PrintLab\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (E:\Github\PrintLab\server.js:21569:20)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object..js (node:internal/modules/cjs/loader:1893:10)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+
+[2026-07-15T21:32:46.256Z] No se pudo iniciar el servidor: el puerto 3000 ya está en uso.
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at app.listen (E:\Github\PrintLab\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (E:\Github\PrintLab\server.js:21577:20)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object..js (node:internal/modules/cjs/loader:1893:10)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+
+[2026-07-16T17:00:51.204Z] No se pudo iniciar el servidor: el puerto 3000 ya está en uso.
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at app.listen (E:\Github\PrintLab\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (E:\Github\PrintLab\server.js:21582:20)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object..js (node:internal/modules/cjs/loader:1893:10)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+
+[2026-07-16T17:01:08.784Z] No se pudo iniciar el servidor: el puerto 3000 ya está en uso.
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at app.listen (E:\Github\PrintLab\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (E:\Github\PrintLab\server.js:21582:20)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object..js (node:internal/modules/cjs/loader:1893:10)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+
+[2026-07-16T17:02:50.054Z] No se pudo iniciar el servidor: el puerto 3000 ya está en uso.
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at app.listen (E:\Github\PrintLab\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (E:\Github\PrintLab\server.js:21582:20)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object..js (node:internal/modules/cjs/loader:1893:10)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+
+[2026-07-16T17:03:10.132Z] No se pudo iniciar el servidor: el puerto 3000 ya está en uso.
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at app.listen (E:\Github\PrintLab\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (E:\Github\PrintLab\server.js:21582:20)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object..js (node:internal/modules/cjs/loader:1893:10)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+
+[2026-07-16T17:03:16.090Z] No se pudo iniciar el servidor: el puerto 3000 ya está en uso.
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at app.listen (E:\Github\PrintLab\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (E:\Github\PrintLab\server.js:21582:20)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object..js (node:internal/modules/cjs/loader:1893:10)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+
+[2026-07-16T17:03:53.497Z] No se pudo iniciar el servidor: el puerto 3000 ya está en uso.
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at app.listen (E:\Github\PrintLab\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (E:\Github\PrintLab\server.js:21582:20)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object..js (node:internal/modules/cjs/loader:1893:10)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+

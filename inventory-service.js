@@ -850,7 +850,8 @@ async function listMaterials({ q = '', limit = 300 } = {}) {
             compatible_convencional,
             compatible_digital,
             tipo_proforma,
-            activo
+            activo,
+            created_at
          FROM material
          WHERE $1 = '%%'
             OR codigo ILIKE $1
@@ -915,7 +916,8 @@ async function listTroqueles({ q = '', limit = 300 } = {}) {
             dientes,
             repeticiones,
             estado,
-            activo
+            activo,
+            created_at
          FROM troquel
          WHERE $1 = '%%'
             OR codigo ILIKE $1
@@ -978,7 +980,8 @@ async function getTroquelByCode(codigo) {
             dientes,
             repeticiones,
             estado,
-            activo
+            activo,
+            created_at
          FROM troquel
          WHERE codigo = $1
          LIMIT 1`,
@@ -1032,6 +1035,7 @@ async function listMaquinas({ q = '', limit = 300 } = {}) {
             m.sustrato_montaje_merma_cantidad,
             m.sustrato_montaje_merma_unidad,
             m.sustrato_montaje_merma_base,
+            m.created_at,
             COALESCE(m.especificaciones, '{}'::jsonb) AS especificaciones,
             COALESCE(
                 json_agg(
@@ -1145,7 +1149,8 @@ async function listProcesos({ q = '', limit = 300 } = {}) {
             p.formula_tiempo,
             p.formula_costo,
             p.orden_base,
-            p.activo
+            p.activo,
+            p.created_at
          FROM proceso_catalogo p
          LEFT JOIN maquina m ON m.id = p.machine_id
          WHERE $1 = '%%'
@@ -1172,7 +1177,8 @@ async function listOutputTypes({ q = '', limit = 300 } = {}) {
             nombre: asText(item.nombre || item.name || item.codigo || item.id),
             descripcion: asText(item.descripcion || item.description),
             image_url: asText(item.image_url || item.imageUrl),
-            activo: asBoolean(item.activo ?? item.active, true)
+            activo: asBoolean(item.activo ?? item.active, true),
+            created_at: item.created_at || ''
         }))
         .filter((item) => {
             if (!search) return true;

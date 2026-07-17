@@ -1,0 +1,142 @@
+{
+  "documentation": [
+    "docs/database-portability.md",
+    "db/repositories/README.md",
+    "db/adapters/README.md"
+  ],
+  "scanExtensions": [
+    ".js",
+    ".cjs",
+    ".mjs",
+    ".ts",
+    ".sql"
+  ],
+  "ignoredDirectories": [
+    ".vs",
+    "node_modules",
+    "logs",
+    "reference",
+    "scratch",
+    "public"
+  ],
+  "ignoredPathFragments": [
+    " - copia",
+    ".tmp-config",
+    "db/postgres (2).js"
+  ],
+  "forbiddenPatterns": [
+    {
+      "id": "postgres_ilike",
+      "pattern": "\\bILIKE\\b",
+      "message": "Usa una estrategia portable para busquedas case-insensitive."
+    },
+    {
+      "id": "postgres_on_conflict",
+      "pattern": "\\bON\\s+CONFLICT\\b",
+      "message": "Evita upserts exclusivos de PostgreSQL en codigo nuevo."
+    },
+    {
+      "id": "postgres_jsonb_cast",
+      "pattern": "::jsonb\\b",
+      "message": "Evita casts a JSONB en codigo nuevo."
+    },
+    {
+      "id": "postgres_jsonb_type",
+      "pattern": "\\bJSONB\\b",
+      "message": "Evita depender de JSONB en codigo nuevo salvo decision explicitamente aislada."
+    },
+    {
+      "id": "postgres_gen_random_uuid",
+      "pattern": "\\bgen_random_uuid\\s*\\(",
+      "message": "Genera UUID en Node cuando sea posible."
+    },
+    {
+      "id": "postgres_enum_type",
+      "pattern": "\\bCREATE\\s+TYPE\\b",
+      "message": "Evita tipos ENUM del motor en codigo portable."
+    },
+    {
+      "id": "postgres_do_block",
+      "pattern": "\\bDO\\s+\\$\\$",
+      "message": "Evita bloques DO $$ de PostgreSQL en codigo portable."
+    },
+    {
+      "id": "postgres_timestamptz",
+      "pattern": "\\bTIMESTAMPTZ\\b",
+      "message": "Revisa si el tipo puede expresarse de forma mas portable."
+    }
+  ],
+  "legacyAllowances": {
+    "server.js": {
+      "postgres_ilike": 32,
+      "postgres_on_conflict": 9,
+      "postgres_jsonb_cast": 43,
+      "postgres_jsonb_type": 52,
+      "postgres_gen_random_uuid": 9,
+      "postgres_timestamptz": 31
+    },
+    "db/server.js": {
+      "postgres_ilike": 30,
+      "postgres_on_conflict": 9,
+      "postgres_jsonb_cast": 39,
+      "postgres_jsonb_type": 48,
+      "postgres_gen_random_uuid": 9,
+      "postgres_timestamptz": 31
+    },
+    "scripts/import-master-data.js": {
+      "postgres_on_conflict": 11,
+      "postgres_jsonb_cast": 8,
+      "postgres_jsonb_type": 8
+    },
+    "inventory-service.js": {
+      "postgres_ilike": 15,
+      "postgres_on_conflict": 5,
+      "postgres_jsonb_cast": 1,
+      "postgres_jsonb_type": 1,
+      "postgres_gen_random_uuid": 1,
+      "postgres_timestamptz": 2
+    },
+    "integrations/exchange-rate-service.js": {
+      "postgres_on_conflict": 2,
+      "postgres_jsonb_cast": 10,
+      "postgres_jsonb_type": 14,
+      "postgres_timestamptz": 8
+    },
+    "integrations/sap-service-layer.js": {
+      "postgres_ilike": 11,
+      "postgres_on_conflict": 8,
+      "postgres_jsonb_cast": 23,
+      "postgres_jsonb_type": 32,
+      "postgres_timestamptz": 16
+    },
+    "integrations/erp-impresion/database/flexo-core-postgres.sql": {
+      "postgres_jsonb_type": 1,
+      "postgres_gen_random_uuid": 12,
+      "postgres_enum_type": 10,
+      "postgres_do_block": 1,
+      "postgres_timestamptz": 27
+    },
+    "sql/bootstrap_postgres.sql": {
+      "postgres_do_block": 1
+    },
+    "sql/schema.sql": {
+      "postgres_jsonb_cast": 13,
+      "postgres_jsonb_type": 26,
+      "postgres_gen_random_uuid": 14,
+      "postgres_timestamptz": 15
+    },
+    "sql/schema_flexo_core.sql": {
+      "postgres_jsonb_type": 1,
+      "postgres_gen_random_uuid": 12,
+      "postgres_enum_type": 10,
+      "postgres_do_block": 1,
+      "postgres_timestamptz": 27
+    },
+    "sql/schema_planificacion.sql": {
+      "postgres_jsonb_cast": 3,
+      "postgres_jsonb_type": 6,
+      "postgres_gen_random_uuid": 6,
+      "postgres_timestamptz": 13
+    }
+  }
+}

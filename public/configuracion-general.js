@@ -61,7 +61,8 @@ const iconPreviewMap = {
     'icons.quoteRequestAttachment': document.getElementById('preview-icons.quoteRequestAttachment'),
     'icons.quoteRequestRecord': document.getElementById('preview-icons.quoteRequestRecord'),
     'icons.quoteRequestRecordStop': document.getElementById('preview-icons.quoteRequestRecordStop'),
-    'icons.quoteRequestAttachmentDelete': document.getElementById('preview-icons.quoteRequestAttachmentDelete')
+    'icons.quoteRequestAttachmentDelete': document.getElementById('preview-icons.quoteRequestAttachmentDelete'),
+    'icons.touchImage': document.getElementById('preview-icons.touchImage')
 };
 
 let presentationState = JSON.parse(JSON.stringify(PRESENTATION_DEFAULTS));
@@ -225,7 +226,7 @@ function applySharedPreview() {
 }
 
 function applyIconPreviews() {
-    const iconKeys = ['topUser', 'tableMove', 'tableOpen', 'tableAdd', 'quantity.add', 'quantity.delete', 'quoteRequestSubmit', 'quoteRequestAdvanced', 'quoteRequestAttachment', 'quoteRequestRecord', 'quoteRequestRecordStop', 'quoteRequestAttachmentDelete'];
+    const iconKeys = ['topUser', 'tableMove', 'tableOpen', 'tableAdd', 'quantity.add', 'quantity.delete', 'quoteRequestSubmit', 'quoteRequestAdvanced', 'quoteRequestAttachment', 'quoteRequestRecord', 'quoteRequestRecordStop', 'quoteRequestAttachmentDelete', 'touchImage'];
     iconKeys.forEach(key => {
         const iconValue = getValue(`icons.${key}`);
         const previewEl = iconPreviewMap[`icons.${key}`];

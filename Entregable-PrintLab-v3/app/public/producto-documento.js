@@ -1,0 +1,610 @@
+const PRODUCT_DOC_CONFIG_ENDPOINT = '/api/config/shell';
+const PRODUCT_DOC_SESSION_KEY = 'erp-user-session';
+
+const statusEl = document.getElementById('productDocStatus');
+const contentEl = document.getElementById('productDocContent');
+const pageTitleEl = document.getElementById('productDocPageTitle');
+const nameEl = document.getElementById('productDocName');
+const codesEl = document.getElementById('productDocCodes');
+const clientEl = document.getElementById('productDocClient');
+const quoteCountEl = document.getElementById('productDocQuoteCount');
+const processEl = document.getElementById('productDocProcess');
+const machineEl = document.getElementById('productDocMachine');
+const measureEl = document.getElementById('productDocMeasure');
+const materialEl = document.getElementById('productDocMaterial');
+const quantityEl = document.getElementById('productDocQuantity');
+const priceEl = document.getElementById('productDocPrice');
+const finishesSectionEl = document.getElementById('productDocFinishesSection');
+const finishesEl = document.getElementById('productDocFinishes');
+const historyTableBodyEl = document.getElementById('productDocHistoryTableBody');
+const ordersTableBodyEl = document.getElementById('productDocOrdersTableBody');
+const attachmentsTableBodyEl = document.getElementById('productDocAttachmentsTableBody');
+const attachmentInputEl = document.getElementById('productDocAttachmentInput');
+const attachmentAddButtonEl = document.getElementById('productDocAttachmentAddButton');
+const rawEl = document.getElementById('productDocRaw');
+const quoteButtonEl = document.getElementById('productDocQuoteButton');
+const companyLogoEl = document.getElementById('productDocCompanyLogo');
+const brandFallbackEl = document.getElementById('productDocBrandFallback');
+
+let config = {};
+let productCode = '';
+let productDetail = null;
+
+const RAW_GROUP_ORDER = ['cliente', 'producto', 'especificacion', 'impresion', 'acabados'];
+const RAW_GROUP_LABELS = {
+    cliente: 'Cliente',
+    producto: 'Producto',
+    especificacion: 'Especificación del Producto',
+    impresion: 'Impresión',
+    acabados: 'Acabados'
+};
+const RAW_LABELS = {
+    'CMYK': 'CMYK',
+    'ID LINEA': 'Id Línea',
+    'VENDEDOR': 'Vendedor',
+    'ANCHO CORE': 'Ancho de Core',
+    'ID CLIENTE': 'Id Cliente',
+    'TIPO SALIDA': 'Tipo de Salida',
+    'ESTADO LINEA': 'Estado de Línea',
+    'DIAMETRO CORE': 'Diámetro de Core',
+    'ID COTIZACION': 'Id Cotización',
+    'CANTIDAD TIPOS': 'Cantidad de Tipos',
+    'NOMBRE TRABAJO': 'Nombre del Trabajo',
+    'CANTIDAD TINTAS': 'Cantidad de Tintas',
+    'CODIGO PRODUCTO': 'Código de Producto',
+    'TIPO ETIQUETADO': 'Tipo de Etiquetado',
+    'CANTIDAD CAMBIOS': 'Cantidad de Cambios',
+    'REQ | Forma': 'Forma',
+    'REQ | Barniz': 'Barniz',
+    'REQ | Embosado': 'Embosado',
+    'REQ | Estampado': 'Estampado',
+    'REQ | Colocacion': 'Colocación',
+    'REQ | Numeracion': 'Numeración',
+    'REQ | Superficie': 'Superficie',
+    'REQ | Troquelado': 'Troquelado',
+    'REQ | Comentarios': 'Comentarios',
+    'REQ | Medida Fija': 'Medida Fija',
+    'REQ | Estampado Ancho': 'Ancho de Estampado',
+    'REQ | Tipo de Producto': 'Tipo de Producto',
+    'GENERAL | CMYK': 'CMYK',
+    'GENERAL | 7 | TOTAL | DOL': 'Total Dólares',
+    'GENERAL | 9 | TOTAL | DOL': 'Total Dólares Final',
+    'GENERAL | 9 | UNITARIO | DOL': 'Unitario Dólares',
+    'CONV | BARNIZ | ACTIVO': 'Barniz Activo',
+    'CONV | BARNIZ | GSM': 'Barniz GSM',
+    'CONV | BARNIZ | COBERTURA %': 'Barniz Cobertura',
+    'CONV | PERFIL TINTA | GSM': 'Perfil de Tinta GSM',
+    'CONV | PERFIL TINTA | TIPO': 'Perfil de Tinta Tipo',
+    'CONV | PERFIL TINTA | BCM ANILOX': 'BCM Anilox',
+    'CONV | PERFIL TINTA | COBERTURA %': 'Cobertura de Tinta',
+    'DIMENSIONES ETIQUETA | ANCHO': 'Ancho',
+    'DIMENSIONES ETIQUETA | LARGO': 'Largo',
+    'PRECIO TOTAL AL FINALIZAR': 'Precio Total',
+    'CANTIDAD ETIQUETAS X ROLLO': 'Etiquetas por Rollo',
+    'SOLICITUD ESTADO': 'Estado de Solicitud'
+};
+const RAW_FIELDS_BY_GROUP = {
+    cliente: ['ID CLIENTE', 'VENDEDOR'],
+    producto: ['CODIGO PRODUCTO', 'NOMBRE TRABAJO', 'REQ | Tipo de Producto', 'TIPO SALIDA', 'TIPO ETIQUETADO', 'PRECIO TOTAL AL FINALIZAR', 'GENERAL | 9 | UNITARIO | DOL'],
+    especificacion: ['ANCHO CORE', 'DIAMETRO CORE', 'CANTIDAD TIPOS', 'CANTIDAD ETIQUETAS X ROLLO', 'DIMENSIONES ETIQUETA | ANCHO', 'DIMENSIONES ETIQUETA | LARGO', 'REQ | Forma', 'REQ | Superficie'],
+    impresion: ['CMYK', 'GENERAL | CMYK', 'CANTIDAD TINTAS', 'CONV | PERFIL TINTA | GSM', 'CONV | PERFIL TINTA | TIPO', 'CONV | PERFIL TINTA | BCM ANILOX', 'CONV | PERFIL TINTA | COBERTURA %'],
+    acabados: ['REQ | Barniz', 'CONV | BARNIZ | GSM', 'CONV | BARNIZ | COBERTURA %', 'REQ | Estampado', 'REQ | Estampado Ancho', 'REQ | Embosado', 'REQ | Troquelado', 'REQ | Numeracion']
+};
+
+function buildAsciiSafeSessionHeader(session) {
+    if (!session || typeof session !== 'object') return null;
+    const username = String(session.username || '').trim();
+    const permissionName = String(session.permissionName || '').trim();
+    const modules = session.modules && typeof session.modules === 'object' ? session.modules : {};
+    const safeModules = {};
+    Object.keys(modules).forEach((key) => {
+        const value = modules[key];
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+            safeModules[String(key)] = {
+                view: Boolean(value.view || value.create || value.edit),
+                create: Boolean(value.create),
+                edit: Boolean(value.edit)
+            };
+            return;
+        }
+        if (Array.isArray(value)) {
+            safeModules[String(key)] = value.map((item) => String(item || '').trim()).filter(Boolean);
+            return;
+        }
+        safeModules[String(key)] = String(value || '').trim();
+    });
+    if (!username && !permissionName && !Object.keys(safeModules).length) return null;
+    return JSON.stringify({ username, permissionName, modules: safeModules });
+}
+
+function sessionHeaders() {
+    try {
+        const session = JSON.parse(localStorage.getItem(PRODUCT_DOC_SESSION_KEY) || sessionStorage.getItem(PRODUCT_DOC_SESSION_KEY) || 'null');
+        const headerValue = buildAsciiSafeSessionHeader(session);
+        return headerValue ? { 'x-erp-session': headerValue } : {};
+    } catch (_) {
+        return {};
+    }
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function normalizeText(value) {
+    return String(value ?? '').trim();
+}
+
+function formatDate(value) {
+    if (!value) return '—';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleDateString('es-CR');
+}
+
+function formatMoney(value) {
+    const parsed = Number(String(value ?? 0).replace(/[^0-9,.-]/g, '').replace(/\.(?=\d{3}(?:\D|$))/g, '').replace(',', '.'));
+    const number = Number.isFinite(parsed) ? parsed : 0;
+    return `$${number.toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function formatMeasure(width, length) {
+    const widthNumber = Number(width);
+    const lengthNumber = Number(length);
+    if (!Number.isFinite(widthNumber) || !Number.isFinite(lengthNumber)) return '—';
+    const widthText = widthNumber % 1 === 0 ? String(widthNumber) : widthNumber.toLocaleString('es-CR', { maximumFractionDigits: 3 });
+    const lengthText = lengthNumber % 1 === 0 ? String(lengthNumber) : lengthNumber.toLocaleString('es-CR', { maximumFractionDigits: 3 });
+    return `${widthText}" x ${lengthText}"`;
+}
+
+function formatQuantity(value) {
+    const raw = normalizeText(value);
+    if (!raw) return '—';
+    const numeric = Number(String(raw).replace(/[^0-9.-]/g, ''));
+    if (Number.isFinite(numeric) && numeric > 0) {
+        return numeric.toLocaleString('es-CR');
+    }
+    return raw;
+}
+
+function formatFileSize(value) {
+    const size = Number(value || 0);
+    if (!Number.isFinite(size) || size <= 0) return '';
+    if (size >= 1024 * 1024) return `${(size / (1024 * 1024)).toLocaleString('es-CR', { maximumFractionDigits: 1 })} MB`;
+    if (size >= 1024) return `${(size / 1024).toLocaleString('es-CR', { maximumFractionDigits: 1 })} KB`;
+    return `${size.toLocaleString('es-CR')} B`;
+}
+
+function initialsFromName(value) {
+    const words = normalizeText(value).split(/\s+/).filter(Boolean);
+    return (words.slice(0, 2).map((item) => item.charAt(0).toUpperCase()).join('') || 'PL');
+}
+
+function isShellEmbedded() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('shell') === '1' || window !== window.parent;
+}
+
+function canMessageShellParent() {
+    return window !== window.parent;
+}
+
+function withShellParam(route) {
+    const [path, hash = ''] = String(route || '').split('#');
+    const joiner = path.includes('?') ? '&' : '?';
+    const finalPath = path.includes('shell=1') ? path : `${path}${joiner}shell=1`;
+    return hash ? `${finalPath}#${hash}` : finalPath;
+}
+
+function openRouteInShell(route, label) {
+    if (!canMessageShellParent()) return false;
+    window.parent.postMessage({ type: 'erp-open-tab', route: withShellParam(route), label }, window.location.origin);
+    return true;
+}
+
+function buildBdfgContext() {
+    const product = productDetail?.producto;
+    if (!product) return null;
+    const quoteCode = normalizeText(product.quote_code);
+    return {
+        kind: 'product-document',
+        title: product.product_name || product.product_code || 'Producto',
+        subtitle: [product.client_name, product.line_code].filter(Boolean).join(' · ') || 'Ficha del producto',
+        documentRoute: `/producto-documento?codigo=${encodeURIComponent(product.product_code || '')}`,
+        documentLabel: `Producto ${product.product_code || ''}`.trim(),
+        secondaryRoute: quoteCode ? `/cotizaciones/documento?codigo=${encodeURIComponent(quoteCode)}` : '',
+        secondaryLabel: quoteCode ? `Cotización ${quoteCode}` : 'Cotización',
+        secondaryDescription: 'Abrir la cotización origen del producto',
+        quoteCode,
+        lineCode: normalizeText(product.line_code),
+        productCode: normalizeText(product.product_code),
+        dates: {
+            createdAt: product.created_at || '',
+            quotedAt: product.last_quoted_at || '',
+            updatedAt: product.updated_at || ''
+        }
+    };
+}
+
+function publishBdfgContext() {
+    if (!isShellEmbedded()) return;
+    window.parent.postMessage({ type: 'erp-bdfg-context', context: buildBdfgContext() }, window.location.origin);
+}
+
+async function fetchJson(url, options) {
+    const response = await fetch(url, options);
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || 'No fue posible completar la solicitud.');
+    return payload;
+}
+
+function setStatus(message, tone = 'info') {
+    statusEl.textContent = message || '';
+    statusEl.dataset.tone = tone;
+    statusEl.hidden = !String(message || '').trim();
+}
+
+function firstFilled(...values) {
+    for (const value of values) {
+        if (value !== undefined && value !== null && String(value).trim() !== '') return value;
+    }
+    return '';
+}
+
+function getOpenIconConfig() {
+    const general = config?.general || {};
+    return {
+        value: config?.icons?.browserOpen || config?.icons?.tableOpen || '↗',
+        color: firstFilled(general.iconColorBrowserOpen, general.iconColorTableOpen, general.iconColor, '#0b81b8'),
+        hover: firstFilled(general.iconColorHoverBrowserOpen, general.iconColorHoverTableOpen, '#07638c'),
+        size: Number(firstFilled(general.iconSizeBrowserOpen, general.iconSizeTableOpen, 18)) || 18
+    };
+}
+
+function isSvgValue(value) {
+    const source = String(value || '').trim().toLowerCase();
+    return source.startsWith('data:image/svg+xml') || /\.svg(\?|#|$)/i.test(source);
+}
+
+function isImageValue(value) {
+    const source = String(value || '').trim().toLowerCase();
+    return source.startsWith('data:image/') || /\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(source);
+}
+
+function iconMarkup(value, altText, extraClass = '') {
+    if (isSvgValue(value)) {
+        const safeUrl = escapeHtml(value);
+        return `<span class="icon-svg-mask ${extraClass}" role="img" aria-label="${escapeHtml(altText)}" style="-webkit-mask-image:url('${safeUrl}');mask-image:url('${safeUrl}');"></span>`;
+    }
+    if (isImageValue(value)) {
+        return `<img src="${escapeHtml(value)}" alt="${escapeHtml(altText)}" class="icon-image ${extraClass}">`;
+    }
+    return `<span class="icon-glyph ${extraClass}">${escapeHtml(value || '')}</span>`;
+}
+
+function hasMeaningfulFinishValue(value) {
+    const text = normalizeText(value).toLowerCase();
+    if (!text) return false;
+    return !['no', 'false', '0', 'ninguno', 'ninguna', 'n/a', 'na', 'no aplica', 'sin', 'null', 'undefined'].includes(text);
+}
+
+function isFinishEnabled(...values) {
+    return values.some((value) => {
+        if (typeof value === 'boolean') return value;
+        return hasMeaningfulFinishValue(value);
+    });
+}
+
+function getFinishItems(raw = {}) {
+    const items = [];
+    const push = (label, detail) => {
+        const value = [label, detail].filter(Boolean).join(': ');
+        if (value && !items.includes(value)) items.push(value);
+    };
+    if (isFinishEnabled(raw['CONV | BARNIZ | ACTIVO'], raw['BARNIZ | ACTIVO'], raw['REQ | Barniz'], raw['BARNIZ'])) {
+        push('Barniz', raw['CONV | BARNIZ | TIPO'] || raw['BARNIZ | TIPO'] || raw['REQ | Barniz'] || raw['BARNIZ']);
+    }
+    if (isFinishEnabled(raw['CONV | LAMINADO | ACTIVO'], raw['LAMINADO | ACTIVO'], raw['LAMINADO'])) {
+        push('Laminado', raw['CONV | LAMINADO | TIPO'] || raw['LAMINADO | TIPO'] || raw['LAMINADO']);
+    }
+    if (isFinishEnabled(raw['CONV | ESTAMPADO | ACTIVO'], raw['ESTAMPADO | ACTIVO'], raw['REQ | Estampado'], raw['ESTAMPADO'])) {
+        push('Foil', raw['CONV | ESTAMPADO | FOIL'] || raw['ESTAMPADO | FOIL'] || raw['REQ | Estampado'] || raw['ESTAMPADO']);
+    }
+    if (isFinishEnabled(raw['EMBOSADO | ACTIVO'], raw['REQ | Embosado'], raw['EMBOSADO'])) {
+        push('Embosado', raw['EMBOSADO | TIPO'] || raw['REQ | Embosado'] || raw['EMBOSADO']);
+    }
+    if (hasMeaningfulFinishValue(raw['TROQUEL'] || raw['REQ | Troquelado'])) {
+        push('Troquelado', raw['TROQUEL'] || raw['REQ | Troquelado']);
+    }
+    return items;
+}
+
+function renderEmptyTableRow(colspan, message) {
+    return `<tr><td colspan="${colspan}">${escapeHtml(message)}</td></tr>`;
+}
+
+function renderHistoryTable(items = []) {
+    if (!items.length) {
+        historyTableBodyEl.innerHTML = renderEmptyTableRow(6, 'Todavía no hay cotizaciones registradas para este producto.');
+        return;
+    }
+    const openIcon = getOpenIconConfig();
+    historyTableBodyEl.innerHTML = items.map((item) => {
+        const quoteCode = item.quote_code || '';
+        const route = `/cotizaciones/documento?codigo=${encodeURIComponent(quoteCode)}`;
+        return `
+            <tr>
+                <td>${escapeHtml(quoteCode)}</td>
+                <td>${escapeHtml(item.line_code || '')}</td>
+                <td>${escapeHtml(item.customer_name || '')}</td>
+                <td>${escapeHtml(item.job_name || item.action || '')}</td>
+                <td>${escapeHtml(formatDate(item.created_at || item.created_on))}</td>
+                <td><a class="browser-open-link" href="${escapeHtml(route)}" data-route="${escapeHtml(route)}" data-label="Cotización ${escapeHtml(quoteCode)}" aria-label="Abrir cotización ${escapeHtml(quoteCode)}" style="--icon-color:${escapeHtml(openIcon.color)};--icon-hover-color:${escapeHtml(openIcon.hover)};--config-icon-size:${escapeHtml(String(openIcon.size))}px;">${iconMarkup(openIcon.value, 'Abrir cotización', 'table-icon-media')}</a></td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function renderOrdersTable(items = []) {
+    if (!ordersTableBodyEl) return;
+    if (!items.length) {
+        ordersTableBodyEl.innerHTML = renderEmptyTableRow(6, 'Todavía no hay órdenes registradas para este producto.');
+        return;
+    }
+    const openIcon = getOpenIconConfig();
+    ordersTableBodyEl.innerHTML = items.map((item) => {
+        const orderCode = item.order_code || '';
+        const route = `/orden-produccion/${encodeURIComponent(orderCode)}`;
+        return `
+            <tr>
+                <td>${escapeHtml(orderCode)}</td>
+                <td>${escapeHtml(item.quote_code || '')}</td>
+                <td>${escapeHtml(item.line_code || '')}</td>
+                <td>${escapeHtml(item.machine_name || '')}</td>
+                <td>${escapeHtml(formatDate(item.created_at || item.delivered_on))}</td>
+                <td><a class="browser-open-link" href="${escapeHtml(route)}" data-route="${escapeHtml(route)}" data-label="Orden ${escapeHtml(orderCode)}" aria-label="Abrir orden ${escapeHtml(orderCode)}" style="--icon-color:${escapeHtml(openIcon.color)};--icon-hover-color:${escapeHtml(openIcon.hover)};--config-icon-size:${escapeHtml(String(openIcon.size))}px;">${iconMarkup(openIcon.value, 'Abrir orden', 'table-icon-media')}</a></td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function renderAttachmentsTable(items = []) {
+    if (!items.length) {
+        attachmentsTableBodyEl.innerHTML = renderEmptyTableRow(6, 'Todavía no hay adjuntos registrados para este producto.');
+        return;
+    }
+    const openIcon = getOpenIconConfig();
+    attachmentsTableBodyEl.innerHTML = items.map((item) => {
+        const href = item.download_url || item.url || item.value || '#';
+        const origin = item.customer_name || item.uploaded_by || (item.is_stored ? 'Cotización' : 'Línea');
+        const fileName = item.file_name || 'Adjunto';
+        const sizeText = formatFileSize(item.size_bytes);
+        const subLabel = [item.quote_code || '', item.line_code || '', sizeText].filter(Boolean).join(' · ');
+        return `
+            <tr>
+                <td>
+                    <strong>${escapeHtml(fileName)}</strong>
+                    ${subLabel ? `<div class="product-history-meta">${escapeHtml(subLabel)}</div>` : ''}
+                </td>
+                <td>${escapeHtml(item.quote_code || '')}</td>
+                <td>${escapeHtml(item.line_code || '')}</td>
+                <td>${escapeHtml(origin)}</td>
+                <td>${escapeHtml(formatDate(item.created_at))}</td>
+                <td><a class="browser-open-link" href="${escapeHtml(href)}" ${item.download_url ? 'download' : 'target="_blank" rel="noopener noreferrer"'} aria-label="Abrir adjunto ${escapeHtml(fileName)}" style="--icon-color:${escapeHtml(openIcon.color)};--icon-hover-color:${escapeHtml(openIcon.hover)};--config-icon-size:${escapeHtml(String(openIcon.size))}px;">${iconMarkup(openIcon.value, 'Abrir adjunto', 'table-icon-media')}</a></td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function prettifyRawLabel(key) {
+    if (RAW_LABELS[key]) return RAW_LABELS[key];
+    const text = String(key || '').trim();
+    if (!text) return '';
+    const lastSegment = text.includes('|') ? text.split('|').pop() : text;
+    return lastSegment
+        .trim()
+        .toLowerCase()
+        .replace(/\b(id|cmyk|gsm|bcm|qr)\b/g, (part) => part.toUpperCase())
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function renderRawData(raw = {}) {
+    const normalizedRaw = raw && typeof raw === 'object' ? raw : {};
+    const groups = RAW_GROUP_ORDER.map((groupKey) => ({
+        groupKey,
+        items: (RAW_FIELDS_BY_GROUP[groupKey] || [])
+            .filter((fieldKey) => normalizedRaw[fieldKey] !== '' && normalizedRaw[fieldKey] !== null && normalizedRaw[fieldKey] !== undefined)
+            .map((fieldKey) => ({
+                key: fieldKey,
+                label: prettifyRawLabel(fieldKey),
+                value: String(normalizedRaw[fieldKey])
+            }))
+    })).filter((group) => group.items.length);
+
+    if (!groups.length) {
+        rawEl.innerHTML = '<div class="product-empty-detail">Este producto no tiene datos adicionales.</div>';
+        return;
+    }
+
+    const html = groups
+        .map((group) => {
+            const items = group.items;
+            return `
+                <section class="production-subgroup">
+                    <div class="production-subgroup-title">${escapeHtml(RAW_GROUP_LABELS[group.groupKey] || '')}</div>
+                    <div class="production-summary-grid production-summary-grid-two">
+                        ${items.map((item) => `
+                            <div class="production-summary-item">
+                                <span class="production-summary-label">${escapeHtml(item.label)}</span>
+                                <span class="production-summary-value">${escapeHtml(item.value || '—')}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </section>
+            `;
+        })
+        .join('');
+
+    rawEl.innerHTML = html || '<div class="product-empty-detail">Este producto no tiene datos adicionales.</div>';
+}
+
+async function uploadAttachmentFromProduct(file) {
+    const sourceQuote = normalizeText(productDetail?.producto?.quote_code);
+    const sourceLine = normalizeText(productDetail?.producto?.line_code);
+    if (!sourceQuote || !sourceLine) {
+        throw new Error('No se encontró la cotización origen del producto.');
+    }
+    const contentBase64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const result = String(reader.result || '');
+            const base64 = result.includes(',') ? result.split(',').pop() : result;
+            resolve(base64);
+        };
+        reader.onerror = () => reject(new Error('No fue posible leer el archivo.'));
+        reader.readAsDataURL(file);
+    });
+
+    await fetchJson(`/api/cotizaciones/${encodeURIComponent(sourceQuote)}/lineas/${encodeURIComponent(sourceLine)}/adjuntos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...sessionHeaders() },
+        body: JSON.stringify({
+            fileName: file.name,
+            mimeType: file.type || 'application/octet-stream',
+            fileExt: (file.name.split('.').pop() || '').toLowerCase(),
+            contentBase64,
+            uploadedBy: 'producto'
+        })
+    });
+}
+
+function bindTabs() {
+    document.querySelectorAll('[data-product-doc-tab]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const key = button.dataset.productDocTab;
+            document.querySelectorAll('[data-product-doc-tab]').forEach((item) => item.classList.toggle('is-active', item === button));
+            document.querySelectorAll('[data-product-doc-panel]').forEach((panel) => {
+                const active = panel.dataset.productDocPanel === key;
+                panel.hidden = !active;
+                panel.classList.toggle('is-active', active);
+            });
+        });
+    });
+}
+
+function applyBranding() {
+    const branding = config?.branding || {};
+    const companyName = normalizeText(branding.companyName) || 'PrintLab';
+    const logoUrl = normalizeText(branding.logoUrl);
+    if (companyLogoEl) {
+        companyLogoEl.src = logoUrl;
+        companyLogoEl.alt = companyName;
+        companyLogoEl.style.display = logoUrl ? 'block' : 'none';
+    }
+    if (brandFallbackEl) {
+        brandFallbackEl.textContent = initialsFromName(companyName);
+        brandFallbackEl.title = companyName;
+        brandFallbackEl.style.display = logoUrl ? 'none' : 'flex';
+    }
+}
+
+function renderProduct() {
+    const p = productDetail?.producto;
+    if (!p) return;
+    const raw = p.raw_data || {};
+    const finishItems = getFinishItems({ ...raw, TROQUEL: p.die_code || raw['TROQUEL'] });
+    const measure = formatMeasure(p.width_inches, p.length_inches);
+
+    pageTitleEl.textContent = p.product_name || p.product_code || 'Producto';
+    nameEl.textContent = p.product_name || p.product_code || 'Producto';
+    codesEl.textContent = p.product_code || '';
+    clientEl.textContent = p.client_name || '—';
+    quoteCountEl.textContent = String(p.quote_count || 0);
+    processEl.textContent = raw['Proceso Productivo'] || p.department || '—';
+    machineEl.textContent = p.quoted_machine || '—';
+    measureEl.textContent = measure;
+    materialEl.textContent = p.material_name || '—';
+    quantityEl.textContent = formatQuantity(p.quantity_products);
+    priceEl.textContent = formatMoney(p.total_price);
+
+    if (finishesSectionEl) {
+        finishesSectionEl.hidden = !finishItems.length;
+    }
+    finishesEl.innerHTML = finishItems.map((item) => `<span class="production-chip">${escapeHtml(item)}</span>`).join('');
+
+    renderHistoryTable(productDetail.historial || []);
+    renderOrdersTable(productDetail.ordenes || []);
+    renderAttachmentsTable(productDetail.attachments || []);
+    renderRawData(raw);
+    contentEl.hidden = false;
+    setStatus('');
+    publishBdfgContext();
+}
+
+async function quoteProduct() {
+    if (!productCode) return;
+    if (quoteButtonEl) quoteButtonEl.disabled = true;
+    try {
+        setStatus('Creando cotización desde producto...');
+        const payload = await fetchJson(`/api/productos/${encodeURIComponent(productCode)}/cotizar`, {
+            method: 'POST',
+            headers: sessionHeaders()
+        });
+        const quoteCode = payload?.cotizacion?.quote_code;
+        const lineCode = payload?.linea?.line_code || payload?.calculo?.line_code || '';
+        if (quoteCode) {
+            const calcRoute = lineCode
+                ? `/calculo-flexografia?quoteId=${encodeURIComponent(quoteCode)}&lineId=${encodeURIComponent(lineCode)}`
+                : `/cotizaciones/documento?codigo=${encodeURIComponent(quoteCode)}`;
+            if (!openRouteInShell(calcRoute, `Cálculo ${quoteCode}`)) window.location.href = calcRoute;
+            return;
+        }
+        setStatus('No fue posible crear la cotización.', 'error');
+    } finally {
+        if (quoteButtonEl) quoteButtonEl.disabled = false;
+    }
+}
+
+async function init() {
+    if (isShellEmbedded()) document.body.classList.add('shell-embedded');
+    bindTabs();
+    const params = new URLSearchParams(window.location.search);
+    productCode = normalizeText(params.get('codigo'));
+    if (!productCode) {
+        setStatus('No se indicó un producto.', 'error');
+        return;
+    }
+    config = await fetchJson(PRODUCT_DOC_CONFIG_ENDPOINT).catch(() => ({}));
+    applyBranding();
+    setStatus('Cargando producto...');
+    productDetail = await fetchJson(`/api/productos/${encodeURIComponent(productCode)}`, { headers: sessionHeaders() });
+    renderProduct();
+    quoteButtonEl?.addEventListener('click', () => quoteProduct().catch((error) => setStatus(error.message, 'error')));
+    attachmentAddButtonEl?.addEventListener('click', () => attachmentInputEl?.click());
+    attachmentInputEl?.addEventListener('change', async () => {
+        const file = attachmentInputEl.files?.[0];
+        if (!file) return;
+        try {
+            setStatus('Cargando adjunto...');
+            await uploadAttachmentFromProduct(file);
+            productDetail = await fetchJson(`/api/productos/${encodeURIComponent(productCode)}`, { headers: sessionHeaders() });
+            renderProduct();
+        } catch (error) {
+            setStatus(error.message, 'error');
+        } finally {
+            attachmentInputEl.value = '';
+        }
+    });
+    document.addEventListener('click', (event) => {
+        const routeLink = event.target.closest('a[data-route]');
+        if (routeLink && openRouteInShell(routeLink.dataset.route, routeLink.dataset.label)) {
+            event.preventDefault();
+        }
+    });
+}
+
+init().catch((error) => setStatus(error.message, 'error'));

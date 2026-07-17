@@ -1,0 +1,374 @@
+<script src="/theme.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);font-size:13px;color:var(--color-text-primary)}
+.dash{padding:0}
+.top-bar{padding:12px 16px;border-bottom:0.5px solid var(--color-border-tertiary);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.top-title{font-size:15px;font-weight:500}
+.top-sub{font-size:12px;color:var(--color-text-secondary)}
+.tab-bar{display:flex;border-bottom:0.5px solid var(--color-border-tertiary);padding:0 16px;gap:4px}
+.tab{padding:9px 14px;font-size:12px;cursor:pointer;border-bottom:2px solid transparent;color:var(--color-text-secondary);transition:all .15s}
+.tab.active{border-bottom-color:#378ADD;color:var(--color-text-primary);font-weight:500}
+.tab:hover{color:var(--color-text-primary)}
+.panel{display:none;padding:14px 16px}
+.panel.active{display:block}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.kpi-card{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:12px}
+.kpi-label{font-size:11px;color:var(--color-text-secondary);margin-bottom:6px}
+.kpi-val{font-size:22px;font-weight:500;line-height:1}
+.kpi-sub{font-size:11px;color:var(--color-text-secondary);margin-top:4px}
+.kpi-delta{font-size:11px;margin-top:3px}
+.kpi-delta.up{color:var(--color-text-success)}
+.kpi-delta.down{color:var(--color-text-danger)}
+.section-title{font-size:12px;font-weight:500;color:var(--color-text-secondary);letter-spacing:.05em;margin-bottom:10px;margin-top:4px}
+.chart-wrap{position:relative;width:100%;margin-bottom:16px}
+.legend-row{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:10px;font-size:11px;color:var(--color-text-secondary)}
+.leg{display:flex;align-items:center;gap:5px}
+.leg-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.machine-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px}
+.machine-table th{text-align:left;padding:7px 8px;border-bottom:0.5px solid var(--color-border-tertiary);font-weight:500;color:var(--color-text-secondary);font-size:11px}
+.machine-table td{padding:7px 8px;border-bottom:0.5px solid var(--color-border-tertiary)}
+.pill{display:inline-block;padding:2px 8px;border-radius:var(--border-radius-md);font-size:11px;font-weight:500}
+.pill.green{background:#E1F5EE;color:#0F6E56}
+.pill.amber{background:#FAEEDA;color:#854F0B}
+.pill.red{background:#FCEBEB;color:#A32D2D}
+.oee-bar-wrap{display:flex;align-items:center;gap:8px}
+.oee-bar{flex:1;height:6px;background:var(--color-background-secondary);border-radius:3px;overflow:hidden}
+.oee-fill{height:100%;border-radius:3px}
+.deviation-row{display:flex;align-items:center;gap:10px;padding:9px 10px;border-bottom:0.5px solid var(--color-border-tertiary);font-size:12px}
+.deviation-row:last-child{border-bottom:none}
+.dev-proceso{flex:1;font-weight:500}
+.dev-plan{width:70px;color:var(--color-text-secondary);text-align:right}
+.dev-real{width:70px;text-align:right}
+.dev-var{width:70px;text-align:right;font-weight:500}
+.dev-var.pos{color:var(--color-text-danger)}
+.dev-var.neg{color:var(--color-text-success)}
+.dev-bar-wrap{width:80px;height:6px;background:var(--color-background-secondary);border-radius:3px;overflow:hidden}
+.dev-bar-fill{height:100%;border-radius:3px}
+.incidencia-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:0.5px solid var(--color-border-tertiary);font-size:12px}
+.incidencia-row:last-child{border-bottom:none}
+.inc-grp{width:80px;font-size:11px}
+.inc-mot{flex:1}
+.inc-count{width:32px;text-align:center;font-weight:500}
+.inc-bar-wrap{width:80px;height:5px;background:var(--color-background-secondary);border-radius:3px;overflow:hidden}
+.inc-bar-fill{height:100%;border-radius:3px;background:#378ADD}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:12px;margin-bottom:12px}
+.btn{font-size:12px;padding:5px 12px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-primary);cursor:pointer}
+.btn:hover{background:var(--color-background-secondary)}
+.empty{font-size:12px;color:var(--color-text-secondary);padding:10px 0}
+</style>
+<link rel="stylesheet" href="/theme-extensions.css">
+
+<div class="dash">
+  <div class="top-bar">
+    <div>
+      <div class="top-title">Dashboard Gerencial — Flexografía</div>
+      <div class="top-sub" id="top-sub">Cargando indicadores de planificación…</div>
+    </div>
+    <button class="btn" onclick="window.location.href='/planificacion/gantt'">Ir al Gantt ↗</button>
+  </div>
+
+  <div class="tab-bar">
+    <div class="tab active" onclick="showTab('oee')">OEE por máquina</div>
+    <div class="tab" onclick="showTab('otd')">Cumplimiento OTD</div>
+    <div class="tab" onclick="showTab('desv')">Plan vs. Real</div>
+    <div class="tab" onclick="showTab('paros')">Análisis de paros</div>
+    <div class="tab" onclick="showTab('capacidad')">Capacidad Finita</div>
+  </div>
+
+  <div class="panel active" id="tab-oee">
+    <div class="kpi-grid" id="summary-grid"></div>
+    <div class="section-title">OEE desglosado por máquina</div>
+    <div class="chart-wrap" style="height:260px"><canvas id="chart-oee"></canvas></div>
+    <table class="machine-table">
+      <thead><tr><th>Máquina</th><th>Disp.</th><th>Rend.</th><th>Calidad</th><th>OEE</th><th>Estado</th></tr></thead>
+      <tbody id="oee-table-body"></tbody>
+    </table>
+  </div>
+
+  <div class="panel" id="tab-otd">
+    <div class="kpi-grid" id="otd-grid"></div>
+    <div class="section-title">Órdenes / recursos en seguimiento</div>
+    <div class="card" id="otd-delays"></div>
+  </div>
+
+  <div class="panel" id="tab-desv">
+    <div class="kpi-grid" id="variance-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))"></div>
+    <div class="section-title">Análisis Plan vs. Real por proceso (min promedio)</div>
+    <div class="card" style="padding:0;overflow:hidden" id="variance-list"></div>
+    <div class="section-title">Variación por proceso</div>
+    <div class="chart-wrap" style="height:220px"><canvas id="chart-desv"></canvas></div>
+  </div>
+
+  <div class="panel" id="tab-paros">
+    <div class="kpi-grid" id="stops-grid"></div>
+    <div class="section-title">Frecuencia por motivo de paro</div>
+    <div class="card" style="padding:0;overflow:hidden" id="stops-list"></div>
+    <div class="section-title">Paros por máquina</div>
+    <div class="chart-wrap" style="height:200px"><canvas id="chart-paros"></canvas></div>
+  </div>
+
+  <div class="panel" id="tab-capacidad">
+    <div class="kpi-grid" id="capacity-grid"></div>
+    <div class="section-title">Utilización, cola y cuellos de botella</div>
+    <div class="card" style="padding:0;overflow:hidden" id="capacity-list"></div>
+    <button class="btn" onclick="window.location.href='/planificacion/capacidad'">Abrir Análisis de Capacidad</button>
+  </div>
+</div>
+
+<script src="/access-control.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const API = '/api/planificacion';
+let charts = {};
+let dashboardData = null;
+
+function destroyChart(id){ if(charts[id]){ charts[id].destroy(); delete charts[id]; } }
+function pct(value){ return `${Number(value || 0).toFixed(0)}%`; }
+function fmt(value){ return Number(value || 0).toLocaleString('es-CR'); }
+function pillCls(v){ return v >= 80 ? 'green' : v >= 65 ? 'amber' : 'red'; }
+function oeeColor(v){ return v >= 80 ? '#1D9E75' : v >= 65 ? '#BA7517' : '#E24B4A'; }
+
+function showTab(id){
+  document.querySelectorAll('.tab').forEach((t,i)=>{
+    const ids=['oee','otd','desv','paros','capacidad'];
+    t.classList.toggle('active', ids[i]===id);
+  });
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  if (!dashboardData) return;
+  if(id==='oee') renderOEEChart();
+  if(id==='desv') renderVarianceChart();
+  if(id==='paros') renderStopsChart();
+}
+
+async function loadDashboard() {
+  try {
+    const res = await fetch(`${API}/dashboard-kpi`);
+    const payload = await res.json();
+    if (!res.ok || !payload.ok) throw new Error(payload.error || 'No se pudo cargar el dashboard KPI.');
+    dashboardData = payload.data;
+    renderAll();
+  } catch (error) {
+    document.getElementById('summary-grid').innerHTML = `<div class="empty">${error.message}</div>`;
+    document.getElementById('oee-table-body').innerHTML = `<tr><td colspan="6">No se pudo cargar el dashboard KPI.</td></tr>`;
+    document.getElementById('top-sub').textContent = 'Error al cargar indicadores';
+  }
+}
+
+function renderAll() {
+  renderSummary();
+  renderOTD();
+  renderVariance();
+  renderStops();
+  renderCapacity();
+  renderOEEChart();
+}
+
+function renderCapacity() {
+  const capacity = dashboardData.capacity;
+  const summary = capacity?.summary || {};
+  document.getElementById('capacity-grid').innerHTML = `
+    <div class="kpi-card"><div class="kpi-label">Utilización Promedio</div><div class="kpi-val">${pct(summary.avgUtilization)}</div><div class="kpi-sub">Horas cargadas / disponibles</div></div>
+    <div class="kpi-card"><div class="kpi-label">Cuellos de Botella</div><div class="kpi-val">${fmt(summary.bottleneckCount)}</div><div class="kpi-sub">Recursos saturados</div></div>
+    <div class="kpi-card"><div class="kpi-label">Cola Acumulada</div><div class="kpi-val">${fmt(summary.totalQueueHours)} h</div><div class="kpi-sub">Carga pendiente</div></div>
+    <div class="kpi-card"><div class="kpi-label">Órdenes en Riesgo</div><div class="kpi-val">${fmt(summary.projectedLateOrders)}</div><div class="kpi-sub">Fin posterior a entrega</div></div>
+  `;
+  const resources = [...(capacity?.resources || [])].sort((a,b)=>b.utilizationPct-a.utilizationPct);
+  document.getElementById('capacity-list').innerHTML = resources.length ? `
+    <table class="machine-table"><thead><tr><th>Recurso</th><th>Proceso</th><th>Capacidad</th><th>Carga</th><th>Utilización</th><th>Cola</th></tr></thead>
+    <tbody>${resources.map(r=>`<tr><td style="font-weight:500">${r.resourceName}</td><td>${r.processKey}</td><td>${r.totalCapacityHours} h</td><td>${r.totalLoadHours} h</td><td><span class="pill ${pillCls(100-Math.max(0,r.utilizationPct-80))}">${r.utilizationPct}%</span></td><td>${r.queueDays} días</td></tr>`).join('')}</tbody></table>
+  ` : '<div class="empty">No hay resultados de capacidad disponibles.</div>';
+}
+
+function renderSummary() {
+  const summary = dashboardData.summary || {};
+  document.getElementById('top-sub').textContent = `Rutas activas: ${fmt(summary.totalRoutes)} · En ejecución: ${fmt(summary.runningRoutes)} · Actualizado ${new Date().toLocaleString('es-CR')}`;
+  document.getElementById('summary-grid').innerHTML = `
+    <div class="kpi-card"><div class="kpi-label">OEE promedio planta</div><div class="kpi-val">${pct(summary.oeeAverage)}</div><div class="kpi-sub">Basado en rutas y merma registrada</div></div>
+    <div class="kpi-card"><div class="kpi-label">Disponibilidad</div><div class="kpi-val">${pct(summary.availabilityAverage)}</div><div class="kpi-sub">Rutas sin paro activo</div></div>
+    <div class="kpi-card"><div class="kpi-label">Rendimiento</div><div class="kpi-val">${pct(summary.performanceAverage)}</div><div class="kpi-sub">Velocidad final vs nominal</div></div>
+    <div class="kpi-card"><div class="kpi-label">Calidad</div><div class="kpi-val">${pct(summary.qualityAverage)}</div><div class="kpi-sub">Pies útiles / consumidos</div></div>
+  `;
+
+  const tbody = document.getElementById('oee-table-body');
+  const machines = dashboardData.machines || [];
+  if (!machines.length) {
+    tbody.innerHTML = '<tr><td colspan="6">Todavía no hay datos suficientes por máquina.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = machines.map((m) => `
+    <tr>
+      <td style="font-weight:500">${m.machineName}</td>
+      <td>${pct(m.availabilityPct)}</td>
+      <td>${pct(m.performancePct)}</td>
+      <td>${pct(m.qualityPct)}</td>
+      <td>
+        <div class="oee-bar-wrap">
+          <div class="oee-bar"><div class="oee-fill" style="width:${Math.max(0, Math.min(100, m.oeePct))}%;background:${oeeColor(m.oeePct)}"></div></div>
+          <span style="font-weight:500;min-width:34px">${pct(m.oeePct)}</span>
+        </div>
+      </td>
+      <td><span class="pill ${pillCls(m.oeePct)}">${m.stoppedRoutes > 0 ? 'Con riesgo' : m.runningRoutes > 0 ? 'Operando' : 'Estable'}</span></td>
+    </tr>
+  `).join('');
+}
+
+function renderOTD() {
+  const otd = dashboardData.otd || {};
+  document.getElementById('otd-grid').innerHTML = `
+    <div class="kpi-card"><div class="kpi-label">OTD actual</div><div class="kpi-val" style="color:#1D9E75">${pct(otd.weeklyOtdPct)}</div><div class="kpi-sub">Rutas completadas vs detenidas</div></div>
+    <div class="kpi-card"><div class="kpi-label">A tiempo</div><div class="kpi-val">${fmt(otd.deliveredOnTime)}</div><div class="kpi-sub">Rutas completadas</div></div>
+    <div class="kpi-card"><div class="kpi-label">Con retraso</div><div class="kpi-val" style="color:var(--color-text-danger)">${fmt(otd.delayedRoutes)}</div><div class="kpi-sub">Rutas detenidas</div></div>
+    <div class="kpi-card"><div class="kpi-label">Rutas activas</div><div class="kpi-val">${fmt(dashboardData.summary?.runningRoutes)}</div><div class="kpi-sub">En ejecución</div></div>
+  `;
+  const delays = otd.delayedItems || [];
+  document.getElementById('otd-delays').innerHTML = delays.length ? delays.map((item) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:12px">
+      <span style="font-weight:500;min-width:72px">${item.code}</span>
+      <span style="flex:1;color:var(--color-text-secondary)">${item.customer}</span>
+      <span style="color:var(--color-text-danger);font-weight:500;min-width:32px">${item.delay}</span>
+      <span style="color:var(--color-text-secondary);font-size:11px">${item.cause}</span>
+    </div>
+  `).join('') : '<div class="empty">No hay recursos o rutas con atraso activo.</div>';
+}
+
+function renderVariance() {
+  const variance = dashboardData.variance || [];
+  const biggest = [...variance].sort((a,b) => Math.abs(b.variancePct) - Math.abs(a.variancePct))[0];
+  const stable = [...variance].sort((a,b) => Math.abs(a.variancePct) - Math.abs(b.variancePct))[0];
+  document.getElementById('variance-grid').innerHTML = `
+    <div class="kpi-card"><div class="kpi-label">Proceso con mayor varianza</div><div class="kpi-val" style="font-size:16px">${biggest?.processName || 'Sin datos'}</div><div class="kpi-delta down">${biggest ? `${biggest.variancePct > 0 ? '+' : ''}${biggest.variancePct.toFixed(0)}%` : 'Sin datos'}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Proceso más estable</div><div class="kpi-val" style="font-size:16px">${stable?.processName || 'Sin datos'}</div><div class="kpi-delta up">${stable ? `${stable.variancePct > 0 ? '+' : ''}${stable.variancePct.toFixed(0)}%` : 'Sin datos'}</div></div>
+  `;
+  document.getElementById('variance-list').innerHTML = variance.length ? `
+    <div style="display:flex;padding:8px 10px;border-bottom:0.5px solid var(--color-border-tertiary);font-size:11px;color:var(--color-text-secondary);gap:10px">
+      <span style="flex:1;font-weight:500">Proceso</span>
+      <span style="width:70px;text-align:right">Plan</span>
+      <span style="width:70px;text-align:right">Real</span>
+      <span style="width:70px;text-align:right">Varianza</span>
+      <span style="width:80px"></span>
+    </div>
+    ${variance.map((row) => {
+      const barW = Math.min(Math.abs(row.variancePct) * 1.5, 100);
+      const color = row.variancePct > 0 ? '#E24B4A' : '#1D9E75';
+      return `<div class="deviation-row">
+        <span class="dev-proceso">${row.processName}</span>
+        <span class="dev-plan">${fmt(row.planMinutes)}</span>
+        <span class="dev-real">${fmt(row.realMinutes)}</span>
+        <span class="dev-var ${row.variancePct > 0 ? 'pos' : 'neg'}">${row.variancePct > 0 ? '+' : ''}${row.variancePct.toFixed(0)}%</span>
+        <div class="dev-bar-wrap"><div class="dev-bar-fill" style="width:${barW}%;background:${color}"></div></div>
+      </div>`;
+    }).join('')}
+  ` : '<div class="empty">Todavía no hay tiempos reales suficientes para comparar plan vs real.</div>';
+}
+
+function renderStops() {
+  const stops = dashboardData.stops || [];
+  const totalStops = stops.reduce((acc, item) => acc + Number(item.total || 0), 0);
+  const topGroup = stops[0]?.group || 'Sin datos';
+  const topReason = stops[0]?.reason || 'Sin datos';
+  document.getElementById('stops-grid').innerHTML = `
+    <div class="kpi-card"><div class="kpi-label">Total paros</div><div class="kpi-val">${fmt(totalStops)}</div><div class="kpi-sub">Eventos registrados</div></div>
+    <div class="kpi-card"><div class="kpi-label">Rutas detenidas</div><div class="kpi-val">${fmt(dashboardData.summary?.stoppedRoutes)}</div><div class="kpi-sub">Estado actual PARO</div></div>
+    <div class="kpi-card"><div class="kpi-label">Grupo más frecuente</div><div class="kpi-val" style="font-size:14px">${topGroup}</div><div class="kpi-sub">Motivos agrupados</div></div>
+    <div class="kpi-card"><div class="kpi-label">Motivo #1</div><div class="kpi-val" style="font-size:13px">${topReason}</div><div class="kpi-sub">Mayor recurrencia</div></div>
+  `;
+  document.getElementById('stops-list').innerHTML = stops.length ? `
+    <div style="display:flex;padding:8px 10px;border-bottom:0.5px solid var(--color-border-tertiary);font-size:11px;color:var(--color-text-secondary)">
+      <span style="width:90px">Grupo</span>
+      <span style="flex:1">Motivo</span>
+      <span style="width:40px;text-align:center">N°</span>
+      <span style="width:80px"></span>
+    </div>
+    ${stops.map((item) => {
+      const pctWidth = totalStops > 0 ? Math.round((item.total / totalStops) * 100) : 0;
+      return `<div class="incidencia-row">
+        <span class="inc-grp"><span class="pill ${item.group === 'Técnicas' ? 'red' : item.group === 'Insumos' ? 'amber' : 'green'}">${item.group}</span></span>
+        <span class="inc-mot">${item.reason}</span>
+        <span class="inc-count">${item.total}</span>
+        <div class="inc-bar-wrap"><div class="inc-bar-fill" style="width:${pctWidth}%"></div></div>
+      </div>`;
+    }).join('')}
+  ` : '<div class="empty">Todavía no hay eventos de paro registrados.</div>';
+}
+
+function renderOEEChart() {
+  destroyChart('oee');
+  const ctx = document.getElementById('chart-oee');
+  const machines = dashboardData?.machines || [];
+  if (!ctx || !machines.length) return;
+  charts.oee = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: machines.map((m) => m.machineName),
+      datasets: [
+        { label: 'Disponibilidad', data: machines.map((m) => m.availabilityPct), backgroundColor: '#85B7EB' },
+        { label: 'Rendimiento', data: machines.map((m) => m.performancePct), backgroundColor: '#5DCAA5' },
+        { label: 'Calidad', data: machines.map((m) => m.qualityPct), backgroundColor: '#AFA9EC' },
+        { label: 'OEE', data: machines.map((m) => m.oeePct), backgroundColor: machines.map((m) => oeeColor(m.oeePct)), type: 'line', borderColor: '#888', borderWidth: 2, pointRadius: 4, tension: 0.3, yAxisID: 'y' }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { min: 0, max: 100, ticks: { callback: (v) => `${v}%`, font: { size: 11 } }, grid: { color: 'rgba(128,128,128,0.1)' } },
+        x: { ticks: { font: { size: 11 } }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+function renderVarianceChart() {
+  destroyChart('desv');
+  const ctx = document.getElementById('chart-desv');
+  const variance = dashboardData?.variance || [];
+  if (!ctx || !variance.length) return;
+  charts.desv = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: variance.map((item) => item.processName),
+      datasets: [{ label: 'Varianza %', data: variance.map((item) => item.variancePct), backgroundColor: variance.map((item) => item.variancePct > 0 ? '#E24B4A' : '#1D9E75') }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { ticks: { font: { size: 11 }, callback: (v) => `${v}%` }, grid: { color: 'rgba(128,128,128,0.1)' } },
+        x: { ticks: { font: { size: 11 } }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+function renderStopsChart() {
+  destroyChart('paros');
+  const ctx = document.getElementById('chart-paros');
+  const machines = dashboardData?.machines || [];
+  if (!ctx || !machines.length) return;
+  charts.paros = new Chart(ctx, {
+    type: 'bar',
+    indexAxis: 'y',
+    data: {
+      labels: machines.map((m) => m.machineName),
+      datasets: [{
+        label: 'Rutas detenidas',
+        data: machines.map((m) => m.stoppedRoutes),
+        backgroundColor: machines.map((m) => m.stoppedRoutes > 0 ? '#E24B4A' : '#5DCAA5'),
+        borderRadius: 3
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { font: { size: 11 } }, grid: { color: 'rgba(128,128,128,0.1)' } },
+        y: { ticks: { font: { size: 11 } }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+loadDashboard();
+</script>

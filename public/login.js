@@ -14,7 +14,7 @@ const LOGIN_IMAGE_CACHE_META_KEY = 'erp-login-images-cache-meta';
 const LOGIN_LOGO_CACHE_NAME = 'erp-login-logo-v1';
 const LOGIN_LOGO_CACHE_META_KEY = 'erp-login-logo-cache-meta';
 const LOGIN_LOGO_CACHE_REQUEST_PATH = '/__erp-login-cache/logo';
-const LOGIN_IMAGE_CACHE_LIMIT = 3;
+const LOGIN_IMAGE_CACHE_LIMIT = 40;
 const LOGIN_IMAGE_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const LOGIN_ANIM_VARIANTS = ['anim-0', 'anim-1', 'anim-2'];
 
@@ -453,13 +453,6 @@ function showLoginSlide(index) {
     if (loginHeroPlaceholder) {
         loginHeroPlaceholder.hidden = true;
     }
-    if (loginHeroStage) {
-        loginHeroStage.style.setProperty('background-image', `url("${imageUrl}")`, 'important');
-        loginHeroStage.style.setProperty('background-size', 'cover', 'important');
-        loginHeroStage.style.setProperty('background-position', 'center', 'important');
-        loginHeroStage.style.setProperty('background-repeat', 'no-repeat', 'important');
-    }
-
     const slide = document.createElement('img');
     slide.className = `login-hero-slide ${LOGIN_ANIM_VARIANTS[loginCurrentIndex % LOGIN_ANIM_VARIANTS.length]}`;
     slide.src = imageUrl;
@@ -495,6 +488,14 @@ function showLoginSlide(index) {
     loginCurrentSlide = slide;
 }
 
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+}
+
 function startLoginScreensaver(images) {
     stopLoginScreensaver();
     clearLoginStage();
@@ -507,12 +508,17 @@ function startLoginScreensaver(images) {
         return;
     }
 
+    shuffleArray(loginRepositoryImages);
     showLoginSlide(0);
     preloadLoginImages(loginRepositoryImages.slice(1), 2);
 
     if (loginRepositoryImages.length > 1) {
         loginSlideTimer = window.setInterval(() => {
-            showLoginSlide(loginCurrentIndex + 1);
+            const next = loginCurrentIndex + 1;
+            if (next >= loginRepositoryImages.length) {
+                shuffleArray(loginRepositoryImages);
+            }
+            showLoginSlide(next);
         }, getSlideSeconds() * 1000);
     }
 }
@@ -576,9 +582,7 @@ async function refreshLoginConfig(cachedConfig, cachedRepository) {
         writeCache(LOGIN_REPOSITORY_CACHE_KEY, cacheableRepository);
     }
 
-    const displayImages = loginRepositoryImages.some((url) => String(url || '').startsWith('blob:'))
-        ? loginRepositoryImages
-        : repositoryImages;
+    const displayImages = repositoryImages.length ? repositoryImages : loginRepositoryImages;
     applyLoginBranding(config, displayImages);
 }
 
@@ -617,13 +621,21 @@ async function handleLogin(event) {
             body: JSON.stringify({ username, password })
         });
         const data = await readLoginResponse(response);
+        if (response.status === 423) {
+            loginStatus.textContent = data?.error || 'Cuenta bloqueada.';
+            return;
+        }
+        if (response.status === 403) {
+            loginStatus.textContent = data?.error || 'Cuenta deshabilitada.';
+            return;
+        }
         if (!response.ok) {
             throw new Error(data?.error || 'No fue posible iniciar sesión.');
         }
         persistRememberedCredentials();
         setStoredSession(data.user, loginRemember.checked);
         loginStatus.textContent = '';
-        window.location.href = resolveAllowedLandingRoute(data.user);
+        window.location.href = data.redirect || resolveAllowedLandingRoute(data.user);
     } catch (error) {
         loginStatus.textContent = error.message || 'No fue posible iniciar sesión.';
     }
@@ -676,5 +688,75 @@ window.addEventListener('beforeunload', () => {
 });
 
 loginForm?.addEventListener('submit', handleLogin);
+
+// ─── FORGOT PASSWORD ────────────────────────────────────────────────────────
+const forgotOverlay = document.getElementById('forgotOverlay');
+const forgotLink = document.getElementById('forgotPasswordLink');
+const forgotCancelBtn = document.getElementById('forgotCancelBtn');
+const forgotSubmitBtn = document.getElementById('forgotSubmitBtn');
+const forgotUsername = document.getElementById('forgotUsername');
+const forgotStatus = document.getElementById('forgotStatus');
+
+function openForgotPassword() {
+    forgotOverlay?.classList.add('open');
+    forgotUsername.value = loginUsername.value.trim();
+    forgotStatus.textContent = '';
+    forgotStatus.className = 'forgot-status';
+    forgotSubmitBtn.disabled = !forgotUsername.value.trim();
+    forgotUsername?.focus();
+}
+
+function closeForgotPassword() {
+    forgotOverlay?.classList.remove('open');
+    forgotStatus.textContent = '';
+    forgotStatus.className = 'forgot-status';
+}
+
+forgotLink?.addEventListener('click', openForgotPassword);
+forgotCancelBtn?.addEventListener('click', closeForgotPassword);
+forgotOverlay?.addEventListener('click', (e) => {
+    if (e.target === forgotOverlay) closeForgotPassword();
+});
+
+forgotUsername?.addEventListener('input', () => {
+    forgotSubmitBtn.disabled = !forgotUsername.value.trim();
+});
+
+forgotUsername?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !forgotSubmitBtn.disabled) {
+        forgotSubmitBtn.click();
+    }
+    if (e.key === 'Escape') {
+        closeForgotPassword();
+    }
+});
+
+forgotSubmitBtn?.addEventListener('click', async () => {
+    const username = forgotUsername.value.trim();
+    if (!username) return;
+    forgotSubmitBtn.disabled = true;
+    forgotSubmitBtn.textContent = 'Enviando...';
+    forgotStatus.className = 'forgot-status';
+    forgotStatus.textContent = '';
+    try {
+        const response = await fetch('/api/auth/forgot-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || 'No fue posible procesar la solicitud.');
+        }
+        forgotStatus.className = 'forgot-status success';
+        forgotStatus.textContent = data.message || 'Revisa tu correo para las instrucciones.';
+        forgotUsername.value = '';
+    } catch (error) {
+        forgotStatus.className = 'forgot-status error';
+        forgotStatus.textContent = error.message || 'No fue posible procesar la solicitud.';
+        forgotSubmitBtn.disabled = false;
+        forgotSubmitBtn.textContent = 'Enviar';
+    }
+});
 
 bootLogin();

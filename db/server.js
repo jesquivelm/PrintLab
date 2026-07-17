@@ -7380,6 +7380,8 @@ app.get('/api/catalogs', async (req, res) => {
             description: item.descripcion,
             descripcionCotizaciones: item.descripcion_cotizaciones,
             clasificacion: item.clasificacion,
+            formato: item.formato,
+            tipo_troquel_2: item.tipo_troquel_2,
             ancho_mm: item.ancho_mm,
             largo_mm: item.largo_mm,
             ancho_total_troquel_in: item.ancho_total_troquel_in,
