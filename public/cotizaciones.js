@@ -1558,7 +1558,7 @@ function normalizeQuoteLine(line, quoteCode, index = 0) {
         material: summary.material_name || line.material_name || '',
         materialCode: summary.material_code || line.material_code || raw['Material Convencional | Id Material'] || raw['Material Digital | Id Material'] || '',
         medida: measure || [raw['DIMENSIONES ETIQUETA | ANCHO'], raw['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join(' x '),
-        machineName: summary.machine_name || line.machine_name || raw['CONV | MAQUINA'] || raw['DIGITAL | MAQUINA'] || '',
+        machineName: summary.machine_name || line.machine_name || raw['CONV | MAQUINA'] || raw['DIGITAL | MAQUINA'] || raw['MAQUINA IMPRESION'] || '',
         dieCode: summary.die_code || line.die_code || raw['GENERAL | TROQUEL | ID'] || raw['REQ | Troquelado'] || '',
         processType: summary.process_type || line.process_type || raw['Proceso Productivo'] || '',
         processSequenceText: summary.process_sequence_text || raw['Texto_Secuencia_Procesos'] || raw['BOT | Process Sequence'] || '',
@@ -2622,32 +2622,32 @@ function renderQuoteLinesPanel(quoteCode) {
     const escapedCode = escapeHtml(quoteCode);
     const footer = `
         <div class="quote-master-lines-footer">
-            ${canCreateQuoteLines ? `<button type="button" class="quote-browser-action-btn quote-line-add-btn" data-add-line="${escapedCode}" title="Agregar línea de cálculo" style="--icon-color:${escapeHtml(addConf.color)};--icon-hover-color:${escapeHtml(addConf.hover)};--config-icon-size:${escapeHtml(String(addConf.size || 18))}px;">
-                <span class="quote-line-action-icon" aria-hidden="true">${iconMarkup(addConf.value, 'Agregar línea', 'table-icon-media')}</span> Agregar línea
-            </button>` : ''}
             <button type="button" class="quote-browser-action-btn quote-line-proforma-btn" data-print-proforma="${escapedCode}" title="Ver Proforma" style="--icon-color:${escapeHtml(proformaConf.color)};--icon-hover-color:${escapeHtml(proformaConf.hover)};--config-icon-size:${escapeHtml(String(proformaConf.size || 16))}px;">
                 <span class="quote-line-action-icon" aria-hidden="true">${iconMarkup(proformaConf.value, 'Ver Proforma', 'table-icon-media')}</span> Ver Proforma
             </button>
+            ${canCreateQuoteLines ? `<button type="button" class="quote-browser-action-btn quote-line-add-btn" data-add-line="${escapedCode}" title="Agregar línea de cálculo" style="--icon-color:${escapeHtml(addConf.color)};--icon-hover-color:${escapeHtml(addConf.hover)};--config-icon-size:${escapeHtml(String(addConf.size || 18))}px;">
+                <span class="quote-line-action-icon" aria-hidden="true">${iconMarkup(addConf.value, 'Agregar línea', 'table-icon-media')}</span> Agregar línea
+            </button>` : ''}
         </div>
     `;
     if (quoteLineLoading.has(quoteCode)) {
-        return `<div class="quote-master-line-message">Cargando líneas de cálculo...</div>${footer}`;
+        return `<div class="quote-master-lines-bg"><div class="quote-master-line-message">Cargando líneas de cálculo...</div></div>${footer}`;
     }
     const lines = quoteLineCache.get(quoteCode);
     if (!lines) {
-        return `<div class="quote-master-line-message">Abre esta cotización para cargar sus líneas.</div>${footer}`;
+        return `<div class="quote-master-lines-bg"><div class="quote-master-line-message">Abre esta cotización para cargar sus líneas.</div></div>${footer}`;
     }
     if (!lines.length) {
-        return `<div class="quote-master-line-message">Esta cotización todavía no tiene líneas de cálculo.</div>${footer}`;
+        return `<div class="quote-master-lines-bg"><div class="quote-master-line-message">Esta cotización todavía no tiene líneas de cálculo.</div></div>${footer}`;
     }
     const treeNodes = buildFrontBackLineTree(lines, quoteCode);
-    return `<div class="quote-master-lines">${treeNodes.map((node, index) => renderQuoteLineCard(node.line, index, lines.length, {
+    return `<div class="quote-master-lines-bg"><div class="quote-master-lines">${treeNodes.map((node, index) => renderQuoteLineCard(node.line, index, lines.length, {
         kind: node.kind,
         sourceIndex: node.sourceIndex,
         groupKey: node.key,
         childCount: node.childCount,
         expanded: node.expanded
-    })).join('')}</div>${footer}`;
+    })).join('')}</div></div>${footer}`;
 }
 
 function quoteStatusInfo(item = {}) {

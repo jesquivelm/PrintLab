@@ -8555,6 +8555,31 @@ body.inventory-route-troqueles.inventory-view-detail .inventory-editor-panel {
     width: min(100%, 1180px);
     margin: 0 auto;
 }
+body.inventory-route-troqueles .inventory-table thead th,
+body.inventory-route-troqueles .inventory-table tbody td {
+    padding: 10px 8px;
+    border-bottom: 1px solid #eef2f5;
+    font-size: 13px;
+    color: #2f3740;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    height: auto;
+}
+body.inventory-route-troqueles .inventory-table thead th {
+    position: sticky;
+    top: 0;
+    background: #fbfcfd;
+    color: #7e8a96;
+    font-weight: 600;
+    text-align: left;
+}
+body.inventory-route-troqueles .inventory-table th:last-child,
+body.inventory-route-troqueles .inventory-table td:last-child {
+    width: 92px;
+    min-width: 92px;
+    text-align: center;
+}
 .inventory-panel-main,
 .inventory-editor-panel,
 .inventory-capabilities {
@@ -8581,7 +8606,7 @@ body.inventory-route-troqueles.inventory-view-detail .inventory-editor-panel {
     top: 0;
     z-index: 1;
     height: var(--table-header-height);
-    padding: 4px 3px;
+    padding: 4px 5px;
     background: #f7fbfe;
     border-bottom: 1px solid #e4e8ec;
     color: #8e98a3;
@@ -8632,7 +8657,7 @@ body.inventory-route-troqueles.inventory-view-detail .inventory-editor-panel {
 }
 .inventory-table tbody td {
     height: var(--table-row-height);
-    padding: 1px 3px;
+    padding: 1px 5px;
     border-bottom: 1px solid var(--grid);
     font-size: var(--table-font-size);
     color: #2f3740;
@@ -9352,8 +9377,14 @@ html[data-theme="dark"] .inventory-browser-card .quote-browser-table .browser-op
 }
 .inventory-browser-card .quote-browser-table th,
 .inventory-browser-card .quote-browser-table td {
-    padding: 4px 3px;
-    font-size: 12px;
+    padding: 10px 8px;
+    font-size: 13px;
+    height: auto;
+}
+.inventory-browser-card .quote-browser-table thead th {
+    background: #fbfcfd;
+    color: #7e8a96;
+    font-weight: 600;
 }
 .inventory-browser-card .quote-browser-table th[data-sort-key] {
     cursor: pointer;
@@ -9378,72 +9409,72 @@ html[data-theme="dark"] .inventory-browser-card .quote-browser-table .browser-op
 }
 .inventory-browser-card .quote-browser-table th[data-sort-key="codigo"],
 .inventory-browser-card .quote-browser-table td:nth-child(1) {
-    width: 88px;
-    min-width: 88px;
-    max-width: 88px;
+    width: 140px;
+    min-width: 140px;
+    max-width: 140px;
 }
 .inventory-browser-card .quote-browser-table th[data-sort-key="descripcion"],
 .inventory-browser-card .quote-browser-table td:nth-child(2) {
-    width: 200px;
-    min-width: 200px;
-    max-width: 200px;
+    width: 240px;
+    min-width: 240px;
+    max-width: 240px;
 }
 .inventory-browser-card .quote-browser-table th[data-sort-key="ancho_etiqueta_in"],
 .inventory-browser-card .quote-browser-table td:nth-child(3),
 .inventory-browser-card .quote-browser-table th:nth-child(3) {
-    width: 82px;
-    min-width: 82px;
-    max-width: 82px;
+    width: 110px;
+    min-width: 110px;
+    max-width: 110px;
 }
 .inventory-browser-card .quote-browser-table th[data-sort-key="largo_etiqueta_in"],
 .inventory-browser-card .quote-browser-table td:nth-child(4) {
-    width: 82px;
-    min-width: 82px;
-    max-width: 82px;
+    width: 110px;
+    min-width: 110px;
+    max-width: 110px;
 }
 .inventory-browser-card .quote-browser-table th[data-sort-key="desarrollo_in"],
 .inventory-browser-card .quote-browser-table td:nth-child(5) {
-    width: 82px;
-    min-width: 82px;
-    max-width: 82px;
+    width: 110px;
+    min-width: 110px;
+    max-width: 110px;
 }
 .inventory-browser-card .quote-browser-table th[data-sort-key="dientes"],
 .inventory-browser-card .quote-browser-table td:nth-child(6) {
-    width: 68px;
-    min-width: 68px;
-    max-width: 68px;
-}
-.inventory-browser-card .quote-browser-table th[data-sort-key="cantidad_filas"],
-.inventory-browser-card .quote-browser-table td:nth-child(7) {
-    width: 62px;
-    min-width: 62px;
-    max-width: 62px;
-}
-.inventory-browser-card .quote-browser-table th[data-sort-key="repeticiones"],
-.inventory-browser-card .quote-browser-table td:nth-child(8) {
     width: 90px;
     min-width: 90px;
     max-width: 90px;
 }
+.inventory-browser-card .quote-browser-table th[data-sort-key="cantidad_filas"],
+.inventory-browser-card .quote-browser-table td:nth-child(7) {
+    width: 90px;
+    min-width: 90px;
+    max-width: 90px;
+}
+.inventory-browser-card .quote-browser-table th[data-sort-key="repeticiones"],
+.inventory-browser-card .quote-browser-table td:nth-child(8) {
+    width: 120px;
+    min-width: 120px;
+    max-width: 120px;
+}
 .inventory-browser-card .quote-browser-table th[data-sort-key="formato"],
 .inventory-browser-card .quote-browser-table td:nth-child(9) {
-    width: 80px;
-    min-width: 80px;
-    max-width: 80px;
+    width: 110px;
+    min-width: 110px;
+    max-width: 110px;
     text-align: center;
 }
 .inventory-browser-card .quote-browser-table th[data-sort-key="estado"],
 .inventory-browser-card .quote-browser-table td:nth-child(10) {
-    width: 80px;
-    min-width: 80px;
-    max-width: 80px;
+    width: 110px;
+    min-width: 110px;
+    max-width: 110px;
     text-align: center;
 }
 .inventory-browser-card .quote-browser-table th[data-sort-key="created_at"],
 .inventory-browser-card .quote-browser-table td:nth-child(11) {
-    width: 95px;
-    min-width: 95px;
-    max-width: 95px;
+    width: 120px;
+    min-width: 120px;
+    max-width: 120px;
     text-align: center;
     white-space: nowrap;
 }
@@ -14035,8 +14066,14 @@ html[data-theme="dark"] .workspace-quote > .quote-card-clean .quote-meta {
 
 .quote-master-lines-row > td {
     padding: 0 16px 16px 20px !important;
-    background: var(--app-bg-soft, #fbfdff) !important;
     border-top: 1px solid var(--app-border, #e4edf4) !important;
+}
+
+.quote-master-lines-bg {
+    background: var(--app-bg-soft, #fbfdff);
+    border-radius: 10px;
+    padding: 4px;
+    margin-bottom: 8px;
 }
 
 .quote-master-lines {
@@ -14307,10 +14344,9 @@ html[data-theme="dark"] .workspace-quote > .quote-card-clean .quote-meta {
 .quote-master-lines-footer {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-end;
     gap: 8px;
-    padding-top: 10px;
-    margin-top: 4px;
+    padding: 6px 4px 0 0;
     border-top: 1px solid #e4edf4;
 }
 
@@ -14339,7 +14375,6 @@ html[data-theme="dark"] .workspace-quote > .quote-card-clean .quote-meta {
 }
 
 .quote-line-proforma-btn {
-    margin-left: auto;
     color: #395f75;
     border-color: #ccd9e4;
     background: #f5f8fb;
@@ -14368,8 +14403,11 @@ html[data-theme="dark"] .quote-master-row td {
 }
 
 html[data-theme="dark"] .quote-master-lines-row > td {
-    background: var(--app-bg-soft) !important;
     border-top-color: var(--app-border) !important;
+}
+
+html[data-theme="dark"] .quote-master-lines-bg {
+    background: var(--app-bg-soft);
 }
 
 html[data-theme="dark"] .quote-master-line {
@@ -14485,9 +14523,8 @@ html[data-theme="dark"] .quote-line-proforma-btn:focus-visible {
     }
     .quote-master-lines-footer {
         flex-wrap: wrap;
-    }
-    .quote-line-proforma-btn {
-        margin-left: 0;
+        justify-content: center;
+        padding-right: 0;
     }
 }
 
