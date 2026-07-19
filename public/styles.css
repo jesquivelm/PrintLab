@@ -11966,6 +11966,7 @@ html[data-theme="dark"] .dashboard-card {
 .dashboard-card[data-icon-key="dashboardSettings"] { --card-accent: #8b5cf6; }
 .dashboard-card[data-icon-key="dashboardOrders"] { --card-accent: #b7791f; }
 .dashboard-card[data-icon-key="dashboardPlanning"] { --card-accent: #16a34a; }
+.dashboard-card[data-icon-key="dashboardInks"] { --card-accent: #d97706; }
 .dashboard-card[data-icon-key="dashboardCosts"] { --card-accent: #dc2626; }
 .dashboard-card[data-icon-key="dashboardReports"] { --card-accent: #0f766e; }
 
@@ -19184,6 +19185,11 @@ html[data-theme="dark"] .production-order-card .production-summary-line-label {
         justify-content: flex-start;
     }
 
+    #orderAdminTools.production-admin-tools {
+        grid-column: 1;
+        grid-row: 2;
+    }
+
     .production-frontback-total-quantity {
         justify-items: start;
     }
@@ -19453,14 +19459,14 @@ html[data-theme="dark"] .production-creation-summary-subsection {
     justify-content: flex-end !important;
     align-items: center !important;
     gap: 6px !important;
-    position: absolute !important;
-    top: 0 !important;
-    right: 0 !important;
-    left: auto !important;
-    margin: 0 !important;
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    align-self: start;
+    margin: 17px 15px 0 0 !important;
     padding: 0 !important;
-    z-index: 5 !important;
     width: auto !important;
+    z-index: 5;
 }
 
 .production-top-row-wrapper {
