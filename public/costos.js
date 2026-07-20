@@ -21,6 +21,18 @@ const PROCESS_DEFAULTS = [
     { key: "adicionales", label: "Procesos adicionales", active: false, createEnabled: false, locked: false, repeatable: false, order: 90 }
 ];
 
+const DEFAULT_ACABADOS_BARNIZ = [
+    { id: "acab-barniz-1", nombre: "Barniz UV Brillante", bcmAnilox: 7, porcentajeCobertura: 100, costoPorKilo: 12 }
+];
+
+const DEFAULT_ACABADOS_LAMINADO = [
+    { id: "acab-laminado-1", nombre: "Laminado Brillante", costoPorPieLineal: 0.05, tiempoMontaje: 10 }
+];
+
+const DEFAULT_ACABADOS_ESTAMPADO = [
+    { id: "acab-estampado-1", tipoFoil: "Foil Dorado", anchoFoil: 6, costoPorPieLineal: 0.08, tiempoMontaje: 15 }
+];
+
 const DEFAULT_COSTS_CONFIG = {
     general: {
         notes: "",
@@ -30,8 +42,18 @@ const DEFAULT_COSTS_CONFIG = {
         coreDiameterOptions: ["1", "1.5", "3", "6"],
         defaultQuantityTypes: 1,
         defaultCmykEnabled: "true",
-        defaultPrepressArtsPerHour: 2,
+        defaultPrepressArts: 2,
+        defaultPrepressMinPerChange: 10,
         defaultPrepressHourCost: 15,
+        defaultDisenoArts: 2,
+        defaultDisenoHourCost: 15,
+        defaultRebobinadoTiempoMontaje: 10,
+        defaultRebobinadoWasteFeet: 30,
+        defaultRebobinadoWastePct: 0.5,
+        defaultEmpaqueCantidadXMinuto: 0,
+        defaultEmpaqueMinutoHombre: 0,
+        defaultEmpaqueTiempoMovilizacion: 0,
+        defaultEmpaqueTiempoConfeccion: 0,
         processDefaults: PROCESS_DEFAULTS.map((item) => ({ ...item, minimumCost: 0, timeBufferMinutes: 0, capacityMinutes: 480 }))
     },
     convencional: {
@@ -77,9 +99,13 @@ const DEFAULT_COSTS_CONFIG = {
             { id: "conv-finish-laminado", proceso: "Laminado", setupWasteFeet: 100, operationWastePct: 2.0 },
             { id: "conv-finish-troquelado", proceso: "Troquelado", setupWasteFeet: 150, operationWastePct: 2.5 },
             { id: "conv-finish-estampado", proceso: "Estampado", setupWasteFeet: 250, operationWastePct: 4.0 },
-            { id: "conv-finish-embosado", proceso: "Embosado", setupWasteFeet: 125, operationWastePct: 3.0 },
-            { id: "conv-finish-rebobinado", proceso: "Rebobinado", setupWasteFeet: 30, operationWastePct: 0.5 }
+            { id: "conv-finish-embosado", proceso: "Embosado", setupWasteFeet: 125, operationWastePct: 3.0 }
         ]
+    },
+    acabados: {
+        barniz: DEFAULT_ACABADOS_BARNIZ.map((item) => ({ ...item })),
+        laminado: DEFAULT_ACABADOS_LAMINADO.map((item) => ({ ...item })),
+        estampado: DEFAULT_ACABADOS_ESTAMPADO.map((item) => ({ ...item }))
     },
     digital: {
         premier: {
@@ -137,8 +163,18 @@ const generalDefaultFields = {
     defaultCoreDiameter: document.getElementById("costosDefaultCoreDiameter"),
     defaultQuantityTypes: document.getElementById("costosDefaultQuantityTypes"),
     defaultCmykEnabled: document.getElementById("costosDefaultCmykEnabled"),
-    defaultPrepressArtsPerHour: document.getElementById("costosDefaultPrepressArtsPerHour"),
-    defaultPrepressHourCost: document.getElementById("costosDefaultPrepressHourCost")
+    defaultPrepressArts: document.getElementById("costosDefaultPrepressArts"),
+    defaultPrepressMinPerChange: document.getElementById("costosDefaultPrepressMinPerChange"),
+    defaultPrepressHourCost: document.getElementById("costosDefaultPrepressHourCost"),
+    defaultDisenoArts: document.getElementById("costosDefaultDisenoArts"),
+    defaultDisenoHourCost: document.getElementById("costosDefaultDisenoHourCost"),
+    defaultRebobinadoTiempoMontaje: document.getElementById("costosDefaultRebobinadoTiempoMontaje"),
+    defaultRebobinadoWasteFeet: document.getElementById("costosDefaultRebobinadoWasteFeet"),
+    defaultRebobinadoWastePct: document.getElementById("costosDefaultRebobinadoWastePct"),
+    defaultEmpaqueCantidadXMinuto: document.getElementById("costosDefaultEmpaqueCantidadXMinuto"),
+    defaultEmpaqueMinutoHombre: document.getElementById("costosDefaultEmpaqueMinutoHombre"),
+    defaultEmpaqueTiempoMovilizacion: document.getElementById("costosDefaultEmpaqueTiempoMovilizacion"),
+    defaultEmpaqueTiempoConfeccion: document.getElementById("costosDefaultEmpaqueTiempoConfeccion")
 };
 const coreDiameterOptionsTableBody = document.getElementById("costosCoreDiameterOptionsTableBody");
 const addCoreDiameterOptionButton = document.getElementById("costosAddCoreDiameterOption");
@@ -149,6 +185,12 @@ const depositosTableBody = document.getElementById("costosDepositosTableBody");
 const finishWasteTableBody = document.getElementById("costosFinishWasteTableBody");
 const inlineFinishSetupTableBody = document.getElementById("inlineFinishSetupTableBody");
 const digitalCoverageProfilesTableBody = document.getElementById("costosDigitalCoverageProfilesTableBody");
+const acabadosBarnizTableBody = document.getElementById("costosAcabadosBarnizTableBody");
+const acabadosLaminadoTableBody = document.getElementById("costosAcabadosLaminadoTableBody");
+const acabadosEstampadoTableBody = document.getElementById("costosAcabadosEstampadoTableBody");
+const acabadosBarnizAddButton = document.getElementById("costosAcabadosBarnizAddButton");
+const acabadosLaminadoAddButton = document.getElementById("costosAcabadosLaminadoAddButton");
+const acabadosEstampadoAddButton = document.getElementById("costosAcabadosEstampadoAddButton");
 const inkFields = {
     bcmGenerico: document.getElementById("costosBcmGenerico"),
     coberturaTintaPct: document.getElementById("costosCoberturaTinta"),
@@ -462,6 +504,26 @@ function normalizeCostsConfig(config) {
         tipo: normalizeText(row?.tipo),
         coveragePct: numberValue(row?.coveragePct, 0)
     }));
+    const normalizeAcabadosBarniz = (rows) => (Array.isArray(rows) ? rows : []).map((row, index) => ({
+        id: normalizeText(row?.id) || `acab-barniz-${index + 1}`,
+        nombre: normalizeText(row?.nombre),
+        bcmAnilox: numberValue(row?.bcmAnilox, 0),
+        porcentajeCobertura: numberValue(row?.porcentajeCobertura, 0),
+        costoPorKilo: numberValue(row?.costoPorKilo, 0)
+    }));
+    const normalizeAcabadosLaminado = (rows) => (Array.isArray(rows) ? rows : []).map((row, index) => ({
+        id: normalizeText(row?.id) || `acab-laminado-${index + 1}`,
+        nombre: normalizeText(row?.nombre),
+        costoPorPieLineal: numberValue(row?.costoPorPieLineal, 0),
+        tiempoMontaje: numberValue(row?.tiempoMontaje, 0)
+    }));
+    const normalizeAcabadosEstampado = (rows) => (Array.isArray(rows) ? rows : []).map((row, index) => ({
+        id: normalizeText(row?.id) || `acab-estampado-${index + 1}`,
+        tipoFoil: normalizeText(row?.tipoFoil),
+        anchoFoil: numberValue(row?.anchoFoil, 0),
+        costoPorPieLineal: numberValue(row?.costoPorPieLineal, 0),
+        tiempoMontaje: numberValue(row?.tiempoMontaje, 0)
+    }));
 
     return {
         general: {
@@ -472,8 +534,18 @@ function normalizeCostsConfig(config) {
             coreDiameterOptions: normalizeCoreDiameterOptions(source?.general?.coreDiameterOptions, DEFAULT_COSTS_CONFIG.general.coreDiameterOptions, true),
             defaultQuantityTypes: Math.max(1, numberValue(source?.general?.defaultQuantityTypes, DEFAULT_COSTS_CONFIG.general.defaultQuantityTypes)),
             defaultCmykEnabled: String(source?.general?.defaultCmykEnabled || DEFAULT_COSTS_CONFIG.general.defaultCmykEnabled).trim().toLowerCase() === "false" ? "false" : "true",
-            defaultPrepressArtsPerHour: Math.max(0, numberValue(source?.general?.defaultPrepressArtsPerHour, DEFAULT_COSTS_CONFIG.general.defaultPrepressArtsPerHour)),
+            defaultPrepressArts: Math.max(0, numberValue(source?.general?.defaultPrepressArts, numberValue(source?.general?.defaultPrepressArtsPerHour, DEFAULT_COSTS_CONFIG.general.defaultPrepressArts))),
+            defaultPrepressMinPerChange: Math.max(0, numberValue(source?.general?.defaultPrepressMinPerChange, DEFAULT_COSTS_CONFIG.general.defaultPrepressMinPerChange)),
             defaultPrepressHourCost: Math.max(0, numberValue(source?.general?.defaultPrepressHourCost, DEFAULT_COSTS_CONFIG.general.defaultPrepressHourCost)),
+            defaultDisenoArts: Math.max(0, numberValue(source?.general?.defaultDisenoArts, DEFAULT_COSTS_CONFIG.general.defaultDisenoArts)),
+            defaultDisenoHourCost: Math.max(0, numberValue(source?.general?.defaultDisenoHourCost, DEFAULT_COSTS_CONFIG.general.defaultDisenoHourCost)),
+            defaultRebobinadoTiempoMontaje: Math.max(0, numberValue(source?.general?.defaultRebobinadoTiempoMontaje, DEFAULT_COSTS_CONFIG.general.defaultRebobinadoTiempoMontaje)),
+            defaultRebobinadoWasteFeet: Math.max(0, numberValue(source?.general?.defaultRebobinadoWasteFeet, DEFAULT_COSTS_CONFIG.general.defaultRebobinadoWasteFeet)),
+            defaultRebobinadoWastePct: Math.max(0, numberValue(source?.general?.defaultRebobinadoWastePct, DEFAULT_COSTS_CONFIG.general.defaultRebobinadoWastePct)),
+            defaultEmpaqueCantidadXMinuto: Math.max(0, numberValue(source?.general?.defaultEmpaqueCantidadXMinuto, DEFAULT_COSTS_CONFIG.general.defaultEmpaqueCantidadXMinuto)),
+            defaultEmpaqueMinutoHombre: Math.max(0, numberValue(source?.general?.defaultEmpaqueMinutoHombre, DEFAULT_COSTS_CONFIG.general.defaultEmpaqueMinutoHombre)),
+            defaultEmpaqueTiempoMovilizacion: Math.max(0, numberValue(source?.general?.defaultEmpaqueTiempoMovilizacion, DEFAULT_COSTS_CONFIG.general.defaultEmpaqueTiempoMovilizacion)),
+            defaultEmpaqueTiempoConfeccion: Math.max(0, numberValue(source?.general?.defaultEmpaqueTiempoConfeccion, DEFAULT_COSTS_CONFIG.general.defaultEmpaqueTiempoConfeccion)),
             processDefaults: normalizeProcessDefaults(source?.general?.processDefaults || DEFAULT_COSTS_CONFIG.general.processDefaults)
         },
         convencional: {
@@ -491,6 +563,11 @@ function normalizeCostsConfig(config) {
             maculaMontaje: normalizeMontaje(rowsOrDefault(source?.convencional?.maculaMontaje, DEFAULT_COSTS_CONFIG.convencional.maculaMontaje)),
             maculaTiraje: normalizeTiraje(rowsOrDefault(source?.convencional?.maculaTiraje, DEFAULT_COSTS_CONFIG.convencional.maculaTiraje)),
             finishWaste: normalizeFinishWaste(rowsOrDefault(source?.convencional?.finishWaste, DEFAULT_COSTS_CONFIG.convencional.finishWaste))
+        },
+        acabados: {
+            barniz: normalizeAcabadosBarniz(rowsOrDefault(source?.acabados?.barniz, DEFAULT_COSTS_CONFIG.acabados.barniz)),
+            laminado: normalizeAcabadosLaminado(rowsOrDefault(source?.acabados?.laminado, DEFAULT_COSTS_CONFIG.acabados.laminado)),
+            estampado: normalizeAcabadosEstampado(rowsOrDefault(source?.acabados?.estampado, DEFAULT_COSTS_CONFIG.acabados.estampado))
         },
         digital: {
             premier: {
@@ -548,14 +625,16 @@ async function loadCosts() {
         const response = await fetch(COSTS_ENDPOINT);
         const contentType = response.headers.get("content-type") || "";
         if (!response.ok || !contentType.includes("application/json")) {
-            throw new Error("API no disponible");
+            costsState = normalizeCostsConfig(DEFAULT_COSTS_CONFIG);
+            setSaveStatus("");
+        } else {
+            const payload = await response.json();
+            costsState = normalizeCostsConfig(payload);
+            setSaveStatus("");
         }
-        const payload = await response.json();
-        costsState = normalizeCostsConfig(payload);
-        setSaveStatus("");
     } catch (error) {
         costsState = normalizeCostsConfig(DEFAULT_COSTS_CONFIG);
-        setSaveStatus(error.message || "No se pudo cargar la configuración de costos.", true);
+        setSaveStatus("");
     }
     renderCosts();
 }
@@ -677,6 +756,104 @@ function renderDigitalSpeedFields() {
     });
 }
 
+function renderAcabadosTable(tableBody, rows, columns) {
+    if (!tableBody) return;
+    if (!rows.length) {
+        tableBody.innerHTML = `<tr><td colspan="${columns}" class="costs-acabados-empty">No hay elementos configurados.</td></tr>`;
+        return;
+    }
+    if (tableBody === acabadosBarnizTableBody) {
+        renderAcabadosBarnizRows(rows);
+    } else if (tableBody === acabadosLaminadoTableBody) {
+        renderAcabadosLaminadoRows(rows);
+    } else if (tableBody === acabadosEstampadoTableBody) {
+        renderAcabadosEstampadoRows(rows);
+    }
+}
+
+function renderAcabadosBarnizRows(rows) {
+    if (!acabadosBarnizTableBody) return;
+    const items = rows || costsState?.acabados?.barniz || [];
+    if (!items.length) {
+        acabadosBarnizTableBody.innerHTML = '<tr><td colspan="5" class="costs-acabados-empty">No hay barnices configurados.</td></tr>';
+        return;
+    }
+    const deleteIconHtml = getCostsIconHtml('quantity.delete', '&#128465;', '#b94848', 18);
+    acabadosBarnizTableBody.innerHTML = items.map((item, index) => `
+        <tr>
+            <td><input type="text" data-acabados-table="barniz" data-index="${index}" data-field="nombre" value="${escapeHtml(item.nombre)}" placeholder="Nombre del barniz"></td>
+            <td><input type="number" min="0" step="0.01" data-acabados-table="barniz" data-index="${index}" data-field="bcmAnilox" value="${escapeHtml(item.bcmAnilox)}" placeholder="0"></td>
+            <td><input type="number" min="0" step="0.01" data-acabados-table="barniz" data-index="${index}" data-field="porcentajeCobertura" value="${escapeHtml(item.porcentajeCobertura)}" placeholder="0"></td>
+            <td><input type="number" min="0" step="0.01" data-acabados-table="barniz" data-index="${index}" data-field="costoPorKilo" value="${escapeHtml(item.costoPorKilo)}" placeholder="0"></td>
+            <td><button type="button" class="costs-acabados-remove" data-acabados-remove="barniz" data-index="${index}" aria-label="Eliminar" title="Eliminar">${deleteIconHtml}</button></td>
+        </tr>
+    `).join("");
+}
+
+function renderAcabadosLaminadoRows(rows) {
+    if (!acabadosLaminadoTableBody) return;
+    const items = rows || costsState?.acabados?.laminado || [];
+    if (!items.length) {
+        acabadosLaminadoTableBody.innerHTML = '<tr><td colspan="4" class="costs-acabados-empty">No hay laminados configurados.</td></tr>';
+        return;
+    }
+    const deleteIconHtml = getCostsIconHtml('quantity.delete', '&#128465;', '#b94848', 18);
+    acabadosLaminadoTableBody.innerHTML = items.map((item, index) => `
+        <tr>
+            <td><input type="text" data-acabados-table="laminado" data-index="${index}" data-field="nombre" value="${escapeHtml(item.nombre)}" placeholder="Nombre del laminado"></td>
+            <td><input type="number" min="0" step="0.01" data-acabados-table="laminado" data-index="${index}" data-field="costoPorPieLineal" value="${escapeHtml(item.costoPorPieLineal)}" placeholder="0"></td>
+            <td><input type="number" min="0" step="0.01" data-acabados-table="laminado" data-index="${index}" data-field="tiempoMontaje" value="${escapeHtml(item.tiempoMontaje)}" placeholder="0"></td>
+            <td><button type="button" class="costs-acabados-remove" data-acabados-remove="laminado" data-index="${index}" aria-label="Eliminar" title="Eliminar">${deleteIconHtml}</button></td>
+        </tr>
+    `).join("");
+}
+
+function renderAcabadosEstampadoRows(rows) {
+    if (!acabadosEstampadoTableBody) return;
+    const items = rows || costsState?.acabados?.estampado || [];
+    if (!items.length) {
+        acabadosEstampadoTableBody.innerHTML = '<tr><td colspan="5" class="costs-acabados-empty">No hay estampados configurados.</td></tr>';
+        return;
+    }
+    const deleteIconHtml = getCostsIconHtml('quantity.delete', '&#128465;', '#b94848', 18);
+    acabadosEstampadoTableBody.innerHTML = items.map((item, index) => `
+        <tr>
+            <td><input type="text" data-acabados-table="estampado" data-index="${index}" data-field="tipoFoil" value="${escapeHtml(item.tipoFoil)}" placeholder="Tipo de foil"></td>
+            <td><input type="number" min="0" step="0.01" data-acabados-table="estampado" data-index="${index}" data-field="anchoFoil" value="${escapeHtml(item.anchoFoil)}" placeholder="0"></td>
+            <td><input type="number" min="0" step="0.01" data-acabados-table="estampado" data-index="${index}" data-field="costoPorPieLineal" value="${escapeHtml(item.costoPorPieLineal)}" placeholder="0"></td>
+            <td><input type="number" min="0" step="0.01" data-acabados-table="estampado" data-index="${index}" data-field="tiempoMontaje" value="${escapeHtml(item.tiempoMontaje)}" placeholder="0"></td>
+            <td><button type="button" class="costs-acabados-remove" data-acabados-remove="estampado" data-index="${index}" aria-label="Eliminar" title="Eliminar">${deleteIconHtml}</button></td>
+        </tr>
+    `).join("");
+}
+
+function actualizarMascaras() {
+    const sufijo = (input, mascara, unidad, decimales = 2) => {
+        if (!input || !mascara) return;
+        const valor = String(input.value ?? "").trim();
+        if (!valor) { mascara.textContent = ""; return; }
+        mascara.textContent = Number(valor).toFixed(decimales) + " " + unidad;
+    };
+    const prefijo = (input, mascara, simbolo, decimales = 2) => {
+        if (!input || !mascara) return;
+        const valor = String(input.value ?? "").trim();
+        if (!valor) { mascara.textContent = ""; return; }
+        mascara.textContent = simbolo + " " + Number(valor).toFixed(decimales);
+    };
+    sufijo(document.getElementById("costosDefaultRollWidth"), document.getElementById("costosDefaultRollWidthDisplay"), "in", 2);
+    sufijo(document.getElementById("costosDefaultCoreDiameter"), document.getElementById("costosDefaultCoreDiameterDisplay"), "in", 2);
+    prefijo(document.getElementById("costosDefaultDisenoHourCost"), document.getElementById("costosDefaultDisenoHourCostDisplay"), "$", 2);
+    sufijo(document.getElementById("costosDefaultPrepressMinPerChange"), document.getElementById("costosDefaultPrepressMinPerChangeDisplay"), "min", 2);
+    prefijo(document.getElementById("costosDefaultPrepressHourCost"), document.getElementById("costosDefaultPrepressHourCostDisplay"), "$", 2);
+    sufijo(document.getElementById("costosDefaultRebobinadoTiempoMontaje"), document.getElementById("costosDefaultRebobinadoTiempoMontajeDisplay"), "min", 2);
+    sufijo(document.getElementById("costosDefaultRebobinadoWasteFeet"), document.getElementById("costosDefaultRebobinadoWasteFeetDisplay"), "ft", 2);
+    sufijo(document.getElementById("costosDefaultRebobinadoWastePct"), document.getElementById("costosDefaultRebobinadoWastePctDisplay"), "%", 2);
+    sufijo(document.getElementById("costosDefaultEmpaqueCantidadXMinuto"), document.getElementById("costosDefaultEmpaqueCantidadXMinutoDisplay"), "pz/min", 2);
+    prefijo(document.getElementById("costosDefaultEmpaqueMinutoHombre"), document.getElementById("costosDefaultEmpaqueMinutoHombreDisplay"), "$", 2);
+    sufijo(document.getElementById("costosDefaultEmpaqueTiempoMovilizacion"), document.getElementById("costosDefaultEmpaqueTiempoMovilizacionDisplay"), "min", 2);
+    sufijo(document.getElementById("costosDefaultEmpaqueTiempoConfeccion"), document.getElementById("costosDefaultEmpaqueTiempoConfeccionDisplay"), "min", 2);
+}
+
 function renderCosts() {
     generalNotes.value = costsState?.general?.notes || "";
     Object.entries(generalDefaultFields).forEach(([key, node]) => {
@@ -699,6 +876,10 @@ function renderCosts() {
     renderDigitalInkFields();
     renderDigitalCoverageProfileRows();
     renderDigitalSpeedFields();
+    renderAcabadosBarnizRows();
+    renderAcabadosLaminadoRows();
+    renderAcabadosEstampadoRows();
+    actualizarMascaras();
 }
 
 function renderProcessDefaultRows() {
@@ -847,6 +1028,7 @@ Object.entries(generalDefaultFields).forEach(([key, node]) => {
             costsState.general[key] = numberValue(node.value, DEFAULT_COSTS_CONFIG.general[key]);
         }
         queueCostsSave();
+        actualizarMascaras();
     };
     node?.addEventListener("input", updateGeneralDefault);
     if (key === "defaultCmykEnabled") node?.addEventListener("change", updateGeneralDefault);
@@ -1097,14 +1279,106 @@ digitalCoverageProfilesTableBody?.addEventListener("input", (event) => {
     queueCostsSave();
 });
 
+function getAcabadosArray(tableKey) {
+    if (tableKey === "barniz") return costsState.acabados.barniz;
+    if (tableKey === "laminado") return costsState.acabados.laminado;
+    if (tableKey === "estampado") return costsState.acabados.estampado;
+    return null;
+}
+
+function setAcabadosArray(tableKey, arr) {
+    if (tableKey === "barniz") costsState.acabados.barniz = arr;
+    else if (tableKey === "laminado") costsState.acabados.laminado = arr;
+    else if (tableKey === "estampado") costsState.acabados.estampado = arr;
+}
+
+function renderAcabadosByTable(tableKey) {
+    if (tableKey === "barniz") renderAcabadosBarnizRows();
+    else if (tableKey === "laminado") renderAcabadosLaminadoRows();
+    else if (tableKey === "estampado") renderAcabadosEstampadoRows();
+}
+
+document.addEventListener("input", (event) => {
+    const target = event.target.closest("[data-acabados-table]");
+    if (!target || !costsState) return;
+    const tableKey = target.dataset.acabadosTable;
+    const index = Number(target.dataset.index);
+    const field = target.dataset.field;
+    const arr = getAcabadosArray(tableKey);
+    if (!arr || !arr[index]) return;
+    arr[index][field] = target.type === "number" ? numberValue(target.value, 0) : target.value;
+    queueCostsSave();
+});
+
+document.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-acabados-remove]");
+    if (!button || !costsState) return;
+    const tableKey = button.dataset.acabadosRemove;
+    const index = Number(button.dataset.index);
+    const arr = getAcabadosArray(tableKey);
+    if (!arr || index < 0 || index >= arr.length) return;
+    arr.splice(index, 1);
+    renderAcabadosByTable(tableKey);
+    queueCostsSave();
+});
+
+acabadosBarnizAddButton?.addEventListener("click", () => {
+    if (!costsState) return;
+    costsState.acabados.barniz.push({ id: `acab-barniz-${Date.now()}`, nombre: "", bcmAnilox: 0, porcentajeCobertura: 0, costoPorKilo: 0 });
+    renderAcabadosBarnizRows();
+    queueCostsSave();
+});
+
+acabadosLaminadoAddButton?.addEventListener("click", () => {
+    if (!costsState) return;
+    costsState.acabados.laminado.push({ id: `acab-laminado-${Date.now()}`, nombre: "", costoPorPieLineal: 0, tiempoMontaje: 0 });
+    renderAcabadosLaminadoRows();
+    queueCostsSave();
+});
+
+acabadosEstampadoAddButton?.addEventListener("click", () => {
+    if (!costsState) return;
+    costsState.acabados.estampado.push({ id: `acab-estampado-${Date.now()}`, tipoFoil: "", anchoFoil: 0, costoPorPieLineal: 0, tiempoMontaje: 0 });
+    renderAcabadosEstampadoRows();
+    queueCostsSave();
+});
+
+function getCostsIconHtml(iconKey, fallbackText, fallbackColor, fallbackSize) {
+    const value = loadedConfig?.icons?.[iconKey] || fallbackText;
+    const suffix = String(iconKey || '').split(/[.\s_-]+/).filter(Boolean)
+        .map(part => part.charAt(0).toUpperCase() + part.slice(1)).join('');
+    const color = loadedConfig?.general?.[`iconColor${suffix}`] || fallbackColor;
+    const size = Number(loadedConfig?.general?.[`iconSize${suffix}`]) || fallbackSize;
+    if (value && String(value).startsWith('data:image/svg')) {
+        return `<span class="icon-svg-mask" style="-webkit-mask-image:url('${value}');mask-image:url('${value}');width:${size}px;height:${size}px;background-color:${color};display:inline-block;vertical-align:middle;"></span>`;
+    }
+    if (value && String(value).startsWith('data:image')) {
+        return `<img src="${value}" style="width:${size}px;height:${size}px;vertical-align:middle;object-fit:contain;">`;
+    }
+    return `<span style="color:${color};font-size:${size}px;vertical-align:middle;display:inline-block;line-height:1;font-family:'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji',sans-serif;">${value}&#xFE0F;</span>`;
+}
+
+function renderAcabadosAddButtonIcons() {
+    const addConfig = { btn: null, iconKey: 'quantity.add', fallback: '+', color: '#738196', size: 20 };
+    [
+        { btn: acabadosBarnizAddButton },
+        { btn: acabadosLaminadoAddButton },
+        { btn: acabadosEstampadoAddButton }
+    ].forEach(({ btn }) => {
+        if (btn) btn.innerHTML = getCostsIconHtml('quantity.add', '+', '#738196', 20);
+    });
+}
+
 async function init() {
     try {
         await loadConfig();
         await loadCosts();
+        renderAcabadosAddButtonIcons();
         activateTab("general");
     } catch (error) {
         costsState = readLocalCostsConfig();
         renderCosts();
+        renderAcabadosAddButtonIcons();
         activateTab("general");
         setSaveStatus(error.message || "No se pudo cargar el módulo.", true);
     }

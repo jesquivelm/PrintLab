@@ -13,9 +13,22 @@ const machineEl = document.getElementById('productDocMachine');
 const measureEl = document.getElementById('productDocMeasure');
 const materialEl = document.getElementById('productDocMaterial');
 const quantityEl = document.getElementById('productDocQuantity');
-const priceEl = document.getElementById('productDocPrice');
-const finishesSectionEl = document.getElementById('productDocFinishesSection');
 const finishesEl = document.getElementById('productDocFinishes');
+const clientInfoGridEl = document.getElementById('productDocClientInfoGrid');
+const clientContactColEl = document.getElementById('productDocClientContactCol');
+const sellerColEl = document.getElementById('productDocSellerCol');
+const printMachineEl = document.getElementById('productDocPrintMachine');
+const printMaterialEl = document.getElementById('productDocPrintMaterial');
+const inkConfigTextEl = document.getElementById('productDocInkConfigText');
+const pantonesRowEl = document.getElementById('productDocPantonesRow');
+const pantonesTextEl = document.getElementById('productDocPantonesText');
+const dieTextEl = document.getElementById('productDocDieText');
+const coreWidthTextEl = document.getElementById('productDocCoreWidthText');
+const coreDiameterTextEl = document.getElementById('productDocCoreDiameterText');
+const rollLabelsTextEl = document.getElementById('productDocRollLabelsText');
+const outputTypeTextEl = document.getElementById('productDocOutputTypeText');
+const outputTypeImageEl = document.getElementById('productDocOutputTypeImage');
+const printingGridEl = document.getElementById('productDocPrintingGrid');
 const historyTableBodyEl = document.getElementById('productDocHistoryTableBody');
 const ordersTableBodyEl = document.getElementById('productDocOrdersTableBody');
 const attachmentsTableBodyEl = document.getElementById('productDocAttachmentsTableBody');
@@ -512,11 +525,73 @@ function applyBranding() {
     }
 }
 
+function renderClientInfo(p, raw) {
+    if (!clientContactColEl && !sellerColEl) return;
+    const customerCode = raw['ID CLIENTE'] || p.client_code || '';
+    const seller = raw['VENDEDOR'] || '';
+    const phone = raw['TELEFONO'] || raw['customer_phone'] || '';
+    const email = raw['CORREO'] || raw['customer_email'] || '';
+
+    const codeHtml = customerCode ? `<div class="production-client-info-line">${escapeHtml(customerCode)}</div>` : '';
+    const phoneHtml = phone ? `<div class="production-client-info-line"><span class="production-client-info-icon">\u260E</span>${escapeHtml(phone)}</div>` : '';
+    const emailHtml = email ? `<div class="production-client-info-line"><span class="production-client-info-icon">\u2709</span>${escapeHtml(email)}</div>` : '';
+    if (clientContactColEl) {
+        clientContactColEl.innerHTML = codeHtml + phoneHtml + emailHtml;
+    }
+    if (sellerColEl) {
+        sellerColEl.innerHTML = seller ? `<div class="production-client-info-line"><span class="production-client-info-icon">\uD83D\uDC64</span>${escapeHtml(seller)}</div>` : '';
+    }
+}
+
+function renderPrintingConfig(p, raw) {
+    const inkParts = [];
+    const tintCount = raw['CANTIDAD TINTAS'] || raw['tint_count'] || p.tint_count || '';
+    const cmyk = raw['CMYK'] || raw['GENERAL | CMYK'] || '';
+    const inkGsm = raw['CONV | PERFIL TINTA | GSM'] || '';
+    const inkType = raw['CONV | PERFIL TINTA | TIPO'] || '';
+    const inkBcm = raw['CONV | PERFIL TINTA | BCM ANILOX'] || '';
+    const inkCoverage = raw['CONV | PERFIL TINTA | COBERTURA %'] || '';
+
+    if (tintCount) inkParts.push(`${tintCount} tintas`);
+    if (cmyk) inkParts.push(String(cmyk));
+    if (inkType) inkParts.push(`${inkType}`);
+    if (inkGsm) inkParts.push(`${inkGsm} GSM`);
+    if (inkBcm) inkParts.push(`${inkBcm} BCM`);
+    if (inkCoverage) inkParts.push(`${inkCoverage}% cobertura`);
+
+    if (printMachineEl) printMachineEl.textContent = p.quoted_machine || raw['MÁQUINA'] || '—';
+    if (printMaterialEl) printMaterialEl.textContent = p.material_name || raw['MATERIAL'] || '—';
+    if (inkConfigTextEl) inkConfigTextEl.textContent = inkParts.length ? inkParts.join(' · ') : '—';
+
+    const pantones = raw['PANTONES'] || raw['pantones'] || '';
+    if (pantonesRowEl && pantonesTextEl) {
+        const hasPantones = normalizeText(pantones).length > 0;
+        pantonesRowEl.hidden = !hasPantones;
+        if (hasPantones) pantonesTextEl.textContent = pantones;
+    }
+
+    const dieCode = p.die_code || raw['TROQUEL'] || '';
+    if (dieTextEl) dieTextEl.textContent = dieCode || '—';
+
+    const finishItems = getFinishItems({ ...raw, TROQUEL: dieCode });
+    if (finishesEl) {
+        finishesEl.innerHTML = finishItems.length
+            ? finishItems.map((item) => `<span class="production-chip">${escapeHtml(item)}</span>`).join('')
+            : '<span class="production-chip production-chip-muted">Sin acabados</span>';
+    }
+}
+
+function renderRollSpecs(p, raw) {
+    if (coreWidthTextEl) coreWidthTextEl.textContent = raw['ANCHO CORE'] || '—';
+    if (coreDiameterTextEl) coreDiameterTextEl.textContent = raw['DIAMETRO CORE'] || '—';
+    if (rollLabelsTextEl) rollLabelsTextEl.textContent = formatQuantity(raw['CANTIDAD ETIQUETAS X ROLLO'] || '');
+    if (outputTypeTextEl) outputTypeTextEl.textContent = raw['TIPO SALIDA'] || '—';
+}
+
 function renderProduct() {
     const p = productDetail?.producto;
     if (!p) return;
     const raw = p.raw_data || {};
-    const finishItems = getFinishItems({ ...raw, TROQUEL: p.die_code || raw['TROQUEL'] });
     const measure = formatMeasure(p.width_inches, p.length_inches);
 
     pageTitleEl.textContent = p.product_name || p.product_code || 'Producto';
@@ -529,12 +604,10 @@ function renderProduct() {
     measureEl.textContent = measure;
     materialEl.textContent = p.material_name || '—';
     quantityEl.textContent = formatQuantity(p.quantity_products);
-    priceEl.textContent = formatMoney(p.total_price);
 
-    if (finishesSectionEl) {
-        finishesSectionEl.hidden = !finishItems.length;
-    }
-    finishesEl.innerHTML = finishItems.map((item) => `<span class="production-chip">${escapeHtml(item)}</span>`).join('');
+    renderClientInfo(p, raw);
+    renderPrintingConfig(p, raw);
+    renderRollSpecs(p, raw);
 
     renderHistoryTable(productDetail.historial || []);
     renderOrdersTable(productDetail.ordenes || []);

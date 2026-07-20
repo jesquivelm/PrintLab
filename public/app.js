@@ -628,9 +628,8 @@ async function openProformaForCurrentQuote() {
     try {
         const blockMessage = await getProformaBlockMessage(code);
         if (blockMessage) {
-            showCenterMessage(blockMessage, { html: true, duration: 18000 });
-            setStatus('No se puede abrir la proforma: faltan datos en una o más líneas.', 'error');
-            return;
+            showCenterMessage(blockMessage, { html: true, duration: 8000 });
+            setStatus('La proforma se abrió con advertencias: hay datos pendientes en algunas líneas.', 'warning');
         }
     } catch (error) {
         setStatus(error.message, 'error');

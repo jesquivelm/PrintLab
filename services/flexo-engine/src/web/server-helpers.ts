@@ -276,11 +276,9 @@ function buildParametersForProcess(args: {
       shared.overrides.piesPorMinuto ??
       catalogs.costs.flexoRegular.piesPorMinuto,
     costoHoraPreprensa:
-      machine?.costoHoraPreprensa ??
       shared.overrides.costoHoraPreprensa ??
       catalogs.costs.flexoRegular.costoHoraPreprensa,
     minutosPreprensaPorCambio:
-      machine?.minutosPreprensaPorCambio ??
       shared.overrides.minutosPreprensaPorCambio ??
       catalogs.costs.flexoRegular.minutosPreprensaPorCambio,
     costoTintaPorMsi:

@@ -69,7 +69,8 @@ function resolveRouteConfig() {
         '/inventario-troqueles': 'troqueles',
         '/inventario-maquinas': 'maquinas',
         '/inventario-procesos': 'procesos',
-        '/inventario-tipos-salida': 'tipos-salida'
+        '/inventario-tipos-salida': 'tipos-salida',
+        '/inventario-planchas': 'planchas'
     };
 
     const pageConfig = {
@@ -535,6 +536,85 @@ function resolveRouteConfig() {
                     activo: true
                 };
             }
+        },
+        planchas: {
+            presentationKey: 'inventario-planchas',
+            title: 'Inventario | Planchas',
+            subtitle: 'Planchas de impresión flexográfica',
+            endpoint: '/api/inventario/planchas',
+            exportEndpoint: '/api/inventario/planchas/export',
+            importEndpoint: '/api/inventario/planchas/import',
+            columns: [
+                ['codigo', 'ID'],
+                ['cliente', 'Cliente'],
+                ['trabajo', 'Trabajo'],
+                ['tipo', 'Tipo de plancha'],
+                ['ancho_mm', 'Ancho mm'],
+                ['alto_mm', 'Alto mm'],
+                ['estado', 'Estado']
+            ],
+            formFields: [
+                { key: 'id', type: 'hidden' },
+                { type: 'section', label: 'Información General', span: 2 },
+                { key: 'codigo', label: 'Código', type: 'text' },
+                { key: 'descripcion', label: 'Descripción', type: 'textarea', rows: 2, span: 2 },
+                { key: 'cliente', label: 'Cliente', type: 'text' },
+                { key: 'producto', label: 'Producto', type: 'text' },
+                { key: 'trabajo', label: 'Trabajo / OT', type: 'text' },
+                { key: 'orden', label: 'Orden / OC', type: 'text' },
+                { key: 'cotizacion', label: 'Cotización', type: 'text' },
+                { key: 'tipo', label: 'Tipo de plancha', type: 'select', options: [['Fotopolímero Digital', 'Fotopolímero Digital'], ['Fotopolímero Analógico', 'Fotopolímero Analógico'], ['Plancha Sólida', 'Plancha Sólida'], ['Plancha Sleeve', 'Plancha Sleeve']] },
+                { key: 'marca', label: 'Marca', type: 'select', options: [['DuPont', 'DuPont'], ['MacDermid', 'MacDermid'], ['Flint Group', 'Flint Group'], ['Asahi Photoproducts', 'Asahi Photoproducts'], ['Toyobo', 'Toyobo']] },
+                { key: 'modelo', label: 'Modelo', type: 'text' },
+                { key: 'proveedor', label: 'Proveedor', type: 'select', options: [['Flexo Insumos CR', 'Flexo Insumos CR'], ['MacDermid Centroamérica', 'MacDermid Centroamérica'], ['Grupo Gráfico Andino', 'Grupo Gráfico Andino'], ['Preprensa Digital S.A.', 'Preprensa Digital S.A.']] },
+                { type: 'section', label: 'Dimensiones y Costo', span: 2 },
+                { key: 'ancho_mm', label: 'Ancho (mm)', type: 'number', step: '0.01', suffix: 'mm' },
+                { key: 'alto_mm', label: 'Alto (mm)', type: 'number', step: '0.01', suffix: 'mm' },
+                { key: 'espesor_mm', label: 'Espesor (mm)', type: 'number', step: '0.01', suffix: 'mm' },
+                { key: 'espesor_in', label: 'Espesor (in)', type: 'text' },
+                { key: 'costo', label: 'Costo (USD)', type: 'number', step: '0.01', prefix: '$' },
+                { type: 'section', label: 'Estado y Control', span: 2 },
+                { key: 'estado', label: 'Estado', type: 'select', options: [['Disponible', 'Disponible'], ['En uso', 'En uso'], ['Reservada', 'Reservada'], ['En reparación', 'En reparación'], ['Dañada', 'Dañada'], ['Descartada', 'Descartada']] },
+                { key: 'usos', label: 'Tirajes realizados', type: 'number', step: '1' },
+                { key: 'vida_util', label: 'Vida útil estimada', type: 'number', step: '1' },
+                { key: 'ubicacion', label: 'Ubicación', type: 'text' },
+                { key: 'responsable', label: 'Responsable', type: 'text' },
+                { key: 'fecha_creacion', label: 'Fecha de creación', type: 'text' },
+                { key: 'fecha_ultimo_uso', label: 'Fecha último uso', type: 'text' },
+                { key: 'troquel_ref', label: 'Troquel de referencia', type: 'text', span: 2 },
+                { key: 'notas', label: 'Notas', type: 'textarea', rows: 2, span: 2 },
+                { key: 'activo', label: 'Activo', type: 'checkbox' }
+            ],
+            createEmptyItem() {
+                return {
+                    codigo: '',
+                    descripcion: '',
+                    cliente: '',
+                    producto: '',
+                    trabajo: '',
+                    orden: '',
+                    cotizacion: '',
+                    tipo: 'Fotopolímero Digital',
+                    marca: 'DuPont',
+                    modelo: '',
+                    proveedor: 'Flexo Insumos CR',
+                    ancho_mm: 0,
+                    alto_mm: 0,
+                    espesor_mm: 1.14,
+                    espesor_in: '.045"',
+                    costo: 0,
+                    estado: 'Disponible',
+                    usos: 0,
+                    vida_util: 40,
+                    ubicacion: '',
+                    responsable: '',
+                    fecha_creacion: new Date().toISOString().slice(0, 10),
+                    fecha_ultimo_uso: '—',
+                    troquel_ref: '',
+                    notas: '',
+                    activo: true
+                };
+            }
         }
     };
 
@@ -652,7 +732,8 @@ function canCreateInventoryRecords() {
         troqueles: 'inventario-troqueles',
         maquinas: 'inventario-maquinaria',
         procesos: 'inventario-maquinaria',
-        'tipos-salida': 'configuracion-general'
+        'tipos-salida': 'configuracion-general',
+        planchas: 'inventario-planchas'
     };
     return window.ErpAccess.canCreateModule(moduleKeyMap[page.inventoryKey] || PRESENTATION_KEY);
 }
@@ -666,7 +747,7 @@ function isOutputTypesInventory() {
 }
 
 function supportsDeleteInventory() {
-    return page.inventoryKey === 'materiales' || page.inventoryKey === 'maquinas';
+    return page.inventoryKey === 'materiales' || page.inventoryKey === 'maquinas' || page.inventoryKey === 'planchas';
 }
 
 function supportsImagePreviewInventory() {
@@ -923,17 +1004,17 @@ function getTableColumns() {
 
     return [
         actionColumn,
-        { key: 'codigo', label: 'Código', width: '88px', className: 'inventory-col-code' },
-        { key: 'descripcion', label: 'Descripción', width: '200px', className: 'inventory-col-description' },
-        { key: 'ancho_etiqueta_in', label: 'Ancho in', width: '82px', className: 'inventory-col-number' },
-        { key: 'largo_etiqueta_in', label: 'Largo in', width: '82px', className: 'inventory-col-number' },
-        { key: 'desarrollo_in', label: 'Desarrollo', width: '82px', className: 'inventory-col-number' },
-        { key: 'elongacion_pct', label: 'Elongación', width: '88px', className: 'inventory-col-number' },
-        { key: 'dientes', label: 'Dientes', width: '68px', className: 'inventory-col-number' },
-        { key: 'cantidad_filas', label: 'Filas', width: '62px', className: 'inventory-col-number' },
-        { key: 'repeticiones', label: 'Repeticiones', width: '90px', className: 'inventory-col-number' },
-        { key: 'estado', label: 'Estado', width: '80px', className: 'inventory-col-status' },
-        { key: 'created_at', label: 'Creado', width: '95px', className: 'inventory-col-date', format: (v) => formatDate(v) }
+        { key: 'codigo', label: 'Código', width: '140px', className: 'inventory-col-code' },
+        { key: 'descripcion', label: 'Descripción', width: '240px', className: 'inventory-col-description' },
+        { key: 'ancho_etiqueta_in', label: 'Ancho in', width: '110px', className: 'inventory-col-number' },
+        { key: 'largo_etiqueta_in', label: 'Largo in', width: '110px', className: 'inventory-col-number' },
+        { key: 'desarrollo_in', label: 'Desarrollo', width: '110px', className: 'inventory-col-number' },
+        { key: 'elongacion_pct', label: 'Elongación', width: '120px', className: 'inventory-col-number' },
+        { key: 'dientes', label: 'Dientes', width: '90px', className: 'inventory-col-number' },
+        { key: 'cantidad_filas', label: 'Filas', width: '90px', className: 'inventory-col-number' },
+        { key: 'repeticiones', label: 'Repeticiones', width: '120px', className: 'inventory-col-number' },
+        { key: 'estado', label: 'Estado', width: '110px', className: 'inventory-col-status' },
+        { key: 'created_at', label: 'Creado', width: '120px', className: 'inventory-col-date', format: (v) => formatDate(v) }
     ];
 }
 
@@ -1144,7 +1225,8 @@ function getPresentationConfig(config, key) {
         socios: 'Socios',
         'inventario-mp': 'Inventario Materia Prima',
         'inventario-troqueles': 'Inventario Troqueles',
-        'inventario-maquinaria': 'Inventario Maquinaria'
+        'inventario-maquinaria': 'Inventario Maquinaria',
+        'inventario-planchas': 'Inventario Planchas'
     };
     const presentation = config.presentations?.[key] || {};
     const general = config.general || {};
@@ -2400,7 +2482,8 @@ function resetEditor() {
 async function deleteCurrentMaterial(id, label) {
     const recordId = String(id || '').trim();
     if (!recordId) return;
-    const entityName = page.inventoryKey === 'maquinas' ? 'esta máquina' : 'este material';
+    const entityNames = { materiales: 'este material', maquinas: 'esta máquina', planchas: 'esta plancha' };
+    const entityName = entityNames[page.inventoryKey] || 'este registro';
     const recordLabel = String(label || entityName).trim() || entityName;
     const confirmed = window.confirm(`Se va a eliminar ${recordLabel}. Esta acción no se puede deshacer.\n\n¿Deseas continuar?`);
     if (!confirmed) return;

@@ -3251,6 +3251,44 @@ function materialsByClassification(family = "", keywords = []) {
   return materialsByKeywords(keywords);
 }
 
+function getFinishMaterialOptions(family, keywords) {
+  const dbMaterials = materialsByClassification(family, keywords);
+  const acabadosMaterials = [];
+  const costsConfig = state.costsConfig;
+  if (costsConfig && costsConfig.acabados) {
+    const normalizedFamily = norm(family);
+    if (normalizedFamily === "barniz" && Array.isArray(costsConfig.acabados.barniz)) {
+      costsConfig.acabados.barniz.forEach((item) => {
+        if (item.nombre) {
+          acabadosMaterials.push({ id: item.id || item.nombre, nombre: item.nombre });
+        }
+      });
+    } else if (normalizedFamily === "laminado" && Array.isArray(costsConfig.acabados.laminado)) {
+      costsConfig.acabados.laminado.forEach((item) => {
+        if (item.nombre) {
+          acabadosMaterials.push({ id: item.id || item.nombre, nombre: item.nombre });
+        }
+      });
+    } else if ((normalizedFamily === "foil" || normalizedFamily === "estampado") && Array.isArray(costsConfig.acabados.estampado)) {
+      costsConfig.acabados.estampado.forEach((item) => {
+        if (item.tipoFoil) {
+          acabadosMaterials.push({ id: item.id || item.tipoFoil, nombre: item.tipoFoil });
+        }
+      });
+    }
+  }
+  const combined = dbMaterials.map((item) => ({ id: item.id, nombre: item.descripcion || item.nombre || item.id }));
+  if (acabadosMaterials.length) {
+    const existingIds = new Set(combined.map((item) => String(item.id).toLowerCase()));
+    acabadosMaterials.forEach((item) => {
+      if (!existingIds.has(String(item.id).toLowerCase())) {
+        combined.push(item);
+      }
+    });
+  }
+  return combined;
+}
+
 function substrateMaterialOptions() {
   return materialsByClassification("sustrato", ["sustrato", "papel", "film", "bopp", "opp", "pet", "vinil"]);
 }
@@ -7569,7 +7607,7 @@ function renderNumberingFields(scope, item = {}) {
 }
 
 function renderInlinePrintBlock(stage, stageIndex, inline) {
-  const materialOptions = materialsByClassification(inline.materialFamily, inline.materialKeywords || []).map((item) => ({ id: item.id, nombre: item.descripcion || item.nombre || item.id }));
+  const materialOptions = getFinishMaterialOptions(inline.materialFamily, inline.materialKeywords || []);
   const scope = `printStages.${stageIndex}.inlineFinishes.${inline.key}`;
   const commentField = inline.key === "numerado"
     ? `<label class="span-full comment-wide"><span>Comentario</span><input data-scope="${scope}" data-field="comment" type="text" value="${esc(inline.comment || "")}"></label>`
@@ -7843,7 +7881,7 @@ function renderPrintStageCard(item, printItem, index, orderNumber) {
 }
 
 function renderExternalFinishCard(config, finish, index, orderNumber) {
-  const materialOptions = materialsByClassification(config.materialFamily, config.materialKeywords || []).map((item) => ({ id: item.id, nombre: item.descripcion || item.nombre || item.id }));
+  const materialOptions = getFinishMaterialOptions(config.materialFamily, config.materialKeywords || []);
   const machineOptions = finishMachineOptions(config, finish.machineId);
   const scope = `finishes.${index}`;
   const speedSuffix = "ft/min";
@@ -8732,6 +8770,10 @@ function bindProcesses() {
       value = printSpeedValue(value);
     }
     setNested(scope, field, value);
+    if ((scope === "print" || /^printStages\.\d+$/.test(scope)) && field === "machineId") {
+        const machine = findMachine(value);
+        if (machine) setNested(scope, "machineName", machineDisplayName(machine));
+    }
     if (scope === "troquel" && field === "dieShape") {
       state.form.troquel.dieShape = dieShapeOptionValue(value);
     }

@@ -90,6 +90,7 @@ function getErpAccessRouteModules(pathname) {
     if (path === '/inventario-materiales' || path === '/catalogo.html') return ['inventario-mp'];
     if (path === '/inventario-troqueles' || path === '/inventario-troqueles.html' || path === '/troquel-documento.html' || path.startsWith('/inventario-troqueles/')) return ['inventario-troqueles'];
     if (path === '/inventario-maquinas') return ['inventario-maquinaria'];
+    if (path === '/inventario-planchas') return ['inventario-planchas'];
     if (path.startsWith('/inventario-')) return ['inventario-mp', 'inventario-troqueles', 'inventario-maquinaria'];
     return [];
 }

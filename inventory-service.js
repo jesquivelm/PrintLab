@@ -8,7 +8,8 @@ const INVENTORY_TYPES = {
     troqueles: 'troqueles',
     maquinas: 'maquinas',
     procesos: 'procesos',
-    tiposSalida: 'tipos-salida'
+    tiposSalida: 'tipos-salida',
+    planchas: 'planchas'
 };
 const TROQUEL_IMAGE_SOURCE_DIR = 'C:\\Users\\jesqu\\Desktop\\Imagenes';
 const TROQUEL_IMAGE_PUBLIC_DIR = path.join(__dirname, 'public', 'uploads', 'troqueles');
@@ -546,7 +547,66 @@ await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS comentario_anc
   await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS comentario_compatible_convencional TEXT`);
 await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS comentario_compatible_digital TEXT`);
 await client.query(`ALTER TABLE material ADD COLUMN IF NOT EXISTS comentario_tipo_proforma TEXT`);
-await client.query(`ALTER TABLE maquina_capacidad ADD COLUMN IF NOT EXISTS ancho_max_in DECIMAL(10,4)`);
+    await client.query(`ALTER TABLE maquina_capacidad ADD COLUMN IF NOT EXISTS ancho_max_in DECIMAL(10,4)`);
+    await client.query(`
+        CREATE TABLE IF NOT EXISTS plancha (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            tenant_id UUID NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+            codigo VARCHAR(60) NOT NULL,
+            descripcion TEXT,
+            cliente VARCHAR(200),
+            producto VARCHAR(200),
+            trabajo VARCHAR(200),
+            orden VARCHAR(80),
+            cotizacion VARCHAR(80),
+            tipo VARCHAR(80),
+            marca VARCHAR(120),
+            modelo VARCHAR(120),
+            proveedor VARCHAR(200),
+            ancho_mm DECIMAL(10,2) NOT NULL DEFAULT 0,
+            alto_mm DECIMAL(10,2) NOT NULL DEFAULT 0,
+            espesor_mm DECIMAL(10,4) NOT NULL DEFAULT 0,
+            espesor_in VARCHAR(20),
+            costo DECIMAL(12,4) NOT NULL DEFAULT 0,
+            estado VARCHAR(40) NOT NULL DEFAULT 'Disponible',
+            usos INT NOT NULL DEFAULT 0,
+            vida_util INT NOT NULL DEFAULT 40,
+            ubicacion VARCHAR(120),
+            responsable VARCHAR(120),
+            fecha_creacion DATE,
+            fecha_ultimo_uso VARCHAR(20) DEFAULT '—',
+            troquel_ref VARCHAR(200),
+            notas TEXT,
+            activo BOOLEAN NOT NULL DEFAULT TRUE,
+            creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            actualizado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            UNIQUE (tenant_id, codigo)
+        )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_plancha_tenant ON plancha(tenant_id, activo)`);
+    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS cliente VARCHAR(200)`);
+    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS producto VARCHAR(200)`);
+    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS trabajo VARCHAR(200)`);
+    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS orden VARCHAR(80)`);
+    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS cotizacion VARCHAR(80)`);
+    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS tipo VARCHAR(80)`);
+    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS marca VARCHAR(120)`);
+    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS modelo VARCHAR(120)`);
+    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS proveedor VARCHAR(200)`);
+    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS alto_mm DECIMAL(10,2) DEFAULT 0`);
+    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS espesor_mm DECIMAL(10,4) DEFAULT 0`);
+    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS espesor_in VARCHAR(20)`);
+    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS costo DECIMAL(12,4) DEFAULT 0`);
+    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS estado VARCHAR(40) DEFAULT 'Disponible'`);
+    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS usos INT DEFAULT 0`);
+    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS vida_util INT DEFAULT 40`);
+    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS ubicacion VARCHAR(120)`);
+    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS responsable VARCHAR(120)`);
+    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS fecha_creacion DATE`);
+    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS fecha_ultimo_uso VARCHAR(20) DEFAULT '—'`);
+    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS troquel_ref VARCHAR(200)`);
+    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS notas TEXT`);
+    await client.query(`ALTER TABLE plancha ADD COLUMN IF NOT EXISTS codigo VARCHAR(60) NOT NULL DEFAULT ''`);
 
     const tenantId = await getPrimaryTenantId(client);
     await client.query(
@@ -797,6 +857,32 @@ await client.query(`ALTER TABLE maquina_capacidad ADD COLUMN IF NOT EXISTS ancho
             ]
         );
     }
+
+    const planchaCount = await client.query(
+        `SELECT COUNT(*)::int AS total FROM plancha WHERE tenant_id = $1`,
+        [tenantId]
+    );
+
+    if (planchaCount.rows[0].total === 0) {
+        const planchasDemo = [
+            { codigo: 'PL-2026-0001', descripcion: 'Plancha empaque flexible caja plegadiza cereal 500g, 4 tintas', cliente: 'Empaques del Valle S.A.', producto: 'Caja Cereal FrutiMax 500g', trabajo: 'OT-1145 Impresión Cajas FrutiMax', orden: 'OC-3321', cotizacion: 'COT-2201', tipo: 'Fotopolímero Digital', marca: 'DuPont', modelo: 'Cyrel DPR', proveedor: 'Flexo Insumos CR', ancho_mm: 1067, alto_mm: 762, espesor_mm: 1.70, espesor_in: '.067"', costo: 185.0, estado: 'En uso', usos: 12, vida_util: 40, ubicacion: 'Estante A-3', responsable: 'J. Salas', fecha_creacion: '2025-11-02', fecha_ultimo_uso: '2026-07-14', troquel_ref: 'TRQ-0456 · Caja plegadiza 500g', notas: 'Registrar recubrimiento anti-adherente cada 15 tirajes.' },
+            { codigo: 'PL-2026-0002', descripcion: 'Plancha etiqueta autoadhesiva sleeve, 2 tintas + barniz', cliente: 'Lácteos Monteverde', producto: 'Etiqueta Yogurt Griego 150g', trabajo: 'OT-1150 Etiquetas Línea Griego', orden: 'OC-3327', cotizacion: 'COT-2209', tipo: 'Plancha Sleeve', marca: 'MacDermid', modelo: 'ITP60', proveedor: 'MacDermid Centroamérica', ancho_mm: 520, alto_mm: 340, espesor_mm: 1.14, espesor_in: '.045"', costo: 92.5, estado: 'Disponible', usos: 4, vida_util: 35, ubicacion: 'Estante B-1', responsable: 'M. Rojas', fecha_creacion: '2026-01-14', fecha_ultimo_uso: '2026-05-02', troquel_ref: 'TRQ-0512 · Sleeve 150g', notas: '' },
+            { codigo: 'PL-2026-0003', descripcion: 'Plancha bolsa café molido 340g, 6 tintas alta definición', cliente: 'Café Volcán Export', producto: 'Bolsa Café Molido 340g', trabajo: 'OT-1132 Bolsas Café Reserva', orden: 'OC-3298', cotizacion: 'COT-2154', tipo: 'Fotopolímero Digital', marca: 'Asahi Photoproducts', modelo: 'AWP DEW', proveedor: 'Flexo Insumos CR', ancho_mm: 1200, alto_mm: 900, espesor_mm: 2.84, espesor_in: '.112"', costo: 245.0, estado: 'Dañada', usos: 28, vida_util: 30, ubicacion: 'Estante A-1', responsable: 'J. Salas', fecha_creacion: '2025-08-19', fecha_ultimo_uso: '2026-06-30', troquel_ref: 'TRQ-0388 · Bolsa doypack 340g', notas: 'Corte superficial en zona de arrastre, evaluar reposición.' },
+            { codigo: 'PL-2026-0004', descripcion: 'Plancha caja display promocional, 3 tintas', cliente: 'Snacks La Cosecha', producto: 'Display Papas Artesanales', trabajo: 'OT-1160 Display Punto de Venta', orden: 'OC-3340', cotizacion: 'COT-2233', tipo: 'Fotopolímero Analógico', marca: 'Flint Group', modelo: 'nyloflex FTF', proveedor: 'Grupo Gráfico Andino', ancho_mm: 900, alto_mm: 600, espesor_mm: 1.70, espesor_in: '.067"', costo: 138.0, estado: 'En reparación', usos: 19, vida_util: 35, ubicacion: 'Taller de mantenimiento', responsable: 'M. Rojas', fecha_creacion: '2025-12-05', fecha_ultimo_uso: '2026-06-11', troquel_ref: 'TRQ-0470 · Display piso', notas: 'Pendiente reemplazo de cinta base.' },
+            { codigo: 'PL-2026-0005', descripcion: 'Plancha frasco etiqueta farmacéutica, 2 tintas + código', cliente: 'Farmacéutica BioSalud', producto: 'Etiqueta Jarabe BioTos 120ml', trabajo: 'OT-1170 Etiquetas Lote BioTos', orden: 'OC-3355', cotizacion: 'COT-2260', tipo: 'Fotopolímero Digital', marca: 'DuPont', modelo: 'Cyrel EASY', proveedor: 'Flexo Insumos CR', ancho_mm: 400, alto_mm: 260, espesor_mm: 1.14, espesor_in: '.045"', costo: 76.0, estado: 'Reservada', usos: 0, vida_util: 40, ubicacion: 'Estante B-4', responsable: 'J. Salas', fecha_creacion: '2026-07-02', fecha_ultimo_uso: '—', troquel_ref: 'TRQ-0540 · Etiqueta frasco 120ml', notas: 'Reservada para arranque de producción el 22/07.' },
+            { codigo: 'PL-2026-0006', descripcion: 'Plancha etiqueta botella agua 600ml, 1 tinta', cliente: 'Aguas Puras del Cerro', producto: 'Etiqueta Botella 600ml', trabajo: 'OT-1120 Etiquetas Línea Estándar', orden: 'OC-3270', cotizacion: 'COT-2098', tipo: 'Plancha Sólida', marca: 'Toyobo', modelo: 'Cosmolight QH', proveedor: 'Preprensa Digital S.A.', ancho_mm: 300, alto_mm: 180, espesor_mm: 1.14, espesor_in: '.045"', costo: 48.0, estado: 'Descartada', usos: 62, vida_util: 50, ubicacion: 'Baja de inventario', responsable: 'M. Rojas', fecha_creacion: '2025-03-22', fecha_ultimo_uso: '2026-04-18', troquel_ref: 'TRQ-0290 · Etiqueta cilíndrica 600ml', notas: 'Vida útil superada, sustituida por PL-2026-0009.' },
+            { codigo: 'PL-2026-0007', descripcion: 'Plancha bolsa pan artesanal 400g, 2 tintas', cliente: 'Panificadora San José', producto: 'Bolsa Pan Artesanal 400g', trabajo: 'OT-1155 Bolsas Línea Artesanal', orden: 'OC-3332', cotizacion: 'COT-2219', tipo: 'Fotopolímero Analógico', marca: 'MacDermid', modelo: 'LUX FAH', proveedor: 'MacDermid Centroamérica', ancho_mm: 700, alto_mm: 500, espesor_mm: 1.70, espesor_in: '.067"', costo: 110.0, estado: 'Disponible', usos: 7, vida_util: 35, ubicacion: 'Estante A-2', responsable: 'J. Salas', fecha_creacion: '2026-02-27', fecha_ultimo_uso: '2026-06-20', troquel_ref: 'TRQ-0498 · Bolsa fuelle 400g', notas: '' },
+            { codigo: 'PL-2026-0008', descripcion: 'Plancha caja distribución tropical 1kg, 5 tintas', cliente: 'Distribuidora Tropical', producto: 'Caja Frutas Selectas 1kg', trabajo: 'OT-1140 Cajas Exportación', orden: 'OC-3315', cotizacion: 'COT-2190', tipo: 'Fotopolímero Digital', marca: 'Asahi Photoproducts', modelo: 'AWP DEW', proveedor: 'Grupo Gráfico Andino', ancho_mm: 1300, alto_mm: 950, espesor_mm: 2.84, espesor_in: '.112"', costo: 268.0, estado: 'En uso', usos: 15, vida_util: 30, ubicacion: 'Estante A-4', responsable: 'M. Rojas', fecha_creacion: '2025-10-08', fecha_ultimo_uso: '2026-07-16', troquel_ref: 'TRQ-0421 · Caja exportación 1kg', notas: '' },
+        ];
+        for (const p of planchasDemo) {
+            await client.query(
+                `INSERT INTO plancha (tenant_id, codigo, descripcion, cliente, producto, trabajo, orden, cotizacion, tipo, marca, modelo, proveedor, ancho_mm, alto_mm, espesor_mm, espesor_in, costo, estado, usos, vida_util, ubicacion, responsable, fecha_creacion, fecha_ultimo_uso, troquel_ref, notas, activo)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,true)
+                 ON CONFLICT (tenant_id, codigo) DO UPDATE SET actualizado_en = NOW()`,
+                [tenantId, p.codigo, p.descripcion, p.cliente, p.producto, p.trabajo, p.orden, p.cotizacion, p.tipo, p.marca, p.modelo, p.proveedor, p.ancho_mm, p.alto_mm, p.espesor_mm, p.espesor_in, p.costo, p.estado, p.usos, p.vida_util, p.ubicacion, p.responsable, p.fecha_creacion, p.fecha_ultimo_uso, p.troquel_ref, p.notas]
+            );
+        }
+    }
     });
 }
 
@@ -851,7 +937,7 @@ async function listMaterials({ q = '', limit = 300 } = {}) {
             compatible_digital,
             tipo_proforma,
             activo,
-            created_at
+            creado_en AS created_at
          FROM material
          WHERE $1 = '%%'
             OR codigo ILIKE $1
@@ -917,12 +1003,12 @@ async function listTroqueles({ q = '', limit = 300 } = {}) {
             repeticiones,
             estado,
             activo,
-            created_at
+            creado_en AS created_at
          FROM troquel
-         WHERE $1 = '%%'
-            OR codigo ILIKE $1
-            OR COALESCE(descripcion, '') ILIKE $1
-            OR COALESCE(estado, '') ILIKE $1
+          WHERE $1 = '%%'
+             OR codigo ILIKE $1
+             OR COALESCE(descripcion, '') ILIKE $1
+             OR COALESCE(estado, '') ILIKE $1
          ORDER BY codigo
          LIMIT $2`,
         [search, cappedLimit]
@@ -981,9 +1067,9 @@ async function getTroquelByCode(codigo) {
             repeticiones,
             estado,
             activo,
-            created_at
+            creado_en AS created_at
          FROM troquel
-         WHERE codigo = $1
+          WHERE codigo = $1
          LIMIT 1`,
         [key]
     );
@@ -1035,7 +1121,7 @@ async function listMaquinas({ q = '', limit = 300 } = {}) {
             m.sustrato_montaje_merma_cantidad,
             m.sustrato_montaje_merma_unidad,
             m.sustrato_montaje_merma_base,
-            m.created_at,
+            m.creado_en AS created_at,
             COALESCE(m.especificaciones, '{}'::jsonb) AS especificaciones,
             COALESCE(
                 json_agg(
@@ -1114,6 +1200,55 @@ async function listMaquinas({ q = '', limit = 300 } = {}) {
     });
 }
 
+async function listPlanchas({ q = '', limit = 300 } = {}) {
+    const search = `%${String(q || '').trim()}%`;
+    const cappedLimit = Math.min(Math.max(Number(limit) || 300, 1), 5000);
+    const result = await pgQuery(
+        `SELECT
+            id::text,
+            codigo,
+            descripcion,
+            cliente,
+            producto,
+            trabajo,
+            orden,
+            cotizacion,
+            tipo,
+            marca,
+            modelo,
+            proveedor,
+            ancho_mm,
+            alto_mm,
+            espesor_mm,
+            espesor_in,
+            costo,
+            estado,
+            usos,
+            vida_util,
+            ubicacion,
+            responsable,
+            fecha_creacion,
+            fecha_ultimo_uso,
+            troquel_ref,
+            notas,
+            activo,
+            creado_en AS created_at
+         FROM plancha
+         WHERE $1 = '%%'
+            OR codigo ILIKE $1
+            OR COALESCE(cliente, '') ILIKE $1
+            OR COALESCE(trabajo, '') ILIKE $1
+            OR COALESCE(descripcion, '') ILIKE $1
+            OR COALESCE(tipo, '') ILIKE $1
+            OR COALESCE(marca, '') ILIKE $1
+            OR COALESCE(estado, '') ILIKE $1
+         ORDER BY codigo
+         LIMIT $2`,
+        [search, cappedLimit]
+    );
+    return result.rows;
+}
+
 async function listProcesos({ q = '', limit = 300 } = {}) {
     const search = `%${String(q || '').trim()}%`;
     const cappedLimit = Math.min(Math.max(Number(limit) || 300, 1), 5000);
@@ -1150,7 +1285,7 @@ async function listProcesos({ q = '', limit = 300 } = {}) {
             p.formula_costo,
             p.orden_base,
             p.activo,
-            p.created_at
+            p.creado_en AS created_at
          FROM proceso_catalogo p
          LEFT JOIN maquina m ON m.id = p.machine_id
          WHERE $1 = '%%'
@@ -1193,6 +1328,7 @@ async function listInventory(kind, options = {}) {
     if (kind === INVENTORY_TYPES.maquinas) return listMaquinas(options);
     if (kind === INVENTORY_TYPES.procesos) return listProcesos(options);
     if (kind === INVENTORY_TYPES.tiposSalida) return listOutputTypes(options);
+    if (kind === INVENTORY_TYPES.planchas) return listPlanchas(options);
     throw new Error('Tipo de inventario no soportado.');
 }
 
@@ -1760,6 +1896,127 @@ async function saveMachine(payload) {
     });
 }
 
+async function savePlancha(payload) {
+    return withTransaction(async (client) => {
+        const tenantId = await getPrimaryTenantId(client);
+        const values = [
+            tenantId,
+            asText(payload.codigo),
+            asText(payload.descripcion),
+            asText(payload.cliente),
+            asText(payload.producto),
+            asText(payload.trabajo),
+            asText(payload.orden),
+            asText(payload.cotizacion),
+            asText(payload.tipo),
+            asText(payload.marca),
+            asText(payload.modelo),
+            asText(payload.proveedor),
+            asNumber(payload.ancho_mm, 0),
+            asNumber(payload.alto_mm, 0),
+            asNumber(payload.espesor_mm, 0),
+            asText(payload.espesor_in),
+            asNumber(payload.costo, 0),
+            asText(payload.estado || 'Disponible'),
+            Math.max(0, Math.round(asNumber(payload.usos, 0))),
+            Math.max(0, Math.round(asNumber(payload.vida_util, 40))),
+            asText(payload.ubicacion),
+            asText(payload.responsable),
+            payload.fecha_creacion || null,
+            asText(payload.fecha_ultimo_uso || '—'),
+            asText(payload.troquel_ref),
+            asText(payload.notas),
+            asBoolean(payload.activo, true)
+        ];
+
+        if (!values[1]) {
+            throw new Error('El código de plancha es obligatorio.');
+        }
+
+        if (payload.id) {
+            const result = await client.query(
+                `UPDATE plancha
+                    SET codigo = $2,
+                        descripcion = $3,
+                        cliente = $4,
+                        producto = $5,
+                        trabajo = $6,
+                        orden = $7,
+                        cotizacion = $8,
+                        tipo = $9,
+                        marca = $10,
+                        modelo = $11,
+                        proveedor = $12,
+                        ancho_mm = $13,
+                        alto_mm = $14,
+                        espesor_mm = $15,
+                        espesor_in = $16,
+                        costo = $17,
+                        estado = $18,
+                        usos = $19,
+                        vida_util = $20,
+                        ubicacion = $21,
+                        responsable = $22,
+                        fecha_creacion = $23,
+                        fecha_ultimo_uso = $24,
+                        troquel_ref = $25,
+                        notas = $26,
+                        activo = $27,
+                        actualizado_en = NOW()
+                  WHERE id = $1::uuid
+                  RETURNING id::text`,
+                [payload.id, ...values.slice(1)]
+            );
+            if (!result.rows.length) {
+                throw new Error('No se encontró la plancha a actualizar.');
+            }
+            return result.rows[0].id;
+        }
+
+        const result = await client.query(
+            `INSERT INTO plancha (
+                tenant_id, codigo, descripcion, cliente, producto, trabajo, orden, cotizacion,
+                tipo, marca, modelo, proveedor, ancho_mm, alto_mm, espesor_mm, espesor_in,
+                costo, estado, usos, vida_util, ubicacion, responsable,
+                fecha_creacion, fecha_ultimo_uso, troquel_ref, notas, activo
+             ) VALUES (
+                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
+                $21,$22,$23,$24,$25,$26,$27
+             )
+             ON CONFLICT (tenant_id, codigo) DO UPDATE SET
+                descripcion = EXCLUDED.descripcion,
+                cliente = EXCLUDED.cliente,
+                producto = EXCLUDED.producto,
+                trabajo = EXCLUDED.trabajo,
+                orden = EXCLUDED.orden,
+                cotizacion = EXCLUDED.cotizacion,
+                tipo = EXCLUDED.tipo,
+                marca = EXCLUDED.marca,
+                modelo = EXCLUDED.modelo,
+                proveedor = EXCLUDED.proveedor,
+                ancho_mm = EXCLUDED.ancho_mm,
+                alto_mm = EXCLUDED.alto_mm,
+                espesor_mm = EXCLUDED.espesor_mm,
+                espesor_in = EXCLUDED.espesor_in,
+                costo = EXCLUDED.costo,
+                estado = EXCLUDED.estado,
+                usos = EXCLUDED.usos,
+                vida_util = EXCLUDED.vida_util,
+                ubicacion = EXCLUDED.ubicacion,
+                responsable = EXCLUDED.responsable,
+                fecha_creacion = EXCLUDED.fecha_creacion,
+                fecha_ultimo_uso = EXCLUDED.fecha_ultimo_uso,
+                troquel_ref = EXCLUDED.troquel_ref,
+                notas = EXCLUDED.notas,
+                activo = EXCLUDED.activo,
+                actualizado_en = NOW()
+             RETURNING id::text`,
+            values
+        );
+        return result.rows[0].id;
+    });
+}
+
 async function saveProceso(payload) {
     return withTransaction(async (client) => {
         const tenantId = await getPrimaryTenantId(client);
@@ -1898,6 +2155,7 @@ async function saveInventory(kind, payload) {
     if (kind === INVENTORY_TYPES.maquinas) return saveMachine(payload);
     if (kind === INVENTORY_TYPES.procesos) return saveProceso(payload);
     if (kind === INVENTORY_TYPES.tiposSalida) return saveOutputType(payload);
+    if (kind === INVENTORY_TYPES.planchas) return savePlancha(payload);
     throw new Error('Tipo de inventario no soportado.');
 }
 
@@ -1962,9 +2220,29 @@ async function deleteMachine(id) {
     });
 }
 
+async function deletePlancha(id) {
+    const planchaId = asText(id);
+    if (!planchaId) {
+        throw new Error('Debes indicar la plancha a eliminar.');
+    }
+    return withTransaction(async (client) => {
+        const result = await client.query(
+            `DELETE FROM plancha
+              WHERE id = $1::uuid
+              RETURNING id::text, codigo`,
+            [planchaId]
+        );
+        if (!result.rows.length) {
+            throw new Error('No se encontró la plancha a eliminar.');
+        }
+        return result.rows[0];
+    });
+}
+
 async function deleteInventory(kind, id) {
     if (kind === INVENTORY_TYPES.materiales) return deleteMaterial(id);
     if (kind === INVENTORY_TYPES.maquinas) return deleteMachine(id);
+    if (kind === INVENTORY_TYPES.planchas) return deletePlancha(id);
     throw new Error('El borrado no está disponible para este tipo de inventario.');
 }
 
@@ -2170,6 +2448,38 @@ function mapOutputTypeRow(row) {
     };
 }
 
+function mapPlanchaRow(row) {
+    const index = buildRowIndex(row);
+    return {
+        codigo: asText(pickValue(index, 'codigo', 'codigo plancha', 'id plancha')),
+        descripcion: asText(pickValue(index, 'descripcion', 'descripcion plancha')),
+        cliente: asText(pickValue(index, 'cliente', 'cliente')),
+        producto: asText(pickValue(index, 'producto')),
+        trabajo: asText(pickValue(index, 'trabajo', 'ot', 'orden trabajo')),
+        orden: asText(pickValue(index, 'orden', 'oc', 'orden compra')),
+        cotizacion: asText(pickValue(index, 'cotizacion', 'cotización', 'cot')),
+        tipo: asText(pickValue(index, 'tipo', 'tipo plancha')),
+        marca: asText(pickValue(index, 'marca')),
+        modelo: asText(pickValue(index, 'modelo')),
+        proveedor: asText(pickValue(index, 'proveedor')),
+        ancho_mm: asNumber(pickValue(index, 'ancho_mm', 'ancho mm', 'ancho')),
+        alto_mm: asNumber(pickValue(index, 'alto_mm', 'alto mm', 'alto')),
+        espesor_mm: asNumber(pickValue(index, 'espesor_mm', 'espesor mm')),
+        espesor_in: asText(pickValue(index, 'espesor_in', 'espesor in')),
+        costo: asNumber(pickValue(index, 'costo', 'costo usd')),
+        estado: asText(pickValue(index, 'estado', 'estado plancha'), 'Disponible'),
+        usos: Math.max(0, Math.round(asNumber(pickValue(index, 'usos', 'usos plancha'), 0))),
+        vida_util: Math.max(0, Math.round(asNumber(pickValue(index, 'vida_util', 'vida util'), 40))),
+        ubicacion: asText(pickValue(index, 'ubicacion', 'ubicacion plancha')),
+        responsable: asText(pickValue(index, 'responsable')),
+        fecha_creacion: asText(pickValue(index, 'fecha_creacion', 'fecha creacion')),
+        fecha_ultimo_uso: asText(pickValue(index, 'fecha_ultimo_uso', 'fecha ultimo uso'), '—'),
+        troquel_ref: asText(pickValue(index, 'troquel_ref', 'troquel referencia', 'troquel ref')),
+        notas: asText(pickValue(index, 'notas', 'observaciones', 'notas plancha')),
+        activo: asBoolean(pickValue(index, 'activo'), true)
+    };
+}
+
 async function importInventory(kind, buffer) {
     const rows = parseWorkbook(buffer);
     if (!rows.length) {
@@ -2242,6 +2552,17 @@ async function importInventory(kind, buffer) {
         let imported = 0;
         for (const payload of grouped.values()) {
             await saveMachine(payload);
+            imported += 1;
+        }
+        return { imported };
+    }
+
+    if (kind === INVENTORY_TYPES.planchas) {
+        let imported = 0;
+        for (const row of rows) {
+            const payload = mapPlanchaRow(row);
+            if (!payload.codigo) continue;
+            await savePlancha(payload);
             imported += 1;
         }
         return { imported };
@@ -2393,6 +2714,38 @@ function flattenExportRows(kind, items) {
             formula_tiempo: item.formula_tiempo,
             formula_costo: item.formula_costo,
             orden_base: item.orden_base,
+            activo: item.activo
+        }));
+    }
+
+    if (kind === INVENTORY_TYPES.planchas) {
+        return items.map((item) => ({
+            id: item.id,
+            codigo: item.codigo,
+            descripcion: item.descripcion,
+            cliente: item.cliente,
+            producto: item.producto,
+            trabajo: item.trabajo,
+            orden: item.orden,
+            cotizacion: item.cotizacion,
+            tipo: item.tipo,
+            marca: item.marca,
+            modelo: item.modelo,
+            proveedor: item.proveedor,
+            ancho_mm: item.ancho_mm,
+            alto_mm: item.alto_mm,
+            espesor_mm: item.espesor_mm,
+            espesor_in: item.espesor_in,
+            costo: item.costo,
+            estado: item.estado,
+            usos: item.usos,
+            vida_util: item.vida_util,
+            ubicacion: item.ubicacion,
+            responsable: item.responsable,
+            fecha_creacion: item.fecha_creacion,
+            fecha_ultimo_uso: item.fecha_ultimo_uso,
+            troquel_ref: item.troquel_ref,
+            notas: item.notas,
             activo: item.activo
         }));
     }

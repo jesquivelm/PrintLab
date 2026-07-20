@@ -37,18 +37,20 @@ const DASHBOARD_CARDS = [
 { route: '/cotizaciones', label: 'Cotizaciones', iconKey: 'dashboardQuotes', modules: ['cotizaciones'] },
 { route: '/costos.html', label: 'Costos', iconKey: 'dashboardCosts', modules: ['costos'] },
 { route: '/reporteria', label: 'Reporter\u00eda', iconKey: 'dashboardReports', modules: ['dashboard'] },
-{ route: '/inventario-materiales', label: 'Inventarios', iconKey: 'dashboardInventory', modules: ['inventario-mp', 'inventario-troqueles', 'inventario-maquinaria'] },
+{ route: '/inventario-materiales', label: 'Inventarios', iconKey: 'dashboardInventory', modules: ['inventario-mp', 'inventario-troqueles', 'inventario-maquinaria', 'inventario-planchas'] },
 { route: '/configuracion-general', label: 'Configuraci\u00f3n', iconKey: 'dashboardSettings', modules: ['configuracion-general'] },
 { route: '/ordenes-produccion', label: '\u00d3rdenes', iconKey: 'dashboardOrders', modules: ['ordenes'] },
 { route: '/planificacion/seguimiento', label: 'Planificaci\u00f3n', iconKey: 'dashboardPlanning', modules: ['planificacion'] },
 { route: '/produccion.html', label: 'Producci\u00f3n', iconKey: 'dashboardProduction', modules: ['dashboard'], fallbackIcon: '\u25A1' },
+{ route: '/tintas', label: 'Tintas', iconKey: 'dashboardInks', modules: ['dashboard'] },
 { route: '/notificaciones.html', label: 'Notificaciones', iconKey: 'dashboardNotifications', modules: ['dashboard'] }
 ];
 const INVENTORY_CARD_ROUTE = '/inventario-materiales';
 const INVENTORY_OPTIONS = [
     { route: '/inventario-maquinas', label: 'Inventario de Máquinas', modules: ['inventario-maquinaria'] },
     { route: '/inventario-materiales', label: 'Inventario de Materia Prima', modules: ['inventario-mp'] },
-    { route: '/inventario-troqueles', label: 'Inventario de Troqueles', modules: ['inventario-troqueles'] }
+    { route: '/inventario-troqueles', label: 'Inventario de Troqueles', modules: ['inventario-troqueles'] },
+    { route: '/inventario-planchas', label: 'Inventario de Planchas', modules: ['inventario-planchas'] }
 ];
 
 let tabs = [{ id: HOME_TAB_ID, label: 'PrintLab', route: '', closable: false, family: 'home', level: 'root' }];
@@ -62,6 +64,7 @@ let searchResults = null;
 let searchPopoverAnchor = null;
 let searchRequestToken = 0;
 let inventoryPopover = null;
+
 let favoriteReelBounceTimer = null;
 let favoriteDrumState = null;
 let bdfgMode = 'actions';
@@ -186,7 +189,9 @@ function getRoutePermissionKeys(route) {
     if (pathname === '/inventario-materiales' || pathname === '/catalogo.html') return ['inventario-mp'];
     if (pathname === '/inventario-troqueles' || pathname === '/inventario-troqueles.html' || pathname === '/troquel-documento.html' || pathname.startsWith('/inventario-troqueles/')) return ['inventario-troqueles'];
     if (pathname === '/inventario-maquinas') return ['inventario-maquinaria'];
-    if (pathname.startsWith('/inventario-')) return ['inventario-mp', 'inventario-troqueles', 'inventario-maquinaria'];
+    if (pathname === '/inventario-planchas') return ['inventario-planchas'];
+    if (pathname.startsWith('/inventario-')) return ['inventario-mp', 'inventario-troqueles', 'inventario-maquinaria', 'inventario-planchas'];
+    if (pathname === '/tintas' || pathname.startsWith('/tintas/')) return ['dashboard'];
     return [];
 }
 

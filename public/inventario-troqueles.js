@@ -4,6 +4,7 @@ const PRESENTATION_KEY = 'inventario-troqueles';
 
 const troquelesSearchInput = document.getElementById('troquelesSearchInput');
 const troquelesTableBody = document.getElementById('troquelesTableBody');
+const troquelesTableHeader = document.getElementById('troquelesTableHeader');
 const troquelNewButton = document.getElementById('troquelNewButton');
 const troquelCreatePopover = document.getElementById('troquelCreatePopover');
 const troquelCreateSaveBtn = document.getElementById('troquelCreateSaveBtn');
@@ -467,6 +468,19 @@ troquelesSearchInput?.addEventListener('input', () => {
     loadTroqueles(troquelesSearchInput.value).catch((error) => {
         troquelesTableBody.innerHTML = `<tr><td colspan="12">${escapeHtml(error.message)}</td></tr>`;
     });
+});
+
+troquelesTableHeader?.addEventListener('click', (event) => {
+    const th = event.target.closest('th[data-sort-key]');
+    if (!th) return;
+    const key = th.dataset.sortKey;
+    if (troquelSortState.key === key) {
+        troquelSortState.dir = troquelSortState.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+        troquelSortState.key = key;
+        troquelSortState.dir = 'asc';
+    }
+    loadTroqueles(troquelesSearchInput?.value || '').catch(() => {});
 });
 
 troquelesTableBody?.addEventListener('click', (event) => {

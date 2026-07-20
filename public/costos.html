@@ -14,6 +14,7 @@
                 <button type="button" class="costs-tab is-active" data-tab="general" aria-selected="true">General</button>
                 <button type="button" class="costs-tab" data-tab="convencional" aria-selected="false">Convencional</button>
                 <button type="button" class="costs-tab" data-tab="digital" aria-selected="false">Digital</button>
+                <button type="button" class="costs-tab" data-tab="acabados" aria-selected="false">Acabados</button>
             </div>
 
             <section class="costs-panel is-active" data-panel="general">
@@ -22,20 +23,57 @@
                         <div class="costs-general-left">
                             <article class="costs-section-card costs-section-card-plain costs-defaults-card-plain">
                                 <div class="costs-section-head">
-                                    <h2 class="costs-section-title">Predeterminados de Cotizaci&oacute;n</h2>
+                                    <h2 class="costs-section-title">Est&aacute;ndar</h2>
                                 </div>
                                 <div class="costs-defaults-shell costs-defaults-shell-plain">
                                     <div class="costs-defaults-layout">
                                         <div class="costs-defaults-fields">
-                                            <label><span>Ancho de Core</span><input id="costosDefaultRollWidth" type="number" step="0.01" min="0"></label>
-                                            <label><span>Di&aacute;metro de Core</span><input id="costosDefaultCoreDiameter" type="number" step="0.01" min="0"></label>
+                                            <label><span>Ancho de Core</span><span class="display-input-wrap"><input id="costosDefaultRollWidth" class="display-input" type="number" step="any" min="0"><span id="costosDefaultRollWidthDisplay" class="display-input-mask"></span></span></label>
+                                            <label><span>Di&aacute;metro de Core</span><span class="display-input-wrap"><input id="costosDefaultCoreDiameter" class="display-input" type="number" step="any" min="0"><span id="costosDefaultCoreDiameterDisplay" class="display-input-mask"></span></span></label>
                                             <label><span>Cantidad de Tipos</span><input id="costosDefaultQuantityTypes" type="number" step="1" min="1"></label>
                                             <label class="costs-default-check-field"><span>CMYK por Defecto</span><span class="costs-process-default-check"><input id="costosDefaultCmykEnabled" type="checkbox"></span></label>
                                         </div>
-                                        <div class="costs-defaults-fields">
-                                            <h3 class="costs-section-subtitle">Preprensa</h3>
-                                            <label><span>Artes / Hora</span><input id="costosDefaultPrepressArtsPerHour" type="number" step="0.01" min="0"></label>
-                                            <label><span>Costo / Hora</span><input id="costosDefaultPrepressHourCost" type="number" step="0.01" min="0"></label>
+                                        <div class="costs-standard-modules">
+                                            <div class="costs-standard-module">
+                                                <div class="costs-module-head">
+                                                    <span class="flexo-section-pill">Diseño</span>
+                                                </div>
+                                                <div class="costs-module-fields">
+                                                    <label><span>Artes</span><input id="costosDefaultDisenoArts" type="number" step="any" min="0"></label>
+                                                    <label><span>Costo / Hora</span><span class="display-input-wrap"><input id="costosDefaultDisenoHourCost" class="display-input" type="number" step="any" min="0"><span id="costosDefaultDisenoHourCostDisplay" class="display-input-mask"></span></span></label>
+                                                </div>
+                                            </div>
+                                            <div class="costs-standard-module">
+                                                <div class="costs-module-head">
+                                                    <span class="flexo-section-pill">Preprensa</span>
+                                                </div>
+                                                <div class="costs-module-fields">
+                                                    <label><span>Artes</span><input id="costosDefaultPrepressArts" type="number" step="any" min="0"></label>
+                                                    <label><span>Min. / Cambio</span><span class="display-input-wrap"><input id="costosDefaultPrepressMinPerChange" class="display-input" type="number" step="any" min="0"><span id="costosDefaultPrepressMinPerChangeDisplay" class="display-input-mask"></span></span></label>
+                                                    <label><span>Costo / Hora</span><span class="display-input-wrap"><input id="costosDefaultPrepressHourCost" class="display-input" type="number" step="any" min="0"><span id="costosDefaultPrepressHourCostDisplay" class="display-input-mask"></span></span></label>
+                                                </div>
+                                            </div>
+                                            <div class="costs-standard-module">
+                                                <div class="costs-module-head">
+                                                    <span class="flexo-section-pill">Rebobinado</span>
+                                                </div>
+                                                <div class="costs-module-fields">
+                                                    <label><span>Tiempo Montaje</span><span class="display-input-wrap"><input id="costosDefaultRebobinadoTiempoMontaje" class="display-input" type="number" step="any" min="0"><span id="costosDefaultRebobinadoTiempoMontajeDisplay" class="display-input-mask"></span></span></label>
+                                                    <label><span>Merma Montaje</span><span class="display-input-wrap"><input id="costosDefaultRebobinadoWasteFeet" class="display-input" type="number" step="any" min="0"><span id="costosDefaultRebobinadoWasteFeetDisplay" class="display-input-mask"></span></span></label>
+                                                    <label><span>Merma Operaci&oacute;n</span><span class="display-input-wrap"><input id="costosDefaultRebobinadoWastePct" class="display-input" type="number" step="any" min="0"><span id="costosDefaultRebobinadoWastePctDisplay" class="display-input-mask"></span></span></label>
+                                                </div>
+                                            </div>
+                                            <div class="costs-standard-module">
+                                                <div class="costs-module-head">
+                                                    <span class="flexo-section-pill">Empaque</span>
+                                                </div>
+                                                <div class="costs-module-fields">
+                                                    <label><span>Cantidad x Minuto</span><span class="display-input-wrap"><input id="costosDefaultEmpaqueCantidadXMinuto" class="display-input" type="number" step="any" min="0"><span id="costosDefaultEmpaqueCantidadXMinutoDisplay" class="display-input-mask"></span></span></label>
+                                                    <label><span>Minuto Hombre</span><span class="display-input-wrap"><input id="costosDefaultEmpaqueMinutoHombre" class="display-input" type="number" step="any" min="0"><span id="costosDefaultEmpaqueMinutoHombreDisplay" class="display-input-mask"></span></span></label>
+                                                    <label><span>Tiempo Movilizaci&oacute;n</span><span class="display-input-wrap"><input id="costosDefaultEmpaqueTiempoMovilizacion" class="display-input" type="number" step="any" min="0"><span id="costosDefaultEmpaqueTiempoMovilizacionDisplay" class="display-input-mask"></span></span></label>
+                                                    <label><span>Tiempo Confecci&oacute;n</span><span class="display-input-wrap"><input id="costosDefaultEmpaqueTiempoConfeccion" class="display-input" type="number" step="any" min="0"><span id="costosDefaultEmpaqueTiempoConfeccionDisplay" class="display-input-mask"></span></span></label>
+                                                </div>
+                                            </div>
                                         </div>
                                         <section class="costs-core-options-field costs-core-options-field-plain" aria-label="Opciones de Di&aacute;metro de Core">
                                             <div class="costs-core-options-head">
@@ -56,16 +94,6 @@
                                     </div>
                                 </div>
                             </article>
-                            <article class="costs-section-card costs-section-card-plain costs-notes-card-plain">
-                                <div class="costs-section-head">
-                                    <h2 class="costs-section-title">Notas generales</h2>
-                                </div>
-                                <label class="costs-notes-field costs-notes-field-plain">
-                                    <textarea id="costosGeneralNotes" rows="5" placeholder="Aqu&iacute; puedes dejar observaciones sobre criterios de c&aacute;lculo o acuerdos de costos." aria-label="Notas generales"></textarea>
-                                </label>
-                            </article>
-                        </div>
-                        <div class="costs-general-right">
                             <article class="costs-section-card costs-section-card-plain costs-processes-card-plain">
                                 <div class="costs-section-head">
                                     <h2 class="costs-section-title">Procesos del C&aacute;lculo</h2>
@@ -78,7 +106,7 @@
                                             <col class="costs-process-col-check">
                                             <col class="costs-process-col-check">
                                             <col class="costs-process-col-check">
-                                            <col class="costs-process-col-check">
+                                            <col class="costs-process-col-check-wide">
                                             <col class="costs-process-col-check">
                                             <col class="costs-process-col-cost">
                                             <col class="costs-process-col-cost">
@@ -101,6 +129,14 @@
                                         <tbody id="costosProcessDefaultsList"></tbody>
                                     </table>
                                 </div>
+                            </article>
+                            <article class="costs-section-card costs-section-card-plain costs-notes-card-plain">
+                                <div class="costs-section-head">
+                                    <h2 class="costs-section-title">Notas generales</h2>
+                                </div>
+                                <label class="costs-notes-field costs-notes-field-plain">
+                                    <textarea id="costosGeneralNotes" rows="5" placeholder="Aqu&iacute; puedes dejar observaciones sobre criterios de c&aacute;lculo o acuerdos de costos." aria-label="Notas generales"></textarea>
+                                </label>
                             </article>
                         </div>
                     </div>
@@ -326,6 +362,81 @@
                         <textarea id="costosDigitalSpeedComment" rows="3" placeholder="Ej. 5 a 7 colores reduce la velocidad nominal por carga de estaciones y secado."></textarea>
                     </label>
                 </article>
+                </div>
+            </section>
+
+            <section class="costs-panel" data-panel="acabados">
+                <div class="costs-panel-frame costs-acabados-frame">
+                    <section class="costs-section-card costs-acabados-card">
+                        <div class="costs-section-head">
+                            <h2>Barniz</h2>
+                        </div>
+                        <div class="costs-acabados-table-toolbar">
+                            <p>Lista de barnices disponibles.</p>
+                            <button id="costosAcabadosBarnizAddButton" type="button" class="icon-only-btn" aria-label="Agregar barniz"></button>
+                        </div>
+                        <div class="costs-acabados-table-wrap">
+                            <table class="costs-acabados-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width:400px;">Nombre del Material</th>
+                                        <th style="width:120px;">BCM Anilox</th>
+                                        <th style="width:140px;">Porcentaje de Cobertura</th>
+                                        <th style="width:130px;">Costo por Kilo</th>
+                                        <th style="width:72px;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="costosAcabadosBarnizTableBody"></tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <section class="costs-section-card costs-acabados-card">
+                        <div class="costs-section-head">
+                            <h2>Laminado</h2>
+                        </div>
+                        <div class="costs-acabados-table-toolbar">
+                            <p>Lista de laminados disponibles.</p>
+                            <button id="costosAcabadosLaminadoAddButton" type="button" class="icon-only-btn" aria-label="Agregar laminado"></button>
+                        </div>
+                        <div class="costs-acabados-table-wrap">
+                            <table class="costs-acabados-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width:400px;">Nombre del Laminado</th>
+                                        <th style="width:140px;">Costo por Pie Lineal</th>
+                                        <th style="width:140px;">Tiempo de Montaje</th>
+                                        <th style="width:72px;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="costosAcabadosLaminadoTableBody"></tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <section class="costs-section-card costs-acabados-card">
+                        <div class="costs-section-head">
+                            <h2>Estampado</h2>
+                        </div>
+                        <div class="costs-acabados-table-toolbar">
+                            <p>Lista de foils para estampado disponibles.</p>
+                            <button id="costosAcabadosEstampadoAddButton" type="button" class="icon-only-btn" aria-label="Agregar estampado"></button>
+                        </div>
+                        <div class="costs-acabados-table-wrap">
+                            <table class="costs-acabados-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width:400px;">Tipo de Foil</th>
+                                        <th style="width:120px;">Ancho de Foil</th>
+                                        <th style="width:140px;">Costo por Pie Lineal</th>
+                                        <th style="width:140px;">Tiempo de Montaje</th>
+                                        <th style="width:72px;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="costosAcabadosEstampadoTableBody"></tbody>
+                            </table>
+                        </div>
+                    </section>
                 </div>
             </section>
 

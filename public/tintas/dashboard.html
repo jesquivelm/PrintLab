@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tintas - PrintLab</title>
+<link rel="stylesheet" href="/styles.css">
+<script src="/theme.js"></script>
+<style>
+body { margin:0; font-family:system-ui,-apple-system,sans-serif; background:transparent; }
+.dashboard-grid { display:grid; grid-template-columns:repeat(4,minmax(180px,220px)); justify-content:center; gap:18px; padding:32px 24px; max-width:1200px; margin:0 auto; }
+.dashboard-card { display:grid; justify-items:center; align-content:center; gap:12px; aspect-ratio:1/1; padding:18px; border:1px solid #d8e2ea; border-radius:24px; background:#ffffff; text-align:center; box-shadow:0 10px 24px rgba(19,39,54,0.05); transition:transform 0.18s ease,box-shadow 0.18s ease,border-color 0.18s ease,background-color 0.18s ease; cursor:pointer; }
+html[data-theme="dark"] .dashboard-card { background:#1a1d23; border-color:#2d3740; box-shadow:0 10px 24px rgba(0,0,0,0.2); }
+.dashboard-card:hover, .dashboard-card:focus-visible { transform:translateY(-2px); border-color:#a5d4e7; box-shadow:0 16px 30px rgba(19,39,54,0.11); background:#f8fbfd; }
+html[data-theme="dark"] .dashboard-card:hover, html[data-theme="dark"] .dashboard-card:focus-visible { background:#22262e; border-color:#3a5a70; }
+.dashboard-card-icon { display:inline-flex; align-items:center; justify-content:center; width:54px; height:54px; flex:0 0 54px; color:var(--icon-base-color,#0b81b8); border-radius:14px; transition:color 0.18s ease,transform 0.18s ease; }
+.dashboard-card:hover .dashboard-card-icon, .dashboard-card:focus-visible .dashboard-card-icon { color:var(--icon-hover-color,#17abdf); transform:translateY(-1px); }
+.dashboard-card-icon .icon-glyph { color:currentColor; font-size:var(--config-icon-size,38px); }
+.dashboard-card-icon .icon-svg-mask, .dashboard-card-icon .icon-image { width:var(--config-icon-size,38px); height:var(--config-icon-size,38px); display:block; max-width:100%; max-height:100%; object-fit:contain; }
+.dashboard-card-title { font-size:13px; font-weight:500; color:#7b8894; }
+html[data-theme="dark"] .dashboard-card-title { color:#9aa9b8; }
+.dashboard-card:hover .dashboard-card-title, .dashboard-card:focus-visible .dashboard-card-title { color:#2b3c49; }
+html[data-theme="dark"] .dashboard-card:hover .dashboard-card-title { color:#d0dae6; }
+.dashboard-card[data-icon-key="tintasCatalogo"] { --card-accent:#d97706; }
+.dashboard-card[data-icon-key="tintasInventario"] { --card-accent:#6366f1; }
+.dashboard-card[data-icon-key="tintasPantones"] { --card-accent:#0e7a9e; }
+.dashboard-card[data-icon-key="tintasRecetas"] { --card-accent:#16a34a; }
+.dashboard-card[data-icon-key="tintasCalculadora"] { --card-accent:#b7791f; }
+</style>
+</head>
+<body>
+<section class="dashboard-grid" id="tintasGrid"></section>
+<script>
+const CONFIG_ENDPOINT = '/api/config/shell';
+const TINTAS_MODULES = [
+  { route:'/tintas/catalogo', label:'Catálogo de Tintas', iconKey:'tintasCatalogo' },
+  { route:'/tintas/lotes', label:'Control de Inventario', iconKey:'tintasInventario' },
+  { route:'/tintas/pantones', label:'Biblioteca Pantone', iconKey:'tintasPantones' },
+  { route:'/tintas/recetas', label:'Recetas y Fórmulas', iconKey:'tintasRecetas' },
+  { route:'/tintas/calculadora', label:'Calculadora de Producción', iconKey:'tintasCalculadora' }
+];
+
+let loadedConfig = {};
+
+function escapeHtml(text) {
+  const d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
+}
+
+function iconMarkup(value, altText, extraClass) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized.startsWith('data:image/svg+xml') || /\.svg(\?|#|$)/i.test(normalized)) {
+    return '<span class="icon-svg-mask ' + (extraClass || '') + '" role="img" aria-label="' + escapeHtml(altText) + '" style="-webkit-mask-image:url(\'' + escapeHtml(value) + '\');mask-image:url(\'' + escapeHtml(value) + '\');"></span>';
+  }
+  if (normalized.startsWith('data:image') || /\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(normalized)) {
+    return '<img src="' + escapeHtml(value) + '" alt="' + escapeHtml(altText) + '" class="icon-image ' + (extraClass || '') + '">';
+  }
+  return '<span class="icon-glyph ' + (extraClass || '') + '">' + escapeHtml(value || '') + '</span>';
+}
+
+function renderTintasCards() {
+  const grid = document.getElementById('tintasGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  TINTAS_MODULES.forEach(function(mod) {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'dashboard-card';
+    card.dataset.route = mod.route;
+    card.dataset.label = mod.label;
+    card.dataset.iconKey = mod.iconKey;
+
+    const iconValue = (loadedConfig.icons && loadedConfig.icons[mod.iconKey]) || '\u25C9';
+    const suffix = mod.iconKey.charAt(0).toUpperCase() + mod.iconKey.slice(1);
+    let color = (loadedConfig.general && loadedConfig.general['iconColor' + suffix]) || '#d97706';
+    const hover = (loadedConfig.general && loadedConfig.general['iconColorHover' + suffix]) || color || '#f59e0b';
+    const configuredSize = Number((loadedConfig.general && loadedConfig.general['iconSize' + suffix])) || 38;
+
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 'dashboard-card-icon';
+    iconSpan.innerHTML = iconMarkup(iconValue, mod.label, 'table-icon-media');
+    iconSpan.style.setProperty('--icon-base-color', color);
+    iconSpan.style.setProperty('--icon-hover-color', hover);
+    iconSpan.style.setProperty('--config-icon-size', configuredSize + 'px');
+    iconSpan.style.width = '54px';
+    iconSpan.style.height = '54px';
+    iconSpan.style.flexBasis = '54px';
+
+    const titleSpan = document.createElement('span');
+    titleSpan.className = 'dashboard-card-title';
+    titleSpan.textContent = mod.label;
+
+    card.appendChild(iconSpan);
+    card.appendChild(titleSpan);
+
+    card.addEventListener('click', function() {
+      var parent = window.parent;
+      if (parent && parent !== window) {
+        parent.postMessage({ type:'erp-open-tab', route:mod.route, label:mod.label }, window.location.origin);
+      } else {
+        window.open(mod.route, '_blank', 'noopener');
+      }
+    });
+
+    grid.appendChild(card);
+  });
+}
+
+async function loadConfig() {
+  try {
+    const response = await fetch(CONFIG_ENDPOINT, { cache:'no-cache' });
+    if (response.ok) {
+      loadedConfig = await response.json();
+    }
+  } catch(e) {}
+  renderTintasCards();
+}
+
+function handleMessage(event) {
+  if (event.origin !== window.location.origin) return;
+  var data = event.data || {};
+  if (data.type === 'erp-general-config-updated') {
+    if (data.config && typeof data.config === 'object') {
+      loadedConfig = data.config;
+    } else {
+      loadConfig();
+      return;
+    }
+    renderTintasCards();
+  }
+}
+
+window.addEventListener('message', handleMessage);
+document.addEventListener('DOMContentLoaded', loadConfig);
+if (document.readyState !== 'loading') loadConfig();
+</script>
+</body>
+</html>

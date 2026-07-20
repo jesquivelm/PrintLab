@@ -172,30 +172,7 @@
     @keyframes ring-pulse { 0%{box-shadow:0 0 0 0 rgba(37,99,235,.35)} 60%{box-shadow:0 0 0 8px rgba(37,99,235,0)} 100%{box-shadow:0 0 0 0 rgba(37,99,235,0)} }
     @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(5,150,105,.4)} 70%{box-shadow:0 0 0 8px rgba(5,150,105,0)} 100%{box-shadow:0 0 0 0 rgba(5,150,105,0)} }
 
-    /* Admin tools toolbar: forced out of the tracking card, normal flow, right-aligned */
-    #orderAdminTools.production-admin-tools {
-        position: static !important;
-        inset: auto !important;
-        display: flex !important;
-        justify-content: flex-end;
-        align-items: center;
-        gap: 8px;
-        width: 100%;
-        margin: 10px 0 0;
-        padding: 0;
-    }
-    #orderAdminTools .production-admin-tool-btn {
-        width: 30px;
-        height: 30px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 999px;
-        border: 1px solid var(--ink-6, #dde0ed);
-        background: var(--white, #fff);
-        cursor: pointer;
-    }
-    #orderAdminTools .production-admin-tool-btn[hidden] { display: none !important; }
+
 
     </style>
 </head>
@@ -215,6 +192,11 @@
         </header>
         <main class="workspace workspace-quote">
             <section class="quote-card quote-card-clean production-order-card">
+                <div id="orderAdminTools" class="production-admin-tools">
+                    <button type="button" id="orderPrintButton" class="browser-open-link production-admin-tool-btn" aria-label="Imprimir orden" title="Imprimir orden"></button>
+                    <button type="button" id="orderPdfButton" class="browser-open-link production-admin-tool-btn" aria-label="Descargar PDF" title="Descargar PDF"></button>
+                    <button type="button" id="orderCreationSummaryButton" class="browser-open-link production-admin-tool-btn" aria-label="Datos de creación" title="Datos de creación" hidden></button>
+                </div>
                 <div id="orderStatus" class="calc-popover-notice production-order-status">Cargando orden...</div>
                 <section id="orderContent" hidden>
                     <div class="production-order-layout production-order-layout-refined">
@@ -269,11 +251,6 @@
                                 </div>
                             </div>
                         </section>
-                            <div id="orderAdminTools" class="production-admin-tools">
-                                <button type="button" id="orderPrintButton" class="browser-open-link production-admin-tool-btn" aria-label="Imprimir orden" title="Imprimir orden"></button>
-                                <button type="button" id="orderPdfButton" class="browser-open-link production-admin-tool-btn" aria-label="Descargar PDF" title="Descargar PDF"></button>
-                                <button type="button" id="orderCreationSummaryButton" class="browser-open-link production-admin-tool-btn" aria-label="Datos de creación" title="Datos de creación" hidden></button>
-                            </div>
                         </div>
                         </div>
 

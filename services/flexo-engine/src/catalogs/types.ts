@@ -50,8 +50,6 @@ export interface MachineCatalogItem {
   costoMinutoMaquina?: number;
   factorMontajePorEstacion?: number;
   piesPorMinuto?: number;
-  costoHoraPreprensa?: number;
-  minutosPreprensaPorCambio?: number;
   costoTintaPorMsi?: number;
 }
 

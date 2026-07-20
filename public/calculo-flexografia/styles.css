@@ -1125,6 +1125,10 @@ body.is-front-back-group-context #technicalDataCard .technical-column-left > .te
   align-items: center;
 }
 
+.calc-card:has(.sap-preview-head) {
+  display: none;
+}
+
 .floating-action-button {
   display: inline-flex;
   align-items: center;

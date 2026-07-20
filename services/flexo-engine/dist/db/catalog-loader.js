@@ -24,7 +24,6 @@ function buildMachineCatalog(machines) {
         proceso: row.tipo,
         costoMinutoMaquina: asNumber(row.minuto_hombre),
         factorMontajePorEstacion: asNumber(row.factor_montaje_estacion),
-        minutosPreprensaPorCambio: asNumber(row.factor_preparacion),
         piesPorMinuto: asNumber(row.factor_tiraje)
     }));
 }
@@ -105,6 +104,23 @@ function buildTroqueles(rows) {
 function findFinishCost(rows, type) {
     return rows.find((row) => row.tipo.toLowerCase() === type.toLowerCase());
 }
+function calcularCostoTintaPorMsi(general) {
+    const bcm = asNumber(general.tinta_bcm_generico);
+    const cobertura = asNumber(general.tinta_cobertura_pct);
+    const densidad = asNumber(general.tinta_densidad);
+    const costoLbCmyk = asNumber(general.tinta_costo_lb_cmyk);
+    if (bcm <= 0 || cobertura <= 0 || densidad <= 0 || costoLbCmyk <= 0) return 0;
+    const msiPerM2 = 645.16;
+    const gPerLb = 453.592;
+    return (cobertura / 100) * bcm * densidad * costoLbCmyk * (msiPerM2 / gPerLb);
+}
+function calcularCostoEmpaque(general) {
+    const movilizacion = asNumber(general.empaque_tiempo_movilizacion);
+    const confeccion = asNumber(general.empaque_tiempo_confeccion);
+    const minutoHombre = asNumber(general.empaque_minuto_hombre);
+    if (movilizacion <= 0 || minutoHombre <= 0) return 0;
+    return (movilizacion + confeccion) * minutoHombre;
+}
 function buildCosts(general, finishCosts, machines) {
     const laminado = findFinishCost(finishCosts, "laminado");
     const barniz = findFinishCost(finishCosts, "barniz");
@@ -116,13 +132,14 @@ function buildCosts(general, finishCosts, machines) {
             minutosPreprensaPorCambio: asNumber(general.preprensa_factor_min_tipo_conv),
             costoMinutoMaquina: asNumber(general.costo_minimo),
             factorMontajePorEstacion: 6,
-            costoTintaPorMsi: 0,
+            costoTintaPorMsi: calcularCostoTintaPorMsi(general),
+            costoEmpaque: calcularCostoEmpaque(general),
             piesPorMinuto: 180,
             costoLaminadoPorMsi: asNumber(laminado?.costo_x_msi),
             setupLaminado: 0,
             costoBarnizPorMsi: asNumber(barniz?.costo_x_msi),
             costoTroquel: asNumber(troquel?.costo_fijo),
-            costoArte: 0,
+            costoArte: asNumber(general.diseno_costo_hora),
             costoCyrel: asNumber(general.cyrel_costo_cm2),
             costoMaquila: 0,
             costoFlete: 0,
@@ -218,7 +235,16 @@ export async function loadCatalogsFromDatabase() {
             preprensa_costo_hora_conv,
             preprensa_factor_min_tipo_conv,
             preprensa_costo_hora_digital,
-            preprensa_factor_min_tipo_digital
+            preprensa_factor_min_tipo_digital,
+            diseno_costo_hora,
+            tinta_bcm_generico,
+            tinta_cobertura_pct,
+            tinta_densidad,
+            tinta_costo_lb_cmyk,
+            empaque_cantidad_x_minuto,
+            empaque_minuto_hombre,
+            empaque_tiempo_movilizacion,
+            empaque_tiempo_confeccion
           from costo_general
           order by actualizado_en desc
           limit 1
@@ -252,7 +278,16 @@ export async function loadCatalogsFromDatabase() {
             preprensa_costo_hora_conv: 0,
             preprensa_factor_min_tipo_conv: 0,
             preprensa_costo_hora_digital: 0,
-            preprensa_factor_min_tipo_digital: 0
+            preprensa_factor_min_tipo_digital: 0,
+            diseno_costo_hora: 0,
+            tinta_bcm_generico: 2,
+            tinta_cobertura_pct: 30,
+            tinta_densidad: 1.5,
+            tinta_costo_lb_cmyk: 25,
+            empaque_cantidad_x_minuto: 0,
+            empaque_minuto_hombre: 0,
+            empaque_tiempo_movilizacion: 0,
+            empaque_tiempo_confeccion: 0
         }, finishCostsResult.rows, machines);
         const catalogs = {
             costs,

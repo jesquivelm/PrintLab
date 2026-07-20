@@ -1752,9 +1752,8 @@ async function getProformaBlockMessage(quoteCode) {
 async function openProformaIfReady(quoteCode) {
     const blockMessage = await getProformaBlockMessage(quoteCode);
     if (blockMessage) {
-        showCenterMessage(blockMessage, { html: true, duration: 18000 });
-        setStatus('No se puede abrir la proforma: faltan datos en una o más líneas.', 'error');
-        return;
+        showCenterMessage(blockMessage, { html: true, duration: 8000 });
+        setStatus('La proforma se abrió con advertencias: hay datos pendientes en algunas líneas.', 'warning');
     }
     const route = `/proforma?codigo=${encodeURIComponent(quoteCode)}`;
     if (!openRouteInShell(route, `Proforma ${quoteCode}`)) window.location.href = route;

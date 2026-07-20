@@ -31,6 +31,7 @@ const { ensureEmailSchema, loadSmtpConfig, saveSmtpConfig, sendEmail, sendPasswo
 const { ensureIdentitySchema, validatePassword, hashPassword, verifyPassword, findUserByUsername, recordLoginAttempt, isUserLocked, lockUser, unlockUser, setResetPin, verifyResetPin, setUserPassword, findRecoveryResponsables, generatePin, isPinExpired } = require('./services/identity-service');
 const { ensureAuditSchema: ensureCredentialAuditSchema, recordCredentialAudit, getAuditActor, getCredentialAuditLog, CREDENTIAL_ACTIONS } = require('./services/audit-service');
 const { loadSecurityConfig, saveSecurityConfig } = require('./services/security-config-service');
+const { registerTintasRoutes } = require('./services/tintas/tintas-service');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -1602,8 +1603,18 @@ const DEFAULT_COSTS_CONFIG = {
         coreDiameterOptions: ['1', '1.5', '3', '6'],
         defaultQuantityTypes: 1,
         defaultCmykEnabled: 'true',
-        defaultPrepressArtsPerHour: 2,
+        defaultPrepressArts: 2,
+        defaultPrepressMinPerChange: 10,
         defaultPrepressHourCost: 15,
+        defaultDisenoArts: 2,
+        defaultDisenoHourCost: 15,
+        defaultRebobinadoTiempoMontaje: 10,
+        defaultRebobinadoWasteFeet: 30,
+        defaultRebobinadoWastePct: 0.5,
+        defaultEmpaqueCantidadXMinuto: 0,
+        defaultEmpaqueMinutoHombre: 0,
+        defaultEmpaqueTiempoMovilizacion: 0,
+        defaultEmpaqueTiempoConfeccion: 0,
         processDefaults: [
             { key: 'macula', label: 'Merma', active: true, createEnabled: true, locked: true, repeatable: false, order: 5, minimumCost: 0, capacityMinutes: 480 },
             { key: 'troquel', label: 'Troquel', active: true, createEnabled: false, locked: true, repeatable: false, order: 10, minimumCost: 0, capacityMinutes: 480 },
@@ -1666,7 +1677,6 @@ const DEFAULT_COSTS_CONFIG = {
             { id: 'conv-finish-troquelado', proceso: 'Troquelado', setupWasteFeet: 150, operationWastePct: 2.5 },
             { id: 'conv-finish-estampado', proceso: 'Estampado', setupWasteFeet: 250, operationWastePct: 4.0 },
             { id: 'conv-finish-embosado', proceso: 'Embosado', setupWasteFeet: 125, operationWastePct: 3.0 },
-            { id: 'conv-finish-rebobinado', proceso: 'Rebobinado', setupWasteFeet: 30, operationWastePct: 0.5 }
         ]
     },
     digital: {
@@ -1713,6 +1723,17 @@ const DEFAULT_COSTS_CONFIG = {
         },
         maculaMontaje: [],
         maculaTiraje: []
+    },
+    acabados: {
+        barniz: [
+            { id: 'acab-barniz-1', nombre: 'Barniz UV Brillante', bcmAnilox: 7, porcentajeCobertura: 100, costoPorKilo: 12 }
+        ],
+        laminado: [
+            { id: 'acab-laminado-1', nombre: 'Laminado Brillante', costoPorPieLineal: 0.05, tiempoMontaje: 10 }
+        ],
+        estampado: [
+            { id: 'acab-estampado-1', tipoFoil: 'Foil Dorado', anchoFoil: 6, costoPorPieLineal: 0.08, tiempoMontaje: 15 }
+        ]
     }
 };
 
@@ -1784,6 +1805,24 @@ for (const [from, to] of Object.entries(routeRedirects)) {
     app.get(from, (req, res) => res.redirect(301, to));
 }
 
+app.get('/tintas', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'tintas', 'dashboard.html'));
+});
+app.get('/tintas/catalogo', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'tintas', 'catalogo.html'));
+});
+app.get('/tintas/lotes', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'tintas', 'lotes.html'));
+});
+app.get('/tintas/pantones', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'tintas', 'pantones.html'));
+});
+app.get('/tintas/recetas', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'tintas', 'recetas.html'));
+});
+app.get('/tintas/calculadora', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'tintas', 'calculadora.html'));
+});
 app.get('/cambiar-contrasena', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'cambiar-contrasena.html'));
 });
@@ -3112,7 +3151,7 @@ async function compressIconsOnSave(config) {
         const val = icons[key];
         if (typeof val !== 'string') continue;
         const meta = getDataImageIconMeta(val);
-        if (!meta || meta.mime === 'image/svg+xml' || !meta.isBase64) continue;
+        if (!meta || meta.mime === 'image/svg+xml' || meta.mime === 'image/png' || meta.mime === 'image/webp' || !meta.isBase64) continue;
         try {
             const buf = Buffer.from(meta.data, 'base64');
             const info = await sharp(buf).metadata();
@@ -3128,7 +3167,7 @@ async function compressIconsOnSave(config) {
             const margin = Math.round(Math.max(trimmedInfo.width || 0, trimmedInfo.height || 0) * marginPct);
             const pipeline = sharp(trimmed).extend({
                 top: margin, bottom: margin, left: margin, right: margin,
-                background: { r: 0, g: 0, b: 0, a: 0 }
+                background: 'rgba(0,0,0,0)'
             });
 
             if ((trimmedInfo.width || 0) + margin * 2 > maxDim || (trimmedInfo.height || 0) + margin * 2 > maxDim) {
@@ -3343,8 +3382,18 @@ function normalizeCostsConfigRecord(config) {
             coreDiameterOptions: normalizeCoreDiameterOptions(source?.general?.coreDiameterOptions, DEFAULT_COSTS_CONFIG.general.coreDiameterOptions),
             defaultQuantityTypes: Number(source?.general?.defaultQuantityTypes || DEFAULT_COSTS_CONFIG.general.defaultQuantityTypes || 1),
             defaultCmykEnabled: String(source?.general?.defaultCmykEnabled || DEFAULT_COSTS_CONFIG.general.defaultCmykEnabled || 'true').trim().toLowerCase() === 'false' ? 'false' : 'true',
-            defaultPrepressArtsPerHour: Math.max(0, Number(source?.general?.defaultPrepressArtsPerHour || DEFAULT_COSTS_CONFIG.general.defaultPrepressArtsPerHour || 0)),
+            defaultPrepressArts: Math.max(0, Number(source?.general?.defaultPrepressArts ?? source?.general?.defaultPrepressArtsPerHour ?? DEFAULT_COSTS_CONFIG.general.defaultPrepressArts ?? 0)),
+            defaultPrepressMinPerChange: Math.max(0, Number(source?.general?.defaultPrepressMinPerChange ?? DEFAULT_COSTS_CONFIG.general.defaultPrepressMinPerChange ?? 0)),
             defaultPrepressHourCost: Math.max(0, Number(source?.general?.defaultPrepressHourCost || DEFAULT_COSTS_CONFIG.general.defaultPrepressHourCost || 0)),
+            defaultDisenoArts: Math.max(0, Number(source?.general?.defaultDisenoArts ?? DEFAULT_COSTS_CONFIG.general.defaultDisenoArts ?? 0)),
+            defaultDisenoHourCost: Math.max(0, Number(source?.general?.defaultDisenoHourCost || DEFAULT_COSTS_CONFIG.general.defaultDisenoHourCost || 0)),
+            defaultRebobinadoTiempoMontaje: Math.max(0, Number(source?.general?.defaultRebobinadoTiempoMontaje ?? DEFAULT_COSTS_CONFIG.general.defaultRebobinadoTiempoMontaje ?? 0)),
+            defaultRebobinadoWasteFeet: Math.max(0, Number(source?.general?.defaultRebobinadoWasteFeet ?? DEFAULT_COSTS_CONFIG.general.defaultRebobinadoWasteFeet ?? 0)),
+            defaultRebobinadoWastePct: Math.max(0, Number(source?.general?.defaultRebobinadoWastePct ?? DEFAULT_COSTS_CONFIG.general.defaultRebobinadoWastePct ?? 0)),
+            defaultEmpaqueCantidadXMinuto: Math.max(0, Number(source?.general?.defaultEmpaqueCantidadXMinuto ?? DEFAULT_COSTS_CONFIG.general.defaultEmpaqueCantidadXMinuto ?? 0)),
+            defaultEmpaqueMinutoHombre: Math.max(0, Number(source?.general?.defaultEmpaqueMinutoHombre ?? DEFAULT_COSTS_CONFIG.general.defaultEmpaqueMinutoHombre ?? 0)),
+            defaultEmpaqueTiempoMovilizacion: Math.max(0, Number(source?.general?.defaultEmpaqueTiempoMovilizacion ?? DEFAULT_COSTS_CONFIG.general.defaultEmpaqueTiempoMovilizacion ?? 0)),
+            defaultEmpaqueTiempoConfeccion: Math.max(0, Number(source?.general?.defaultEmpaqueTiempoConfeccion ?? DEFAULT_COSTS_CONFIG.general.defaultEmpaqueTiempoConfeccion ?? 0)),
             processDefaults: normalizeProcessDefaults(source?.general?.processDefaults || DEFAULT_COSTS_CONFIG.general.processDefaults)
         },
         convencional: {
@@ -3362,6 +3411,28 @@ function normalizeCostsConfigRecord(config) {
             maculaMontaje: normalizeMontaje(rowsOrDefault(source?.convencional?.maculaMontaje, DEFAULT_COSTS_CONFIG.convencional.maculaMontaje), 'convencional'),
             maculaTiraje: normalizeTiraje(rowsOrDefault(source?.convencional?.maculaTiraje, DEFAULT_COSTS_CONFIG.convencional.maculaTiraje), 'convencional'),
             finishWaste: normalizeFinishWaste(rowsOrDefault(source?.convencional?.finishWaste, DEFAULT_COSTS_CONFIG.convencional.finishWaste), 'convencional')
+        },
+        acabados: {
+            barniz: (Array.isArray(source?.acabados?.barniz) ? source.acabados.barniz : DEFAULT_COSTS_CONFIG.acabados.barniz).map((row, index) => ({
+                id: String(row?.id || `acab-barniz-${index + 1}`).trim(),
+                nombre: String(row?.nombre || '').trim(),
+                bcmAnilox: Number(row?.bcmAnilox || 0),
+                porcentajeCobertura: Number(row?.porcentajeCobertura || 0),
+                costoPorKilo: Number(row?.costoPorKilo || 0)
+            })),
+            laminado: (Array.isArray(source?.acabados?.laminado) ? source.acabados.laminado : DEFAULT_COSTS_CONFIG.acabados.laminado).map((row, index) => ({
+                id: String(row?.id || `acab-laminado-${index + 1}`).trim(),
+                nombre: String(row?.nombre || '').trim(),
+                costoPorPieLineal: Number(row?.costoPorPieLineal || 0),
+                tiempoMontaje: Number(row?.tiempoMontaje || 0)
+            })),
+            estampado: (Array.isArray(source?.acabados?.estampado) ? source.acabados.estampado : DEFAULT_COSTS_CONFIG.acabados.estampado).map((row, index) => ({
+                id: String(row?.id || `acab-estampado-${index + 1}`).trim(),
+                tipoFoil: String(row?.tipoFoil || '').trim(),
+                anchoFoil: Number(row?.anchoFoil || 0),
+                costoPorPieLineal: Number(row?.costoPorPieLineal || 0),
+                tiempoMontaje: Number(row?.tiempoMontaje || 0)
+            }))
         },
         digital: {
             premier: {
@@ -3419,7 +3490,57 @@ async function loadCostsConfig() {
         if (!result.rows.length) {
             return fallback;
         }
-        return normalizeCostsConfigRecord(result.rows[0].config_value || {});
+        const config = normalizeCostsConfigRecord(result.rows[0].config_value || {});
+        try {
+            const genRow = await pgQuery(
+                `                SELECT preprensa_artes,
+                        preprensa_factor_min_tipo_conv,
+                        preprensa_costo_hora_conv,
+                        diseno_artes,
+                        diseno_costo_hora,
+                        tinta_bcm_generico,
+                        tinta_cobertura_pct,
+                        tinta_densidad,
+                        tinta_costo_lb_cmyk,
+                        tinta_costo_lb_blanco,
+                        tinta_costo_lb_pantone,
+                        rebobinado_tiempo_montaje,
+                        rebobinado_waste_feet,
+                        rebobinado_waste_pct,
+                        empaque_cantidad_x_minuto,
+                        empaque_minuto_hombre,
+                        empaque_tiempo_movilizacion,
+                        empaque_tiempo_confeccion
+                   FROM costo_general
+                  WHERE tenant_id = (SELECT id FROM tenant LIMIT 1)
+                  LIMIT 1`
+            );
+            if (genRow.rows.length) {
+                const r = genRow.rows[0];
+                config.general.defaultPrepressArts = Math.max(0, Number(r.preprensa_artes) || config.general.defaultPrepressArts);
+                config.general.defaultPrepressMinPerChange = Math.max(0, Number(r.preprensa_factor_min_tipo_conv) || config.general.defaultPrepressMinPerChange);
+                config.general.defaultPrepressHourCost = Math.max(0, Number(r.preprensa_costo_hora_conv) || config.general.defaultPrepressHourCost);
+                config.general.defaultDisenoArts = Math.max(0, Number(r.diseno_artes) || config.general.defaultDisenoArts);
+                config.general.defaultDisenoHourCost = Math.max(0, Number(r.diseno_costo_hora) || config.general.defaultDisenoHourCost);
+                config.general.defaultRebobinadoTiempoMontaje = Math.max(0, Number(r.rebobinado_tiempo_montaje) || config.general.defaultRebobinadoTiempoMontaje);
+                config.general.defaultRebobinadoWasteFeet = Math.max(0, Number(r.rebobinado_waste_feet) || config.general.defaultRebobinadoWasteFeet);
+                config.general.defaultRebobinadoWastePct = Math.max(0, Number(r.rebobinado_waste_pct) || config.general.defaultRebobinadoWastePct);
+                config.general.defaultEmpaqueCantidadXMinuto = Math.max(0, Number(r.empaque_cantidad_x_minuto) || config.general.defaultEmpaqueCantidadXMinuto);
+                config.general.defaultEmpaqueMinutoHombre = Math.max(0, Number(r.empaque_minuto_hombre) || config.general.defaultEmpaqueMinutoHombre);
+                config.general.defaultEmpaqueTiempoMovilizacion = Math.max(0, Number(r.empaque_tiempo_movilizacion) || config.general.defaultEmpaqueTiempoMovilizacion);
+                config.general.defaultEmpaqueTiempoConfeccion = Math.max(0, Number(r.empaque_tiempo_confeccion) || config.general.defaultEmpaqueTiempoConfeccion);
+                if (!config.convencional) config.convencional = {};
+                if (!config.convencional.tintaGeneral) config.convencional.tintaGeneral = {};
+                config.convencional.tintaGeneral.bcmGenerico = Math.max(0, Number(r.tinta_bcm_generico) || config.convencional.tintaGeneral.bcmGenerico);
+                config.convencional.tintaGeneral.coberturaTintaPct = Math.max(0, Number(r.tinta_cobertura_pct) || config.convencional.tintaGeneral.coberturaTintaPct);
+                config.convencional.tintaGeneral.densidadUv = Math.max(0, Number(r.tinta_densidad) || config.convencional.tintaGeneral.densidadUv);
+                config.convencional.tintaGeneral.costoLbCmyk = Math.max(0, Number(r.tinta_costo_lb_cmyk) || config.convencional.tintaGeneral.costoLbCmyk);
+                config.convencional.tintaGeneral.costoLbBlanco = Math.max(0, Number(r.tinta_costo_lb_blanco) || config.convencional.tintaGeneral.costoLbBlanco);
+                config.convencional.tintaGeneral.costoLbPantone = Math.max(0, Number(r.tinta_costo_lb_pantone) || config.convencional.tintaGeneral.costoLbPantone);
+            }
+        } catch (err) {
+        }
+        return config;
     } catch (error) {
         return fallback;
     }
@@ -3441,6 +3562,55 @@ async function saveCostsConfig(config) {
         );
     } catch (error) {
         return normalized;
+    }
+    try {
+        const gen = normalized.general;
+        const conv = normalized.convencional?.tintaGeneral || {};
+        await pgQuery(
+            `UPDATE costo_general
+                SET preprensa_artes = $1,
+                    preprensa_factor_min_tipo_conv = $2,
+                    preprensa_costo_hora_conv = $3,
+                    diseno_artes = $4,
+                    diseno_costo_hora = $5,
+                    tinta_bcm_generico = $6,
+                    tinta_cobertura_pct = $7,
+                    tinta_densidad = $8,
+                    tinta_costo_lb_cmyk = $9,
+                    tinta_costo_lb_blanco = $10,
+                    tinta_costo_lb_pantone = $11,
+                    rebobinado_tiempo_montaje = $12,
+                    rebobinado_waste_feet = $13,
+                    rebobinado_waste_pct = $14,
+                    empaque_cantidad_x_minuto = $15,
+                    empaque_minuto_hombre = $16,
+                    empaque_tiempo_movilizacion = $17,
+                    empaque_tiempo_confeccion = $18,
+                    actualizado_en = NOW()
+              WHERE tenant_id = (SELECT id FROM tenant LIMIT 1)`,
+            [
+                Math.max(0, Number(gen.defaultPrepressArts) || 0),
+                Math.max(0, Number(gen.defaultPrepressMinPerChange) || 0),
+                Math.max(0, Number(gen.defaultPrepressHourCost) || 0),
+                Math.max(0, Number(gen.defaultDisenoArts) || 0),
+                Math.max(0, Number(gen.defaultDisenoHourCost) || 0),
+                Math.max(0, Number(conv.bcmGenerico) || 0),
+                Math.max(0, Number(conv.coberturaTintaPct) || 0),
+                Math.max(0, Number(conv.densidadUv) || 0),
+                Math.max(0, Number(conv.costoLbCmyk) || 0),
+                Math.max(0, Number(conv.costoLbBlanco) || 0),
+                Math.max(0, Number(conv.costoLbPantone) || 0),
+                Math.max(0, Number(gen.defaultRebobinadoTiempoMontaje) || 0),
+                Math.max(0, Number(gen.defaultRebobinadoWasteFeet) || 0),
+                Math.max(0, Number(gen.defaultRebobinadoWastePct) || 0),
+                Math.max(0, Number(gen.defaultEmpaqueCantidadXMinuto) || 0),
+                Math.max(0, Number(gen.defaultEmpaqueMinutoHombre) || 0),
+                Math.max(0, Number(gen.defaultEmpaqueTiempoMovilizacion) || 0),
+                Math.max(0, Number(gen.defaultEmpaqueTiempoConfeccion) || 0)
+            ]
+        );
+    } catch (error) {
+        console.error('Error al sincronizar preprensa con costo_general:', error.message);
     }
     await recordAuditDiff({
         moduleKey: 'costos',
@@ -4933,7 +5103,7 @@ function buildCalculationLineSummary(row = {}) {
         material_code: pickFirstValue(row.material_code, raw['Material Digital | Id Material'], raw['Material Convencional | Id Material']),
         material_name: pickFirstValue(raw['GENERAL | MATERIAL'], raw.Material, row.material_code),
         die_code: pickFirstValue(row.die_code, raw['GENERAL | TROQUEL | ID'], raw[`${activePrefix} | TROQUEL | ID`]),
-        machine_name: pickFirstValue(row.machine_name, raw['DIGITAL | MAQUINA'], raw['CONV | MAQUINA']),
+        machine_name: pickFirstValue(row.machine_name, raw['DIGITAL | MAQUINA'], raw['CONV | MAQUINA'], raw['MAQUINA IMPRESION']),
         process_type: processType,
         status: pickFirstValue(raw['SOLICITUD ESTADO'], raw['ESTADO LINEA'], 'Cotizada'),
         finalized_for_order: Boolean(row.finalized_for_order ?? raw['Finalizado_Para_Orden']),
@@ -5945,10 +6115,6 @@ async function buildQuoteProformaPayload(quoteCode, client = null) {
           ORDER BY line_code NULLS LAST`,
         [quoteCode]
     );
-    const blockingLine = findQuoteProformaBlockingLine(linesResult.rows);
-    if (blockingLine) {
-        throw new Error(formatQuoteProformaBlockError(blockingLine));
-    }
     const lines = linesResult.rows.map(mapCalculationLine);
     const proformaResult = await executor.query(
         `SELECT id, quote_code, status, issue_date_fixed, closed_at, closed_reason, raw_data
@@ -13279,6 +13445,15 @@ app.post('/api/auth/cambiar-contrasena', async (req, res) => {
     }
 });
 
+app.get('/api/costos-config', async (req, res) => {
+    try {
+        const config = await loadCostsConfig();
+        res.json(config);
+    } catch (error) {
+        res.status(500).json({ error: 'No fue posible cargar la configuracion de costos.' });
+    }
+});
+
 app.post('/api/costos-config', async (req, res) => {
     try {
         const saved = await saveCostsConfig(req.body || {});
@@ -14833,7 +15008,7 @@ app.get('/api/ordenes-produccion/:codigo', async (req, res) => {
                 );
             } catch (_) {}
         }
-        if (orden.raw_data && !orden.raw_data.resumen_creacion && orden.line_snapshot) {
+        if (orden.raw_data && !orden.raw_data.resumen_creacion && orden.raw_data.line_snapshot) {
             try {
                 const summary = buildCreationSummary({
                     orderCode: orden.order_code,
@@ -21247,6 +21422,10 @@ app.get('/inventario-procesos', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'catalogo.html'));
 });
 
+app.get('/inventario-planchas', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'catalogo.html'));
+});
+
 app.get('/inventario-tipos-salida', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'catalogo.html'));
 });
@@ -21405,6 +21584,7 @@ startSapScheduler({ pgQuery, withTransaction });
 registerExchangeRateRoutes({ app, pgQuery });
 ensureExchangeRateSchema(pgQuery).catch(() => {});
 startExchangeRateScheduler({ pgQuery });
+registerTintasRoutes({ app, pgQuery, withTransaction });
 
 function writeStartupErrorLog(message, error) {
     try {
