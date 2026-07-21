@@ -17,7 +17,6 @@ const printMaterialEl = document.getElementById('productDocPrintMaterial');
 const inkConfigTextEl = document.getElementById('productDocInkConfigText');
 const pantonesRowEl = document.getElementById('productDocPantonesRow');
 const pantonesTextEl = document.getElementById('productDocPantonesText');
-const dieTextEl = document.getElementById('productDocDieText');
 const coreWidthTextEl = document.getElementById('productDocCoreWidthText');
 const coreDiameterTextEl = document.getElementById('productDocCoreDiameterText');
 const rollLabelsTextEl = document.getElementById('productDocRollLabelsText');
@@ -595,8 +594,6 @@ function renderPrintingConfig(p, raw) {
     }
 
     const dieCode = p.die_code || raw['TROQUEL'] || '';
-    if (dieTextEl) dieTextEl.textContent = dieCode || '—';
-
     const finishItems = getFinishItems({ ...raw, TROQUEL: dieCode });
     if (finishesEl) {
         finishesEl.innerHTML = finishItems.length
