@@ -18668,6 +18668,27 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 .production-roll-grid {
     grid-template-columns: repeat(5, minmax(0, 1fr));
 }
+.production-roll-grid .production-summary-item {
+    gap: 2px;
+}
+.production-roll-grid .production-output-preview {
+    min-height: 0;
+    padding: 0;
+    align-items: flex-start;
+    justify-content: flex-start;
+    align-self: start;
+}
+
+.production-roll-grid .production-output-preview,
+.production-roll-grid .production-output-image {
+    max-height: 72px;
+}
+.production-roll-grid .production-summary-label {
+    font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 
 .production-output-preview {
     min-height: 104px;
@@ -19814,7 +19835,7 @@ html[data-theme="dark"] .production-creation-summary-subsection {
 
 .production-top-row-wrapper {
     position: relative;
-    padding-top: 40px;
+    padding-top: 48px;
 }
 
 .production-admin-tool-btn {
