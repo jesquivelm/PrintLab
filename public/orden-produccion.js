@@ -2339,8 +2339,8 @@ function buildFinishTags(raw = {}, detail = {}, dieCode = '') {
         if (s.toLowerCase().startsWith(prefix.toLowerCase())) return s;
         return prefix + ' ' + s;
     }
-    if (laminate)  tags.push(finishTag('Laminado', laminate));
     if (varnish)   tags.push(finishTag('Barniz', varnish));
+    if (laminate)  tags.push(finishTag('Laminado', laminate));
     if (foil)      tags.push(finishTag('Estampado', foil));
     if (emboss)    tags.push(finishTag('Embosado', emboss));
     if (numbering) tags.push('Numerado');
@@ -2638,6 +2638,17 @@ function renderOrder(order) {
             outputs: (frontBackSource?.outputs || frontBackObj?.outputs || [])
         };
     }
+    /* --- Normalize finishes order --- */
+    var FINISH_ORDER = ['barniz', 'laminado', 'laminante', 'estampado', 'foil', 'embosado', 'troquelado', 'rebobinado', 'numerado'];
+    if (Array.isArray(finishes)) {
+        finishes.sort(function (a, b) {
+            var ai = FINISH_ORDER.findIndex(function (f) { return a.toLowerCase().includes(f); });
+            var bi = FINISH_ORDER.findIndex(function (f) { return b.toLowerCase().includes(f); });
+            ai = ai >= 0 ? ai : FINISH_ORDER.length;
+            bi = bi >= 0 ? bi : FINISH_ORDER.length;
+            return ai - bi;
+        });
+    }
     /* --- end printing data block --- */
 
     statusBox.hidden = true;
@@ -2710,8 +2721,8 @@ function renderOrder(order) {
 
     setText('orderMachineText', printing ? printing.machineName : pickFirst(detail.quotedMachine, line.machine_name, order.machine_name), 'Sin máquina');
     setText('orderMaterialText', printing ? printing.materialName : pickFirst(detail.materialName, line.material_name, order.material_code), 'Sin sustrato');
-    setText('orderFeetText', totalFeet > 0 ? `${parseNumber(linearFeet, ' ft')} + ${parseNumber(wasteFeet, ' ft')} = ${parseNumber(totalFeet, ' ft')}` : '', 'Sin consumo registrado');
-    setText('orderConsumptionText', totalFeet > 0 ? parseNumber(totalFeet, ' ft') : '', 'Sin consumo');
+    setText('orderFeetText', totalFeet > 0 ? `${parseNumber(linearFeet, ' ft')} + ${parseNumber(wasteFeet, ' ft')} = ${parseNumber(totalFeet, ' ft')}` : '', 'Por calcular');
+    setText('orderDimensionsText', dimensions, 'Sin dimensiones');
     setText('orderRollCountText', rollCount ? parseNumber(rollCount) : '', 'Por definir');
 
     var inkConfig;

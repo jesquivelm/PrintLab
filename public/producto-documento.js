@@ -7,12 +7,7 @@ const pageTitleEl = document.getElementById('productDocPageTitle');
 const nameEl = document.getElementById('productDocName');
 const codesEl = document.getElementById('productDocCodes');
 const clientEl = document.getElementById('productDocClient');
-const quoteCountEl = document.getElementById('productDocQuoteCount');
-const processEl = document.getElementById('productDocProcess');
-const machineEl = document.getElementById('productDocMachine');
 const measureEl = document.getElementById('productDocMeasure');
-const materialEl = document.getElementById('productDocMaterial');
-const quantityEl = document.getElementById('productDocQuantity');
 const finishesEl = document.getElementById('productDocFinishes');
 const clientInfoGridEl = document.getElementById('productDocClientInfoGrid');
 const clientContactColEl = document.getElementById('productDocClientContactCol');
@@ -42,6 +37,7 @@ const brandFallbackEl = document.getElementById('productDocBrandFallback');
 let config = {};
 let productCode = '';
 let productDetail = null;
+let currentOutputTypes = [];
 
 const RAW_GROUP_ORDER = ['cliente', 'producto', 'especificacion', 'impresion', 'acabados'];
 const RAW_GROUP_LABELS = {
@@ -527,20 +523,48 @@ function applyBranding() {
 
 function renderClientInfo(p, raw) {
     if (!clientContactColEl && !sellerColEl) return;
-    const customerCode = raw['ID CLIENTE'] || p.client_code || '';
     const seller = raw['VENDEDOR'] || '';
-    const phone = raw['TELEFONO'] || raw['customer_phone'] || '';
-    const email = raw['CORREO'] || raw['customer_email'] || '';
+    const phone = raw['CLIENTE | CONTACTO TELEFONO'] || raw['TELEFONO'] || raw['customer_phone'] || '';
+    const email = raw['CLIENTE | CONTACTO EMAIL'] || raw['CORREO'] || raw['customer_email'] || '';
+    const customerContact = raw['CLIENTE | CONTACTO NOMBRE COMPLETO'] || raw.contact_name || '';
 
-    const codeHtml = customerCode ? `<div class="production-client-info-line">${escapeHtml(customerCode)}</div>` : '';
+    const contactHtml = customerContact ? `<div class="production-client-info-line production-client-contact-name"><strong>${escapeHtml(customerContact)}</strong></div>` : '';
     const phoneHtml = phone ? `<div class="production-client-info-line"><span class="production-client-info-icon">\u260E</span>${escapeHtml(phone)}</div>` : '';
     const emailHtml = email ? `<div class="production-client-info-line"><span class="production-client-info-icon">\u2709</span>${escapeHtml(email)}</div>` : '';
     if (clientContactColEl) {
-        clientContactColEl.innerHTML = codeHtml + phoneHtml + emailHtml;
+        clientContactColEl.innerHTML = contactHtml + phoneHtml + emailHtml;
     }
     if (sellerColEl) {
         sellerColEl.innerHTML = seller ? `<div class="production-client-info-line"><span class="production-client-info-icon">\uD83D\uDC64</span>${escapeHtml(seller)}</div>` : '';
     }
+
+    if (!customerContact) {
+        const partnerCode = raw['ID CLIENTE'] || p.client_code || '';
+        if (partnerCode) loadClientDefaultContact(partnerCode);
+    }
+}
+
+async function loadClientDefaultContact(partnerCode) {
+    if (!partnerCode) return;
+    try {
+        const response = await fetch(`/api/socios/${encodeURIComponent(partnerCode)}/contactos`, { headers: sessionHeaders() });
+        if (!response.ok) return;
+        const data = await response.json();
+        const contacts = Array.isArray(data.contactos) ? data.contactos : [];
+        if (contacts.length === 1) {
+            const c = contacts[0];
+            const name = c.contact_name || [c.first_name, c.last_name].filter(Boolean).join(' ') || '';
+            const phone = c.phone || c.mobile || '';
+            const email = c.email || '';
+            const parts = [];
+            if (name) parts.push(`<div class="production-client-info-line production-client-contact-name"><strong>${escapeHtml(name)}</strong></div>`);
+            if (phone) parts.push(`<div class="production-client-info-line"><span class="production-client-info-icon">\u260E</span>${escapeHtml(phone)}</div>`);
+            if (email) parts.push(`<div class="production-client-info-line"><span class="production-client-info-icon">\u2709</span>${escapeHtml(email)}</div>`);
+            if (parts.length && clientContactColEl) {
+                clientContactColEl.innerHTML = parts.join('');
+            }
+        }
+    } catch (_) {}
 }
 
 function renderPrintingConfig(p, raw) {
@@ -581,11 +605,34 @@ function renderPrintingConfig(p, raw) {
     }
 }
 
+function getOutputTypeImage(outputType) {
+    const search = String(outputType || '').trim().toLowerCase();
+    if (!search) return null;
+    return currentOutputTypes.find((item) => {
+        const code = String(item.codigo || item.code || item.id || '').trim().toLowerCase();
+        const name = String(item.nombre || item.descripcion || item.name || '').trim().toLowerCase();
+        return code === search || name === search;
+    }) || null;
+}
+
+function renderOutputTypePreview(outputType) {
+    if (!outputTypeImageEl) return;
+    const match = getOutputTypeImage(outputType);
+    const imageUrl = match?.image_url || match?.imageUrl;
+    if (imageUrl) {
+        outputTypeImageEl.innerHTML = `<img src="${escapeHtml(imageUrl)}" alt="Tipo de salida" class="production-output-image">`;
+        return;
+    }
+    outputTypeImageEl.textContent = 'Sin imagen';
+}
+
 function renderRollSpecs(p, raw) {
     if (coreWidthTextEl) coreWidthTextEl.textContent = raw['ANCHO CORE'] || '—';
     if (coreDiameterTextEl) coreDiameterTextEl.textContent = raw['DIAMETRO CORE'] || '—';
     if (rollLabelsTextEl) rollLabelsTextEl.textContent = formatQuantity(raw['CANTIDAD ETIQUETAS X ROLLO'] || '');
-    if (outputTypeTextEl) outputTypeTextEl.textContent = raw['TIPO SALIDA'] || '—';
+    const outputType = raw['TIPO SALIDA'] || '—';
+    if (outputTypeTextEl) outputTypeTextEl.textContent = outputType;
+    renderOutputTypePreview(outputType);
 }
 
 function renderProduct() {
@@ -597,13 +644,11 @@ function renderProduct() {
     pageTitleEl.textContent = p.product_name || p.product_code || 'Producto';
     nameEl.textContent = p.product_name || p.product_code || 'Producto';
     codesEl.textContent = p.product_code || '';
-    clientEl.textContent = p.client_name || '—';
-    quoteCountEl.textContent = String(p.quote_count || 0);
-    processEl.textContent = raw['Proceso Productivo'] || p.department || '—';
-    machineEl.textContent = p.quoted_machine || '—';
+    const customerId = raw['ID CLIENTE'] || p.client_code || '';
+    const partnerRoute = customerId ? `/socios-documento.html?codigo=${encodeURIComponent(customerId)}` : '';
+    const idLink = customerId ? `<a class="summary-row-link" href="${escapeHtml(partnerRoute)}" data-route="${escapeHtml(partnerRoute)}" data-label="Cliente ${escapeHtml(customerId)}">(${escapeHtml(customerId)})</a>` : '';
+    clientEl.innerHTML = [idLink, escapeHtml(p.client_name || '—')].filter(Boolean).join(' ');
     measureEl.textContent = measure;
-    materialEl.textContent = p.material_name || '—';
-    quantityEl.textContent = formatQuantity(p.quantity_products);
 
     renderClientInfo(p, raw);
     renderPrintingConfig(p, raw);
@@ -654,7 +699,10 @@ async function init() {
     config = await fetchJson(PRODUCT_DOC_CONFIG_ENDPOINT).catch(() => ({}));
     applyBranding();
     setStatus('Cargando producto...');
-    productDetail = await fetchJson(`/api/productos/${encodeURIComponent(productCode)}`, { headers: sessionHeaders() });
+    [productDetail, currentOutputTypes] = await Promise.all([
+        fetchJson(`/api/productos/${encodeURIComponent(productCode)}`, { headers: sessionHeaders() }),
+        fetchJson('/api/inventario/tipos-salida').then((r) => r?.items || []).catch(() => [])
+    ]);
     renderProduct();
     quoteButtonEl?.addEventListener('click', () => quoteProduct().catch((error) => setStatus(error.message, 'error')));
     attachmentAddButtonEl?.addEventListener('click', () => attachmentInputEl?.click());

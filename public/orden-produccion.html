@@ -166,6 +166,7 @@
       .tl-step-side { justify-content:flex-start; }
       .sap-consumption-form { grid-template-columns:1fr; }
     }
+    .is-frontback-order .production-art-section { display:none; }
     @keyframes pop-in { 0%{transform:scale(0);opacity:0}70%{transform:scale(1.18)}100%{transform:scale(1);opacity:1} }
     @keyframes fade-up { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
     @keyframes toast-in { from{opacity:0;transform:translateX(30px) scale(.95)} to{opacity:1;transform:translateX(0) scale(1)} }
@@ -263,11 +264,11 @@
                                         <div class="production-shared-printing-col">
                                             <div class="production-summary-item"><span class="production-summary-label">Máquina</span><span id="orderMachineText" class="production-summary-value"></span></div>
                                             <div class="production-summary-item"><span class="production-summary-label">Total de Pies</span><span id="orderFeetText" class="production-summary-value"></span></div>
-                                            <div class="production-summary-item"><span class="production-summary-label">Consumo Registrado</span><span id="orderConsumptionText" class="production-summary-value"></span></div>
                                         </div>
                                         <div class="production-shared-printing-col">
                                             <div class="production-summary-item"><span class="production-summary-label">Sustrato</span><span id="orderMaterialText" class="production-summary-value"></span></div>
                                             <div class="production-summary-item"><span class="production-summary-label">Cantidad de Rollos</span><span id="orderRollCountText" class="production-summary-value"></span></div>
+                                            <div class="production-summary-item"><span class="production-summary-label">Dimensiones Etiqueta</span><span id="orderDimensionsText" class="production-summary-value"></span></div>
                                         </div>
                                         <div class="production-shared-printing-col">
                                             <div id="orderInkBlock" class="production-summary-item production-summary-item-full"><span class="production-summary-label">Tintas</span><span id="orderInkConfigText" class="production-summary-value"></span></div>
