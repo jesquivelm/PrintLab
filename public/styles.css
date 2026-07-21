@@ -5297,6 +5297,9 @@ html[data-theme="dark"] .costs-module-fields > label span {
 .production-summary-grid-three {
     grid-template-columns: repeat(3, minmax(0, 1fr));
 }
+.production-summary-grid-five {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+}
 .production-summary-grid-dense {
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -11100,7 +11103,6 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
     font-weight: 700;
 }
 .production-roll-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     min-width: 0;
     width: 100%;
 }
@@ -18664,7 +18666,7 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
 }
 
 .production-roll-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(150px, 0.96fr);
+    grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .production-output-preview {
