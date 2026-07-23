@@ -1860,18 +1860,18 @@ function renderOutputTypePreview(outputType) {
     const match = getOutputTypeImage(outputType);
     const imageUrl = pickFirst(match?.image_url, match?.imageUrl);
     if (imageUrl) {
-        outputTypeImage.innerHTML = `<img src="${escapeHtml(imageUrl)}" alt="Tipo de salida" class="production-output-image">`;
+        outputTypeImage.innerHTML = `<img src="${escapeHtml(imageUrl)}" alt="Tipo de salida">`;
         return;
     }
-    outputTypeImage.textContent = 'Sin imagen';
+    outputTypeImage.innerHTML = '';
 }
 
 function outputTypePreviewHtml(outputType) {
     const match = getOutputTypeImage(outputType);
     const imageUrl = pickFirst(match?.image_url, match?.imageUrl);
     return imageUrl
-        ? `<img src="${escapeHtml(imageUrl)}" alt="Tipo de salida" class="production-output-image">`
-        : 'Sin imagen';
+        ? `<img src="${escapeHtml(imageUrl)}" alt="Tipo de salida">`
+        : '';
 }
 
 function frontBackMemberMap(raw = {}) {
@@ -3030,6 +3030,121 @@ function renderCreationSummary(data) {
     return html;
 }
 
+function renderRawSourceData(raw) {
+    if (!raw || typeof raw !== 'object') return '';
+
+    var EXCLUDED = new Set([
+        'resumen_creacion', 'Estado_UI', 'Datos_Cotizados',
+        'Secuencia_Procesos', 'quote_snapshot', 'line_snapshot',
+        'front_back_group', 'grupo_frente_dorso', 'production_run',
+        'related_lines', 'traceability', 'printing', 'Mensajes_Validacion',
+        'Texto_Secuencia_Procesos', 'Validacion_Bloqueada', 'Cierre_Cotizacion'
+    ]);
+
+    var LABELS = {
+        'ID COTIZACION': 'ID Cotización',
+        'ID LINEA': 'ID Línea',
+        'ID CLIENTE': 'ID Cliente',
+        'VENDEDOR': 'Vendedor',
+        'DEPARTAMENTO': 'Departamento',
+        'NOMBRE TRABAJO': 'Nombre Trabajo',
+        'CODIGO PRODUCTO': 'Código Producto',
+        'TIPO ORDEN': 'Tipo Orden',
+        'Proceso Productivo': 'Proceso Productivo',
+        'GENERAL | MATERIAL': 'Material',
+        'Material Convencional | Id Material': 'Material Convencional ID',
+        'Material Digital | Id Material': 'Material Digital ID',
+        'Material | Tipo Según Proceso Productivo': 'Tipo Material',
+        'CONV | MAQUINA': 'Máquina Convencional',
+        'DIGITAL | MAQUINA': 'Máquina Digital',
+        'GENERAL | TROQUEL | ID': 'Troquel ID',
+        'GENERAL | CMYK': 'CMYK',
+        'CMYK': 'CMYK',
+        'CANTIDAD TINTAS': 'Cantidad Tintas',
+        'CANTIDAD TIPOS': 'Cantidad Tipos',
+        'CANTIDAD CAMBIOS': 'Cantidad Cambios',
+        'CANTIDAD PRODUCTOS': 'Cantidad Productos',
+        'Cantidad Productos': 'Cantidad Productos',
+        'DIMENSIONES ETIQUETA | ANCHO': 'Ancho Etiqueta (in)',
+        'DIMENSIONES ETIQUETA | LARGO': 'Largo Etiqueta (in)',
+        'ANCHO ROLLO': 'Ancho Rollo (in)',
+        'SEP HORIZONTAL': 'Separación Horizontal (in)',
+        'SEP VERTICAL': 'Separación Vertical (in)',
+        'TIPO ETIQUETADO': 'Tipo Etiquetado',
+        'AMBIENTE APLICACION': 'Ambiente Aplicación',
+        'TIPO SUPERFICIE': 'Tipo Superficie',
+        'TIPO SALIDA': 'Tipo Salida',
+        'ANCHO CORE': 'Ancho Core (mm)',
+        'DIAMETRO CORE': 'Diámetro Core',
+        'CANTIDAD ETIQUETAS X ROLLO': 'Etiquetas x Rollo',
+        'CONV | PERFIL TINTA | TIPO': 'Perfil Tinta Tipo',
+        'CONV | PERFIL TINTA | BCM ANILOX': 'BCM Anilox',
+        'CONV | PERFIL TINTA | COBERTURA %': 'Cobertura Tinta %',
+        'CONV | PERFIL TINTA | GSM': 'GSM Tinta',
+        'CONV | BARNIZ | ACTIVO': 'Barniz Activo',
+        'CONV | BARNIZ | ZONIFICADO': 'Barniz Zonificado',
+        'CONV | BARNIZ | BCM ANILOX': 'Barniz BCM',
+        'CONV | BARNIZ | COBERTURA %': 'Barniz Cobertura %',
+        'CONV | BARNIZ | GSM': 'Barniz GSM',
+        'SOLICITUD ESTADO': 'Estado Solicitud',
+        'ESTADO LINEA': 'Estado Línea',
+        'Finalizado_Para_Orden': 'Finalizado Para Orden',
+        'GENERAL | 5 | SUBTOTAL': 'Subtotal Costos',
+        'GENERAL | 7 | SUBTOTAL CALC ANTES IV | DOL': 'Subtotal Antes IVA USD',
+        'GENERAL | 8 | PORCENTAJE IVA': '% IVA',
+        'GENERAL | 9 | Impuestos': 'Impuestos USD',
+        'GENERAL | 7 | TOTAL | DOL': 'Total USD',
+        'GENERAL | 9 | TOTAL | DOL': 'Total Final USD',
+        'GENERAL | 9 | UNITARIO | DOL': 'Unitario USD',
+        'GENERAL | 7 | TOTAL | COL': 'Total Colones',
+        'GENERAL | 9 | TOTAL | COL EXPORTAR REPORTE VENTAS': 'Total Colones Ventas',
+        'GENERAL | 9 | UNITARIO | COL': 'Unitario Colones',
+        'PRECIO TOTAL AL FINALIZAR': 'Precio Total Final',
+        'TIPO CAMBIO': 'Tipo Cambio',
+        'TIPO CAMBIO VENTA': 'Tipo Cambio Venta',
+        'TIPO CAMBIO COMPRA': 'Tipo Cambio Compra'
+    };
+
+    function prettyKey(k) { return LABELS[k] || k; }
+
+    function prettyVal(v) {
+        if (v === null || v === undefined || v === '') return '—';
+        if (typeof v === 'boolean') return v ? 'Sí' : 'No';
+        if (Array.isArray(v)) return v.length ? v.join(', ') : '—';
+        if (typeof v === 'object') return JSON.stringify(v, null, 1).replace(/\n/g, '<br>').replace(/  /g, '&nbsp;&nbsp;');
+        return String(v);
+    }
+
+    var entries = [];
+    var seen = new Set();
+    Object.keys(raw).forEach(function (k) {
+        if (EXCLUDED.has(k)) return;
+        var v = raw[k];
+        if (v === null || v === undefined || v === '') return;
+        if (typeof v === 'object' && !Array.isArray(v)) return;
+        var label = prettyKey(k);
+        if (seen.has(label)) return;
+        seen.add(label);
+        entries.push({ key: k, label: label, value: prettyVal(v) });
+    });
+    entries.sort(function (a, b) { return a.label.localeCompare(b.label); });
+
+    if (!entries.length) return '';
+
+    var html = '<div class="production-raw-origin">';
+    html += '<div class="production-raw-origin-header" onclick="this.parentElement.classList.toggle(\'is-open\')">';
+    html += '<span class="production-raw-origin-toggle">▶</span> ';
+    html += 'Datos de Origen del Cálculo';
+    html += '<span class="production-raw-origin-count">(' + entries.length + ' campos)</span>';
+    html += '</div>';
+    html += '<div class="production-raw-origin-body">';
+    entries.forEach(function (e) {
+        html += '<div class="production-creation-summary-row"><span class="production-creation-summary-key">' + escapeHtml(e.label) + '</span><span class="production-creation-summary-value">' + e.value + '</span></div>';
+    });
+    html += '</div></div>';
+    return html;
+}
+
 async function loadOrder() {
     const orderCode = decodeURIComponent(window.location.pathname.split('/').pop() || '');
     currentOrderCode = orderCode;
@@ -3272,13 +3387,20 @@ document.getElementById('orderPdfButton')?.addEventListener('click', () => {
 });
 document.getElementById('orderCreationSummaryButton')?.addEventListener('click', () => {
     const summary = currentLoadedOrder?.raw_data?.resumen_creacion;
+    const sourceRaw = currentLoadedOrder?.raw_data?.line_snapshot?.raw_data || currentLoadedOrder?.raw_data || {};
     const body = document.getElementById('orderCreationSummaryBody');
-    if (!summary) {
-        if (body) body.innerHTML = '<div class="production-summary-empty">No hay datos de creación disponibles.</div>';
-        openPopover('orderCreationSummaryPopover');
-        return;
+    var html = '';
+    if (summary) {
+        html += renderCreationSummary(summary);
+    } else {
+        html += '<div class="production-summary-empty">No hay datos de creación disponibles.</div>';
     }
-    if (body) body.innerHTML = renderCreationSummary(summary);
+    var rawView = renderRawSourceData(sourceRaw);
+    if (rawView) {
+        html += '<hr class="production-raw-divider">';
+        html += rawView;
+    }
+    if (body) body.innerHTML = html;
     openPopover('orderCreationSummaryPopover');
 });
 document.getElementById('orderAudioRecordButton')?.addEventListener('click', toggleOrderAudioRecording);

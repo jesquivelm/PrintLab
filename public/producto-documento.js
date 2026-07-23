@@ -38,15 +38,7 @@ let productCode = '';
 let productDetail = null;
 let currentOutputTypes = [];
 
-const RAW_GROUP_ORDER = ['cliente', 'producto', 'especificacion', 'impresion', 'acabados'];
-const RAW_GROUP_LABELS = {
-    cliente: 'Cliente',
-    producto: 'Producto',
-    especificacion: 'Especificación del Producto',
-    impresion: 'Impresión',
-    acabados: 'Acabados'
-};
-const RAW_LABELS = {
+var RAW_LABELS = {
     'CMYK': 'CMYK',
     'ID LINEA': 'Id Línea',
     'VENDEDOR': 'Vendedor',
@@ -89,14 +81,39 @@ const RAW_LABELS = {
     'DIMENSIONES ETIQUETA | LARGO': 'Largo',
     'PRECIO TOTAL AL FINALIZAR': 'Precio Total',
     'CANTIDAD ETIQUETAS X ROLLO': 'Etiquetas por Rollo',
-    'SOLICITUD ESTADO': 'Estado de Solicitud'
-};
-const RAW_FIELDS_BY_GROUP = {
-    cliente: ['ID CLIENTE', 'VENDEDOR'],
-    producto: ['CODIGO PRODUCTO', 'NOMBRE TRABAJO', 'REQ | Tipo de Producto', 'TIPO SALIDA', 'TIPO ETIQUETADO', 'PRECIO TOTAL AL FINALIZAR', 'GENERAL | 9 | UNITARIO | DOL'],
-    especificacion: ['ANCHO CORE', 'DIAMETRO CORE', 'CANTIDAD TIPOS', 'CANTIDAD ETIQUETAS X ROLLO', 'DIMENSIONES ETIQUETA | ANCHO', 'DIMENSIONES ETIQUETA | LARGO', 'REQ | Forma', 'REQ | Superficie'],
-    impresion: ['CMYK', 'GENERAL | CMYK', 'CANTIDAD TINTAS', 'CONV | PERFIL TINTA | GSM', 'CONV | PERFIL TINTA | TIPO', 'CONV | PERFIL TINTA | BCM ANILOX', 'CONV | PERFIL TINTA | COBERTURA %'],
-    acabados: ['REQ | Barniz', 'CONV | BARNIZ | GSM', 'CONV | BARNIZ | COBERTURA %', 'REQ | Estampado', 'REQ | Estampado Ancho', 'REQ | Embosado', 'REQ | Troquelado', 'REQ | Numeracion']
+    'SOLICITUD ESTADO': 'Estado de Solicitud',
+    'GENERAL | MATERIAL': 'Material',
+    'GENERAL | TROQUEL | ID': 'Troquel ID',
+    'CONV | MAQUINA': 'Máquina Convencional',
+    'DIGITAL | MAQUINA': 'Máquina Digital',
+    'CONV | BARNIZ | BCM ANILOX': 'Barniz BCM',
+    'CONV | BARNIZ | ZONIFICADO': 'Barniz Zonificado',
+    'ANCHO ROLLO': 'Ancho Rollo (in)',
+    'SEP HORIZONTAL': 'Sep. Horizontal (in)',
+    'SEP VERTICAL': 'Sep. Vertical (in)',
+    'AMBIENTE APLICACION': 'Ambiente Aplicación',
+    'TIPO SUPERFICIE': 'Tipo Superficie',
+    'Proceso Productivo': 'Proceso Productivo',
+    'Material Convencional | Id Material': 'Material Convencional ID',
+    'Material Digital | Id Material': 'Material Digital ID',
+    'Material | Tipo Según Proceso Productivo': 'Tipo Material',
+    'TIPO ORDEN': 'Tipo Orden',
+    'TIPO CAMBIO': 'Tipo Cambio',
+    'TIPO CAMBIO VENTA': 'Tipo Cambio Venta',
+    'TIPO CAMBIO COMPRA': 'Tipo Cambio Compra',
+    'DEPARTAMENTO': 'Departamento',
+    'GENERAL | 5 | SUBTOTAL': 'Subtotal Costos',
+    'GENERAL | 7 | SUBTOTAL CALC ANTES IV | DOL': 'Subtotal Antes IVA USD',
+    'GENERAL | 8 | PORCENTAJE IVA': '% IVA',
+    'GENERAL | 9 | Impuestos': 'Impuestos USD',
+    'GENERAL | 7 | TOTAL | DOL': 'Total USD',
+    'GENERAL | 9 | TOTAL | DOL': 'Total Final USD',
+    'GENERAL | 9 | UNITARIO | DOL': 'Unitario USD',
+    'GENERAL | 7 | TOTAL | COL': 'Total Colones',
+    'GENERAL | 9 | TOTAL | COL EXPORTAR REPORTE VENTAS': 'Total Colones Ventas',
+    'GENERAL | 9 | UNITARIO | COL': 'Unitario Colones',
+    'Finalizado_Para_Orden': 'Finalizado Para Orden',
+    'CANTIDAD PRODUCTOS': 'Cantidad Productos'
 };
 
 function buildAsciiSafeSessionHeader(session) {
@@ -421,43 +438,54 @@ function prettifyRawLabel(key) {
 }
 
 function renderRawData(raw = {}) {
-    const normalizedRaw = raw && typeof raw === 'object' ? raw : {};
-    const groups = RAW_GROUP_ORDER.map((groupKey) => ({
-        groupKey,
-        items: (RAW_FIELDS_BY_GROUP[groupKey] || [])
-            .filter((fieldKey) => normalizedRaw[fieldKey] !== '' && normalizedRaw[fieldKey] !== null && normalizedRaw[fieldKey] !== undefined)
-            .map((fieldKey) => ({
-                key: fieldKey,
-                label: prettifyRawLabel(fieldKey),
-                value: String(normalizedRaw[fieldKey])
-            }))
-    })).filter((group) => group.items.length);
+    var normalizedRaw = raw && typeof raw === 'object' ? raw : {};
 
-    if (!groups.length) {
+    var EXCLUDED = new Set([
+        'Estado_UI', 'Datos_Cotizados', 'Secuencia_Procesos',
+        'quote_snapshot', 'line_snapshot', 'front_back_group',
+        'grupo_frente_dorso', 'production_run', 'related_lines',
+        'traceability', 'printing', 'Mensajes_Validacion',
+        'Texto_Secuencia_Procesos', 'Validacion_Bloqueada',
+        'Cierre_Cotizacion', 'resumen_creacion'
+    ]);
+
+    function prettyVal(v) {
+        if (v === null || v === undefined || v === '') return '—';
+        if (typeof v === 'boolean') return v ? 'Sí' : 'No';
+        if (Array.isArray(v)) return v.length ? v.join(', ') : '—';
+        if (typeof v === 'object') return JSON.stringify(v, null, 1).replace(/\n/g, '<br>').replace(/  /g, '&nbsp;&nbsp;');
+        return String(v);
+    }
+
+    var entries = [];
+    Object.keys(normalizedRaw).forEach(function (k) {
+        if (EXCLUDED.has(k)) return;
+        var v = normalizedRaw[k];
+        if (v === null || v === undefined || v === '') return;
+        if (typeof v === 'object' && !Array.isArray(v)) return;
+        entries.push({
+            key: k,
+            label: prettifyRawLabel(k),
+            value: prettyVal(v)
+        });
+    });
+
+    if (!entries.length) {
         rawEl.innerHTML = '<div class="product-empty-detail">Este producto no tiene datos adicionales.</div>';
         return;
     }
 
-    const html = groups
-        .map((group) => {
-            const items = group.items;
-            return `
-                <section class="production-subgroup">
-                    <div class="production-subgroup-title">${escapeHtml(RAW_GROUP_LABELS[group.groupKey] || '')}</div>
-                    <div class="production-summary-grid production-summary-grid-two">
-                        ${items.map((item) => `
-                            <div class="production-summary-item">
-                                <span class="production-summary-label">${escapeHtml(item.label)}</span>
-                                <span class="production-summary-value">${escapeHtml(item.value || '—')}</span>
-                            </div>
-                        `).join('')}
-                    </div>
-                </section>
-            `;
-        })
-        .join('');
+    entries.sort(function (a, b) { return a.label.localeCompare(b.label); });
 
-    rawEl.innerHTML = html || '<div class="product-empty-detail">Este producto no tiene datos adicionales.</div>';
+    var html = '<section class="production-subgroup">';
+    html += '<div class="production-subgroup-title">Datos del Cálculo Origen (' + entries.length + ' campos)</div>';
+    html += '<div class="production-summary-grid production-summary-grid-two">';
+    entries.forEach(function (item) {
+        html += '<div class="production-summary-item"><span class="production-summary-label">' + escapeHtml(item.label) + '</span><span class="production-summary-value">' + item.value + '</span></div>';
+    });
+    html += '</div></section>';
+
+    rawEl.innerHTML = html;
 }
 
 async function uploadAttachmentFromProduct(file) {
@@ -617,10 +645,10 @@ function renderOutputTypePreview(outputType) {
     const match = getOutputTypeImage(outputType);
     const imageUrl = match?.image_url || match?.imageUrl;
     if (imageUrl) {
-        outputTypeImageEl.innerHTML = `<img src="${escapeHtml(imageUrl)}" alt="Tipo de salida" class="production-output-image">`;
+        outputTypeImageEl.innerHTML = `<img src="${escapeHtml(imageUrl)}" alt="Tipo de salida">`;
         return;
     }
-    outputTypeImageEl.textContent = 'Sin imagen';
+    outputTypeImageEl.innerHTML = '';
 }
 
 function renderRollSpecs(p, raw) {
