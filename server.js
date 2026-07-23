@@ -5389,6 +5389,8 @@ function summarizeFrontBackOutputLine(lineRow = {}) {
     const raw = lineRow.raw_data || {};
     const quantity = parseLegacyNumber(lineRow.quantity) ?? parseLegacyNumber(raw['Cantidad Productos']) ?? 0;
     const totalCost = parseLegacyNumber(lineRow.total_cost) ?? parseLegacyNumber(raw['PRECIO TOTAL AL FINALIZAR']) ?? 0;
+    const dc = raw['Datos_Cotizados'] || {};
+    const m = dc.metricas || {};
     return {
         lineCode: lineRow.line_code || '',
         itemCode: pickFirstValue(lineRow.product_code, raw['CODIGO PRODUCTO'], lineRow.line_code),
@@ -5398,7 +5400,10 @@ function summarizeFrontBackOutputLine(lineRow = {}) {
         unitCost: quantity > 0 ? roundCurrency(totalCost / quantity) : totalCost,
         materialCode: pickFirstValue(lineRow.material_code, raw['Material Convencional | Id Material'], raw['Material Digital | Id Material']),
         machineName: pickFirstValue(lineRow.machine_name, raw['CONV | MAQUINA'], raw['DIGITAL | MAQUINA']),
-        dieCode: pickFirstValue(lineRow.die_code, raw['GENERAL | TROQUEL | ID'])
+        dieCode: pickFirstValue(lineRow.die_code, raw['GENERAL | TROQUEL | ID']),
+        feet: parseLegacyNumber(m.piesLinealesConMerma) ?? parseLegacyNumber(raw['Material | Pies Segun Proceso Productivo']) ?? 0,
+        msi: parseLegacyNumber(m.msiConMerma) ?? parseLegacyNumber(raw['Material | MSI Segun Proceso Productivo']) ?? 0,
+        areaM2: parseLegacyNumber(m.areaM2) ?? parseLegacyNumber(raw['Material | m2 Segun Proceso Productivo']) ?? 0
     };
 }
 
@@ -9890,6 +9895,26 @@ function buildCreationSummary({ orderCode, quoteRow, lineRow, frontBackGroup, pr
             etiquetas_por_rollo: printing.labelsPerRoll || ls.labelsPerRoll || 0,
             tipo_salida: printing.outputType || ls.outputType || lr['TIPO SALIDA'] || ''
         },
+        metricas: (function () {
+            const m = dc.metricas || {};
+            var hasAny = false;
+            var keys = ['pasosPorLinea', 'filas', 'largoTotalPulgadas', 'piesLineales', 'piesLinealesConMerma', 'msiBase', 'msiConMerma', 'areaM2', 'pesoKg', 'minutosTiraje', 'tintasEfectivas'];
+            keys.forEach(function (k) { if (m[k] !== undefined && m[k] !== null) hasAny = true; });
+            if (!hasAny) return null;
+            return {
+                pasos_por_linea: m.pasosPorLinea,
+                filas: m.filas,
+                largo_total_pulgadas: m.largoTotalPulgadas,
+                pies_lineales: m.piesLineales,
+                pies_lineales_con_merma: m.piesLinealesConMerma,
+                msi_base: m.msiBase,
+                msi_con_merma: m.msiConMerma,
+                area_m2: m.areaM2,
+                peso_kg: m.pesoKg,
+                minutos_tiraje: m.minutosTiraje,
+                tintas_efectivas: m.tintasEfectivas
+            };
+        })(),
         costos: {
             desglose: {
                 material: ls.components?.material || 0,
@@ -9931,7 +9956,7 @@ function buildCreationSummary({ orderCode, quoteRow, lineRow, frontBackGroup, pr
             linea_dorso: productionRun?.backLineCode || '',
             roles: productionRun?.elementRoles || {},
             salidas: Array.isArray(productionRun?.outputs) ? productionRun.outputs.map(function (o) {
-                return { linea: o.lineCode, cantidad: o.quantity, pies: o.feet };
+                return { linea: o.lineCode, cantidad: o.quantity, pies: o.feet, msi: o.msi, area_m2: o.areaM2 };
             }) : []
         } : null,
         notas: {

@@ -2970,6 +2970,21 @@ function renderCreationSummary(data) {
     html += row('Etiquetas por Rollo', data.rollo?.etiquetas_por_rollo);
     html += row('Tipo de Salida', data.rollo?.tipo_salida);
 
+    if (data.metricas) {
+        html += section('Métricas de Producción');
+        html += row('Pasos por Línea', data.metricas.pasos_por_linea);
+        html += row('Filas', data.metricas.filas);
+        html += row('Largo Total (pulgadas)', data.metricas.largo_total_pulgadas);
+        html += row('Pies Lineales', data.metricas.pies_lineales);
+        html += row('Pies Lineales con Merma', data.metricas.pies_lineales_con_merma);
+        html += row('MSI Base', data.metricas.msi_base);
+        html += row('MSI con Merma', data.metricas.msi_con_merma);
+        html += row('Área (m²)', data.metricas.area_m2);
+        html += row('Peso (kg)', data.metricas.peso_kg);
+        html += row('Minutos de Tiraje', data.metricas.minutos_tiraje);
+        html += row('Tintas Efectivas', data.metricas.tintas_efectivas);
+    }
+
     html += section('Costos');
     html += subsec('Desglose');
     html += row('Material', data.costos?.desglose?.material);
@@ -3013,7 +3028,12 @@ function renderCreationSummary(data) {
         if (Array.isArray(data.frente_dorso.salidas) && data.frente_dorso.salidas.length) {
             html += subsec('Salidas');
             data.frente_dorso.salidas.forEach(function (s) {
-                html += row('Línea ' + (s.linea || ''), 'Cant: ' + (s.cantidad || 0) + ', Pies: ' + (s.pies || 0));
+                var parts = [];
+                parts.push('Cant: ' + (s.cantidad || 0));
+                parts.push('Pies: ' + (s.pies || 0));
+                if (s.msi) parts.push('MSI: ' + s.msi);
+                if (s.area_m2) parts.push('m²: ' + s.area_m2);
+                html += row('Línea ' + (s.linea || ''), parts.join(', '));
             });
         }
     }
