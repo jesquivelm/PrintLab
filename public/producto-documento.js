@@ -450,42 +450,81 @@ function renderRawData(raw = {}) {
     ]);
 
     function prettyVal(v) {
-        if (v === null || v === undefined || v === '') return '—';
+        if (v === null || v === undefined || v === '') return '';
         if (typeof v === 'boolean') return v ? 'Sí' : 'No';
-        if (Array.isArray(v)) return v.length ? v.join(', ') : '—';
-        if (typeof v === 'object') return JSON.stringify(v, null, 1).replace(/\n/g, '<br>').replace(/  /g, '&nbsp;&nbsp;');
+        if (Array.isArray(v)) return v.length ? v.join(', ') : '';
+        if (typeof v === 'object') return '';
         return String(v);
     }
 
-    var entries = [];
+    function row(key, v) {
+        var s = prettyVal(v);
+        if (!s) return '';
+        return '<div class="production-creation-summary-row"><span class="production-creation-summary-key">' + escapeHtml(key) + ':</span><span class="production-creation-summary-value">' + escapeHtml(s) + '</span></div>';
+    }
+    function section(title) {
+        return '<div class="production-creation-summary-section">' + escapeHtml(title) + '</div>';
+    }
+    function subsec(title) {
+        return '<div class="production-creation-summary-subsection">' + escapeHtml(title) + '</div>';
+    }
+
+    var SECTIONS = {
+        general: { label: 'General', keys: ['ID COTIZACION', 'ID LINEA', 'ID CLIENTE', 'VENDEDOR', 'DEPARTAMENTO', 'SOLICITUD ESTADO', 'ESTADO LINEA', 'NOMBRE TRABAJO', 'CODIGO PRODUCTO', 'TIPO ORDEN', 'Proceso Productivo', 'Finalizado_Para_Orden', 'TIPO CAMBIO', 'TIPO CAMBIO VENTA', 'TIPO CAMBIO COMPRA'] },
+        producto: { label: 'Producto', keys: ['GENERAL | MATERIAL', 'Material Convencional | Id Material', 'Material Digital | Id Material', 'Material | Tipo Según Proceso Productivo', 'CONV | MAQUINA', 'DIGITAL | MAQUINA', 'GENERAL | TROQUEL | ID'] },
+        dimensiones: { label: 'Dimensiones', keys: ['DIMENSIONES ETIQUETA | ANCHO', 'DIMENSIONES ETIQUETA | LARGO', 'ANCHO ROLLO', 'SEP HORIZONTAL', 'SEP VERTICAL'] },
+        tintas: { label: 'Impresión', keys: ['CANTIDAD TINTAS', 'CANTIDAD TIPOS', 'CANTIDAD CAMBIOS', 'CANTIDAD PRODUCTOS', 'Cantidad Productos', 'CMYK', 'GENERAL | CMYK', 'CANTIDAD ETIQUETAS X ROLLO', 'CONV | PERFIL TINTA | TIPO', 'CONV | PERFIL TINTA | BCM ANILOX', 'CONV | PERFIL TINTA | COBERTURA %', 'CONV | PERFIL TINTA | GSM'] },
+        acabados: { label: 'Acabados', keys: ['CONV | BARNIZ | ACTIVO', 'CONV | BARNIZ | ZONIFICADO', 'CONV | BARNIZ | BCM ANILOX', 'CONV | BARNIZ | COBERTURA %', 'CONV | BARNIZ | GSM', 'CONV | BARNIZ | TIPO', 'REQ | Barniz', 'REQ | Estampado', 'REQ | Estampado Ancho', 'REQ | Embosado', 'REQ | Troquelado', 'REQ | Numeracion', 'REQ | Superficie', 'REQ | Forma'] },
+        rollo: { label: 'Rollo', keys: ['ANCHO CORE', 'DIAMETRO CORE', 'TIPO SALIDA', 'TIPO ETIQUETADO', 'AMBIENTE APLICACION', 'TIPO SUPERFICIE'] },
+        costos: { label: 'Costos', keys: ['GENERAL | 5 | SUBTOTAL', 'GENERAL | 7 | SUBTOTAL CALC ANTES IV | DOL', 'GENERAL | 8 | PORCENTAJE IVA', 'GENERAL | 9 | Impuestos', 'GENERAL | 7 | TOTAL | DOL', 'GENERAL | 9 | TOTAL | DOL', 'GENERAL | 9 | UNITARIO | DOL', 'GENERAL | 7 | TOTAL | COL', 'GENERAL | 9 | TOTAL | COL EXPORTAR REPORTE VENTAS', 'GENERAL | 9 | UNITARIO | COL', 'PRECIO TOTAL AL FINALIZAR'] }
+    };
+
+    var usedKeys = new Set();
+    var html = '';
+
+    var sectionKeys = Object.keys(SECTIONS);
+    for (var si = 0; si < sectionKeys.length; si++) {
+        var sec = SECTIONS[sectionKeys[si]];
+        var rows = '';
+        for (var ki = 0; ki < sec.keys.length; ki++) {
+            var k = sec.keys[ki];
+            var v = normalizedRaw[k];
+            var s = prettyVal(v);
+            if (s) {
+                rows += row(prettifyRawLabel(k), s);
+                usedKeys.add(k);
+            }
+        }
+        if (rows) {
+            html += section(sec.label);
+            html += rows;
+        }
+    }
+
+    var remaining = [];
     Object.keys(normalizedRaw).forEach(function (k) {
-        if (EXCLUDED.has(k)) return;
+        if (usedKeys.has(k) || EXCLUDED.has(k)) return;
         var v = normalizedRaw[k];
         if (v === null || v === undefined || v === '') return;
         if (typeof v === 'object' && !Array.isArray(v)) return;
-        entries.push({
-            key: k,
-            label: prettifyRawLabel(k),
-            value: prettyVal(v)
-        });
+        remaining.push({ key: k, label: prettifyRawLabel(k), value: prettyVal(v) });
     });
 
-    if (!entries.length) {
-        rawEl.innerHTML = '<div class="product-empty-detail">Este producto no tiene datos adicionales.</div>';
-        return;
+    if (remaining.length) {
+        remaining.sort(function (a, b) { return a.label.localeCompare(b.label); });
+        html += '<div class="production-raw-origin" style="margin-top:12px;">';
+        html += '<div class="production-raw-origin-header" onclick="this.parentElement.classList.toggle(\'is-open\')">';
+        html += '<span class="production-raw-origin-toggle">▶</span> ';
+        html += 'Todos los campos (' + remaining.length + ')';
+        html += '</div>';
+        html += '<div class="production-raw-origin-body">';
+        for (var ri = 0; ri < remaining.length; ri++) {
+            html += '<div class="production-creation-summary-row"><span class="production-creation-summary-key">' + escapeHtml(remaining[ri].label) + '</span><span class="production-creation-summary-value">' + escapeHtml(remaining[ri].value) + '</span></div>';
+        }
+        html += '</div></div>';
     }
 
-    entries.sort(function (a, b) { return a.label.localeCompare(b.label); });
-
-    var html = '<section class="production-subgroup">';
-    html += '<div class="production-subgroup-title">Datos del Cálculo Origen (' + entries.length + ' campos)</div>';
-    html += '<div class="production-summary-grid production-summary-grid-two">';
-    entries.forEach(function (item) {
-        html += '<div class="production-summary-item"><span class="production-summary-label">' + escapeHtml(item.label) + '</span><span class="production-summary-value">' + item.value + '</span></div>';
-    });
-    html += '</div></section>';
-
-    rawEl.innerHTML = html;
+    rawEl.innerHTML = html || '<div class="product-empty-detail">Este producto no tiene datos adicionales.</div>';
 }
 
 async function uploadAttachmentFromProduct(file) {

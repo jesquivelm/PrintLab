@@ -21901,6 +21901,71 @@ app.get('/api/email-log', async (req, res) => {
     }
 });
 
+app.post('/api/admin/migrate-ordenes-resumen', async (req, res) => {
+    try {
+        var result = await pgQuery(`SELECT order_code, raw_data FROM flexo_orders ORDER BY created_at`);
+        var processed = 0, updated = 0, skipped = 0, errors = 0;
+
+        for (var i = 0; i < result.rows.length; i++) {
+            var row = result.rows[i];
+            processed++;
+            try {
+                var raw = row.raw_data || {};
+                var existing = raw.resumen_creacion;
+
+                if (existing && existing.metricas && existing.metricas.pies_lineales_con_merma !== undefined) {
+                    skipped++;
+                    continue;
+                }
+
+                if (!raw.line_snapshot) {
+                    skipped++;
+                    continue;
+                }
+
+                var ls = raw.line_snapshot || {};
+                var lr = ls.raw_data || raw;
+                var summary = buildCreationSummary({
+                    orderCode: row.order_code || raw['ID COTIZACION'] || '',
+                    quoteRow: {
+                        quote_code: raw.quote_snapshot?.quote_code || raw['ID COTIZACION'] || '',
+                        customer_name: raw.quote_snapshot?.customer_name || raw.CLIENTE || '',
+                        customer_code: raw['ID CLIENTE'] || '',
+                        salesperson_name: raw.VENDEDOR || '',
+                        raw_data: raw.quote_snapshot || {}
+                    },
+                    lineRow: {
+                        line_code: raw['ID LINEA'] || ls.lineCode || '',
+                        raw_data: lr,
+                        quantity: ls.quantityProducts || raw['Cantidad Productos'] || 0,
+                        total_cost: raw.totals?.total_cost || raw['PRECIO TOTAL AL FINALIZAR'] || 0,
+                        unit_price: raw.totals?.unit_price || raw['GENERAL | 9 | UNITARIO | DOL'] || 0,
+                        product_code: ls.productCode || raw['CODIGO PRODUCTO'] || '',
+                        finalized_for_order: raw['Finalizado_Para_Orden'] || false
+                    },
+                    frontBackGroup: raw.front_back_group || raw.grupo_frente_dorso || raw.production_run || null,
+                    productionRun: raw.production_run || null,
+                    raw: lr,
+                    lineSnapshot: ls,
+                    totalFeet: raw.totals?.total_feet || ls.materialFeet || 0
+                });
+
+                await pgQuery(
+                    `UPDATE flexo_orders SET raw_data = raw_data || jsonb_build_object('resumen_creacion', $2::jsonb) WHERE order_code = $1`,
+                    [row.order_code, JSON.stringify(summary)]
+                );
+                updated++;
+            } catch (e) {
+                errors++;
+            }
+        }
+
+        res.json({ ok: true, processed: processed, updated: updated, skipped: skipped, errors: errors });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible completar la migración.' });
+    }
+});
+
 const server = app.listen(PORT, () => {
     console.log(`Servidor corriendo en http://localhost:${PORT}`);
 });
