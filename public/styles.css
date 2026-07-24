@@ -18602,18 +18602,19 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
     overflow: hidden;
     text-overflow: ellipsis;
 }
-
-.production-output-type-inline {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
+.production-output-type-wrap {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
 }
 .production-output-type-img {
-    display: inline-flex;
-    align-items: center;
+    display: flex;
+    align-items: flex-start;
+    flex-shrink: 0;
 }
 .production-output-type-img img {
-    max-height: 24px;
+    max-height: 56px;
+    max-width: 100px;
     border-radius: 4px;
     display: block;
 }

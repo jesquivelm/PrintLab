@@ -9144,7 +9144,6 @@
             { key: 'quoteRequestRecord', label: 'Grabar Audio Solicitud', group: 'Acciones Documento', placeholder: '\uD83C\uDFA4', color: '#1e516d', size: 18 },
             { key: 'quoteRequestRecordStop', label: 'Detener Grabacion Solicitud', group: 'Acciones Documento', placeholder: '\u25A0', color: '#1e516d', size: 18 },
             { key: 'quoteRequestAttachmentDelete', label: 'Eliminar Adjunto Solicitud', group: 'Acciones Documento', placeholder: '\u2573', color: '#b94848', size: 18 },
-            { key: 'touchImage', label: 'Imagen de Toque', group: 'Acciones Documento', placeholder: '\uD83D\uDDBC', color: '#0b81b8', size: 18 },
             { key: 'orderPlanning', label: 'Órdenes Control de Planificación', group: 'Órdenes', placeholder: '\u25F3', color: '#1e516d', size: 18 },
             { key: 'orderPlanningRoute', label: 'Órdenes Ruta de Planificación', group: 'Órdenes', placeholder: '\u25F3', color: '#1e516d', size: 18 },
             { key: 'planningProcessFlip', label: 'Planificación Ver Procesos', group: 'Planificación', tab: 'Planificación', section: 'Lanzamiento', placeholder: '\u21C4', color: '#1e516d', size: 18 },
@@ -9476,175 +9475,6 @@
                 preview?.addEventListener('click', () => uploadInput.click());
                 uploadInput.dataset.dieShapeUploadBound = 'true';
             });
-        }
-
-        function updateTouchImageButton() {
-            const btn = document.getElementById('touchImageBtn');
-            const iconEl = document.getElementById('touchImageBtnIcon');
-            const textEl = document.getElementById('touchImageBtnText');
-            const input = document.getElementById('touchImageInput');
-            if (!btn || !input) return;
-            const val = input.value || '';
-            if (val && val.startsWith('data:image')) {
-                iconEl.innerHTML = `<img src="${val}" alt="Toque">`;
-                btn.classList.add('has-image');
-                textEl.textContent = 'Cambiar imagen de toque';
-            } else {
-                iconEl.innerHTML = '\uD83D\uDDBC';
-                btn.classList.remove('has-image');
-                textEl.textContent = 'Configurar imagen de toque';
-            }
-        }
-
-        function initTouchImage() {
-            const overlay = document.getElementById('touchImageModalOverlay');
-            const modal = overlay?.querySelector('.touch-image-modal');
-            const btn = document.getElementById('touchImageBtn');
-            const closeBtn = document.getElementById('touchImageModalClose');
-            const cancelBtn = document.getElementById('touchImageModalCancel');
-            const saveBtn = document.getElementById('touchImageModalSave');
-            const dropzone = document.getElementById('touchImageDropzone');
-            const fileInput = document.getElementById('touchImageFileInput');
-            const hiddenInput = document.getElementById('touchImageInput');
-            const overlayActions = document.getElementById('touchImageOverlayActions');
-            const replaceBtn = document.getElementById('touchImageReplaceBtn');
-            const removeBtn = document.getElementById('touchImageRemoveBtn');
-
-            if (!overlay || !btn) return;
-
-            let currentDataUrl = '';
-
-            function openModal() {
-                currentDataUrl = hiddenInput.value || '';
-                renderDropzonePreview(currentDataUrl);
-                overlay.hidden = false;
-                document.body.classList.add('popover-open');
-            }
-
-            function closeModal() {
-                overlay.hidden = true;
-                document.body.classList.remove('popover-open');
-            }
-
-            function renderDropzonePreview(dataUrl) {
-                const existingImg = dropzone.querySelector('img');
-                const iconEl = dropzone.querySelector('.touch-image-dropzone-icon');
-                const textEl = dropzone.querySelector('.touch-image-dropzone-text');
-                const hintEl = dropzone.querySelector('.touch-image-dropzone-hint');
-                if (dataUrl && dataUrl.startsWith('data:image')) {
-                    if (!existingImg) {
-                        const img = document.createElement('img');
-                        img.src = dataUrl;
-                        img.alt = 'Imagen de toque';
-                        dropzone.appendChild(img);
-                    } else {
-                        existingImg.src = dataUrl;
-                    }
-                    dropzone.classList.add('has-image');
-                    if (iconEl) iconEl.style.display = 'none';
-                    if (textEl) textEl.textContent = '';
-                    if (hintEl) hintEl.textContent = '';
-                    overlayActions.hidden = false;
-                } else {
-                    if (existingImg) existingImg.remove();
-                    dropzone.classList.remove('has-image');
-                    if (iconEl) iconEl.style.display = 'flex';
-                    if (textEl) textEl.textContent = 'Arrastre la imagen aqu\u00ED';
-                    if (hintEl) hintEl.textContent = 'o toque para seleccionar un archivo';
-                    overlayActions.hidden = true;
-                }
-            }
-
-            function handleFile(file) {
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = async (ev) => {
-                    let dataUrl = ev.target?.result || '';
-                    try {
-                        const isSvg = file.type === 'image/svg+xml';
-                        if (!isSvg && dataUrl.startsWith('data:image/')) {
-                            dataUrl = await new Promise((resolve) => {
-                                const img = new Image();
-                                img.onload = () => {
-                                    const MAX_SIZE = 600;
-                                    let w = img.width, h = img.height;
-                                    if (w > MAX_SIZE || h > MAX_SIZE) {
-                                        if (w > h) { h *= MAX_SIZE / w; w = MAX_SIZE; }
-                                        else { w *= MAX_SIZE / h; h = MAX_SIZE; }
-                                    }
-                                    const canvas = document.createElement('canvas');
-                                    canvas.width = w; canvas.height = h;
-                                    const ctx = canvas.getContext('2d');
-                                    ctx.drawImage(img, 0, 0, w, h);
-                                    resolve(canvas.toDataURL('image/webp', 0.85));
-                                };
-                                img.src = dataUrl;
-                            });
-                        }
-                    } catch (e) { console.error(e); }
-                    currentDataUrl = dataUrl;
-                    renderDropzonePreview(dataUrl);
-                };
-                reader.readAsDataURL(file);
-            }
-
-            // Abrir modal
-            btn.addEventListener('click', openModal);
-
-            // Cerrar modal
-            closeBtn?.addEventListener('click', closeModal);
-            cancelBtn?.addEventListener('click', closeModal);
-            overlay.addEventListener('click', (e) => {
-                if (e.target === overlay) closeModal();
-            });
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && !overlay.hidden) closeModal();
-            });
-
-            // Guardar
-            saveBtn?.addEventListener('click', () => {
-                hiddenInput.value = currentDataUrl;
-                updateTouchImageButton();
-                closeModal();
-                queueConfigSave();
-            });
-
-            // Click-to-browse (nativo via label for)
-            fileInput.addEventListener('change', (e) => {
-                handleFile(e.target.files?.[0]);
-                e.target.value = '';
-            });
-
-            // Reemplazar / Eliminar
-            replaceBtn?.addEventListener('click', (e) => {
-                e.stopPropagation();
-                fileInput.click();
-            });
-            removeBtn?.addEventListener('click', (e) => {
-                e.stopPropagation();
-                currentDataUrl = '';
-                renderDropzonePreview('');
-            });
-
-            // Drag & Drop
-            ['dragenter', 'dragover'].forEach((evName) => {
-                dropzone.addEventListener(evName, (e) => {
-                    e.preventDefault();
-                    dropzone.classList.add('is-dragover');
-                });
-            });
-            ['dragleave', 'dragend', 'drop'].forEach((evName) => {
-                dropzone.addEventListener(evName, (e) => {
-                    e.preventDefault();
-                    dropzone.classList.remove('is-dragover');
-                });
-            });
-            dropzone.addEventListener('drop', (e) => {
-                const files = e.dataTransfer?.files;
-                if (files?.length) handleFile(files[0]);
-            });
-
-            updateTouchImageButton();
         }
 
         function getOrCreateIconGroup(row, groupName) {
@@ -17366,7 +17196,6 @@
         enhanceColorInputs();
         bindIconUploadHandlers();
         bindDieShapeUploadHandlers();
-        initTouchImage();
         bindLoginRepositoryEvents();
         bindProformaConfigEvents();
         bindProformaPreviewInteractions();

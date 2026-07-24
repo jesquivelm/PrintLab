@@ -56,7 +56,9 @@
                     <input type="hidden" name="id">
 
                     <div class="socios-section troquel-detail-section-card troquel-section-touch">
-                        <button type="button" id="troquelTouchImageBtn" class="troquel-touch-btn" title="Ver imagen de toque"></button>
+                        <button type="button" id="troquelImageBtn" class="troquel-touch-btn" title="Imagen del troquel"></button>
+                        <input type="hidden" name="image_url" id="troquelImageUrl">
+                        <input type="file" id="troquelImageInput" accept="image/png,image/svg+xml,image/jpeg,image/webp" hidden>
                         <div class="section-caption">Identificación</div>
                         <div class="socios-grid troquel-grid-3 troquel-grid-tight">
                             <div class="field inventory-span-2"><label>Código</label><input name="codigo" type="text" autocomplete="nope"></div>
@@ -139,14 +141,6 @@
                 </div>
             </div>
         </section>
-    </div>
-
-    <div id="troquelTouchModal" class="troquel-touch-modal" hidden>
-        <div class="troquel-touch-modal-backdrop" id="troquelTouchBackdrop"></div>
-        <div class="troquel-touch-modal-panel">
-            <button type="button" class="troquel-touch-modal-close" id="troquelTouchModalClose" aria-label="Cerrar">&times;</button>
-            <div class="troquel-touch-modal-image" id="troquelTouchModalImage"></div>
-        </div>
     </div>
 
     <div id="troquelCreatePopover" class="socios-create-popover" hidden>

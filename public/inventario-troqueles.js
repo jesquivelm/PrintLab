@@ -304,6 +304,8 @@ async function openTroquelDetailModal(code) {
         troquelDetailPopover.hidden = false;
         document.body.classList.add('popover-open');
         troquelDetailForm.querySelector('input[name="codigo"]')?.focus();
+        document.getElementById('troquelImageUrl').value = '';
+        updateTroquelImageBtn('');
         return;
     }
 
@@ -327,6 +329,7 @@ async function openTroquelDetailModal(code) {
             }
             setDetailValue(k, payload[k], !!checkboxKeys[k]);
         });
+        updateTroquelImageBtn(payload.image_url);
     } catch (err) {
         troquelDetailTitle.textContent = 'Error';
         closeTroquelDetailModal();
@@ -535,72 +538,62 @@ document.addEventListener('keydown', (event) => {
     }
 });
 
-let touchImageCache = '';
-let touchIconValue = '';
+let _troquelIconValue = '';
 
-async function loadTouchImage() {
-    if (touchImageCache) return touchImageCache;
+async function loadTroquelIcon() {
+    if (_troquelIconValue) return _troquelIconValue;
     try {
         const res = await fetch('/api/config/general');
         if (!res.ok) return '';
         const config = await res.json();
-        touchImageCache = config.touchImage || '';
-        touchIconValue = config.icons?.touchImage || '';
-        return touchImageCache;
+        _troquelIconValue = config.icons?.touchImage || '';
+        return _troquelIconValue;
     } catch { return ''; }
 }
 
-function applyTouchIcon() {
-    const btn = document.getElementById('troquelTouchImageBtn');
+function updateTroquelImageBtn(dataUrl) {
+    const btn = document.getElementById('troquelImageBtn');
     if (!btn) return;
-    if (touchIconValue && touchIconValue.startsWith('data:image')) {
-        btn.innerHTML = `<img src="${escapeHtml(touchIconValue)}" alt="">`;
-    } else if (touchIconValue) {
-        btn.innerHTML = `<span class="icon-glyph">${escapeHtml(touchIconValue)}</span>`;
+    if (dataUrl && dataUrl.startsWith('data:image')) {
+        btn.innerHTML = `<img src="${escapeHtml(dataUrl)}" alt="">`;
+        btn.classList.add('has-image');
     } else {
-        btn.innerHTML = '<span class="icon-glyph">\uD83D\uDDBC</span>';
+        btn.classList.remove('has-image');
+        if (_troquelIconValue && _troquelIconValue.startsWith('data:image')) {
+            btn.innerHTML = `<img src="${escapeHtml(_troquelIconValue)}" alt="">`;
+        } else if (_troquelIconValue) {
+            btn.innerHTML = `<span class="icon-glyph">${escapeHtml(_troquelIconValue)}</span>`;
+        } else {
+            btn.innerHTML = '<span class="icon-glyph">\uD83D\uDDBC</span>';
+        }
     }
 }
 
-document.getElementById('troquelTouchImageBtn')?.addEventListener('click', async () => {
-    const modal = document.getElementById('troquelTouchModal');
-    const container = document.getElementById('troquelTouchModalImage');
-    if (!modal || !container) return;
-    const dataUrl = await loadTouchImage();
-    if (dataUrl && dataUrl.startsWith('data:image')) {
-        container.innerHTML = `<img src="${escapeHtml(dataUrl)}" alt="Imagen de toque">`;
-    } else {
-        container.innerHTML = '<div class="troquel-touch-empty">No hay imagen de toque configurada.</div>';
-    }
-    modal.hidden = false;
-    document.body.classList.add('popover-open');
+document.getElementById('troquelImageBtn')?.addEventListener('click', function () {
+    document.getElementById('troquelImageInput')?.click();
 });
 
-function closeTroquelTouchModal() {
-    const modal = document.getElementById('troquelTouchModal');
-    if (!modal) return;
-    modal.hidden = true;
-    document.body.classList.remove('popover-open');
-}
-
-document.getElementById('troquelTouchModalClose')?.addEventListener('click', closeTroquelTouchModal);
-document.getElementById('troquelTouchBackdrop')?.addEventListener('click', closeTroquelTouchModal);
-
-document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') {
-        const modal = document.getElementById('troquelTouchModal');
-        if (modal && !modal.hidden) closeTroquelTouchModal();
-    }
+document.getElementById('troquelImageInput')?.addEventListener('change', function (e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function (ev) {
+        const dataUrl = ev.target?.result;
+        if (typeof dataUrl !== 'string') return;
+        document.getElementById('troquelImageUrl').value = dataUrl;
+        updateTroquelImageBtn(dataUrl);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
 });
 
 async function init() {
     try {
         await loadConfig();
+        await loadTroquelIcon();
         populateFormatoSelects();
         populateDetailFormatoSelect();
         await loadTroqueles();
-        await loadTouchImage();
-        applyTouchIcon();
     } catch (error) {
         troquelesTableBody.innerHTML = `<tr><td colspan="12">${escapeHtml(error.message)}</td></tr>`;
     }
