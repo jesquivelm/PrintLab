@@ -17,7 +17,7 @@ $SECONDARY_LOG = Join-Path -Path $SECONDARY_BACKUP_PATH -ChildPath "respaldo_pri
 
 # Fecha para el nombre del archivo
 $DATE = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-$BACKUP_FILE = "printlab_$DATE.sql"
+$BACKUP_FILE = "printlab_$DATE.backup"
 
 # Funcion para escribir en el log
 function Write-Log {
@@ -53,7 +53,7 @@ Write-Log "Base de datos: $DB_NAME" $PRIMARY_LOG
 Write-Log "Archivo de respaldo: $BACKUP_FILE" $PRIMARY_LOG
 
 try {
-    & "$PG_BIN\pg_dump.exe" -U $DB_USER -d $DB_NAME -F p -f $PRIMARY_FILE 2>&1 | Out-Null
+    & "$PG_BIN\pg_dump.exe" -U $DB_USER -d $DB_NAME -F c -f $PRIMARY_FILE 2>&1 | Out-Null
     
     if ($LASTEXITCODE -eq 0) {
         $FILE_SIZE = (Get-Item $PRIMARY_FILE).Length / 1MB
@@ -110,7 +110,7 @@ $ELIMINADOS_PRIMARIOS = 0
 $ELIMINADOS_SECUNDARIOS = 0
 
 # Limpiar en ruta primaria
-Get-ChildItem -Path $PRIMARY_BACKUP_PATH -Filter "printlab_*.sql" | Where-Object { $_.LastWriteTime -lt $CUTOFF_DATE } | ForEach-Object {
+Get-ChildItem -Path $PRIMARY_BACKUP_PATH -Filter "printlab_*.backup" | Where-Object { $_.LastWriteTime -lt $CUTOFF_DATE } | ForEach-Object {
     Remove-Item $_.FullName -Force
     Write-Host "Eliminado: $($_.Name)" -ForegroundColor Yellow
     Write-Log "Eliminado primario: $($_.Name)" $PRIMARY_LOG
@@ -118,7 +118,7 @@ Get-ChildItem -Path $PRIMARY_BACKUP_PATH -Filter "printlab_*.sql" | Where-Object
 }
 
 # Limpiar en ruta secundaria
-Get-ChildItem -Path $SECONDARY_BACKUP_PATH -Filter "printlab_*.sql" | Where-Object { $_.LastWriteTime -lt $CUTOFF_DATE } | ForEach-Object {
+Get-ChildItem -Path $SECONDARY_BACKUP_PATH -Filter "printlab_*.backup" | Where-Object { $_.LastWriteTime -lt $CUTOFF_DATE } | ForEach-Object {
     Remove-Item $_.FullName -Force
     Write-Host "Eliminado: $($_.Name)" -ForegroundColor Yellow
     Write-Log "Eliminado secundario: $($_.Name)" $PRIMARY_LOG
@@ -129,8 +129,8 @@ Get-ChildItem -Path $SECONDARY_BACKUP_PATH -Filter "printlab_*.sql" | Where-Obje
 Remove-Item Env:\PGPASSWORD
 
 # Contar respaldos actuales
-$TOTAL_PRIMARIOS = (Get-ChildItem -Path $PRIMARY_BACKUP_PATH -Filter "printlab_*.sql" -ErrorAction SilentlyContinue).Count
-$TOTAL_SECUNDARIOS = (Get-ChildItem -Path $SECONDARY_BACKUP_PATH -Filter "printlab_*.sql" -ErrorAction SilentlyContinue).Count
+$TOTAL_PRIMARIOS = (Get-ChildItem -Path $PRIMARY_BACKUP_PATH -Filter "printlab_*.backup" -ErrorAction SilentlyContinue).Count
+$TOTAL_SECUNDARIOS = (Get-ChildItem -Path $SECONDARY_BACKUP_PATH -Filter "printlab_*.backup" -ErrorAction SilentlyContinue).Count
 
 Write-Log "Respaldos eliminados primaria: $ELIMINADOS_PRIMARIOS" $PRIMARY_LOG
 Write-Log "Respaldos eliminados secundaria: $ELIMINADOS_SECUNDARIOS" $PRIMARY_LOG
