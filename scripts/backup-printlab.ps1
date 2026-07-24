@@ -56,7 +56,31 @@ try {
     Write-Host "Error: $_" -ForegroundColor Red
 }
 
+# Eliminar respaldos mayores a 14 dias
+Write-Host "Eliminando respaldos mayores a 14 dias..." -ForegroundColor Cyan
+
+$DAYS_TO_KEEP = 14
+$CUTOFF_DATE = (Get-Date).AddDays(-$DAYS_TO_KEEP)
+
+# Limpiar en ruta primaria
+Get-ChildItem -Path $PRIMARY_BACKUP_PATH -Filter "printlab_*.sql" | Where-Object { $_.LastWriteTime -lt $CUTOFF_DATE } | ForEach-Object {
+    Remove-Item $_.FullName -Force
+    Write-Host "Eliminado: $($_.Name)" -ForegroundColor Yellow
+}
+
+# Limpiar en ruta secundaria
+Get-ChildItem -Path $SECONDARY_BACKUP_PATH -Filter "printlab_*.sql" | Where-Object { $_.LastWriteTime -lt $CUTOFF_DATE } | ForEach-Object {
+    Remove-Item $_.FullName -Force
+    Write-Host "Eliminado: $($_.Name)" -ForegroundColor Yellow
+}
+
 # Limpiar variable de entorno
 Remove-Item Env:\PGPASSWORD
+
+# Contar respaldos actuales
+$TOTAL_PRIMARIOS = (Get-ChildItem -Path $PRIMARY_BACKUP_PATH -Filter "printlab_*.sql" -ErrorAction SilentlyContinue).Count
+$TOTAL_SECUNDARIOS = (Get-ChildItem -Path $SECONDARY_BACKUP_PATH -Filter "printlab_*.sql" -ErrorAction SilentlyContinue).Count
+Write-Host "Respaldos en ruta primaria: $TOTAL_PRIMARIOS" -ForegroundColor Green
+Write-Host "Respaldos en ruta secundaria: $TOTAL_SECUNDARIOS" -ForegroundColor Green
 
 Write-Host "Proceso completado" -ForegroundColor Cyan
