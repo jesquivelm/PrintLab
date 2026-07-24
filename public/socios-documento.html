@@ -28,6 +28,7 @@
 
         <nav class="socios-detail-tabs standard-module-tabs" aria-label="Detalle del socio">
             <button type="button" class="standard-module-tab is-active" data-socio-tab="cliente">Datos del Cliente</button>
+            <button type="button" class="standard-module-tab" data-socio-tab="contacto">Contacto y Direcciones</button>
             <button type="button" class="standard-module-tab" data-socio-tab="manejo">Manejo y Entrega</button>
         </nav>
 
@@ -52,25 +53,27 @@
                         <div class="field"><label>Moneda</label><input id="currencyCode" type="text"></div>
                         <div class="field"><label>Sector</label><input id="sector" type="text"></div>
                         <div class="field"><label>Sub-sector</label><input id="subSector" type="text"></div>
-                        <div class="field field-checkbox-inline">
+                        <div class="field field-checkbox-inline checkbox-formato">
                             <label for="taxExempt">Socio Exento</label>
                             <input id="taxExempt" type="checkbox">
                         </div>
                     </div>
                 </div>
 
+                </div>
+
                 <div class="socios-section socios-quality-section">
                     <div class="section-caption">Información de Calidad</div>
                     <div class="socios-grid socios-grid-quality">
-                        <div class="field field-checkbox-inline">
+                        <div class="field field-checkbox-inline checkbox-formato">
                             <label for="requiereCartilla">Cartilla</label>
                             <input id="requiereCartilla" type="checkbox">
                         </div>
-                        <div class="field field-checkbox-inline">
+                        <div class="field field-checkbox-inline checkbox-formato">
                             <label for="requiereCertificado">Certificado</label>
                             <input id="requiereCertificado" type="checkbox">
                         </div>
-                        <div class="field field-checkbox-inline">
+                        <div class="field field-checkbox-inline checkbox-formato">
                             <label for="usarCartilla">Usar Cartilla</label>
                             <input id="usarCartilla" type="checkbox">
                         </div>
@@ -79,74 +82,78 @@
                 </div>
             </div>
 
-            <div class="socios-section">
-                <div class="section-caption">Contacto Principal</div>
-                <div class="socios-contact-layout">
-                    <div class="socios-grid socios-grid-contact">
-                        <div class="field"><label>Nombre</label><input id="contactFirstName" type="text"></div>
-                        <div class="field"><label>Apellido</label><input id="contactLastName" type="text"></div>
-                        <div class="field"><label>Identificación</label><input id="contactId" type="text"></div>
-                        <div class="field"><label>Celular</label><input id="contactMobile" type="text"></div>
-                        <div class="field"><label>Correo</label><input id="contactEmail" type="text"></div>
-                        <div class="field"><label>Fax</label><input id="contactFax" type="text"></div>
-                        <div class="field"><label>Teléfono</label><input id="contactPhone" type="text"></div>
-                        <div class="field field-checkbox-inline">
-                            <label for="contactLegalRepresentative">Rep. Legal</label>
-                            <input id="contactLegalRepresentative" type="checkbox">
+            <div id="socio-tab-contacto" class="socios-tab-panel" data-socio-panel="contacto" hidden>
+                <div class="socios-overview-layout">
+                    <div class="socios-section">
+                        <div class="section-caption">Contacto Principal</div>
+                        <div class="socios-contact-layout">
+                            <div class="socios-grid socios-grid-contact">
+                                <div class="field"><label>Nombre</label><input id="contactFirstName" type="text"></div>
+                                <div class="field"><label>Apellido</label><input id="contactLastName" type="text"></div>
+                                <div class="field"><label>Identificación</label><input id="contactId" type="text"></div>
+                                <div class="field"><label>Celular</label><input id="contactMobile" type="text"></div>
+                                <div class="field"><label>Correo</label><input id="contactEmail" type="text"></div>
+                                <div class="field"><label>Fax</label><input id="contactFax" type="text"></div>
+                                <div class="field"><label>Teléfono</label><input id="contactPhone" type="text"></div>
+                                <div class="field field-checkbox-inline checkbox-formato">
+                                    <label for="contactLegalRepresentative">Rep. Legal</label>
+                                    <input id="contactLegalRepresentative" type="checkbox">
+                                </div>
+                                <div class="field"><label>País</label><input id="contactCountry" type="text"></div>
+                                <div class="field"><label>Estado o Provincia</label><input id="contactState" type="text"></div>
+                                <div class="field"><label>Cantón</label><input id="contactCounty" type="text"></div>
+                                <div class="field field-full"><label>Detalle de Dirección</label><input id="contactAddress" type="text"></div>
+                            </div>
+                            <aside class="socios-map-card">
+                                <div class="socios-map-head">
+                                    <span>Ubicación</span>
+                                    <a id="contactMapLink" href="https://maps.google.com/" target="_blank" rel="noopener noreferrer" class="browser-open-link socios-map-open" aria-label="Abrir ubicación en Google Maps">↗</a>
+                                </div>
+                                <p id="contactMapSummary" class="socios-map-summary">Buscando referencia de la dirección del socio.</p>
+                                <iframe id="contactMapFrame" class="socios-map-frame" title="Mapa del socio" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                            </aside>
                         </div>
-                        <div class="field"><label>País</label><input id="contactCountry" type="text"></div>
-                        <div class="field"><label>Estado o Provincia</label><input id="contactState" type="text"></div>
-                        <div class="field"><label>Cantón</label><input id="contactCounty" type="text"></div>
-                        <div class="field field-full"><label>Detalle de Dirección</label><input id="contactAddress" type="text"></div>
-                    </div>
-                    <aside class="socios-map-card">
-                        <div class="socios-map-head">
-                            <span>Ubicación</span>
-                            <a id="contactMapLink" href="https://maps.google.com/" target="_blank" rel="noopener noreferrer" class="browser-open-link socios-map-open" aria-label="Abrir ubicación en Google Maps">↗</a>
-                        </div>
-                        <p id="contactMapSummary" class="socios-map-summary">Buscando referencia de la dirección del socio.</p>
-                        <iframe id="contactMapFrame" class="socios-map-frame" title="Mapa del socio" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
-                    </aside>
-                </div>
-            </div>
-
-            <div class="socios-related-layout">
-                <div class="socios-section">
-                    <div class="section-caption">Contactos del Socio</div>
-                    <div class="socios-table-wrap">
-                        <table class="quote-table socios-table">
-                            <thead>
-                                <tr>
-                                    <th>Nombre</th>
-                                    <th>Puesto</th>
-                                    <th>Email</th>
-                                    <th>Teléfono</th>
-                                    <th>Celular</th>
-                                    <th>Rep. Legal</th>
-                                    <th>Provincia</th>
-                                </tr>
-                            </thead>
-                            <tbody id="contactsTableBody"></tbody>
-                        </table>
                     </div>
                 </div>
 
-                <div class="socios-section">
-                    <div class="section-caption">Direcciones del Socio</div>
-                    <div class="socios-table-wrap">
-                        <table class="quote-table socios-table">
-                            <thead>
-                                <tr>
-                                    <th>Nombre</th>
-                                    <th>Tipo</th>
-                                    <th>País</th>
-                                    <th>Provincia</th>
-                                    <th>Cantón</th>
-                                    <th>Dirección</th>
-                                </tr>
-                            </thead>
-                            <tbody id="addressesTableBody"></tbody>
-                        </table>
+                <div class="socios-related-layout">
+                    <div class="socios-section">
+                        <div class="section-caption">Contactos del Socio</div>
+                        <div class="socios-table-wrap">
+                            <table class="quote-table socios-table">
+                                <thead>
+                                    <tr>
+                                        <th>Nombre</th>
+                                        <th>Puesto</th>
+                                        <th>Email</th>
+                                        <th>Teléfono</th>
+                                        <th>Celular</th>
+                                        <th>Rep. Legal</th>
+                                        <th>Provincia</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="contactsTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="socios-section">
+                        <div class="section-caption">Direcciones del Socio</div>
+                        <div class="socios-table-wrap">
+                            <table class="quote-table socios-table">
+                                <thead>
+                                    <tr>
+                                        <th>Nombre</th>
+                                        <th>Tipo</th>
+                                        <th>País</th>
+                                        <th>Provincia</th>
+                                        <th>Cantón</th>
+                                        <th>Dirección</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="addressesTableBody"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
