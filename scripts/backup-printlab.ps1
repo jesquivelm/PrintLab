@@ -5,6 +5,7 @@
 $DB_NAME = "printlab"
 $DB_USER = "postgres"
 $DB_PASSWORD = "Calg.1984"
+$PG_BIN = "C:\Program Files\PostgreSQL\18\bin"
 
 # Rutas de respaldo
 $PRIMARY_BACKUP_PATH = "E:\Respaldo Github\PrintLab\Respaldo Base Datos"
@@ -36,7 +37,7 @@ $env:PGPASSWORD = $DB_PASSWORD
 Write-Host "Iniciando respaldo de la base de datos $DB_NAME..." -ForegroundColor Cyan
 
 try {
-    & pg_dump -U $DB_USER -d $DB_NAME -F p -f $PRIMARY_FILE 2>&1
+    & "$PG_BIN\pg_dump.exe" -U $DB_USER -d $DB_NAME -F p -f $PRIMARY_FILE 2>&1
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host "Respaldo creado exitosamente en: $PRIMARY_FILE" -ForegroundColor Green
