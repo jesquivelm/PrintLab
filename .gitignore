@@ -27,6 +27,8 @@ storage/quote-line-attachments/
 *.err
 *.out
 *.log
+*.zip
+*.rar
 ~$*
 
 # ==========================================
