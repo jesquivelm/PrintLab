@@ -123,6 +123,17 @@ function setValue(key, value) {
   fields[key].value = value || '';
 }
 
+function getValue(key) {
+  if (!fields[key]) return null;
+  if (fields[key].type === 'checkbox') {
+    return fields[key].checked;
+  }
+  if (fields[key].tagName === 'SELECT') {
+    return fields[key].value;
+  }
+  return fields[key].value;
+}
+
 function booleanText(value) {
   if (value === true) return 'Sí';
   if (value === false) return 'No';
@@ -265,7 +276,7 @@ function renderContacts(contacts) {
       <td>${escapeHtml(contact.email)}</td>
       <td>${escapeHtml(contact.phone)}</td>
       <td>${escapeHtml(contact.mobile)}</td>
-      <td><span class="socios-table-check"><input type="checkbox" disabled${legalRepresentativeFlag(contact) ? ' checked' : ''}></span></td>
+      <td><span class="socios-table-check checkbox-formato"><label for="contactLegalRep-${contact.id}">Rep. Legal</label><input id="contactLegalRep-${contact.id}" type="checkbox" disabled${legalRepresentativeFlag(contact) ? ' checked' : ''}></span></td>
       <td>${escapeHtml(contact.state_province)}</td>
     </tr>
   `).join('');
@@ -487,6 +498,7 @@ async function loadSocio(code, pushState = true) {
     url.searchParams.set('codigo', currentSocioCode);
     window.history.replaceState({}, '', url);
   }
+  setupAutoSave();
 }
 
 function moveSocio(step) {
@@ -501,6 +513,113 @@ nextSocioButton?.addEventListener('click', () => moveSocio(1));
 socioTabButtons.forEach((button) => {
   button.addEventListener('click', () => activateSocioTab(button.dataset.socioTab || 'cliente'));
 });
+
+function buildSavePayload() {
+  return {
+    salesperson: getValue('salesperson'),
+    generalEmail: getValue('generalEmail'),
+    taxId: getValue('taxId'),
+    invoiceEmail: getValue('invoiceEmail'),
+    paymentTerms: getValue('paymentTerms'),
+    currencyCode: getValue('currencyCode'),
+    sector: getValue('sector'),
+    subSector: getValue('subSector'),
+    taxExempt: getValue('taxExempt'),
+    requiereCartilla: getValue('requiereCartilla'),
+    requiereCertificado: getValue('requiereCertificado'),
+    usarCartilla: getValue('usarCartilla'),
+    unidadDefecto: getValue('unidadDefecto'),
+    contactFirstName: getValue('contactFirstName'),
+    contactLastName: getValue('contactLastName'),
+    contactId: getValue('contactId'),
+    contactMobile: getValue('contactMobile'),
+    contactEmail: getValue('contactEmail'),
+    contactFax: getValue('contactFax'),
+    contactPhone: getValue('contactPhone'),
+    contactLegalRepresentative: getValue('contactLegalRepresentative'),
+    contactCountry: getValue('contactCountry'),
+    contactState: getValue('contactState'),
+    contactCounty: getValue('contactCounty'),
+    contactAddress: getValue('contactAddress'),
+    manejoExcedentes: getValue('manejoExcedentes'),
+    allowedPercentage: getValue('allowedPercentage'),
+    manejoAdelantos: getValue('manejoAdelantos'),
+    manejoFaltantes: getValue('manejoFaltantes'),
+    entregaMuestras: getValue('entregaMuestras'),
+    contactoVB: getValue('contactoVB'),
+    contactoProducto: getValue('contactoProducto'),
+    indicacionesEntrega: getValue('indicacionesEntrega'),
+    indicacionesVB: getValue('indicacionesVB'),
+    indicacionesProducto: getValue('indicacionesProducto'),
+  };
+}
+
+let saveTimeout = null;
+function scheduleAutoSave() {
+  if (saveTimeout) clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(() => performAutoSave(), 400);
+}
+
+async function performAutoSave() {
+  if (!currentSocioCode) return;
+  try {
+    const payload = buildSavePayload();
+    const response = await fetch(`${SOCIOS_ENDPOINT}/${encodeURIComponent(currentSocioCode)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) throw new Error('Error al guardar');
+    const result = await response.json();
+    if (result.socio && result.socio.partner_code && result.socio.partner_code !== currentSocioCode) {
+      currentSocioCode = result.socio.partner_code;
+    }
+  } catch (e) {
+    console.error('Auto-save failed:', e);
+  }
+}
+
+function setupAutoSave() {
+  const textInputs = [
+    'salesperson', 'generalEmail', 'taxId', 'invoiceEmail', 'paymentTerms',
+    'currencyCode', 'sector', 'subSector', 'unidadDefecto',
+    'contactFirstName', 'contactLastName', 'contactId', 'contactMobile',
+    'contactEmail', 'contactFax', 'contactPhone', 'contactCountry',
+    'contactState', 'contactCounty', 'contactAddress',
+    'allowedPercentage', 'indicacionesEntrega', 'indicacionesVB', 'indicacionesProducto'
+  ];
+
+  textInputs.forEach(key => {
+    const field = fields[key];
+    if (field && !field.readOnly) {
+      field.addEventListener('blur', scheduleAutoSave);
+    }
+  });
+
+  const selectKeys = [
+    'manejoExcedentes', 'manejoAdelantos', 'manejoFaltantes',
+    'entregaMuestras', 'contactoVB', 'contactoProducto'
+  ];
+
+  selectKeys.forEach(key => {
+    const field = fields[key];
+    if (field) {
+      field.addEventListener('change', scheduleAutoSave);
+    }
+  });
+
+  const checkboxKeys = [
+    'taxExempt', 'requiereCartilla', 'requiereCertificado',
+    'usarCartilla', 'contactLegalRepresentative'
+  ];
+
+  checkboxKeys.forEach(key => {
+    const field = fields[key];
+    if (field) {
+      field.addEventListener('change', scheduleAutoSave);
+    }
+  });
+}
 
 async function init() {
   const codigo = new URLSearchParams(window.location.search).get('codigo');

@@ -11773,6 +11773,145 @@ app.get('/api/socios/:codigo', async (req, res) => {
         res.status(500).json({ error: error.message || 'No fue posible cargar el socio.' });
     }
 });
+    
+app.put('/api/socios/:codigo', async (req, res) => {
+    try {
+        const { codigo } = req.params;
+        const body = req.body || {};
+
+        const partnerResult = await pgQuery(
+            `SELECT partner_code, partner_name, raw_data FROM business_partners WHERE partner_code = $1`,
+            [codigo]
+        );
+
+        if (!partnerResult.rows.length) {
+            return res.status(404).json({ error: 'Socio no encontrado.' });
+        }
+
+        const currentRaw = partnerResult.rows[0].raw_data || {};
+        const socioRaw = currentRaw.socio || {};
+
+        function toBool(v) {
+            return v === true || v === 'true' || v === 'sí' || v === 'si' || v === '1' || v === 'yes';
+        }
+
+        const updatedSocioRaw = {
+            ...socioRaw,
+            'CLIENTE EXENTO MOSTRAR': toBool(body.taxExempt) ? 'Sí' : 'No',
+            'CALIDAD | REQUIERE CARTILLA COLOR | CHECK': toBool(body.requiereCartilla) ? 'Sí' : 'No',
+            'CALIDAD | REQUIERE CERTIFICADO CALIDAD | CHECK': toBool(body.requiereCertificado) ? 'Sí' : 'No',
+            'CALIDAD | USAR CARTILLA COLOR | CHECK': toBool(body.usarCartilla) ? 'Sí' : 'No',
+            'UNIDAD POR DEFECTO': 'unidadDefecto' in body ? (body.unidadDefecto || null) : socioRaw['UNIDAD POR DEFECTO'],
+            'MANEJO EXCEDENTES': 'manejoExcedentes' in body ? (body.manejoExcedentes || null) : socioRaw['MANEJO EXCEDENTES'],
+            'MANEJO EXCEDENTES | PORCENTAJE': 'allowedPercentage' in body ? (body.allowedPercentage !== '' ? body.allowedPercentage : null) : socioRaw['MANEJO EXCEDENTES | PORCENTAJE'],
+            'MANEJO ADELANTOS': 'manejoAdelantos' in body ? (body.manejoAdelantos || null) : socioRaw['MANEJO ADELANTOS'],
+            'MANEJO FALTANTES': 'manejoFaltantes' in body ? (body.manejoFaltantes || null) : socioRaw['MANEJO FALTANTES'],
+            'FORMA ENTREGA | MUESTRAS': 'entregaMuestras' in body ? (body.entregaMuestras || null) : socioRaw['FORMA ENTREGA | MUESTRAS'],
+            'FORMA ENTREGA | CONTACTO VB': 'contactoVB' in body ? (body.contactoVB || null) : socioRaw['FORMA ENTREGA | CONTACTO VB'],
+            'FORMA ENTREGA | CONTACTO PRODUCTO': 'contactoProducto' in body ? (body.contactoProducto || null) : socioRaw['FORMA ENTREGA | CONTACTO PRODUCTO'],
+            'FORMA ENTREGA | INDICACIONES': 'indicacionesEntrega' in body ? (body.indicacionesEntrega || null) : socioRaw['FORMA ENTREGA | INDICACIONES'],
+            'FORMA ENTREGA | INDICACIONES VB': 'indicacionesVB' in body ? (body.indicacionesVB || null) : socioRaw['FORMA ENTREGA | INDICACIONES VB'],
+            'FORMA ENTREGA | INDICACIONES PRODUCTO': 'indicacionesProducto' in body ? (body.indicacionesProducto || null) : socioRaw['FORMA ENTREGA | INDICACIONES PRODUCTO'],
+        };
+
+        const updatedRaw = { ...currentRaw, socio: updatedSocioRaw };
+
+        const allowedPct = 'allowedPercentage' in body ? (body.allowedPercentage !== '' ? Number(body.allowedPercentage) : null) : null;
+
+        await pgQuery(
+            `UPDATE business_partners
+             SET salesperson_name = $1,
+                 email = $2,
+                 email_facturacion = $3,
+                 tax_id = $4,
+                 currency_code = $5,
+                 payment_terms = $6,
+                 sector = $7,
+                 sub_sector = $8,
+                 is_tax_exempt = $9,
+                 allowed_percentage = $10,
+                 raw_data = $11,
+                 updated_at = NOW()
+             WHERE partner_code = $12`,
+            [
+                'salesperson' in body ? (body.salesperson || null) : null,
+                'generalEmail' in body ? (body.generalEmail || null) : null,
+                'invoiceEmail' in body ? (body.invoiceEmail || null) : null,
+                'taxId' in body ? (body.taxId || null) : null,
+                'currencyCode' in body ? (body.currencyCode || null) : null,
+                'paymentTerms' in body ? (body.paymentTerms || null) : null,
+                'sector' in body ? (body.sector || null) : null,
+                'subSector' in body ? (body.subSector || null) : null,
+                toBool(body.taxExempt),
+                allowedPct,
+                JSON.stringify(updatedRaw),
+                codigo
+            ]
+        );
+
+        const contactsResult = await pgQuery(
+            `SELECT id FROM business_partner_contacts WHERE partner_code = $1 ORDER BY id LIMIT 1`,
+            [codigo]
+        );
+
+        if (contactsResult.rows.length) {
+            const contactId = contactsResult.rows[0].id;
+            const currentContact = await pgQuery(
+                `SELECT raw_data FROM business_partner_contacts WHERE id = $1`,
+                [contactId]
+            );
+            const contactRaw = (currentContact.rows[0] && currentContact.rows[0].raw_data) || {};
+
+            const updatedContactRaw = {
+                ...contactRaw,
+                IDENTIFICACION: 'contactId' in body ? (body.contactId || null) : contactRaw.IDENTIFICACION,
+                ADDRESS: 'contactAddress' in body ? (body.contactAddress || null) : contactRaw.ADDRESS,
+            };
+
+            await pgQuery(
+                `UPDATE business_partner_contacts
+                 SET first_name = $1,
+                     last_name = $2,
+                     email = $3,
+                     phone = $4,
+                     mobile = $5,
+                     fax = $6,
+                     is_legal_representative = $7,
+                     country = $8,
+                     state_province = $9,
+                     county = $10,
+                     raw_data = $11
+                 WHERE id = $12`,
+                [
+                    'contactFirstName' in body ? (body.contactFirstName || null) : null,
+                    'contactLastName' in body ? (body.contactLastName || null) : null,
+                    'contactEmail' in body ? (body.contactEmail || null) : null,
+                    'contactPhone' in body ? (body.contactPhone || null) : null,
+                    'contactMobile' in body ? (body.contactMobile || null) : null,
+                    'contactFax' in body ? (body.contactFax || null) : null,
+                    toBool(body.contactLegalRepresentative),
+                    'contactCountry' in body ? (body.contactCountry || null) : null,
+                    'contactState' in body ? (body.contactState || null) : null,
+                    'contactCounty' in body ? (body.contactCounty || null) : null,
+                    JSON.stringify(updatedContactRaw),
+                    contactId
+                ]
+            );
+        }
+
+        const updated = await pgQuery(
+            `SELECT partner_code, partner_name, salesperson_name, tax_id, email, email_facturacion,
+                    currency_code, payment_terms, sector, sub_sector, is_tax_exempt, allowed_percentage,
+                    client_type, creation_date, raw_data
+             FROM business_partners WHERE partner_code = $1`,
+            [codigo]
+        );
+
+        res.json({ socio: updated.rows[0], message: 'Socio actualizado correctamente.' });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible actualizar el socio.' });
+    }
+});
 
 app.get('/api/socios/:codigo/contactos', async (req, res) => {
     try {
@@ -12230,7 +12369,8 @@ app.get('/api/productos/:codigo', async (req, res) => {
                 created_at: row.created_at || '',
                 total_cost: parseLegacyNumber(row.total_cost),
                 unit_price: parseLegacyNumber(row.unit_price),
-                job_name: getProductNameFromRaw(row.line_raw_data || {}, row.quoted_product_code || row.line_code || '')
+                job_name: getProductNameFromRaw(row.line_raw_data || {}, row.quoted_product_code || row.line_code || ''),
+                line_raw_data: row.line_raw_data || null
             })),
             attachments: [
                 ...storedAttachmentsResult.rows.map((row) => ({
