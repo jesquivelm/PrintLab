@@ -2440,6 +2440,10 @@ async function loadCatalog(selectId = '') {
         renderForm(selectedItem);
     } else if (isMaterialsInventory() && !selectId) {
         updateInventoryView('list');
+    } else if (page.inventoryKey === 'maquinas' && selectedItem) {
+        openMachineModal(selectedItem);
+    } else if (page.inventoryKey === 'maquinas' && !selectId) {
+        updateInventoryView('list');
     } else {
         renderForm(selectedItem || page.createEmptyItem());
         updateInventoryView(currentView === 'detail' && selectedItem && isTroquelesInventory() ? 'detail' : 'list', selectedItem?.id || '');
