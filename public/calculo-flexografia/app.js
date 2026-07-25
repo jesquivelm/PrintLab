@@ -3252,41 +3252,30 @@ function materialsByClassification(family = "", keywords = []) {
 }
 
 function getFinishMaterialOptions(family, keywords) {
-  const dbMaterials = materialsByClassification(family, keywords);
-  const acabadosMaterials = [];
+  const options = [];
   const costsConfig = state.costsConfig;
-  if (costsConfig && costsConfig.acabados) {
-    const normalizedFamily = norm(family);
-    if (normalizedFamily === "barniz" && Array.isArray(costsConfig.acabados.barniz)) {
-      costsConfig.acabados.barniz.forEach((item) => {
-        if (item.nombre) {
-          acabadosMaterials.push({ id: item.id || item.nombre, nombre: item.nombre });
-        }
-      });
-    } else if (normalizedFamily === "laminado" && Array.isArray(costsConfig.acabados.laminado)) {
-      costsConfig.acabados.laminado.forEach((item) => {
-        if (item.nombre) {
-          acabadosMaterials.push({ id: item.id || item.nombre, nombre: item.nombre });
-        }
-      });
-    } else if ((normalizedFamily === "foil" || normalizedFamily === "estampado") && Array.isArray(costsConfig.acabados.estampado)) {
-      costsConfig.acabados.estampado.forEach((item) => {
-        if (item.tipoFoil) {
-          acabadosMaterials.push({ id: item.id || item.tipoFoil, nombre: item.tipoFoil });
-        }
-      });
-    }
-  }
-  const combined = dbMaterials.map((item) => ({ id: item.id, nombre: item.descripcion || item.nombre || item.id }));
-  if (acabadosMaterials.length) {
-    const existingIds = new Set(combined.map((item) => String(item.id).toLowerCase()));
-    acabadosMaterials.forEach((item) => {
-      if (!existingIds.has(String(item.id).toLowerCase())) {
-        combined.push(item);
+  if (!costsConfig || !costsConfig.acabados) return options;
+  const normalizedFamily = norm(family);
+  if (normalizedFamily === "barniz" && Array.isArray(costsConfig.acabados.barniz)) {
+    costsConfig.acabados.barniz.forEach((item) => {
+      if (item.nombre) {
+        options.push({ id: item.id || item.nombre, nombre: item.nombre });
+      }
+    });
+  } else if (normalizedFamily === "laminado" && Array.isArray(costsConfig.acabados.laminado)) {
+    costsConfig.acabados.laminado.forEach((item) => {
+      if (item.nombre) {
+        options.push({ id: item.id || item.nombre, nombre: item.nombre });
+      }
+    });
+  } else if ((normalizedFamily === "foil" || normalizedFamily === "estampado") && Array.isArray(costsConfig.acabados.estampado)) {
+    costsConfig.acabados.estampado.forEach((item) => {
+      if (item.tipoFoil) {
+        options.push({ id: item.id || item.tipoFoil, nombre: item.tipoFoil });
       }
     });
   }
-  return combined;
+  return options;
 }
 
 function substrateMaterialOptions() {

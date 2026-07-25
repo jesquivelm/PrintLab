@@ -778,7 +778,7 @@ function renderAcabadosBarnizRows(rows) {
         acabadosBarnizTableBody.innerHTML = '<tr><td colspan="5" class="costs-acabados-empty">No hay barnices configurados.</td></tr>';
         return;
     }
-    const deleteIconHtml = getCostsIconHtml('quantity.delete', '&#128465;', '#b94848', 18);
+    const deleteIconHtml = getCostsIconHtml('proformaCurrencyDelete', '&#128465;', '#b94848', 18);
     acabadosBarnizTableBody.innerHTML = items.map((item, index) => `
         <tr>
             <td><input type="text" data-acabados-table="barniz" data-index="${index}" data-field="nombre" value="${escapeHtml(item.nombre)}" placeholder="Nombre del barniz"></td>
@@ -797,7 +797,7 @@ function renderAcabadosLaminadoRows(rows) {
         acabadosLaminadoTableBody.innerHTML = '<tr><td colspan="4" class="costs-acabados-empty">No hay laminados configurados.</td></tr>';
         return;
     }
-    const deleteIconHtml = getCostsIconHtml('quantity.delete', '&#128465;', '#b94848', 18);
+    const deleteIconHtml = getCostsIconHtml('proformaCurrencyDelete', '&#128465;', '#b94848', 18);
     acabadosLaminadoTableBody.innerHTML = items.map((item, index) => `
         <tr>
             <td><input type="text" data-acabados-table="laminado" data-index="${index}" data-field="nombre" value="${escapeHtml(item.nombre)}" placeholder="Nombre del laminado"></td>
@@ -815,7 +815,7 @@ function renderAcabadosEstampadoRows(rows) {
         acabadosEstampadoTableBody.innerHTML = '<tr><td colspan="5" class="costs-acabados-empty">No hay estampados configurados.</td></tr>';
         return;
     }
-    const deleteIconHtml = getCostsIconHtml('quantity.delete', '&#128465;', '#b94848', 18);
+    const deleteIconHtml = getCostsIconHtml('proformaCurrencyDelete', '&#128465;', '#b94848', 18);
     acabadosEstampadoTableBody.innerHTML = items.map((item, index) => `
         <tr>
             <td><input type="text" data-acabados-table="estampado" data-index="${index}" data-field="tipoFoil" value="${escapeHtml(item.tipoFoil)}" placeholder="Tipo de foil"></td>
@@ -1355,17 +1355,19 @@ function getCostsIconHtml(iconKey, fallbackText, fallbackColor, fallbackSize) {
     if (value && String(value).startsWith('data:image')) {
         return `<img src="${value}" style="width:${size}px;height:${size}px;vertical-align:middle;object-fit:contain;">`;
     }
+    if (value && /^\/|https?:\/\//i.test(String(value))) {
+        return `<img src="${escapeHtml(value)}" style="width:${size}px;height:${size}px;vertical-align:middle;object-fit:contain;">`;
+    }
     return `<span style="color:${color};font-size:${size}px;vertical-align:middle;display:inline-block;line-height:1;font-family:'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji',sans-serif;">${value}&#xFE0F;</span>`;
 }
 
 function renderAcabadosAddButtonIcons() {
-    const addConfig = { btn: null, iconKey: 'quantity.add', fallback: '+', color: '#738196', size: 20 };
     [
         { btn: acabadosBarnizAddButton },
         { btn: acabadosLaminadoAddButton },
         { btn: acabadosEstampadoAddButton }
     ].forEach(({ btn }) => {
-        if (btn) btn.innerHTML = getCostsIconHtml('quantity.add', '+', '#738196', 20);
+        if (btn) btn.innerHTML = getCostsIconHtml('proformaCurrencyAdd', '+', '#738196', 20);
     });
 }
 
