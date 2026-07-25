@@ -9808,6 +9808,7 @@ function buildCreationSummary({ orderCode, quoteRow, lineRow, frontBackGroup, pr
     const printing = extractPrintingData({ line_snapshot: ls, production_run: productionRun });
 
     const processType = ls.processType || lr['Proceso Productivo'] || '';
+    const activePrefix = String(processType).toLowerCase().includes('digit') ? 'DIGITAL' : 'CONV';
     const acabados = [];
     const FINISH_SKIP = new Set(['troquelado']);
     (Array.isArray(printing.finishes) ? printing.finishes : []).forEach(function (f) {
@@ -9870,6 +9871,10 @@ function buildCreationSummary({ orderCode, quoteRow, lineRow, frontBackGroup, pr
             msi: ls.materialMsi || 0,
             pies_totales: totalFeet || ls.materialFeet || 0,
             pies_macula: ls.materialFeetWaste || 0,
+            costo_por_pie: parseLegacyNumber(lr['Material | Costo Por Pie']) || parseLegacyNumber(lr[`${activePrefix} | MATERIAL | COSTO POR PIE`]) || 0,
+            costo_total: ls.components?.material || 0,
+            subtotal_sin_minimo: parseLegacyNumber(lr['Material | Subtotal Sin Minimo']) || 0,
+            minimo_aplicado: Boolean(lr['Material | Minimo Aplicado']),
             tipo_aplicacion: ls.applicationType || lr['TIPO ETIQUETADO'] || ''
         },
         maquina: printing.machineName || ls.quotedMachine || lr['MAQUINA IMPRESION'] || lr['CONV | MAQUINA'] || '',
@@ -10488,6 +10493,22 @@ function buildCalculationRawData(payload = {}, existingRawData = {}) {
         rawData[`${activePrefix} | MATERIAL | CANTIDAD MSI`] = roundCurrency(msiValue);
         rawData[`${activePrefix} | MATERIAL | AREA MTS`] = roundCurrency(m2Value);
     }
+    const sustratoUnitCost = parseLegacyNumber(sustratoResult.unitCost);
+    const sustratoSubtotal = parseLegacyNumber(sustratoResult.subtotal);
+    const sustratoRawSubtotal = parseLegacyNumber(sustratoResult.rawSubtotal);
+    if (sustratoUnitCost !== null) {
+        rawData['Material | Costo Por Pie'] = sustratoUnitCost;
+        rawData[`${activePrefix} | MATERIAL | COSTO POR PIE`] = sustratoUnitCost;
+    }
+    if (sustratoSubtotal !== null) {
+        rawData['Material | Costo Material'] = sustratoSubtotal;
+        rawData[`${activePrefix} | COSTO MATERIAL`] = sustratoSubtotal;
+    }
+    if (sustratoRawSubtotal !== null) {
+        rawData['Material | Subtotal Sin Minimo'] = sustratoRawSubtotal;
+    }
+    const sustratoMinApplied = Boolean(sustratoResult.minimumApplied);
+    rawData['Material | Minimo Aplicado'] = sustratoMinApplied;
 
     const uiPrintState = rawData['Estado_UI']?.print || rawData['Estado_UI']?.printStages?.[0] || null;
     if (uiPrintState && typeof uiPrintState === 'object') {
