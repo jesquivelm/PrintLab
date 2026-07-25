@@ -509,7 +509,9 @@ function normalizeCostsConfig(config) {
         nombre: normalizeText(row?.nombre),
         bcmAnilox: numberValue(row?.bcmAnilox, 0),
         porcentajeCobertura: numberValue(row?.porcentajeCobertura, 0),
-        costoPorKilo: numberValue(row?.costoPorKilo, 0)
+        costoPorKilo: numberValue(row?.costoPorKilo, 0),
+        factorTransferencia: numberValue(row?.factorTransferencia, 0.35),
+        densidad: numberValue(row?.densidad, 1.05)
     }));
     const normalizeAcabadosLaminado = (rows) => (Array.isArray(rows) ? rows : []).map((row, index) => ({
         id: normalizeText(row?.id) || `acab-laminado-${index + 1}`,
@@ -775,7 +777,7 @@ function renderAcabadosBarnizRows(rows) {
     if (!acabadosBarnizTableBody) return;
     const items = rows || costsState?.acabados?.barniz || [];
     if (!items.length) {
-        acabadosBarnizTableBody.innerHTML = '<tr><td colspan="5" class="costs-acabados-empty">No hay barnices configurados.</td></tr>';
+        acabadosBarnizTableBody.innerHTML = '<tr><td colspan="7" class="costs-acabados-empty">No hay barnices configurados.</td></tr>';
         return;
     }
     const deleteIconHtml = getCostsIconHtml('proformaCurrencyDelete', '&#128465;', '#b94848', 18);
@@ -784,6 +786,8 @@ function renderAcabadosBarnizRows(rows) {
             <td><input type="text" data-acabados-table="barniz" data-index="${index}" data-field="nombre" value="${escapeHtml(item.nombre)}" placeholder="Nombre del barniz"></td>
             <td><input type="number" min="0" step="0.01" data-acabados-table="barniz" data-index="${index}" data-field="bcmAnilox" value="${escapeHtml(item.bcmAnilox)}" placeholder="0"></td>
             <td><input type="number" min="0" step="0.01" data-acabados-table="barniz" data-index="${index}" data-field="porcentajeCobertura" value="${escapeHtml(item.porcentajeCobertura)}" placeholder="0"></td>
+            <td><input type="number" min="0" step="0.01" data-acabados-table="barniz" data-index="${index}" data-field="factorTransferencia" value="${escapeHtml(item.factorTransferencia)}" placeholder="0.35"></td>
+            <td><input type="number" min="0" step="0.01" data-acabados-table="barniz" data-index="${index}" data-field="densidad" value="${escapeHtml(item.densidad)}" placeholder="1.05"></td>
             <td><input type="number" min="0" step="0.01" data-acabados-table="barniz" data-index="${index}" data-field="costoPorKilo" value="${escapeHtml(item.costoPorKilo)}" placeholder="0"></td>
             <td><button type="button" class="costs-acabados-remove" data-acabados-remove="barniz" data-index="${index}" aria-label="Eliminar" title="Eliminar">${deleteIconHtml}</button></td>
         </tr>
@@ -1324,7 +1328,7 @@ document.addEventListener("click", (event) => {
 
 acabadosBarnizAddButton?.addEventListener("click", () => {
     if (!costsState) return;
-    costsState.acabados.barniz.push({ id: `acab-barniz-${Date.now()}`, nombre: "", bcmAnilox: 0, porcentajeCobertura: 0, costoPorKilo: 0 });
+    costsState.acabados.barniz.push({ id: `acab-barniz-${Date.now()}`, nombre: "", bcmAnilox: 0, porcentajeCobertura: 0, costoPorKilo: 0, factorTransferencia: 0.35, densidad: 1.05 });
     renderAcabadosBarnizRows();
     queueCostsSave();
 });
@@ -1350,7 +1354,7 @@ function getCostsIconHtml(iconKey, fallbackText, fallbackColor, fallbackSize) {
     const color = loadedConfig?.general?.[`iconColor${suffix}`] || fallbackColor;
     const size = Number(loadedConfig?.general?.[`iconSize${suffix}`]) || fallbackSize;
     if (value && String(value).startsWith('data:image/svg')) {
-        return `<span class="icon-svg-mask" style="-webkit-mask-image:url('${value}');mask-image:url('${value}');width:${size}px;height:${size}px;background-color:${color};display:inline-block;vertical-align:middle;"></span>`;
+        return `<img src="${value}" style="width:${size}px;height:${size}px;vertical-align:middle;object-fit:contain;" alt="">`;
     }
     if (value && String(value).startsWith('data:image')) {
         return `<img src="${value}" style="width:${size}px;height:${size}px;vertical-align:middle;object-fit:contain;">`;

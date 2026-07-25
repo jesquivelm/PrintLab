@@ -1299,7 +1299,6 @@ function applyCostsConfigToCurrentLine(force = false) {
     stage.inkCostPerLb = force ? inkDefaults.costoLbCmyk : (n(stage.inkCostPerLb, 0) > 0 ? n(stage.inkCostPerLb, 0) : inkDefaults.costoLbCmyk);
     stage.whiteInkCostPerLb = force ? inkDefaults.costoLbBlanco : (n(stage.whiteInkCostPerLb, 0) > 0 ? n(stage.whiteInkCostPerLb, 0) : inkDefaults.costoLbBlanco);
     stage.pantoneInkCostPerLb = force ? inkDefaults.costoLbPantone : (n(stage.pantoneInkCostPerLb, 0) > 0 ? n(stage.pantoneInkCostPerLb, 0) : inkDefaults.costoLbPantone);
-    stage.designCoveragePct = force ? inkDefaults.coberturaDisenoPct : (n(stage.designCoveragePct, 0) > 0 ? n(stage.designCoveragePct, 0) : inkDefaults.coberturaDisenoPct);
     stage.mountingMinutes = force ? inlineFinishSetupMinutes("impresion") : (n(stage.mountingMinutes, 0) > 0 ? n(stage.mountingMinutes, 0) : inlineFinishSetupMinutes("impresion"));
     stage.maculaSetupFeet = force ? defaultPrintMaculaSetupFeet(stage.machineId) : (n(stage.maculaSetupFeet, 0) > 0 ? n(stage.maculaSetupFeet, 0) : defaultPrintMaculaSetupFeet(stage.machineId));
     stage.inkProfiles = inkDefaults.depositos.map((item, index) => ({
@@ -2036,7 +2035,6 @@ function conventionalInkDefaults() {
   return {
     bcmGenerico: n(defaults.bcmGenerico, 2),
     coberturaTintaPct: n(defaults.coberturaTintaPct, 30),
-    coberturaDisenoPct: n(defaults.coberturaDisenoPct, 60),
     densidadUv: n(defaults.densidadUv, 1.5),
     costoLbCmyk: n(defaults.costoLbCmyk, 25),
     costoLbBlanco: n(defaults.costoLbBlanco, 30),
@@ -2472,7 +2470,6 @@ function createPrintStage(base = {}) {
     whiteInkMaterialDesc: base.whiteInkMaterialDesc || "",
     whiteInkCostPerLb: n(base.whiteInkCostPerLb, materialCostPerPound(findMaterial(base.whiteInkMaterialId || tintaBlanca[0]?.id || "")) || 30),
     pantoneInkCostPerLb: n(base.pantoneInkCostPerLb, 35),
-    designCoveragePct: n(base.designCoveragePct, 60),
     requiresSubstrateTreatment: base.requiresSubstrateTreatment,
     digitalBillingType: first(base.digitalBillingType, digitalDefaults.billingType),
     digitalInkCostPerKg: n(base.digitalInkCostPerKg, digitalDefaults.inkCostPerKg),
@@ -4060,7 +4057,6 @@ function buildCalculationValidationState(result = totals()) {
       addWhen(key, n(stage.cleaningMinutes, 0) <= 0, "Falta limpieza de impresión.");
       addWhen(key, n(stage.mountingMinutes, 0) <= 0, "Falta montaje de impresión.");
       addWhen(key, n(stage.coveragePct, 0) <= 0, "Falta cobertura.");
-      addWhen(key, n(stage.designCoveragePct, 0) <= 0, "Falta cobertura de diseño.");
       addWhen(key, n(stage.aniloxBcm, 0) <= 0, "Falta BCM anilox.");
       addWhen(key, n(stage.inkGsm, 0) <= 0, "Falta consumo de tinta.");
       addWhen(key, n(stage.transferFactor, 0) <= 0, "Falta factor de transferencia.");
@@ -4255,7 +4251,6 @@ function applyRequiredHighlights(result = null) {
       markRequiredScoped(scope, "cleaningMinutes", n(stage.cleaningMinutes, 0) <= 0);
       markRequiredScoped(scope, "mountingMinutes", n(stage.mountingMinutes, 0) <= 0);
       markRequiredScoped(scope, "coveragePct", n(stage.coveragePct, 0) <= 0);
-      markRequiredScoped(scope, "designCoveragePct", n(stage.designCoveragePct, 0) <= 0);
       markRequiredScoped(scope, "aniloxBcm", n(stage.aniloxBcm, 0) <= 0);
       markRequiredScoped(scope, "inkGsm", n(stage.inkGsm, 0) <= 0);
       markRequiredScoped(scope, "transferFactor", n(stage.transferFactor, 0) <= 0);
@@ -4633,7 +4628,6 @@ function buildForm() {
         bcmGenerico: inkDefaults.bcmGenerico,
         whiteInkCostPerLb: inkDefaults.costoLbBlanco,
         pantoneInkCostPerLb: inkDefaults.costoLbPantone,
-        designCoveragePct: inkDefaults.coberturaDisenoPct,
         requiresSubstrateTreatment: materialNeedsPremier && !materialPreTreated,
         digitalBillingType: digitalDefaults.billingType,
         digitalInkCostPerKg: digitalDefaults.inkCostPerKg,
@@ -5205,8 +5199,11 @@ function calcPrint() {
       const varnishCoverage = varnishCoveragePct / 100;
       const varnishGsm = n(varnishProfile.gsm, 3);
       const varnishCostPerLb = n(inline.costPerLb, materialCostPerPound(material));
+      const varnishTransferFactor = firstPositiveNumber(inline.factorTransferencia, 0.35);
+      const varnishDensity = firstPositiveNumber(inline.densidad, 1.05);
+      const varnishAreaIn2 = slot.key === "barniz" ? r(calculationLengthFeet * 12 * n(base.webWidthIn, 0), 6) : 0;
       const varnishConsumptionKg = slot.key === "barniz" && inline.active
-        ? r(calculationLengthFeet * n(base.webWidthIn, 0) * varnishBcm * varnishCoverage * 0.000012, 6)
+        ? r(varnishAreaIn2 * varnishCoverage * varnishBcm * varnishTransferFactor * varnishDensity * 0.000001, 6)
         : 0;
       const materialConsumptionKg = slot.key === "barniz"
         ? varnishConsumptionKg
@@ -5231,6 +5228,8 @@ function calcPrint() {
           if (n(base.webWidthIn, 0) <= 0) inlineIssues.push("Falta Ancho de Banda.");
           if (varnishBcm <= 0) inlineIssues.push("Falta BCM Anilox.");
           if (varnishCoveragePct <= 0) inlineIssues.push("Falta Cobertura.");
+          if (varnishTransferFactor <= 0) inlineIssues.push("Falta Factor de Transferencia.");
+          if (varnishDensity <= 0) inlineIssues.push("Falta Densidad.");
           if (weightCostKg <= 0) inlineIssues.push("Falta Costo por Kilo.");
         }
         if (isLinealInlineMaterial) {
@@ -5273,6 +5272,9 @@ function calcPrint() {
         varnishBcm: slot.key === "barniz" ? varnishBcm : 0,
         layerGsm: varnishGsm,
         costPerLb: varnishCostPerLb,
+        factorTransferencia: slot.key === "barniz" ? varnishTransferFactor : 0,
+        densidad: slot.key === "barniz" ? varnishDensity : 0,
+        varnishAreaIn2,
         costHourMachine: inlineMachineHourCost,
         operatorHourCost: inlineOperatorHourCost,
         allowedForMachine: inlineAllowed,
@@ -6135,7 +6137,7 @@ function detailAmountTooltip(row = {}, result = {}, quantity = 0) {
     if (sample.key === "barniz") {
       return detailTooltipText([
         "Barniz en línea: kg barniz x costo/kg.",
-        `Fórmula: longitud ${num(detailSum(items, "calcBase"), 2)} ft x ancho ${num(sample.supplyWidthIn || 0, 2)} in x BCM ${num(sample.varnishBcm || 0, 2)} x cobertura ${num(sample.coveragePct || 0, 2)}% x 0.000012.`,
+        `Fórmula: Área (in²) x Cobertura x BCM x Factor Transferencia x Densidad x 10⁻⁶.`,
         `Consumo: ${num(detailSum(items, "materialConsumptionKg"), 4)} kg.`,
         `Total barniz: ${money(row.value(result) || 0)}.`
       ]);
@@ -7713,7 +7715,7 @@ function renderInlinePrintBlock(stage, stageIndex, inline) {
   const formulaText = externalConfig && inline.key === "troquelado"
     ? "Troquelado en línea = tiempo de montaje y merma de ajuste dentro del proceso de impresión."
     : inline.key === "barniz"
-    ? "Kilogramos de Barniz = Longitud Total del sustrato x Ancho de Banda (in) x BCM Anilox x Cobertura x 0.000012. Costo Total = Kilogramos de Barniz x Precio por Kilo."
+    ? "Kilogramos de Barniz = Área (in²) x Cobertura x BCM Anilox x Factor Transferencia x Densidad x 10⁻⁶. Costo Total = Kilogramos de Barniz x Precio por Kilo."
     : inline.key === "laminado"
     ? "Laminado = Longitud Total del sustrato x costo por pie lineal del laminado seleccionado."
     : inline.key === "estampado"
@@ -7739,7 +7741,7 @@ function renderInlinePrintBlock(stage, stageIndex, inline) {
   const formulaExampleLine = inline.key === "troquelado"
     ? `Montaje ${formulaValue(inline.setupMinutes || 0, 2)} min + Merma Ajuste ${formulaValue(inline.setupWasteFeet || 0, 2)} ft`
     : inline.key === "barniz"
-      ? `Kg Barniz: Longitud Total ${formulaValue(inline.calcBase || 0, 2)} x ${formulaValue(inline.supplyWidthIn || 0, 2)} x ${formulaValue(inline.varnishBcm || 0, 2)} x ${formulaValue((inline.coveragePct || 0) / 100, 4)} x 0.000012 = ${formulaValue(inline.materialConsumptionKg || 0, 4)} kg`
+      ? `Kg Barniz: Área ${formulaValue(inline.varnishAreaIn2 || 0, 2)} in² x Cobertura ${formulaValue((inline.coveragePct || 0) / 100, 4)} x BCM ${formulaValue(inline.varnishBcm || 0, 2)} x Transfer ${formulaValue(inline.factorTransferencia || 0, 2)} x Densidad ${formulaValue(inline.densidad || 0, 2)} x 10⁻⁶ = ${formulaValue(inline.materialConsumptionKg || 0, 4)} kg`
       : isLinealInlineMaterial
         ? `Subtotal material: Longitud Total ${formulaValue(inline.materialBase || 0, 2)} pies x ${formulaValue(inline.costPerFoot || 0, 6)} = ${formulaValue(inline.materialSubtotal || 0, 2)}`
         : inline.key === "embosado"
@@ -7770,7 +7772,7 @@ function renderPrintInkBlock(scope, item, printItem) {
   const tintaOptions = conventionalInkMaterialOptions().map((entry) => ({ id: entry.id, nombre: entry.descripcion || entry.nombre || entry.id }));
   const tintaBlancaOptions = whiteInkMaterialOptions().map((entry) => ({ id: entry.id, nombre: entry.descripcion || entry.nombre || entry.id }));
   const tintaSelectors = `<label class="span-2"><span>Tinta CMYK UV</span><select data-scope="${scope}" data-field="inkMaterialId">${processOptions(tintaOptions, item.inkMaterialId)}</select></label>${state.form.header.useWhiteInk ? `<label class="span-2"><span>Tinta Blanca</span><select data-scope="${scope}" data-field="whiteInkMaterialId">${processOptions(tintaBlancaOptions, item.whiteInkMaterialId)}</select></label>` : ""}`;
-  const parameterZone = `<div class="process-zone"><div class="process-zone-head"><h4>Parámetros de Tinta</h4></div><div class="process-print-grid process-print-grid-ink">${tintaSelectors}<label><span>Cobertura Tinta</span>${displayInput(scope, "coveragePct", item.coveragePct, { suffix: "%", maximumFractionDigits: 2 })}</label><label><span>Cobertura Diseño</span>${displayInput(scope, "designCoveragePct", item.designCoveragePct, { suffix: "%", maximumFractionDigits: 2 })}</label><label><span>BCM Anilox</span>${displayInput(scope, "aniloxBcm", item.aniloxBcm, { maximumFractionDigits: 4 })}</label><label><span>Factor Transferencia</span>${displayInput(scope, "transferFactor", item.transferFactor, { maximumFractionDigits: 4 })}</label><label><span>Densidad Tinta</span>${displayInput(scope, "inkDensity", item.inkDensity, { maximumFractionDigits: 4 })}</label><label><span>Costo Lb CMYK</span>${displayInput(scope, "inkCostPerLb", item.inkCostPerLb, { prefix: "$", maximumFractionDigits: 4 })}</label><label><span>Costo Lb Blanco</span>${displayInput(scope, "whiteInkCostPerLb", item.whiteInkCostPerLb, { prefix: "$", maximumFractionDigits: 4 })}</label><label><span>Costo Lb Pantone</span>${displayInput(scope, "pantoneInkCostPerLb", item.pantoneInkCostPerLb, { prefix: "$", maximumFractionDigits: 4 })}</label></div></div>`;
+  const parameterZone = `<div class="process-zone"><div class="process-zone-head"><h4>Parámetros de Tinta</h4></div><div class="process-print-grid process-print-grid-ink">${tintaSelectors}<label><span>Cobertura Tinta</span>${displayInput(scope, "coveragePct", item.coveragePct, { suffix: "%", maximumFractionDigits: 2 })}</label><label><span>BCM Anilox</span>${displayInput(scope, "aniloxBcm", item.aniloxBcm, { maximumFractionDigits: 4 })}</label><label><span>Factor Transferencia</span>${displayInput(scope, "transferFactor", item.transferFactor, { maximumFractionDigits: 4 })}</label><label><span>Densidad Tinta</span>${displayInput(scope, "inkDensity", item.inkDensity, { maximumFractionDigits: 4 })}</label><label><span>Costo Lb CMYK</span>${displayInput(scope, "inkCostPerLb", item.inkCostPerLb, { prefix: "$", maximumFractionDigits: 4 })}</label><label><span>Costo Lb Blanco</span>${displayInput(scope, "whiteInkCostPerLb", item.whiteInkCostPerLb, { prefix: "$", maximumFractionDigits: 4 })}</label><label><span>Costo Lb Pantone</span>${displayInput(scope, "pantoneInkCostPerLb", item.pantoneInkCostPerLb, { prefix: "$", maximumFractionDigits: 4 })}</label></div></div>`;
   const profileZone = `<div class="process-zone"><div class="process-zone-head"><h4>Tipos de Trabajo</h4></div><div class="process-inline-table-shell">${renderInkProfiles(scope, item.inkProfiles || [])}</div></div>`;
   return `<details class="subprocess-card inline-process-card print-ink-card" data-open-key="${esc(scope)}.ink"><summary class="inline-process-summary"><div class="inline-process-heading"><strong>Cálculo de Tinta Convencional</strong></div><div class="process-summary-side"><em>${money(printItem.inkSubtotal || 0)}</em>${info}</div></summary><div class="process-body">${parameterZone}${profileZone}<div class="readonly-grid compact-top step-metrics">${metric("Tintas Requeridas", num(printItem.colors || 0, 0))}${metric("Consumo Tinta", `${num(printItem.inkConsumption || 0, 4)} lb`)}${metric("Costo por Lb", money(printItem.inkCostPerLb || 0))}${metric("Subtotal Tinta", money(printItem.inkSubtotal || 0))}</div></div></details>`;
 }
@@ -8847,7 +8849,9 @@ function bindProcesses() {
           costPerKg: barnizCostPerKg,
           layerGft2: n(first(material?.rendimiento_g_ft2, material?.peso_capa_gsm), 0),
           varnishBcm: firstPositiveNumber(n(barnizItem?.bcmAnilox, 0), state.form.printStages[stageIndex].inlineFinishes[inlineKey].varnishBcm),
-          coveragePct: firstPositiveNumber(n(barnizItem?.porcentajeCobertura, 0), state.form.printStages[stageIndex].inlineFinishes[inlineKey].coveragePct)
+          coveragePct: firstPositiveNumber(n(barnizItem?.porcentajeCobertura, 0), state.form.printStages[stageIndex].inlineFinishes[inlineKey].coveragePct),
+          factorTransferencia: firstPositiveNumber(n(barnizItem?.factorTransferencia, 0), state.form.printStages[stageIndex].inlineFinishes[inlineKey].factorTransferencia, 0.35),
+          densidad: firstPositiveNumber(n(barnizItem?.densidad, 0), state.form.printStages[stageIndex].inlineFinishes[inlineKey].densidad, 1.05)
         });
       } else {
         const costs = materialUnitCosts(material, state.form.header.rollWidthIn);

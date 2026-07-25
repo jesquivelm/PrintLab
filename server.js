@@ -1726,7 +1726,7 @@ const DEFAULT_COSTS_CONFIG = {
     },
     acabados: {
         barniz: [
-            { id: 'acab-barniz-1', nombre: 'Barniz UV Brillante', bcmAnilox: 7, porcentajeCobertura: 100, costoPorKilo: 12 }
+            { id: 'acab-barniz-1', nombre: 'Barniz UV Brillante', bcmAnilox: 7, porcentajeCobertura: 100, costoPorKilo: 12, factorTransferencia: 0.35, densidad: 1.05 }
         ],
         laminado: [
             { id: 'acab-laminado-1', nombre: 'Laminado Brillante', costoPorPieLineal: 0.05, tiempoMontaje: 10 }
@@ -3419,7 +3419,9 @@ function normalizeCostsConfigRecord(config) {
                 nombre: String(row?.nombre || '').trim(),
                 bcmAnilox: Number(row?.bcmAnilox || 0),
                 porcentajeCobertura: Number(row?.porcentajeCobertura || 0),
-                costoPorKilo: Number(row?.costoPorKilo || 0)
+                costoPorKilo: Number(row?.costoPorKilo || 0),
+                factorTransferencia: Number(row?.factorTransferencia || 0.35),
+                densidad: Number(row?.densidad || 1.05)
             })),
             laminado: (Array.isArray(source?.acabados?.laminado) ? source.acabados.laminado : DEFAULT_COSTS_CONFIG.acabados.laminado).map((row, index) => ({
                 id: String(row?.id || `acab-laminado-${index + 1}`).trim(),
