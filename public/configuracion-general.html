@@ -6224,6 +6224,7 @@
                                 <button type="button" class="quotes-subtab" data-quotes-tab="entregas">Entregas</button>
                                 <button type="button" class="quotes-subtab" data-quotes-tab="manejo-producto">Manejo de Producto</button>
                                 <button type="button" class="quotes-subtab" data-quotes-tab="datos-ingreso">Datos de Ingreso</button>
+                                <button type="button" class="quotes-subtab" data-quotes-tab="locaciones">Locaciones</button>
                             </div>
 
                             <div id="quotes-panel-calculo" class="quotes-subpanel">
@@ -6948,6 +6949,85 @@
                                                 </table>
                                             </div>
                                             <div class="config-help">Barniz Brillante UV: 100% potencia, 85°C lámpara. Barniz Mate UV: configuración alternativa para acabado sin brillo.</div>
+                                        </section>
+                                    </div>
+                                </section>
+                            </div>
+
+                            <div id="quotes-panel-locaciones" class="quotes-subpanel" hidden>
+                                <section class="config-card">
+                                    <h2 class="config-section-title">Locaciones — Guatemala</h2>
+                                    <p class="section-caption">Directorio de departamentos, zonas y direcciones de Guatemala. Esta información se utiliza para autocompletar los campos de dirección al crear o editar socios.</p>
+
+                                    <input id="guatemalaDepartamentosJson" name="general.guatemalaDepartamentosJson" type="hidden">
+                                    <input id="guatemalaZonasJson" name="general.guatemalaZonasJson" type="hidden">
+                                    <input id="guatemalaDireccionesJson" name="general.guatemalaDireccionesJson" type="hidden">
+
+                                    <div class="quotes-general-split two-col">
+                                        <section class="config-card quote-product-types-card">
+                                            <h3 style="color:#059669">Departamentos</h3>
+                                            <div class="quote-product-types-toolbar">
+                                                <p>22 departamentos de Guatemala.</p>
+                                                <button id="guatemalaDepartamentoAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
+                                            </div>
+                                            <div class="quote-product-types-table-wrap">
+                                                <table class="quote-product-types-table config-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th style="width:72px;">#</th>
+                                                            <th>Nombre</th>
+                                                            <th>Código</th>
+                                                            <th>Acción</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="guatemalaDepartamentosTableBody"></tbody>
+                                                </table>
+                                            </div>
+                                        </section>
+
+                                        <section class="config-card quote-product-types-card">
+                                            <h3 style="color:#2563eb">Zonas</h3>
+                                            <div class="quote-product-types-toolbar">
+                                                <p>Zonas municipales por departamento.</p>
+                                                <button id="guatemalaZonaAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
+                                            </div>
+                                            <div class="quote-product-types-table-wrap">
+                                                <table class="quote-product-types-table config-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th style="width:72px;">#</th>
+                                                            <th>Nombre</th>
+                                                            <th>Departamento</th>
+                                                            <th>Código</th>
+                                                            <th>Acción</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="guatemalaZonasTableBody"></tbody>
+                                                </table>
+                                            </div>
+                                        </section>
+
+                                        <section class="config-card quote-product-types-card" style="grid-column: 1 / -1;">
+                                            <h3 style="color:#d97706">Direcciones de Referencia</h3>
+                                            <div class="quote-product-types-toolbar">
+                                                <p>Direcciones de referencia para autocompletar direcciones de socios.</p>
+                                                <button id="guatemalaDireccionAddButton" type="button" class="icon-only-btn" aria-label="Agregar"></button>
+                                            </div>
+                                            <div class="quote-product-types-table-wrap">
+                                                <table class="quote-product-types-table config-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th style="width:72px;">#</th>
+                                                            <th>Dirección</th>
+                                                            <th>Departamento</th>
+                                                            <th>Zona</th>
+                                                            <th>Código Postal</th>
+                                                            <th>Acción</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="guatemalaDireccionesTableBody"></tbody>
+                                                </table>
+                                            </div>
                                         </section>
                                     </div>
                                 </section>
@@ -9159,6 +9239,8 @@
             { key: 'orderFlow', label: 'Órdenes Seguimiento', group: 'Órdenes', placeholder: '\u226B', color: '#1e516d', size: 40 },
             { key: 'orderArtworkDelete', label: 'Órdenes Eliminar Arte', group: 'Órdenes', placeholder: '\u00D7', color: '#b94848', size: 40 },
             { key: 'orderEdit', label: 'Órdenes Editar', group: 'Órdenes', placeholder: '\u270F\uFE0F', color: '#64748b', size: 18 },
+            { key: 'orderPrint', label: 'Órdenes Imprimir', group: 'Órdenes', placeholder: '\uD83D\uDDA8\uFE0F', color: '#1e516d', size: 18 },
+            { key: 'orderPdf', label: 'Órdenes Descargar PDF', group: 'Órdenes', placeholder: '\uD83D\uDCC4', color: '#1e516d', size: 18 },
             { key: 'orderCreationSummary', label: 'Órdenes Datos de Creación', group: 'Órdenes', placeholder: '\u2699\uFE0F', color: '#1e516d', size: 18 },
             { key: 'dashboardFabMain', label: 'Botón Principal', group: 'Calculo y Procesos', tab: 'Botón flotante', section: 'Dashboard', placeholder: '+', color: '#ffffff', size: 34 },
             { key: 'dashboardFabFavorites', label: 'Ventana de favoritos', group: 'Calculo y Procesos', tab: 'Botón flotante', section: 'Dashboard', placeholder: '\u2605', color: '#c79b18', size: 20 },
@@ -9177,6 +9259,7 @@
             { key: 'dashboardFabQuoteProforma', label: 'Ver proforma', group: 'Calculo y Procesos', tab: 'Botón flotante', section: 'Cotizaciones', placeholder: '\uD83D\uDC41', color: '#0b81b8', size: 20 },
             { key: 'dashboardFabQuotes', label: 'Ir a Cotizaciones', group: 'Calculo y Procesos', tab: 'Botón flotante', section: 'Cotizaciones', placeholder: '\u25A4', color: '#0b81b8', size: 20 },
             { key: 'dashboardFabProducts', label: 'Ir a Productos', group: 'Calculo y Procesos', tab: 'Botón flotante', section: 'Productos', placeholder: '\u25A3', color: '#0b81b8', size: 20 },
+            { key: 'productCalculationSummary', label: 'Resumen de cálculo en producto', group: 'General', tab: 'General', section: 'Productos', placeholder: '\uD83D\uDCCA', color: '#1e516d', size: 18 },
             { key: 'dashboardFabOrders', label: 'Ir a Órdenes', group: 'Calculo y Procesos', tab: 'Botón flotante', section: 'Órdenes', placeholder: '\u2699', color: '#0b81b8', size: 20 },
             { key: 'dashboardFabInventory', label: 'Ir a Inventarios', group: 'Calculo y Procesos', tab: 'Botón flotante', section: 'Inventarios', placeholder: '\u25A5', color: '#0b81b8', size: 20 },
             { key: 'dashboardFabSettings', label: 'Ir a Configuración', group: 'Calculo y Procesos', tab: 'Botón flotante', section: 'Configuración', placeholder: '\u2692', color: '#0b81b8', size: 20 },
@@ -9235,6 +9318,7 @@
             const key = String(icon?.key || '').trim();
             if (ICON_LEGACY_KEYS.has(key)) return { tab: 'Otros', section: '' };
             if (key.startsWith('dashboardFab')) return { tab: 'Botón flotante', section: icon.section || 'Dashboard' };
+            if (key === 'productCalculationSummary') return { tab: 'General', section: 'Productos' };
             if (key.startsWith('notificationChat')) return { tab: 'Notificaciones', section: 'Mensajería' };
             if (key === 'floatingSave' || key === 'processLauncher' || key === 'timelineLauncher') return { tab: 'Botón flotante', section: 'Cálculo' };
             if (key.startsWith('dashboard') || key === 'dashboardTabClose') return { tab: 'Dashboard', section: 'Principal' };
@@ -10036,7 +10120,7 @@
                     }
                 }
             });
-            updateTouchImageButton();
+            try { updateTouchImageButton(); } catch(e) { /* función no implementada */ }
             renderQuoteProductTypesTable();
             renderQuoteSurfaceOptionsTable();
             renderQuoteApplicationOptionsTable();
@@ -10050,6 +10134,7 @@
             renderInkConfigEspecialesTable();
             renderInkConfigPantoneTable();
             renderInkConfigBarnizTable();
+            renderAllLocationTables();
             renderConfigButtonsIcons();
             syncToggleButtons();
             syncTabColorSwatches();
@@ -10659,6 +10744,256 @@
             syncInkConfigField(inkConfigBarnizJsonField, items);
             renderInkConfigBarnizTable();
         });
+
+        // === Locaciones Guatemala ===
+        const guatemalaDepartamentosJsonField = document.getElementById('guatemalaDepartamentosJson');
+        const guatemalaDepartamentosTableBody = document.getElementById('guatemalaDepartamentosTableBody');
+        const guatemalaDepartamentoAddButton = document.getElementById('guatemalaDepartamentoAddButton');
+        const guatemalaZonasJsonField = document.getElementById('guatemalaZonasJson');
+        const guatemalaZonasTableBody = document.getElementById('guatemalaZonasTableBody');
+        const guatemalaZonaAddButton = document.getElementById('guatemalaZonaAddButton');
+        const guatemalaDireccionesJsonField = document.getElementById('guatemalaDireccionesJson');
+        const guatemalaDireccionesTableBody = document.getElementById('guatemalaDireccionesTableBody');
+        const guatemalaDireccionAddButton = document.getElementById('guatemalaDireccionAddButton');
+
+        const DEFAULT_GUATEMALA_DEPARTAMENTOS = [
+            { nombre: 'Alta Verapaz', codigo: 'AV' },
+            { nombre: 'Baja Verapaz', codigo: 'BV' },
+            { nombre: 'Chimaltenango', codigo: 'CH' },
+            { nombre: 'Chiquimula', codigo: 'CQ' },
+            { nombre: 'El Progreso', codigo: 'PR' },
+            { nombre: 'Escuintla', codigo: 'ES' },
+            { nombre: 'Guatemala', codigo: 'GU' },
+            { nombre: 'Huehuetenango', codigo: 'HU' },
+            { nombre: 'Izabal', codigo: 'IZ' },
+            { nombre: 'Jalapa', codigo: 'JA' },
+            { nombre: 'Jutiapa', codigo: 'JU' },
+            { nombre: 'Petén', codigo: 'PE' },
+            { nombre: 'Quetzaltenango', codigo: 'QT' },
+            { nombre: 'Quiché', codigo: 'QC' },
+            { nombre: 'Retalhuleu', codigo: 'RE' },
+            { nombre: 'Sacatepéquez', codigo: 'SA' },
+            { nombre: 'San Marcos', codigo: 'SM' },
+            { nombre: 'Santa Rosa', codigo: 'SR' },
+            { nombre: 'Sololá', codigo: 'SO' },
+            { nombre: 'Suchitepéquez', codigo: 'SU' },
+            { nombre: 'Totonicapán', codigo: 'TO' },
+            { nombre: 'Zacapa', codigo: 'ZA' }
+        ];
+
+        const DEFAULT_GUATEMALA_ZONAS = [
+            { nombre: 'Zona 1', departamento: 'Guatemala', codigo: 'GU-Z1' },
+            { nombre: 'Zona 2', departamento: 'Guatemala', codigo: 'GU-Z2' },
+            { nombre: 'Zona 3', departamento: 'Guatemala', codigo: 'GU-Z3' },
+            { nombre: 'Zona 4', departamento: 'Guatemala', codigo: 'GU-Z4' },
+            { nombre: 'Zona 5', departamento: 'Guatemala', codigo: 'GU-Z5' },
+            { nombre: 'Zona 6', departamento: 'Guatemala', codigo: 'GU-Z6' },
+            { nombre: 'Zona 7', departamento: 'Guatemala', codigo: 'GU-Z7' },
+            { nombre: 'Zona 8', departamento: 'Guatemala', codigo: 'GU-Z8' },
+            { nombre: 'Zona 9', departamento: 'Guatemala', codigo: 'GU-Z9' },
+            { nombre: 'Zona 10', departamento: 'Guatemala', codigo: 'GU-Z10' },
+            { nombre: 'Zona 11', departamento: 'Guatemala', codigo: 'GU-Z11' },
+            { nombre: 'Zona 12', departamento: 'Guatemala', codigo: 'GU-Z12' },
+            { nombre: 'Zona 13', departamento: 'Guatemala', codigo: 'GU-Z13' },
+            { nombre: 'Zona 14', departamento: 'Guatemala', codigo: 'GU-Z14' },
+            { nombre: 'Zona 15', departamento: 'Guatemala', codigo: 'GU-Z15' },
+            { nombre: 'Zona 16', departamento: 'Guatemala', codigo: 'GU-Z16' },
+            { nombre: 'Zona 17', departamento: 'Guatemala', codigo: 'GU-Z17' },
+            { nombre: 'Zona 18', departamento: 'Guatemala', codigo: 'GU-Z18' },
+            { nombre: 'Zona 19', departamento: 'Guatemala', codigo: 'GU-Z19' },
+            { nombre: 'Zona 21', departamento: 'Guatemala', codigo: 'GU-Z21' },
+            { nombre: 'Zona 25', departamento: 'Guatemala', codigo: 'GU-Z25' }
+        ];
+
+        const DEFAULT_GUATEMALA_DIRECCIONES = [
+            { direccion: '1a Avenida 1-00, Zona 1', departamento: 'Guatemala', zona: 'Zona 1', codigoPostal: '01001' },
+            { direccion: '7a Avenida 7-77, Zona 1', departamento: 'Guatemala', zona: 'Zona 1', codigoPostal: '01001' },
+            { direccion: 'Avenida Reforma 7-01, Zona 10', departamento: 'Guatemala', zona: 'Zona 10', codigoPostal: '01010' },
+            { direccion: 'Boulevard Los Próceres 22-59, Zona 10', departamento: 'Guatemala', zona: 'Zona 10', codigoPostal: '01010' },
+            { direccion: 'Avenida Las Américas 7-69, Zona 13', departamento: 'Guatemala', zona: 'Zona 13', codigoPostal: '01013' },
+            { direccion: 'Calzada San Juan 4-30, Zona 7', departamento: 'Guatemala', zona: 'Zona 7', codigoPostal: '01007' },
+            { direccion: 'Avenida Pedro de Alvarado 5-40, Zona 9', departamento: 'Guatemala', zona: 'Zona 9', codigoPostal: '01009' },
+            { direccion: 'Boulevard Él Franklin 32-15, Zona 11', departamento: 'Guatemala', zona: 'Zona 11', codigoPostal: '01011' },
+            { direccion: '15 Calle 15-30, Zona 15', departamento: 'Guatemala', zona: 'Zona 15', codigoPostal: '01015' },
+            { direccion: 'Avenida Simon Bolivar 7-88, Zona 14', departamento: 'Guatemala', zona: 'Zona 14', codigoPostal: '01014' }
+        ];
+
+        function readLocationField(field) {
+            try { return JSON.parse(field?.value || '[]'); } catch { return []; }
+        }
+
+        function syncLocationField(field, items) {
+            if (!field) return;
+            field.value = JSON.stringify(items);
+        }
+
+        function renderGuatemalaDepartamentosTable() {
+            if (!guatemalaDepartamentosTableBody) return;
+            let items = readLocationField(guatemalaDepartamentosJsonField);
+            if (!items.length && !guatemalaDepartamentosJsonField?.value) {
+                items = DEFAULT_GUATEMALA_DEPARTAMENTOS.map(d => ({...d}));
+                syncLocationField(guatemalaDepartamentosJsonField, items);
+            }
+            if (!items.length) {
+                guatemalaDepartamentosTableBody.innerHTML = '<tr><td colspan="4" class="quote-product-types-empty">No hay departamentos configurados.</td></tr>';
+                return;
+            }
+            guatemalaDepartamentosTableBody.innerHTML = items.map((item, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td><input type="text" value="${escapeHtml(item.nombre || '')}" data-loc-dept-nombre="${i}"></td>
+                    <td><input type="text" value="${escapeHtml(item.codigo || '')}" data-loc-dept-codigo="${i}" maxlength="5" style="width:80px"></td>
+                    <td><button type="button" class="icon-only-btn quote-product-types-remove" data-remove-dept="${i}" aria-label="Eliminar" title="Eliminar">${getIconHtml('quantity.delete', '&#128465;', '#b94a48', 18)}</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function syncDepartamentosFromInputs() {
+            const items = readLocationField(guatemalaDepartamentosJsonField);
+            guatemalaDepartamentosTableBody.querySelectorAll('input').forEach(el => {
+                const nombreAttr = [...el.attributes].find(a => a.name.startsWith('data-loc-dept-nombre'));
+                const codigoAttr = [...el.attributes].find(a => a.name.startsWith('data-loc-dept-codigo'));
+                if (nombreAttr) { const idx = parseInt(nombreAttr.value); if (items[idx]) items[idx].nombre = el.value; }
+                if (codigoAttr) { const idx = parseInt(codigoAttr.value); if (items[idx]) items[idx].codigo = el.value; }
+            });
+            syncLocationField(guatemalaDepartamentosJsonField, items);
+        }
+
+        function renderGuatemalaZonasTable() {
+            if (!guatemalaZonasTableBody) return;
+            let items = readLocationField(guatemalaZonasJsonField);
+            if (!items.length && !guatemalaZonasJsonField?.value) {
+                items = DEFAULT_GUATEMALA_ZONAS.map(d => ({...d}));
+                syncLocationField(guatemalaZonasJsonField, items);
+            }
+            if (!items.length) {
+                guatemalaZonasTableBody.innerHTML = '<tr><td colspan="5" class="quote-product-types-empty">No hay zonas configuradas.</td></tr>';
+                return;
+            }
+            const deptos = readLocationField(guatemalaDepartamentosJsonField);
+            const deptoOptions = deptos.map(d => `<option value="${escapeHtml(d.nombre)}">${escapeHtml(d.nombre)}</option>`).join('');
+            guatemalaZonasTableBody.innerHTML = items.map((item, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td><input type="text" value="${escapeHtml(item.nombre || '')}" data-loc-zona-nombre="${i}"></td>
+                    <td><select data-loc-zona-departamento="${i}"><option value=""></option>${deptoOptions.replace(new RegExp(`value="${escapeHtml(item.departamento)}"`), `value="${escapeHtml(item.departamento)}" selected`)}</select></td>
+                    <td><input type="text" value="${escapeHtml(item.codigo || '')}" data-loc-zona-codigo="${i}" maxlength="10" style="width:100px"></td>
+                    <td><button type="button" class="icon-only-btn quote-product-types-remove" data-remove-zona="${i}" aria-label="Eliminar" title="Eliminar">${getIconHtml('quantity.delete', '&#128465;', '#b94a48', 18)}</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function syncZonasFromInputs() {
+            const items = readLocationField(guatemalaZonasJsonField);
+            guatemalaZonasTableBody.querySelectorAll('input, select').forEach(el => {
+                const nombreAttr = [...el.attributes].find(a => a.name.startsWith('data-loc-zona-nombre'));
+                const deptoAttr = [...el.attributes].find(a => a.name.startsWith('data-loc-zona-departamento'));
+                const codigoAttr = [...el.attributes].find(a => a.name.startsWith('data-loc-zona-codigo'));
+                if (nombreAttr) { const idx = parseInt(nombreAttr.value); if (items[idx]) items[idx].nombre = el.value; }
+                if (deptoAttr) { const idx = parseInt(deptoAttr.value); if (items[idx]) items[idx].departamento = el.value; }
+                if (codigoAttr) { const idx = parseInt(codigoAttr.value); if (items[idx]) items[idx].codigo = el.value; }
+            });
+            syncLocationField(guatemalaZonasJsonField, items);
+        }
+
+        function renderGuatemalaDireccionesTable() {
+            if (!guatemalaDireccionesTableBody) return;
+            let items = readLocationField(guatemalaDireccionesJsonField);
+            if (!items.length && !guatemalaDireccionesJsonField?.value) {
+                items = DEFAULT_GUATEMALA_DIRECCIONES.map(d => ({...d}));
+                syncLocationField(guatemalaDireccionesJsonField, items);
+            }
+            if (!items.length) {
+                guatemalaDireccionesTableBody.innerHTML = '<tr><td colspan="6" class="quote-product-types-empty">No hay direcciones configuradas.</td></tr>';
+                return;
+            }
+            const deptos = readLocationField(guatemalaDepartamentosJsonField);
+            const deptoOptions = deptos.map(d => `<option value="${escapeHtml(d.nombre)}">${escapeHtml(d.nombre)}</option>`).join('');
+            const zonas = readLocationField(guatemalaZonasJsonField);
+            const zonaOptions = zonas.map(z => `<option value="${escapeHtml(z.nombre)}">${escapeHtml(z.nombre)}</option>`).join('');
+            guatemalaDireccionesTableBody.innerHTML = items.map((item, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td><input type="text" value="${escapeHtml(item.direccion || '')}" data-loc-dir-direccion="${i}" style="min-width:200px"></td>
+                    <td><select data-loc-dir-departamento="${i}"><option value=""></option>${deptoOptions.replace(new RegExp(`value="${escapeHtml(item.departamento)}"`), `value="${escapeHtml(item.departamento)}" selected`)}</select></td>
+                    <td><select data-loc-dir-zona="${i}"><option value=""></option>${zonaOptions.replace(new RegExp(`value="${escapeHtml(item.zona)}"`), `value="${escapeHtml(item.zona)}" selected`)}</select></td>
+                    <td><input type="text" value="${escapeHtml(item.codigoPostal || '')}" data-loc-dir-codigo="${i}" maxlength="10" style="width:80px"></td>
+                    <td><button type="button" class="icon-only-btn quote-product-types-remove" data-remove-dir="${i}" aria-label="Eliminar" title="Eliminar">${getIconHtml('quantity.delete', '&#128465;', '#b94a48', 18)}</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function syncDireccionesFromInputs() {
+            const items = readLocationField(guatemalaDireccionesJsonField);
+            guatemalaDireccionesTableBody.querySelectorAll('input, select').forEach(el => {
+                const dirAttr = [...el.attributes].find(a => a.name.startsWith('data-loc-dir-direccion'));
+                const deptoAttr = [...el.attributes].find(a => a.name.startsWith('data-loc-dir-departamento'));
+                const zonaAttr = [...el.attributes].find(a => a.name.startsWith('data-loc-dir-zona'));
+                const codAttr = [...el.attributes].find(a => a.name.startsWith('data-loc-dir-codigo'));
+                if (dirAttr) { const idx = parseInt(dirAttr.value); if (items[idx]) items[idx].direccion = el.value; }
+                if (deptoAttr) { const idx = parseInt(deptoAttr.value); if (items[idx]) items[idx].departamento = el.value; }
+                if (zonaAttr) { const idx = parseInt(zonaAttr.value); if (items[idx]) items[idx].zona = el.value; }
+                if (codAttr) { const idx = parseInt(codAttr.value); if (items[idx]) items[idx].codigoPostal = el.value; }
+            });
+            syncLocationField(guatemalaDireccionesJsonField, items);
+        }
+
+        guatemalaDepartamentosTableBody?.addEventListener('input', () => { syncDepartamentosFromInputs(); });
+        guatemalaDepartamentosTableBody?.addEventListener('change', () => { syncDepartamentosFromInputs(); });
+        guatemalaDepartamentoAddButton?.addEventListener('click', () => {
+            const items = readLocationField(guatemalaDepartamentosJsonField);
+            items.push({ nombre: '', codigo: '' });
+            syncLocationField(guatemalaDepartamentosJsonField, items);
+            renderGuatemalaDepartamentosTable();
+        });
+        guatemalaDepartamentosTableBody?.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-remove-dept]');
+            if (!btn) return;
+            const items = readLocationField(guatemalaDepartamentosJsonField);
+            items.splice(parseInt(btn.dataset.removeDept), 1);
+            syncLocationField(guatemalaDepartamentosJsonField, items);
+            renderGuatemalaDepartamentosTable();
+        });
+
+        guatemalaZonasTableBody?.addEventListener('input', () => { syncZonasFromInputs(); });
+        guatemalaZonasTableBody?.addEventListener('change', () => { syncZonasFromInputs(); });
+        guatemalaZonaAddButton?.addEventListener('click', () => {
+            const items = readLocationField(guatemalaZonasJsonField);
+            items.push({ nombre: '', departamento: '', codigo: '' });
+            syncLocationField(guatemalaZonasJsonField, items);
+            renderGuatemalaZonasTable();
+        });
+        guatemalaZonasTableBody?.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-remove-zona]');
+            if (!btn) return;
+            const items = readLocationField(guatemalaZonasJsonField);
+            items.splice(parseInt(btn.dataset.removeZona), 1);
+            syncLocationField(guatemalaZonasJsonField, items);
+            renderGuatemalaZonasTable();
+        });
+
+        guatemalaDireccionesTableBody?.addEventListener('input', () => { syncDireccionesFromInputs(); });
+        guatemalaDireccionesTableBody?.addEventListener('change', () => { syncDireccionesFromInputs(); });
+        guatemalaDireccionAddButton?.addEventListener('click', () => {
+            const items = readLocationField(guatemalaDireccionesJsonField);
+            items.push({ direccion: '', departamento: '', zona: '', codigoPostal: '' });
+            syncLocationField(guatemalaDireccionesJsonField, items);
+            renderGuatemalaDireccionesTable();
+        });
+        guatemalaDireccionesTableBody?.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-remove-dir]');
+            if (!btn) return;
+            const items = readLocationField(guatemalaDireccionesJsonField);
+            items.splice(parseInt(btn.dataset.removeDir), 1);
+            syncLocationField(guatemalaDireccionesJsonField, items);
+            renderGuatemalaDireccionesTable();
+        });
+
+        function renderAllLocationTables() {
+            renderGuatemalaDepartamentosTable();
+            renderGuatemalaZonasTable();
+            renderGuatemalaDireccionesTable();
+        }
 
         function setInventoryClassificationStatus(message, isError = false) {
             if (!inventoryClassificationStatus) return;
