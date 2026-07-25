@@ -9976,6 +9976,16 @@ function buildCreationSummary({ orderCode, quoteRow, lineRow, frontBackGroup, pr
             analisis_finalizar: lr['ANALISIS CAMPOS FINALIZAR'] || '',
             analisis_crear_orden: lr['ANALISIS CAMPOS CREAR ORDEN'] || ''
         },
+        tiempos: {
+            diseno_horas: parseLegacyNumber(lr['Tiempos | Diseno Horas']) ?? 0,
+            preprensa_horas: parseLegacyNumber(lr['Tiempos | Preprensa Horas']) ?? 0,
+            impresion_minutos: parseLegacyNumber(lr['Tiempos | Impresion Minutos']) ?? 0,
+            impresion_corrida_minutos: parseLegacyNumber(lr['Tiempos | Impresion Minutos Corrida']) ?? 0,
+            impresion_montaje_minutos: parseLegacyNumber(lr['Tiempos | Impresion Minutos Montaje']) ?? 0,
+            acabados_minutos: parseLegacyNumber(lr['Tiempos | Acabados Minutos']) ?? 0,
+            empaque_horas: parseLegacyNumber(lr['Tiempos | Empaque Horas']) ?? 0,
+            total_minutos: parseLegacyNumber(lr['Tiempos | Total Minutos']) ?? 0
+        },
         maestra: {
             proceso_productivo: lr['Proceso Productivo'] || '',
             pie_cotizacion_fechas: qr['PIE COTIZACION | DETALLE COTIZACION | FECHAS'] || lr['PIE COTIZACION | DETALLE COTIZACION | FECHAS'] || '',
@@ -10509,6 +10519,30 @@ function buildCalculationRawData(payload = {}, existingRawData = {}) {
     }
     const sustratoMinApplied = Boolean(sustratoResult.minimumApplied);
     rawData['Material | Minimo Aplicado'] = sustratoMinApplied;
+
+    const designResult = processResultData.design || {};
+    const prepressResult = processResultData.prepress || {};
+    const printResult = processResultData.print || {};
+    const finishesResult = processResultData.finishes || {};
+    const packagingResult = processResultData.packaging || {};
+    rawData['Tiempos | Diseno Horas'] = parseLegacyNumber(designResult.time) ?? 0;
+    rawData['Tiempos | Preprensa Horas'] = parseLegacyNumber(prepressResult.time) ?? 0;
+    rawData['Tiempos | Impresion Minutos'] = parseLegacyNumber(printResult.totalMinutes) ?? 0;
+    rawData['Tiempos | Impresion Minutos Corrida'] = parseLegacyNumber(printResult.runMinutes) ?? 0;
+    rawData['Tiempos | Impresion Minutos Montaje'] = parseLegacyNumber(printResult.setupAdjustmentMin) ?? 0;
+    rawData['Tiempos | Empaque Horas'] = parseLegacyNumber(packagingResult.hours) ?? 0;
+    const finishesTimeMinutes = Array.isArray(finishesResult.items)
+        ? finishesResult.items.reduce((sum, item) => {
+            const setupMin = parseLegacyNumber(item.setupMinutes) || 0;
+            const runMin = parseLegacyNumber(item.runMinutes) || 0;
+            return sum + (setupMin > 0 || runMin > 0 ? setupMin + runMin : parseLegacyNumber(item.totalMinutes) || 0);
+        }, 0)
+        : 0;
+    rawData['Tiempos | Acabados Minutos'] = finishesTimeMinutes;
+    const totalTimeMinutes = (parseLegacyNumber(printResult.totalMinutes) || 0)
+        + finishesTimeMinutes
+        + ((parseLegacyNumber(packagingResult.hours) || 0) * 60);
+    rawData['Tiempos | Total Minutos'] = totalTimeMinutes;
 
     const uiPrintState = rawData['Estado_UI']?.print || rawData['Estado_UI']?.printStages?.[0] || null;
     if (uiPrintState && typeof uiPrintState === 'object') {
