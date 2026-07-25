@@ -8840,10 +8840,14 @@ function bindProcesses() {
       const inlineKey = parts[3];
       const material = findMaterial(value);
       if (inlineKey === "barniz") {
+        const barnizItem = (state.costsConfig?.acabados?.barniz || []).find((b) => String(b.id || b.nombre) === String(value));
+        const barnizCostPerKg = n(first(barnizItem?.costoPorKilo, material?.costo_x_kg, material?.costPerKgUsd), 0);
         Object.assign(state.form.printStages[stageIndex].inlineFinishes[inlineKey], {
           costPerLb: materialCostPerPound(material),
-          costPerKg: n(first(material?.costo_x_kg, material?.costPerKgUsd), 0),
-          layerGft2: n(first(material?.rendimiento_g_ft2, material?.peso_capa_gsm), 0)
+          costPerKg: barnizCostPerKg,
+          layerGft2: n(first(material?.rendimiento_g_ft2, material?.peso_capa_gsm), 0),
+          varnishBcm: firstPositiveNumber(n(barnizItem?.bcmAnilox, 0), state.form.printStages[stageIndex].inlineFinishes[inlineKey].varnishBcm),
+          coveragePct: firstPositiveNumber(n(barnizItem?.porcentajeCobertura, 0), state.form.printStages[stageIndex].inlineFinishes[inlineKey].coveragePct)
         });
       } else {
         const costs = materialUnitCosts(material, state.form.header.rollWidthIn);
