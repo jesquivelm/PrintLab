@@ -2818,9 +2818,9 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
 .costs-acabados-remove {
     width: 34px;
     height: 34px;
-    border: 1px solid #d7e2eb;
-    border-radius: 10px;
-    background: #ffffff;
+    border: none;
+    border-radius: 0;
+    background: transparent;
     color: #8a4a58;
     font-size: 16px;
     line-height: 1;
@@ -2828,6 +2828,15 @@ html[data-theme="dark"] .dashboard-bdfg-process-tray {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    padding: 0;
+}
+
+.costs-acabados-table-toolbar .icon-only-btn {
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
 }
 
 .costs-acabados-empty {
@@ -2842,12 +2851,16 @@ html[data-theme="dark"] .costs-acabados-empty {
     color: var(--app-text-muted) !important;
 }
 
-html[data-theme="dark"] .costs-acabados-table-wrap,
-html[data-theme="dark"] .costs-acabados-table tbody td,
 html[data-theme="dark"] .costs-acabados-remove {
+    border-color: transparent !important;
+    background: transparent !important;
+    color: var(--app-text) !important;
+}
+
+html[data-theme="dark"] .costs-acabados-table-wrap,
+html[data-theme="dark"] .costs-acabados-table tbody td {
     border-color: var(--app-border) !important;
     background: var(--app-surface-raised) !important;
-    color: var(--app-text) !important;
 }
 
 html[data-theme="dark"] .costs-acabados-table thead th {
@@ -4737,7 +4750,8 @@ html[data-theme="dark"] .costs-module-fields > label span {
     color: #17354a;
     background: #fff;
 }
-.field-checkbox-inline {
+.field-checkbox-inline,
+.checkbox-formato {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -4756,10 +4770,16 @@ html[data-theme="dark"] .costs-module-fields > label span {
     margin: 0;
     accent-color: #0b81b8;
 }
-.field-checkbox-inline label {
+.socios-table-check.checkbox-formato {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-top: 0;
+}
+.socios-table-check.checkbox-formato label {
     margin: 0;
 }
-.field-checkbox-inline input[type="checkbox"] {
+.socios-table-check.checkbox-formato input[type="checkbox"] {
     width: 18px;
     min-width: 18px;
     height: 18px;
@@ -4778,7 +4798,7 @@ html[data-theme="dark"] .costs-module-fields > label span {
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95);
     transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
 }
-.field-checkbox-inline input[type="checkbox"]::after {
+.socios-table-check.checkbox-formato input[type="checkbox"]::after {
     content: "";
     width: 8px;
     height: 4px;
@@ -4789,12 +4809,68 @@ html[data-theme="dark"] .costs-module-fields > label span {
     transition: transform 0.16s ease;
     margin-top: -1px;
 }
-.field-checkbox-inline input[type="checkbox"]:checked {
+.socios-table-check.checkbox-formato input[type="checkbox"]:checked {
     background: linear-gradient(180deg, #38bdf8, #0ea5e9);
     border-color: #38bdf8;
     box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.14);
 }
-.field-checkbox-inline input[type="checkbox"]:checked::after {
+.socios-table-check.checkbox-formato input[type="checkbox"]:checked::after {
+    transform: translateY(-1px) rotate(-45deg) scale(1);
+}
+html[data-theme="dark"] .socios-table-check.checkbox-formato input[type="checkbox"] {
+    border-color: var(--app-border);
+    background: var(--app-surface-soft);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+html[data-theme="dark"] .socios-table-check.checkbox-formato input[type="checkbox"]:checked {
+    background: linear-gradient(180deg, #38bdf8, #0ea5e9);
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.14);
+}
+.field-checkbox-inline label,
+.checkbox-formato label {
+    margin: 0;
+}
+.field-checkbox-inline input[type="checkbox"],
+.checkbox-formato input[type="checkbox"] {
+    width: 18px;
+    min-width: 18px;
+    height: 18px;
+    min-height: 18px;
+    margin: 0;
+    padding: 0;
+    border-radius: 4px;
+    border: 1px solid #b7c8d7;
+    background: #ffffff;
+    appearance: none;
+    -webkit-appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+}
+.field-checkbox-inline input[type="checkbox"]::after,
+.checkbox-formato input[type="checkbox"]::after {
+    content: "";
+    width: 8px;
+    height: 4px;
+    border-left: 2px solid #ffffff;
+    border-bottom: 2px solid #ffffff;
+    transform: translateY(-1px) rotate(-45deg) scale(0);
+    transform-origin: center;
+    transition: transform 0.16s ease;
+    margin-top: -1px;
+}
+.field-checkbox-inline input[type="checkbox"]:checked,
+.checkbox-formato input[type="checkbox"]:checked {
+    background: linear-gradient(180deg, #38bdf8, #0ea5e9);
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.14);
+}
+.field-checkbox-inline input[type="checkbox"]:checked::after,
+.checkbox-formato input[type="checkbox"]:checked::after {
     transform: translateY(-1px) rotate(-45deg) scale(1);
 }
 .socios-check-display {
@@ -7874,6 +7950,7 @@ html[data-theme="dark"] .new-calc-front-back-fields {
     opacity: 1;
 }
 .line-tracking-avatar {
+    position: relative;
     width: 34px;
     height: 34px;
     display: grid;
@@ -7882,7 +7959,22 @@ html[data-theme="dark"] .new-calc-front-back-fields {
     color: #fff;
     font-size: 12px;
     font-weight: 700;
-    overflow: hidden;
+    overflow: visible;
+}
+.line-tracking-check {
+    position: absolute;
+    bottom: -2px;
+    right: -3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #16a34a;
+    border: 2px solid #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 3;
 }
 .line-tracking-avatar.has-photo {
     background: transparent !important;
@@ -10103,6 +10195,80 @@ html[data-theme="dark"] .troquel-check-group .inventory-checkbox-field input[typ
     font-size: 18px;
     line-height: 1;
 }
+.troquel-touch-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 2100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.troquel-touch-modal[hidden] { display: none; }
+.troquel-touch-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(7, 17, 29, 0.5);
+    backdrop-filter: blur(4px);
+}
+.troquel-touch-modal-panel {
+    position: relative;
+    width: min(520px, calc(100vw - 40px));
+    max-height: 85vh;
+    background: #fff;
+    border-radius: 20px;
+    box-shadow: 0 28px 60px rgba(7, 17, 29, 0.3);
+    overflow: hidden;
+}
+.troquel-touch-modal-image {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    padding: 20px;
+}
+.troquel-touch-modal-image img {
+    max-width: 100%;
+    max-height: 70vh;
+    object-fit: contain;
+    border-radius: 12px;
+}
+.troquel-touch-modal-image .troquel-touch-empty {
+    color: #8a9baa;
+    font-size: 14px;
+    text-align: center;
+}
+.troquel-touch-modal-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.04);
+    color: #5a6b7a;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+    transition: background 0.18s;
+}
+.troquel-touch-modal-close:hover {
+    background: rgba(0,0,0,0.1);
+}
+html[data-theme="dark"] .troquel-touch-modal-panel {
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+}
+html[data-theme="dark"] .troquel-touch-modal-close {
+    background: var(--app-surface-soft);
+    color: var(--app-text-soft);
+}
+html[data-theme="dark"] .troquel-touch-modal-image .troquel-touch-empty {
+    color: var(--app-text-soft);
+}
 html[data-theme="dark"] .troquel-touch-btn {
     background: rgba(56, 189, 248, 0.12);
 }
@@ -10903,6 +11069,8 @@ body.inventory-route-tipos-salida .inventory-table-wrap {
     height: 30px;
     font-size: 14px;
 }
+#orderPrintButton,
+#orderPdfButton,
 #orderAttachmentsButton,
 #orderDeliveriesButton,
 #orderStateButton,
@@ -12453,12 +12621,14 @@ html[data-theme="dark"] .socios-grid .field input:focus {
     outline: none;
 }
 
-html[data-theme="dark"] .field-checkbox-inline input[type="checkbox"] {
+html[data-theme="dark"] .field-checkbox-inline input[type="checkbox"],
+html[data-theme="dark"] .checkbox-formato input[type="checkbox"] {
     border-color: var(--app-border);
     background: var(--app-surface-soft);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
-html[data-theme="dark"] .field-checkbox-inline input[type="checkbox"]:checked {
+html[data-theme="dark"] .field-checkbox-inline input[type="checkbox"]:checked,
+html[data-theme="dark"] .checkbox-formato input[type="checkbox"]:checked {
     background: linear-gradient(180deg, #38bdf8, #0ea5e9);
     border-color: #38bdf8;
     box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.14);
@@ -15873,8 +16043,8 @@ html[data-theme="dark"] .product-catalog-card .copy-popover-table thead th {
 
 .product-document-card .production-summary-item,
 .product-document-card .production-product-hero {
-    padding: 12px 13px;
-    border: 1px solid var(--app-border);
+    /*padding: 12px 13px;*/
+    /*border: 1px solid var(--app-border);*/
     border-radius: 16px;
     background: linear-gradient(180deg, color-mix(in srgb, var(--app-surface) 96%, #ffffff) 0%, color-mix(in srgb, var(--app-surface-soft) 88%, #eef5fa) 100%);
 }
@@ -18595,24 +18765,28 @@ html[data-theme="dark"] .quote-master-line.is-front-back-child {
     grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 .production-roll-grid .production-summary-item {
-    gap: 0;
+    gap: 6px;
+    align-content: start;
 }
 .production-roll-grid .production-summary-label {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.production-output-type-wrap {
+.production-output-type-item {
+    grid-template-columns: auto 1fr;
+}
+.production-roll-grid .production-output-type-item {
+    gap: 8px 8px;
+}
+.production-output-type-item > .production-summary-label {
+    grid-column: 1 / -1;
+}
+.production-output-type-item > .production-output-type-img {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
 }
-.production-output-type-img {
-    display: flex;
-    align-items: flex-start;
-    flex-shrink: 0;
-}
-.production-output-type-img img {
+.production-output-type-item > .production-output-type-img img {
     max-height: 56px;
     max-width: 100px;
     border-radius: 4px;
@@ -19817,51 +19991,49 @@ html[data-theme="dark"] .production-raw-divider {
 }
 
 #orderAdminTools.production-admin-tools {
-    position: absolute !important;
-    top: 12px;
-    right: 14px;
     display: flex !important;
+    justify-content: flex-end !important;
     align-items: center !important;
     gap: 6px !important;
-    z-index: 5;
+    padding: 4px 14px 0 !important;
     margin: 0 !important;
-    padding: 0 !important;
-    width: auto !important;
+    width: 100% !important;
+    box-sizing: border-box;
 }
 
 .production-top-row-wrapper {
     position: relative;
-    padding-top: 48px;
+    padding-top: 0;
 }
 
 .production-admin-tool-btn {
     width: 32px;
     height: 32px;
     border-radius: 8px;
-    border: 1px solid var(--app-border, #dbe5ec);
-    background: var(--app-surface, #fff);
+    border: none;
+    background: transparent;
     color: #64748b;
     font-size: 16px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background .15s, color .15s;
+    transition: color .15s;
 }
 
 .production-admin-tool-btn:hover {
-    background: #f1f5f9;
+    background: transparent !important;
     color: #1e293b;
 }
 
 html[data-theme="dark"] .production-admin-tool-btn {
-    background: #1e293b;
-    border-color: #334155;
+    background: transparent !important;
+    border: none !important;
     color: #94a3b8;
 }
 
 html[data-theme="dark"] .production-admin-tool-btn:hover {
-    background: #334155;
+    background: transparent !important;
     color: #e2e8f0;
 }
 
