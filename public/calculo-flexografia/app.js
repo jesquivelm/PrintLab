@@ -4337,12 +4337,12 @@ function formula(title, body, explanation, options = {}) {
 }
 
 function formulaButton(title, body, explanation, options = {}) {
-  const formulaText = body ? `Fórmula: ${body}` : "";
-  const explanationText = explanation ? `Explicación: ${explanation}` : "";
+  const formulaText = body ? `Fórmula:\n${body}` : "";
+  const explanationText = explanation ? `Explicación:\n${explanation}` : "";
   const exampleLines = Array.isArray(options.exampleLines) ? options.exampleLines.filter(Boolean) : [];
   const answerText = String(options.answer || "").trim();
   const exampleText = exampleLines.length ? ["Ejemplo Actual:", ...exampleLines].join("\n") : "";
-  const fullText = [formulaText, explanationText, exampleText, answerText].filter(Boolean).join("\n\n");
+  const fullText = [formulaText, exampleText, answerText, explanationText].filter(Boolean).join("\n\n");
   return infoPopoverButton(title, fullText, "formula-help");
 }
 
@@ -5466,7 +5466,7 @@ function calcFinishes() {
     let formulaText = "Acabado = costo máquina + costo operador + insumos del proceso.";
     let explanation = "El acabado mantiene su montaje, corrida y costos propios.";
     if (item.processKey === "barnizado") {
-      formulaText = "Barniz = costo máquina + costo operador + (Área Material ft² × (1 + Merma %) × Rendimiento g/ft² / 1 000) × Costo por Kilo.";
+      formulaText = "• Consumo (kg) = Área (in²) × Cobertura × BCM × Factor Transferencia × Densidad × 10⁻⁶\n• Subtotal Barniz = Consumo (kg) × Costo por Kilo + Costo Máquina + Costo Operador";
       explanation = "Barnizado usa el área técnica del trabajo, aplica la merma del barniz y convierte el depósito en g/ft² a kilogramos antes de valorizarlo.";
     } else if (item.processKey === "laminado") {
       formulaText = "Laminado = costo máquina + costo operador + (Área Material ft² × (1 + Merma %) × costo material ft²).";
@@ -6580,7 +6580,9 @@ function renderQuoteTracking() {
         : "";
       const closureNote = closureText ? `<div class="tracking-close-note"><strong>${esc(closureText)}${orderLink ? " · " + orderLink : ""}</strong>${closure.comments ? `<span>${esc(closure.comments)}</span>` : ""}</div>` : "";
       const postAcceptActions = closure?.outcome === "accepted"
-        ? `<div class="tracking-close-menu"><button type="button" class="btn-mark tracking-primary-action" data-tracking-create-order="${index}" aria-label="Crear orden de producción"><i class="ti ti-check" style="font-size:12px;" aria-hidden="true"></i>Crear Orden de Producción</button><button type="button" class="btn-mark tracking-product-action" data-tracking-create-product aria-label="Registrar producto"><i class="ti ti-box" style="font-size:12px;" aria-hidden="true"></i>Registrar Producto</button></div>`
+        ? (closure?.orderCode
+          ? `<div class="tracking-close-menu"><button type="button" class="btn-mark tracking-product-action" data-tracking-create-product aria-label="Registrar producto"><i class="ti ti-box" style="font-size:12px;" aria-hidden="true"></i>Registrar Producto</button></div>`
+          : `<div class="tracking-close-menu"><button type="button" class="btn-mark tracking-primary-action" data-tracking-create-order="${index}" aria-label="Crear orden de producción"><i class="ti ti-check" style="font-size:12px;" aria-hidden="true"></i>Crear Orden de Producción</button><button type="button" class="btn-mark tracking-product-action" data-tracking-create-product aria-label="Registrar producto"><i class="ti ti-box" style="font-size:12px;" aria-hidden="true"></i>Registrar Producto</button></div>`)
         : '';
       const closeActions = item.key === "cierre" ? quoteTrackingCloseActionsMarkup(index) : "";
       content = `<div class="tl-content-anim" style="padding-bottom:18px;"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px;"><i class="ti ${esc(item.icon)}" style="font-size:14px;color:var(--color-text-secondary);" aria-hidden="true"></i><span style="font-size:13px;font-weight:500;color:var(--color-text-primary);">${esc(item.label)}</span></div><div style="font-size:13px;color:var(--color-text-primary);">${esc(item.user || "")}</div><div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px;">${esc(item.date || "Pendiente")}</div>${closureNote}${closeActions}${postAcceptActions}${changeButton}${form}</div>`;
@@ -7715,7 +7717,7 @@ function renderInlinePrintBlock(stage, stageIndex, inline) {
   const formulaText = externalConfig && inline.key === "troquelado"
     ? "Troquelado en línea = tiempo de montaje y merma de ajuste dentro del proceso de impresión."
     : inline.key === "barniz"
-    ? "Kilogramos de Barniz = Área (in²) x Cobertura x BCM Anilox x Factor Transferencia x Densidad x 10⁻⁶. Costo Total = Kilogramos de Barniz x Precio por Kilo."
+    ? "• Consumo (kg) = Área (in²) × Cobertura × BCM × Factor Transferencia × Densidad × 10⁻⁶\n• Subtotal Barniz = Consumo (kg) × Costo por Kilo"
     : inline.key === "laminado"
     ? "Laminado = Longitud Total del sustrato x costo por pie lineal del laminado seleccionado."
     : inline.key === "estampado"
@@ -7741,7 +7743,7 @@ function renderInlinePrintBlock(stage, stageIndex, inline) {
   const formulaExampleLine = inline.key === "troquelado"
     ? `Montaje ${formulaValue(inline.setupMinutes || 0, 2)} min + Merma Ajuste ${formulaValue(inline.setupWasteFeet || 0, 2)} ft`
     : inline.key === "barniz"
-      ? `Kg Barniz: Área ${formulaValue(inline.varnishAreaIn2 || 0, 2)} in² x Cobertura ${formulaValue((inline.coveragePct || 0) / 100, 4)} x BCM ${formulaValue(inline.varnishBcm || 0, 2)} x Transfer ${formulaValue(inline.factorTransferencia || 0, 2)} x Densidad ${formulaValue(inline.densidad || 0, 2)} x 10⁻⁶ = ${formulaValue(inline.materialConsumptionKg || 0, 4)} kg`
+      ? `Kg Barniz: Área ${formulaValue(inline.varnishAreaIn2 || 0, 2)} in² x Cobertura ${formulaValue((inline.coveragePct || 0) / 100, 4)} x BCM ${formulaValue(inline.varnishBcm || 0, 2)} x Transfer ${formulaValue(inline.factorTransferencia || 0, 2)} x Densidad ${formulaValue(inline.densidad || 0, 2)} x 10⁻⁶ = ${formulaValue(inline.materialConsumptionKg || 0, 4)} kg\nSubtotal: ${formulaValue(inline.materialConsumptionKg || 0, 4)} kg x ${formulaValue(inline.costPerKg || 0, 4)} = ${formulaValue(inline.materialSubtotal || 0, 2)}`
       : isLinealInlineMaterial
         ? `Subtotal material: Longitud Total ${formulaValue(inline.materialBase || 0, 2)} pies x ${formulaValue(inline.costPerFoot || 0, 6)} = ${formulaValue(inline.materialSubtotal || 0, 2)}`
         : inline.key === "embosado"
@@ -7761,11 +7763,12 @@ function renderInlineToggleBar(stageIndex, inlineItems) {
 }
 
 function renderPrintInkBlock(scope, item, printItem) {
-  const info = formulaButton("Cálculo de Tinta Convencional", "Consumo Tinta = Área Impresa x Cobertura x BCM Anilox x Factor Transferencia x Densidad x Tintas Requeridas. Subtotal Tinta = Consumo Tinta x Costo por Libra.", "El consumo se calcula con el área impresa actual y el costo se obtiene multiplicando las libras consumidas por el costo de la tinta seleccionada.", {
+  const info = formulaButton("Cálculo de Tinta Convencional", "• Consumo (lb) = Área Impresa (in²) × Cobertura × BCM × Factor Transferencia × Densidad × Tintas Requeridas × 10⁻⁶\n• Subtotal Tinta = Consumo (lb) × Costo por Libra", "El consumo se calcula con el área impresa actual y el costo se obtiene multiplicando las libras consumidas por el costo de la tinta seleccionada.", {
     exampleLines: [
-      `Área impresa: ${formulaValue(printItem.printedAreaFt2 || 0, 4)} ft² = ${formulaValue((printItem.printedAreaFt2 || 0) * 144, 4)} in²`,
-      `Consumo por tinta: ${formulaValue((printItem.inkConsumptionPerColorLb || 0), 6)} lb`,
-      `Consumo total: ${formulaValue(printItem.inkConsumption || 0, 6)} lb x ${formulaValue(printItem.inkCostPerLb || 0, 4)} = ${formulaValue(printItem.inkSubtotal || 0, 2)}`
+      `Área impresa: ${formulaValue(printItem.printedAreaFt2 || 0, 4)} ft² x 144 = ${formulaValue((printItem.printedAreaFt2 || 0) * 144, 4)} in²`,
+      `Consumo por color: ${formulaValue((printItem.printedAreaFt2 || 0) * 144, 4)} in² x ${formulaValue(printItem.inkCoveragePct || 0, 2)} x ${formulaValue(printItem.aniloxBcm || 0, 2)} x ${formulaValue(printItem.transferFactor || 0, 2)} x ${formulaValue(printItem.inkDensity || 0, 2)} x 0.001 / 453.59 = ${formulaValue(printItem.inkConsumptionPerColorLb || 0, 6)} lb`,
+      `Consumo total: ${formulaValue(printItem.inkConsumptionPerColorLb || 0, 6)} lb x ${formulaValue(printItem.colors || 0, 0)} tintas = ${formulaValue(printItem.inkConsumption || 0, 6)} lb`,
+      `Subtotal: ${formulaValue(printItem.inkConsumption || 0, 6)} lb x ${formulaValue(printItem.inkCostPerLb || 0, 4)} = ${formulaValue(printItem.inkSubtotal || 0, 2)}`
     ],
     answer: `R/ El total de tinta convencional calculado es ${money(printItem.inkSubtotal || 0)}.`
   });
