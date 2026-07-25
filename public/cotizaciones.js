@@ -2483,7 +2483,7 @@ function openLineTrackingModal(row) {
         <div class="line-tracking-list">
             ${milestones.map((item) => {
                 const name = item.user || 'Pendiente';
-                const checkBadge = item.done ? '<span class="line-tracking-check"><i class="ti ti-check" style="font-size:9px;color:#fff;" aria-hidden="true"></i></span>' : '';
+                const checkBadge = item.done ? '<span class="line-tracking-check" aria-hidden="true">✓</span>' : '';
                 return `<article class="line-tracking-item${item.done ? ' is-done' : ''}">
                     <span class="line-tracking-avatar${trackingPhotoForName(name) ? ' has-photo' : ''}" style="background:${escapeHtml(trackingColorForName(name))};">${trackingAvatarMarkup(name)}${checkBadge}</span>
                     <div><strong>${escapeHtml(item.label)}</strong><span>${escapeHtml(name)}</span><em>${escapeHtml(item.date || 'Pendiente')}</em></div>

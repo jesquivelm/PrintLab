@@ -7975,6 +7975,10 @@ html[data-theme="dark"] .new-calc-front-back-fields {
     justify-content: center;
     pointer-events: none;
     z-index: 3;
+    font-size: 10px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1;
 }
 .line-tracking-avatar.has-photo {
     background: transparent !important;
