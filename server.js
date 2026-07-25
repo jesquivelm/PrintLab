@@ -10462,6 +10462,33 @@ function buildCalculationRawData(payload = {}, existingRawData = {}) {
         'Datos_Cotizados': hasOwn('processResult') ? payload.processResult : (existingRawData['Datos_Cotizados'] || null)
     };
 
+    const processResultData = rawData['Datos_Cotizados'] || {};
+    const sustratoResult = processResultData.sustrato || {};
+    const sustratoPies = parseLegacyNumber(sustratoResult.totalLengthFeet) ?? parseLegacyNumber(existingRawData['Material | Pies Segun Proceso Productivo']);
+    const sustratoPiesMacula = parseLegacyNumber(sustratoResult.startupWasteFeet) ?? parseLegacyNumber(existingRawData['Material | Pies Macula Segun Proceso Productivo']);
+    const sustratoPiesLineales = parseLegacyNumber(sustratoResult.linealFeet) ?? parseLegacyNumber(existingRawData['Material | Pies Lineales Sin Merma']);
+    const sustratoAncho = parseLegacyNumber(sustratoResult.webWidthIn) ?? parseLegacyNumber(rawData['DIMENSIONES ETIQUETA | ANCHO']);
+    if (sustratoPies !== null) {
+        rawData['GENERAL | SUSTRATO | CONSUMO PIES'] = sustratoPies;
+        rawData['Material | Pies Segun Proceso Productivo'] = sustratoPies;
+        rawData[`${activePrefix} | MATERIAL | CANTIDAD PIES LINEALES INCLUYE MACULA`] = sustratoPies;
+        rawData[`${activePrefix} | MATERIAL | CANTIDAD PIES LINEALES`] = sustratoPiesLineales || sustratoPies;
+    }
+    if (sustratoPiesMacula !== null) {
+        rawData['Material | Pies Macula Segun Proceso Productivo'] = sustratoPiesMacula;
+        rawData[`${activePrefix} | MATERIAL | CANTIDAD PIES MACULA | CALCULO`] = sustratoPiesMacula;
+    }
+    if (sustratoPies !== null && sustratoAncho > 0) {
+        const totalAreaFt2 = sustratoPies * (sustratoAncho / 12);
+        const msiValue = totalAreaFt2 * 144 / 1000;
+        const m2Value = sustratoPies * 0.3048 * (sustratoAncho * 0.0254);
+        rawData['Material | MSI Segun Proceso Productivo'] = roundCurrency(msiValue);
+        rawData['Material | m2 Segun Proceso Productivo'] = roundCurrency(m2Value);
+        rawData[`${activePrefix} | MATERIAL | CANTIDAD MSI INCLUYE MACULA`] = roundCurrency(msiValue);
+        rawData[`${activePrefix} | MATERIAL | CANTIDAD MSI`] = roundCurrency(msiValue);
+        rawData[`${activePrefix} | MATERIAL | AREA MTS`] = roundCurrency(m2Value);
+    }
+
     const uiPrintState = rawData['Estado_UI']?.print || rawData['Estado_UI']?.printStages?.[0] || null;
     if (uiPrintState && typeof uiPrintState === 'object') {
         const inlineBarnizState = uiPrintState.inlineFinishes?.barniz || {};
