@@ -357,9 +357,9 @@ function buildImportSummaryText(summary = {}) {
     return [
         `${Number(summary.inserted || 0)} cargados`,
         `${Number(summary.duplicateByCode || 0)} duplicados por código`,
-        `${Number(summary.duplicateByTaxId || 0)} duplicados por ID fiscal`,
+        `${Number(summary.duplicateByTaxId || 0)} duplicados por RTU`,
         `${Number(summary.duplicateByBoth || 0)} duplicados por ambos`,
-        `${Number(summary.skippedWithoutTaxId || 0)} sin ID fiscal`,
+        `${Number(summary.skippedWithoutTaxId || 0)} sin RTU`,
         `${Number(summary.skippedWithoutCode || 0)} sin código`
     ].join(' · ');
 }
@@ -378,7 +378,7 @@ function renderSociosImportDiagnosis(summary = {}) {
         ['Disponibles', Number(summary.importable || 0)],
         ['Total leídos', Number(summary.total || 0)],
         ['Duplicados código', Number(summary.duplicateByCode || 0)],
-        ['Duplicados ID', Number(summary.duplicateByTaxId || 0)],
+        ['Duplicados RTU', Number(summary.duplicateByTaxId || 0)],
         ['Duplicados ambos', Number(summary.duplicateByBoth || 0)],
         ['Sin código/ID', Number(summary.skippedWithoutCode || 0) + Number(summary.skippedWithoutTaxId || 0)]
     ];

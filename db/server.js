@@ -930,7 +930,8 @@ function buildNewPartnerRawData(payload, partnerCode) {
             },
             direccion: {
                 pais: payload.address_country,
-                provincia: payload.address_state_province,
+                departamento: payload.address_state_province,
+                zona: payload.address_zone,
                 canton: payload.address_county,
                 detalle: payload.address_line
             }
@@ -3861,12 +3862,13 @@ app.post('/api/socios', async (req, res) => {
             contact_phone: String(req.body?.contact_phone || '').trim(),
             address_country: String(req.body?.address_country || '').trim(),
             address_state_province: String(req.body?.address_state_province || '').trim(),
+            address_zone: String(req.body?.address_zone || '').trim(),
             address_county: String(req.body?.address_county || '').trim(),
             address_line: String(req.body?.address_line || '').trim()
         };
 
         if (!payload.partner_name || !payload.tax_id || !payload.email_facturacion || !payload.contact_name) {
-            return res.status(400).json({ error: 'Debes completar nombre del socio, identificación fiscal, correo de facturación y nombre del contacto principal.' });
+            return res.status(400).json({ error: 'Debes completar nombre del socio, RTU, correo de facturación y nombre del contacto principal.' });
         }
 
         const duplicate = await withTransaction(async (client) => {
@@ -3965,13 +3967,14 @@ app.post('/api/socios', async (req, res) => {
                     zip_code,
                     raw_data
                 ) VALUES (
-                    $1, 'Principal', 'Facturación', $2, $3, $4, '', $5, '', $6::jsonb
+                    $1, 'Principal', 'Facturación', $2, $3, $4, $5, $6, '', $7::jsonb
                 )`,
                 [
                     partnerCode,
                     payload.address_country,
                     payload.address_state_province,
                     payload.address_county,
+                    payload.address_zone,
                     payload.address_line,
                     JSON.stringify({ ADDRESS: payload.address_line })
                 ]

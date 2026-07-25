@@ -284,7 +284,7 @@ function renderContacts(contacts) {
 
 function renderAddresses(addresses) {
   if (!addresses.length) {
-    addressesTableBody.innerHTML = '<tr><td colspan="6">Sin direcciones asociadas.</td></tr>';
+    addressesTableBody.innerHTML = '<tr><td colspan="7">Sin direcciones asociadas.</td></tr>';
     return;
   }
   addressesTableBody.innerHTML = addresses.map((address) => `
@@ -293,6 +293,7 @@ function renderAddresses(addresses) {
       <td>${escapeHtml(address.address_type)}</td>
       <td>${escapeHtml(address.country)}</td>
       <td>${escapeHtml(address.state_province)}</td>
+      <td>${escapeHtml(address.district)}</td>
       <td>${escapeHtml(address.county)}</td>
       <td>${escapeHtml(address.address_line)}</td>
     </tr>
