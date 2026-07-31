@@ -105,6 +105,25 @@ CREATE INDEX IF NOT EXISTS idx_production_order_routes_capacity ON production_or
 CREATE INDEX IF NOT EXISTS idx_production_route_events_route ON production_route_events(route_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_production_waste_logs_route ON production_waste_logs(route_id, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS order_tracking_marks (
+    id                      SERIAL PRIMARY KEY,
+    codigo_orden            TEXT NOT NULL REFERENCES flexo_orders(order_code) ON DELETE CASCADE,
+    clave_proceso           TEXT NOT NULL,
+    marcado                 BOOLEAN NOT NULL DEFAULT false,
+    fecha_marcado           TIMESTAMPTZ,
+    marcado_por             TEXT DEFAULT '',
+    foto_marcado_por        TEXT DEFAULT '',
+    fecha_desmarcado        TIMESTAMPTZ,
+    desmarcado_por          TEXT DEFAULT '',
+    foto_desmarcado_por     TEXT DEFAULT '',
+    created_at              TIMESTAMPTZ DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(codigo_orden, clave_proceso)
+);
+
+CREATE INDEX IF NOT EXISTS idx_otm_order ON order_tracking_marks(codigo_orden);
+CREATE INDEX IF NOT EXISTS idx_otm_process ON order_tracking_marks(clave_proceso);
+
 -- ═══════════════════════════════════════════════════════════════════
 -- FASE 1: CALENDARIO DE RECURSOS (Finite Capacity Planning)
 -- ═══════════════════════════════════════════════════════════════════

@@ -7,37 +7,27 @@
 <link rel="stylesheet" href="/styles.css">
 <script src="/theme.js"></script>
 <style>
-body { margin:0; font-family:system-ui,-apple-system,sans-serif; background:transparent; }
-.dashboard-grid { display:grid; grid-template-columns:repeat(4,minmax(180px,220px)); justify-content:center; gap:18px; padding:32px 24px; max-width:1200px; margin:0 auto; }
-.dashboard-card { display:grid; justify-items:center; align-content:center; gap:12px; aspect-ratio:1/1; padding:18px; border:1px solid #d8e2ea; border-radius:24px; background:#ffffff; text-align:center; box-shadow:0 10px 24px rgba(19,39,54,0.05); transition:transform 0.18s ease,box-shadow 0.18s ease,border-color 0.18s ease,background-color 0.18s ease; cursor:pointer; }
-html[data-theme="dark"] .dashboard-card { background:#1a1d23; border-color:#2d3740; box-shadow:0 10px 24px rgba(0,0,0,0.2); }
-.dashboard-card:hover, .dashboard-card:focus-visible { transform:translateY(-2px); border-color:#a5d4e7; box-shadow:0 16px 30px rgba(19,39,54,0.11); background:#f8fbfd; }
-html[data-theme="dark"] .dashboard-card:hover, html[data-theme="dark"] .dashboard-card:focus-visible { background:#22262e; border-color:#3a5a70; }
-.dashboard-card-icon { display:inline-flex; align-items:center; justify-content:center; width:54px; height:54px; flex:0 0 54px; color:var(--icon-base-color,#0b81b8); border-radius:14px; transition:color 0.18s ease,transform 0.18s ease; }
-.dashboard-card:hover .dashboard-card-icon, .dashboard-card:focus-visible .dashboard-card-icon { color:var(--icon-hover-color,#17abdf); transform:translateY(-1px); }
-.dashboard-card-icon .icon-glyph { color:currentColor; font-size:var(--config-icon-size,38px); }
-.dashboard-card-icon .icon-svg-mask, .dashboard-card-icon .icon-image { width:var(--config-icon-size,38px); height:var(--config-icon-size,38px); display:block; max-width:100%; max-height:100%; object-fit:contain; }
-.dashboard-card-title { font-size:13px; font-weight:500; color:#7b8894; }
-html[data-theme="dark"] .dashboard-card-title { color:#9aa9b8; }
-.dashboard-card:hover .dashboard-card-title, .dashboard-card:focus-visible .dashboard-card-title { color:#2b3c49; }
-html[data-theme="dark"] .dashboard-card:hover .dashboard-card-title { color:#d0dae6; }
-.dashboard-card[data-icon-key="tintasCatalogo"] { --card-accent:#d97706; }
-.dashboard-card[data-icon-key="tintasInventario"] { --card-accent:#6366f1; }
-.dashboard-card[data-icon-key="tintasPantones"] { --card-accent:#0e7a9e; }
-.dashboard-card[data-icon-key="tintasRecetas"] { --card-accent:#16a34a; }
-.dashboard-card[data-icon-key="tintasCalculadora"] { --card-accent:#b7791f; }
+body { margin:0; background:transparent; }
+.tintas-dashboard-grid { display:grid; grid-template-columns:repeat(4,minmax(180px,220px)); justify-content:center; gap:18px; padding:32px 24px; max-width:1200px; margin:0 auto; }
+.tintas-dashboard-card { display:grid; justify-items:center; align-content:center; gap:12px; aspect-ratio:1/1; padding:18px; border:1px solid var(--app-border); border-radius:24px; background:var(--app-surface); text-align:center; box-shadow:var(--app-shadow-sm); transition:transform 0.18s ease,box-shadow 0.18s ease,border-color 0.18s ease; cursor:pointer; }
+.tintas-dashboard-card:hover, .tintas-dashboard-card:focus-visible { transform:translateY(-2px); box-shadow:var(--app-shadow-md); }
+.tintas-dashboard-card-icon { display:inline-flex; align-items:center; justify-content:center; width:54px; height:54px; flex:0 0 54px; color:var(--icon-base-color,var(--app-primary)); border-radius:14px; transition:color 0.18s ease,transform 0.18s ease; }
+.tintas-dashboard-card:hover .tintas-dashboard-card-icon, .tintas-dashboard-card:focus-visible .tintas-dashboard-card-icon { color:var(--icon-hover-color,var(--app-primary-strong)); transform:translateY(-1px); }
+.tintas-dashboard-card-icon .icon-glyph { color:currentColor; font-size:var(--config-icon-size,38px); }
+.tintas-dashboard-card-icon .icon-svg-mask, .tintas-dashboard-card-icon .icon-image { width:var(--config-icon-size,38px); height:var(--config-icon-size,38px); display:block; max-width:100%; max-height:100%; object-fit:contain; }
+.tintas-dashboard-card-title { font-size:13px; font-weight:500; color:var(--app-text-muted); }
+.tintas-dashboard-card:hover .tintas-dashboard-card-title { color:var(--app-text); }
 </style>
 </head>
 <body>
-<section class="dashboard-grid" id="tintasGrid"></section>
+<section class="tintas-dashboard-grid" id="tintasGrid"></section>
 <script>
 const CONFIG_ENDPOINT = '/api/config/shell';
 const TINTAS_MODULES = [
   { route:'/tintas/catalogo', label:'Catálogo de Tintas', iconKey:'tintasCatalogo' },
   { route:'/tintas/lotes', label:'Control de Inventario', iconKey:'tintasInventario' },
   { route:'/tintas/pantones', label:'Biblioteca Pantone', iconKey:'tintasPantones' },
-  { route:'/tintas/recetas', label:'Recetas y Fórmulas', iconKey:'tintasRecetas' },
-  { route:'/tintas/calculadora', label:'Calculadora de Producción', iconKey:'tintasCalculadora' }
+  { route:'/tintas/recetas', label:'Recetas y Fórmulas', iconKey:'tintasRecetas' }
 ];
 
 let loadedConfig = {};
@@ -66,7 +56,7 @@ function renderTintasCards() {
   TINTAS_MODULES.forEach(function(mod) {
     const card = document.createElement('button');
     card.type = 'button';
-    card.className = 'dashboard-card';
+    card.className = 'tintas-dashboard-card';
     card.dataset.route = mod.route;
     card.dataset.label = mod.label;
     card.dataset.iconKey = mod.iconKey;
@@ -78,17 +68,13 @@ function renderTintasCards() {
     const configuredSize = Number((loadedConfig.general && loadedConfig.general['iconSize' + suffix])) || 38;
 
     const iconSpan = document.createElement('span');
-    iconSpan.className = 'dashboard-card-icon';
+    iconSpan.className = 'tintas-dashboard-card-icon';
     iconSpan.innerHTML = iconMarkup(iconValue, mod.label, 'table-icon-media');
     iconSpan.style.setProperty('--icon-base-color', color);
     iconSpan.style.setProperty('--icon-hover-color', hover);
-    iconSpan.style.setProperty('--config-icon-size', configuredSize + 'px');
-    iconSpan.style.width = '54px';
-    iconSpan.style.height = '54px';
-    iconSpan.style.flexBasis = '54px';
 
     const titleSpan = document.createElement('span');
-    titleSpan.className = 'dashboard-card-title';
+    titleSpan.className = 'tintas-dashboard-card-title';
     titleSpan.textContent = mod.label;
 
     card.appendChild(iconSpan);
@@ -104,6 +90,16 @@ function renderTintasCards() {
     });
 
     grid.appendChild(card);
+
+    requestAnimationFrame(function() {
+      var cardWidth = card.clientWidth || 190;
+      var size = Math.max(24, Math.min(configuredSize, Math.max(42, Math.min(84, Math.floor(cardWidth * 0.42)))));
+      var tileSize = Math.max(56, Math.min(cardWidth - 28, size + 18));
+      iconSpan.style.setProperty('--config-icon-size', size + 'px');
+      iconSpan.style.width = tileSize + 'px';
+      iconSpan.style.height = tileSize + 'px';
+      iconSpan.style.flexBasis = tileSize + 'px';
+    });
   });
 }
 

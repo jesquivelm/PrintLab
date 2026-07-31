@@ -168,7 +168,22 @@ function writeCache(key, data) {
             data
         }));
     } catch (error) {
-        console.warn('No fue posible actualizar el caché local.', error);
+        if (error.name === 'QuotaExceededError') {
+            try {
+                const keysToPreserve = new Set([GENERAL_CONFIG_CACHE_KEY, QUOTE_TRACKING_STORAGE_KEY]);
+                const removable = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const k = localStorage.key(i);
+                    if (k && !keysToPreserve.has(k)) removable.push(k);
+                }
+                removable.forEach((k) => localStorage.removeItem(k));
+                localStorage.setItem(key, JSON.stringify({ storedAt: Date.now(), data }));
+            } catch (_) {
+                console.warn('No fue posible actualizar el caché local (sin espacio).');
+            }
+        } else {
+            console.warn('No fue posible actualizar el caché local.', error);
+        }
     }
 }
 
@@ -592,10 +607,10 @@ async function getProformaBlockMessage(quoteCode) {
     const lines = Array.isArray(detail?.lineas) ? detail.lineas : [];
     const blocked = lines
         .map((line) => ({
-            lineCode: String(line.line_code || line.linea || line.raw_data?.['ID LINEA'] || '').trim(),
+            lineCode: String(line.line_code || line.linea || '').trim(),
             quoteCode,
             productId: line.product_code || '',
-            department: line.department || line.raw_data?.DEPARTAMENTO || 'Flexografia',
+            department: line.department || line.line_summary?.department || 'Flexografia',
             issues: proformaBlockIssuesFromLine(line)
         }))
         .filter((item) => item.issues.length);
@@ -1875,7 +1890,7 @@ function askProductionOrderQuantity(row, quantities) {
         var raw = row.raw_data || {};
         var processResult = raw.processResult || raw.process_result || {};
         var totals = processResult.totals || {};
-        var material = raw['GENERAL | MATERIAL'] || raw.material_name || '';
+        var material = row.material || row.materialCode || raw['GENERAL | MATERIAL'] || raw.material_name || '';
         var wastePct = totals.wastePct != null ? totals.wastePct : (totals.wastePercent != null ? totals.wastePercent : 0);
         var machineHours = totals.machineHours != null ? totals.machineHours : (totals.printHours != null ? totals.printHours : 0);
         var defaultUnit = totals.unit || totals.unitPrice || 0;
@@ -2108,19 +2123,13 @@ function applyQuotePayload(payload) {
     const quote = payload?.cotizacion || null;
     const lines = payload?.lineas || [];
     const resumen = payload?.resumen || {};
-    const firstLineRaw = lines[0]?.raw_data || {};
     currentQuote = quote;
 
     setFieldValue('numeroCotizacion', quote?.quote_code || '');
     setFieldValue('clienteCodigo', firstFilled(
         quote?.customer_code,
         quote?.customer_id,
-        quote?.card_code,
-        firstLineRaw?.customer_code,
-        firstLineRaw?.customer_id,
-        firstLineRaw?.['CLIENTE | CODIGO'],
-        firstLineRaw?.['SOCIO | CODIGO'],
-        firstLineRaw?.['ID SOCIO']
+        quote?.card_code
     ));
     setFieldValue('clienteNombre', quote?.customer_name || '');
     setFieldValue('dirigidoA', quote?.contact_name || '');
@@ -2141,31 +2150,29 @@ function applyQuotePayload(payload) {
         originalLinea: line.line_code || '',
         lineOrder: Number(line.line_order) || index + 1,
         rawData: line.raw_data || {},
-        createdOn: line.created_on || line.raw_data?.['FECHA CREACION DATE'] || line.raw_data?.['FECHA CREACION'] || quote?.created_on || '',
-        dueOn: line.due_on || line.raw_data?.['FECHA VENCIMIENTO'] || quote?.due_on || '',
+        createdOn: line.created_on || quote?.created_on || '',
+        dueOn: line.due_on || quote?.due_on || '',
         departamento: line.department || 'Flexografia',
         nombreTrabajo: line.job_name || '',
-        material: line.material_name || '',
-      medidaFija: line.raw_data?.['REQ | Medida Fija'] || '',
-        medida: String(line.raw_data?.['REQ | Forma'] || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes('circular')
-            ? (line.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'] ? `Diámetro ${line.raw_data?.['DIMENSIONES ETIQUETA | ANCHO']}` : '')
-            : [line.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'], line.raw_data?.['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join(' x '),
-      machineName: line.machine_name || line.raw_data?.['CONV | MAQUINA'] || line.raw_data?.['DIGITAL | MAQUINA'] || '',
-      dieCode: line.die_code || line.raw_data?.['GENERAL | TROQUEL | ID'] || line.raw_data?.['REQ | Troquelado'] || '',
-      quantity: line.quantity ?? line.raw_data?.['Cantidad Productos'] ?? '',
-      noPrint: ['si', 'sí', 'yes', 'true', '1'].includes(normalizeSummaryValue(line.raw_data?.['SIN IMPRESION'] || line.raw_data?.['SIN IMPRESIÓN']).toLowerCase()),
-      barniz: line.raw_data?.['REQ | Barniz'] || '',
-      laminado: line.raw_data?.['REQ | Laminado'] || '',
-      estampado: line.raw_data?.['REQ | Estampado'] || '',
-      embosado: line.raw_data?.['REQ | Embosado'] || '',
-      troquelado: line.raw_data?.['REQ | Troquelado'] || '',
-      numeracion: line.raw_data?.['REQ | Numeracion'] || line.raw_data?.['REQ | Numeracion Aviso'] || '',
-      routeLabel: line.raw_data?.['REQ | Ruta Automática'] || line.process_type || '',
-      mountingSummary: line.raw_data?.['REQ | Montaje Automático'] || line.raw_data?.['Texto_Secuencia_Procesos'] || '',
-      autoWarningsText: '',
-      materialCode: line.raw_data?.['Material Convencional | Id Material'] || line.raw_data?.['Material Digital | Id Material'] || '',
-      finalizadaOrden: Boolean(line.finalized_for_order || line.raw_data?.['Finalizado_Para_Orden']),
-      estado: line.status || 'Cotizada',
+        material: line.material_name || line.material_nombre || line.line_summary?.material_name || '',
+        medidaFija: line.medida_fija || line.raw_data?.['REQ | Medida Fija'] || '',
+        medida: line.line_summary?.measure || '',
+        machineName: line.machine_name || '',
+        dieCode: line.die_code || '',
+        quantity: line.quantity ?? '',
+        noPrint: line.sin_impresion || ['si', 'sí', 'yes', 'true', '1'].includes(normalizeSummaryValue(line.raw_data?.['SIN IMPRESION'] || line.raw_data?.['SIN IMPRESIÓN']).toLowerCase()),
+        barniz: line.barniz_tipo || line.raw_data?.['REQ | Barniz'] || '',
+        laminado: line.laminado_tipo || line.raw_data?.['REQ | Laminado'] || '',
+        estampado: line.estampado_tipo || line.raw_data?.['REQ | Estampado'] || '',
+        embosado: line.embosado_tipo || line.raw_data?.['REQ | Embosado'] || '',
+        troquelado: line.raw_data?.['REQ | Troquelado'] || '',
+        numeracion: line.raw_data?.['REQ | Numeracion'] || line.raw_data?.['REQ | Numeracion Aviso'] || '',
+        routeLabel: line.ruta_calculada || line.raw_data?.['REQ | Ruta Automática'] || line.process_type || '',
+        mountingSummary: line.montaje_resumen || line.raw_data?.['REQ | Montaje Automático'] || line.raw_data?.['Texto_Secuencia_Procesos'] || '',
+        autoWarningsText: '',
+        materialCode: line.material_code || '',
+        finalizadaOrden: Boolean(line.finalized_for_order),
+        estado: line.status || 'Cotizada',
         subtotal1: line.subtotal_1 ?? '',
         subtotal2: line.subtotal_2 ?? '',
         subtotal3: line.subtotal_3 ?? '',
@@ -2177,7 +2184,7 @@ function applyQuotePayload(payload) {
         quoteId: quote?.quote_code || '',
         productId: line.product_code || '',
         processType: line.process_type || '',
-        processSequenceText: line.process_sequence_text || line.raw_data?.['Texto_Secuencia_Procesos'] || '',
+        processSequenceText: line.process_sequence_text || '',
         frontBackGroup: normalizeFrontBackGroupDetail(line.raw_data || {})
     }));
 
@@ -2457,33 +2464,31 @@ async function persistNewRow() {
         linea: linea.line_code,
         originalLinea: linea.line_code,
         lineOrder: Number(linea.line_order) || (quoteRows.length + 1),
-        createdOn: linea.created_on || linea.raw_data?.['FECHA CREACION DATE'] || linea.raw_data?.['FECHA CREACION'] || currentQuote?.created_on || '',
-        dueOn: linea.due_on || linea.raw_data?.['FECHA VENCIMIENTO'] || currentQuote?.due_on || '',
+        createdOn: linea.created_on || currentQuote?.created_on || '',
+        dueOn: linea.due_on || currentQuote?.due_on || '',
         nombreTrabajo: linea.job_name || '',
-        material: linea.material_name || '',
-        medidaFija: linea.raw_data?.['REQ | Medida Fija'] || '',
-        medida: String(linea.raw_data?.['REQ | Forma'] || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes('circular')
-            ? (linea.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'] ? `Diámetro ${linea.raw_data?.['DIMENSIONES ETIQUETA | ANCHO']}` : '')
-            : [linea.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'], linea.raw_data?.['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join(' x '),
-        machineName: linea.machine_name || linea.raw_data?.['CONV | MAQUINA'] || linea.raw_data?.['DIGITAL | MAQUINA'] || '',
-        dieCode: linea.die_code || linea.raw_data?.['GENERAL | TROQUEL | ID'] || linea.raw_data?.['REQ | Troquelado'] || '',
-        quantity: linea.quantity ?? linea.raw_data?.['Cantidad Productos'] ?? '',
-        noPrint: ['si', 'sí', 'yes', 'true', '1'].includes(normalizeSummaryValue(linea.raw_data?.['SIN IMPRESION'] || linea.raw_data?.['SIN IMPRESIÓN']).toLowerCase()),
-        barniz: linea.raw_data?.['REQ | Barniz'] || '',
-        laminado: linea.raw_data?.['REQ | Laminado'] || '',
-        estampado: linea.raw_data?.['REQ | Estampado'] || '',
-        embosado: linea.raw_data?.['REQ | Embosado'] || '',
+        material: linea.material_name || linea.material_nombre || linea.line_summary?.material_name || '',
+        medidaFija: linea.medida_fija || linea.raw_data?.['REQ | Medida Fija'] || '',
+        medida: linea.line_summary?.measure || '',
+        machineName: linea.machine_name || '',
+        dieCode: linea.die_code || '',
+        quantity: linea.quantity ?? '',
+        noPrint: linea.sin_impresion || ['si', 'sí', 'yes', 'true', '1'].includes(normalizeSummaryValue(linea.raw_data?.['SIN IMPRESION'] || linea.raw_data?.['SIN IMPRESIÓN']).toLowerCase()),
+        barniz: linea.barniz_tipo || linea.raw_data?.['REQ | Barniz'] || '',
+        laminado: linea.laminado_tipo || linea.raw_data?.['REQ | Laminado'] || '',
+        estampado: linea.estampado_tipo || linea.raw_data?.['REQ | Estampado'] || '',
+        embosado: linea.embosado_tipo || linea.raw_data?.['REQ | Embosado'] || '',
         troquelado: linea.raw_data?.['REQ | Troquelado'] || '',
         numeracion: linea.raw_data?.['REQ | Numeracion'] || linea.raw_data?.['REQ | Numeracion Aviso'] || '',
-        routeLabel: linea.raw_data?.['REQ | Ruta Automática'] || linea.process_type || '',
-        mountingSummary: linea.raw_data?.['REQ | Montaje Automático'] || linea.raw_data?.['Texto_Secuencia_Procesos'] || '',
+        routeLabel: linea.ruta_calculada || linea.raw_data?.['REQ | Ruta Automática'] || linea.process_type || '',
+        mountingSummary: linea.montaje_resumen || linea.raw_data?.['REQ | Montaje Automático'] || linea.raw_data?.['Texto_Secuencia_Procesos'] || '',
         autoWarningsText: '',
         estado: linea.status || newRow.estado,
         subtotal1: linea.subtotal_1 ?? '',
         quoteId: currentQuote.quote_code,
         productId: linea.product_code || linea.line_code,
         processType: linea.process_type || newRow.processType || '',
-        processSequenceText: linea.process_sequence_text || linea.raw_data?.['Texto_Secuencia_Procesos'] || newRow.processSequenceText || ''
+        processSequenceText: linea.process_sequence_text || newRow.processSequenceText || ''
     };
     quoteRows = [...quoteRows, row];
     setHeaderLockState(true);
@@ -2509,34 +2514,32 @@ async function saveRow(row) {
             linea: saved.line_code,
             originalLinea: saved.line_code,
             nombreTrabajo: saved.job_name || item.nombreTrabajo,
-            material: saved.material_name || item.material,
-            medidaFija: saved.raw_data?.['REQ | Medida Fija'] || item.medidaFija,
-            medida: String(saved.raw_data?.['REQ | Forma'] || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes('circular')
-                ? (saved.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'] ? `Diámetro ${saved.raw_data?.['DIMENSIONES ETIQUETA | ANCHO']}` : item.medida)
-                : ([saved.raw_data?.['DIMENSIONES ETIQUETA | ANCHO'], saved.raw_data?.['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join(' x ') || item.medida),
-            machineName: saved.machine_name || saved.raw_data?.['CONV | MAQUINA'] || saved.raw_data?.['DIGITAL | MAQUINA'] || item.machineName,
-            dieCode: saved.die_code || saved.raw_data?.['GENERAL | TROQUEL | ID'] || saved.raw_data?.['REQ | Troquelado'] || item.dieCode,
-            quantity: saved.quantity ?? saved.raw_data?.['Cantidad Productos'] ?? item.quantity,
-            noPrint: ['si', 'sí', 'yes', 'true', '1'].includes(normalizeSummaryValue(saved.raw_data?.['SIN IMPRESION'] || saved.raw_data?.['SIN IMPRESIÓN']).toLowerCase()) || item.noPrint,
-            barniz: saved.raw_data?.['REQ | Barniz'] || item.barniz,
-            laminado: saved.raw_data?.['REQ | Laminado'] || item.laminado,
-            estampado: saved.raw_data?.['REQ | Estampado'] || item.estampado,
-            embosado: saved.raw_data?.['REQ | Embosado'] || item.embosado,
-            troquelado: saved.raw_data?.['REQ | Troquelado'] || item.troquelado,
-            numeracion: saved.raw_data?.['REQ | Numeracion'] || saved.raw_data?.['REQ | Numeracion Aviso'] || item.numeracion,
-            routeLabel: saved.raw_data?.['REQ | Ruta Automática'] || saved.process_type || item.routeLabel,
-            mountingSummary: saved.raw_data?.['REQ | Montaje Automático'] || saved.raw_data?.['Texto_Secuencia_Procesos'] || item.mountingSummary,
+            material: saved.material_name || saved.line_summary?.material_name || item.material,
+            medidaFija: item.medidaFija,
+            medida: saved.line_summary?.measure || item.medida,
+            machineName: saved.machine_name || item.machineName,
+            dieCode: saved.die_code || item.dieCode,
+            quantity: saved.quantity ?? item.quantity,
+            noPrint: item.noPrint,
+            barniz: item.barniz,
+            laminado: item.laminado,
+            estampado: item.estampado,
+            embosado: item.embosado,
+            troquelado: item.troquelado,
+            numeracion: item.numeracion,
+            routeLabel: saved.process_type || item.routeLabel,
+            mountingSummary: item.mountingSummary,
             autoWarningsText: '',
-            materialCode: saved.raw_data?.['Material Convencional | Id Material'] || saved.raw_data?.['Material Digital | Id Material'] || item.materialCode,
-            finalizadaOrden: Boolean(saved.finalized_for_order || saved.raw_data?.['Finalizado_Para_Orden'] || item.finalizadaOrden),
+            materialCode: saved.material_code || item.materialCode,
+            finalizadaOrden: Boolean(saved.finalized_for_order || item.finalizadaOrden),
             estado: saved.status || item.estado,
             lineOrder: Number(saved.line_order) || item.lineOrder,
-            createdOn: saved.created_on || saved.raw_data?.['FECHA CREACION DATE'] || saved.raw_data?.['FECHA CREACION'] || item.createdOn,
-            dueOn: saved.due_on || saved.raw_data?.['FECHA VENCIMIENTO'] || item.dueOn,
+            createdOn: saved.created_on || item.createdOn,
+            dueOn: saved.due_on || item.dueOn,
             subtotal1: saved.subtotal_1 ?? item.subtotal1,
             productId: saved.product_code || item.productId,
             processType: saved.process_type || item.processType,
-            processSequenceText: saved.process_sequence_text || saved.raw_data?.['Texto_Secuencia_Procesos'] || item.processSequenceText
+            processSequenceText: saved.process_sequence_text || item.processSequenceText
         } : item);
         renderRows();
     }

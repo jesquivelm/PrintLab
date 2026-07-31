@@ -167,14 +167,395 @@
       .sap-consumption-form { grid-template-columns:1fr; }
     }
     .is-frontback-order .production-art-section { display:none; }
+
+    /* --- Nombre del Trabajo: más llamativo, reemplaza el chip de Seguimiento --- */
+    .production-jobname { font-size:15px; font-weight:700; color:var(--ink); line-height:1.25; min-width:0; }
+    .production-jobname:empty { display:none; }
+
+    /* --- Vendedor justificado a la derecha de su columna --- */
+    #orderSellerCol.production-client-seller-col { display:flex; justify-content:flex-end; text-align:right; }
+
+    /* --- Fechas: texto plano, una a la izquierda y otra a la derecha, debajo del bloque Orden/OP/C/LC --- */
+    .production-tracking-dates-row { grid-column:1 / -1; display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:8px; }
+    .production-date-field { display:flex; flex-direction:column; min-width:0; }
+    .production-date-field-right { align-items:flex-end; text-align:right; }
+    .production-date-field:empty,
+    .production-date-field[hidden] { display:none; }
+
+    /* --- Máquina + Información del Rollo fusionados: 2 columnas compactas sin desbordes --- */
+    .production-shared-printing-col-machine { min-width:0; }
+    .production-roll-mini-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:10px; row-gap:6px; margin-top:6px; min-width:0; }
+    .production-roll-mini-item { min-width:0; }
+    .production-roll-mini-item .production-summary-value,
+    .production-core-sub .production-summary-value { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block; max-width:100%; }
+    .production-roll-core-combo { display:flex; gap:8px; min-width:0; }
+    .production-core-sub { display:flex; flex-direction:column; flex:1 1 50%; min-width:0; }
+
+    /* --- Fila: Nombre del Producto + Cantidad (solo órdenes regulares) --- */
+    .production-product-row {
+        display: grid;
+        grid-template-columns: 3fr 1fr;
+        gap: 16px;
+        align-items: end;
+    }
+    .production-product-row .production-summary-item {
+        min-width: 0;
+    }
+    .production-product-row .production-summary-item .section-caption {
+        width: fit-content;
+    }
+    .production-product-name-display {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--ink);
+        line-height: 1.25;
+        min-width: 0;
+        word-break: break-word;
+    }
+    .production-product-name-display:empty { display: none; }
+    .production-product-quantity-display {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        text-align: right;
+        gap: 2px;
+        overflow: hidden;
+    }
+    .production-product-quantity-display .production-quantity-caption {
+        max-width: calc(100% - 38px);
+        min-height: 20px;
+        height: 20px;
+        margin: 0 0 14px auto;
+        padding: 0 16px;
+        border-radius: 999px;
+        background: var(--order-pill-bg);
+        color: var(--order-pill-text);
+        font-size: 13px;
+        line-height: 20px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .production-product-quantity-display strong {
+        color: #315f9d;
+        font-size: 24px;
+        line-height: 1;
+        letter-spacing: 0;
+        white-space: nowrap;
+    }
+    html[data-theme="dark"] .production-product-quantity-display strong {
+        color: #93c5fd;
+    }
+    .is-frontback-order .production-product-row { display: none; }
+
+    /* --- Indicador visual entre fechas --- */
+    .production-dates-indicator {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        align-self: center;
+    }
+    .production-dates-indicator.status-green { background: #22c55e; }
+    .production-dates-indicator.status-orange { background: #f97316; }
+    .production-dates-indicator.status-red { background: #ef4444; }
+
+    /* --- Reducir espacio vertical secciones (Destinatario / Forma de Entrega) --- */
+    .production-delivery-section .production-summary-subsection,
+    .production-samples-section .production-summary-subsection {
+        gap: 2px;
+    }
+    .production-delivery-section .production-summary-item,
+    .production-samples-section .production-summary-item {
+        margin-bottom: 1px;
+    }
+    .production-delivery-section .production-summary-label,
+    .production-samples-section .production-summary-label {
+        margin-bottom: 0;
+        line-height: 1.3;
+    }
+
+    /* --- Chips de Cliente y Seguimiento (solo digital) --- */
+    .production-chips-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    .production-chips-row:empty { display: none; }
+    .production-chip-info {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        min-height: 24px;
+        padding: 0 10px;
+        border-radius: 999px;
+        background: var(--order-pill-bg, #eef4f8);
+        color: var(--order-pill-text, #577086);
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1;
+    }
+    .production-chip-info::before {
+        content: '';
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+        opacity: 0.5;
+    }
+
+
+    /* --- Iconos de contacto para Destinatario de Visto Bueno y Forma de Entrega, al estilo de Cliente --- */
+    .production-contact-icon-value { display:inline-flex; align-items:center; gap:6px; min-width:0; }
+    .production-contact-icon-value svg { flex-shrink:0; width:14px; height:14px; box-sizing:border-box; color:#86a0b1; }
+    .production-contact-icon-value span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     @keyframes pop-in { 0%{transform:scale(0);opacity:0}70%{transform:scale(1.18)}100%{transform:scale(1);opacity:1} }
     @keyframes fade-up { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
     @keyframes toast-in { from{opacity:0;transform:translateX(30px) scale(.95)} to{opacity:1;transform:translateX(0) scale(1)} }
     @keyframes ring-pulse { 0%{box-shadow:0 0 0 0 rgba(37,99,235,.35)} 60%{box-shadow:0 0 0 8px rgba(37,99,235,0)} 100%{box-shadow:0 0 0 0 rgba(37,99,235,0)} }
     @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(5,150,105,.4)} 70%{box-shadow:0 0 0 8px rgba(5,150,105,0)} 100%{box-shadow:0 0 0 0 rgba(5,150,105,0)} }
 
+    /* --- Vista Digital: Configuración de Producción en 3 columnas --- */
+    #orderPrintingGrid.production-shared-printing-grid {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr 1fr;
+        gap: 14px 16px;
+    }
 
+    /* ============================================================
+       IMPRESIÓN / PDF — Orden de Producción
+       El objetivo es tomar el mismo contenido que ya se ve en pantalla
+       (regular o frente/dorso) y acomodarlo en una hoja carta, sin el
+       cromo de la interfaz (botones, popovers, iconos de edición) y
+       sin que las reglas responsivas de escritorio angosto colapsen
+       las grillas a una sola columna.
+       ============================================================ */
+    @page { size: letter portrait; margin: 10mm 12mm; }
 
+    @media print {
+        * { -webkit-print-color-adjust: unset !important; print-color-adjust: unset !important; color-adjust: unset !important; }
+
+        /* Sobreescribir la variable --app-bg para que todo sea transparente */
+        :root {
+            --app-bg: transparent !important;
+            --app-bg-soft: transparent !important;
+            --app-surface: transparent !important;
+            --app-surface-soft: transparent !important;
+            --app-surface-raised: transparent !important;
+        }
+
+        html, body { background: transparent !important; color: #0f1117 !important; }
+        .app-shell, .workspace-quote, .workspace { min-height: 0 !important; overflow: visible !important; background: transparent !important; }
+        .workspace-quote, .workspace { padding: 0 !important; background: transparent !important; }
+
+        /* --- Ocultar cromo de interfaz: nada de esto tiene función en papel --- */
+        .app-shell > header.topbar,
+        html body #orderAdminTools,
+        html body .production-admin-tools,
+        #orderPrintButton,
+        #orderPdfButton,
+        #orderCreationSummaryButton,
+        .production-tracking-icons-row,
+        .production-section-corner-toggle,
+        .production-contact-edit-btn,
+        .production-frontback-art-edit-btn,
+        #orderArtworkDeleteButton,
+        .production-art-delete,
+        #orderArtworkFileInput,
+        .calc-popover,
+        .notif-area,
+        #orderStatus { display: none !important; }
+
+        /* --- Forzar modo claro siempre: esto es papel, no pantalla --- */
+        html, html[data-theme], html[data-theme="dark"] { color-scheme: light !important; }
+        /* Reset completo: todo el contenido SIN fondos, solo texto y bordes sutiles */
+        .production-order-card,
+        .production-order-card *,
+        .production-order-card *::before,
+        .production-order-card *::after {
+            color: #0f1117 !important;
+            border-color: #d7dbe3 !important;
+            background: transparent !important;
+            background-color: transparent !important;
+            background-image: none !important;
+            box-shadow: none !important;
+        }
+        /* Sobreescribir fondos hardcoded de socios-section y subgrupos */
+        .socios-section,
+        .production-subgroup,
+        .production-order-card .socios-section,
+        .production-order-card .production-subgroup,
+        .production-order-card .production-order-status,
+        .production-order-card textarea,
+        .production-order-card input,
+        .production-order-card select {
+            background: transparent !important;
+            background-color: transparent !important;
+            background-image: none !important;
+        }
+        /* Excepción: el badge de Frente/Dorso conserva su color */
+        .production-frontback-side-chip--label {
+            background: #e0f2fe !important;
+            color: #0369a1 !important;
+        }
+        /* Chips de acabados: fondo gris claro para impresión */
+        .production-chip {
+            background: #f1f5f9 !important;
+            color: #334155 !important;
+        }
+        /* Pill de estado: conserva su color de fondo */
+        .production-state-pill-inline {
+            background: #e0f2fe !important;
+            color: #0369a1 !important;
+        }
+
+        /* --- Sin bordes ni cajas: los datos van "al aire" --- */
+        .production-order-card.production-order-card .production-client-section,
+        .production-order-card.production-order-card .production-tracking-section,
+        .production-order-card.production-order-card .production-shared-config,
+        .production-order-card.production-order-card .production-observations-section,
+        .production-order-card.production-order-card #orderPrintingBlock,
+        .production-order-card.production-order-card .production-samples-section,
+        .production-order-card.production-order-card .production-delivery-section {
+            border: none !important;
+        }
+        /* Títulos que ya no se imprimen: el pill de estado, y los títulos
+           de Configuración de Producción, Muestras y Visto Bueno, Entrega. */
+        .production-tracking-state-row,
+        #orderProductionConfig > .section-caption,
+        .production-samples-section > .section-caption,
+        .production-delivery-section > .section-caption { display: none !important; }
+
+        /* --- Seguimiento de la Orden: nombre del trabajo a la izquierda, código a la derecha, fechas abajo lado a lado --- */
+        .production-tracking-right { text-align: right !important; }
+        .production-tracking-right, .production-tracking-right * { align-items: flex-end !important; }
+        .production-tracking-dates-row { grid-column: 1 / -1 !important; display: flex !important; justify-content: space-between !important; }
+
+        /* Datos compactos de contacto (teléfono/correo/dirección): sin etiqueta, en líneas simples. */
+        .production-compact-field .production-summary-label { display: none !important; }
+        .production-order-card .production-compact-field { margin-bottom: 1px !important; }
+
+        /* Los formularios de edición nunca deben imprimirse; siempre se
+           imprime el resumen de solo lectura, sin importar si el usuario
+           dejó una tarjeta en modo edición al momento de imprimir. */
+        .production-inline-form { display: none !important; }
+        #orderSamplesSummary,
+        #orderDeliverySummary,
+        #orderArtSummary { display: block !important; }
+
+        /* Enlaces/botones que envuelven texto (Máquina, Sustrato, Tintas,
+           cálculo origen, etc.) se ven como texto plano, no como control. */
+        .production-inline-link-btn,
+        .production-data-link,
+        #openSourceQuoteButton { cursor: default !important; pointer-events: none; }
+        .production-inline-link-btn { background: transparent !important; border-color: transparent !important; padding: 2px 0 !important; }
+
+        /* --- Contenedor a ancho de página, sin las restricciones de pantalla --- */
+        .production-order-card { max-width: none !important; margin: 0 !important; box-shadow: none !important; }
+        .quote-card-clean { padding-inline: 0 !important; }
+        .production-order-layout-refined { gap: 8px !important; }
+
+        /* --- Reforzar las grillas de escritorio: la hoja carta (~720px de
+           ancho útil) cae dentro de los breakpoints de @media (max-width:920/980px)
+           que colapsan estas grillas a 1 columna en pantalla angosta; para
+           impresión siempre queremos las columnas completas. --- */
+        .production-top-row,
+        .production-bottom-row { grid-template-columns: 1fr 1fr !important; }
+        .production-order-card .production-order-layout-refined { display: block !important; }
+        .production-order-card .production-order-layout-refined > * { width: 100% !important; }
+        .production-frontback-layout { grid-template-columns: 1fr 1fr !important; }
+        /* Configuración de Producción en 2 columnas para impresión:
+           Col 1: Máquina/Rollos/Dimensiones
+           Col 2: Sustrato + Tintas + Acabados apilados */
+        .production-shared-printing-grid {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            column-gap: 16px !important;
+            row-gap: 8px !important;
+        }
+        /* En impresión, ocultar el grid digital de 3 columnas y mostrar layout de 2 */
+        .production-shared-printing-col:nth-child(1) { grid-column: 1 !important; grid-row: 1 / 3 !important; }
+        .production-shared-printing-col:nth-child(2) { grid-column: 2 !important; grid-row: 1 !important; }
+        .production-shared-printing-col:nth-child(3) { grid-column: 2 !important; grid-row: 2 !important; }
+        /* Numerado permanece en la columna de Acabados */
+        #orderNumberingWrap { margin-top: 4px; }
+        .production-frontback-art-row { flex-direction: row !important; }
+        .production-frontback-art-preview-col { flex: 1 1 50% !important; width: auto !important; }
+        .production-config-bottom-row { flex-direction: row !important; }
+        /* Información de Arte no se imprime (el rollo ya vive en la columna de Máquina). */
+        .production-config-bottom-row > .production-config-bottom-col.production-art-section { display: none !important; }
+        .production-roll-mini-grid { grid-template-columns: 1fr 1fr !important; }
+        .production-client-info-grid,
+        .production-tracking-body { grid-template-columns: 1fr 1fr !important; }
+        .production-summary-grid-two { grid-template-columns: 1fr 1fr !important; }
+
+        /* --- Tipografía y espaciado compactos para que quepa en carta --- */
+        .production-order-card { font-size: 12px; }
+        .production-order-code { font-size: 20px !important; }
+        .production-jobname { font-size: 15px !important; font-weight: 700 !important; }
+        .socios-section.production-order-card .section-caption,
+        .production-order-card .section-caption { font-size: 10px; padding: 3px 14px; margin-bottom: 8px; }
+        .production-summary-label { font-size: 10.5px; margin-bottom: 1px !important; }
+        .production-summary-value { font-size: 12.5px; min-height: 0; }
+        .production-order-card .production-summary-item { margin-bottom: 3px !important; }
+        .production-order-card .production-summary-stack { gap: 3px !important; }
+        .production-order-card .socios-section { padding: 10px 14px !important; }
+        .production-frontback-product-name { font-size: 12.5px; }
+        .production-art-preview { min-height: 90px; max-height: 150px; padding: 8px; }
+        .production-chip, .production-frontback-side-chip--label { min-height: 22px; font-size: 10.5px; }
+
+        /* Fila Producto+Cantidad: compacta para impresión */
+        .production-product-row { gap: 8px !important; margin-bottom: 4px !important; }
+        .production-product-name-display { font-size: 13px !important; }
+        .production-product-quantity-display strong { font-size: 20px !important; }
+
+        /* Campos de fecha / observaciones / detalle: que se lean como
+           texto en papel, no como controles de formulario. */
+        .production-notes-box,
+        .production-order-card textarea {
+            border-color: #e4e9ee !important;
+            box-shadow: none !important;
+            background: #fff !important;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        .production-notes-box,
+        .production-order-card textarea { max-height: none !important; overflow: visible !important; field-sizing: content; }
+
+        /* --- Evitar que una tarjeta se parta a la mitad entre dos hojas --- */
+        .socios-section,
+        .production-frontback-product,
+        .production-config-bottom-col { break-inside: avoid; page-break-inside: avoid; }
+
+        /* Si la orden llega a necesitar más de una hoja, que al menos no
+           corte justo dentro de una fila de dos columnas. */
+        .production-top-row, .production-bottom-row, .production-frontback-layout { break-inside: avoid; }
+
+        /* Ocultar indicador visual de fechas en impresión */
+        .production-dates-indicator { display: none !important; }
+
+        /* Ocultar chips de Cliente y Seguimiento en impresión */
+        .production-chips-row { display: none !important; }
+
+        /* Frente/Dorso: Configuración de Producción en 2 columnas (misma que impresión) */
+        .is-frontback-order .production-shared-printing-grid {
+            grid-template-columns: 1fr 1fr !important;
+            row-gap: 8px !important;
+        }
+        .is-frontback-order .production-shared-printing-col:nth-child(1) { grid-column: 1 !important; grid-row: 1 / 3 !important; }
+        .is-frontback-order .production-shared-printing-col:nth-child(2) { grid-column: 2 !important; grid-row: 1 !important; }
+        .is-frontback-order .production-shared-printing-col:nth-child(3) { grid-column: 2 !important; grid-row: 2 !important; }
+
+        /* Destinatario y Forma de Entrega: compactar */
+        .production-delivery-section .production-summary-subsection,
+        .production-samples-section .production-summary-subsection { gap: 1px !important; }
+        .production-delivery-section .production-summary-item,
+        .production-samples-section .production-summary-item { margin-bottom: 1px !important; }
+    }
     </style>
 </head>
 <body>
@@ -209,6 +590,8 @@
                                 <div class="production-summary-item">
                                     <strong id="orderCustomerSummaryText" class="production-summary-value"></strong>
                                 </div>
+                                <div id="orderCustomerChipsRow" class="production-chips-row">
+                                </div>
                                 <div id="orderClientInfoGrid" class="production-client-info-grid">
                                     <div id="orderCustomerContactCol" class="production-client-contact-col"></div>
                                     <div id="orderSellerCol" class="production-client-seller-col"></div>
@@ -220,23 +603,16 @@
                         </section>
 
                         <section class="socios-section production-tracking-section">
+                            <div class="section-caption">Seguimiento</div>
                             <div class="production-tracking-body">
                                 <div class="production-tracking-left">
-                                        <div class="production-tracking-head-row">
-                                        <div class="section-caption production-tracking-title">Seguimiento de la Orden</div>
+                                    <div class="production-tracking-head-row">
+                                        <strong id="orderJobNameText" class="production-jobname"></strong>
                                         <div class="production-tracking-state-row">
                                             <strong id="orderStateText" class="production-order-state production-state-pill production-state-pill-inline"></strong>
                                             <span id="orderGroupPill" class="production-group-pill" hidden></span>
                                         </div>
                                     </div>
-                                    <label class="production-summary-item production-date-field">
-                                        <span class="production-summary-label">Fecha de Entrega</span>
-                                        <input id="orderScheduledDateInput" type="date">
-                                    </label>
-                                    <label class="production-summary-item production-date-field">
-                                        <span class="production-summary-label">Fecha Estimada</span>
-                                        <input id="orderScheduledDateText" type="date">
-                                    </label>
                                 </div>
                                 <div class="production-tracking-right">
                                     <span class="production-summary-label">Orden</span>
@@ -250,9 +626,30 @@
                                         <button type="button" id="orderAttachmentsButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-inline-icon-small" aria-label="Ver adjuntos"></button>
                                     </div>
                                 </div>
+                                <div class="production-tracking-dates-row">
+                                    <label class="production-summary-item production-date-field">
+                                        <span class="production-summary-label">Fecha de Entrega</span>
+                                        <input id="orderScheduledDateInput" type="date">
+                                    </label>
+                                    <label class="production-summary-item production-date-field">
+                                        <span class="production-summary-label">Fecha Estimada</span>
+                                        <input id="orderScheduledDateText" type="date">
+                                    </label>
+                                </div>
                             </div>
                         </section>
                         </div>
+                        </div>
+
+                        <div id="orderProductRow" class="socios-section production-product-row" hidden>
+                            <div class="production-summary-item">
+                                <div class="section-caption">Nombre del Producto</div>
+                                <div id="orderProductNameDisplay" class="production-product-name-display"></div>
+                            </div>
+                            <div class="production-product-quantity-display">
+                                <div class="section-caption production-quantity-caption">Cantidad de Productos</div>
+                                <strong id="orderProductQuantityDisplay"></strong>
+                            </div>
                         </div>
 
                         <section id="orderProductionConfig" class="socios-section production-shared-config">
@@ -261,17 +658,54 @@
                                 <div id="orderPrintingBlock" class="production-subgroup">
                                     <div id="orderPrintingAlert" class="production-order-alert" hidden></div>
                                     <div id="orderPrintingGrid" class="production-shared-printing-grid">
-                                        <div class="production-shared-printing-col">
-                                            <div class="production-summary-item"><span class="production-summary-label">Máquina</span><span id="orderMachineText" class="production-summary-value"></span></div>
-                                            <div class="production-summary-item"><span class="production-summary-label">Total de Pies</span><span id="orderFeetText" class="production-summary-value"></span></div>
+                                        <div class="production-shared-printing-col production-shared-printing-col-machine">
+                                            <div class="production-summary-item">
+                                                <span class="production-summary-label">Máquina</span>
+                                                <button type="button" id="orderMachineDetailBtn" class="production-inline-link-btn">
+                                                    <span id="orderMachineText" class="production-summary-value"></span>
+                                                </button>
+                                            </div>
+                                            <div class="production-roll-mini-grid">
+                                                <div class="production-roll-core-combo">
+                                                    <div class="production-core-sub">
+                                                        <span class="production-summary-label">Ancho Core</span>
+                                                        <span id="orderCoreWidthText" class="production-summary-value"></span>
+                                                    </div>
+                                                    <div class="production-core-sub">
+                                                        <span class="production-summary-label">Diámetro Core</span>
+                                                        <span id="orderCoreDiameterText" class="production-summary-value"></span>
+                                                    </div>
+                                                </div>
+                                                <div class="production-summary-item production-roll-mini-item">
+                                                    <span class="production-summary-label">Tipo de Salida</span>
+                                                    <span class="production-output-type-wrap">
+                                                        <span id="orderOutputTypeText" class="production-summary-value"></span>
+                                                        <span id="orderOutputTypeImage" class="production-output-type-img"></span>
+                                                    </span>
+                                                </div>
+                                                <div class="production-summary-item production-roll-mini-item">
+                                                    <span class="production-summary-label">Cantidad de Rollos</span>
+                                                    <span id="orderRollCountText" class="production-summary-value"></span>
+                                                </div>
+                                                <div class="production-summary-item production-roll-mini-item">
+                                                    <span class="production-summary-label">Etiquetas por Rollo</span>
+                                                    <span id="orderRollLabelsText" class="production-summary-value"></span>
+                                                </div>
+                                            </div>
                                         </div>
                                         <div class="production-shared-printing-col">
-                                            <div class="production-summary-item"><span class="production-summary-label">Sustrato</span><span id="orderMaterialText" class="production-summary-value"></span></div>
-                                            <div class="production-summary-item"><span class="production-summary-label">Cantidad de Rollos</span><span id="orderRollCountText" class="production-summary-value"></span></div>
-                                            <div class="production-summary-item"><span class="production-summary-label">Dimensiones Etiqueta</span><span id="orderDimensionsText" class="production-summary-value"></span></div>
-                                        </div>
-                                        <div class="production-shared-printing-col">
-                                            <div id="orderInkBlock" class="production-summary-item production-summary-item-full"><span class="production-summary-label">Tintas</span><span id="orderInkConfigText" class="production-summary-value"></span></div>
+                                            <div class="production-summary-item">
+                                                <span class="production-summary-label">Sustrato</span>
+                                                <button type="button" id="orderSubstrateDetailBtn" class="production-inline-link-btn">
+                                                    <span id="orderMaterialText" class="production-summary-value"></span>
+                                                </button>
+                                            </div>
+                                            <div class="production-summary-item production-summary-item-full">
+                                                <span class="production-summary-label">Tintas</span>
+                                                <button type="button" id="orderInkDetailBtn" class="production-inline-link-btn">
+                                                    <span id="orderInkConfigText" class="production-summary-value"></span>
+                                                </button>
+                                            </div>
                                             <div id="orderPantonesRow" class="production-summary-item" hidden><span class="production-summary-label">Pantones</span><span id="orderPantonesText" class="production-summary-value"></span></div>
                                         </div>
                                         <div class="production-shared-printing-col">
@@ -279,39 +713,14 @@
                                             <div id="orderFinishList" class="production-chip-list"></div>
                                             <div id="orderNumberingWrap" class="production-summary-item" hidden>
                                                 <span class="production-summary-label">Numerado</span>
-                                                <div class="production-inline-link">
+                                                <button type="button" id="orderNumberingButton" class="production-inline-link-btn">
                                                     <span id="orderNumberingSummaryText" class="production-summary-value"></span>
-                                                    <button type="button" id="orderNumberingButton" class="browser-open-link production-inline-icon production-inline-icon-small" aria-label="Ver numerado"></button>
-                                                </div>
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="production-config-bottom-row">
-                                <div id="orderRollBlock" class="production-subgroup production-config-bottom-col">
-                                    <div class="production-subgroup-title">Información del Rollo</div>
-                                    <div class="production-summary-grid production-summary-grid-five production-roll-grid">
-                                        <div class="production-summary-item">
-                                            <span class="production-summary-label">Ancho de Core</span>
-                                            <span id="orderCoreWidthText" class="production-summary-value"></span>
-                                        </div>
-                                        <div class="production-summary-item">
-                                            <span class="production-summary-label">Diámetro de Core</span>
-                                            <span id="orderCoreDiameterText" class="production-summary-value"></span>
-                                        </div>
-                                        <div class="production-summary-item">
-                                            <span class="production-summary-label">Etiquetas por Rollo</span>
-                                            <span id="orderRollLabelsText" class="production-summary-value"></span>
-                                        </div>
-                                        <div class="production-summary-item">
-                                            <span class="production-summary-label">Tipo de Salida</span>
-                                            <span class="production-output-type-wrap">
-                                                <span id="orderOutputTypeText" class="production-summary-value"></span>
-                                                <span id="orderOutputTypeImage" class="production-output-type-img"></span>
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
                                 <section class="socios-section production-art-section production-config-bottom-col">
                                     <div class="section-caption">Información de Arte</div>
                                     <button type="button" id="orderArtToggleButton" class="browser-open-link production-inline-icon production-inline-icon-ghost production-section-corner-toggle" aria-label="Expandir información de arte"></button>
@@ -378,19 +787,21 @@
                                     </div>
                                     <div class="field">
                                         <label for="orderSamplesContactInput">Contacto</label>
-                                        <input id="orderSamplesContactInput" type="text" list="orderCustomerContactOptions" placeholder="Nombre del contacto">
+                                        <select id="orderSamplesContactInput">
+                                            <option value=""></option>
+                                        </select>
                                     </div>
                                     <div class="field">
                                         <label for="orderSamplesPhoneInput">Teléfono</label>
-                                        <input id="orderSamplesPhoneInput" type="text" placeholder="Teléfono del contacto">
+                                        <input id="orderSamplesPhoneInput" type="text" autocomplete="off" placeholder="Teléfono del contacto">
                                     </div>
                                     <div class="field">
                                         <label for="orderSamplesEmailInput">Correo</label>
-                                        <input id="orderSamplesEmailInput" type="text" placeholder="Correo del contacto">
+                                        <input id="orderSamplesEmailInput" type="text" autocomplete="off" placeholder="Correo del contacto">
                                     </div>
                                     <div class="field field-full">
                                         <label for="orderSamplesAddressInput">Dirección</label>
-                                        <input id="orderSamplesAddressInput" type="text" placeholder="Dirección del contacto">
+                                        <input id="orderSamplesAddressInput" type="text" autocomplete="off" list="orderCustomerAddressOptions" placeholder="Dirección del contacto">
                                     </div>
                                 </div>
                                 <div class="production-form-divider">
@@ -419,15 +830,17 @@
                                     </div>
                                     <div class="field">
                                         <label for="orderDeliveryContactInput">Contacto de Entrega</label>
-                                        <input id="orderDeliveryContactInput" type="text" list="orderCustomerContactOptions" placeholder="Responsable de entrega">
+                                        <select id="orderDeliveryContactInput">
+                                            <option value=""></option>
+                                        </select>
                                     </div>
                                     <div class="field">
                                         <label for="orderDeliveryPhoneInput">Teléfono</label>
-                                        <input id="orderDeliveryPhoneInput" type="text" placeholder="Teléfono de entrega">
+                                        <input id="orderDeliveryPhoneInput" type="text" autocomplete="off" placeholder="Teléfono de entrega">
                                     </div>
                                     <div class="field">
                                         <label for="orderDeliveryEmailInput">Correo</label>
-                                        <input id="orderDeliveryEmailInput" type="text" placeholder="Correo de entrega">
+                                        <input id="orderDeliveryEmailInput" type="text" autocomplete="off" placeholder="Correo de entrega">
                                     </div>
                                 </div>
                                 <div class="production-form-divider">
@@ -516,7 +929,8 @@
         </div>
     </div>
 
-    <datalist id="orderCustomerContactOptions"></datalist>
+
+    <datalist id="orderCustomerAddressOptions"></datalist>
 
     <div id="orderSourceQuotePopover" class="calc-popover" hidden>
         <div class="calc-popover-backdrop" data-close-popover="orderSourceQuotePopover"></div>
@@ -531,15 +945,21 @@
         </div>
     </div>
 
-    <div id="orderCreationSummaryPopover" class="calc-popover" hidden>
+    <div id="orderCreationSummaryPopover" class="calc-popover production-header-tab-popover" hidden>
         <div class="calc-popover-backdrop" data-close-popover="orderCreationSummaryPopover"></div>
         <div class="calc-popover-panel production-flow-popover-panel">
             <button type="button" class="calc-popover-close" data-close-popover="orderCreationSummaryPopover" aria-label="Cerrar">×</button>
-            <div class="calc-popover-body" style="padding:16px;">
-                <div class="copy-popover-header">
-                    <h2>Datos de Creación</h2>
+            <div class="calc-popover-body">
+                <div id="orderCreationTabs" class="tl-tabs-bar">
+                    <button type="button" class="tl-tab-btn active" data-creation-tab="datos">Datos de Creación</button>
+                    <button type="button" class="tl-tab-btn" data-creation-tab="procesos">Procesos Productivos</button>
                 </div>
-                <div id="orderCreationSummaryBody" class="production-creation-summary-body"></div>
+                <div id="orderCreationSummaryTab" class="production-creation-tab-panel">
+                    <div id="orderCreationSummaryBody" class="production-creation-summary-body"></div>
+                </div>
+                <div id="orderProcessesTab" class="production-creation-tab-panel" hidden>
+                    <div id="orderProcessesTabBody" class="production-creation-summary-body"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -622,6 +1042,84 @@
                     </table>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div id="orderMachineDetailPopover" class="calc-popover" hidden>
+        <div class="calc-popover-backdrop" data-close-popover="orderMachineDetailPopover"></div>
+        <div class="calc-popover-panel calc-popover-panel-compact-detail" style="width: 700px !important; height: 450px !important; min-width: 0 !important; max-width: calc(100vw - 32px) !important; max-height: calc(100vh - 32px) !important; top: 50% !important; left: 50% !important; bottom: auto !important; right: auto !important; transform: translate(-50%, -50%) !important;">
+            <button type="button" class="calc-popover-close" data-close-popover="orderMachineDetailPopover" aria-label="Cerrar">×</button>
+            <div id="orderMachineDetailBody" class="production-order-popover-body" style="height: calc(700px - 40px) !important; max-height: calc(700px - 40px) !important; overflow-y: auto !important;"></div>
+        </div>
+    </div>
+
+    <div id="orderSubstrateDetailPopover" class="calc-popover" hidden>
+        <div class="calc-popover-backdrop" data-close-popover="orderSubstrateDetailPopover"></div>
+        <div class="calc-popover-panel calc-popover-panel-compact-detail" style="width: 720px !important; height: 500px !important; min-width: 0 !important; max-width: calc(100vw - 32px) !important; max-height: calc(100vh - 32px) !important; top: 50% !important; left: 50% !important; bottom: auto !important; right: auto !important; transform: translate(-50%, -50%) !important;">
+            <button type="button" class="calc-popover-close" data-close-popover="orderSubstrateDetailPopover" aria-label="Cerrar">×</button>
+            <div id="orderSubstrateDetailBody" class="production-order-popover-body" style="height: calc(500px) !important; max-height: calc(500px) !important; overflow-y: auto !important;"></div>
+        </div>
+    </div>
+
+    <div id="orderInkDetailPopover" class="calc-popover" hidden>
+        <div class="calc-popover-backdrop" data-close-popover="orderInkDetailPopover"></div>
+        <div class="calc-popover-panel calc-popover-panel-compact-detail" style="width: 720px !important; height: 500px !important; min-width: 0 !important; max-width: calc(100vw - 32px) !important; max-height: calc(100vh - 32px) !important; top: 50% !important; left: 50% !important; bottom: auto !important; right: auto !important; transform: translate(-50%, -50%) !important;">
+            <button type="button" class="calc-popover-close" data-close-popover="orderInkDetailPopover" aria-label="Cerrar">×</button>
+            <div id="orderInkDetailBody" class="production-order-popover-body"></div>
+        </div>
+    </div>
+
+    <div id="orderBarnizDetailPopover" class="calc-popover" hidden>
+        <div class="calc-popover-backdrop" data-close-popover="orderBarnizDetailPopover"></div>
+        <div class="calc-popover-panel calc-popover-panel-compact-detail">
+            <button type="button" class="calc-popover-close" data-close-popover="orderBarnizDetailPopover" aria-label="Cerrar">×</button>
+            <div class="copy-popover-header"><h2>Detalle de Barniz</h2></div>
+            <div id="orderBarnizDetailBody" class="production-order-popover-body"></div>
+        </div>
+    </div>
+
+    <div id="orderLaminadoDetailPopover" class="calc-popover" hidden>
+        <div class="calc-popover-backdrop" data-close-popover="orderLaminadoDetailPopover"></div>
+        <div class="calc-popover-panel calc-popover-panel-compact-detail">
+            <button type="button" class="calc-popover-close" data-close-popover="orderLaminadoDetailPopover" aria-label="Cerrar">×</button>
+            <div class="copy-popover-header"><h2>Detalle de Laminado</h2></div>
+            <div id="orderLaminadoDetailBody" class="production-order-popover-body"></div>
+        </div>
+    </div>
+
+    <div id="orderEmbosadoDetailPopover" class="calc-popover" hidden>
+        <div class="calc-popover-backdrop" data-close-popover="orderEmbosadoDetailPopover"></div>
+        <div class="calc-popover-panel calc-popover-panel-compact-detail">
+            <button type="button" class="calc-popover-close" data-close-popover="orderEmbosadoDetailPopover" aria-label="Cerrar">×</button>
+            <div class="copy-popover-header"><h2>Detalle de Embosado</h2></div>
+            <div id="orderEmbosadoDetailBody" class="production-order-popover-body"></div>
+        </div>
+    </div>
+
+    <div id="orderTroqueladoDetailPopover" class="calc-popover" hidden>
+        <div class="calc-popover-backdrop" data-close-popover="orderTroqueladoDetailPopover"></div>
+        <div class="calc-popover-panel calc-popover-panel-compact-detail">
+            <button type="button" class="calc-popover-close" data-close-popover="orderTroqueladoDetailPopover" aria-label="Cerrar">×</button>
+            <div class="copy-popover-header"><h2>Detalle de Troquelado</h2></div>
+            <div id="orderTroqueladoDetailBody" class="production-order-popover-body"></div>
+        </div>
+    </div>
+
+    <div id="orderRebobinadoDetailPopover" class="calc-popover" hidden>
+        <div class="calc-popover-backdrop" data-close-popover="orderRebobinadoDetailPopover"></div>
+        <div class="calc-popover-panel calc-popover-panel-compact-detail">
+            <button type="button" class="calc-popover-close" data-close-popover="orderRebobinadoDetailPopover" aria-label="Cerrar">×</button>
+            <div class="copy-popover-header"><h2>Detalle de Rebobinado</h2></div>
+            <div id="orderRebobinadoDetailBody" class="production-order-popover-body"></div>
+        </div>
+    </div>
+
+    <div id="orderEmpaqueDetailPopover" class="calc-popover" hidden>
+        <div class="calc-popover-backdrop" data-close-popover="orderEmpaqueDetailPopover"></div>
+        <div class="calc-popover-panel calc-popover-panel-compact-detail">
+            <button type="button" class="calc-popover-close" data-close-popover="orderEmpaqueDetailPopover" aria-label="Cerrar">×</button>
+            <div class="copy-popover-header"><h2>Detalle de Empaque</h2></div>
+            <div id="orderEmpaqueDetailBody" class="production-order-popover-body"></div>
         </div>
     </div>
 

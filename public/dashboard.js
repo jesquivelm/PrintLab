@@ -361,6 +361,15 @@ function writeDashboardConfigCache(config) {
             data: config
         }));
     } catch (error) {
+        if (error.name === 'QuotaExceededError' || error.code === 22 || error.code === 1014) {
+            try {
+                localStorage.removeItem(DASHBOARD_CONFIG_CACHE_KEY);
+                localStorage.setItem(DASHBOARD_CONFIG_CACHE_KEY, JSON.stringify({
+                    storedAt: Date.now(),
+                    data: config
+                }));
+            } catch (_) {}
+        }
         console.warn('No fue posible actualizar el caché local del dashboard.', error);
     }
 }

@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/styles.css">
     <script src="/access-control.js"></script>
     <style>
-        .config-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 6px; width: 100%; min-width: 0; margin-bottom: 20px; padding: 4px; border: 1px solid #d8e2ea; border-radius: 14px; background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.75); }
+        .config-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 6px; width: 100%; min-width: 0; padding: 4px; border: 1px solid #d8e2ea; border-radius: 14px; background: linear-gradient(180deg, #f7fafc 0%, #eef4f8 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.75); }
         .topbar.topbar-quote {
             display: flex;
             align-items: center;
@@ -1719,7 +1719,11 @@
             background: var(--app-bg) !important;
             color: var(--app-text) !important;
         }
-        html[data-theme="dark"] .config-tabs,
+        html[data-theme="dark"] .config-tabs {
+            border-color: var(--app-border) !important;
+            background: transparent !important;
+            box-shadow: none !important;
+        }
         html[data-theme="dark"] .design-subtabs,
         html[data-theme="dark"] .security-subtabs,
         html[data-theme="dark"] .sap-security-subtabs,
@@ -1767,7 +1771,9 @@
         html[data-theme="dark"] .config-tab.active,
         html[data-theme="dark"] .config-tab.active:hover,
         html[data-theme="dark"] .config-tab.active:focus-visible {
+            background: linear-gradient(180deg, #24a8df 0%, #118fc6 100%) !important;
             color: #ffffff !important;
+            box-shadow: 0 8px 18px rgba(17,143,198,0.24) !important;
         }
         html[data-theme="dark"] .config-section-title,
         html[data-theme="dark"] .sap-security-card h2,
@@ -5358,6 +5364,14 @@
                 --proforma-preview-zoom: 1;
             }
         }
+        .exchange-rate-table-wrap,
+        .notification-center-message-list,
+        .sap-security-result,
+        .sap-security-logs,
+        .audit-table-wrap,
+        .proforma-config-preview {
+            scrollbar-gutter: stable;
+        }
     </style>
 </head>
 <body>
@@ -6225,6 +6239,7 @@
                                 <button type="button" class="quotes-subtab" data-quotes-tab="manejo-producto">Manejo de Producto</button>
                                 <button type="button" class="quotes-subtab" data-quotes-tab="datos-ingreso">Datos de Ingreso</button>
                                 <button type="button" class="quotes-subtab" data-quotes-tab="locaciones">Locaciones</button>
+                                <button type="button" class="quotes-subtab" data-quotes-tab="tipos-producto">Tipos de Producto</button>
                             </div>
 
                             <div id="quotes-panel-calculo" class="quotes-subpanel">
@@ -7033,6 +7048,60 @@
                                 </section>
                             </div>
 
+                            <div id="quotes-panel-tipos-producto" class="quotes-subpanel" hidden>
+                                <section class="config-card">
+                                    <h2 class="config-section-title">Tipos de Producto y Departamentos</h2>
+                                    <p class="section-caption">Configura los departamentos (Flexografía, Offset, Digital) y los tipos de producto asociados. Estos datos se usan para generar el SKU de producto terminado y alimentar las cotizaciones.</p>
+
+                                    <div class="quotes-general-split two-col">
+                                        <section class="config-card quote-product-types-card" id="productDepartmentsSection">
+                                            <h3 style="color:#2563eb">Departamentos</h3>
+                                            <div class="quote-product-types-toolbar">
+                                                <p>Departamentos productivos. Cada departamento tiene un código de 2 dígitos.</p>
+                                                <button id="productDeptAddButton" type="button" class="icon-only-btn" aria-label="Agregar departamento"></button>
+                                            </div>
+                                            <div class="quote-product-types-table-wrap">
+                                                <table class="quote-product-types-table config-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th style="width:72px;">#</th>
+                                                            <th>Código</th>
+                                                            <th>Nombre</th>
+                                                            <th style="width:80px;">Activo</th>
+                                                            <th>Acción</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="productDepartmentsTableBody"></tbody>
+                                                </table>
+                                            </div>
+                                        </section>
+
+                                        <section class="config-card quote-product-types-card" id="productTypesSection">
+                                            <h3 style="color:#059669">Tipos de Producto</h3>
+                                            <div class="quote-product-types-toolbar">
+                                                <p>Tipos de producto por departamento. Cada tipo tiene un código de 2 dígitos dentro del departamento.</p>
+                                                <button id="productTypeAddButton" type="button" class="icon-only-btn" aria-label="Agregar tipo"></button>
+                                            </div>
+                                            <div class="quote-product-types-table-wrap">
+                                                <table class="quote-product-types-table config-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th style="width:72px;">#</th>
+                                                            <th>Código</th>
+                                                            <th>Nombre</th>
+                                                            <th>Departamento</th>
+                                                            <th style="width:80px;">Activo</th>
+                                                            <th>Acción</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="productTypesTableBody"></tbody>
+                                                </table>
+                                            </div>
+                                        </section>
+                                    </div>
+                                </section>
+                            </div>
+
                         </section>
                     </div>
 
@@ -7531,6 +7600,14 @@
                                                     <span>Sync (min)</span>
                                                     <input id="sapSyncIntervalInput" type="number" inputmode="numeric" min="5" max="1440">
                                                 </label>
+                                                <label class="sap-security-field">
+                                                    <span>Máx. Socios Importar</span>
+                                                    <input id="sapMaxImportPartnersInput" type="number" inputmode="numeric" min="1" max="100000">
+                                                </label>
+                                                <label class="sap-security-field">
+                                                    <span>Máx. Artículos Importar</span>
+                                                    <input id="sapMaxImportItemsInput" type="number" inputmode="numeric" min="1" max="100000">
+                                                </label>
                                                 <label class="sap-security-field" data-sap-provider-field="service-layer">
                                                     <span>Certificado</span>
                                                     <select id="sapAllowSelfSignedSelect">
@@ -7596,7 +7673,7 @@
                                         </section>
 
                                         <section class="sap-security-card">
-                                            <h3>Consultas</h3>
+                                            <h3>Consultas a DI API</h3>
                                             <div class="sap-security-grid-compact">
                                                 <label class="sap-security-field">
                                                     <span>Entidad</span>
@@ -7625,7 +7702,7 @@
                                                 </label>
                                                 <label class="sap-security-field">
                                                     <span>Límite</span>
-                                                    <input id="sapQueryTopInput" type="number" inputmode="numeric" min="1" max="500" value="20">
+                                                    <input id="sapQueryTopInput" type="number" inputmode="numeric" min="1" max="50000" value="20">
                                                 </label>
                                             </div>
                                             <div class="sap-security-actions">
@@ -7809,7 +7886,7 @@
                                         <div class="sap-records-toolbar">
                                             <div>
                                                 <h3>Importación SAP</h3>
-                                                <p class="section-caption">Consultas, importaciones y sincronización recibida desde SAP hacia el ERP.</p>
+                                                <p class="section-caption">Importación y sincronización de datos recibida desde SAP hacia el ERP.</p>
                                             </div>
                                             <div class="sap-security-actions">
                                                 <button type="button" id="sapActivityApplyButton" class="action-btn action-btn-primary">Filtrar</button>
@@ -9037,6 +9114,8 @@
         const sapUserInput = document.getElementById('sapUserInput');
         const sapPasswordInput = document.getElementById('sapPasswordInput');
         const sapSyncIntervalInput = document.getElementById('sapSyncIntervalInput');
+        const sapMaxImportPartnersInput = document.getElementById('sapMaxImportPartnersInput');
+        const sapMaxImportItemsInput = document.getElementById('sapMaxImportItemsInput');
         const sapAllowSelfSignedSelect = document.getElementById('sapAllowSelfSignedSelect');
         const sapAutoSyncSelect = document.getElementById('sapAutoSyncSelect');
         const sapProviderFields = [...document.querySelectorAll('[data-sap-provider-field]')];
@@ -10193,6 +10272,73 @@
                     <td>${index + 1}</td>
                     <td><input type="text" value="${escapeHtml(item)}" data-quote-product-type-index="${index}" maxlength="80"${item ? "" : " class=\"field-empty\""}></td>
                     <td><button type="button" class="icon-only-btn quote-product-types-remove" data-remove-quote-product-type="${index}" aria-label="Eliminar tipo de producto" title="Eliminar tipo de producto">${getIconHtml('quantity.delete', '&#128465;', '#b94848', 18)}</button></td>
+                </tr>
+            `).join('');
+        }
+
+        // =========================================================================
+        // GESTIÓN DE DEPARTAMENTOS Y TIPOS DE PRODUCTO (Tabla product_departments / product_types)
+        // =========================================================================
+        let productDepartments = [];
+        let productTypes = [];
+
+        async function loadProductDepartments() {
+            try {
+                const res = await fetch('/api/productos/departamentos');
+                const data = await res.json();
+                productDepartments = data.departamentos || [];
+                renderProductDepartmentsTable();
+                renderProductTypesTable();
+            } catch (e) {
+                console.error('Error cargando departamentos:', e);
+            }
+        }
+
+        async function loadProductTypes() {
+            try {
+                const res = await fetch('/api/productos/tipos');
+                const data = await res.json();
+                productTypes = data.tipos || [];
+                renderProductTypesTable();
+            } catch (e) {
+                console.error('Error cargando tipos de producto:', e);
+            }
+        }
+
+        function renderProductDepartmentsTable() {
+            const tbody = document.getElementById('productDepartmentsTableBody');
+            if (!tbody) return;
+            if (!productDepartments.length) {
+                tbody.innerHTML = '<tr><td colspan="5" class="quote-product-types-empty">No hay departamentos configurados.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = productDepartments.map((d, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td><input type="text" value="${escapeHtml(d.code)}" class="dept-code" data-dept-id="${d.id}" maxlength="2" style="width:60px;text-align:center;font-family:monospace;"></td>
+                    <td><input type="text" value="${escapeHtml(d.name)}" class="dept-name" data-dept-id="${d.id}" maxlength="60"></td>
+                    <td style="text-align:center;"><input type="checkbox" class="dept-active" data-dept-id="${d.id}" ${d.active ? 'checked' : ''}></td>
+                    <td><button type="button" class="icon-only-btn" data-delete-dept="${d.id}" aria-label="Eliminar departamento" title="Eliminar departamento">${getIconHtml('quantity.delete', '&#128465;', '#b94848', 18)}</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function renderProductTypesTable() {
+            const tbody = document.getElementById('productTypesTableBody');
+            if (!tbody) return;
+            if (!productTypes.length) {
+                tbody.innerHTML = '<tr><td colspan="6" class="quote-product-types-empty">No hay tipos de producto configurados.</td></tr>';
+                return;
+            }
+            const deptOpts = productDepartments.map(d => `<option value="${d.id}">${escapeHtml(d.name)} (${escapeHtml(d.code)})</option>`).join('');
+            tbody.innerHTML = productTypes.map((t, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td><input type="text" value="${escapeHtml(t.code)}" class="type-code" data-type-id="${t.id}" maxlength="2" style="width:60px;text-align:center;font-family:monospace;"></td>
+                    <td><input type="text" value="${escapeHtml(t.name)}" class="type-name" data-type-id="${t.id}" maxlength="60"></td>
+                    <td><select class="type-dept" data-type-id="${t.id}">${deptOpts.replace(`value="${t.department_id}"`, `value="${t.department_id}" selected`)}</select></td>
+                    <td style="text-align:center;"><input type="checkbox" class="type-active" data-type-id="${t.id}" ${t.active ? 'checked' : ''}></td>
+                    <td><button type="button" class="icon-only-btn" data-delete-type="${t.id}" aria-label="Eliminar tipo" title="Eliminar tipo">${getIconHtml('quantity.delete', '&#128465;', '#b94848', 18)}</button></td>
                 </tr>
             `).join('');
         }
@@ -11406,6 +11552,8 @@
                 sapPasswordInput.placeholder = '';
             }
             if (sapSyncIntervalInput) sapSyncIntervalInput.value = config.syncIntervalMinutes || 30;
+            if (sapMaxImportPartnersInput) sapMaxImportPartnersInput.value = config.maxImportPartners || 2000;
+            if (sapMaxImportItemsInput) sapMaxImportItemsInput.value = config.maxImportItems || 2000;
             if (sapAllowSelfSignedSelect) sapAllowSelfSignedSelect.value = String(config.allowSelfSigned !== false);
             if (sapAutoSyncSelect) sapAutoSyncSelect.value = String(config.autoSyncEnabled === true);
             syncSapAdvancedToggle();
@@ -12185,7 +12333,7 @@
 
         function organizeSapPanels() {
             appendSapCardByHeading(/^Centros Contables$/i, 'sap-tab-registros');
-            appendSapCardByHeading(/^Consultas$/i, 'sap-tab-registros');
+            appendSapCardByHeading(/^Consultas a DI API$/i, 'sap-tab-registros');
             appendSapCardByHeading(/^Envíos$/i, 'sap-tab-envios');
             const statusSide = sapStatusRow?.closest('.sap-security-side');
             if (statusSide) statusSide.hidden = true;
@@ -12309,7 +12457,9 @@
                 diApiBaseUrl: (sapDiApiBaseUrlInput?.value || '').trim(),
                 autoSyncEnabled: sapAutoSyncSelect?.value === 'true',
                 keepDemoEnabled: false,
-                syncIntervalMinutes: Number(sapSyncIntervalInput?.value || 30)
+                syncIntervalMinutes: Number(sapSyncIntervalInput?.value || 30),
+                maxImportPartners: Number(sapMaxImportPartnersInput?.value || 2000),
+                maxImportItems: Number(sapMaxImportItemsInput?.value || 2000)
             };
             if (provider === 'service-layer') {
                 payload.sapCompany = (sapCompanyInput?.value || '').trim();
@@ -12496,7 +12646,133 @@
             if (activeTabKey === 'usuarios' && tabKey !== activeTabKey && !validateSelectedAdminUserSapSalesperson(true)) {
                 return false;
             }
-            securitySubtabs.forEach((tab) => {
+        // =========================================================================
+        // EVENTOS: Departamentos de Producto
+        // =========================================================================
+        document.getElementById('productDeptAddButton')?.addEventListener('click', async () => {
+            const code = prompt('Código de 2 dígitos para el nuevo departamento:');
+            if (!code || !/^\d{2}$/.test(code)) return;
+            const name = prompt('Nombre del departamento:');
+            if (!name) return;
+            try {
+                await fetch('/api/productos/departamentos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code, name })
+                });
+                await loadProductDepartments();
+            } catch (e) { console.error('Error creando departamento:', e); }
+        });
+
+        document.getElementById('productDepartmentsTableBody')?.addEventListener('change', async (event) => {
+            const input = event.target.closest('.dept-code, .dept-name');
+            const checkbox = event.target.closest('.dept-active');
+            if (input) {
+                const id = input.dataset.deptId;
+                const field = input.classList.contains('dept-code') ? 'code' : 'name';
+                const val = input.value.trim();
+                if (!val) return;
+                try {
+                    await fetch(`/api/productos/departamentos/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ [field]: val })
+                    });
+                } catch (e) { console.error('Error actualizando departamento:', e); }
+            } else if (checkbox) {
+                const id = checkbox.dataset.deptId;
+                try {
+                    await fetch(`/api/productos/departamentos/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ active: checkbox.checked })
+                    });
+                } catch (e) { console.error('Error actualizando departamento:', e); }
+            }
+        });
+
+        document.getElementById('productDepartmentsTableBody')?.addEventListener('click', async (event) => {
+            const btn = event.target.closest('[data-delete-dept]');
+            if (!btn) return;
+            if (!confirm('¿Eliminar este departamento? Los tipos asociados se quedarán huérfanos.')) return;
+            try {
+                await fetch(`/api/productos/departamentos/${btn.dataset.deleteDept}`, { method: 'DELETE' });
+                await loadProductDepartments();
+            } catch (e) { console.error('Error eliminando departamento:', e); }
+        });
+
+        // =========================================================================
+        // EVENTOS: Tipos de Producto
+        // =========================================================================
+        document.getElementById('productTypeAddButton')?.addEventListener('click', async () => {
+            if (!productDepartments.length) {
+                alert('Primero debes crear al menos un departamento.');
+                return;
+            }
+            const deptNames = productDepartments.map(d => `${d.name} (${d.code})`);
+            const code = prompt('Código de 2 dígitos para el nuevo tipo:');
+            if (!code || !/^\d{2}$/.test(code)) return;
+            const name = prompt('Nombre del tipo de producto:');
+            if (!name) return;
+            const deptId = productDepartments[0].id;
+            try {
+                await fetch('/api/productos/tipos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: code.toUpperCase(), name: name.toUpperCase(), departmentId: deptId })
+                });
+                await loadProductTypes();
+            } catch (e) { console.error('Error creando tipo:', e); }
+        });
+
+        document.getElementById('productTypesTableBody')?.addEventListener('change', async (event) => {
+            const input = event.target.closest('.type-code, .type-name');
+            const select = event.target.closest('.type-dept');
+            const checkbox = event.target.closest('.type-active');
+            if (input) {
+                const id = input.dataset.typeId;
+                const field = input.classList.contains('type-code') ? 'code' : 'name';
+                const val = input.value.trim().toUpperCase();
+                if (!val) return;
+                try {
+                    await fetch(`/api/productos/tipos/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ [field]: val })
+                    });
+                } catch (e) { console.error('Error actualizando tipo:', e); }
+            } else if (select) {
+                const id = select.dataset.typeId;
+                try {
+                    await fetch(`/api/productos/tipos/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ departmentId: Number(select.value) })
+                    });
+                } catch (e) { console.error('Error actualizando tipo:', e); }
+            } else if (checkbox) {
+                const id = checkbox.dataset.typeId;
+                try {
+                    await fetch(`/api/productos/tipos/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ active: checkbox.checked })
+                    });
+                } catch (e) { console.error('Error actualizando tipo:', e); }
+            }
+        });
+
+        document.getElementById('productTypesTableBody')?.addEventListener('click', async (event) => {
+            const btn = event.target.closest('[data-delete-type]');
+            if (!btn) return;
+            if (!confirm('¿Eliminar este tipo de producto?')) return;
+            try {
+                await fetch(`/api/productos/tipos/${btn.dataset.deleteType}`, { method: 'DELETE' });
+                await loadProductTypes();
+            } catch (e) { console.error('Error eliminando tipo:', e); }
+        });
+
+        securitySubtabs.forEach((tab) => {
                 tab.classList.toggle('active', tab.dataset.securityTab === tabKey);
             });
             securitySubpanels.forEach((panel) => {
@@ -18114,6 +18390,8 @@
                 renderQuoteProductTypesTable();
                 renderQuoteSurfaceOptionsTable();
                 renderQuoteApplicationOptionsTable();
+                loadProductDepartments();
+                loadProductTypes();
                 setInventoryClassificationStatus('Configura el campo SAP y luego mapea sus valores a categorías flexográficas.', false);
                 populateProformaConfigFields();
                 applyHeaderConfig(loadedConfig);

@@ -571,7 +571,8 @@ const DEFAULT_COSTS_CONFIG = {
             { id: 'conv-finish-estampado', proceso: 'Estampado', setupWasteFeet: 250, operationWastePct: 4.0 },
             { id: 'conv-finish-embosado', proceso: 'Embosado', setupWasteFeet: 125, operationWastePct: 3.0 },
             { id: 'conv-finish-rebobinado', proceso: 'Rebobinado', setupWasteFeet: 30, operationWastePct: 0.5 }
-        ]
+        ],
+        costoPlanchaIn2: 0
     },
     digital: {
         maculaMontaje: [],
@@ -1134,7 +1135,8 @@ function normalizeCostsConfigRecord(config) {
             },
             maculaMontaje: normalizeMontaje(source?.convencional?.maculaMontaje || DEFAULT_COSTS_CONFIG.convencional.maculaMontaje, 'convencional'),
             maculaTiraje: normalizeTiraje(source?.convencional?.maculaTiraje || DEFAULT_COSTS_CONFIG.convencional.maculaTiraje, 'convencional'),
-            finishWaste: normalizeFinishWaste(source?.convencional?.finishWaste || DEFAULT_COSTS_CONFIG.convencional.finishWaste, 'convencional')
+            finishWaste: normalizeFinishWaste(source?.convencional?.finishWaste || DEFAULT_COSTS_CONFIG.convencional.finishWaste, 'convencional'),
+            costoPlanchaIn2: Math.max(0, Number(source?.convencional?.costoPlanchaIn2 ?? DEFAULT_COSTS_CONFIG.convencional.costoPlanchaIn2 ?? 0))
         },
         digital: {
             maculaMontaje: normalizeMontaje(source?.digital?.maculaMontaje || DEFAULT_COSTS_CONFIG.digital.maculaMontaje, 'digital'),
@@ -2052,12 +2054,12 @@ function mapQuoteHeader(row) {
 function mapCalculationLine(row) {
     const raw = row.raw_data || {};
     const subtotal1 = pickFirstValue(
+        parseLegacyNumber(row.total_cost),
         parseLegacyNumber(raw['GENERAL | 9 | TOTAL | COL EXPORTAR REPORTE VENTAS']),
         parseLegacyNumber(raw['GENERAL | 7 | SUBTOTAL CALC ANTES IV | COL']),
         parseLegacyNumber(raw['GENERAL | 7 | TOTAL | COL']),
         parseLegacyNumber(raw['GENERAL | 7 | TOTAL | DOL']),
         parseLegacyNumber(raw['PRECIO TOTAL AL FINALIZAR']),
-        parseLegacyNumber(row.total_cost),
         (parseLegacyNumber(row.unit_price) !== null && parseLegacyNumber(row.quantity) !== null)
             ? parseLegacyNumber(row.unit_price) * parseLegacyNumber(row.quantity)
             : null
@@ -2069,12 +2071,12 @@ function mapCalculationLine(row) {
 
       return {
           line_code: pickFirstValue(row.line_code, raw['ID LINEA']),
-          line_order: lineOrder,
-          department: pickFirstValue(raw.DEPARTAMENTO, 'Flexografia'),
-          job_name: pickFirstValue(raw['NOMBRE TRABAJO'], raw['Nombre Trabajo'], raw['TIPO TRABAJO | ORDEN REFERENCIA 1'], row.line_code),
-          material_name: pickFirstValue(raw['GENERAL | MATERIAL'], raw.Material, row.material_code),
+          line_order: pickFirstValue(row.line_order, lineOrder),
+          department: pickFirstValue(row.department, raw.DEPARTAMENTO, 'Flexografia'),
+          job_name: pickFirstValue(row.job_name, raw['NOMBRE TRABAJO'], raw['Nombre Trabajo'], raw['TIPO TRABAJO | ORDEN REFERENCIA 1'], row.line_code),
+          material_name: pickFirstValue(row.material_nombre, raw['GENERAL | MATERIAL'], raw.Material, row.material_code),
           finalized_for_order: Boolean(row.finalized_for_order ?? raw['CODEX_FINALIZED_FOR_ORDER']),
-          status: pickFirstValue(raw['SOLICITUD ESTADO'], raw['ESTADO LINEA'], 'Cotizada'),
+          status: pickFirstValue(row.line_status, raw['SOLICITUD ESTADO'], raw['ESTADO LINEA'], 'Cotizada'),
         subtotal_1: subtotal1,
         subtotal_2: null,
         subtotal_3: null,
@@ -2082,9 +2084,22 @@ function mapCalculationLine(row) {
         hidden_flag: false,
         optional_flag: false,
         proof_flag: true,
-        process_type: row.process_type || pickFirstValue(raw['Proceso Productivo']),
+        process_type: pickFirstValue(row.process_type, raw['Proceso Productivo']),
         product_code: row.product_code,
         machine_name: pickFirstValue(row.machine_name, raw['DIGITAL | MAQUINA'], raw['CONV | MAQUINA']),
+        quantity: pickFirstValue(parseLegacyNumber(row.quantity), parseLegacyNumber(raw['Cantidad Productos']), parseLegacyNumber(raw['CANTIDAD PRODUCTOS 1'])),
+        die_code: pickFirstValue(row.die_code, raw['GENERAL | TROQUEL | ID']),
+        material_code: pickFirstValue(row.material_code, raw['Material Digital | Id Material'], raw['Material Convencional | Id Material']),
+        barniz_tipo: pickFirstValue(row.barniz_tipo, raw['REQ | Barniz']),
+        laminado_tipo: pickFirstValue(row.laminado_tipo, raw['REQ | Laminado']),
+        estampado_tipo: pickFirstValue(row.estampado_tipo, raw['REQ | Estampado']),
+        embosado_tipo: pickFirstValue(row.embosado_tipo, raw['REQ | Embosado']),
+        troquel_forma: pickFirstValue(row.troquel_forma, raw['REQ | Forma']),
+        sin_impresion: row.sin_impresion || false,
+        medida_fija: pickFirstValue(row.medida_fija, raw['REQ | Medida Fija']),
+        ruta_calculada: pickFirstValue(row.ruta_calculada, raw['REQ | Ruta Automática']),
+        montaje_resumen: pickFirstValue(row.montaje_resumen, raw['REQ | Montaje Automático'], raw['Texto_Secuencia_Procesos']),
+        material_nombre: pickFirstValue(row.material_nombre, raw['GENERAL | MATERIAL']),
         raw_data: raw
     };
 }
@@ -2139,62 +2154,62 @@ function mapFlexoCalculationDetail(row) {
         quoteCode: pickFirstValue(row.quote_code, raw['ID COTIZACION']),
         lineCode: pickFirstValue(row.line_code, raw['ID LINEA']),
         customerCode: pickFirstValue(row.customer_code, raw['ID CLIENTE']),
-        customerName: pickFirstValue(raw.CLIENTE),
-        salespersonName: pickFirstValue(raw.VENDEDOR),
-        jobName: pickFirstValue(raw['NOMBRE TRABAJO'], raw['TIPO TRABAJO | ORDEN REFERENCIA 1']),
-        department: pickFirstValue(raw.DEPARTAMENTO, 'Flexografia'),
+        customerName: pickFirstValue(row.customer_name, raw.CLIENTE),
+        salespersonName: pickFirstValue(row.salesperson_name, raw.VENDEDOR),
+        jobName: pickFirstValue(row.job_name, raw['NOMBRE TRABAJO'], raw['TIPO TRABAJO | ORDEN REFERENCIA 1']),
+        department: pickFirstValue(row.department, raw.DEPARTAMENTO, 'Flexografia'),
         processType,
-          orderType: pickFirstValue(raw['TIPO ORDEN']),
+          orderType: pickFirstValue(row.tipo_orden, raw['TIPO ORDEN']),
           finalizedForOrder: Boolean(row.finalized_for_order ?? raw['CODEX_FINALIZED_FOR_ORDER']),
-          lineStatus: pickFirstValue(raw['SOLICITUD ESTADO'], raw['ESTADO LINEA'], raw['FIN COTIZACION | ESTADO']),
+          lineStatus: pickFirstValue(row.line_status, raw['SOLICITUD ESTADO'], raw['ESTADO LINEA'], raw['FIN COTIZACION | ESTADO']),
         calculationType: pickFirstValue(raw['ESTADO LINEA | CALCULO'], raw['ESTADO LINEA | SEGUN CANTIDAD ELEMENTOS']),
         quantityProducts: pickFirstValue(
+            parseLegacyNumber(row.quantity),
             parseLegacyNumber(raw['Cantidad Productos']),
-            parseLegacyNumber(raw['CANTIDAD PRODUCTOS 1']),
-            parseLegacyNumber(row.quantity)
+            parseLegacyNumber(raw['CANTIDAD PRODUCTOS 1'])
         ),
-        quantityTypes: parseLegacyNumber(raw['CANTIDAD TIPOS']),
-        quantityChanges: parseLegacyNumber(raw['CANTIDAD CAMBIOS']),
-        widthInches: parseLegacyNumber(raw['DIMENSIONES ETIQUETA | ANCHO']),
-        lengthInches: parseLegacyNumber(raw['DIMENSIONES ETIQUETA | LARGO']),
+        quantityTypes: pickFirstValue(parseLegacyNumber(row.quantity_types), parseLegacyNumber(raw['CANTIDAD TIPOS'])),
+        quantityChanges: pickFirstValue(parseLegacyNumber(row.quantity_changes), parseLegacyNumber(raw['CANTIDAD CAMBIOS'])),
+        widthInches: pickFirstValue(parseLegacyNumber(row.width_inches), parseLegacyNumber(raw['DIMENSIONES ETIQUETA | ANCHO'])),
+        lengthInches: pickFirstValue(parseLegacyNumber(row.length_inches), parseLegacyNumber(raw['DIMENSIONES ETIQUETA | LARGO'])),
         areaInches: parseLegacyNumber(raw['DIMENSIONES ETIQUETA | AREA']),
         areaM2: parseLegacyNumber(raw['DIMENSIONES ETIQUETA | AREA M2']),
-        materialCode: pickFirstValue(raw['Material Convencional | Id Material'], raw['Material Digital | Id Material'], row.material_code),
-        materialName: pickFirstValue(raw['GENERAL | MATERIAL'], raw['Material | Tipo Según Proceso Productivo'], raw['Material Convencional | Tipo con Medidas'], raw['Material Digital | Tipo con Medidas'], row.material_code),
-        materialWidth: parseLegacyNumber(raw['GENERAL | MATERIAL | ANCHO']),
-        materialM2: pickFirstValue(parseLegacyNumber(raw['Material | m2 Segun Proceso Productivo']), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | AREA MTS`])),
-        materialMsi: pickFirstValue(parseLegacyNumber(raw['Material | MSI Segun Proceso Productivo']), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | CANTIDAD MSI INCLUYE MACULA`]), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | CANTIDAD MSI`])),
-        materialFeet: pickFirstValue(parseLegacyNumber(raw['Material | Pies Segun Proceso Productivo']), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | CANTIDAD PIES LINEALES INCLUYE MACULA`]), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | CANTIDAD PIES LINEALES`])),
-        materialFeetWaste: pickFirstValue(parseLegacyNumber(raw['Material | Pies Macula Segun Proceso Productivo']), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | CANTIDAD PIES MACULA | CALCULO`])),
-        dieCode: pickFirstValue(raw['GENERAL | TROQUEL | ID'], raw[`${activePrefix} | TROQUEL | ID`], row.die_code),
-        dieTeeth: pickFirstValue(parseLegacyNumber(raw['GENERAL | TROQUEL | DIENTES']), parseLegacyNumber(raw[`${activePrefix} | TROQUEL | DIENTES`])),
-        dieRows: parseLegacyNumber(raw[`${activePrefix} | TROQUEL | CANTIDAD FILAS`]),
-        dieRepeats: pickFirstValue(parseLegacyNumber(raw['CONV | TROQUEL | REPETICIONES']), parseLegacyNumber(raw['DIGITAL | TROQUEL | REPETICIONES'])),
-        tintCount: pickFirstValue(parseLegacyNumber(raw['CANTIDAD TINTAS']), parseLegacyNumber(raw['DIGITAL | CANTIDAD TINTAS'])),
-        pantoneCount: parseLegacyNumber(raw['CANTIDAD PANTONES']),
-        labelsPerRoll: parseLegacyNumber(raw['CANTIDAD ETIQUETAS X ROLLO']),
-        applicationType: pickFirstValue(raw['TIPO ETIQUETADO']),
-        outputType: pickFirstValue(raw['TIPO SALIDA']),
-        coreWidth: parseLegacyNumber(raw['ANCHO CORE']),
-        coreDiameter: pickFirstValue(raw['DIAMETRO CORE']),
-        cmyk: raw['GENERAL | CMYK'] === true || String(raw['CMYK'] || '').trim().toLowerCase() === 'si',
+        materialCode: pickFirstValue(row.material_code, raw['Material Convencional | Id Material'], raw['Material Digital | Id Material']),
+        materialName: pickFirstValue(row.material_nombre, raw['GENERAL | MATERIAL'], raw['Material | Tipo Según Proceso Productivo'], row.material_code),
+        materialWidth: pickFirstValue(parseLegacyNumber(row.material_ancho), parseLegacyNumber(raw['GENERAL | MATERIAL | ANCHO'])),
+        materialM2: pickFirstValue(parseLegacyNumber(row.material_m2), parseLegacyNumber(raw['Material | m2 Segun Proceso Productivo']), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | AREA MTS`])),
+        materialMsi: pickFirstValue(parseLegacyNumber(row.material_msi), parseLegacyNumber(raw['Material | MSI Segun Proceso Productivo']), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | CANTIDAD MSI INCLUYE MACULA`]), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | CANTIDAD MSI`])),
+        materialFeet: pickFirstValue(parseLegacyNumber(row.material_feet), parseLegacyNumber(raw['Material | Pies Segun Proceso Productivo']), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | CANTIDAD PIES LINEALES INCLUYE MACULA`]), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | CANTIDAD PIES LINEALES`])),
+        materialFeetWaste: pickFirstValue(parseLegacyNumber(row.material_pies_macula), parseLegacyNumber(raw['Material | Pies Macula Segun Proceso Productivo']), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | CANTIDAD PIES MACULA | CALCULO`])),
+        dieCode: pickFirstValue(row.die_code, raw['GENERAL | TROQUEL | ID'], raw[`${activePrefix} | TROQUEL | ID`]),
+        dieTeeth: pickFirstValue(parseLegacyNumber(row.die_teeth), parseLegacyNumber(raw['GENERAL | TROQUEL | DIENTES']), parseLegacyNumber(raw[`${activePrefix} | TROQUEL | DIENTES`])),
+        dieRows: pickFirstValue(parseLegacyNumber(row.die_rows), parseLegacyNumber(raw[`${activePrefix} | TROQUEL | CANTIDAD FILAS`])),
+        dieRepeats: pickFirstValue(parseLegacyNumber(row.die_repeats), parseLegacyNumber(raw['CONV | TROQUEL | REPETICIONES']), parseLegacyNumber(raw['DIGITAL | TROQUEL | REPETICIONES'])),
+        tintCount: pickFirstValue(parseLegacyNumber(row.cantidad_tintas), parseLegacyNumber(raw['CANTIDAD TINTAS']), parseLegacyNumber(raw['DIGITAL | CANTIDAD TINTAS'])),
+        pantoneCount: pickFirstValue(parseLegacyNumber(row.cantidad_pantones), parseLegacyNumber(raw['CANTIDAD PANTONES'])),
+        labelsPerRoll: pickFirstValue(parseLegacyNumber(row.labels_per_roll), parseLegacyNumber(raw['CANTIDAD ETIQUETAS X ROLLO'])),
+        applicationType: pickFirstValue(row.application_type, raw['TIPO ETIQUETADO']),
+        outputType: pickFirstValue(row.output_type, raw['TIPO SALIDA']),
+        coreWidth: pickFirstValue(parseLegacyNumber(row.core_width), parseLegacyNumber(raw['ANCHO CORE'])),
+        coreDiameter: pickFirstValue(row.core_diameter, raw['DIAMETRO CORE']),
+        cmyk: pickFirstValue(row.cmyk_enabled, raw['GENERAL | CMYK'] === true || String(raw['CMYK'] || '').trim().toLowerCase() === 'si'),
         quotedMachine,
-        subtotalCost: pickFirstValue(parseLegacyNumber(raw['GENERAL | 1 | SUBTOTAL COSTOS | DOL | MOSTRAR']), parseLegacyNumber(raw['GENERAL | 1 | Costo Productivo']), parseLegacyNumber(raw[`${activePrefix} | 0 | SUBTOTAL COSTOS`])),
-        subtotalFinancial: parseLegacyNumber(raw['GENERAL | 2 | SUBTOTAL COSTOS']),
-        subtotalPerformance: pickFirstValue(parseLegacyNumber(raw['GENERAL | 3 | SUBTOTAL MAS RENDIMIENTO']), parseLegacyNumber(raw['GENERAL | 2 | Precio Venta'])),
+        subtotalCost: pickFirstValue(parseLegacyNumber(row.subtotal_cost), parseLegacyNumber(raw['GENERAL | 1 | SUBTOTAL COSTOS | DOL | MOSTRAR']), parseLegacyNumber(raw['GENERAL | 1 | Costo Productivo']), parseLegacyNumber(raw[`${activePrefix} | 0 | SUBTOTAL COSTOS`])),
+        subtotalFinancial: pickFirstValue(parseLegacyNumber(row.subtotal_financiero), parseLegacyNumber(raw['GENERAL | 2 | SUBTOTAL COSTOS'])),
+        subtotalPerformance: pickFirstValue(parseLegacyNumber(row.subtotal_rendimiento), parseLegacyNumber(raw['GENERAL | 3 | SUBTOTAL MAS RENDIMIENTO']), parseLegacyNumber(raw['GENERAL | 2 | Precio Venta'])),
         cyrelCost,
-        subtotalBeforeTax,
-        taxAmount,
+        subtotalBeforeTax: pickFirstValue(parseLegacyNumber(row.subtotal_cost), subtotalBeforeTax),
+        taxAmount: pickFirstValue(parseLegacyNumber(row.tax_amount), taxAmount),
         finalTotal,
-        unitPrice: pickFirstValue(parseLegacyNumber(raw['GENERAL | 9 | UNITARIO | DOL']), parseLegacyNumber(row.unit_price)),
-        thousandPrice: parseLegacyNumber(raw['GENERAL | 9 | MILLAR | DOL']),
-        totalColones: pickFirstValue(parseLegacyNumber(raw['GENERAL | 7 | SUBTOTAL CALC ANTES IV | COL']), parseLegacyNumber(raw['GENERAL | 7 | TOTAL | COL'])),
-        exchangeRate: pickFirstValue(parseLegacyNumber(raw['TIPO CAMBIO']), parseLegacyNumber(raw['TIPO CAMBIO VENTA']), parseLegacyNumber(raw['TIPO CAMBIO COMPRA'])),
-        minimumCost: parseLegacyNumber(raw['COSTOS | COSTO MINIMO']),
-        contingencyPercent: parseLegacyNumber(raw['GENERAL | 1 | PORCENTAJE IMPREVISTOS | UTILIZAR']),
-        financialPercent: parseLegacyNumber(raw['GENERAL | 1 | PORCENTAJE COSTOS FINANCIEROS | UTILIZAR']),
-        extraPercent: parseLegacyNumber(raw['Porcentaje Adicional']),
-        taxPercent: parseLegacyNumber(raw['GENERAL | 8 | PORCENTAJE IVA']),
+        unitPrice: pickFirstValue(parseLegacyNumber(row.unit_price), parseLegacyNumber(raw['GENERAL | 9 | UNITARIO | DOL'])),
+        thousandPrice: pickFirstValue(parseLegacyNumber(row.precio_millar), parseLegacyNumber(raw['GENERAL | 9 | MILLAR | DOL'])),
+        totalColones: pickFirstValue(parseLegacyNumber(row.total_colones), parseLegacyNumber(raw['GENERAL | 7 | SUBTOTAL CALC ANTES IV | COL']), parseLegacyNumber(raw['GENERAL | 7 | TOTAL | COL'])),
+        exchangeRate: pickFirstValue(parseLegacyNumber(row.tipo_cambio_venta), parseLegacyNumber(raw['TIPO CAMBIO']), parseLegacyNumber(raw['TIPO CAMBIO VENTA']), parseLegacyNumber(raw['TIPO CAMBIO COMPRA'])),
+        minimumCost: pickFirstValue(parseLegacyNumber(row.costo_minimo), parseLegacyNumber(raw['COSTOS | COSTO MINIMO'])),
+        contingencyPercent: pickFirstValue(parseLegacyNumber(row.porcentaje_imprevistos), parseLegacyNumber(raw['GENERAL | 1 | PORCENTAJE IMPREVISTOS | UTILIZAR'])),
+        financialPercent: pickFirstValue(parseLegacyNumber(row.porcentaje_financiero), parseLegacyNumber(raw['GENERAL | 1 | PORCENTAJE COSTOS FINANCIEROS | UTILIZAR'])),
+        extraPercent: pickFirstValue(parseLegacyNumber(row.porcentaje_adicional), parseLegacyNumber(raw['Porcentaje Adicional'])),
+        taxPercent: pickFirstValue(parseLegacyNumber(row.porcentaje_iva), parseLegacyNumber(raw['GENERAL | 8 | PORCENTAJE IVA'])),
         components: {
             material: pickFirstValue(parseLegacyNumber(raw[`${activePrefix} | COSTO MATERIAL`]), parseLegacyNumber(raw['Material | Costo Material'])),
             inks: pickFirstValue(parseLegacyNumber(raw[`${activePrefix} | COSTO TINTAS`]), parseLegacyNumber(raw['DIGITAL | COSTO TINTAS CMYK'])),
@@ -2205,15 +2220,15 @@ function mapFlexoCalculationDetail(row) {
             runCost: pickFirstValue(parseLegacyNumber(raw[`${activePrefix} | COSTO TIRAJE`]))
         },
         validations: {
-            solicitud: pickFirstValue(raw['ANALISIS CAMPOS SOLICITUD']),
-            finalizar: pickFirstValue(raw['ANALISIS CAMPOS FINALIZAR']),
-            crearOrden: pickFirstValue(raw['ANALISIS CAMPOS CREAR ORDEN'])
+            solicitud: pickFirstValue(row.analisis_solicitud, raw['ANALISIS CAMPOS SOLICITUD']),
+            finalizar: pickFirstValue(row.analisis_finalizar, raw['ANALISIS CAMPOS FINALIZAR']),
+            crearOrden: pickFirstValue(row.analisis_crear_orden, raw['ANALISIS CAMPOS CREAR ORDEN'])
         },
         notes: {
-            quoteSummary: pickFirstValue(raw['Resumen Cotización'], raw['Resumen Cotizacion']),
-            printSummary: pickFirstValue(raw['INFORMACION IMPRESION COTIZACION | MOSTRAR'], raw['INFORMACION IMPRESION COTIZACION | CALCULO']),
-            observations: pickFirstValue(raw['OBSERVACIONES SOLICITUD']),
-            creationStatus: pickFirstValue(raw['CREACION ESTADO'])
+            quoteSummary: pickFirstValue(row.resumen_cotizacion, raw['Resumen Cotización'], raw['Resumen Cotizacion']),
+            printSummary: pickFirstValue(row.info_impresion, raw['INFORMACION IMPRESION COTIZACION | MOSTRAR'], raw['INFORMACION IMPRESION COTIZACION | CALCULO']),
+            observations: pickFirstValue(row.observaciones, raw['OBSERVACIONES SOLICITUD']),
+            creationStatus: pickFirstValue(row.estado_creacion, raw['CREACION ESTADO'])
         },
         uiState: raw['CODEX_UI_STATE'] || null,
         digitalPlatesDisabled,
@@ -5639,10 +5654,56 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/orden-produccion', async (req,
             });
             rawData = await enrichOrderRawDataWithPlanningSnapshot(rawData, client);
 
+            const ORDER_PROD_COLS = [
+                'consumo_tinta_por_color_lb','consumo_tinta_total_lb','costo_tinta_por_libra','material_tinta_id',
+                'cobertura_tinta_pct','bcm_anilox','factor_transferencia','densidad_tinta','costo_libra_cmyk',
+                'costo_libra_blanco','costo_libra_pantone','subtotal_tinta','merma_arranque_pies','merma_tiraje_pies',
+                'merma_tiraje_pct','costo_merma','costo_sustrato','pies_totales_sustrato','pies_sustrato_neto',
+                'velocidad_maquina_m_min','tiempo_setup_min','tiempo_montaje_min','tiempo_limpieza_min',
+                'costo_hora_maquina','costo_hora_operador','subtotal_maquina','subtotal_operador',
+                'tiempo_corrida_min','tiempo_total_impresion_min',
+                'barniz_material_id','barniz_bcm','barniz_cobertura_pct','barniz_costo_por_kg','barniz_zonificado',
+                'barniz_comentario','barniz_costo_total','barniz_consumo_kg','barniz_consumo_lb','barniz_tiempo_montaje_min',
+                'laminado_material_id','laminado_costo_por_pie_lineal','laminado_tiempo_montaje_min','laminado_comentario','laminado_costo_total','laminado_pies_lineales',
+                'embosado_tiempo_montaje_min','embosado_ancho_cliche','embosado_largo_cliche','embosado_costo_cliche','embosado_comentario',
+                'troquelado_tiempo_montaje_min','troquelado_merma_ajuste_pies','troquelado_comentario',
+                'numerado_tipo','numerado_tiempo_montaje_min','numerado_costo_fijo','numerado_comentario','numerado_adjunto',
+                'rebobinado_maquina','rebobinado_tiempo_montaje_min','rebobinado_costo_hora_maquina','rebobinado_costo_operador',
+                'rebobinado_velocidad','rebobinado_merma_ajuste_pies','rebobinado_merma_operacion_pct','rebobinado_comentario',
+                'rebobinado_tiempo_total_min','rebobinado_costo_total',
+                'empaque_cantidad_rollos','empaque_rendimiento_por_hora','empaque_operarios','empaque_costo_por_operador',
+                'empaque_costo_externo','empaque_comentario','empaque_adjunto','empaque_horas','empaque_costo_total',
+                'merma_total_pies','merma_total_costo',
+                'subtotal_financiero','subtotal_rendimiento','precio_millar','total_colones',
+                'tipo_cambio_venta','tipo_cambio_compra','costo_minimo',
+                'porcentaje_imprevistos','porcentaje_financiero','porcentaje_iva','porcentaje_adicional',
+                'tiempo_diseno_horas','tiempo_preprensa_horas','tiempo_acabados_min','tiempo_total_min',
+                'material_m2','material_msi','material_pies_macula','material_ancho',
+                'cantidad_tintas','cantidad_pantones','tinta_blanca','doble_blanca',
+                'analisis_solicitud','analisis_finalizar','analisis_crear_orden',
+                'resumen_cotizacion','info_impresion','observaciones','estado_creacion',
+                'condicion_pago','tiempo_entrega','moneda','metodo_envio','tipo_orden',
+                'barniz_tipo','laminado_tipo','estampado_tipo','embosado_tipo',
+                'troquel_forma','ruta_calculada','montaje_resumen','sin_impresion',
+                'medida_fija','material_nombre','fecha_vencimiento',
+                'seleccion_automatica','precio_automatico',
+                'width_inches','length_inches','labels_per_roll','quantity_types','quantity_changes',
+                'core_width','core_diameter','cmyk_enabled','application_type','output_type',
+                'die_teeth','die_rows','die_repeats',
+                'customer_name','salesperson_name','job_name','process_type','line_status',
+                'subtotal_cost','total_cost','unit_price',
+                'material_feet','material_msi','material_m2'
+            ];
+            const orderProdCols = ORDER_PROD_COLS.filter((c) => context.line[c] !== undefined && context.line[c] !== null);
+            const orderProdPlaceholders = orderProdCols.map((_, i) => `$${9 + i + 1}`);
+            const orderProdValues = orderProdCols.map((c) => context.line[c]);
+
             await client.query(
                 `INSERT INTO flexo_orders (
                     order_code, quote_code, line_code, product_code, machine_name, material_code, die_code, ordered_quantity, raw_data
-                 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb)`,
+                    ${orderProdCols.length ? ', ' + orderProdCols.join(', ') : ''}
+                 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb
+                    ${orderProdPlaceholders.length ? ', ' + orderProdPlaceholders.join(', ') : ''})`,
                 [
                     orderCode,
                     codigo,
@@ -5652,7 +5713,8 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/orden-produccion', async (req,
                     context.line.material_code,
                     context.line.die_code,
                     parseLegacyNumber(context.line.quantity),
-                    JSON.stringify(rawData)
+                    JSON.stringify(rawData),
+                    ...orderProdValues
                 ]
             );
             await closeQuoteProforma(codigo, 'order_generated', client);

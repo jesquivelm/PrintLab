@@ -29,6 +29,11 @@ let currentSearch = '';
 let sociosImportStatusTimer = null;
 let sociosImportDiagnosis = null;
 let sociosVisibleCount = 0;
+let sociosTotalCount = 0;
+let sociosOffset = 0;
+let sociosLoading = false;
+let sociosAllLoaded = false;
+const SOCIOS_PAGE_SIZE = 200;
 let sociosSortState = { key: null, dir: null };
 
 function getSociosSortIcon(dir) {
@@ -90,9 +95,15 @@ function updateSociosScrollBottomIndicator() {
     if (!sociosTableWrap || !sociosScrollBottomIndicator) return;
     const hasScrollableContent = sociosTableWrap.scrollHeight - sociosTableWrap.clientHeight > 6;
     const distanceToBottom = sociosTableWrap.scrollHeight - sociosTableWrap.scrollTop - sociosTableWrap.clientHeight;
-    const shouldShow = sociosVisibleCount > 0 && (!hasScrollableContent || distanceToBottom <= 8);
-    sociosScrollBottomIndicator.textContent = formatVisibleCountLabel(sociosVisibleCount, 'registro');
-    sociosScrollBottomIndicator.classList.toggle('is-visible', shouldShow);
+    const atBottom = hasScrollableContent && distanceToBottom <= 8;
+    const label = sociosAllLoaded
+        ? `${sociosTotalCount.toLocaleString('es-CR')} registros`
+        : `${sociosVisibleCount.toLocaleString('es-CR')} de ${sociosTotalCount.toLocaleString('es-CR')} registros`;
+    sociosScrollBottomIndicator.textContent = label;
+    sociosScrollBottomIndicator.classList.toggle('is-visible', sociosVisibleCount > 0 && (!hasScrollableContent || atBottom));
+    if (atBottom && !sociosAllLoaded && !sociosLoading) {
+        loadSocios(currentSearch, true).catch(() => {});
+    }
 }
 
 function openSocioRoute(partnerCode) {
@@ -227,25 +238,35 @@ function openRouteInShell(route, label) {
     return true;
 }
 
-async function loadSocios(search = '') {
+async function loadSocios(search = '', append = false) {
+    if (sociosLoading) return;
+    if (append && sociosAllLoaded) return;
     currentSearch = search;
-    const params = new URLSearchParams({ limit: '200' });
+    sociosLoading = true;
+    const offset = append ? sociosOffset : 0;
+    if (!append) {
+        sociosOffset = 0;
+        sociosAllLoaded = false;
+    }
+    const params = new URLSearchParams({ limit: String(SOCIOS_PAGE_SIZE), offset: String(offset) });
     if (search) params.set('q', search);
 
     const response = await fetch(`${SOCIOS_ENDPOINT}?${params.toString()}`);
     const payload = await response.json();
     if (!response.ok) {
+        sociosLoading = false;
         throw new Error(payload.error || 'No se pudieron cargar los socios.');
     }
 
     const items = payload.socios || [];
-    sociosVisibleCount = items.length;
+    sociosTotalCount = payload.total || 0;
+    sociosOffset = offset + items.length;
+    sociosAllLoaded = items.length < SOCIOS_PAGE_SIZE || sociosOffset >= sociosTotalCount;
+    sociosVisibleCount = append ? sociosOffset : items.length;
     const openIcon = getOpenIconConfig();
     const deleteIcon = getDeleteIconConfig();
 
-    const displayItems = sortSociosList(items);
-    updateSociosSortIndicators();
-    sociosTableBody.innerHTML = displayItems.length ? displayItems.map((item) => `
+    const renderRow = (item) => `
         <tr>
             <td>${escapeHtml(item.partner_code)}</td>
             <td>${escapeHtml(item.partner_name)}</td>
@@ -259,7 +280,17 @@ async function loadSocios(search = '') {
                     <button type="button" class="browser-open-link browser-open-link-danger" data-delete-socio="${escapeHtml(item.partner_code)}" aria-label="Eliminar socio ${escapeHtml(item.partner_code)}" title="Eliminar socio ${escapeHtml(item.partner_code)}" style="--icon-color:${escapeHtml(deleteIcon.color)};--icon-hover-color:${escapeHtml(deleteIcon.hover)};--config-icon-size:${escapeHtml(String(deleteIcon.size))}px;">${iconMarkup(deleteIcon.value, 'Eliminar socio', 'table-icon-media')}</button>
                 </div>
             </td>
-        </tr>`).join('') : '<tr><td colspan="7">No hay socios registrados.</td></tr>';
+        </tr>`;
+
+    if (append) {
+        const newRows = items.map(renderRow).join('');
+        sociosTableBody.innerHTML += newRows;
+    } else {
+        const displayItems = sortSociosList(items);
+        updateSociosSortIndicators();
+        sociosTableBody.innerHTML = displayItems.length ? displayItems.map(renderRow).join('') : '<tr><td colspan="7">No hay socios registrados.</td></tr>';
+    }
+    sociosLoading = false;
     requestAnimationFrame(updateSociosScrollBottomIndicator);
 }
 

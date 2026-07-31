@@ -23,7 +23,8 @@ const {
     stageSapMirrorOrder,
     stageSapMirrorBom,
     createBusinessPartnerInSap,
-    loadSapConfig
+    loadSapConfig,
+    sapRequest
 } = require('./services/sap-service-layer');
 const { ensureExchangeRateSchema, registerExchangeRateRoutes, startExchangeRateScheduler, buildProformaExchangeContext } = require('./services/exchange-rate-service');
 const nodemailer = require('nodemailer');
@@ -35,6 +36,7 @@ const { registerTintasRoutes } = require('./services/tintas/tintas-service');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const STATIC_ASSET_CACHE_MODE = String(process.env.STATIC_ASSET_CACHE_MODE || 'revalidate').toLowerCase();
 const APP_ROOT = __dirname;
 const DATA_ROOT = path.resolve(__dirname, '..');
 const CONFIG_DIR = path.join(APP_ROOT, 'config');
@@ -1677,7 +1679,8 @@ const DEFAULT_COSTS_CONFIG = {
             { id: 'conv-finish-troquelado', proceso: 'Troquelado', setupWasteFeet: 150, operationWastePct: 2.5 },
             { id: 'conv-finish-estampado', proceso: 'Estampado', setupWasteFeet: 250, operationWastePct: 4.0 },
             { id: 'conv-finish-embosado', proceso: 'Embosado', setupWasteFeet: 125, operationWastePct: 3.0 },
-        ]
+        ],
+        costoPlanchaIn2: 0
     },
     digital: {
         premier: {
@@ -1733,7 +1736,23 @@ const DEFAULT_COSTS_CONFIG = {
         ],
         estampado: [
             { id: 'acab-estampado-1', tipoFoil: 'Foil Dorado', anchoFoil: 6, costoPorPieLineal: 0.08, tiempoMontaje: 15 }
-        ]
+        ],
+        coldfoil: {
+            costoFoilM2: 5,
+            precioAdhesivoKg: 18,
+            gramajeGm2: 2.0,
+            mermaAdhesivoPct: 10,
+            coberturaDefaultPct: 60,
+            anchoBobinaDefaultIn: 13,
+            margenLateralDefaultIn: 0.25,
+            margenLongitudinalDefaultIn: 0.25,
+            separacionHDefaultIn: 0.125,
+            separacionVDefaultIn: 0.125,
+            elementoAnchoDefaultIn: 2,
+            elementoLargoDefaultIn: 3,
+            columnasDefault: 3,
+            filasDefault: 1
+        }
     }
 };
 
@@ -1749,8 +1768,8 @@ app.use(express.static(path.join(__dirname, 'public'), {
     setHeaders: (res, filePath) => {
         const normalized = String(filePath || '').replace(/\\/g, '/').toLowerCase();
         if (normalized.match(/\.(html|js|css)$/)) {
-            res.setHeader('Cache-Control', 'no-cache');
-            return;
+           res.setHeader('Cache-Control', STATIC_ASSET_CACHE_MODE === 'no-store' ? 'no-store' : 'no-cache');
+           return;
         }
         if (normalized.includes('/assets/bootstrap/icons/')) {
             res.setHeader('Cache-Control', 'no-cache, must-revalidate');
@@ -1840,12 +1859,15 @@ async function runStartupSchemaStep(label, action) {
 async function initializeStartupSchemas() {
     await runStartupSchemaStep('No fue posible preparar el esquema de inventarios', () => ensureInventorySchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de productos', () => ensureProductCatalogSchema());
+    await runStartupSchemaStep('No fue posible preparar el esquema de SKU de producto terminado', () => ensureProductSkuSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de órdenes de producción', () => ensureProductionSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de adjuntos', () => ensureAttachmentsSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de notificaciones', () => ensureNotificationsSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de auditoría', () => ensureAuditSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de planificación', () => ensurePlanningSchema());
+    await runStartupSchemaStep('No fue posible migrar marcas de seguimiento', () => migrateTrackingMarksToTable());
     await runStartupSchemaStep('No fue posible preparar el esquema de consumos SAP', () => ensureProductionMaterialConsumptionSchema());
+    await runStartupSchemaStep('No fue posible preparar el esquema de verificación de materiales', () => ensureProductionMaterialVerificationSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de SAP Service Layer', () => ensureSapSchema(pgQuery));
     await runStartupSchemaStep('No fue posible preparar el esquema de seguridad administrativa', async () => {
         await ensureAdminPermissionsSchema();
@@ -2527,7 +2549,9 @@ function buildSapPartnerImportPayload(row = {}) {
 }
 
 async function diagnoseSociosImportFromSap() {
-    const sapResponse = await fetchSapBusinessPartnersForImport(pgQuery, { top: 500, type: 'C' });
+    const config = await loadSapConfig(pgQuery);
+    const top = config.maxImportPartners || 2000;
+    const sapResponse = await fetchSapBusinessPartnersForImport(pgQuery, { top, type: 'C' });
     const sapRows = Array.isArray(sapResponse?.value)
         ? sapResponse.value.map((row) => ({
             ...row,
@@ -2776,7 +2800,9 @@ async function importSociosFromSap(options = {}) {
 }
 
 async function diagnoseMaterialesImportFromSap() {
-    const sapResponse = await fetchSapItemsForImport(pgQuery, { top: 1000 });
+    const config = await loadSapConfig(pgQuery);
+    const top = config.maxImportItems || 2000;
+    const sapResponse = await fetchSapItemsForImport(pgQuery, { top });
     const sapRows = Array.isArray(sapResponse?.value) ? sapResponse.value : [];
 
     const existingResult = await pgQuery(`SELECT codigo FROM material`);
@@ -3411,7 +3437,8 @@ function normalizeCostsConfigRecord(config) {
             inlineFinishSetup: normalizeInlineFinishSetup(rowsOrDefault(source?.convencional?.inlineFinishSetup, DEFAULT_COSTS_CONFIG.convencional.inlineFinishSetup), 'convencional'),
             maculaMontaje: normalizeMontaje(rowsOrDefault(source?.convencional?.maculaMontaje, DEFAULT_COSTS_CONFIG.convencional.maculaMontaje), 'convencional'),
             maculaTiraje: normalizeTiraje(rowsOrDefault(source?.convencional?.maculaTiraje, DEFAULT_COSTS_CONFIG.convencional.maculaTiraje), 'convencional'),
-            finishWaste: normalizeFinishWaste(rowsOrDefault(source?.convencional?.finishWaste, DEFAULT_COSTS_CONFIG.convencional.finishWaste), 'convencional')
+            finishWaste: normalizeFinishWaste(rowsOrDefault(source?.convencional?.finishWaste, DEFAULT_COSTS_CONFIG.convencional.finishWaste), 'convencional'),
+            costoPlanchaIn2: Math.max(0, Number(source?.convencional?.costoPlanchaIn2 ?? DEFAULT_COSTS_CONFIG.convencional.costoPlanchaIn2 ?? 0))
         },
         acabados: {
             barniz: (Array.isArray(source?.acabados?.barniz) ? source.acabados.barniz : DEFAULT_COSTS_CONFIG.acabados.barniz).map((row, index) => ({
@@ -3435,7 +3462,23 @@ function normalizeCostsConfigRecord(config) {
                 anchoFoil: Number(row?.anchoFoil || 0),
                 costoPorPieLineal: Number(row?.costoPorPieLineal || 0),
                 tiempoMontaje: Number(row?.tiempoMontaje || 0)
-            }))
+            })),
+            coldfoil: {
+                costoFoilM2: Number(source?.acabados?.coldfoil?.costoFoilM2 ?? DEFAULT_COSTS_CONFIG.acabados.coldfoil.costoFoilM2),
+                precioAdhesivoKg: Number(source?.acabados?.coldfoil?.precioAdhesivoKg ?? DEFAULT_COSTS_CONFIG.acabados.coldfoil.precioAdhesivoKg),
+                gramajeGm2: Number(source?.acabados?.coldfoil?.gramajeGm2 ?? DEFAULT_COSTS_CONFIG.acabados.coldfoil.gramajeGm2),
+                mermaAdhesivoPct: Number(source?.acabados?.coldfoil?.mermaAdhesivoPct ?? DEFAULT_COSTS_CONFIG.acabados.coldfoil.mermaAdhesivoPct),
+                coberturaDefaultPct: Number(source?.acabados?.coldfoil?.coberturaDefaultPct ?? DEFAULT_COSTS_CONFIG.acabados.coldfoil.coberturaDefaultPct),
+                anchoBobinaDefaultIn: Number(source?.acabados?.coldfoil?.anchoBobinaDefaultIn ?? DEFAULT_COSTS_CONFIG.acabados.coldfoil.anchoBobinaDefaultIn),
+                margenLateralDefaultIn: Number(source?.acabados?.coldfoil?.margenLateralDefaultIn ?? DEFAULT_COSTS_CONFIG.acabados.coldfoil.margenLateralDefaultIn),
+                margenLongitudinalDefaultIn: Number(source?.acabados?.coldfoil?.margenLongitudinalDefaultIn ?? DEFAULT_COSTS_CONFIG.acabados.coldfoil.margenLongitudinalDefaultIn),
+                separacionHDefaultIn: Number(source?.acabados?.coldfoil?.separacionHDefaultIn ?? DEFAULT_COSTS_CONFIG.acabados.coldfoil.separacionHDefaultIn),
+                separacionVDefaultIn: Number(source?.acabados?.coldfoil?.separacionVDefaultIn ?? DEFAULT_COSTS_CONFIG.acabados.coldfoil.separacionVDefaultIn),
+                elementoAnchoDefaultIn: Number(source?.acabados?.coldfoil?.elementoAnchoDefaultIn ?? DEFAULT_COSTS_CONFIG.acabados.coldfoil.elementoAnchoDefaultIn),
+                elementoLargoDefaultIn: Number(source?.acabados?.coldfoil?.elementoLargoDefaultIn ?? DEFAULT_COSTS_CONFIG.acabados.coldfoil.elementoLargoDefaultIn),
+                columnasDefault: Number(source?.acabados?.coldfoil?.columnasDefault ?? DEFAULT_COSTS_CONFIG.acabados.coldfoil.columnasDefault),
+                filasDefault: Number(source?.acabados?.coldfoil?.filasDefault ?? DEFAULT_COSTS_CONFIG.acabados.coldfoil.filasDefault)
+            }
         },
         digital: {
             premier: {
@@ -5013,6 +5056,14 @@ function pickFirstValue(...values) {
     return '';
 }
 
+function parseDateOnly(value) {
+    if (!value) return null;
+    const str = String(value).trim();
+    const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) return `${match[1]}-${match[2]}-${match[3]}`;
+    return null;
+}
+
 function pickFirstMeaningfulNumber(...values) {
     let firstNumeric = null;
     for (const value of values) {
@@ -5071,44 +5122,44 @@ function buildCalculationLineSummary(row = {}) {
     const isDigital = String(processType || '').toLowerCase().includes('digit');
     const activePrefix = isDigital ? 'DIGITAL' : 'CONV';
     const subtotal1 = pickFirstValue(
+        parseLegacyNumber(row.total_cost),
         parseLegacyNumber(raw['GENERAL | 9 | TOTAL | COL EXPORTAR REPORTE VENTAS']),
         parseLegacyNumber(raw['GENERAL | 7 | SUBTOTAL CALC ANTES IV | COL']),
         parseLegacyNumber(raw['GENERAL | 7 | TOTAL | COL']),
         parseLegacyNumber(raw['GENERAL | 7 | TOTAL | DOL']),
         parseLegacyNumber(raw['PRECIO TOTAL AL FINALIZAR']),
-        parseLegacyNumber(row.total_cost),
         (parseLegacyNumber(row.unit_price) !== null && parseLegacyNumber(row.quantity) !== null)
             ? parseLegacyNumber(row.unit_price) * parseLegacyNumber(row.quantity)
             : null
     );
-    const width = parseLegacyNumber(raw['DIMENSIONES ETIQUETA | ANCHO']);
-    const length = parseLegacyNumber(raw['DIMENSIONES ETIQUETA | LARGO']);
-    const rawShape = pickFirstValue(raw['REQ | Forma'], raw['GENERAL | TROQUEL | FORMA']);
+    const width = pickFirstValue(parseLegacyNumber(row.width_inches), parseLegacyNumber(raw['DIMENSIONES ETIQUETA | ANCHO']));
+    const length = pickFirstValue(parseLegacyNumber(row.length_inches), parseLegacyNumber(raw['DIMENSIONES ETIQUETA | LARGO']));
+    const rawShape = pickFirstValue(row.troquel_forma, raw['REQ | Forma'], raw['GENERAL | TROQUEL | FORMA']);
     const isCircularMeasure = String(rawShape || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes('circular');
     const measure = isCircularMeasure && width !== null
         ? `Diámetro ${width}`
         : width !== null && length !== null
         ? `${width} x ${length}`
-        : pickFirstValue(raw['REQ | Medida Fija']);
+        : pickFirstValue(row.medida_fija, raw['REQ | Medida Fija']);
     const frontBackGroup = normalizeFrontBackGroup(raw);
     const processSnapshot = Array.isArray(raw['Secuencia_Procesos']) ? raw['Secuencia_Procesos'] : [];
     return {
         version: 1,
         quote_code: pickFirstValue(row.quote_code, raw['ID COTIZACION']),
         line_code: pickFirstValue(row.line_code, raw['ID LINEA']),
-        line_order: normalizeLineOrder(raw['Orden_Linea']),
+        line_order: pickFirstValue(row.line_order, normalizeLineOrder(raw['Orden_Linea'])),
         customer_code: pickFirstValue(row.customer_code, raw['ID CLIENTE']),
-        customer_name: pickFirstValue(raw.CLIENTE, raw['CLIENTE NOMBRE']),
-        salesperson_name: pickFirstValue(raw.VENDEDOR, raw['VENDEDOR | USUARIO']),
-        department: pickFirstValue(raw.DEPARTAMENTO, 'Flexografia'),
-        job_name: pickFirstValue(raw['NOMBRE TRABAJO'], raw['Nombre Trabajo'], raw['TIPO TRABAJO | ORDEN REFERENCIA 1']),
+        customer_name: pickFirstValue(row.customer_name, raw.CLIENTE, raw['CLIENTE NOMBRE']),
+        salesperson_name: pickFirstValue(row.salesperson_name, raw.VENDEDOR, raw['VENDEDOR | USUARIO']),
+        department: pickFirstValue(row.department, raw.DEPARTAMENTO, 'Flexografia'),
+        job_name: pickFirstValue(row.job_name, raw['NOMBRE TRABAJO'], raw['Nombre Trabajo'], raw['TIPO TRABAJO | ORDEN REFERENCIA 1']),
         product_code: pickFirstValue(row.product_code, raw['CODIGO PRODUCTO'], raw['ID LINEA']),
         material_code: pickFirstValue(row.material_code, raw['Material Digital | Id Material'], raw['Material Convencional | Id Material']),
-        material_name: pickFirstValue(raw['GENERAL | MATERIAL'], raw.Material, row.material_code),
+        material_name: pickFirstValue(row.material_nombre, raw['GENERAL | MATERIAL'], raw.Material, row.material_code),
         die_code: pickFirstValue(row.die_code, raw['GENERAL | TROQUEL | ID'], raw[`${activePrefix} | TROQUEL | ID`]),
         machine_name: pickFirstValue(row.machine_name, raw['DIGITAL | MAQUINA'], raw['CONV | MAQUINA'], raw['MAQUINA IMPRESION']),
         process_type: processType,
-        status: pickFirstValue(raw['SOLICITUD ESTADO'], raw['ESTADO LINEA'], 'Cotizada'),
+        status: pickFirstValue(row.line_status, raw['SOLICITUD ESTADO'], raw['ESTADO LINEA'], 'Cotizada'),
         finalized_for_order: Boolean(row.finalized_for_order ?? raw['Finalizado_Para_Orden']),
         quantity: pickFirstValue(parseLegacyNumber(row.quantity), parseLegacyNumber(raw['Cantidad Productos']), parseLegacyNumber(raw['CANTIDAD PRODUCTOS 1'])),
         subtotal_1: subtotal1,
@@ -5117,12 +5168,24 @@ function buildCalculationLineSummary(row = {}) {
         measure,
         width_in: width,
         length_in: length,
-        process_sequence_text: pickFirstValue(raw['Texto_Secuencia_Procesos'], raw['BOT | Process Sequence']),
+        created_on: row.created_on || raw['FECHA CREACION DATE'] || null,
+        due_on: row.due_on || raw['FECHA VENCIMIENTO'] || null,
+        process_sequence_text: pickFirstValue(row.montaje_resumen, raw['Texto_Secuencia_Procesos'], raw['BOT | Process Sequence']),
         processes: processSnapshot
             .map((item) => pickFirstValue(item?.processName, item?.name, item?.label))
             .filter(Boolean),
         front_back_group: frontBackGroup,
-        grupo_frente_dorso: frontBackGroup
+        grupo_frente_dorso: frontBackGroup,
+        barniz_tipo: pickFirstValue(row.barniz_tipo, raw['REQ | Barniz']),
+        laminado_tipo: pickFirstValue(row.laminado_tipo, raw['REQ | Laminado']),
+        estampado_tipo: pickFirstValue(row.estampado_tipo, raw['REQ | Estampado']),
+        embosado_tipo: pickFirstValue(row.embosado_tipo, raw['REQ | Embosado']),
+        troquel_forma: pickFirstValue(row.troquel_forma, raw['REQ | Forma']),
+        sin_impresion: row.sin_impresion || false,
+        medida_fija: pickFirstValue(row.medida_fija, raw['REQ | Medida Fija']),
+        ruta_calculada: pickFirstValue(row.ruta_calculada, raw['REQ | Ruta Automática']),
+        montaje_resumen: pickFirstValue(row.montaje_resumen, raw['REQ | Montaje Automático'], raw['Texto_Secuencia_Procesos']),
+        material_nombre: pickFirstValue(row.material_nombre, raw['GENERAL | MATERIAL'])
     };
 }
 
@@ -5206,6 +5269,16 @@ function mapCalculationLine(row) {
         unit_price: lineSummary.unit_price,
         front_back_group: lineSummary.front_back_group,
         grupo_frente_dorso: lineSummary.grupo_frente_dorso,
+        barniz_tipo: lineSummary.barniz_tipo,
+        laminado_tipo: lineSummary.laminado_tipo,
+        estampado_tipo: lineSummary.estampado_tipo,
+        embosado_tipo: lineSummary.embosado_tipo,
+        troquel_forma: lineSummary.troquel_forma,
+        sin_impresion: lineSummary.sin_impresion,
+        medida_fija: lineSummary.medida_fija,
+        ruta_calculada: lineSummary.ruta_calculada,
+        montaje_resumen: lineSummary.montaje_resumen,
+        material_nombre: lineSummary.material_nombre,
         line_summary: lineSummary,
         raw_data: raw
     };
@@ -5454,6 +5527,7 @@ function normalizeLineOrder(value, fallback = null) {
 
 const SQL_LINE_ORDER_VALUE = `
     CASE
+        WHEN COALESCE(line_order::text, '') <> '' THEN line_order
         WHEN COALESCE(raw_data->>'Orden_Linea', '') ~ '^[0-9]+$'
             THEN (raw_data->>'Orden_Linea')::integer
         ELSE NULL
@@ -5507,66 +5581,67 @@ function mapFlexoCalculationDetail(row) {
           calculationCode: row.calculation_code || '',
         quoteCode: pickFirstValue(row.quote_code, raw['ID COTIZACION']),
         lineCode: pickFirstValue(row.line_code, raw['ID LINEA']),
+        lineOrder: pickFirstValue(row.line_order, normalizeLineOrder(raw['Orden_Linea'])),
         customerCode: pickFirstValue(row.customer_code, raw['ID CLIENTE']),
-        customerName: pickFirstValue(raw.CLIENTE),
-        salespersonName: pickFirstValue(raw.VENDEDOR),
-        jobName: pickFirstValue(raw['NOMBRE TRABAJO'], raw['TIPO TRABAJO | ORDEN REFERENCIA 1']),
-        department: pickFirstValue(raw.DEPARTAMENTO, 'Flexografia'),
+        customerName: pickFirstValue(row.customer_name, raw.CLIENTE),
+        salespersonName: pickFirstValue(row.salesperson_name, raw.VENDEDOR),
+        jobName: pickFirstValue(row.job_name, raw['NOMBRE TRABAJO'], raw['TIPO TRABAJO | ORDEN REFERENCIA 1']),
+        department: pickFirstValue(row.department, raw.DEPARTAMENTO, 'Flexografia'),
         processType,
         productCode: row.product_code || raw['CODIGO PRODUCTO'] || '',
         frontBackGroup: normalizeFrontBackGroup(raw),
         grupoFrenteDorso: normalizeFrontBackGroup(raw),
-          orderType: pickFirstValue(raw['TIPO ORDEN']),
+          orderType: pickFirstValue(row.tipo_orden, raw['TIPO ORDEN']),
           finalizedForOrder: Boolean(row.finalized_for_order ?? raw['Finalizado_Para_Orden']),
-          lineStatus: pickFirstValue(raw['SOLICITUD ESTADO'], raw['ESTADO LINEA'], raw['FIN COTIZACION | ESTADO']),
+          lineStatus: pickFirstValue(row.line_status, raw['SOLICITUD ESTADO'], raw['ESTADO LINEA'], raw['FIN COTIZACION | ESTADO']),
         calculationType: pickFirstValue(raw['ESTADO LINEA | CALCULO'], raw['ESTADO LINEA | SEGUN CANTIDAD ELEMENTOS']),
         quantityProducts: pickFirstValue(
+            parseLegacyNumber(row.quantity),
             parseLegacyNumber(raw['Cantidad Productos']),
-            parseLegacyNumber(raw['CANTIDAD PRODUCTOS 1']),
-            parseLegacyNumber(row.quantity)
+            parseLegacyNumber(raw['CANTIDAD PRODUCTOS 1'])
         ),
-        quantityTypes: parseLegacyNumber(raw['CANTIDAD TIPOS']),
-        quantityChanges: parseLegacyNumber(raw['CANTIDAD CAMBIOS']),
-        widthInches: parseLegacyNumber(raw['DIMENSIONES ETIQUETA | ANCHO']),
-        lengthInches: parseLegacyNumber(raw['DIMENSIONES ETIQUETA | LARGO']),
+        quantityTypes: pickFirstValue(parseLegacyNumber(row.quantity_types), parseLegacyNumber(raw['CANTIDAD TIPOS'])),
+        quantityChanges: pickFirstValue(parseLegacyNumber(row.quantity_changes), parseLegacyNumber(raw['CANTIDAD CAMBIOS'])),
+        widthInches: pickFirstValue(parseLegacyNumber(row.width_inches), parseLegacyNumber(raw['DIMENSIONES ETIQUETA | ANCHO'])),
+        lengthInches: pickFirstValue(parseLegacyNumber(row.length_inches), parseLegacyNumber(raw['DIMENSIONES ETIQUETA | LARGO'])),
         areaInches: parseLegacyNumber(raw['DIMENSIONES ETIQUETA | AREA']),
         areaM2: parseLegacyNumber(raw['DIMENSIONES ETIQUETA | AREA M2']),
-        materialCode: pickFirstValue(raw['Material Convencional | Id Material'], raw['Material Digital | Id Material'], row.material_code),
+        materialCode: pickFirstValue(row.material_code, raw['Material Convencional | Id Material'], raw['Material Digital | Id Material']),
         materialName: pickFirstValue(raw['GENERAL | MATERIAL'], raw['Material | Tipo Según Proceso Productivo'], raw['Material Convencional | Tipo con Medidas'], raw['Material Digital | Tipo con Medidas'], row.material_code),
-        materialWidth: parseLegacyNumber(raw['GENERAL | MATERIAL | ANCHO']),
-        materialM2: pickFirstValue(parseLegacyNumber(raw['Material | m2 Segun Proceso Productivo']), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | AREA MTS`])),
-        materialMsi: pickFirstValue(parseLegacyNumber(raw['Material | MSI Segun Proceso Productivo']), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | CANTIDAD MSI INCLUYE MACULA`]), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | CANTIDAD MSI`])),
+        materialWidth: pickFirstValue(parseLegacyNumber(row.material_ancho), parseLegacyNumber(raw['GENERAL | MATERIAL | ANCHO'])),
+        materialM2: pickFirstValue(parseLegacyNumber(row.material_m2), parseLegacyNumber(raw['Material | m2 Segun Proceso Productivo']), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | AREA MTS`])),
+        materialMsi: pickFirstValue(parseLegacyNumber(row.material_msi), parseLegacyNumber(raw['Material | MSI Segun Proceso Productivo']), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | CANTIDAD MSI INCLUYE MACULA`]), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | CANTIDAD MSI`])),
         materialFeet: pickFirstValue(parseLegacyNumber(raw['Material | Pies Segun Proceso Productivo']), parseLegacyNumber(raw['GENERAL | SUSTRATO | CONSUMO PIES']), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | CANTIDAD PIES LINEALES INCLUYE MACULA`]), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | CANTIDAD PIES LINEALES`])),
-        materialFeetWaste: pickFirstValue(parseLegacyNumber(raw['Material | Pies Macula Segun Proceso Productivo']), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | CANTIDAD PIES MACULA | CALCULO`])),
-        dieCode: pickFirstValue(raw['GENERAL | TROQUEL | ID'], raw[`${activePrefix} | TROQUEL | ID`], row.die_code),
-        dieTeeth: pickFirstValue(parseLegacyNumber(raw['GENERAL | TROQUEL | DIENTES']), parseLegacyNumber(raw[`${activePrefix} | TROQUEL | DIENTES`])),
-        dieRows: parseLegacyNumber(raw[`${activePrefix} | TROQUEL | CANTIDAD FILAS`]),
-        dieRepeats: pickFirstValue(parseLegacyNumber(raw['CONV | TROQUEL | REPETICIONES']), parseLegacyNumber(raw['DIGITAL | TROQUEL | REPETICIONES'])),
-        tintCount: pickFirstValue(parseLegacyNumber(raw['CANTIDAD TINTAS']), parseLegacyNumber(raw['DIGITAL | CANTIDAD TINTAS'])),
-        pantoneCount: parseLegacyNumber(raw['CANTIDAD PANTONES']),
-        labelsPerRoll: parseLegacyNumber(raw['CANTIDAD ETIQUETAS X ROLLO']),
-        applicationType: pickFirstValue(raw['TIPO ETIQUETADO']),
-        outputType: pickFirstValue(raw['TIPO SALIDA']),
-        coreWidth: parseLegacyNumber(raw['ANCHO CORE']),
-        coreDiameter: pickFirstValue(raw['DIAMETRO CORE']),
-        cmyk: raw['GENERAL | CMYK'] === true || String(raw['CMYK'] || '').trim().toLowerCase() === 'si',
+        materialFeetWaste: pickFirstValue(parseLegacyNumber(row.material_pies_macula), parseLegacyNumber(raw['Material | Pies Macula Segun Proceso Productivo']), parseLegacyNumber(raw[`${activePrefix} | MATERIAL | CANTIDAD PIES MACULA | CALCULO`])),
+        dieCode: pickFirstValue(row.die_code, raw['GENERAL | TROQUEL | ID'], raw[`${activePrefix} | TROQUEL | ID`]),
+        dieTeeth: pickFirstValue(parseLegacyNumber(row.die_teeth), parseLegacyNumber(raw['GENERAL | TROQUEL | DIENTES']), parseLegacyNumber(raw[`${activePrefix} | TROQUEL | DIENTES`])),
+        dieRows: pickFirstValue(parseLegacyNumber(row.die_rows), parseLegacyNumber(raw[`${activePrefix} | TROQUEL | CANTIDAD FILAS`])),
+        dieRepeats: pickFirstValue(parseLegacyNumber(row.die_repeats), parseLegacyNumber(raw['CONV | TROQUEL | REPETICIONES']), parseLegacyNumber(raw['DIGITAL | TROQUEL | REPETICIONES'])),
+        tintCount: pickFirstValue(parseLegacyNumber(row.cantidad_tintas), parseLegacyNumber(raw['CANTIDAD TINTAS']), parseLegacyNumber(raw['DIGITAL | CANTIDAD TINTAS'])),
+        pantoneCount: pickFirstValue(parseLegacyNumber(row.cantidad_pantones), parseLegacyNumber(raw['CANTIDAD PANTONES'])),
+        labelsPerRoll: pickFirstValue(parseLegacyNumber(row.labels_per_roll), parseLegacyNumber(raw['CANTIDAD ETIQUETAS X ROLLO'])),
+        applicationType: pickFirstValue(row.application_type, raw['TIPO ETIQUETADO']),
+        outputType: pickFirstValue(row.output_type, raw['TIPO SALIDA']),
+        coreWidth: pickFirstValue(parseLegacyNumber(row.core_width), parseLegacyNumber(raw['ANCHO CORE'])),
+        coreDiameter: pickFirstValue(row.core_diameter, raw['DIAMETRO CORE']),
+        cmyk: pickFirstValue(row.cmyk_enabled, raw['GENERAL | CMYK'] === true || String(raw['CMYK'] || '').trim().toLowerCase() === 'si'),
         quotedMachine,
         subtotalCost: pickFirstValue(parseLegacyNumber(raw['GENERAL | 1 | SUBTOTAL COSTOS | DOL | MOSTRAR']), parseLegacyNumber(raw['GENERAL | 1 | Costo Productivo']), parseLegacyNumber(raw[`${activePrefix} | 0 | SUBTOTAL COSTOS`])),
-        subtotalFinancial: parseLegacyNumber(raw['GENERAL | 2 | SUBTOTAL COSTOS']),
-        subtotalPerformance: pickFirstValue(parseLegacyNumber(raw['GENERAL | 3 | SUBTOTAL MAS RENDIMIENTO']), parseLegacyNumber(raw['GENERAL | 2 | Precio Venta'])),
+        subtotalFinancial: pickFirstValue(parseLegacyNumber(row.subtotal_financiero), parseLegacyNumber(raw['GENERAL | 2 | SUBTOTAL COSTOS'])),
+        subtotalPerformance: pickFirstValue(parseLegacyNumber(row.subtotal_rendimiento), parseLegacyNumber(raw['GENERAL | 3 | SUBTOTAL MAS RENDIMIENTO']), parseLegacyNumber(raw['GENERAL | 2 | Precio Venta'])),
         cyrelCost,
-        subtotalBeforeTax,
-        taxAmount,
+        subtotalBeforeTax: pickFirstValue(parseLegacyNumber(row.subtotal_cost), subtotalBeforeTax),
+        taxAmount: pickFirstValue(parseLegacyNumber(row.tax_amount), taxAmount),
         finalTotal,
-        unitPrice: pickFirstValue(parseLegacyNumber(raw['GENERAL | 9 | UNITARIO | DOL']), parseLegacyNumber(row.unit_price)),
-        thousandPrice: parseLegacyNumber(raw['GENERAL | 9 | MILLAR | DOL']),
-        totalColones: pickFirstValue(parseLegacyNumber(raw['GENERAL | 7 | SUBTOTAL CALC ANTES IV | COL']), parseLegacyNumber(raw['GENERAL | 7 | TOTAL | COL'])),
-        exchangeRate: pickFirstValue(parseLegacyNumber(raw['TIPO CAMBIO']), parseLegacyNumber(raw['TIPO CAMBIO VENTA']), parseLegacyNumber(raw['TIPO CAMBIO COMPRA'])),
-        minimumCost: parseLegacyNumber(raw['COSTOS | COSTO MINIMO']),
-        contingencyPercent: parseLegacyNumber(raw['GENERAL | 1 | PORCENTAJE IMPREVISTOS | UTILIZAR']),
-        financialPercent: parseLegacyNumber(raw['GENERAL | 1 | PORCENTAJE COSTOS FINANCIEROS | UTILIZAR']),
-        extraPercent: parseLegacyNumber(raw['Porcentaje Adicional']),
-        taxPercent: parseLegacyNumber(raw['GENERAL | 8 | PORCENTAJE IVA']),
+        unitPrice: pickFirstValue(parseLegacyNumber(row.unit_price), parseLegacyNumber(raw['GENERAL | 9 | UNITARIO | DOL'])),
+        thousandPrice: pickFirstValue(parseLegacyNumber(row.precio_millar), parseLegacyNumber(raw['GENERAL | 9 | MILLAR | DOL'])),
+        totalColones: pickFirstValue(parseLegacyNumber(row.total_colones), parseLegacyNumber(raw['GENERAL | 7 | SUBTOTAL CALC ANTES IV | COL']), parseLegacyNumber(raw['GENERAL | 7 | TOTAL | COL'])),
+        exchangeRate: pickFirstValue(parseLegacyNumber(row.tipo_cambio_venta), parseLegacyNumber(raw['TIPO CAMBIO']), parseLegacyNumber(raw['TIPO CAMBIO VENTA']), parseLegacyNumber(raw['TIPO CAMBIO COMPRA'])),
+        minimumCost: pickFirstValue(parseLegacyNumber(row.costo_minimo), parseLegacyNumber(raw['COSTOS | COSTO MINIMO'])),
+        contingencyPercent: pickFirstValue(parseLegacyNumber(row.porcentaje_imprevistos), parseLegacyNumber(raw['GENERAL | 1 | PORCENTAJE IMPREVISTOS | UTILIZAR'])),
+        financialPercent: pickFirstValue(parseLegacyNumber(row.porcentaje_financiero), parseLegacyNumber(raw['GENERAL | 1 | PORCENTAJE COSTOS FINANCIEROS | UTILIZAR'])),
+        extraPercent: pickFirstValue(parseLegacyNumber(row.porcentaje_adicional), parseLegacyNumber(raw['Porcentaje Adicional'])),
+        taxPercent: pickFirstValue(parseLegacyNumber(row.porcentaje_iva), parseLegacyNumber(raw['GENERAL | 8 | PORCENTAJE IVA'])),
         components: {
             material: pickFirstValue(parseLegacyNumber(raw[`${activePrefix} | COSTO MATERIAL`]), parseLegacyNumber(raw['Material | Costo Material'])),
             inks: pickFirstValue(parseLegacyNumber(raw[`${activePrefix} | COSTO TINTAS`]), parseLegacyNumber(raw['DIGITAL | COSTO TINTAS CMYK'])),
@@ -5577,19 +5652,32 @@ function mapFlexoCalculationDetail(row) {
             runCost: pickFirstValue(parseLegacyNumber(raw[`${activePrefix} | COSTO TIRAJE`]))
         },
         validations: {
-            solicitud: pickFirstValue(raw['ANALISIS CAMPOS SOLICITUD']),
-            finalizar: pickFirstValue(raw['ANALISIS CAMPOS FINALIZAR']),
-            crearOrden: pickFirstValue(raw['ANALISIS CAMPOS CREAR ORDEN'])
+            solicitud: pickFirstValue(row.analisis_solicitud, raw['ANALISIS CAMPOS SOLICITUD']),
+            finalizar: pickFirstValue(row.analisis_finalizar, raw['ANALISIS CAMPOS FINALIZAR']),
+            crearOrden: pickFirstValue(row.analisis_crear_orden, raw['ANALISIS CAMPOS CREAR ORDEN'])
         },
         notes: {
-            quoteSummary: pickFirstValue(raw['Resumen Cotización'], raw['Resumen Cotizacion']),
-            printSummary: pickFirstValue(raw['INFORMACION IMPRESION COTIZACION | MOSTRAR'], raw['INFORMACION IMPRESION COTIZACION | CALCULO']),
-            observations: pickFirstValue(raw['OBSERVACIONES SOLICITUD']),
-            creationStatus: pickFirstValue(raw['CREACION ESTADO'])
+            quoteSummary: pickFirstValue(row.resumen_cotizacion, raw['Resumen Cotización'], raw['Resumen Cotizacion']),
+            printSummary: pickFirstValue(row.info_impresion, raw['INFORMACION IMPRESION COTIZACION | MOSTRAR'], raw['INFORMACION IMPRESION COTIZACION | CALCULO']),
+            observations: pickFirstValue(row.observaciones, raw['OBSERVACIONES SOLICITUD']),
+            creationStatus: pickFirstValue(row.estado_creacion, raw['CREACION ESTADO'])
         },
         processes: processSnapshot,
         uiState: raw['Estado_UI'] || null,
         digitalPlatesDisabled,
+        barnizTipo: pickFirstValue(row.barniz_tipo, raw['REQ | Barniz']),
+        laminadoTipo: pickFirstValue(row.laminado_tipo, raw['REQ | Laminado']),
+        estampadoTipo: pickFirstValue(row.estampado_tipo, raw['REQ | Estampado']),
+        embosadoTipo: pickFirstValue(row.embosado_tipo, raw['REQ | Embosado']),
+        troquelForma: pickFirstValue(row.troquel_forma, raw['REQ | Forma']),
+        rutaCalculada: pickFirstValue(row.ruta_calculada, raw['REQ | Ruta Automática']),
+        montajeResumen: pickFirstValue(row.montaje_resumen, raw['REQ | Montaje Automático'], raw['Texto_Secuencia_Procesos']),
+        sinImpresion: row.sin_impresion || false,
+        medidaFija: pickFirstValue(row.medida_fija, raw['REQ | Medida Fija']),
+        materialNombre: pickFirstValue(row.material_nombre, raw['GENERAL | MATERIAL']),
+        fechaVencimiento: row.fecha_vencimiento || null,
+        seleccionAutomatica: row.seleccion_automatica || raw['Seleccion_Automatica'] || null,
+        precioAutomatico: row.precio_automatico || raw['Precio_Automatico'] || null,
         raw_data: raw
     };
 }
@@ -5702,7 +5790,7 @@ async function getProformaConfigSnapshot(config = {}) {
 
 function buildProformaProductSummary(line = {}, currency = {}, displayMode = 'both') {
     const raw = line.raw_data || {};
-    const autoSelection = raw['Seleccion_Automatica'] || {};
+    const autoSelection = line.seleccion_automatica || raw['Seleccion_Automatica'] || {};
     const finishDetails = [];
     const visibleExtras = [];
     const normalizedUiStateFinishes = Array.isArray(raw?.ui_state?.finishes) ? raw.ui_state.finishes : [];
@@ -5725,17 +5813,21 @@ function buildProformaProductSummary(line = {}, currency = {}, displayMode = 'bo
             pushFinish(label, detail);
         });
     }
-    if (raw['CONV | BARNIZ | ACTIVO'] || raw['BARNIZ | ACTIVO']) {
-        pushFinish('Barniz', pickFirstValue(raw['CONV | BARNIZ | TIPO'], raw['BARNIZ | TIPO'], raw['BARNIZ']));
+    const barnizTipo = pickFirstValue(line.barniz_tipo, raw['CONV | BARNIZ | TIPO'], raw['BARNIZ | TIPO'], raw['BARNIZ']);
+    if (barnizTipo || raw['CONV | BARNIZ | ACTIVO'] || raw['BARNIZ | ACTIVO']) {
+        pushFinish('Barniz', barnizTipo);
     }
-    if (raw['CONV | LAMINADO | ACTIVO'] || raw['LAMINADO | ACTIVO']) {
-        pushFinish('Laminado', pickFirstValue(raw['CONV | LAMINADO | TIPO'], raw['LAMINADO | TIPO'], raw['LAMINADO']));
+    const laminadoTipo = pickFirstValue(line.laminado_tipo, raw['CONV | LAMINADO | TIPO'], raw['LAMINADO | TIPO'], raw['LAMINADO']);
+    if (laminadoTipo || raw['CONV | LAMINADO | ACTIVO'] || raw['LAMINADO | ACTIVO']) {
+        pushFinish('Laminado', laminadoTipo);
     }
-    if (raw['CONV | ESTAMPADO | ACTIVO'] || raw['ESTAMPADO | ACTIVO']) {
-        pushFinish('Foil', pickFirstValue(raw['CONV | ESTAMPADO | FOIL'], raw['ESTAMPADO | FOIL'], raw['ESTAMPADO']));
+    const estampadoTipo = pickFirstValue(line.estampado_tipo, raw['CONV | ESTAMPADO | FOIL'], raw['ESTAMPADO | FOIL'], raw['ESTAMPADO']);
+    if (estampadoTipo || raw['CONV | ESTAMPADO | ACTIVO'] || raw['ESTAMPADO | ACTIVO']) {
+        pushFinish('Foil', estampadoTipo);
     }
-    if (raw['EMBOSADO | ACTIVO']) {
-        pushFinish('Embosado', pickFirstValue(raw['EMBOSADO | TIPO'], raw['EMBOSADO']));
+    const embosadoTipo = pickFirstValue(line.embosado_tipo, raw['EMBOSADO | TIPO'], raw['EMBOSADO']);
+    if (embosadoTipo || raw['EMBOSADO | ACTIVO']) {
+        pushFinish('Embosado', embosadoTipo);
     }
     if (hasVisibleValue(raw['ACABADOS | NUMERADO']) || hasVisibleValue(raw.NUMERADO) || hasVisibleValue(raw['REQ | Numeracion']) || hasVisibleValue(raw['REQ | Numeracion Aviso'])) {
         pushExtra('Numerado');
@@ -5748,8 +5840,8 @@ function buildProformaProductSummary(line = {}, currency = {}, displayMode = 'bo
         ?? parseLegacyNumber(raw.CANTIDAD)
         ?? parseLegacyNumber(raw['Cantidad'])
         ?? null;
-    const width = parseLegacyNumber(raw['DIMENSIONES ETIQUETA | ANCHO']) ?? null;
-    const length = parseLegacyNumber(raw['DIMENSIONES ETIQUETA | LARGO']) ?? null;
+    const width = parseLegacyNumber(line.width_in) ?? parseLegacyNumber(raw['DIMENSIONES ETIQUETA | ANCHO']) ?? null;
+    const length = parseLegacyNumber(line.length_in) ?? parseLegacyNumber(raw['DIMENSIONES ETIQUETA | LARGO']) ?? null;
     const unitPriceUsd = pickFirstMeaningfulNumber(
         parseLegacyNumber(raw['PRECIO UNITARIO']),
         parseLegacyNumber(raw['GENERAL | 9 | UNITARIO | DOL']),
@@ -6051,25 +6143,25 @@ function summarizeProformaBlockingMessages(messages = []) {
     return [...map.values()];
 }
 
-function proformaBlockingMessagesFromRaw(raw = {}) {
+function proformaBlockingMessagesFromRaw(raw = {}, row = {}) {
     const messages = Array.isArray(raw.Mensajes_Validacion)
         ? raw.Mensajes_Validacion.map((item) => stripNonBlockingSapAccountingWarnings(item)).filter(Boolean)
         : [];
     const fallback = stripNonBlockingSapAccountingWarnings(sanitizeAdminUserText(
         raw['ANALISIS CAMPOS PDF'],
-        raw['ANALISIS CAMPOS CREAR ORDEN'],
-        raw['ANALISIS CAMPOS FINALIZAR']
+        row.analisis_crear_orden || raw['ANALISIS CAMPOS CREAR ORDEN'],
+        row.analisis_finalizar || raw['ANALISIS CAMPOS FINALIZAR']
     ));
     return summarizeProformaBlockingMessages([...new Set([...messages, fallback].filter(Boolean))]);
 }
 
 function findQuoteProformaBlockingLine(rows = []) {
-    return rows.find((row) => proformaBlockingMessagesFromRaw(row?.raw_data || {}).length);
+    return rows.find((row) => proformaBlockingMessagesFromRaw(row?.raw_data || {}, row).length);
 }
 
 function formatQuoteProformaBlockError(row = {}) {
     const raw = row.raw_data || {};
-    const messages = proformaBlockingMessagesFromRaw(raw);
+    const messages = proformaBlockingMessagesFromRaw(raw, row);
     const lineCode = pickFirstValue(row.line_code, raw['ID LINEA'], '');
     const detail = messages.join(' ');
     return `La proforma incluye varias líneas de cálculo. La línea ${lineCode || 'sin código'} requiere completar faltantes antes de continuar. ${detail}`.trim();
@@ -6078,10 +6170,11 @@ function formatQuoteProformaBlockError(row = {}) {
 async function assertQuoteReadyForProforma(quoteCode, client = null) {
     const executor = client || { query: pgQuery };
     const result = await executor.query(
-        `SELECT line_code, raw_data
+        `SELECT line_code, raw_data, analisis_solicitud, analisis_finalizar, analisis_crear_orden
            FROM (
                 SELECT DISTINCT ON (line_code)
-                       fc.line_code, fc.raw_data, fc.created_at, fc.calculation_code
+                       fc.line_code, fc.raw_data, fc.created_at, fc.calculation_code,
+                       fc.analisis_solicitud, fc.analisis_finalizar, fc.analisis_crear_orden
                   FROM flexo_calculations fc
                   LEFT JOIN quotes q ON q.quote_code = fc.quote_code
                  WHERE fc.quote_code = $1
@@ -6335,6 +6428,200 @@ async function generateNextCalculationCode(client = null) {
     return `CF-${String(current + 1).padStart(6, '0')}`;
 }
 
+// ===========================================================================
+// GENERADOR DE SKU PARA PRODUCTO TERMINADO
+// Formato: C{cliente4d}{depto2d}{tipo2d}{correlativo5d}
+// Ejemplo: C2166110100001
+// ===========================================================================
+async function generateFinishedProductSku({ clientQuote, clientCode, departmentCode, typeCode }) {
+    const executor = clientQuote || { query: pgQuery };
+    const pad = (n, len) => String(n).padStart(len, '0');
+    const now = new Date();
+
+    // Obtener o crear secuencia para este combo
+    const seqResult = await executor.query(
+        `INSERT INTO product_sku_sequences (client_code, department_code, type_code, last_correlative)
+         VALUES ($1, $2, $3, 1)
+         ON CONFLICT (client_code, department_code, type_code)
+         DO UPDATE SET last_correlative = product_sku_sequences.last_correlative + 1,
+                       updated_at = NOW()
+         RETURNING last_correlative`,
+        [clientCode, departmentCode, typeCode]
+    );
+    const correlative = seqResult.rows[0].last_correlative;
+    return `C${pad(clientCode, 4)}${pad(departmentCode, 2)}${pad(typeCode, 2)}${pad(correlative, 5)}`;
+}
+
+// ===========================================================================
+// GENERADOR DE VERSIÓN / LOTE PARA INVENTARIO PRODUCTO TERMINADO
+// Formato: {YYMMDD}{correlativo3d}
+// Ejemplo: 290703001
+// ===========================================================================
+async function generateProductLot(clientQuote) {
+    const executor = clientQuote || { query: pgQuery };
+    const now = new Date();
+    const yy = String(now.getFullYear() % 100).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const dateCode = `${yy}${mm}${dd}`;
+
+    const seqResult = await executor.query(
+        `INSERT INTO product_lot_sequences (date_code, last_correlative)
+         VALUES ($1, 1)
+         ON CONFLICT (date_code)
+         DO UPDATE SET last_correlative = product_lot_sequences.last_correlative + 1,
+                       updated_at = NOW()
+         RETURNING last_correlative`,
+        [dateCode]
+    );
+    const correlative = seqResult.rows[0].last_correlative;
+    return `${dateCode}${String(correlative).padStart(3, '0')}`;
+}
+
+// ===========================================================================
+// HELPERS PARA DEPARTAMENTOS Y TIPOS DE PRODUCTO
+// ===========================================================================
+async function getProductDepartments(clientQuote) {
+    const executor = clientQuote || { query: pgQuery };
+    const result = await executor.query(
+        `SELECT id, code, name, active, sort_order
+           FROM product_departments
+          ORDER BY sort_order, name`
+    );
+    return result.rows;
+}
+
+async function getProductTypesByDepartment(departmentId, clientQuote) {
+    const executor = clientQuote || { query: pgQuery };
+    const result = await executor.query(
+        `SELECT id, code, name, department_id, active, sort_order
+           FROM product_types
+          WHERE department_id = $1
+          ORDER BY sort_order, name`,
+        [departmentId]
+    );
+    return result.rows;
+}
+
+async function getProductDepartmentByCode(code, clientQuote) {
+    const executor = clientQuote || { query: pgQuery };
+    const result = await executor.query(
+        `SELECT id, code, name FROM product_departments WHERE code = $1 LIMIT 1`,
+        [code]
+    );
+    return result.rows[0] || null;
+}
+
+async function getProductTypeByCodeAndDept(code, departmentId, clientQuote) {
+    const executor = clientQuote || { query: pgQuery };
+    const result = await executor.query(
+        `SELECT id, code, name FROM product_types WHERE code = $1 AND department_id = $2 LIMIT 1`,
+        [code, departmentId]
+    );
+    return result.rows[0] || null;
+}
+
+async function ensureProductSkuSchema() {
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS product_departments (
+            id SERIAL PRIMARY KEY,
+            code TEXT NOT NULL UNIQUE,
+            name TEXT NOT NULL,
+            active BOOLEAN NOT NULL DEFAULT true,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    `);
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS product_types (
+            id SERIAL PRIMARY KEY,
+            code TEXT NOT NULL,
+            name TEXT NOT NULL,
+            department_id INTEGER NOT NULL REFERENCES product_departments(id),
+            active BOOLEAN NOT NULL DEFAULT true,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            UNIQUE (code, department_id)
+        )
+    `);
+    await pgQuery(`
+        CREATE INDEX IF NOT EXISTS idx_product_types_department ON product_types(department_id);
+    `);
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS product_sku_sequences (
+            id SERIAL PRIMARY KEY,
+            client_code TEXT NOT NULL,
+            department_code TEXT NOT NULL,
+            type_code TEXT NOT NULL,
+            last_correlative INTEGER NOT NULL DEFAULT 0,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            UNIQUE (client_code, department_code, type_code)
+        )
+    `);
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS product_lot_sequences (
+            id SERIAL PRIMARY KEY,
+            date_code TEXT NOT NULL UNIQUE,
+            last_correlative INTEGER NOT NULL DEFAULT 0,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    `);
+    await pgQuery(`ALTER TABLE flexo_products ADD COLUMN IF NOT EXISTS finished_product_sku TEXT`);
+    await pgQuery(`ALTER TABLE flexo_orders ADD COLUMN IF NOT EXISTS finished_product_sku TEXT`);
+    await pgQuery(`ALTER TABLE flexo_calculations ADD COLUMN IF NOT EXISTS finished_product_sku TEXT`);
+
+    // Seed departments if empty
+    const deptCount = await pgQuery(`SELECT COUNT(*) AS cnt FROM product_departments`);
+    if (parseInt(deptCount.rows[0].cnt) === 0) {
+        await pgQuery(`INSERT INTO product_departments (code, name, sort_order) VALUES ('10', 'Offset', 1)`);
+        await pgQuery(`INSERT INTO product_departments (code, name, sort_order) VALUES ('11', 'Flexograf\u00eda', 2)`);
+        await pgQuery(`INSERT INTO product_departments (code, name, sort_order) VALUES ('12', 'Digital', 3)`);
+    }
+
+    // Seed product types if empty
+    const typeCount = await pgQuery(`SELECT COUNT(*) AS cnt FROM product_types`);
+    if (parseInt(typeCount.rows[0].cnt) === 0) {
+        const deptMap = {};
+        const depts = await pgQuery(`SELECT id, code FROM product_departments`);
+        depts.rows.forEach((r) => { deptMap[r.code] = r.id; });
+
+        const flexoTypes = [
+            ['01', 'Etiqueta'], ['02', 'Bolsa'], ['03', 'Caja'], ['04', 'Cinta Continua'],
+            ['05', 'Plegadiza'], ['06', 'Saco'], ['07', 'Empaque Flexible'], ['08', 'Sobre'],
+            ['09', 'Funda'], ['10', 'Stand'], ['11', 'Corrugado'], ['12', 'Exhibidor'],
+            ['13', 'Etiqueta Termoencogible'], ['14', 'Etiqueta Sleeve'], ['15', 'Film'],
+            ['16', 'Laminado'], ['17', 'Blister'], ['18', 'Display'], ['19', 'Cobertor'],
+            ['20', 'Manga'], ['21', 'Bolsa Ziploc'], ['22', 'Cinta Adhesiva']
+        ];
+        for (const [code, name] of flexoTypes) {
+            await pgQuery(`INSERT INTO product_types (code, name, department_id, sort_order) VALUES ($1, $2, $3, $4)`,
+                [code, name, deptMap['11'], parseInt(code)]);
+        }
+
+        const offsetTypes = [
+            ['01', 'Tarjeta'], ['02', 'Folleto'], ['03', 'Cat\u00e1logo'], ['04', 'Revista'],
+            ['05', 'Libro'], ['06', 'Volante'], ['07', 'Afiche'], ['08', 'Folder'], ['09', 'Block']
+        ];
+        for (const [code, name] of offsetTypes) {
+            await pgQuery(`INSERT INTO product_types (code, name, department_id, sort_order) VALUES ($1, $2, $3, $4)`,
+                [code, name, deptMap['10'], parseInt(code)]);
+        }
+
+        const digitalTypes = [
+            ['01', 'Impresi\u00f3n Digital'], ['02', 'Fotocopia'], ['03', 'Ploteado'],
+            ['04', 'Lona'], ['05', 'Vinilo']
+        ];
+        for (const [code, name] of digitalTypes) {
+            await pgQuery(`INSERT INTO product_types (code, name, department_id, sort_order) VALUES ($1, $2, $3, $4)`,
+                [code, name, deptMap['12'], parseInt(code)]);
+        }
+    }
+}
+
 async function generateNextProductCode(client = null) {
     const general = await loadGeneralNomenclature();
     return generateNextConfiguredCode({
@@ -6399,6 +6686,8 @@ async function ensureProductCatalogSchema() {
     `);
     await pgQuery(`ALTER TABLE flexo_products ADD COLUMN IF NOT EXISTS source_calculation_code TEXT`);
     await pgQuery(`ALTER TABLE flexo_products ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
+    await pgQuery(`ALTER TABLE flexo_products ADD COLUMN IF NOT EXISTS finished_product_sku TEXT`);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS idx_flexo_products_sku ON flexo_products(finished_product_sku)`);
     await pgQuery(`CREATE INDEX IF NOT EXISTS idx_flexo_products_client ON flexo_products(client_code, client_name)`);
     await pgQuery(`CREATE INDEX IF NOT EXISTS idx_flexo_product_history_product ON flexo_product_quote_history(product_code, created_at DESC)`);
     await pgQuery(`CREATE INDEX IF NOT EXISTS idx_flexo_product_history_quote ON flexo_product_quote_history(quote_code, line_code)`);
@@ -8207,10 +8496,11 @@ function resolveOrderTrackingProcessKeys(orderRow = {}, costsConfig = {}, routeR
 async function listLiveOrders() {
     const result = await pgQuery(`
         SELECT order_code, quote_code, line_code, product_code, machine_name, material_code, die_code,
-               ordered_quantity, delivered_on, raw_data, created_at
+               ordered_quantity, delivered_on, order_status, raw_data, created_at
         FROM flexo_orders
         WHERE delivered_on IS NULL
           AND LOWER(COALESCE(
+              order_status,
               raw_data->>'status',
               raw_data->>'order_status',
               raw_data->>'production_status',
@@ -8773,6 +9063,27 @@ async function ensurePlanningSchema() {
         )
     `);
 
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS order_tracking_marks (
+            id                      SERIAL PRIMARY KEY,
+            codigo_orden            TEXT NOT NULL REFERENCES flexo_orders(order_code) ON DELETE CASCADE,
+            clave_proceso           TEXT NOT NULL,
+            marcado                 BOOLEAN NOT NULL DEFAULT false,
+            fecha_marcado           TIMESTAMPTZ,
+            marcado_por             TEXT DEFAULT '',
+            foto_marcado_por        TEXT DEFAULT '',
+            fecha_desmarcado        TIMESTAMPTZ,
+            desmarcado_por          TEXT DEFAULT '',
+            foto_desmarcado_por     TEXT DEFAULT '',
+            created_at              TIMESTAMPTZ DEFAULT NOW(),
+            updated_at              TIMESTAMPTZ DEFAULT NOW(),
+            UNIQUE(codigo_orden, clave_proceso)
+        )
+    `);
+
+    await pgQuery(`CREATE INDEX IF NOT EXISTS idx_otm_order ON order_tracking_marks(codigo_orden)`);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS idx_otm_process ON order_tracking_marks(clave_proceso)`);
+
     await pgQuery(`CREATE INDEX IF NOT EXISTS idx_production_order_routes_order ON production_order_routes(order_code, sequence_order)`);
     await pgQuery(`CREATE INDEX IF NOT EXISTS idx_production_order_routes_capacity ON production_order_routes(route_status, process_key, machine_profile_id)`);
     await pgQuery(`CREATE INDEX IF NOT EXISTS idx_production_route_events_route ON production_route_events(route_id, created_at DESC)`);
@@ -9022,6 +9333,273 @@ async function ensureProductionMaterialConsumptionSchema() {
     await pgQuery(`CREATE INDEX IF NOT EXISTS idx_pmcr_sap_status ON production_material_consumption_requests(sap_status, requested_at DESC)`);
 }
 
+async function ensureProductionMaterialVerificationSchema() {
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS production_material_verification (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            order_code TEXT NOT NULL REFERENCES flexo_orders(order_code) ON DELETE CASCADE,
+            process_key TEXT NOT NULL DEFAULT 'planeacion',
+            sap_item_code TEXT NOT NULL DEFAULT '',
+            material_name TEXT NOT NULL DEFAULT '',
+            material_family TEXT NOT NULL DEFAULT '',
+            planned_quantity NUMERIC(14,4) NOT NULL DEFAULT 0,
+            unit_code TEXT NOT NULL DEFAULT '',
+            verification_status TEXT NOT NULL DEFAULT 'PENDIENTE',
+            sap_error TEXT DEFAULT '',
+            sap_response JSONB DEFAULT '{}'::jsonb,
+            requested_by TEXT DEFAULT '',
+            requested_at TIMESTAMPTZ DEFAULT NOW(),
+            suplido_by TEXT DEFAULT '',
+            suplido_at TIMESTAMPTZ,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            updated_at TIMESTAMPTZ DEFAULT NOW()
+        )
+    `);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS idx_pmv_order ON production_material_verification(order_code, process_key)`);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS idx_pmv_status ON production_material_verification(verification_status)`);
+}
+
+async function migrateTrackingMarksToTable() {
+    try {
+        const result = await pgQuery(`SELECT order_code, raw_data FROM flexo_orders WHERE raw_data ? 'order_tracking_marks'`);
+        if (!result.rows.length) return;
+        let migrated = 0;
+        let cleaned = 0;
+        for (const row of result.rows) {
+            const raw = row.raw_data || {};
+            const marks = raw?.order_tracking_marks || raw?.orderTrackingMarks || {};
+            const entries = Object.entries(marks && typeof marks === 'object' && !Array.isArray(marks) ? marks : {});
+            for (const [processKey, mark] of entries) {
+                if (!mark || typeof mark !== 'object') continue;
+                const normalizedKey = normalizeOrderTrackingStepKey(processKey);
+                if (!normalizedKey) continue;
+                const isMarked = mark.marked === true;
+                await pgQuery(`
+                    INSERT INTO order_tracking_marks (codigo_orden, clave_proceso, marcado, fecha_marcado, marcado_por, foto_marcado_por, fecha_desmarcado, desmarcado_por, foto_desmarcado_por)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                    ON CONFLICT (codigo_orden, clave_proceso) DO UPDATE SET
+                        marcado = EXCLUDED.marcado,
+                        fecha_marcado = EXCLUDED.fecha_marcado,
+                        marcado_por = EXCLUDED.marcado_por,
+                        foto_marcado_por = EXCLUDED.foto_marcado_por,
+                        fecha_desmarcado = EXCLUDED.fecha_desmarcado,
+                        desmarcado_por = EXCLUDED.desmarcado_por,
+                        foto_desmarcado_por = EXCLUDED.foto_desmarcado_por,
+                        updated_at = NOW()
+                `, [
+                    row.order_code,
+                    normalizedKey,
+                    isMarked,
+                    mark.markedAt || mark.clearedAt || null,
+                    isMarked ? (mark.markedBy || mark.userName || mark.user || '') : '',
+                    isMarked ? (mark.markedByPhoto || mark.photoUrl || '') : '',
+                    !isMarked ? (mark.clearedAt || null) : null,
+                    !isMarked ? (mark.clearedBy || mark.userName || mark.user || '') : '',
+                    !isMarked ? (mark.clearedByPhoto || mark.photoUrl || '') : ''
+                ]);
+                migrated++;
+            }
+            const cleanedRaw = { ...raw };
+            delete cleanedRaw.order_tracking_marks;
+            delete cleanedRaw.orderTrackingMarks;
+            await pgQuery(`UPDATE flexo_orders SET raw_data = $2::jsonb WHERE order_code = $1`, [row.order_code, JSON.stringify(cleanedRaw)]);
+            cleaned++;
+        }
+        if (migrated > 0) console.log(`[tracking-marks] Migrated ${migrated} marks, cleaned ${cleaned} orders from raw_data`);
+    } catch (e) {
+        console.error('[tracking-marks] Migration error:', e.message);
+    }
+}
+
+async function upsertTrackingMark(orderCode, processKey, markData) {
+    const normalizedKey = normalizeOrderTrackingStepKey(processKey);
+    if (!normalizedKey || !orderCode) return;
+    const isMarked = markData.marcado === true;
+    await pgQuery(`
+        INSERT INTO order_tracking_marks (codigo_orden, clave_proceso, marcado, fecha_marcado, marcado_por, foto_marcado_por, fecha_desmarcado, desmarcado_por, foto_desmarcado_por)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        ON CONFLICT (codigo_orden, clave_proceso) DO UPDATE SET
+            marcado = EXCLUDED.marcado,
+            fecha_marcado = EXCLUDED.fecha_marcado,
+            marcado_por = EXCLUDED.marcado_por,
+            foto_marcado_por = EXCLUDED.foto_marcado_por,
+            fecha_desmarcado = EXCLUDED.fecha_desmarcado,
+            desmarcado_por = EXCLUDED.desmarcado_por,
+            foto_desmarcado_por = EXCLUDED.foto_desmarcado_por,
+            updated_at = NOW()
+    `, [
+        orderCode,
+        normalizedKey,
+        isMarked,
+        markData.fecha || null,
+        isMarked ? (markData.marcado_por || '') : '',
+        isMarked ? (markData.foto_marcado_por || '') : '',
+        !isMarked ? (markData.fecha || null) : null,
+        !isMarked ? (markData.desmarcado_por || '') : '',
+        !isMarked ? (markData.foto_desmarcado_por || '') : ''
+    ]);
+}
+
+async function getTrackingMarksForOrder(orderCode) {
+    const result = await pgQuery(
+        `SELECT clave_proceso, marcado, fecha_marcado, marcado_por, foto_marcado_por, fecha_desmarcado, desmarcado_por, foto_desmarcado_por
+         FROM order_tracking_marks WHERE codigo_orden = $1`,
+        [orderCode]
+    );
+    const marks = {};
+    for (const row of result.rows) {
+        if (row.marcado) {
+            marks[row.clave_proceso] = {
+                marked: true,
+                markedAt: row.fecha_marcado ? new Date(row.fecha_marcado).toISOString() : null,
+                markedBy: row.marcado_por || '',
+                markedByPhoto: row.foto_marcado_por || ''
+            };
+        } else {
+            marks[row.clave_proceso] = {
+                marked: false,
+                clearedAt: row.fecha_desmarcado ? new Date(row.fecha_desmarcado).toISOString() : null,
+                clearedBy: row.desmarcado_por || '',
+                clearedByPhoto: row.foto_desmarcado_por || ''
+            };
+        }
+    }
+    return marks;
+}
+
+async function getTrackingMarksForOrders(orderCodes) {
+    if (!orderCodes || !orderCodes.length) return {};
+    const result = await pgQuery(
+        `SELECT codigo_orden, clave_proceso, marcado, fecha_marcado, marcado_por, foto_marcado_por, fecha_desmarcado, desmarcado_por, foto_desmarcado_por
+         FROM order_tracking_marks WHERE codigo_orden = ANY($1::text[])`,
+        [orderCodes]
+    );
+    const byOrder = {};
+    for (const row of result.rows) {
+        if (!byOrder[row.codigo_orden]) byOrder[row.codigo_orden] = {};
+        if (row.marcado) {
+            byOrder[row.codigo_orden][row.clave_proceso] = {
+                marked: true,
+                markedAt: row.fecha_marcado ? new Date(row.fecha_marcado).toISOString() : null,
+                markedBy: row.marcado_por || '',
+                markedByPhoto: row.foto_marcado_por || ''
+            };
+        } else {
+            byOrder[row.codigo_orden][row.clave_proceso] = {
+                marked: false,
+                clearedAt: row.fecha_desmarcado ? new Date(row.fecha_desmarcado).toISOString() : null,
+                clearedBy: row.desmarcado_por || '',
+                clearedByPhoto: row.foto_desmarcado_por || ''
+            };
+        }
+    }
+    return byOrder;
+}
+
+function applyTrackingMarksToSteps(steps, marks, resolveActorInfo = () => ({ name: '', photoUrl: '' })) {
+    const controlManagedKeys = new Set(['orden_creada', 'solicitud_vendedor', 'planeacion']);
+    return steps.map((step) => {
+        const key = normalizeOrderTrackingStepKey(step.processKey);
+        if (controlManagedKeys.has(key)) return step;
+        const mark = key ? marks[key] : null;
+        if (!mark || typeof mark !== 'object') return step;
+        if (mark.marked === false) {
+            return {
+                ...step,
+                routeStatus: 'PENDIENTE',
+                completedBy: '',
+                completedByPhoto: '',
+                completedAt: null,
+                startedAt: null,
+                trackingOverride: mark
+            };
+        }
+        if (mark.marked !== true) return step;
+        const actor = resolveActorInfo(mark.markedBy || mark.userName || mark.user || '');
+        return {
+            ...step,
+            routeStatus: 'COMPLETADO',
+            completedBy: actor.name || pickFirstValue(sanitizeAdminUserText(mark.markedBy), sanitizeAdminUserText(mark.userName), sanitizeAdminUserText(mark.user)),
+            completedByPhoto: pickFirstValue(sanitizeAdminUserText(mark.markedByPhoto), sanitizeAdminUserText(mark.photoUrl), actor.photoUrl),
+            completedAt: mark.markedAt || null,
+            startedAt: mark.markedAt || step.startedAt || null,
+            trackingOverride: mark
+        };
+    });
+}
+
+async function syncMarkToRouteTable(orderCode, processKey, marked, actor = '', now = new Date().toISOString()) {
+    const canonicalKey = canonicalProductionFlowKey(processKey) || processKey;
+    if (!canonicalKey || ['orden_creada', 'solicitud_vendedor', 'planeacion'].includes(canonicalKey)) return;
+    try {
+        const routeResult = await pgQuery(
+            `SELECT id FROM production_order_routes WHERE order_code = $1 AND process_key = $2 ORDER BY sequence_order LIMIT 1`,
+            [orderCode, canonicalKey]
+        );
+        if (!routeResult.rows.length) return;
+        const routeId = routeResult.rows[0].id;
+        if (marked) {
+            const existing = await pgQuery(`SELECT route_status FROM production_order_routes WHERE id = $1`, [routeId]);
+            if (existing.rows[0]?.route_status !== 'COMPLETADO') {
+                await pgQuery(
+                    `UPDATE production_order_routes SET route_status = 'COMPLETADO', actual_end_at = COALESCE(actual_end_at, NOW()), updated_at = NOW() WHERE id = $1`,
+                    [routeId]
+                );
+                await pgQuery(
+                    `INSERT INTO production_route_events (route_id, operator_name, event_type, notes, event_payload, created_at)
+                     VALUES ($1, $2, 'completado', 'Marcado desde seguimiento', '{}'::jsonb, NOW())`,
+                    [routeId, actor || null]
+                );
+            }
+        } else {
+            const existing = await pgQuery(`SELECT route_status FROM production_order_routes WHERE id = $1`, [routeId]);
+            if (existing.rows[0]?.route_status === 'COMPLETADO') {
+                await pgQuery(
+                    `UPDATE production_order_routes SET route_status = 'PENDIENTE', actual_end_at = NULL, updated_at = NOW() WHERE id = $1`,
+                    [routeId]
+                );
+                await pgQuery(
+                    `INSERT INTO production_route_events (route_id, operator_name, event_type, notes, event_payload, created_at)
+                     VALUES ($1, $2, 'revertido', 'Desmarcado desde seguimiento', '{}'::jsonb, NOW())`,
+                    [routeId, actor || null]
+                );
+            }
+        }
+    } catch (e) { /* non-critical sync */ }
+}
+
+async function syncRouteStatusToMarkTable(orderCode, processKey, routeStatus, actor = '', completedAt = null) {
+    const canonicalKey = canonicalProductionFlowKey(processKey) || processKey;
+    if (!canonicalKey || ['orden_creada', 'solicitud_vendedor', 'planeacion'].includes(canonicalKey)) return;
+    try {
+        const normalizedKey = normalizeOrderTrackingStepKey(processKey);
+        const existingResult = await pgQuery(
+            `SELECT marcado FROM order_tracking_marks WHERE codigo_orden = $1 AND clave_proceso = $2`,
+            [orderCode, normalizedKey]
+        );
+        const existing = existingResult.rows[0];
+        if (routeStatus === 'COMPLETADO') {
+            if (existing && existing.marcado === true) return;
+            const now = completedAt || new Date().toISOString();
+            await upsertTrackingMark(orderCode, normalizedKey, {
+                marcado: true,
+                fecha: now,
+                marcado_por: actor || '',
+                foto_marcado_por: ''
+            });
+        } else if (['PENDIENTE', 'SETUP', 'RUN', 'PARO'].includes(routeStatus)) {
+            if (existing && existing.marcado === false) return;
+            const now = new Date().toISOString();
+            await upsertTrackingMark(orderCode, normalizedKey, {
+                marcado: false,
+                fecha: now,
+                desmarcado_por: actor || '',
+                foto_desmarcado_por: ''
+            });
+        }
+    } catch (e) { /* non-critical sync */ }
+}
+
 async function getQuoteHeaderRow(quoteCode) {
     const result = await pgQuery(`SELECT * FROM quotes WHERE quote_code = $1`, [quoteCode]);
     return result.rows[0] || null;
@@ -9121,6 +9699,7 @@ function mapProductCatalogRow(row = {}) {
         quote_count: Number(row.quote_count || 0),
         last_quoted_at: row.last_quoted_at || null,
         created_at: row.created_at || null,
+        finished_product_sku: row.finished_product_sku || null,
         raw_data: raw
     };
 }
@@ -9144,6 +9723,13 @@ function buildProductPayloadFromLine({ productCode, quoteRow, lineRow }) {
     raw['TRAZABILIDAD | LINEA ORIGEN'] = metadata.source_line_code;
     raw.traceability = metadata;
 
+    const productCols = {};
+    PRODUCT_COLUMN_NAMES.forEach((col) => {
+        if (lineRow[col] !== undefined && lineRow[col] !== null) {
+            productCols[col] = lineRow[col];
+        }
+    });
+
     return {
         productCode,
         lineCode: lineRow.line_code,
@@ -9165,7 +9751,8 @@ function buildProductPayloadFromLine({ productCode, quoteRow, lineRow }) {
         totalPrice: parseLegacyNumber(lineRow.total_cost) ?? parseLegacyNumber(raw['PRECIO TOTAL AL FINALIZAR']),
         sourceCalculationCode: lineRow.calculation_code,
         rawData: raw,
-        metadata
+        metadata,
+        productCols
     };
 }
 
@@ -9693,11 +10280,18 @@ async function cloneCalculationToQuote({ sourceRow, targetQuote, traceability = 
     );
     if (isDuplicateLine) resetDuplicatedLineUiState(rawData, { targetQuote, lineCode });
 
+    const prodCols2 = extractProductionColumns(rawData);
+    const prodColNames2 = PRODUCTION_COLUMN_NAMES.filter((c) => prodCols2[c] !== undefined);
+    const prodColPlaceholders2 = prodColNames2.map((_, i) => `$${15 + i}`);
+    const prodValues2 = prodColNames2.map((c) => prodCols2[c]);
+
     await pgQuery(
         `INSERT INTO flexo_calculations (
             calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name,
-            die_code, material_code, quantity, subtotal_cost, total_cost, unit_price, raw_data
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb)`,
+            die_code, material_code, quantity, subtotal_cost, total_cost, unit_price, raw_data, line_order
+            ${prodColNames2.length ? ', ' + prodColNames2.join(', ') : ''}
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb,$15
+            ${prodColPlaceholders2.length ? ', ' + prodColPlaceholders2.join(', ') : ''})`,
         [
             calculationCode,
             targetQuote.quote_code,
@@ -9712,7 +10306,9 @@ async function cloneCalculationToQuote({ sourceRow, targetQuote, traceability = 
             sourceRow.subtotal_cost,
             sourceRow.total_cost,
             sourceRow.unit_price,
-            JSON.stringify(rawData)
+            JSON.stringify(rawData),
+            sourceRow.line_order || null,
+            ...prodValues2
         ]
     );
 
@@ -9746,11 +10342,11 @@ function buildProductionOrderRawData({ orderCode, quoteRow, lineRow, attachments
         source_quote_code: quoteRow?.quote_code || lineRow?.quote_code || '',
         source_line_code: lineRow?.line_code || '',
         customer_code: pickFirstValue(quoteRow?.customer_code, lineRow?.customer_code, raw['ID CLIENTE']),
-        customer_name: pickFirstValue(quoteRow?.customer_name, raw.CLIENTE, raw['CLIENTE NOMBRE']),
-        contact_name: pickFirstValue(quoteRow?.contact_name, raw['CLIENTE | CONTACTO NOMBRE COMPLETO']),
-        email: pickFirstValue(quoteRow?.email, raw['CLIENTE | CONTACTO EMAIL']),
-        phone: pickFirstValue(quoteRow?.phone, raw['CLIENTE | CONTACTO TELEFONO']),
-        salesperson_name: pickFirstValue(quoteRow?.salesperson_name, raw.VENDEDOR),
+        customer_name: pickFirstValue(quoteRow?.customer_name, lineRow?.customer_name, raw.CLIENTE, raw['CLIENTE NOMBRE']),
+        contact_name: pickFirstValue(quoteRow?.contact_name, lineRow?.contact_name, raw['CLIENTE | CONTACTO NOMBRE COMPLETO']),
+        email: pickFirstValue(quoteRow?.email, lineRow?.email, raw['CLIENTE | CONTACTO EMAIL']),
+        phone: pickFirstValue(quoteRow?.phone, lineRow?.phone, raw['CLIENTE | CONTACTO TELEFONO']),
+        salesperson_name: pickFirstValue(quoteRow?.salesperson_name, lineRow?.salesperson_name, raw.VENDEDOR),
         status: 'Pendiente',
         created_on: new Date().toISOString(),
         created_by: metadata.created_by,
@@ -9799,12 +10395,13 @@ function buildProductionOrderRelatedLine(row = {}) {
 }
 
 function buildCreationSummary({ orderCode, quoteRow, lineRow, frontBackGroup, productionRun, raw, lineSnapshot, totalFeet }) {
-    const lr = raw || lineRow?.raw_data || {};
+    const rc = lineRow || {};
+    const lr = raw || rc.raw_data || {};
     const ls = lineSnapshot || {};
     const qr = quoteRow?.raw_data || {};
     const dc = lr['Datos_Cotizados'] || {};
     const uiState = lr['Estado_UI'] || {};
-    const dieCode = ls.dieCode || lr['GENERAL | TROQUEL | ID'] || '';
+    const dieCode = pickFirstValue(rc.die_code, ls.dieCode, lr['GENERAL | TROQUEL | ID'], '');
     const printing = extractPrintingData({ line_snapshot: ls, production_run: productionRun });
 
     const processType = ls.processType || lr['Proceso Productivo'] || '';
@@ -9823,62 +10420,62 @@ function buildCreationSummary({ orderCode, quoteRow, lineRow, frontBackGroup, pr
 
     return {
         orden: orderCode,
-        cotizacion: quoteRow?.quote_code || ls.quoteCode || lr['ID COTIZACION'] || '',
-        linea: lineRow?.line_code || ls.lineCode || lr['ID LINEA'] || '',
-        cliente: pickFirstValue(quoteRow?.customer_name, lr.CLIENTE, lr['CLIENTE NOMBRE']),
+        cotizacion: quoteRow?.quote_code || ls.quoteCode || rc.quote_code || lr['ID COTIZACION'] || '',
+        linea: lineRow?.line_code || ls.lineCode || rc.line_code || lr['ID LINEA'] || '',
+        cliente: pickFirstValue(quoteRow?.customer_name, rc.customer_name, lr.CLIENTE, lr['CLIENTE NOMBRE']),
         contacto: {
-            nombre: pickFirstValue(quoteRow?.contact_name, lr['CLIENTE | CONTACTO NOMBRE COMPLETO']),
-            email: pickFirstValue(quoteRow?.email, lr['CLIENTE | CONTACTO EMAIL']),
-            telefono: pickFirstValue(quoteRow?.phone, lr['CLIENTE | CONTACTO TELEFONO'], lr['CLIENTE | CONTACTO TELEFONO SECUNDARIO'])
+            nombre: pickFirstValue(quoteRow?.contact_name, rc.contact_name, lr['CLIENTE | CONTACTO NOMBRE COMPLETO']),
+            email: pickFirstValue(quoteRow?.email, rc.email, lr['CLIENTE | CONTACTO EMAIL']),
+            telefono: pickFirstValue(quoteRow?.phone, rc.phone, lr['CLIENTE | CONTACTO TELEFONO'], lr['CLIENTE | CONTACTO TELEFONO SECUNDARIO'])
         },
-        vendedor: pickFirstValue(quoteRow?.salesperson_name, lr.VENDEDOR, lr['VENDEDOR | USUARIO']),
-        codigo_cliente: pickFirstValue(quoteRow?.customer_code, lr['ID CLIENTE']),
-        producto: ls.productName || lr['GENERAL | PRODUCTO'] || lineRow?.product_code || '',
-        codigo_producto: ls.productCode || lr['CODIGO PRODUCTO'] || '',
-        nombre_trabajo: pickFirstValue(lr['NOMBRE TRABAJO'], lr['TIPO TRABAJO | ORDEN REFERENCIA 1']),
-        departamento: pickFirstValue(lr.DEPARTAMENTO, 'Flexografia'),
+        vendedor: pickFirstValue(quoteRow?.salesperson_name, rc.salesperson_name, lr.VENDEDOR, lr['VENDEDOR | USUARIO']),
+        codigo_cliente: pickFirstValue(quoteRow?.customer_code, rc.customer_code, lr['ID CLIENTE']),
+        producto: ls.productName || rc.product_code || lr['GENERAL | PRODUCTO'] || lineRow?.product_code || '',
+        codigo_producto: ls.productCode || rc.product_code || lr['CODIGO PRODUCTO'] || '',
+        nombre_trabajo: pickFirstValue(rc.job_name, lr['NOMBRE TRABAJO'], lr['TIPO TRABAJO | ORDEN REFERENCIA 1']),
+        departamento: pickFirstValue(rc.department, lr.DEPARTAMENTO, 'Flexografia'),
         tipo_proceso: processType,
-        tipo_orden: pickFirstValue(lr['TIPO ORDEN']),
-        estado_linea: pickFirstValue(lr['SOLICITUD ESTADO'], lr['ESTADO LINEA'], lr['FIN COTIZACION | ESTADO']),
+        tipo_orden: pickFirstValue(rc.tipo_orden, lr['TIPO ORDEN']),
+        estado_linea: pickFirstValue(rc.line_status, lr['SOLICITUD ESTADO'], lr['ESTADO LINEA'], lr['FIN COTIZACION | ESTADO']),
         tipo_calculo: pickFirstValue(lr['ESTADO LINEA | CALCULO'], lr['ESTADO LINEA | SEGUN CANTIDAD ELEMENTOS']),
         estado_cotizacion: pickFirstValue(quoteRow?.status, lr['Estado Cotizacion']),
         fecha_creacion: pickFirstValue(quoteRow?.created_on, lr['FECHA CREACION DATE'], lr['FECHA CREACION']),
-        fecha_vencimiento: pickFirstValue(quoteRow?.due_on, lr['FECHA VENCIMIENTO']),
-        condiciones_pago: lr['CONDICION PAGO'] || '',
-        tiempo_entrega: lr['TIEMPO ENTREGA'] || '',
-        tipo_cambio_venta: lr['TIPO CAMBIO VENTA'] || null,
-        tipo_cambio_compra: lr['TIPO CAMBIO COMPRA'] || null,
-        moneda: lr['MONEDA'] || '',
-        metodo_envio: lr['METODO ENVIO'] || '',
-        tipo_etiquetado: lr['TIPO ETIQUETADO'] || '',
+        fecha_vencimiento: pickFirstValue(rc.fecha_vencimiento, quoteRow?.due_on, lr['FECHA VENCIMIENTO']),
+        condiciones_pago: pickFirstValue(rc.condicion_pago, lr['CONDICION PAGO'], ''),
+        tiempo_entrega: pickFirstValue(rc.tiempo_entrega, lr['TIEMPO ENTREGA'], ''),
+        tipo_cambio_venta: pickFirstValue(parseLegacyNumber(rc.tipo_cambio_venta), lr['TIPO CAMBIO VENTA'], null),
+        tipo_cambio_compra: pickFirstValue(parseLegacyNumber(rc.tipo_cambio_compra), lr['TIPO CAMBIO COMPRA'], null),
+        moneda: pickFirstValue(rc.moneda, lr['MONEDA'], ''),
+        metodo_envio: pickFirstValue(rc.metodo_envio, lr['METODO ENVIO'], ''),
+        tipo_etiquetado: pickFirstValue(rc.application_type, lr['TIPO ETIQUETADO'], ''),
         cantidad: productionRun?.totals?.quantity ?? lineRow?.quantity ?? ls.quantityProducts ?? 0,
         cantidad_productos: ls.quantityProducts || 0,
-        cantidad_tipos: ls.quantityTypes || 0,
-        cantidad_cambios: ls.quantityChanges || 0,
+        cantidad_tipos: pickFirstValue(parseLegacyNumber(rc.quantity_types), ls.quantityTypes, 0),
+        cantidad_cambios: pickFirstValue(parseLegacyNumber(rc.quantity_changes), ls.quantityChanges, 0),
         es_frente_dorso: Boolean(frontBackGroup),
         finalizado_para_orden: Boolean(lineRow?.finalized_for_order ?? lr['Finalizado_Para_Orden']),
         dimensiones: {
-            ancho_pulgadas: ls.widthInches || 0,
-            largo_pulgadas: ls.lengthInches || 0,
+            ancho_pulgadas: pickFirstValue(parseLegacyNumber(rc.width_inches), ls.widthInches, 0),
+            largo_pulgadas: pickFirstValue(parseLegacyNumber(rc.length_inches), ls.lengthInches, 0),
             area_pulgadas: ls.areaInches || 0,
             area_m2: ls.areaM2 || 0
         },
         material: {
-            codigo: ls.materialCode || lr['Material Convencional | Id Material'] || lr['Material Digital | Id Material'] || '',
-            nombre: ls.materialName || lr['GENERAL | MATERIAL'] || '',
-            ancho: ls.materialWidth || 0,
-            m2: ls.materialM2 || 0,
-            msi: ls.materialMsi || 0,
-            pies_totales: totalFeet || ls.materialFeet || 0,
-            pies_macula: ls.materialFeetWaste || 0,
+            codigo: pickFirstValue(rc.material_code, ls.materialCode, lr['Material Convencional | Id Material'], lr['Material Digital | Id Material'], ''),
+            nombre: pickFirstValue(rc.material_nombre, ls.materialName, lr['GENERAL | MATERIAL'], ''),
+            ancho: pickFirstValue(parseLegacyNumber(rc.material_ancho), ls.materialWidth, 0),
+            m2: pickFirstValue(parseLegacyNumber(rc.material_m2), ls.materialM2, 0),
+            msi: pickFirstValue(parseLegacyNumber(rc.material_msi), ls.materialMsi, 0),
+            pies_totales: pickFirstValue(parseLegacyNumber(rc.material_feet), totalFeet, ls.materialFeet, 0),
+            pies_macula: pickFirstValue(parseLegacyNumber(rc.material_pies_macula), ls.materialFeetWaste, 0),
             costo_por_pie: parseLegacyNumber(lr['Material | Costo Por Pie']) || parseLegacyNumber(lr[`${activePrefix} | MATERIAL | COSTO POR PIE`]) || 0,
-            costo_total: ls.components?.material || 0,
+            costo_total: pickFirstValue(parseLegacyNumber(rc.costo_sustrato), ls.components?.material, 0),
             subtotal_sin_minimo: parseLegacyNumber(lr['Material | Subtotal Sin Minimo']) || 0,
             minimo_aplicado: Boolean(lr['Material | Minimo Aplicado']),
             tipo_aplicacion: ls.applicationType || lr['TIPO ETIQUETADO'] || ''
         },
         maquina: printing.machineName || ls.quotedMachine || lr['MAQUINA IMPRESION'] || lr['CONV | MAQUINA'] || '',
-        sustrato: printing.materialName || ls.materialName || lr['GENERAL | MATERIAL'] || '',
+        sustrato: pickFirstValue(printing.materialName, rc.material_nombre, ls.materialName, lr['GENERAL | MATERIAL'], ''),
         impresion: {
             tintas: printing.tintCount || ls.tintCount || 0,
             pantones: printing.pantones || [],
@@ -9891,17 +10488,101 @@ function buildCreationSummary({ orderCode, quoteRow, lineRow, frontBackGroup, pr
         },
         troquel: {
             codigo: dieCode,
-            dientes: ls.dieTeeth || 0,
-            filas: ls.dieRows || 0,
-            repeticiones: ls.dieRepeats || 0
+            dientes: pickFirstValue(parseLegacyNumber(rc.die_teeth), ls.dieTeeth, 0),
+            filas: pickFirstValue(parseLegacyNumber(rc.die_rows), ls.dieRows, 0),
+            repeticiones: pickFirstValue(parseLegacyNumber(rc.die_repeats), ls.dieRepeats, 0)
         },
         acabados: acabados,
         numerado: printing.numbering || lr['ACABADOS | NUMERADO'] || lr['NUMERADO'] || '',
         rollo: {
-            ancho_core: printing.coreWidth || ls.coreWidth || '',
-            diametro_core: printing.coreDiameter || ls.coreDiameter || '',
-            etiquetas_por_rollo: printing.labelsPerRoll || ls.labelsPerRoll || 0,
-            tipo_salida: printing.outputType || ls.outputType || lr['TIPO SALIDA'] || ''
+            ancho_core: pickFirstValue(parseLegacyNumber(rc.core_width), printing.coreWidth, ls.coreWidth, ''),
+            diametro_core: pickFirstValue(rc.core_diameter, printing.coreDiameter, ls.coreDiameter, ''),
+            etiquetas_por_rollo: pickFirstValue(parseLegacyNumber(rc.labels_per_roll), printing.labelsPerRoll, ls.labelsPerRoll, 0),
+            tipo_salida: pickFirstValue(rc.output_type, printing.outputType, ls.outputType, lr['TIPO SALIDA'] || '')
+        },
+        tinta: {
+            consumo_por_color_lb: rc.consumo_tinta_por_color_lb ?? null,
+            consumo_total_lb: rc.consumo_tinta_total_lb ?? null,
+            costo_por_libra: rc.costo_tinta_por_libra ?? null,
+            material_id: rc.material_tinta_id || null,
+            cobertura_pct: rc.cobertura_tinta_pct ?? null,
+            bcm_anilox: rc.bcm_anilox ?? null,
+            factor_transferencia: rc.factor_transferencia ?? null,
+            densidad: rc.densidad_tinta ?? null,
+            costo_libra_cmyk: rc.costo_libra_cmyk ?? null,
+            costo_libra_blanco: rc.costo_libra_blanco ?? null,
+            costo_libra_pantone: rc.costo_libra_pantone ?? null,
+            subtotal: rc.subtotal_tinta ?? null
+        },
+        barniz: {
+            material_id: rc.barniz_material_id || null,
+            bcm: rc.barniz_bcm ?? null,
+            cobertura_pct: rc.barniz_cobertura_pct ?? null,
+            costo_por_kg: rc.barniz_costo_por_kg ?? null,
+            zonificado: rc.barniz_zonificado ?? null,
+            comentario: rc.barniz_comentario || null,
+            costo_total: rc.barniz_costo_total ?? null,
+            consumo_kg: rc.barniz_consumo_kg ?? null,
+            consumo_lb: rc.barniz_consumo_lb ?? null,
+            tiempo_montaje_min: rc.barniz_tiempo_montaje_min ?? null
+        },
+        laminado: {
+            material_id: rc.laminado_material_id || null,
+            costo_por_pie_lineal: rc.laminado_costo_por_pie_lineal ?? null,
+            pies_lineales: rc.laminado_pies_lineales ?? null,
+            tiempo_montaje_min: rc.laminado_tiempo_montaje_min ?? null,
+            comentario: rc.laminado_comentario || null,
+            costo_total: rc.laminado_costo_total ?? null
+        },
+        embosado: {
+            tiempo_montaje_min: rc.embosado_tiempo_montaje_min ?? null,
+            ancho_cliche: rc.embosado_ancho_cliche ?? null,
+            largo_cliche: rc.embosado_largo_cliche ?? null,
+            costo_cliche: rc.embosado_costo_cliche ?? null,
+            comentario: rc.embosado_comentario || null
+        },
+        troquelado: {
+            tiempo_montaje_min: rc.troquelado_tiempo_montaje_min ?? null,
+            merma_ajuste_pies: rc.troquelado_merma_ajuste_pies ?? null,
+            comentario: rc.troquelado_comentario || null
+        },
+        numerado_det: {
+            tipo: rc.numerado_tipo || null,
+            tiempo_montaje_min: rc.numerado_tiempo_montaje_min ?? null,
+            costo_fijo: rc.numerado_costo_fijo ?? null,
+            comentario: rc.numerado_comentario || null,
+            adjunto: rc.numerado_adjunto || null
+        },
+        rebobinado: {
+            maquina: rc.rebobinado_maquina || null,
+            tiempo_montaje_min: rc.rebobinado_tiempo_montaje_min ?? null,
+            costo_hora_maquina: rc.rebobinado_costo_hora_maquina ?? null,
+            costo_operador: rc.rebobinado_costo_operador ?? null,
+            velocidad: rc.rebobinado_velocidad ?? null,
+            merma_ajuste_pies: rc.rebobinado_merma_ajuste_pies ?? null,
+            merma_operacion_pct: rc.rebobinado_merma_operacion_pct ?? null,
+            comentario: rc.rebobinado_comentario || null,
+            tiempo_total_min: rc.rebobinado_tiempo_total_min ?? null,
+            costo_total: rc.rebobinado_costo_total ?? null
+        },
+        empaque_det: {
+            cantidad_rollos: rc.empaque_cantidad_rollos ?? null,
+            rendimiento_por_hora: rc.empaque_rendimiento_por_hora ?? null,
+            operarios: rc.empaque_operarios ?? null,
+            costo_por_operador: rc.empaque_costo_por_operador ?? null,
+            costo_externo: rc.empaque_costo_externo ?? null,
+            comentario: rc.empaque_comentario || null,
+            adjunto: rc.empaque_adjunto || null,
+            horas: rc.empaque_horas ?? null,
+            costo_total: rc.empaque_costo_total ?? null
+        },
+        mermas: {
+            arranque_pies: rc.merma_arranque_pies ?? null,
+            tiraje_pies: rc.merma_tiraje_pies ?? null,
+            tiraje_pct: rc.merma_tiraje_pct ?? null,
+            costo: rc.costo_merma ?? null,
+            total_pies: rc.merma_total_pies ?? null,
+            total_costo: rc.merma_total_costo ?? null
         },
         metricas: (function () {
             const m = dc.metricas || {};
@@ -9925,12 +10606,12 @@ function buildCreationSummary({ orderCode, quoteRow, lineRow, frontBackGroup, pr
         })(),
         costos: {
             desglose: {
-                material: ls.components?.material || 0,
-                tintas: ls.components?.inks || 0,
-                impresion: ls.components?.print || 0,
+                material: pickFirstValue(parseLegacyNumber(rc.costo_sustrato), ls.components?.material, 0),
+                tintas: pickFirstValue(parseLegacyNumber(rc.subtotal_tinta), ls.components?.inks, 0),
+                impresion: pickFirstValue(parseLegacyNumber(rc.subtotal_maquina), ls.components?.print, 0),
                 preprensa: ls.components?.prepress || 0,
                 acabados: ls.components?.finishes || 0,
-                empaque: ls.components?.packaging || 0,
+                empaque: pickFirstValue(parseLegacyNumber(rc.empaque_costo_total), ls.components?.packaging, 0),
                 tiraje: ls.components?.runCost || 0
             },
             subtotal_costos: ls.subtotalCost || 0,
@@ -9944,8 +10625,8 @@ function buildCreationSummary({ orderCode, quoteRow, lineRow, frontBackGroup, pr
             pies_totales: totalFeet || 0
         },
         precios: {
-            subtotal_antes_iva: ls.subtotalBeforeTax || 0,
-            impuesto: ls.taxAmount || 0,
+            subtotal_antes_iva: pickFirstValue(parseLegacyNumber(rc.subtotal_cost), ls.subtotalBeforeTax, 0),
+            impuesto: pickFirstValue(parseLegacyNumber(rc.tax_amount), ls.taxAmount, 0),
             total_final: ls.finalTotal || 0,
             precio_unitario: productionRun?.totals?.unitCost ?? lineRow?.unit_price ?? ls.unitPrice ?? 0,
             precio_millar: ls.thousandPrice || 0,
@@ -9968,30 +10649,43 @@ function buildCreationSummary({ orderCode, quoteRow, lineRow, frontBackGroup, pr
             }) : []
         } : null,
         notas: {
-            resumen_cotizacion: lr['Resumen Cotización'] || lr['Resumen Cotizacion'] || '',
-            info_impresion: lr['INFORMACION IMPRESION COTIZACION | MOSTRAR'] || lr['INFORMACION IMPRESION COTIZACION | CALCULO'] || '',
-            observaciones: lr['OBSERVACIONES SOLICITUD'] || '',
-            estado_creacion: lr['CREACION ESTADO'] || '',
-            analisis_solicitud: lr['ANALISIS CAMPOS SOLICITUD'] || '',
-            analisis_finalizar: lr['ANALISIS CAMPOS FINALIZAR'] || '',
-            analisis_crear_orden: lr['ANALISIS CAMPOS CREAR ORDEN'] || ''
+            resumen_cotizacion: pickFirstValue(rc.resumen_cotizacion, lr['Resumen Cotización'], lr['Resumen Cotizacion']),
+            info_impresion: pickFirstValue(rc.info_impresion, lr['INFORMACION IMPRESION COTIZACION | MOSTRAR'], lr['INFORMACION IMPRESION COTIZACION | CALCULO']),
+            observaciones: pickFirstValue(rc.observaciones, lr['OBSERVACIONES SOLICITUD'], ''),
+            estado_creacion: pickFirstValue(rc.estado_creacion, lr['CREACION ESTADO'], ''),
+            analisis_solicitud: pickFirstValue(rc.analisis_solicitud, lr['ANALISIS CAMPOS SOLICITUD'], ''),
+            analisis_finalizar: pickFirstValue(rc.analisis_finalizar, lr['ANALISIS CAMPOS FINALIZAR'], ''),
+            analisis_crear_orden: pickFirstValue(rc.analisis_crear_orden, lr['ANALISIS CAMPOS CREAR ORDEN'], '')
         },
         tiempos: {
-            diseno_horas: parseLegacyNumber(lr['Tiempos | Diseno Horas']) ?? 0,
-            preprensa_horas: parseLegacyNumber(lr['Tiempos | Preprensa Horas']) ?? 0,
-            impresion_minutos: parseLegacyNumber(lr['Tiempos | Impresion Minutos']) ?? 0,
-            impresion_corrida_minutos: parseLegacyNumber(lr['Tiempos | Impresion Minutos Corrida']) ?? 0,
-            impresion_montaje_minutos: parseLegacyNumber(lr['Tiempos | Impresion Minutos Montaje']) ?? 0,
-            acabados_minutos: parseLegacyNumber(lr['Tiempos | Acabados Minutos']) ?? 0,
-            empaque_horas: parseLegacyNumber(lr['Tiempos | Empaque Horas']) ?? 0,
-            total_minutos: parseLegacyNumber(lr['Tiempos | Total Minutos']) ?? 0
+            diseno_horas: pickFirstValue(parseLegacyNumber(rc.tiempo_diseno_horas), parseLegacyNumber(lr['Tiempos | Diseno Horas']), 0),
+            preprensa_horas: pickFirstValue(parseLegacyNumber(rc.tiempo_preprensa_horas), parseLegacyNumber(lr['Tiempos | Preprensa Horas']), 0),
+            impresion_minutos: pickFirstValue(parseLegacyNumber(rc.tiempo_total_impresion_min), parseLegacyNumber(lr['Tiempos | Impresion Minutos']), 0),
+            impresion_corrida_minutos: pickFirstValue(parseLegacyNumber(rc.tiempo_corrida_min), parseLegacyNumber(lr['Tiempos | Impresion Minutos Corrida']), 0),
+            impresion_montaje_minutos: pickFirstValue(parseLegacyNumber(rc.tiempo_montaje_min), parseLegacyNumber(lr['Tiempos | Impresion Minutos Montaje']), 0),
+            acabados_minutos: pickFirstValue(parseLegacyNumber(rc.tiempo_acabados_min), parseLegacyNumber(lr['Tiempos | Acabados Minutos']), 0),
+            empaque_horas: pickFirstValue(parseLegacyNumber(rc.empaque_horas), parseLegacyNumber(lr['Tiempos | Empaque Horas']), 0),
+            total_minutos: pickFirstValue(parseLegacyNumber(rc.tiempo_total_min), parseLegacyNumber(lr['Tiempos | Total Minutos']), 0)
         },
         maestra: {
-            proceso_productivo: lr['Proceso Productivo'] || '',
+            proceso_productivo: pickFirstValue(rc.process_type, lr['Proceso Productivo'], ''),
             pie_cotizacion_fechas: qr['PIE COTIZACION | DETALLE COTIZACION | FECHAS'] || lr['PIE COTIZACION | DETALLE COTIZACION | FECHAS'] || '',
             pie_cotizacion_tipo_cambio: qr['PIE COTIZACION | DETALLE COTIZACION | TIPO CAMBIO'] || lr['PIE COTIZACION | DETALLE COTIZACION | TIPO CAMBIO'] || '',
             cantidad_elementos: lr['CANTIDAD ELEMENTOS'] || '',
             ui_state: uiState
+        },
+        datos_solicitud: {
+            barniz_tipo: pickFirstValue(rc.barniz_tipo, lr['REQ | Barniz']),
+            laminado_tipo: pickFirstValue(rc.laminado_tipo, lr['REQ | Laminado']),
+            estampado_tipo: pickFirstValue(rc.estampado_tipo, lr['REQ | Estampado']),
+            embosado_tipo: pickFirstValue(rc.embosado_tipo, lr['REQ | Embosado']),
+            troquel_forma: pickFirstValue(rc.troquel_forma, lr['REQ | Forma']),
+            ruta_calculada: pickFirstValue(rc.ruta_calculada, lr['REQ | Ruta Automática']),
+            montaje_resumen: pickFirstValue(rc.montaje_resumen, lr['REQ | Montaje Automático'], lr['Texto_Secuencia_Procesos']),
+            sin_impresion: rc.sin_impresion || false,
+            medida_fija: pickFirstValue(rc.medida_fija, lr['REQ | Medida Fija']),
+            seleccion_automatica: rc.seleccion_automatica || null,
+            precio_automatico: rc.precio_automatico || null
         }
     };
 }
@@ -10205,130 +10899,6 @@ function withUpdatedOrderPlanningControl(rawData = {}, updates = {}, quoteRow = 
     };
 }
 
-function getOrderTrackingMarks(rawData = {}) {
-    const marks = rawData?.order_tracking_marks || rawData?.orderTrackingMarks || {};
-    return marks && typeof marks === 'object' && !Array.isArray(marks) ? marks : {};
-}
-
-function withUpdatedOrderTrackingMark(rawData = {}, processKey = '', mark = {}) {
-    const key = normalizeOrderTrackingStepKey(processKey);
-    if (!key) return rawData;
-    return {
-        ...rawData,
-        order_tracking_marks: {
-            ...getOrderTrackingMarks(rawData),
-            [key]: mark
-        }
-    };
-}
-
-function applyOrderTrackingMarks(steps = [], rawData = {}, resolveActorInfo = () => ({ name: '', photoUrl: '' })) {
-    const marks = getOrderTrackingMarks(rawData);
-    const controlManagedKeys = new Set(['orden_creada', 'solicitud_vendedor', 'planeacion']);
-    return steps.map((step) => {
-        const key = normalizeOrderTrackingStepKey(step.processKey);
-        if (controlManagedKeys.has(key)) return step;
-        const mark = key ? marks[key] : null;
-        if (!mark || typeof mark !== 'object') return step;
-        if (mark.marked === false) {
-            return {
-                ...step,
-                routeStatus: 'PENDIENTE',
-                completedBy: '',
-                completedByPhoto: '',
-                completedAt: null,
-                startedAt: null,
-                trackingOverride: mark
-            };
-        }
-        if (mark.marked !== true) return step;
-        const actor = resolveActorInfo(mark.markedBy || mark.userName || mark.user || '');
-        return {
-            ...step,
-            routeStatus: 'COMPLETADO',
-            completedBy: actor.name || pickFirstValue(sanitizeAdminUserText(mark.markedBy), sanitizeAdminUserText(mark.userName), sanitizeAdminUserText(mark.user)),
-            completedByPhoto: pickFirstValue(sanitizeAdminUserText(mark.markedByPhoto), sanitizeAdminUserText(mark.photoUrl), actor.photoUrl),
-            completedAt: mark.markedAt || null,
-            startedAt: mark.markedAt || step.startedAt || null,
-            trackingOverride: mark
-        };
-    });
-}
-
-async function syncMarkToRoute(orderCode, processKey, marked, actor = '', now = new Date().toISOString()) {
-    const canonicalKey = canonicalProductionFlowKey(processKey) || processKey;
-    if (!canonicalKey || ['orden_creada', 'solicitud_vendedor', 'planeacion'].includes(canonicalKey)) return;
-    try {
-        const routeResult = await pgQuery(
-            `SELECT id FROM production_order_routes WHERE order_code = $1 AND process_key = $2 ORDER BY sequence_order LIMIT 1`,
-            [orderCode, canonicalKey]
-        );
-        if (!routeResult.rows.length) return;
-        const routeId = routeResult.rows[0].id;
-        if (marked) {
-            const existing = await pgQuery(
-                `SELECT route_status FROM production_order_routes WHERE id = $1`,
-                [routeId]
-            );
-            const currentStatus = existing.rows[0]?.route_status;
-            if (currentStatus !== 'COMPLETADO') {
-                await pgQuery(
-                    `UPDATE production_order_routes SET route_status = 'COMPLETADO', actual_end_at = COALESCE(actual_end_at, NOW()), updated_at = NOW() WHERE id = $1`,
-                    [routeId]
-                );
-                await pgQuery(
-                    `INSERT INTO production_route_events (route_id, operator_name, event_type, notes, event_payload, created_at)
-                     VALUES ($1, $2, 'completado', 'Marcado desde seguimiento/orden', '{}'::jsonb, NOW())`,
-                    [routeId, actor || null]
-                );
-            }
-        } else {
-            const existing = await pgQuery(
-                `SELECT route_status FROM production_order_routes WHERE id = $1`,
-                [routeId]
-            );
-            const currentStatus = existing.rows[0]?.route_status;
-            if (currentStatus === 'COMPLETADO') {
-                await pgQuery(
-                    `UPDATE production_order_routes SET route_status = 'PENDIENTE', actual_end_at = NULL, updated_at = NOW() WHERE id = $1`,
-                    [routeId]
-                );
-                await pgQuery(
-                    `INSERT INTO production_route_events (route_id, operator_name, event_type, notes, event_payload, created_at)
-                     VALUES ($1, $2, 'revertido', 'Desmarcado desde seguimiento/orden', '{}'::jsonb, NOW())`,
-                    [routeId, actor || null]
-                );
-            }
-        }
-    } catch (e) { /* non-critical sync */ }
-}
-
-async function syncRouteStatusToMark(orderCode, processKey, routeStatus, actor = '', completedAt = null) {
-    const canonicalKey = canonicalProductionFlowKey(processKey) || processKey;
-    if (!canonicalKey || ['orden_creada', 'solicitud_vendedor', 'planeacion'].includes(canonicalKey)) return;
-    try {
-        const orderResult = await pgQuery(`SELECT raw_data FROM flexo_orders WHERE order_code = $1 LIMIT 1`, [orderCode]);
-        if (!orderResult.rows.length) return;
-        const rawData = orderResult.rows[0].raw_data || {};
-        const marks = getOrderTrackingMarks(rawData);
-        const normalizedKey = normalizeOrderTrackingStepKey(processKey);
-        const existingMark = marks[normalizedKey];
-        if (routeStatus === 'COMPLETADO') {
-            if (existingMark && existingMark.marked === true) return;
-            const now = completedAt || new Date().toISOString();
-            const mark = { marked: true, markedAt: now, markedBy: actor || '', markedByPhoto: '' };
-            const nextRawData = withUpdatedOrderTrackingMark(rawData, normalizedKey, mark);
-            await pgQuery(`UPDATE flexo_orders SET raw_data = $2::jsonb WHERE order_code = $1`, [orderCode, JSON.stringify(nextRawData)]);
-        } else if (['PENDIENTE', 'SETUP', 'RUN', 'PARO'].includes(routeStatus)) {
-            if (existingMark && existingMark.marked === false) return;
-            const now = new Date().toISOString();
-            const mark = { marked: false, clearedAt: now, clearedBy: actor || '', clearedByPhoto: '' };
-            const nextRawData = withUpdatedOrderTrackingMark(rawData, normalizedKey, mark);
-            await pgQuery(`UPDATE flexo_orders SET raw_data = $2::jsonb WHERE order_code = $1`, [orderCode, JSON.stringify(nextRawData)]);
-        }
-    } catch (e) { /* non-critical sync */ }
-}
-
 function buildOrderPlanningSummary(orderRow = {}, quoteRow = null) {
     return getOrderPlanningControl(orderRow?.raw_data || {}, quoteRow);
 }
@@ -10368,6 +10938,33 @@ function buildQuoteRawData(payload = {}, existingRawData = {}) {
         'FECHA CREACION': createdOn,
         'FECHA VENCIMIENTO': dueOn
     };
+}
+
+function validateCalculationConsistency(row) {
+    if (!row || !row.raw_data) return [];
+    const raw = row.raw_data;
+    const issues = [];
+    const compare = (columnKey, rawPath, label) => {
+        const colVal = row[columnKey];
+        const rawVal = typeof rawPath === 'function' ? rawPath(raw) : raw[rawPath];
+        if (colVal != null && rawVal != null && String(colVal) !== String(rawVal)) {
+            issues.push({ field: label, column: colVal, raw_data: rawVal });
+        }
+    };
+    compare('total_cost', 'PRECIO TOTAL AL FINALIZAR', 'total_cost');
+    compare('unit_price', r => r['GENERAL | 9 | UNITARIO | DOL'] ?? r['GENERAL | 9 | UNITARIO | COL'], 'unit_price');
+    compare('subtotal_cost', r => r['GENERAL | 7 | SUBTOTAL CALC ANTES IV | DOL'] ?? r['GENERAL | 5 | SUBTOTAL'], 'subtotal_cost');
+    compare('machine_name', 'CONV | MAQUINA', 'machine_name');
+    compare('material_code', r => r['Material Convencional | Id Material'] ?? r['Material Digital | Id Material'], 'material_code');
+    compare('die_code', 'GENERAL | TROQUEL | ID', 'die_code');
+    compare('quantity', 'Cantidad Productos', 'quantity');
+    compare('process_type', 'Proceso Productivo', 'process_type');
+    return issues;
+}
+
+function logCalculationInconsistency(quoteCode, lineCode, issues) {
+    if (!issues.length) return;
+    console.warn(`[INCONSISTENCIA] Cálculo ${quoteCode}/${lineCode}:`, issues.map(i => `${i.field} (columna=${i.column}, raw_data=${i.raw_data})`).join('; '));
 }
 
 function buildCalculationRawData(payload = {}, existingRawData = {}) {
@@ -10600,6 +11197,219 @@ function buildCalculationRawData(payload = {}, existingRawData = {}) {
 
     return rawData;
 }
+
+function extractProductionColumns(rawData = {}) {
+    const processType = pickFirstValue(rawData['Proceso Productivo'], 'Convencional');
+    const isDigital = String(processType).toLowerCase().includes('digit');
+    const activePrefix = isDigital ? 'DIGITAL' : 'CONV';
+    const dc = rawData['Datos_Cotizados'] || {};
+    const ui = rawData['Estado_UI'] || {};
+    const printData = dc.print || {};
+    const printItems = Array.isArray(printData.items) ? printData.items : [];
+    const firstItem = printItems[0] || {};
+    const inlineItems = Array.isArray(firstItem.inlineItems) ? firstItem.inlineItems : [];
+    const findInline = (key) => inlineItems.find((i) => i.key === key) || {};
+    const finishesItems = Array.isArray(dc.finishes?.items) ? dc.finishes.items : [];
+    const findFinish = (key) => finishesItems.find((i) => i.processKey === key) || {};
+    const macula = firstItem.macula || {};
+    const sustrato = dc.sustrato || {};
+    const packaging = dc.packaging || {};
+    const uiPackaging = ui.packaging || {};
+    const barniz = findInline('barniz');
+    const laminado = findInline('laminado');
+    const embosado = findInline('embosado');
+    const troquelado = findInline('troquelado');
+    const numerado = findInline('numerado');
+    const rebobinado = findFinish('rebobinado');
+
+    return {
+        consumo_tinta_por_color_lb: parseLegacyNumber(firstItem.inkConsumptionPerColorLb),
+        consumo_tinta_total_lb: parseLegacyNumber(firstItem.inkConsumption),
+        costo_tinta_por_libra: parseLegacyNumber(printData.inkCostPerLb),
+        material_tinta_id: printData.inkMaterialId || firstItem.inkMaterialId || null,
+        cobertura_tinta_pct: parseLegacyNumber(printData.inkCoveragePct) ?? parseLegacyNumber(printData.coveragePct),
+        bcm_anilox: parseLegacyNumber(printData.aniloxBcm),
+        factor_transferencia: parseLegacyNumber(printData.transferFactor),
+        densidad_tinta: parseLegacyNumber(printData.inkDensity),
+        costo_libra_cmyk: parseLegacyNumber(printData.inkCostPerLb),
+        costo_libra_blanco: parseLegacyNumber(printData.whiteInkCostPerLb),
+        costo_libra_pantone: parseLegacyNumber(printData.pantoneInkCostPerLb),
+        subtotal_tinta: parseLegacyNumber(printData.inkSubtotal),
+        merma_arranque_pies: parseLegacyNumber(printData.maculaSetupFeet) ?? parseLegacyNumber(printData.startupWasteFeet),
+        merma_tiraje_pies: parseLegacyNumber(printData.maculaTirajeFeet) ?? parseLegacyNumber(macula.tirajeFeet),
+        merma_tiraje_pct: parseLegacyNumber(macula.tirajePct),
+        costo_merma: parseLegacyNumber(printData.maculaMaterialSubtotal),
+        costo_sustrato: parseLegacyNumber(sustrato.subtotal),
+        pies_totales_sustrato: parseLegacyNumber(sustrato.consumption) ?? parseLegacyNumber(sustrato.totalLengthFeet),
+        pies_sustrato_neto: parseLegacyNumber(sustrato.linealFeet),
+        velocidad_maquina_m_min: parseLegacyNumber(printData.speedMetersMin) ?? parseLegacyNumber(printData.speedFtMin) ?? parseLegacyNumber(firstItem.speedFtMin),
+        tiempo_setup_min: parseLegacyNumber(printData.setupMinutes) ?? parseLegacyNumber(firstItem.setupMinutes),
+        tiempo_montaje_min: parseLegacyNumber(printData.mountingMinutes) ?? parseLegacyNumber(firstItem.mountingMinutes),
+        tiempo_limpieza_min: parseLegacyNumber(printData.cleaningMinutes) ?? parseLegacyNumber(firstItem.cleaningMinutes),
+        costo_hora_maquina: parseLegacyNumber(printData.costHour) ?? parseLegacyNumber(firstItem.costHour),
+        costo_hora_operador: parseLegacyNumber(printData.operatorHourCost) ?? parseLegacyNumber(firstItem.operatorHourCost),
+        subtotal_maquina: parseLegacyNumber(printData.machineSubtotal) ?? parseLegacyNumber(firstItem.machineSubtotal),
+        subtotal_operador: parseLegacyNumber(printData.operatorSubtotal) ?? parseLegacyNumber(firstItem.operatorSubtotal),
+        tiempo_corrida_min: parseLegacyNumber(printData.runMinutes) ?? parseLegacyNumber(firstItem.runMinutes),
+        tiempo_total_impresion_min: parseLegacyNumber(printData.totalMinutes) ?? parseLegacyNumber(firstItem.totalMinutes),
+        barniz_material_id: barniz.materialId || null,
+        barniz_bcm: parseLegacyNumber(barniz.varnishBcm),
+        barniz_cobertura_pct: parseLegacyNumber(barniz.coveragePct),
+        barniz_costo_por_kg: parseLegacyNumber(barniz.costPerKg),
+        barniz_zonificado: Boolean(barniz.sonified),
+        barniz_comentario: barniz.comment || null,
+        barniz_costo_total: parseLegacyNumber(barniz.subtotal),
+        barniz_consumo_kg: parseLegacyNumber(barniz.materialConsumptionKg),
+        barniz_consumo_lb: parseLegacyNumber(barniz.materialConsumptionLb),
+        barniz_tiempo_montaje_min: parseLegacyNumber(barniz.setupMinutes),
+        laminado_material_id: laminado.materialId || null,
+        laminado_costo_por_pie_lineal: parseLegacyNumber(laminado.costPerFoot),
+        laminado_tiempo_montaje_min: parseLegacyNumber(laminado.setupMinutes),
+        laminado_comentario: laminado.comment || null,
+        laminado_costo_total: parseLegacyNumber(laminado.subtotal),
+        embosado_tiempo_montaje_min: parseLegacyNumber(embosado.setupMinutes),
+        embosado_ancho_cliche: parseLegacyNumber(embosado.plateWidthIn),
+        embosado_largo_cliche: parseLegacyNumber(embosado.plateLengthIn),
+        embosado_costo_cliche: parseLegacyNumber(embosado.plateCost),
+        embosado_comentario: embosado.comment || null,
+        troquelado_tiempo_montaje_min: parseLegacyNumber(troquelado.setupMinutes),
+        troquelado_merma_ajuste_pies: parseLegacyNumber(troquelado.setupWasteFeet),
+        troquelado_comentario: troquelado.comment || null,
+        numerado_tipo: numerado.numberingType || null,
+        numerado_tiempo_montaje_min: parseLegacyNumber(numerado.setupMinutes),
+        numerado_costo_fijo: parseLegacyNumber(numerado.fixedCost),
+        numerado_comentario: numerado.comment || null,
+        numerado_adjunto: numerado.attachmentName || null,
+        rebobinado_maquina: rebobinado.machineName || null,
+        rebobinado_tiempo_montaje_min: parseLegacyNumber(rebobinado.setupMinutes),
+        rebobinado_costo_hora_maquina: parseLegacyNumber(rebobinado.costHourMachine),
+        rebobinado_costo_operador: parseLegacyNumber(rebobinado.costHourOperator),
+        rebobinado_velocidad: parseLegacyNumber(rebobinado.speed),
+        rebobinado_merma_ajuste_pies: parseLegacyNumber(rebobinado.setupWasteFeet),
+        rebobinado_merma_operacion_pct: parseLegacyNumber(rebobinado.operationWastePct),
+        rebobinado_comentario: rebobinado.comment || null,
+        rebobinado_tiempo_total_min: parseLegacyNumber(rebobinado.runMinutes),
+        rebobinado_costo_total: parseLegacyNumber(rebobinado.subtotal),
+        empaque_cantidad_rollos: parseLegacyNumber(packaging.rolls) ?? parseLegacyNumber(uiPackaging.rollCount),
+        empaque_rendimiento_por_hora: parseLegacyNumber(uiPackaging.yieldPerHour),
+        empaque_operarios: parseLegacyNumber(uiPackaging.operators),
+        empaque_costo_por_operador: parseLegacyNumber(uiPackaging.hourCost),
+        empaque_costo_externo: parseLegacyNumber(uiPackaging.externalCost),
+        empaque_comentario: uiPackaging.comments || null,
+        empaque_adjunto: uiPackaging.attachmentName || null,
+        empaque_horas: parseLegacyNumber(packaging.hours),
+        empaque_costo_total: parseLegacyNumber(packaging.subtotal),
+        merma_total_pies: parseLegacyNumber(macula.totalFeet) ?? parseLegacyNumber(printData.maculaTotalFeet),
+        merma_total_costo: parseLegacyNumber(firstItem.maculaMaterialSubtotal) ?? parseLegacyNumber(printData.maculaMaterialSubtotal),
+        subtotal_financiero: parseLegacyNumber(rawData['GENERAL | 2 | SUBTOTAL COSTOS']),
+        subtotal_rendimiento: parseLegacyNumber(rawData['GENERAL | 3 | SUBTOTAL MAS RENDIMIENTO']),
+        precio_millar: parseLegacyNumber(rawData['GENERAL | 9 | MILLAR | DOL']),
+        total_colones: pickFirstValue(parseLegacyNumber(rawData['GENERAL | 7 | SUBTOTAL CALC ANTES IV | COL']), parseLegacyNumber(rawData['GENERAL | 7 | TOTAL | COL'])),
+        tipo_cambio_venta: parseLegacyNumber(rawData['TIPO CAMBIO VENTA']),
+        tipo_cambio_compra: parseLegacyNumber(rawData['TIPO CAMBIO COMPRA']),
+        costo_minimo: parseLegacyNumber(rawData['COSTOS | COSTO MINIMO']),
+        porcentaje_imprevistos: parseLegacyNumber(rawData['GENERAL | 1 | PORCENTAJE IMPREVISTOS | UTILIZAR']),
+        porcentaje_financiero: parseLegacyNumber(rawData['GENERAL | 1 | PORCENTAJE COSTOS FINANCIEROS | UTILIZAR']),
+        porcentaje_iva: parseLegacyNumber(rawData['GENERAL | 8 | PORCENTAJE IVA']),
+        porcentaje_adicional: parseLegacyNumber(rawData['Porcentaje Adicional']),
+        tiempo_diseno_horas: parseLegacyNumber(rawData['Tiempos | Diseno Horas']),
+        tiempo_preprensa_horas: parseLegacyNumber(rawData['Tiempos | Preprensa Horas']),
+        tiempo_acabados_min: parseLegacyNumber(rawData['Tiempos | Acabados Minutos']),
+        tiempo_total_min: parseLegacyNumber(rawData['Tiempos | Total Minutos']),
+        material_m2: pickFirstValue(parseLegacyNumber(sustrato.areaM2), parseLegacyNumber(rawData['Material | m2 Segun Proceso Productivo']), parseLegacyNumber(rawData[`${activePrefix} | MATERIAL | AREA MTS`])),
+        material_msi: pickFirstValue(parseLegacyNumber(sustrato.msi), parseLegacyNumber(rawData['Material | MSI Segun Proceso Productivo']), parseLegacyNumber(rawData[`${activePrefix} | MATERIAL | CANTIDAD MSI INCLUYE MACULA`]), parseLegacyNumber(rawData[`${activePrefix} | MATERIAL | CANTIDAD MSI`])),
+        material_pies_macula: pickFirstValue(parseLegacyNumber(macula.totalFeet), parseLegacyNumber(rawData['Material | Pies Macula Segun Proceso Productivo']), parseLegacyNumber(rawData[`${activePrefix} | MATERIAL | CANTIDAD PIES MACULA | CALCULO`])),
+        material_ancho: parseLegacyNumber(rawData['GENERAL | MATERIAL | ANCHO']),
+        cantidad_tintas: pickFirstValue(parseLegacyNumber(rawData['CANTIDAD TINTAS']), parseLegacyNumber(rawData['DIGITAL | CANTIDAD TINTAS'])),
+        cantidad_pantones: parseLegacyNumber(rawData['CANTIDAD PANTONES']),
+        tinta_blanca: Boolean(String(rawData['TINTA BLANCA'] || '').toLowerCase() === 'si' || rawData['GENERAL | TINTA BLANCA'] === true),
+        doble_blanca: Boolean(String(rawData['DOBLE PASADA BLANCA'] || '').toLowerCase() === 'si'),
+        analisis_solicitud: rawData['ANALISIS CAMPOS SOLICITUD'] || null,
+        analisis_finalizar: rawData['ANALISIS CAMPOS FINALIZAR'] || null,
+        analisis_crear_orden: rawData['ANALISIS CAMPOS CREAR ORDEN'] || null,
+        resumen_cotizacion: pickFirstValue(rawData['Resumen Cotización'], rawData['Resumen Cotizacion']),
+        info_impresion: pickFirstValue(rawData['INFORMACION IMPRESION COTIZACION | MOSTRAR'], rawData['INFORMACION IMPRESION COTIZACION | CALCULO']),
+        observaciones: rawData['OBSERVACIONES SOLICITUD'] || null,
+        estado_creacion: rawData['CREACION ESTADO'] || null,
+        condicion_pago: rawData['CONDICION PAGO'] || null,
+        tiempo_entrega: rawData['TIEMPO ENTREGA'] || null,
+        moneda: rawData['MONEDA'] || null,
+        metodo_envio: rawData['METODO ENVIO'] || null,
+        tipo_orden: rawData['TIPO ORDEN'] || null,
+        laminado_pies_lineales: parseLegacyNumber(laminado.piesLineales) ?? parseLegacyNumber(rawData['REQ | Laminado Pies Lineales']),
+        barniz_tipo: rawData['REQ | Barniz'] || null,
+        laminado_tipo: rawData['REQ | Laminado'] || null,
+        estampado_tipo: rawData['REQ | Estampado'] || null,
+        embosado_tipo: rawData['REQ | Embosado'] || null,
+        troquel_forma: rawData['REQ | Forma'] || null,
+        ruta_calculada: rawData['REQ | Ruta Automática'] || null,
+        montaje_resumen: pickFirstValue(rawData['REQ | Montaje Automático'], rawData['Texto_Secuencia_Procesos']) || null,
+        sin_impresion: Boolean(String(rawData['SIN IMPRESION'] || rawData['SIN IMPRESIÓN'] || '').toLowerCase() === 'si'),
+        medida_fija: rawData['REQ | Medida Fija'] || null,
+        material_nombre: rawData['GENERAL | MATERIAL'] || null,
+        fecha_vencimiento: parseDateOnly(rawData['FECHA VENCIMIENTO']) || null,
+        seleccion_automatica: rawData['Seleccion_Automatica'] || null,
+        precio_automatico: rawData['Precio_Automatico'] || null
+    };
+}
+
+const PRODUCTION_COLUMN_NAMES = [
+    'consumo_tinta_por_color_lb', 'consumo_tinta_total_lb', 'costo_tinta_por_libra',
+    'material_tinta_id', 'cobertura_tinta_pct', 'bcm_anilox', 'factor_transferencia',
+    'densidad_tinta', 'costo_libra_cmyk', 'costo_libra_blanco', 'costo_libra_pantone',
+    'subtotal_tinta', 'merma_arranque_pies', 'merma_tiraje_pies', 'merma_tiraje_pct',
+    'costo_merma', 'costo_sustrato', 'pies_totales_sustrato', 'pies_sustrato_neto',
+    'velocidad_maquina_m_min', 'tiempo_setup_min', 'tiempo_montaje_min', 'tiempo_limpieza_min',
+    'costo_hora_maquina', 'costo_hora_operador', 'subtotal_maquina', 'subtotal_operador',
+    'tiempo_corrida_min', 'tiempo_total_impresion_min',
+    'barniz_material_id', 'barniz_bcm', 'barniz_cobertura_pct', 'barniz_costo_por_kg',
+    'barniz_zonificado', 'barniz_comentario', 'barniz_costo_total', 'barniz_consumo_kg',
+    'barniz_consumo_lb', 'barniz_tiempo_montaje_min',
+    'laminado_material_id', 'laminado_costo_por_pie_lineal', 'laminado_tiempo_montaje_min',
+    'laminado_comentario', 'laminado_costo_total',
+    'embosado_tiempo_montaje_min', 'embosado_ancho_cliche', 'embosado_largo_cliche',
+    'embosado_costo_cliche', 'embosado_comentario',
+    'troquelado_tiempo_montaje_min', 'troquelado_merma_ajuste_pies', 'troquelado_comentario',
+    'numerado_tipo', 'numerado_tiempo_montaje_min', 'numerado_costo_fijo',
+    'numerado_comentario', 'numerado_adjunto',
+    'rebobinado_maquina', 'rebobinado_tiempo_montaje_min', 'rebobinado_costo_hora_maquina',
+    'rebobinado_costo_operador', 'rebobinado_velocidad', 'rebobinado_merma_ajuste_pies',
+    'rebobinado_merma_operacion_pct', 'rebobinado_comentario', 'rebobinado_tiempo_total_min',
+    'rebobinado_costo_total',
+    'empaque_cantidad_rollos', 'empaque_rendimiento_por_hora', 'empaque_operarios',
+    'empaque_costo_por_operador', 'empaque_costo_externo', 'empaque_comentario',
+    'empaque_adjunto', 'empaque_horas', 'empaque_costo_total',
+    'merma_total_pies', 'merma_total_costo',
+    'subtotal_financiero', 'subtotal_rendimiento', 'precio_millar', 'total_colones',
+    'tipo_cambio_venta', 'tipo_cambio_compra', 'costo_minimo',
+    'porcentaje_imprevistos', 'porcentaje_financiero', 'porcentaje_iva', 'porcentaje_adicional',
+    'tiempo_diseno_horas', 'tiempo_preprensa_horas', 'tiempo_acabados_min', 'tiempo_total_min',
+    'material_m2', 'material_msi', 'material_pies_macula', 'material_ancho',
+    'cantidad_tintas', 'cantidad_pantones', 'tinta_blanca', 'doble_blanca',
+    'analisis_solicitud', 'analisis_finalizar', 'analisis_crear_orden',
+    'resumen_cotizacion', 'info_impresion', 'observaciones', 'estado_creacion',
+        'condicion_pago', 'tiempo_entrega', 'moneda', 'metodo_envio', 'tipo_orden',
+        'laminado_pies_lineales',
+        'barniz_tipo', 'laminado_tipo', 'estampado_tipo', 'embosado_tipo',
+        'troquel_forma', 'ruta_calculada', 'montaje_resumen', 'sin_impresion',
+        'medida_fija', 'material_nombre', 'fecha_vencimiento',
+        'seleccion_automatica', 'precio_automatico',
+        'mes_velocidad_real_fpm', 'mes_presion_cilindro_psi', 'mes_anilox_linea',
+        'mes_viscosidad_promedio', 'mes_temperatura_promedio', 'mes_ultima_sincronizacion'
+    ];
+
+// Columnas compartidas entre flexo_products, flexo_orders y flexo_calculations
+// (excluye id, llaves foráneas, timestamps y columnas JSONB)
+const PRODUCT_COLUMN_NAMES = PRODUCTION_COLUMN_NAMES.concat([
+    'customer_code', 'salesperson_name', 'process_type', 'material_code',
+    'quantity', 'quantity_changes', 'labels_per_roll', 'core_width', 'core_diameter',
+    'cmyk_enabled', 'sin_impresion', 'tinta_blanca', 'doble_blanca', 'cantidad_pantones',
+    'application_type', 'surface_type', 'output_type',
+    'industrial_subtotal', 'overhead_cost', 'margin_amount',
+    'prepress_cost', 'packaging_cost', 'design_cost', 'additional_cost',
+    'discount_amount', 'tax_percent', 'tax_amount',
+    'estampado_tipo', 'laminado_pies_lineales'
+]);
 
 function applyCurrencyFieldsToRawData(rawData = {}, exchangeRateInput = null) {
     const exchangeRate = parseLegacyNumber(
@@ -11178,7 +11988,8 @@ app.get('/api/socios', async (req, res) => {
         const search = String(req.query.q || '').trim();
         const rawLimit = String(req.query.limit || '').trim().toLowerCase();
         const hasLimit = rawLimit !== 'all';
-        const limit = hasLimit ? Math.min(Math.max(Number(req.query.limit) || 50, 1), 2000) : 0;
+        const limit = hasLimit ? Math.min(Math.max(Number(req.query.limit) || 50, 1), 10000) : 0;
+        const offset = Math.max(Number(req.query.offset) || 0, 0);
         const values = [];
         let whereClause = '';
 
@@ -11202,8 +12013,19 @@ app.get('/api/socios', async (req, res) => {
             whereClause = `WHERE ${termConditions.join(' AND ')}`;
         }
 
+        const countResult = await pgQuery(
+            `SELECT COUNT(DISTINCT p.partner_code)::int AS total
+               FROM business_partners p
+               LEFT JOIN business_partner_contacts c ON c.partner_code = p.partner_code
+              ${whereClause}`,
+            values
+        );
+        const totalCount = countResult.rows[0]?.total || 0;
+
         const limitClause = hasLimit ? `LIMIT $${values.length + 1}` : '';
         if (hasLimit) values.push(limit);
+        const offsetClause = offset > 0 ? `OFFSET $${values.length + 1}` : '';
+        if (offset > 0) values.push(offset);
 
         const result = await pgQuery(
             `SELECT DISTINCT ON (p.partner_code)
@@ -11226,11 +12048,11 @@ app.get('/api/socios', async (req, res) => {
              LEFT JOIN business_partner_contacts c ON c.partner_code = p.partner_code
              ${whereClause}
              ORDER BY p.partner_code, p.partner_name NULLS LAST
-             ${limitClause}`,
+             ${limitClause} ${offsetClause}`,
             values
         );
 
-        res.json({ socios: result.rows, total: result.rows.length });
+        res.json({ socios: result.rows, total: totalCount, offset, limit: hasLimit ? limit : totalCount });
     } catch (error) {
         res.status(500).json({ error: error.message || 'No fue posible cargar los socios.' });
     }
@@ -12113,6 +12935,7 @@ app.get('/api/cotizaciones', async (req, res) => {
                         )
                     ), 0) AS quote_total,
                     STRING_AGG(DISTINCT NULLIF(COALESCE(
+                        latest.line_status,
                         latest.raw_data->>'SOLICITUD ESTADO',
                         latest.raw_data->>'ESTADO LINEA',
                         latest.raw_data->>'Estado Cotizacion'
@@ -12123,6 +12946,7 @@ app.get('/api/cotizaciones', async (req, res) => {
                         fc.total_cost,
                         fc.unit_price,
                         fc.quantity,
+                        fc.line_status,
                         fc.raw_data,
                         fc.created_at,
                         fc.calculation_code
@@ -12349,6 +13173,155 @@ app.get('/api/productos', async (req, res) => {
     }
 });
 
+// ===========================================================================
+// API: CONFIGURACIÓN DE DEPARTAMENTOS Y TIPOS DE PRODUCTO
+// (Deben ir ANTES de /api/productos/:codigo para evitar conflicto de ruta)
+// ===========================================================================
+app.get('/api/productos/departamentos', async (req, res) => {
+    try {
+        const rows = await getProductDepartments();
+        res.json({ ok: true, departamentos: rows });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible listar departamentos.' });
+    }
+});
+
+app.post('/api/productos/departamentos', async (req, res) => {
+    try {
+        const { code, name, sortOrder } = req.body || {};
+        if (!code || !name) {
+            return res.status(400).json({ error: 'Código y nombre requeridos.' });
+        }
+        const result = await pgQuery(
+            `INSERT INTO product_departments (code, name, sort_order)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, sort_order = EXCLUDED.sort_order, updated_at = NOW()
+             RETURNING *`,
+            [String(code).trim(), String(name).trim(), Number(sortOrder) || 0]
+        );
+        res.json({ ok: true, departamento: result.rows[0] });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible guardar el departamento.' });
+    }
+});
+
+app.put('/api/productos/departamentos/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { code, name, active, sortOrder } = req.body || {};
+        const result = await pgQuery(
+            `UPDATE product_departments
+                SET code = COALESCE($2, code),
+                    name = COALESCE($3, name),
+                    active = COALESCE($4, active),
+                    sort_order = COALESCE($5, sort_order),
+                    updated_at = NOW()
+              WHERE id = $1
+              RETURNING *`,
+            [id, code, name, active !== undefined ? active : null, sortOrder !== undefined ? sortOrder : null]
+        );
+        if (!result.rows.length) return res.status(404).json({ error: 'Departamento no encontrado.' });
+        res.json({ ok: true, departamento: result.rows[0] });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible actualizar el departamento.' });
+    }
+});
+
+app.delete('/api/productos/departamentos/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await pgQuery(`DELETE FROM product_departments WHERE id = $1 RETURNING id`, [id]);
+        if (!result.rows.length) return res.status(404).json({ error: 'Departamento no encontrado.' });
+        res.json({ ok: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible eliminar el departamento.' });
+    }
+});
+
+app.get('/api/productos/tipos', async (req, res) => {
+    try {
+        const deptId = req.query.departmentId ? Number(req.query.departmentId) : null;
+        let rows;
+        if (deptId) {
+            rows = await getProductTypesByDepartment(deptId);
+        } else {
+            const result = await pgQuery(
+                `SELECT pt.id, pt.code, pt.name, pt.department_id, pt.active, pt.sort_order,
+                        pd.name AS department_name, pd.code AS department_code
+                   FROM product_types pt
+                   JOIN product_departments pd ON pd.id = pt.department_id
+                  ORDER BY pd.sort_order, pt.sort_order`
+            );
+            rows = result.rows;
+        }
+        res.json({ ok: true, tipos: rows });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible listar tipos de producto.' });
+    }
+});
+
+app.post('/api/productos/tipos', async (req, res) => {
+    try {
+        const { code, name, departmentId, sortOrder } = req.body || {};
+        if (!code || !name || !departmentId) {
+            return res.status(400).json({ error: 'Código, nombre y departamento requeridos.' });
+        }
+        const result = await pgQuery(
+            `INSERT INTO product_types (code, name, department_id, sort_order)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (code, department_id) DO UPDATE SET name = EXCLUDED.name, sort_order = EXCLUDED.sort_order, updated_at = NOW()
+             RETURNING *`,
+            [String(code).trim(), String(name).trim().toUpperCase(), Number(departmentId), Number(sortOrder) || 0]
+        );
+        res.json({ ok: true, tipo: result.rows[0] });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible guardar el tipo de producto.' });
+    }
+});
+
+app.put('/api/productos/tipos/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { code, name, active, sortOrder, departmentId } = req.body || {};
+        const result = await pgQuery(
+            `UPDATE product_types
+                SET code = COALESCE($2, code),
+                    name = COALESCE($3, name),
+                    active = COALESCE($4, active),
+                    sort_order = COALESCE($5, sort_order),
+                    department_id = COALESCE($6, department_id),
+                    updated_at = NOW()
+              WHERE id = $1
+              RETURNING *`,
+            [id, code, name, active !== undefined ? active : null, sortOrder !== undefined ? sortOrder : null, departmentId || null]
+        );
+        if (!result.rows.length) return res.status(404).json({ error: 'Tipo de producto no encontrado.' });
+        res.json({ ok: true, tipo: result.rows[0] });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible actualizar el tipo de producto.' });
+    }
+});
+
+app.delete('/api/productos/tipos/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await pgQuery(`DELETE FROM product_types WHERE id = $1 RETURNING id`, [id]);
+        if (!result.rows.length) return res.status(404).json({ error: 'Tipo de producto no encontrado.' });
+        res.json({ ok: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible eliminar el tipo de producto.' });
+    }
+});
+
+app.post('/api/productos/generar-lote', async (req, res) => {
+    try {
+        const lote = await generateProductLot();
+        res.json({ ok: true, lote });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible generar el lote.' });
+    }
+});
+
 app.get('/api/productos/:codigo', async (req, res) => {
     try {
         const code = String(req.params.codigo || '').trim();
@@ -12521,7 +13494,7 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/producto', async (req, res) =>
             }
 
             const existing = await client.query(
-                `SELECT product_code
+                `SELECT product_code, finished_product_sku
                    FROM flexo_products
                   WHERE quote_code = $1 AND line_code = $2
                   ORDER BY created_at DESC NULLS LAST
@@ -12529,73 +13502,104 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/producto', async (req, res) =>
                 [codigo, linea]
             );
             const productCode = existing.rows[0]?.product_code || await generateNextProductCode(client);
+
+            // Resolver departamento y tipo para generar SKU de producto terminado
+            const raw = context.line?.raw_data || {};
+            const deptName = (pickFirstValue(context.line?.department, raw.DEPARTAMENTO, 'Flexografia') || '').trim();
+            const typeName = (pickFirstValue(context.line?.product_type, raw['REQ | Tipo de Producto'], '') || '').trim();
+            const accentTable = 'áéíóúÁÉÍÓÚüÜñÑ';
+            const accentReplace = 'aeiouAEIOUuUnN';
+
+            const deptRow = await client.query(
+                `SELECT code FROM product_departments
+                  WHERE LOWER(TRANSLATE(name, $2, $3)) = LOWER(TRANSLATE($1, $2, $3))
+                  LIMIT 1`,
+                [deptName, accentTable, accentReplace]
+            );
+            const typeRow = typeName ? await client.query(
+                `SELECT pt.code FROM product_types pt
+                   JOIN product_departments pd ON pd.id = pt.department_id
+                  WHERE LOWER(TRANSLATE(pt.name, $3, $4)) = LOWER(TRANSLATE($1, $3, $4))
+                    AND LOWER(TRANSLATE(pd.name, $3, $4)) = LOWER(TRANSLATE($2, $3, $4))
+                  LIMIT 1`,
+                [typeName, deptName, accentTable, accentReplace]
+            ) : null;
+
+            const departmentCode = deptRow?.rows[0]?.code || '11';
+            const typeCode = typeRow?.rows[0]?.code || '01';
+            const clientCode = pickFirstValue(context.quote?.customer_code, context.line?.customer_code, raw['ID CLIENTE'], '0000');
+
+            // Generar SKU de producto terminado (solo si es nuevo)
+            let finishedProductSku = existing.rows[0]?.finished_product_sku;
+            if (!finishedProductSku) {
+                finishedProductSku = await generateFinishedProductSku({
+                    clientQuote: client,
+                    clientCode,
+                    departmentCode,
+                    typeCode
+                });
+            }
+
             const product = buildProductPayloadFromLine({
                 productCode,
                 quoteRow: context.quote,
                 lineRow: context.line
             });
 
+            const baseCols = ['product_code', 'line_code', 'quote_code', 'client_code', 'client_name',
+                'product_name', 'product_type', 'department', 'material_name', 'quoted_machine', 'die_code',
+                'quantity_products', 'quantity_types', 'tint_count', 'width_inches', 'length_inches',
+                'price_unit', 'total_price', 'source_calculation_code', 'raw_data', 'finished_product_sku'];
+            const prodCols = Object.keys(product.productCols);
+            const allCols = [...new Set([...baseCols, ...prodCols, 'updated_at'])];
+            const baseValues = [
+                product.productCode, product.lineCode, product.quoteCode, product.clientCode,
+                product.clientName, product.productName, product.productType, product.department,
+                product.materialName, product.quotedMachine, product.dieCode, product.quantityProducts,
+                product.quantityTypes, product.tintCount, product.widthInches, product.lengthInches,
+                product.priceUnit, product.totalPrice, product.sourceCalculationCode,
+                JSON.stringify(product.rawData), finishedProductSku
+            ];
+            const extraValues = prodCols.map((c) => product.productCols[c]);
+            const allValues = [...baseValues, ...extraValues];
+            const paramCount = allValues.length;
+            const placeholders = allCols.map((c) => {
+                if (c === 'raw_data') return `$${baseCols.indexOf('raw_data') + 1}::jsonb`;
+                if (c === 'updated_at') return 'NOW()';
+                const idx = allCols.indexOf(c);
+                if (idx < baseCols.length) return `$${idx + 1}`;
+                const extraIdx = idx - baseCols.length;
+                return `$${baseCols.length + extraIdx + 1}`;
+            });
+            const setClauses = allCols.map((c) => {
+                if (c === 'raw_data') return 'raw_data = EXCLUDED.raw_data';
+                if (c === 'updated_at') return 'updated_at = NOW()';
+                return `${c} = EXCLUDED.${c}`;
+            }).join(',\n                ');
+
             const saved = await client.query(
-                `INSERT INTO flexo_products (
-                    product_code, line_code, quote_code, client_code, client_name, product_name, product_type,
-                    department, material_name, quoted_machine, die_code, quantity_products, quantity_types,
-                    tint_count, width_inches, length_inches, price_unit, total_price, source_calculation_code,
-                    raw_data, updated_at
-                 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20::jsonb,NOW())
+                `INSERT INTO flexo_products (${allCols.join(', ')})
+                 VALUES (${placeholders.join(', ')})
                  ON CONFLICT (product_code)
                  DO UPDATE SET
-                    line_code = EXCLUDED.line_code,
-                    quote_code = EXCLUDED.quote_code,
-                    client_code = EXCLUDED.client_code,
-                    client_name = EXCLUDED.client_name,
-                    product_name = EXCLUDED.product_name,
-                    product_type = EXCLUDED.product_type,
-                    department = EXCLUDED.department,
-                    material_name = EXCLUDED.material_name,
-                    quoted_machine = EXCLUDED.quoted_machine,
-                    die_code = EXCLUDED.die_code,
-                    quantity_products = EXCLUDED.quantity_products,
-                    quantity_types = EXCLUDED.quantity_types,
-                    tint_count = EXCLUDED.tint_count,
-                    width_inches = EXCLUDED.width_inches,
-                    length_inches = EXCLUDED.length_inches,
-                    price_unit = EXCLUDED.price_unit,
-                    total_price = EXCLUDED.total_price,
-                    source_calculation_code = EXCLUDED.source_calculation_code,
-                    raw_data = EXCLUDED.raw_data,
-                    updated_at = NOW()
+                    ${setClauses}
                  RETURNING *`,
-                [
-                    product.productCode,
-                    product.lineCode,
-                    product.quoteCode,
-                    product.clientCode,
-                    product.clientName,
-                    product.productName,
-                    product.productType,
-                    product.department,
-                    product.materialName,
-                    product.quotedMachine,
-                    product.dieCode,
-                    product.quantityProducts,
-                    product.quantityTypes,
-                    product.tintCount,
-                    product.widthInches,
-                    product.lengthInches,
-                    product.priceUnit,
-                    product.totalPrice,
-                    product.sourceCalculationCode,
-                    JSON.stringify(product.rawData)
-                ]
+                allValues
             );
             await client.query(
                 `UPDATE flexo_calculations
                     SET product_code = $3,
+                        finished_product_sku = $4,
                         raw_data = jsonb_set(
                             jsonb_set(
-                                COALESCE(raw_data, '{}'::jsonb),
-                                '{CODIGO PRODUCTO}',
-                                to_jsonb($3::text),
+                                jsonb_set(
+                                    COALESCE(raw_data, '{}'::jsonb),
+                                    '{CODIGO PRODUCTO}',
+                                    to_jsonb($3::text),
+                                    true
+                                ),
+                                '{SKU PRODUCTO TERMINADO}',
+                                to_jsonb($4::text),
                                 true
                             ),
                             '{line_summary}',
@@ -12605,12 +13609,15 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/producto', async (req, res) =>
                                     THEN COALESCE(raw_data, '{}'::jsonb)->'line_summary'
                                     ELSE '{}'::jsonb
                                 END
-                            ) || jsonb_build_object('product_code', $3::text),
+                            ) || jsonb_build_object(
+                                'product_code', $3::text,
+                                'finished_product_sku', $4::text
+                            ),
                             true
                         )
                   WHERE quote_code = $1
                     AND line_code = $2`,
-                [codigo, linea, product.productCode]
+                [codigo, linea, product.productCode, finishedProductSku]
             );
             await client.query(
                 `INSERT INTO flexo_product_quote_history (product_code, quote_code, line_code, action, raw_data, created_by)
@@ -12711,7 +13718,7 @@ app.post('/api/productos/:codigo/cotizar', async (req, res) => {
                     material_name: product.material_name,
                     material_code: product.material_name,
                     status: 'Borrador',
-                    process_type: productRaw['Proceso Productivo'],
+                    process_type: product.process_type,
                     machine_name: product.quoted_machine,
                     die_code: product.die_code,
                     widthInches: product.widthInches,
@@ -12741,25 +13748,34 @@ app.post('/api/productos/:codigo/cotizar', async (req, res) => {
             );
             rawData['Orden_Linea'] = await getNextQuoteLineOrder(targetQuote.quote_code);
 
+            const prodCols3 = extractProductionColumns(rawData);
+            const prodColNames3 = PRODUCTION_COLUMN_NAMES.filter((c) => prodCols3[c] !== undefined && prodCols3[c] !== null && prodCols3[c] !== '');
+            const prodColPlaceholders3 = prodColNames3.map((_, i) => `$${15 + i}`);
+            const prodValues3 = prodColNames3.map((c) => prodCols3[c]);
+
             await client.query(
                 `INSERT INTO flexo_calculations (
                     calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name,
-                    die_code, material_code, quantity, subtotal_cost, total_cost, unit_price, raw_data
-                 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NULL,$11,$12,$13::jsonb)`,
+                    die_code, material_code, quantity, subtotal_cost, total_cost, unit_price, raw_data, line_order
+                    ${prodColNames3.length ? ', ' + prodColNames3.join(', ') : ''}
+                 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NULL,$11,$12,$13::jsonb,$14
+                    ${prodColPlaceholders3.length ? ', ' + prodColPlaceholders3.join(', ') : ''})`,
                 [
                     calculationCode,
                     targetQuote.quote_code,
                     lineCode,
                     product.product_code,
                     targetQuote.customer_code,
-                    pickFirstValue(productRaw['Proceso Productivo'], 'Convencional'),
+                    pickFirstValue(product.process_type, 'Convencional'),
                     product.quoted_machine,
                     product.die_code,
-                    pickFirstValue(productRaw['Material Convencional | Id Material'], productRaw['Material Digital | Id Material'], product.material_name),
+                    pickFirstValue(product.material_code, product.material_name),
                     parseLegacyNumber(product.quantity_products),
                     parseLegacyNumber(product.total_price),
                     parseLegacyNumber(product.price_unit),
-                    JSON.stringify(rawData)
+                    JSON.stringify(rawData),
+                    rawData['Orden_Linea'] || null,
+                    ...prodValues3
                 ]
             );
             await client.query(
@@ -14154,11 +15170,18 @@ app.post('/api/cotizaciones/:codigo/lineas', async (req, res) => {
             unit_price: automaticPricing.unitPrice
         });
 
+        const prodCols1 = extractProductionColumns(rawData);
+        const prodColNames1 = PRODUCTION_COLUMN_NAMES.filter((c) => prodCols1[c] !== undefined);
+        const prodColPlaceholders1 = prodColNames1.map((_, i) => `$${14 + i + 1}`);
+        const prodValues1 = prodColNames1.map((c) => prodCols1[c]);
+
         await pgQuery(
             `INSERT INTO flexo_calculations (
                 calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name,
-                die_code, material_code, quantity, subtotal_cost, total_cost, unit_price, raw_data
-             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NULL, $11, $12, $13::jsonb)`,
+                die_code, material_code, quantity, subtotal_cost, total_cost, unit_price, raw_data, line_order
+                ${prodColNames1.length ? ', ' + prodColNames1.join(', ') : ''}
+             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NULL, $11, $12, $13::jsonb, $14
+                ${prodColPlaceholders1.length ? ', ' + prodColPlaceholders1.map((_, i) => `$${15 + i}`).join(', ') : ''})`,
             [
                 calculationCode,
                 codigo,
@@ -14172,7 +15195,9 @@ app.post('/api/cotizaciones/:codigo/lineas', async (req, res) => {
                 parseLegacyNumber(payload.quantity) ?? parseLegacyNumber(payload.quantityProducts),
                 automaticPricing.totalAmount,
                 automaticPricing.unitPrice,
-                JSON.stringify(rawData)
+                JSON.stringify(rawData),
+                lineOrder || null,
+                ...prodValues1
             ]
         );
 
@@ -14220,9 +15245,10 @@ app.patch('/api/cotizaciones/:codigo/lineas/orden', async (req, res) => {
             applyCalculationLineSummary(rawData, current);
             await pgQuery(
                 `UPDATE flexo_calculations
-                    SET raw_data = $2::jsonb
+                    SET raw_data = $2::jsonb,
+                        line_order = $3
                   WHERE calculation_code = $1`,
-                [current.calculation_code, JSON.stringify(rawData)]
+                [current.calculation_code, JSON.stringify(rawData), lineOrder || null]
             );
         }
 
@@ -14489,6 +15515,7 @@ app.patch('/api/cotizaciones/:codigo/lineas/:linea', async (req, res) => {
             total_cost: parseLegacyNumber(rawData['PRECIO TOTAL AL FINALIZAR']),
             unit_price: parseLegacyNumber(rawData['GENERAL | 9 | UNITARIO | DOL'])
         });
+        const prodColsPatch = extractProductionColumns(rawData);
 
         await pgQuery(
             `UPDATE flexo_calculations
@@ -14499,9 +15526,12 @@ app.patch('/api/cotizaciones/:codigo/lineas/:linea', async (req, res) => {
                     die_code = $7,
                     material_code = $8,
                     quantity = $9,
-                    total_cost = $10,
-                    unit_price = $11,
-                    raw_data = $12::jsonb
+                    subtotal_cost = $10,
+                    total_cost = $11,
+                    unit_price = $12,
+                    raw_data = $13::jsonb,
+                    line_order = $14
+                    ${PRODUCTION_COLUMN_NAMES.map((c, i) => `, ${c} = $${15 + i}`).join('')}
               WHERE calculation_code = $1 AND quote_code = $2`,
             [
                 existing.rows[0].calculation_code,
@@ -14513,11 +15543,21 @@ app.patch('/api/cotizaciones/:codigo/lineas/:linea', async (req, res) => {
                 pickFirstValue(payload.die_code),
                 pickFirstValue(payload.material_code),
                 parseLegacyNumber(payload.quantity) ?? parseLegacyNumber(payload.quantityProducts),
+                parseLegacyNumber(rawData['GENERAL | 7 | SUBTOTAL CALC ANTES IV | DOL']) ?? parseLegacyNumber(rawData['GENERAL | 5 | SUBTOTAL']),
                 parseLegacyNumber(rawData['PRECIO TOTAL AL FINALIZAR']),
                 parseLegacyNumber(rawData['GENERAL | 9 | UNITARIO | DOL']),
-                JSON.stringify(rawData)
+                JSON.stringify(rawData),
+                rawData['Orden_Linea'] || null,
+                ...PRODUCTION_COLUMN_NAMES.map((c) => prodColsPatch[c] ?? null)
             ]
         );
+
+        const postSaveRow2 = (await pgQuery(
+            `SELECT line_code, subtotal_cost, total_cost, unit_price, machine_name, material_code, die_code, quantity, process_type, raw_data
+               FROM flexo_calculations WHERE calculation_code = $1 AND quote_code = $2`,
+            [existing.rows[0].calculation_code, codigo]
+        )).rows[0];
+        logCalculationInconsistency(codigo, pickFirstValue(payload.line_code, linea), validateCalculationConsistency(postSaveRow2));
 
         if (normalizedGroup && normalizedGroup.role === 'grupo') {
             await syncFrontBackGroupQuantity({
@@ -15097,7 +16137,7 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/orden-produccion', async (req,
             if (!context.line) {
                 throw new Error('No se encontró la línea origen.');
             }
-            const createOrderValidation = proformaBlockingMessagesFromRaw(context.line.raw_data || {}).join(' ');
+            const createOrderValidation = proformaBlockingMessagesFromRaw(context.line.raw_data || {}, context.line).join(' ');
             if (createOrderValidation) {
                 throw new Error(createOrderValidation);
             }
@@ -15140,10 +16180,21 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/orden-produccion', async (req,
                 rawData.totals.quantity = selectedQuantity;
             }
 
+            const orderProdCols = PRODUCTION_COLUMN_NAMES.filter((c) => orderLine[c] !== undefined && orderLine[c] !== null);
+            const orderProdPlaceholders = orderProdCols.map((_, i) => `$${10 + i + 1}`);
+            const orderProdValues = orderProdCols.map((c) => orderLine[c]);
+
+            // Propagar el SKU de producto terminado a la orden
+            const orderSku = pickFirstValue(orderLine.finished_product_sku, orderLine.raw_data?.['SKU PRODUCTO TERMINADO'], orderLine.raw_data?.line_summary?.finished_product_sku);
+
             await client.query(
                 `INSERT INTO flexo_orders (
-                    order_code, quote_code, line_code, product_code, machine_name, material_code, die_code, ordered_quantity, raw_data
-                 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb)`,
+                    order_code, quote_code, line_code, product_code, machine_name, material_code, die_code, ordered_quantity, raw_data,
+                    customer_name, contact_name, phone, email, order_status, finished_product_sku
+                    ${orderProdCols.length ? ', ' + orderProdCols.join(', ') : ''}
+                 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,
+                    $10, $11, $12, $13, $14, $15
+                    ${orderProdPlaceholders.length ? ', ' + orderProdPlaceholders.join(', ') : ''})`,
                 [
                     orderCode,
                     codigo,
@@ -15153,7 +16204,14 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/orden-produccion', async (req,
                     orderLine.material_code,
                     orderLine.die_code,
                     rawData.totals?.quantity ?? parseLegacyNumber(orderLine.quantity),
-                    JSON.stringify(rawData)
+                    JSON.stringify(rawData),
+                    pickFirstValue(orderLine.customer_name, context.quote?.customer_name),
+                    pickFirstValue(rawData.contact_name, rawData.quote_snapshot?.contact_name, context.quote?.contact_name),
+                    pickFirstValue(rawData.phone, rawData.quote_snapshot?.phone, context.quote?.phone),
+                    pickFirstValue(rawData.email, rawData.quote_snapshot?.email, context.quote?.email),
+                    'Pendiente',
+                    orderSku || null,
+                    ...orderProdValues
                 ]
             );
             await closeQuoteProforma(codigo, 'order_generated', client);
@@ -15254,7 +16312,10 @@ app.get('/api/ordenes-produccion/:codigo', async (req, res) => {
                         SET raw_data = raw_data
                             || jsonb_build_object('contact_name', to_jsonb($2::text))
                             || jsonb_build_object('phone', to_jsonb($3::text))
-                            || jsonb_build_object('email', to_jsonb($4::text))
+                            || jsonb_build_object('email', to_jsonb($4::text)),
+                        contact_name = COALESCE(NULLIF($2,''), contact_name),
+                        phone = COALESCE(NULLIF($3,''), phone),
+                        email = COALESCE(NULLIF($4,''), email)
                       WHERE order_code = $1`,
                     [req.params.codigo, orden.raw_data.contact_name || null, orden.raw_data.phone || null, orden.raw_data.email || null]
                 );
@@ -15305,7 +16366,9 @@ app.patch('/api/ordenes-produccion/:codigo/details', async (req, res) => {
             lineRaw['MUESTRAS | CONTACTO'] = pickFirstValue(payload.samples.contact);
             lineRaw['MUESTRAS | TELEFONO'] = pickFirstValue(payload.samples.phone);
             lineRaw['MUESTRAS | EMAIL'] = pickFirstValue(payload.samples.email);
-            lineRaw['MUESTRAS | DIRECCION'] = pickFirstValue(payload.samples.address);
+            if (Object.prototype.hasOwnProperty.call(payload.samples, 'address')) {
+                lineRaw['MUESTRAS | DIRECCION'] = pickFirstValue(payload.samples.address);
+            }
             lineRaw['MUESTRAS | DETALLE'] = pickFirstValue(payload.samples.detail);
         }
 
@@ -15314,6 +16377,9 @@ app.patch('/api/ordenes-produccion/:codigo/details', async (req, res) => {
             lineRaw['ENTREGA | CONTACTO'] = pickFirstValue(payload.delivery.contact);
             lineRaw['ENTREGA | TELEFONO'] = pickFirstValue(payload.delivery.phone);
             lineRaw['ENTREGA | EMAIL'] = pickFirstValue(payload.delivery.email);
+            if (Object.prototype.hasOwnProperty.call(payload.delivery, 'address')) {
+                lineRaw['ENTREGA | DIRECCION'] = pickFirstValue(payload.delivery.address);
+            }
             lineRaw['ENTREGA | DETALLE'] = pickFirstValue(payload.delivery.detail);
             if (Object.prototype.hasOwnProperty.call(payload.delivery, 'schedule')) {
                 lineRaw['ENTREGA | PROGRAMACION'] = Array.isArray(payload.delivery.schedule)
@@ -15432,7 +16498,10 @@ app.get('/api/ordenes-produccion', async (req, res) => {
                     o.die_code,
                     o.ordered_quantity,
                     o.created_at,
-                    q.customer_name,
+                    o.customer_name,
+                    o.order_status,
+                    o.delivered_on,
+                    q.customer_name AS q_customer_name,
                     q.salesperson_name,
                     fc.process_type,
                     fc.product_code,
@@ -15518,6 +16587,8 @@ app.get('/api/ordenes-produccion', async (req, res) => {
                 material_name: snapshot.materialName || row.material_code || '',
                 die_code: row.die_code || '',
                 ordered_quantity: row.ordered_quantity,
+                order_status: row.order_status || raw.status || '',
+                delivered_on: row.delivered_on || null,
                 created_at: row.created_at,
                 steps
             };
@@ -15757,7 +16828,7 @@ app.get('/api/planificacion/lanzamiento', async (req, res) => {
                      WHERE ox.order_code = o.order_code
                        AND (
                         ox.delivered_on IS NOT NULL
-                        OR lower(COALESCE(ox.raw_data->>'status','')) IN ('entregada','completada','cerrada','cancelada')
+                        OR lower(COALESCE(ox.order_status, ox.raw_data->>'status','')) IN ('entregada','completada','cerrada','cancelada')
                        )
                  )
                  ORDER BY r.sequence_order, r.start_turn_hour
@@ -15910,10 +16981,10 @@ app.get('/api/planificacion/seguimiento', async (req, res) => {
         await ensurePlanningRoutesForLiveOrders();
         const result = await pgQuery(`
             SELECT order_code, quote_code, line_code, product_code, machine_name, material_code, die_code,
-                   ordered_quantity, delivered_on, raw_data, created_at
+                   ordered_quantity, delivered_on, order_status, raw_data, created_at
               FROM flexo_orders
              WHERE delivered_on IS NULL
-               AND lower(COALESCE(raw_data->>'status','')) NOT IN ('entregada','completada','cerrada','cancelada')
+               AND lower(COALESCE(order_status, raw_data->>'status','')) NOT IN ('entregada','completada','cerrada','cancelada')
                AND (
                     LOWER(COALESCE(raw_data->'planning_control'->>'planningStatus', raw_data->'planningControl'->>'planningStatus', '')) = 'en_gantt'
                  OR LOWER(COALESCE(raw_data->'planning_control'->>'launchedToGantt', raw_data->'planningControl'->>'launchedToGantt', '')) = 'true'
@@ -15921,6 +16992,8 @@ app.get('/api/planificacion/seguimiento', async (req, res) => {
              ORDER BY created_at DESC
         `);
         const costsConfig = await loadCostsConfig();
+        const allOrderCodes = (result.rows || []).map(r => r.order_code).filter(Boolean);
+        const allMarks = await getTrackingMarksForOrders(allOrderCodes);
         const items = await Promise.all((result.rows || []).map(async (row) => {
             if (row.raw_data) normalizeCalculationKeys(row.raw_data);
             await ensurePlanningRoutesForOrder(row, null, { costsConfig });
@@ -16008,7 +17081,7 @@ app.get('/api/planificacion/seguimiento', async (req, res) => {
                     }
                 };
             });
-            const steps = applyOrderTrackingMarks([...fixedSteps, ...processSteps], raw, () => ({ name: '', photoUrl: '' }));
+            const steps = applyTrackingMarksToSteps([...fixedSteps, ...processSteps], allMarks[row.order_code] || {}, () => ({ name: '', photoUrl: '' }));
             const widthInches = Number(lineSnapshot.widthInches || lineRaw['DIMENSIONES ETIQUETA | ANCHO'] || 0);
             const lengthInches = Number(lineSnapshot.lengthInches || lineRaw['DIMENSIONES ETIQUETA | LARGO'] || 0);
             const tintCount = Number(lineSnapshot.tintCount || lineSnapshot.pantoneCount || lineRaw['CANTIDAD TINTAS'] || 0);
@@ -16025,12 +17098,18 @@ app.get('/api/planificacion/seguimiento', async (req, res) => {
             const processChecklist = processKeys.map(key => {
                 const route = routeByKey.get(key);
                 const routeStatus = String(route?.route_status || '').toUpperCase();
+                const mark = (allMarks[row.order_code] || {})[key];
+                let effectiveStatus = routeStatus === 'COMPLETADO' ? 'done' : (['RUN', 'SETUP'].includes(routeStatus) ? 'active' : (routeStatus === 'PARO' ? 'late' : 'pending'));
+                if (mark && typeof mark === 'object') {
+                    if (mark.marked === true) effectiveStatus = 'done';
+                    else if (mark.marked === false) effectiveStatus = 'pending';
+                }
                 return {
                 key,
                 selected: true,
                 quoted: quotedSet.has(key),
                 base: PLANNING_BASE_PROCESS_KEYS.includes(key),
-                status: routeStatus === 'COMPLETADO' ? 'done' : (['RUN', 'SETUP'].includes(routeStatus) ? 'active' : (routeStatus === 'PARO' ? 'late' : 'pending'))
+                status: effectiveStatus
                 };
             });
             const fixedLoadSummary = fixedSteps.map((step) => ({
@@ -16046,6 +17125,12 @@ app.get('/api/planificacion/seguimiento', async (req, res) => {
             const processLoadSummary = processKeys.map(key => {
                 const route = routeByKey.get(key);
                 const routeStatus = String(route?.route_status || '').toUpperCase();
+                const mark = (allMarks[row.order_code] || {})[key];
+                let effectiveStatus = routeStatus === 'COMPLETADO' ? 'done' : (['RUN', 'SETUP'].includes(routeStatus) ? 'active' : (routeStatus === 'PARO' ? 'late' : 'pending'));
+                if (mark && typeof mark === 'object') {
+                    if (mark.marked === true) effectiveStatus = 'done';
+                    else if (mark.marked === false) effectiveStatus = 'pending';
+                }
                 return {
                     processKey: key,
                     processName: PRODUCTION_FLOW_LABELS[key] || (route ? route.process_name : PLANNING_PROCESS_LABELS[key]) || key,
@@ -16054,7 +17139,7 @@ app.get('/api/planificacion/seguimiento', async (req, res) => {
                     durationHours: route ? (Number(route.duration_hours || 0)) : 0,
                     ordersAhead: null,
                     daysAhead: null,
-                    status: routeStatus === 'COMPLETADO' ? 'done' : (['RUN', 'SETUP'].includes(routeStatus) ? 'active' : (routeStatus === 'PARO' ? 'late' : 'pending'))
+                    status: effectiveStatus
                 };
             });
             return {
@@ -16482,7 +17567,7 @@ app.get('/api/planificacion/gantt-agrupado', async (req, res) => {
                     r.order_code AS codigo_op,
                     r.quote_code,
                     r.line_code,
-                    o.raw_data->>'customer_name' AS cliente,
+                    o.customer_name AS cliente,
                     COALESCE(o.raw_data->'line_summary'->>'job_name', o.raw_data->'line_summary'->>'product_name', o.product_code) AS articulo,
                     o.die_code AS saidel,
                     COALESCE(NULLIF(o.raw_data->'line_snapshot'->>'pantoneCount','')::numeric, NULLIF(o.raw_data->'line_snapshot'->>'tintCount','')::numeric, 0) AS colores,
@@ -16523,7 +17608,7 @@ app.get('/api/planificacion/gantt-agrupado', async (req, res) => {
                     WHERE ox.order_code = o.order_code
                       AND (
                         ox.delivered_on IS NOT NULL
-                        OR lower(COALESCE(ox.raw_data->>'status','')) IN ('entregada','completada','cerrada','cancelada')
+                        OR lower(COALESCE(ox.order_status, ox.raw_data->>'status','')) IN ('entregada','completada','cerrada','cancelada')
                       )
                 )
                 ORDER BY r.sequence_order, mp.machine_name NULLS LAST, r.order_code
@@ -16626,7 +17711,7 @@ app.patch('/api/planificacion/gantt/estado', async (req, res) => {
             WHERE order_code = $2
         `, [estado, codigo_op]);
         for (const route of affectedRoutes.rows) {
-            syncRouteStatusToMark(codigo_op, route.process_key, estado, '').catch(() => null);
+            syncRouteStatusToMarkTable(codigo_op, route.process_key, estado, '').catch(() => null);
         }
         invalidateFiniteCapacityCache();
         res.json({ ok: true });
@@ -16648,7 +17733,7 @@ app.get('/api/planificacion/preturno', async (req, res) => {
                     mp.machine_name,
                     o.material_code,
                     o.die_code,
-                    o.raw_data->>'customer_name' AS customer_name,
+                    o.customer_name AS customer_name,
                     COALESCE(o.raw_data->'line_summary'->>'job_name', o.raw_data->'line_summary'->>'product_name', o.product_code) AS job_name,
                     CASE
                         WHEN ROW_NUMBER() OVER (PARTITION BY r.order_code ORDER BY r.sequence_order) = 1
@@ -17364,7 +18449,7 @@ async function runFiniteCapacityEngine(options = {}) {
                    r.dependency_route_id, r.duration_hours, r.route_status, r.route_payload,
                    r.planned_start_at, r.planned_end_at, r.created_at,
                    o.delivered_on,
-                   COALESCE(o.raw_data->>'customer_name', o.raw_data->'quote_snapshot'->>'customer_name', '') AS customer_name,
+                   COALESCE(o.customer_name, o.raw_data->'quote_snapshot'->>'customer_name', '') AS customer_name,
                    COALESCE(
                        o.raw_data->'line_summary'->>'job_name',
                        o.raw_data->'line_summary'->>'product_name',
@@ -17381,7 +18466,7 @@ async function runFiniteCapacityEngine(options = {}) {
             JOIN flexo_orders o ON o.order_code = r.order_code
             WHERE UPPER(COALESCE(r.route_status, 'PENDIENTE')) NOT IN ('COMPLETADO', 'CANCELADO')
               AND o.delivered_on IS NULL
-              AND LOWER(COALESCE(o.raw_data->>'status', '')) NOT IN ('entregada', 'completada', 'cerrada', 'cancelada')
+              AND LOWER(COALESCE(o.order_status, o.raw_data->>'status', '')) NOT IN ('entregada', 'completada', 'cerrada', 'cancelada')
             ORDER BY promised_date NULLS LAST, r.order_code, r.sequence_order
         `),
         pgQuery(`
@@ -18202,7 +19287,7 @@ app.get('/api/planificacion/capacidad-finita/timeline/:orderCode', async (req, r
 
         const routesRes = await pgQuery(`
             SELECT r.*,
-                   COALESCE(o.raw_data->>'customer_name', o.raw_data->'quote_snapshot'->>'customer_name', '') AS customer_name,
+                   COALESCE(o.customer_name, o.raw_data->'quote_snapshot'->>'customer_name', '') AS customer_name,
                    COALESCE(
                        o.raw_data->'line_summary'->>'job_name',
                        o.raw_data->'line_summary'->>'product_name',
@@ -18343,7 +19428,7 @@ app.get('/api/produccion/flujo', async (req, res) => {
               AND (r.dependency_route_id IS NULL OR dep.route_status = 'COMPLETADO')
               AND NOT (
                 o.delivered_on IS NOT NULL
-                OR lower(COALESCE(o.raw_data->>'status','')) IN ('entregada','completada','cerrada','cancelada')
+                OR lower(COALESCE(o.order_status, o.raw_data->>'status','')) IN ('entregada','completada','cerrada','cancelada')
               )
             ORDER BY r.sequence_order, r.updated_at, r.order_code
         `);
@@ -19034,7 +20119,7 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
         const snapshot = raw.planning_snapshot || raw.planningSnapshot || {};
         const processKeys = resolveOrderTrackingProcessKeys(orderRow, costsConfig, routeResult.rows);
         const control = getOrderPlanningControl(raw);
-        const trackingMarks = getOrderTrackingMarks(raw);
+        const trackingMarks = await getTrackingMarksForOrder(req.params.codigo);
         const session = readErpSessionFromRequest(req) || {};
         const actorIdentities = [];
         const addActorIdentity = (value) => {
@@ -19239,7 +20324,7 @@ app.get('/api/ordenes-produccion/:codigo/seguimiento', async (req, res) => {
             };
         });
         const live = processSteps.some((step) => ['RUN', 'SETUP', 'PARO'].includes(String(step.routeStatus || '').toUpperCase()));
-        const steps = applyOrderTrackingMarks([...fixedSteps, ...processSteps], raw, resolveActorInfo);
+        const steps = applyTrackingMarksToSteps([...fixedSteps, ...processSteps], trackingMarks, resolveActorInfo);
         res.json({
             ok: true,
             order: orderRow,
@@ -19356,6 +20441,158 @@ app.post('/api/ordenes-produccion/:codigo/materiales-consumo', async (req, res) 
     }
 });
 
+app.get('/api/ordenes-produccion/:codigo/materiales-verificacion', async (req, res) => {
+    try {
+        const processKey = canonicalProductionFlowKey(req.query.process || 'impresion') || 'impresion';
+        const orderResult = await pgQuery(`SELECT * FROM flexo_orders WHERE order_code = $1 LIMIT 1`, [req.params.codigo]);
+        if (!orderResult.rows.length) return res.status(404).json({ ok: false, error: 'Orden no encontrada.' });
+        const materials = collectOrderConsumptionMaterials(orderResult.rows[0], processKey);
+        const verifiedResult = await pgQuery(
+            `SELECT id::text, sap_item_code, material_family, verification_status, sap_error, requested_by, requested_at, suplido_by, suplido_at
+               FROM production_material_verification
+              WHERE order_code = $1 AND process_key = $2`,
+            [req.params.codigo, processKey]
+        );
+        const verifiedMap = new Map();
+        verifiedResult.rows.forEach((row) => {
+            const key = `${row.sap_item_code || ''}|${row.material_family}`;
+            if (!verifiedMap.has(key)) verifiedMap.set(key, []);
+            verifiedMap.get(key).push(row);
+        });
+        const merged = materials.map((mat) => {
+            const key = `${mat.sapItemCode || ''}|${mat.materialFamily}`;
+            const records = verifiedMap.get(key) || [];
+            const latest = records.reduce((best, r) => {
+                const rTime = new Date(r.requested_at || 0).getTime();
+                const bTime = new Date(best?.requested_at || 0).getTime();
+                return rTime > bTime ? r : best;
+            }, null);
+            return {
+                key: mat.key,
+                sapItemCode: mat.sapItemCode,
+                materialName: mat.materialName,
+                materialFamily: mat.materialFamily,
+                plannedQuantity: mat.plannedQuantity,
+                unitCode: mat.unitCode,
+                verificationId: latest?.id || null,
+                verificationStatus: latest?.verification_status || 'PENDIENTE',
+                sapError: latest?.sap_error || '',
+                requestedBy: latest?.requested_by || '',
+                requestedAt: latest?.requested_at || null,
+                suplidoBy: latest?.suplido_by || '',
+                suplidoAt: latest?.suplido_at || null
+            };
+        });
+        res.json({ ok: true, orderCode: req.params.codigo, processKey, materials: merged });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible cargar verificación de materiales.' });
+    }
+});
+
+app.post('/api/ordenes-produccion/:codigo/materiales-verificacion/solicitar', async (req, res) => {
+    try {
+        const processKey = canonicalProductionFlowKey(req.body?.processKey || 'impresion') || 'impresion';
+        const sapItemCode = sanitizeAdminUserText(req.body?.sapItemCode || '');
+        const materialName = sanitizeAdminUserText(req.body?.materialName || sapItemCode);
+        const materialFamily = normalizeConsumptionFamily(req.body?.materialFamily || materialName || sapItemCode);
+        const quantity = Number(req.body?.quantity || 0);
+        const unitCode = sanitizeAdminUserText(req.body?.unitCode || '');
+        if (!sapItemCode && !materialName) return res.status(400).json({ ok: false, error: 'Debes seleccionar un material.' });
+        if (!Number.isFinite(quantity) || quantity <= 0) return res.status(400).json({ ok: false, error: 'Debes indicar una cantidad mayor a cero.' });
+        const orderResult = await pgQuery(`SELECT * FROM flexo_orders WHERE order_code = $1 LIMIT 1`, [req.params.codigo]);
+        if (!orderResult.rows.length) return res.status(404).json({ ok: false, error: 'Orden no encontrada.' });
+        const orderRow = orderResult.rows[0];
+        let sapReservationId = '';
+        let sapError = '';
+        try {
+            const sapConfig = await loadSapConfig(pgQuery);
+            if (sapConfig && sapConfig.sapHost) {
+                const sapPayload = {
+                    ItemCode: sapItemCode || materialName,
+                    Quantity: quantity,
+                    WarehouseCode: ''
+                };
+                const sapResult = await sapRequest(sapConfig, 'StockReservations', {
+                    method: 'POST',
+                    body: JSON.stringify(sapPayload)
+                });
+                sapReservationId = String(sapResult.DocEntry || sapResult.AbsEntry || '');
+            }
+        } catch (sapErr) {
+            sapError = sapErr.message || 'Error al conectar con SAP';
+        }
+        const insertResult = await pgQuery(
+            `INSERT INTO production_material_verification (
+                order_code, process_key, sap_item_code, material_name, material_family,
+                planned_quantity, unit_code, verification_status, sap_error, sap_response, requested_by
+            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11)
+            RETURNING id::text, requested_at`,
+            [
+                orderRow.order_code, processKey,
+                sapItemCode, materialName, materialFamily,
+                quantity, unitCode,
+                sapReservationId ? 'SOLICITADO' : (sapError ? 'ERROR' : 'PENDIENTE'),
+                sapError,
+                JSON.stringify({ sapReservationId, sapError }),
+                getRequestUserName(req)
+            ]
+        );
+        res.json({
+            ok: !sapError || !!sapReservationId,
+            verification: {
+                id: insertResult.rows[0]?.id,
+                requestedAt: insertResult.rows[0]?.requested_at,
+                verificationStatus: sapReservationId ? 'SOLICITADO' : (sapError ? 'ERROR' : 'PENDIENTE'),
+                sapReservationId,
+                sapError
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible solicitar el material en SAP.' });
+    }
+});
+
+app.post('/api/ordenes-produccion/:codigo/materiales-verificacion/:id/suplir', async (req, res) => {
+    try {
+        const actor = getRequestUserName(req);
+        const now = new Date().toISOString();
+        const updateResult = await pgQuery(
+            `UPDATE production_material_verification
+                SET verification_status = 'SUPLIDO',
+                    suplido_by = $1,
+                    suplido_at = $2,
+                    updated_at = $2
+              WHERE id = $3::uuid AND order_code = $4
+          RETURNING id::text, verification_status, suplido_by, suplido_at`,
+            [actor, now, req.params.id, req.params.codigo]
+        );
+        if (!updateResult.rows.length) return res.status(404).json({ ok: false, error: 'Registro de verificación no encontrado.' });
+        res.json({ ok: true, verification: updateResult.rows[0] });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible marcar como suplido.' });
+    }
+});
+
+app.get('/api/inventario/solicitudes-pendientes', async (req, res) => {
+    try {
+        const result = await pgQuery(`
+            SELECT pmv.id::text, pmv.order_code, pmv.sap_item_code, pmv.material_name,
+                   pmv.material_family, pmv.planned_quantity, pmv.unit_code,
+                   pmv.verification_status, pmv.sap_error, pmv.requested_by,
+                   pmv.requested_at, pmv.suplido_by, pmv.suplido_at,
+                   o.product_code, o.machine_name, o.ordered_quantity
+              FROM production_material_verification pmv
+              JOIN flexo_orders o ON o.order_code = pmv.order_code
+             WHERE pmv.verification_status IN ('PENDIENTE', 'SOLICITADO', 'ERROR')
+             ORDER BY pmv.requested_at DESC NULLS LAST, pmv.created_at DESC
+             LIMIT 200
+        `);
+        res.json({ ok: true, items: result.rows || [] });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message || 'No fue posible cargar solicitudes pendientes.' });
+    }
+});
+
 app.post('/api/ordenes-produccion/:codigo/seguimiento/marca', async (req, res) => {
     try {
         const codigo = req.params.codigo;
@@ -19370,10 +20607,24 @@ app.post('/api/ordenes-produccion/:codigo/seguimiento/marca', async (req, res) =
         const actor = getRequestUserName(req);
         const actorPhoto = getRequestUserPhotoUrl(req);
         const now = new Date().toISOString();
-        const mark = marked
-            ? { marked: true, markedAt: now, markedBy: actor, markedByPhoto: actorPhoto }
-            : { marked: false, clearedAt: now, clearedBy: actor, clearedByPhoto: actorPhoto };
-        let nextRawData = withUpdatedOrderTrackingMark(rawData, processKey, mark);
+
+        if (marked) {
+            await upsertTrackingMark(codigo, processKey, {
+                marcado: true,
+                fecha: now,
+                marcado_por: actor,
+                foto_marcado_por: actorPhoto
+            });
+        } else {
+            await upsertTrackingMark(codigo, processKey, {
+                marcado: false,
+                fecha: now,
+                desmarcado_por: actor,
+                foto_desmarcado_por: actorPhoto
+            });
+        }
+
+        let nextRawData = rawData;
         if (processKey === 'solicitud_vendedor') {
             nextRawData = withUpdatedOrderPlanningControl(nextRawData, marked ? {
                 salesReleased: true,
@@ -19413,9 +20664,11 @@ app.post('/api/ordenes-produccion/:codigo/seguimiento/marca', async (req, res) =
             });
         }
 
-        await pgQuery(`UPDATE flexo_orders SET raw_data = $2::jsonb WHERE order_code = $1`, [codigo, JSON.stringify(nextRawData)]);
-        syncMarkToRoute(codigo, processKey, marked, actor, now).catch(() => null);
-        res.json({ ok: true, processKey, marked, mark });
+        if (nextRawData !== rawData) {
+            await pgQuery(`UPDATE flexo_orders SET raw_data = $2::jsonb WHERE order_code = $1`, [codigo, JSON.stringify(nextRawData)]);
+        }
+        syncMarkToRouteTable(codigo, processKey, marked, actor, now).catch(() => null);
+        res.json({ ok: true, processKey, marked });
     } catch (error) {
         res.status(500).json({ ok: false, error: error.message || 'No fue posible actualizar la marca.' });
     }
@@ -19489,7 +20742,7 @@ app.post('/api/ordenes-produccion/:codigo/seguimiento/completar', async (req, re
                 `UPDATE production_order_routes SET route_status = 'COMPLETADO', actual_end_at = NOW() WHERE id = $1`,
                 [routeId]
             );
-            syncRouteStatusToMark(codigo, processKey, 'COMPLETADO', getRequestUserName(req)).catch(() => null);
+            syncRouteStatusToMarkTable(codigo, processKey, 'COMPLETADO', getRequestUserName(req)).catch(() => null);
         }
         res.json({ ok: true, message: 'Paso completado.', processKey: canonicalKey });
     } catch (error) {
@@ -19524,7 +20777,7 @@ app.post('/api/ordenes-produccion/:codigo/seguimiento/vb-revert', async (req, re
                 `UPDATE production_order_routes SET route_status = 'PENDIENTE', actual_end_at = NULL WHERE id = $1`,
                 [routeId]
             );
-            syncRouteStatusToMark(codigo, targetKey, 'PENDIENTE', getRequestUserName(req)).catch(() => null);
+            syncRouteStatusToMarkTable(codigo, targetKey, 'PENDIENTE', getRequestUserName(req)).catch(() => null);
         }
         res.json({ ok: true, message: 'Paso revertido para correcciones.' });
     } catch (error) {
@@ -20000,7 +21253,7 @@ app.post('/api/mes/evento', async (req, res) => {
                 );
                 if (routeInfo.rows.length) {
                     const { order_code, process_key } = routeInfo.rows[0];
-                    syncRouteStatusToMark(order_code, process_key, nextStatus, activeOperator).catch(() => null);
+                    syncRouteStatusToMarkTable(order_code, process_key, nextStatus, activeOperator).catch(() => null);
                 }
             } catch (e) { /* non-critical sync */ }
         }
@@ -20154,6 +21407,44 @@ app.post('/api/mes/config-estaciones', async (req, res) => {
             ]);
             inserted.push(result.rows[0].id);
         }
+        await pgQuery(
+            `UPDATE flexo_orders SET
+                mes_viscosidad_promedio = (
+                    SELECT AVG(NULLIF(viscosity, 0)) FROM production_station_configs
+                     WHERE order_code = $1 AND viscosity IS NOT NULL
+                ),
+                mes_temperatura_promedio = (
+                    SELECT AVG(NULLIF(temperature, 0)) FROM production_station_configs
+                     WHERE order_code = $1 AND temperature IS NOT NULL
+                ),
+                mes_anilox_linea = (
+                    SELECT STRING_AGG(DISTINCT anilox_code, ', ' ORDER BY anilox_code)
+                      FROM production_station_configs
+                     WHERE order_code = $1 AND anilox_code IS NOT NULL
+                ),
+                mes_ultima_sincronizacion = NOW()
+             WHERE order_code = $1`,
+            [orderCode]
+        );
+        await pgQuery(
+            `UPDATE flexo_products SET
+                mes_viscosidad_promedio = (
+                    SELECT AVG(NULLIF(viscosity, 0)) FROM production_station_configs
+                     WHERE product_code = $1 AND viscosity IS NOT NULL
+                ),
+                mes_temperatura_promedio = (
+                    SELECT AVG(NULLIF(temperature, 0)) FROM production_station_configs
+                     WHERE product_code = $1 AND temperature IS NOT NULL
+                ),
+                mes_anilox_linea = (
+                    SELECT STRING_AGG(DISTINCT anilox_code, ', ' ORDER BY anilox_code)
+                      FROM production_station_configs
+                     WHERE product_code = $1 AND anilox_code IS NOT NULL
+                ),
+                mes_ultima_sincronizacion = NOW()
+             WHERE product_code = $1`,
+            [productCode || orderCode]
+        );
         res.json({ ok: true, ids: inserted });
     } catch (error) {
         res.status(500).json({ ok: false, error: error.message || 'No fue posible guardar la configuración de estaciones.' });
@@ -20184,7 +21475,17 @@ app.get('/api/flexo/calculo', async (req, res) => {
 
         const currentResult = await pgQuery(
             `SELECT fc.calculation_code, fc.quote_code, fc.line_code, fc.product_code, fc.customer_code, fc.process_type, fc.machine_name, fc.die_code, fc.material_code,
-                    fc.quantity, fc.subtotal_cost, fc.total_cost, fc.unit_price, fc.raw_data
+                    fc.quantity, fc.subtotal_cost, fc.total_cost, fc.unit_price,
+                    fc.customer_name, fc.salesperson_name, fc.job_name, fc.department, fc.line_status,
+                    fc.width_inches, fc.length_inches, fc.labels_per_roll, fc.quantity_types, fc.quantity_changes,
+                    fc.core_width, fc.core_diameter, fc.cmyk_enabled, fc.application_type, fc.surface_type, fc.output_type,
+                    fc.industrial_subtotal, fc.overhead_cost, fc.margin_amount, fc.prepress_cost, fc.packaging_cost,
+                    fc.design_cost, fc.additional_cost, fc.discount_amount, fc.tax_percent, fc.tax_amount,
+                    fc.barniz_tipo, fc.laminado_tipo, fc.estampado_tipo, fc.embosado_tipo,
+                    fc.troquel_forma, fc.ruta_calculada, fc.montaje_resumen, fc.sin_impresion,
+                    fc.medida_fija, fc.material_nombre, fc.fecha_vencimiento,
+                    fc.seleccion_automatica, fc.precio_automatico,
+                    fc.line_order, fc.ui_state, fc.raw_data
                FROM flexo_calculations fc
                LEFT JOIN quotes q ON q.quote_code = fc.quote_code
               WHERE ${where.join(' AND ')}
@@ -20201,12 +21502,32 @@ app.get('/api/flexo/calculo', async (req, res) => {
         const current = currentResult.rows[0];
         const detail = mapFlexoCalculationDetail(current);
         const lineResult = await pgQuery(
-            `SELECT calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name, die_code, material_code,
-                    quantity, subtotal_cost, total_cost, unit_price, raw_data
+            `SELECT                     calculation_code, quote_code, line_code, product_code, customer_code, process_type, machine_name, die_code, material_code,
+                    quantity, subtotal_cost, total_cost, unit_price,
+                    customer_name, salesperson_name, job_name, department, line_status,
+                    width_inches, length_inches, labels_per_roll, quantity_types, quantity_changes,
+                    core_width, core_diameter, cmyk_enabled, application_type, surface_type, output_type,
+                    industrial_subtotal, overhead_cost, margin_amount, prepress_cost, packaging_cost,
+                    design_cost, additional_cost, discount_amount, tax_percent, tax_amount,
+                    barniz_tipo, laminado_tipo, estampado_tipo, embosado_tipo,
+                    troquel_forma, ruta_calculada, montaje_resumen, sin_impresion,
+                    medida_fija, material_nombre, fecha_vencimiento,
+                    seleccion_automatica, precio_automatico,
+                    line_order, ui_state, raw_data
                FROM (
                     SELECT DISTINCT ON (line_code)
                            fc.calculation_code, fc.quote_code, fc.line_code, fc.product_code, fc.customer_code, fc.process_type, fc.machine_name, fc.die_code, fc.material_code,
-                           fc.quantity, fc.subtotal_cost, fc.total_cost, fc.unit_price, fc.raw_data, fc.created_at
+                           fc.quantity, fc.subtotal_cost, fc.total_cost, fc.unit_price,
+                           fc.customer_name, fc.salesperson_name, fc.job_name, fc.department, fc.line_status,
+                           fc.width_inches, fc.length_inches, fc.labels_per_roll, fc.quantity_types, fc.quantity_changes,
+                           fc.core_width, fc.core_diameter, fc.cmyk_enabled, fc.application_type, fc.surface_type, fc.output_type,
+                           fc.industrial_subtotal, fc.overhead_cost, fc.margin_amount, fc.prepress_cost, fc.packaging_cost,
+                           fc.design_cost, fc.additional_cost, fc.discount_amount, fc.tax_percent, fc.tax_amount,
+                           fc.barniz_tipo, fc.laminado_tipo, fc.estampado_tipo, fc.embosado_tipo,
+                           fc.troquel_forma, fc.ruta_calculada, fc.montaje_resumen, fc.sin_impresion,
+                           fc.medida_fija, fc.material_nombre, fc.fecha_vencimiento,
+                           fc.seleccion_automatica, fc.precio_automatico,
+                           fc.line_order, fc.ui_state, fc.raw_data, fc.created_at
                       FROM flexo_calculations fc
                       LEFT JOIN quotes q ON q.quote_code = fc.quote_code
                      WHERE fc.quote_code = $1
@@ -20215,6 +21536,7 @@ app.get('/api/flexo/calculo', async (req, res) => {
                ) latest_lines
               ORDER BY
                     CASE
+                        WHEN COALESCE(latest_lines.line_order::text, '') <> '' THEN latest_lines.line_order
                         WHEN COALESCE(latest_lines.raw_data->>'Orden_Linea', '') ~ '^[0-9]+$'
                             THEN (latest_lines.raw_data->>'Orden_Linea')::integer
                         ELSE NULL
@@ -21351,6 +22673,8 @@ app.post('/api/flexo/calculo/guardar', async (req, res) => {
             total_cost: parseLegacyNumber(payload.finalTotal),
             unit_price: parseLegacyNumber(payload.unitPrice)
         });
+        const processResult = payload.processResult && typeof payload.processResult === 'object' ? payload.processResult : {};
+        const prodColsGuardar = extractProductionColumns(rawData);
 
         await pgQuery(
             `UPDATE flexo_calculations
@@ -21360,9 +22684,38 @@ app.post('/api/flexo/calculo/guardar', async (req, res) => {
                     die_code = $6,
                     material_code = $7,
                     quantity = $8,
-                    total_cost = $9,
-                    unit_price = $10,
-                    raw_data = $11::jsonb
+                    subtotal_cost = $9,
+                    total_cost = $10,
+                    unit_price = $11,
+                    customer_name = $13,
+                    salesperson_name = $14,
+                    job_name = $15,
+                    line_status = $16,
+                    width_inches = $17,
+                    length_inches = $18,
+                    labels_per_roll = $19,
+                    quantity_types = $20,
+                    quantity_changes = $21,
+                    core_width = $22,
+                    core_diameter = $23,
+                    cmyk_enabled = $24,
+                    application_type = $25,
+                    surface_type = $26,
+                    output_type = $27,
+                    industrial_subtotal = $28,
+                    overhead_cost = $29,
+                    margin_amount = $30,
+                    prepress_cost = $31,
+                    packaging_cost = $32,
+                    design_cost = $33,
+                    additional_cost = $34,
+                    discount_amount = $35,
+                    tax_percent = $36,
+                    tax_amount = $37,
+                    ui_state = $38::jsonb,
+                    updated_at = NOW(),
+                    raw_data = $12::jsonb
+                    ${PRODUCTION_COLUMN_NAMES.map((c, i) => `, ${c} = $${39 + i}`).join('')}
               WHERE calculation_code = $1 AND quote_code = $2`,
             [
                 existing.rows[0].calculation_code,
@@ -21373,11 +22726,48 @@ app.post('/api/flexo/calculo/guardar', async (req, res) => {
                 pickFirstValue(payload.dieId),
                 pickFirstValue(payload.materialId),
                 parseLegacyNumber(payload.quantityProducts),
+                parseLegacyNumber(processResult.afterDiscount) ?? parseLegacyNumber(payload.finalTotal),
                 parseLegacyNumber(payload.finalTotal),
                 parseLegacyNumber(payload.unitPrice),
-                JSON.stringify(rawData)
+                JSON.stringify(rawData),
+                rawData['CLIENTE'] || null,
+                rawData['VENDEDOR'] || null,
+                rawData['NOMBRE TRABAJO'] || null,
+                rawData['SOLICITUD ESTADO'] || rawData['ESTADO LINEA'] || null,
+                parseLegacyNumber(rawData['DIMENSIONES ETIQUETA | ANCHO']),
+                parseLegacyNumber(rawData['DIMENSIONES ETIQUETA | LARGO']),
+                parseLegacyNumber(rawData['CANTIDAD ETIQUETAS X ROLLO']),
+                parseLegacyNumber(rawData['CANTIDAD TIPOS']),
+                parseLegacyNumber(rawData['CANTIDAD CAMBIOS']),
+                parseLegacyNumber(rawData['ANCHO CORE']),
+                rawData['DIAMETRO CORE'] || null,
+                rawData['GENERAL | CMYK'] === true || String(rawData['CMYK'] || '').trim().toLowerCase() === 'si',
+                rawData['TIPO ETIQUETADO'] || null,
+                rawData['TIPO SUPERFICIE'] || null,
+                rawData['TIPO SALIDA'] || null,
+                parseLegacyNumber(processResult.industrial) ?? parseLegacyNumber(rawData['GENERAL | 5 | SUBTOTAL']),
+                parseLegacyNumber(processResult.overhead),
+                parseLegacyNumber(processResult.margin),
+                parseLegacyNumber(processResult.prepress?.subtotal),
+                parseLegacyNumber(processResult.packaging?.subtotal),
+                parseLegacyNumber(processResult.design?.subtotal),
+                parseLegacyNumber(processResult.additional?.subtotal),
+                parseLegacyNumber(processResult.discount),
+                parseLegacyNumber(processResult.taxPct) ?? parseLegacyNumber(rawData['GENERAL | 8 | PORCENTAJE IVA']),
+                parseLegacyNumber(processResult.tax) ?? parseLegacyNumber(rawData['GENERAL | 9 | Impuestos']),
+                rawData['Estado_UI'] ? JSON.stringify(rawData['Estado_UI']) : null,
+                ...PRODUCTION_COLUMN_NAMES.map((c) => prodColsGuardar[c] ?? null)
             ]
         );
+
+        const postSaveRow = (await pgQuery(
+            `SELECT line_code, subtotal_cost, total_cost, unit_price, machine_name, material_code, die_code, quantity, process_type,
+                    customer_name, salesperson_name, job_name, line_status, width_inches, length_inches,
+                    labels_per_roll, core_width, cmyk_enabled, industrial_subtotal, tax_percent, tax_amount, raw_data
+               FROM flexo_calculations WHERE calculation_code = $1 AND quote_code = $2`,
+            [existing.rows[0].calculation_code, quoteCode]
+        )).rows[0];
+        logCalculationInconsistency(quoteCode, lineCode, validateCalculationConsistency(postSaveRow));
 
         if (normalizedGroup && normalizedGroup.role === 'grupo') {
             await syncFrontBackGroupQuantity({

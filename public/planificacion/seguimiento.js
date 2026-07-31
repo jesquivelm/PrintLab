@@ -1130,11 +1130,18 @@ document.addEventListener('click', (e) => {
         if (!steps || !steps[idx]) return;
         const step = steps[idx];
         const isDone = String(step.routeStatus || '').toUpperCase() === 'COMPLETADO';
+        const isFixed = TRACKING_FIXED_KEYS.has(step.processKey);
+
+        // Special intercept: planeacion step marking opens verification modal
+        if (step.processKey === 'planeacion' && !isDone) {
+            stepBtn.disabled = false;
+            openInventoryVerification(code, step.processKey, stepBtn);
+            return;
+        }
+
         stepBtn.disabled = true;
         const prevText = stepBtn.innerHTML;
         stepBtn.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px"></span>';
-
-        const isFixed = TRACKING_FIXED_KEYS.has(step.processKey);
         const req = isFixed
             ? fetch(`${API}/ordenes-produccion/${encodeURIComponent(code)}/seguimiento/marca`, {
                 method: 'POST',
@@ -1159,7 +1166,223 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// ── Estilos inyectados (flujo unificado + resumen pendientes de planificación) ──
+// ── Inventory Verification Modal ──
+let pendingVerifCode = '';
+let pendingVerifStepBtn = null;
+let currentVerifMaterials = [];
+
+function openInventoryVerification(code, processKey, stepBtn) {
+    pendingVerifCode = code;
+    pendingVerifStepBtn = stepBtn;
+    currentVerifMaterials = [];
+    const modal = document.getElementById('inventoryVerificationModal');
+    if (!modal) return;
+    document.getElementById('invVerifSubtitle').textContent = 'Verificando materiales para orden ' + code;
+    document.getElementById('invVerifBody').innerHTML = '<div class="spinner"></div>';
+    document.getElementById('invVerifCompleteBtn').disabled = true;
+    modal.classList.add('open');
+    loadVerificationMaterials(code, processKey);
+}
+
+function closeInventoryVerification() {
+    const modal = document.getElementById('inventoryVerificationModal');
+    if (modal) modal.classList.remove('open');
+    pendingVerifCode = '';
+    pendingVerifStepBtn = null;
+    currentVerifMaterials = [];
+}
+
+async function loadVerificationMaterials(code, processKey) {
+    try {
+        const pKey = processKey || 'impresion';
+        const res = await fetch(API + '/ordenes-produccion/' + encodeURIComponent(code) + '/materiales-verificacion?process=' + encodeURIComponent(pKey), { headers: sessionHeader() });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Error al cargar materiales');
+        currentVerifMaterials = data.materials || [];
+        renderVerificationMaterials();
+    } catch (e) {
+        document.getElementById('invVerifBody').innerHTML = '<div class="inv-empty">Error al cargar materiales: ' + escHtml(e.message) + '</div>';
+    }
+}
+
+function renderVerificationMaterials() {
+    const body = document.getElementById('invVerifBody');
+    const mats = currentVerifMaterials;
+    if (!mats || !mats.length) {
+        body.innerHTML = '<div class="inv-empty">No hay materiales que verificar para esta orden.</div>';
+        document.getElementById('invVerifCompleteBtn').disabled = false;
+        return;
+    }
+    const statusLabel = { PENDIENTE: 'Pendiente', SOLICITADO: 'Solicitado', SUPLIDO: 'Suplido', ERROR: 'Error' };
+    const statusClass = function(s) { return (s || 'PENDIENTE').toLowerCase(); };
+    let html = '<div class="inv-table-header"><span>Material</span><span>Cantidad</span><span>Estado</span><span>Acción</span></div>';
+    var allDone = true;
+    mats.forEach(function(m, i) {
+        var st = (m.verificationStatus || 'PENDIENTE').toUpperCase();
+        if (st !== 'SUPLIDO') allDone = false;
+        var qty = Number(m.plannedQuantity || 0).toLocaleString('es-CR', { maximumFractionDigits: 2 });
+        var unit = escHtml(m.unitCode || '');
+        var name = escHtml(m.materialName || m.sapItemCode || '');
+        var fam = escHtml(m.materialFamily || '');
+        var actionHtml = '';
+        if (st === 'SUPLIDO') {
+            actionHtml = '<span class="inv-item-action suplido">✓ Suplido</span>';
+        } else if (st === 'SOLICITADO') {
+            actionHtml = '<button type="button" class="inv-item-action" onclick="suplirMaterial(' + i + ')">Suplido</button>';
+        } else if (st === 'ERROR') {
+            actionHtml = '<button type="button" class="inv-item-action error" onclick="solicitarMaterial(' + i + ')">Reintentar</button>';
+        } else {
+            actionHtml = '<button type="button" class="inv-item-action" onclick="solicitarMaterial(' + i + ')">Solicitar en SAP</button>';
+        }
+        html += '<div class="inv-item">' +
+            '<div class="inv-item-name">' + name + ' <small>' + fam + '</small></div>' +
+            '<div class="inv-item-qty">' + qty + ' ' + unit + '</div>' +
+            '<div class="inv-item-status ' + statusClass(st) + '">' + (statusLabel[st] || 'Pendiente') + '</div>' +
+            '<div>' + actionHtml + '</div>' +
+        '</div>';
+    });
+    body.innerHTML = html;
+    document.getElementById('invVerifCompleteBtn').disabled = !allDone;
+}
+
+async function solicitarMaterial(index) {
+    var mat = currentVerifMaterials[index];
+    if (!mat) return;
+    var body = document.getElementById('invVerifBody');
+    var btns = body ? body.querySelectorAll('.inv-item-action') : [];
+    btns.forEach(function(b) { b.disabled = true; });
+    try {
+        var res = await fetch(API + '/ordenes-produccion/' + encodeURIComponent(pendingVerifCode) + '/materiales-verificacion/solicitar', {
+            method: 'POST',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, sessionHeader()),
+            body: JSON.stringify({
+                processKey: 'impresion',
+                sapItemCode: mat.sapItemCode,
+                materialName: mat.materialName,
+                materialFamily: mat.materialFamily,
+                quantity: mat.plannedQuantity,
+                unitCode: mat.unitCode
+            })
+        });
+        var data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || data.verification && data.verification.sapError || 'Error al solicitar en SAP');
+        await loadVerificationMaterials(pendingVerifCode, 'impresion');
+    } catch (e) {
+        mat.verificationStatus = 'ERROR';
+        mat.sapError = e.message;
+        renderVerificationMaterials();
+    }
+    btns.forEach(function(b) { b.disabled = false; });
+}
+
+async function suplirMaterial(index) {
+    var mat = currentVerifMaterials[index];
+    if (!mat || !mat.verificationId) return;
+    try {
+        var res = await fetch(API + '/ordenes-produccion/' + encodeURIComponent(pendingVerifCode) + '/materiales-verificacion/' + encodeURIComponent(mat.verificationId) + '/suplir', {
+            method: 'POST',
+            headers: sessionHeader()
+        });
+        var data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Error');
+        mat.verificationStatus = 'SUPLIDO';
+        renderVerificationMaterials();
+    } catch (e) {
+        //
+    }
+}
+
+async function completeAndMarkVerification() {
+    var code = pendingVerifCode;
+    var btn = pendingVerifStepBtn;
+    if (!code && !btn) { closeInventoryVerification(); return; }
+    closeInventoryVerification();
+    if (!btn || !code) return;
+    btn.disabled = true;
+    var prevText = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px"></span>';
+    try {
+        var res = await fetch(API + '/ordenes-produccion/' + encodeURIComponent(code) + '/seguimiento/marca', {
+            method: 'POST',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, sessionHeader()),
+            body: JSON.stringify({ processKey: 'planeacion', marked: true })
+        });
+        var result = await res.json();
+        if (result && result.ok === false && result.error) {
+            btn.disabled = false;
+            btn.innerHTML = prevText;
+            return;
+        }
+        delete flowCache[code];
+        loadFlowPanel(code);
+    } catch (e) {
+        btn.disabled = false;
+        btn.innerHTML = prevText;
+    }
+}
+
+// ── Pending List ──
+function openPendingList() {
+    var modal = document.getElementById('pendingListModal');
+    if (!modal) return;
+    document.getElementById('pendingListBody').innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text3)">Cargando...</div>';
+    modal.classList.add('open');
+    loadPendingList();
+}
+
+function closePendingList() {
+    var modal = document.getElementById('pendingListModal');
+    if (modal) modal.classList.remove('open');
+}
+
+async function loadPendingList() {
+    try {
+        var res = await fetch(API + '/inventario/solicitudes-pendientes', { headers: sessionHeader() });
+        var data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Error');
+        renderPendingList(data.items || []);
+    } catch (e) {
+        document.getElementById('pendingListBody').innerHTML = '<div class="inv-empty">Error: ' + escHtml(e.message) + '</div>';
+    }
+}
+
+function renderPendingList(items) {
+    var body = document.getElementById('pendingListBody');
+    if (!items || !items.length) {
+        body.innerHTML = '<div class="inv-empty">No hay solicitudes pendientes de materiales.</div>';
+        return;
+    }
+    var statusLabel = { PENDIENTE: 'Pendiente', SOLICITADO: 'Solicitado', ERROR: 'Error' };
+    var html = '';
+    items.forEach(function(item) {
+        var st = (item.verification_status || 'PENDIENTE').toUpperCase();
+        var qty = Number(item.planned_quantity || 0).toLocaleString('es-CR', { maximumFractionDigits: 2 });
+        var unit = escHtml(item.unit_code || '');
+        var name = escHtml(item.material_name || item.sap_item_code || '');
+        var code = escHtml(item.order_code || '');
+        html += '<div class="pl-item">' +
+            '<div><div class="pl-order-code" onclick="closePendingList();searchByOrder(\'' + escHtml(item.order_code) + '\')">' + code + '</div>' +
+            '<div class="pl-material">' + name + '</div></div>' +
+            '<div class="pl-qty">' + qty + ' ' + unit + '</div>' +
+            '<div class="pl-status inv-item-status ' + st.toLowerCase() + '">' + (statusLabel[st] || st) + '</div>' +
+        '</div>';
+    });
+    body.innerHTML = html;
+}
+
+function searchByOrder(code) {
+    searchTerm = code;
+    var input = document.getElementById('searchInput');
+    if (input) input.value = code;
+    renderAll();
+}
+
+// ── Event listeners for new buttons ──
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('pendingListBtn')?.addEventListener('click', openPendingList);
+    document.getElementById('invVerifCompleteBtn')?.addEventListener('click', completeAndMarkVerification);
+});
+
 (function injectSeguimientoStyles(){
   const css = `
 .flow-step-pct{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:2px}

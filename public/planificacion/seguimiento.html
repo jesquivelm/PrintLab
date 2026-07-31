@@ -455,6 +455,31 @@ html[data-theme="light"] .theme-hdr-btn .theme-icon-sun{display:none}
 .oam-st-late{display:inline-block;font-size:11px;font-weight:600;color:var(--red);background:var(--red-bg);border:1px solid var(--red-border);padding:2px 8px;border-radius:99px}
 .oam-st-pending{display:inline-block;font-size:11px;font-weight:600;color:var(--text3);background:var(--surface2);border:1px solid var(--border);padding:2px 8px;border-radius:99px}
 .oam-order-eta{font-size:11px;color:var(--text3);margin-top:2px}
+.inv-item{display:grid;grid-template-columns:1fr auto auto auto;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)}
+.inv-item:last-child{border-bottom:none}
+.inv-item-name{font-size:14px;font-weight:500;color:var(--text)}
+.inv-item-name small{font-size:11px;color:var(--text3);font-weight:400}
+.inv-item-qty{font-size:13px;color:var(--text2);font-family:'DM Mono',monospace;white-space:nowrap;text-align:right}
+.inv-item-status{font-size:12px;font-weight:600;padding:3px 10px;border-radius:99px;white-space:nowrap;text-align:center}
+.inv-item-status.pending{color:var(--text3);background:var(--surface2)}
+.inv-item-status.solicitado{color:var(--amber);background:var(--amber-bg)}
+.inv-item-status.suplido{color:var(--accent);background:var(--accent-bg)}
+.inv-item-status.error{color:var(--red);background:var(--red-bg)}
+.inv-item-action{font-size:12px;font-weight:600;padding:5px 12px;border-radius:7px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);cursor:pointer;font-family:inherit;transition:all .12s;white-space:nowrap;text-align:center}
+.inv-item-action:hover{background:var(--accent-bg);border-color:var(--accent-border);color:var(--accent)}
+.inv-item-action:disabled{opacity:.4;cursor:not-allowed}
+.inv-item-action.suplido{background:var(--accent-bg);border-color:var(--accent-border);color:var(--accent);cursor:default}
+.inv-item-action.error{border-color:var(--red-border);color:var(--red)}
+.inv-item-action.error:hover{background:var(--red-bg)}
+.inv-table-header{display:grid;grid-template-columns:1fr auto auto auto;gap:10px;padding:6px 0 4px;border-bottom:2px solid var(--border);font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.06em}
+.inv-empty{text-align:center;padding:32px 0;color:var(--text3);font-size:14px}
+.pl-item{display:grid;grid-template-columns:1.2fr 1fr auto;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);align-items:center;font-size:14px}
+.pl-item:last-child{border-bottom:none}
+.pl-order-code{font-weight:600;color:var(--text);font-family:'DM Mono',monospace;cursor:pointer}
+.pl-order-code:hover{color:var(--accent)}
+.pl-material{color:var(--text2)}
+.pl-qty{font-family:'DM Mono',monospace;color:var(--text2);text-align:right}
+.pl-status{font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;text-align:center}
 </style>
 </head>
 <body>
@@ -470,6 +495,7 @@ html[data-theme="light"] .theme-hdr-btn .theme-icon-sun{display:none}
     <input class="hdr-search" type="search" id="searchInput" placeholder="Buscar orden, cliente...">
     <a class="hdr-btn" id="ganttLink" href="/planificacion/gantt">Ver Gantt</a>
     <button type="button" class="hdr-btn primary" id="refreshBtn">Actualizar</button>
+    <button type="button" class="hdr-btn" id="pendingListBtn" title="Ver solicitudes pendientes de materiales">Solicitudes Pendientes</button>
     <button type="button" class="hdr-btn theme-hdr-btn" id="themeHdrBtn" onclick="toggleTheme()" title="Cambiar tema">
       <span class="theme-icon-sun" id="themeIconSun"></span>
       <span class="theme-icon-moon" id="themeIconMoon"></span>
@@ -657,6 +683,43 @@ html[data-theme="light"] .theme-hdr-btn .theme-icon-sun{display:none}
   </div>
 </div>
 
+<div class="oam-overlay" id="inventoryVerificationModal">
+  <div class="oam-panel" style="max-width:760px">
+    <div class="oam-header">
+      <div>
+        <div class="oam-title">Verificación de Inventario</div>
+        <div class="oam-subtitle" id="invVerifSubtitle">Cargando...</div>
+      </div>
+      <button type="button" class="oam-close" onclick="closeInventoryVerification()">×</button>
+    </div>
+    <div class="oam-body" id="invVerifBody" style="min-height:120px;display:flex;align-items:center;justify-content:center">
+      <div class="spinner"></div>
+    </div>
+    <div class="oam-footer" id="invVerifFooter" style="display:flex;gap:8px">
+      <button type="button" class="btn-secondary" onclick="closeInventoryVerification()" style="margin:0;flex:1">Cerrar</button>
+      <button type="button" class="btn-commit" id="invVerifCompleteBtn" disabled style="flex:1">Completar verificación</button>
+    </div>
+  </div>
+</div>
+
+<div class="oam-overlay" id="pendingListModal">
+  <div class="oam-panel" style="max-width:900px">
+    <div class="oam-header">
+      <div>
+        <div class="oam-title">Solicitudes Pendientes de Materiales</div>
+        <div class="oam-subtitle">Todas las órdenes con materiales pendientes de verificación</div>
+      </div>
+      <button type="button" class="oam-close" onclick="closePendingList()">×</button>
+    </div>
+    <div class="oam-body" id="pendingListBody" style="min-height:80px">
+      <div style="text-align:center;padding:40px 0;color:var(--text3)">Cargando...</div>
+    </div>
+    <div class="oam-footer">
+      <button type="button" class="btn-secondary" onclick="closePendingList()" style="margin:0">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <div class="oam-overlay" id="ordersAheadModal">
   <div class="oam-panel">
     <div class="oam-header">
@@ -676,6 +739,8 @@ html[data-theme="light"] .theme-hdr-btn .theme-icon-sun{display:none}
 <script src="/planificacion/seguimiento.js?v=20260611"></script>
 <script>
 document.getElementById('ordersAheadModal')?.addEventListener('click',function(e){if(e.target===this)closeOrdersAheadModal()});
+document.getElementById('inventoryVerificationModal')?.addEventListener('click',function(e){if(e.target===this)closeInventoryVerification()});
+document.getElementById('pendingListModal')?.addEventListener('click',function(e){if(e.target===this)closePendingList()});
 </script>
 </body>
 </html>

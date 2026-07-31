@@ -1,1 +1,102 @@
-<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Control de Inventario - Tintas</title><link rel="stylesheet" href="/styles.css"><style>body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f5f5f5;color:#1a1a1a}html[data-theme="dark"] body{background:#111;color:#e5e5e5}.header{padding:12px 20px;background:#fff;border-bottom:1px solid #e0e0e0;display:flex;align-items:center;gap:12px}html[data-theme="dark"] .header{background:#1a1a1a;border-color:#333}.header h1{margin:0;font-size:18px;font-weight:600}.header a{text-decoration:none;color:inherit;font-size:20px}.toolbar{padding:12px 20px;display:flex;gap:8px;flex-wrap:wrap;background:#fff;border-bottom:1px solid #e0e0e0}html[data-theme="dark"] .toolbar{background:#1a1a1a;border-color:#333}.toolbar input{padding:6px 10px;border:1px solid #ccc;border-radius:6px;font-size:13px;width:200px}html[data-theme="dark"] .toolbar input{background:#222;color:#e5e5e5;border-color:#444}.toolbar button{padding:6px 14px;border:none;border-radius:6px;background:#d97706;color:#fff;cursor:pointer;font-size:13px}.table-wrap{padding:16px 20px;overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 12px;text-align:left;border-bottom:1px solid #e0e0e0;white-space:nowrap}html[data-theme="dark"] th,html[data-theme="dark"] td{border-color:#333}th{background:#f9f9f9;font-weight:600}html[data-theme="dark"] th{background:#1a1a1a}.loading{text-align:center;padding:40px;color:#999}.badge{padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500}.badge-ACTIVO{background:#dcfce7;color:#166534}.badge-VENCIDO{background:#fee2e2;color:#991b1b}.tabs{display:flex;gap:0;border-bottom:2px solid #e0e0e0;background:#fff}html[data-theme="dark"] .tabs{border-color:#333;background:#1a1a1a}.tabs button{padding:10px 20px;border:none;background:transparent;cursor:pointer;font-size:13px;font-weight:500;color:#666;border-bottom:2px solid transparent;margin-bottom:-2px}html[data-theme="dark"] .tabs button{color:#999}.tabs button.active{color:#d97706;border-bottom-color:#d97706}</style></head><body><div class="header"><a href="/tintas" onclick="event.preventDefault();parent.postMessage({type:'erp-open-tab',route:'/tintas?shell=1',label:'Tintas'},window.location.origin)">&larr;</a><h1>Control de Inventario - Tintas</h1></div><div class="tabs"><button class="active" onclick="switchTab('existencias',this)">Existencias</button><button onclick="switchTab('vencer',this)">Próximos a Vencer</button></div><div class="toolbar"><input id="searchProd" placeholder="Buscar producto..."><button onclick="cargarExistencias()">Actualizar</button></div><div class="table-wrap"><table><thead id="tablaHead"><tr><th>Código</th><th>Producto</th><th>Tipo</th><th>Existencia Total</th><th>Unidad</th><th>Lotes Activos</th></tr></thead><tbody id="tablaBody"><tr><td colspan="6" class="loading">Cargando...</td></tr></tbody></table></div><script>let tab='existencias';function switchTab(t,btn){tab=t;document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');if(t==='existencias')cargarExistencias();else cargarVencer()}function hm(v){return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}async function cargarExistencias(){const tb=document.getElementById('tablaBody');tb.innerHTML='<tr><td colspan="6" class="loading">Cargando...</td></tr>';try{const r=await fetch('/api/tintas/dashboard/existencias');if(!r.ok)throw new Error(await r.text());const data=await r.json();if(!data.length){tb.innerHTML='<tr><td colspan="6" class="loading">Sin datos.</td></tr>';return}tb.innerHTML=data.map(p=>'<tr><td>'+hm(p.codigo_interno)+'</td><td><strong>'+hm(p.nombre)+'</strong></td><td>'+hm(p.tipo)+'</td><td>'+Number(p.existencia_total||0).toFixed(4)+'</td><td>'+hm(p.unidad_medida_base)+'</td><td>'+Number(p.lotes_activos||0)+'</td></tr>').join('')}catch(e){tb.innerHTML='<tr><td colspan="6" class="loading">Error: '+hm(e.message)+'</td></tr>'}}async function cargarVencer(){const tb=document.getElementById('tablaBody');document.getElementById('tablaHead').innerHTML='<tr><th>Producto</th><th>Lote</th><th>Disponible</th><th>Vencimiento</th><th>Ubicación</th><th>Estado</th></tr>';tb.innerHTML='<tr><td colspan="6" class="loading">Cargando...</td></tr>';try{const r=await fetch('/api/tintas/dashboard/lotes-por-vencer');if(!r.ok)throw new Error(await r.text());const data=await r.json();if(!data.length){tb.innerHTML='<tr><td colspan="6" class="loading">Sin lotes próximos a vencer.</td></tr>';return}tb.innerHTML=data.map(l=>'<tr><td>'+hm(l.producto_nombre)+'</td><td>'+hm(l.lote)+'</td><td>'+Number(l.peso_disponible||0).toFixed(4)+'</td><td>'+(l.fecha_vencimiento||'-')+'</td><td>'+hm(l.ubicacion_id||'-')+'</td><td><span class="badge badge-'+hm(l.estado)+'">'+hm(l.estado)+'</span></td></tr>').join('')}catch(e){tb.innerHTML='<tr><td colspan="6" class="loading">Error: '+hm(e.message)+'</td></tr>'}}cargarExistencias()</script></body></html>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/theme.js"></script>
+    <title>Control de Inventario - Tintas</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <main class="workspace workspace-quote quote-browser-main tintas-shell">
+        <section class="quote-card quote-card-clean quote-browser-card tintas-card">
+            <div class="tintas-tabs">
+                <button class="tintas-tab is-active" onclick="switchTab('existencias',this)">Existencias</button>
+                <button class="tintas-tab" onclick="switchTab('vencer',this)">Próximos a Vencer</button>
+            </div>
+            <div class="tintas-toolbar">
+                <div class="tintas-toolbar-actions">
+                    <button class="tintas-btn" onclick="cargarExistencias()">Actualizar</button>
+                </div>
+                <div class="tintas-toolbar-search">
+                    <input id="searchProd" class="tintas-search-input" type="search" placeholder="Buscar producto...">
+                </div>
+            </div>
+            <div class="tintas-table-wrap">
+                <table class="tintas-table">
+                    <thead id="tablaHead">
+                        <tr>
+                            <th>Código</th>
+                            <th>Producto</th>
+                            <th>Tipo</th>
+                            <th>Existencia Total</th>
+                            <th>Unidad</th>
+                            <th>Lotes Activos</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaBody">
+                        <tr><td colspan="6" class="tintas-loading">Cargando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+    <script>
+    var tab = 'existencias';
+
+    function switchTab(t, btn) {
+        tab = t;
+        document.querySelectorAll('.tintas-tab').forEach(function(b) { b.classList.remove('is-active'); });
+        btn.classList.add('is-active');
+        if (t === 'existencias') cargarExistencias();
+        else cargarVencer();
+    }
+
+    function hm(v) {
+        return String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    async function cargarExistencias() {
+        var tb = document.getElementById('tablaBody');
+        tb.innerHTML = '<tr><td colspan="6" class="tintas-loading">Cargando...</td></tr>';
+        try {
+            var r = await fetch('/api/tintas/dashboard/existencias');
+            if (!r.ok) throw new Error(await r.text());
+            var data = await r.json();
+            if (!data.length) {
+                tb.innerHTML = '<tr><td colspan="6" class="tintas-loading">Sin datos.</td></tr>';
+                return;
+            }
+            tb.innerHTML = data.map(function(p) {
+                return '<tr><td>' + hm(p.codigo_interno) + '</td><td><strong>' + hm(p.nombre) + '</strong></td><td>' + hm(p.tipo) + '</td><td>' + Number(p.existencia_total || 0).toFixed(4) + '</td><td>' + hm(p.unidad_medida_base) + '</td><td>' + Number(p.lotes_activos || 0) + '</td></tr>';
+            }).join('');
+        } catch (e) {
+            tb.innerHTML = '<tr><td colspan="6" class="tintas-loading">Error: ' + hm(e.message) + '</td></tr>';
+        }
+    }
+
+    async function cargarVencer() {
+        var tb = document.getElementById('tablaBody');
+        document.getElementById('tablaHead').innerHTML =
+            '<tr><th>Producto</th><th>Lote</th><th>Disponible</th><th>Vencimiento</th><th>Ubicación</th><th>Estado</th></tr>';
+        tb.innerHTML = '<tr><td colspan="6" class="tintas-loading">Cargando...</td></tr>';
+        try {
+            var r = await fetch('/api/tintas/dashboard/lotes-por-vencer');
+            if (!r.ok) throw new Error(await r.text());
+            var data = await r.json();
+            if (!data.length) {
+                tb.innerHTML = '<tr><td colspan="6" class="tintas-loading">Sin lotes próximos a vencer.</td></tr>';
+                return;
+            }
+            tb.innerHTML = data.map(function(l) {
+                return '<tr><td>' + hm(l.producto_nombre) + '</td><td>' + hm(l.lote) + '</td><td>' + Number(l.peso_disponible || 0).toFixed(4) + '</td><td>' + (l.fecha_vencimiento || '-') + '</td><td>' + hm(l.ubicacion_id || '-') + '</td><td><span class="tintas-badge tintas-badge-' + hm(l.estado) + '">' + hm(l.estado) + '</span></td></tr>';
+            }).join('');
+        } catch (e) {
+            tb.innerHTML = '<tr><td colspan="6" class="tintas-loading">Error: ' + hm(e.message) + '</td></tr>';
+        }
+    }
+
+    cargarExistencias();
+    </script>
+</body>
+</html>

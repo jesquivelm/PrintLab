@@ -328,7 +328,8 @@ function normalizePlateExternalRows(rows = []) {
     description: String(row?.description || "").trim(),
     cost: n(row?.cost, 0),
     comments: String(row?.comments || "").trim(),
-    attachmentName: String(row?.attachmentName || "").trim()
+    attachmentName: String(row?.attachmentName || "").trim(),
+    isAuto: row?.isAuto === true
   }));
   return normalized.length ? normalized : [{ description: "", cost: 0, comments: "", attachmentName: "" }];
 }
@@ -1461,7 +1462,7 @@ function frontBackGroupQuantity(group = currentFrontBackGroup()) {
   if (!group) return 0;
   const related = Array.isArray(state.context?.lineasRelacionadas) ? state.context.lineasRelacionadas : [];
   const groupLine = related.find((line) => String(line?.line_code || line?.linea || "").trim() === group.groupLineCode);
-  return n(first(groupLine?.quantity, groupLine?.raw_data?.["Cantidad Productos"], state.context?.calculo?.quantityProducts), 0);
+  return n(first(groupLine?.quantity, state.context?.calculo?.quantityProducts), 0);
 }
 
 function isFrontBackElementContext() {
@@ -1884,8 +1885,9 @@ function positionInfoPopover(trigger = state.infoPopover.trigger) {
 
 function openInfoPopover(trigger) {
   const title = String(trigger?.dataset.infoTitle || "").trim();
+  const bodyHtml = trigger?.dataset.infoBodyHtml || null;
   const body = String(trigger?.dataset.infoBody || "").trim();
-  if (!title && !body) return;
+  if (!title && !body && !bodyHtml) return;
   const panel = ensureInfoPopover();
   if (state.infoPopover.trigger === trigger && !panel.hidden) {
     closeInfoPopover();
@@ -1896,7 +1898,11 @@ function openInfoPopover(trigger) {
   }
   state.infoPopover.trigger = trigger;
   state.infoPopover.title.textContent = title || "Información";
-  state.infoPopover.body.textContent = body || "";
+  if (bodyHtml) {
+    state.infoPopover.body.innerHTML = bodyHtml;
+  } else {
+    state.infoPopover.body.textContent = body || "";
+  }
   trigger.setAttribute("aria-expanded", "true");
   panel.hidden = false;
   requestAnimationFrame(() => positionInfoPopover(trigger));
@@ -2389,6 +2395,85 @@ function isOptionalPlateCostProcess(key) {
   return String(key || "") === "embosado";
 }
 
+function generateInkStations(form) {
+  const header = form.header;
+  if (header.noPrint) return [];
+  const inkDefaults = conventionalInkDefaults();
+  const tintaOptions = conventionalInkMaterialOptions();
+  const whiteOptions = whiteInkMaterialOptions();
+  const cmykMaterial = tintaOptions.find((m) => norm(m.descripcion || m.nombre || "").includes("cmyk")) || tintaOptions[0] || {};
+  const whiteMaterial = whiteOptions[0] || {};
+  const pantoneCount = n(header.pantoneCount, 0);
+  const stations = [];
+  if (header.useCmyk) {
+    const cmykLabels = ['Cian', 'Magenta', 'Amarillo', 'Negro'];
+    cmykLabels.forEach(function(label) {
+      stations.push({
+        id: 'station-' + (stations.length + 1),
+        inkLabel: label,
+        inkType: 'cmyk',
+        coveragePct: inkDefaults.coberturaTintaPct,
+        aniloxBcm: inkDefaults.bcmGenerico,
+        transferFactor: 0.3,
+        inkDensity: inkDefaults.densidadUv,
+        inkMaterialId: cmykMaterial.id || '',
+        inkCostPerLb: inkDefaults.costoLbCmyk,
+        active: true
+      });
+    });
+  }
+  var whitePasses = header.useWhiteInk ? (header.doubleWhitePass ? 2 : 1) : 0;
+  for (var w = 0; w < whitePasses && stations.length < 9; w++) {
+    stations.push({
+      id: 'station-' + (stations.length + 1),
+      inkLabel: whitePasses > 1 && w === 1 ? 'Blanco 2' : 'Blanco',
+      inkType: 'blanco',
+      coveragePct: 100,
+      aniloxBcm: inkDefaults.bcmGenerico,
+      transferFactor: 0.35,
+      inkDensity: inkDefaults.densidadUv,
+      inkMaterialId: whiteMaterial.id || '',
+      inkCostPerLb: inkDefaults.costoLbBlanco,
+      active: true
+    });
+  }
+  for (var p = 0; p < pantoneCount && stations.length < 9; p++) {
+    stations.push({
+      id: 'station-' + (stations.length + 1),
+      inkLabel: 'Pantone ' + (p + 1),
+      inkType: 'pantone',
+      coveragePct: 25,
+      aniloxBcm: inkDefaults.bcmGenerico,
+      transferFactor: 0.3,
+      inkDensity: inkDefaults.densidadUv,
+      inkMaterialId: '',
+      inkCostPerLb: inkDefaults.costoLbPantone,
+      active: true
+    });
+  }
+  return stations;
+}
+
+function syncPrintStageInkStations(form) {
+  var stages = form.printStages;
+  if (!Array.isArray(stages)) return;
+  var hasAnyStations = stages.some(function(s) { return Array.isArray(s.inkStations) && s.inkStations.length > 0; });
+  if (hasAnyStations) return;
+  var newStations = generateInkStations(form);
+  stages.forEach(function(stage) {
+    stage.inkStations = newStations.map(function(s) { return Object.assign({}, s); });
+  });
+}
+
+function regeneratePrintStageInkStations(form) {
+  var stages = form.printStages;
+  if (!Array.isArray(stages)) return;
+  var newStations = generateInkStations(form);
+  stages.forEach(function(stage) {
+    stage.inkStations = newStations.map(function(s) { return Object.assign({}, s); });
+  });
+}
+
 function createPrintStage(base = {}) {
   const inkDefaults = conventionalInkDefaults();
   const digitalDefaults = digitalInkDefaults();
@@ -2440,7 +2525,8 @@ function createPrintStage(base = {}) {
       attachmentName: numberingConfig?.attachmentName || "",
       attachments: numberingConfig?.attachments || [],
       detail: numberingConfig?.detail || "",
-      sonified: Boolean(source.sonified)
+      sonified: Boolean(source.sonified),
+      coldfoil: slot.key === "estampado" ? normalizeColdfoilData(source.coldfoil || {}) : undefined
     };
   });
   return {
@@ -2499,7 +2585,8 @@ function createPrintStage(base = {}) {
       coveragePct: n(item?.coveragePct, 0),
       gsm: n(item?.gsm, 0)
     })) : [],
-    inlineFinishes
+    inlineFinishes,
+    inkStations: Array.isArray(base.inkStations) ? base.inkStations.map(function(s) { return Object.assign({}, s); }) : []
   };
 }
 
@@ -2599,18 +2686,19 @@ function addProcessKey(key) {
   if (meta?.locked) return false;
   const alreadyActive = hasActiveProcess(key);
   if (!meta.repeatable && alreadyActive) return false;
-  if (key === "impresion") {
-    state.form.activeProcessKeys = sortActiveProcessKeys((state.form.activeProcessKeys || []).concat(key));
-    const stages = activePrintStages();
-    if (alreadyActive) {
-      const seed = stages[stages.length - 1] || state.form.print || {};
-      state.form.printStages = stages.concat(createPrintStage(seed));
-    } else if (!stages.length) {
-      state.form.printStages = [createPrintStage(state.form.print || {})];
+    if (key === "impresion") {
+      state.form.activeProcessKeys = sortActiveProcessKeys((state.form.activeProcessKeys || []).concat(key));
+      const stages = activePrintStages();
+      if (alreadyActive) {
+        const seed = stages[stages.length - 1] || state.form.print || {};
+        state.form.printStages = stages.concat(createPrintStage(seed));
+      } else if (!stages.length) {
+        state.form.printStages = [createPrintStage(state.form.print || {})];
+      }
+      syncPrimaryPrintStage();
+      regeneratePrintStageInkStations(state.form);
+      return true;
     }
-    syncPrimaryPrintStage();
-    return true;
-  }
   if (EXTERNAL_FINISH_BY_KEY[key]) {
       const config = EXTERNAL_FINISH_BY_KEY[key];
       state.form.activeProcessKeys = sortActiveProcessKeys((state.form.activeProcessKeys || []).concat(key));
@@ -2803,20 +2891,20 @@ function machineDisplayName(machine) {
 }
 
 function autoSelectionSnapshot() {
-  const snapshot = state.context?.calculo?.raw_data?.Seleccion_Automatica || {};
+  const snapshot = state.context?.calculo?.seleccionAutomatica || state.context?.calculo?.raw_data?.Seleccion_Automatica || {};
   const machineName = String(snapshot?.machineName || "").trim();
   if (!machineName) return snapshot;
   return findMachineByDisplayName(machineName) ? snapshot : { ...snapshot, machineName: "", missingMachine: true };
 }
 
 function autoPricingSnapshot() {
-  return state.context?.calculo?.raw_data?.Precio_Automatico || {};
+  return state.context?.calculo?.precioAutomatico || state.context?.calculo?.raw_data?.Precio_Automatico || {};
 }
 
 function autoProcessSnapshot() {
   const declared = state.context?.calculo?.processes;
   if (Array.isArray(declared) && declared.length) return declared;
-  const rawDeclared = state.context?.calculo?.raw_data?.Secuencia_Procesos;
+  const rawDeclared = null;
   return Array.isArray(rawDeclared) ? rawDeclared : [];
 }
 
@@ -3437,7 +3525,7 @@ function dieOptionLabel(item = {}) {
 
 function troquelDieOptions() {
   const associate = state.form?.troquel?.associateDieShape !== false;
-  const shapeValue = state.form?.troquel?.dieShape || state.context?.calculo?.raw_data?.["REQ | Forma"] || "";
+  const shapeValue = state.form?.troquel?.dieShape || "";
   return (state.catalogs.troqueles || [])
     .filter((die) => !associate || !shapeValue || dieMatchesShape(die, shapeValue))
     .map((item) => ({
@@ -3580,8 +3668,7 @@ function dimensionsMatch(widthA, lengthA, widthB, lengthB, tolerance = 0.015) {
 
 function recommendedDieForCurrentForm() {
   if (String(state.form?.troquel?.dieCode || "").trim()) return null;
-  const raw = state.context?.calculo?.raw_data || {};
-  const targetShape = dieShapeToken(first(state.form?.troquel?.dieShape, raw["REQ | Forma"], state.context?.calculo?.dieShape, ""));
+  const targetShape = dieShapeToken(first(state.form?.troquel?.dieShape, state.context?.calculo?.dieShape, ""));
   const targetWidth = n(first(state.form?.header?.labelWidthIn, state.form?.troquel?.widthIn), 0);
   const targetLength = n(first(state.form?.header?.labelHeightIn, state.form?.troquel?.lengthIn), 0);
   if (!targetWidth || !targetLength) return null;
@@ -3719,6 +3806,41 @@ function laserPlateMetrics(form = state.form) {
   };
 }
 
+function calcularPlanchaSqIn() {
+  const form = state.form;
+  const troquel = form?.troquel || {};
+  const header = form?.header || {};
+  const colors = Math.max(0, effectiveColors(form));
+  const dieDevIn = n(troquel.cylinderDevelopmentIn, 0);
+  const machine = primaryPrintMachineForForm(form);
+  const machineMaxWidthIn = n(machine?.anchoMaxIn || machine?.ancho_max_in || 0, 0);
+  const rollWidthIn = n(header.rollWidthIn, 0);
+  const costPerSqIn = n(state.costsConfig?.convencional?.costoPlanchaIn2, 0);
+
+  let printingSqIn = 0;
+  let stampingSqIn = 0;
+  let printingDesc = "";
+  let stampingDesc = "";
+
+  if (machineMaxWidthIn > 0 && dieDevIn > 0 && colors > 0) {
+    printingSqIn = r(machineMaxWidthIn * dieDevIn * colors, 4);
+    printingDesc = `${colors} tintas × (${num(machineMaxWidthIn, 2)} in ancho máq. × ${num(dieDevIn, 3)} in desarrollo)`;
+  }
+
+  const isEstampadoActive = (form.finishes || []).some(
+    (f) => f.processKey === "estampado" && f.active !== false
+  ) || (form.printStages?.[0]?.inlineFinishes?.estampado?.active);
+  if (isEstampadoActive && rollWidthIn > 0 && dieDevIn > 0) {
+    stampingSqIn = r(rollWidthIn * dieDevIn, 4);
+    stampingDesc = `${num(rollWidthIn, 2)} in ancho rollo × ${num(dieDevIn, 3)} in desarrollo`;
+  }
+
+  const totalSqIn = r(printingSqIn + stampingSqIn, 4);
+  const totalCost = costPerSqIn > 0 ? r(totalSqIn * costPerSqIn, 2) : 0;
+
+  return { printingSqIn, stampingSqIn, totalSqIn, costPerSqIn, totalCost, printingDesc, stampingDesc, machineMaxWidthIn, dieDevIn, colors };
+}
+
 function captureFocus() {
   const active = document.activeElement;
   if (!active || !(active instanceof HTMLElement)) return null;
@@ -3845,13 +3967,14 @@ function metricBox(label, value, missing = false, alert = false) {
   return `<div class="metric-cell${missing ? " metric-cell-required" : ""}${alert ? " metric-cell-alert" : ""}"><span>${esc(label)}</span><strong>${value}</strong></div>`;
 }
 
-function infoPopoverButton(title, body, extraClass = "") {
+function infoPopoverButton(title, body, extraClass = "", isHtml = false) {
   if (!title && !body) return "";
   const icon = first(state.config?.icons?.fieldInfo, state.config?.icons?.formulaInfo, "i");
   const iconColor = first(state.config?.general?.iconColorFieldInfo, state.config?.general?.iconColorFormulaInfo, "#4f6f8f");
   const iconSize = Number(first(state.config?.general?.iconSizeFieldInfo, state.config?.general?.iconSizeFormulaInfo, 13)) || 13;
   const className = ["info-popover-trigger", extraClass].filter(Boolean).join(" ");
-  return `<button type="button" class="${className}" style="--info-icon-color:${esc(iconColor)};--info-icon-size:${esc(iconSize)}px;" aria-label="${esc(title || "Información")}" aria-expanded="false" aria-haspopup="dialog" data-info-title="${esc(title || "Información")}" data-info-body="${esc(body || "")}">${renderIconMarkup(icon, title || "Información", "info-popover-icon")}</button>`;
+  const bodyAttr = isHtml ? `data-info-body-html="${body || ""}"` : `data-info-body="${esc(body || "")}"`;
+  return `<button type="button" class="${className}" style="--info-icon-color:${esc(iconColor)};--info-icon-size:${esc(iconSize)}px;" aria-label="${esc(title || "Información")}" aria-expanded="false" aria-haspopup="dialog" data-info-title="${esc(title || "Información")}" ${bodyAttr}>${renderIconMarkup(icon, title || "Información", "info-popover-icon")}</button>`;
 }
 
 function formatDisplayNumber(value, { prefix = "", suffix = "", maximumFractionDigits = 2, integer = false, currency = false } = {}) {
@@ -4337,13 +4460,13 @@ function formula(title, body, explanation, options = {}) {
 }
 
 function formulaButton(title, body, explanation, options = {}) {
-  const formulaText = body ? `Fórmula:\n${body}` : "";
-  const explanationText = explanation ? `Explicación:\n${explanation}` : "";
+  const formulaText = body ? `Fórmula:<br>${body.split("\n").filter(Boolean).map((line) => `&nbsp;&nbsp;▸ ${line}`).join("<br>")}` : "";
+  const explanationText = explanation ? `<br><br>Explicación:<br>&nbsp;&nbsp;${esc(explanation)}` : "";
   const exampleLines = Array.isArray(options.exampleLines) ? options.exampleLines.filter(Boolean) : [];
-  const answerText = String(options.answer || "").trim();
-  const exampleText = exampleLines.length ? ["Ejemplo Actual:", ...exampleLines].join("\n") : "";
-  const fullText = [formulaText, exampleText, answerText, explanationText].filter(Boolean).join("\n\n");
-  return infoPopoverButton(title, fullText, "formula-help");
+  const answerText = String(options.answer || "").trim() ? `<br><br>${esc(options.answer)}` : "";
+  const exampleText = exampleLines.length ? `<br><br>Ejemplo Actual:<br>${exampleLines.map((line) => `&nbsp;&nbsp;▸ ${esc(line)}`).join("<br>")}` : "";
+  const fullText = [formulaText, exampleText, answerText, explanationText].filter(Boolean).join("");
+  return infoPopoverButton(title, fullText, "formula-help", true);
 }
 
 function liftFormulaInfo(body = "") {
@@ -4561,7 +4684,7 @@ function buildForm() {
       useCmyk: savedUi?.header?.useCmyk ?? (context?.cmyk === true || norm(raw["CMYK"]) === "si" || quoteDefaults.useCmyk),
       useWhiteInk: norm(raw["TINTA BLANCA | CHECK"]) === "si",
       doubleWhitePass: norm(raw["TINTA BLANCA | DOBLE PASADA | CHECK"]) === "si",
-      noPrint: norm(raw["SIN IMPRESION"]) === "si",
+      noPrint: context?.sinImpresion || norm(raw["SIN IMPRESION"]) === "si",
       quantity: quantityProducts,
       quantities: normalizeQuantities((normalizedRequestedQuantities.length ? normalizedRequestedQuantities : [quantityProducts]).map((value, index) => ({ id: `qty-${index + 1}`, value }))),
       quoteCode: context?.quoteCode || quote?.quote_code || "",
@@ -4582,7 +4705,7 @@ function buildForm() {
     },
     troquel: {
       ...dieMetrics,
-      dieShape: dieShapeOptionValue(first(savedUi?.troquel?.dieShape, dieMetrics.dieShape, raw["REQ | Forma"])),
+      dieShape: dieShapeOptionValue(first(savedUi?.troquel?.dieShape, dieMetrics.dieShape, context?.troquelForma, raw["REQ | Forma"])),
       associateDieShape: savedUi?.troquel?.associateDieShape !== false,
       dieMode: normalizeDieMode(first(savedUi?.troquel?.dieMode, dieMetrics.dieCode ? "inventory" : "")),
       external: normalizeDieExternalRows(savedUi?.troquel?.external)
@@ -4804,6 +4927,7 @@ function buildForm() {
   }
   const shouldExpand = false;
   state.form = form;
+  syncPrintStageInkStations(state.form);
   ensureActiveProcessKeys(shouldExpand);
   ensureConfiguredProcessInstances();
   syncInlineFinishesForMachine(0);
@@ -5042,15 +5166,46 @@ function calcPlates() {
   }
   const plateMode = normalizePlateMode(state.form.plates?.plateMode);
   if (plateMode === "external") {
-    const rows = normalizePlateExternalRows(state.form.plates.external);
-    state.form.plates.external = rows;
-    const rawSubtotal = r(rows.reduce((sum, item) => sum + n(item.cost, 0), 0));
+    const rawUserRows = normalizePlateExternalRows(state.form.plates.external).filter((r) => !r.isAuto);
+    const p = calcularPlanchaSqIn();
+    const autoCost = p.costPerSqIn > 0 ? p.totalCost : 0;
+    const allRows = [];
+    if (autoCost > 0) {
+      const descParts = [];
+      if (p.printingSqIn > 0) descParts.push(`Impresión: ${num(p.printingSqIn, 2)} in²`);
+      if (p.stampingSqIn > 0) descParts.push(`Estampado: ${num(p.stampingSqIn, 2)} in²`);
+      descParts.push(`Total: ${num(p.totalSqIn, 2)} in²`);
+      allRows.push({
+        description: descParts.join(' | '),
+        cost: autoCost,
+        comments: `$${num(p.costPerSqIn, 4)}/in²`,
+        isAuto: true
+      });
+    }
+    allRows.push(...rawUserRows);
+    state.form.plates.external = allRows;
+    const manualSubtotal = r(rawUserRows.reduce((sum, item) => sum + n(item.cost, 0), 0));
+    const rawSubtotal = r(manualSubtotal + autoCost);
+    const exampleLines = [];
+    if (autoCost > 0) {
+      let formulaParts = [];
+      if (p.printingSqIn > 0) formulaParts.push(`${num(p.colors, 0)} tintas × (${num(p.machineMaxWidthIn, 2)} in ancho máq. × ${num(p.dieDevIn, 3)} in desarrollo)`);
+      if (p.stampingSqIn > 0) formulaParts.push(`${num(p.machineMaxWidthIn, 2)} in ancho rollo × ${num(p.dieDevIn, 3)} in desarrollo (estampado)`);
+      if (formulaParts.length) exampleLines.push(`Área plancha = ${formulaParts.join(' + ')} = ${num(p.totalSqIn, 2)} in²`);
+      exampleLines.push(`Costo plancha = ${num(p.totalSqIn, 2)} in² × $${num(p.costPerSqIn, 4)}/in² = ${formulaValue(autoCost, 2)}`);
+    }
+    rawUserRows.forEach((row) => { if (n(row.cost, 0) > 0) { exampleLines.push(`Costo externo: ${formulaValue(row.cost || 0, 2)}`); } });
     return {
       ...applyProcessMinimum("planchas", rawSubtotal),
-      breakdown: emptyPlateBreakdown("Costo externo de planchas registrado manualmente."),
-      externalRows: rows,
-      formulaText: "Subtotal planchas = suma de costos externos registrados.",
-      explanation: "Costo externo toma la descripción, costo, comentarios y adjunto indicado para planchas."
+      breakdown: emptyPlateBreakdown(""),
+      externalRows: allRows,
+      formulaText: autoCost > 0
+        ? "Costo Plancha = ((Ancho Máq. × Desarrollo × Tintas) + Estampado si aplica) × Costo por in²."
+        : "Subtotal planchas = suma de costos externos registrados.",
+      explanation: autoCost > 0
+        ? "El total de pulgadas cuadradas se calcula con el ancho máximo de la máquina, el desarrollo del troquel y la cantidad de tintas activas. Para estampado en frío se usa el ancho del rollo por el desarrollo del troquel. El resultado se multiplica por el costo por in² configurado en Costos → Convencional."
+        : "Costo externo toma la descripción, costo, comentarios y adjunto indicado para planchas.",
+      autoPlanchaCost: autoCost
     };
   }
   if (plateMode === "inventory") {
@@ -5126,15 +5281,52 @@ function calcPrint() {
     const digitalStations = Math.max(0, base.colors + n(item.digitalSpecialColors, 0));
     const speedMetersMin = isDigitalMachine ? digitalSpeedForStations(machine, item, digitalStations) : n(item.speedMetersMin, 0);
     const speedUnit = printSpeedUnit(machine);
-    const inkCoverage = n(item.coveragePct, 0) / 100;
-    const aniloxBcm = n(first(item.aniloxBcm, item.inkGsm), 0);
-    const transferFactor = n(item.transferFactor, 0);
-    const inkDensity = n(item.inkDensity, 0);
-    const inkCostPerLb = n(item.inkCostPerLb, 0);
     const printedAreaIn2 = r((base.printedAreaFt2 || 0) * 144, 6);
-    const conventionalInkConsumptionPerColorLb = state.form.header.noPrint ? 0 : r((printedAreaIn2 * inkCoverage * aniloxBcm * transferFactor * inkDensity * 0.001) / 453.59237, 6);
-    const conventionalInkConsumption = state.form.header.noPrint ? 0 : r(conventionalInkConsumptionPerColorLb * base.colors, 6);
-    const conventionalInkSubtotal = r(conventionalInkConsumption * inkCostPerLb);
+    const stations = Array.isArray(item.inkStations) ? item.inkStations.filter(function(s) { return s.active; }) : [];
+    const hasStations = stations.length > 0;
+    const inkCoverage = hasStations ? 0 : n(item.coveragePct, 0) / 100;
+    const aniloxBcm = hasStations ? 0 : n(first(item.aniloxBcm, item.inkGsm), 0);
+    const transferFactor = hasStations ? 0 : n(item.transferFactor, 0);
+    const inkDensity = hasStations ? 0 : n(item.inkDensity, 0);
+    const inkCostPerLb = hasStations ? 0 : n(item.inkCostPerLb, 0);
+    let conventionalInkConsumptionPerColorLb = 0;
+    let conventionalInkConsumption = 0;
+    let conventionalInkSubtotal = 0;
+    let inkStationDetails = [];
+    if (hasStations) {
+      var totalConsumption = 0;
+      var totalSubtotal = 0;
+      stations.forEach(function(station) {
+        var sc = n(station.coveragePct, 0) / 100;
+        var sb = n(station.aniloxBcm, 0);
+        var st = n(station.transferFactor, 0);
+        var sd = n(station.inkDensity, 0);
+        var scost = n(station.inkCostPerLb, 0);
+        var consumption = state.form.header.noPrint ? 0 : r((printedAreaIn2 * sc * sb * st * sd * 0.001) / 453.59237, 6);
+        var subtotal = r(consumption * scost);
+        totalConsumption += consumption;
+        totalSubtotal += subtotal;
+        inkStationDetails.push({
+          stationId: station.id,
+          inkLabel: station.inkLabel,
+          inkType: station.inkType,
+          coveragePct: n(station.coveragePct, 0),
+          aniloxBcm: sb,
+          transferFactor: st,
+          inkDensity: sd,
+          inkCostPerLb: scost,
+          consumptionLb: consumption,
+          subtotal: subtotal
+        });
+      });
+      conventionalInkConsumptionPerColorLb = r(totalConsumption, 6);
+      conventionalInkConsumption = r(totalConsumption, 6);
+      conventionalInkSubtotal = r(totalSubtotal);
+    } else {
+      conventionalInkConsumptionPerColorLb = state.form.header.noPrint ? 0 : r((printedAreaIn2 * inkCoverage * aniloxBcm * transferFactor * inkDensity * 0.001) / 453.59237, 6);
+      conventionalInkConsumption = state.form.header.noPrint ? 0 : r(conventionalInkConsumptionPerColorLb * base.colors, 6);
+      conventionalInkSubtotal = r(conventionalInkConsumption * inkCostPerLb);
+    }
     let inkConsumptionPerColorLb = conventionalInkConsumptionPerColorLb;
     let inkConsumption = conventionalInkConsumption;
     let inkSubtotal = conventionalInkSubtotal;
@@ -5378,11 +5570,12 @@ function calcPrint() {
         machineSubtotal,
         operatorSubtotal,
         inkConsumptionPerColorLb,
-        inkCoveragePct: n(item.coveragePct, 0),
-        aniloxBcm,
-        transferFactor,
-        inkDensity,
-        inkCostPerLb,
+        inkCoveragePct: hasStations ? 0 : n(item.coveragePct, 0),
+        aniloxBcm: hasStations ? 0 : aniloxBcm,
+        transferFactor: hasStations ? 0 : transferFactor,
+        inkDensity: hasStations ? 0 : inkDensity,
+        inkCostPerLb: hasStations ? 0 : inkCostPerLb,
+        inkStationDetails,
         inkConsumption,
         inkSubtotal,
         digitalStations,
@@ -5416,7 +5609,7 @@ function calcPrint() {
   const totalMinutes = r(items.reduce((sum, item) => sum + item.totalMinutes, 0));
   const runMinutes = r(items.reduce((sum, item) => sum + item.runMinutes, 0));
   const pricing = applyProcessMinimum("impresion", r(machineSubtotal + operatorSubtotal + inkSubtotal + digitalWashSubtotal + premierSubtotal + inlineSubtotal));
-  return { ...base, ...pricing, items, runMinutes, totalMinutes, machineSubtotal, operatorSubtotal, inkConsumption, inkSubtotal, digitalWashSubtotal, premierSubtotal, inlineSubtotal, maculaSetupFeet, maculaTirajeFeet, maculaTotalFeet, timeFormula: "Tiempo Total en Máquina (min) = (Longitud Total en pies / Velocidad de Operación en ft/min) + Tiempo de Montaje y Ajuste", inkFormula: "Consumo tinta = área impresa × cobertura × BCM anilox × factor transferencia × densidad tinta × tintas requeridas", explanation: "Impresión calcula el tiempo de corrida usando la longitud total del trabajo, incluyendo la merma, antes de sumar el tiempo de montaje y ajuste." };
+  return { ...base, ...pricing, items, runMinutes, totalMinutes, machineSubtotal, operatorSubtotal, inkConsumption, inkSubtotal, digitalWashSubtotal, premierSubtotal, inlineSubtotal, maculaSetupFeet, maculaTirajeFeet, maculaTotalFeet, timeFormula: "Tiempo Total en Máquina (min) = (Longitud Total en pies / Velocidad de Operación en ft/min) + Tiempo de Montaje y Ajuste", inkFormula: "Consumo total = Σ (área impresa × cobertura × BCM × factor T. × densidad) de cada estación activa", explanation: "Impresión calcula el tiempo de corrida usando la longitud total del trabajo, incluyendo la merma, antes de sumar el tiempo de montaje y ajuste." };
 }
 
 function calcFinishes() {
@@ -6736,7 +6929,7 @@ function renderSidebar(result) {
   if (els.automaticSummaryRows) {
     const processSequence = autoProcesses.length
       ? autoProcesses.map((item) => item.processName || item.name || item.processKey || "").filter(Boolean).join(" → ")
-      : first(state.context?.calculo?.raw_data?.Texto_Secuencia_Procesos, "Pendiente");
+      : first(state.context?.calculo?.montajeResumen, state.context?.calculo?.raw_data?.Texto_Secuencia_Procesos, "Pendiente");
     els.automaticSummaryRows.innerHTML = [
       ["Umbral digital", num(first(autoSelection?.digitalThreshold, state.context?.calculo?.raw_data?.Seleccion_Automatica?.digitalThreshold), 0)],
       ["Ruta", state.context?.calculo?.processType || autoSelection?.route || "No definida"],
@@ -7160,7 +7353,7 @@ function activeProcessKeysFromStoredLine(line = {}) {
 }
 
 function formatStoredLineBlockMessageForProforma(line = {}, quoteCode = "") {
-  const lineCode = String(line.line_code || line.linea || line.raw_data?.["ID LINEA"] || "").trim();
+  const lineCode = String(line.line_code || line.linea || "").trim();
   const message = extractStoredLineBlockMessage(line);
   if (!lineCode || !message) return "";
   const currentLineCode = String(state.form?.header?.lineCode || "").trim();
@@ -7171,7 +7364,7 @@ function formatStoredLineBlockMessageForProforma(line = {}, quoteCode = "") {
     lineCode,
     quoteCode,
     productId: line.product_code || "",
-    department: line.department || line.raw_data?.DEPARTAMENTO || "Flexografia"
+    department: line.department || "Flexografia"
   });
   const lineLabel = route
     ? `<a class="summary-row-link" href="${esc(route)}" data-route="${esc(route)}" data-label="Cálculo ${esc(lineCode)}">${esc(lineCode)}</a>`
@@ -7183,8 +7376,7 @@ function storedLineIssues(line = {}) {
   const raw = line.raw_data || {};
   const activeKeys = activeProcessKeysFromStoredLine(line);
   const isFrontBackChild = (() => {
-    const group = raw.grupoFrenteDorso || raw.grupo_frente_dorso || raw.frontBackGroup || raw.Grupo_Frente_Dorso
-      || line.grupo_frente_dorso || line.front_back_group;
+    const group = line.grupo_frente_dorso || line.front_back_group || raw.grupoFrenteDorso || raw.grupo_frente_dorso || raw.frontBackGroup || raw.Grupo_Frente_Dorso
     if (!group || typeof group !== "object") return false;
     const role = String(group.role || "").toLowerCase();
     return ["elemento", "componente", "frente", "dorso"].includes(role);
@@ -7231,14 +7423,14 @@ function buildCurrentLineBlockItem(validationState = state.processValidation) {
 
 function buildStoredLineBlockItem(item = {}, quoteCode = "") {
   const line = item.line || {};
-  const lineCode = String(line.line_code || line.linea || line.raw_data?.["ID LINEA"] || "").trim();
+  const lineCode = String(line.line_code || line.linea || "").trim();
   if (!lineCode || !item.issues?.length) return null;
   return {
     current: lineCode === String(state.form?.header?.lineCode || "").trim(),
     lineCode,
     quoteCode,
     productId: line.product_code || "",
-    department: line.department || line.raw_data?.DEPARTAMENTO || "Flexografia",
+    department: line.department || "Flexografia",
     issues: item.issues
   };
 }
@@ -7407,14 +7599,30 @@ function renderPlateExternalAttachmentTable(item = {}, index = 0) {
 
 function renderPlateExternalRow(item = {}, index = 0) {
   const deleteIcon = getProcessDeleteIconConfig();
+  if (item.isAuto) {
+    return `<div class="additional-item"><div class="additional-row plancha-auto-table-row"><span class="plancha-auto-desc">${esc(item.description || "")}</span><span class="plancha-auto-cost-val">${money(item.cost || 0)}</span><span class="plancha-auto-comments">${esc(item.comments || "")}</span><span></span></div></div>`;
+  }
   return `<div class="additional-item"><div class="additional-row"><input data-scope="plates.external.${index}" data-field="description" type="text" value="${esc(item.description || "")}" placeholder="Descripción">${displayInput(`plates.external.${index}`, "cost", item.cost || 0, { prefix: "$", maximumFractionDigits: 2, step: "0.01" })}<input data-scope="plates.external.${index}" data-field="comments" type="text" value="${esc(item.comments || "")}" placeholder="Comentarios"><button type="button" class="process-trash-button" data-action="remove-plate-external" data-index="${index}" aria-label="Eliminar fila" title="Eliminar fila" style="--process-delete-icon-color:${esc(deleteIcon.primary)};--process-delete-icon-hover:${esc(deleteIcon.hover)};--process-delete-icon-size:${deleteIcon.size}px;">${renderIconMarkup(deleteIcon.value, "Eliminar fila", "process-delete-icon")}</button></div>${renderPlateExternalAttachmentTable(item, index)}</div>`;
 }
 
 function renderPlateExternalPanel(plates) {
   const rows = normalizePlateExternalRows(state.form.plates.external);
-  state.form.plates.external = rows;
-  return `<div class="table-toolbar"><button type="button" class="inline-button" data-action="add-plate-external">Agregar fila</button></div><div class="additional-table plate-external-table"><div class="additional-head"><span>Descripción</span><span>Costo</span><span>Comentarios</span><span></span></div>${rows.map((item, index) => renderPlateExternalRow(item, index)).join("")}</div><div class="readonly-grid compact-top subtotal-right">${metric("Subtotal Planchas", money(plates.subtotal))}</div>${formula("Costo Externo", "Subtotal planchas = suma de costos externos registrados.", plates.explanation, {
-    exampleLines: rows.map((row, index) => `Costo externo ${index + 1}: ${formulaValue(row.cost || 0, 2)}`),
+  const autoRows = rows.filter((r) => r.isAuto);
+  const hasAuto = autoRows.length > 0;
+  const exampleLines = plates.formulaText ? [] : [];
+  if (hasAuto) {
+    const p = calcularPlanchaSqIn();
+    if (p.totalSqIn > 0) {
+      let formulaParts = [];
+      if (p.printingSqIn > 0) formulaParts.push(`${num(p.colors, 0)} tintas × (${num(p.machineMaxWidthIn, 2)} in ancho máq. × ${num(p.dieDevIn, 3)} in desarrollo)`);
+      if (p.stampingSqIn > 0) formulaParts.push(`${num(p.machineMaxWidthIn, 2)} in ancho rollo × ${num(p.dieDevIn, 3)} in desarrollo (estampado)`);
+      if (formulaParts.length) exampleLines.push(`Área plancha = ${formulaParts.join(' + ')} = ${num(p.totalSqIn, 2)} in²`);
+      exampleLines.push(`Costo plancha = ${num(p.totalSqIn, 2)} in² × $${num(p.costPerSqIn, 4)}/in² = ${formulaValue(p.totalCost, 2)}`);
+    }
+  }
+  rows.forEach((row) => { if (!row.isAuto && n(row.cost, 0) > 0) exampleLines.push(`Costo externo: ${formulaValue(row.cost || 0, 2)}`); });
+  return `<div class="table-toolbar"><button type="button" class="inline-button" data-action="add-plate-external">Agregar fila</button></div><div class="additional-table plate-external-table"><div class="additional-head"><span>Descripción</span><span>Costo</span><span>Comentarios</span><span></span></div>${rows.map((item, index) => renderPlateExternalRow(item, index)).join("")}</div><div class="readonly-grid compact-top subtotal-right">${metric("Subtotal Planchas", money(plates.subtotal))}</div>${formula("Costo Externo", plates.formulaText, plates.explanation, {
+    exampleLines,
     answer: `R/ El total a cobrar por planchas es ${money(plates.subtotal || 0)}`
   })}`;
 }
@@ -7445,36 +7653,127 @@ function renderPlateInventoryPanel(plates) {
   return `<div class="plate-disabled-panel"><label class="inline-process-check plate-virgin-check"><input type="checkbox" checked disabled><span>Planchas en Inventario</span></label></div>`;
 }
 
+function resolveDieImageUrl(die) {
+  const source = String(die?.imageUrl || die?.image_url || "").trim();
+  if (!source) return "";
+  if (/^(data:image\/|https?:\/\/|blob:|\/)/i.test(source)) return source;
+  return `/${source.replace(/^\.?\//, "")}`;
+}
+
 function renderDieInventoryPanel(troquel) {
-  const shapeValue = dieShapeOptionValue(state.form.troquel.dieShape || state.context?.calculo?.raw_data?.["REQ | Forma"] || "");
-  const shapeImage = dieShapeImageForValue(shapeValue);
-  const recommendedDie = recommendedDieForCurrentForm();
-  const recommendedLabel = recommendedDie ? `Recomendado: ${first(recommendedDie.codigoTroquel, recommendedDie.codigo, recommendedDie.id)}` : "Seleccionar...";
-  const productDimension = `${num(state.form.header.labelWidthIn || 0, 3)} x ${num(state.form.header.labelHeightIn || 0, 3)} in`;
-  const associateChecked = state.form.troquel.associateDieShape !== false ? " checked" : "";
-  let elementDimensionsHtml = "";
-  if (isFrontBackGroupContext()) {
-    const { elements } = relatedFrontBackLines();
-    if (elements.length) {
-      const dimRows = elements.map((item) => {
-        const raw = storedLineRaw(item.line);
-        const uiHeader = raw?.["Estado_UI"]?.header || {};
-        const w = n(uiHeader.labelWidthIn || item.line.raw_data?.["Estado_UI"]?.header?.labelWidthIn, 0);
-        const h = n(uiHeader.labelHeightIn || item.line.raw_data?.["Estado_UI"]?.header?.labelHeightIn, 0);
-        const name = storedLineJobName(item.line) || item.code;
-        return `<div class="metric-cell"><span>${esc(name)} (${esc(item.role)})</span><strong>${num(w, 3)} x ${num(h, 3)} in</strong></div>`;
-      }).join("");
-      elementDimensionsHtml = `${metricBox("Dimensión Producto", productDimension, false, Boolean(dieDimensionMismatch()))}<div class="front-back-child-dims">${dimRows}</div>`;
-    }
-  }
-  return `<div class="editable-grid die-association-row"><label><span>Forma</span><button type="button" class="calc-shape-trigger" data-calc-shape-trigger aria-expanded="false"><span class="calc-shape-trigger-copy"><span class="calc-shape-thumb" data-calc-shape-thumb>${dieShapeThumbForValue(shapeValue, shapeImage)}</span><span class="calc-shape-trigger-label" data-calc-shape-label>${esc(shapeValue || "Seleccionar...")}</span></span></button></label><label class="die-associate-field"><span>Asociar</span><span class="inline-process-check plate-virgin-check die-associate-check"><input data-scope="troquel" data-field="associateDieShape" type="checkbox"${associateChecked}></span></label><label><span>Troquel</span><select data-scope="troquel" data-field="dieCode">${processOptions(troquelDieOptions(), state.form.troquel.dieCode, recommendedLabel)}</select></label></div><div class="readonly-grid compact-top">${elementDimensionsHtml || `${metricBox("Dimensión Producto", productDimension, false, Boolean(dieDimensionMismatch()))}`}${metric("Código Troquel", esc(state.form.troquel.dieCode || "No definido"))}${metric("Ancho Montaje", `${num(state.form.troquel.widthIn, 3)} in`)}${metric("Largo Montaje", `${num(state.form.troquel.lengthIn, 3)} in`)}${metric("Ancho Material", `${num(state.form.troquel.materialWidthIn || 0, 3)} in`)}${metric("Elongación", `${num(state.form.troquel.elongationPct || 0, 3)} %`)}${metric("Dientes", num(state.form.troquel.teeth, 0))}${metric("Repeticiones", num(state.form.troquel.repeats, 0))}${metric("Filas", num(state.form.troquel.rows, 0))}${metric("Etiquetas por Vuelta", num(troquel.labelsPerRepeat, 0))}${metric("Desarrollo Total", `${num(troquel.development, 3)} in`)}</div>${dieDimensionWarningMarkup()}${formula("Base del Troquel", troquel.formulaText, troquel.explanation, {
+  const dieSelected = String(state.form.troquel.dieCode || "").trim();
+  const selectedDie = dieSelected ? findDie(state.form.troquel.dieCode) : null;
+  const dieCode = esc(state.form.troquel.dieCode || "");
+  const actualDesc = selectedDie ? String(selectedDie.descripcion || selectedDie.description || "").trim() : "";
+  const hasActualDesc = Boolean(actualDesc);
+  const prodWidth = n(state.form.header.labelWidthIn, 0);
+  const prodHeight = n(state.form.header.labelHeightIn, 0);
+  const prodSummary = prodWidth > 0 && prodHeight > 0 ? `${num(prodWidth, 3)} x ${num(prodHeight, 3)} in` : "";
+  const labelWidth = n(state.form.troquel.productWidthIn, 0);
+  const labelHeight = n(state.form.troquel.productLengthIn, 0);
+  const labelSummary = labelWidth > 0 && labelHeight > 0 ? `${num(labelWidth, 3)} x ${num(labelHeight, 3)} in` : "";
+  const labelArea = labelWidth > 0 && labelHeight > 0 ? r(labelWidth * labelHeight, 4) : 0;
+  const dieWidth = n(state.form.troquel.widthIn, 0);
+  const dieLength = n(state.form.troquel.lengthIn, 0);
+  const development = n(state.form.troquel.cylinderDevelopmentIn, 0);
+  const imageUrl = selectedDie ? resolveDieImageUrl(selectedDie) : "";
+  const hasImage = Boolean(imageUrl);
+  const infoVisible = dieSelected ? "" : " hidden";
+  const addTroquelIcon = iconPresentation("quantityAdd", "+", "#738196", 18);
+  const addIconHtml = renderIconMarkup(addTroquelIcon.value, "Buscar troquel en el catálogo", "troquel-add-icon");
+  const rightCol = hasImage ? `<div class="troquel-image-col"><img src="${esc(imageUrl)}" alt="${dieCode}" class="troquel-selected-image"></div>` : "";
+  return `<div class="troquel-layout"><div class="troquel-layout-left"><div class="troquel-header-row"><div class="troquel-select-row"><span>Troquel</span><span class="troquel-name-display">${dieCode ? `${dieCode}${hasActualDesc ? ` - ${esc(actualDesc)}` : ""}` : "<span class=\"troquel-placeholder\">Ningún troquel seleccionado</span>"}</span></div><div class="troquel-add-col"><button type="button" class="troquel-add-btn" data-action="open-troquel-catalog" title="Buscar troquel en el catálogo" style="--troquel-add-icon-color:${esc(addTroquelIcon.color)};--troquel-add-icon-hover:${esc(addTroquelIcon.hover)};--troquel-add-icon-size:${addTroquelIcon.size}px;">${addIconHtml}</button></div></div><div class="troquel-info-row${infoVisible}"><div class="troquel-info-data"><div class="readonly-grid compact-top troquel-metrics-grid">${metric("Dimensiones Producto", prodSummary || "-")}${metric("Dimensiones Etiqueta", labelSummary || "-")}${metric("Ancho Troquel", dieWidth > 0 ? `${num(dieWidth, 3)} in` : "-")}${metric("Largo Troquel", dieLength > 0 ? `${num(dieLength, 3)} in` : "-")}${metric("Área Etiqueta", labelArea > 0 ? `${num(labelArea, 4)} in²` : "-")}${metric("Desarrollo", development > 0 ? `${num(development, 3)} in` : "-")}</div></div></div>${dieDimensionWarningMarkup()}${formula("Base del Troquel", troquel.formulaText, troquel.explanation, {
     exampleLines: [
       `Etiquetas por repetición: ${formulaValue(state.form.troquel.rows || 0, 0)} x ${formulaValue(state.form.troquel.repeats || 0, 0)} = ${formulaValue(troquel.labelsPerRepeat || 0, 0)}`,
       `Desarrollo total: ${formulaValue(state.form.troquel.lengthIn || 0, 2)} x ${formulaValue(state.form.troquel.repeats || 0, 0)} = ${formulaValue(troquel.development || 0, 2)} in`,
       ...minimumCostExampleLines(troquel, "Troquel")
     ],
     answer: `R/ El troquel actual entrega ${formulaValue(troquel.labelsPerRepeat || 0, 0)} etiquetas por vuelta y ${formulaValue(troquel.development || 0, 2)} in de desarrollo`
-  })}`;
+  })}</div><div class="troquel-layout-right">${rightCol}</div></div>`;
+}
+
+function renderDieCatalogModal() {
+  const allDies = state.catalogs.troqueles || [];
+  const rows = allDies.length ? allDies.map((die) => renderDieCatalogRow(die)).join("") : `<div class="troquel-catalog-empty">No hay troqueles disponibles en el catálogo.</div>`;
+  return `<div id="troquelCatalogOverlay" class="troquel-catalog-overlay" style="display:none"><div class="troquel-catalog-modal"><div class="troquel-catalog-head"><h3>Catálogo de Troqueles</h3><button type="button" class="troquel-catalog-close" data-action="close-troquel-catalog" aria-label="Cerrar">&times;</button></div><div class="troquel-catalog-search"><input type="text" id="troquelCatalogSearch" placeholder="Buscar por código, descripción o forma..." data-action="troquel-catalog-search"><span class="troquel-catalog-search-icon">&#128269;</span></div><div class="troquel-catalog-body"><div class="troquel-catalog-list">${rows}</div></div></div></div>`;
+}
+
+function renderDieCatalogRow(die) {
+  const code = esc(die.codigoTroquel || die.codigo || die.id || "");
+  const description = esc(die.descripcion || "");
+  const width = num(firstPositiveNumber(die.ancho_total_troquel_in, die.ancho_mm ? r(die.ancho_mm / 25.4, 4) : 0), 3);
+  const length = num(firstPositiveNumber(die.largo_total_troquel_in, die.largo_mm ? r(die.largo_mm / 25.4, 4) : 0), 3);
+  const development = num(firstPositiveNumber(die.desarrollo_in, die.desarrolloIn, die.desarrolloTotalIn, die.repeatIn), 3);
+  const teeth = num(die.dientes || die.teeth || 0, 0);
+  const repeats = num(die.repeticiones || die.repetitions || 0, 0);
+  const shape = esc(die.clasificacion || die.classification || die.formaTroquel || die.forma_troquel || die.formato || die.tipoTroquel2 || die.tipo_troquel_2 || "");
+  const imageUrl = resolveDieImageUrl(die);
+  const imageHtml = imageUrl ? `<div class="troquel-catalog-img"><img src="${esc(imageUrl)}" alt="${code}" loading="lazy"></div>` : "";
+  const selectIcon = iconPresentation("quantityAdd", "+", "#738196", 18);
+  const selectIconHtml = renderIconMarkup(selectIcon.value, "Seleccionar troquel", "troquel-catalog-select-icon");
+  return `<div class="troquel-catalog-item">${imageHtml}<div class="troquel-catalog-info"><div class="troquel-catalog-code">${code}</div><div class="troquel-catalog-desc">${description || "Sin descripción"}</div><div class="troquel-catalog-metrics"><span>Ancho: ${width} in</span><span>Largo: ${length} in</span><span>Desarrollo: ${development} in</span><span>Dientes: ${teeth}</span><span>Repeticiones: ${repeats}</span><span>Forma: ${shape || "-"}</span></div></div><div class="troquel-catalog-action"><button type="button" class="troquel-catalog-select-btn" data-action="select-troquel-from-catalog" data-die-code="${esc(die.codigoTroquel || die.codigo || die.id || "")}" title="Seleccionar troquel" style="--troquel-select-icon-color:${esc(selectIcon.color)};--troquel-select-icon-hover:${esc(selectIcon.hover)};--troquel-select-icon-size:${selectIcon.size}px;">${selectIconHtml}</button></div></div>`;
+}
+
+function openDieCatalogModal() {
+  let overlay = document.getElementById("troquelCatalogOverlay");
+  if (!overlay) {
+    document.body.insertAdjacentHTML("beforeend", renderDieCatalogModal());
+    overlay = document.getElementById("troquelCatalogOverlay");
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay || event.target.closest("[data-action='close-troquel-catalog']")) {
+        closeDieCatalogModal();
+      }
+    });
+    const searchInput = document.getElementById("troquelCatalogSearch");
+    if (searchInput) {
+      searchInput.addEventListener("input", () => filterDieCatalogRows(searchInput.value));
+    }
+    overlay.addEventListener("click", (event) => {
+      const selectBtn = event.target.closest("[data-action='select-troquel-from-catalog']");
+      if (selectBtn) {
+        const dieCode = selectBtn.dataset.dieCode;
+        if (dieCode) {
+          selectDieFromCatalog(dieCode);
+        }
+      }
+    });
+  }
+  overlay.style.display = "flex";
+  document.body.classList.add("popover-open");
+  setTimeout(() => {
+    const searchInput = document.getElementById("troquelCatalogSearch");
+    if (searchInput) searchInput.focus();
+  }, 100);
+}
+
+function closeDieCatalogModal() {
+  const overlay = document.getElementById("troquelCatalogOverlay");
+  if (overlay) {
+    overlay.style.display = "none";
+    document.body.classList.remove("popover-open");
+  }
+}
+
+function filterDieCatalogRows(searchTerm) {
+  const term = String(searchTerm || "").trim().toLowerCase();
+  const items = document.querySelectorAll(".troquel-catalog-item");
+  items.forEach((item) => {
+    const text = (item.textContent || "").toLowerCase();
+    item.style.display = !term || text.includes(term) ? "" : "none";
+  });
+}
+
+function selectDieFromCatalog(dieCode) {
+  const die = findDie(dieCode);
+  if (!die) {
+    showCenterMessage("No se encontró el troquel seleccionado.");
+    return;
+  }
+  applyDieDefaults(dieCode);
+  state.form.troquel.dieMode = "inventory";
+  closeDieCatalogModal();
+  renderProcesses();
+  scheduleSave();
 }
 
 function renderPlateCreatePanel(plates) {
@@ -7633,11 +7932,14 @@ function renderInlinePrintBlock(stage, stageIndex, inline) {
       ].join("");
     } else if (inline.key === "estampado") {
       gridClass = "inline-estampado-grid";
+      const hasColdfoilData = inline.coldfoil && Object.keys(inline.coldfoil).length > 0;
       fields = [
         materialSelect("Material", "span-2"),
         `<label><span>Ancho del Rollo <span class="field-unit">in</span></span>${displayInput(scope, "supplyWidthIn", inline.supplyWidthIn, { suffix: "in", maximumFractionDigits: 4 })}</label>`,
         `<label><span>Costo por Pie Lineal</span>${displayInput(scope, "costPerFoot", inline.costPerFoot, { prefix: "$", suffix: "/pie", maximumFractionDigits: 6 })}</label>`,
         `<label><span>Montaje <span class="field-unit">min</span></span>${displayInput(scope, "setupMinutes", inline.setupMinutes, { suffix: "min", maximumFractionDigits: 2 })}</label>`,
+        `<div class="coldfoil-btn-wrap"><button type="button" class="coldfoil-open-btn" data-coldfoil-open data-stage-index="${stageIndex}" title="Abrir montaje Cold Foil" aria-label="Abrir montaje Cold Foil">${renderColdfoilIcon()} Montaje Cold Foil</button></div>`,
+        hasColdfoilData ? `<div class="coldfoil-summary" data-coldfoil-summary="${stageIndex}">${renderColdfoilSummary(inline.coldfoil)}</div>` : "",
         commentField
       ].join("");
     } else if (inline.key === "embosado") {
@@ -7763,21 +8065,72 @@ function renderInlineToggleBar(stageIndex, inlineItems) {
 }
 
 function renderPrintInkBlock(scope, item, printItem) {
-  const info = formulaButton("Cálculo de Tinta Convencional", "• Consumo (lb) = Área Impresa (in²) × Cobertura × BCM × Factor Transferencia × Densidad × Tintas Requeridas × 10⁻⁶\n• Subtotal Tinta = Consumo (lb) × Costo por Libra", "El consumo se calcula con el área impresa actual y el costo se obtiene multiplicando las libras consumidas por el costo de la tinta seleccionada.", {
-    exampleLines: [
-      `Área impresa: ${formulaValue(printItem.printedAreaFt2 || 0, 4)} ft² x 144 = ${formulaValue((printItem.printedAreaFt2 || 0) * 144, 4)} in²`,
-      `Consumo por color: ${formulaValue((printItem.printedAreaFt2 || 0) * 144, 4)} in² x ${formulaValue(printItem.inkCoveragePct || 0, 2)} x ${formulaValue(printItem.aniloxBcm || 0, 2)} x ${formulaValue(printItem.transferFactor || 0, 2)} x ${formulaValue(printItem.inkDensity || 0, 2)} x 0.001 / 453.59 = ${formulaValue(printItem.inkConsumptionPerColorLb || 0, 6)} lb`,
-      `Consumo total: ${formulaValue(printItem.inkConsumptionPerColorLb || 0, 6)} lb x ${formulaValue(printItem.colors || 0, 0)} tintas = ${formulaValue(printItem.inkConsumption || 0, 6)} lb`,
-      `Subtotal: ${formulaValue(printItem.inkConsumption || 0, 6)} lb x ${formulaValue(printItem.inkCostPerLb || 0, 4)} = ${formulaValue(printItem.inkSubtotal || 0, 2)}`
-    ],
-    answer: `R/ El total de tinta convencional calculado es ${money(printItem.inkSubtotal || 0)}.`
+  const stations = Array.isArray(item.inkStations) ? item.inkStations : [];
+  const hasStations = stations.length > 0;
+  const details = Array.isArray(printItem.inkStationDetails) ? printItem.inkStationDetails : [];
+  const tintaOptions = conventionalInkMaterialOptions().map(function(entry) { return { id: entry.id, nombre: entry.descripcion || entry.nombre || entry.id }; });
+  const tintaOptionsHtml = tintaOptions.map(function(opt) { return { id: opt.id, nombre: opt.nombre }; });
+  var formulaBody = hasStations
+    ? "Consumo por estaci\u00f3n (lb) = \u00c1rea Impresa (in\u00b2) \u00d7 Cobertura% \u00d7 BCM \u00d7 Factor T. \u00d7 Densidad \u00d7 0.001 \u00f7 453.592\nSubtotal = Consumo (lb) \u00d7 Costo/libra\nTotal = Suma de todas las estaciones"
+    : "Consumo (lb) = \u00c1rea Impresa (in\u00b2) \u00d7 Cobertura% \u00d7 BCM \u00d7 Factor T. \u00d7 Densidad \u00d7 Tintas \u00d7 0.001 \u00f7 453.592\nSubtotal = Consumo (lb) \u00d7 Costo/libra";
+  var formulaExplain = hasStations
+    ? "Cada estaci\u00f3n usa sus propios par\u00e1metros (cobertura, BCM, factor de transferencia, densidad y costo por libra). El \u00e1rea impresa en in\u00b2 se calcula como (printedAreaFt2 \u00d7 144). El resultado es la suma del consumo de todas las estaciones activas."
+    : "Todas las tintas usan los mismos par\u00e1metros. El \u00e1rea impresa en in\u00b2 se calcula como (printedAreaFt2 \u00d7 144).";
+  var exLines = [];
+  if (hasStations && details.length) {
+    exLines.push("F\u00f3rmula por estaci\u00f3n: printedAreaFt2 \u00d7 144 \u00d7 (Cobertura/100) \u00d7 BCM \u00d7 Factor T. \u00d7 Densidad \u00d7 0.001 / 453.592");
+    details.forEach(function(d) {
+      exLines.push(d.inkLabel + ": " + formulaValue(printItem.printedAreaFt2 || 0, 4) + " ft\u00b2 \u00d7 144 \u00d7 " + formulaValue(d.coveragePct, 2) + "% \u00d7 " + formulaValue(d.aniloxBcm, 2) + " \u00d7 " + formulaValue(d.transferFactor, 2) + " \u00d7 " + formulaValue(d.inkDensity, 2) + " \u00d7 0.001 / 453.59 = " + formulaValue(d.consumptionLb, 6) + " lb \u00d7 $ " + formulaValue(d.inkCostPerLb, 4) + "/lb = " + money(d.subtotal));
+    });
+  } else {
+    exLines.push("F\u00f3rmula: printedAreaFt2 \u00d7 144 \u00d7 (Cobertura/100) \u00d7 BCM \u00d7 Factor T. \u00d7 Densidad \u00d7 Tintas \u00d7 0.001 / 453.592");
+    exLines.push("\u00c1rea: " + formulaValue(printItem.printedAreaFt2 || 0, 4) + " ft\u00b2 \u00d7 144 = " + formulaValue((printItem.printedAreaFt2 || 0) * 144, 4) + " in\u00b2");
+    exLines.push("Por color: " + formulaValue((printItem.printedAreaFt2 || 0) * 144, 4) + " \u00d7 " + formulaValue(printItem.inkCoveragePct || 0, 2) + "% \u00d7 " + formulaValue(printItem.aniloxBcm || 0, 2) + " \u00d7 " + formulaValue(printItem.transferFactor || 0, 2) + " \u00d7 " + formulaValue(printItem.inkDensity || 0, 2) + " \u00d7 0.001 / 453.59 = " + formulaValue(printItem.inkConsumptionPerColorLb || 0, 6) + " lb");
+    exLines.push("Total: " + formulaValue(printItem.inkConsumptionPerColorLb || 0, 6) + " lb \u00d7 " + formulaValue(printItem.colors || 0, 0) + " tintas = " + formulaValue(printItem.inkConsumption || 0, 6) + " lb");
+    exLines.push("Subtotal: " + formulaValue(printItem.inkConsumption || 0, 6) + " lb \u00d7 $ " + formulaValue(printItem.inkCostPerLb || 0, 4) + " = " + money(printItem.inkSubtotal || 0));
+  }
+  const info = formulaButton("C\u00e1lculo de Tinta Convencional", formulaBody, formulaExplain, {
+    exampleLines: exLines,
+    answer: "R/ El total de tinta convencional calculado es " + money(printItem.inkSubtotal || 0) + "."
   });
-  const tintaOptions = conventionalInkMaterialOptions().map((entry) => ({ id: entry.id, nombre: entry.descripcion || entry.nombre || entry.id }));
-  const tintaBlancaOptions = whiteInkMaterialOptions().map((entry) => ({ id: entry.id, nombre: entry.descripcion || entry.nombre || entry.id }));
-  const tintaSelectors = `<label class="span-2"><span>Tinta CMYK UV</span><select data-scope="${scope}" data-field="inkMaterialId">${processOptions(tintaOptions, item.inkMaterialId)}</select></label>${state.form.header.useWhiteInk ? `<label class="span-2"><span>Tinta Blanca</span><select data-scope="${scope}" data-field="whiteInkMaterialId">${processOptions(tintaBlancaOptions, item.whiteInkMaterialId)}</select></label>` : ""}`;
-  const parameterZone = `<div class="process-zone"><div class="process-zone-head"><h4>Parámetros de Tinta</h4></div><div class="process-print-grid process-print-grid-ink">${tintaSelectors}<label><span>Cobertura Tinta</span>${displayInput(scope, "coveragePct", item.coveragePct, { suffix: "%", maximumFractionDigits: 2 })}</label><label><span>BCM Anilox</span>${displayInput(scope, "aniloxBcm", item.aniloxBcm, { maximumFractionDigits: 4 })}</label><label><span>Factor Transferencia</span>${displayInput(scope, "transferFactor", item.transferFactor, { maximumFractionDigits: 4 })}</label><label><span>Densidad Tinta</span>${displayInput(scope, "inkDensity", item.inkDensity, { maximumFractionDigits: 4 })}</label><label><span>Costo Lb CMYK</span>${displayInput(scope, "inkCostPerLb", item.inkCostPerLb, { prefix: "$", maximumFractionDigits: 4 })}</label><label><span>Costo Lb Blanco</span>${displayInput(scope, "whiteInkCostPerLb", item.whiteInkCostPerLb, { prefix: "$", maximumFractionDigits: 4 })}</label><label><span>Costo Lb Pantone</span>${displayInput(scope, "pantoneInkCostPerLb", item.pantoneInkCostPerLb, { prefix: "$", maximumFractionDigits: 4 })}</label></div></div>`;
-  const profileZone = `<div class="process-zone"><div class="process-zone-head"><h4>Tipos de Trabajo</h4></div><div class="process-inline-table-shell">${renderInkProfiles(scope, item.inkProfiles || [])}</div></div>`;
-  return `<details class="subprocess-card inline-process-card print-ink-card" data-open-key="${esc(scope)}.ink"><summary class="inline-process-summary"><div class="inline-process-heading"><strong>Cálculo de Tinta Convencional</strong></div><div class="process-summary-side"><em>${money(printItem.inkSubtotal || 0)}</em>${info}</div></summary><div class="process-body">${parameterZone}${profileZone}<div class="readonly-grid compact-top step-metrics">${metric("Tintas Requeridas", num(printItem.colors || 0, 0))}${metric("Consumo Tinta", `${num(printItem.inkConsumption || 0, 4)} lb`)}${metric("Costo por Lb", money(printItem.inkCostPerLb || 0))}${metric("Subtotal Tinta", money(printItem.inkSubtotal || 0))}</div></div></details>`;
+  var stationsHtml = "";
+  if (hasStations) {
+    var rows = stations.map(function(station, index) {
+      var stScope = scope + ".inkStations." + index;
+      var selId = station.inkMaterialId || (tintaOptionsHtml[0] ? tintaOptionsHtml[0].id : "") || "";
+      var opts = tintaOptionsHtml.map(function(o) { return "<option value=\"" + esc(o.id) + "\"" + (o.id === selId ? " selected" : "") + ">" + esc(o.nombre) + "</option>"; }).join("");
+      var detail = details[index] || null;
+      var consumptionStr = detail ? num(detail.consumptionLb, 4) : "—";
+      var subtotalStr = detail ? money(detail.subtotal) : "—";
+      return "<div class=\"ink-station-row\">" +
+        "<span class=\"station-num\">" + (index + 1) + "</span>" +
+        "<select data-scope=\"" + esc(stScope) + "\" data-field=\"inkMaterialId\">" + opts + "</select>" +
+        displayInput(stScope, "coveragePct", station.coveragePct, { suffix: "%", maximumFractionDigits: 2 }) +
+        displayInput(stScope, "aniloxBcm", station.aniloxBcm, { maximumFractionDigits: 4 }) +
+        displayInput(stScope, "transferFactor", station.transferFactor, { maximumFractionDigits: 4 }) +
+        displayInput(stScope, "inkDensity", station.inkDensity, { maximumFractionDigits: 4 }) +
+        "<span class=\"station-consumption\">" + esc(consumptionStr) + "</span>" +
+        "<span class=\"station-subtotal\">" + esc(subtotalStr) + "</span>" +
+        "</div>";
+    }).join("");
+    var totalLb = num(printItem.inkConsumption || 0, 4);
+    var totalSub = money(printItem.inkSubtotal || 0);
+    var totalRow = "<div class=\"ink-station-row ink-station-total\"><span class=\"station-num\"></span><span class=\"station-total-label\">Total</span><span></span><span></span><span></span><span></span><span class=\"station-consumption\">" + esc(totalLb) + " lb</span><span class=\"station-subtotal\">" + esc(totalSub) + "</span></div>";
+    stationsHtml = "<div class=\"process-zone\"><div class=\"process-zone-head\"><h4>Estaciones de Impresi\u00f3n</h4></div><div class=\"ink-stations-table\"><div class=\"ink-stations-head ink-station-row\"><span>#</span><span>Tinta</span><span>Cobertura</span><span>Anilox BCM</span><span>Factor T.</span><span>Densidad</span><span>Consumo (lb)</span><span>Subtotal</span></div>" + rows + totalRow + "</div></div>";
+  } else {
+    var tbOpts = whiteInkMaterialOptions().map(function(entry) { return { id: entry.id, nombre: entry.descripcion || entry.nombre || entry.id }; });
+    var selCmyk = "<label class=\"span-2\"><span>Tinta CMYK UV</span><select data-scope=\"" + esc(scope) + "\" data-field=\"inkMaterialId\">" + processOptions(tintaOptions, item.inkMaterialId) + "</select></label>";
+    var selWhite = state.form.header.useWhiteInk ? "<label class=\"span-2\"><span>Tinta Blanca</span><select data-scope=\"" + esc(scope) + "\" data-field=\"whiteInkMaterialId\">" + processOptions(tbOpts, item.whiteInkMaterialId) + "</select></label>" : "";
+    stationsHtml = "<div class=\"process-zone\"><div class=\"process-zone-head\"><h4>Par\u00e1metros de Tinta</h4></div><div class=\"process-print-grid process-print-grid-ink\">" + selCmyk + selWhite + "<label><span>Cobertura Tinta</span>" + displayInput(scope, "coveragePct", item.coveragePct, { suffix: "%", maximumFractionDigits: 2 }) + "</label><label><span>BCM Anilox</span>" + displayInput(scope, "aniloxBcm", item.aniloxBcm, { maximumFractionDigits: 4 }) + "</label><label><span>Factor Transferencia</span>" + displayInput(scope, "transferFactor", item.transferFactor, { maximumFractionDigits: 4 }) + "</label><label><span>Densidad Tinta</span>" + displayInput(scope, "inkDensity", item.inkDensity, { maximumFractionDigits: 4 }) + "</label><label><span>Costo Lb CMYK</span>" + displayInput(scope, "inkCostPerLb", item.inkCostPerLb, { prefix: "$", maximumFractionDigits: 4 }) + "</label><label><span>Costo Lb Blanco</span>" + displayInput(scope, "whiteInkCostPerLb", item.whiteInkCostPerLb, { prefix: "$", maximumFractionDigits: 4 }) + "</label><label><span>Costo Lb Pantone</span>" + displayInput(scope, "pantoneInkCostPerLb", item.pantoneInkCostPerLb, { prefix: "$", maximumFractionDigits: 4 }) + "</label></div></div>";
+  }
+  var profZone = "<div class=\"process-zone\"><div class=\"process-zone-head\"><h4>Tipos de Trabajo</h4></div><div class=\"process-inline-table-shell\">" + renderInkProfiles(scope, item.inkProfiles || []) + "</div></div>";
+  var metHtml = "";
+  if (hasStations) {
+    metHtml = "<div class=\"readonly-grid compact-top step-metrics\">" + metric("Consumo Total", num(printItem.inkConsumption || 0, 4) + " lb") + metric("Subtotal Tinta", money(printItem.inkSubtotal || 0)) + "</div>";
+  } else {
+    metHtml = "<div class=\"readonly-grid compact-top step-metrics\">" + metric("Tintas Requeridas", num(printItem.colors || 0, 0)) + metric("Consumo Tinta", num(printItem.inkConsumption || 0, 4) + " lb") + metric("Costo por Lb", money(printItem.inkCostPerLb || 0)) + metric("Subtotal Tinta", money(printItem.inkSubtotal || 0)) + "</div>";
+  }
+  return "<details class=\"subprocess-card inline-process-card print-ink-card\" data-open-key=\"" + esc(scope) + ".ink\"><summary class=\"inline-process-summary\"><div class=\"inline-process-heading\"><strong>C\u00e1lculo de Tinta Convencional</strong></div><div class=\"process-summary-side\"><em>" + money(printItem.inkSubtotal || 0) + "</em>" + info + "</div></summary><div class=\"process-body\">" + stationsHtml + profZone + metHtml + "</div></details>";
 }
 
 function renderDigitalPremierBlock(scope, item, printItem) {
@@ -8051,7 +8404,6 @@ function renderProcesses() {
   const additional = result.additional;
   const material = findMaterial(state.form.substrate.materialId);
   const digitalProcessNote = digitalProcessInlineNote();
-  const dieOptions = (state.catalogs.troqueles || []).map((item) => ({ id: item.codigoTroquel || item.id, nombre: `${item.codigoTroquel || item.id} ${item.descripcion ? `- ${item.descripcion}` : ""}`.trim() }));
   let orderNumber = 1;
   const sections = [];
   const pushSection = (markup) => {
@@ -8105,16 +8457,13 @@ function renderProcesses() {
     planchas: () => {
       const plateMode = normalizePlateMode(state.form.plates?.plateMode);
       const selector = renderPlateModeSelector();
-      const body = plateMode === "external"
-        ? `${selector}${renderPlateExternalPanel(plates)}`
+      const body = `${selector}${plateMode === "external"
+        ? renderPlateExternalPanel(plates)
         : (plateMode === "create"
-          ? `${selector}${renderPlateCreatePanel(plates)}`
+          ? renderPlateCreatePanel(plates)
         : (plateMode === "inventory"
-          ? `${selector}${renderPlateInventoryPanel(plates)}`
-          : `${selector}${renderPlatePendingPanel()}${formula("Planchas", "Selecciona planchas en inventario o costo externo.", plates.explanation, {
-            exampleLines: ["Pendiente definir inventario o costo externo."],
-            answer: "R/ Falta definir inventario o costo externo de planchas."
-          })}`));
+          ? renderPlateInventoryPanel(plates)
+          : renderPlatePendingPanel()))}`;
       return card("planchas", `${nextTitle("Planchas")}${digitalProcessNote ? ` <span style="color:#c62828;font-size:12px;font-weight:400;">${esc(digitalProcessNote)}</span>` : ""}`, "", plateMode === "inventory" ? null : plates.subtotal, body);
     },
     empaque: () => card("empaque", nextTitle("Empaque"), "", packaging.subtotal, `<div class="editable-grid"><label><span>Rollos</span>${readonlyDisplay(`${num(state.form.packaging.rollCount || 0, 2)} rollos`)}</label><label><span>Rend./h</span>${displayInput("packaging", "yieldPerHour", state.form.packaging.yieldPerHour, { suffix: "rollos/h", maximumFractionDigits: 2, step: "0.01" })}</label><label><span>Operarios</span>${displayInput("packaging", "operators", state.form.packaging.operators, { integer: true, maximumFractionDigits: 0, step: "1" })}</label><label><span>Costo Op.</span>${displayInput("packaging", "hourCost", state.form.packaging.hourCost, { prefix: "$", maximumFractionDigits: 2, step: "0.01" })}</label><label><span>Costo Ext.</span>${displayInput("packaging", "externalCost", state.form.packaging.externalCost, { prefix: "$", maximumFractionDigits: 2, step: "0.01" })}</label><label class="span-2"><span>Comentarios</span><input data-scope="packaging" data-field="comments" type="text" value="${esc(state.form.packaging.comments)}"></label><label class="span-2 file-icon-field"><span>Adjunto <span class="field-unit-clip" aria-hidden="true">&#128206;</span></span><input data-scope="packaging" data-field="attachmentName" data-kind="file" type="file"></label></div><div class="readonly-grid compact-top">${metric("Tiempo", `${num(packaging.hours, 2)} h`)}${metric("Subtotal", money(packaging.subtotal))}</div>${formula("Cálculo de Empaque", packaging.formulaText, packaging.explanation, {
@@ -8574,7 +8923,7 @@ function bindHeader() {
     element.addEventListener("change", rerender);
   });
   [["useCmyk", els.useCmyk], ["useWhiteInk", els.useWhiteInk], ["doubleWhitePass", els.doubleWhitePass], ["noPrint", els.noPrint]].forEach(([key, element]) => {
-    element.addEventListener("change", () => { state.form.header[key] = element.checked; renderProcesses(); scheduleSave(); });
+    element.addEventListener("change", () => { state.form.header[key] = element.checked; regeneratePrintStageInkStations(state.form); renderProcesses(); scheduleSave(); });
   });
   els.sapPreviewSendButton?.addEventListener("click", async (event) => {
     event.stopPropagation();
@@ -8812,10 +9161,16 @@ function bindProcesses() {
       });
     }
     if (scope.startsWith("printStages.") && field === "inkMaterialId") {
-      const stageIndex = Number(scope.split(".")[1]);
+      const parts = scope.split(".");
+      const stageIndex = Number(parts[1]);
+      const stationIndex = parts.length >= 4 && parts[2] === "inkStations" ? Number(parts[3]) : -1;
       const material = findMaterial(value);
-      state.form.printStages[stageIndex].inkCostPerLb = materialCostPerPound(material);
-      state.form.printStages[stageIndex].inkMaterialDesc = material ? (material.descripcion || material.nombre || '') : '';
+      if (stationIndex >= 0 && state.form.printStages[stageIndex]?.inkStations?.[stationIndex]) {
+        state.form.printStages[stageIndex].inkStations[stationIndex].inkCostPerLb = materialCostPerPound(material);
+      } else {
+        state.form.printStages[stageIndex].inkCostPerLb = materialCostPerPound(material);
+        state.form.printStages[stageIndex].inkMaterialDesc = material ? (material.descripcion || material.nombre || '') : '';
+      }
       syncPrimaryPrintStage();
     }
     if (scope.startsWith("printStages.") && field === "whiteInkMaterialId") {
@@ -8967,6 +9322,20 @@ function bindProcesses() {
       state.form.troquel.external = normalizeDieExternalRows(state.form.troquel.external);
       renderProcesses();
       scheduleSave();
+      return;
+    }
+    if (button.dataset.action === "open-troquel-catalog") {
+      event.preventDefault();
+      openDieCatalogModal();
+      return;
+    }
+    if (button.dataset.action === "close-troquel-catalog") {
+      closeDieCatalogModal();
+      return;
+    }
+    if (button.dataset.action === "select-troquel-from-catalog") {
+      const dieCode = button.dataset.dieCode;
+      if (dieCode) selectDieFromCatalog(dieCode);
       return;
     }
     if (button.dataset.action === "clear-plate-external-attachment") {
@@ -9414,6 +9783,413 @@ document.addEventListener("focusout", (event) => {
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     closeInfoPopover();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Cold Foil Montaje
+// ---------------------------------------------------------------------------
+const CF_IN2_TO_M2 = 0.00064516;
+const CF_IN_TO_M = 0.0254;
+const CF_GRADIENTS = {
+  oro:   ['#F6DFA0','#C7963A','#8B5E10'],
+  plata: ['#F4F4F4','#BEC3C8','#84898E'],
+  rosa:  ['#F3CCCF','#DD9AA1','#AD616A'],
+  holo:  ['#C8F3E4','#CDCAF6','#F7CDEA','#FCEBB2']
+};
+let cf_foilStyle = 'oro';
+
+function normalizeColdfoilData(src) {
+  if (!src || typeof src !== 'object') src = {};
+  return {
+    elementoAnchoIn: n(src.elementoAnchoIn, 2),
+    elementoLargoIn: n(src.elementoLargoIn, 3),
+    columnas: Math.max(1, Math.round(n(src.columnas, 3))),
+    filas: Math.max(1, Math.round(n(src.filas, 1))),
+    sepHorizontalIn: n(src.sepHorizontalIn, 0.125),
+    sepVerticalIn: n(src.sepVerticalIn, 0.125),
+    margenLateralIn: n(src.margenLateralIn, 0.25),
+    margenLongitudinalIn: n(src.margenLongitudinalIn, 0.25),
+    costoPlanchaIn2: n(src.costoPlanchaIn2, 0.20),
+    coberturaAdhesivoPct: n(src.coberturaAdhesivoPct, 60),
+    cantidadTotal: Math.max(1, Math.round(n(src.cantidadTotal, 50000))),
+    gramajeGm2: n(src.gramajeGm2, 2.0),
+    mermaAdhesivoPct: n(src.mermaAdhesivoPct, 10),
+    precioAdhesivoKg: n(src.precioAdhesivoKg, 18),
+    metrosLineales: n(src.metrosLineales, 500),
+    costoFoilM2: n(src.costoFoilM2, 5),
+    anchoBobinaIn: n(src.anchoBobinaIn, 13),
+    colorFoil: src.colorFoil || 'oro'
+  };
+}
+
+function renderColdfoilIcon() {
+  return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px;"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>';
+}
+
+function renderColdfoilSummary(data) {
+  if (!data || !data.elementoAnchoIn) return "";
+  const totalPlancha = data.costoPlanchaTotal || 0;
+  const totalFoil = data.costoFoilTotal || 0;
+  const totalAdhesivo = data.costoAdhesivoTotal || 0;
+  const total = totalPlancha + totalFoil + totalAdhesivo;
+  return `<div class="coldfoil-summary-box">
+    <div class="coldfoil-summary-title">Cold Foil</div>
+    <div class="coldfoil-summary-grid">
+      <span>Plancha</span><span>${formatMoney(totalPlancha)}</span>
+      <span>Foil</span><span>${formatMoney(totalFoil)}</span>
+      <span>Adhesivo</span><span>${formatMoney(totalAdhesivo)}</span>
+      <span class="coldfoil-summary-total">Total</span><span class="coldfoil-summary-total">${formatMoney(total)}</span>
+    </div>
+  </div>`;
+}
+
+function cf_divisorPairs(n) {
+  const pairs = [];
+  for (let r = 1; r * r <= n; r++) {
+    if (n % r === 0) pairs.push([r, n / r]);
+  }
+  const all = [];
+  pairs.forEach(([r, c]) => {
+    all.push([r, c]);
+    if (r !== c) all.push([c, r]);
+  });
+  return all;
+}
+
+function cf_computeLayout(rows, cols, anchoEl, largoEl, sepH, sepV, margLat, margLong, costoPlanchaIn2, metros, costoFoilM2) {
+  const anchoConjunto = cols * anchoEl + (cols - 1) * sepH;
+  const largoConjunto = rows * largoEl + (rows - 1) * sepV;
+  const anchoUtil = anchoConjunto + 2 * margLat;
+  const largoUtil = largoConjunto + 2 * margLong;
+  const areaPlancha = anchoUtil * largoUtil;
+  const costoPlancha = areaPlancha * costoPlanchaIn2;
+  const anchoBandaFoil = anchoConjunto;
+  const costoFoil = (anchoBandaFoil * CF_IN_TO_M) * metros * costoFoilM2;
+  return { rows, cols, anchoConjunto, largoConjunto, anchoUtil, largoUtil, areaPlancha, costoPlancha, anchoBandaFoil, costoFoil, sum: costoPlancha + costoFoil };
+}
+
+function cf_svgDim(x1, y1, x2, y2, label, color, labelAbove) {
+  if (labelAbove === undefined) labelAbove = true;
+  const vertical = Math.abs(x1 - x2) < 0.5;
+  const ext = 8;
+  let s = '';
+  if (!vertical) {
+    s += `<line x1="${x1}" y1="${y1 - ext}" x2="${x1}" y2="${y1 + ext}" stroke="${color}" stroke-width="1"/>`;
+    s += `<line x1="${x2}" y1="${y2 - ext}" x2="${x2}" y2="${y2 + ext}" stroke="${color}" stroke-width="1"/>`;
+    s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="1" marker-start="url(#cf-arrow-${color.replace('#', '')})" marker-end="url(#cf-arrow-${color.replace('#', '')})"/>`;
+    const mx = (x1 + x2) / 2;
+    s += `<rect x="${mx - 34}" y="${labelAbove ? y1 - 19 : y1 + 5}" width="68" height="14" fill="transparent" class="cf-dim-bg"/>`;
+    s += `<text x="${mx}" y="${labelAbove ? y1 - 9 : y1 + 15}" text-anchor="middle" font-family="monospace" font-size="10.5" fill="${color}">${label}</text>`;
+  } else {
+    s += `<line x1="${x1 - ext}" y1="${y1}" x2="${x1 + ext}" y2="${y1}" stroke="${color}" stroke-width="1"/>`;
+    s += `<line x1="${x2 - ext}" y1="${y2}" x2="${x2 + ext}" y2="${y2}" stroke="${color}" stroke-width="1"/>`;
+    s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="1" marker-start="url(#cf-arrow-${color.replace('#', '')})" marker-end="url(#cf-arrow-${color.replace('#', '')})"/>`;
+    const my = (y1 + y2) / 2;
+    s += `<g transform="translate(${labelAbove ? x1 - 14 : x1 + 14},${my}) rotate(-90)"><rect x="-34" y="-7" width="68" height="14" fill="transparent" class="cf-dim-bg"/><text x="0" y="3" text-anchor="middle" font-family="monospace" font-size="10.5" fill="${color}">${label}</text></g>`;
+  }
+  return s;
+}
+
+function cf_cf(n, d) { if (d === undefined) d = 2; return n.toLocaleString('es-CR', { minimumFractionDigits: d, maximumFractionDigits: d }); }
+function cf_money(n) { return '$' + cf_cf(n, 2); }
+
+function renderColdfoilSwatches() {
+  const wrap = document.getElementById('cf_swatches');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  Object.keys(CF_GRADIENTS).forEach((key) => {
+    const c = CF_GRADIENTS[key];
+    const el = document.createElement('div');
+    el.className = 'coldfoil-swatch' + (key === cf_foilStyle ? ' active' : '');
+    el.style.background = `linear-gradient(135deg, ${c[0]}, ${c[c.length - 1]})`;
+    el.title = key;
+    el.onclick = () => { cf_foilStyle = key; document.querySelectorAll('.coldfoil-swatch').forEach((sw) => sw.classList.remove('active')); el.classList.add('active'); renderColdfoilContent(); };
+    wrap.appendChild(el);
+  });
+}
+
+function renderColdfoilContent() {
+  const anchoEl = n(document.getElementById('cf_anchoEl')?.value, 2);
+  const largoEl = n(document.getElementById('cf_largoEl')?.value, 3);
+  const cols = Math.max(1, Math.round(n(document.getElementById('cf_cols')?.value, 3)));
+  const rows = Math.max(1, Math.round(n(document.getElementById('cf_rows')?.value, 1)));
+  const sepH = n(document.getElementById('cf_sepH')?.value, 0.125);
+  const sepV = n(document.getElementById('cf_sepV')?.value, 0.125);
+  const margLat = n(document.getElementById('cf_margLat')?.value, 0.25);
+  const margLong = n(document.getElementById('cf_margLong')?.value, 0.25);
+  const costoPlanchaIn2 = n(document.getElementById('cf_costoPlancha')?.value, 0.20);
+  const cobertura = n(document.getElementById('cf_cobertura')?.value, 60);
+  const cantidadTotal = Math.max(1, Math.round(n(document.getElementById('cf_cantidadTotal')?.value, 50000)));
+  const gramaje = n(document.getElementById('cf_gramaje')?.value, 2.0);
+  const merma = n(document.getElementById('cf_merma')?.value, 10);
+  const precioKg = n(document.getElementById('cf_precioKg')?.value, 18);
+  const metros = n(document.getElementById('cf_metros')?.value, 500);
+  const costoFoilM2 = n(document.getElementById('cf_costoFoil')?.value, 5);
+  const anchoBobina = n(document.getElementById('cf_anchoBobina')?.value, 13);
+
+  const L = cf_computeLayout(rows, cols, anchoEl, largoEl, sepH, sepV, margLat, margLong, costoPlanchaIn2, metros, costoFoilM2);
+
+  const areaElemIn2 = anchoEl * largoEl * (cobertura / 100);
+  const areaTotalIn2 = areaElemIn2 * cantidadTotal;
+  const areaTotalM2 = areaTotalIn2 * CF_IN2_TO_M2;
+  const consumoTeoricoG = areaTotalM2 * gramaje;
+  const consumoKg = (consumoTeoricoG * (1 + merma / 100)) / 1000;
+  const costoAdhesivo = consumoKg * precioKg;
+  const total = L.costoPlancha + L.costoFoil + costoAdhesivo;
+
+  const gridTag = document.getElementById('cf_gridTag');
+  if (gridTag) gridTag.textContent = rows + ' fila(s) \u00d7 ' + cols + ' columna(s) \u2014 ' + (rows * cols) + ' elementos/plancha';
+
+  // SVG
+  const W = 860, H = 480;
+  const padTop = 70, padBottom = 60, padL = 70, padR = 40;
+  const availW = W - padL - padR, availH = H - padTop - padBottom;
+  const scale = Math.min(availW / L.anchoUtil, availH / L.largoUtil, 90);
+  const plateW = L.anchoUtil * scale, plateH = L.largoUtil * scale;
+  const originX = padL + (availW - plateW) / 2;
+  const originY = padTop + (availH - plateH) / 2;
+  const conjW = L.anchoConjunto * scale, conjH = L.largoConjunto * scale;
+  const conjX = originX + margLat * scale;
+  const conjY = originY + margLong * scale;
+
+  const grad = CF_GRADIENTS[cf_foilStyle] || CF_GRADIENTS.oro;
+  const stops = grad.map((c, i) => `<stop offset="${(i / (grad.length - 1)) * 100}%" stop-color="${c}"/>`).join('');
+  let elems = '';
+  const cellW = anchoEl * scale, cellH = largoEl * scale;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const ex = conjX + c * (cellW + sepH * scale);
+      const ey = conjY + r * (cellH + sepV * scale);
+      elems += `<rect x="${ex}" y="${ey}" width="${cellW}" height="${cellH}" rx="1.5" fill="url(#cf-foilGrad)" stroke="#5A4310" stroke-width="0.75"/>`;
+      elems += `<polygon points="${ex},${ey} ${ex + cellW * 0.55},${ey} ${ex},${ey + cellH * 0.55}" fill="#ffffff" opacity="0.28"/>`;
+      if (cobertura < 100) {
+        const inset = Math.min(cellW, cellH) * (1 - Math.sqrt(cobertura / 100)) / 2;
+        elems += `<rect x="${ex + inset}" y="${ey + inset}" width="${Math.max(cellW - 2 * inset, 2)}" height="${Math.max(cellH - 2 * inset, 2)}" fill="none" stroke="#5A4310" stroke-width="0.75" stroke-dasharray="2,2" opacity="0.85"/>`;
+      }
+    }
+  }
+
+  const exceeds = L.anchoBandaFoil > anchoBobina && anchoBobina > 0;
+  const bobinaWarn = document.getElementById('cf_bobinaWarn');
+  if (bobinaWarn) bobinaWarn.hidden = !exceeds;
+
+  let bobinaLine = '';
+  if (anchoBobina > 0) {
+    const bx = originX;
+    const bobinaColor = exceeds ? '#B94E2C' : '#3F6B4A';
+    bobinaLine = `<line x1="${bx}" y1="${originY - 46}" x2="${bx + anchoBobina * scale}" y2="${originY - 46}" stroke="${bobinaColor}" stroke-width="1.5" stroke-dasharray="4,3"/><text x="${bx + (anchoBobina * scale) / 2}" y="${originY - 52}" text-anchor="middle" font-family="monospace" font-size="10" fill="${bobinaColor}">ancho de bobina: ${cf_cf(anchoBobina, 2)}"</text>`;
+  }
+
+  const svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="cf-foilGrad" x1="0" y1="0" x2="1" y2="1">${stops}</linearGradient>
+      <marker id="cf-arrow-2B4C6F" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 Z" fill="#2B4C6F"/></marker>
+      <marker id="cf-arrow-B94E2C" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 Z" fill="#B94E2C"/></marker>
+      <pattern id="cf-hatch" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><line x1="0" y1="0" x2="0" y2="6" stroke="#2B4C6F" stroke-width="1" opacity="0.25"/></pattern>
+    </defs>
+    <rect x="0" y="0" width="${W}" height="${H}" fill="transparent" class="cf-svg-bg"/>
+    ${bobinaLine}
+    <rect x="${originX}" y="${originY}" width="${plateW}" height="${plateH}" fill="url(#cf-hatch)" stroke="#20242C" stroke-width="1.5"/>
+    <rect x="${conjX}" y="${conjY}" width="${conjW}" height="${conjH}" fill="#F6F4EC" stroke="#2B4C6F" stroke-width="1" stroke-dasharray="3,2"/>
+    ${elems}
+    ${cf_svgDim(originX, originY + plateH + 34, originX + plateW, originY + plateH + 34, 'plancha: ' + cf_cf(L.anchoUtil, 2) + '"', '#20242C', false)}
+    ${cf_svgDim(originX - 34, originY, originX - 34, originY + plateH, cf_cf(L.largoUtil, 2) + '"', '#20242C', true)}
+    ${cf_svgDim(conjX, originY - 16, conjX + conjW, originY - 16, 'banda foil: ' + cf_cf(L.anchoBandaFoil, 2) + '"', '#B94E2C', true)}
+    <text x="${originX}" y="${originY + plateH + 50}" font-family="monospace" font-size="9.5" fill="var(--cf-dim-color, #5B5A50)">margen lateral ${cf_cf(margLat, 2)}" · margen longitudinal ${cf_cf(margLong, 2)}" · separaci\u00f3n ${cf_cf(sepH, 2)}"\u00d7${cf_cf(sepV, 2)}"</text>
+  </svg>`;
+
+  const svgWrap = document.getElementById('cf_svgWrap');
+  if (svgWrap) svgWrap.innerHTML = svg;
+
+  // Ledger
+  const ledger = document.getElementById('cf_ledger');
+  if (ledger) {
+    ledger.innerHTML = '<div class="coldfoil-stat"><div class="coldfoil-stat-k">Plancha</div><div class="coldfoil-stat-v">' + cf_money(L.costoPlancha) + '</div><div class="coldfoil-stat-d">' + cf_cf(L.areaPlancha, 2) + ' in\u00b2 \u00b7 ' + cf_cf(L.anchoUtil, 2) + '"\u00d7' + cf_cf(L.largoUtil, 2) + '"</div></div><div class="coldfoil-stat"><div class="coldfoil-stat-k">Foil</div><div class="coldfoil-stat-v">' + cf_money(L.costoFoil) + '</div><div class="coldfoil-stat-d">banda ' + cf_cf(L.anchoBandaFoil, 2) + '" \u00b7 ' + cf_cf(metros, 0) + ' m producci\u00f3n</div></div><div class="coldfoil-stat"><div class="coldfoil-stat-k">Adhesivo</div><div class="coldfoil-stat-v">' + cf_money(costoAdhesivo) + '</div><div class="coldfoil-stat-d">' + cf_cf(consumoKg, 3) + ' kg con merma \u00b7 ' + cf_cf(cantidadTotal, 0) + ' piezas</div></div><div class="coldfoil-stat coldfoil-stat-total"><div class="coldfoil-stat-k">Total del trabajo</div><div class="coldfoil-stat-v">' + cf_money(total) + '</div><div class="coldfoil-stat-d">plancha + foil + adhesivo</div></div>';
+  }
+
+  // Table
+  const nEls = rows * cols;
+  const candidates = cf_divisorPairs(nEls).map(([r, c]) => cf_computeLayout(r, c, anchoEl, largoEl, sepH, sepV, margLat, margLong, costoPlanchaIn2, metros, costoFoilM2));
+  candidates.sort((a, b) => a.sum - b.sum);
+  const bestSum = candidates.length ? candidates[0].sum : null;
+  const shown = candidates.slice(0, 10);
+  const tableBody = document.getElementById('cf_tableBody');
+  if (tableBody) {
+    tableBody.innerHTML = shown.map(function(c) {
+      return '<tr' + (c.sum === bestSum ? ' class="coldfoil-best"' : '') + '><td>' + c.rows + ' \u00d7 ' + c.cols + '</td><td>' + cf_cf(c.anchoUtil, 2) + '"</td><td>' + cf_cf(c.largoUtil, 2) + '"</td><td>' + cf_cf(c.areaPlancha, 2) + ' in\u00b2</td><td>' + cf_cf(c.anchoBandaFoil, 2) + '"</td><td>' + cf_money(c.costoPlancha) + '</td><td>' + cf_money(c.costoFoil) + '</td><td>' + cf_money(c.sum) + '</td></tr>';
+    }).join('');
+  }
+}
+
+function openColdfoilModal(stageIndex) {
+  const modal = document.getElementById('coldfoilModal');
+  if (!modal) return;
+  state.coldfoilStageIndex = stageIndex;
+
+  const inline = state.form.printStages[stageIndex]?.inlineFinishes?.estampado;
+  const cf = normalizeColdfoilData(inline?.coldfoil || {});
+
+  const costsState = state.costsConfig?.acabados?.coldfoil || {};
+
+  const fields = {
+    elementoAnchoIn: cf.elementoAnchoIn || n(costsState.elementoAnchoDefaultIn, 2),
+    elementoLargoIn: cf.elementoLargoIn || n(costsState.elementoLargoDefaultIn, 3),
+    columnas: cf.columnas || n(costsState.columnasDefault, 3),
+    filas: cf.filas || n(costsState.filasDefault, 1),
+    sepHorizontalIn: cf.sepHorizontalIn || n(costsState.separacionHDefaultIn, 0.125),
+    sepVerticalIn: cf.sepVerticalIn || n(costsState.separacionVDefaultIn, 0.125),
+    margenLateralIn: cf.margenLateralIn || n(costsState.margenLateralDefaultIn, 0.25),
+    margenLongitudinalIn: cf.margenLongitudinalIn || n(costsState.margenLongitudinalDefaultIn, 0.25),
+    costoPlanchaIn2: cf.costoPlanchaIn2 || n(state.costsConfig?.convencional?.costoPlanchaIn2, 0.20),
+    coberturaAdhesivoPct: cf.coberturaAdhesivoPct || n(costsState.coberturaDefaultPct, 60),
+    cantidadTotal: cf.cantidadTotal || 50000,
+    gramajeGm2: cf.gramajeGm2 || n(costsState.gramajeGm2, 2.0),
+    mermaAdhesivoPct: cf.mermaAdhesivoPct || n(costsState.mermaAdhesivoPct, 10),
+    precioAdhesivoKg: cf.precioAdhesivoKg || n(costsState.precioAdhesivoKg, 18),
+    metrosLineales: cf.metrosLineales || 500,
+    costoFoilM2: cf.costoFoilM2 || n(costsState.costoFoilM2, 5),
+    anchoBobinaIn: cf.anchoBobinaIn || n(costsState.anchoBobinaDefaultIn, 13),
+    colorFoil: cf.colorFoil || 'oro'
+  };
+
+  cf_foilStyle = fields.colorFoil;
+
+  document.getElementById('cf_anchoEl').value = fields.elementoAnchoIn;
+  document.getElementById('cf_largoEl').value = fields.elementoLargoIn;
+  document.getElementById('cf_cols').value = fields.columnas;
+  document.getElementById('cf_rows').value = fields.filas;
+  document.getElementById('cf_sepH').value = fields.sepHorizontalIn;
+  document.getElementById('cf_sepV').value = fields.sepVerticalIn;
+  document.getElementById('cf_margLat').value = fields.margenLateralIn;
+  document.getElementById('cf_margLong').value = fields.margenLongitudinalIn;
+  document.getElementById('cf_costoPlancha').value = fields.costoPlanchaIn2;
+  document.getElementById('cf_cobertura').value = fields.coberturaAdhesivoPct;
+  document.getElementById('cf_cantidadTotal').value = fields.cantidadTotal;
+  document.getElementById('cf_gramaje').value = fields.gramajeGm2;
+  document.getElementById('cf_merma').value = fields.mermaAdhesivoPct;
+  document.getElementById('cf_precioKg').value = fields.precioAdhesivoKg;
+  document.getElementById('cf_metros').value = fields.metrosLineales;
+  document.getElementById('cf_costoFoil').value = fields.costoFoilM2;
+  document.getElementById('cf_anchoBobina').value = fields.anchoBobinaIn;
+
+  renderColdfoilSwatches();
+  renderColdfoilContent();
+  modal.hidden = false;
+  document.body.classList.add('coldfoil-modal-open');
+}
+
+function closeColdfoilModal() {
+  const modal = document.getElementById('coldfoilModal');
+  if (modal) modal.hidden = true;
+  document.body.classList.remove('coldfoil-modal-open');
+  state.coldfoilStageIndex = -1;
+}
+
+function applyColdfoilData() {
+  const stageIndex = state.coldfoilStageIndex;
+  if (stageIndex < 0) return;
+  const inline = state.form.printStages[stageIndex]?.inlineFinishes?.estampado;
+  if (!inline) return;
+
+  const data = {
+    elementoAnchoIn: n(document.getElementById('cf_anchoEl')?.value, 2),
+    elementoLargoIn: n(document.getElementById('cf_largoEl')?.value, 3),
+    columnas: Math.max(1, Math.round(n(document.getElementById('cf_cols')?.value, 3))),
+    filas: Math.max(1, Math.round(n(document.getElementById('cf_rows')?.value, 1))),
+    sepHorizontalIn: n(document.getElementById('cf_sepH')?.value, 0.125),
+    sepVerticalIn: n(document.getElementById('cf_sepV')?.value, 0.125),
+    margenLateralIn: n(document.getElementById('cf_margLat')?.value, 0.25),
+    margenLongitudinalIn: n(document.getElementById('cf_margLong')?.value, 0.25),
+    costoPlanchaIn2: n(document.getElementById('cf_costoPlancha')?.value, 0.20),
+    coberturaAdhesivoPct: n(document.getElementById('cf_cobertura')?.value, 60),
+    cantidadTotal: Math.max(1, Math.round(n(document.getElementById('cf_cantidadTotal')?.value, 50000))),
+    gramajeGm2: n(document.getElementById('cf_gramaje')?.value, 2.0),
+    mermaAdhesivoPct: n(document.getElementById('cf_merma')?.value, 10),
+    precioAdhesivoKg: n(document.getElementById('cf_precioKg')?.value, 18),
+    metrosLineales: n(document.getElementById('cf_metros')?.value, 500),
+    costoFoilM2: n(document.getElementById('cf_costoFoil')?.value, 5),
+    anchoBobinaIn: n(document.getElementById('cf_anchoBobina')?.value, 13),
+    colorFoil: cf_foilStyle
+  };
+
+  const cols = data.columnas;
+  const rows = data.filas;
+  const anchoEl = data.elementoAnchoIn;
+  const largoEl = data.elementoLargoIn;
+  const sepH = data.sepHorizontalIn;
+  const sepV = data.sepVerticalIn;
+  const margLat = data.margenLateralIn;
+  const margLong = data.margenLongitudinalIn;
+  const costoPlanchaIn2 = data.costoPlanchaIn2;
+  const cobertura = data.coberturaAdhesivoPct;
+  const cantidadTotal = data.cantidadTotal;
+  const gramaje = data.gramajeGm2;
+  const merma = data.mermaAdhesivoPct;
+  const precioKg = data.precioAdhesivoKg;
+  const metros = data.metrosLineales;
+  const costoFoilM2 = data.costoFoilM2;
+
+  const L = cf_computeLayout(rows, cols, anchoEl, largoEl, sepH, sepV, margLat, margLong, costoPlanchaIn2, metros, costoFoilM2);
+  const areaElemIn2 = anchoEl * largoEl * (cobertura / 100);
+  const areaTotalIn2 = areaElemIn2 * cantidadTotal;
+  const areaTotalM2 = areaTotalIn2 * CF_IN2_TO_M2;
+  const consumoTeoricoG = areaTotalM2 * gramaje;
+  const consumoKg = (consumoTeoricoG * (1 + merma / 100)) / 1000;
+  const costoAdhesivo = consumoKg * precioKg;
+
+  data.costoPlanchaTotal = L.costoPlancha;
+  data.costoFoilTotal = L.costoFoil;
+  data.costoAdhesivoTotal = costoAdhesivo;
+  data.costoTotal = L.costoPlancha + L.costoFoil + costoAdhesivo;
+
+  inline.coldfoil = data;
+  inline.supplyWidthIn = L.anchoBandaFoil;
+
+  const calcBase = n(inline.calcBase, 0);
+  if (calcBase > 0) {
+    const supplyWidthFt = L.anchoBandaFoil / 12;
+    inline.costPerFoot = (data.costoFoilTotal / calcBase) || 0;
+  }
+
+  closeColdfoilModal();
+  scheduleRender();
+}
+
+// Coldfoil event wiring
+document.addEventListener('click', function (e) {
+  const openBtn = e.target.closest('[data-coldfoil-open]');
+  if (openBtn) {
+    e.preventDefault();
+    const idx = parseInt(openBtn.dataset.stageIndex, 10);
+    if (!isNaN(idx)) openColdfoilModal(idx);
+    return;
+  }
+
+  const closeTrigger = e.target.closest('[data-coldfoil-close]');
+  if (closeTrigger) {
+    closeColdfoilModal();
+    return;
+  }
+
+  const applyBtn = e.target.closest('#cf_applyBtn');
+  if (applyBtn) {
+    applyColdfoilData();
+    return;
+  }
+});
+
+document.addEventListener('input', function (e) {
+  const input = e.target.closest('[data-cf-field]');
+  if (input) {
+    renderColdfoilContent();
+  }
+});
+
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') {
+    const modal = document.getElementById('coldfoilModal');
+    if (modal && !modal.hidden) closeColdfoilModal();
   }
 });
 

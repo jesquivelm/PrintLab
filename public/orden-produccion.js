@@ -156,6 +156,7 @@ function populateDeliverySelects(config) {
 }
 
 let cachedClientContacts = [];
+let cachedClientAddresses = [];
 
 async function loadClientContacts(partnerCode) {
     if (!partnerCode) return [];
@@ -169,27 +170,87 @@ async function loadClientContacts(partnerCode) {
     }
 }
 
+async function loadClientAddresses(partnerCode) {
+    if (!partnerCode) return [];
+    try {
+        const response = await fetch(`/api/socios/${encodeURIComponent(partnerCode)}/direcciones`, { headers: sessionHeader() });
+        if (!response.ok) return [];
+        const data = await response.json();
+        return Array.isArray(data.direcciones) ? data.direcciones : [];
+    } catch (_) {
+        return [];
+    }
+}
+
 function populateSamplesContactDropdown(contacts) {
     cachedClientContacts = contacts;
-    if (!samplesApprovalInput) return;
-    const currentVal = samplesApprovalInput.value;
+    const currentValA = samplesApprovalInput?.value;
+    const currentValB = samplesContactInput?.value;
     const options = contacts.map(c => {
         const name = c.contact_name || [c.first_name, c.last_name].filter(Boolean).join(' ') || '';
         return `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`;
     }).join('');
-    samplesApprovalInput.innerHTML = '<option value=""></option>' + options;
-    if (currentVal) samplesApprovalInput.value = currentVal;
+    if (samplesApprovalInput) {
+        samplesApprovalInput.innerHTML = '<option value=""></option>' + options;
+        if (currentValA) samplesApprovalInput.value = currentValA;
+    }
+    if (samplesContactInput) {
+        samplesContactInput.innerHTML = '<option value=""></option>' + options;
+        if (currentValB) samplesContactInput.value = currentValB;
+    }
 }
 
 function fillSamplesContactFields(contactName) {
-    if (!contactName) return;
+    if (!contactName) {
+        if (samplesPhoneInput) samplesPhoneInput.value = '';
+        if (samplesEmailInput) samplesEmailInput.value = '';
+        return;
+    }
     const contact = cachedClientContacts.find(c => {
         const name = c.contact_name || [c.first_name, c.last_name].filter(Boolean).join(' ');
         return name === contactName;
     });
-    if (!contact) return;
+    if (!contact) {
+        if (samplesPhoneInput) samplesPhoneInput.value = '';
+        if (samplesEmailInput) samplesEmailInput.value = '';
+        return;
+    }
     if (samplesPhoneInput && !samplesPhoneInput.value) samplesPhoneInput.value = contact.phone || contact.mobile || '';
     if (samplesEmailInput && !samplesEmailInput.value) samplesEmailInput.value = contact.email || '';
+}
+
+function addressValueKnown(addresses, value) {
+    return addresses.some(a => (a.address_line || '') === value);
+}
+
+function populateSamplesAddressDropdown(addresses) {
+    cachedClientAddresses = addresses;
+    const datalist = document.getElementById('orderCustomerAddressOptions');
+    if (!datalist) return;
+    datalist.innerHTML = addresses.map(a => {
+        const name = a.address_name || [a.address_line, a.county, a.state_province].filter(Boolean).join(', ') || '';
+        const value = a.address_line || name;
+        return `<option value="${escapeHtml(value)}">${escapeHtml(name)}</option>`;
+    }).join('');
+}
+
+function fillDeliveryContactFields(contactName) {
+    if (!contactName) {
+        if (deliveryPhoneInput) deliveryPhoneInput.value = '';
+        if (deliveryEmailInput) deliveryEmailInput.value = '';
+        return;
+    }
+    const contact = cachedClientContacts.find(c => {
+        const name = c.contact_name || [c.first_name, c.last_name].filter(Boolean).join(' ');
+        return name === contactName;
+    });
+    if (!contact) {
+        if (deliveryPhoneInput) deliveryPhoneInput.value = '';
+        if (deliveryEmailInput) deliveryEmailInput.value = '';
+        return;
+    }
+    if (deliveryPhoneInput && !deliveryPhoneInput.value) deliveryPhoneInput.value = contact.phone || contact.mobile || '';
+    if (deliveryEmailInput && !deliveryEmailInput.value) deliveryEmailInput.value = contact.email || '';
 }
 
 function formatRouteStatus(value) {
@@ -388,6 +449,73 @@ function buildDimensionsText(detail = {}) {
     const length = formatDimensionPiece(detail.lengthInches);
     if (width && length) return `${width} x ${length}`;
     return width || length || '';
+}
+
+/* Formato para el paréntesis del Nombre del Trabajo: número con 2 decimales,
+   coma como separador decimal (Costa Rica) y '' como símbolo de pulgadas. */
+function formatDimensionPieceForJobName(value) {
+    const num = Number(value);
+    if (!Number.isFinite(num) || num <= 0) return '';
+    const formatted = num.toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return `${formatted}''`;
+}
+
+function buildJobNameDimensions(detail = {}) {
+    const width = formatDimensionPieceForJobName(detail.widthInches);
+    const length = formatDimensionPieceForJobName(detail.lengthInches);
+    if (width && length) return `${width} x ${length}`;
+    return width || length || '';
+}
+
+function popoverDetailRow(label, value, unit, wide) {
+    const isEmpty = value === null || value === undefined || value === '';
+    const displayValue = isEmpty ? '—' : escapeHtml(String(value));
+    const unitText = unit ? ` <span class="production-popover-unit">${escapeHtml(unit)}</span>` : '';
+    const wideClass = wide ? ' production-popover-row-wide' : '';
+    return `<div class="production-popover-row${wideClass}"><span class="production-popover-label">${escapeHtml(label)}</span><span class="production-popover-field">${displayValue}${unitText}</span></div>`;
+}
+
+function popoverDetailSection(title, items) {
+    if (!items || !items.length) return '';
+    const isLegacy = typeof items[0] === 'string';
+    const titleHtml = title ? `<div class="production-popover-section-title">${escapeHtml(title)}</div>` : '';
+    if (isLegacy) {
+        return `<div class="production-popover-section">${titleHtml}${items.join('')}</div>`;
+    }
+    if (items.length === 1) {
+        return `<div class="production-popover-section">${titleHtml}<div class="production-popover-tab-panel active">${items[0].content}</div></div>`;
+    }
+    const tabId = 'popTab_' + Math.random().toString(36).slice(2, 8);
+    const tabHeaders = items.map((t, i) => `<button type="button" class="production-popover-tab${i === 0 ? ' active' : ''}" data-popover-tab="${tabId}" data-tab-index="${i}">${escapeHtml(t.label)}</button>`).join('');
+    const tabPanels = items.map((t, i) => `<div class="production-popover-tab-panel${i === 0 ? ' active' : ''}" data-popover-panel="${tabId}" data-tab-index="${i}">${t.content}</div>`).join('');
+    return `<div class="production-popover-section">${titleHtml}<div class="production-popover-tabs">${tabHeaders}</div>${tabPanels}</div>`;
+}
+
+function openDetailPopover(bodyId, html) {
+    const body = document.getElementById(bodyId);
+    if (body) body.innerHTML = html || '<div class="production-summary-empty">Sin datos disponibles.</div>';
+    body.addEventListener('click', (e) => {
+        const tabBtn = e.target.closest('[data-popover-tab]');
+        if (!tabBtn) return;
+        const tabGroupId = tabBtn.dataset.popoverTab;
+        const idx = tabBtn.dataset.tabIndex;
+        body.querySelectorAll(`[data-popover-tab="${tabGroupId}"]`).forEach(b => b.classList.toggle('active', b.dataset.tabIndex === idx));
+        body.querySelectorAll(`[data-popover-panel="${tabGroupId}"]`).forEach(p => p.classList.toggle('active', p.dataset.tabIndex === idx));
+    });
+    const popoverId = bodyId.replace('Body', 'Popover');
+    openPopover(popoverId);
+}
+
+function formatMoney(val) {
+    const n = Number(val);
+    if (!n && n !== 0) return '—';
+    return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatNumber(val, decimals) {
+    const n = Number(val);
+    if (!n && n !== 0) return '—';
+    return n.toLocaleString('en-US', { minimumFractionDigits: decimals || 0, maximumFractionDigits: decimals || 0 });
 }
 
 function buildInkConfig(detail = {}, raw = {}) {
@@ -1783,7 +1911,6 @@ function applyHeaderConfig(config) {
     pantonesButton?.setAttribute('title', 'Detalle de pantones');
     renderIconButton(deliveriesButton, iconConfigFor('orderDeliveries', DEFAULT_ICONS.deliveries));
     deliveriesButton?.setAttribute('title', 'Detalle de entregas');
-    renderIconButton(numberingButton, iconConfigFor('orderNumbering', DEFAULT_ICONS.numbering));
     renderIconButton(attachmentsButton, iconConfigFor('orderAttachments', icons.lineAttachments || DEFAULT_ICONS.attachments));
     attachmentsButton?.setAttribute('title', 'Ver adjuntos');
     renderIconButton(stateButton, iconConfigFor('orderStatus', DEFAULT_ICONS.status));
@@ -1852,7 +1979,8 @@ function getOutputTypeImage(outputType) {
     return currentOutputTypes.find((item) => {
         const code = String(item.codigo || item.code || item.id || '').trim().toLowerCase();
         const name = String(item.nombre || item.descripcion || item.name || '').trim().toLowerCase();
-        return code === search || name === search;
+        const itemId = String(item.id || '').trim().toLowerCase();
+        return code === search || name === search || itemId === search;
     }) || null;
 }
 
@@ -2388,6 +2516,14 @@ async function saveOrderDetails(payload) {
     populateEditableForms(currentLoadedOrder.raw_data || {});
 }
 
+var CONTACT_ICON_PHONE = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M3.654 1.328a.678.678 0 0 0-1.015-.063L1.605 2.3c-.483.484-.661 1.169-.45 1.77a17.568 17.568 0 0 0 4.168 6.608 17.569 17.569 0 0 0 6.608 4.168c.601.211 1.286.033 1.77-.45l1.034-1.034a.678.678 0 0 0-.063-1.015l-2.307-1.794a.678.678 0 0 0-.58-.122l-2.19.547a1.745 1.745 0 0 1-1.657-.459L5.482 8.062a1.745 1.745 0 0 1-.46-1.657l.548-2.19a.678.678 0 0 0-.122-.58L3.654 1.328z"/></svg>';
+var CONTACT_ICON_EMAIL = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1H2zm13 2.383-4.708 2.825L15 11.105V5.383zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741zM1 11.105l4.708-2.897L1 5.383v5.722z"/></svg>';
+var CONTACT_ICON_LOCATION = '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M12.166 8.94c-.524 1.062-1.234 2.12-1.96 3.07A31.493 31.493 0 0 1 8 14.58a31.481 31.481 0 0 1-2.206-2.57c-.726-.95-1.436-2.008-1.96-3.07C3.304 7.867 3 6.862 3 6a5 5 0 0 1 10 0c0 .862-.305 1.867-.834 2.94zM8 16s6-5.686 6-10A6 6 0 0 0 2 6c0 4.314 6 10 6 10z"/><path d="M8 8a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm0 1a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>';
+
+function contactValueWithIcon(icon, value) {
+    return `<span class="production-contact-icon-value">${icon}<span>${escapeHtml(value)}</span></span>`;
+}
+
 function buildDeliverySummary(lineRaw, quote) {
     const tipo = pickFirst(lineRaw['ENTREGA | TIPO'], quote.delivery_time);
     const contacto = pickFirst(lineRaw['ENTREGA | CONTACTO'], quote.contact_name);
@@ -2400,24 +2536,23 @@ function buildDeliverySummary(lineRaw, quote) {
     if (!tipo && !contacto && !detalle) return '';
 
     const leftLines = [];
-    if (tipo) leftLines.push(`<div class="production-summary-item"><span class="production-summary-label">Tipo</span><span class="production-summary-value">${escapeHtml(tipo)}</span></div>`);
-    if (contacto) leftLines.push(`<div class="production-summary-item"><span class="production-summary-label">Contacto</span><span class="production-summary-value">${escapeHtml(contacto)}</span></div>`);
-    if (telefono) leftLines.push(`<div class="production-summary-item"><span class="production-summary-label">Teléfono</span><span class="production-summary-value">${escapeHtml(telefono)}</span></div>`);
-    if (email) leftLines.push(`<div class="production-summary-item"><span class="production-summary-label">Correo</span><span class="production-summary-value">${escapeHtml(email)}</span></div>`);
-    if (direccion) leftLines.push(`<div class="production-summary-item"><span class="production-summary-label">Dirección</span><span class="production-summary-value">${escapeHtml(direccion)}</span></div>`);
+    if (tipo) leftLines.push(`<div class="production-summary-item"><span class="production-summary-value">${escapeHtml(tipo)}</span></div>`);
+    if (contacto) leftLines.push(`<div class="production-summary-item"><span class="production-summary-value">${escapeHtml(contacto)}</span></div>`);
+    if (telefono) leftLines.push(`<div class="production-summary-item"><span class="production-summary-value">${contactValueWithIcon(CONTACT_ICON_PHONE, telefono)}</span></div>`);
+    if (email) leftLines.push(`<div class="production-summary-item"><span class="production-summary-value">${contactValueWithIcon(CONTACT_ICON_EMAIL, email)}</span></div>`);
+    if (direccion) leftLines.push(`<div class="production-summary-item"><span class="production-summary-value">${contactValueWithIcon(CONTACT_ICON_LOCATION, direccion)}</span></div>`);
 
     const rightLines = [];
-    if (detalle) rightLines.push(`<div class="production-summary-item"><span class="production-summary-label">Detalle</span><span class="production-summary-value">${escapeHtml(detalle)}</span></div>`);
-    if (comentarios) rightLines.push(`<div class="production-summary-item"><span class="production-summary-label">Comentarios</span><span class="production-summary-value">${escapeHtml(comentarios)}</span></div>`);
+    if (detalle) rightLines.push(`<div class="production-summary-item"><span class="production-summary-value">${escapeHtml(detalle)}</span></div>`);
+    if (comentarios) rightLines.push(`<div class="production-summary-item"><span class="production-summary-value">${escapeHtml(comentarios)}</span></div>`);
 
     return `
         <div class="production-summary-two-col">
             <div class="production-summary-subsection">
-                <div class="production-summary-subsection-title">Forma de Entrega</div>
                 ${leftLines.length ? leftLines.join('') : '<div class="production-summary-item"><span class="production-summary-value production-contact-missing-label">&#9888; Sin información de entrega</span></div>'}
             </div>
             <div class="production-summary-subsection">
-                ${rightLines.length ? '<div class="production-summary-subsection-title">Detalle de Entrega</div>' + rightLines.join('') : ''}
+                ${rightLines.join('')}
             </div>
         </div>
     `;
@@ -2435,24 +2570,22 @@ function buildSamplesSummary(lineRaw) {
     if (!envioTipo && !destinoTipo && !detalle && !envioContacto && !envioTelefono && !envioEmail && !envioDireccion) return '';
 
     const leftLines = [];
-    if (envioTipo) leftLines.push(`<div class="production-summary-item"><span class="production-summary-label">Tipo</span><span class="production-summary-value">${escapeHtml(envioTipo)}</span></div>`);
+    if (envioTipo) leftLines.push(`<div class="production-summary-item"><span class="production-summary-value">${escapeHtml(envioTipo)}</span></div>`);
 
     const rightLines = [];
-    if (envioContacto) rightLines.push(`<div class="production-summary-item"><span class="production-summary-label">Contacto</span><span class="production-summary-value">${escapeHtml(envioContacto)}</span></div>`);
-    if (envioTelefono) rightLines.push(`<div class="production-summary-item"><span class="production-summary-label">Teléfono</span><span class="production-summary-value">${escapeHtml(envioTelefono)}</span></div>`);
-    if (envioEmail) rightLines.push(`<div class="production-summary-item"><span class="production-summary-label">Correo</span><span class="production-summary-value">${escapeHtml(envioEmail)}</span></div>`);
-    if (envioDireccion) rightLines.push(`<div class="production-summary-item"><span class="production-summary-label">Dirección</span><span class="production-summary-value">${escapeHtml(envioDireccion)}</span></div>`);
-    if (destinoTipo) rightLines.push(`<div class="production-summary-item"><span class="production-summary-label">Destinatario</span><span class="production-summary-value">${escapeHtml(destinoTipo)}</span></div>`);
-    if (detalle) rightLines.push(`<div class="production-summary-item"><span class="production-summary-label">Detalle</span><span class="production-summary-value">${escapeHtml(detalle)}</span></div>`);
+    if (envioContacto) rightLines.push(`<div class="production-summary-item"><span class="production-summary-value">${escapeHtml(envioContacto)}</span></div>`);
+    if (envioTelefono) rightLines.push(`<div class="production-summary-item"><span class="production-summary-value">${contactValueWithIcon(CONTACT_ICON_PHONE, envioTelefono)}</span></div>`);
+    if (envioEmail) rightLines.push(`<div class="production-summary-item"><span class="production-summary-value">${contactValueWithIcon(CONTACT_ICON_EMAIL, envioEmail)}</span></div>`);
+    if (envioDireccion) rightLines.push(`<div class="production-summary-item"><span class="production-summary-value">${contactValueWithIcon(CONTACT_ICON_LOCATION, envioDireccion)}</span></div>`);
+    if (destinoTipo) rightLines.push(`<div class="production-summary-item"><span class="production-summary-value">${escapeHtml(destinoTipo)}</span></div>`);
+    if (detalle) rightLines.push(`<div class="production-summary-item"><span class="production-summary-value">${escapeHtml(detalle)}</span></div>`);
 
     return `
         <div class="production-summary-two-col">
             <div class="production-summary-subsection">
-                <div class="production-summary-subsection-title">Envío de Muestras</div>
                 ${leftLines.join('')}
             </div>
             <div class="production-summary-subsection">
-                <div class="production-summary-subsection-title">Destinatario de Visto Bueno</div>
                 ${rightLines.join('')}
             </div>
         </div>
@@ -2546,8 +2679,9 @@ function renderOrder(order) {
     const detail = raw.line_snapshot || {};
     const lineRaw = detail.raw_data || {};
     const printing = raw.printing || null;
-    const attachments = extractAttachments(raw);
-    const dimensions = buildDimensionsText(detail);
+    let attachments, dimensions;
+    try { attachments = extractAttachments(raw); } catch (e) { console.error('extractAttachments error:', e); attachments = []; }
+    try { dimensions = buildDimensionsText(detail); } catch (e) { console.error('buildDimensionsText error:', e); dimensions = ''; }
     const quantityValue = raw.totals?.quantity || order.ordered_quantity;
     const quantity = parseNumber(quantityValue);
     const localProductCode = pickFirst(line.product_code, detail.productCode);
@@ -2570,6 +2704,7 @@ function renderOrder(order) {
     const customerEmail = pickFirst(raw.email, quote.email, lineRaw['CLIENTE | CONTACTO EMAIL']);
     const customerAddress = pickFirst(lineRaw.STREET, lineRaw['CLIENTE | DIRECCION'], lineRaw['DIRECCION ENTREGA']);
     const sellerName = pickFirst(raw.salesperson_name, quote.salesperson_name, detail.salespersonName);
+    const jobName = pickFirst(line.job_name, detail.jobName, lineRaw['NOMBRE TRABAJO']);
 
     /* --- Centralized printing data block (raw.printing takes priority) --- */
     var noPrint;
@@ -2654,15 +2789,16 @@ function renderOrder(order) {
     statusBox.hidden = true;
     contentBox.hidden = false;
     document.title = `${order.order_code} | Orden de Producción`;
-    renderPlanningControl(raw);
-    renderPlanningSnapshot(raw);
-    renderDeliveries(lineRaw, quantity, scheduledDateRaw, quantityValue);
-    renderArtwork(currentOrderAttachments.length ? currentOrderAttachments : attachments);
-    populateEditableForms(raw);
+    try { renderPlanningControl(raw); } catch (e) { console.error('renderPlanningControl error:', e); }
+    try { renderPlanningSnapshot(raw); } catch (e) { console.error('renderPlanningSnapshot error:', e); }
+    try { renderDeliveries(lineRaw, quantity, scheduledDateRaw, quantityValue); } catch (e) { console.error('renderDeliveries error:', e); }
+    try { renderArtwork(currentOrderAttachments.length ? currentOrderAttachments : attachments); } catch (e) { console.error('renderArtwork error:', e); }
+    try { populateEditableForms(raw); } catch (e) { console.error('populateEditableForms error:', e); }
 
     setOptionalText('orderCustomerSummaryText', [customerId ? `(${customerId})` : '', customerName].filter(Boolean).join(' '));
+
     const contactCol = document.getElementById('orderCustomerContactCol');
-    renderCustomerContact(contactCol, { customerContact, customerPhone, customerEmail });
+    try { renderCustomerContact(contactCol, { customerContact, customerPhone, customerEmail }); } catch (e) { console.error('renderCustomerContact error:', e); }
     var contactEditBtn = contactCol?.querySelector('.production-contact-edit-btn');
     if (contactEditBtn) renderIconButton(contactEditBtn, iconConfigFor('orderEdit', '✏️', '#64748b', 16));
     document.getElementById('orderClientInfoGrid').hidden = false;
@@ -2686,7 +2822,7 @@ function renderOrder(order) {
         ].filter(Boolean).join('');
     }
 
-    samplesSummary.innerHTML = buildSamplesSummary(lineRaw);
+    try { samplesSummary.innerHTML = buildSamplesSummary(lineRaw); } catch (e) { console.error('buildSamplesSummary error:', e); samplesSummary.innerHTML = ''; }
 
     var frontBackProductCards = document.getElementById('orderFrontBackProductCards');
     var frontBackLayout = document.getElementById('orderFrontBackLayout');
@@ -2696,7 +2832,7 @@ function renderOrder(order) {
         orderLayout?.classList.add('is-frontback-order');
         if (frontBackLayout) frontBackLayout.hidden = false;
         if (frontBackProductCards) frontBackProductCards.hidden = false;
-        renderFrontBackLayout({ raw, frontBackObj, sourceQuoteCode, order });
+        try { renderFrontBackLayout({ raw, frontBackObj, sourceQuoteCode, order }); } catch (e) { console.error('renderFrontBackLayout error:', e); }
         var artEditIconConf = iconConfigFor('orderEdit', '✏️', '#64748b', 16);
         document.querySelectorAll('.production-frontback-art-edit-btn').forEach(function (btn) { renderIconButton(btn, artEditIconConf); });
     } else {
@@ -2719,11 +2855,38 @@ function renderOrder(order) {
         printingGrid.hidden = false;
     }
 
-    setText('orderMachineText', printing ? printing.machineName : pickFirst(detail.quotedMachine, line.machine_name, order.machine_name), 'Sin máquina');
-    setText('orderMaterialText', printing ? printing.materialName : pickFirst(detail.materialName, line.material_name, order.material_code), 'Sin sustrato');
-    setText('orderFeetText', totalFeet > 0 ? `${parseNumber(linearFeet, ' ft')} + ${parseNumber(wasteFeet, ' ft')} = ${parseNumber(totalFeet, ' ft')}` : '', 'Por calcular');
-    setText('orderDimensionsText', dimensions, 'Sin dimensiones');
-    setText('orderRollCountText', rollCount ? parseNumber(rollCount) : '', 'Por definir');
+    const rc = order;
+    const machineName = printing ? printing.machineName : pickFirst(detail.quotedMachine, line.machine_name, order.machine_name);
+    const machineSpeed = rc.velocidad_maquina_m_min;
+    const machineSpeedText = machineSpeed ? ` (${formatNumber(machineSpeed, 1)} m/min)` : '';
+    setText('orderMachineText', machineName + machineSpeedText, 'Sin máquina');
+
+    const materialName = printing ? printing.materialName : pickFirst(detail.materialName, line.material_name, order.material_code);
+    const substrateFeet = rc.pies_totales_sustrato;
+    const substrateFeetText = substrateFeet ? ` (${formatNumber(substrateFeet, 0)} ft)` : '';
+    setText('orderMaterialText', materialName + substrateFeetText, 'Sin sustrato');
+    const jobNameDimensions = buildJobNameDimensions(detail);
+    const jobNameDisplay = jobName ? (jobNameDimensions ? `${jobName} (${jobNameDimensions})` : jobName) : '';
+    setOptionalText('orderJobNameText', jobNameDisplay);
+
+    /* --- Fila: Nombre del Producto + Cantidad --- */
+    var productRow = document.getElementById('orderProductRow');
+    var productNameDisplay = document.getElementById('orderProductNameDisplay');
+    var productQuantityDisplay = document.getElementById('orderProductQuantityDisplay');
+    var jobNameTextNode = document.getElementById('orderJobNameText');
+    if (productRow && productNameDisplay && productQuantityDisplay) {
+        productNameDisplay.textContent = jobNameDisplay;
+        productQuantityDisplay.textContent = parseNumber(quantity) || '';
+        if (frontBackObj) {
+            productRow.hidden = true;
+            if (jobNameTextNode) jobNameTextNode.textContent = jobNameDisplay;
+        } else {
+            productRow.hidden = !jobNameDisplay;
+            if (jobNameTextNode) jobNameTextNode.textContent = '';
+        }
+    }
+
+    setText('orderRollCountText', rc.empaque_cantidad_rollos ? parseNumber(rc.empaque_cantidad_rollos) : '', 'Por definir');
 
     var inkConfig;
     if (printing) {
@@ -2737,6 +2900,11 @@ function renderOrder(order) {
         inkConfig = buildInkConfig(detail, lineRaw);
     }
     setText('orderInkConfigText', inkConfig, 'Sin configuración');
+    const inkConsumption = rc.consumo_tinta_total_lb;
+    if (inkConsumption) {
+        const inkText = document.getElementById('orderInkConfigText');
+        if (inkText) inkText.textContent += ` (${formatNumber(inkConsumption, 2)} lb)`;
+    }
     const pantonesRow = document.getElementById('orderPantonesRow');
     const hasPantones = pantoneList.length > 0 || inkPantoneCount > 0;
     if (pantonesRow) {
@@ -2750,7 +2918,9 @@ function renderOrder(order) {
     setText('orderCoreWidthText', printing ? parseNumber(printing.coreWidth) : parseNumber(detail.coreWidth), 'Sin dato');
     setText('orderCoreDiameterText', printing ? pickFirst(printing.coreDiameter) : pickFirst(detail.coreDiameter), 'Sin dato');
     setText('orderRollLabelsText', printing ? parseNumber(printing.labelsPerRoll) : parseNumber(detail.labelsPerRoll), 'Sin dato');
-    setOptionalText('orderOutputTypeText', outputType);
+    var outputTypeMatch = getOutputTypeImage(outputType);
+    var outputTypeDisplay = outputTypeMatch ? (outputTypeMatch.nombre || outputTypeMatch.name || outputType) : outputType;
+    setOptionalText('orderOutputTypeText', outputTypeDisplay);
     renderOutputTypePreview(outputType);
     finishList.innerHTML = finishes.length
         ? finishes.map((item) => `<span class="production-chip">${escapeHtml(item)}</span>`).join('')
@@ -2765,6 +2935,105 @@ function renderOrder(order) {
         </div>
     `;
 
+    // Numerado (update popover with type)
+    const numeradoType = rc.numerado_tipo || numberingValue;
+    setText('orderNumberingSummaryText', numeradoType, 'No definido');
+    numberingPopoverBody.innerHTML = `
+        <div class="production-popover-section">
+            <div class="production-popover-section-title">Numerado</div>
+            ${popoverDetailRow('Tipo', numeradoType || 'No definido')}
+            ${popoverDetailRow('Tiempo Montaje', formatNumber(rc.numerado_tiempo_montaje_min, 0), 'min')}
+            ${popoverDetailRow('Costo Fijo', formatMoney(rc.numerado_costo_fijo))}
+            ${popoverDetailRow('Comentario', rc.numerado_comentario)}
+            ${popoverDetailRow('Adjunto', rc.numerado_adjunto)}
+        </div>
+    `;
+
+    // Machine detail popover
+    document.getElementById('orderMachineDetailBtn')?.addEventListener('click', () => {
+        const subtotalM = Number(rc.subtotal_maquina) || 0;
+        const subtotalO = Number(rc.subtotal_operador) || 0;
+        const costTableHtml = `
+            <table class="production-popover-cost-table">
+                <thead><tr><th></th><th>Costo</th><th>Costo Hora</th></tr></thead>
+                <tbody>
+                    <tr><td>Subtotal Máquina</td><td>${formatMoney(subtotalM)}</td><td>${formatMoney(rc.costo_hora_maquina)}</td></tr>
+                    <tr><td>Subtotal Operador</td><td>${formatMoney(subtotalO)}</td><td>${formatMoney(rc.costo_hora_operador)}</td></tr>
+                    <tr class="production-popover-cost-total"><td>Total</td><td>${formatMoney(subtotalM + subtotalO)}</td><td></td></tr>
+                </tbody>
+            </table>`;
+        openDetailPopover('orderMachineDetailBody', [
+            popoverDetailSection('', [
+                { label: 'Máquina', content: [
+                    popoverDetailRow('Nombre', machineName, null, true),
+                    popoverDetailRow('Velocidad', formatNumber(rc.velocidad_maquina_m_min, 1), 'm/min'),
+                    popoverDetailRow('Total de Tiempo', formatNumber(rc.tiempo_total_impresion_min, 0), 'min'),
+                    `<div class="production-popover-cost-table-wrap">${costTableHtml}</div>`,
+                ].join('')},
+                { label: 'Costos', content: [
+                    popoverDetailRow('Costo Hora Máquina', formatMoney(rc.costo_hora_maquina)),
+                    popoverDetailRow('Costo Hora Operador', formatMoney(rc.costo_hora_operador)),
+                ].join('')},
+                { label: 'Tiempos', content: [
+                    popoverDetailRow('Setup', formatNumber(rc.tiempo_setup_min, 0), 'min'),
+                    popoverDetailRow('Montaje', formatNumber(rc.tiempo_montaje_min, 0), 'min'),
+                    popoverDetailRow('Limpieza', formatNumber(rc.tiempo_limpieza_min, 0), 'min'),
+                    popoverDetailRow('Corrida', formatNumber(rc.tiempo_corrida_min, 0), 'min'),
+                    popoverDetailRow('Total', formatNumber(rc.tiempo_total_impresion_min, 0), 'min'),
+                ].join('')},
+            ])
+        ].join(''));
+    });
+
+    // Substrate detail popover
+    document.getElementById('orderSubstrateDetailBtn')?.addEventListener('click', () => {
+        openDetailPopover('orderSubstrateDetailBody', [
+            popoverDetailSection('', [
+                { label: 'Sustrato', content: [
+                    popoverDetailRow('Material', materialName, null, true),
+                    popoverDetailRow('Ancho', formatNumber(rc.material_ancho, 2), 'pulg'),
+                    popoverDetailRow('Pies Netos', formatNumber(rc.pies_sustrato_neto, 0), 'ft'),
+                    popoverDetailRow('Pies Totales', formatNumber(rc.pies_totales_sustrato, 0), 'ft'),
+                    popoverDetailRow('Costo Sustrato', formatMoney(rc.costo_sustrato)),
+                    popoverDetailRow('MSI', formatNumber(rc.material_msi, 2)),
+                    popoverDetailRow('M²', formatNumber(rc.material_m2, 2)),
+                ].join('')},
+                { label: 'Mermas', content: [
+                    popoverDetailRow('Arranque', formatNumber(rc.merma_arranque_pies, 0), 'ft'),
+                    popoverDetailRow('Tiraje', formatNumber(rc.merma_tiraje_pies, 0), 'ft'),
+                    popoverDetailRow('Tiraje %', formatNumber(rc.merma_tiraje_pct, 1), '%'),
+                    popoverDetailRow('Costo Merma', formatMoney(rc.costo_merma)),
+                    popoverDetailRow('Total Pies', formatNumber(rc.merma_total_pies, 0), 'ft'),
+                    popoverDetailRow('Total Costo', formatMoney(rc.merma_total_costo)),
+                ].join('')},
+            ])
+        ].join(''));
+    });
+
+    // Ink detail popover
+    document.getElementById('orderInkDetailBtn')?.addEventListener('click', () => {
+        openDetailPopover('orderInkDetailBody', [
+            popoverDetailSection('', [
+                { label: 'Detalles', content: [
+                    popoverDetailRow('Consumo por Color', formatNumber(rc.consumo_tinta_por_color_lb, 2), 'lb'),
+                    popoverDetailRow('Consumo Total', formatNumber(rc.consumo_tinta_total_lb, 2), 'lb'),
+                    popoverDetailRow('Material Tinta', rc.material_tinta_id),
+                    popoverDetailRow('Cobertura', formatNumber(rc.cobertura_tinta_pct, 0), '%'),
+                    popoverDetailRow('BCM Anilox', rc.bcm_anilox),
+                    popoverDetailRow('Factor Transferencia', formatNumber(rc.factor_transferencia, 2)),
+                    popoverDetailRow('Densidad', formatNumber(rc.densidad_tinta, 2)),
+                ].join('')},
+                { label: 'Costos', content: [
+                    popoverDetailRow('Costo por Libra', formatMoney(rc.costo_tinta_por_libra)),
+                    popoverDetailRow('Costo Libra CMYK', formatMoney(rc.costo_libra_cmyk)),
+                    popoverDetailRow('Costo Libra Blanco', formatMoney(rc.costo_libra_blanco)),
+                    popoverDetailRow('Costo Libra Pantone', formatMoney(rc.costo_libra_pantone)),
+                    popoverDetailRow('Subtotal Tinta', formatMoney(rc.subtotal_tinta)),
+                ].join('')},
+            ])
+        ].join(''));
+    });
+
     deliverySummary.innerHTML = buildDeliverySummary(lineRaw, quote);
 
     setText('orderCodeText', order.order_code, 'Sin orden');
@@ -2772,11 +3041,12 @@ function renderOrder(order) {
     setText('orderLineText', sourceLineCode || 'Sin línea');
     setText('orderStateText', stateText, 'Pendiente');
     applyOrderState(document.getElementById('orderStateText'), stateText);
+
     var groupPill = document.getElementById('orderGroupPill');
     if (groupPill) {
         groupPill.hidden = true;
     }
-    setText('orderCreatedText', formatDate(order.created_at || raw.created_on, true), 'Sin fecha');
+    setText('orderCreatedText', formatDate(order.created_at || raw.created_on, true), 'Sin Fecha');
     setText('orderPromisedDateText', formatDate(promisedDateRaw), 'Pendiente');
     applyScheduleState(document.getElementById('orderPromisedDateText'), promisedDateRaw);
     const scheduledDateText = document.getElementById('orderScheduledDateText');
@@ -2785,13 +3055,38 @@ function renderOrder(order) {
         productionEndDateInput.value = normalizeDateInputValue(productionEndDateRaw);
         productionEndDateInput.classList.toggle('is-alert', Boolean(raw.planning_control?.productionScheduleAlert));
     }
-    if (scheduledDateText && scheduledDateText.type === 'date') {
+    if (scheduledDateText) {
         scheduledDateText.value = normalizeDateInputValue(scheduledDateRaw);
-    } else {
-        setText('orderScheduledDateText', formatDate(scheduledDateRaw), 'Pendiente');
         applyScheduleState(scheduledDateText, scheduledDateRaw);
     }
-    if (scheduledDateInput) scheduledDateInput.value = normalizeDateInputValue(scheduledDateRaw);
+
+    const scheduledDateInput = document.getElementById('orderScheduledDateInput');
+    if (scheduledDateInput) {
+        scheduledDateInput.value = normalizeDateInputValue(scheduledDateRaw);
+        applyScheduleState(scheduledDateInput, scheduledDateRaw);
+    }
+
+    /* --- Indicador visual entre fechas: verde/naranja/rojo --- */
+    var datesRow = document.querySelector('.production-tracking-dates-row');
+    if (datesRow) {
+        var existingIndicator = datesRow.querySelector('.production-dates-indicator');
+        if (existingIndicator) existingIndicator.remove();
+        var dateToCheck = scheduledDateRaw || promisedDateRaw;
+        if (dateToCheck) {
+            var indicator = document.createElement('span');
+            indicator.className = 'production-dates-indicator';
+            var targetDate = dateForSchedule(dateToCheck);
+            if (!Number.isNaN(targetDate.getTime())) {
+                var diffDays = (targetDate.getTime() - Date.now()) / 86400000;
+                if (diffDays > 5) indicator.classList.add('status-green');
+                else if (diffDays > 2) indicator.classList.add('status-orange');
+                else indicator.classList.add('status-red');
+            } else {
+                indicator.classList.add('status-green');
+            }
+            datesRow.insertBefore(indicator, datesRow.children[1] || null);
+        }
+    }
 
     artSummary.innerHTML = buildSummaryLinesOptional([
         { label: 'Comentarios', value: pickFirst(lineRaw['COMENTARIOS VENDEDOR'], lineRaw['OBSERVACIONES VENTAS']) },
@@ -2860,6 +3155,82 @@ function renderOrder(order) {
     loadSapConsumptionMaterials().catch((error) => {
         if (sapConsumptionStatus) sapConsumptionStatus.textContent = error.message;
     });
+}
+
+function renderProcessesTabContent() {
+    var rc = currentLoadedOrder;
+    if (!rc) return '<div class="production-summary-empty">No hay datos disponibles.</div>';
+    var html = '';
+    var hasAny = rc.barniz_consumo_lb || rc.laminado_pies_lineales || rc.embosado_tiempo_montaje_min || rc.troquelado_tiempo_montaje_min || rc.rebobinado_maquina || rc.empaque_cantidad_rollos;
+    if (!hasAny) {
+        return '<div class="production-summary-empty">Esta orden no tiene procesos productivos configurados.</div>';
+    }
+    if (rc.barniz_consumo_lb) {
+        html += popoverDetailSection('Barniz', [
+            popoverDetailRow('Material', rc.barniz_material_id, null, true),
+            popoverDetailRow('BCM Anilox', rc.barniz_bcm),
+            popoverDetailRow('Cobertura', formatNumber(rc.barniz_cobertura_pct, 0), '%'),
+            popoverDetailRow('Costo por kg', formatMoney(rc.barniz_costo_por_kg)),
+            popoverDetailRow('Zonificado', rc.barniz_zonificado ? 'Sí' : 'No'),
+            popoverDetailRow('Consumo kg', formatNumber(rc.barniz_consumo_kg, 2), 'kg'),
+            popoverDetailRow('Consumo lb', formatNumber(rc.barniz_consumo_lb, 2), 'lb'),
+            popoverDetailRow('Tiempo montaje', formatNumber(rc.barniz_tiempo_montaje_min, 0), 'min'),
+            popoverDetailRow('Costo total', formatMoney(rc.barniz_costo_total)),
+            popoverDetailRow('Comentario', rc.barniz_comentario)
+        ]);
+    }
+    if (rc.laminado_pies_lineales) {
+        html += popoverDetailSection('Laminado', [
+            popoverDetailRow('Material', rc.laminado_material_id, null, true),
+            popoverDetailRow('Pies lineales', formatNumber(rc.laminado_pies_lineales, 0), 'ft'),
+            popoverDetailRow('Costo por pie lineal', formatMoney(rc.laminado_costo_por_pie_lineal)),
+            popoverDetailRow('Tiempo montaje', formatNumber(rc.laminado_tiempo_montaje_min, 0), 'min'),
+            popoverDetailRow('Costo total', formatMoney(rc.laminado_costo_total)),
+            popoverDetailRow('Comentario', rc.laminado_comentario)
+        ]);
+    }
+    if (rc.embosado_tiempo_montaje_min) {
+        html += popoverDetailSection('Embosado', [
+            popoverDetailRow('Tiempo montaje', formatNumber(rc.embosado_tiempo_montaje_min, 0), 'min'),
+            popoverDetailRow('Ancho cliché', formatNumber(rc.embosado_ancho_cliche, 2), 'pulg'),
+            popoverDetailRow('Largo cliché', formatNumber(rc.embosado_largo_cliche, 2), 'pulg'),
+            popoverDetailRow('Costo cliché', formatMoney(rc.embosado_costo_cliche)),
+            popoverDetailRow('Comentario', rc.embosado_comentario)
+        ]);
+    }
+    if (rc.troquelado_tiempo_montaje_min) {
+        html += popoverDetailSection('Troquelado', [
+            popoverDetailRow('Tiempo montaje', formatNumber(rc.troquelado_tiempo_montaje_min, 0), 'min'),
+            popoverDetailRow('Merma ajuste', formatNumber(rc.troquelado_merma_ajuste_pies, 0), 'ft'),
+            popoverDetailRow('Comentario', rc.troquelado_comentario)
+        ]);
+    }
+    if (rc.rebobinado_maquina) {
+        html += popoverDetailSection('Rebobinado', [
+            popoverDetailRow('Máquina', rc.rebobinado_maquina, null, true),
+            popoverDetailRow('Velocidad', formatNumber(rc.rebobinado_velocidad, 1), 'm/min'),
+            popoverDetailRow('Tiempo montaje', formatNumber(rc.rebobinado_tiempo_montaje_min, 0), 'min'),
+            popoverDetailRow('Costo hora máquina', formatMoney(rc.rebobinado_costo_hora_maquina)),
+            popoverDetailRow('Costo operador', formatMoney(rc.rebobinado_costo_operador)),
+            popoverDetailRow('Merma ajuste', formatNumber(rc.rebobinado_merma_ajuste_pies, 0), 'ft'),
+            popoverDetailRow('Merma operación', formatNumber(rc.rebobinado_merma_operacion_pct, 1), '%'),
+            popoverDetailRow('Tiempo total', formatNumber(rc.rebobinado_tiempo_total_min, 0), 'min'),
+            popoverDetailRow('Costo total', formatMoney(rc.rebobinado_costo_total)),
+            popoverDetailRow('Comentario', rc.rebobinado_comentario)
+        ]);
+    }
+    if (rc.empaque_cantidad_rollos) {
+        html += popoverDetailSection('Empaque', [
+            popoverDetailRow('Rendimiento por hora', formatNumber(rc.empaque_rendimiento_por_hora, 0)),
+            popoverDetailRow('Operarios', formatNumber(rc.empaque_operarios, 0)),
+            popoverDetailRow('Costo por operador', formatMoney(rc.empaque_costo_por_operador)),
+            popoverDetailRow('Costo externo', formatMoney(rc.empaque_costo_externo)),
+            popoverDetailRow('Horas', formatNumber(rc.empaque_horas, 1), 'hrs'),
+            popoverDetailRow('Costo total', formatMoney(rc.empaque_costo_total)),
+            popoverDetailRow('Comentario', rc.empaque_comentario)
+        ]);
+    }
+    return html;
 }
 
 function renderCreationSummary(data) {
@@ -3188,6 +3559,7 @@ async function loadOrder() {
     } catch (error) {
         currentOrderAttachments = extractAttachments(currentLoadedOrder?.raw_data || {});
     }
+    populateDeliverySelects(config);
     renderOrder(currentLoadedOrder);
     const adminTools = document.getElementById('orderAdminTools');
     if (adminTools) {
@@ -3202,7 +3574,6 @@ async function loadOrder() {
         const pdfBtn = document.getElementById('orderPdfButton');
         if (pdfBtn) renderIconButton(pdfBtn, iconConfigFor('orderPdf', '\uD83D\uDCC4'));
     }
-    populateDeliverySelects(config);
 
     const raw = currentLoadedOrder.raw_data || {};
     const quote = raw.quote_snapshot || {};
@@ -3211,22 +3582,67 @@ async function loadOrder() {
     const partnerCode = pickFirst(raw.customer_code, quote.customer_code);
     if (partnerCode) {
         loadClientContacts(partnerCode).then(populateSamplesContactDropdown).catch(function () {});
+        loadClientAddresses(partnerCode).then(populateSamplesAddressDropdown).catch(function () {});
+    }
+}
+
+function repopulateSamplesContactDropdown() {
+    if (!cachedClientContacts.length) return;
+    const currentValA = samplesApprovalInput?.value;
+    const currentValB = samplesContactInput?.value;
+    const options = cachedClientContacts.map(c => {
+        const name = c.contact_name || [c.first_name, c.last_name].filter(Boolean).join(' ') || '';
+        return `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`;
+    }).join('');
+    if (samplesApprovalInput) {
+        samplesApprovalInput.innerHTML = '<option value=""></option>' + options;
+        if (currentValA) samplesApprovalInput.value = currentValA;
+    }
+    if (samplesContactInput) {
+        samplesContactInput.innerHTML = '<option value=""></option>' + options;
+        if (currentValB) samplesContactInput.value = currentValB;
     }
 }
 
 samplesToggleButton?.addEventListener('click', () => {
     const opening = samplesForm.hidden;
     toggleSection(samplesSummary, samplesForm, samplesToggleButton, opening);
-    if (opening) populateDeliverySelects(currentConfig);
+    if (opening) {
+        populateDeliverySelects(currentConfig);
+        repopulateSamplesContactDropdown();
+        if (cachedClientAddresses.length) {
+            const addrDatalist = document.getElementById('orderCustomerAddressOptions');
+            if (addrDatalist) {
+                addrDatalist.innerHTML = cachedClientAddresses.map(a => {
+                    const name = a.address_name || [a.address_line, a.county, a.state_province].filter(Boolean).join(', ') || '';
+                    const value = a.address_line || name;
+                    return `<option value="${escapeHtml(value)}">${escapeHtml(name)}</option>`;
+                }).join('');
+            }
+        }
+    }
 });
 samplesForm?.addEventListener('submit', (event) => event.preventDefault());
 samplesApprovalInput?.addEventListener('change', () => fillSamplesContactFields(samplesApprovalInput.value));
+samplesContactInput?.addEventListener('change', () => fillSamplesContactFields(samplesContactInput.value));
 deliveryToggleButton?.addEventListener('click', () => {
     const opening = deliveryForm.hidden;
     toggleSection(deliverySummary, deliveryForm, deliveryToggleButton, opening);
-    if (opening) populateDeliverySelects(currentConfig);
+    if (opening) {
+        populateDeliverySelects(currentConfig);
+        if (cachedClientContacts.length && deliveryContactInput) {
+            const currentVal = deliveryContactInput.value;
+            const options = cachedClientContacts.map(c => {
+                const name = c.contact_name || [c.first_name, c.last_name].filter(Boolean).join(' ') || '';
+                return `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`;
+            }).join('');
+            deliveryContactInput.innerHTML = '<option value=""></option>' + options;
+            if (currentVal) deliveryContactInput.value = currentVal;
+        }
+    }
 });
 deliveryForm?.addEventListener('submit', (event) => event.preventDefault());
+deliveryContactInput?.addEventListener('change', () => fillDeliveryContactFields(deliveryContactInput.value));
 artToggleButton?.addEventListener('click', () => toggleSection(artSummary, artForm, artToggleButton, artForm.hidden));
 artForm?.addEventListener('submit', (event) => event.preventDefault());
 document.addEventListener('click', function (e) {
@@ -3316,9 +3732,9 @@ function queueDeliverySave() {
                 deliveriesMessage.textContent = 'Cada entrega debe tener cantidad y fecha.';
                 deliveriesMessage.hidden = false;
             }
-            return;
+        } else {
+            if (deliveriesMessage) deliveriesMessage.hidden = true;
         }
-        if (deliveriesMessage) deliveriesMessage.hidden = true;
         saveOrderDetails({
             delivery: {
                 mode: deliveryModeInput.value,
@@ -3326,7 +3742,7 @@ function queueDeliverySave() {
                 phone: deliveryPhoneInput.value,
                 email: deliveryEmailInput.value,
                 detail: deliveryDetailInput.value,
-                schedule: schedule.rows
+                schedule: schedule.invalid ? [] : schedule.rows
             }
         }).catch((error) => {
             statusBox.hidden = false;
@@ -3395,8 +3811,31 @@ pantonesButton?.addEventListener('click', () => openPopover('orderPantonesPopove
     }
 numberingButton?.addEventListener('click', () => openPopover('orderNumberingPopover'));
 attachmentsButton?.addEventListener('click', () => openPopover('orderAttachmentsPopover'));
+// Respaldo para navegadores sin soporte de `field-sizing: content`: antes de
+// imprimir, expandimos cada textarea visible (Observaciones, detalle de
+// muestras, detalle de entrega) a su alto real para que no se corte texto
+// en el PDF/impresión. Al terminar de imprimir se revierte el alto inline.
+const PRINT_TEXTAREA_HEIGHT_CACHE = new Map();
+function expandTextareasForPrint() {
+    document.querySelectorAll('#orderContent textarea').forEach((el) => {
+        PRINT_TEXTAREA_HEIGHT_CACHE.set(el, el.style.height || '');
+        el.style.height = 'auto';
+        el.style.height = `${el.scrollHeight}px`;
+    });
+}
+function restoreTextareasAfterPrint() {
+    PRINT_TEXTAREA_HEIGHT_CACHE.forEach((height, el) => { el.style.height = height; });
+    PRINT_TEXTAREA_HEIGHT_CACHE.clear();
+}
+window.addEventListener('beforeprint', expandTextareasForPrint);
+window.addEventListener('afterprint', restoreTextareasAfterPrint);
+
 document.getElementById('orderPrintButton')?.addEventListener('click', () => {
+    const orderCode = currentLoadedOrder?.raw_data?.order_code || currentOrderCode || 'orden';
+    const previousTitle = document.title;
+    document.title = `Orden_${orderCode}`;
     window.print();
+    setTimeout(() => { document.title = previousTitle; }, 500);
 });
 document.getElementById('orderPdfButton')?.addEventListener('click', () => {
     const orderCode = currentLoadedOrder?.raw_data?.order_code || currentOrderCode || 'orden';
@@ -3421,7 +3860,19 @@ document.getElementById('orderCreationSummaryButton')?.addEventListener('click',
         html += rawView;
     }
     if (body) body.innerHTML = html;
+    var processesBody = document.getElementById('orderProcessesTabBody');
+    if (processesBody) {
+        processesBody.innerHTML = renderProcessesTabContent();
+    }
     openPopover('orderCreationSummaryPopover');
+});
+document.getElementById('orderCreationTabs')?.addEventListener('click', (e) => {
+    var btn = e.target.closest('.tl-tab-btn');
+    if (!btn) return;
+    var tab = btn.dataset.creationTab;
+    document.querySelectorAll('#orderCreationTabs .tl-tab-btn').forEach(function(b) { b.classList.toggle('active', b.dataset.creationTab === tab); });
+    document.getElementById('orderCreationSummaryTab').hidden = tab !== 'datos';
+    document.getElementById('orderProcessesTab').hidden = tab !== 'procesos';
 });
 document.getElementById('orderAudioRecordButton')?.addEventListener('click', toggleOrderAudioRecording);
 document.getElementById('orderAttachmentFileInput')?.addEventListener('change', handleOrderAttachmentUpload);

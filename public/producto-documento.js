@@ -675,7 +675,8 @@ function getOutputTypeImage(outputType) {
     return currentOutputTypes.find((item) => {
         const code = String(item.codigo || item.code || item.id || '').trim().toLowerCase();
         const name = String(item.nombre || item.descripcion || item.name || '').trim().toLowerCase();
-        return code === search || name === search;
+        const itemId = String(item.id || '').trim().toLowerCase();
+        return code === search || name === search || itemId === search;
     }) || null;
 }
 
@@ -695,7 +696,9 @@ function renderRollSpecs(p, raw) {
     if (coreDiameterTextEl) coreDiameterTextEl.textContent = raw['DIAMETRO CORE'] || '—';
     if (rollLabelsTextEl) rollLabelsTextEl.textContent = formatQuantity(raw['CANTIDAD ETIQUETAS X ROLLO'] || '');
     const outputType = raw['TIPO SALIDA'] || '—';
-    if (outputTypeTextEl) outputTypeTextEl.textContent = outputType;
+    var outputTypeMatch = getOutputTypeImage(outputType);
+    var outputTypeDisplay = outputTypeMatch ? (outputTypeMatch.nombre || outputTypeMatch.name || outputType) : outputType;
+    if (outputTypeTextEl) outputTypeTextEl.textContent = outputTypeDisplay;
     renderOutputTypePreview(outputType);
 }
 

@@ -32,9 +32,16 @@ storage/quote-line-attachments/
 ~$*
 
 # ==========================================
+# Archivos temporales de depuracion
+# ==========================================
+_check*.js
+_debug*.js
+_debug_*.js
+temp-test.json
+
+# ==========================================
 # Archivos sensibles o de distribucion
 # ==========================================
-printlab-db.dump
 Entregable-Aplicacion.zip
 "Instalar App.txt"
 test-final.js

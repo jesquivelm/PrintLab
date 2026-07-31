@@ -1556,30 +1556,30 @@ function normalizeQuoteLine(line, quoteCode, index = 0) {
         rawData: raw,
         lineSummary: summary,
         material: summary.material_name || line.material_name || '',
-        materialCode: summary.material_code || line.material_code || raw['Material Convencional | Id Material'] || raw['Material Digital | Id Material'] || '',
-        medida: measure || [raw['DIMENSIONES ETIQUETA | ANCHO'], raw['DIMENSIONES ETIQUETA | LARGO']].filter((value) => value || value === 0).join(' x '),
-        machineName: summary.machine_name || line.machine_name || raw['CONV | MAQUINA'] || raw['DIGITAL | MAQUINA'] || raw['MAQUINA IMPRESION'] || '',
-        dieCode: summary.die_code || line.die_code || raw['GENERAL | TROQUEL | ID'] || raw['REQ | Troquelado'] || '',
-        processType: summary.process_type || line.process_type || raw['Proceso Productivo'] || '',
-        processSequenceText: summary.process_sequence_text || raw['Texto_Secuencia_Procesos'] || raw['BOT | Process Sequence'] || '',
+        materialCode: summary.material_code || line.material_code || '',
+        medida: measure || '',
+        machineName: summary.machine_name || line.machine_name || '',
+        dieCode: summary.die_code || line.die_code || '',
+        processType: summary.process_type || line.process_type || '',
+        processSequenceText: summary.process_sequence_text || line.process_sequence_text || '',
         frontBackGroup: normalizeFrontBackGroupClient(line.grupo_frente_dorso || line.front_back_group || summary.grupo_frente_dorso || summary.front_back_group || raw),
-        estado: summary.status || line.status || raw['SOLICITUD ESTADO'] || raw['ESTADO LINEA'] || 'Borrador',
-        finalizadaOrden: Boolean(summary.finalized_for_order || line.finalized_for_order || raw['Finalizado_Para_Orden']),
+        estado: summary.status || line.status || 'Borrador',
+        finalizadaOrden: Boolean(summary.finalized_for_order || line.finalized_for_order),
         calculationBlockMessage,
         subtotal1: fallbackTotal ?? '',
         productId: summary.product_code || line.product_code || line.line_code || '',
-        quantity: pickFirstMeaningfulNumber(summary.quantity, line.quantity, raw['Cantidad Productos']),
-        autoRoute: autoSelection.processType || raw['REQ | Ruta Automática'] || line.process_type || '',
-        autoMaterialCode: autoSelection.materialCode || raw['REQ | Material Automático'] || line.material_code || '',
-        autoMaterialName: line.material_name || raw['GENERAL | MATERIAL'] || '',
-        autoMaterialFamily: autoSelection.materialFamily || raw['REQ | Material Comercial'] || '',
-        autoMachineName: autoSelection.machineName || raw['REQ | Máquina Automática'] || line.machine_name || '',
-        autoDieCode: autoSelection.dieCode || raw['REQ | Troquel Automático'] || line.die_code || '',
-        autoLabelsPerRoll: pickFirstMeaningfulNumber(autoSelection.labelsPerRoll, raw['REQ | Etiquetas x Rollo Automática'], raw['CANTIDAD ETIQUETAS X ROLLO']),
-        autoMountingSummary: raw['REQ | Montaje Automático'] || '',
-        autoTechnicalComment: raw['REQ | Comentario Técnico Automático'] || '',
+        quantity: pickFirstMeaningfulNumber(summary.quantity, line.quantity),
+        autoRoute: autoSelection.processType || line.process_type || '',
+        autoMaterialCode: autoSelection.materialCode || line.material_code || '',
+        autoMaterialName: line.material_name || '',
+        autoMaterialFamily: autoSelection.materialFamily || '',
+        autoMachineName: autoSelection.machineName || line.machine_name || '',
+        autoDieCode: autoSelection.dieCode || line.die_code || '',
+        autoLabelsPerRoll: pickFirstMeaningfulNumber(autoSelection.labelsPerRoll),
+        autoMountingSummary: '',
+        autoTechnicalComment: '',
         autoWarnings,
-        autoFallbackApplied: String(raw['REQ | Fallback de Ruta'] || '').trim().toLowerCase() === 'sí'
+        autoFallbackApplied: false
     };
 }
 
@@ -1722,10 +1722,10 @@ async function getProformaBlockMessage(quoteCode) {
     const lines = Array.isArray(payload?.lineas) ? payload.lineas : [];
     const blocked = lines
         .map((line) => ({
-            lineCode: String(line.line_code || line.linea || line.raw_data?.['ID LINEA'] || '').trim(),
+            lineCode: String(line.line_code || line.linea || '').trim(),
             quoteCode,
             productId: line.product_code || '',
-            department: line.department || line.raw_data?.DEPARTAMENTO || 'Flexografia',
+            department: line.department || 'Flexografia',
             issues: proformaBlockIssuesFromLine(line)
         }))
         .filter((item) => item.issues.length);

@@ -1,1 +1,731 @@
-<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Recetas / Fórmulas - PrintLab</title><link rel="stylesheet" href="/styles.css"><style>body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f5f5f5;color:#1a1a1a}html[data-theme="dark"] body{background:#111;color:#e5e5e5}.header{padding:12px 20px;background:#fff;border-bottom:1px solid #e0e0e0;display:flex;align-items:center;gap:12px}html[data-theme="dark"] .header{background:#1a1a1a;border-color:#333}.header h1{margin:0;font-size:18px;font-weight:600}.header a{text-decoration:none;color:inherit;font-size:20px}.table-wrap{padding:16px 20px;overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 12px;text-align:left;border-bottom:1px solid #e0e0e0;white-space:nowrap}html[data-theme="dark"] th,html[data-theme="dark"] td{border-color:#333}th{background:#f9f9f9;font-weight:600}html[data-theme="dark"] th{background:#1a1a1a}.loading{text-align:center;padding:40px;color:#999}.badge{padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500}.badge-VIGENTE{background:#dcfce7;color:#166534}.badge-BORRADOR{background:#fef9c3;color:#854d0e}.badge-ARCHIVADO{background:#f3f4f6;color:#6b7280}.badge-OBSOLETO{background:#fee2e2;color:#991b1b}.detail-panel{display:none;padding:16px 20px;background:#fff;border-bottom:1px solid #e0e0e0}html[data-theme="dark"] .detail-panel{background:#1a1a1a;border-color:#333}.detail-panel.open{display:block}.detail-panel h3{margin:0 0 8px}.detail-panel .comp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-top:8px}.detail-panel .comp-item{background:#f9f9f9;border-radius:6px;padding:8px 12px}html[data-theme="dark"] .detail-panel .comp-item{background:#222}</style></head><body><div class="header"><a href="/tintas" onclick="event.preventDefault();parent.postMessage({type:'erp-open-tab',route:'/tintas?shell=1',label:'Tintas'},window.location.origin)">&larr;</a><h1>Recetas / Fórmulas</h1></div><div id="detailPanel" class="detail-panel"></div><div class="table-wrap"><table><thead><tr><th>Código</th><th>Nombre</th><th>Versión</th><th>Estado</th><th>Vigente</th><th>Fecha</th><th></th></tr></thead><tbody id="tablaBody"><tr><td colspan="7" class="loading">Cargando...</td></tr></tbody></table></div><script>async function cargar(){const tb=document.getElementById('tablaBody');tb.innerHTML='<tr><td colspan="7" class="loading">Cargando...</td></tr>';try{const r=await fetch('/api/tintas/pantones/recetas');if(!r.ok)throw new Error(await r.text());const data=await r.json();if(!data.length){tb.innerHTML='<tr><td colspan="7" class="loading">Sin recetas.</td></tr>';return}tb.innerHTML=data.map(r=>'<tr><td>'+hm(r.codigo_interno)+'</td><td><strong>'+hm(r.nombre)+'</strong></td><td>v'+Number(r.version||1)+'</td><td><span class="badge badge-'+hm(r.estado)+'">'+hm(r.estado)+'</span></td><td>'+(r.es_vigente?'Sí':'No')+'</td><td>'+(r.fecha||'-')+'</td><td><button onclick="verDetalle(\''+r.id+'\')" style="padding:4px 10px;border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer;font-size:12px">Ver</button></td></tr>').join('')}catch(e){tb.innerHTML='<tr><td colspan="7" class="loading">Error: '+hm(e.message)+'</td></tr>'}}async function verDetalle(id){const dp=document.getElementById('detailPanel');try{const r=await fetch('/api/tintas/pantones/recetas/'+id);if(!r.ok)throw new Error(await r.text());const data=await r.json();dp.classList.add('open');dp.innerHTML='<h3>'+hm(data.nombre)+' ('+hm(data.codigo_interno)+') v'+Number(data.version||1)+'</h3><p>Estado: '+hm(data.estado)+' | Vigente: '+(data.es_vigente?'Sí':'No')+'</p><div class="comp-grid">'+(data.componentes||[]).map(c=>'<div class="comp-item"><strong>'+hm(c.nombre||c.codigo_interno)+'</strong><br>'+Number(c.porcentaje).toFixed(2)+'%<br><small>'+hm(c.unidad_medida_base)+'</small></div>').join('')+'</div>'}catch(e){dp.classList.add('open');dp.innerHTML='<h3>Error</h3><p>'+hm(e.message)+'</p>'}}function hm(v){return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}cargar()</script></body></html>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/theme.js"></script>
+    <title>Recetas / Fórmulas - PrintLab</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <main class="workspace workspace-quote quote-browser-main tintas-shell">
+        <section class="quote-card quote-card-clean quote-browser-card tintas-card">
+            <div class="tintas-toolbar">
+                <h2>Recetas y Fórmulas</h2>
+                <button class="tintas-btn" onclick="abrirFormulaModal()">+ Nueva Fórmula</button>
+            </div>
+            <div id="demoBanner" class="tintas-demo-banner" hidden>
+                <span>⚠ Modo demo: no se pudo contactar al servidor, estás trabajando con datos de prueba guardados en este navegador.</span>
+                <button type="button" onclick="restablecerDemo()">Restablecer datos de ejemplo</button>
+            </div>
+            <div id="detailPanel" class="tintas-detail-panel"></div>
+            <div class="tintas-table-wrap">
+                <table class="tintas-table">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Nombre</th>
+                            <th>Versión</th>
+                            <th>Estado</th>
+                            <th>Vigente</th>
+                            <th>Fecha</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaBody">
+                        <tr><td colspan="7" class="tintas-loading">Cargando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal dinámico: Calculadora de Fórmula (reemplaza la antigua calculadora de producción) -->
+    <div class="material-modal" id="formulaModal">
+        <div class="material-modal-backdrop" onclick="cerrarFormulaModal()"></div>
+        <div class="material-modal-panel tinta-formula-modal-panel">
+            <div class="material-modal-header">
+                <h2>Nueva Fórmula de Tinta</h2>
+                <button class="material-modal-close" onclick="cerrarFormulaModal()" aria-label="Cerrar">&times;</button>
+            </div>
+            <div class="material-modal-body">
+                <div class="standard-module-tabs" id="formulaTabs">
+                    <button type="button" class="standard-module-tab is-active" data-tab="identificacion" onclick="cambiarTabFormula('identificacion')">Identificación</button>
+                    <button type="button" class="standard-module-tab" data-tab="clasificacion" onclick="cambiarTabFormula('clasificacion')">Clasificación</button>
+                    <button type="button" class="standard-module-tab" data-tab="formula" onclick="cambiarTabFormula('formula')">Fórmula</button>
+                    <button type="button" class="standard-module-tab" data-tab="preparacion" onclick="cambiarTabFormula('preparacion')">Preparación</button>
+                    <button type="button" class="standard-module-tab" data-tab="compatibilidad" onclick="cambiarTabFormula('compatibilidad')">Disponible y cálculo</button>
+                </div>
+
+                <form class="inventory-form inventory-form-formula" id="formulaForm" onsubmit="return false;">
+
+                    <!-- Tab 1: Identificación -->
+                    <div class="tinta-tab-panel" data-tab-panel="identificacion">
+                        <label class="inventory-span-2"><span>Código interno *</span><input id="campoCodigoInterno" type="text" placeholder="FRM-0001"></label>
+                        <label class="inventory-span-2"><span>Nombre del color *</span><input id="campoNombre" type="text" placeholder="Ej. Azul Corporativo XYZ"></label>
+                        <label><span>Nombre comercial</span><input id="campoNombreComercial" type="text"></label>
+                        <label><span>Cliente</span>
+                            <input id="campoClienteBusqueda" type="text" list="listaClientes" placeholder="Buscar cliente..." oninput="onClienteInput()">
+                            <datalist id="listaClientes"></datalist>
+                            <input id="campoClienteId" type="hidden">
+                        </label>
+                        <label><span>Nota de cliente (si no es un cliente real: muestra, librería, etc.)</span><input id="campoClienteNota" type="text" placeholder="Ej. Muestra sobre opaco"></label>
+                        <label><span>Código interno del cliente</span><input id="campoCodigoCliente" type="text"></label>
+                        <label><span>Marca</span>
+                            <select id="campoMarcaId"><option value="">Sin marca</option></select>
+                        </label>
+                        <label><span>Familia del color</span>
+                            <select id="campoFamiliaId"><option value="">Sin familia</option></select>
+                        </label>
+                        <label><span>Nivel de confidencialidad</span>
+                            <select id="campoConfidencialidad">
+                                <option value="PUBLICO">Público</option>
+                                <option value="CLIENTE">Cliente</option>
+                                <option value="INTERNO" selected>Interno</option>
+                            </select>
+                        </label>
+                        <label><span>Estado</span>
+                            <select id="campoEstado">
+                                <option value="BORRADOR" selected>Borrador</option>
+                                <option value="VIGENTE">Vigente</option>
+                                <option value="OBSOLETO">Obsoleto</option>
+                                <option value="ARCHIVADO">Archivado</option>
+                            </select>
+                        </label>
+                        <label class="inventory-span-2"><span>Descripción</span><textarea id="campoDescripcion"></textarea></label>
+                        <label class="inventory-span-2"><span>Observaciones generales</span><textarea id="campoObservaciones"></textarea></label>
+                    </div>
+
+                    <!-- Tab 2: Clasificación -->
+                    <div class="tinta-tab-panel" data-tab-panel="clasificacion" hidden>
+                        <label><span>Origen del color</span>
+                            <select id="campoOrigen">
+                                <option value="Pantone">Pantone</option>
+                                <option value="Corporativo">Color corporativo</option>
+                                <option value="Interno">Desarrollo interno</option>
+                                <option value="Muestra fisica">Muestra física</option>
+                                <option value="Espectrofotometro">Color medido por espectrofotómetro</option>
+                                <option value="Cliente">Desarrollo para un cliente</option>
+                                <option value="Otro">Otro</option>
+                            </select>
+                        </label>
+                        <label><span>Código Pantone (si aplica)</span><input id="campoCodigoPantone" type="text" placeholder="186 C"></label>
+                        <label><span>Código del fabricante</span><input id="campoCodigoFabricante" type="text"></label>
+                        <label><span>Acabado</span>
+                            <select id="campoAcabado">
+                                <option value="">Sin especificar</option>
+                                <option value="Mate">Mate</option>
+                                <option value="Brillante">Brillante</option>
+                                <option value="Satinado">Satinado</option>
+                                <option value="Metalico">Metálico</option>
+                                <option value="Fluorescente">Fluorescente</option>
+                            </select>
+                        </label>
+                        <label><span>Color de referencia (HEX)</span><input id="campoColorHex" type="text" placeholder="#C8102E"></label>
+                        <label><span>Sustrato</span>
+                            <select id="campoSustrato">
+                                <option value="">Sin especificar</option>
+                                <option value="Papel">Papel</option>
+                                <option value="Cartulina">Cartulina</option>
+                                <option value="Kraft">Kraft</option>
+                                <option value="PET">PET</option>
+                                <option value="BOPP">BOPP</option>
+                                <option value="CPP">CPP</option>
+                                <option value="Polietileno">Polietileno</option>
+                                <option value="PVC">PVC</option>
+                            </select>
+                        </label>
+                        <label><span>Máquina</span>
+                            <select id="campoMaquinaId"><option value="">Sin especificar</option></select>
+                        </label>
+                        <label><span>Anilox</span><input id="campoAnilox" type="text" placeholder="Ej. 500 lpi / 3.5 BCM"></label>
+                        <label><span>Tecnología de tinta</span>
+                            <select id="campoTecnologia">
+                                <option value="">Sin especificar</option>
+                                <option value="CONVENCIONAL">Convencional</option>
+                                <option value="UV">UV</option>
+                                <option value="HIBRIDA">Híbrida</option>
+                                <option value="SOLVENTE">Solvente</option>
+                                <option value="AGUA">Agua</option>
+                                <option value="OTRO">Otro</option>
+                            </select>
+                        </label>
+                        <div class="tinta-checkbox-group"><label><input type="checkbox" id="campoAprobadoXrite"> Aprobado por X-RITE</label></div>
+                    </div>
+
+                    <!-- Tab 3: Fórmula -->
+                    <div class="tinta-tab-panel" data-tab-panel="formula" hidden>
+                        <label><span>Cantidad base</span><input id="cantidadBaseInput" type="number" min="0" step="0.01" value="100" oninput="actualizarTotales()"></label>
+                        <label><span>Unidad base</span>
+                            <select id="unidadBaseSelect" onchange="actualizarTotales()">
+                                <option value="G">Gramos (G)</option>
+                                <option value="KG">Kilogramos (KG)</option>
+                                <option value="LB">Libras (LB)</option>
+                                <option value="OZ">Onzas (OZ)</option>
+                            </select>
+                        </label>
+                        <div class="tinta-ingredientes-wrap">
+                            <div class="tinta-ingredientes-head">
+                                <span>Materia prima (catálogo de tintas)</span>
+                                <span>Cantidad</span>
+                                <span>%</span>
+                                <span>Orden</span>
+                                <span></span>
+                            </div>
+                            <div id="ingredientesBody"></div>
+                            <button type="button" class="tinta-add-ingrediente-btn" onclick="agregarIngredienteRow()">+ Agregar componente</button>
+                            <div class="tinta-formula-total" id="formulaTotalResumen">Suma ingresada: 0 | Base declarada: 0</div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 4: Preparación y propiedades físicas -->
+                    <div class="tinta-tab-panel" data-tab-panel="preparacion" hidden>
+                        <label><span>Orden de mezcla</span><input id="campoOrdenMezcla" type="text"></label>
+                        <label><span>Tiempo de mezclado (min)</span><input id="campoTiempoMezclado" type="number" min="0"></label>
+                        <label><span>Velocidad de agitación</span><input id="campoVelocidadAgitacion" type="text"></label>
+                        <label><span>Temperatura recomendada (°C)</span><input id="campoTemperatura" type="number"></label>
+                        <label><span>Tiempo de reposo (min)</span><input id="campoTiempoReposo" type="number" min="0"></label>
+                        <label><span>Método de filtrado</span><input id="campoFiltrado" type="text"></label>
+                        <label><span>Malla utilizada</span><input id="campoMalla" type="text"></label>
+                        <label class="inventory-span-2"><span>Instrucciones especiales</span><textarea id="campoInstrucciones"></textarea></label>
+                        <label><span>Viscosidad</span><input id="campoViscosidad" type="text"></label>
+                        <label><span>pH</span><input id="campoPh" type="text"></label>
+                        <label><span>Densidad</span><input id="campoDensidad" type="number" step="0.0001" min="0"></label>
+                        <label><span>Brillo</span><input id="campoBrillo" type="text"></label>
+                        <label><span>Opacidad</span><input id="campoOpacidad" type="text"></label>
+                        <label><span>Tiempo de secado</span><input id="campoTiempoSecado" type="text"></label>
+                        <label><span>Vida útil</span><input id="campoVidaUtil" type="text"></label>
+                    </div>
+
+                    <!-- Tab 5: Disponible + calculadora de escalado -->
+                    <div class="tinta-tab-panel" data-tab-panel="compatibilidad" hidden>
+                        <label><span>Disponible (gramos de tinta ya mezclada)</span><input id="campoDisponibleGramos" type="number" min="0" step="0.01" value="0"></label>
+                        <p style="grid-column:1/-1;font-size:11px;color:var(--app-text-muted);margin:-6px 0 4px;">
+                            No es la norma mantener pantones premezclados en bodega; este campo es un ajuste manual, no un inventario automático. Unidad estandarizada en gramos.
+                        </p>
+
+                        <div class="tinta-scale-box">
+                            <h4>Calculadora de escalado (previsualización)</h4>
+                            <div class="tinta-scale-row">
+                                <div>
+                                    <label>Cantidad a producir</label>
+                                    <input id="escaladoCantidad" type="number" min="0.001" step="0.1" value="1">
+                                </div>
+                                <div>
+                                    <label>Unidad</label>
+                                    <select id="escaladoUnidad">
+                                        <option value="KG">Kilogramos (KG)</option>
+                                        <option value="G">Gramos (G)</option>
+                                        <option value="LB">Libras (LB)</option>
+                                        <option value="OZ">Onzas (OZ)</option>
+                                    </select>
+                                </div>
+                                <div style="flex:0 0 auto;">
+                                    <button type="button" class="tintas-btn" onclick="calcularEscaladoPreview()">Calcular</button>
+                                </div>
+                            </div>
+                            <div id="escaladoResultado" style="margin-top:12px"></div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="material-modal-footer">
+                <button type="button" class="material-footer-btn" onclick="cerrarFormulaModal()">Cancelar</button>
+                <button type="button" class="material-footer-btn" id="formulaSaveButton" onclick="guardarFormula()">Guardar Fórmula</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    var API = '/api/tintas';
+    var modoDemo = false;
+    var catalogoCache = [];
+    var marcasCache = [];
+    var familiasCache = [];
+    var maquinasCache = [];
+    var clientesCache = [];
+    var ingredienteSeq = 0;
+    var DEMO_KEY = 'tintasFormulasDemoDB';
+
+    // ─── Base de datos local de demostración (localStorage) ─────────────────
+    function seedDemoDB() {
+        return {
+            marcas: [
+                { id: 'marca-1', nombre: 'INX CURE' },
+                { id: 'marca-2', nombre: 'GGI' }
+            ],
+            familias: [
+                { id: 'fam-1', nombre: 'Rojos' },
+                { id: 'fam-2', nombre: 'Azules' },
+                { id: 'fam-3', nombre: 'Neutros' }
+            ],
+            maquinas: [
+                { id: 'maq-1', nombre: 'XL75' },
+                { id: 'maq-2', nombre: 'CD6' }
+            ],
+            clientes: [
+                { id: 'cli-1', partner_name: 'LANCO' },
+                { id: 'cli-2', partner_name: 'LANCO Y HARRIS' }
+            ],
+            productos: [
+                { id: 'demo-1', codigo_interno: 'TIN-001', nombre: 'Amarillo Proceso', unidad_medida_base: 'KG' },
+                { id: 'demo-2', codigo_interno: 'TIN-002', nombre: 'Magenta Proceso', unidad_medida_base: 'KG' },
+                { id: 'demo-3', codigo_interno: 'TIN-003', nombre: 'Cian Proceso', unidad_medida_base: 'KG' },
+                { id: 'demo-4', codigo_interno: 'TIN-004', nombre: 'Negro Proceso', unidad_medida_base: 'KG' },
+                { id: 'demo-5', codigo_interno: 'TIN-005', nombre: 'Blanco Opaco', unidad_medida_base: 'KG' },
+                { id: 'demo-6', codigo_interno: 'TIN-006', nombre: 'Barniz Base Agua', unidad_medida_base: 'KG' },
+                { id: 'demo-7', codigo_interno: 'TIN-007', nombre: 'Reductor / Diluyente', unidad_medida_base: 'KG' }
+            ],
+            recetas: [
+                {
+                    id: 'demo-r1',
+                    codigo_interno: 'FRM-0001',
+                    nombre: 'PANTONE 186 C',
+                    version: 1,
+                    estado: 'VIGENTE',
+                    es_vigente: true,
+                    fecha: '2026-05-14',
+                    origen: 'Pantone',
+                    codigo_pantone: '186 C',
+                    color_hex: '#C8102E',
+                    cantidad_base: 100,
+                    unidad_base: 'G',
+                    componentes: [
+                        { producto_id: 'demo-3', nombre: 'Cian Proceso', codigo_interno: 'TIN-003', cantidad: 4, orden: 1 },
+                        { producto_id: 'demo-4', nombre: 'Negro Proceso', codigo_interno: 'TIN-004', cantidad: 6, orden: 2 },
+                        { producto_id: 'demo-1', nombre: 'Amarillo Proceso', codigo_interno: 'TIN-001', cantidad: 30, orden: 3 },
+                        { producto_id: 'demo-5', nombre: 'Blanco Opaco', codigo_interno: 'TIN-005', cantidad: 60, orden: 4 }
+                    ]
+                },
+                {
+                    id: 'demo-r2',
+                    codigo_interno: 'FRM-0002',
+                    nombre: 'Azul Corporativo Acme',
+                    version: 2,
+                    estado: 'APROBADO',
+                    es_vigente: true,
+                    fecha: '2026-06-02',
+                    origen: 'Corporativo',
+                    codigo_pantone: '',
+                    color_hex: '#0B4F9E',
+                    cantidad_base: 1,
+                    unidad_base: 'KG',
+                    componentes: [
+                        { producto_id: 'demo-2', nombre: 'Magenta Proceso', codigo_interno: 'TIN-002', cantidad: 0.18, orden: 1 },
+                        { producto_id: 'demo-3', nombre: 'Cian Proceso', codigo_interno: 'TIN-003', cantidad: 0.62, orden: 2 },
+                        { producto_id: 'demo-6', nombre: 'Barniz Base Agua', codigo_interno: 'TIN-006', cantidad: 0.20, orden: 3 }
+                    ]
+                }
+            ]
+        };
+    }
+
+    function loadDemoDB() {
+        try {
+            var raw = localStorage.getItem(DEMO_KEY);
+            if (raw) return JSON.parse(raw);
+        } catch (e) {}
+        var seeded = seedDemoDB();
+        saveDemoDB(seeded);
+        return seeded;
+    }
+
+    function saveDemoDB(db) {
+        try { localStorage.setItem(DEMO_KEY, JSON.stringify(db)); } catch (e) {}
+    }
+
+    function restablecerDemo() {
+        saveDemoDB(seedDemoDB());
+        cargarCatalogo();
+        cargarTabla();
+    }
+
+    // ─── Conversión de unidades (misma lógica que tintas-service.js) ────────
+    var FAMILIA_UNIDAD = { G: 'PESO', KG: 'PESO', LB: 'PESO', OZ: 'PESO', ML: 'VOLUMEN', L: 'VOLUMEN', GAL: 'VOLUMEN' };
+    var A_BASE_UNIDAD = { G: 1, KG: 1000, LB: 453.59237, OZ: 28.349523125, ML: 1, L: 1000, GAL: 3785.411784 };
+
+    function convertirUnidadCliente(cantidad, origen, destino) {
+        var uo = String(origen).toUpperCase(), ud = String(destino).toUpperCase();
+        if (uo === ud) return cantidad;
+        if (FAMILIA_UNIDAD[uo] !== FAMILIA_UNIDAD[ud]) throw new Error('No se puede convertir ' + uo + ' a ' + ud + ' sin densidad.');
+        return (cantidad * A_BASE_UNIDAD[uo]) / A_BASE_UNIDAD[ud];
+    }
+
+    // ─── Acceso a datos: intenta la API real, si falla usa la demo local ───
+    async function fetchConFallback(endpoint, demoKey) {
+        if (modoDemo) return loadDemoDB()[demoKey];
+        try {
+            var r = await fetch(API + endpoint);
+            if (!r.ok) throw new Error();
+            return await r.json();
+        } catch (e) {
+            return loadDemoDB()[demoKey];
+        }
+    }
+
+    async function cargarCatalogo() {
+        catalogoCache = await fetchConFallback('/productos', 'productos');
+        marcasCache = await fetchConFallback('/marcas', 'marcas');
+        familiasCache = await fetchConFallback('/familias', 'familias');
+        maquinasCache = await fetchConFallback('/maquinas', 'maquinas');
+        clientesCache = await fetchConFallback('/clientes', 'clientes');
+        poblarSelectsCatalogo();
+    }
+
+    function poblarSelect(id, items, placeholder) {
+        var sel = document.getElementById(id);
+        var actual = sel.value;
+        sel.innerHTML = '<option value="">' + placeholder + '</option>' +
+            items.map(function (it) { return '<option value="' + it.id + '">' + hm(it.nombre) + '</option>'; }).join('');
+        sel.value = actual;
+    }
+
+    function poblarSelectsCatalogo() {
+        poblarSelect('campoMarcaId', marcasCache, 'Sin marca');
+        poblarSelect('campoFamiliaId', familiasCache, 'Sin familia');
+        poblarSelect('campoMaquinaId', maquinasCache, 'Sin especificar');
+        var dl = document.getElementById('listaClientes');
+        dl.innerHTML = clientesCache.map(function (c) { return '<option data-id="' + c.id + '" value="' + hm(c.partner_name) + '">'; }).join('');
+    }
+
+    function onClienteInput() {
+        var input = document.getElementById('campoClienteBusqueda').value.trim().toLowerCase();
+        var match = clientesCache.find(function (c) { return String(c.partner_name).toLowerCase() === input; });
+        document.getElementById('campoClienteId').value = match ? match.id : '';
+    }
+
+    async function fetchRecetas() {
+        if (modoDemo) return loadDemoDB().recetas;
+        var r = await fetch(API + '/pantones/recetas');
+        if (!r.ok) throw new Error(await r.text());
+        return r.json();
+    }
+
+    async function fetchRecetaDetalle(id) {
+        if (modoDemo) {
+            var rec = loadDemoDB().recetas.find(function (x) { return String(x.id) === String(id); });
+            if (!rec) throw new Error('Fórmula no encontrada.');
+            return rec;
+        }
+        var r = await fetch(API + '/pantones/recetas/' + id);
+        if (!r.ok) throw new Error(await r.text());
+        return r.json();
+    }
+
+    async function crearRecetaRemoto(payload) {
+        if (modoDemo) {
+            var db = loadDemoDB();
+            var nueva = Object.assign({
+                id: 'demo-r-' + Date.now(),
+                version: 1,
+                es_vigente: false,
+                fecha: new Date().toISOString().slice(0, 10)
+            }, payload);
+            db.recetas.unshift(nueva);
+            saveDemoDB(db);
+            return nueva;
+        }
+        var r = await fetch(API + '/pantones/recetas', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!r.ok) throw new Error(await r.text());
+        return r.json();
+    }
+
+    // ─── Tabla principal ─────────────────────────────────────────────────
+    async function cargarTabla() {
+        var tb = document.getElementById('tablaBody');
+        tb.innerHTML = '<tr><td colspan="7" class="tintas-loading">Cargando...</td></tr>';
+        try {
+            var data = await fetchRecetas();
+            if (!data.length) {
+                tb.innerHTML = '<tr><td colspan="7" class="tintas-loading">Sin recetas. Usa "+ Nueva Fórmula" para crear la primera.</td></tr>';
+                return;
+            }
+            tb.innerHTML = data.map(function (rec) {
+                return '<tr><td>' + hm(rec.codigo_interno) + '</td><td><strong>' + hm(rec.nombre) + '</strong></td><td>v' + Number(rec.version || 1) + '</td><td><span class="tintas-badge tintas-badge-' + hm(rec.estado) + '">' + hm(rec.estado) + '</span></td><td>' + (rec.es_vigente ? 'Sí' : 'No') + '</td><td>' + (rec.fecha || '-') + '</td><td><button class="tintas-ver-btn" onclick="verDetalle(\'' + rec.id + '\')">Ver</button></td></tr>';
+            }).join('');
+        } catch (e) {
+            tb.innerHTML = '<tr><td colspan="7" class="tintas-loading">Error: ' + hm(e.message) + '</td></tr>';
+        }
+    }
+
+    async function verDetalle(id) {
+        var dp = document.getElementById('detailPanel');
+        try {
+            var data = await fetchRecetaDetalle(id);
+            var componentes = data.componentes || [];
+            dp.classList.add('is-open');
+            dp.innerHTML =
+                '<h3>' + hm(data.nombre) + ' (' + hm(data.codigo_interno) + ') v' + Number(data.version || 1) + '</h3>' +
+                '<p>Estado: ' + hm(data.estado) + ' | Vigente: ' + (data.es_vigente ? 'Sí' : 'No') + (data.codigo_pantone ? ' | Pantone: ' + hm(data.codigo_pantone) : '') + (data.aprobado_xrite ? ' | ✓ Aprobado X-RITE' : '') + '</p>' +
+                '<p>' + (data.sustrato ? 'Sustrato: ' + hm(data.sustrato) + ' | ' : '') + (data.maquina_nombre ? 'Máquina: ' + hm(data.maquina_nombre) + ' | ' : '') + 'Disponible: ' + Number(data.disponible_gramos || 0).toFixed(2) + ' g</p>' +
+                '<div class="tintas-comp-grid">' +
+                componentes.map(function (c) {
+                    var pct = Number(c.porcentaje != null ? c.porcentaje : ((c.cantidad || 0) / (componentes.reduce(function (a, x) { return a + Number(x.cantidad || x.cantidad_referencia || 0); }, 0) || 1) * 100));
+                    var refGramos = c.cantidad_referencia != null ? c.cantidad_referencia : c.cantidad;
+                    return '<div class="tintas-comp-item"><strong>' + hm(c.nombre || c.codigo_interno) + '</strong><br>' + pct.toFixed(2) + '%' + (refGramos != null ? '<br><small>ref: ' + hm(refGramos) + ' ' + hm(data.unidad_base || 'g') + '</small>' : '') + '</div>';
+                }).join('') +
+                '</div>' +
+                '<div class="tinta-scale-box" style="margin-top:14px">' +
+                '<h4>Calcular producción</h4>' +
+                '<div class="tinta-scale-row">' +
+                '<div><label>Cantidad a producir</label><input id="detalleCantidad" type="number" min="0.001" step="0.1" value="1"></div>' +
+                '<div><label>Unidad</label><select id="detalleUnidad"><option value="KG">Kilogramos (KG)</option><option value="G">Gramos (G)</option><option value="LB">Libras (LB)</option><option value="OZ">Onzas (OZ)</option></select></div>' +
+                '<div style="flex:0 0 auto;"><button type="button" class="tintas-btn" onclick="calcularDesdeDetalle(\'' + data.id + '\')">Calcular</button></div>' +
+                '</div><div id="detalleResultado" style="margin-top:12px"></div></div>';
+        } catch (e) {
+            dp.classList.add('is-open');
+            dp.innerHTML = '<h3>Error</h3><p>' + hm(e.message) + '</p>';
+        }
+    }
+
+    async function calcularDesdeDetalle(id) {
+        var resEl = document.getElementById('detalleResultado');
+        var cantidad = Number(document.getElementById('detalleCantidad').value);
+        var unidad = document.getElementById('detalleUnidad').value;
+        if (!cantidad) { resEl.innerHTML = '<p class="tintas-warning">Ingresa una cantidad válida.</p>'; return; }
+        resEl.innerHTML = '<div class="tintas-loading">Calculando...</div>';
+        try {
+            if (!modoDemo) {
+                var r = await fetch(API + '/pantones/recetas/' + id + '/calcular?cantidad=' + cantidad + '&unidad=' + unidad);
+                if (r.ok) {
+                    var data = await r.json();
+                    resEl.innerHTML = renderResultadoCalculo(data.componentes, data.advertencia, data.unidad_total);
+                    return;
+                }
+            }
+            var receta = await fetchRecetaDetalle(id);
+            resEl.innerHTML = renderResultadoEscalado(receta.componentes, receta.cantidad_base, receta.unidad_base, cantidad, unidad);
+        } catch (e) {
+            resEl.innerHTML = '<p class="tintas-warning">Error: ' + hm(e.message) + '</p>';
+        }
+    }
+
+    function renderResultadoCalculo(componentes, advertencia, unidadTotal) {
+        var html = '<h3>Resultado</h3>';
+        if (advertencia) html += '<p class="tintas-warning">⚠ ' + hm(advertencia) + '</p>';
+        html += '<table class="tintas-comp-table"><thead><tr><th>Componente</th><th>%</th><th>Cantidad</th></tr></thead><tbody>';
+        html += componentes.map(function (c) {
+            return '<tr><td>' + hm(c.nombre) + '</td><td>' + Number(c.porcentaje).toFixed(2) + '%</td><td>' + Number(c.cantidad).toFixed(4) + ' ' + hm(c.unidad_medida || unidadTotal) + '</td></tr>';
+        }).join('');
+        html += '</tbody></table>';
+        return html;
+    }
+
+    function renderResultadoEscalado(componentes, cantidadBase, unidadBase, cantidadObjetivo, unidadObjetivo) {
+        var sumaBase = componentes.reduce(function (a, c) { return a + Number(c.cantidad || 0); }, 0);
+        try {
+            var baseEnObjetivo = convertirUnidadCliente(cantidadBase, unidadBase, unidadObjetivo);
+            var factor = cantidadObjetivo / baseEnObjetivo;
+            var html = '<h3>Resultado</h3><table class="tintas-comp-table"><thead><tr><th>Componente</th><th>%</th><th>Cantidad</th></tr></thead><tbody>';
+            html += componentes.map(function (c) {
+                var pct = sumaBase > 0 ? (Number(c.cantidad) / sumaBase * 100) : 0;
+                var cantFinal = convertirUnidadCliente(Number(c.cantidad), unidadBase, unidadObjetivo) * factor;
+                return '<tr><td>' + hm(c.nombre || c.codigo_interno) + '</td><td>' + pct.toFixed(2) + '%</td><td>' + cantFinal.toFixed(4) + ' ' + hm(unidadObjetivo) + '</td></tr>';
+            }).join('');
+            html += '</tbody></table>';
+            return html;
+        } catch (e) {
+            return '<p class="tintas-warning">' + hm(e.message) + '</p>';
+        }
+    }
+
+    // ─── Modal: apertura, tabs, ingredientes dinámicos ──────────────────────
+    function abrirFormulaModal() {
+        document.getElementById('formulaForm').reset();
+        document.getElementById('ingredientesBody').innerHTML = '';
+        document.getElementById('escaladoResultado').innerHTML = '';
+        document.getElementById('cantidadBaseInput').value = 100;
+        document.getElementById('campoClienteId').value = '';
+        document.getElementById('campoDisponibleGramos').value = 0;
+        poblarSelectsCatalogo();
+        ingredienteSeq = 0;
+        agregarIngredienteRow();
+        cambiarTabFormula('identificacion');
+        document.getElementById('formulaModal').classList.add('open');
+    }
+
+    function cerrarFormulaModal() {
+        document.getElementById('formulaModal').classList.remove('open');
+    }
+
+    function cambiarTabFormula(tab) {
+        document.querySelectorAll('#formulaTabs .standard-module-tab').forEach(function (btn) {
+            btn.classList.toggle('is-active', btn.dataset.tab === tab);
+        });
+        document.querySelectorAll('.tinta-tab-panel').forEach(function (p) {
+            p.hidden = p.dataset.tabPanel !== tab;
+        });
+    }
+
+    function opcionesCatalogo(selectedId) {
+        if (!catalogoCache.length) return '<option value="">Sin tintas en el catálogo</option>';
+        return catalogoCache.map(function (p) {
+            var sel = String(p.id) === String(selectedId) ? ' selected' : '';
+            return '<option value="' + p.id + '"' + sel + '>' + hm(p.codigo_interno) + ' - ' + hm(p.nombre) + '</option>';
+        }).join('');
+    }
+
+    function agregarIngredienteRow(data) {
+        data = data || {};
+        ingredienteSeq++;
+        var rowId = 'ing_' + ingredienteSeq;
+        var row = document.createElement('div');
+        row.className = 'tinta-ingrediente-row';
+        row.dataset.rowId = rowId;
+        row.innerHTML =
+            '<select class="ing-producto">' + opcionesCatalogo(data.producto_id) + '</select>' +
+            '<input class="ing-cantidad" type="number" min="0" step="0.01" value="' + (data.cantidad != null ? data.cantidad : '') + '" placeholder="0.00">' +
+            '<span class="tinta-ingrediente-pct" data-pct>0%</span>' +
+            '<input class="ing-orden" type="number" min="1" step="1" value="' + (data.orden || document.querySelectorAll('.tinta-ingrediente-row').length + 1) + '" title="Orden">' +
+            '<button type="button" class="tinta-ingrediente-remove" onclick="quitarIngredienteRow(\'' + rowId + '\')" title="Quitar componente">&times;</button>';
+        document.getElementById('ingredientesBody').appendChild(row);
+        row.querySelector('.ing-cantidad').addEventListener('input', actualizarTotales);
+    }
+
+    function quitarIngredienteRow(rowId) {
+        var row = document.querySelector('.tinta-ingrediente-row[data-row-id="' + rowId + '"]');
+        if (row) row.remove();
+        actualizarTotales();
+    }
+
+    function leerIngredientes() {
+        return Array.from(document.querySelectorAll('.tinta-ingrediente-row')).map(function (row, idx) {
+            var productoId = row.querySelector('.ing-producto').value;
+            var producto = catalogoCache.find(function (p) { return String(p.id) === String(productoId); });
+            return {
+                producto_id: productoId,
+                nombre: producto ? producto.nombre : '',
+                codigo_interno: producto ? producto.codigo_interno : '',
+                cantidad: Number(row.querySelector('.ing-cantidad').value) || 0,
+                orden: Number(row.querySelector('.ing-orden').value) || (idx + 1)
+            };
+        });
+    }
+
+    function actualizarTotales() {
+        var base = Number(document.getElementById('cantidadBaseInput').value) || 0;
+        var unidadBase = document.getElementById('unidadBaseSelect').value;
+        var ingredientes = leerIngredientes();
+        var suma = ingredientes.reduce(function (a, c) { return a + c.cantidad; }, 0);
+        document.querySelectorAll('.tinta-ingrediente-row').forEach(function (row) {
+            var cant = Number(row.querySelector('.ing-cantidad').value) || 0;
+            var pct = suma > 0 ? (cant / suma * 100) : 0;
+            row.querySelector('[data-pct]').textContent = pct.toFixed(2) + '%';
+        });
+        var totalEl = document.getElementById('formulaTotalResumen');
+        var diff = Math.abs(suma - base);
+        totalEl.textContent = 'Suma ingresada: ' + suma.toFixed(3) + ' ' + unidadBase + '  |  Base declarada: ' + base.toFixed(3) + ' ' + unidadBase;
+        totalEl.classList.toggle('is-off', base > 0 && diff > 0.01);
+    }
+
+    function calcularEscaladoPreview() {
+        var resultsEl = document.getElementById('escaladoResultado');
+        var cantidadObjetivo = Number(document.getElementById('escaladoCantidad').value);
+        var unidadObjetivo = document.getElementById('escaladoUnidad').value;
+        var unidadBase = document.getElementById('unidadBaseSelect').value;
+        var base = Number(document.getElementById('cantidadBaseInput').value) || 0;
+        var ingredientes = leerIngredientes().filter(function (c) { return c.producto_id && c.cantidad > 0; });
+        if (!cantidadObjetivo || !base || !ingredientes.length) {
+            resultsEl.innerHTML = '<p class="tintas-warning">Completa la base y al menos un componente en la pestaña "Fórmula" antes de calcular.</p>';
+            return;
+        }
+        resultsEl.innerHTML = renderResultadoEscalado(ingredientes, base, unidadBase, cantidadObjetivo, unidadObjetivo);
+    }
+
+    // ─── Guardar fórmula ─────────────────────────────────────────────────
+    async function guardarFormula() {
+        var ingredientes = leerIngredientes().filter(function (c) { return c.producto_id && c.cantidad > 0; });
+        var codigoInterno = document.getElementById('campoCodigoInterno').value.trim();
+        var nombre = document.getElementById('campoNombre').value.trim();
+        if (!codigoInterno || !nombre) { alert('Código interno y nombre son obligatorios.'); return; }
+        if (!ingredientes.length) { alert('Agrega al menos un componente con cantidad mayor a cero.'); return; }
+
+        var sumaBase = ingredientes.reduce(function (a, c) { return a + c.cantidad; }, 0);
+        var payload = {
+            codigo_interno: codigoInterno,
+            nombre: nombre,
+            nombre_comercial: document.getElementById('campoNombreComercial').value.trim() || null,
+            cliente_id: document.getElementById('campoClienteId').value || null,
+            cliente_nota: document.getElementById('campoClienteNota').value.trim() || null,
+            codigo_cliente: document.getElementById('campoCodigoCliente').value.trim() || null,
+            marca_id: document.getElementById('campoMarcaId').value || null,
+            familia_id: document.getElementById('campoFamiliaId').value || null,
+            descripcion: document.getElementById('campoDescripcion').value.trim() || null,
+            estado: document.getElementById('campoEstado').value,
+            confidencialidad: document.getElementById('campoConfidencialidad').value,
+            observaciones: document.getElementById('campoObservaciones').value.trim() || null,
+            origen: document.getElementById('campoOrigen').value,
+            codigo_pantone: document.getElementById('campoCodigoPantone').value.trim() || null,
+            codigo_fabricante: document.getElementById('campoCodigoFabricante').value.trim() || null,
+            acabado: document.getElementById('campoAcabado').value || null,
+            color_hex: document.getElementById('campoColorHex').value.trim() || null,
+            sustrato: document.getElementById('campoSustrato').value || null,
+            maquina_id: document.getElementById('campoMaquinaId').value || null,
+            anilox: document.getElementById('campoAnilox').value.trim() || null,
+            tecnologia: document.getElementById('campoTecnologia').value || null,
+            aprobado_xrite: document.getElementById('campoAprobadoXrite').checked,
+            disponible_gramos: Number(document.getElementById('campoDisponibleGramos').value) || 0,
+            cantidad_base: Number(document.getElementById('cantidadBaseInput').value) || sumaBase,
+            unidad_base: document.getElementById('unidadBaseSelect').value,
+            orden_mezcla: document.getElementById('campoOrdenMezcla').value.trim() || null,
+            tiempo_mezclado_min: document.getElementById('campoTiempoMezclado').value || null,
+            velocidad_agitacion: document.getElementById('campoVelocidadAgitacion').value.trim() || null,
+            temperatura_c: document.getElementById('campoTemperatura').value || null,
+            tiempo_reposo_min: document.getElementById('campoTiempoReposo').value || null,
+            filtrado: document.getElementById('campoFiltrado').value.trim() || null,
+            malla: document.getElementById('campoMalla').value.trim() || null,
+            instrucciones: document.getElementById('campoInstrucciones').value.trim() || null,
+            viscosidad: document.getElementById('campoViscosidad').value.trim() || null,
+            ph: document.getElementById('campoPh').value.trim() || null,
+            densidad: document.getElementById('campoDensidad').value || null,
+            brillo: document.getElementById('campoBrillo').value.trim() || null,
+            opacidad: document.getElementById('campoOpacidad').value.trim() || null,
+            tiempo_secado: document.getElementById('campoTiempoSecado').value.trim() || null,
+            vida_util: document.getElementById('campoVidaUtil').value.trim() || null,
+            componentes: ingredientes.map(function (c) {
+                return {
+                    producto_tinta_id: c.producto_id,
+                    porcentaje: Number((c.cantidad / sumaBase * 100).toFixed(3)),
+                    cantidad_referencia: c.cantidad,
+                    orden: c.orden
+                };
+            })
+        };
+
+        var btn = document.getElementById('formulaSaveButton');
+        btn.disabled = true; var textoOriginal = btn.textContent; btn.textContent = 'Guardando...';
+        try {
+            await crearRecetaRemoto(payload);
+            cerrarFormulaModal();
+            await cargarTabla();
+        } catch (e) {
+            alert('Error al guardar la fórmula: ' + e.message);
+        } finally {
+            btn.disabled = false; btn.textContent = textoOriginal;
+        }
+    }
+
+    function hm(v) {
+        return String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    async function init() {
+        try {
+            var probe = await fetch(API + '/pantones/recetas');
+            modoDemo = !probe.ok;
+        } catch (e) {
+            modoDemo = true;
+        }
+        document.getElementById('demoBanner').hidden = !modoDemo;
+        await cargarCatalogo();
+        await cargarTabla();
+    }
+
+    init();
+    </script>
+</body>
+</html>

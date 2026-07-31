@@ -20,7 +20,9 @@ const DEFAULT_SAP_CONFIG = Object.freeze({
     lastSyncStatus: 'idle',
     lastSyncMessage: '',
     lastSyncStartedAt: null,
-    lastSyncFinishedAt: null
+    lastSyncFinishedAt: null,
+    maxImportPartners: 2000,
+    maxImportItems: 2000
 });
 
 const DEMO_DATA_SEED = Object.freeze({
@@ -653,7 +655,9 @@ function normalizeSapConfigRecord(source = {}) {
         lastSyncStatus: normalizeText(source.lastSyncStatus || source.last_sync_status, DEFAULT_SAP_CONFIG.lastSyncStatus),
         lastSyncMessage: normalizeText(source.lastSyncMessage || source.last_sync_message, DEFAULT_SAP_CONFIG.lastSyncMessage),
         lastSyncStartedAt: normalizeTimestamp(source.lastSyncStartedAt || source.last_sync_started_at),
-        lastSyncFinishedAt: normalizeTimestamp(source.lastSyncFinishedAt || source.last_sync_finished_at)
+        lastSyncFinishedAt: normalizeTimestamp(source.lastSyncFinishedAt || source.last_sync_finished_at),
+        maxImportPartners: normalizePositiveInt(source.maxImportPartners || source.max_import_partners, DEFAULT_SAP_CONFIG.maxImportPartners, 1, 100000),
+        maxImportItems: normalizePositiveInt(source.maxImportItems || source.max_import_items, DEFAULT_SAP_CONFIG.maxImportItems, 1, 100000)
     };
     return normalized;
 }
@@ -842,6 +846,8 @@ async function ensureSapSchema(pgQuery) {
             last_sync_message TEXT NOT NULL DEFAULT '',
             last_sync_started_at TIMESTAMPTZ NULL,
             last_sync_finished_at TIMESTAMPTZ NULL,
+            max_import_partners INTEGER NOT NULL DEFAULT 2000,
+            max_import_items INTEGER NOT NULL DEFAULT 2000,
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
     `);
@@ -863,6 +869,8 @@ async function ensureSapSchema(pgQuery) {
     await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS last_sync_message TEXT NOT NULL DEFAULT ''`);
     await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS last_sync_started_at TIMESTAMPTZ NULL`);
     await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS last_sync_finished_at TIMESTAMPTZ NULL`);
+    await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS max_import_partners INTEGER NOT NULL DEFAULT 2000`);
+    await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS max_import_items INTEGER NOT NULL DEFAULT 2000`);
     await pgQuery(`ALTER TABLE sap_integration_config ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
     await pgQuery(`
         INSERT INTO sap_integration_config (
@@ -1508,6 +1516,8 @@ async function saveSapConfig(pgQuery, input) {
                sync_interval_minutes = $12,
                allow_self_signed = $13,
                keep_demo_enabled = $14,
+               max_import_partners = $15,
+               max_import_items = $16,
                updated_at = NOW()
          WHERE id = 1
     `, [
@@ -1524,7 +1534,9 @@ async function saveSapConfig(pgQuery, input) {
         merged.autoSyncEnabled,
         merged.syncIntervalMinutes,
         merged.allowSelfSigned,
-        merged.keepDemoEnabled
+        merged.keepDemoEnabled,
+        merged.maxImportPartners,
+        merged.maxImportItems
     ]);
     const saved = await loadSapConfig(pgQuery);
     await saveSapConfigSnapshotToAppConfig(pgQuery, saved);
@@ -3027,8 +3039,11 @@ function buildSapMirrorBomTemplate() {
     };
 }
 
-function buildSapMirrorImportQuery(processKey, input = {}) {
-    const limit = normalizePositiveInt(input.limit || input.top, processKey === 'import-items' ? 50 : 20, 1, 1000);
+function buildSapMirrorImportQuery(processKey, input = {}, config = null) {
+    const maxLimit = processKey === 'import-items'
+        ? (config?.maxImportItems || 2000)
+        : (config?.maxImportPartners || 2000);
+    const limit = normalizePositiveInt(input.limit || input.top, 20, 1, maxLimit);
     const search = normalizeText(input.search);
     const query = {
         top: limit,
@@ -3064,7 +3079,7 @@ function buildSapMirrorProcedure(config = {}, processKey = 'import-business-part
     const definition = getSapMirrorProcessDefinition(processKey);
     const mode = resolveOperatingMode(config);
     const provider = normalizeSapProvider(config.provider || config.sapProvider);
-    const importQuery = definition.direction === 'import' ? buildSapMirrorImportQuery(processKey, input) : null;
+    const importQuery = definition.direction === 'import' ? buildSapMirrorImportQuery(processKey, input, config) : null;
     const exportInput = { ...(input || {}) };
     delete exportInput.processKey;
     delete exportInput.limit;
@@ -3102,7 +3117,7 @@ async function fetchSapMirrorBusinessPartners({ pgQuery, config, limit, search, 
             throw new Error(buildMockConnectorError(health));
         }
     }
-    const query = buildSapMirrorImportQuery('import-business-partners', { limit, search, type });
+    const query = buildSapMirrorImportQuery('import-business-partners', { limit, search, type }, config);
     if (demo || resolveOperatingMode(config) === 'demo') {
         return filterDemoSapRows(deepClone(demoState.BusinessPartners), 'import-business-partners', query);
     }
@@ -3117,7 +3132,7 @@ async function fetchSapMirrorItems({ pgQuery, config, limit, search, group, demo
             throw new Error(buildMockConnectorError(health));
         }
     }
-    const query = buildSapMirrorImportQuery('import-items', { limit, search, group });
+    const query = buildSapMirrorImportQuery('import-items', { limit, search, group }, config);
     if (demo || resolveOperatingMode(config) === 'demo') {
         return filterDemoSapRows(deepClone(demoState.Items), 'import-items', query);
     }

@@ -16,6 +16,7 @@ const socioTabPanels = [...document.querySelectorAll('[data-socio-panel]')];
 let loadedConfig = null;
 let sociosList = [];
 let currentSocioCode = '';
+let mapInstance = null;
 
 const fields = {
   partnerCode: document.getElementById('partnerCode'),
@@ -244,24 +245,45 @@ function updateContactMap({ partnerName = '', address = '', county = '', state =
   const query = parts.join(', ');
   const hasCoords = lat !== null && lng !== null;
 
-  if (hasCoords) {
-    const coordQuery = `loc:${lat},${lng}`;
-    contactMapFrame.src = `https://www.google.com/maps?q=${encodeURIComponent(coordQuery)}&z=16&output=embed`;
-    contactMapLink.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(coordQuery)}`;
-    contactMapSummary.textContent = query ? `Punto de referencia encontrado para: ${query}` : `Punto de referencia encontrado por coordenadas.`;
+  if (mapInstance) {
+    mapInstance.remove();
+    mapInstance = null;
+  }
+
+  if (!hasCoords && !query) {
+    contactMapLink.href = 'https://maps.google.com/';
+    contactMapSummary.textContent = 'No hay suficiente información de dirección para ubicar este socio en el mapa.';
     return;
   }
 
-  if (query) {
-    contactMapFrame.src = `https://www.google.com/maps?q=${encodeURIComponent(query)}&z=16&output=embed`;
+  const center = hasCoords ? [lat, lng] : [10, -84];
+  const zoom = hasCoords ? 15 : 6;
+
+  mapInstance = L.map('contactMapFrame', {
+    center,
+    zoom,
+    zoomControl: true,
+    scrollWheelZoom: true,
+  });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19,
+  }).addTo(mapInstance);
+
+  if (hasCoords) {
+    L.marker([lat, lng]).addTo(mapInstance)
+      .bindPopup(query || 'Ubicación del socio');
+    contactMapLink.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query || `${lat},${lng}`)}`;
+    contactMapSummary.textContent = query ? `Punto de referencia encontrado para: ${query}` : 'Punto de referencia encontrado por coordenadas.';
+  } else {
     contactMapLink.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
     contactMapSummary.textContent = `Búsqueda automática por nombre y dirección: ${query}`;
-    return;
   }
 
-  contactMapFrame.src = 'about:blank';
-  contactMapLink.href = 'https://maps.google.com/';
-  contactMapSummary.textContent = 'No hay suficiente información de dirección para ubicar este socio en el mapa.';
+  requestAnimationFrame(() => {
+    mapInstance?.invalidateSize();
+  });
 }
 
 function renderContacts(contacts) {

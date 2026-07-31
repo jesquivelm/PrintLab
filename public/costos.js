@@ -33,6 +33,23 @@ const DEFAULT_ACABADOS_ESTAMPADO = [
     { id: "acab-estampado-1", tipoFoil: "Foil Dorado", anchoFoil: 6, costoPorPieLineal: 0.08, tiempoMontaje: 15 }
 ];
 
+const DEFAULT_ACABADOS_COLDFOIL = {
+    costoFoilM2: 5,
+    precioAdhesivoKg: 18,
+    gramajeGm2: 2.0,
+    mermaAdhesivoPct: 10,
+    coberturaDefaultPct: 60,
+    anchoBobinaDefaultIn: 13,
+    margenLateralDefaultIn: 0.25,
+    margenLongitudinalDefaultIn: 0.25,
+    separacionHDefaultIn: 0.125,
+    separacionVDefaultIn: 0.125,
+    elementoAnchoDefaultIn: 2,
+    elementoLargoDefaultIn: 3,
+    columnasDefault: 3,
+    filasDefault: 1
+};
+
 const DEFAULT_COSTS_CONFIG = {
     general: {
         notes: "",
@@ -100,12 +117,14 @@ const DEFAULT_COSTS_CONFIG = {
             { id: "conv-finish-troquelado", proceso: "Troquelado", setupWasteFeet: 150, operationWastePct: 2.5 },
             { id: "conv-finish-estampado", proceso: "Estampado", setupWasteFeet: 250, operationWastePct: 4.0 },
             { id: "conv-finish-embosado", proceso: "Embosado", setupWasteFeet: 125, operationWastePct: 3.0 }
-        ]
+        ],
+        costoPlanchaIn2: 0
     },
     acabados: {
         barniz: DEFAULT_ACABADOS_BARNIZ.map((item) => ({ ...item })),
         laminado: DEFAULT_ACABADOS_LAMINADO.map((item) => ({ ...item })),
-        estampado: DEFAULT_ACABADOS_ESTAMPADO.map((item) => ({ ...item }))
+        estampado: DEFAULT_ACABADOS_ESTAMPADO.map((item) => ({ ...item })),
+        coldfoil: { ...DEFAULT_ACABADOS_COLDFOIL }
     },
     digital: {
         premier: {
@@ -191,6 +210,22 @@ const acabadosEstampadoTableBody = document.getElementById("costosAcabadosEstamp
 const acabadosBarnizAddButton = document.getElementById("costosAcabadosBarnizAddButton");
 const acabadosLaminadoAddButton = document.getElementById("costosAcabadosLaminadoAddButton");
 const acabadosEstampadoAddButton = document.getElementById("costosAcabadosEstampadoAddButton");
+const coldfoilFields = {
+    costoFoilM2: document.getElementById("costosColdfoilCostoFoilM2"),
+    precioAdhesivoKg: document.getElementById("costosColdfoilPrecioKg"),
+    gramajeGm2: document.getElementById("costosColdfoilGramaje"),
+    mermaAdhesivoPct: document.getElementById("costosColdfoilMerma"),
+    coberturaDefaultPct: document.getElementById("costosColdfoilCobertura"),
+    anchoBobinaDefaultIn: document.getElementById("costosColdfoilAnchoBobina"),
+    margenLateralDefaultIn: document.getElementById("costosColdfoilMargenLat"),
+    margenLongitudinalDefaultIn: document.getElementById("costosColdfoilMargenLong"),
+    separacionHDefaultIn: document.getElementById("costosColdfoilSepH"),
+    separacionVDefaultIn: document.getElementById("costosColdfoilSepV"),
+    elementoAnchoDefaultIn: document.getElementById("costosColdfoilElementoAncho"),
+    elementoLargoDefaultIn: document.getElementById("costosColdfoilElementoLargo"),
+    columnasDefault: document.getElementById("costosColdfoilColumnas"),
+    filasDefault: document.getElementById("costosColdfoilFilas")
+};
 const inkFields = {
     bcmGenerico: document.getElementById("costosBcmGenerico"),
     coberturaTintaPct: document.getElementById("costosCoberturaTinta"),
@@ -200,6 +235,7 @@ const inkFields = {
     costoLbBlanco: document.getElementById("costosCostoLbBlanco"),
     costoLbPantone: document.getElementById("costosCostoLbPantone")
 };
+const costoPlanchaIn2Field = document.getElementById("costosCostoPlanchaIn2");
 const COST_INPUT_FORMATS = {
     costosBcmGenerico: { suffix: "BCM", maximumFractionDigits: 2 },
     costosCoberturaTinta: { suffix: "%", maximumFractionDigits: 2 },
@@ -207,7 +243,8 @@ const COST_INPUT_FORMATS = {
     costosDensidadUv: { maximumFractionDigits: 2 },
     costosCostoLbCmyk: { prefix: "$", suffix: "lb", maximumFractionDigits: 2 },
     costosCostoLbBlanco: { prefix: "$", suffix: "lb", maximumFractionDigits: 2 },
-    costosCostoLbPantone: { prefix: "$", suffix: "lb", maximumFractionDigits: 2 }
+    costosCostoLbPantone: { prefix: "$", suffix: "lb", maximumFractionDigits: 2 },
+    costosCostoPlanchaIn2: { prefix: "$", suffix: "in²", maximumFractionDigits: 4 }
 };
 const digitalPremierFields = {
     mode: document.getElementById("costosDigitalPremierMode"),
@@ -526,6 +563,25 @@ function normalizeCostsConfig(config) {
         costoPorPieLineal: numberValue(row?.costoPorPieLineal, 0),
         tiempoMontaje: numberValue(row?.tiempoMontaje, 0)
     }));
+    const normalizeColdfoil = (source) => {
+        const cf = source || {};
+        return {
+            costoFoilM2: numberValue(cf.costoFoilM2, DEFAULT_ACABADOS_COLDFOIL.costoFoilM2),
+            precioAdhesivoKg: numberValue(cf.precioAdhesivoKg, DEFAULT_ACABADOS_COLDFOIL.precioAdhesivoKg),
+            gramajeGm2: numberValue(cf.gramajeGm2, DEFAULT_ACABADOS_COLDFOIL.gramajeGm2),
+            mermaAdhesivoPct: numberValue(cf.mermaAdhesivoPct, DEFAULT_ACABADOS_COLDFOIL.mermaAdhesivoPct),
+            coberturaDefaultPct: numberValue(cf.coberturaDefaultPct, DEFAULT_ACABADOS_COLDFOIL.coberturaDefaultPct),
+            anchoBobinaDefaultIn: numberValue(cf.anchoBobinaDefaultIn, DEFAULT_ACABADOS_COLDFOIL.anchoBobinaDefaultIn),
+            margenLateralDefaultIn: numberValue(cf.margenLateralDefaultIn, DEFAULT_ACABADOS_COLDFOIL.margenLateralDefaultIn),
+            margenLongitudinalDefaultIn: numberValue(cf.margenLongitudinalDefaultIn, DEFAULT_ACABADOS_COLDFOIL.margenLongitudinalDefaultIn),
+            separacionHDefaultIn: numberValue(cf.separacionHDefaultIn, DEFAULT_ACABADOS_COLDFOIL.separacionHDefaultIn),
+            separacionVDefaultIn: numberValue(cf.separacionVDefaultIn, DEFAULT_ACABADOS_COLDFOIL.separacionVDefaultIn),
+            elementoAnchoDefaultIn: numberValue(cf.elementoAnchoDefaultIn, DEFAULT_ACABADOS_COLDFOIL.elementoAnchoDefaultIn),
+            elementoLargoDefaultIn: numberValue(cf.elementoLargoDefaultIn, DEFAULT_ACABADOS_COLDFOIL.elementoLargoDefaultIn),
+            columnasDefault: Math.max(1, Math.round(numberValue(cf.columnasDefault, DEFAULT_ACABADOS_COLDFOIL.columnasDefault))),
+            filasDefault: Math.max(1, Math.round(numberValue(cf.filasDefault, DEFAULT_ACABADOS_COLDFOIL.filasDefault)))
+        };
+    };
 
     return {
         general: {
@@ -564,12 +620,14 @@ function normalizeCostsConfig(config) {
             inlineFinishSetup: normalizeInlineFinishSetup(rowsOrDefault(source?.convencional?.inlineFinishSetup, DEFAULT_COSTS_CONFIG.convencional.inlineFinishSetup)),
             maculaMontaje: normalizeMontaje(rowsOrDefault(source?.convencional?.maculaMontaje, DEFAULT_COSTS_CONFIG.convencional.maculaMontaje)),
             maculaTiraje: normalizeTiraje(rowsOrDefault(source?.convencional?.maculaTiraje, DEFAULT_COSTS_CONFIG.convencional.maculaTiraje)),
-            finishWaste: normalizeFinishWaste(rowsOrDefault(source?.convencional?.finishWaste, DEFAULT_COSTS_CONFIG.convencional.finishWaste))
+            finishWaste: normalizeFinishWaste(rowsOrDefault(source?.convencional?.finishWaste, DEFAULT_COSTS_CONFIG.convencional.finishWaste)),
+            costoPlanchaIn2: Math.max(0, source?.convencional?.costoPlanchaIn2 != null ? numberValue(source.convencional.costoPlanchaIn2, 0) : DEFAULT_COSTS_CONFIG.convencional.costoPlanchaIn2)
         },
         acabados: {
             barniz: normalizeAcabadosBarniz(rowsOrDefault(source?.acabados?.barniz, DEFAULT_COSTS_CONFIG.acabados.barniz)),
             laminado: normalizeAcabadosLaminado(rowsOrDefault(source?.acabados?.laminado, DEFAULT_COSTS_CONFIG.acabados.laminado)),
-            estampado: normalizeAcabadosEstampado(rowsOrDefault(source?.acabados?.estampado, DEFAULT_COSTS_CONFIG.acabados.estampado))
+            estampado: normalizeAcabadosEstampado(rowsOrDefault(source?.acabados?.estampado, DEFAULT_COSTS_CONFIG.acabados.estampado)),
+            coldfoil: normalizeColdfoil(source?.acabados?.coldfoil)
         },
         digital: {
             premier: {
@@ -831,6 +889,13 @@ function renderAcabadosEstampadoRows(rows) {
     `).join("");
 }
 
+function renderColdfoilFields() {
+    const cf = costsState?.acabados?.coldfoil || DEFAULT_COSTS_CONFIG.acabados.coldfoil;
+    Object.entries(coldfoilFields).forEach(([key, node]) => {
+        if (node) node.value = cf[key] ?? "";
+    });
+}
+
 function actualizarMascaras() {
     const sufijo = (input, mascara, unidad, decimales = 2) => {
         if (!input || !mascara) return;
@@ -883,6 +948,8 @@ function renderCosts() {
     renderAcabadosBarnizRows();
     renderAcabadosLaminadoRows();
     renderAcabadosEstampadoRows();
+    renderColdfoilFields();
+    if (costoPlanchaIn2Field) costoPlanchaIn2Field.value = costsState?.convencional?.costoPlanchaIn2 ?? "";
     actualizarMascaras();
 }
 
@@ -1183,6 +1250,13 @@ Object.entries(inkFields).forEach(([key, node]) => {
     });
 });
 
+costoPlanchaIn2Field?.addEventListener("input", () => {
+    if (!costsState) return;
+    costsState.convencional.costoPlanchaIn2 = numberValue(costoPlanchaIn2Field.value, 0);
+    syncCostInputMask(costoPlanchaIn2Field);
+    queueCostsSave();
+});
+
 depositosTableBody?.addEventListener("input", (event) => {
     const target = event.target.closest('[data-section="convencional.tintaGeneral.depositos"]');
     if (!target || !costsState) return;
@@ -1338,6 +1412,17 @@ acabadosLaminadoAddButton?.addEventListener("click", () => {
     costsState.acabados.laminado.push({ id: `acab-laminado-${Date.now()}`, nombre: "", costoPorPieLineal: 0, tiempoMontaje: 0 });
     renderAcabadosLaminadoRows();
     queueCostsSave();
+});
+
+Object.entries(coldfoilFields).forEach(([key, node]) => {
+    node?.addEventListener("input", () => {
+        if (!costsState) return;
+        if (!costsState.acabados.coldfoil) costsState.acabados.coldfoil = { ...DEFAULT_ACABADOS_COLDFOIL };
+        costsState.acabados.coldfoil[key] = ["columnasDefault", "filasDefault"].includes(key)
+            ? Math.max(1, Math.round(numberValue(node.value, DEFAULT_ACABADOS_COLDFOIL[key])))
+            : numberValue(node.value, DEFAULT_ACABADOS_COLDFOIL[key]);
+        queueCostsSave();
+    });
 });
 
 acabadosEstampadoAddButton?.addEventListener("click", () => {
