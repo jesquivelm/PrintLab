@@ -9678,6 +9678,65 @@ async function getQuoteLineContext(quoteCode, lineCode, client = null) {
     };
 }
 
+const QUOTE_TRACKING_MILESTONE_ORDER = ['solicitud', 'finalizacion', 'envio', 'cierre'];
+
+function quoteTrackingAutoState(quote, line) {
+    const raw = line?.raw_data || {};
+    const sellerName = line?.salesperson_name || raw.VENDEDOR || raw['VENDEDOR | USUARIO'] || quote?.salesperson_name || 'Vendedor';
+    const status = String(raw['SOLICITUD ESTADO'] || raw['ESTADO LINEA'] || quote?.status || '').trim().toLowerCase();
+    const quoteDone = ['cotizada', 'finalizada', 'proforma', 'enviada', 'cerrada', 'produccion', 'producción'].some((token) => status.includes(token));
+    const requestDone = ['pendiente', 'solicitud', 'vendedor', 'cotiz', 'finaliz', 'proforma', 'enviad', 'cerrad'].some((token) => status.includes(token))
+        || String(raw['TRAZABILIDAD | SOLICITUD VENDEDOR'] || '').trim().toLowerCase() === 'si';
+    return {
+        sellerName,
+        solicitud: {
+            done: requestDone,
+            user: requestDone ? (raw['TRAZABILIDAD | USUARIO SOLICITUD VENDEDOR'] || sellerName) : '',
+            date: requestDone ? (raw['TRAZABILIDAD | FECHA SOLICITUD VENDEDOR'] || raw['TRAZABILIDAD | FECHA'] || '') : ''
+        },
+        finalizacion: {
+            done: quoteDone,
+            user: quoteDone ? sellerName : '',
+            date: quoteDone ? (raw['FECHA CREACION DATE'] || raw['FECHA CREACION'] || '') : ''
+        }
+    };
+}
+
+async function computeQuoteLineTracking(quoteCode, lineCode) {
+    const context = await getQuoteLineContext(quoteCode, lineCode);
+    const auto = quoteTrackingAutoState(context.quote, context.line);
+    const storedResult = await pgQuery(
+        `SELECT milestone_key, done, user_name, occurred_at, cr_comment, cr_by, cr_at, outcome, reason, comments, order_code
+           FROM quote_line_tracking
+          WHERE quote_code = $1 AND line_code = $2`,
+        [quoteCode, lineCode]
+    );
+    const storedByKey = new Map(storedResult.rows.map((row) => [row.milestone_key, row]));
+
+    const milestones = QUOTE_TRACKING_MILESTONE_ORDER.map((key) => {
+        const stored = storedByKey.get(key);
+        if (stored) {
+            return {
+                key,
+                done: stored.done,
+                user: stored.user_name || '',
+                date: stored.occurred_at ? stored.occurred_at.toISOString() : '',
+                cr: stored.cr_comment ? { comment: stored.cr_comment, by: stored.cr_by || '', date: stored.cr_at ? stored.cr_at.toISOString() : '' } : null
+            };
+        }
+        if (key === 'solicitud') return { key, done: auto.solicitud.done, user: auto.solicitud.user, date: auto.solicitud.date, cr: null };
+        if (key === 'finalizacion') return { key, done: auto.finalizacion.done, user: auto.finalizacion.user, date: auto.finalizacion.date, cr: null };
+        return { key, done: false, user: '', date: '', cr: null };
+    });
+
+    const cierreRow = storedByKey.get('cierre');
+    const closure = cierreRow && cierreRow.outcome
+        ? { outcome: cierreRow.outcome, reason: cierreRow.reason || '', comments: cierreRow.comments || '', orderCode: cierreRow.order_code || '', by: cierreRow.user_name || '', at: cierreRow.occurred_at ? cierreRow.occurred_at.toISOString() : '' }
+        : null;
+
+    return { milestones, closure };
+}
+
 function summarizeLineForDestination(row) {
     const raw = row?.raw_data || {};
     return {
@@ -15862,6 +15921,16 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/nueva-cotizacion', async (req,
         });
     } catch (error) {
         res.status(500).json({ error: error.message || 'No fue posible crear una nueva cotización desde la línea.' });
+    }
+});
+
+app.get('/api/cotizaciones/:codigo/lineas/:linea/seguimiento', async (req, res) => {
+    try {
+        const { codigo, linea } = req.params;
+        const result = await computeQuoteLineTracking(codigo, linea);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible cargar el seguimiento de la línea.' });
     }
 });
 
