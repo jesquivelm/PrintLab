@@ -1862,6 +1862,7 @@ async function initializeStartupSchemas() {
     await runStartupSchemaStep('No fue posible preparar el esquema de SKU de producto terminado', () => ensureProductSkuSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de órdenes de producción', () => ensureProductionSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de adjuntos', () => ensureAttachmentsSchema());
+    await runStartupSchemaStep('No fue posible preparar el esquema de seguimiento de cotizaciones', () => ensureQuoteTrackingSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de notificaciones', () => ensureNotificationsSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de auditoría', () => ensureAuditSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de planificación', () => ensurePlanningSchema());
@@ -6899,6 +6900,30 @@ async function ensureAttachmentsSchema() {
     await pgQuery(`ALTER TABLE quote_line_attachments ADD COLUMN IF NOT EXISTS content_sha256 TEXT`);
     await pgQuery(`CREATE INDEX IF NOT EXISTS idx_quote_line_attachments_line ON quote_line_attachments(quote_code, line_code)`);
     await migrateExistingQuoteLineAttachmentsToDisk();
+}
+
+async function ensureQuoteTrackingSchema() {
+    await pgQuery(`
+        CREATE TABLE IF NOT EXISTS quote_line_tracking (
+            id BIGSERIAL PRIMARY KEY,
+            quote_code TEXT NOT NULL,
+            line_code TEXT NOT NULL,
+            milestone_key TEXT NOT NULL CHECK (milestone_key IN ('solicitud', 'finalizacion', 'envio', 'cierre')),
+            done BOOLEAN NOT NULL DEFAULT false,
+            user_name TEXT DEFAULT '',
+            occurred_at TIMESTAMPTZ,
+            cr_comment TEXT DEFAULT '',
+            cr_by TEXT DEFAULT '',
+            cr_at TIMESTAMPTZ,
+            outcome TEXT CHECK (outcome IN ('accepted', 'rejected', 'expired') OR outcome IS NULL),
+            reason TEXT DEFAULT '',
+            comments TEXT DEFAULT '',
+            order_code TEXT DEFAULT '',
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            UNIQUE (quote_code, line_code, milestone_key)
+        )
+    `);
+    await pgQuery(`CREATE INDEX IF NOT EXISTS idx_quote_line_tracking_line ON quote_line_tracking(quote_code, line_code)`);
 }
 
 async function ensureNotificationsSchema() {
