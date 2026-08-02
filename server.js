@@ -15934,6 +15934,68 @@ app.get('/api/cotizaciones/:codigo/lineas/:linea/seguimiento', async (req, res) 
     }
 });
 
+app.post('/api/cotizaciones/:codigo/lineas/:linea/seguimiento', async (req, res) => {
+    try {
+        const { codigo, linea } = req.params;
+        const payload = req.body || {};
+        const milestoneKey = String(payload.milestoneKey || '').trim();
+        const action = String(payload.action || '').trim();
+        if (!QUOTE_TRACKING_MILESTONE_ORDER.includes(milestoneKey)) {
+            return res.status(400).json({ error: 'Hito de seguimiento inválido.' });
+        }
+        const actingUser = getRequestUserName(req, 'Vendedor');
+        const keyIndex = QUOTE_TRACKING_MILESTONE_ORDER.indexOf(milestoneKey);
+        const keysFromHere = QUOTE_TRACKING_MILESTONE_ORDER.slice(keyIndex);
+
+        if (action === 'complete') {
+            await pgQuery(
+                `INSERT INTO quote_line_tracking (quote_code, line_code, milestone_key, done, user_name, occurred_at, cr_comment, cr_by, cr_at, updated_at)
+                 VALUES ($1, $2, $3, true, $4, NOW(), '', '', NULL, NOW())
+                 ON CONFLICT (quote_code, line_code, milestone_key) DO UPDATE SET
+                    done = true, user_name = EXCLUDED.user_name, occurred_at = NOW(), cr_comment = '', cr_by = '', cr_at = NULL, updated_at = NOW()`,
+                [codigo, linea, milestoneKey, actingUser]
+            );
+        } else if (action === 'undo') {
+            await pgQuery(
+                `DELETE FROM quote_line_tracking WHERE quote_code = $1 AND line_code = $2 AND milestone_key = ANY($3::text[])`,
+                [codigo, linea, keysFromHere]
+            );
+        } else if (action === 'request-changes') {
+            const comment = String(payload.comment || '').trim();
+            if (!comment) return res.status(400).json({ error: 'El comentario de la solicitud de cambios es obligatorio.' });
+            await pgQuery(
+                `DELETE FROM quote_line_tracking WHERE quote_code = $1 AND line_code = $2 AND milestone_key = ANY($3::text[])`,
+                [codigo, linea, keysFromHere]
+            );
+            await pgQuery(
+                `INSERT INTO quote_line_tracking (quote_code, line_code, milestone_key, done, user_name, cr_comment, cr_by, cr_at, updated_at)
+                 VALUES ($1, $2, $3, false, '', $4, $5, NOW(), NOW())`,
+                [codigo, linea, milestoneKey, comment, actingUser]
+            );
+        } else if (action === 'close') {
+            if (milestoneKey !== 'cierre') return res.status(400).json({ error: 'El cierre solo aplica al hito de Finalización Comercial.' });
+            const outcome = String(payload.outcome || '').trim();
+            if (!['accepted', 'rejected', 'expired'].includes(outcome)) {
+                return res.status(400).json({ error: 'Resultado de cierre inválido.' });
+            }
+            await pgQuery(
+                `INSERT INTO quote_line_tracking (quote_code, line_code, milestone_key, done, user_name, occurred_at, outcome, reason, comments, order_code, updated_at)
+                 VALUES ($1, $2, 'cierre', true, $3, NOW(), $4, $5, $6, $7, NOW())
+                 ON CONFLICT (quote_code, line_code, milestone_key) DO UPDATE SET
+                    done = true, user_name = EXCLUDED.user_name, occurred_at = NOW(), outcome = EXCLUDED.outcome, reason = EXCLUDED.reason, comments = EXCLUDED.comments, order_code = EXCLUDED.order_code, updated_at = NOW()`,
+                [codigo, linea, actingUser, outcome, String(payload.reason || ''), String(payload.comments || ''), String(payload.orderCode || '')]
+            );
+        } else {
+            return res.status(400).json({ error: 'Acción de seguimiento inválida.' });
+        }
+
+        const result = await computeQuoteLineTracking(codigo, linea);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible actualizar el seguimiento de la línea.' });
+    }
+});
+
 app.get('/api/cotizaciones/:codigo/lineas/:linea/adjuntos', async (req, res) => {
     try {
         const { codigo, linea } = req.params;
