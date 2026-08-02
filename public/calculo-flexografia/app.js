@@ -5447,10 +5447,27 @@ function calcPlates() {
         isAuto: true
       });
     }
+    const plateUnitAreaIn2 = r(p.machineMaxWidthIn * p.dieDevIn, 4);
+    const motivoPlateRows = [];
+    if (plateUnitAreaIn2 > 0 && p.costPerSqIn > 0) {
+      ensureTypesList(state.form).forEach((type, index) => {
+        const plateCount = Math.max(0, Math.floor(n(type.plates, 0)));
+        if (plateCount <= 0) return;
+        const rowCost = r(plateUnitAreaIn2 * p.costPerSqIn * plateCount, 2);
+        motivoPlateRows.push({
+          description: `${type.name || `Motivo ${index + 1}`}: ${plateCount} plancha${plateCount > 1 ? "s" : ""} adicional${plateCount > 1 ? "es" : ""} (${num(plateUnitAreaIn2, 2)} in² c/u)`,
+          cost: rowCost,
+          comments: `$${num(p.costPerSqIn, 4)}/in²`,
+          isAuto: true
+        });
+      });
+    }
+    allRows.push(...motivoPlateRows);
     allRows.push(...rawUserRows);
     state.form.plates.external = allRows;
+    const motivoPlatesCost = r(motivoPlateRows.reduce((sum, item) => sum + n(item.cost, 0), 0));
     const manualSubtotal = r(rawUserRows.reduce((sum, item) => sum + n(item.cost, 0), 0));
-    const rawSubtotal = r(manualSubtotal + autoCost);
+    const rawSubtotal = r(manualSubtotal + autoCost + motivoPlatesCost);
     const exampleLines = [];
     if (autoCost > 0) {
       let formulaParts = [];
@@ -5459,6 +5476,7 @@ function calcPlates() {
       if (formulaParts.length) exampleLines.push(`Área plancha = ${formulaParts.join(' + ')} = ${num(p.totalSqIn, 2)} in²`);
       exampleLines.push(`Costo plancha = ${num(p.totalSqIn, 2)} in² × $${num(p.costPerSqIn, 4)}/in² = ${formulaValue(autoCost, 2)}`);
     }
+    motivoPlateRows.forEach((row) => { exampleLines.push(`Plancha por motivo: ${row.description} = ${formulaValue(row.cost, 2)}`); });
     rawUserRows.forEach((row) => { if (n(row.cost, 0) > 0) { exampleLines.push(`Costo externo: ${formulaValue(row.cost || 0, 2)}`); } });
     return {
       ...applyProcessMinimum("planchas", rawSubtotal),
