@@ -15996,6 +15996,58 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/seguimiento', async (req, res)
     }
 });
 
+app.get('/api/vendedores/mi-pipeline', async (req, res) => {
+    try {
+        const session = readErpSessionFromRequest(req);
+        const username = String(session?.username || '').trim();
+        if (!username) return res.json({ isVendedor: false, salespersonName: '', counts: {}, pendientes: [] });
+
+        const userResult = await pgQuery(
+            `SELECT sap_salesperson_code, sap_salesperson_name FROM admin_users WHERE username = $1 LIMIT 1`,
+            [username]
+        );
+        const salespersonName = userResult.rows[0]?.sap_salesperson_name || '';
+        if (!userResult.rows[0]?.sap_salesperson_code || !salespersonName) {
+            return res.json({ isVendedor: false, salespersonName: '', counts: {}, pendientes: [] });
+        }
+
+        const quotesResult = await pgQuery(
+            `SELECT q.quote_code, q.customer_name, t.line_code, t.milestone_key, t.done, t.outcome
+               FROM quotes q
+               LEFT JOIN quote_line_tracking t ON t.quote_code = q.quote_code
+              WHERE q.salesperson_name = $1`,
+            [salespersonName]
+        );
+
+        const byLine = new Map();
+        for (const row of quotesResult.rows) {
+            const lineKey = `${row.quote_code}::${row.line_code || 'sin-linea'}`;
+            if (!byLine.has(lineKey)) {
+                byLine.set(lineKey, { quoteCode: row.quote_code, customerName: row.customer_name || '', lineCode: row.line_code || '', envioDone: false, cierreDone: false, outcome: null });
+            }
+            const entry = byLine.get(lineKey);
+            if (row.milestone_key === 'envio' && row.done) entry.envioDone = true;
+            if (row.milestone_key === 'cierre' && row.done) { entry.cierreDone = true; entry.outcome = row.outcome; }
+        }
+
+        const counts = { pendiente: 0, finalizadaSinEnviar: 0, enviada: 0, aceptada: 0, rechazada: 0, expirada: 0 };
+        const pendientes = [];
+        for (const entry of byLine.values()) {
+            if (!entry.lineCode) continue;
+            let stage;
+            if (entry.cierreDone && entry.outcome === 'accepted') { stage = 'aceptada'; counts.aceptada += 1; }
+            else if (entry.cierreDone && entry.outcome === 'rejected') { stage = 'rechazada'; counts.rechazada += 1; }
+            else if (entry.cierreDone && entry.outcome === 'expired') { stage = 'expirada'; counts.expirada += 1; }
+            else if (entry.envioDone) { stage = 'enviada'; counts.enviada += 1; pendientes.push({ quoteCode: entry.quoteCode, lineCode: entry.lineCode, customerName: entry.customerName, stage }); }
+            else { stage = 'pendiente'; counts.pendiente += 1; }
+        }
+
+        res.json({ isVendedor: true, salespersonName, counts, pendientes: pendientes.slice(0, 8) });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'No fue posible cargar el pipeline de ventas.' });
+    }
+});
+
 app.get('/api/cotizaciones/:codigo/lineas/:linea/adjuntos', async (req, res) => {
     try {
         const { codigo, linea } = req.params;
