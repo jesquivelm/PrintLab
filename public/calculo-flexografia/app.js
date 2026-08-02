@@ -159,6 +159,8 @@ const els = {
   typesDetailList: document.getElementById("typesDetailList"),
   typesQuantitiesWarning: document.getElementById("typesQuantitiesWarning"),
   typesInfoTrigger: document.getElementById("typesInfoTrigger"),
+  changesByTypesInfoTrigger: document.getElementById("changesByTypesInfoTrigger"),
+  changesAdditionalInfoTrigger: document.getElementById("changesAdditionalInfoTrigger"),
   pantoneCount: document.getElementById("pantoneCount"),
   useCmyk: document.getElementById("useCmyk"),
   useWhiteInk: document.getElementById("useWhiteInk"),
@@ -6182,10 +6184,34 @@ function refreshTypesInfoModal(breakdown) {
   els.typesInfoTrigger.dataset.infoBodyHtml = typesInfoTableHtml(breakdown);
 }
 
+function changesInfoRowsHtml(rows) {
+  const body = rows.map(([label, value]) => `<tr><td>${esc(label)}</td><td>${value}</td></tr>`).join("");
+  return `<table class="info-popover-table"><tbody>${body}</tbody></table>`;
+}
+
+function refreshChangesInfoModals(breakdown) {
+  if (els.changesByTypesInfoTrigger) {
+    els.changesByTypesInfoTrigger.dataset.infoBodyHtml = changesInfoRowsHtml([
+      ["Tipos o Motivos", num(breakdown.typeCount, 0)],
+      ["Cambios por Tipos", num(changesByTypesCount(state.form.header.quantityTypes), 0)],
+      ["Costo por Cambio", money(breakdown.costPerChange)],
+      ["Costo de Cambios por Tipos", money(breakdown.byTypesCost)]
+    ]);
+  }
+  if (els.changesAdditionalInfoTrigger) {
+    els.changesAdditionalInfoTrigger.dataset.infoBodyHtml = changesInfoRowsHtml([
+      ["Cambios Adicionales", num(Math.max(0, n(state.form.header.quantityChanges, 0)), 0)],
+      ["Costo por Cambio", money(breakdown.costPerChange)],
+      ["Costo de Cambios Adicionales", money(breakdown.additionalCost)]
+    ]);
+  }
+}
+
 function renderTypesBreakdown() {
   if (!els.typesDetailList) return;
   const breakdown = calcTypes();
   refreshTypesInfoModal(breakdown);
+  refreshChangesInfoModals(breakdown);
   els.typesDetailList.innerHTML = breakdown.rows.map((row, index) => {
     const isFirst = index === 0;
     const fields = [
