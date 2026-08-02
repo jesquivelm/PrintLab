@@ -2445,7 +2445,7 @@ function bindTrackingAvatarFallback(root = document) {
     });
 }
 
-function trackingMilestonesForRow(row = {}) {
+async function trackingMilestonesForRow(row = {}) {
     const raw = row.rawData || {};
     const session = readUserSession() || {};
     const sellerName = row.lineSummary?.salesperson_name || raw.VENDEDOR || raw['VENDEDOR | USUARIO'] || 'Vendedor';
@@ -2463,16 +2463,25 @@ function trackingMilestonesForRow(row = {}) {
         { key: 'envio', label: 'Envío de proforma', user: '', date: '', done: false },
         { key: 'cierre', label: 'Finalización comercial', user: '', date: '', done: false }
     ];
-    const stored = readQuoteTrackingStore()[`${row.quoteId || 'cotizacion'}::${row.linea || 'linea'}`] || {};
-    const saved = Array.isArray(stored.milestones) ? stored.milestones : [];
+    const quoteCode = row.quoteId || '';
+    const lineCode = row.linea || '';
+    if (!quoteCode || !lineCode) return defaults;
+    let remote;
+    try {
+        remote = await fetchJson(`${QUOTES_ENDPOINT}/${encodeURIComponent(quoteCode)}/lineas/${encodeURIComponent(lineCode)}/seguimiento`, { headers: sessionHeader() });
+    } catch (error) {
+        return defaults;
+    }
+    const remoteByKey = new Map((remote.milestones || []).map((item) => [item.key, item]));
     return defaults.map((item) => {
-        const savedItem = saved.find((entry) => entry?.key === item.key);
-        return savedItem ? { ...item, ...savedItem, label: item.label } : item;
+        const remoteItem = remoteByKey.get(item.key);
+        if (!remoteItem) return item;
+        return { ...item, done: remoteItem.done, user: remoteItem.user || item.user, date: remoteItem.date || item.date };
     });
 }
 
-function openLineTrackingModal(row) {
-    const milestones = trackingMilestonesForRow(row);
+async function openLineTrackingModal(row) {
+    const milestones = await trackingMilestonesForRow(row);
     const doneCount = milestones.filter((item) => item.done).length;
     lineActionState = { row, mode: 'tracking' };
     openLineActionModal(`Seguimiento ${row.linea || ''}`, `
