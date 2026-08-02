@@ -9730,9 +9730,36 @@ async function computeQuoteLineTracking(quoteCode, lineCode) {
     });
 
     const cierreRow = storedByKey.get('cierre');
-    const closure = cierreRow && cierreRow.outcome
+    let closure = cierreRow && cierreRow.outcome
         ? { outcome: cierreRow.outcome, reason: cierreRow.reason || '', comments: cierreRow.comments || '', orderCode: cierreRow.order_code || '', by: cierreRow.user_name || '', at: cierreRow.occurred_at ? cierreRow.occurred_at.toISOString() : '' }
         : null;
+
+    // Backward compatibility: quotes closed before the quote_line_tracking migration only
+    // have their commercial closure recorded in the legacy raw_data['Cierre_Cotizacion']
+    // field (written by the old localStorage-driven flow). If there is no stored 'cierre'
+    // row, fall back to reading that field so already-closed quotes don't look re-closeable.
+    if (!cierreRow) {
+        const legacyClosure = context.line?.raw_data?.['Cierre_Cotizacion'];
+        if (legacyClosure && typeof legacyClosure === 'object') {
+            const legacyOutcome = legacyClosure.outcome === 'lost' ? 'rejected' : legacyClosure.outcome;
+            if (['accepted', 'rejected', 'expired'].includes(legacyOutcome)) {
+                closure = {
+                    outcome: legacyOutcome,
+                    reason: legacyClosure.reason || '',
+                    comments: legacyClosure.comments || '',
+                    orderCode: legacyClosure.orderCode || '',
+                    by: legacyClosure.by || '',
+                    at: legacyClosure.date || ''
+                };
+                const cierreMilestone = milestones.find((item) => item.key === 'cierre');
+                if (cierreMilestone) {
+                    cierreMilestone.done = true;
+                    cierreMilestone.user = legacyClosure.by || '';
+                    cierreMilestone.date = legacyClosure.date || '';
+                }
+            }
+        }
+    }
 
     return { milestones, closure };
 }
@@ -15956,8 +15983,18 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/seguimiento', async (req, res)
                 [codigo, linea, milestoneKey, actingUser]
             );
         } else if (action === 'undo') {
+            // Upsert an explicit done=false "tombstone" row (instead of deleting) so that
+            // milestones with a SAP-derived auto-fallback (solicitud, finalizacion) don't
+            // silently reappear as done on the next GET. For envio/cierre, an explicit
+            // done=false row is equivalent to no row at all, so a uniform upsert is safe
+            // for the whole cascade.
             await pgQuery(
-                `DELETE FROM quote_line_tracking WHERE quote_code = $1 AND line_code = $2 AND milestone_key = ANY($3::text[])`,
+                `INSERT INTO quote_line_tracking (quote_code, line_code, milestone_key, done, user_name, occurred_at, cr_comment, cr_by, cr_at, outcome, reason, comments, order_code, updated_at)
+                 SELECT $1, $2, key, false, '', NULL, '', '', NULL, NULL, '', '', '', NOW()
+                   FROM UNNEST($3::text[]) AS key
+                 ON CONFLICT (quote_code, line_code, milestone_key) DO UPDATE SET
+                    done = false, user_name = '', occurred_at = NULL, cr_comment = '', cr_by = '', cr_at = NULL,
+                    outcome = NULL, reason = '', comments = '', order_code = '', updated_at = NOW()`,
                 [codigo, linea, keysFromHere]
             );
         } else if (action === 'request-changes') {
@@ -16012,10 +16049,11 @@ app.get('/api/vendedores/mi-pipeline', async (req, res) => {
         }
 
         const quotesResult = await pgQuery(
-            `SELECT q.quote_code, q.customer_name, t.line_code, t.milestone_key, t.done, t.outcome
-               FROM quotes q
-               LEFT JOIN quote_line_tracking t ON t.quote_code = q.quote_code
-              WHERE q.salesperson_name = $1`,
+            `SELECT fc.quote_code, fc.line_code, q.customer_name, t.milestone_key, t.done, t.outcome
+               FROM flexo_calculations fc
+               JOIN quotes q ON q.quote_code = fc.quote_code AND q.salesperson_name = $1
+               LEFT JOIN quote_line_tracking t ON t.quote_code = fc.quote_code AND t.line_code = fc.line_code
+              WHERE ${quoteOwnedCalculationPredicate('fc', 'q')}`,
             [salespersonName]
         );
 

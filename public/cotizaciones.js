@@ -2476,7 +2476,8 @@ async function trackingMilestonesForRow(row = {}) {
     return defaults.map((item) => {
         const remoteItem = remoteByKey.get(item.key);
         if (!remoteItem) return item;
-        return { ...item, done: remoteItem.done, user: remoteItem.user || item.user, date: remoteItem.date || item.date };
+        const formattedDate = remoteItem.date ? formatDateTimeShort(remoteItem.date) : '';
+        return { ...item, done: remoteItem.done, user: remoteItem.user || item.user, date: formattedDate || item.date };
     });
 }
 

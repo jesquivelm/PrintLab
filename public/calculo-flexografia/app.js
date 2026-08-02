@@ -457,10 +457,23 @@ function trackingColorForName(name) {
   return palette[total % palette.length];
 }
 
-function trackingStampNow() {
-  const d = new Date();
+function formatTrackingStamp(d) {
   const months = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
   return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()} · ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function trackingStampNow() {
+  return formatTrackingStamp(new Date());
+}
+
+// Formats an ISO/UTC date string (as returned by the seguimiento API) into the same
+// local-style stamp produced by trackingStampNow(). Returns the original value unchanged
+// if it doesn't look like a parseable date, so already-formatted or empty values pass through.
+function formatTrackingDateValue(value) {
+  if (!value || typeof value !== "string") return value;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return formatTrackingStamp(parsed);
 }
 
 function quoteCreationTrackingDate() {
@@ -519,13 +532,21 @@ async function loadQuoteTrackingMilestones() {
     return defaults;
   }
   state.quoteTracking.closure = remote.closure
-    ? { ...remote.closure, outcome: remote.closure.outcome === "rejected" ? "lost" : remote.closure.outcome }
+    ? {
+        ...remote.closure,
+        outcome: remote.closure.outcome === "rejected" ? "lost" : remote.closure.outcome,
+        date: formatTrackingDateValue(remote.closure.at) || remote.closure.date || ""
+      }
     : null;
   const remoteByKey = new Map((remote.milestones || []).map((item) => [item.key, item]));
   return defaults.map((item) => {
     const remoteItem = remoteByKey.get(item.key);
     if (!remoteItem) return item;
-    return { ...item, done: remoteItem.done, user: remoteItem.user || item.user, date: remoteItem.date || item.date, cr: remoteItem.cr };
+    const formattedDate = formatTrackingDateValue(remoteItem.date) || item.date;
+    const cr = remoteItem.cr
+      ? { ...remoteItem.cr, date: formatTrackingDateValue(remoteItem.cr.date) || remoteItem.cr.date }
+      : remoteItem.cr;
+    return { ...item, done: remoteItem.done, user: remoteItem.user || item.user, date: formattedDate, cr };
   });
 }
 
@@ -632,11 +653,15 @@ async function notifyQuoteTrackingEvent(item = {}, eventType = "", detail = "") 
 async function completeQuoteTrackingMilestone(index) {
   const item = state.quoteTracking.milestones?.[index];
   if (!item || !quoteTrackingAvailable(index)) return;
+  const { quoteCode, lineCode } = currentQuoteLineIdentity();
+  if (!quoteCode || !lineCode) {
+    showCenterMessage("No fue posible actualizar el seguimiento: la cotización aún no tiene una base guardada.");
+    return;
+  }
   if (["envio", "cierre"].includes(item.key) && await showQuoteProformaBlockMessageIfNeeded()) return;
   if (item.key === "envio") {
     await closeProformaForCurrentQuote("tracking_sent");
   }
-  const { quoteCode, lineCode } = currentQuoteLineIdentity();
   await postJson(`/api/cotizaciones/${encodeURIComponent(quoteCode)}/lineas/${encodeURIComponent(lineCode)}/seguimiento`, { milestoneKey: item.key, action: "complete" });
   markQuoteTrackingItemDone(item);
   state.quoteTracking.formOpenKey = "";
@@ -652,6 +677,10 @@ async function undoQuoteTrackingMilestone(index) {
   const item = state.quoteTracking.milestones?.[index];
   if (!item) return;
   const { quoteCode, lineCode } = currentQuoteLineIdentity();
+  if (!quoteCode || !lineCode) {
+    showCenterMessage("No fue posible actualizar el seguimiento: la cotización aún no tiene una base guardada.");
+    return;
+  }
   await postJson(`/api/cotizaciones/${encodeURIComponent(quoteCode)}/lineas/${encodeURIComponent(lineCode)}/seguimiento`, { milestoneKey: item.key, action: "undo" });
   const reverted = (state.quoteTracking.milestones || [])
     .slice(index)
@@ -696,6 +725,11 @@ async function submitQuoteTrackingChange(index) {
   if (!item || !value) {
     textarea?.classList.add("error");
     textarea?.focus();
+    return;
+  }
+  const { quoteCode: crQuoteCode, lineCode: crLineCode } = currentQuoteLineIdentity();
+  if (!crQuoteCode || !crLineCode) {
+    showCenterMessage("No fue posible actualizar el seguimiento: la cotización aún no tiene una base guardada.");
     return;
   }
   item.cr = { comment: value, by: `${currentTrackingUser()} (${item.crWho})`, date: trackingStampNow() };
@@ -767,6 +801,11 @@ async function submitQuoteClosureReason(index) {
   if (outcomeType === 'rejected' && !reason) {
     reasonField?.classList.add("error");
     reasonField?.focus();
+    return false;
+  }
+  const { quoteCode: closureCheckQuoteCode, lineCode: closureCheckLineCode } = currentQuoteLineIdentity();
+  if (!closureCheckQuoteCode || !closureCheckLineCode) {
+    showCenterMessage("No fue posible actualizar el seguimiento: la cotización aún no tiene una base guardada.");
     return false;
   }
   if (await showQuoteProformaBlockMessageIfNeeded()) return false;

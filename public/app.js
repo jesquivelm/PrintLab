@@ -870,7 +870,7 @@ function bindTrackingAvatarFallback(root = document) {
     });
 }
 
-function trackingMilestonesForRow(row = {}) {
+async function trackingMilestonesForRow(row = {}) {
     const raw = row.rawData || {};
     const sellerName = raw.VENDEDOR || raw['VENDEDOR | USUARIO'] || currentUserName?.textContent || 'Vendedor';
     const currentUser = currentUserName?.textContent || sellerName || 'Usuario';
@@ -885,16 +885,26 @@ function trackingMilestonesForRow(row = {}) {
         { key: 'envio', label: 'Envío de proforma', user: '', date: '', done: false },
         { key: 'cierre', label: 'Finalización comercial', user: '', date: '', done: false }
     ];
-    const stored = readQuoteTrackingStore()[`${row.quoteId || currentQuote?.quote_code || 'cotizacion'}::${row.linea || 'linea'}`] || {};
-    const saved = Array.isArray(stored.milestones) ? stored.milestones : [];
+    const quoteCode = row.quoteId || currentQuote?.quote_code || '';
+    const lineCode = row.linea || '';
+    if (!quoteCode || !lineCode) return defaults;
+    let remote;
+    try {
+        remote = await fetchJsonWithRetry(`${QUOTES_ENDPOINT}/${encodeURIComponent(quoteCode)}/lineas/${encodeURIComponent(lineCode)}/seguimiento`, {}, { errorMessage: 'No fue posible cargar el seguimiento de la línea.' });
+    } catch (error) {
+        return defaults;
+    }
+    const remoteByKey = new Map((remote.milestones || []).map((item) => [item.key, item]));
     return defaults.map((item) => {
-        const savedItem = saved.find((entry) => entry?.key === item.key);
-        return savedItem ? { ...item, ...savedItem, label: item.label } : item;
+        const remoteItem = remoteByKey.get(item.key);
+        if (!remoteItem) return item;
+        const formattedDate = remoteItem.date ? formatDateTimeShort(remoteItem.date) : '';
+        return { ...item, done: remoteItem.done, user: remoteItem.user || item.user, date: formattedDate || item.date };
     });
 }
 
-function openRowTracking(row) {
-    const milestones = trackingMilestonesForRow(row);
+async function openRowTracking(row) {
+    const milestones = await trackingMilestonesForRow(row);
     const doneCount = milestones.filter((item) => item.done).length;
     const body = `<div class="line-tracking-head"><strong>${escapeHtml(row.quoteId || currentQuote?.quote_code || '')} · ${escapeHtml(row.nombreTrabajo || row.productId || '')}</strong><span>${doneCount} de ${milestones.length} completados</span></div><div class="line-tracking-list">${milestones.map((item) => {
         const name = item.user || 'Pendiente';
