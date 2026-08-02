@@ -2499,6 +2499,43 @@ function regeneratePrintStageInkStations(form) {
   });
 }
 
+function motivoInkStations(type, index, form = state.form) {
+  if (index === 0) {
+    const stage = Array.isArray(form.printStages) && form.printStages.length ? form.printStages[0] : null;
+    return Array.isArray(stage?.inkStations) ? stage.inkStations : [];
+  }
+  return Array.isArray(type?.inkStations) ? type.inkStations : [];
+}
+
+function calcMotivoInkStationRow(printedAreaIn2, station) {
+  const sc = n(station.coveragePct, 0) / 100;
+  const sb = n(station.aniloxBcm, 0);
+  const st = n(station.transferFactor, 0);
+  const sd = n(station.inkDensity, 0);
+  const scost = n(station.inkCostPerLb, 0);
+  const consumptionLb = r((printedAreaIn2 * sc * sb * st * sd * 0.001) / 453.59237, 6);
+  const subtotal = r(consumptionLb * scost);
+  return { ...station, coveragePct: n(station.coveragePct, 0), aniloxBcm: sb, transferFactor: st, inkDensity: sd, inkCostPerLb: scost, consumptionLb, subtotal };
+}
+
+function calcMotivoInkTotals(form = state.form) {
+  const areaIn2 = r(n(form.header?.labelWidthIn, 0) * n(form.header?.labelHeightIn, 0), 6);
+  const types = ensureTypesList(form);
+  let totalConsumption = 0;
+  let totalSubtotal = 0;
+  const byType = types.map((type, index) => {
+    const printedAreaIn2 = form.header?.noPrint ? 0 : r(areaIn2 * Math.max(0, n(type.quantity, 0)), 6);
+    const stations = motivoInkStations(type, index, form).filter((station) => station.active !== false);
+    const stationRows = stations.map((station) => calcMotivoInkStationRow(printedAreaIn2, station));
+    const consumption = r(stationRows.reduce((sum, row) => sum + n(row.consumptionLb, 0), 0), 6);
+    const subtotal = r(stationRows.reduce((sum, row) => sum + n(row.subtotal, 0), 0));
+    totalConsumption += consumption;
+    totalSubtotal += subtotal;
+    return { index, name: type.name, quantity: n(type.quantity, 0), stations: stationRows, consumption, subtotal };
+  });
+  return { consumption: r(totalConsumption, 6), subtotal: r(totalSubtotal), byType };
+}
+
 function createPrintStage(base = {}) {
   const inkDefaults = conventionalInkDefaults();
   const digitalDefaults = digitalInkDefaults();
@@ -3790,6 +3827,10 @@ function buildTypesList(count, totalQuantity, existing = null) {
       item.changeOperators = Math.max(1, n(prev?.changeOperators, changeCostDefaults.operators));
       item.changeWasteCost = n(prev?.changeWasteCost, changeCostDefaults.wasteCost);
       item.changeAdditionalPrepCost = n(prev?.changeAdditionalPrepCost, changeCostDefaults.additionalPrepCost);
+    } else {
+      item.inkStations = Array.isArray(prev?.inkStations) && prev.inkStations.length
+        ? prev.inkStations.map((station) => ({ ...station }))
+        : generateInkStations(state.form).map((station) => ({ ...station }));
     }
     result.push(item);
   }
@@ -4909,7 +4950,11 @@ function buildForm() {
           changeOperators: numOrUndefined(first(type?.changeOperators, savedUi?.changeCost?.operators)),
           changeWasteCost: numOrUndefined(first(type?.changeWasteCost, savedUi?.changeCost?.wasteCost)),
           changeAdditionalPrepCost: numOrUndefined(first(type?.changeAdditionalPrepCost, savedUi?.changeCost?.additionalPrepCost))
-        } : {})
+        } : {
+          inkStations: Array.isArray(type?.inkStations) && type.inkStations.length
+            ? type.inkStations.map((station) => ({ ...station }))
+            : generateInkStations(state.form).map((station) => ({ ...station }))
+        })
       }))
       : buildTypesList(Math.max(1, n(first(savedUi?.header?.quantityTypes, context?.quantityTypes, raw["CANTIDAD TIPOS"], quoteDefaults.quantityTypes), quoteDefaults.quantityTypes)), quantityProducts, null),
     commercial: {
@@ -5493,7 +5538,8 @@ function calcPrint() {
   const substrateTotal = calcSustrato();
   const substrateTotalLengthFeet = firstPositiveNumber(substrateTotal.totalLengthFeet, substrateTotal.linealFeet, base.linealFeet, 0);
   const stages = activePrintStages();
-  const items = stages.map((item) => {
+  const motivoInkTotals = calcMotivoInkTotals(state.form);
+  const items = stages.map((item, stageIndex) => {
     const machine = findMachine(item.machineId);
     const supportsInline = machineSupportsInline(machine);
     const isDigitalMachine = isDigitalProductionMachine(machine);
@@ -5542,6 +5588,10 @@ function calcPrint() {
       conventionalInkConsumptionPerColorLb = r(totalConsumption, 6);
       conventionalInkConsumption = r(totalConsumption, 6);
       conventionalInkSubtotal = r(totalSubtotal);
+      if (stageIndex === 0) {
+        conventionalInkConsumption = motivoInkTotals.consumption;
+        conventionalInkSubtotal = motivoInkTotals.subtotal;
+      }
     } else {
       conventionalInkConsumptionPerColorLb = state.form.header.noPrint ? 0 : r((printedAreaIn2 * inkCoverage * aniloxBcm * transferFactor * inkDensity * 0.001) / 453.59237, 6);
       conventionalInkConsumption = state.form.header.noPrint ? 0 : r(conventionalInkConsumptionPerColorLb * base.colors, 6);
@@ -5796,6 +5846,7 @@ function calcPrint() {
         inkDensity: hasStations ? 0 : inkDensity,
         inkCostPerLb: hasStations ? 0 : inkCostPerLb,
         inkStationDetails,
+        motivoInkTotals: stageIndex === 0 ? motivoInkTotals : null,
         inkConsumption,
         inkSubtotal,
         digitalStations,
@@ -6236,9 +6287,36 @@ function typeQuantityRepeaterHtml(index, quantities = []) {
   return `<label class="types-qty-field"><span>Cantidad a Producir</span><div class="types-qty-row">${rows}</div></label>`;
 }
 
+function typeInkTableHtml(index, stations = [], stationRows = []) {
+  const rows = stations.map((station, sIndex) => {
+    const detail = stationRows[sIndex] || null;
+    const consumptionStr = detail ? num(detail.consumptionLb, 4) : "—";
+    const subtotalStr = detail ? money(detail.subtotal) : "—";
+    return `<div class="types-ink-row">
+      <span class="station-num">${sIndex + 1}</span>
+      <input type="text" data-type-index="${index}" data-type-field="inkStations" data-ink-index="${sIndex}" data-ink-field="inkLabel" value="${esc(station.inkLabel || "")}" placeholder="Tinta o color" aria-label="Tinta o color">
+      <input type="number" min="0" step="0.01" data-type-index="${index}" data-type-field="inkStations" data-ink-index="${sIndex}" data-ink-field="coveragePct" value="${n(station.coveragePct, 0)}" aria-label="Cobertura %">
+      <input type="number" min="0" step="0.0001" data-type-index="${index}" data-type-field="inkStations" data-ink-index="${sIndex}" data-ink-field="aniloxBcm" value="${n(station.aniloxBcm, 0)}" aria-label="Anilox BCM">
+      <input type="number" min="0" step="0.0001" data-type-index="${index}" data-type-field="inkStations" data-ink-index="${sIndex}" data-ink-field="transferFactor" value="${n(station.transferFactor, 0)}" aria-label="Factor de transferencia">
+      <input type="number" min="0" step="0.0001" data-type-index="${index}" data-type-field="inkStations" data-ink-index="${sIndex}" data-ink-field="inkDensity" value="${n(station.inkDensity, 0)}" aria-label="Densidad">
+      <span class="station-consumption">${esc(consumptionStr)}</span>
+      <span class="station-subtotal">${esc(subtotalStr)}</span>
+      <button type="button" class="types-qty-remove" data-action="remove-type-ink" data-type-index="${index}" data-ink-index="${sIndex}" aria-label="Eliminar tinta">×</button>
+    </div>`;
+  }).join("");
+  return `<div class="process-zone types-ink-zone">
+    <div class="process-zone-head"><h4>Tintas del Motivo</h4><button type="button" class="inline-button" data-action="add-type-ink" data-type-index="${index}">Agregar tinta</button></div>
+    <div class="ink-stations-table">
+      <div class="types-ink-row types-ink-head"><span>#</span><span>Tinta</span><span>Cobertura</span><span>Anilox BCM</span><span>Factor T.</span><span>Densidad</span><span>Consumo (lb)</span><span>Subtotal</span><span></span></div>
+      ${rows || '<p class="types-ink-empty">Sin tintas configuradas para este motivo.</p>'}
+    </div>
+  </div>`;
+}
+
 function renderTypesBreakdown() {
   if (!els.typesDetailList) return;
   const breakdown = calcTypes();
+  const inkTotals = calcMotivoInkTotals(state.form);
   refreshTypesInfoModal(breakdown);
   refreshChangesInfoModals(breakdown);
   els.typesDetailList.innerHTML = breakdown.rows.map((row, index) => {
@@ -6279,6 +6357,8 @@ function renderTypesBreakdown() {
       <label><span>Costo de Merma <span class="field-unit">$</span></span><input type="number" min="0" step="0.01" data-type-index="0" data-type-field="changeWasteCost" value="${n(row.changeWasteCost, 0)}"></label>
       <label><span>Prep. Adicional (opcional) <span class="field-unit">$</span></span><input type="number" min="0" step="0.01" data-type-index="0" data-type-field="changeAdditionalPrepCost" value="${n(row.changeAdditionalPrepCost, 0)}"></label>
     </div>` : "";
+    const inkTypeRow = inkTotals.byType[index];
+    const inkTableHtml = !isFirst ? typeInkTableHtml(index, row.inkStations || [], inkTypeRow?.stations || []) : "";
     return `<details class="types-detail-item${isFirst ? " is-first" : " is-additional"}"${isFirst ? " open" : ""}>
       <summary>
         <span class="types-detail-item-name">${esc(row.name || `Motivo ${index + 1}`)}</span>
@@ -6289,6 +6369,7 @@ function renderTypesBreakdown() {
         <div class="types-detail-fields">${fields.join("")}</div>
         <div class="types-artwork-options">${artwork}</div>
         ${changeCostFieldsHtml}
+        ${inkTableHtml}
         <div class="types-detail-breakdown">${breakdownRows}</div>
       </div>
     </details>`;
@@ -8547,6 +8628,13 @@ function renderPrintInkBlock(scope, item, printItem) {
     var selWhite = state.form.header.useWhiteInk ? "<label class=\"span-2\"><span>Tinta Blanca</span><select data-scope=\"" + esc(scope) + "\" data-field=\"whiteInkMaterialId\">" + processOptions(tbOpts, item.whiteInkMaterialId) + "</select></label>" : "";
     stationsHtml = "<div class=\"process-zone\"><div class=\"process-zone-head\"><h4>Par\u00e1metros de Tinta</h4></div><div class=\"process-print-grid process-print-grid-ink\">" + selCmyk + selWhite + "<label><span>Cobertura Tinta</span>" + displayInput(scope, "coveragePct", item.coveragePct, { suffix: "%", maximumFractionDigits: 2 }) + "</label><label><span>BCM Anilox</span>" + displayInput(scope, "aniloxBcm", item.aniloxBcm, { maximumFractionDigits: 4 }) + "</label><label><span>Factor Transferencia</span>" + displayInput(scope, "transferFactor", item.transferFactor, { maximumFractionDigits: 4 }) + "</label><label><span>Densidad Tinta</span>" + displayInput(scope, "inkDensity", item.inkDensity, { maximumFractionDigits: 4 }) + "</label><label><span>Costo Lb CMYK</span>" + displayInput(scope, "inkCostPerLb", item.inkCostPerLb, { prefix: "$", maximumFractionDigits: 4 }) + "</label><label><span>Costo Lb Blanco</span>" + displayInput(scope, "whiteInkCostPerLb", item.whiteInkCostPerLb, { prefix: "$", maximumFractionDigits: 4 }) + "</label><label><span>Costo Lb Pantone</span>" + displayInput(scope, "pantoneInkCostPerLb", item.pantoneInkCostPerLb, { prefix: "$", maximumFractionDigits: 4 }) + "</label></div></div>";
   }
+  var motivoBreakdownHtml = "";
+  if (printItem.motivoInkTotals && printItem.motivoInkTotals.byType.length > 1) {
+    var motivoRows = printItem.motivoInkTotals.byType.map(function(row) {
+      return "<div class=\"types-summary-row\"><span>" + esc(row.name || ("Motivo " + (row.index + 1))) + " (" + num(row.quantity, 0) + ")</span><strong>" + num(row.consumption, 4) + " lb · " + money(row.subtotal) + "</strong></div>";
+    }).join("");
+    motivoBreakdownHtml = "<div class=\"process-zone\"><div class=\"process-zone-head\"><h4>Tinta por Motivo</h4></div><div class=\"types-summary-rows\">" + motivoRows + "<div class=\"types-summary-row is-total\"><span>Total</span><strong>" + num(printItem.motivoInkTotals.consumption, 4) + " lb · " + money(printItem.motivoInkTotals.subtotal) + "</strong></div></div></div>";
+  }
   var profZone = "<div class=\"process-zone\"><div class=\"process-zone-head\"><h4>Tipos de Trabajo</h4></div><div class=\"process-inline-table-shell\">" + renderInkProfiles(scope, item.inkProfiles || []) + "</div></div>";
   var metHtml = "";
   if (hasStations) {
@@ -8554,7 +8642,7 @@ function renderPrintInkBlock(scope, item, printItem) {
   } else {
     metHtml = "<div class=\"readonly-grid compact-top step-metrics\">" + metric("Tintas Requeridas", num(printItem.colors || 0, 0)) + metric("Consumo Tinta", num(printItem.inkConsumption || 0, 4) + " lb") + metric("Costo por Lb", money(printItem.inkCostPerLb || 0)) + metric("Subtotal Tinta", money(printItem.inkSubtotal || 0)) + "</div>";
   }
-  return "<details class=\"subprocess-card inline-process-card print-ink-card\" data-open-key=\"" + esc(scope) + ".ink\"><summary class=\"inline-process-summary\"><div class=\"inline-process-heading\"><strong>C\u00e1lculo de Tinta Convencional</strong></div><div class=\"process-summary-side\"><em>" + money(printItem.inkSubtotal || 0) + "</em>" + info + "</div></summary><div class=\"process-body\">" + stationsHtml + profZone + metHtml + "</div></details>";
+  return "<details class=\"subprocess-card inline-process-card print-ink-card\" data-open-key=\"" + esc(scope) + ".ink\"><summary class=\"inline-process-summary\"><div class=\"inline-process-heading\"><strong>C\u00e1lculo de Tinta Convencional</strong></div><div class=\"process-summary-side\"><em>" + money(printItem.inkSubtotal || 0) + "</em>" + info + "</div></summary><div class=\"process-body\">" + stationsHtml + motivoBreakdownHtml + profZone + metHtml + "</div></details>";
 }
 
 function renderDigitalPremierBlock(scope, item, printItem) {
@@ -9428,6 +9516,14 @@ function bindTypesDetail() {
     else if (field === "changeOperators") type.changeOperators = Math.max(1, Math.ceil(n(element.value, 1)));
     else if (field === "changeWasteCost") type.changeWasteCost = Math.max(0, n(element.value, 0));
     else if (field === "changeAdditionalPrepCost") type.changeAdditionalPrepCost = Math.max(0, n(element.value, 0));
+    else if (field === "inkStations") {
+      const inkIndex = Number(element.dataset.inkIndex);
+      const inkField = element.dataset.inkField;
+      type.inkStations = Array.isArray(type.inkStations) ? type.inkStations : [];
+      const station = type.inkStations[inkIndex];
+      if (!station || !inkField) return;
+      station[inkField] = inkField === "inkLabel" ? String(element.value || "").trim() : Math.max(0, n(element.value, 0));
+    }
   };
   els.typesDetailList.addEventListener("input", (event) => {
     const element = event.target.closest("[data-type-index][data-type-field]");
@@ -9473,6 +9569,39 @@ function bindTypesDetail() {
       type.quantities.splice(Math.max(0, Math.min(removeAt, type.quantities.length - 1)), 1);
       syncTypeQuantityFromSlots(type);
       syncDerivedHeaderAndPackaging(state.form);
+      renderTypesChanges();
+      refreshCalculationValidation();
+      scheduleSave();
+      return;
+    }
+    if (button.dataset.action === "add-type-ink") {
+      if (index === 0) return;
+      type.inkStations = Array.isArray(type.inkStations) ? type.inkStations : [];
+      if (type.inkStations.length >= 9) return;
+      const inkDefaults = conventionalInkDefaults();
+      type.inkStations.push({
+        id: `type-${index}-ink-${Date.now()}`,
+        inkLabel: `Tinta ${type.inkStations.length + 1}`,
+        inkType: "pantone",
+        coveragePct: 25,
+        aniloxBcm: inkDefaults.bcmGenerico,
+        transferFactor: 0.3,
+        inkDensity: inkDefaults.densidadUv,
+        inkMaterialId: "",
+        inkCostPerLb: inkDefaults.costoLbPantone,
+        active: true
+      });
+      renderTypesChanges();
+      refreshCalculationValidation();
+      scheduleSave();
+      return;
+    }
+    if (button.dataset.action === "remove-type-ink") {
+      if (index === 0) return;
+      type.inkStations = Array.isArray(type.inkStations) ? type.inkStations : [];
+      const inkIndex = Number(button.dataset.inkIndex);
+      if (!Number.isInteger(inkIndex) || !type.inkStations[inkIndex]) return;
+      type.inkStations.splice(inkIndex, 1);
       renderTypesChanges();
       refreshCalculationValidation();
       scheduleSave();

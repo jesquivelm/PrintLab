@@ -2024,6 +2024,32 @@ html[data-theme="dark"] .calc-shape-option.is-selected {
   min-width: 0;
 }
 
+.types-ink-row {
+  display: grid;
+  grid-template-columns: 20px minmax(70px, 0.9fr) repeat(4, minmax(50px, 0.4fr)) minmax(55px, 0.45fr) minmax(60px, 0.45fr) 20px;
+  gap: 4px;
+  align-items: center;
+}
+
+.types-ink-row input {
+  min-height: 30px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  min-width: 0;
+  padding: 2px 6px;
+}
+
+.types-ink-head {
+  font-size: 0.75rem;
+  color: var(--muted, #667085);
+}
+
+.types-ink-empty {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted, #667085);
+}
+
 .types-qty-add,
 .types-qty-remove {
   width: 20px;
