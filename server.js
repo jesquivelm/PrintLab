@@ -33,6 +33,7 @@ const { ensureIdentitySchema, validatePassword, hashPassword, verifyPassword, fi
 const { ensureAuditSchema: ensureCredentialAuditSchema, recordCredentialAudit, getAuditActor, getCredentialAuditLog, CREDENTIAL_ACTIONS } = require('./services/audit-service');
 const { loadSecurityConfig, saveSecurityConfig } = require('./services/security-config-service');
 const { registerTintasRoutes } = require('./services/tintas/tintas-service');
+const { ensureInventarioPtSchema, registerInventarioPtRoutes, startInventarioPtScheduler } = require('./services/inventario-pt-service');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -77,6 +78,7 @@ const PRESENTATION_NAMES = {
     'inventario-mp': 'Inventario Materia Prima',
     'inventario-troqueles': 'Inventario Troqueles',
     'inventario-maquinaria': 'Inventario Maquinaria',
+    'inventario-pt': 'Inventario Producto Terminado',
     'costos': 'Costos',
     'vendedores': 'Vendedores',
     'ordenes': 'Ordenes',
@@ -1680,7 +1682,8 @@ const DEFAULT_COSTS_CONFIG = {
             { id: 'conv-finish-estampado', proceso: 'Estampado', setupWasteFeet: 250, operationWastePct: 4.0 },
             { id: 'conv-finish-embosado', proceso: 'Embosado', setupWasteFeet: 125, operationWastePct: 3.0 },
         ],
-        costoPlanchaIn2: 0
+        costoPlanchaIn2: 0,
+        tiempoEstandarCambioMin: 0
     },
     digital: {
         premier: {
@@ -1870,6 +1873,7 @@ async function initializeStartupSchemas() {
     await runStartupSchemaStep('No fue posible preparar el esquema de consumos SAP', () => ensureProductionMaterialConsumptionSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de verificación de materiales', () => ensureProductionMaterialVerificationSchema());
     await runStartupSchemaStep('No fue posible preparar el esquema de SAP Service Layer', () => ensureSapSchema(pgQuery));
+    await runStartupSchemaStep('No fue posible preparar el esquema de inventario de producto terminado', () => ensureInventarioPtSchema(pgQuery));
     await runStartupSchemaStep('No fue posible preparar el esquema de seguridad administrativa', async () => {
         await ensureAdminPermissionsSchema();
         await ensureAdminUsersSchema();
@@ -3439,7 +3443,8 @@ function normalizeCostsConfigRecord(config) {
             maculaMontaje: normalizeMontaje(rowsOrDefault(source?.convencional?.maculaMontaje, DEFAULT_COSTS_CONFIG.convencional.maculaMontaje), 'convencional'),
             maculaTiraje: normalizeTiraje(rowsOrDefault(source?.convencional?.maculaTiraje, DEFAULT_COSTS_CONFIG.convencional.maculaTiraje), 'convencional'),
             finishWaste: normalizeFinishWaste(rowsOrDefault(source?.convencional?.finishWaste, DEFAULT_COSTS_CONFIG.convencional.finishWaste), 'convencional'),
-            costoPlanchaIn2: Math.max(0, Number(source?.convencional?.costoPlanchaIn2 ?? DEFAULT_COSTS_CONFIG.convencional.costoPlanchaIn2 ?? 0))
+            costoPlanchaIn2: Math.max(0, Number(source?.convencional?.costoPlanchaIn2 ?? DEFAULT_COSTS_CONFIG.convencional.costoPlanchaIn2 ?? 0)),
+            tiempoEstandarCambioMin: Math.max(0, Number(source?.convencional?.tiempoEstandarCambioMin ?? DEFAULT_COSTS_CONFIG.convencional.tiempoEstandarCambioMin ?? 0))
         },
         acabados: {
             barniz: (Array.isArray(source?.acabados?.barniz) ? source.acabados.barniz : DEFAULT_COSTS_CONFIG.acabados.barniz).map((row, index) => ({
@@ -5548,6 +5553,15 @@ async function getNextQuoteLineOrder(quoteCode) {
     return Number(result.rows[0]?.max_order || 0) + 1;
 }
 
+function parseTypesDetail(rawValue) {
+    try {
+        const parsed = JSON.parse(rawValue);
+        return Array.isArray(parsed) ? parsed : null;
+    } catch (error) {
+        return null;
+    }
+}
+
 function mapFlexoCalculationDetail(row) {
     if (row.raw_data) normalizeCalculationKeys(row.raw_data);
     const raw = row.raw_data || {};
@@ -5603,6 +5617,18 @@ function mapFlexoCalculationDetail(row) {
         ),
         quantityTypes: pickFirstValue(parseLegacyNumber(row.quantity_types), parseLegacyNumber(raw['CANTIDAD TIPOS'])),
         quantityChanges: pickFirstValue(parseLegacyNumber(row.quantity_changes), parseLegacyNumber(raw['CANTIDAD CAMBIOS'])),
+        quantityChangesAdditional: pickFirstValue(parseLegacyNumber(row.quantity_changes_additional), parseLegacyNumber(raw['CANTIDAD CAMBIOS ADICIONALES'])),
+        quantityChangesByTypes: pickFirstValue(parseLegacyNumber(row.quantity_changes_by_types), parseLegacyNumber(raw['CANTIDAD CAMBIOS POR TIPOS'])),
+        totalChanges: pickFirstValue(parseLegacyNumber(row.quantity_changes_total), parseLegacyNumber(raw['CANTIDAD CAMBIOS TOTALES'])),
+        changeCost: {
+            timeMinutes: pickFirstValue(parseLegacyNumber(row.change_time_minutes), parseLegacyNumber(raw['COSTO POR CAMBIO | TIEMPO MIN'])),
+            machineHourCost: pickFirstValue(parseLegacyNumber(row.change_machine_hour_cost), parseLegacyNumber(raw['COSTO POR CAMBIO | COSTO HORA MAQUINA'])),
+            laborHourCost: pickFirstValue(parseLegacyNumber(row.change_labor_hour_cost), parseLegacyNumber(raw['COSTO POR CAMBIO | COSTO HORA MANO OBRA'])),
+            operators: pickFirstValue(parseLegacyNumber(row.change_operators), parseLegacyNumber(raw['COSTO POR CAMBIO | OPERADORES'])),
+            wasteCost: pickFirstValue(parseLegacyNumber(row.change_waste_cost), parseLegacyNumber(raw['COSTO POR CAMBIO | COSTO MERMA'])),
+            additionalPrepCost: pickFirstValue(parseLegacyNumber(row.change_additional_prep_cost), parseLegacyNumber(raw['COSTO POR CAMBIO | COSTO PREP ADICIONAL']))
+        },
+        types: typeof raw['TIPOS DETALLE'] === 'string' ? parseTypesDetail(raw['TIPOS DETALLE']) : null,
         widthInches: pickFirstValue(parseLegacyNumber(row.width_inches), parseLegacyNumber(raw['DIMENSIONES ETIQUETA | ANCHO'])),
         lengthInches: pickFirstValue(parseLegacyNumber(row.length_inches), parseLegacyNumber(raw['DIMENSIONES ETIQUETA | LARGO'])),
         areaInches: parseLegacyNumber(raw['DIMENSIONES ETIQUETA | AREA']),
@@ -9855,6 +9881,7 @@ function buildProductPayloadFromLine({ productCode, quoteRow, lineRow }) {
         dieCode: pickFirstValue(lineRow.die_code, raw['GENERAL | TROQUEL | ID']),
         quantityProducts: parseLegacyNumber(lineRow.quantity) ?? parseLegacyNumber(raw['Cantidad Productos']),
         quantityTypes: parseLegacyNumber(raw['CANTIDAD TIPOS']),
+        quantityChangesAdditional: parseLegacyNumber(raw['CANTIDAD CAMBIOS ADICIONALES']),
         tintCount: parseLegacyNumber(raw['CANTIDAD TINTAS']),
         widthInches: parseLegacyNumber(raw['DIMENSIONES ETIQUETA | ANCHO']),
         lengthInches: parseLegacyNumber(raw['DIMENSIONES ETIQUETA | LARGO']),
@@ -10562,7 +10589,10 @@ function buildCreationSummary({ orderCode, quoteRow, lineRow, frontBackGroup, pr
         cantidad: productionRun?.totals?.quantity ?? lineRow?.quantity ?? ls.quantityProducts ?? 0,
         cantidad_productos: ls.quantityProducts || 0,
         cantidad_tipos: pickFirstValue(parseLegacyNumber(rc.quantity_types), ls.quantityTypes, 0),
-        cantidad_cambios: pickFirstValue(parseLegacyNumber(rc.quantity_changes), ls.quantityChanges, 0),
+        cantidad_cambios_por_tipos: Math.max(0, (pickFirstValue(parseLegacyNumber(rc.quantity_types), ls.quantityTypes, 0) || 0) - 1),
+        cantidad_cambios_adicionales: pickFirstValue(parseLegacyNumber(rc.quantity_changes_additional), parseLegacyNumber(lr['CANTIDAD CAMBIOS ADICIONALES']), ls.quantityChangesAdditional, 0),
+        cantidad_cambios_totales: Math.max(0, (pickFirstValue(parseLegacyNumber(rc.quantity_types), ls.quantityTypes, 0) || 0) - 1) + pickFirstValue(parseLegacyNumber(rc.quantity_changes_additional), parseLegacyNumber(lr['CANTIDAD CAMBIOS ADICIONALES']), ls.quantityChangesAdditional, 0),
+        cantidad_cambios: Math.max(0, (pickFirstValue(parseLegacyNumber(rc.quantity_types), ls.quantityTypes, 0) || 0) - 1) + pickFirstValue(parseLegacyNumber(rc.quantity_changes_additional), parseLegacyNumber(lr['CANTIDAD CAMBIOS ADICIONALES']), ls.quantityChangesAdditional, 0),
         es_frente_dorso: Boolean(frontBackGroup),
         finalizado_para_orden: Boolean(lineRow?.finalized_for_order ?? lr['Finalizado_Para_Orden']),
         dimensiones: {
@@ -11092,9 +11122,14 @@ function buildCalculationRawData(payload = {}, existingRawData = {}) {
     const quantityTypes = hasOwn('quantityTypes')
         ? parseLegacyNumber(payload.quantityTypes)
         : parseLegacyNumber(existingRawData['CANTIDAD TIPOS']);
-    const quantityChanges = hasOwn('quantityChanges')
-        ? parseLegacyNumber(payload.quantityChanges)
+    const quantityChanges = hasOwn('quantityTypes')
+        ? Math.max(0, (parseLegacyNumber(payload.quantityTypes) ?? 1) - 1)
         : parseLegacyNumber(existingRawData['CANTIDAD CAMBIOS']);
+    const quantityChangesAdditional = hasOwn('quantityChangesAdditional')
+        ? Math.max(0, parseLegacyNumber(payload.quantityChangesAdditional) ?? 0)
+        : Math.max(0, parseLegacyNumber(existingRawData['CANTIDAD CAMBIOS ADICIONALES']) ?? 0);
+    const quantityChangesByTypes = Math.max(0, (quantityTypes ?? 1) - 1);
+    const quantityChangesTotal = quantityChangesByTypes + quantityChangesAdditional;
     const width = hasOwn('widthInches')
         ? parseLegacyNumber(payload.widthInches)
         : parseLegacyNumber(existingRawData['DIMENSIONES ETIQUETA | ANCHO']);
@@ -11167,6 +11202,16 @@ function buildCalculationRawData(payload = {}, existingRawData = {}) {
         'Cantidad Productos': quantityProducts,
         'CANTIDAD TIPOS': quantityTypes,
         'CANTIDAD CAMBIOS': quantityChanges,
+        'CANTIDAD CAMBIOS ADICIONALES': quantityChangesAdditional,
+        'CANTIDAD CAMBIOS POR TIPOS': quantityChangesByTypes,
+        'CANTIDAD CAMBIOS TOTALES': quantityChangesTotal,
+        'COSTO POR CAMBIO | TIEMPO MIN': hasOwn('changeCost') && payload.changeCost ? parseLegacyNumber(payload.changeCost.timeMinutes) : parseLegacyNumber(existingRawData['COSTO POR CAMBIO | TIEMPO MIN']),
+        'COSTO POR CAMBIO | COSTO HORA MAQUINA': hasOwn('changeCost') && payload.changeCost ? parseLegacyNumber(payload.changeCost.machineHourCost) : parseLegacyNumber(existingRawData['COSTO POR CAMBIO | COSTO HORA MAQUINA']),
+        'COSTO POR CAMBIO | COSTO HORA MANO OBRA': hasOwn('changeCost') && payload.changeCost ? parseLegacyNumber(payload.changeCost.laborHourCost) : parseLegacyNumber(existingRawData['COSTO POR CAMBIO | COSTO HORA MANO OBRA']),
+        'COSTO POR CAMBIO | OPERADORES': hasOwn('changeCost') && payload.changeCost ? parseLegacyNumber(payload.changeCost.operators) : parseLegacyNumber(existingRawData['COSTO POR CAMBIO | OPERADORES']),
+        'COSTO POR CAMBIO | COSTO MERMA': hasOwn('changeCost') && payload.changeCost ? parseLegacyNumber(payload.changeCost.wasteCost) : parseLegacyNumber(existingRawData['COSTO POR CAMBIO | COSTO MERMA']),
+        'COSTO POR CAMBIO | COSTO PREP ADICIONAL': hasOwn('changeCost') && payload.changeCost ? parseLegacyNumber(payload.changeCost.additionalPrepCost) : parseLegacyNumber(existingRawData['COSTO POR CAMBIO | COSTO PREP ADICIONAL']),
+        'TIPOS DETALLE': Array.isArray(payload.types) ? JSON.stringify(payload.types) : (existingRawData['TIPOS DETALLE'] ?? null),
         'CANTIDAD TINTAS': tintCount,
         'CANTIDAD ETIQUETAS X ROLLO': labelsPerRoll,
         'DIMENSIONES ETIQUETA | ANCHO': width,
@@ -11410,6 +11455,16 @@ function extractProductionColumns(rawData = {}) {
         empaque_adjunto: uiPackaging.attachmentName || null,
         empaque_horas: parseLegacyNumber(packaging.hours),
         empaque_costo_total: parseLegacyNumber(packaging.subtotal),
+        quantity_changes_additional: parseLegacyNumber(rawData['CANTIDAD CAMBIOS ADICIONALES']),
+        quantity_changes_by_types: parseLegacyNumber(rawData['CANTIDAD CAMBIOS POR TIPOS']),
+        quantity_changes_total: parseLegacyNumber(rawData['CANTIDAD CAMBIOS TOTALES']),
+        change_time_minutes: parseLegacyNumber(rawData['COSTO POR CAMBIO | TIEMPO MIN']),
+        change_machine_hour_cost: parseLegacyNumber(rawData['COSTO POR CAMBIO | COSTO HORA MAQUINA']),
+        change_labor_hour_cost: parseLegacyNumber(rawData['COSTO POR CAMBIO | COSTO HORA MANO OBRA']),
+        change_operators: parseLegacyNumber(rawData['COSTO POR CAMBIO | OPERADORES']),
+        change_waste_cost: parseLegacyNumber(rawData['COSTO POR CAMBIO | COSTO MERMA']),
+        change_additional_prep_cost: parseLegacyNumber(rawData['COSTO POR CAMBIO | COSTO PREP ADICIONAL']),
+        types_detail: typeof rawData['TIPOS DETALLE'] === 'string' ? rawData['TIPOS DETALLE'] : null,
         merma_total_pies: parseLegacyNumber(macula.totalFeet) ?? parseLegacyNumber(printData.maculaTotalFeet),
         merma_total_costo: parseLegacyNumber(firstItem.maculaMaterialSubtotal) ?? parseLegacyNumber(printData.maculaMaterialSubtotal),
         subtotal_financiero: parseLegacyNumber(rawData['GENERAL | 2 | SUBTOTAL COSTOS']),
@@ -11506,7 +11561,12 @@ const PRODUCTION_COLUMN_NAMES = [
         'medida_fija', 'material_nombre', 'fecha_vencimiento',
         'seleccion_automatica', 'precio_automatico',
         'mes_velocidad_real_fpm', 'mes_presion_cilindro_psi', 'mes_anilox_linea',
-        'mes_viscosidad_promedio', 'mes_temperatura_promedio', 'mes_ultima_sincronizacion'
+        'mes_viscosidad_promedio', 'mes_temperatura_promedio', 'mes_ultima_sincronizacion',
+        'quantity_changes_additional',
+        'quantity_changes_by_types', 'quantity_changes_total',
+        'change_time_minutes', 'change_machine_hour_cost', 'change_labor_hour_cost',
+        'change_operators', 'change_waste_cost', 'change_additional_prep_cost',
+        'types_detail'
     ];
 
 // Columnas compartidas entre flexo_products, flexo_orders y flexo_calculations
@@ -13659,7 +13719,7 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/producto', async (req, res) =>
 
             const baseCols = ['product_code', 'line_code', 'quote_code', 'client_code', 'client_name',
                 'product_name', 'product_type', 'department', 'material_name', 'quoted_machine', 'die_code',
-                'quantity_products', 'quantity_types', 'tint_count', 'width_inches', 'length_inches',
+                'quantity_products', 'quantity_types', 'quantity_changes_additional', 'quantity_changes_by_types', 'quantity_changes_total', 'tint_count', 'width_inches', 'length_inches',
                 'price_unit', 'total_price', 'source_calculation_code', 'raw_data', 'finished_product_sku'];
             const prodCols = Object.keys(product.productCols);
             const allCols = [...new Set([...baseCols, ...prodCols, 'updated_at'])];
@@ -13667,7 +13727,9 @@ app.post('/api/cotizaciones/:codigo/lineas/:linea/producto', async (req, res) =>
                 product.productCode, product.lineCode, product.quoteCode, product.clientCode,
                 product.clientName, product.productName, product.productType, product.department,
                 product.materialName, product.quotedMachine, product.dieCode, product.quantityProducts,
-                product.quantityTypes, product.tintCount, product.widthInches, product.lengthInches,
+                product.quantityTypes, product.quantityChangesAdditional,
+                parseLegacyNumber(raw['CANTIDAD CAMBIOS POR TIPOS']), parseLegacyNumber(raw['CANTIDAD CAMBIOS TOTALES']),
+                product.tintCount, product.widthInches, product.lengthInches,
                 product.priceUnit, product.totalPrice, product.sourceCalculationCode,
                 JSON.stringify(product.rawData), finishedProductSku
             ];
@@ -16354,6 +16416,10 @@ app.get('/api/cotizaciones/:codigo/lineas/:linea/exportar', async (req, res) => 
             { Campo: 'Ancho', Valor: parseLegacyNumber(raw['DIMENSIONES ETIQUETA | ANCHO']) },
             { Campo: 'Largo', Valor: parseLegacyNumber(raw['DIMENSIONES ETIQUETA | LARGO']) },
             { Campo: 'Cantidad tintas', Valor: parseLegacyNumber(raw['CANTIDAD TINTAS']) },
+            { Campo: 'Cantidad tipos', Valor: pickFirstValue(parseLegacyNumber(context.line.quantity_types), parseLegacyNumber(raw['CANTIDAD TIPOS'])) },
+            { Campo: 'Cambios por tipos', Valor: Math.max(0, (pickFirstValue(parseLegacyNumber(context.line.quantity_types), parseLegacyNumber(raw['CANTIDAD TIPOS']), 0) || 0) - 1) },
+            { Campo: 'Cambios adicionales', Valor: pickFirstValue(parseLegacyNumber(context.line.quantity_changes_additional), parseLegacyNumber(raw['CANTIDAD CAMBIOS ADICIONALES']), 0) },
+            { Campo: 'Cambios totales', Valor: Math.max(0, (pickFirstValue(parseLegacyNumber(context.line.quantity_types), parseLegacyNumber(raw['CANTIDAD TIPOS']), 0) || 0) - 1) + pickFirstValue(parseLegacyNumber(context.line.quantity_changes_additional), parseLegacyNumber(raw['CANTIDAD CAMBIOS ADICIONALES']), 0) },
             { Campo: 'Estado línea', Valor: pickFirstValue(raw['SOLICITUD ESTADO'], raw['ESTADO LINEA']) },
             { Campo: 'Costo total', Valor: parseLegacyNumber(context.line.total_cost) },
             { Campo: 'Precio unitario', Valor: parseLegacyNumber(context.line.unit_price) },
@@ -21724,6 +21790,7 @@ app.get('/api/flexo/calculo', async (req, res) => {
                     fc.quantity, fc.subtotal_cost, fc.total_cost, fc.unit_price,
                     fc.customer_name, fc.salesperson_name, fc.job_name, fc.department, fc.line_status,
                     fc.width_inches, fc.length_inches, fc.labels_per_roll, fc.quantity_types, fc.quantity_changes,
+                    fc.quantity_changes_additional,
                     fc.core_width, fc.core_diameter, fc.cmyk_enabled, fc.application_type, fc.surface_type, fc.output_type,
                     fc.industrial_subtotal, fc.overhead_cost, fc.margin_amount, fc.prepress_cost, fc.packaging_cost,
                     fc.design_cost, fc.additional_cost, fc.discount_amount, fc.tax_percent, fc.tax_amount,
@@ -21752,6 +21819,7 @@ app.get('/api/flexo/calculo', async (req, res) => {
                     quantity, subtotal_cost, total_cost, unit_price,
                     customer_name, salesperson_name, job_name, department, line_status,
                     width_inches, length_inches, labels_per_roll, quantity_types, quantity_changes,
+                    quantity_changes_additional,
                     core_width, core_diameter, cmyk_enabled, application_type, surface_type, output_type,
                     industrial_subtotal, overhead_cost, margin_amount, prepress_cost, packaging_cost,
                     design_cost, additional_cost, discount_amount, tax_percent, tax_amount,
@@ -21766,6 +21834,7 @@ app.get('/api/flexo/calculo', async (req, res) => {
                            fc.quantity, fc.subtotal_cost, fc.total_cost, fc.unit_price,
                            fc.customer_name, fc.salesperson_name, fc.job_name, fc.department, fc.line_status,
                            fc.width_inches, fc.length_inches, fc.labels_per_roll, fc.quantity_types, fc.quantity_changes,
+                           fc.quantity_changes_additional,
                            fc.core_width, fc.core_diameter, fc.cmyk_enabled, fc.application_type, fc.surface_type, fc.output_type,
                            fc.industrial_subtotal, fc.overhead_cost, fc.margin_amount, fc.prepress_cost, fc.packaging_cost,
                            fc.design_cost, fc.additional_cost, fc.discount_amount, fc.tax_percent, fc.tax_amount,
@@ -22859,6 +22928,9 @@ app.post('/api/flexo/calculo/guardar', async (req, res) => {
             quantityProducts: payload.quantityProducts,
             quantityTypes: payload.quantityTypes,
             quantityChanges: payload.quantityChanges,
+            quantityChangesAdditional: payload.quantityChangesAdditional,
+            changeCost: payload.changeCost,
+            types: payload.types,
             widthInches: payload.widthInches,
             lengthInches: payload.lengthInches,
             stationCount: payload.stationCount,
@@ -23291,6 +23363,10 @@ app.get('/inventario-materiales', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'catalogo.html'));
 });
 
+app.get('/inventario-pt', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'inventario-pt.html'));
+});
+
 app.get('/inventario-troqueles', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'inventario-troqueles.html'));
 });
@@ -23470,6 +23546,8 @@ registerExchangeRateRoutes({ app, pgQuery });
 ensureExchangeRateSchema(pgQuery).catch(() => {});
 startExchangeRateScheduler({ pgQuery });
 registerTintasRoutes({ app, pgQuery, withTransaction });
+registerInventarioPtRoutes({ app, pgQuery, withTransaction, sapLayer: require('./services/sap-service-layer') });
+startInventarioPtScheduler({ pgQuery, withTransaction, sapLayer: require('./services/sap-service-layer') });
 
 function writeStartupErrorLog(message, error) {
     try {

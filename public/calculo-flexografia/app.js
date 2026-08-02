@@ -158,17 +158,7 @@ const els = {
   totalChanges: document.getElementById("totalChanges"),
   typesDetailList: document.getElementById("typesDetailList"),
   typesQuantitiesWarning: document.getElementById("typesQuantitiesWarning"),
-  changeTimeMinutes: document.getElementById("changeTimeMinutes"),
-  changeMachineHourCost: document.getElementById("changeMachineHourCost"),
-  changeLaborHourCost: document.getElementById("changeLaborHourCost"),
-  changeOperators: document.getElementById("changeOperators"),
-  changeWasteCost: document.getElementById("changeWasteCost"),
-  changeAdditionalPrepCost: document.getElementById("changeAdditionalPrepCost"),
-  changeCostPerChangeDisplay: document.getElementById("changeCostPerChangeDisplay"),
-  changesByTypesCostDisplay: document.getElementById("changesByTypesCostDisplay"),
-  changesAdditionalCostDisplay: document.getElementById("changesAdditionalCostDisplay"),
-  changesTotalCostDisplay: document.getElementById("changesTotalCostDisplay"),
-  typesSummaryRows: document.getElementById("typesSummaryRows"),
+  typesInfoTrigger: document.getElementById("typesInfoTrigger"),
   pantoneCount: document.getElementById("pantoneCount"),
   useCmyk: document.getElementById("useCmyk"),
   useWhiteInk: document.getElementById("useWhiteInk"),
@@ -1455,6 +1445,11 @@ function first(...values) {
   return "";
 }
 
+function numOrUndefined(value) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : undefined;
+}
+
 function normalizeFrontBackGroupData(rowOrRaw = {}) {
   const group = rowOrRaw?.grupoFrenteDorso || rowOrRaw?.grupo_frente_dorso || rowOrRaw?.frontBackGroup || rowOrRaw?.raw_data?.grupoFrenteDorso || rowOrRaw?.raw_data?.Grupo_Frente_Dorso || rowOrRaw?.Grupo_Frente_Dorso || rowOrRaw;
   if (!group || typeof group !== "object" || Array.isArray(group)) return null;
@@ -1930,6 +1925,7 @@ function openInfoPopover(trigger) {
   } else {
     state.infoPopover.body.textContent = body || "";
   }
+  panel.classList.toggle("info-popover-panel-wide", Boolean(trigger?.dataset.infoWide));
   trigger.setAttribute("aria-expanded", "true");
   panel.hidden = false;
   requestAnimationFrame(() => positionInfoPopover(trigger));
@@ -3716,6 +3712,12 @@ function effectiveColors(form = state.form) {
   return total;
 }
 
+function maxColorsPerType(form = state.form) {
+  if (!form?.header?.useCmyk) return Infinity;
+  const pantones = Math.max(0, n(form.header.pantoneCount, 0));
+  return 4 + (pantones > 0 ? pantones : 0);
+}
+
 function normalizeQuantities(values = []) {
   const rows = Array.isArray(values) ? values : [];
   const normalized = rows.map((item, index) => ({ id: item?.id || `qty-${index + 1}`, value: Math.max(0, n(item?.value, 0)) }));
@@ -3754,17 +3756,27 @@ function buildTypesList(count, totalQuantity, existing = null) {
   const colorsDefault = Math.max(0, n(state.form?.header?.pantoneCount, 0))
     + (state.form?.header?.useCmyk ? 4 : 0)
     + (state.form?.header?.useWhiteInk ? 1 : 0);
+  const changeCostDefaults = changeCostAutoDefaults(state.form);
   const result = [];
   for (let index = 0; index < target; index += 1) {
     const prev = Array.isArray(existing) ? existing[index] : null;
     const quantity = prev && n(prev.quantity, 0) > 0 ? n(prev.quantity, 0) : base + (index === target - 1 ? remainder : 0);
-    result.push({
+    const item = {
       name: String(prev?.name || "").trim() || (target === 1 ? "Motivo Único" : `Motivo ${index + 1}`),
       quantity,
       artwork: ["none", "adapt", "full"].includes(prev?.artwork) ? prev.artwork : "none",
       colors: prev && n(prev.colors, 0) > 0 ? n(prev.colors, 0) : colorsDefault,
       plates: prev && n(prev.plates, 0) > 0 ? n(prev.plates, 0) : 0
-    });
+    };
+    if (index === 0) {
+      item.changeTimeMinutes = n(prev?.changeTimeMinutes, changeCostDefaults.timeMinutes);
+      item.changeMachineHourCost = n(prev?.changeMachineHourCost, changeCostDefaults.machineHourCost);
+      item.changeLaborHourCost = n(prev?.changeLaborHourCost, changeCostDefaults.laborHourCost);
+      item.changeOperators = Math.max(1, n(prev?.changeOperators, changeCostDefaults.operators));
+      item.changeWasteCost = n(prev?.changeWasteCost, changeCostDefaults.wasteCost);
+      item.changeAdditionalPrepCost = n(prev?.changeAdditionalPrepCost, changeCostDefaults.additionalPrepCost);
+    }
+    result.push(item);
   }
   return result;
 }
@@ -3780,15 +3792,65 @@ function typesQuantitySum(form = state.form) {
   return (Array.isArray(form?.types) ? form.types : []).reduce((sum, type) => sum + Math.max(0, n(type?.quantity, 0)), 0);
 }
 
-function changeCostConfig(form = state.form) {
-  const cfg = form?.changeCost || {};
+function machineChangeWasteFeet(machine = {}) {
+  const toFeet = (value, unit) => {
+    const amount = n(value, 0);
+    if (amount <= 0) return 0;
+    return String(unit || "").toLowerCase().startsWith("metro") ? amount / 0.3048 : amount;
+  };
+  const setupFeet = firstPositiveNumber(machine?.sustratoSetupMermaCantidad, machine?.sustrato_setup_merma_cantidad, machine?.macula_default_pies, machine?.maculaDefaultFeet, 0);
+  const setupUnit = first(machine?.sustratoSetupMermaUnidad, machine?.sustrato_setup_merma_unidad, "pies");
+  const montajeFeet = firstPositiveNumber(machine?.sustratoMontajeMermaCantidad, machine?.sustrato_montaje_merma_cantidad, 0);
+  const montajeUnit = first(machine?.sustratoMontajeMermaUnidad, machine?.sustrato_montaje_merma_unidad, "pies");
+  return toFeet(setupFeet, setupUnit) + toFeet(montajeFeet, montajeUnit);
+}
+
+function machineChangeHourCosts(machine = {}) {
+  const capacity = primaryMachineCapacity(machine, (item) => {
+    const haystack = capacityHaystack(machine, item);
+    return haystack.includes("impresion") || haystack.includes("digital");
+  }) || primaryMachineCapacity(machine);
   return {
-    timeMinutes: Math.max(0, n(cfg.timeMinutes, 0)),
-    machineHourCost: Math.max(0, n(cfg.machineHourCost, 0)),
-    laborHourCost: Math.max(0, n(cfg.laborHourCost, 0)),
-    operators: Math.max(1, n(cfg.operators, 1)),
-    wasteCost: Math.max(0, n(cfg.wasteCost, 0)),
-    additionalPrepCost: Math.max(0, n(cfg.additionalPrepCost, 0))
+    machineHourCost: firstPositiveNumber(machine?.hourlyMachineCost, machine?.costo_hora_maquina, capacity?.costo_hora_maquina, 0),
+    laborHourCost: firstPositiveNumber(machine?.hourlyOperatorCost, machine?.costo_hora_operario, capacity?.costo_hora_operario, 0)
+  };
+}
+
+function changeCostAutoDefaults(form = state.form) {
+  const machine = primaryPrintMachineForForm(form) || {};
+  const hourCosts = machineChangeHourCosts(machine);
+  const wasteFeet = machineChangeWasteFeet(machine);
+  const costPerFoot = Math.max(0, n(form?.substrate?.costPerFoot, 0));
+  return {
+    timeMinutes: Math.max(0, n(state.costsConfig?.convencional?.tiempoEstandarCambioMin, 0)),
+    machineHourCost: Math.max(0, hourCosts.machineHourCost),
+    laborHourCost: Math.max(0, hourCosts.laborHourCost),
+    operators: 1,
+    wasteCost: r(wasteFeet * costPerFoot, 2),
+    additionalPrepCost: 0
+  };
+}
+
+function refreshChangeCostFromMachine(form = state.form) {
+  const types = ensureTypesList(form);
+  const first = types[0];
+  if (!first) return;
+  const defaults = changeCostAutoDefaults(form);
+  first.changeMachineHourCost = defaults.machineHourCost;
+  first.changeLaborHourCost = defaults.laborHourCost;
+  first.changeWasteCost = defaults.wasteCost;
+}
+
+function changeCostConfig(form = state.form) {
+  const cfg = form?.types?.[0] || {};
+  const defaults = changeCostAutoDefaults(form);
+  return {
+    timeMinutes: Math.max(0, n(cfg.changeTimeMinutes, defaults.timeMinutes)),
+    machineHourCost: Math.max(0, n(cfg.changeMachineHourCost, defaults.machineHourCost)),
+    laborHourCost: Math.max(0, n(cfg.changeLaborHourCost, defaults.laborHourCost)),
+    operators: Math.max(1, n(cfg.changeOperators, defaults.operators)),
+    wasteCost: Math.max(0, n(cfg.changeWasteCost, defaults.wasteCost)),
+    additionalPrepCost: Math.max(0, n(cfg.changeAdditionalPrepCost, defaults.additionalPrepCost))
   };
 }
 
@@ -4818,22 +4880,22 @@ function buildForm() {
       processType: context?.processType || ""
     },
     types: Array.isArray(savedUi?.types) && savedUi.types.length
-      ? savedUi.types.map((type) => ({
+      ? savedUi.types.map((type, index) => ({
         name: String(type?.name || "").trim(),
         quantity: Math.max(0, n(type?.quantity, 0)),
         artwork: ["none", "adapt", "full"].includes(type?.artwork) ? type.artwork : "none",
         colors: Math.max(0, n(type?.colors, 0)),
-        plates: Math.max(0, n(type?.plates, 0))
+        plates: Math.max(0, n(type?.plates, 0)),
+        ...(index === 0 ? {
+          changeTimeMinutes: numOrUndefined(first(type?.changeTimeMinutes, savedUi?.changeCost?.timeMinutes)),
+          changeMachineHourCost: numOrUndefined(first(type?.changeMachineHourCost, savedUi?.changeCost?.machineHourCost)),
+          changeLaborHourCost: numOrUndefined(first(type?.changeLaborHourCost, savedUi?.changeCost?.laborHourCost)),
+          changeOperators: numOrUndefined(first(type?.changeOperators, savedUi?.changeCost?.operators)),
+          changeWasteCost: numOrUndefined(first(type?.changeWasteCost, savedUi?.changeCost?.wasteCost)),
+          changeAdditionalPrepCost: numOrUndefined(first(type?.changeAdditionalPrepCost, savedUi?.changeCost?.additionalPrepCost))
+        } : {})
       }))
       : buildTypesList(Math.max(1, n(first(savedUi?.header?.quantityTypes, context?.quantityTypes, raw["CANTIDAD TIPOS"], quoteDefaults.quantityTypes), quoteDefaults.quantityTypes)), quantityProducts, null),
-    changeCost: {
-      timeMinutes: Math.max(0, n(first(savedUi?.changeCost?.timeMinutes, 0), 0)),
-      machineHourCost: Math.max(0, n(first(savedUi?.changeCost?.machineHourCost, 0), 0)),
-      laborHourCost: Math.max(0, n(first(savedUi?.changeCost?.laborHourCost, 0), 0)),
-      operators: Math.max(1, n(first(savedUi?.changeCost?.operators, 1), 1)),
-      wasteCost: Math.max(0, n(first(savedUi?.changeCost?.wasteCost, 0), 0)),
-      additionalPrepCost: Math.max(0, n(first(savedUi?.changeCost?.additionalPrepCost, 0), 0))
-    },
     commercial: {
       overheadPct: n(first(savedUi?.commercial?.overheadPct, context?.contingencyPercent), 0),
       marginPct: n(first(savedUi?.commercial?.marginPct, context?.extraPercent, 35), 35),
@@ -6110,9 +6172,20 @@ const ARTWORK_OPTIONS = [
   ["full", "Diseño Completo"]
 ];
 
+function typesInfoTableHtml(breakdown) {
+  const rows = breakdown.rows.map((row, index) => `<tr><td>${esc(row.name || `Motivo ${index + 1}`)}</td><td>${num(row.quantity, 0)}</td><td>${num(row.colors, 0)}</td><td>${num(row.plates, 0)}</td></tr>`).join("");
+  return `<table class="info-popover-table"><thead><tr><th>Motivo</th><th>Cantidad a Producir</th><th>Colores</th><th>Planchas</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function refreshTypesInfoModal(breakdown) {
+  if (!els.typesInfoTrigger) return;
+  els.typesInfoTrigger.dataset.infoBodyHtml = typesInfoTableHtml(breakdown);
+}
+
 function renderTypesBreakdown() {
   if (!els.typesDetailList) return;
   const breakdown = calcTypes();
+  refreshTypesInfoModal(breakdown);
   els.typesDetailList.innerHTML = breakdown.rows.map((row, index) => {
     const isFirst = index === 0;
     const fields = [
@@ -6143,6 +6216,14 @@ function renderTypesBreakdown() {
       return `<div class="types-detail-breakdown-row${isChangeLine ? " is-change-line" : ""}${isTotalLine ? " is-total-line" : ""}"><span>${esc(label)}</span><strong>${formatted}</strong></div>`;
     }).join("");
     const badge = isFirst ? "Incluye Preparación Inicial" : "Costo de Cambio Incluido";
+    const changeCostFieldsHtml = isFirst ? `<div class="types-detail-change-cost-head">Costo por Cambio</div><div class="types-detail-fields types-detail-change-cost">
+      <label><span>Tiempo Estándar <span class="field-unit">min</span></span><input type="number" min="0" step="0.01" data-type-index="0" data-type-field="changeTimeMinutes" value="${n(row.changeTimeMinutes, 0)}"></label>
+      <label><span>Costo Hora Máquina <span class="field-unit">$/h</span></span><input type="number" min="0" step="0.01" data-type-index="0" data-type-field="changeMachineHourCost" value="${n(row.changeMachineHourCost, 0)}"></label>
+      <label><span>Costo Hora Mano de Obra <span class="field-unit">$/h</span></span><input type="number" min="0" step="0.01" data-type-index="0" data-type-field="changeLaborHourCost" value="${n(row.changeLaborHourCost, 0)}"></label>
+      <label><span>Operadores</span><input type="number" min="1" step="1" data-type-index="0" data-type-field="changeOperators" value="${n(row.changeOperators, 1)}"></label>
+      <label><span>Costo de Merma <span class="field-unit">$</span></span><input type="number" min="0" step="0.01" data-type-index="0" data-type-field="changeWasteCost" value="${n(row.changeWasteCost, 0)}"></label>
+      <label><span>Prep. Adicional (opcional) <span class="field-unit">$</span></span><input type="number" min="0" step="0.01" data-type-index="0" data-type-field="changeAdditionalPrepCost" value="${n(row.changeAdditionalPrepCost, 0)}"></label>
+    </div>` : "";
     return `<details class="types-detail-item${isFirst ? " is-first" : " is-additional"}"${isFirst ? " open" : ""}>
       <summary>
         <span class="types-detail-item-name">${esc(row.name || `Motivo ${index + 1}`)}</span>
@@ -6152,23 +6233,11 @@ function renderTypesBreakdown() {
       <div class="types-detail-body">
         <div class="types-detail-fields">${fields.join("")}</div>
         <div class="types-artwork-options">${artwork}</div>
+        ${changeCostFieldsHtml}
         <div class="types-detail-breakdown">${breakdownRows}</div>
       </div>
     </details>`;
   }).join("");
-}
-
-function renderChangesCost() {
-  if (!els.changeTimeMinutes) return;
-  const cfg = changeCostConfig();
-  [["timeMinutes", els.changeTimeMinutes], ["machineHourCost", els.changeMachineHourCost], ["laborHourCost", els.changeLaborHourCost], ["operators", els.changeOperators], ["wasteCost", els.changeWasteCost], ["additionalPrepCost", els.changeAdditionalPrepCost]].forEach(([key, element]) => {
-    if (element && document.activeElement !== element) element.value = cfg[key];
-  });
-  const cambios = calcCambios();
-  if (els.changeCostPerChangeDisplay) els.changeCostPerChangeDisplay.textContent = money(cambios.costPerChange);
-  if (els.changesByTypesCostDisplay) els.changesByTypesCostDisplay.textContent = money(cambios.byTypes);
-  if (els.changesAdditionalCostDisplay) els.changesAdditionalCostDisplay.textContent = money(cambios.additional);
-  if (els.changesTotalCostDisplay) els.changesTotalCostDisplay.textContent = money(cambios.subtotal);
 }
 
 function renderTypesQuantitiesWarning() {
@@ -6183,33 +6252,10 @@ function renderTypesQuantitiesWarning() {
     : "";
 }
 
-function renderTypesSummary() {
-  if (!els.typesSummaryRows) return;
-  const result = totals();
-  const breakdown = calcTypes(result);
-  const rowMarkup = (label, value, extra = "") => `<div class="types-summary-row${extra ? ` ${extra}` : ""}"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`;
-  const countRows = [
-    ["Tipos o Motivos", String(breakdown.typeCount)],
-    ["Cambios por Tipos", String(changesByTypesCount(state.form.header.quantityTypes))],
-    ["Cambios Adicionales", String(Math.max(0, n(state.form.header.quantityChanges, 0)))],
-    ["Cambios Totales", String(totalChangesCount(state.form.header.quantityTypes, state.form.header.quantityChanges))]
-  ].map(([label, value]) => rowMarkup(label, value)).join("");
-  const costRows = [
-    ["Costo de Tipos", money(breakdown.costoTipos)],
-    ["Costo de Cambios por Tipos", money(breakdown.byTypesCost)],
-    ["Costo de Cambios Adicionales", money(breakdown.additionalCost)],
-    ["Costo Total de Cambios", money(breakdown.totalChangesCost)],
-    ["Costo Total de la Orden", money(result.total), "is-grand-total"]
-  ].map(([label, value, extra]) => rowMarkup(label, value, extra)).join("");
-  els.typesSummaryRows.innerHTML = countRows + costRows;
-}
-
 function renderTypesChanges() {
   if (!state.form?.header) return;
   renderTypesBreakdown();
-  renderChangesCost();
   renderTypesQuantitiesWarning();
-  renderTypesSummary();
 }
 
 function renderHeader() {
@@ -9007,6 +9053,7 @@ function applyPrintMachineDefaults(machineId) {
     Object.assign(state.form.printStages[0], state.form.print);
     syncInlineFinishesForMachine(0);
   }
+  refreshChangeCostFromMachine(state.form);
 }
 
 function applyPrintStageMachineDefaults(scope, machineId) {
@@ -9049,7 +9096,10 @@ function applyPrintStageMachineDefaults(scope, machineId) {
     maculaSetupFeet: defaultPrintMaculaSetupFeet(machineId)
   });
   syncInlineFinishesForMachine(index);
-  if (index === 0) syncPrimaryPrintStage();
+  if (index === 0) {
+    syncPrimaryPrintStage();
+    refreshChangeCostFromMachine(state.form);
+  }
 }
 
 function commitDetailsCommercialValue(key, value) {
@@ -9289,18 +9339,6 @@ function bindHeader() {
 
 function bindTypesDetail() {
   if (!els.typesDetailList) return;
-  [["timeMinutes", els.changeTimeMinutes, "number"], ["machineHourCost", els.changeMachineHourCost, "number"], ["laborHourCost", els.changeLaborHourCost, "number"], ["operators", els.changeOperators, "operators"], ["wasteCost", els.changeWasteCost, "number"], ["additionalPrepCost", els.changeAdditionalPrepCost, "number"]].filter(([, element]) => element).forEach(([key, element, mode]) => {
-    const update = () => {
-      state.form.changeCost[key] = mode === "operators" ? Math.max(1, Math.ceil(n(element.value, 1))) : Math.max(0, n(element.value, 0));
-      element.value = state.form.changeCost[key];
-      renderChangesCost();
-      renderTypesQuantitiesWarning();
-      renderTypesSummary();
-      scheduleSave();
-    };
-    element.addEventListener("input", update);
-    element.addEventListener("change", () => { update(); renderProcesses(); });
-  });
   const applyField = (element) => {
     const index = Number(element.dataset.typeIndex);
     const field = element.dataset.typeField;
@@ -9308,9 +9346,26 @@ function bindTypesDetail() {
     if (!type) return;
     if (field === "name") type.name = String(element.value || "").trim();
     else if (field === "quantity") type.quantity = Math.max(0, n(element.value, 0));
-    else if (field === "colors") type.colors = Math.max(0, n(element.value, 0));
+    else if (field === "colors") {
+      const requested = Math.max(0, n(element.value, 0));
+      const max = maxColorsPerType(state.form);
+      if (requested > max) {
+        const pantoneCount = Math.max(0, n(state.form.header?.pantoneCount, 0));
+        showCenterMessage(`La cantidad de colores por motivo no puede superar ${max} (CMYK activo${pantoneCount > 0 ? ` + ${pantoneCount} pantones` : ""}).`);
+        type.colors = max;
+        element.value = max;
+      } else {
+        type.colors = requested;
+      }
+    }
     else if (field === "plates") type.plates = Math.max(0, n(element.value, 0));
     else if (field === "artwork") type.artwork = element.value;
+    else if (field === "changeTimeMinutes") type.changeTimeMinutes = Math.max(0, n(element.value, 0));
+    else if (field === "changeMachineHourCost") type.changeMachineHourCost = Math.max(0, n(element.value, 0));
+    else if (field === "changeLaborHourCost") type.changeLaborHourCost = Math.max(0, n(element.value, 0));
+    else if (field === "changeOperators") type.changeOperators = Math.max(1, Math.ceil(n(element.value, 1)));
+    else if (field === "changeWasteCost") type.changeWasteCost = Math.max(0, n(element.value, 0));
+    else if (field === "changeAdditionalPrepCost") type.changeAdditionalPrepCost = Math.max(0, n(element.value, 0));
   };
   els.typesDetailList.addEventListener("input", (event) => {
     const element = event.target.closest("[data-type-index][data-type-field]");
@@ -9318,8 +9373,6 @@ function bindTypesDetail() {
     applyField(element);
     syncDerivedHeaderAndPackaging(state.form);
     renderTypesQuantitiesWarning();
-    renderTypesSummary();
-    renderChangesCost();
     scheduleSave();
   });
   els.typesDetailList.addEventListener("change", (event) => {

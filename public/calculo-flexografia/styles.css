@@ -1776,9 +1776,9 @@ html[data-theme="dark"] .calc-shape-option.is-selected {
 
 .types-changes-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px 16px;
-  align-items: start;
+  grid-template-columns: repeat(4, minmax(max-content, 1fr)) repeat(5, max-content);
+  gap: 14px 20px;
+  align-items: end;
 }
 
 .types-changes-field {
@@ -1814,6 +1814,10 @@ html[data-theme="dark"] .calc-shape-option.is-selected {
   background: var(--color-background-secondary, #f6f8fa);
   color: var(--muted, #667085);
   cursor: default;
+}
+
+.types-changes-field-tight > input {
+  width: 72px;
 }
 
 .readonly-input-row {
@@ -1989,6 +1993,17 @@ html[data-theme="dark"] .calc-shape-option.is-selected {
 .types-detail-fields select {
   width: 100%;
   min-width: 0;
+}
+
+.types-detail-change-cost-head {
+  margin-top: 10px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--accent, #0b81b8);
+}
+
+.types-detail-change-cost {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .types-artwork-options {
@@ -5895,6 +5910,38 @@ html[data-theme="dark"] select option:hover {
   box-shadow: var(--app-shadow-md);
   position: fixed;
   z-index: 9999;
+}
+
+.info-popover-panel.info-popover-panel-wide {
+  width: fit-content;
+  max-width: min(720px, calc(100vw - 32px));
+}
+
+.info-popover-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.info-popover-table th,
+.info-popover-table td {
+  padding: 6px 10px;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--app-border);
+}
+
+.info-popover-table th {
+  color: var(--app-text);
+  font-weight: 700;
+}
+
+.info-popover-table td {
+  color: var(--app-text-soft);
+}
+
+.info-popover-table tbody tr:last-child td {
+  border-bottom: none;
 }
 .info-popover-panel-head {
   display: flex;

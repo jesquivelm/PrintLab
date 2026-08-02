@@ -118,7 +118,8 @@ const DEFAULT_COSTS_CONFIG = {
             { id: "conv-finish-estampado", proceso: "Estampado", setupWasteFeet: 250, operationWastePct: 4.0 },
             { id: "conv-finish-embosado", proceso: "Embosado", setupWasteFeet: 125, operationWastePct: 3.0 }
         ],
-        costoPlanchaIn2: 0
+        costoPlanchaIn2: 0,
+        tiempoEstandarCambioMin: 0
     },
     acabados: {
         barniz: DEFAULT_ACABADOS_BARNIZ.map((item) => ({ ...item })),
@@ -236,6 +237,7 @@ const inkFields = {
     costoLbPantone: document.getElementById("costosCostoLbPantone")
 };
 const costoPlanchaIn2Field = document.getElementById("costosCostoPlanchaIn2");
+const tiempoEstandarCambioMinField = document.getElementById("costosTiempoEstandarCambioMin");
 const COST_INPUT_FORMATS = {
     costosBcmGenerico: { suffix: "BCM", maximumFractionDigits: 2 },
     costosCoberturaTinta: { suffix: "%", maximumFractionDigits: 2 },
@@ -244,7 +246,8 @@ const COST_INPUT_FORMATS = {
     costosCostoLbCmyk: { prefix: "$", suffix: "lb", maximumFractionDigits: 2 },
     costosCostoLbBlanco: { prefix: "$", suffix: "lb", maximumFractionDigits: 2 },
     costosCostoLbPantone: { prefix: "$", suffix: "lb", maximumFractionDigits: 2 },
-    costosCostoPlanchaIn2: { prefix: "$", suffix: "in²", maximumFractionDigits: 4 }
+    costosCostoPlanchaIn2: { prefix: "$", suffix: "in²", maximumFractionDigits: 4 },
+    costosTiempoEstandarCambioMin: { suffix: "min", maximumFractionDigits: 2 }
 };
 const digitalPremierFields = {
     mode: document.getElementById("costosDigitalPremierMode"),
@@ -621,7 +624,8 @@ function normalizeCostsConfig(config) {
             maculaMontaje: normalizeMontaje(rowsOrDefault(source?.convencional?.maculaMontaje, DEFAULT_COSTS_CONFIG.convencional.maculaMontaje)),
             maculaTiraje: normalizeTiraje(rowsOrDefault(source?.convencional?.maculaTiraje, DEFAULT_COSTS_CONFIG.convencional.maculaTiraje)),
             finishWaste: normalizeFinishWaste(rowsOrDefault(source?.convencional?.finishWaste, DEFAULT_COSTS_CONFIG.convencional.finishWaste)),
-            costoPlanchaIn2: Math.max(0, source?.convencional?.costoPlanchaIn2 != null ? numberValue(source.convencional.costoPlanchaIn2, 0) : DEFAULT_COSTS_CONFIG.convencional.costoPlanchaIn2)
+            costoPlanchaIn2: Math.max(0, source?.convencional?.costoPlanchaIn2 != null ? numberValue(source.convencional.costoPlanchaIn2, 0) : DEFAULT_COSTS_CONFIG.convencional.costoPlanchaIn2),
+            tiempoEstandarCambioMin: Math.max(0, source?.convencional?.tiempoEstandarCambioMin != null ? numberValue(source.convencional.tiempoEstandarCambioMin, 0) : DEFAULT_COSTS_CONFIG.convencional.tiempoEstandarCambioMin)
         },
         acabados: {
             barniz: normalizeAcabadosBarniz(rowsOrDefault(source?.acabados?.barniz, DEFAULT_COSTS_CONFIG.acabados.barniz)),
@@ -950,6 +954,7 @@ function renderCosts() {
     renderAcabadosEstampadoRows();
     renderColdfoilFields();
     if (costoPlanchaIn2Field) costoPlanchaIn2Field.value = costsState?.convencional?.costoPlanchaIn2 ?? "";
+    if (tiempoEstandarCambioMinField) tiempoEstandarCambioMinField.value = costsState?.convencional?.tiempoEstandarCambioMin ?? "";
     actualizarMascaras();
 }
 
@@ -1254,6 +1259,13 @@ costoPlanchaIn2Field?.addEventListener("input", () => {
     if (!costsState) return;
     costsState.convencional.costoPlanchaIn2 = numberValue(costoPlanchaIn2Field.value, 0);
     syncCostInputMask(costoPlanchaIn2Field);
+    queueCostsSave();
+});
+
+tiempoEstandarCambioMinField?.addEventListener("input", () => {
+    if (!costsState) return;
+    costsState.convencional.tiempoEstandarCambioMin = numberValue(tiempoEstandarCambioMinField.value, 0);
+    syncCostInputMask(tiempoEstandarCambioMinField);
     queueCostsSave();
 });
 
