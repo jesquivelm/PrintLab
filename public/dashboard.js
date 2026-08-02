@@ -499,7 +499,7 @@ async function loadSalesPipeline() {
         }).join('');
         const pendientes = Array.isArray(payload.pendientes) ? payload.pendientes : [];
         listMount.innerHTML = pendientes.length
-            ? pendientes.map((item) => `<a class="dashboard-sales-pipeline-row" href="/cotizaciones?codigo=${encodeURIComponent(item.quoteCode)}" data-route="/cotizaciones?codigo=${encodeURIComponent(item.quoteCode)}"><span>${item.quoteCode} · ${item.customerName || 'Sin cliente'}</span><span>${SALES_PIPELINE_STAGE_LABELS[item.stage] || item.stage}</span></a>`).join('')
+            ? pendientes.map((item) => `<a class="dashboard-sales-pipeline-row" href="/cotizaciones?codigo=${encodeURIComponent(item.quoteCode)}" data-route="/cotizaciones?codigo=${encodeURIComponent(item.quoteCode)}"><span>${escapeHtml(item.quoteCode)} · ${escapeHtml(item.customerName || 'Sin cliente')}</span><span>${escapeHtml(SALES_PIPELINE_STAGE_LABELS[item.stage] || item.stage)}</span></a>`).join('')
             : '<p class="dashboard-sales-pipeline-empty">No hay cotizaciones pendientes de acción.</p>';
     } catch (error) {
         section.hidden = true;
