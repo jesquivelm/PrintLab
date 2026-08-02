@@ -3733,6 +3733,17 @@ function currentQuantity(form = state.form) {
   return Math.max(0, n(selected?.value, 0));
 }
 
+function typeEffectiveQuantity(quantities = [], fallback = 0) {
+  const selected = normalizeQuantities(quantities).find((item) => n(item.value, 0) > 0);
+  return Math.max(0, n(selected?.value, fallback));
+}
+
+function syncTypeQuantityFromSlots(type) {
+  if (!type) return;
+  type.quantities = normalizeQuantities(type.quantities);
+  type.quantity = typeEffectiveQuantity(type.quantities, 0);
+}
+
 function requestedQuantitiesFromRaw(raw = {}) {
   const tokens = []
     .concat(String(first(raw["REQ | Cantidades"], raw["REQ | Grupo de Cantidades"], "")).split(","))
@@ -3763,9 +3774,11 @@ function buildTypesList(count, totalQuantity, existing = null) {
   for (let index = 0; index < target; index += 1) {
     const prev = Array.isArray(existing) ? existing[index] : null;
     const quantity = prev && n(prev.quantity, 0) > 0 ? n(prev.quantity, 0) : base + (index === target - 1 ? remainder : 0);
+    const quantities = normalizeQuantities(Array.isArray(prev?.quantities) && prev.quantities.length ? prev.quantities : [{ id: `type-${index}-qty-1`, value: quantity }]);
     const item = {
       name: String(prev?.name || "").trim() || (target === 1 ? "Motivo Único" : `Motivo ${index + 1}`),
-      quantity,
+      quantity: typeEffectiveQuantity(quantities, quantity),
+      quantities,
       artwork: ["none", "adapt", "full"].includes(prev?.artwork) ? prev.artwork : "none",
       colors: prev && n(prev.colors, 0) > 0 ? n(prev.colors, 0) : colorsDefault,
       plates: prev && n(prev.plates, 0) > 0 ? n(prev.plates, 0) : 0
@@ -4885,6 +4898,7 @@ function buildForm() {
       ? savedUi.types.map((type, index) => ({
         name: String(type?.name || "").trim(),
         quantity: Math.max(0, n(type?.quantity, 0)),
+        quantities: normalizeQuantities(Array.isArray(type?.quantities) && type.quantities.length ? type.quantities : [{ id: `type-${index}-qty-1`, value: Math.max(0, n(type?.quantity, 0)) }]),
         artwork: ["none", "adapt", "full"].includes(type?.artwork) ? type.artwork : "none",
         colors: Math.max(0, n(type?.colors, 0)),
         plates: Math.max(0, n(type?.plates, 0)),
@@ -6207,6 +6221,21 @@ function refreshChangesInfoModals(breakdown) {
   }
 }
 
+function typeQuantityRepeaterHtml(index, quantities = []) {
+  const slots = normalizeQuantities(quantities);
+  const rows = slots.map((slot, qIndex) => {
+    const isLast = qIndex === slots.length - 1;
+    const canAdd = isLast && slots.length < 6;
+    const canRemove = isLast && slots.length > 1;
+    return `<span class="types-qty-slot">
+      <input type="number" min="0" step="1" data-type-index="${index}" data-type-field="quantity" data-quantity-index="${qIndex}" value="${n(slot.value, 0)}" aria-label="Cantidad ${qIndex + 1} del motivo">
+      ${canAdd ? `<button type="button" class="types-qty-add" data-action="add-type-quantity" data-type-index="${index}" data-quantity-index="${qIndex}" aria-label="Agregar cantidad">+</button>` : ""}
+      ${canRemove ? `<button type="button" class="types-qty-remove" data-action="remove-type-quantity" data-type-index="${index}" data-quantity-index="${qIndex}" aria-label="Quitar cantidad">×</button>` : ""}
+    </span>`;
+  }).join("");
+  return `<label class="types-qty-field"><span>Cantidad a Producir</span><div class="types-qty-row">${rows}</div></label>`;
+}
+
 function renderTypesBreakdown() {
   if (!els.typesDetailList) return;
   const breakdown = calcTypes();
@@ -6216,7 +6245,7 @@ function renderTypesBreakdown() {
     const isFirst = index === 0;
     const fields = [
       `<label><span>Nombre del Motivo</span><input type="text" data-type-index="${index}" data-type-field="name" value="${esc(row.name)}" maxlength="80"></label>`,
-      `<label><span>Cantidad a Producir</span><input type="number" min="0" step="1" data-type-index="${index}" data-type-field="quantity" value="${row.quantity}"></label>`,
+      typeQuantityRepeaterHtml(index, row.quantities),
       `<label><span>Colores</span><input type="number" min="0" step="1" data-type-index="${index}" data-type-field="colors" value="${row.colors}"></label>`,
       `<label><span>Planchas</span><input type="number" min="0" step="1" data-type-index="${index}" data-type-field="plates" value="${row.plates}"></label>`
     ];
@@ -9371,7 +9400,14 @@ function bindTypesDetail() {
     const type = state.form.types[index];
     if (!type) return;
     if (field === "name") type.name = String(element.value || "").trim();
-    else if (field === "quantity") type.quantity = Math.max(0, n(element.value, 0));
+    else if (field === "quantity") {
+      const qIndex = Number(element.dataset.quantityIndex);
+      type.quantities = normalizeQuantities(type.quantities);
+      if (Number.isInteger(qIndex) && type.quantities[qIndex]) {
+        type.quantities[qIndex].value = Math.max(0, n(element.value, 0));
+      }
+      syncTypeQuantityFromSlots(type);
+    }
     else if (field === "colors") {
       const requested = Math.max(0, n(element.value, 0));
       const max = maxColorsPerType(state.form);
@@ -9409,6 +9445,38 @@ function bindTypesDetail() {
     renderTypesChanges();
     refreshCalculationValidation();
     scheduleSave();
+  });
+  els.typesDetailList.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-action]");
+    if (!button) return;
+    const index = Number(button.dataset.typeIndex);
+    const type = state.form.types?.[index];
+    if (!type) return;
+    if (button.dataset.action === "add-type-quantity") {
+      type.quantities = normalizeQuantities(type.quantities);
+      if (type.quantities.length >= 6) return;
+      const qIndex = Number(button.dataset.quantityIndex);
+      const insertAt = Number.isInteger(qIndex) ? qIndex + 1 : type.quantities.length;
+      type.quantities.splice(insertAt, 0, { id: `type-${index}-qty-${Date.now()}`, value: 0 });
+      syncTypeQuantityFromSlots(type);
+      syncDerivedHeaderAndPackaging(state.form);
+      renderTypesChanges();
+      refreshCalculationValidation();
+      scheduleSave();
+      return;
+    }
+    if (button.dataset.action === "remove-type-quantity") {
+      type.quantities = normalizeQuantities(type.quantities);
+      if (type.quantities.length <= 1) return;
+      const qIndex = Number(button.dataset.quantityIndex);
+      const removeAt = Number.isInteger(qIndex) ? qIndex : type.quantities.length - 1;
+      type.quantities.splice(Math.max(0, Math.min(removeAt, type.quantities.length - 1)), 1);
+      syncTypeQuantityFromSlots(type);
+      syncDerivedHeaderAndPackaging(state.form);
+      renderTypesChanges();
+      refreshCalculationValidation();
+      scheduleSave();
+    }
   });
 }
 
