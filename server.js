@@ -22799,9 +22799,6 @@ app.post('/api/flexo/calculo/guardar', async (req, res) => {
         rawData['ANALISIS CAMPOS PDF'] = validationBlocked ? validationSummary : '';
         rawData['Mensajes_Validacion'] = validationMessages;
         rawData['Validacion_Bloqueada'] = validationBlocked;
-        if (Object.prototype.hasOwnProperty.call(payload, 'trackingClosure')) {
-            rawData['Cierre_Cotizacion'] = payload.trackingClosure || null;
-        }
         applyCurrencyFieldsToRawData(rawData, payload.exchangeRate ?? payload.exchange_rate);
         if (Object.prototype.hasOwnProperty.call(payload, 'finalized_for_order') || Object.prototype.hasOwnProperty.call(payload, 'finalizedForOrder')) {
             rawData['Finalizado_Para_Orden'] = Boolean(Object.prototype.hasOwnProperty.call(payload, 'finalized_for_order')
