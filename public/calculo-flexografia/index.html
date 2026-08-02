@@ -15,7 +15,7 @@
   </script>
   <title>Cálculo de Flexografía</title>
   <link rel="stylesheet" href="/styles.css?v=20260519-1810">
-  <link rel="stylesheet" href="/calculo-flexografia/styles.css?v=20260519-1810">
+  <link rel="stylesheet" href="/calculo-flexografia/styles.css?v=20260801-1200">
 </head>
 <body>
   <main class="calc-shell">
@@ -184,15 +184,79 @@
             <div><h2>Configuración de Impresión</h2></div>
           </div>
 
+          <section class="types-changes-section">
+            <div class="types-changes-head"><h3>Tipos y Cambios de Producción</h3></div>
+            <div class="types-changes-grid">
+              <label class="types-changes-field">
+                <span class="types-changes-field-label">
+                  <span class="types-changes-field-label-text">Tipos o Motivos</span>
+                  <button type="button" class="info-popover-trigger formula-help" data-field-info-icon="true" aria-label="Información sobre Tipos o Motivos" aria-expanded="false" aria-haspopup="dialog" data-info-title="Tipos o Motivos" data-info-body-html="<p>Cantidad de diseños, referencias o variantes gráficas diferentes que se producirán dentro de la misma orden de producción. Cada tipo o motivo representa una versión gráfica distinta del producto y puede requerir trabajo adicional de preprensa, planchas, montaje, preparación y producción.</p><p><strong>Ejemplo:</strong> Una orden contiene etiquetas de Mango y Limón con el mismo tamaño y material, pero con gráficos diferentes. En este caso se deben registrar <strong>2 Tipos o Motivos</strong>.</p>"><span class="icon-glyph info-popover-icon" aria-hidden="true">i</span></button>
+                </span>
+                <input id="quantityTypes" type="number" min="1" step="1" value="1">
+              </label>
+
+              <label class="types-changes-field">
+                <span class="types-changes-field-label">
+                  <span class="types-changes-field-label-text">Cambios por Tipos o Motivos</span>
+                  <button type="button" class="info-popover-trigger formula-help" data-field-info-icon="true" aria-label="Información sobre Cambios por Tipos o Motivos" aria-expanded="false" aria-haspopup="dialog" data-info-title="Cambios por Tipos o Motivos" data-info-body-html="<p>Cantidad de cambios de producción generados automáticamente al pasar de un tipo o motivo a otro. El primer tipo utiliza la preparación inicial y no genera un cambio adicional. Cada tipo adicional genera un cambio.</p><p><strong>Ejemplo:</strong> Si se producen 3 motivos diferentes, el sistema calcula automáticamente <strong>2 cambios por tipos</strong>, porque se inicia con el primer motivo y luego se realizan dos cambios para producir el segundo y el tercero.</p>"><span class="icon-glyph info-popover-icon" aria-hidden="true">i</span></button>
+                </span>
+                <span class="readonly-input-row">
+                  <input id="changesByTypes" type="number" min="0" step="1" readonly aria-label="Cambios por Tipos o Motivos">
+                </span>
+              </label>
+
+              <label class="types-changes-field">
+                <span class="types-changes-field-label">
+                  <span class="types-changes-field-label-text">Cambios Adicionales</span>
+                  <button type="button" class="info-popover-trigger formula-help" data-field-info-icon="true" aria-label="Información sobre Cambios Adicionales" aria-expanded="false" aria-haspopup="dialog" data-info-title="Cambios Adicionales" data-info-body-html="<p>Cantidad de cambios adicionales que no se originan por tener varios tipos o motivos. Utilice este campo únicamente cuando la producción requiera preparaciones, cambios o interrupciones adicionales por razones operativas.</p><p><strong>Ejemplo:</strong> Se produce un único motivo, pero es necesario cambiar el sustrato o realizar una preparación adicional durante la producción. En este caso se registra <strong>1 Cambio Adicional de Producción</strong>.</p>"><span class="icon-glyph info-popover-icon" aria-hidden="true">i</span></button>
+                </span>
+                <input id="quantityChanges" type="number" min="0" step="1" value="0">
+              </label>
+
+              <label class="types-changes-field">
+                <span class="types-changes-field-label">
+                  <span class="types-changes-field-label-text">Cambios Totales</span>
+                  <button type="button" class="info-popover-trigger formula-help" data-field-info-icon="true" aria-label="Información sobre Cambios Totales" aria-expanded="false" aria-haspopup="dialog" data-info-title="Cambios Totales" data-info-body-html="<p>Total de cambios que se utilizarán en el cálculo de tiempo adicional, preparación, montaje, mano de obra, merma y costos operativos. Es la suma de los cambios generados por los tipos o motivos y los cambios adicionales de producción.</p>"><span class="icon-glyph info-popover-icon" aria-hidden="true">i</span></button>
+                </span>
+                <span class="readonly-input-row">
+                  <input id="totalChanges" type="number" min="0" step="1" readonly aria-label="Cambios Totales de Producción">
+                </span>
+              </label>
+            </div>
+          </section>
+
+          <section class="types-detail-section" aria-label="Detalle por tipo o motivo">
+            <div class="types-changes-head"><h3>Detalle por Tipo o Motivo</h3></div>
+            <p class="types-detail-intro">Cada tipo o motivo representa una versión gráfica distinta del producto. Asigne un nombre, la cantidad que se producirá de cada tipo y revise su composición de costos.</p>
+            <div id="typesDetailList" class="types-detail-list"></div>
+            <div id="typesQuantitiesWarning" class="types-quantities-warning" hidden></div>
+          </section>
+
+          <section class="changes-cost-section" aria-label="Costo por cambio">
+            <div class="types-changes-head"><h3>Costo por Cambio</h3></div>
+            <div class="changes-cost-grid">
+              <label><span>Tiempo Estándar por Cambio <span class="field-unit">min</span></span><input id="changeTimeMinutes" type="number" min="0" step="1"></label>
+              <label><span>Costo por Hora de Máquina <span class="field-unit">$/h</span></span><input id="changeMachineHourCost" type="number" min="0" step="0.01"></label>
+              <label><span>Costo por Hora de Mano de Obra <span class="field-unit">$/h</span></span><input id="changeLaborHourCost" type="number" min="0" step="0.01"></label>
+              <label><span>Cantidad de Operadores</span><input id="changeOperators" type="number" min="1" step="1"></label>
+              <label><span>Costo de Merma por Cambio <span class="field-unit">$</span></span><input id="changeWasteCost" type="number" min="0" step="0.01"></label>
+              <label><span>Costo Adicional de Preparación <span class="field-unit">$</span></span><input id="changeAdditionalPrepCost" type="number" min="0" step="0.01"></label>
+            </div>
+            <div class="changes-cost-results">
+              <div><span>Costo por Cambio</span><strong id="changeCostPerChangeDisplay">$0.00</strong></div>
+              <div><span>Costo de Cambios por Tipos</span><strong id="changesByTypesCostDisplay">$0.00</strong></div>
+              <div><span>Costo de Cambios Adicionales</span><strong id="changesAdditionalCostDisplay">$0.00</strong></div>
+              <div><span>Costo Total de Cambios</span><strong id="changesTotalCostDisplay">$0.00</strong></div>
+            </div>
+            <p class="field-help"><span class="field-help-icon" aria-hidden="true">ℹ</span> Costo por Cambio = (Tiempo por Cambio x Costo por Hora de Máquina) + (Tiempo por Cambio x Costo por Hora de Mano de Obra x Cantidad de Operadores) + Costo de Merma por Cambio + Costo Adicional de Preparación. Los cambios no multiplican el costo total de impresión; solo agregan los costos operativos configurados para cada cambio.</p>
+          </section>
+
+          <section class="types-summary-section" aria-label="Resumen de tipos y cambios">
+            <div class="types-changes-head"><h3>Resumen de Tipos y Cambios</h3></div>
+            <div id="typesSummaryRows" class="types-summary-rows"></div>
+          </section>
+
           <div class="impression-grid impression-grid-compact">
-            <label class="impression-compact-field">
-              <span>Tipos</span>
-              <input id="quantityTypes" type="number" min="1" step="1">
-            </label>
-            <label class="impression-compact-field">
-              <span>Cambios</span>
-              <input id="quantityChanges" type="number" min="0" step="1">
-            </label>
             <label class="impression-compact-field">
               <span>Pantones</span>
               <input id="pantoneCount" type="number" min="0" step="1">
@@ -472,7 +536,7 @@
     </div>
   </div>
 
-  <script src="/calculo-flexografia/app.js?v=20260519-1810"></script>
+  <script src="/calculo-flexografia/app.js?v=20260801-1200"></script>
 </body>
 </html>
 

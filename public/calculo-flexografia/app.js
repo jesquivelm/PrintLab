@@ -1,9 +1,9 @@
 const params = new URLSearchParams(window.location.search);
 
-const DEFAULT_PRODUCT_TYPES = ["Etiquetas", "Cinta Continua", "Empaque Flexible", "Código de Barras", "Números de Carrera"];
+const DEFAULT_PRODUCT_TYPES = ["Etiquetas", "Cinta Continua", "Empaque Flexible", "Mangas"];
 const DEFAULT_APPLICATION_OPTIONS = ["Botella", "Caja", "Carton", "Envase", "Frasco", "Pouch", "Tapa", "Vidrio"];
 const DEFAULT_SURFACE_OPTIONS = ["Lisa", "Rugosa", "Porosa", "Húmeda"];
-const WORK_TYPES = ["Nuevo", "Repetición", "Repetición con Cambio", "Validación", "Muestra", "Regalía", "Proyecto"];
+const WORK_TYPES = ["Nuevo", "Repetición", "Repetición por Error", "Validación", "Muestra", "Regalía", "Proyecto"];
 const DEFAULT_OUTPUT_TYPES = [
   { id: "A", name: "A", description: "Configuracion de salida tipo A" },
   { id: "B", name: "B", description: "Configuracion de salida tipo B" },
@@ -153,7 +153,22 @@ const els = {
   timelineReportJob: document.getElementById("timelineReportJob"),
   timelineReportIssue: document.getElementById("timelineReportIssue"),
   quantityTypes: document.getElementById("quantityTypes"),
+  changesByTypes: document.getElementById("changesByTypes"),
   quantityChanges: document.getElementById("quantityChanges"),
+  totalChanges: document.getElementById("totalChanges"),
+  typesDetailList: document.getElementById("typesDetailList"),
+  typesQuantitiesWarning: document.getElementById("typesQuantitiesWarning"),
+  changeTimeMinutes: document.getElementById("changeTimeMinutes"),
+  changeMachineHourCost: document.getElementById("changeMachineHourCost"),
+  changeLaborHourCost: document.getElementById("changeLaborHourCost"),
+  changeOperators: document.getElementById("changeOperators"),
+  changeWasteCost: document.getElementById("changeWasteCost"),
+  changeAdditionalPrepCost: document.getElementById("changeAdditionalPrepCost"),
+  changeCostPerChangeDisplay: document.getElementById("changeCostPerChangeDisplay"),
+  changesByTypesCostDisplay: document.getElementById("changesByTypesCostDisplay"),
+  changesAdditionalCostDisplay: document.getElementById("changesAdditionalCostDisplay"),
+  changesTotalCostDisplay: document.getElementById("changesTotalCostDisplay"),
+  typesSummaryRows: document.getElementById("typesSummaryRows"),
   pantoneCount: document.getElementById("pantoneCount"),
   useCmyk: document.getElementById("useCmyk"),
   useWhiteInk: document.getElementById("useWhiteInk"),
@@ -3723,7 +3738,88 @@ function requestedQuantitiesFromRaw(raw = {}) {
   return [...new Set(tokens)];
 }
 
+function changesByTypesCount(quantityTypes) {
+  return Math.max(0, Math.max(1, n(quantityTypes, 1)) - 1);
+}
+
+function totalChangesCount(quantityTypes, additionalChanges) {
+  return changesByTypesCount(quantityTypes) + Math.max(0, n(additionalChanges, 0));
+}
+
+function buildTypesList(count, totalQuantity, existing = null) {
+  const target = Math.max(1, Math.ceil(n(count, 1)));
+  const total = Math.max(0, n(totalQuantity, 0));
+  const base = total > 0 ? Math.floor(total / target) : 0;
+  const remainder = total > 0 ? total - (base * target) : 0;
+  const colorsDefault = Math.max(0, n(state.form?.header?.pantoneCount, 0))
+    + (state.form?.header?.useCmyk ? 4 : 0)
+    + (state.form?.header?.useWhiteInk ? 1 : 0);
+  const result = [];
+  for (let index = 0; index < target; index += 1) {
+    const prev = Array.isArray(existing) ? existing[index] : null;
+    const quantity = prev && n(prev.quantity, 0) > 0 ? n(prev.quantity, 0) : base + (index === target - 1 ? remainder : 0);
+    result.push({
+      name: String(prev?.name || "").trim() || (target === 1 ? "Motivo Único" : `Motivo ${index + 1}`),
+      quantity,
+      artwork: ["none", "adapt", "full"].includes(prev?.artwork) ? prev.artwork : "none",
+      colors: prev && n(prev.colors, 0) > 0 ? n(prev.colors, 0) : colorsDefault,
+      plates: prev && n(prev.plates, 0) > 0 ? n(prev.plates, 0) : 0
+    });
+  }
+  return result;
+}
+
+function ensureTypesList(form = state.form) {
+  const types = Array.isArray(form?.types) ? form.types : [];
+  const target = Math.max(1, n(form?.header?.quantityTypes, 1));
+  if (types.length !== target) form.types = buildTypesList(target, currentQuantity(form), types);
+  return form.types;
+}
+
+function typesQuantitySum(form = state.form) {
+  return (Array.isArray(form?.types) ? form.types : []).reduce((sum, type) => sum + Math.max(0, n(type?.quantity, 0)), 0);
+}
+
+function changeCostConfig(form = state.form) {
+  const cfg = form?.changeCost || {};
+  return {
+    timeMinutes: Math.max(0, n(cfg.timeMinutes, 0)),
+    machineHourCost: Math.max(0, n(cfg.machineHourCost, 0)),
+    laborHourCost: Math.max(0, n(cfg.laborHourCost, 0)),
+    operators: Math.max(1, n(cfg.operators, 1)),
+    wasteCost: Math.max(0, n(cfg.wasteCost, 0)),
+    additionalPrepCost: Math.max(0, n(cfg.additionalPrepCost, 0))
+  };
+}
+
+function costPerChangeValue(form = state.form) {
+  const cfg = changeCostConfig(form);
+  const hours = cfg.timeMinutes / 60;
+  return (hours * cfg.machineHourCost) + (hours * cfg.laborHourCost * cfg.operators) + cfg.wasteCost + cfg.additionalPrepCost;
+}
+
+function costChangesByTypesValue(form = state.form) {
+  return changesByTypesCount(form?.header?.quantityTypes) * costPerChangeValue(form);
+}
+
+function costChangesAdditionalValue(form = state.form) {
+  return Math.max(0, n(form?.header?.quantityChanges, 0)) * costPerChangeValue(form);
+}
+
+function syncTypesChangesFields() {
+  const types = Math.max(1, n(state.form.header.quantityTypes, 1));
+  const additional = Math.max(0, n(state.form.header.quantityChanges, 0));
+  if (els.quantityTypes) els.quantityTypes.value = types;
+  if (els.quantityChanges) els.quantityChanges.value = additional;
+  if (els.changesByTypes) els.changesByTypes.value = changesByTypesCount(types);
+  if (els.totalChanges) els.totalChanges.value = totalChangesCount(types, additional);
+}
+
 function syncDerivedHeaderAndPackaging(form = state.form) {
+  form.header.quantityTypes = Math.max(1, n(form.header.quantityTypes, 1));
+  form.header.quantityChanges = Math.max(0, n(form.header.quantityChanges, 0));
+  form.header.changesByTypes = changesByTypesCount(form.header.quantityTypes);
+  form.header.totalChanges = totalChangesCount(form.header.quantityTypes, form.header.quantityChanges);
   form.header.quantity = currentQuantity(form);
   form.packaging.rollCount = metrics(form).rollCount;
 }
@@ -3979,11 +4075,26 @@ function metricBox(label, value, missing = false, alert = false) {
   return `<div class="metric-cell${missing ? " metric-cell-required" : ""}${alert ? " metric-cell-alert" : ""}"><span>${esc(label)}</span><strong>${value}</strong></div>`;
 }
 
+function fieldInfoIconConfig() {
+  return {
+    icon: first(state.config?.icons?.fieldInfo, state.config?.icons?.formulaInfo, "i"),
+    color: first(state.config?.general?.iconColorFieldInfo, state.config?.general?.iconColorFormulaInfo, "#4f6f8f"),
+    size: Number(first(state.config?.general?.iconSizeFieldInfo, state.config?.general?.iconSizeFormulaInfo, 13)) || 13
+  };
+}
+
+function refreshStaticFieldInfoIcons() {
+  const { icon, color, size } = fieldInfoIconConfig();
+  document.querySelectorAll("[data-field-info-icon]").forEach((button) => {
+    button.style.setProperty("--info-icon-color", color);
+    button.style.setProperty("--info-icon-size", `${size}px`);
+    button.innerHTML = renderIconMarkup(icon, button.dataset.infoTitle || "Información", "info-popover-icon");
+  });
+}
+
 function infoPopoverButton(title, body, extraClass = "", isHtml = false) {
   if (!title && !body) return "";
-  const icon = first(state.config?.icons?.fieldInfo, state.config?.icons?.formulaInfo, "i");
-  const iconColor = first(state.config?.general?.iconColorFieldInfo, state.config?.general?.iconColorFormulaInfo, "#4f6f8f");
-  const iconSize = Number(first(state.config?.general?.iconSizeFieldInfo, state.config?.general?.iconSizeFormulaInfo, 13)) || 13;
+  const { icon, color: iconColor, size: iconSize } = fieldInfoIconConfig();
   const className = ["info-popover-trigger", extraClass].filter(Boolean).join(" ");
   const bodyAttr = isHtml ? `data-info-body-html="${body || ""}"` : `data-info-body="${esc(body || "")}"`;
   return `<button type="button" class="${className}" style="--info-icon-color:${esc(iconColor)};--info-icon-size:${esc(iconSize)}px;" aria-label="${esc(title || "Información")}" aria-expanded="false" aria-haspopup="dialog" data-info-title="${esc(title || "Información")}" ${bodyAttr}>${renderIconMarkup(icon, title || "Información", "info-popover-icon")}</button>`;
@@ -4133,7 +4244,9 @@ function buildCalculationValidationState(result = totals()) {
     addWhen("troquel", n(form.header?.coreDiameter, 0) <= 0, "Falta diámetro de core.");
     addWhen("troquel", n(form.header?.coreDiameter, 0) > 10, "Revisa el diámetro de core.");
     addWhen("troquel", currentQuantity(form) <= 0, "Falta cantidad a producir.");
-    addWhen("troquel", n(form.header?.quantityTypes, 0) <= 0, "Falta cantidad de tipos.");
+    addWhen("troquel", n(form.header?.quantityTypes, 0) <= 0, "Falta cantidad de tipos o motivos.");
+    const typesQuantityTotal = (Array.isArray(form.types) ? form.types : []).reduce((sum, type) => sum + Math.max(0, n(type?.quantity, 0)), 0);
+    addWhen("troquel", Math.abs(typesQuantityTotal - currentQuantity(form)) > 0.5, "La suma de las cantidades de los tipos o motivos debe ser igual a la cantidad total de la orden.");
     const dieMode = normalizeDieMode(form.troquel?.dieMode);
     addWhen("troquel", dieMode !== "external" && !String(form.troquel?.dieCode || "").trim(), "Falta troquel.");
     if (dieMode === "external") {
@@ -4691,7 +4804,7 @@ function buildForm() {
       applicationEnvironment: first(savedUi?.header?.applicationEnvironment, raw["AMBIENTE APLICACION"], context?.applicationEnvironment, raw["REQ | Superficie"], context?.applicationType, ""),
       surfaceType: first(savedUi?.header?.surfaceType, raw["TIPO SUPERFICIE"], context?.surfaceType, raw["REQ | Tipo Superficie"], material?.surfaceType, material?.tipo_superficie, ""),
       quantityTypes: Math.max(1, n(first(savedUi?.header?.quantityTypes, context?.quantityTypes, raw["CANTIDAD TIPOS"], quoteDefaults.quantityTypes), quoteDefaults.quantityTypes)),
-      quantityChanges: n(context?.quantityChanges, 0),
+      quantityChanges: Math.max(0, n(first(savedUi?.header?.quantityChanges, context?.quantityChangesAdditional, context?.quantityChanges), 0)),
       pantoneCount: n(context?.pantoneCount, 0),
       useCmyk: savedUi?.header?.useCmyk ?? (context?.cmyk === true || norm(raw["CMYK"]) === "si" || quoteDefaults.useCmyk),
       useWhiteInk: norm(raw["TINTA BLANCA | CHECK"]) === "si",
@@ -4703,6 +4816,23 @@ function buildForm() {
       lineCode: context?.lineCode || "",
       lineStatus: context?.lineStatus || "",
       processType: context?.processType || ""
+    },
+    types: Array.isArray(savedUi?.types) && savedUi.types.length
+      ? savedUi.types.map((type) => ({
+        name: String(type?.name || "").trim(),
+        quantity: Math.max(0, n(type?.quantity, 0)),
+        artwork: ["none", "adapt", "full"].includes(type?.artwork) ? type.artwork : "none",
+        colors: Math.max(0, n(type?.colors, 0)),
+        plates: Math.max(0, n(type?.plates, 0))
+      }))
+      : buildTypesList(Math.max(1, n(first(savedUi?.header?.quantityTypes, context?.quantityTypes, raw["CANTIDAD TIPOS"], quoteDefaults.quantityTypes), quoteDefaults.quantityTypes)), quantityProducts, null),
+    changeCost: {
+      timeMinutes: Math.max(0, n(first(savedUi?.changeCost?.timeMinutes, 0), 0)),
+      machineHourCost: Math.max(0, n(first(savedUi?.changeCost?.machineHourCost, 0), 0)),
+      laborHourCost: Math.max(0, n(first(savedUi?.changeCost?.laborHourCost, 0), 0)),
+      operators: Math.max(1, n(first(savedUi?.changeCost?.operators, 1), 1)),
+      wasteCost: Math.max(0, n(first(savedUi?.changeCost?.wasteCost, 0), 0)),
+      additionalPrepCost: Math.max(0, n(first(savedUi?.changeCost?.additionalPrepCost, 0), 0))
     },
     commercial: {
       overheadPct: n(first(savedUi?.commercial?.overheadPct, context?.contingencyPercent), 0),
@@ -5121,10 +5251,10 @@ function calcSustrato() {
 
 function calcDesign() {
   const artCount = Math.max(1, n(state.form.header.quantityTypes, n(state.form.design.artCount, 1)));
-  const changeCount = n(state.form.header.quantityChanges, 0);
+  const changeCount = totalChangesCount(state.form.header.quantityTypes, state.form.header.quantityChanges);
   const time = r((artCount * n(state.form.design.timePerArt, 0)) + (changeCount * n(state.form.design.timePerArt, 0) * n(state.form.design.changeFactor, 0)));
   const pricing = applyProcessMinimum("diseno", r(time * n(state.form.design.hourCost, 0)));
-  return { time, ...pricing, formulaText: "Tiempo Total = (Artes x Tiempo Base) + (Cambios x Tiempo Base x Factor de Cambios). Costo = Tiempo Total x Costo por Hora.", explanation: "Diseño toma la cantidad de tipos del encabezado y suma el tiempo adicional por cambios para dejar visible el costo creativo real del trabajo." };
+  return { time, ...pricing, formulaText: "Tiempo Total = (Artes x Tiempo Base) + (Cambios Totales x Tiempo Base x Factor de Cambios). Costo = Tiempo Total x Costo por Hora.", explanation: "Diseño toma la cantidad de tipos o motivos del encabezado y suma el tiempo adicional por los cambios totales de producción (cambios por tipos más cambios adicionales) para dejar visible el costo creativo real del trabajo." };
 }
 
 function calcPrepress() {
@@ -5708,6 +5838,53 @@ function calcAdditional() {
   return { rows, ...pricing };
 }
 
+function calcCambios(form = state.form) {
+  const changeCost = costPerChangeValue(form);
+  const byTypes = r(changesByTypesCount(form?.header?.quantityTypes) * changeCost);
+  const additional = r(Math.max(0, n(form?.header?.quantityChanges, 0)) * changeCost);
+  return { costPerChange: changeCost, byTypes, additional, subtotal: r(byTypes + additional) };
+}
+
+function calcTypes(result = totals()) {
+  const form = state.form || {};
+  const types = ensureTypesList(form);
+  const typeCount = Math.max(1, types.length);
+  const totalQuantity = currentQuantity(form);
+  const changeCost = costPerChangeValue(form);
+  const fixedShare = (subtotal) => r(n(subtotal, 0) / typeCount);
+  const printSubtotal = n(result.print?.subtotal, 0);
+  const rows = types.map((type, index) => {
+    const quantity = Math.max(0, n(type.quantity, 0));
+    const share = totalQuantity > 0 ? quantity / totalQuantity : (1 / typeCount);
+    const items = {
+      diseno: fixedShare(result.design?.subtotal),
+      preprensa: fixedShare(result.prepress?.subtotal),
+      planchas: fixedShare(result.plates?.subtotal),
+      troquel: fixedShare(result.troquel?.subtotal),
+      preparacion: r(n(result.print?.machineSubtotal, 0) * share),
+      impresion: r(Math.max(0, printSubtotal - n(result.print?.machineSubtotal, 0) - n(result.print?.inkSubtotal, 0)) * share),
+      tinta: r(n(result.print?.inkSubtotal, 0) * share),
+      sustrato: r(n(result.sustrato?.subtotal, 0) * share),
+      acabados: r(n(result.finishes?.subtotal, 0) * share),
+      merma: r(n(result.macula?.subtotal, 0) * share),
+      cambio: index === 0 ? 0 : changeCost
+    };
+    const total = r(Object.values(items).reduce((sum, value) => sum + n(value, 0), 0));
+    return { ...type, quantity, share, items, total, unit: quantity > 0 ? r(total / quantity, 6) : 0 };
+  });
+  const costoTipos = r(rows.reduce((sum, row) => sum + row.total, 0));
+  const cambios = calcCambios(form);
+  return {
+    rows,
+    typeCount,
+    costoTipos,
+    costPerChange: changeCost,
+    byTypesCost: cambios.byTypes,
+    additionalCost: cambios.additional,
+    totalChangesCost: cambios.subtotal
+  };
+}
+
 function totals() {
   const macula = calcMacula();
   const troquel = calcTroquel();
@@ -5719,6 +5896,7 @@ function totals() {
   const finishes = calcFinishes();
   const packaging = calcPackaging();
   const additional = calcAdditional();
+  const cambios = calcCambios();
   const frontBackElements = isFrontBackGroupContext() ? frontBackElementSubtotalSummary() : { items: [], subtotal: 0 };
   const additionalHasRows = Array.isArray(state.form.additional)
     && state.form.additional.some((item) => n(item.cost, 0) > 0 || String(item.description || item.comments || item.attachmentName || "").trim());
@@ -5745,6 +5923,7 @@ function totals() {
     + finishes.subtotal
     + packaging.subtotal
     + additional.subtotal
+    + cambios.subtotal
     + frontBackElements.subtotal
   );
   const commercial = state.form.commercial;
@@ -5756,7 +5935,7 @@ function totals() {
   const tax = r(afterDiscount * (n(commercial.taxPct, 0) / 100));
   const total = r(afterDiscount + tax);
   const quantity = currentQuantity(state.form);
-  return { macula, troquel, sustrato, design, prepress, plates, print, finishes, packaging, additional, frontBackElements, industrial, overhead, margin, discount, discountPct, taxPct: n(commercial.taxPct, 0), afterDiscount, tax, total, unit: quantity > 0 ? r(total / quantity, 6) : 0 };
+  return { macula, troquel, sustrato, design, prepress, plates, print, finishes, packaging, additional, cambios, frontBackElements, industrial, overhead, margin, discount, discountPct, taxPct: n(commercial.taxPct, 0), afterDiscount, tax, total, unit: quantity > 0 ? r(total / quantity, 6) : 0 };
 }
 
 function buildSavePayload() {
@@ -5779,6 +5958,17 @@ function buildSavePayload() {
     quantityProducts: currentQuantity(state.form),
     quantityTypes: n(state.form.header.quantityTypes, 0),
     quantityChanges: n(state.form.header.quantityChanges, 0),
+    quantityChangesAdditional: n(state.form.header.quantityChanges, 0),
+    changesByTypes: n(state.form.header.changesByTypes, changesByTypesCount(state.form.header.quantityTypes)),
+    totalChanges: n(state.form.header.totalChanges, totalChangesCount(state.form.header.quantityTypes, state.form.header.quantityChanges)),
+    types: (state.form.types || []).map((type) => ({
+      name: String(type?.name || "").trim(),
+      quantity: Math.max(0, n(type?.quantity, 0)),
+      artwork: ["none", "adapt", "full"].includes(type?.artwork) ? type.artwork : "none",
+      colors: Math.max(0, n(type?.colors, 0)),
+      plates: Math.max(0, n(type?.plates, 0))
+    })),
+    changeCost: changeCostConfig(),
     widthInches: state.form.header.labelWidthIn,
     lengthInches: state.form.header.labelHeightIn,
     coreWidth: state.form.header.rollWidthIn,
@@ -5914,6 +6104,114 @@ function hideCalcInlinePanels() {
   if (els.surfaceTypePanel) els.surfaceTypePanel.hidden = true;
 }
 
+const ARTWORK_OPTIONS = [
+  ["none", "Sin Trabajo de Arte"],
+  ["adapt", "Adaptación"],
+  ["full", "Diseño Completo"]
+];
+
+function renderTypesBreakdown() {
+  if (!els.typesDetailList) return;
+  const breakdown = calcTypes();
+  els.typesDetailList.innerHTML = breakdown.rows.map((row, index) => {
+    const isFirst = index === 0;
+    const fields = [
+      `<label><span>Nombre del Motivo</span><input type="text" data-type-index="${index}" data-type-field="name" value="${esc(row.name)}" maxlength="80"></label>`,
+      `<label><span>Cantidad a Producir</span><input type="number" min="0" step="1" data-type-index="${index}" data-type-field="quantity" value="${row.quantity}"></label>`,
+      `<label><span>Colores</span><input type="number" min="0" step="1" data-type-index="${index}" data-type-field="colors" value="${row.colors}"></label>`,
+      `<label><span>Planchas</span><input type="number" min="0" step="1" data-type-index="${index}" data-type-field="plates" value="${row.plates}"></label>`
+    ];
+    const artwork = ARTWORK_OPTIONS.map(([value, label]) => `<label><input type="radio" name="typesArtwork-${index}" value="${value}" data-type-index="${index}" data-type-field="artwork"${row.artwork === value ? " checked" : ""}> ${esc(label)}</label>`).join("");
+    const breakdownRows = [
+      ["Diseño", row.items.diseno],
+      ["Preprensa", row.items.preprensa],
+      ["Planchas", row.items.planchas],
+      ["Troquel", row.items.troquel],
+      ["Preparación", row.items.preparacion],
+      ["Impresión", row.items.impresion],
+      ["Tinta", row.items.tinta],
+      ["Sustrato", row.items.sustrato],
+      ["Acabados", row.items.acabados],
+      ["Merma", row.items.merma],
+      ["Costo de Cambio", row.items.cambio],
+      ["Costo Unitario", row.unit],
+      ["Costo Total", row.total]
+    ].map(([label, value]) => {
+      const isTotalLine = label === "Costo Total";
+      const isChangeLine = label === "Costo de Cambio" && !isFirst;
+      const formatted = label === "Costo Unitario" ? (value > 0 ? `${money(value)}/u` : "—") : money(value);
+      return `<div class="types-detail-breakdown-row${isChangeLine ? " is-change-line" : ""}${isTotalLine ? " is-total-line" : ""}"><span>${esc(label)}</span><strong>${formatted}</strong></div>`;
+    }).join("");
+    const badge = isFirst ? "Incluye Preparación Inicial" : "Costo de Cambio Incluido";
+    return `<details class="types-detail-item${isFirst ? " is-first" : " is-additional"}"${isFirst ? " open" : ""}>
+      <summary>
+        <span class="types-detail-item-name">${esc(row.name || `Motivo ${index + 1}`)}</span>
+        <span class="types-detail-item-badge">${esc(badge)}</span>
+        <span class="types-detail-item-total">${money(row.total)}</span>
+      </summary>
+      <div class="types-detail-body">
+        <div class="types-detail-fields">${fields.join("")}</div>
+        <div class="types-artwork-options">${artwork}</div>
+        <div class="types-detail-breakdown">${breakdownRows}</div>
+      </div>
+    </details>`;
+  }).join("");
+}
+
+function renderChangesCost() {
+  if (!els.changeTimeMinutes) return;
+  const cfg = changeCostConfig();
+  [["timeMinutes", els.changeTimeMinutes], ["machineHourCost", els.changeMachineHourCost], ["laborHourCost", els.changeLaborHourCost], ["operators", els.changeOperators], ["wasteCost", els.changeWasteCost], ["additionalPrepCost", els.changeAdditionalPrepCost]].forEach(([key, element]) => {
+    if (element && document.activeElement !== element) element.value = cfg[key];
+  });
+  const cambios = calcCambios();
+  if (els.changeCostPerChangeDisplay) els.changeCostPerChangeDisplay.textContent = money(cambios.costPerChange);
+  if (els.changesByTypesCostDisplay) els.changesByTypesCostDisplay.textContent = money(cambios.byTypes);
+  if (els.changesAdditionalCostDisplay) els.changesAdditionalCostDisplay.textContent = money(cambios.additional);
+  if (els.changesTotalCostDisplay) els.changesTotalCostDisplay.textContent = money(cambios.subtotal);
+}
+
+function renderTypesQuantitiesWarning() {
+  if (!els.typesQuantitiesWarning) return;
+  const form = state.form || {};
+  const total = currentQuantity(form);
+  const sum = typesQuantitySum(form);
+  const mismatch = Math.abs(sum - total) > 0.5;
+  els.typesQuantitiesWarning.hidden = !mismatch;
+  els.typesQuantitiesWarning.textContent = mismatch
+    ? `La suma de las cantidades de los tipos o motivos (${formatInteger(sum)}) debe ser igual a la cantidad total de la orden (${formatInteger(total)}).`
+    : "";
+}
+
+function renderTypesSummary() {
+  if (!els.typesSummaryRows) return;
+  const result = totals();
+  const breakdown = calcTypes(result);
+  const rowMarkup = (label, value, extra = "") => `<div class="types-summary-row${extra ? ` ${extra}` : ""}"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`;
+  const countRows = [
+    ["Tipos o Motivos", String(breakdown.typeCount)],
+    ["Cambios por Tipos", String(changesByTypesCount(state.form.header.quantityTypes))],
+    ["Cambios Adicionales", String(Math.max(0, n(state.form.header.quantityChanges, 0)))],
+    ["Cambios Totales", String(totalChangesCount(state.form.header.quantityTypes, state.form.header.quantityChanges))]
+  ].map(([label, value]) => rowMarkup(label, value)).join("");
+  const costRows = [
+    ["Costo de Tipos", money(breakdown.costoTipos)],
+    ["Costo de Cambios por Tipos", money(breakdown.byTypesCost)],
+    ["Costo de Cambios Adicionales", money(breakdown.additionalCost)],
+    ["Costo Total de Cambios", money(breakdown.totalChangesCost)],
+    ["Costo Total de la Orden", money(result.total), "is-grand-total"]
+  ].map(([label, value, extra]) => rowMarkup(label, value, extra)).join("");
+  els.typesSummaryRows.innerHTML = countRows + costRows;
+}
+
+function renderTypesChanges() {
+  if (!state.form?.header) return;
+  renderTypesBreakdown();
+  renderChangesCost();
+  renderTypesQuantitiesWarning();
+  renderTypesSummary();
+}
+
 function renderHeader() {
   syncFrontBackCalculationShell();
   fillSelect(els.productType, resolveProductTypes().map((item) => ({ value: item, label: item })), state.form.header.productType);
@@ -5921,6 +6219,8 @@ function renderHeader() {
   fillSelect(els.outputType, outputTypesCatalog().map((item) => ({ value: item.id || item.codigo, label: item.name || item.nombre || item.id || item.codigo })), state.form.header.outputType);
   fillSelect(els.coreDiameter, coreDiameterSelectOptions(), state.form.header.coreDiameter);
   [["customerCode", els.customerCode], ["customerName", els.customerName], ["jobName", els.jobName], ["salespersonName", els.salespersonName], ["labelWidthIn", els.labelWidthIn], ["labelHeightIn", els.labelHeightIn], ["rollWidthIn", els.rollWidthIn], ["coreDiameter", els.coreDiameter], ["labelsPerRoll", els.labelsPerRoll], ["applicationType", els.applicationType], ["applicationEnvironment", els.applicationEnvironment], ["surfaceType", els.surfaceType], ["quantityTypes", els.quantityTypes], ["quantityChanges", els.quantityChanges], ["pantoneCount", els.pantoneCount]].forEach(([key, element]) => { element.value = state.form.header[key] ?? ""; });
+  syncTypesChangesFields();
+  renderTypesChanges();
   if (els.embeddedLabelWidth) els.embeddedLabelWidth.value = state.form.header.labelWidthIn ?? "";
   if (els.embeddedLabelHeight) els.embeddedLabelHeight.value = state.form.header.labelHeightIn ?? "";
   els.useCmyk.checked = Boolean(state.form.header.useCmyk);
@@ -6646,6 +6946,7 @@ function detailCostRows(baseResult = {}) {
     ...externalFinishes,
     optionalRow("empaque", { key: "empaque", label: "Empaque", jumpKey: "empaque", value: (result) => result.packaging?.subtotal }),
     hasActiveProcess("adicionales") && hasAdditionalRows ? { key: "adicionales", label: "Adicionales", jumpKey: "adicionales", value: (result) => result.additional?.subtotal } : null,
+    { key: "cambios", label: "Cambios de Producción", value: (result) => result.cambios?.subtotal },
     ...frontBackElementRows,
     ...frontBackElementTotalRow,
     { key: "subtotal", label: "Subtotal", value: (result) => result.industrial, total: true },
@@ -6964,7 +7265,16 @@ function renderSidebar(result) {
   const discountRows = result.discount > 0
     ? [["Descuento (" + num(result.discountPct, 2) + "%)", "− " + money(result.discount)], ["Precio con Descuento", money(result.afterDiscount)]]
     : [];
-  els.summaryRows.innerHTML = [
+  const typesChangesSection = [
+    `<div class="summary-row summary-row-section"><span>Resumen de Tipos y Cambios</span><span></span></div>`,
+    ["Tipos o Motivos", String(Math.max(1, n(state.form.header.quantityTypes, 1)))],
+    ["Cambios por Tipos", String(n(state.form.header.changesByTypes, changesByTypesCount(state.form.header.quantityTypes)))],
+    ["Cambios Adicionales", String(Math.max(0, n(state.form.header.quantityChanges, 0)))],
+    ["Cambios Totales", String(n(state.form.header.totalChanges, totalChangesCount(state.form.header.quantityTypes, state.form.header.quantityChanges)))]
+  ].map((entry) => Array.isArray(entry)
+    ? `<div class="summary-row"><span>${esc(entry[0])}</span><span class="summary-row-value">${esc(entry[1])}</span></div>`
+    : entry).join("");
+  els.summaryRows.innerHTML = typesChangesSection + [
     ["Sustrato", money(result.sustrato.subtotal)],
     ["Diseño", money(result.design.subtotal)],
     ["Preprensa", money(result.prepress.subtotal)],
@@ -6973,6 +7283,7 @@ function renderSidebar(result) {
     ["Acabados", money(result.finishes.subtotal)],
     ["Empaque", money(result.packaging.subtotal)],
     ["Adicionales", money(result.additional.subtotal)],
+    ["Cambios de Producción", money(result.cambios.subtotal)],
     ["Costo Industrial Total", money(result.industrial)],
     ["Total con Ajustes", money(result.margin)],
     ...discountRows,
@@ -7694,7 +8005,7 @@ function renderDieInventoryPanel(troquel) {
   const addTroquelIcon = iconPresentation("quantityAdd", "+", "#738196", 18);
   const addIconHtml = renderIconMarkup(addTroquelIcon.value, "Buscar troquel en el catálogo", "troquel-add-icon");
   const rightCol = hasImage ? `<div class="troquel-image-col"><img src="${esc(imageUrl)}" alt="${dieCode}" class="troquel-selected-image"></div>` : "";
-  return `<div class="troquel-layout"><div class="troquel-layout-left"><div class="troquel-header-row"><div class="troquel-select-row"><span>Troquel</span><span class="troquel-name-display">${dieCode ? `${dieCode}${hasActualDesc ? ` - ${esc(actualDesc)}` : ""}` : "<span class=\"troquel-placeholder\">Ningún troquel seleccionado</span>"}</span></div><div class="troquel-add-col"><button type="button" class="troquel-add-btn" data-action="open-troquel-catalog" title="Buscar troquel en el catálogo" style="--troquel-add-icon-color:${esc(addTroquelIcon.color)};--troquel-add-icon-hover:${esc(addTroquelIcon.hover)};--troquel-add-icon-size:${addTroquelIcon.size}px;">${addIconHtml}</button></div></div><div class="troquel-info-row${infoVisible}"><div class="troquel-info-data"><div class="readonly-grid compact-top troquel-metrics-grid">${metric("Dimensiones Producto", prodSummary || "-")}${metric("Dimensiones Etiqueta", labelSummary || "-")}${metric("Ancho Troquel", dieWidth > 0 ? `${num(dieWidth, 3)} in` : "-")}${metric("Largo Troquel", dieLength > 0 ? `${num(dieLength, 3)} in` : "-")}${metric("Área Etiqueta", labelArea > 0 ? `${num(labelArea, 4)} in²` : "-")}${metric("Desarrollo", development > 0 ? `${num(development, 3)} in` : "-")}</div></div></div>${dieDimensionWarningMarkup()}${formula("Base del Troquel", troquel.formulaText, troquel.explanation, {
+  return `<div class="troquel-layout"><div class="troquel-layout-left"><div class="troquel-header-row"><div class="troquel-select-row">${metric("Troquel", dieCode ? `${dieCode}${hasActualDesc ? ` - ${esc(actualDesc)}` : ""}` : `<span class="troquel-placeholder">Ningún troquel seleccionado</span>`)}</div><div class="troquel-add-col"><button type="button" class="troquel-add-btn" data-action="open-troquel-catalog" title="Buscar troquel en el catálogo" style="--troquel-add-icon-color:${esc(addTroquelIcon.color)};--troquel-add-icon-hover:${esc(addTroquelIcon.hover)};--troquel-add-icon-size:${addTroquelIcon.size}px;">${addIconHtml}</button></div></div><div class="troquel-info-row${infoVisible}"><div class="troquel-info-data"><div class="readonly-grid compact-top troquel-metrics-grid">${metric("Dimensiones Producto", prodSummary || "-")}${metric("Dimensiones Etiqueta", labelSummary || "-")}${metric("Ancho Troquel", dieWidth > 0 ? `${num(dieWidth, 3)} in` : "-")}${metric("Largo Troquel", dieLength > 0 ? `${num(dieLength, 3)} in` : "-")}${metric("Área Etiqueta", labelArea > 0 ? `${num(labelArea, 4)} in²` : "-")}${metric("Desarrollo", development > 0 ? `${num(development, 3)} in` : "-")}</div></div></div>${dieDimensionWarningMarkup()}${formula("Base del Troquel", troquel.formulaText, troquel.explanation, {
     exampleLines: [
       `Etiquetas por repetición: ${formulaValue(state.form.troquel.rows || 0, 0)} x ${formulaValue(state.form.troquel.repeats || 0, 0)} = ${formulaValue(troquel.labelsPerRepeat || 0, 0)}`,
       `Desarrollo total: ${formulaValue(state.form.troquel.lengthIn || 0, 2)} x ${formulaValue(state.form.troquel.repeats || 0, 0)} = ${formulaValue(troquel.development || 0, 2)} in`,
@@ -8404,6 +8715,7 @@ function renderProcesses() {
   syncDerivedHeaderAndPackaging(state.form);
   syncSubstratePricingWithMaterial(state.form);
   const result = totals();
+  renderTypesChanges();
   const macula = result.macula;
   const troquel = result.troquel;
   const sustrato = result.sustrato;
@@ -8452,7 +8764,7 @@ function renderProcesses() {
     })}`),
     diseno: () => card("diseno", nextTitle("Diseño"), "", design.subtotal, `<div class="editable-grid design-cost-grid"><label><span>Artes</span>${displayInput("design", "artCount", state.form.design.artCount, { integer: true, step: "1" })}</label><label><span>Tiempo <span class="field-unit">h</span></span>${displayInput("design", "timePerArt", state.form.design.timePerArt, { suffix: "h", maximumFractionDigits: 2 })}</label><label><span>Cambios</span>${displayInput("design", "changeFactor", state.form.design.changeFactor, { maximumFractionDigits: 2 })}</label><label><span>Costo/h <span class="field-unit">$/h</span></span>${displayInput("design", "hourCost", state.form.design.hourCost, { prefix: "$", maximumFractionDigits: 2 })}</label><label><span>Tiempo Total</span>${readonlyDisplay(`${num(design.time, 2)} h`)}</label><label><span>Subtotal</span>${readonlyDisplay(money(design.subtotal))}</label></div>${formula("Cálculo de Diseño", design.formulaText, design.explanation, {
       exampleLines: [
-        `Tiempo total: (${formulaValue(state.form.header.quantityTypes || state.form.design.artCount || 0, 0)} x ${formulaValue(state.form.design.timePerArt || 0, 2)}) + (${formulaValue(state.form.header.quantityChanges || 0, 0)} x ${formulaValue(state.form.design.timePerArt || 0, 2)} x ${formulaValue(state.form.design.changeFactor || 0, 2)}) = ${formulaValue(design.time || 0, 2)} h`,
+        `Tiempo total: (${formulaValue(state.form.header.quantityTypes || state.form.design.artCount || 0, 0)} x ${formulaValue(state.form.design.timePerArt || 0, 2)}) + (${formulaValue(totalChangesCount(state.form.header.quantityTypes, state.form.header.quantityChanges), 0)} x ${formulaValue(state.form.design.timePerArt || 0, 2)} x ${formulaValue(state.form.design.changeFactor || 0, 2)}) = ${formulaValue(design.time || 0, 2)} h`,
         `Costo Diseño: ${formulaValue(design.time || 0, 2)} x ${formulaValue(state.form.design.hourCost || 0, 2)} = ${formulaValue(design.rawSubtotal ?? design.subtotal ?? 0, 2)}`,
         ...minimumCostExampleLines(design, "Diseño")
       ],
@@ -8921,11 +9233,19 @@ function bindHeader() {
     const updateState = () => {
       state.form.header[key] = type === "number" ? n(element.value, 0) : element.value;
       syncDerivedHeaderAndPackaging(state.form);
+      if (key === "quantityTypes") {
+        const target = Math.max(1, n(state.form.header.quantityTypes, 1));
+        if (target !== (state.form.types || []).length) {
+          state.form.types = buildTypesList(target, currentQuantity(state.form), state.form.types);
+        }
+      }
+      if (key === "quantityTypes" || key === "quantityChanges") syncTypesChangesFields();
       if (key === "customerCode") syncCustomerCodeWidth();
       if (key === "outputType") outputPreview();
       if (key === "customerName" && els.customerNameDisplay) els.customerNameDisplay.textContent = state.form.header.customerName || "";
       if (key === "salespersonName" && els.salespersonDisplay) els.salespersonDisplay.textContent = state.form.header.salespersonName || "";
       if (key === "labelWidthIn" || key === "labelHeightIn" || key === "rollWidthIn" || key === "coreDiameter" || key === "labelsPerRoll") syncHeaderUnitMasks();
+      renderTypesChanges();
       renderTechnicalCollapsedSummary();
       refreshCalculationValidation();
       scheduleSave();
@@ -8964,6 +9284,52 @@ function bindHeader() {
   [["overheadPct", els.overheadPct], ["marginPct", els.marginPct], ["taxPct", els.taxPct], ["discountPct", els.discountPct]].forEach(([key, element]) => {
     element.addEventListener("input", () => { state.form.commercial[key] = n(element.value, 0); scheduleSave(); });
     element.addEventListener("change", () => { state.form.commercial[key] = n(element.value, 0); renderProcesses(); scheduleSave(); });
+  });
+}
+
+function bindTypesDetail() {
+  if (!els.typesDetailList) return;
+  [["timeMinutes", els.changeTimeMinutes, "number"], ["machineHourCost", els.changeMachineHourCost, "number"], ["laborHourCost", els.changeLaborHourCost, "number"], ["operators", els.changeOperators, "operators"], ["wasteCost", els.changeWasteCost, "number"], ["additionalPrepCost", els.changeAdditionalPrepCost, "number"]].filter(([, element]) => element).forEach(([key, element, mode]) => {
+    const update = () => {
+      state.form.changeCost[key] = mode === "operators" ? Math.max(1, Math.ceil(n(element.value, 1))) : Math.max(0, n(element.value, 0));
+      element.value = state.form.changeCost[key];
+      renderChangesCost();
+      renderTypesQuantitiesWarning();
+      renderTypesSummary();
+      scheduleSave();
+    };
+    element.addEventListener("input", update);
+    element.addEventListener("change", () => { update(); renderProcesses(); });
+  });
+  const applyField = (element) => {
+    const index = Number(element.dataset.typeIndex);
+    const field = element.dataset.typeField;
+    const type = state.form.types[index];
+    if (!type) return;
+    if (field === "name") type.name = String(element.value || "").trim();
+    else if (field === "quantity") type.quantity = Math.max(0, n(element.value, 0));
+    else if (field === "colors") type.colors = Math.max(0, n(element.value, 0));
+    else if (field === "plates") type.plates = Math.max(0, n(element.value, 0));
+    else if (field === "artwork") type.artwork = element.value;
+  };
+  els.typesDetailList.addEventListener("input", (event) => {
+    const element = event.target.closest("[data-type-index][data-type-field]");
+    if (!element) return;
+    applyField(element);
+    syncDerivedHeaderAndPackaging(state.form);
+    renderTypesQuantitiesWarning();
+    renderTypesSummary();
+    renderChangesCost();
+    scheduleSave();
+  });
+  els.typesDetailList.addEventListener("change", (event) => {
+    const element = event.target.closest("[data-type-index][data-type-field]");
+    if (!element) return;
+    applyField(element);
+    syncDerivedHeaderAndPackaging(state.form);
+    renderTypesChanges();
+    refreshCalculationValidation();
+    scheduleSave();
   });
 }
 
@@ -9636,6 +10002,7 @@ async function init() {
       getJson("/api/admin-users", { headers: sessionHeaders() }).catch(() => [])
     ]);
     state.config = config;
+    refreshStaticFieldInfoIcons();
     state.context = context;
     state.costsConfig = costsConfig;
     state.sapConfig = sapConfig;
@@ -9674,6 +10041,7 @@ async function init() {
     }
     bindHeader();
     bindDetailsDemo();
+    bindTypesDetail();
     bindFavoriteDocument();
     bindTimelineLauncher();
     bindQuantityRepeater();
