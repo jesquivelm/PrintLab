@@ -471,6 +471,41 @@ function sessionHeaders() {
     return { 'x-erp-session': JSON.stringify(compactSession) };
 }
 
+const SALES_PIPELINE_STAGE_LABELS = {
+    pendiente: 'Pendientes',
+    finalizadaSinEnviar: 'Finalizadas sin enviar',
+    enviada: 'Enviadas · esperando respuesta',
+    aceptada: 'Aceptadas',
+    rechazada: 'Rechazadas',
+    expirada: 'Expiradas'
+};
+
+async function loadSalesPipeline() {
+    const section = document.getElementById('dashboardSalesPipeline');
+    const countsMount = document.getElementById('dashboardSalesPipelineCounts');
+    const listMount = document.getElementById('dashboardSalesPipelineList');
+    if (!section || !countsMount || !listMount) return;
+    try {
+        const response = await fetch('/api/vendedores/mi-pipeline', { headers: sessionHeaders() });
+        const payload = await response.json();
+        if (!response.ok || !payload.isVendedor) {
+            section.hidden = true;
+            return;
+        }
+        section.hidden = false;
+        countsMount.innerHTML = Object.entries(SALES_PIPELINE_STAGE_LABELS).map(([key, label]) => {
+            const value = Number(payload.counts?.[key] || 0);
+            return `<div class="dashboard-sales-pipeline-tile"><span class="dashboard-sales-pipeline-tile-value">${value}</span><span class="dashboard-sales-pipeline-tile-label">${label}</span></div>`;
+        }).join('');
+        const pendientes = Array.isArray(payload.pendientes) ? payload.pendientes : [];
+        listMount.innerHTML = pendientes.length
+            ? pendientes.map((item) => `<a class="dashboard-sales-pipeline-row" href="/cotizaciones?codigo=${encodeURIComponent(item.quoteCode)}" data-route="/cotizaciones?codigo=${encodeURIComponent(item.quoteCode)}"><span>${item.quoteCode} · ${item.customerName || 'Sin cliente'}</span><span>${SALES_PIPELINE_STAGE_LABELS[item.stage] || item.stage}</span></a>`).join('')
+            : '<p class="dashboard-sales-pipeline-empty">No hay cotizaciones pendientes de acción.</p>';
+    } catch (error) {
+        section.hidden = true;
+    }
+}
+
 function getTabFamilyMeta(route) {
     if (!route) return TAB_FAMILY_META.home;
     const pathname = new URL(route, window.location.origin).pathname.toLowerCase();
@@ -3027,5 +3062,6 @@ applyDashboardConfig().catch(console.error);
 renderTabs();
 renderFavoriteDocuments();
 renderBdfg();
+loadSalesPipeline();
 activateTab(HOME_TAB_ID);
 window.addEventListener('resize', renderTabs);
