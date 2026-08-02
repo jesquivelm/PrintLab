@@ -87,7 +87,6 @@ const PROCESS_CONFIG_FALLBACK = PROCESS_MENU.map((item) => ({
 }));
 const PROCESS_LAUNCHER_STORAGE_KEY = "erp-flexo-process-launcher-position";
 const FAVORITE_DOCUMENTS_STORAGE_KEY = "erp-favorite-documents";
-const QUOTE_TRACKING_STORAGE_KEY = "erp-flexo-quote-tracking";
 
 let printStageCounter = 0;
 
@@ -403,19 +402,6 @@ function quoteTrackingStorageId() {
   return quoteCode || lineCode ? `${quoteCode || "cotizacion"}::${lineCode || "linea"}` : "sin-base";
 }
 
-function readQuoteTrackingStore() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(QUOTE_TRACKING_STORAGE_KEY) || "{}");
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch (error) {
-    return {};
-  }
-}
-
-function writeQuoteTrackingStore(items) {
-  localStorage.setItem(QUOTE_TRACKING_STORAGE_KEY, JSON.stringify(items || {}));
-}
-
 function currentTrackingUser() {
   const session = readUserSession();
   return first(session?.name, session?.fullName, session?.username, session?.user, state.config?.session?.currentUser, state.config?.general?.currentUser, state.form?.header?.salespersonName, "Usuario");
@@ -522,58 +508,25 @@ function quoteTrackingDefaults() {
   ];
 }
 
-function loadQuoteTrackingMilestones() {
-  const store = readQuoteTrackingStore();
-  const id = quoteTrackingStorageId();
-  const storedState = store[id] || {};
-  state.quoteTracking.closure = storedState.closure || state.context?.calculo?.raw_data?.Cierre_Cotizacion || state.form?.quoteTrackingClosure || null;
-  const saved = Array.isArray(storedState.milestones) ? storedState.milestones : [];
+async function loadQuoteTrackingMilestones() {
+  const { quoteCode, lineCode } = currentQuoteLineIdentity();
   const defaults = quoteTrackingDefaults();
-  const milestones = defaults.map((item) => {
-    const stored = saved.find((entry) => entry?.key === item.key);
-    return stored ? { ...item, ...stored, label: item.label, icon: item.icon, hint: item.hint, formOpen: false } : item;
+  if (!quoteCode || !lineCode) return defaults;
+  let remote;
+  try {
+    remote = await getJson(`/api/cotizaciones/${encodeURIComponent(quoteCode)}/lineas/${encodeURIComponent(lineCode)}/seguimiento`, { headers: sessionHeaders() });
+  } catch (error) {
+    return defaults;
+  }
+  state.quoteTracking.closure = remote.closure
+    ? { ...remote.closure, outcome: remote.closure.outcome === "rejected" ? "lost" : remote.closure.outcome }
+    : null;
+  const remoteByKey = new Map((remote.milestones || []).map((item) => [item.key, item]));
+  return defaults.map((item) => {
+    const remoteItem = remoteByKey.get(item.key);
+    if (!remoteItem) return item;
+    return { ...item, done: remoteItem.done, user: remoteItem.user || item.user, date: remoteItem.date || item.date, cr: remoteItem.cr };
   });
-  const creation = milestones.find((item) => item.key === "creacion");
-  if (creation && !String(creation.date || "").trim()) creation.date = quoteCreationTrackingDate();
-  const request = milestones.find((item) => item.key === "solicitud");
-  if (request && request.done && !String(request.date || "").trim()) {
-    request.done = false;
-    request.user = null;
-    request.date = null;
-    request.cr = null;
-    request.formOpen = false;
-  }
-  if (isDuplicatedDraftTracking() && !storedState.duplicateTrackingResetAt) {
-    milestones.forEach((item, index) => {
-      if (index === 0) return;
-      item.done = false;
-      item.user = null;
-      item.date = null;
-      item.cr = null;
-      item.formOpen = false;
-    });
-    store[id] = {
-      ...storedState,
-      duplicateTrackingResetAt: Date.now(),
-      updatedAt: Date.now(),
-      milestones: milestones.map((item) => ({ ...item, formOpen: false }))
-    };
-    writeQuoteTrackingStore(store);
-  }
-  return milestones;
-}
-
-function saveQuoteTrackingMilestones() {
-  const id = quoteTrackingStorageId();
-  const store = readQuoteTrackingStore();
-  const storedState = store[id] || {};
-  store[id] = {
-    ...storedState,
-    updatedAt: Date.now(),
-    closure: state.quoteTracking.closure || null,
-    milestones: (state.quoteTracking.milestones || []).map((item) => ({ ...item, formOpen: false }))
-  };
-  writeQuoteTrackingStore(store);
 }
 
 function quoteTrackingDoneCount() {
@@ -683,10 +636,11 @@ async function completeQuoteTrackingMilestone(index) {
   if (item.key === "envio") {
     await closeProformaForCurrentQuote("tracking_sent");
   }
+  const { quoteCode, lineCode } = currentQuoteLineIdentity();
+  await postJson(`/api/cotizaciones/${encodeURIComponent(quoteCode)}/lineas/${encodeURIComponent(lineCode)}/seguimiento`, { milestoneKey: item.key, action: "complete" });
   markQuoteTrackingItemDone(item);
   state.quoteTracking.formOpenKey = "";
   syncLineStatusFromTracking();
-  saveQuoteTrackingMilestones();
   renderDetailsDemo(totals());
   scheduleSave();
   if (["finalizacion", "envio", "cierre"].includes(item.key)) {
@@ -694,22 +648,25 @@ async function completeQuoteTrackingMilestone(index) {
   }
 }
 
-function undoQuoteTrackingMilestone(index) {
+async function undoQuoteTrackingMilestone(index) {
+  const item = state.quoteTracking.milestones?.[index];
+  if (!item) return;
+  const { quoteCode, lineCode } = currentQuoteLineIdentity();
+  await postJson(`/api/cotizaciones/${encodeURIComponent(quoteCode)}/lineas/${encodeURIComponent(lineCode)}/seguimiento`, { milestoneKey: item.key, action: "undo" });
   const reverted = (state.quoteTracking.milestones || [])
     .slice(index)
-    .filter((item) => item?.done && !item.fixed)
-    .map((item) => ({ ...item }));
+    .filter((entry) => entry?.done && !entry.fixed)
+    .map((entry) => ({ ...entry }));
   for (let i = state.quoteTracking.milestones.length - 1; i >= index; i -= 1) {
-    const item = state.quoteTracking.milestones[i];
-    if (item?.fixed) continue;
-    item.done = false;
-    item.user = null;
-    item.date = null;
-    item.formOpen = false;
+    const entry = state.quoteTracking.milestones[i];
+    if (entry?.fixed) continue;
+    entry.done = false;
+    entry.user = null;
+    entry.date = null;
+    entry.formOpen = false;
   }
   state.quoteTracking.formOpenKey = "";
   syncLineStatusFromTracking();
-  saveQuoteTrackingMilestones();
   renderDetailsDemo(totals());
   scheduleSave();
   reverted.forEach((item) => {
@@ -723,13 +680,13 @@ function undoQuoteTrackingMilestone(index) {
 function openQuoteTrackingForm(index) {
   const item = state.quoteTracking.milestones?.[index];
   state.quoteTracking.formOpenKey = item?.key || "";
-  renderQuoteTracking();
+  renderQuoteTracking().catch(() => {});
   setTimeout(() => document.getElementById(`quoteTrackingText-${index}`)?.focus(), 50);
 }
 
 function closeQuoteTrackingForm() {
   state.quoteTracking.formOpenKey = "";
-  renderQuoteTracking();
+  renderQuoteTracking().catch(() => {});
 }
 
 async function submitQuoteTrackingChange(index) {
@@ -753,9 +710,10 @@ async function submitQuoteTrackingChange(index) {
       state.quoteTracking.milestones[i].date = null;
     }
   }
+  const { quoteCode: qc, lineCode: lc } = currentQuoteLineIdentity();
+  await postJson(`/api/cotizaciones/${encodeURIComponent(qc)}/lineas/${encodeURIComponent(lc)}/seguimiento`, { milestoneKey: item.key, action: "request-changes", comment: value });
   state.quoteTracking.formOpenKey = "";
   syncLineStatusFromTracking();
-  saveQuoteTrackingMilestones();
   const quoteCode = state.form?.header?.quoteCode || "";
   const lineCode = state.form?.header?.lineCode || "";
   if (quoteCode && lineCode) {
@@ -825,7 +783,15 @@ async function submitQuoteClosureReason(index) {
   state.quoteTracking.formOpenKey = "";
   state.quoteTracking.pendingOutcome = null;
   syncLineStatusFromTracking();
-  saveQuoteTrackingMilestones();
+  const { quoteCode: closeQuoteCode, lineCode: closeLineCode } = currentQuoteLineIdentity();
+  await postJson(`/api/cotizaciones/${encodeURIComponent(closeQuoteCode)}/lineas/${encodeURIComponent(closeLineCode)}/seguimiento`, {
+    milestoneKey: item.key,
+    action: "close",
+    outcome: outcome === "lost" ? "rejected" : outcome,
+    reason: state.quoteTracking.closure.reason,
+    comments: state.quoteTracking.closure.comments,
+    orderCode: state.quoteTracking.closure?.orderCode || ""
+  });
   await persistTrackingClosure();
   const eventType = outcome === 'accepted' ? 'cierre-aceptado' : outcome === 'expired' ? 'cierre-expirado' : 'cierre-descartado';
   const eventDetail = outcome === 'accepted' ? 'La cotización fue aceptada.'
@@ -991,7 +957,14 @@ async function createProductionOrderFromTracking(index) {
   markQuoteTrackingItemDone(item);
   state.quoteTracking.formOpenKey = "";
   syncLineStatusFromTracking();
-  saveQuoteTrackingMilestones();
+  await postJson(`/api/cotizaciones/${encodeURIComponent(quoteCode)}/lineas/${encodeURIComponent(lineCode)}/seguimiento`, {
+    milestoneKey: item.key,
+    action: "close",
+    outcome: "accepted",
+    reason: "Orden creada",
+    comments: "",
+    orderCode
+  });
   await persistCalculationForOrder();
   await notifyQuoteTrackingEvent(item, "orden-produccion", orderCode ? `Orden de producción ${orderCode} creada.` : "Orden de producción creada.");
   renderDetailsDemo(totals());
@@ -6726,12 +6699,12 @@ function detailEditableLabel(row = {}) {
   return `<button type="button" class="details-adjust-trigger" data-details-edit="${esc(row.commercialKey)}"><span>${esc(row.label)}</span><small>${num(pct, 2)}%</small></button>`;
 }
 
-function renderQuoteTracking() {
+async function renderQuoteTracking() {
   if (!els.quoteTrackingMount || !state.form) return;
   const trackingId = quoteTrackingStorageId();
   if (state.quoteTracking.id !== trackingId || !Array.isArray(state.quoteTracking.milestones) || !state.quoteTracking.milestones.length) {
     state.quoteTracking.id = trackingId;
-    state.quoteTracking.milestones = loadQuoteTrackingMilestones();
+    state.quoteTracking.milestones = await loadQuoteTrackingMilestones();
   }
   const milestones = state.quoteTracking.milestones;
   const doneCount = quoteTrackingDoneCount();
@@ -6818,9 +6791,9 @@ function renderQuoteTracking() {
   bindTrackingAvatarFallback(els.quoteTrackingPanelMount || els.quoteTrackingMount);
 }
 
-function renderDetailsDemo(baseResult = totals()) {
+async function renderDetailsDemo(baseResult = totals()) {
   if (!els.detailsCostTable) return;
-  renderQuoteTracking();
+  await renderQuoteTracking();
   const quantities = detailQuantityValues();
   const quoteCode = String(state.form.header.quoteCode || "").trim();
   const lineCode = String(state.form.header.lineCode || "").trim();
@@ -6892,7 +6865,7 @@ function injectProcessRemoveButtons() {
 }
 
 function renderSidebar(result) {
-  renderDetailsDemo(result);
+  renderDetailsDemo(result).catch(() => {});
   const material = findMaterial(state.form.substrate.materialId);
   const printProcess = findProcess(state.form.print.processId);
   const quantities = normalizeQuantities(state.form.header.quantities).map((item) => num(item.value, 0)).join(" │ ");
@@ -8778,7 +8751,7 @@ function bindDetailsDemo() {
     const toggle = event.target.closest("[data-tracking-toggle]");
     if (toggle) {
       state.quoteTracking.panelOpen = !state.quoteTracking.panelOpen;
-      renderQuoteTracking();
+      renderQuoteTracking().catch(() => {});
       return;
     }
     const proforma = event.target.closest("[data-tracking-proforma]");
@@ -8831,7 +8804,10 @@ function bindDetailsDemo() {
     }
     const undo = event.target.closest("[data-tracking-undo]");
     if (undo) {
-      undoQuoteTrackingMilestone(Number(undo.dataset.trackingUndo));
+      const done = setTrackingButtonLoading(undo, "Deshaciendo...");
+      undoQuoteTrackingMilestone(Number(undo.dataset.trackingUndo)).catch((error) => {
+        showCenterMessage(error.message || "No fue posible deshacer el hito.");
+      }).finally(done);
       return;
     }
     const openForm = event.target.closest("[data-tracking-open-form]");
@@ -9751,7 +9727,7 @@ document.addEventListener("click", (event) => {
   event.stopPropagation();
   const key = toggle.dataset.detailsToggle;
   state.detailsOpen[key] = !state.detailsOpen[key];
-  renderDetailsDemo(totals());
+  renderDetailsDemo(totals()).catch(() => {});
 }, true);
 
 document.addEventListener("pointerover", (event) => {
